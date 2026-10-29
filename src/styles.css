@@ -298,3 +298,62 @@
 .wa-scroll-list .scheduler-contact{width:100%;text-align:left}
 .wa-scroll-list .scheduler-contact-active{border-color:#5289dc;background:#edf5ff}
 @media(max-width:760px){.wa-sync-grid{grid-template-columns:1fr}.wa-pairing-box{align-items:flex-start;flex-direction:column}.wa-pairing-box img{max-width:100%;width:220px}}
+
+/* AXIMACH unified dark industrial command interface */
+:root{color-scheme:dark;--ink:#e7f0ff;--muted:#9db0c9;--muted2:#7288a5;--line:#263b52;background:#07111d;color:#e7f0ff}
+body{background:#07111d!important;color:#e7f0ff!important}
+.app-shell{background:radial-gradient(ellipse at 62% -10%,rgba(0,173,255,.09),transparent 42%),#07111d;color:#e7f0ff}
+.command-deck{background:rgba(7,17,29,.96)!important;border-bottom:1px solid #21364b!important;color:#edf5ff!important}
+.brand-copy strong{font-size:15px!important;letter-spacing:-.35px;color:#f4f8ff!important}
+.brand-copy small{color:#9db0c9!important}
+.deck-divider{background:#2b4057!important}
+.factory-switcher,.command-search,.deck-action,.deck-icon,.profile-trigger{background:#0e1d2c!important;border-color:#263b52!important;color:#dbe8fa!important}
+.command-search span,.profile-name{color:#dbe8fa!important}
+.status-ribbon{background:#091725!important;border-color:#20364b!important;color:#8ea5c0!important}
+.page-content{max-width:none!important;padding:16px clamp(12px,1.5vw,24px) 28px!important}
+.eyebrow{color:#83a0c0!important}
+.workspace-title-row h1,.workspace-title-row h1 span,.module-hero h1{color:#eff6ff!important}
+.workspace-title-row p,.module-hero p{color:#91a6c0!important}
+.workspace-topline .back-link{color:#a9c1de!important}
+.demo-pill{background:#10291f!important;border-color:#1d5947!important;color:#72e4b5!important}
+.surface-panel,.route-workspace,.module-hero,.module-workflow-strip,.module-records-panel,.module-connection-panel,.module-record-form-panel,.module-safety-note,.route-principles>div,.route-editor-panel{background:linear-gradient(145deg,#0d1b2a,#0a1724)!important;border-color:#243a50!important;box-shadow:0 8px 24px rgba(0,0,0,.18)!important;color:#dce9f8!important}
+.route-topbar,.route-controls,.route-bottom-note,.route-editor-heading,.route-principles>div{border-color:#243a50!important}
+.route-part strong,.route-progress strong,.route-cost-strip strong,.route-card strong,.route-card b,.route-editor-heading strong,.panel-heading h3,.module-record-card strong,.module-workflow-heading strong{color:#eaf3ff!important}
+.route-part small,.route-progress span,.route-cost-strip small,.route-cost-strip span,.route-card small,.route-card p,.route-card em,.route-principles small,.panel-heading p,.module-record-card p,.module-record-card span,.module-storage-note,.module-safety-note span{color:#91a8c4!important}
+.route-cost-strip>div{background:#0c1a29!important;border-color:#263b51!important}
+.route-controls{background:#0a1724!important;border-color:#243a50!important}
+.route-controls button,.route-controls input,.route-filter,.button-quiet,.icon-control,.route-editor-form input,.route-editor-form select,.route-editor-form textarea{background:#102235!important;border-color:#2b435c!important;color:#dceaff!important}
+.route-controls .control-active,.route-controls button.control-active{background:#123a61!important;border-color:#168fff!important;color:#dff2ff!important}
+.route-scroll{background-color:#081624!important;background-image:radial-gradient(#29445d 1px,transparent 1px)!important;background-size:18px 18px!important;scrollbar-color:#31506d #0b1b2a!important}
+.route-scroll::-webkit-scrollbar-track{background:#0b1b2a!important}
+.route-track{padding-top:16px}
+.route-card{background:linear-gradient(150deg,#13263a,#0e1e2e)!important;border-color:#2a4560!important;box-shadow:0 8px 22px rgba(0,0,0,.22)!important;color:#dceaff!important}
+.route-step{color:#dceaff!important}
+.route-step:not(.route-step-active) .route-card{border-color:#2a4560!important}
+.route-card-top{border-color:#2a4056!important}
+.route-card-top small{color:#9cb4d0!important}
+.route-card em{background:#142d43!important}
+.route-illustration{background:#132a40!important;border-color:#29435c!important}
+.route-connector{color:#299aff!important}
+.route-connector svg{stroke:#299aff!important}
+.route-step-active .route-card{border-color:#0ba5ff!important;box-shadow:0 0 0 1px rgba(11,165,255,.24),0 0 24px rgba(0,149,255,.13)!important}
+.route-inspector-panel,.route-detail-panel,.route-editor-panel,.route-canvas-detail-grid aside{background:#0c1b2a!important;border-color:#263d54!important;color:#dceaff!important}
+.route-editor-form label,.route-inspector-panel label,.route-detail-panel label{color:#a7bdd5!important}
+.route-editor-form input,.route-editor-form select,.route-editor-form textarea{background:#091725!important;color:#e7f0ff!important}
+.route-bottom-note{color:#91a8c4!important}
+.route-principles strong{color:#e5f0ff!important}
+.command-rail{background:#081522!important;border-color:#21374d!important}
+.command-rail button{color:#93a9c3!important}
+.command-rail button.rail-active{background:#103a60!important;color:#e9f6ff!important;border-color:#0b9bff!important}
+.workspace-page .button-primary,.button-primary{background:linear-gradient(135deg,#1479e8,#0757bd)!important;border-color:#2b9cff!important;color:#fff!important}
+.workspace-page input,.workspace-page select,.workspace-page textarea,.module-workspace input,.module-workspace select,.module-workspace textarea{background:#0a1927!important;border-color:#294057!important;color:#e7f0ff!important}
+.module-action-bar,.module-record-form,.module-record-list,.module-workbench-grid{color:#dceaff}
+.module-workflow-step,.related-row,.module-record-card,.scheduler-contact,.scheduler-form-panel,.scheduler-connect-panel{background:#0c1c2b!important;border-color:#263e55!important;color:#dceaff!important}
+.module-workflow-step strong,.related-row strong,.scheduler-contact strong{color:#e5f0ff!important}
+.module-workflow-step small,.related-row small,.scheduler-contact small{color:#8ea7c3!important}
+input::placeholder,textarea::placeholder{color:#6f87a3!important}
+.scheduler-error{color:#ff969f!important}
+.wa-pairing-box{background:#0c1c2b!important;border-color:#29445e!important}
+.wa-pairing-box strong{color:#edf6ff!important}.wa-pairing-box p{color:#9ab0ca!important}
+@media(max-width:850px){.route-canvas-detail-grid{grid-template-columns:minmax(0,1fr)!important}.route-canvas-detail-grid aside{position:relative!important;top:auto!important}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
