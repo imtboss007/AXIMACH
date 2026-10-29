@@ -15,7 +15,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "cap:sync": "cap sync android",
     "cap:android": "cap open android",
-    "package:windows": "npm run build && electron-builder --win nsis --x64"
+    "package:windows": "npm run build && electron-builder --win nsis --x64 --publish never"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
