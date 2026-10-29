@@ -202,9 +202,13 @@ function App() {
           />
         ) : activeModuleId === "process-map" ? (
           <ProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+        ) : activeModuleId === "vendors" ? (
+          <VendorWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+        ) : activeModuleId === "communications" ? (
+          <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : (
-          <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} />
-        )}
+          <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
+        )
       </main>
 
       <nav className="command-rail" aria-label="Quick navigation">
