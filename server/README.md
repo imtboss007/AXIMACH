@@ -8,7 +8,8 @@ This optional Node.js service runs scheduled WhatsApp **individual** messages in
 - `WHATSAPP_ACCESS_TOKEN`: Meta WhatsApp Cloud API access token.
 - `WHATSAPP_PHONE_NUMBER_ID`: phone-number ID from the Meta WhatsApp Business platform.
 - `AXIMACH_DATA_FILE`: persistent file path, e.g. `/data/aximach.json` on a host with a persistent disk.
-- `AXIMACH_ALLOWED_ORIGIN`: exact origin allowed to call this API.
+- `AXIMACH_ALLOWED_ORIGINS`: comma-separated exact origins allowed to call the API; use only the web/desktop/mobile origins you operate and never use `*`.
+- `AXIMACH_ALLOWED_ORIGIN`: backward-compatible single-origin setting when `AXIMACH_ALLOWED_ORIGINS` is not set.
 - `PORT`: optional; defaults to 8787.
 - `WHATSAPP_GRAPH_VERSION`: optional Graph API version; defaults to v23.0.
 
@@ -18,7 +19,9 @@ Run with Node.js 20.18+: `node server/index.mjs`.
 
 All routes except `GET /health` require header `x-aximach-key: <AXIMACH_API_KEY>`.
 
-- `GET /api/records` — read all module records by module ID.
+- `GET /api/manufacturing-data` — read the linked company/factory/PO/component/vendor/operation/quotation collections.
+- `PUT /api/manufacturing-data` — merge linked manufacturing records by stable record ID and `updatedAt` into the persistent JSON store (maximum 8 MB per payload; archive records with a `deletedAt` timestamp to retain history).
+- `GET /api/records` — read all generic module records by module ID.
 - `PUT /api/records` JSON: `{"records":{"companies":[{"id":"...","title":"Example","updatedAt":"..."}]}}` — persist module records server-side (maximum 8 MB per payload).
 - `GET /api/contacts`
 - `POST /api/contacts` JSON: `{"name":"Vendor","phone":"9198XXXXXXXX","company":"Example","optedIn":true}`
@@ -44,7 +47,7 @@ A scheduler container definition is available at the repository root as `Dockerf
 docker build -f Dockerfile.scheduler -t aximach-scheduler .
 docker run --name aximach-scheduler -p 8787:8787 \
   -e AXIMACH_API_KEY='use-a-long-random-secret' \
-  -e AXIMACH_ALLOWED_ORIGIN='https://your-aximach-app.example.com' \
+  -e AXIMACH_ALLOWED_ORIGINS='https://your-aximach-app.example.com,http://localhost:5173' \
   -e WHATSAPP_ACCESS_TOKEN='set-through-host-secrets' \
   -e WHATSAPP_PHONE_NUMBER_ID='set-through-host-secrets' \
   -v aximach-data:/data aximach-scheduler
@@ -52,11 +55,11 @@ docker run --name aximach-scheduler -p 8787:8787 \
 
 Use your host's secret manager instead of putting real credentials in shell history. The volume must be persistent and backups should be configured. Put the service behind HTTPS.
 
-For the QR-paired bridge, build the separate container from the repository root with `docker build -f Dockerfile.whatsapp -t aximach-whatsapp .`. Run it with port 8788 exposed and a persistent volume mounted at `/data`; set `AXIMACH_API_KEY` and `AXIMACH_ALLOWED_ORIGIN` as environment variables. Keep `/data/whatsapp-auth` private and backed up securely. The Follow-up Centre's **QR-paired WhatsApp account** panel uses the bridge URL and the same API key. On a trusted browser, connection settings are retained locally and the panel attempts to reconnect when reopened.
+For the QR-paired bridge, build the separate container from the repository root with `docker build -f Dockerfile.whatsapp -t aximach-whatsapp .`. Run it with port 8788 exposed and a persistent volume mounted at `/data`; set `AXIMACH_API_KEY` and `AXIMACH_ALLOWED_ORIGIN` as environment variables. Keep `/data/whatsapp-auth` private and backed up securely. The Follow-up Centre's **QR-paired WhatsApp account** panel uses the bridge URL and API key. Use the same explicit allowed-origin list for the bridge service and scheduler API. When the scheduler API is connected, AXIMACH pushes existing local manufacturing master data to the persistent API; newly synced QR contacts are then upserted into the canonical vendor master. Connection settings are retained locally and the panel attempts to reconnect when reopened.
 
 ## Frontend connection and security
 
-The Communication & Follow-up screen can connect to this API, add contacts with explicit opt-in, create one-time/daily/weekly individual schedules, pause/resume schedules, refresh records and export contacts as CSV. Module records are also synced to `/api/records` while a valid server URL and API key are available in the current browser session; the browser keeps a local cache for continuity. The API key is held in browser session storage for the active tab session. This is a connector prototype, **not a multi-user security boundary**: anyone allowed to use the UI can potentially inspect/use that key. Do not expose this configuration to untrusted users or deploy it publicly without adding real user authentication, per-user authorization and a server-side session/proxy.
+The Communication & Follow-up screen can connect to this API, add contacts with explicit opt-in, create one-time/daily/weekly individual schedules, pause/resume schedules, refresh records and export contacts as CSV. Generic module records sync to `/api/records`; linked manufacturing master records sync separately to `/api/manufacturing-data`. The browser keeps a local cache for continuity. The API key and server URL are stored in this browser/device local storage, so protect the device and do not use this single shared key as a production multi-user permission system. This is a connector prototype, **not a multi-user security boundary**: anyone allowed to use the UI can potentially inspect/use that key. Do not expose this configuration to untrusted users or deploy it publicly without adding real user authentication, per-user authorization and a server-side session/proxy.
 
 The current scheduler does not sync a phone's WhatsApp address book, pair via QR/linked devices, send to WhatsApp groups, or stop repeated messages on a reply. Those require supported provider capabilities and additional webhook/state handling. Do not configure repeat messages without appropriate recipient consent and a clear stop/pause process.
 
