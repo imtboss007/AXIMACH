@@ -357,3 +357,18 @@ input::placeholder,textarea::placeholder{color:#6f87a3!important}
 .wa-pairing-box strong{color:#edf6ff!important}.wa-pairing-box p{color:#9ab0ca!important}
 @media(max-width:850px){.route-canvas-detail-grid{grid-template-columns:minmax(0,1fr)!important}.route-canvas-detail-grid aside{position:relative!important;top:auto!important}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
+
+/* Icon-led manufacturing navigation rail */
+.command-rail{position:fixed!important;left:0!important;top:76px!important;bottom:0!important;width:236px!important;z-index:35!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:3px!important;padding:14px 10px 18px!important;overflow-y:auto!important;overflow-x:hidden!important;border-right:1px solid #20374d!important;border-top:0!important;border-radius:0!important;background:linear-gradient(180deg,#0b1a28,#07131f)!important;box-shadow:8px 0 28px rgba(0,0,0,.12)!important}
+.command-rail .rail-section-label{padding:4px 11px 10px;color:#58728e;font:9px 'DM Mono',monospace;letter-spacing:1.4px}
+.command-rail button{width:100%!important;min-height:36px!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:11px!important;padding:9px 11px!important;border:1px solid transparent!important;border-radius:7px!important;background:transparent!important;color:#9cb0c7!important;text-align:left!important;white-space:nowrap!important;flex:0 0 auto!important}
+.command-rail button svg{flex:0 0 17px!important;color:#83a3c5!important}
+.command-rail button span{overflow:hidden;text-overflow:ellipsis;font-size:11px;font-weight:600}
+.command-rail button:hover{background:#10283c!important;color:#eff8ff!important}
+.command-rail button.rail-active{background:linear-gradient(90deg,rgba(0,142,255,.24),rgba(0,142,255,.07))!important;border-color:#126cb5!important;color:#eff8ff!important;box-shadow:inset 2px 0 #20a5ff!important}
+.command-rail button.rail-active svg{color:#43baff!important}
+.command-rail .rail-all{margin-top:8px;border-top:1px solid #20374d!important;border-radius:0!important;padding-top:13px!important;color:#62baff!important}
+.page-content{margin-left:236px!important}
+.status-ribbon{margin-left:236px!important;padding-left:20px!important}
+@media(max-width:900px){.command-rail{width:62px!important;padding:12px 6px!important}.command-rail .rail-section-label,.command-rail button span{display:none!important}.command-rail button{justify-content:center!important;padding:10px 0!important}.page-content{margin-left:62px!important}.status-ribbon{margin-left:62px!important}.command-deck{padding-left:10px!important;gap:8px!important}.brand-copy small{display:none}}
+@media(max-width:560px){.command-rail{top:66px!important;width:50px!important}.command-deck{height:66px!important}.page-content{margin-left:50px!important;padding:10px 8px 20px!important}.status-ribbon{margin-left:50px!important;font-size:9px}.command-search{max-width:38vw!important}.command-search span{display:none!important}.command-deck .deck-action span,.command-deck .profile-name{display:none!important}}
