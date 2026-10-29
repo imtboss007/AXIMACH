@@ -55,7 +55,7 @@ const modules: ModuleItem[] = [
 ];
 
 type ProcessStatus = "Complete" | "Running" | "Queued" | "Quality hold";
-type ProcessStep = { id: number; name: string; station: string; duration: string; status: ProcessStatus; owner: string; note: string; vendor?: string; setupMinutes?: number; cycleSeconds?: number; quantity?: number; pricePerPart?: number; missingQuantity?: number; branch?: string };
+type ProcessStep = { id: number; name: string; station: string; duration: string; status: ProcessStatus; owner: string; note: string; vendor?: string; setupMinutes?: number; cycleSeconds?: number; quantity?: number; pricePerPart?: number; missingQuantity?: number; branch?: string; parentId?: number };
 
 const startingSteps: ProcessStep[] = [
   { id: 1, name: "Material receipt & traceability", station: "Incoming stores", duration: "08 min", status: "Complete", owner: "Stores", note: "Verify material grade, heat number, certificate and received quantity." },
@@ -431,11 +431,19 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
   const routePlannedMinutes = steps.reduce((sum, step) => { const setup = Number(step.setupMinutes) || 0; const cycle = Number(step.cycleSeconds) || 0; const entered = setup > 0 || cycle > 0; const fallback = Number.parseFloat(step.duration) || 0; return sum + (entered ? setup + (cycle * (Number(step.quantity) || 0)) / 60 : fallback); }, 0);
   const routeVendorCost = steps.reduce((sum, step) => sum + (Number(step.pricePerPart) || 0) * (Number(step.quantity) || 0), 0);
   const routeMissing = steps.reduce((sum, step) => sum + (Number(step.missingQuantity) || 0), 0);
+  const branchSteps = steps.filter((step) => step.parentId !== undefined);
 
   const updateActive = (patch: Partial<ProcessStep>) => {
     if (!activeStep) return;
     setSteps((previous) => previous.map((step) => step.id === activeStep.id ? { ...step, ...patch } : step));
     onNotice("Sample operation updated in this browser session only.");
+  };
+  const addBranchFromActive = () => {
+    if (!activeStep) return;
+    const id = Math.max(0, ...steps.map((step) => step.id)) + 1;
+    const branchStep: ProcessStep = { id, name: "Alternate / rework operation", station: "Assign machine or vendor", duration: "15 min", status: "Queued", owner: activeStep.owner, note: "Define alternate route, acceptance criteria and return-to-main-route condition.", vendor: "", setupMinutes: 0, cycleSeconds: 0, quantity: activeStep.quantity ?? 1, pricePerPart: 0, missingQuantity: 0, branch: "Alternate vendor", parentId: activeStep.id };
+    setSteps(previous => [...previous, branchStep]); setActiveStepId(id); setEditMode(true);
+    onNotice("A linked branch was added from the selected operation. Configure its vendor, time and price.");
   };
   const addOperation = () => {
     if (!draft.name.trim()) { onNotice("Enter an operation name before adding it."); return; }
@@ -475,7 +483,7 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
         <div className="route-controls-left"><span className="control-label">VIEW</span><button className={orientation === "horizontal" ? "control-active" : ""} onClick={() => setOrientation("horizontal")}>Horizontal</button><button className={orientation === "vertical" ? "control-active" : ""} onClick={() => setOrientation("vertical")}>Vertical</button></div>
         <div className="route-controls-right">
           <input className="route-filter" aria-label="Search operations" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Find operation…" />
-          <button className={"button-quiet compact-button " + (editMode ? "control-active" : "")} onClick={() => setEditMode((value) => !value)}><GitBranch size={14} /> {editMode ? "Close editor" : "Edit route"}</button>
+          <button className={"button-quiet compact-button " + (editMode ? "control-active" : "")} onClick={() => setEditMode((value) => !value)}><GitBranch size={14} /> {editMode ? "Close editor" : "Edit route"}</button><button className="button-quiet compact-button" onClick={addBranchFromActive}><GitBranch size={14} /> Add branch from selected</button>
           <button className="icon-control" aria-label="Zoom out" disabled={zoom <= 0.6} onClick={() => setZoom((value) => Math.max(0.6, Math.round((value - 0.1) * 10) / 10))}>−</button><input aria-label="Route zoom" type="range" min="0.6" max="1.3" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /><button className="icon-control" aria-label="Zoom in" disabled={zoom >= 1.3} onClick={() => setZoom((value) => Math.min(1.3, Math.round((value + 0.1) * 10) / 10))}>+</button><span className="zoom-readout">{Math.round(zoom * 100)}%</span><button className="button-quiet compact-button" onClick={() => setZoom(1)}><RotateCcw size={14} /> Fit route</button>
         </div>
       </div>
@@ -536,6 +544,7 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
         {!editMode && <div className="operation-detail-footer"><span><ShieldCheck size={14} /> Select “Edit route” to change fields, reorder or remove this operation.</span><button className="button-primary small-primary" onClick={() => setEditMode(true)}><GitBranch size={14} /> Edit selected operation</button></div>}
       </section>}
       </div>
+      {branchSteps.length > 0 && <section className="route-branches-panel"><div className="panel-heading"><div><h3><GitBranch size={16} /> Alternate routes & rework branches</h3><p>Each branch is linked to its parent operation and can be edited independently.</p></div><span className="module-number">{branchSteps.length} BRANCHES</span></div><div className="route-branch-list">{branchSteps.map(branch => { const parent = steps.find(step => step.id === branch.parentId); return <button key={branch.id} className={"route-branch-card " + (activeStepId === branch.id ? "route-branch-active" : "")} onClick={() => { setActiveStepId(branch.id); setEditMode(true); }}><span className="branch-link-icon"><GitBranch size={17} /></span><span><small>FROM OP {String((parent?.id ?? 0)*10).padStart(3,"0")} · {branch.branch || "Branch"}</small><strong>{branch.name}</strong><em>{branch.station} · {branch.vendor || "Vendor not assigned"}</em></span><span className="branch-metrics">{(Number(branch.setupMinutes)||0)+((Number(branch.cycleSeconds)||0)*(Number(branch.quantity)||0))/60} min<br/>₹{((Number(branch.pricePerPart)||0)*(Number(branch.quantity)||0)).toLocaleString("en-IN",{maximumFractionDigits:2})}</span></button>; })}</div></section>}
       <div className="route-bottom-note"><ShieldCheck size={14} /> This is an interactive sample route. Changes are temporary and reset when the page reloads; production API, version history, approvals and database persistence are not connected.</div>
     </div>
   );
