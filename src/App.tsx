@@ -76,6 +76,7 @@ function App() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("All domains");
+  const [vendorSearchJump, setVendorSearchJump] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
@@ -85,6 +86,11 @@ function App() {
   const [factory, setFactory] = useState("Precision Works · Main Plant");
 
   const activeModule = modules.find((item) => item.id === activeModuleId) ?? modules[0];
+  const globalRecords = getAllModuleRecords();
+  const globalVendorContacts = readLocal<VendorContact[]>(CONTACTS_KEY, seedContacts);
+  const normalizedGlobalQuery = query.toLowerCase().trim();
+  const globalRecordResults = normalizedGlobalQuery ? Object.entries(globalRecords).flatMap(([moduleId, records]) => records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(normalizedGlobalQuery)).map((record) => ({ ...record, moduleId }))).slice(0, 8) : [];
+  const globalVendorResults = normalizedGlobalQuery ? globalVendorContacts.filter((contact) => (contact.company + " " + contact.contact + " " + contact.role + " " + contact.phone + " " + contact.email + " " + contact.processes + " " + contact.notes).toLowerCase().includes(normalizedGlobalQuery)).slice(0, 8) : [];
 
   const filteredModules = useMemo(() => modules.filter((item) => {
     const matchesDomain = domain === "All domains" || item.group === domain;
@@ -203,7 +209,7 @@ function App() {
         ) : activeModuleId === "process-map" ? (
           <ProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "vendors" ? (
-          <VendorWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "communications" ? (
           <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : (
@@ -259,7 +265,8 @@ function App() {
       {commandOpen && (
         <div className="overlay-shell command-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setCommandOpen(false); }}>
           <section className="command-palette" role="dialog" aria-modal="true" aria-label="Command search">
-            <div className="palette-search"><Command size={19} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search any module…" /><button className="close-round compact" onClick={() => setCommandOpen(false)} aria-label="Close search"><X size={17} /></button></div>
+            <div className="palette-search"><Command size={19} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search modules, vendors, contacts, jobs, references…" /><button className="close-round compact" onClick={() => setCommandOpen(false)} aria-label="Close search"><X size={17} /></button></div>
+            {normalizedGlobalQuery && <><div className="palette-label">VENDOR NAMES & CONTACTS</div><div className="palette-results">{globalVendorResults.map((contact) => <button key={contact.id} onClick={() => { setVendorSearchJump(contact.company + " " + contact.contact); selectModule("vendors"); }}><span className="palette-icon"><Users size={17}/></span><span><strong>{contact.company}</strong><small>{contact.contact} · {contact.phone || contact.email || "Contact details not added"}</small></span><ArrowUpRight size={15}/></button>)}{globalVendorResults.length === 0 && <div className="palette-empty">No vendor/contact matches.</div>}</div><div className="palette-label">SAVED RECORDS ACROSS MODULES</div><div className="palette-results">{globalRecordResults.map((record) => { const target = modules.find((item) => item.id === record.moduleId); const Icon = target?.icon ?? Box; return <button key={record.moduleId + ":" + record.id} onClick={() => selectModule(record.moduleId)}><span className="palette-icon"><Icon size={17}/></span><span><strong>{record.title}</strong><small>{target?.title || record.moduleId} · {record.reference || record.status}</small></span><ArrowUpRight size={15}/></button>; })}{globalRecordResults.length === 0 && <div className="palette-empty">No saved record matches yet.</div>}</div></>}
             <div className="palette-label">MODULES & WORKSPACES</div>
             <div className="palette-results">
               {modules.filter((item) => (item.title + " " + item.group + " " + item.description).toLowerCase().includes(query.toLowerCase().trim())).slice(0, 10).map((item) => {
@@ -565,16 +572,18 @@ function readLocal<T,>(key: string, fallback: T): T {
 function saveLocal<T,>(key: string, value: T) {
   try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage may be unavailable */ }
 }
-function VendorWorkspace({ onBack, onNotice, notice }: { onBack: () => void; onNotice: (value: string) => void; notice: string }) {
+function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "" }: { onBack: () => void; onNotice: (value: string) => void; notice: string; initialSearch?: string }) {
   const [contacts, setContacts] = useState<VendorContact[]>(() => readLocal(CONTACTS_KEY, seedContacts));
   const [followUps, setFollowUps] = useState<FollowUpItem[]>(() => readLocal(FOLLOWUPS_KEY, []));
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
+  const [companySearch, setCompanySearch] = useState("");
+  const [contactSearch, setContactSearch] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Omit<VendorContact, "id">>({ company: "", contact: "", role: "", phone: "", email: "", processes: "", notes: "" });
   const selected = contacts.find((c) => c.id === selectedId) ?? contacts[0];
   const [task, setTask] = useState({ due: new Date(Date.now() + 86400000).toISOString().slice(0,10), channel: "WhatsApp" as FollowUpItem["channel"], message: "Hello, following up on our machining RFQ. Please share your quotation, lead time and current capacity." });
-  const filtered = contacts.filter((c) => (c.company+" "+c.contact+" "+c.role+" "+c.phone+" "+c.email+" "+c.processes).toLowerCase().includes(search.toLowerCase()));
+  const filtered = contacts.filter((c) => (c.company+" "+c.contact+" "+c.role+" "+c.phone+" "+c.email+" "+c.processes+" "+c.notes).toLowerCase().includes(search.toLowerCase().trim()) && c.company.toLowerCase().includes(companySearch.toLowerCase().trim()) && (c.contact+" "+c.role+" "+c.phone+" "+c.email).toLowerCase().includes(contactSearch.toLowerCase().trim()));
   useEffect(() => { saveLocal(CONTACTS_KEY, contacts); }, [contacts]);
   useEffect(() => { saveLocal(FOLLOWUPS_KEY, followUps); }, [followUps]);
   useEffect(() => {
@@ -615,7 +624,8 @@ function VendorWorkspace({ onBack, onNotice, notice }: { onBack: () => void; onN
     <div className="vendor-workspace-grid">
       <section className="surface-panel vendor-list-panel">
         <div className="panel-heading"><div><h3>Vendor directory</h3><p>{contacts.length} records · saved in this browser only</p></div></div>
-        <label className="vendor-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, person, phone, process…"/></label>
+        <label className="vendor-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search all vendor fields…"/></label>
+         <div className="vendor-search-pair"><label className="vendor-search"><Search size={15}/><input value={companySearch} onChange={e=>setCompanySearch(e.target.value)} placeholder="Search vendor/company name…"/></label><label className="vendor-search"><Search size={15}/><input value={contactSearch} onChange={e=>setContactSearch(e.target.value)} placeholder="Search contact name, phone, email…"/></label></div>
         <div className="vendor-record-list">{filtered.map(c=><button key={c.id} className={"vendor-record "+(selected?.id===c.id?"vendor-record-active":"")} onClick={()=>{setSelectedId(c.id);setEditing(false);}}><span className="vendor-avatar">{c.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{c.company}</strong><small>{c.contact} · {c.role||"Contact role not set"}</small><small>{c.processes||"Capabilities not set"}</small></span><ArrowRight size={14}/></button>)}{!filtered.length&&<p className="vendor-empty">No matching vendors. Add a contact or clear the search.</p>}</div>
         <div className="vendor-panel-foot">Export/import and multi-user sync are not connected yet.</div>
       </section>
