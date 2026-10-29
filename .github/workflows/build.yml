@@ -39,6 +39,7 @@ jobs:
           retention-days: 7
 
   windows-installer:
+    if: github.event_name != 'pull_request'
     name: Build Windows installer
     runs-on: windows-latest
     timeout-minutes: 30
@@ -62,6 +63,7 @@ jobs:
           retention-days: 14
 
   android-apk:
+    if: github.event_name != 'pull_request'
     name: Build Android APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
