@@ -425,6 +425,8 @@ function ProcessWorkspace({ onBack, onNotice, notice }: { onBack: () => void; on
 
 function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
   const [steps, setSteps] = useState<ProcessStep[]>(() => { try { const saved = window.localStorage.getItem("aximach.processRoute.v2"); return saved ? JSON.parse(saved) as ProcessStep[] : startingSteps; } catch { return startingSteps; } });
+  const vendorChoices = readLocal<VendorContact[]>(CONTACTS_KEY, seedContacts).map((item) => item.company).filter(Boolean);
+  const processChoices = Array.from(new Set([...startingSteps.map((item) => item.name), ...steps.map((item) => item.name)].filter(Boolean)));
   useEffect(() => { try { window.localStorage.setItem("aximach.processRoute.v2", JSON.stringify(steps)); } catch { /* browser storage may be unavailable */ } }, [steps]);
   const [activeStepId, setActiveStepId] = useState(3);
   const [orientation, setOrientation] = useState<"horizontal" | "vertical">("horizontal");
@@ -497,11 +499,11 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
       {editMode && <section className="route-editor-panel">
         <div className="route-editor-heading"><div><strong><Plus size={15} /> Add operation</strong><small>Fill the fields and add it to this sample route.</small></div><span>LOCAL DEMO EDITOR</span></div>
         <div className="route-editor-form">
-          <label>Operation name<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="e.g. CNC turning OD/ID" /></label>
-          <label>Machine / station / vendor<input value={draft.station} onChange={(event) => setDraft({ ...draft, station: event.target.value })} placeholder="e.g. CNC lathe · Vendor A" /></label>
+          <label>Process / operation name<input list="aximach-process-name-options" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Type or select a process…" /><datalist id="aximach-process-name-options">{processChoices.map((name) => <option key={name} value={name} />)}</datalist><small className="field-hint">Type to search or open the list to select an existing process.</small></label>
+          <label>Machine / station / vendor<input list="aximach-vendor-name-options" value={draft.station} onChange={(event) => setDraft({ ...draft, station: event.target.value })} placeholder="Type or select vendor / station…" /><datalist id="aximach-vendor-name-options">{vendorChoices.map((name) => <option key={name} value={name} />)}</datalist></label>
           <label>Duration<input value={draft.duration} onChange={(event) => setDraft({ ...draft, duration: event.target.value })} placeholder="e.g. 25 min" /></label>
           <label>Responsible team<input value={draft.owner} onChange={(event) => setDraft({ ...draft, owner: event.target.value })} placeholder="Production" /></label>
-          <label>Vendor / subcontractor<input value={draft.vendor} onChange={(event) => setDraft({ ...draft, vendor: event.target.value })} placeholder="Vendor name (optional)" /></label>
+          <label>Vendor / subcontractor<input list="aximach-vendor-name-options" value={draft.vendor} onChange={(event) => setDraft({ ...draft, vendor: event.target.value })} placeholder="Type to search or select vendor…" /><small className="field-hint">Options come from the saved Vendor directory.</small></label>
           <label>Setup time (minutes)<input type="number" min="0" value={draft.setupMinutes} onChange={(event) => setDraft({ ...draft, setupMinutes: event.target.value })} /></label>
           <label>Cycle time (seconds / part)<input type="number" min="0" value={draft.cycleSeconds} onChange={(event) => setDraft({ ...draft, cycleSeconds: event.target.value })} /></label>
           <label>Quantity to process<input type="number" min="0" value={draft.quantity} onChange={(event) => setDraft({ ...draft, quantity: event.target.value })} /></label>
