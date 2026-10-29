@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, Building2, CalendarClock, Check, CircleDollarSign, Edit3, Factory, FileText, Package, Plus, Search, Trash2, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type FactoryRecord, type PurchaseOrderLine, type PurchaseOrderRecord } from "./manufacturingData";
+import SearchablePicker from "./SearchablePicker";
 
 type Props = {
   moduleId: "companies" | "purchasing" | "components";
@@ -143,7 +144,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
         <div className="module-form-actions"><button className="button-primary" onClick={saveCompany}><Check size={14}/> Save company</button><button className="button-quiet" onClick={resetForms}>Cancel</button></div>
       </div>}
       {moduleId === "companies" && (factoryEditingId || tab === "factories") && <div className="module-record-form">
-        <label>Parent company *<select value={factoryDraft.companyId} onChange={e => setFactoryDraft({ ...factoryDraft, companyId: e.target.value })}><option value="">Select a company…</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        <SearchablePicker id="factory-parent-company" label="Parent company *" value={factoryDraft.companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name+(c.gstin?" · "+c.gstin:"")}))} onChange={companyId=>setFactoryDraft({...factoryDraft,companyId})}/>
         <label>Factory / site name *<input value={factoryDraft.name} onChange={e => setFactoryDraft({ ...factoryDraft, name: e.target.value })} placeholder="Enter factory name"/></label>
         <label>Address<input value={factoryDraft.address} onChange={e => setFactoryDraft({ ...factoryDraft, address: e.target.value })} placeholder="Factory address"/></label>
         <label>Factory contact phone<input value={factoryDraft.contactPhone} onChange={e => setFactoryDraft({ ...factoryDraft, contactPhone: e.target.value })} placeholder="Optional"/></label>
@@ -166,15 +167,15 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
       </div>}
       {moduleId === "purchasing" && <div className="module-record-form">
         <label>PO number *<input value={poDraft.number} onChange={e => setPoDraft({ ...poDraft, number: e.target.value })} placeholder="Enter the customer's actual PO number"/></label>
-        <label>Company *<select value={poDraft.companyId} onChange={e => { const companyId = e.target.value; const factoryId = factories.find(f => f.companyId === companyId)?.id || ""; setPoDraft({ ...poDraft, companyId, factoryId }); }}><option value="">Select company…</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-        <label>Factory *<select value={poDraft.factoryId} onChange={e => setPoDraft({ ...poDraft, factoryId: e.target.value })}><option value="">Select factory…</option>{factories.filter(f => f.companyId === poDraft.companyId).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></label>
+        <SearchablePicker id="po-company" label="Company *" value={poDraft.companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name+(c.gstin?" · "+c.gstin:"")}))} onChange={companyId=>{const factoryId=factories.find(f=>f.companyId===companyId)?.id||"";setPoDraft({...poDraft,companyId,factoryId});}}/>
+        <SearchablePicker id="po-factory" label="Factory *" value={poDraft.factoryId} placeholder="Type factory name…" options={factories.filter(f=>f.companyId===poDraft.companyId).map(f=>({id:f.id,label:f.name}))} onChange={factoryId=>setPoDraft({...poDraft,factoryId})}/>
         <label>PO issue date<input type="date" value={poDraft.issueDate} onChange={e => setPoDraft({ ...poDraft, issueDate: e.target.value })}/></label>
         <label>Target delivery<input type="date" value={poDraft.targetDelivery} onChange={e => setPoDraft({ ...poDraft, targetDelivery: e.target.value })}/></label>
         <label>Status<select value={poDraft.status} onChange={e => setPoDraft({ ...poDraft, status: e.target.value })}><option>Open</option><option>Confirmed</option><option>In Production</option><option>Complete</option><option>On Hold</option><option>Cancelled</option></select></label>
         <label className="module-form-wide">PO notes<input value={poDraft.notes} onChange={e => setPoDraft({ ...poDraft, notes: e.target.value })} placeholder="Optional PO notes"/></label>
         <div className="module-form-wide"><div className="panel-heading"><div><h3>PO component lines</h3><p>Each row references a saved component master record and keeps its own quantity and delivery date.</p></div><button type="button" className="button-quiet compact-button" disabled={!components.length} onClick={() => setPoLines(prev => [...prev, { ...blankLine(), targetDelivery: poDraft.targetDelivery, id: makeId("line") }])}><Plus size={14}/> Add component line</button></div>
           {poLines.map((line, index) => <div className="module-record-form po-line-form" key={line.id}>
-            <label>Component *<select value={line.componentId} onChange={e => setPoLines(prev => prev.map(row => row.id === line.id ? { ...row, componentId: e.target.value } : row))}><option value="">Select component…</option>{components.map(c => <option key={c.id} value={c.id}>{c.partNumber} · {c.name} · Rev {c.revision || "—"}</option>)}</select></label>
+            <SearchablePicker id={"po-line-component-"+line.id} label="Component *" value={line.componentId} placeholder="Type part number…" options={components.map(c=>({id:c.id,label:c.partNumber+" · "+c.name+" · Rev "+(c.revision||"—")}))} onChange={componentId=>setPoLines(prev=>prev.map(row=>row.id===line.id?{...row,componentId}:row))}/>
             <label>Quantity *<input type="number" min="1" value={line.quantity || ""} onChange={e => setPoLines(prev => prev.map(row => row.id === line.id ? { ...row, quantity: Math.max(0, Number(e.target.value) || 0) } : row))}/></label>
             <label>Line delivery date<input type="date" value={line.targetDelivery} onChange={e => setPoLines(prev => prev.map(row => row.id === line.id ? { ...row, targetDelivery: e.target.value } : row))}/></label>
             <label>Customer rate / part (₹)<input type="number" min="0" step="0.01" value={line.unitPrice || ""} onChange={e => setPoLines(prev => prev.map(row => row.id === line.id ? { ...row, unitPrice: Math.max(0, Number(e.target.value) || 0) } : row))}/></label>
