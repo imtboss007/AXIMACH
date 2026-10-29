@@ -791,3 +791,12 @@ img,svg,canvas,video{max-width:100%}
  .linked-process-page .linked-component-summary,.linked-costing-page .linked-component-summary{grid-template-columns:minmax(0,1fr)}
  .linked-process-page .linked-empty-master{align-items:flex-start;flex-direction:column}
 }
+
+.searchable-picker{display:flex;flex-direction:column;gap:6px;min-width:0;color:inherit;font-size:12px;font-weight:700;letter-spacing:.02em}
+.searchable-picker input{width:100%;min-height:40px;padding:9px 10px}
+.searchable-picker-hint{font-size:10px;line-height:1.4;font-weight:500;color:#f0bb71}
+.linked-process-page .route-master-picker{display:flex;flex-direction:column;gap:6px;min-width:0}
+.linked-process-page .route-master-picker>button{align-self:flex-start;background:#0b2e43;border:1px solid #1f718b;color:#73d9ef;border-radius:6px;padding:5px 8px}
+.linked-process-page .route-editor-form .searchable-picker{min-width:0}
+.linked-process-page .route-editor-form .searchable-picker input{width:100%;padding:9px}
+@media(max-width:760px){.searchable-picker{width:100%}}
