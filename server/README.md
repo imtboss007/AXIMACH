@@ -18,6 +18,8 @@ Run with Node.js 20.18+: `node server/index.mjs`.
 
 All routes except `GET /health` require header `x-aximach-key: <AXIMACH_API_KEY>`.
 
+- `GET /api/records` — read all module records by module ID.
+- `PUT /api/records` JSON: `{"records":{"companies":[{"id":"...","title":"Example","updatedAt":"..."}]}}` — persist module records server-side (maximum 8 MB per payload).
 - `GET /api/contacts`
 - `POST /api/contacts` JSON: `{"name":"Vendor","phone":"9198XXXXXXXX","company":"Example","optedIn":true}`
 - `GET /api/schedules`
@@ -52,6 +54,6 @@ Use your host's secret manager instead of putting real credentials in shell hist
 
 ## Frontend connection and security
 
-The Communication & Follow-up screen can connect to this API, add contacts with explicit opt-in, create one-time/daily/weekly individual schedules, pause/resume schedules, refresh records and export contacts as CSV. The API key is held in browser session storage for the active tab session. This is a connector prototype, **not a multi-user security boundary**: anyone allowed to use the UI can potentially inspect/use that key. Do not expose this configuration to untrusted users or deploy it publicly without adding real user authentication, per-user authorization and a server-side session/proxy.
+The Communication & Follow-up screen can connect to this API, add contacts with explicit opt-in, create one-time/daily/weekly individual schedules, pause/resume schedules, refresh records and export contacts as CSV. Module records are also synced to `/api/records` while a valid server URL and API key are available in the current browser session; the browser keeps a local cache for continuity. The API key is held in browser session storage for the active tab session. This is a connector prototype, **not a multi-user security boundary**: anyone allowed to use the UI can potentially inspect/use that key. Do not expose this configuration to untrusted users or deploy it publicly without adding real user authentication, per-user authorization and a server-side session/proxy.
 
 The current scheduler does not sync a phone's WhatsApp address book, pair via QR/linked devices, send to WhatsApp groups, or stop repeated messages on a reply. Those require supported provider capabilities and additional webhook/state handling. Do not configure repeat messages without appropriate recipient consent and a clear stop/pause process.
