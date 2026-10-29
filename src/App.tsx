@@ -74,10 +74,7 @@ function App() {
   const [newJobOpen, setNewJobOpen] = useState(false);
   const [newJobName, setNewJobName] = useState("");
   const [localJobs, setLocalJobs] = useState<string[]>([]);
-  const [factory, setFactory] = useState("");
 
-  const appMasterData = readManufacturingData();
-  const activeFactories = activeRows(appMasterData.factories);
   const activeModule = modules.find((item) => item.id === activeModuleId) ?? modules[0];
   const globalRecords = getAllModuleRecords();
   const globalVendorContacts = activeRows(readManufacturingData().vendors);
@@ -158,14 +155,9 @@ function App() {
         </button>
 
         <div className="deck-divider" />
-        <label className="factory-switcher">
-          <Factory size={16} />
-          <select value={factory} onChange={(event) => setFactory(event.target.value)} aria-label="Select factory">
-            <option value="">Select factory…</option>
-            {activeFactories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-          <ChevronDown size={14} />
-        </label>
+        <button className="factory-switcher" onClick={() => selectModule("companies")} aria-label="Manage companies and factories">
+          <Factory size={16} /><span>Companies &amp; Factories</span><ChevronDown size={14}/>
+        </button>
 
         <div className="deck-spacer" />
         <button className="command-search" onClick={() => { setCommandOpen(true); setModuleExplorerOpen(false); }} aria-label="Open command search">
@@ -177,7 +169,7 @@ function App() {
       </header>
 
       <div className="status-ribbon">
-        <span className="ribbon-dot" /> PROTOTYPE WORKSPACE
+        <span className="ribbon-dot" /> AXIMACH WORKSPACE
         <span className="ribbon-separator">/</span>
         <span>No example records loaded · production metrics populate from saved records</span>
         <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
@@ -287,7 +279,7 @@ function App() {
           </section>
         </div>
       )}
-      <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Design prototype v0.2 · Backend not connected</span></footer>
+      <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Master records · server sync status shown in each workspace</span></footer>
     </div>
   );
 }
