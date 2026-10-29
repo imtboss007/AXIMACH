@@ -220,13 +220,10 @@ function App() {
         )}
       </main>
 
-      <nav className="command-rail" aria-label="Quick navigation">
-        <button className={activeModuleId === "command-centre" ? "rail-active" : ""} onClick={() => selectModule("command-centre")}><Sparkles size={17} /><span>Command</span></button>
-        <button className={activeModuleId === "process-map" ? "rail-active" : ""} onClick={() => selectModule("process-map")}><Workflow size={17} /><span>Process map</span></button>
-        <button className={activeModuleId === "production" ? "rail-active" : ""} onClick={() => selectModule("production")}><Activity size={17} /><span>Production</span></button>
-        <button className={activeModuleId === "vendors" ? "rail-active" : ""} onClick={() => selectModule("vendors")}><Users size={17} /><span>Vendors</span></button>
-        <button className={activeModuleId === "quality" ? "rail-active" : ""} onClick={() => selectModule("quality")}><ClipboardCheck size={17} /><span>Quality</span></button>
-        <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>All modules</span></button>
+      <nav className="command-rail" aria-label="Manufacturing modules">
+        <div className="rail-section-label">WORKSPACES</div>
+        {modules.map((item) => { const ItemIcon = item.icon; return <button key={item.id} title={item.title} className={activeModuleId === item.id ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16} /><span>{item.title}</span></button>; })}
+        <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={16} /><span>Module explorer</span></button>
       </nav>
 
       {moduleExplorerOpen && (
