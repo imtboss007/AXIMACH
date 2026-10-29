@@ -450,7 +450,8 @@ function ProcessWorkspace({ onBack, onNotice, notice }: { onBack: () => void; on
 
 function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
   const [steps, setSteps] = useState<ProcessStep[]>(() => { try { const saved = window.localStorage.getItem("aximach.processRoute.v2"); return saved ? JSON.parse(saved) as ProcessStep[] : startingSteps; } catch { return startingSteps; } });
-  const vendorChoices = readLocal<VendorContact[]>(CONTACTS_KEY, seedContacts).map((item) => item.company).filter(Boolean);
+  const vendorDirectory = readLocal<VendorContact[]>(CONTACTS_KEY, seedContacts);
+  const vendorChoices = vendorDirectory.map((item) => item.company).filter(Boolean);
   const processChoices = Array.from(new Set([...startingSteps.map((item) => item.name), ...steps.map((item) => item.name)].filter(Boolean)));
   useEffect(() => { try { window.localStorage.setItem("aximach.processRoute.v2", JSON.stringify(steps)); } catch { /* browser storage may be unavailable */ } }, [steps]);
   const [activeStepId, setActiveStepId] = useState(3);
@@ -564,7 +565,7 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
           <label>Machine / station / vendor<input value={activeStep.station} onChange={(event) => updateActive({ station: event.target.value })} /></label>
           <label>Duration<input value={activeStep.duration} onChange={(event) => updateActive({ duration: event.target.value })} /></label>
           <label>Responsible team<input value={activeStep.owner} onChange={(event) => updateActive({ owner: event.target.value })} /></label>
-          <label>Vendor / subcontractor<select value={activeStep.vendor ?? ""} onChange={(event) => { const selectedVendor = vendorChoices.find((item) => item.company === event.target.value); updateActive({ vendor: event.target.value, station: selectedVendor ? (activeStep.station || selectedVendor.processes || activeStep.name) : activeStep.station }); }}><option value="">Select from vendor directory…</option>{vendorChoices.map((item) => <option key={item.id} value={item.company}>{item.company}{item.processes ? " · " + item.processes : ""}</option>)}</select><small>Vendor list is taken from Vendors & Sub-vendors. Add a vendor there first.</small></label>
+          <label>Vendor / subcontractor<select value={activeStep.vendor ?? ""} onChange={(event) => { const selectedVendor = vendorDirectory.find((item) => item.company === event.target.value); updateActive({ vendor: event.target.value, station: selectedVendor?.processes ? activeStep.station : activeStep.station }); }}><option value="">Select from vendor directory…</option>{vendorDirectory.map((item) => <option key={item.id} value={item.company}>{item.company}{item.processes ? " · " + item.processes : ""}</option>)}</select><small>Vendor list is taken from Vendors & Sub-vendors. Add a vendor there first.</small></label>
           <label>Setup time (minutes)<input type="number" min="0" value={activeStep.setupMinutes ?? 0} onChange={(event) => updateActive({ setupMinutes: Math.max(0,Number(event.target.value)||0) })} /></label>
           <label>Cycle time (seconds / part)<input type="number" min="0" value={activeStep.cycleSeconds ?? 0} onChange={(event) => updateActive({ cycleSeconds: Math.max(0,Number(event.target.value)||0) })} /></label>
           <label>Quantity<input type="number" min="0" value={activeStep.quantity ?? 1} onChange={(event) => updateActive({ quantity: Math.max(0,Number(event.target.value)||0) })} /></label>
