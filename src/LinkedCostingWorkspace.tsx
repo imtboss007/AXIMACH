@@ -51,6 +51,8 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const rejectedQty = selectedLine?.rejectedQty ?? selectedComponent?.rejectedQty ?? 0;
   const gstRate = selectedLine?.gstRate ?? selectedComponent?.gstRate ?? 0;
   const materialCost = materialQty * materialRate;
+  const benchmarkMaterialCost = materialQty * benchmarkMaterialRate;
+  const materialVariance = materialCost - benchmarkMaterialCost;
   const operationPlanned = routeOperations.reduce((sum,op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
   const operationActual = routeOperations.reduce((sum,op) => sum + op.quantity * (op.actualRatePerPart || 0) + op.transportCost, 0);
   const extraCharges = overhead + toolingCost + reworkCost + scrapCost;
@@ -58,6 +60,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const actualTotal = materialCost + operationActual + extraCharges;
   const sellingRate = selectedLine ? selectedLine.unitPrice : (selectedComponent?.salePrice || 0);
   const revenue = (selectedLine?.quantity || 0) * sellingRate;
+  const gstEstimate = revenue * gstRate / 100;
   const finalOperation = routeOperations[routeOperations.length - 1];
   const acceptedQty = selectedLine ? (finalOperation && finalOperation.completed > 0 ? finalOperation.accepted : Math.max(0, selectedLine.quantity - rejectedQty)) : 0;
   const profit = revenue - plannedTotal;
@@ -169,7 +172,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
           <label>Rejected quantity (pcs)<input type="number" min="0" value={rejectedQty} onChange={e=>setExtra("rejectedQty",Number(e.target.value)||0)}/></label>
           <label>GST rate (%)<input type="number" min="0" max="100" step="0.01" value={gstRate} onChange={e=>setExtra("gstRate",Math.min(100,Number(e.target.value)||0))}/></label>
         </div>
-        <div className="linked-cost-summary-lines"><div><span>Material cost</span><strong>{money(materialCost)}</strong></div><div><span>Planned process + transport</span><strong>{money(operationPlanned)}</strong></div><div><span>Entered overhead / tooling / rework / scrap</span><strong>{money(extraCharges)}</strong></div><div><span>Planned total</span><strong>{money(plannedTotal)}</strong></div><div><span>Entered material/extras + actual operation rates (missing actual rates count as zero)</span><strong>{money(actualTotal)}</strong></div><div><span>Estimated P/L before GST</span><strong>{money(profit)}</strong></div></div>
+        <div className="linked-cost-summary-lines"><div><span>Entered material cost</span><strong>{money(materialCost)}</strong></div><div><span>Entered benchmark material value (not live market data)</span><strong>{money(benchmarkMaterialCost)}</strong></div><div><span>Material variance vs entered benchmark</span><strong>{money(materialVariance)}</strong></div><div><span>Planned process + transport</span><strong>{money(operationPlanned)}</strong></div><div><span>Entered overhead / tooling / rework / scrap</span><strong>{money(extraCharges)}</strong></div><div><span>Planned total before GST</span><strong>{money(plannedTotal)}</strong></div><div><span>Entered material/extras + actual operation rates (missing actual rates count as zero)</span><strong>{money(actualTotal)}</strong></div><div><span>Estimated P/L before GST</span><strong>{money(profit)}</strong></div><div><span>Entered GST rate / illustrative GST on order value</span><strong>{gstRate}% · {money(gstEstimate)}</strong></div></div>
       </section>
     </>}
     <div className="module-safety-note"><ShieldCheck size={15}/><span>Quotation amounts are supplier inputs, not live market benchmarks. Selecting a quote updates the operation's planned vendor/rate; it does not mark it as an invoice or actual expense.</span></div>
