@@ -1,0 +1,13 @@
+FROM node:22-alpine
+ENV NODE_ENV=production
+WORKDIR /app
+COPY package.json ./
+RUN npm install --omit=dev --no-audit --no-fund
+COPY server ./server
+RUN mkdir -p /data/whatsapp-auth && chown -R node:node /app /data
+USER node
+ENV WA_WEB_PORT=8788
+ENV WA_WEB_DATA_FILE=/data/whatsapp-web.json
+ENV WA_WEB_AUTH_DIR=/data/whatsapp-auth
+EXPOSE 8788
+CMD ["node", "server/whatsapp-web.mjs"]
