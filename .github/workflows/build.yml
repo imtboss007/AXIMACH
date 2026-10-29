@@ -1,44 +1,101 @@
-name: AXIMACH frontend verification
+name: AXIMACH build and packages
 
 on:
   push:
-    branches: ["main"]
+    branches: [main]
   pull_request:
-    branches: ["main"]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: aximach-frontend-${{ github.ref }}
+  group: aximach-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Type-check and build
+  frontend:
+    name: Type-check and build web app
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-
-      - name: Type-check and build
+      - name: Build application
         run: npm run build
-
-      - name: Upload frontend build artifact
+      - name: Upload frontend build
         uses: actions/upload-artifact@v4
         with:
           name: aximach-web-dist
           path: dist/
           if-no-files-found: error
           retention-days: 7
+
+  windows-installer:
+    name: Build Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Package Windows installer
+        run: npm run package:windows
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: aximach-windows-installer
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  android-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build web assets
+        run: npm run build
+      - name: Add Android platform
+        run: npx cap add android
+      - name: Sync Android project
+        run: npx cap sync android
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: aximach-android-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
