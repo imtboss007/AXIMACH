@@ -133,17 +133,17 @@ function App() {
     if (!prompt) return;
     const lower = prompt.toLowerCase();
     if (lower.includes("delay") || lower.includes("late")) {
-      setAiResponse("Demo insight: review the queued EDM profile and final CMM inspection before confirming the delivery promise. No live order data is connected yet.");
+      setAiResponse("No connected production schedule is available to analyse yet. Add a real PO, component and route first; no delivery promise has been inferred.");
     } else if (lower.includes("vendor") || lower.includes("supplier")) {
-      setAiResponse("Demo insight: compare process capability, available capacity, lead time, quality history and total landed cost. AXIMACH must show source evidence before recommending a vendor.");
+      setAiResponse("No vendor recommendation is generated until vendor capability, quotations, lead times and recorded quality history are available.");
     } else if (lower.includes("cost") || lower.includes("profit")) {
-      setAiResponse("Demo insight: separate material, setup, cycle time, tooling, subcontracting, inspection, transport, rejection, overhead and tax. Compare actual cost per accepted piece—not only cost per produced piece.");
+      setAiResponse("Use the linked Costing workspace to record material, process quotations, transport, actual rates, rejects, overhead and tax for a selected component.");
     } else if (lower.includes("quality") || lower.includes("inspection")) {
-      setAiResponse("Demo insight: keep the affected batch on hold until an authorised quality role reviews the measurement evidence and records a release decision.");
+      setAiResponse("Quality recommendations are not connected to a live inspection record yet. No release or production action has been executed.");
     } else {
-      setAiResponse("Demo response: I can help scope this request, but live records, connected models and authorised actions are not configured in this prototype. No business action has been executed.");
+      setAiResponse("AXIMACH AI analysis is not connected to an inference service yet. This screen will not invent live facts or execute a business action.");
     }
-    setNotice("Illustrative AI response only — no live business data was queried and no action was executed.");
+    setNotice("AI service not connected. No live business data was queried and no action was executed.");
   };
 
   const addLocalJob = () => {
@@ -333,90 +333,45 @@ function CommandCentre(props: {
             <g className="orbit-node"><circle cx="65" cy="174" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M57 174 L63 180 L73 168" fill="none" stroke="#3975da" strokeWidth="1.6" /></g>
             <g className="orbit-node"><circle cx="168" cy="254" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M160 250 H176 V258 H160 Z M163 246 H173 V250" fill="none" stroke="#3975da" strokeWidth="1.4" /></g>
           </svg>
-          <div className="graphic-caption"><span className="ribbon-dot" /> CONNECTED FLOW / DEMO VISUAL</div>
+          <div className="graphic-caption"><span className="ribbon-dot" /> MANUFACTURING FLOW / LIVE RECORDS WHEN CONNECTED</div>
           <span className="graphic-coordinate coord-one">01 / MATERIAL</span><span className="graphic-coordinate coord-two">07 / QUALITY</span>
         </div>
       </section>
 
       <section className="pulse-heading">
-        <div><div className="eyebrow"><span className="eyebrow-mark" /> FACTORY PULSE</div><h2>Operational overview<span>.</span></h2><p>Illustrative values for interface review — not live shop-floor telemetry.</p></div>
-        <div className="pulse-actions"><span className="demo-pill"><i /> SAMPLE DATA</span><button className="button-quiet compact-button" onClick={() => onNotice("Report export is not connected. No file was generated.")}><FileDown size={15} /> Export</button></div>
+        <div><div className="eyebrow"><span className="eyebrow-mark"/> FACTORY PULSE</div><h2>Operational overview<span>.</span></h2><p>Only saved AXIMACH records appear here; no sample jobs, fabricated rates or simulated machine readings are loaded.</p></div>
+        <div className="pulse-actions"><span className="demo-pill"><i/> RECORD-DRIVEN</span><button className="button-primary compact-button" onClick={() => onSelectModule("companies")}><Plus size={14}/> Start with company</button></div>
       </section>
-
       <section className="metric-grid">
-        <MetricCard title="Active work orders" value="24" trend="+12.8%" detail="sample · vs prior week" icon={ClipboardCheck} accent="blue" />
-        <MetricCard title="Machine utilization" value="86.4%" trend="+4.2%" detail="sample · vs prior shift" icon={Gauge} accent="violet" />
-        <MetricCard title="On-time completion" value="94.8%" trend="+2.6%" detail="sample · target comparison" icon={Activity} accent="green" />
-        <MetricCard title="Quality alerts" value="02" trend="Needs review" detail="sample · 1 high priority" icon={ScanLine} accent="amber" />
+        <MetricCard title="Companies" value={String(activeRows(actualData.companies).length)} trend="Saved records" detail="Company master" icon={Factory} accent="blue"/>
+        <MetricCard title="PO component lines" value={String(activeRows(actualData.purchaseOrders).reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0))} trend="Linked records" detail="Quantity and delivery target" icon={Package} accent="violet"/>
+        <MetricCard title="Components" value={String(activeRows(actualData.components).length)} trend="Saved records" detail="Part numbers and revisions" icon={Boxes} accent="green"/>
+        <MetricCard title="Operations" value={String(activeRows(actualData.operations).length)} trend="Saved records" detail="Routes linked to PO lines" icon={Activity} accent="amber"/>
       </section>
-
-      <section className="insight-grid">
-        <article className="surface-panel insight-panel histogram-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> PRODUCTION SIGNALS</div><h3>Output histogram</h3><p>Illustrative hourly accepted parts · replace with recorded production data</p></div><span className="insight-live-pill"><i/> DEMO</span></div>
-          <div className="histogram" role="img" aria-label="Illustrative hourly output histogram">
-            {[{h:36,l:"06"},{h:52,l:"07"},{h:43,l:"08"},{h:70,l:"09"},{h:61,l:"10"},{h:86,l:"11"},{h:66,l:"12"},{h:92,l:"13"},{h:74,l:"14"},{h:100,l:"15"},{h:81,l:"16"},{h:58,l:"17"}].map((bar,index)=><div className="histogram-column" key={bar.l}><div className="histogram-track"><span className="histogram-bar" style={{"--bar-height":bar.h+"%","--bar-delay":index*55+"ms"} as CSSProperties}/></div><small>{bar.l}</small></div>)}
-          </div>
-          <div className="chart-footer"><span><i className="legend-dot blue-dot"/> Accepted parts / hour</span><strong>Live data not connected</strong></div>
-        </article>
-        <article className="surface-panel insight-panel utilization-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> CAPACITY PROFILE</div><h3>Machine utilization</h3><p>Illustrative capacity profile by shift</p></div><Gauge size={18} className="insight-icon"/></div>
-          <div className="utilization-list">
-            {[{n:"CNC turning",v:82},{n:"VMC milling",v:68},{n:"Grinding",v:74},{n:"Wire EDM",v:46}].map((item,index)=><div className="utilization-row" key={item.n}><div><span>{item.n}</span><strong>{item.v}%</strong></div><div className="utilization-track"><span style={{"--util-width":item.v+"%","--bar-delay":index*90+"ms"} as CSSProperties}/></div></div>)}
-          </div>
-          <div className="chart-footer"><span><i className="legend-dot violet-dot"/> Planned load</span><strong>Sample only</strong></div>
-        </article>
-        <article className="surface-panel insight-panel planner-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> FINITE CAPACITY</div><h3>Process planner</h3><p>Route sequence and planned time window</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={14}/> Open planner</button></div>
-          <div className="planner-timeline">
-            <div className="planner-axis"><span>06:00</span><span>09:00</span><span>12:00</span><span>15:00</span><span>18:00</span></div>
-            {[{n:"Raw material",start:0,width:16,c:"planned-green"},{n:"CNC turning",start:14,width:25,c:"planned-blue"},{n:"VMC milling",start:38,width:22,c:"planned-cyan"},{n:"Inspection",start:62,width:15,c:"planned-violet"},{n:"Dispatch",start:80,width:15,c:"planned-amber"}].map((item,index)=><div className="planner-row" key={item.n}><span className="planner-label">{item.n}</span><div className="planner-lane"><span className={"planner-task "+item.c} style={{left:item.start+"%",width:item.width+"%","--bar-delay":index*110+"ms"} as CSSProperties}/></div></div>)}
-          </div>
-          <div className="planner-foot"><span><Activity size={14}/> Sequence preview · not a committed production schedule</span><button onClick={() => onSelectModule("process-map")}>Manage process route <ArrowRight size={14}/></button></div>
-        </article>
-      </section>
-
-      <section className="dashboard-grid">
+      <section className="dashboard-grid actual-data-dashboard">
         <div className="surface-panel flow-preview">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> LIVE WORKFLOW PREVIEW</div><h3>Machining process route</h3><p>AX-2048 · Precision housing · Rev C</p></div><button className="round-action" onClick={() => onSelectModule("process-map")} aria-label="Expand process map"><ArrowUpRight size={18} /></button></div>
-          <div className="mini-route">
-            <span className="mini-node done"><Check size={13} /></span><span className="mini-connector complete" />
-            <span className="mini-node done"><Check size={13} /></span><span className="mini-connector complete" />
-            <span className="mini-node active"><Zap size={13} /></span><span className="mini-connector" />
-            <span className="mini-node"><span>04</span></span><span className="mini-connector" />
-            <span className="mini-node"><span>05</span></span><span className="mini-connector" />
-            <span className="mini-node"><span>06</span></span><span className="mini-connector" />
-            <span className="mini-node"><span>07</span></span>
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA SETUP</div><h3>Build your manufacturing records</h3><p>Save each master once; choose its ID from linked workflows.</p></div><button className="round-action" onClick={() => onSelectModule("companies")} aria-label="Open company master"><ArrowUpRight size={18}/></button></div>
+          <div className="setup-steps">
+            <button onClick={() => onSelectModule("companies")}><span>01</span><strong>Company & factory</strong><small>{activeRows(actualData.companies).length} companies · {activeRows(actualData.factories).length} factories</small></button>
+            <button onClick={() => onSelectModule("components")}><span>02</span><strong>Component master</strong><small>{activeRows(actualData.components).length} part numbers saved</small></button>
+            <button onClick={() => onSelectModule("purchasing")}><span>03</span><strong>Purchase order lines</strong><small>{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.length,0)} lines saved</small></button>
+            <button onClick={() => onSelectModule("vendors")}><span>04</span><strong>Vendor directory</strong><small>{activeRows(actualData.vendors).length} saved vendor/contact records</small></button>
           </div>
-          <div className="mini-route-labels"><span>Material</span><span>Inspection</span><span>Machining</span><span>+4 steps</span></div>
-          <div className="flow-summary"><span><i className="state-dot good" /> 2 complete</span><span><i className="state-dot live" /> 1 running</span><span><i className="state-dot pending" /> 4 queued</span><button onClick={() => onSelectModule("process-map")}>Explore full route <ArrowRight size={14} /></button></div>
         </div>
-
-        <div className="surface-panel ai-panel">
-          <div className="ai-panel-heading"><span className="ai-symbol"><Sparkles size={17} /></span><div><h3>AXIMACH intelligence</h3><p>Ask about manufacturing decisions</p></div><span className="demo-ai-label">DEMO</span></div>
-          <form className="ai-form" onSubmit={(event) => { event.preventDefault(); onRunCommand(); }}>
-            <input aria-label="Ask AXIMACH intelligence" value={aiPrompt} onChange={(event) => onAiPromptChange(event.target.value)} placeholder="e.g. Find delayed jobs…" />
-            <button type="submit" disabled={!aiPrompt.trim()} aria-label="Send command"><ArrowRight size={17} /></button>
-          </form>
-          <div className="prompt-chips"><button onClick={() => onAiPromptChange("Which jobs are delayed?")}>Delayed jobs</button><button onClick={() => onAiPromptChange("Compare alternate vendors")}>Alternate vendors</button><button onClick={() => onAiPromptChange("Review job cost")}>Job cost</button></div>
-          {aiResponse ? <div className="ai-response"><Sparkles size={15} /><span>{aiResponse}</span></div> : <div className="ai-disclaimer"><ShieldCheck size={15} /><span>Recommendations must cite source records. Payments, quality release and safety-critical actions require human approval.</span></div>}
-        </div>
-
         <div className="surface-panel jobs-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> PLANNING QUEUE</div><h3>Work orders</h3><p>Session examples only · not saved to a database</p></div><button className="button-primary small-primary" onClick={onNewJob}><Plus size={15} /> Add example</button></div>
-          <div className="job-list">
-            {localJobs.slice(0, 4).map((job, index) => <div className="job-row" key={job}><span className="job-number">{String(index + 1).padStart(2, "0")}</span><span className="job-main"><strong>{job}</strong><small>{index === 0 ? "Prototype queue" : index === 1 ? "Plan review" : index === 2 ? "Material verification" : "New session record"}</small></span><span className={"job-chip " + (index === 0 ? "job-running" : "job-planned")}>{index === 0 ? "Running*" : "Planned*"}</span></div>)}
-          </div>
-          <div className="panel-footnote"><Clock3 size={13} /> All statuses are illustrative. *No work order is connected.</div>
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PRODUCTION ROUTES</div><h3>Recent operations</h3><p>Only operations saved for real PO component lines.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={14}/> Process Map</button></div>
+          {activeRows(actualData.operations).length ? <div className="job-list">{activeRows(actualData.operations).slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,5).map(op => <div className="job-row" key={op.id}><span className="job-number">{String(op.sequence).padStart(2,"0")}</span><span className="job-main"><strong>{op.name}</strong><small>{actualData.components.find(c=>c.id===op.componentId)?.partNumber || "Component"} · {actualData.purchaseOrders.find(po=>po.id===op.poId)?.number || "PO"}</small></span><span className="job-chip">{op.status}</span></div>)}</div> : <div className="module-empty-state"><Workflow size={24}/><h3>No operations yet</h3><p>Select a PO component line and add the processes that this job actually needs.</p><button className="button-primary" onClick={() => onSelectModule("process-map")}><Plus size={14}/> Open Process Map</button></div>}
         </div>
-
         <div className="surface-panel attention-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> ATTENTION QUEUE</div><h3>Review priorities</h3><p>Example alerts for workflow design</p></div><span className="attention-count">02</span></div>
-          <button className="attention-row" onClick={() => onSelectModule("tooling")}><span className="attention-symbol amber-symbol"><Wrench size={17} /></span><span className="attention-copy"><strong>Tool-life warning</strong><small>VMC-04 · End mill T12 · example alert</small><em>Open tooling workspace</em></span><ArrowUpRight size={16} /></button>
-          <button className="attention-row" onClick={() => onSelectModule("quality")}><span className="attention-symbol red-symbol"><ClipboardCheck size={17} /></span><span className="attention-copy"><strong>Inspection sign-off pending</strong><small>AX-2041 · Final CMM report · example alert</small><em>Open quality workspace</em></span><ArrowUpRight size={16} /></button>
-          <div className="attention-safety"><ShieldCheck size={14} /> Quality holds release only through an authorised role.</div>
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTATIONS</div><h3>Supplier rate history</h3><p>Received quotes are linked to a component, PO line, process and vendor.</p></div><span className="attention-count">{activeRows(actualData.quotations).length}</span></div>
+          {activeRows(actualData.quotations).length ? <div className="job-list">{activeRows(actualData.quotations).slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,4).map(q => <div className="job-row" key={q.id}><span className="job-number"><CircleDollarSign size={15}/></span><span className="job-main"><strong>{actualData.components.find(x=>x.id===q.componentId)?.partNumber || "Component"} · {actualData.operations.find(x=>x.id===q.operationId)?.name || "Process"}</strong><small>{actualData.vendors.find(x=>x.id===q.vendorId)?.company || "Vendor"} · {q.quoteReference || "No reference"}</small></span><span className="job-chip">{q.status}</span></div>)}</div> : <div className="module-empty-state"><CircleDollarSign size={24}/><h3>No quotations yet</h3><p>Add real vendor quotations to compare rates per component and process.</p><button className="button-primary" onClick={() => onSelectModule("costing")}><Plus size={14}/> Add quotation</button></div>}
+        </div>
+        <div className="surface-panel attention-panel">
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> REVIEW QUEUE</div><h3>Recorded risks</h3><p>No illustrative alerts are shown.</p></div><ShieldCheck size={18}/></div>
+          {activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).length ? activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).slice(0,5).map(op => <button className="attention-row" key={op.id} onClick={() => onSelectModule("process-map")}><span className="attention-symbol red-symbol"><ShieldAlert size={17}/></span><span className="attention-copy"><strong>{op.name}</strong><small>{op.status === "Quality hold" ? "Quality hold entered" : "Target date overdue"} · {op.plannedEnd || "No target date"}</small><em>Open linked Process Map</em></span><ArrowUpRight size={16}/></button>) : <div className="vendor-empty">No overdue operations or quality holds are recorded.</div>}
+          <div className="attention-safety"><ShieldCheck size={14}/> Alerts are calculated from saved operation status and target dates.</div>
         </div>
       </section>
-
       <section className="module-shortcuts">
         <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all 32 modules <ArrowRight size={15} /></button></div>
         <div className="shortcut-grid">
