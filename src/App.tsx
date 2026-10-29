@@ -208,7 +208,7 @@ function App() {
           <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : (
           <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
-        )
+        )}
       </main>
 
       <nav className="command-rail" aria-label="Quick navigation">
