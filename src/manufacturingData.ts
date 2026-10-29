@@ -23,6 +23,10 @@ export type ComponentRecord = {
 export type PurchaseOrderLine = {
   id: string; componentId: string; quantity: number; targetDelivery: string; unitPrice: number;
   notes: string;
+  // Optional line-specific overrides prevent cost/reject values from bleeding across different orders for the same part.
+  materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number;
+  overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number;
+  rejectedQty?: number; gstRate?: number;
 };
 export type PurchaseOrderRecord = {
   id: string; number: string; companyId: string; factoryId: string; issueDate: string;
