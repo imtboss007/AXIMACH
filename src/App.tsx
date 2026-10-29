@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Activity, ArrowDownRight, ArrowUpRight, Bell, Box, ChevronDown, CircleHelp,
   Command, Cpu, Gauge, LayoutDashboard, Menu, Plus, Search, Settings2,
@@ -171,7 +171,7 @@ function App() {
   );
 }
 
-function MetricCard({label,value,delta,up,detail,icon,accent}:{label:string;value:string;delta:string;up:boolean;detail:string;icon:React.ReactNode;accent:string}) {
+function MetricCard({label,value,delta,up,detail,icon,accent}:{label:string;value:string;delta:string;up:boolean;detail:string;icon:ReactNode;accent:string}) {
   return <div className="metric-card"><div className="metric-top"><span>{label}</span><div className={`metric-icon ${accent}`}>{icon}</div></div><div className="metric-value">{value}</div><div className="metric-bottom"><span className={`metric-delta ${up ? "positive" : "negative"}`}>{up ? <ArrowUpRight size={13}/> : <ArrowDownRight size={13}/>} {delta}</span><span className="metric-detail">{detail}</span></div><div className={`metric-glow ${accent}`}/></div>;
 }
 
