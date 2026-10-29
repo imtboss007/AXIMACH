@@ -753,6 +753,34 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
   const profile = moduleProfiles[module.id] ?? defaultProfile;
   const [activeWorkflowStep, setActiveWorkflowStep] = useState(0);
   const [allRecords, setAllRecords] = useState<Record<string, ModuleRecord[]>>(() => getAllModuleRecords());
+  const [recordSync, setRecordSync] = useState<"local" | "syncing" | "synced" | "error">("local");
+  useEffect(() => {
+    const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\\/+$/, "");
+    const key = window.sessionStorage.getItem("aximach.scheduler.key") || "";
+    if (!base || !key) return;
+    let cancelled = false;
+    const headers = { "content-type": "application/json", "x-aximach-key": key };
+    setRecordSync("syncing");
+    fetch(base + "/api/records", { headers })
+      .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error || "Record sync failed"); return data.records as Record<string, ModuleRecord[]>; })
+      .then(async remote => {
+        if (cancelled) return;
+        const local = getAllModuleRecords();
+        const merged: Record<string, ModuleRecord[]> = { ...(remote || {}) };
+        for (const [moduleId, rows] of Object.entries(local)) {
+          const byId = new Map((merged[moduleId] || []).map(row => [row.id, row]));
+          for (const row of rows) if (!byId.has(row.id) || Date.parse(row.updatedAt || "") > Date.parse(byId.get(row.id)?.updatedAt || "")) byId.set(row.id, row);
+          merged[moduleId] = Array.from(byId.values());
+        }
+        setAllRecords(merged);
+        setAllModuleRecords(merged);
+        const response = await fetch(base + "/api/records", { method: "PUT", headers, body: JSON.stringify({ records: merged }) });
+        if (!response.ok) throw new Error("Could not persist merged module records to server");
+        if (!cancelled) setRecordSync("synced");
+      })
+      .catch(() => { if (!cancelled) setRecordSync("error"); });
+    return () => { cancelled = true; };
+  }, []);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState("");
@@ -760,7 +788,16 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
   const records = allRecords[module.id] ?? [];
   const related = modules.filter((item) => item.id !== module.id && [module.group, "Engineering", "Operations", "Governance", "Supply Network", "Commercial", "Finance", "Connections"].includes(item.group)).slice(0, 8);
   const filtered = records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(search.toLowerCase()));
-  const persist = (next: Record<string, ModuleRecord[]>) => { setAllRecords(next); setAllModuleRecords(next); };
+  const persist = (next: Record<string, ModuleRecord[]>) => {
+    setAllRecords(next); setAllModuleRecords(next);
+    const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\\/+$/, "");
+    const key = window.sessionStorage.getItem("aximach.scheduler.key") || "";
+    if (!base || !key) { setRecordSync("local"); return; }
+    setRecordSync("syncing");
+    fetch(base + "/api/records", { method: "PUT", headers: { "content-type": "application/json", "x-aximach-key": key }, body: JSON.stringify({ records: next }) })
+      .then(response => { if (!response.ok) throw new Error("Record sync failed"); setRecordSync("synced"); })
+      .catch(() => setRecordSync("error"));
+  };
   const resetForm = () => { setDraft({ title: "", reference: "", status: "Open", owner: "", linkedModule: "", notes: "" }); setEditingId(""); setShowForm(false); };
   const saveRecord = () => {
     if (!draft.title.trim()) { onNotice("Enter a record name before saving."); return; }
@@ -768,10 +805,10 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
     const current = records.filter((item) => item.id !== editingId);
     persist({ ...allRecords, [module.id]: [record, ...current] });
     resetForm();
-    onNotice("Record saved on this device. It is not synced to a shared server.");
+    onNotice(recordSync === "synced" ? "Record saved and synced to the AXIMACH server." : "Record saved on this device. Connect the scheduler server to enable shared backup and cross-device sync.");
   };
   const editRecord = (record: ModuleRecord) => { setDraft({ title: record.title, reference: record.reference, status: record.status, owner: record.owner, linkedModule: record.linkedModule, notes: record.notes }); setEditingId(record.id); setShowForm(true); };
-  const removeRecord = (id: string) => { if (!window.confirm("Remove this local sample record? This cannot be undone in this browser.")) return; persist({ ...allRecords, [module.id]: records.filter((item) => item.id !== id) }); onNotice("Local record removed."); };
+  const removeRecord = (id: string) => { if (!window.confirm("Remove this local sample record? This cannot be undone in this browser.")) return; persist({ ...allRecords, [module.id]: records.filter((item) => item.id !== id) }); onNotice("Record removed from this device. Reconnect to the server to sync the change."); };
   const exportRecords = () => { const blob = new Blob([JSON.stringify({ module: module.id, exportedAt: new Date().toISOString(), records }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "aximach-" + module.id + "-records.json"; a.click(); URL.revokeObjectURL(url); onNotice("Module records exported as JSON."); };
   const totalLinked = Object.values(allRecords).flat().filter((record) => record.linkedModule).length;
   return (
