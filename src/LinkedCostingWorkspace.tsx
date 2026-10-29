@@ -29,7 +29,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const [quoteSearch, setQuoteSearch] = useState("");
   const [showQuoteForm, setShowQuoteForm] = useState(false);
 
-  const selectedComponent = components.find(c => c.id === componentId) || components[0];
+  const selectedComponent = components.find(c => c.id === componentId);
   const componentLines: ComponentLineRef[] = useMemo(() => orders.flatMap(po => po.lines.filter(line => line.componentId === selectedComponent?.id).map(line => ({
     key: po.id + "::" + line.id, poId: po.id, poNumber: po.number, lineId: line.id, quantity: line.quantity, targetDelivery: line.targetDelivery || po.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId
   }))), [orders, selectedComponent?.id]);
@@ -52,12 +52,12 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const profit = revenue - plannedTotal;
   const costPerAccepted = acceptedQty ? plannedTotal / acceptedQty : 0;
 
-  const openQuote = () => {
+  const openQuote = (forOperationId?: string) => {
     if (!selectedComponent) { onNotice("Create a component master record first."); return; }
     if (!selectedLine) { onNotice("Link this component to a saved purchase-order line before entering a quote."); return; }
     if (!routeOperations.length) { onNotice("Add the required process operations in Process Map first, then enter each vendor quotation against the exact operation."); return; }
     setQuoteReference(""); setQuotedAt(stamp()); setValidUntil(""); setQuantity(String(selectedLine.quantity)); setRatePerPart(""); setTransportCost("0"); setLeadDays(""); setQuoteNotes("");
-    setOperationId(routeOperations[0]?.id || ""); setVendorId(""); setShowQuoteForm(true);
+    setOperationId(forOperationId || routeOperations[0]?.id || ""); setVendorId(""); setShowQuoteForm(true);
   };
   const saveQuote = () => {
     if (!selectedComponent || !selectedLine || !selectedOperation || !vendorId) { onNotice("Choose a component, PO line, process operation and vendor."); return; }
@@ -106,7 +106,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
         {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Transport</th><th>Planned process cost</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
           const quoteCount = quotations.filter(q => q.operationId === op.id && !q.deletedAt).length;
           const vendor = vendors.find(v => v.id === op.vendorId);
-          return <tr key={op.id}><td><strong>{op.name}</strong><small>{op.category || "Type not entered"} · OP-{op.sequence}</small></td><td>{vendor?.company || "Not assigned"}</td><td>{op.quantity.toLocaleString("en-IN")}</td><td>{money(op.ratePerPart)}</td><td>{(op.actualRatePerPart || 0) > 0 ? money(op.actualRatePerPart) : "Not entered"}</td><td>{money(op.transportCost)}</td><td>{money(op.quantity * op.ratePerPart + op.transportCost)}</td><td><button className="button-quiet compact-button" onClick={() => {setOperationId(op.id);openQuote();}}><Plus size={12}/> {quoteCount} · Add quote</button></td></tr>;
+          return <tr key={op.id}><td><strong>{op.name}</strong><small>{op.category || "Type not entered"} · OP-{op.sequence}</small></td><td>{vendor?.company || "Not assigned"}</td><td>{op.quantity.toLocaleString("en-IN")}</td><td>{money(op.ratePerPart)}</td><td>{(op.actualRatePerPart || 0) > 0 ? money(op.actualRatePerPart) : "Not entered"}</td><td>{money(op.transportCost)}</td><td>{money(op.quantity * op.ratePerPart + op.transportCost)}</td><td><button className="button-quiet compact-button" onClick={() => {openQuote(op.id);}}><Plus size={12}/> {quoteCount} · Add quote</button></td></tr>;
         })}</tbody></table></div> : <div className="module-empty-state"><FileText size={25}/><h3>No process operations linked yet</h3><p>Add the actual operations in Process Map for this component and PO line before recording supplier quotations.</p><button className="button-primary" onClick={() => onSelectModule("process-map")}><Plus size={14}/> Add operations</button></div>}
       </section>
       {showQuoteForm && <section className="surface-panel module-record-form-panel linked-quote-form"><div className="panel-heading"><div><h3>New supplier quotation</h3><p>Quote source and status stay separate from actual accepted invoice / job cost.</p></div><button className="icon-control" onClick={() => setShowQuoteForm(false)} aria-label="Close quote form"><X size={15}/></button></div>
