@@ -39,7 +39,7 @@ async function body(req) {
 }
 function authorized(req) { return API_KEY && req.headers["x-aximach-key"] === API_KEY; }
 function normalisePhone(phone) { return String(phone || "").replace(/\D/g, ""); }
-const manufacturingCollections = ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations"];
+const manufacturingCollections = ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions"];
 function mergeManufacturingData(existing, incoming) {
   const left = existing && typeof existing === "object" ? existing : {};
   const right = incoming && typeof incoming === "object" ? incoming : {};
