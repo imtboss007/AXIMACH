@@ -55,8 +55,7 @@ async function tick() {
         const result = await sendWhatsApp(task.to, task.message);
         db.logs.unshift({ id: randomUUID(), scheduleId: task.id, at: new Date().toISOString(), status: "sent", providerMessageId: result.messages?.[0]?.id || "", detail: "Accepted by WhatsApp Cloud API" });
         task.lastRunAt = new Date().toISOString();
-        if (task.repeat === "daily") task.nextRunAt = new Date(Date.parse(task.nextRunAt) + 86400000).toISOString();
-        else if (task.repeat === "weekly") task.nextRunAt = new Date(Date.parse(task.nextRunAt) + 604800000).toISOString();
+        if (task.repeat === "daily" || task.repeat === "weekly") { const period = task.repeat === "daily" ? 86400000 : 604800000; let next = Date.parse(task.nextRunAt) + period; while (next <= Date.now()) next += period; task.nextRunAt = new Date(next).toISOString(); }
         else { task.enabled = false; task.nextRunAt = null; }
       } catch (error) {
         db.logs.unshift({ id: randomUUID(), scheduleId: task.id, at: new Date().toISOString(), status: "failed", detail: error.message });
@@ -70,7 +69,7 @@ async function tick() {
   } finally { busy = false; }
 }
 const server = createServer(async (req, res) => {
-  if (req.method === "OPTIONS") return json(res, 204, {});
+  if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-allow-origin": process.env.AXIMACH_ALLOWED_ORIGIN || "http://localhost:5173", "access-control-allow-headers": "content-type,x-aximach-key", "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS", "access-control-max-age": "86400" }); return res.end(); }
   const url = new URL(req.url, "http://localhost");
   if (url.pathname === "/health" && req.method === "GET") return json(res, 200, { ok: true, service: "AXIMACH scheduler", credentialsConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID), persistentStore: DB_PATH });
   if (!authorized(req)) return json(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
