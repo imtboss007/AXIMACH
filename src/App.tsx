@@ -620,29 +620,79 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
     <section className="surface-panel followup-list-panel"><div className="panel-heading"><div><h3>Scheduled follow-ups</h3><p>Locally stored task list · automatic sending and reply monitoring are not configured.</p></div><span className="module-number">{followUps.filter(f=>f.status==="Scheduled").length} OPEN</span></div>{followUps.length===0?<div className="vendor-empty">No tasks scheduled. Open Vendors & Sub-vendors, select a contact and create a follow-up.</div>:<div className="followup-table-wrap"><table className="followup-table"><thead><tr><th>Due</th><th>Vendor</th><th>Channel</th><th>Message</th><th>Status</th><th>Actions</th></tr></thead><tbody>{followUps.map(f=>{const c=contacts.find(x=>x.id===f.contactId);return <tr key={f.id}><td>{f.due}</td><td>{c?c.company+" · "+c.contact:"Contact removed"}</td><td>{f.channel}</td><td>{f.message}</td><td>{f.status}</td><td><div className="followup-row-actions">{c&&f.status==="Scheduled"&&<button onClick={()=>open(f)}>Open</button>}{f.status==="Scheduled"&&<button onClick={()=>changeStatus(f.id,"Done")}>Mark done</button>}{f.status==="Scheduled"&&<button onClick={()=>changeStatus(f.id,"Cancelled")}>Cancel</button>}</div></td></tr>})}</tbody></table></div>}</section><div className="module-safety-note"><ShieldCheck size={16}/><span>Tasks remain on this device. They will not run while the app is closed, and WhatsApp replies cannot be detected until a backend/provider integration is implemented.</span></div></section>;
 }
 
-function ModuleWorkspace({ module, onBack, onNotice, onOpenModules }: { module: ModuleItem; onBack: () => void; onNotice: (value: string) => void; onOpenModules: () => void }) {
+
+type ModuleRecord = { id: string; title: string; reference: string; status: string; owner: string; linkedModule: string; notes: string; updatedAt: string };
+const MODULE_RECORDS_KEY = "aximach.moduleRecords.v1";
+function getAllModuleRecords(): Record<string, ModuleRecord[]> {
+  try { const raw = window.localStorage.getItem(MODULE_RECORDS_KEY); return raw ? JSON.parse(raw) as Record<string, ModuleRecord[]> : {}; } catch { return {}; }
+}
+function setAllModuleRecords(data: Record<string, ModuleRecord[]>) {
+  try { window.localStorage.setItem(MODULE_RECORDS_KEY, JSON.stringify(data)); } catch { /* browser storage may be unavailable */ }
+}
+function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModule }: { module: ModuleItem; onBack: () => void; onNotice: (value: string) => void; onOpenModules: () => void; onSelectModule: (id: string) => void }) {
   const Icon = module.icon;
+  const [allRecords, setAllRecords] = useState<Record<string, ModuleRecord[]>>(() => getAllModuleRecords());
+  const [search, setSearch] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState("");
+  const [draft, setDraft] = useState({ title: "", reference: "", status: "Open", owner: "", linkedModule: "", notes: "" });
+  const records = allRecords[module.id] ?? [];
+  const related = modules.filter((item) => item.id !== module.id && [module.group, "Engineering", "Operations", "Governance", "Supply Network", "Commercial", "Finance", "Connections"].includes(item.group)).slice(0, 8);
+  const filtered = records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(search.toLowerCase()));
+  const persist = (next: Record<string, ModuleRecord[]>) => { setAllRecords(next); setAllModuleRecords(next); };
+  const resetForm = () => { setDraft({ title: "", reference: "", status: "Open", owner: "", linkedModule: "", notes: "" }); setEditingId(""); setShowForm(false); };
+  const saveRecord = () => {
+    if (!draft.title.trim()) { onNotice("Enter a record name before saving."); return; }
+    const record: ModuleRecord = { ...draft, title: draft.title.trim(), id: editingId || "rec-" + Date.now().toString(36), updatedAt: new Date().toISOString() };
+    const current = records.filter((item) => item.id !== editingId);
+    persist({ ...allRecords, [module.id]: [record, ...current] });
+    resetForm();
+    onNotice("Record saved on this device. It is not synced to a shared server.");
+  };
+  const editRecord = (record: ModuleRecord) => { setDraft({ title: record.title, reference: record.reference, status: record.status, owner: record.owner, linkedModule: record.linkedModule, notes: record.notes }); setEditingId(record.id); setShowForm(true); };
+  const removeRecord = (id: string) => { if (!window.confirm("Remove this local sample record? This cannot be undone in this browser.")) return; persist({ ...allRecords, [module.id]: records.filter((item) => item.id !== id) }); onNotice("Local record removed."); };
+  const exportRecords = () => { const blob = new Blob([JSON.stringify({ module: module.id, exportedAt: new Date().toISOString(), records }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "aximach-" + module.id + "-records.json"; a.click(); URL.revokeObjectURL(url); onNotice("Module records exported as JSON."); };
+  const totalLinked = Object.values(allRecords).flat().filter((record) => record.linkedModule).length;
   return (
-    <section className="workspace-page">
-      <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15} /> Command centre</button><span className="demo-pill"><i /> MODULE PREVIEW</span></div>
+    <section className="workspace-page module-functional-page">
+      <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15} /> Command centre</button><span className="demo-pill"><i /> LOCAL WORKSPACE</span></div>
       <div className="module-hero">
-        <div className="module-hero-icon"><Icon size={27} /></div>
+        <div className="module-hero-icon animated-module-icon"><Icon size={27} /></div>
         <div className="module-hero-copy"><div className="eyebrow"><span className="eyebrow-mark" /> {module.group.toUpperCase()} / AXIMACH MODULE</div><h1>{module.title}<span>.</span></h1><p>{module.description}</p></div>
-        <button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Switch module</button>
+        <button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> All modules</button>
       </div>
-      <div className="module-preview-banner"><ShieldCheck size={17} /><span><strong>Module shell ready for detailed implementation.</strong> This is a navigable design prototype. Connect the database, permissions and module-specific operations before using business data.</span></div>
-      <div className="module-kpi-grid"><div className="module-kpi"><small>WORKSPACE</small><strong>Available</strong><span>Navigation prototype</span></div><div className="module-kpi"><small>DATA CONNECTION</small><strong>Not connected</strong><span>No live records queried</span></div><div className="module-kpi"><small>PERMISSIONS</small><strong>Not enforced</strong><span>Server-side access control pending</span></div><div className="module-kpi"><small>INTEGRATION</small><strong>Not configured</strong><span>External actions disabled</span></div></div>
-      <div className="module-layout-grid">
-        <div className="surface-panel module-main-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> WORKSPACE OVERVIEW</div><h3>{module.title}</h3><p>Proposed structure for the next implementation phase.</p></div><span className="module-number">{String(modules.findIndex((item) => item.id === module.id) + 1).padStart(2, "0")} / 32</span></div>
-          <div className="module-capabilities">{["Search and filter records", "Role-scoped detail views", "Linked manufacturing history", "Import, export and audit controls"].map((item, index) => <div key={item}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item}</strong><Check size={15} /></div>)}</div>
-          <div className="module-implementation-note"><Sparkles size={17} /><span><strong>Next engineering step</strong><small>Implement the data schema, API contract, validation rules, permissions and tests for this module before connecting production actions.</small></span></div>
+      <div className="module-action-bar">
+        <label className="module-record-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={"Search " + module.title.toLowerCase() + " records…"} /></label>
+        <button className="button-primary" onClick={() => { setDraft({ title: "", reference: "", status: "Open", owner: "", linkedModule: "", notes: "" }); setEditingId(""); setShowForm(true); }}><Plus size={15} /> Add record</button>
+        <button className="button-quiet" onClick={exportRecords}><FileDown size={15} /> Export</button>
+      </div>
+      {showForm && <section className="surface-panel module-record-form-panel">
+        <div className="panel-heading"><div><h3>{editingId ? "Edit record" : "Create " + module.title + " record"}</h3><p>Required: record name. Data stays in this browser.</p></div><button className="icon-control" onClick={resetForm} aria-label="Close editor"><X size={15} /></button></div>
+        <div className="module-record-form">
+          <label>Record name *<input autoFocus value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Enter name or work item" /></label>
+          <label>Reference / PO / part no.<input value={draft.reference} onChange={(event) => setDraft({ ...draft, reference: event.target.value })} placeholder="Reference number" /></label>
+          <label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option>Open</option><option>Planned</option><option>In progress</option><option>On hold</option><option>Completed</option><option>Cancelled</option></select></label>
+          <label>Responsible person / company<input value={draft.owner} onChange={(event) => setDraft({ ...draft, owner: event.target.value })} placeholder="Person, team or vendor" /></label>
+          <label>Link to another module<select value={draft.linkedModule} onChange={(event) => setDraft({ ...draft, linkedModule: event.target.value })}><option value="">No linked module</option>{modules.filter((item) => item.id !== module.id).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+          <label className="module-form-wide">Notes / instructions<input value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} placeholder="Details, constraints, follow-up notes…" /></label>
+          <div className="module-form-actions"><button className="button-primary" onClick={saveRecord}><Check size={14} /> Save record</button><button className="button-quiet" onClick={resetForm}>Cancel</button></div>
         </div>
-        <div className="surface-panel module-related"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> CONNECTED DOMAINS</div><h3>Related modules</h3></div></div>
-          {modules.filter((item) => item.id !== module.id && [module.group, "Engineering", "Operations", "Governance"].includes(item.group)).slice(0, 5).map((item) => { const RelatedIcon = item.icon; return <button className="related-row" key={item.id} onClick={() => onNotice("Related module selection: " + item.title + ". Use the module universe to open it.")}><span className="related-icon"><RelatedIcon size={16} /></span><span><strong>{item.title}</strong><small>{item.group}</small></span><ArrowUpRight size={14} /></button>; })}
+      </section>}
+      <div className="module-workbench-grid">
+        <section className="surface-panel module-records-panel">
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> RECORDS / WORK ITEMS</div><h3>{module.title}</h3><p>{records.length} saved locally · {filtered.length} shown</p></div><span className="module-number">{String(modules.findIndex((item) => item.id === module.id) + 1).padStart(2, "0")} / 32</span></div>
+          {filtered.length ? <div className="module-record-list">{filtered.map((record) => <article className="module-record-card" key={record.id}>
+            <div className="module-record-mark"><Icon size={18} /></div><div className="module-record-copy"><strong>{record.title}</strong><span>{record.reference || "No reference"} · {record.owner || "Unassigned"}</span><p>{record.notes || "No notes added."}</p>{record.linkedModule && <button className="inline-module-link" onClick={() => onSelectModule(record.linkedModule)}><GitBranch size={13} /> Open linked {modules.find((item) => item.id === record.linkedModule)?.title ?? "module"} <ArrowUpRight size={13} /></button>}</div>
+            <div className="module-record-card-actions"><span className={"record-state state-" + record.status.toLowerCase().replace(/[^a-z]+/g, "-")}>{record.status}</span><button onClick={() => editRecord(record)}>Edit</button><button onClick={() => removeRecord(record.id)}>Delete</button></div>
+          </article>)}</div> : <div className="module-empty-state"><div className="module-empty-icon"><Icon size={25} /></div><h3>{search ? "No matching records" : "Start using this module"}</h3><p>{search ? "Try another search term or clear the search." : "Create your first record. Then link it to another AXIMACH module to build a connected workflow."}</p>{!search && <button className="button-primary" onClick={() => setShowForm(true)}><Plus size={15} /> Create first record</button>}</div>}
+          <div className="module-storage-note"><ShieldCheck size={14} /> Saved in this browser only · no shared database is connected yet.</div>
+        </section>
+        <aside className="surface-panel module-connection-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> CROSS-MODULE LINKS</div><h3>Connected workspaces</h3><p>{totalLinked} linked records across local modules</p></div></div>
+          {related.map((item) => { const RelatedIcon = item.icon; return <button className="related-row" key={item.id} onClick={() => onSelectModule(item.id)}><span className="related-icon"><RelatedIcon size={16} /></span><span><strong>{item.title}</strong><small>{(allRecords[item.id] ?? []).length} local records · {item.group}</small></span><ArrowUpRight size={14} /></button>; })}
           <button className="related-all" onClick={onOpenModules}>Browse all 32 modules <ArrowRight size={14} /></button>
-        </div>
+        </aside>
       </div>
-      <div className="module-safety-note"><ShieldCheck size={16} /><span>AXIMACH design rule: no payment, role change, quality release, safety-critical engineering change or destructive data operation should run autonomously without explicit server-side authorization and the required approval.</span></div>
+      <div className="module-safety-note"><ShieldCheck size={16} /><span>This workspace now supports local create, edit, delete, search, export and navigation links. It is not a production database; multi-user sync, server permissions, automated external actions and audit-grade persistence remain to be implemented.</span></div>
     </section>
   );
 }
