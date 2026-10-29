@@ -350,6 +350,31 @@ function CommandCentre(props: {
         <MetricCard title="Quality alerts" value="02" trend="Needs review" detail="sample · 1 high priority" icon={ScanLine} accent="amber" />
       </section>
 
+      <section className="insight-grid">
+        <article className="surface-panel insight-panel histogram-panel">
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> PRODUCTION SIGNALS</div><h3>Output histogram</h3><p>Illustrative hourly accepted parts · replace with recorded production data</p></div><span className="insight-live-pill"><i/> DEMO</span></div>
+          <div className="histogram" role="img" aria-label="Illustrative hourly output histogram">
+            {[{h:36,l:"06"},{h:52,l:"07"},{h:43,l:"08"},{h:70,l:"09"},{h:61,l:"10"},{h:86,l:"11"},{h:66,l:"12"},{h:92,l:"13"},{h:74,l:"14"},{h:100,l:"15"},{h:81,l:"16"},{h:58,l:"17"}].map((bar,index)=><div className="histogram-column" key={bar.l}><div className="histogram-track"><span className="histogram-bar" style={{"--bar-height":bar.h+"%","--bar-delay":index*55+"ms"} as CSSProperties}/></div><small>{bar.l}</small></div>)}
+          </div>
+          <div className="chart-footer"><span><i className="legend-dot blue-dot"/> Accepted parts / hour</span><strong>Live data not connected</strong></div>
+        </article>
+        <article className="surface-panel insight-panel utilization-panel">
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> CAPACITY PROFILE</div><h3>Machine utilization</h3><p>Illustrative capacity profile by shift</p></div><Gauge size={18} className="insight-icon"/></div>
+          <div className="utilization-list">
+            {[{n:"CNC turning",v:82},{n:"VMC milling",v:68},{n:"Grinding",v:74},{n:"Wire EDM",v:46}].map((item,index)=><div className="utilization-row" key={item.n}><div><span>{item.n}</span><strong>{item.v}%</strong></div><div className="utilization-track"><span style={{"--util-width":item.v+"%","--bar-delay":index*90+"ms"} as CSSProperties}/></div></div>)}
+          </div>
+          <div className="chart-footer"><span><i className="legend-dot violet-dot"/> Planned load</span><strong>Sample only</strong></div>
+        </article>
+        <article className="surface-panel insight-panel planner-panel">
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> FINITE CAPACITY</div><h3>Process planner</h3><p>Route sequence and planned time window</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={14}/> Open planner</button></div>
+          <div className="planner-timeline">
+            <div className="planner-axis"><span>06:00</span><span>09:00</span><span>12:00</span><span>15:00</span><span>18:00</span></div>
+            {[{n:"Raw material",start:0,width:16,c:"planned-green"},{n:"CNC turning",start:14,width:25,c:"planned-blue"},{n:"VMC milling",start:38,width:22,c:"planned-cyan"},{n:"Inspection",start:62,width:15,c:"planned-violet"},{n:"Dispatch",start:80,width:15,c:"planned-amber"}].map((item,index)=><div className="planner-row" key={item.n}><span className="planner-label">{item.n}</span><div className="planner-lane"><span className={"planner-task "+item.c} style={{left:item.start+"%",width:item.width+"%","--bar-delay":index*110+"ms"} as CSSProperties}/></div></div>)}
+          </div>
+          <div className="planner-foot"><span><Activity size={14}/> Sequence preview · not a committed production schedule</span><button onClick={() => onSelectModule("process-map")}>Manage process route <ArrowRight size={14}/></button></div>
+        </article>
+      </section>
+
       <section className="dashboard-grid">
         <div className="surface-panel flow-preview">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> LIVE WORKFLOW PREVIEW</div><h3>Machining process route</h3><p>AX-2048 · Precision housing · Rev C</p></div><button className="round-action" onClick={() => onSelectModule("process-map")} aria-label="Expand process map"><ArrowUpRight size={18} /></button></div>
