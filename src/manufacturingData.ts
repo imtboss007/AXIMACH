@@ -203,7 +203,10 @@ export function useManufacturingData() {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.error || "Could not refresh shared manufacturing data.");
         const local = readManufacturingData();
-        const merged = mergeManufacturingData(local, normaliseData(body.data || emptyManufacturingData()));
+        const remote = normaliseData(body.data || emptyManufacturingData());
+        const merged = mergeManufacturingData(local, remote);
+        // Push local rows that were created/edited while offline instead of falsely marking them synced.
+        if (JSON.stringify(merged) !== JSON.stringify(remote)) await putRemote(merged, cfg);
         if (JSON.stringify(merged) !== JSON.stringify(local)) {
           writeLocal(merged, false);
           if (!cancelled) setData(merged);
