@@ -13,6 +13,7 @@ function startWhatsAppBridge() {
   whatsappBridge = spawn(process.execPath, [entry], {
     cwd: app.getPath("userData"),
     windowsHide: true,
+    detached: true,
     env: {
       ...process.env,
       ELECTRON_RUN_AS_NODE: "1",
@@ -25,6 +26,7 @@ function startWhatsAppBridge() {
     },
     stdio: "ignore",
   });
+  whatsappBridge.unref();
   whatsappBridge.on("error", (error) => console.error("WhatsApp bridge failed to start:", error.message));
   whatsappBridge.on("exit", (code) => { whatsappBridge = undefined; if (code) console.error("WhatsApp bridge exited with code", code); });
 }
@@ -59,10 +61,6 @@ app.whenReady().then(() => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
-});
-
-app.on("before-quit", () => {
-  if (whatsappBridge && !whatsappBridge.killed) whatsappBridge.kill();
 });
 
 app.on("window-all-closed", () => {
