@@ -163,3 +163,22 @@
 @media(max-width:1050px){.route-canvas-detail-grid{grid-template-columns:minmax(0,1fr) minmax(245px,300px);gap:10px;padding:10px}.route-canvas-detail-grid .route-scroll{min-height:360px}.route-canvas-detail-grid .operation-detail-head{padding:13px}}
 @media(max-width:820px){.route-canvas-detail-grid{grid-template-columns:minmax(0,1fr);padding:10px}.route-canvas-detail-grid .route-scroll{min-height:260px;max-height:56vh}.route-canvas-detail-grid .operation-detail{position:static;max-height:none;order:2}.route-canvas-detail-grid .operation-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.route-canvas-detail-grid .route-legend{margin-bottom:10px}}
 @media(max-width:520px){.route-canvas-detail-grid{padding:7px;gap:9px}.route-canvas-detail-grid .route-scroll{min-height:240px;max-height:52vh}.route-canvas-detail-grid .operation-detail-grid{grid-template-columns:1fr 1fr}.route-canvas-detail-grid .operation-detail-head{padding:12px}.route-canvas-detail-grid .operation-detail-footer{padding:11px}}
+
+/* Individual module workflows: each module presents its own lifecycle and field language. */
+.module-workflow-strip{margin-top:14px;padding:16px 18px}
+.module-workflow-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+.module-workflow-heading>div{min-width:0}
+.module-workflow-heading>div>strong,.module-workflow-heading>div>small{display:block}
+.module-workflow-heading>div>strong{font:600 14px 'Space Grotesk';color:#294565;margin-top:6px}
+.module-workflow-heading>div>small{font-size:9px;color:#8797ad;margin-top:4px;line-height:1.45}
+.module-workflow-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.module-workflow-step{display:flex;align-items:center;gap:8px;min-width:0;padding:10px;border:1px solid #e0e8f3;border-radius:9px;background:#fbfdff;text-align:left;color:#71839b;transition:border-color .15s,background .15s,transform .15s}
+.module-workflow-step:hover{border-color:#b6cef3;background:#f5f9ff;transform:translateY(-1px)}
+.module-workflow-step>span{display:grid;place-items:center;flex:0 0 25px;width:25px;height:25px;border:1px solid #e0e8f3;border-radius:7px;background:#fff;font:9px 'DM Mono';color:#7890b1}
+.module-workflow-step strong{flex:1;min-width:0;font-size:9px;line-height:1.35;font-weight:650}
+.module-workflow-step>svg{flex-shrink:0;color:#a2b0c3}
+.module-workflow-step.workflow-step-active{border-color:#9bbcf2;background:#edf4ff;color:#245fb9;box-shadow:0 0 0 2px #e7f0ff}
+.module-workflow-step.workflow-step-active>span{background:#2f70d9;border-color:#2f70d9;color:#fff}
+.module-workflow-step.workflow-step-done>span{background:#e7f7f0;border-color:#b8e5d2;color:#188763}
+@media(max-width:900px){.module-workflow-steps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:540px){.module-workflow-strip{padding:13px}.module-workflow-steps{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.module-workflow-step{padding:8px;gap:6px}.module-workflow-step strong{font-size:8px}.module-workflow-heading>div>small{max-width:230px}}
