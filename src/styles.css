@@ -380,3 +380,52 @@ input::placeholder,textarea::placeholder{color:#6f87a3!important}
 .route-step.quality-hold .route-node{background:#4a1d2a!important;border-color:#ad3c58!important;color:#ff9eaf!important}
 .route-legend{color:#94abc5!important}.route-legend span{color:#a5b9d0!important}
 .route-connector.connector-done{color:#20d6a2!important}
+
+/* Desktop/Electron viewport containment hotfix */
+html,body,#root{width:100%;max-width:100%;min-width:0;height:100%;min-height:0;margin:0;overflow:hidden}
+*,*::before,*::after{min-width:0}
+.app-shell{position:relative;width:100%;max-width:100%;height:100dvh;min-height:0;padding:76px 0 0 236px;overflow:hidden}
+.command-deck{position:absolute!important;inset:0 0 auto 0!important;width:100%!important;max-width:100%!important;height:66px!important;min-height:66px!important;padding:0 16px!important;gap:12px!important;overflow:hidden!important}
+.brand-lockup{max-width:260px!important;min-width:0!important;flex:0 1 260px!important;overflow:hidden}
+.brand-copy{min-width:0!important;overflow:hidden}
+.brand-copy strong,.brand-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.deck-divider{flex:0 0 1px!important}
+.factory-switcher{flex:0 1 210px!important;max-width:210px!important;overflow:hidden}
+.factory-switcher select{width:100%!important;max-width:100%!important}
+.deck-spacer{flex:1 1 10px!important;min-width:8px!important}
+.command-search{flex:1 1 220px!important;width:auto!important;min-width:120px!important;max-width:360px!important}
+.deck-action,.deck-icon,.profile-trigger{flex:0 0 auto!important}
+.status-ribbon{position:absolute!important;top:66px!important;left:236px!important;right:0!important;width:auto!important;max-width:none!important;height:30px!important;min-height:30px!important;margin:0!important;padding:0 16px!important;overflow:hidden!important;white-space:nowrap!important}
+.page-content{position:absolute!important;top:96px!important;left:236px!important;right:0!important;bottom:0!important;width:auto!important;max-width:none!important;height:auto!important;min-height:0!important;margin:0!important;padding:16px!important;overflow:auto!important;overscroll-behavior:contain;scrollbar-gutter:stable}
+.command-rail{position:absolute!important;left:0!important;top:66px!important;bottom:0!important;width:236px!important;height:auto!important;max-width:236px!important;transform:none!important;margin:0!important;border-radius:0!important;overflow-x:hidden!important;overflow-y:auto!important;padding:12px 9px 20px!important}
+.command-rail button{width:100%!important;max-width:100%!important;min-width:0!important;flex-shrink:0!important;overflow:hidden!important}
+.command-rail button span{display:block!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+.command-rail .rail-section-label{display:block!important}
+.dashboard-grid,.dashboard-top-grid,.dashboard-bottom-grid,.dashboard-metrics,.dashboard-lower-grid,.command-centre-grid,.route-canvas-detail-grid,.module-workbench-grid{width:100%!important;max-width:100%!important;min-width:0!important}
+.dashboard-grid>* ,.dashboard-top-grid>* ,.dashboard-bottom-grid>* ,.dashboard-metrics>* ,.dashboard-lower-grid>* ,.command-centre-grid>* ,.route-canvas-detail-grid>* ,.module-workbench-grid>*{min-width:0!important;max-width:100%}
+img,svg,canvas,video{max-width:100%}
+@media(max-width:1050px){
+  .app-shell{padding-left:62px!important}
+  .command-rail{width:62px!important;max-width:62px!important;padding:10px 5px!important}
+  .command-rail .rail-section-label,.command-rail button span{display:none!important}
+  .command-rail button{justify-content:center!important;padding:10px 0!important}
+  .status-ribbon{left:62px!important}
+  .page-content{left:62px!important;padding:12px!important}
+  .brand-lockup{flex-basis:190px!important}
+  .brand-copy small,.deck-divider{display:none!important}
+  .factory-switcher{max-width:170px!important;flex-basis:150px!important}
+  .command-search{max-width:none!important;flex-basis:130px!important}
+}
+@media(max-width:650px){
+  .app-shell{padding-left:50px!important;padding-top:66px!important}
+  .command-deck{height:58px!important;min-height:58px!important;padding:0 8px!important;gap:6px!important}
+  .command-rail{top:58px!important;width:50px!important;max-width:50px!important}
+  .status-ribbon{top:58px!important;left:50px!important;height:26px!important;min-height:26px!important;padding:0 8px!important;font-size:9px!important}
+  .page-content{top:84px!important;left:50px!important;padding:8px!important}
+  .brand-lockup{flex:0 1 130px!important}
+  .brand-copy strong{font-size:12px!important}
+  .factory-switcher{display:none!important}
+  .command-search{min-width:40px!important;flex:1 1 40px!important}
+  .command-search span,.command-search kbd,.deck-action span,.deck-action b,.profile-name,.profile-trigger>svg{display:none!important}
+  .deck-action{padding:8px!important}
+}
