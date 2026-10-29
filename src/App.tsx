@@ -210,7 +210,7 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <ProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <ProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" ? (
           <ProcessMasterWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "costing" ? (
@@ -523,7 +523,7 @@ function ProcessMasterWorkspace({onBack,onNotice,notice}:{onBack:()=>void;onNoti
  </section>;
 }
 
-function ProcessWorkspace({ onBack, onNotice, notice }: { onBack: () => void; onNotice: (value: string) => void; notice: string }) {
+function ProcessWorkspace({ onBack, onNotice, notice, onSelectModule }: { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void }) {
   return (
     <section className="workspace-page">
       {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
