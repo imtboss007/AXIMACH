@@ -188,6 +188,37 @@ export function useManufacturingData() {
     };
   }, []);
 
+  // Pull remote changes periodically so a second signed-in device sees updates without reopening the app.
+  // The server URL/key are read on every poll because users may connect the scheduler after this hook mounts.
+  useEffect(() => {
+    let cancelled = false;
+    let busy = false;
+    const pollRemote = async () => {
+      if (busy) return;
+      const cfg = serverConfig();
+      if (!cfg) { if (!cancelled) setSyncStatus("local"); return; }
+      busy = true;
+      try {
+        const response = await fetch(cfg.base + "/api/manufacturing-data", { headers: { "x-aximach-key": cfg.key } });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || "Could not refresh shared manufacturing data.");
+        const local = readManufacturingData();
+        const merged = mergeManufacturingData(local, normaliseData(body.data || emptyManufacturingData()));
+        if (JSON.stringify(merged) !== JSON.stringify(local)) {
+          writeLocal(merged, false);
+          if (!cancelled) setData(merged);
+        }
+        if (!cancelled) setSyncStatus("synced");
+      } catch {
+        if (!cancelled) setSyncStatus("error");
+      } finally {
+        busy = false;
+      }
+    };
+    const timer = window.setInterval(() => { void pollRemote(); }, 8000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, []);
+
   const update = useCallback((change: (current: ManufacturingData) => ManufacturingData) => {
     const current = readManufacturingData();
     const next = normaliseData(change(current));
