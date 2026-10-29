@@ -6,6 +6,7 @@ import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaile
 import QRCode from "qrcode";
 
 const PORT = Number(process.env.WA_WEB_PORT || 8788);
+const HOST = process.env.WA_WEB_HOST || "0.0.0.0";
 const KEY = process.env.AXIMACH_API_KEY || "";
 const DATA = resolve(process.env.WA_WEB_DATA_FILE || "./data/whatsapp-web.json");
 const AUTH = resolve(process.env.WA_WEB_AUTH_DIR || "./data/whatsapp-auth");
@@ -150,6 +151,6 @@ const server = createServer(async (req, res) => {
   } catch (e) { return reply(res, 400, { error: e.message || "Request failed." }); }
 });
 await load();
-server.listen(PORT, "0.0.0.0", () => console.log("AXIMACH WhatsApp Web bridge listening on", PORT));
+server.listen(PORT, HOST, () => console.log("AXIMACH WhatsApp Web bridge listening on", HOST, PORT));
 connect().catch(console.error);
 setInterval(() => schedulerTick().catch(console.error), 10000);
