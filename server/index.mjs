@@ -7,7 +7,7 @@ const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
 const DB_PATH = resolve(process.env.AXIMACH_DATA_FILE || "./data/aximach.json");
 const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
-let db = { contacts: [], schedules: [], logs: [], records: {} };
+let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null };
 let busy = false;
 
 async function loadDb() {
@@ -25,11 +25,29 @@ function json(res, status, data) {
   res.end(JSON.stringify(data));
 }
 async function body(req) {
-  let raw = ""; for await (const chunk of req) { raw += chunk; if (raw.length > 1_000_000) throw new Error("Request too large"); }
+  let raw = ""; for await (const chunk of req) { raw += chunk; if (raw.length > 8_500_000) throw new Error("Request too large"); }
   return raw ? JSON.parse(raw) : {};
 }
 function authorized(req) { return API_KEY && req.headers["x-aximach-key"] === API_KEY; }
 function normalisePhone(phone) { return String(phone || "").replace(/\D/g, ""); }
+const manufacturingCollections = ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations"];
+function mergeManufacturingData(existing, incoming) {
+  const left = existing && typeof existing === "object" ? existing : {};
+  const right = incoming && typeof incoming === "object" ? incoming : {};
+  const merged = {};
+  for (const collection of manufacturingCollections) {
+    const rows = new Map();
+    for (const row of Array.isArray(left[collection]) ? left[collection] : []) if (row?.id) rows.set(row.id, row);
+    for (const row of Array.isArray(right[collection]) ? right[collection] : []) {
+      if (!row?.id) continue;
+      const current = rows.get(row.id);
+      if (!current || (Date.parse(row.updatedAt || "") || 0) >= (Date.parse(current.updatedAt || "") || 0)) rows.set(row.id, row);
+    }
+    merged[collection] = [...rows.values()];
+  }
+  merged.updatedAt = [left.updatedAt, right.updatedAt].sort().at(-1) || new Date().toISOString();
+  return merged;
+}
 
 async function sendWhatsApp(to, message) {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -74,6 +92,19 @@ const server = createServer(async (req, res) => {
   if (url.pathname === "/health" && req.method === "GET") return json(res, 200, { ok: true, service: "AXIMACH scheduler", credentialsConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID), persistentStore: DB_PATH });
   if (!authorized(req)) return json(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
   try {
+    if (url.pathname === "/api/manufacturing-data" && req.method === "GET") {
+      return json(res, 200, { data: db.manufacturingData || null, updatedAt: db.manufacturingData?.updatedAt || null });
+    }
+    if (url.pathname === "/api/manufacturing-data" && req.method === "PUT") {
+      const input = await body(req);
+      if (!input.data || typeof input.data !== "object" || Array.isArray(input.data)) return json(res, 400, { error: "data must be an AXIMACH manufacturing data object." });
+      for (const collection of manufacturingCollections) if (input.data[collection] !== undefined && !Array.isArray(input.data[collection])) return json(res, 400, { error: collection + " must be an array." });
+      const encoded = JSON.stringify(input.data);
+      if (encoded.length > 8_000_000) return json(res, 413, { error: "Manufacturing data exceeds the 8 MB limit." });
+      db.manufacturingData = mergeManufacturingData(db.manufacturingData, input.data);
+      await saveDb();
+      return json(res, 200, { ok: true, data: db.manufacturingData, updatedAt: db.manufacturingData.updatedAt });
+    }
     if (url.pathname === "/api/records" && req.method === "GET") return json(res, 200, { records: db.records || {}, updatedAt: db.recordsUpdatedAt || null });
     if (url.pathname === "/api/records" && req.method === "PUT") {
       const input = await body(req);
