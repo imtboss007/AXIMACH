@@ -182,3 +182,15 @@
 .module-workflow-step.workflow-step-done>span{background:#e7f7f0;border-color:#b8e5d2;color:#188763}
 @media(max-width:900px){.module-workflow-steps{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:540px){.module-workflow-strip{padding:13px}.module-workflow-steps{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.module-workflow-step{padding:8px;gap:6px}.module-workflow-step strong{font-size:8px}.module-workflow-heading>div>small{max-width:230px}}
+
+/* Animated process chart and cost/time controls */
+.route-cost-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:14px 18px;border-bottom:1px solid #e6edf6;background:linear-gradient(110deg,#f8fbff,#eef5ff)}
+.route-cost-strip>div{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border:1px solid #dce8f8;border-radius:11px;background:rgba(255,255,255,.86);min-width:0}
+.route-cost-strip small{font:9px 'DM Mono';letter-spacing:.7px;color:#7286a4}.route-cost-strip strong{font:600 22px 'Space Grotesk';color:#1f5fc4;letter-spacing:-.5px}.route-cost-strip span{font-size:10px;color:#7b8ba3}
+.route-step{animation:route-card-enter .45s both;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.route-step-wrap:nth-child(2) .route-step{animation-delay:.05s}.route-step-wrap:nth-child(3) .route-step{animation-delay:.1s}.route-step-wrap:nth-child(4) .route-step{animation-delay:.15s}.route-step-wrap:nth-child(5) .route-step{animation-delay:.2s}.route-step-wrap:nth-child(6) .route-step{animation-delay:.25s}.route-step-wrap:nth-child(7) .route-step{animation-delay:.3s}.route-step-wrap:nth-child(8) .route-step{animation-delay:.35s}
+.route-connector{animation:connector-pulse 2.2s ease-in-out infinite}.route-selected .route-node{animation:node-breathe 2s ease-in-out infinite}.route-art-orbit{animation:route-orbit 7s linear infinite}.route-illustration svg{filter:drop-shadow(0 3px 5px rgba(47,108,205,.13));animation:icon-float 3.2s ease-in-out infinite}
+.route-cost-strip{position:relative;overflow:hidden}.route-cost-strip:after{content:"";position:absolute;top:0;bottom:0;left:-30%;width:20%;background:linear-gradient(90deg,transparent,rgba(85,151,255,.08),transparent);transform:skewX(-18deg);animation:scan-sweep 7s ease-in-out infinite;pointer-events:none}
+@keyframes route-card-enter{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes connector-pulse{0%,100%{opacity:.55}50%{opacity:1}}@keyframes route-orbit{to{transform:rotate(360deg)}}@keyframes icon-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}@keyframes scan-sweep{0%,70%,100%{left:-30%}35%{left:110%}}
+@media(max-width:700px){.route-cost-strip{grid-template-columns:1fr}.route-cost-strip strong{font-size:20px}}
+@media(prefers-reduced-motion:reduce){.route-step,.route-connector,.route-selected .route-node,.route-art-orbit,.route-illustration svg,.route-cost-strip:after{animation:none!important;transition:none!important}}
