@@ -239,3 +239,7 @@
 .palette-results{max-height:220px;overflow:auto}
 .palette-empty{padding:14px 16px;color:#8797ad;font-size:11px}
 @media(max-width:600px){.vendor-search-pair{grid-template-columns:1fr}}
+
+.scheduler-contact-search{display:flex;align-items:center;gap:8px;margin:8px 0 10px;padding:8px 10px}
+.scheduler-contact-search input{flex:1;min-width:0;border:0!important;outline:none!important;background:transparent!important;padding:5px 0!important;box-shadow:none!important}
+.scheduler-contact-search .button-quiet{white-space:nowrap}
