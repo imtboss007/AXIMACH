@@ -558,3 +558,37 @@ img,svg,canvas,video{max-width:100%}
 
 .costing-toolbar-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 @media(max-width:700px){.costing-toolbar-actions{justify-content:flex-start}}
+
+/* Reference-inspired colourful manufacturing KPI and workspace navigation */
+.route-kpi-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin:0 0 10px}
+.route-kpi{display:flex;align-items:center;gap:9px;min-width:0;min-height:68px;padding:10px;border:1px solid #23445d;border-radius:9px;background:linear-gradient(145deg,#0c2131,#081522);color:#eaf5ff;text-align:left;transition:transform .18s,border-color .18s,box-shadow .18s;overflow:hidden}
+.route-kpi:hover{transform:translateY(-2px);border-color:#4b9fce;box-shadow:0 7px 22px #020a1277}
+.route-kpi .kpi-icon{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border-radius:10px;background:#12334a;color:#39c7ff}
+.route-kpi>span:nth-child(2){display:grid;gap:3px;min-width:0;flex:1}
+.route-kpi small{font-size:9px;letter-spacing:.15px;color:#a8bfd3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.route-kpi strong{font-size:clamp(14px,1.25vw,21px);line-height:1.15;white-space:nowrap;color:#f2f8ff}
+.route-kpi em{font-size:9px;line-height:1.3;color:#8caac3;font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.route-kpi>b{font-size:13px;color:#54d5ff;align-self:flex-start}
+.route-kpi.kpi-delivery{border-color:#1b6157}.kpi-delivery .kpi-icon{background:#0d403c;color:#40e0b1}.kpi-delivery strong{color:#6df0c8}
+.route-kpi.kpi-risk{border-color:#5a303b}.kpi-risk .kpi-icon{background:#40202a;color:#ff8794}.kpi-risk strong{color:#ff8a98}
+.route-kpi.kpi-wip{border-color:#234c78}.kpi-wip .kpi-icon{background:#122f52;color:#57baff}
+.route-kpi.kpi-cost{border-color:#235c54}.kpi-cost .kpi-icon{background:#10423c;color:#53e3b1}.kpi-cost strong{color:#7aefc8}
+.route-kpi.kpi-transport{border-color:#254a70}.kpi-transport .kpi-icon{background:#122e4c;color:#50baff}
+.route-kpi.kpi-quality{border-color:#34584e}.kpi-quality .kpi-icon{background:#153d35;color:#61e8b5}
+.route-tabbar{display:flex;align-items:stretch;gap:3px;overflow-x:auto;margin:0 0 12px;padding:0 2px;border-bottom:1px solid #25445c;scrollbar-width:thin}
+.route-tabbar button{display:flex;align-items:center;justify-content:center;gap:7px;flex:0 0 auto;min-height:39px;padding:0 13px;border:0;border-bottom:2px solid transparent;border-radius:6px 6px 0 0;background:transparent;color:#9ab3ca;font-size:11px;white-space:nowrap}
+.route-tabbar button:hover{background:#10283b;color:#e8f5ff}
+.route-tabbar button.route-tab-active{border-bottom-color:#22baff;background:linear-gradient(180deg,#123a54,#0c2233);color:#5ccaff;box-shadow:inset 0 1px #2e7ea9}
+.route-tab-count{display:inline-grid;place-items:center;min-width:19px;height:18px;padding:0 5px;border-radius:10px;background:#153f5c;color:#8bd8ff;font-size:9px}
+.route-module-links{min-width:0;margin:4px 0 0;padding:12px;border:1px solid #294a64;border-radius:9px;background:#091a29}
+.route-module-links legend{padding:0 7px;color:#74cbff;font-size:11px;font-weight:700}
+.route-module-checks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.route-module-checks label{display:flex;align-items:center;gap:7px;min-width:0;padding:8px;border:1px solid #1e3b51;border-radius:7px;background:#0c2132;color:#b9cde0;font-size:10px;cursor:pointer}
+.route-module-checks label:has(input:checked){border-color:#168cc7;background:#10344b;color:#e8f8ff}
+.route-module-checks input{accent-color:#18b9ff;flex:0 0 auto}
+.route-module-checks svg{flex:0 0 auto;color:#5bc7ff}
+.route-module-checks span{overflow-wrap:anywhere}
+.route-module-open-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+@media(max-width:1250px){.route-kpi-row{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.route-kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}.route-kpi{padding:8px;gap:7px}.route-kpi .kpi-icon{width:32px;height:32px;flex-basis:32px}.route-module-checks{grid-template-columns:repeat(2,minmax(0,1fr))}.route-tabbar button{padding:0 10px}}
+@media(max-width:430px){.route-kpi-row{grid-template-columns:minmax(0,1fr)}.route-module-checks{grid-template-columns:minmax(0,1fr)}}
