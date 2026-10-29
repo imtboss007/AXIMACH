@@ -514,6 +514,108 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
   );
 }
 
+
+type VendorContact = { id: string; company: string; contact: string; role: string; phone: string; email: string; processes: string; notes: string };
+type FollowUpItem = { id: string; contactId: string; due: string; channel: "WhatsApp" | "Call" | "Email"; message: string; status: "Scheduled" | "Done" | "Cancelled" };
+const CONTACTS_KEY = "aximach.vendorContacts.v1";
+const FOLLOWUPS_KEY = "aximach.followUps.v1";
+const seedContacts: VendorContact[] = [
+  { id: "demo-v1", company: "Example CNC Works", contact: "Demo Contact", role: "Sales / RFQ", phone: "", email: "", processes: "CNC Turning, VMC", notes: "Replace with your actual vendor details." },
+  { id: "demo-v2", company: "Example Heat Treatment", contact: "Demo Contact", role: "Operations", phone: "", email: "", processes: "Hardening, Tempering", notes: "Demo record — not a real verified vendor." }
+];
+function readLocal<T,>(key: string, fallback: T): T {
+  try { const raw = window.localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
+}
+function saveLocal<T,>(key: string, value: T) {
+  try { window.localStorage.setItem(key, JSON.stringify(value)); window.dispatchEvent(new CustomEvent("aximach-local-data-updated")); } catch { /* storage may be unavailable */ }
+}
+function VendorWorkspace({ onBack, onNotice, notice }: { onBack: () => void; onNotice: (value: string) => void; notice: string }) {
+  const [contacts, setContacts] = useState<VendorContact[]>(() => readLocal(CONTACTS_KEY, seedContacts));
+  const [followUps, setFollowUps] = useState<FollowUpItem[]>(() => readLocal(FOLLOWUPS_KEY, []));
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Omit<VendorContact, "id">>({ company: "", contact: "", role: "", phone: "", email: "", processes: "", notes: "" });
+  const selected = contacts.find((c) => c.id === selectedId) ?? contacts[0];
+  const [task, setTask] = useState({ due: new Date(Date.now() + 86400000).toISOString().slice(0,10), channel: "WhatsApp" as FollowUpItem["channel"], message: "Hello, following up on our machining RFQ. Please share your quotation, lead time and current capacity." });
+  const filtered = contacts.filter((c) => (c.company+" "+c.contact+" "+c.role+" "+c.phone+" "+c.email+" "+c.processes).toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => { saveLocal(CONTACTS_KEY, contacts); }, [contacts]);
+  useEffect(() => { saveLocal(FOLLOWUPS_KEY, followUps); }, [followUps]);
+  useEffect(() => {
+    const refresh = () => { setContacts(readLocal(CONTACTS_KEY, seedContacts)); setFollowUps(readLocal(FOLLOWUPS_KEY, [])); };
+    window.addEventListener("aximach-local-data-updated", refresh);
+    return () => window.removeEventListener("aximach-local-data-updated", refresh);
+  }, []);
+  const beginNew = () => { setSelectedId(""); setDraft({ company:"",contact:"",role:"",phone:"",email:"",processes:"",notes:"" }); setEditing(true); };
+  const beginEdit = (c: VendorContact) => { setSelectedId(c.id); setDraft({ company:c.company,contact:c.contact,role:c.role,phone:c.phone,email:c.email,processes:c.processes,notes:c.notes }); setEditing(true); };
+  const saveContact = () => {
+    if (!draft.company.trim() || !draft.contact.trim()) { onNotice("Vendor company and contact name are required."); return; }
+    if (selectedId && contacts.some(c=>c.id===selectedId)) setContacts(previous=>previous.map(c=>c.id===selectedId?{...draft,id:selectedId}:c));
+    else { const id = "v-"+Date.now().toString(36); setContacts(previous=>[{...draft,id},...previous]); setSelectedId(id); }
+    setEditing(false); onNotice("Vendor contact saved on this device only. No cloud sync or server database is connected.");
+  };
+  const addFollowUp = () => {
+    if (!selected) { onNotice("Select a vendor contact first."); return; }
+    const item: FollowUpItem = { id:"fu-"+Date.now().toString(36), contactId:selected.id, due:task.due, channel:task.channel, message:task.message, status:"Scheduled" };
+    setFollowUps(previous=>[item,...previous]); onNotice("Follow-up saved locally. Browser-based reminders are not guaranteed when the app is closed.");
+  };
+  const openChannel = (c: VendorContact, channel: FollowUpItem["channel"], message = task.message) => {
+    const phone = c.phone.replace(/[^0-9]/g,"");
+    if (channel === "WhatsApp") {
+      if (!phone) { onNotice("Add the contact's phone number including country code before opening WhatsApp."); return; }
+      window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(message), "_blank", "noopener,noreferrer");
+    } else if (channel === "Email") {
+      if (!c.email) { onNotice("Add an email address to this vendor contact first."); return; }
+      window.location.href = "mailto:"+c.email+"?subject="+encodeURIComponent("AXIMACH vendor follow-up")+"&body="+encodeURIComponent(message);
+    } else {
+      if (!phone) { onNotice("Add the contact's phone number including country code first."); return; }
+      window.location.href = "tel:"+phone;
+    }
+  };
+  return <section className="workspace-page">
+    {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
+    <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> DEVICE-SAVED CONTACTS</span></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / CONTACTS</div><h1>Vendor network<span>.</span></h1><p>Manage vendor contacts, capabilities and follow-ups from one linked workspace.</p></div><div className="workspace-title-actions"><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add vendor contact</button></div></div>
+    <div className="vendor-workspace-grid">
+      <section className="surface-panel vendor-list-panel">
+        <div className="panel-heading"><div><h3>Vendor directory</h3><p>{contacts.length} records · saved in this browser only</p></div></div>
+        <label className="vendor-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, person, phone, process…"/></label>
+        <div className="vendor-record-list">{filtered.map(c=><button key={c.id} className={"vendor-record "+(selected?.id===c.id?"vendor-record-active":"")} onClick={()=>{setSelectedId(c.id);setEditing(false);}}><span className="vendor-avatar">{c.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{c.company}</strong><small>{c.contact} · {c.role||"Contact role not set"}</small><small>{c.processes||"Capabilities not set"}</small></span><ArrowRight size={14}/></button>)}{!filtered.length&&<p className="vendor-empty">No matching vendors. Add a contact or clear the search.</p>}</div>
+        <div className="vendor-panel-foot">Export/import and multi-user sync are not connected yet.</div>
+      </section>
+      <section className="surface-panel vendor-detail-panel">
+        {editing ? <><div className="panel-heading"><div><h3>{selectedId?"Edit vendor contact":"New vendor contact"}</h3><p>Required fields: company and contact name.</p></div></div><div className="vendor-form">
+          <label>Vendor company *<input value={draft.company} onChange={e=>setDraft({...draft,company:e.target.value})} placeholder="Company name"/></label>
+          <label>Contact person *<input value={draft.contact} onChange={e=>setDraft({...draft,contact:e.target.value})} placeholder="Full name"/></label>
+          <label>Role / department<input value={draft.role} onChange={e=>setDraft({...draft,role:e.target.value})} placeholder="Sales, production, accounts…"/></label>
+          <label>Phone with country code<input value={draft.phone} onChange={e=>setDraft({...draft,phone:e.target.value})} placeholder="9198xxxxxxxx"/></label>
+          <label>Email<input type="email" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="name@company.com"/></label>
+          <label>Processes / capabilities<input value={draft.processes} onChange={e=>setDraft({...draft,processes:e.target.value})} placeholder="CNC turning, VMC, grinding…"/></label>
+          <label className="editor-wide">Notes<input value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} placeholder="Rates, capacity, lead time, certifications…"/></label>
+          <div className="vendor-form-actions"><button className="button-primary" onClick={saveContact}><Check size={14}/> Save contact</button><button className="button-quiet" onClick={()=>setEditing(false)}>Cancel</button></div>
+        </div></> : selected ? <><div className="vendor-detail-title"><span className="vendor-avatar vendor-avatar-large">{selected.company.slice(0,1).toUpperCase()}</span><div><h3>{selected.company}</h3><p>{selected.contact} · {selected.role||"Role not set"}</p></div><button className="button-quiet" onClick={()=>beginEdit(selected)}>Edit</button></div>
+          <div className="vendor-contact-grid"><div><small>PHONE</small><strong>{selected.phone||"Not added"}</strong></div><div><small>EMAIL</small><strong>{selected.email||"Not added"}</strong></div><div><small>CAPABILITIES</small><strong>{selected.processes||"Not added"}</strong></div><div><small>NOTES</small><strong>{selected.notes||"No notes"}</strong></div></div>
+          <div className="vendor-actions"><button className="button-primary" onClick={()=>openChannel(selected,"WhatsApp")}><MessageCircle size={15}/> Open WhatsApp</button><button className="button-quiet" onClick={()=>openChannel(selected,"Call")}><Users size={15}/> Call</button><button className="button-quiet" onClick={()=>openChannel(selected,"Email")}><MessageCircle size={15}/> Email</button></div>
+          <div className="followup-create"><h4><CalendarClock size={16}/> Schedule follow-up</h4><div className="followup-form"><label>Due date<input type="date" value={task.due} onChange={e=>setTask({...task,due:e.target.value})}/></label><label>Channel<select value={task.channel} onChange={e=>setTask({...task,channel:e.target.value as FollowUpItem["channel"]})}><option>WhatsApp</option><option>Call</option><option>Email</option></select></label><label className="editor-wide">Message<textarea value={task.message} onChange={e=>setTask({...task,message:e.target.value})}/></label><button className="button-primary" onClick={addFollowUp}><Plus size={14}/> Save follow-up</button></div></div>
+        </> : <div className="vendor-empty">Select a vendor or add a new contact to begin.</div>}
+      </section>
+    </div>
+    <section className="surface-panel followup-list-panel"><div className="panel-heading"><div><h3>Follow-up queue</h3><p>Due dates and status are saved locally; no background service is running.</p></div><span className="module-number">{followUps.filter(f=>f.status==="Scheduled").length} OPEN</span></div>
+      {followUps.length===0?<p className="vendor-empty">No follow-ups yet. Select a vendor, then create one above.</p>:<div className="followup-table-wrap"><table className="followup-table"><thead><tr><th>Due</th><th>Vendor contact</th><th>Channel</th><th>Message</th><th>Status</th><th>Actions</th></tr></thead><tbody>{followUps.map(f=>{const c=contacts.find(x=>x.id===f.contactId);return <tr key={f.id}><td>{f.due}</td><td>{c?c.company+" · "+c.contact:"Contact removed"}</td><td>{f.channel}</td><td>{f.message}</td><td><span className={"followup-status "+f.status.toLowerCase()}>{f.status}</span></td><td><div className="followup-row-actions">{c&&f.status==="Scheduled"&&<button onClick={()=>openChannel(c,f.channel,f.message)}>Open</button>}{f.status==="Scheduled"&&<button onClick={()=>setFollowUps(p=>p.map(x=>x.id===f.id?{...x,status:"Done"}:x))}>Mark done</button>}{f.status==="Scheduled"&&<button onClick={()=>setFollowUps(p=>p.map(x=>x.id===f.id?{...x,status:"Cancelled"}:x))}>Cancel</button>}</div></td></tr>})}</tbody></table></div>}
+    </section>
+    <div className="module-safety-note"><ShieldCheck size={16}/><span>WhatsApp button opens a prefilled message in WhatsApp for you to send. It does not send automatically, pair a WhatsApp device, monitor replies or run reminders in the background. Those require a separate running backend and integration.</span></div>
+  </section>;
+}
+function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; onNotice: (value: string) => void; notice: string }) {
+  const [contacts,setContacts]=useState<VendorContact[]>(()=>readLocal(CONTACTS_KEY,seedContacts));
+  const [followUps,setFollowUps]=useState<FollowUpItem[]>(()=>readLocal(FOLLOWUPS_KEY,[]));
+  useEffect(()=>{const refresh=()=>{setContacts(readLocal(CONTACTS_KEY,seedContacts));setFollowUps(readLocal(FOLLOWUPS_KEY,[]));};window.addEventListener("aximach-local-data-updated",refresh);return()=>window.removeEventListener("aximach-local-data-updated",refresh);},[]);
+  const open = (f:FollowUpItem) => {const c=contacts.find(x=>x.id===f.contactId);if(!c){onNotice("Vendor contact not found. Open Vendors & Sub-vendors to add or restore it.");return;}const phone=c.phone.replace(/[^0-9]/g,"");if(f.channel==="WhatsApp"&&phone)window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(f.message),"_blank","noopener,noreferrer");else if(f.channel==="Email"&&c.email)window.location.href="mailto:"+c.email+"?subject="+encodeURIComponent("AXIMACH follow-up")+"&body="+encodeURIComponent(f.message);else if(f.channel==="Call"&&phone)window.location.href="tel:"+phone;else onNotice("This contact needs a valid phone number or email address first.");};
+  const changeStatus=(id:string,status:FollowUpItem["status"])=>{const next=followUps.map(f=>f.id===id?{...f,status}:f);setFollowUps(next);saveLocal(FOLLOWUPS_KEY,next);};
+  return <section className="workspace-page">{notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}<div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> LOCAL FOLLOW-UP QUEUE</span></div><div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMMUNICATION / CRM</div><h1>Follow-up centre<span>.</span></h1><p>Open a prepared message, update task status and keep vendor communication linked.</p></div><button className="button-primary" onClick={()=>onNotice("Open Vendors & Sub-vendors to add a contact and schedule a follow-up.")}><Users size={15}/> Add vendor contact</button></div>
+    <section className="surface-panel followup-list-panel"><div className="panel-heading"><div><h3>Scheduled follow-ups</h3><p>Locally stored task list · automatic sending and reply monitoring are not configured.</p></div><span className="module-number">{followUps.filter(f=>f.status==="Scheduled").length} OPEN</span></div>{followUps.length===0?<div className="vendor-empty">No tasks scheduled. Open Vendors & Sub-vendors, select a contact and create a follow-up.</div>:<div className="followup-table-wrap"><table className="followup-table"><thead><tr><th>Due</th><th>Vendor</th><th>Channel</th><th>Message</th><th>Status</th><th>Actions</th></tr></thead><tbody>{followUps.map(f=>{const c=contacts.find(x=>x.id===f.contactId);return <tr key={f.id}><td>{f.due}</td><td>{c?c.company+" · "+c.contact:"Contact removed"}</td><td>{f.channel}</td><td>{f.message}</td><td>{f.status}</td><td><div className="followup-row-actions">{c&&f.status==="Scheduled"&&<button onClick={()=>open(f)}>Open</button>}{f.status==="Scheduled"&&<button onClick={()=>changeStatus(f.id,"Done")}>Mark done</button>}{f.status==="Scheduled"&&<button onClick={()=>changeStatus(f.id,"Cancelled")}>Cancel</button>}</div></td></tr>})}</tbody></table></div>}</section><div className="module-safety-note"><ShieldCheck size={16}/><span>Tasks remain on this device. They will not run while the app is closed, and WhatsApp replies cannot be detected until a backend/provider integration is implemented.</span></div></section>;
+}
+
 function ModuleWorkspace({ module, onBack, onNotice, onOpenModules }: { module: ModuleItem; onBack: () => void; onNotice: (value: string) => void; onOpenModules: () => void }) {
   const Icon = module.icon;
   return (
