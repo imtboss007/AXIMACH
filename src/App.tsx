@@ -527,7 +527,7 @@ function readLocal<T,>(key: string, fallback: T): T {
   try { const raw = window.localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
 }
 function saveLocal<T,>(key: string, value: T) {
-  try { window.localStorage.setItem(key, JSON.stringify(value)); window.dispatchEvent(new CustomEvent("aximach-local-data-updated")); } catch { /* storage may be unavailable */ }
+  try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage may be unavailable */ }
 }
 function VendorWorkspace({ onBack, onNotice, notice }: { onBack: () => void; onNotice: (value: string) => void; notice: string }) {
   const [contacts, setContacts] = useState<VendorContact[]>(() => readLocal(CONTACTS_KEY, seedContacts));
