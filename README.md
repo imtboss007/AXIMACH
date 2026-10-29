@@ -6,20 +6,24 @@ AXIMACH is being developed as an AI-native manufacturing operating system for pr
 
 ## Current state
 
-The current repository contains an **interactive frontend prototype**, not a production-ready ERP or connected factory system.
+The GitHub repository is the canonical source of truth for AXIMACH code, configuration, issue tracking, build workflows and release artifacts. Work should be committed here rather than maintained in a disconnected copy.
+
+The current repository contains an **interactive frontend prototype plus an optional scheduler service foundation**, not a production-ready ERP or connected factory system.
 
 - Light, responsive command-deck interface; no permanent left sidebar.
 - Searchable module universe covering all 32 planned product modules.
 - Keyboard command search (Ctrl/⌘ K).
 - Process route prototype with horizontal/vertical layouts, scroll, zoom controls, selectable operations and local demonstration status changes.
 - Illustrative dashboard and AI response examples, clearly labelled as sample/demo data.
-- GitHub Actions frontend build verification.
+- GitHub Actions workflow for web build, Windows installer and Android debug APK artifacts.
+- Optional Node.js scheduler service (server/index.mjs) with JSON-file persistence, individual WhatsApp Cloud API schedule attempts, contacts, schedule controls and logs.
+- Communication & Follow-up UI connector for the scheduler API, with contact entry, opt-in recording, one-time/daily/weekly schedules and CSV contact export.
 
-No live database, authentication, tenant isolation, production machine telemetry, WhatsApp connection, payments, or persistent work-order API is connected yet. Prototype interactions must not be treated as production records.
+**Not yet production-connected:** no deployed scheduler, real WhatsApp credentials, automatic WhatsApp address-book/QR sync, group messaging, delivery/reply webhooks, stop-on-reply behavior, server-side user authentication/tenant isolation, live database, or connected factory telemetry. The UI connector uses a single API key and is not a multi-user security boundary. Prototype interactions must not be treated as production records.
 
 ## Run locally
 
-Requirements: Node.js 20.18 or newer and npm.
+Requirements: Node.js 20.18 or newer and npm. Clone this repository and use its current main branch as the starting point.
 
 ```bash
 npm install
@@ -92,3 +96,12 @@ npm run preview
 ## Release status
 
 This repository is a work in progress. A successful frontend build is not evidence of production readiness, secure tenancy, or connected manufacturing functionality.
+
+
+## Scheduler service (optional, not yet deployed)
+
+See [server/README.md](server/README.md) and [server/.env.example](server/.env.example). The service must be deployed to an always-on host with persistent storage before background schedules can run while the app is closed. Keep all API and Meta credentials in host secrets. Do not treat scheduler code being present in GitHub as proof that messages are being sent.
+
+## GitHub build artifacts
+
+The workflow at [.github/workflows/build.yml](.github/workflows/build.yml) builds the web frontend, Windows installer and Android debug APK on pushes to main and manual workflow dispatch. Open the repository's Actions tab, select the latest successful run, then download the matching artifact (aximach-web-dist, aximach-windows-installer, or aximach-android-debug-apk). Artifacts expire according to the workflow's retention settings. A debug APK is not a Play Store release, and an installer/APK must be tested on target devices before production use.
