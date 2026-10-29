@@ -404,10 +404,10 @@ function ProcessWorkspace({ onBack, onNotice, notice }: { onBack: () => void; on
   return (
     <section className="workspace-page">
       {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
-      <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15} /> Command centre</button><span className="demo-pill"><i /> SAMPLE ROUTE</span></div>
-      <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark" /> ENGINEERING / PROCESS GRAPH</div><h1>Process universe<span>.</span></h1><p>Follow every operation, handoff, inspection and recovery loop across the route.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onNotice("Route export is not connected. No file was generated.")}><FileDown size={15} /> Export</button><button className="button-primary" onClick={() => onNotice("Route editing will be enabled after the versioned route API and approval controls are implemented.")}><GitBranch size={16} /> Edit route</button></div></div>
+      <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15} /> Command centre</button><span className="demo-pill"><i /> SAMPLE ROUTE · LOCAL EDITING</span></div>
+      <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark" /> ENGINEERING / PROCESS GRAPH</div><h1>Process universe<span>.</span></h1><p>Add, select, edit, reorder and remove sample operations. Changes stay in this browser session.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onNotice("Export is not connected yet. Use the browser print option to save this screen as PDF.")}><FileDown size={15} /> Export / Print</button></div></div>
       <ProcessRoute onNotice={onNotice} />
-      <div className="route-principles"><div><ShieldCheck size={17} /><span><strong>Traceable route</strong><small>Route versions and actual operation history remain separate linked records.</small></span></div><div><Truck size={17} /><span><strong>Confirmed custody</strong><small>Dispatch is not treated as arrival; receipt requires a confirmed handoff.</small></span></div><div><ClipboardCheck size={17} /><span><strong>Quality gate</strong><small>Shipment waits for authorised quality release and required evidence.</small></span></div></div>
+      <div className="route-principles"><div><ShieldCheck size={17} /><span><strong>Editable demo route</strong><small>Local changes are for testing only and are not saved to a server.</small></span></div><div><Truck size={17} /><span><strong>Traceable custody</strong><small>Production handoffs need confirmed receipt and audit evidence.</small></span></div><div><ClipboardCheck size={17} /><span><strong>Quality gate</strong><small>Production release controls must be implemented before live use.</small></span></div></div>
     </section>
   );
 }
@@ -417,46 +417,99 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
   const [activeStepId, setActiveStepId] = useState(3);
   const [orientation, setOrientation] = useState<"horizontal" | "vertical">("horizontal");
   const [zoom, setZoom] = useState(1);
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [draft, setDraft] = useState({ name: "", station: "", duration: "15 min", owner: "Production", note: "" });
   const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0];
+  const visibleSteps = steps.filter((step) => (step.name + " " + step.station + " " + step.owner + " " + step.status).toLowerCase().includes(filter.toLowerCase().trim()));
 
-  const markComplete = () => {
-    if (!activeStep || activeStep.status === "Complete") return;
-    setSteps((previous) => previous.map((step) => step.id === activeStep.id ? { ...step, status: "Complete" } : step));
-    onNotice("Prototype route updated for this browser session only. No production ledger was changed.");
+  const updateActive = (patch: Partial<ProcessStep>) => {
+    if (!activeStep) return;
+    setSteps((previous) => previous.map((step) => step.id === activeStep.id ? { ...step, ...patch } : step));
+    onNotice("Sample operation updated in this browser session only.");
+  };
+  const addOperation = () => {
+    if (!draft.name.trim()) { onNotice("Enter an operation name before adding it."); return; }
+    const id = Math.max(0, ...steps.map((step) => step.id)) + 1;
+    const step: ProcessStep = { id, name: draft.name.trim(), station: draft.station.trim() || "Unassigned station", duration: draft.duration.trim() || "15 min", status: "Queued", owner: draft.owner.trim() || "Unassigned", note: draft.note.trim() || "Add the required setup, quality and acceptance instructions." };
+    setSteps((previous) => [...previous, step]);
+    setActiveStepId(id);
+    setDraft({ name: "", station: "", duration: "15 min", owner: "Production", note: "" });
+    setFilter("");
+    onNotice("Operation added to the sample route. This is not saved to a server.");
+  };
+  const moveActive = (direction: -1 | 1) => {
+    const index = steps.findIndex((step) => step.id === activeStepId);
+    const next = index + direction;
+    if (index < 0 || next < 0 || next >= steps.length) return;
+    setSteps((previous) => { const copy = [...previous]; [copy[index], copy[next]] = [copy[next], copy[index]]; return copy; });
+    onNotice("Sample route order changed locally. Production route revisioning is not connected.");
+  };
+  const deleteActive = () => {
+    if (!activeStep) return;
+    if (steps.length <= 1) { onNotice("Keep at least one operation in the route."); return; }
+    const nextSteps = steps.filter((step) => step.id !== activeStep.id);
+    setSteps(nextSteps);
+    setActiveStepId(nextSteps[Math.max(0, steps.findIndex((step) => step.id === activeStepId) - 1)].id);
+    onNotice("Sample operation removed locally. No production record was deleted.");
   };
 
   return (
     <div className="route-workspace surface-panel">
       <div className="route-topbar">
-        <div className="route-part"><span className="part-symbol"><Box size={20} /></span><span><strong>PH-2048-C · Precision housing</strong><small>Aluminium 6061-T6 <b>·</b> Batch 0241 <b>·</b> Revision C</small></span></div>
+        <div className="route-part"><span className="part-symbol"><Box size={20} /></span><span><strong>PH-2048-C · Precision housing</strong><small>Aluminium 6061-T6 <b>·</b> Batch 0241 <b>·</b> Revision C · DEMO</small></span></div>
         <div className="route-progress"><span>ROUTE COMPLETION <strong>{steps.filter((step) => step.status === "Complete").length} / {steps.length}</strong></span><div><i style={{ width: (steps.filter((step) => step.status === "Complete").length / steps.length * 100) + "%" }} /></div></div>
         <span className="demo-pill compact-demo"><i /> DEMO DATA</span>
       </div>
       <div className="route-controls">
         <div className="route-controls-left"><span className="control-label">VIEW</span><button className={orientation === "horizontal" ? "control-active" : ""} onClick={() => setOrientation("horizontal")}>Horizontal</button><button className={orientation === "vertical" ? "control-active" : ""} onClick={() => setOrientation("vertical")}>Vertical</button></div>
-        <div className="route-controls-right"><button className="icon-control" aria-label="Zoom out" disabled={zoom <= 0.75} onClick={() => setZoom((value) => Math.max(0.75, Math.round((value - 0.1) * 10) / 10))}>−</button><input aria-label="Route zoom" type="range" min="0.75" max="1.25" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /><button className="icon-control" aria-label="Zoom in" disabled={zoom >= 1.25} onClick={() => setZoom((value) => Math.min(1.25, Math.round((value + 0.1) * 10) / 10))}>+</button><span className="zoom-readout">{Math.round(zoom * 100)}%</span><button className="button-quiet compact-button" onClick={() => setZoom(1)}><RotateCcw size={14} /> Fit route</button><button className="button-quiet compact-button animation-control" onClick={() => setPlaying((value) => !value)}>{playing ? <Pause size={14} /> : <Play size={14} />}{playing ? "Pause motion" : "Play motion"}</button></div>
-      </div>
-      <div className={"route-scroll " + (orientation === "vertical" ? "route-vertical" : "")} tabIndex={0} aria-label="Scrollable manufacturing process route">
-        <div className="route-track" style={{ zoom } as CSSProperties}>
-          {steps.map((step, index) => (
-            <div className="route-step-wrap" key={step.id}>
-              <button className={"route-step " + step.status.toLowerCase().replace(" ", "-") + (step.id === activeStepId ? " route-selected" : "")} onClick={() => setActiveStepId(step.id)} aria-pressed={step.id === activeStepId}>
-                <span className="route-node">{step.status === "Complete" ? <Check size={16} /> : step.status === "Running" ? <Zap size={16} /> : step.status === "Quality hold" ? <ShieldAlert size={16} /> : <span>{String(step.id).padStart(2, "0")}</span>}</span>
-                <span className="route-card"><span className="route-card-top"><small>OP {String(step.id * 10).padStart(3, "0")}</small><em>{step.status}</em></span><strong>{step.name}</strong><span className="route-station">{step.station}</span><span className="route-card-bottom"><span><Clock3 size={13} />{step.duration}</span><span>{step.owner}</span></span></span>
-              </button>
-              {index < steps.length - 1 && <span className={"route-connector " + (step.status === "Complete" ? "connector-done" : "")}><ArrowRight size={15} /></span>}
-            </div>
-          ))}
+        <div className="route-controls-right">
+          <input className="route-filter" aria-label="Search operations" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Find operation…" />
+          <button className={"button-quiet compact-button " + (editMode ? "control-active" : "")} onClick={() => setEditMode((value) => !value)}><GitBranch size={14} /> {editMode ? "Close editor" : "Edit route"}</button>
+          <button className="icon-control" aria-label="Zoom out" disabled={zoom <= 0.6} onClick={() => setZoom((value) => Math.max(0.6, Math.round((value - 0.1) * 10) / 10))}>−</button><input aria-label="Route zoom" type="range" min="0.6" max="1.3" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /><button className="icon-control" aria-label="Zoom in" disabled={zoom >= 1.3} onClick={() => setZoom((value) => Math.min(1.3, Math.round((value + 0.1) * 10) / 10))}>+</button><span className="zoom-readout">{Math.round(zoom * 100)}%</span><button className="button-quiet compact-button" onClick={() => setZoom(1)}><RotateCcw size={14} /> Fit route</button>
         </div>
       </div>
-      <div className="route-legend"><span><i className="legend-done" /> Complete</span><span><i className="legend-live" /> Running</span><span><i className="legend-queued" /> Queued</span><span><i className="legend-hold" /> Quality hold</span><span className="route-scroll-note">Scroll or swipe to explore the entire route</span></div>
+      {editMode && <section className="route-editor-panel">
+        <div className="route-editor-heading"><div><strong><Plus size={15} /> Add operation</strong><small>Fill the fields and add it to this sample route.</small></div><span>LOCAL DEMO EDITOR</span></div>
+        <div className="route-editor-form">
+          <label>Operation name<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="e.g. CNC turning OD/ID" /></label>
+          <label>Machine / station / vendor<input value={draft.station} onChange={(event) => setDraft({ ...draft, station: event.target.value })} placeholder="e.g. CNC lathe · Vendor A" /></label>
+          <label>Duration<input value={draft.duration} onChange={(event) => setDraft({ ...draft, duration: event.target.value })} placeholder="e.g. 25 min" /></label>
+          <label>Responsible team<input value={draft.owner} onChange={(event) => setDraft({ ...draft, owner: event.target.value })} placeholder="Production" /></label>
+          <label className="editor-wide">Work / quality notes<input value={draft.note} onChange={(event) => setDraft({ ...draft, note: event.target.value })} placeholder="Setup, inspection and acceptance notes" /></label>
+          <button className="button-primary" onClick={addOperation}><Plus size={15} /> Add operation</button>
+        </div>
+      </section>}
+      <div className={"route-scroll " + (orientation === "vertical" ? "route-vertical" : "")} tabIndex={0} aria-label="Scrollable manufacturing process route">
+        <div className="route-track" style={{ zoom } as CSSProperties}>
+          {visibleSteps.map((step, index) => (
+            <div className="route-step-wrap" key={step.id}>
+              <button className={"route-step " + step.status.toLowerCase().replace(" ", "-") + (step.id === activeStepId ? " route-selected" : "")} onClick={() => setActiveStepId(step.id)} aria-pressed={step.id === activeStepId}>
+                <span className="route-node">{step.status === "Complete" ? <Check size={16} /> : step.status === "Running" ? <Zap size={16} /> : step.status === "Quality hold" ? <ShieldAlert size={16} /> : <span>{String(index + 1).padStart(2, "0")}</span>}</span>
+                <span className="route-card"><span className="route-card-top"><small>OP {String((index + 1) * 10).padStart(3, "0")}</small><em>{step.status}</em></span><strong>{step.name}</strong><span className="route-station">{step.station}</span><span className="route-card-bottom"><span><Clock3 size={13} />{step.duration}</span><span>{step.owner}</span></span></span>
+              </button>
+              {index < visibleSteps.length - 1 && <span className={"route-connector " + (step.status === "Complete" ? "connector-done" : "")}><ArrowRight size={15} /></span>}
+            </div>
+          ))}
+          {visibleSteps.length === 0 && <div className="route-empty">No operations match “{filter}”. Clear the search or add an operation.</div>}
+        </div>
+      </div>
+      <div className="route-legend"><span><i className="legend-done" /> Complete</span><span><i className="legend-live" /> Running</span><span><i className="legend-queued" /> Queued</span><span><i className="legend-hold" /> Quality hold</span><span className="route-scroll-note">Scroll sideways or use Shift + mouse wheel · Swipe on mobile</span></div>
       {activeStep && <section className="operation-detail">
         <div className="operation-detail-head"><div><div className="eyebrow"><span className="eyebrow-mark" /> SELECTED OPERATION / OP {String(activeStep.id * 10).padStart(3, "0")}</div><h3>{activeStep.name}</h3><p>{activeStep.note}</p></div><span className={"operation-status status-" + activeStep.status.toLowerCase().replace(" ", "-")}>{activeStep.status}</span></div>
-        <div className="operation-detail-grid"><div><small>STATION / VENDOR</small><strong>{activeStep.station}</strong></div><div><small>PLANNED DURATION</small><strong>{activeStep.duration}</strong></div><div><small>RESPONSIBLE TEAM</small><strong>{activeStep.owner}</strong></div><div><small>RECORD STATUS</small><strong>Illustrative only</strong></div></div>
-        <div className="operation-detail-footer"><span><ShieldCheck size={14} /> Drawings, quantities, custody and quality evidence must be validated in the connected system.</span><button className="button-primary small-primary" disabled={activeStep.status === "Complete"} onClick={markComplete}><Check size={14} /> Mark complete · demo</button></div>
+        {editMode ? <div className="route-detail-editor">
+          <label>Operation name<input value={activeStep.name} onChange={(event) => updateActive({ name: event.target.value })} /></label>
+          <label>Machine / station / vendor<input value={activeStep.station} onChange={(event) => updateActive({ station: event.target.value })} /></label>
+          <label>Duration<input value={activeStep.duration} onChange={(event) => updateActive({ duration: event.target.value })} /></label>
+          <label>Responsible team<input value={activeStep.owner} onChange={(event) => updateActive({ owner: event.target.value })} /></label>
+          <label>Operation status<select value={activeStep.status} onChange={(event) => updateActive({ status: event.target.value as ProcessStatus })}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
+          <label className="editor-wide">Work / quality notes<input value={activeStep.note} onChange={(event) => updateActive({ note: event.target.value })} /></label>
+          <div className="route-editor-actions"><button className="button-quiet" onClick={() => moveActive(-1)} disabled={steps.findIndex((step) => step.id === activeStepId) === 0}><ArrowUpRight size={14} /> Move earlier</button><button className="button-quiet" onClick={() => moveActive(1)} disabled={steps.findIndex((step) => step.id === activeStepId) === steps.length - 1}><ArrowDownRight size={14} /> Move later</button><button className="button-danger" onClick={deleteActive}><X size={14} /> Remove operation</button></div>
+        </div> : <div className="operation-detail-grid"><div><small>MACHINE / STATION / VENDOR</small><strong>{activeStep.station}</strong></div><div><small>PLANNED DURATION</small><strong>{activeStep.duration}</strong></div><div><small>RESPONSIBLE TEAM</small><strong>{activeStep.owner}</strong></div><div><small>RECORD STATUS</small><strong>Sample data only</strong></div></div>}
+        {!editMode && <div className="operation-detail-footer"><span><ShieldCheck size={14} /> Select “Edit route” to change fields, reorder or remove this operation.</span><button className="button-primary small-primary" onClick={() => setEditMode(true)}><GitBranch size={14} /> Edit selected operation</button></div>}
       </section>}
-      <div className="route-bottom-note"><ShieldCheck size={14} /> This visual route is sample data. Route versions, quantity ledgers, custody events and quality releases are not connected to a backend.</div>
+      <div className="route-bottom-note"><ShieldCheck size={14} /> This is an interactive sample route. Changes are temporary and reset when the page reloads; production API, version history, approvals and database persistence are not connected.</div>
     </div>
   );
 }
