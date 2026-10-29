@@ -800,3 +800,21 @@ img,svg,canvas,video{max-width:100%}
 .linked-process-page .route-editor-form .searchable-picker{min-width:0}
 .linked-process-page .route-editor-form .searchable-picker input{width:100%;padding:9px}
 @media(max-width:760px){.searchable-picker{width:100%}}
+
+/* Process-map branch / rework lanes */
+.linked-process-page .linked-route-lanes{display:flex;flex-direction:column;gap:18px;min-width:max-content;padding-bottom:12px}
+.linked-process-page .linked-route-lane{padding:12px 12px 16px;background:rgba(6,24,39,.65);border:1px solid #1b4e6b;border-radius:10px;min-width:max-content}
+.linked-process-page .linked-route-lane-alternate{border-style:dashed;border-color:#b35a71;background:rgba(57,20,36,.34)}
+.linked-process-page .linked-route-lane-heading{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding:0 3px 10px;margin-bottom:10px;border-bottom:1px solid #21445f}
+.linked-process-page .linked-route-lane-heading strong{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#74dff2}
+.linked-process-page .linked-route-lane-heading small{font-size:10px;color:#8aaac3}
+.linked-process-page .linked-route-lane-alternate .linked-route-lane-heading strong{color:#ff9bad}
+.linked-process-page .linked-operation-node.linked-node-alternate{border-style:dashed;border-color:#945066}
+.linked-process-page .linked-route-lane .linked-node-track{width:max-content}
+.linked-process-page .linked-node-vertical .linked-route-lanes{min-width:0;min-width:100%}
+.linked-process-page .linked-node-vertical .linked-route-lane{min-width:0}
+.linked-process-page .linked-node-vertical .linked-route-lane .linked-node-track{width:100%;min-width:0}
+.linked-process-page .linked-node-vertical .linked-route-lane .linked-node-wrap{max-width:100%;width:100%}
+.linked-process-page .linked-node-vertical .linked-route-lane .linked-operation-node{width:100%;min-height:0}
+.linked-process-page .linked-node-vertical .linked-route-lane .linked-node-arrow{height:25px;width:auto;transform:rotate(90deg)}
+.route-master-picker .searchable-picker{width:100%}
