@@ -715,6 +715,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const addWhatsAppSchedule=async()=>{setBusy(true);setWaError("");try{if(!waOptIn)throw new Error("Confirm you have permission to message this recipient.");const d=await waRequest("/api/whatsapp/schedules",{method:"POST",body:JSON.stringify({to:waTarget,message:waMessage,nextRunAt:new Date(waDue).toISOString(),repeat:waRepeat,optedIn:true})});setWaSchedules(prev=>[d.schedule,...prev]);setWaMessage("");onNotice("WhatsApp automation saved to the bridge server.");}catch(e){setWaError(e instanceof Error?e.message:"Could not save WhatsApp automation.");}finally{setBusy(false);}};
   const toggleWhatsAppSchedule=async(task:{id:string;enabled:boolean})=>{setBusy(true);setWaError("");try{const d=await waRequest("/api/whatsapp/schedules/"+task.id,{method:"PATCH",body:JSON.stringify({enabled:!task.enabled})});setWaSchedules(prev=>prev.map(x=>x.id===task.id?d.schedule:x));}catch(e){setWaError(e instanceof Error?e.message:"Could not update WhatsApp schedule.");}finally{setBusy(false);}};
   const visibleWaContacts=waContacts.filter(c=>(c.name+" "+c.notify+" "+c.phone).toLowerCase().includes(waSearch.toLowerCase().trim()));
+  useEffect(()=>{if(window.localStorage.getItem("aximach.scheduler.key"))void refreshWhatsApp();},[]);
 
   const base=apiUrl.trim().replace(/\/+$/,"");
   const visibleContacts=contacts.filter(c=>(c.name+" "+c.company+" "+c.phone).toLowerCase().includes(contactSearch.toLowerCase().trim()));
