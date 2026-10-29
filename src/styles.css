@@ -372,3 +372,11 @@ input::placeholder,textarea::placeholder{color:#6f87a3!important}
 .status-ribbon{margin-left:236px!important;padding-left:20px!important}
 @media(max-width:900px){.command-rail{width:62px!important;padding:12px 6px!important}.command-rail .rail-section-label,.command-rail button span{display:none!important}.command-rail button{justify-content:center!important;padding:10px 0!important}.page-content{margin-left:62px!important}.status-ribbon{margin-left:62px!important}.command-deck{padding-left:10px!important;gap:8px!important}.brand-copy small{display:none}}
 @media(max-width:560px){.command-rail{top:66px!important;width:50px!important}.command-deck{height:66px!important}.page-content{margin-left:50px!important;padding:10px 8px 20px!important}.status-ribbon{margin-left:50px!important;font-size:9px}.command-search{max-width:38vw!important}.command-search span{display:none!important}.command-deck .deck-action span,.command-deck .profile-name{display:none!important}}
+
+.route-step.route-selected .route-card{border-color:#08a5ff!important;box-shadow:0 0 0 1px rgba(8,165,255,.25),0 0 26px rgba(8,165,255,.16)!important}
+.route-node{background:#102b42!important;border-color:#2c4a64!important;color:#9bdcff!important}
+.route-step.complete .route-node{background:#0b4a3a!important;border-color:#168a69!important;color:#75f0c3!important}
+.route-step.running .route-node{background:#563a0d!important;border-color:#b37b19!important;color:#ffd16b!important}
+.route-step.quality-hold .route-node{background:#4a1d2a!important;border-color:#ad3c58!important;color:#ff9eaf!important}
+.route-legend{color:#94abc5!important}.route-legend span{color:#a5b9d0!important}
+.route-connector.connector-done{color:#20d6a2!important}
