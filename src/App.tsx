@@ -441,7 +441,7 @@ function ProcessWorkspace({ onBack, onNotice, notice }: { onBack: () => void; on
     <section className="workspace-page">
       {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
       <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15} /> Command centre</button><span className="demo-pill"><i /> SAMPLE ROUTE · LOCAL EDITING</span></div>
-      <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark" /> ENGINEERING / PROCESS GRAPH</div><h1>Process universe<span>.</span></h1><p>Add, select, edit, reorder and remove sample operations. Changes stay in this browser session.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onNotice("Export is not connected yet. Use the browser print option to save this screen as PDF.")}><FileDown size={15} /> Export / Print</button></div></div>
+      <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark" /> ENGINEERING / PROCESS GRAPH</div><h1>Process universe<span>.</span></h1><p>Add as many operations as your route needs. Select any process to edit its vendor, schedule, quantity, cost and quality details in the side panel.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onNotice("Export is not connected yet. Use the browser print option to save this screen as PDF.")}><FileDown size={15} /> Export / Print</button><button className="button-primary" onClick={() => { const editor = document.querySelector(".route-editor-panel"); if (editor) { editor.scrollIntoView({ behavior: "smooth", block: "center" }); } else { onNotice("Open Edit route, then use Add operation to add as many process stages as needed."); } }}><Plus size={15} /> Add Process</button></div></div>
       <ProcessRoute onNotice={onNotice} />
       <div className="route-principles"><div><ShieldCheck size={17} /><span><strong>Editable demo route</strong><small>Local changes are for testing only and are not saved to a server.</small></span></div><div><Truck size={17} /><span><strong>Traceable custody</strong><small>Production handoffs need confirmed receipt and audit evidence.</small></span></div><div><ClipboardCheck size={17} /><span><strong>Quality gate</strong><small>Production release controls must be implemented before live use.</small></span></div></div>
     </section>
@@ -470,7 +470,7 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
   const updateActive = (patch: Partial<ProcessStep>) => {
     if (!activeStep) return;
     setSteps((previous) => previous.map((step) => step.id === activeStep.id ? { ...step, ...patch } : step));
-    onNotice("Sample operation updated in this browser session only.");
+    onNotice("Operation updated and saved in this browser. Shared server sync is still pending.");
   };
   const addBranchFromActive = () => {
     if (!activeStep) return;
@@ -487,14 +487,14 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
     setActiveStepId(id);
     setDraft({ name: "", station: "", duration: "15 min", owner: "Production", note: "", vendor: "", setupMinutes: "0", cycleSeconds: "0", quantity: "1", pricePerPart: "0", missingQuantity: "0", branch: "Main route" });
     setFilter("");
-    onNotice("Operation added to the sample route. This is not saved to a server.");
+    onNotice("Operation added to the route and saved in this browser. Shared server sync is still pending.");
   };
   const moveActive = (direction: -1 | 1) => {
     const index = steps.findIndex((step) => step.id === activeStepId);
     const next = index + direction;
     if (index < 0 || next < 0 || next >= steps.length) return;
     setSteps((previous) => { const copy = [...previous]; [copy[index], copy[next]] = [copy[next], copy[index]]; return copy; });
-    onNotice("Sample route order changed locally. Production route revisioning is not connected.");
+    onNotice("Route order updated and saved in this browser. Server revision history is still pending.");
   };
   const deleteActive = () => {
     if (!activeStep) return;
@@ -502,7 +502,7 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
     const nextSteps = steps.filter((step) => step.id !== activeStep.id);
     setSteps(nextSteps);
     setActiveStepId(nextSteps[Math.max(0, steps.findIndex((step) => step.id === activeStepId) - 1)].id);
-    onNotice("Sample operation removed locally. No production record was deleted.");
+    onNotice("Operation removed from this browser route. Shared server deletion and audit history are still pending.");
   };
 
   return (
@@ -564,7 +564,7 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
           <label>Machine / station / vendor<input value={activeStep.station} onChange={(event) => updateActive({ station: event.target.value })} /></label>
           <label>Duration<input value={activeStep.duration} onChange={(event) => updateActive({ duration: event.target.value })} /></label>
           <label>Responsible team<input value={activeStep.owner} onChange={(event) => updateActive({ owner: event.target.value })} /></label>
-          <label>Vendor / subcontractor<input value={activeStep.vendor ?? ""} onChange={(event) => updateActive({ vendor: event.target.value })} /></label>
+          <label>Vendor / subcontractor<select value={activeStep.vendor ?? ""} onChange={(event) => { const selectedVendor = vendorChoices.find((item) => item.company === event.target.value); updateActive({ vendor: event.target.value, station: selectedVendor ? (activeStep.station || selectedVendor.processes || activeStep.name) : activeStep.station }); }}><option value="">Select from vendor directory…</option>{vendorChoices.map((item) => <option key={item.id} value={item.company}>{item.company}{item.processes ? " · " + item.processes : ""}</option>)}</select><small>Vendor list is taken from Vendors & Sub-vendors. Add a vendor there first.</small></label>
           <label>Setup time (minutes)<input type="number" min="0" value={activeStep.setupMinutes ?? 0} onChange={(event) => updateActive({ setupMinutes: Math.max(0,Number(event.target.value)||0) })} /></label>
           <label>Cycle time (seconds / part)<input type="number" min="0" value={activeStep.cycleSeconds ?? 0} onChange={(event) => updateActive({ cycleSeconds: Math.max(0,Number(event.target.value)||0) })} /></label>
           <label>Quantity<input type="number" min="0" value={activeStep.quantity ?? 1} onChange={(event) => updateActive({ quantity: Math.max(0,Number(event.target.value)||0) })} /></label>
@@ -579,7 +579,7 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
       </section>}
       </div>
       {branchSteps.length > 0 && <section className="route-branches-panel"><div className="panel-heading"><div><h3><GitBranch size={16} /> Alternate routes & rework branches</h3><p>Each branch is linked to its parent operation and can be edited independently.</p></div><span className="module-number">{branchSteps.length} BRANCHES</span></div><div className="route-branch-list">{branchSteps.map(branch => { const parent = steps.find(step => step.id === branch.parentId); return <button key={branch.id} className={"route-branch-card " + (activeStepId === branch.id ? "route-branch-active" : "")} onClick={() => { setActiveStepId(branch.id); setEditMode(true); }}><span className="branch-link-icon"><GitBranch size={17} /></span><span><small>FROM OP {String((parent?.id ?? 0)*10).padStart(3,"0")} · {branch.branch || "Branch"}</small><strong>{branch.name}</strong><em>{branch.station} · {branch.vendor || "Vendor not assigned"}</em></span><span className="branch-metrics">{(Number(branch.setupMinutes)||0)+((Number(branch.cycleSeconds)||0)*(Number(branch.quantity)||0))/60} min<br/>₹{((Number(branch.pricePerPart)||0)*(Number(branch.quantity)||0)).toLocaleString("en-IN",{maximumFractionDigits:2})}</span></button>; })}</div></section>}
-      <div className="route-bottom-note"><ShieldCheck size={14} /> This is an interactive sample route. Changes are temporary and reset when the page reloads; production API, version history, approvals and database persistence are not connected.</div>
+      <div className="route-bottom-note"><ShieldCheck size={14} /> Route edits persist in this browser. Shared multi-device database sync, revision history, approvals and production release controls still require backend deployment.</div>
     </div>
   );
 }
