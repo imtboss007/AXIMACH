@@ -428,7 +428,7 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
   const [draft, setDraft] = useState({ name: "", station: "", duration: "15 min", owner: "Production", note: "", vendor: "", setupMinutes: "0", cycleSeconds: "0", quantity: "1", pricePerPart: "0", missingQuantity: "0", branch: "Main route" });
   const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0];
   const visibleSteps = steps.filter((step) => (step.name + " " + step.station + " " + step.owner + " " + step.vendor + " " + step.status).toLowerCase().includes(filter.toLowerCase().trim()));
-  const routePlannedMinutes = steps.reduce((sum, step) => sum + (Number(step.setupMinutes) || 0) + ((Number(step.cycleSeconds) || 0) * (Number(step.quantity) || 0)) / 60, 0);
+  const routePlannedMinutes = steps.reduce((sum, step) => { const setup = Number(step.setupMinutes) || 0; const cycle = Number(step.cycleSeconds) || 0; const entered = setup > 0 || cycle > 0; const fallback = Number.parseFloat(step.duration) || 0; return sum + (entered ? setup + (cycle * (Number(step.quantity) || 0)) / 60 : fallback); }, 0);
   const routeVendorCost = steps.reduce((sum, step) => sum + (Number(step.pricePerPart) || 0) * (Number(step.quantity) || 0), 0);
   const routeMissing = steps.reduce((sum, step) => sum + (Number(step.missingQuantity) || 0), 0);
 
