@@ -456,7 +456,6 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
         <div className="operation-detail-grid"><div><small>STATION / VENDOR</small><strong>{activeStep.station}</strong></div><div><small>PLANNED DURATION</small><strong>{activeStep.duration}</strong></div><div><small>RESPONSIBLE TEAM</small><strong>{activeStep.owner}</strong></div><div><small>RECORD STATUS</small><strong>Illustrative only</strong></div></div>
         <div className="operation-detail-footer"><span><ShieldCheck size={14} /> Drawings, quantities, custody and quality evidence must be validated in the connected system.</span><button className="button-primary small-primary" disabled={activeStep.status === "Complete"} onClick={markComplete}><Check size={14} /> Mark complete · demo</button></div>
       </section>}
-      {notice && <p className="route-local-note">Prototype-only action message appears at the top of the workspace.</p>}
       <div className="route-bottom-note"><ShieldCheck size={14} /> This visual route is sample data. Route versions, quantity ledgers, custody events and quality releases are not connected to a backend.</div>
     </div>
   );
