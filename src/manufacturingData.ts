@@ -221,7 +221,9 @@ export function removeLegacyDemoData() {
   const route = safeRead("aximach.processRoute.v2");
   if (Array.isArray(route)) {
     const knownVendors = new Set(["Steel Mart", "Ramesh CNC", "Tech Mach", "HeatTreat Co", "Precision Grind", "TapTech", "SurfacePro", "CoatWell"]);
-    const looksLikeSeed = route.some((step: any) => knownVendors.has(String(step?.vendor || "")) || String(step?.startDate || "").startsWith("2025-12-") || step?.name === "Component & Design");
+    const demoVendorCount = route.filter((step: any) => knownVendors.has(String(step?.vendor || ""))).length;
+    const demoDateCount = route.filter((step: any) => String(step?.startDate || "").startsWith("2025-12-")).length;
+    const looksLikeSeed = route.length >= 8 && demoVendorCount >= 3 && demoDateCount >= 3;
     if (looksLikeSeed) window.localStorage.removeItem("aximach.processRoute.v2");
   }
   const costing = safeRead("aximach.costing.components.v1");
@@ -231,12 +233,25 @@ export function removeLegacyDemoData() {
   }
   const templates = safeRead("aximach.processMaster.v1");
   if (Array.isArray(templates)) {
-    const clean = templates.filter((row: any) => !["pm-turn", "pm-vmc", "pm-grind", "pm-wire", "pm-heat", "pm-coat", "pm-inspect", "pm-transport"].includes(String(row?.id || "")));
+    const exactDefaultTemplates: Record<string, { name: string; notes: string }> = {
+      "pm-turn": { name: "CNC Turning", notes: "Record drawing revision and first-off approval." },
+      "pm-vmc": { name: "VMC Milling", notes: "Confirm workholding, tool offsets and datum." },
+      "pm-grind": { name: "Cylindrical Grinding", notes: "Record wheel specification and dressing interval." },
+      "pm-wire": { name: "Wire EDM", notes: "Confirm wire diameter and cut strategy." },
+      "pm-heat": { name: "Heat Treatment", notes: "Capture batch certificate and process parameters." },
+      "pm-coat": { name: "Surface Coating", notes: "Record specification, thickness and certificate." },
+      "pm-inspect": { name: "Final Inspection", notes: "Record accepted, rejected and rework quantities." },
+      "pm-transport": { name: "Transport / Handover", notes: "Capture dispatch and receipt timestamps." }
+    };
+    const clean = templates.filter((row: any) => {
+      const seed = exactDefaultTemplates[String(row?.id || "")];
+      return !(seed && row?.name === seed.name && row?.vendor === "" && row?.notes === seed.notes);
+    });
     if (clean.length !== templates.length) window.localStorage.setItem("aximach.processMaster.v1", JSON.stringify(clean));
   }
   const contacts = safeRead("aximach.vendorContacts.v1");
   if (Array.isArray(contacts)) {
-    const clean = contacts.filter((row: any) => !["demo-v1", "demo-v2"].includes(String(row?.id || "")));
+    const clean = contacts.filter((row: any) => !(["demo-v1", "demo-v2"].includes(String(row?.id || "")) && /demo|example|sample/i.test(String(row?.company || "")) && !String(row?.phone || "").trim()));
     if (clean.length !== contacts.length) window.localStorage.setItem("aximach.vendorContacts.v1", JSON.stringify(clean));
   }
   const po = safeRead("aximach.poMeta.v1");
