@@ -592,3 +592,41 @@ img,svg,canvas,video{max-width:100%}
 @media(max-width:1250px){.route-kpi-row{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){.route-kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}.route-kpi{padding:8px;gap:7px}.route-kpi .kpi-icon{width:32px;height:32px;flex-basis:32px}.route-module-checks{grid-template-columns:repeat(2,minmax(0,1fr))}.route-tabbar button{padding:0 10px}}
 @media(max-width:430px){.route-kpi-row{grid-template-columns:minmax(0,1fr)}.route-module-checks{grid-template-columns:minmax(0,1fr)}}
+
+/* Process-map reference alignment: dark industrial canvas, status-colored operations, dense linked tabs */
+.route-tabbar{flex-wrap:nowrap;scrollbar-width:thin}
+.route-tabbar button{min-height:42px;padding:0 12px;font-size:10px}
+.route-tabbar button.route-tab-active{color:#61d0ff;background:linear-gradient(180deg,#123a54,#0a1c2b);border-bottom-color:#27c2ff}
+.route-tab-count{background:#123d58;color:#9be5ff}
+.route-cost-strip{background:#edf4fb;border-color:#c9d9e8}
+.route-cost-strip>div{background:#0b1b2a;border-color:#25445e}
+.route-cost-strip small{color:#72b8e8}
+.route-cost-strip strong{color:#eff8ff}
+.route-cost-strip span{color:#8ca9c4}
+.route-step .route-card{background:linear-gradient(145deg,#10283a,#0a1927);border-color:#28506b;color:#eaf5ff;box-shadow:0 6px 18px #02091455}
+.route-step .route-card-top small{color:#7daed0}
+.route-step .route-card-top em{background:#18344a;color:#b6cde0}
+.route-step .route-card>strong,.route-step .route-card strong{color:#f0f7ff}
+.route-step .route-card p,.route-step .route-card small,.route-step .route-card span{color:inherit}
+.route-step.complete .route-card{border-top:2px solid #24d5a1;border-color:#1c8d77}
+.route-step.running .route-card{border-top:2px solid #ff9d36;border-color:#e77926;box-shadow:0 0 0 1px #ff8d2d44,0 8px 24px #ff7c1a18}
+.route-step.quality-hold .route-card{border-top:2px solid #ff566d;border-color:#c63750;box-shadow:0 0 0 1px #ff566d33}
+.route-step .route-node{background:#102b40;border-color:#2477a5;color:#7bd5ff}
+.route-step.complete .route-node{background:#0b4a3d;border-color:#21c89a;color:#a4ffdf}
+.route-step.running .route-node{background:#57300e;border-color:#ff9d36;color:#ffe0b0;box-shadow:0 0 0 5px #ff9d3618}
+.route-step.quality-hold .route-node{background:#511e2b;border-color:#ff566d;color:#ffd4dc}
+.route-step.route-selected .route-card{border-color:#25bfff;box-shadow:0 0 0 2px #25bfff55,0 12px 26px #02091477}
+.route-step.route-multi-selected .route-card{outline:2px solid #a78bfa;outline-offset:3px}
+.route-step.route-multi-selected .route-node{border-color:#a78bfa;color:#e9ddff;box-shadow:0 0 0 4px #a78bfa22}
+.route-kpi{min-height:72px;background:linear-gradient(145deg,#0b2131,#081522);border-color:#1f435c}
+.route-kpi .kpi-icon{background:#10344b;color:#42caff}
+.route-kpi.kpi-risk .kpi-icon{background:#421d28;color:#ff8292}
+.route-kpi.kpi-cost .kpi-icon{background:#0c4038;color:#42e1b3}
+.route-kpi.kpi-transport .kpi-icon{background:#102f52;color:#5aaaff}
+.route-kpi.kpi-quality .kpi-icon{background:#123e37;color:#42e1b3}
+.route-controls{background:#0a1927;border-color:#25445e}
+.route-controls button{border-color:#294a64;color:#b9d1e5}
+.route-controls .control-active{background:#123d58;color:#65d0ff;border-color:#229bd2}
+.route-toolbar-actions{display:flex;gap:7px;flex-wrap:wrap}
+@media(max-width:1000px){.route-kpi-row{grid-template-columns:repeat(3,minmax(0,1fr))}.route-tabbar{overflow-x:auto}}
+@media(max-width:600px){.route-kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}.route-kpi{min-height:60px;padding:7px}.route-kpi .kpi-icon{flex-basis:30px;width:30px;height:30px}}
