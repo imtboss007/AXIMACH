@@ -824,7 +824,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
   const [allRecords, setAllRecords] = useState<Record<string, ModuleRecord[]>>(() => getAllModuleRecords());
   const [recordSync, setRecordSync] = useState<"local" | "syncing" | "synced" | "error">("local");
   useEffect(() => {
-    const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\\/+$/, "");
+    const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
     const key = window.localStorage.getItem("aximach.scheduler.key") || "";
     if (!base || !key) return;
     let cancelled = false;
@@ -859,7 +859,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
   const filtered = records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(search.toLowerCase()));
   const persist = (next: Record<string, ModuleRecord[]>) => {
     setAllRecords(next); setAllModuleRecords(next);
-    const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\\/+$/, "");
+    const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
     const key = window.localStorage.getItem("aximach.scheduler.key") || "";
     if (!base || !key) { setRecordSync("local"); return; }
     setRecordSync("syncing");
