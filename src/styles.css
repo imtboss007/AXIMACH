@@ -196,3 +196,36 @@
 @media(prefers-reduced-motion:reduce){.route-step,.route-connector,.route-selected .route-node,.route-art-orbit,.route-illustration svg,.route-cost-strip:after{animation:none!important;transition:none!important}}
 
 .route-branches-panel{padding:18px;border-top:1px solid #e6edf6;background:#fbfdff}.route-branches-panel .panel-heading h3{display:flex;align-items:center;gap:7px}.route-branch-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin-top:14px}.route-branch-card{display:flex;align-items:center;gap:11px;text-align:left;padding:13px;border:1px solid #dce6f3;border-radius:11px;background:#fff;min-width:0;transition:transform .2s,border-color .2s,box-shadow .2s}.route-branch-card:hover,.route-branch-active{transform:translateY(-2px);border-color:#8cb4f4;box-shadow:0 8px 20px #2d65b40d}.branch-link-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#eaf2ff;color:#2869d4;flex-shrink:0}.route-branch-card>span:nth-child(2){display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}.route-branch-card small{font:8px 'DM Mono';color:#6b84a5;letter-spacing:.3px}.route-branch-card strong{font-size:12px;color:#233c60}.route-branch-card em{font-style:normal;font-size:10px;color:#7b8ba3;overflow:hidden;text-overflow:ellipsis}.branch-metrics{text-align:right;font:10px 'DM Mono';line-height:1.7;color:#2b68c8;white-space:nowrap}@media(prefers-reduced-motion:reduce){.route-branch-card{transition:none}}
+
+
+/* Persistent scheduler workspace */
+.scheduler-connect-panel,.scheduler-form-panel{padding:20px;margin-bottom:16px}
+.scheduler-connect-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:12px;align-items:end;margin-top:18px}
+.scheduler-connect-form label,.scheduler-form label{display:flex;flex-direction:column;gap:7px;color:#526987;font-size:10px;font-weight:700}
+.scheduler-connect-form input,.scheduler-form input:not([type=checkbox]),.scheduler-form select,.scheduler-form textarea{width:100%;min-width:0;border:1px solid #dce5f1;border-radius:8px;background:#fbfdff;color:#243b5c;padding:10px 11px;font-size:11px;outline:none}
+.scheduler-form textarea{resize:vertical;line-height:1.5}
+.scheduler-connect-form input:focus,.scheduler-form input:focus,.scheduler-form select:focus,.scheduler-form textarea:focus{border-color:#8db4f2;box-shadow:0 0 0 3px #eaf2ff}
+.scheduler-connected{color:#168967!important;background:#e8f8f0!important}
+.scheduler-error{display:flex;align-items:flex-start;gap:8px;margin-top:13px;padding:11px 12px;border:1px solid #f0caca;background:#fff5f5;border-radius:8px;color:#a33a48;font-size:11px;line-height:1.5}
+.scheduler-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.scheduler-form{display:grid;gap:12px;margin-top:17px}
+.scheduler-optin{display:flex!important;flex-direction:row!important;align-items:flex-start;gap:9px!important;font-weight:500!important;line-height:1.5}
+.scheduler-optin input{margin-top:2px;accent-color:#2768db}
+.scheduler-subheading{display:flex;align-items:center;justify-content:space-between;margin:22px 0 10px;padding-top:15px;border-top:1px solid #e9eef6;color:#314a6c;font-size:11px}
+.scheduler-subheading span{color:#7d8ea5;font:10px 'DM Mono'}
+.scheduler-contact-list{display:grid;gap:7px;max-height:340px;overflow:auto}
+.scheduler-contact{display:flex;align-items:center;gap:10px;text-align:left;width:100%;min-width:0;border:1px solid #e4ebf5;border-radius:9px;padding:10px;background:#fff;transition:border-color .16s,background .16s}
+.scheduler-contact:hover,.scheduler-contact-active{border-color:#9bbcf0;background:#f4f8ff}
+.scheduler-avatar{width:31px;height:31px;display:grid;place-items:center;flex-shrink:0;border-radius:8px;background:#eaf1ff;color:#316dcc}
+.scheduler-contact>span:nth-child(2){display:grid;gap:4px;min-width:0;flex:1}
+.scheduler-contact strong{font-size:11px;color:#2d4567;overflow:hidden;text-overflow:ellipsis}
+.scheduler-contact small{font-size:9px;color:#7d8ea5;overflow-wrap:anywhere}
+.scheduler-optin-chip,.scheduler-noopt-chip{font-size:8px;white-space:nowrap;border-radius:5px;padding:4px 6px;background:#e8f8f0;color:#168967}
+.scheduler-noopt-chip{background:#fff1e4;color:#a45f14}
+.scheduler-form-panel .panel-heading h3{display:flex;align-items:center;gap:8px}
+.scheduler-form-panel .panel-heading h3 svg{color:#3d7bda}
+.scheduler-form-panel>.module-safety-note{margin-top:15px}
+.scheduler-connect-panel .module-safety-note{margin-top:14px}
+.scheduler-grid+.followup-list-panel{margin-top:0}
+@media(max-width:900px){.scheduler-grid{grid-template-columns:1fr}.scheduler-connect-form{grid-template-columns:1fr 1fr}.scheduler-connect-form .button-primary{grid-column:1/-1}}
+@media(max-width:560px){.scheduler-connect-form{grid-template-columns:1fr}.scheduler-connect-form .button-primary{grid-column:auto}.scheduler-contact{align-items:flex-start}.scheduler-optin-chip,.scheduler-noopt-chip{white-space:normal}.scheduler-form-panel,.scheduler-connect-panel{padding:15px}}
