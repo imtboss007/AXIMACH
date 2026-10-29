@@ -20,8 +20,17 @@ async function saveDb() {
   await writeFile(temp, JSON.stringify(db, null, 2), { mode: 0o600 });
   await rename(temp, DB_PATH);
 }
+const allowedOrigins = new Set(String(process.env.AXIMACH_ALLOWED_ORIGINS || process.env.AXIMACH_ALLOWED_ORIGIN || "http://localhost:5173")
+  .split(",").map(origin => origin.trim()).filter(Boolean));
+function applyCors(req, res) {
+  const origin = String(req.headers.origin || "");
+  res.setHeader("vary", "Origin");
+  if (origin && allowedOrigins.has(origin)) res.setHeader("access-control-allow-origin", origin);
+  res.setHeader("access-control-allow-headers", "content-type,x-aximach-key");
+  res.setHeader("access-control-allow-methods", "GET,POST,PATCH,DELETE,OPTIONS");
+}
 function json(res, status, data) {
-  res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": process.env.AXIMACH_ALLOWED_ORIGIN || "http://localhost:5173", "access-control-allow-headers": "content-type,x-aximach-key", "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS" });
+  res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(JSON.stringify(data));
 }
 async function body(req) {
@@ -87,7 +96,8 @@ async function tick() {
   } finally { busy = false; }
 }
 const server = createServer(async (req, res) => {
-  if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-allow-origin": process.env.AXIMACH_ALLOWED_ORIGIN || "http://localhost:5173", "access-control-allow-headers": "content-type,x-aximach-key", "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS", "access-control-max-age": "86400" }); return res.end(); }
+  applyCors(req, res);
+  if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-max-age": "86400" }); return res.end(); }
   const url = new URL(req.url, "http://localhost");
   if (url.pathname === "/health" && req.method === "GET") return json(res, 200, { ok: true, service: "AXIMACH scheduler", credentialsConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID), persistentStore: DB_PATH });
   if (!authorized(req)) return json(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
