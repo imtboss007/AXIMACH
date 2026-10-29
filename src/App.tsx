@@ -55,7 +55,7 @@ const modules: ModuleItem[] = [
 ];
 
 type ProcessStatus = "Complete" | "Running" | "Queued" | "Quality hold";
-type ProcessStep = { id: number; name: string; station: string; duration: string; status: ProcessStatus; owner: string; note: string };
+type ProcessStep = { id: number; name: string; station: string; duration: string; status: ProcessStatus; owner: string; note: string; vendor?: string; setupMinutes?: number; cycleSeconds?: number; quantity?: number; pricePerPart?: number; missingQuantity?: number; branch?: string };
 
 const startingSteps: ProcessStep[] = [
   { id: 1, name: "Material receipt & traceability", station: "Incoming stores", duration: "08 min", status: "Complete", owner: "Stores", note: "Verify material grade, heat number, certificate and received quantity." },
@@ -417,16 +417,20 @@ function ProcessWorkspace({ onBack, onNotice, notice }: { onBack: () => void; on
 }
 
 function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
-  const [steps, setSteps] = useState(startingSteps);
+  const [steps, setSteps] = useState<ProcessStep[]>(() => { try { const saved = window.localStorage.getItem("aximach.processRoute.v2"); return saved ? JSON.parse(saved) as ProcessStep[] : startingSteps; } catch { return startingSteps; } });
+  useEffect(() => { try { window.localStorage.setItem("aximach.processRoute.v2", JSON.stringify(steps)); } catch { /* browser storage may be unavailable */ } }, [steps]);
   const [activeStepId, setActiveStepId] = useState(3);
   const [orientation, setOrientation] = useState<"horizontal" | "vertical">("horizontal");
   const [zoom, setZoom] = useState(1);
   const [playing, setPlaying] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [filter, setFilter] = useState("");
-  const [draft, setDraft] = useState({ name: "", station: "", duration: "15 min", owner: "Production", note: "" });
+  const [draft, setDraft] = useState({ name: "", station: "", duration: "15 min", owner: "Production", note: "", vendor: "", setupMinutes: "0", cycleSeconds: "0", quantity: "1", pricePerPart: "0", missingQuantity: "0", branch: "Main route" });
   const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0];
-  const visibleSteps = steps.filter((step) => (step.name + " " + step.station + " " + step.owner + " " + step.status).toLowerCase().includes(filter.toLowerCase().trim()));
+  const visibleSteps = steps.filter((step) => (step.name + " " + step.station + " " + step.owner + " " + step.vendor + " " + step.status).toLowerCase().includes(filter.toLowerCase().trim()));
+  const routePlannedMinutes = steps.reduce((sum, step) => sum + (Number(step.setupMinutes) || 0) + ((Number(step.cycleSeconds) || 0) * (Number(step.quantity) || 0)) / 60, 0);
+  const routeVendorCost = steps.reduce((sum, step) => sum + (Number(step.pricePerPart) || 0) * (Number(step.quantity) || 0), 0);
+  const routeMissing = steps.reduce((sum, step) => sum + (Number(step.missingQuantity) || 0), 0);
 
   const updateActive = (patch: Partial<ProcessStep>) => {
     if (!activeStep) return;
@@ -436,10 +440,10 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
   const addOperation = () => {
     if (!draft.name.trim()) { onNotice("Enter an operation name before adding it."); return; }
     const id = Math.max(0, ...steps.map((step) => step.id)) + 1;
-    const step: ProcessStep = { id, name: draft.name.trim(), station: draft.station.trim() || "Unassigned station", duration: draft.duration.trim() || "15 min", status: "Queued", owner: draft.owner.trim() || "Unassigned", note: draft.note.trim() || "Add the required setup, quality and acceptance instructions." };
+    const step: ProcessStep = { id, name: draft.name.trim(), station: draft.station.trim() || "Unassigned station", duration: draft.duration.trim() || "15 min", status: "Queued", owner: draft.owner.trim() || "Unassigned", note: draft.note.trim() || "Add the required setup, quality and acceptance instructions.", vendor: draft.vendor.trim(), setupMinutes: Number(draft.setupMinutes)||0, cycleSeconds: Number(draft.cycleSeconds)||0, quantity: Math.max(0,Number(draft.quantity)||0), pricePerPart: Math.max(0,Number(draft.pricePerPart)||0), missingQuantity: Math.max(0,Number(draft.missingQuantity)||0), branch: draft.branch.trim() || "Main route" };
     setSteps((previous) => [...previous, step]);
     setActiveStepId(id);
-    setDraft({ name: "", station: "", duration: "15 min", owner: "Production", note: "" });
+    setDraft({ name: "", station: "", duration: "15 min", owner: "Production", note: "", vendor: "", setupMinutes: "0", cycleSeconds: "0", quantity: "1", pricePerPart: "0", missingQuantity: "0", branch: "Main route" });
     setFilter("");
     onNotice("Operation added to the sample route. This is not saved to a server.");
   };
@@ -466,6 +470,7 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
         <div className="route-progress"><span>ROUTE COMPLETION <strong>{steps.filter((step) => step.status === "Complete").length} / {steps.length}</strong></span><div><i style={{ width: (steps.filter((step) => step.status === "Complete").length / steps.length * 100) + "%" }} /></div></div>
         <span className="demo-pill compact-demo"><i /> DEMO DATA</span>
       </div>
+      <div className="route-cost-strip"><div><small>ESTIMATED ROUTE TIME</small><strong>{Math.round(routePlannedMinutes*10)/10} min</strong><span>Setup + cycle × quantity</span></div><div><small>ENTERED VENDOR COST</small><strong>₹{routeVendorCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong><span>Quantity × price per part</span></div><div><small>SHORT / MISSING QTY</small><strong>{routeMissing.toLocaleString("en-IN")}</strong><span>Manual shortage entries</span></div></div>
       <div className="route-controls">
         <div className="route-controls-left"><span className="control-label">VIEW</span><button className={orientation === "horizontal" ? "control-active" : ""} onClick={() => setOrientation("horizontal")}>Horizontal</button><button className={orientation === "vertical" ? "control-active" : ""} onClick={() => setOrientation("vertical")}>Vertical</button></div>
         <div className="route-controls-right">
@@ -481,6 +486,13 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
           <label>Machine / station / vendor<input value={draft.station} onChange={(event) => setDraft({ ...draft, station: event.target.value })} placeholder="e.g. CNC lathe · Vendor A" /></label>
           <label>Duration<input value={draft.duration} onChange={(event) => setDraft({ ...draft, duration: event.target.value })} placeholder="e.g. 25 min" /></label>
           <label>Responsible team<input value={draft.owner} onChange={(event) => setDraft({ ...draft, owner: event.target.value })} placeholder="Production" /></label>
+          <label>Vendor / subcontractor<input value={draft.vendor} onChange={(event) => setDraft({ ...draft, vendor: event.target.value })} placeholder="Vendor name (optional)" /></label>
+          <label>Setup time (minutes)<input type="number" min="0" value={draft.setupMinutes} onChange={(event) => setDraft({ ...draft, setupMinutes: event.target.value })} /></label>
+          <label>Cycle time (seconds / part)<input type="number" min="0" value={draft.cycleSeconds} onChange={(event) => setDraft({ ...draft, cycleSeconds: event.target.value })} /></label>
+          <label>Quantity to process<input type="number" min="0" value={draft.quantity} onChange={(event) => setDraft({ ...draft, quantity: event.target.value })} /></label>
+          <label>Vendor price / part (₹)<input type="number" min="0" step="0.01" value={draft.pricePerPart} onChange={(event) => setDraft({ ...draft, pricePerPart: event.target.value })} /></label>
+          <label>Missing / short quantity<input type="number" min="0" value={draft.missingQuantity} onChange={(event) => setDraft({ ...draft, missingQuantity: event.target.value })} /></label>
+          <label>Route branch<input value={draft.branch} onChange={(event) => setDraft({ ...draft, branch: event.target.value })} placeholder="Main route / Rework / Alternate vendor" /></label>
           <label className="editor-wide">Work / quality notes<input value={draft.note} onChange={(event) => setDraft({ ...draft, note: event.target.value })} placeholder="Setup, inspection and acceptance notes" /></label>
           <button className="button-primary" onClick={addOperation}><Plus size={15} /> Add operation</button>
         </div>
@@ -510,10 +522,17 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
           <label>Machine / station / vendor<input value={activeStep.station} onChange={(event) => updateActive({ station: event.target.value })} /></label>
           <label>Duration<input value={activeStep.duration} onChange={(event) => updateActive({ duration: event.target.value })} /></label>
           <label>Responsible team<input value={activeStep.owner} onChange={(event) => updateActive({ owner: event.target.value })} /></label>
+          <label>Vendor / subcontractor<input value={activeStep.vendor ?? ""} onChange={(event) => updateActive({ vendor: event.target.value })} /></label>
+          <label>Setup time (minutes)<input type="number" min="0" value={activeStep.setupMinutes ?? 0} onChange={(event) => updateActive({ setupMinutes: Math.max(0,Number(event.target.value)||0) })} /></label>
+          <label>Cycle time (seconds / part)<input type="number" min="0" value={activeStep.cycleSeconds ?? 0} onChange={(event) => updateActive({ cycleSeconds: Math.max(0,Number(event.target.value)||0) })} /></label>
+          <label>Quantity<input type="number" min="0" value={activeStep.quantity ?? 1} onChange={(event) => updateActive({ quantity: Math.max(0,Number(event.target.value)||0) })} /></label>
+          <label>Vendor price / part (₹)<input type="number" min="0" step="0.01" value={activeStep.pricePerPart ?? 0} onChange={(event) => updateActive({ pricePerPart: Math.max(0,Number(event.target.value)||0) })} /></label>
+          <label>Missing / short quantity<input type="number" min="0" value={activeStep.missingQuantity ?? 0} onChange={(event) => updateActive({ missingQuantity: Math.max(0,Number(event.target.value)||0) })} /></label>
+          <label>Route branch<input value={activeStep.branch ?? "Main route"} onChange={(event) => updateActive({ branch: event.target.value })} /></label>
           <label>Operation status<select value={activeStep.status} onChange={(event) => updateActive({ status: event.target.value as ProcessStatus })}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
           <label className="editor-wide">Work / quality notes<input value={activeStep.note} onChange={(event) => updateActive({ note: event.target.value })} /></label>
           <div className="route-editor-actions"><button className="button-quiet" onClick={() => moveActive(-1)} disabled={steps.findIndex((step) => step.id === activeStepId) === 0}><ArrowUpRight size={14} /> Move earlier</button><button className="button-quiet" onClick={() => moveActive(1)} disabled={steps.findIndex((step) => step.id === activeStepId) === steps.length - 1}><ArrowDownRight size={14} /> Move later</button><button className="button-danger" onClick={deleteActive}><X size={14} /> Remove operation</button></div>
-        </div> : <div className="operation-detail-grid"><div><small>MACHINE / STATION / VENDOR</small><strong>{activeStep.station}</strong></div><div><small>PLANNED DURATION</small><strong>{activeStep.duration}</strong></div><div><small>RESPONSIBLE TEAM</small><strong>{activeStep.owner}</strong></div><div><small>RECORD STATUS</small><strong>Sample data only</strong></div></div>}
+        </div> : <div className="operation-detail-grid"><div><small>MACHINE / STATION / VENDOR</small><strong>{activeStep.station}</strong></div><div><small>PLANNED DURATION</small><strong>{activeStep.duration}</strong></div><div><small>RESPONSIBLE TEAM</small><strong>{activeStep.owner}</strong></div><div><small>VENDOR / SUBCONTRACTOR</small><strong>{activeStep.vendor || "Not assigned"}</strong></div><div><small>SETUP + CYCLE × QTY</small><strong>{(Number(activeStep.setupMinutes)||0)+((Number(activeStep.cycleSeconds)||0)*(Number(activeStep.quantity)||0))/60} min</strong></div><div><small>VENDOR COST</small><strong>₹{((Number(activeStep.pricePerPart)||0)*(Number(activeStep.quantity)||0)).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><small>SHORT / MISSING QTY</small><strong>{Number(activeStep.missingQuantity)||0}</strong></div><div><small>ROUTE BRANCH</small><strong>{activeStep.branch || "Main route"}</strong></div><div><small>RECORD STATUS</small><strong>Sample data only</strong></div></div>}
         {!editMode && <div className="operation-detail-footer"><span><ShieldCheck size={14} /> Select “Edit route” to change fields, reorder or remove this operation.</span><button className="button-primary small-primary" onClick={() => setEditMode(true)}><GitBranch size={14} /> Edit selected operation</button></div>}
       </section>}
       </div>
