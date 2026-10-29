@@ -17,7 +17,7 @@ export default function SearchablePicker({ id, label, value, options, onChange, 
   const listId = id + "-choices-" + reactId;
   const [query, setQuery] = useState("");
   const selectedLabel = options.find(option => option.id === value)?.label || "";
-
+  useEffect(() => { if (value) setQuery(""); }, [value]);
 
   const handleChange = (nextValue: string) => {
     const match = options.find(option => option.label.trim().toLocaleLowerCase() === nextValue.trim().toLocaleLowerCase());
