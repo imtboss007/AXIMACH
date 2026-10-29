@@ -57,3 +57,27 @@ Use your host's secret manager instead of putting real credentials in shell hist
 The Communication & Follow-up screen can connect to this API, add contacts with explicit opt-in, create one-time/daily/weekly individual schedules, pause/resume schedules, refresh records and export contacts as CSV. Module records are also synced to `/api/records` while a valid server URL and API key are available in the current browser session; the browser keeps a local cache for continuity. The API key is held in browser session storage for the active tab session. This is a connector prototype, **not a multi-user security boundary**: anyone allowed to use the UI can potentially inspect/use that key. Do not expose this configuration to untrusted users or deploy it publicly without adding real user authentication, per-user authorization and a server-side session/proxy.
 
 The current scheduler does not sync a phone's WhatsApp address book, pair via QR/linked devices, send to WhatsApp groups, or stop repeated messages on a reply. Those require supported provider capabilities and additional webhook/state handling. Do not configure repeat messages without appropriate recipient consent and a clear stop/pause process.
+
+
+## QR-paired personal WhatsApp bridge (unofficial)
+
+AXIMACH now includes an optional Baileys-based WhatsApp Web bridge in `server/whatsapp-web.mjs`. It is separate from the official Cloud API scheduler and must run as its own long-lived process:
+
+```sh
+npm install
+AXIMACH_API_KEY='use-a-long-random-secret' WA_WEB_DATA_FILE='/data/whatsapp-web.json' WA_WEB_AUTH_DIR='/data/whatsapp-auth' npm run start:whatsapp-web
+```
+
+Set `WA_WEB_PORT` (default 8788), `AXIMACH_API_KEY`, `AXIMACH_ALLOWED_ORIGIN`, `WA_WEB_DATA_FILE`, and `WA_WEB_AUTH_DIR`. Mount both data and auth paths on a **persistent disk**. The WhatsApp linked-device credentials are highly sensitive; do not expose the auth directory or QR/status endpoint publicly, and put the service behind HTTPS. Use the same API key as the UI only in a trusted deployment.
+
+Endpoints (all except `GET /health` require `x-aximach-key`):
+- `GET /api/whatsapp/status` — connection state and QR payload while pairing.
+- `GET /api/whatsapp/contacts` — contacts learned from WhatsApp contact/history sync.
+- `GET /api/whatsapp/groups` — participating groups.
+- `POST /api/whatsapp/send` — JSON `{"to":"9198XXXXXXXX","message":"Hello","optedIn":true}`; `to` may be a group JID for group messages.
+- `GET /api/whatsapp/schedules`, `POST /api/whatsapp/schedules` and `PATCH /api/whatsapp/schedules/:id` — persistent one-time/daily/weekly schedules. Include `optedIn:true` when creating a schedule.
+- `POST /api/whatsapp/refresh-groups` — refresh group list.
+
+The bridge persists the linked-device auth state and schedule/contact cache to disk and reconnects after temporary disconnects. The phone/app can be closed while this server remains running. If the server host sleeps, is shut down, loses its persistent volume, or WhatsApp logs the linked device out, schedules will not run until restored/reconnected. This bridge is based on an **unofficial WhatsApp Web protocol library**, not a WhatsApp/Meta-supported API; account restriction or breakage is possible. Use only with an account you control, respect WhatsApp rules, recipient consent, and rate limits. Contact sync is best-effort and depends on what WhatsApp sync events make available; it cannot guarantee every phone address-book entry is exposed. Do not send unsolicited or bulk messages.
+
+This is an API/service integration commit, not yet a claim that a QR scanner UI, all-device record synchronization, delivery/reply webhooks, or production hosting has been completed or verified.
