@@ -829,7 +829,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
         <button className="button-quiet" onClick={exportRecords}><FileDown size={15} /> Export</button>
       </div>
       {showForm && <section className="surface-panel module-record-form-panel">
-        <div className="panel-heading"><div><h3>{editingId ? "Edit record" : "Create " + module.title + " record"}</h3><p>Required: record name. Data stays in this browser.</p></div><button className="icon-control" onClick={resetForm} aria-label="Close editor"><X size={15} /></button></div>
+        <div className="panel-heading"><div><h3>{editingId ? "Edit record" : "Create " + module.title + " record"}</h3><p>Required: record name. Storage: {recordSync === "synced" ? "server synced" : recordSync === "syncing" ? "syncing to server…" : recordSync === "error" ? "sync failed — local copy retained" : "local device only until server connection is configured"}.</p></div><button className="icon-control" onClick={resetForm} aria-label="Close editor"><X size={15} /></button></div>
         <div className="module-record-form">
           <label>{profile.itemLabel} *<input autoFocus value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder={"Enter " + profile.itemLabel.toLowerCase()} /></label>
           <label>{profile.referenceLabel}<input value={draft.reference} onChange={(event) => setDraft({ ...draft, reference: event.target.value })} placeholder={profile.referenceLabel} /></label>
