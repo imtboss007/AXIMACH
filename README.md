@@ -8,18 +8,17 @@ AXIMACH is being developed as an AI-native manufacturing operating system for pr
 
 The GitHub repository is the canonical source of truth for AXIMACH code, configuration, issue tracking, build workflows and release artifacts. Work should be committed here rather than maintained in a disconnected copy.
 
-The current repository contains an **interactive frontend prototype plus an optional scheduler service foundation**, not a production-ready ERP or connected factory system.
+The repository now includes **linked manufacturing master workflows and an optional persistent JSON-backed server API**. It is still a work in progress—not a production-ready ERP, deployed multi-tenant system, or live factory telemetry platform.
 
-- Light, responsive command-deck interface; no permanent left sidebar.
-- Searchable module universe covering all 32 planned product modules.
-- Keyboard command search (Ctrl/⌘ K).
-- Process route prototype with horizontal/vertical layouts, scroll, zoom controls, selectable operations and local demonstration status changes.
-- Illustrative dashboard and AI response examples, clearly labelled as sample/demo data.
-- GitHub Actions workflow for web build, Windows installer and Android debug APK artifacts.
-- Optional Node.js scheduler service (server/index.mjs) with JSON-file persistence, individual WhatsApp Cloud API schedule attempts, contacts, schedule controls and logs.
-- Communication & Follow-up UI connector for the scheduler API, with contact entry, opt-in recording, one-time/daily/weekly schedules and CSV contact export.
+- Searchable Companies → Factories → Purchase Orders → individual PO component lines → Component master records, linked by stable IDs.
+- Process Map operations are created per selected PO line/component, with planned and actual rates, planned/actual dates, processed/accepted/rejected quantities, transport, inspection, alternate/rework route lanes, reordering and vendor assignment.
+- Supplier quotations have separate persistent records linked to the exact component, PO line, operation and vendor; choosing a quote applies its planned rate without marking it as an actual invoice.
+- Vendor master supports phone/WhatsApp numbers, contact details, process/machine/material capabilities, verification status and search; QR-bridge contacts are automatically added/updated without duplicating matching IDs/phone numbers and are marked unverified.
+- Dashboard summaries use saved master data rather than fixed example company/PO/component metrics. A conservative migration removes known demo defaults without deliberately clearing user-entered records.
+- The existing server/index.mjs API now includes GET/PUT /api/manufacturing-data, uses the configured persistent JSON file, merges rows by ID/update timestamp and supports an explicit CORS origin allowlist (AXIMACH_ALLOWED_ORIGINS).
+- GitHub Actions builds the web app, Windows installer and Android debug APK.
 
-**Not yet production-connected:** no deployed scheduler, real WhatsApp credentials, automatic WhatsApp address-book/QR sync, group messaging, delivery/reply webhooks, stop-on-reply behavior, server-side user authentication/tenant isolation, live database, or connected factory telemetry. The UI connector uses a single API key and is not a multi-user security boundary. Prototype interactions must not be treated as production records.
+**Important deployment limits:** master data syncs across devices only after the scheduler API is deployed on an always-on host with a persistent volume, its URL/API key are configured, and each client origin is allowed by CORS. Without that, browser-local records remain local to that device. The optional Baileys QR-linked WhatsApp bridge is unofficial, best-effort, may not expose every address-book contact, and must also remain online with persistent authentication storage for scheduled actions. Imported contacts are not approved vendors or proof of messaging consent. Server-side per-user/tenant authorization, a production database, deployment, delivery/reply webhooks, stock transaction ledger and live machine telemetry are still pending.
 
 ## Run locally
 
@@ -74,14 +73,14 @@ npm run preview
 
 ## Engineering priorities
 
-1. Inspect and approve this UI direction before broad implementation.
-2. Define architecture, data model, tenant boundaries, permissions and audit events.
-3. Implement server-side authentication and authorization before handling business data.
-4. Implement process route versioning, quantity reconciliation, confirmed custody events and quality gates.
-5. Build vendor, inventory, production, logistics and costing workflows on a shared model.
-6. Add imports/exports, background jobs and integrations with failure handling and observability.
-7. Validate mobile/offline behavior, realistic load, backup restore and permission boundaries.
-8. Add bounded AI recommendations with evidence and approval gates; never let the AI bypass authorization.
+1. Add server-side authentication, authorization and company/factory tenant boundaries before production business use.
+2. Complete route revisions, explicit operation dependencies, quantity reconciliation, custody confirmations and quality gates.
+3. Build inventory transactions (receipts, issues, WIP, returns, scrap, finished goods and dispatch) on the shared component/PO data model.
+4. Connect dispatch, payments, document revisions and audit history with immutable transaction references.
+5. Add backups, restore tests, import/export validation, retries and service health monitoring.
+6. Test Windows, Android and browser data-sync behavior against a deployed persistent server.
+7. Add delivery/reply webhooks and consent-aware WhatsApp workflow controls where the selected provider supports them.
+8. Add bounded AI recommendations with evidence and human approval; never let AI bypass authorization.
 
 ## Non-negotiable safety and data rules
 
