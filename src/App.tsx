@@ -71,9 +71,6 @@ function App() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
-  const [newJobOpen, setNewJobOpen] = useState(false);
-  const [newJobName, setNewJobName] = useState("");
-  const [localJobs, setLocalJobs] = useState<string[]>([]);
 
   const activeModule = modules.find((item) => item.id === activeModuleId) ?? modules[0];
   const globalRecords = getAllModuleRecords();
@@ -98,7 +95,6 @@ function App() {
       if (event.key === "Escape") {
         setCommandOpen(false);
         setModuleExplorerOpen(false);
-        setNewJobOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -138,14 +134,6 @@ function App() {
     setNotice("AI service not connected. No live business data was queried and no action was executed.");
   };
 
-  const addLocalJob = () => {
-    if (!newJobName.trim()) return;
-    setLocalJobs((jobs) => [newJobName.trim(), ...jobs]);
-    setNotice("The example work order was added to this browser session only; it is not saved to a server.");
-    setNewJobName("");
-    setNewJobOpen(false);
-  };
-
   return (
     <div className="app-shell">
       <header className="command-deck">
@@ -181,12 +169,10 @@ function App() {
             activeModule={activeModule}
             aiPrompt={aiPrompt}
             aiResponse={aiResponse}
-            localJobs={localJobs}
             notice={notice}
             onAiPromptChange={setAiPrompt}
             onRunCommand={runCommand}
             onNotice={setNotice}
-            onNewJob={() => setNewJobOpen(true)}
             onSelectModule={selectModule}
             onOpenModules={openModuleExplorer}
           />
@@ -267,29 +253,17 @@ function App() {
         </div>
       )}
 
-      {newJobOpen && (
-        <div className="overlay-shell modal-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setNewJobOpen(false); }}>
-          <section className="new-job-modal" role="dialog" aria-modal="true" aria-labelledby="new-job-title">
-            <div className="modal-heading"><span className="modal-icon"><Plus size={19} /></span><button className="close-round compact" onClick={() => setNewJobOpen(false)} aria-label="Close"><X size={18} /></button></div>
-            <h2 id="new-job-title">Create a work order<span>.</span></h2>
-            <p>Prototype only. This creates a session example, not a production order in a connected database.</p>
-            <label htmlFor="job-name">Job name or part number</label>
-            <input id="job-name" value={newJobName} onChange={(event) => setNewJobName(event.target.value)} placeholder="e.g. AX-2051 · Mounting bracket" onKeyDown={(event) => { if (event.key === "Enter") addLocalJob(); }} autoFocus />
-            <div className="modal-actions"><button className="button-quiet" onClick={() => setNewJobOpen(false)}>Cancel</button><button className="button-primary" disabled={!newJobName.trim()} onClick={addLocalJob}><Plus size={16} /> Add example</button></div>
-          </section>
-        </div>
-      )}
       <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Master records · server sync status shown in each workspace</span></footer>
     </div>
   );
 }
 
 function CommandCentre(props: {
-  activeModule: ModuleItem; aiPrompt: string; aiResponse: string; localJobs: string[]; notice: string;
+  activeModule: ModuleItem; aiPrompt: string; aiResponse: string; notice: string;
   onAiPromptChange: (value: string) => void; onRunCommand: () => void; onNotice: (value: string) => void;
-  onNewJob: () => void; onSelectModule: (id: string) => void; onOpenModules: () => void;
+  onSelectModule: (id: string) => void; onOpenModules: () => void;
 }) {
-  const { aiPrompt, aiResponse, localJobs, notice, onAiPromptChange, onRunCommand, onNotice, onNewJob, onSelectModule, onOpenModules } = props;
+  const { aiPrompt, aiResponse, notice, onAiPromptChange, onRunCommand, onNotice, onSelectModule, onOpenModules } = props;
   const actualData = readManufacturingData();
   return (
     <>
@@ -646,7 +620,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
     onNotice(recordSync === "synced" ? "Record saved and synced to the AXIMACH server." : "Record saved on this device. Connect the scheduler server to enable shared backup and cross-device sync.");
   };
   const editRecord = (record: ModuleRecord) => { setDraft({ title: record.title, reference: record.reference, status: record.status, owner: record.owner, linkedModule: record.linkedModule, notes: record.notes }); setEditingId(record.id); setShowForm(true); };
-  const removeRecord = (id: string) => { if (!window.confirm("Remove this local sample record? This cannot be undone in this browser.")) return; persist({ ...allRecords, [module.id]: records.filter((item) => item.id !== id) }); onNotice("Record removed from this device. Reconnect to the server to sync the change."); };
+  const removeRecord = (id: string) => { if (!window.confirm("Remove this record from the current module? This cannot be undone in this browser.")) return; persist({ ...allRecords, [module.id]: records.filter((item) => item.id !== id) }); onNotice("Record removed from this device. Reconnect to the server to sync the change."); };
   const exportRecords = () => { const blob = new Blob([JSON.stringify({ module: module.id, exportedAt: new Date().toISOString(), records }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "aximach-" + module.id + "-records.json"; a.click(); URL.revokeObjectURL(url); onNotice("Module records exported as JSON."); };
   const totalLinked = Object.values(allRecords).flat().filter((record) => record.linkedModule).length;
   return (
