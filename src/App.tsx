@@ -161,7 +161,7 @@ function App() {
       <header className="command-deck">
         <button className="brand-lockup" onClick={() => selectModule("command-centre")} aria-label="Open AXIMACH command centre">
           <span className="brand-symbol"><span>A</span><i /></span>
-          <span className="brand-copy"><strong>AXI<span>MACH</span></strong><small>MANUFACTURING OS</small></span>
+          <span className="brand-copy"><strong>Machining Flow Control</strong><small>Multi-Company Manufacturing OS</small></span>
         </button>
 
         <div className="deck-divider" />
@@ -181,7 +181,7 @@ function App() {
         </button>
         <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>32</b></button>
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("Demo notifications: 1 simulated tool-life warning and 1 simulated quality sign-off reminder.")}><Bell size={18} /><i /></button>
-        <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">PE</span><span className="profile-name">Engineer</span><ChevronDown size={13} /></button>
+        <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">PE</span><span className="profile-name">Owner</span><ChevronDown size={13} /></button>
       </header>
 
       <div className="status-ribbon">
