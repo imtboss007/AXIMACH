@@ -42,7 +42,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const selectedLine = poLines.find(line => line.id === poLineId);
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
   const routeOperations = operations.filter(op => op.poLineId === poLineId && op.poId === poId && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
-  const visibleOperations = routeOperations.filter(op => (op.name + " " + op.category + " " + op.machine + " " + (vendors.find(v => v.id === op.vendorId)?.company || "") + " " + op.status).toLowerCase().includes(search.toLowerCase().trim()));
+  const visibleOperations = routeOperations.filter(op => (op.name + " " + op.category + " " + op.machine + " " + (vendors.find(v => v.id === op.vendorId)?.company || "") + " " + op.status + " " + (op.branch || "Main route")).toLowerCase().includes(search.toLowerCase().trim()));
+  const visibleBranches = [...new Set(visibleOperations.map(op => op.branch || "Main route"))];
   const activeOperation = routeOperations.find(op => op.id === selectedOperationId) || routeOperations[0];
   const totalProcessCost = routeOperations.reduce((sum, op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
   const expectedQuantity = selectedLine?.quantity || 0;
@@ -218,10 +219,18 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <div className="module-form-actions"><button className="button-primary" onClick={saveOperation}><Check size={14}/> {editingId ? "Save changes" : "Save operation"}</button><button className="button-quiet" onClick={() => setShowEditor(false)}>Cancel</button></div>
           </div>
         </section>}
-        {routeOperations.length ? <div className={"linked-node-scroll " + (vertical ? "linked-node-vertical" : "")}><div className="linked-node-track" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{visibleOperations.map((op,index) => {
-          const vendor = vendors.find(v => v.id === op.vendorId);
-          const selected = op.id === activeOperation?.id;
-          return <div className="linked-node-wrap" key={op.id}><button className={"linked-operation-node status-" + op.status.toLowerCase().replace(/\s+/g,"-") + (selected ? " linked-node-selected" : "")} onClick={() => {setSelectedOperationId(op.id);setShowEditor(false);}}><span className="linked-node-icon">{op.name.toLowerCase().includes("transport") || op.name.toLowerCase().includes("dispatch") ? <Truck size={19}/> : op.name.toLowerCase().includes("inspect") || op.name.toLowerCase().includes("quality") ? <ClipboardCheck size={19}/> : op.name.toLowerCase().includes("grind") ? <Wrench size={19}/> : <Workflow size={19}/>}</span><strong>{op.name}</strong><small>OP-{String(op.sequence).padStart(3,"0")}</small><span>{op.status}</span><small>{vendor?.company || "Vendor unassigned"}</small><small>{daysBetween(op.plannedStart,op.plannedEnd) || "—"} day(s)</small></button>{index < visibleOperations.length - 1 && <span className="linked-node-arrow"><ArrowRight size={18}/></span>}</div>;
+        {routeOperations.length ? <div className={"linked-node-scroll " + (vertical ? "linked-node-vertical" : "")}><div className="linked-route-lanes" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{visibleBranches.map(branch => {
+          const laneOperations = visibleOperations.filter(op => (op.branch || "Main route") === branch);
+          const alternate = branch !== "Main route";
+          const branchParents = [...new Set(laneOperations.map(op => op.parentId ? routeOperations.find(parent => parent.id === op.parentId)?.name : "").filter(Boolean))];
+          return <section className={"linked-route-lane " + (alternate ? "linked-route-lane-alternate" : "")} key={branch}>
+            <div className="linked-route-lane-heading"><strong>{branch}</strong><small>{laneOperations.length} operation(s) · {alternate ? "alternate / rework route" : "primary route"}{branchParents.length ? " · branches from " + branchParents.join(", ") : ""}</small></div>
+            <div className="linked-node-track">{laneOperations.map((op,index) => {
+              const vendor = vendors.find(v => v.id === op.vendorId);
+              const selected = op.id === activeOperation?.id;
+              return <div className="linked-node-wrap" key={op.id}><button className={"linked-operation-node status-" + op.status.toLowerCase().replaceAll(" ","-") + (alternate ? " linked-node-alternate" : "") + (selected ? " linked-node-selected" : "")} onClick={() => {setSelectedOperationId(op.id);setShowEditor(false);}}><span className="linked-node-icon">{op.name.toLowerCase().includes("transport") || op.name.toLowerCase().includes("dispatch") ? <Truck size={19}/> : op.name.toLowerCase().includes("inspect") || op.name.toLowerCase().includes("quality") ? <ClipboardCheck size={19}/> : op.name.toLowerCase().includes("grind") ? <Wrench size={19}/> : <Workflow size={19}/>}</span><strong>{op.name}</strong><small>OP-{String(op.sequence).padStart(3,"0")}</small><span>{op.status}</span><small>{vendor?.company || "Vendor unassigned"}</small><small>{daysBetween(op.plannedStart,op.plannedEnd) || "—"} day(s)</small></button>{index < laneOperations.length - 1 && <span className="linked-node-arrow"><ArrowRight size={18}/></span>}</div>;
+            })}</div>
+          </section>;
         })}{!visibleOperations.length && <div className="module-empty-state">No operations match this search.</div>}</div></div> : <div className="module-empty-state linked-no-operations"><Workflow size={28}/><h3>No operations saved for this component</h3><p>Add only the operations this part actually requires. There is no fixed stage limit and no sample CNC or heat-treatment data.</p><button className="button-primary" disabled={!selectedLine} onClick={() => startAdd()}><Plus size={14}/> Add first operation</button></div>}
         <div className="route-legend"><span><i className="legend-done"/> Complete</span><span><i className="legend-live"/> Running</span><span><i className="legend-queued"/> Queued</span><span><i className="legend-hold"/> Quality hold</span><span className="route-scroll-note">Select any operation to inspect its schedule, vendor, quality and cost.</span></div>
       </section>
