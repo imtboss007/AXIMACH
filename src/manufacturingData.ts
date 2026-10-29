@@ -85,21 +85,15 @@ export type ManufacturingData = {
 };
 
 export const emptyManufacturingData = (): ManufacturingData => ({
-  updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [],
-  vendors: [], operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: []
+  updatedAt: nowIso(),
+  companies: [], factories: [], purchaseOrders: [], components: [], vendors: [], operations: [], quotations: [],
+  materials: [], bomLines: [], inventoryTransactions: []
 });
-
-export function makeId(prefix: string): string {
-  try { return prefix + "-" + crypto.randomUUID(); }
-  catch { return prefix + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 9); }
-}
-export const nowIso = () => new Date().toISOString();
-export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.filter(row => !row.deletedAt);
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
   const empty = emptyManufacturingData();
   return {
-    updatedAt: typeof value?.updatedAt === "string" ? value.updatedAt : "",
+    updatedAt: typeof value?.updatedAt === "string" ? value.updatedAt : nowIso(),
     companies: Array.isArray(value?.companies) ? value.companies : empty.companies,
     factories: Array.isArray(value?.factories) ? value.factories : empty.factories,
     purchaseOrders: Array.isArray(value?.purchaseOrders) ? value.purchaseOrders : empty.purchaseOrders,
@@ -112,34 +106,21 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions
   };
 }
-export function readManufacturingData(): ManufacturingData {
-  if (typeof window === "undefined") return emptyManufacturingData();
-  try { return normaliseData(JSON.parse(window.localStorage.getItem(MANUFACTURING_DATA_KEY) || "null")); }
-  catch { return emptyManufacturingData(); }
-}
-function writeLocal(data: ManufacturingData, broadcast = true) {
-  if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(MANUFACTURING_DATA_KEY, JSON.stringify(data)); } catch { /* storage may be unavailable */ }
-  if (broadcast) window.dispatchEvent(new CustomEvent("aximach-manufacturing-data-updated", { detail: data }));
-}
 
-function mergeRows<T extends { id: string; updatedAt?: string; deletedAt?: string }>(localRows: T[], remoteRows: T[]): T[] {
-  const rows = new Map<string, T>();
-  for (const row of remoteRows) if (row?.id) rows.set(row.id, row);
-  for (const row of localRows) {
-    if (!row?.id) continue;
-    const old = rows.get(row.id);
-    const localTime = Date.parse(row.updatedAt || "") || 0;
-    const remoteTime = Date.parse(old?.updatedAt || "") || 0;
-    if (!old || localTime >= remoteTime) rows.set(row.id, row);
-  }
-  return [...rows.values()];
-}
-export function mergeManufacturingData(localValue: Partial<ManufacturingData>, remoteValue: Partial<ManufacturingData>): ManufacturingData {
+function mergeManufacturingData(localValue: ManufacturingData, remoteValue: ManufacturingData): ManufacturingData {
   const local = normaliseData(localValue);
   const remote = normaliseData(remoteValue);
+  const mergeRows = <T extends { id: string; updatedAt?: string }>(localRows: T[], remoteRows: T[]) => {
+    const rows = new Map<string, T>();
+    for (const row of remoteRows) rows.set(row.id, row);
+    for (const row of localRows) {
+      const existing = rows.get(row.id);
+      if (!existing || String(row.updatedAt || "") >= String(existing.updatedAt || "")) rows.set(row.id, row);
+    }
+    return [...rows.values()];
+  };
   return {
-    updatedAt: [local.updatedAt, remote.updatedAt].sort().at(-1) || "",
+    updatedAt: [local.updatedAt, remote.updatedAt].sort().at(-1) || nowIso(),
     companies: mergeRows(local.companies, remote.companies),
     factories: mergeRows(local.factories, remote.factories),
     purchaseOrders: mergeRows(local.purchaseOrders, remote.purchaseOrders),
