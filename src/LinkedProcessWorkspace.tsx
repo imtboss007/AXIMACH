@@ -107,11 +107,12 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
     if (draft.accepted + draft.rejected > draft.completed) { onNotice("Accepted plus rejected quantity cannot exceed completed quantity."); return; }
     const stamp = nowIso();
+    const operationId = editingId || makeId("operation");
     update(current => {
       const currentRoute = current.operations.filter(op => op.poLineId === selectedLine.id && op.poId === selectedPO.id && op.componentId === selectedComponent.id && !op.deletedAt);
-      const old = current.operations.find(op => op.id === editingId);
+      const old = current.operations.find(op => op.id === operationId);
       const next: OperationRecord = {
-        id: editingId || makeId("operation"), poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
+        id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
         ...draft, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
@@ -119,7 +120,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       };
       return { ...current, operations: [...current.operations.filter(op => op.id !== next.id), next] };
     });
-    setSelectedOperationId(editingId || "");
+    setSelectedOperationId(operationId);
     setShowEditor(false); setEditingId("");
     onNotice(editingId ? "Operation updated and linked to its PO line/component ID." : "Operation saved against the selected PO line. Cost and dates remain separate for this component.");
   };
@@ -127,6 +128,19 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const stamp = nowIso();
     update(current => ({ ...current, operations: current.operations.map(op => op.id === id ? { ...op, ...patch, updatedAt: stamp } : op) }));
   };
+  const moveOperation = (id: string, direction: -1 | 1) => {
+    const index = routeOperations.findIndex(op => op.id === id);
+    const current = routeOperations[index];
+    const neighbor = routeOperations[index + direction];
+    if (!current || !neighbor) return;
+    const stamp = nowIso();
+    update(data => ({ ...data, operations: data.operations.map(op =>
+      op.id === current.id ? { ...op, sequence: neighbor.sequence, updatedAt: stamp } :
+      op.id === neighbor.id ? { ...op, sequence: current.sequence, updatedAt: stamp } : op
+    ) }));
+    onNotice("Operation sequence updated for this PO component route.");
+  };
+
   const archiveOperation = (op: OperationRecord) => {
     if (!window.confirm("Archive this operation? Its history and quotations will be retained.")) return;
     const stamp = nowIso();
@@ -214,7 +228,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       <aside className="surface-panel linked-operation-side">
         {activeOperation ? <><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> SELECTED OPERATION</div><h3>{activeOperation.name}</h3><p>{activeOperation.category || "Process type not specified"} · OP-{String(activeOperation.sequence).padStart(3,"0")}</p></div><button className="icon-control" aria-label="Edit selected operation" onClick={editActive}><Wrench size={14}/></button></div>
           <div className="linked-detail-grid"><div><small>VENDOR</small><strong>{selectedVendor?.company || "Not assigned"}</strong><span>{selectedVendor?.phone || "No vendor number linked"}</span></div><div><small>MACHINE / STATION</small><strong>{activeOperation.machine || "Not entered"}</strong></div><div><small>PLANNED SCHEDULE</small><strong>{shortDate(activeOperation.plannedStart)} – {shortDate(activeOperation.plannedEnd)}</strong><span>{daysBetween(activeOperation.plannedStart,activeOperation.plannedEnd) || "—"} calendar day(s)</span></div><div><small>ACTUAL SCHEDULE</small><strong>{shortDate(activeOperation.actualStart)} – {shortDate(activeOperation.actualEnd)}</strong></div><div><small>QUANTITY</small><strong>{activeOperation.quantity.toLocaleString("en-IN")} pcs</strong><span>{activeOperation.completed.toLocaleString("en-IN")} completed</span></div><div><small>ACCEPTED / REJECTED</small><strong>{activeOperation.accepted.toLocaleString("en-IN")} / {activeOperation.rejected.toLocaleString("en-IN")}</strong></div><div><small>QUOTED / PLANNED RATE</small><strong>{money(activeOperation.ratePerPart)}</strong></div><div><small>ACTUAL RATE / PART</small><strong>{activeOperation.actualRatePerPart ? money(activeOperation.actualRatePerPart) : "Not entered"}</strong></div><div><small>PROCESS + TRANSPORT COST</small><strong>{money(activeOperation.quantity * activeOperation.ratePerPart + activeOperation.transportCost)}</strong></div><div><small>TRANSPORT</small><strong>{vendors.find(v=>v.id===activeOperation.transportVendorId)?.company || "No transporter assigned"}</strong><span>{activeOperation.transportPickup || activeOperation.transportDelivery ? shortDate(activeOperation.transportPickup) + " → " + shortDate(activeOperation.transportDelivery) : "Not scheduled"} · {money(activeOperation.transportCost)}</span></div><div><small>STATUS</small><strong>{activeOperation.status}</strong></div><div className="linked-detail-wide"><small>QUALITY / INSPECTION REQUIREMENT</small><strong>{activeOperation.qualityNotes || "No quality notes recorded"}</strong></div><div className="linked-detail-wide"><small>INSPECTION RESULT</small><strong>{activeOperation.inspectionResult || "Not entered"}</strong></div><div className="linked-detail-wide"><small>NOTES</small><strong>{activeOperation.notes || "No operation notes entered"}</strong></div></div>
-          <div className="linked-side-actions"><button className="button-primary" onClick={editActive}><Wrench size={14}/> Edit operation</button><button className="button-quiet" onClick={() => onSelectModule("costing")}><CircleDollarSign size={14}/> Quotes / costing</button><button className="button-quiet" onClick={() => archiveOperation(activeOperation)}><X size={14}/> Archive</button></div>
+          <div className="linked-side-actions"><button className="button-primary" onClick={editActive}><Wrench size={14}/> Edit operation</button><button className="button-quiet" disabled={routeOperations.findIndex(op=>op.id===activeOperation.id)<=0} onClick={()=>moveOperation(activeOperation.id,-1)}><ArrowUp size={14}/> Move earlier</button><button className="button-quiet" disabled={routeOperations.findIndex(op=>op.id===activeOperation.id)>=routeOperations.length-1} onClick={()=>moveOperation(activeOperation.id,1)}><ArrowDown size={14}/> Move later</button><button className="button-quiet" onClick={() => onSelectModule("costing")}><CircleDollarSign size={14}/> Quotes / costing</button><button className="button-quiet" onClick={() => archiveOperation(activeOperation)}><X size={14}/> Archive</button></div>
           <div className="linked-quote-preview"><div className="panel-heading"><div><h3>Vendor quotations</h3><p>{selectedOperationQuotations.length} quote(s) linked to this operation</p></div></div>{selectedOperationQuotations.length ? selectedOperationQuotations.map(q => <div key={q.id} className="linked-quote-mini"><strong>{vendors.find(v=>v.id===q.vendorId)?.company || "Vendor archived"}</strong><span>{money(q.ratePerPart)}/part · {q.leadDays} lead day(s)</span><small>{q.quoteReference || "No quote reference"} · {q.status}</small></div>) : <div className="vendor-empty">No quotations recorded for this operation yet. Add a quote from Costing.</div>}</div>
         </> : <div className="module-empty-state"><Workflow size={28}/><h3>Select an operation</h3><p>Operation details, schedule, vendor link, quantities, quality and cost will appear here.</p></div>}
       </aside>
