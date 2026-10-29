@@ -469,3 +469,30 @@ img,svg,canvas,video{max-width:100%}
 .process-progress-track i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#14b88b,#25a6ff);transition:width .35s ease}
 @media(max-width:1180px){.route-canvas-detail-grid{grid-template-columns:minmax(0,1fr)!important}.route-canvas-detail-grid .operation-detail{position:relative!important;top:auto!important;max-height:none!important}.route-canvas-detail-grid .operation-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.route-canvas-detail-grid .route-track{grid-template-columns:repeat(3,minmax(150px,1fr))!important}.route-canvas-detail-grid .route-step-wrap:nth-child(4n) .route-connector{display:flex!important}.route-canvas-detail-grid .route-step-wrap:nth-child(3n) .route-connector{display:none!important}}
 @media(max-width:700px){.route-canvas-detail-grid .route-track{grid-template-columns:repeat(2,minmax(140px,1fr))!important;gap:18px 16px!important;padding:12px!important}.route-canvas-detail-grid .route-step-wrap:nth-child(3n) .route-connector{display:flex!important}.route-canvas-detail-grid .route-step-wrap:nth-child(2n) .route-connector{display:none!important}.process-bottom-summary{grid-template-columns:minmax(0,1fr)}.process-register-panel{margin:8px!important}.route-canvas-detail-grid{padding:8px!important}}
+
+.process-master-layout{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(0,1.5fr);gap:14px;margin-top:16px;align-items:start}
+.process-master-list,.process-master-detail{min-width:0;overflow:hidden;border:1px solid #28445d;background:#0b1b2a;color:#e7f0ff;border-radius:12px}
+.process-master-list .panel-heading,.process-master-detail .panel-heading{padding:16px;border-bottom:1px solid #223b51}
+.process-master-list .panel-heading h3,.process-master-detail .panel-heading h3{margin:4px 0;color:#f0f6ff;font-size:16px}
+.process-master-list .panel-heading p,.process-master-detail .panel-heading p{margin:4px 0 0;color:#91a9c2;font-size:11px}
+.process-master-list>.module-record-search{margin:12px;max-width:calc(100% - 24px)}
+.process-master-items{max-height:65vh;overflow:auto;padding:0 10px 12px}
+.process-master-item{width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:12px 9px;margin:3px 0;border:1px solid transparent;border-radius:9px;background:transparent;color:#d8e8f8}
+.process-master-item>span:nth-child(2){display:grid;gap:4px;flex:1;min-width:0}
+.process-master-item strong{font-size:12px}
+.process-master-item small{font-size:10px;color:#8ca8c4;overflow-wrap:anywhere}
+.process-master-item-active,.process-master-item:hover{background:#102b42;border-color:#176ea8}
+.process-master-item-active .related-icon{background:#113b58;color:#59c6ff}
+.process-master-detail .route-detail-editor{padding:16px}
+.process-master-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.process-master-form label{display:grid;gap:6px;color:#a8bfd6;font-size:11px;font-weight:600}
+.process-master-form input,.process-master-form select{width:100%;min-width:0;background:#081725;color:#e9f4ff;border:1px solid #29465f;border-radius:7px;padding:10px;font-size:12px}
+.process-master-form .module-form-wide,.process-master-form .module-form-actions{grid-column:1/-1}
+.process-master-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;padding:6px 16px 16px}
+.process-master-facts>div:not(.module-form-actions){display:grid;gap:6px;padding:13px 8px;border-bottom:1px solid #1c3348;min-width:0}
+.process-master-facts small{font:9px 'DM Mono',monospace;letter-spacing:.7px;color:#7fa1c3}
+.process-master-facts strong{font-size:12px;line-height:1.5;color:#dceaff;overflow-wrap:anywhere}
+.process-master-facts .module-form-wide{grid-column:1/-1}
+.process-master-facts .module-form-actions{grid-column:1/-1;display:flex;gap:8px;padding:14px 8px 0}
+@media(max-width:900px){.process-master-layout{grid-template-columns:minmax(0,1fr)}.process-master-items{max-height:320px}}
+@media(max-width:560px){.process-master-form,.process-master-facts{grid-template-columns:minmax(0,1fr)}.process-master-form .module-form-wide,.process-master-facts .module-form-wide{grid-column:1}.process-master-facts .module-form-actions{flex-wrap:wrap}}
