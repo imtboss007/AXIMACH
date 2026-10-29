@@ -671,6 +671,8 @@ function setAllModuleRecords(data: Record<string, ModuleRecord[]>) {
 }
 function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModule }: { module: ModuleItem; onBack: () => void; onNotice: (value: string) => void; onOpenModules: () => void; onSelectModule: (id: string) => void }) {
   const Icon = module.icon;
+  const profile = moduleProfiles[module.id] ?? defaultProfile;
+  const [activeWorkflowStep, setActiveWorkflowStep] = useState(0);
   const [allRecords, setAllRecords] = useState<Record<string, ModuleRecord[]>>(() => getAllModuleRecords());
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -701,20 +703,24 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
         <div className="module-hero-copy"><div className="eyebrow"><span className="eyebrow-mark" /> {module.group.toUpperCase()} / AXIMACH MODULE</div><h1>{module.title}<span>.</span></h1><p>{module.description}</p></div>
         <button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> All modules</button>
       </div>
+      <section className="module-workflow-strip surface-panel" aria-label={module.title + " workflow"}>
+        <div className="module-workflow-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> MODULE-SPECIFIC WORKFLOW</div><strong>{profile.workflow[activeWorkflowStep]}</strong><small>Select a stage to start a record at that point in the workflow.</small></div><span className="module-number">STEP {activeWorkflowStep + 1} / {profile.workflow.length}</span></div>
+        <div className="module-workflow-steps">{profile.workflow.map((stage, index) => <button key={stage} className={"module-workflow-step " + (index === activeWorkflowStep ? "workflow-step-active" : index < activeWorkflowStep ? "workflow-step-done" : "")} onClick={() => { setActiveWorkflowStep(index); setDraft({ title:"", reference:"", status:profile.statuses[Math.min(index, profile.statuses.length - 1)], owner:"", linkedModule:"", notes:stage + " stage: add the required evidence, owner and acceptance criteria." }); setEditingId(""); setShowForm(true); }}><span>{index < activeWorkflowStep ? <Check size={13}/> : String(index + 1).padStart(2,"0")}</span><strong>{stage}</strong><ArrowRight size={13}/></button>)}</div>
+      </section>
       <div className="module-action-bar">
         <label className="module-record-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={"Search " + module.title.toLowerCase() + " records…"} /></label>
-        <button className="button-primary" onClick={() => { setDraft({ title: "", reference: "", status: "Open", owner: "", linkedModule: "", notes: "" }); setEditingId(""); setShowForm(true); }}><Plus size={15} /> Add record</button>
+        <button className="button-primary" onClick={() => { setDraft({ title: "", reference: "", status: profile.statuses[0], owner: "", linkedModule: "", notes: "" }); setEditingId(""); setShowForm(true); }}><Plus size={15} /> Add {profile.itemLabel.toLowerCase()}</button>
         <button className="button-quiet" onClick={exportRecords}><FileDown size={15} /> Export</button>
       </div>
       {showForm && <section className="surface-panel module-record-form-panel">
         <div className="panel-heading"><div><h3>{editingId ? "Edit record" : "Create " + module.title + " record"}</h3><p>Required: record name. Data stays in this browser.</p></div><button className="icon-control" onClick={resetForm} aria-label="Close editor"><X size={15} /></button></div>
         <div className="module-record-form">
-          <label>Record name *<input autoFocus value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Enter name or work item" /></label>
-          <label>Reference / PO / part no.<input value={draft.reference} onChange={(event) => setDraft({ ...draft, reference: event.target.value })} placeholder="Reference number" /></label>
-          <label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option>Open</option><option>Planned</option><option>In progress</option><option>On hold</option><option>Completed</option><option>Cancelled</option></select></label>
-          <label>Responsible person / company<input value={draft.owner} onChange={(event) => setDraft({ ...draft, owner: event.target.value })} placeholder="Person, team or vendor" /></label>
+          <label>{profile.itemLabel} *<input autoFocus value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder={"Enter " + profile.itemLabel.toLowerCase()} /></label>
+          <label>{profile.referenceLabel}<input value={draft.reference} onChange={(event) => setDraft({ ...draft, reference: event.target.value })} placeholder={profile.referenceLabel} /></label>
+          <label>Lifecycle status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>{profile.statuses.map((status) => <option key={status}>{status}</option>)}</select></label>
+          <label>{profile.ownerLabel}<input value={draft.owner} onChange={(event) => setDraft({ ...draft, owner: event.target.value })} placeholder={profile.ownerLabel} /></label>
           <label>Link to another module<select value={draft.linkedModule} onChange={(event) => setDraft({ ...draft, linkedModule: event.target.value })}><option value="">No linked module</option>{modules.filter((item) => item.id !== module.id).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-          <label className="module-form-wide">Notes / instructions<input value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} placeholder="Details, constraints, follow-up notes…" /></label>
+          <label className="module-form-wide">{profile.notesLabel}<input value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} placeholder={profile.notesLabel} /></label>
           <div className="module-form-actions"><button className="button-primary" onClick={saveRecord}><Check size={14} /> Save record</button><button className="button-quiet" onClick={resetForm}>Cancel</button></div>
         </div>
       </section>}
