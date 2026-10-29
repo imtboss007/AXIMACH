@@ -213,7 +213,7 @@ export function useManufacturingData() {
 /** Remove only known AXIMACH demo seeds; preserve anything the user added themselves. */
 export function removeLegacyDemoData() {
   if (typeof window === "undefined") return;
-  const marker = "aximach.legacy-demo-cleanup.v1";
+  const marker = "aximach.legacy-demo-cleanup.v2";
   if (window.localStorage.getItem(marker) === "done") return;
   const safeRead = (key: string) => {
     try { return JSON.parse(window.localStorage.getItem(key) || "null"); } catch { return null; }
