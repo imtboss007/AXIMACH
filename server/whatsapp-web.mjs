@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from "@whiskeysockets/baileys";
+import QRCode from "qrcode";
 
 const PORT = Number(process.env.WA_WEB_PORT || 8788);
 const KEY = process.env.AXIMACH_API_KEY || "";
@@ -116,7 +117,7 @@ const server = createServer(async (req, res) => {
   if (url.pathname === "/health" && req.method === "GET") return reply(res, 200, { ok: true, service: "AXIMACH WhatsApp Web bridge", connected: state.connected, credentialsPersisted: true });
   if (!auth(req)) return reply(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
   try {
-    if (url.pathname === "/api/whatsapp/status" && req.method === "GET") return reply(res, 200, { connected: state.connected, user: state.user, needsPairing: !state.connected && Boolean(state.qr), qr: state.qr });
+    if (url.pathname === "/api/whatsapp/status" && req.method === "GET") return reply(res, 200, { connected: state.connected, user: state.user, needsPairing: !state.connected && Boolean(state.qr), qr: state.qr, qrDataUrl: state.qr ? await QRCode.toDataURL(state.qr) : null });
     if (url.pathname === "/api/whatsapp/contacts" && req.method === "GET") return reply(res, 200, { contacts: state.contacts });
     if (url.pathname === "/api/whatsapp/groups" && req.method === "GET") { await refreshGroups(); return reply(res, 200, { groups: state.groups }); }
     if (url.pathname === "/api/whatsapp/refresh-groups" && req.method === "POST") { await refreshGroups(); return reply(res, 200, { groups: state.groups }); }
