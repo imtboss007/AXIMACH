@@ -9,6 +9,10 @@ import {
   Wallet, Workflow, Wrench, X, Zap
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import ManufacturingMasterWorkspace from "./ManufacturingMasterWorkspace";
+import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
+import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
+import { activeRows, readManufacturingData, removeLegacyDemoData } from "./manufacturingData";
 
 type ModuleItem = {
   id: string;
@@ -57,23 +61,12 @@ const modules: ModuleItem[] = [
 type ProcessStatus = "Complete" | "Running" | "Queued" | "Quality hold";
 type ProcessStep = { id: number; name: string; station: string; duration: string; status: ProcessStatus; owner: string; note: string; linkedModules?: string[]; vendor?: string; setupMinutes?: number; cycleSeconds?: number; quantity?: number; pricePerPart?: number; missingQuantity?: number; branch?: string; parentId?: number; startDate?: string; targetDate?: string; transportVendor?: string; transportDate?: string; transportCost?: number };
 
-const startingSteps: ProcessStep[] = [
-  { id: 1, name: "Component & Design", station: "Engineering · Drawing Rev A", duration: "20 min", status: "Complete", owner: "Engineering", note: "Verify drawing revision, critical dimensions, tolerance stack, material specification and customer approval before releasing the route.", quantity: 500, startDate: "2025-12-01", targetDate: "2025-12-02", transportVendor: "TR-001", transportDate: "2025-12-02", transportCost: 2500 },
-  { id: 2, name: "Raw Material", station: "Stores · EN8 Round Bar Ø80 mm", duration: "30 min", status: "Complete", owner: "Stores", note: "Verify heat number, material certificate, incoming inspection, quantity and traceable receipt before issuing material.", vendor: "Steel Mart", quantity: 520, pricePerPart: 120, startDate: "2025-12-02", targetDate: "2025-12-03", transportVendor: "TR-002", transportDate: "2025-12-03", transportCost: 1200 },
-  { id: 3, name: "CNC Turning", station: "CNC Turning · OD/ID", duration: "42 min", status: "Running", owner: "Production", note: "Confirm chucking, tool offsets, first-off approval and bore/OD measurement. Record machine, operator, setup and cycle time.", vendor: "Ramesh CNC", setupMinutes: 20, cycleSeconds: 60, quantity: 520, pricePerPart: 60, startDate: "2025-12-02", targetDate: "2025-12-04", transportVendor: "TR-003", transportDate: "2025-12-04", transportCost: 1800 },
-  { id: 4, name: "CNC Milling", station: "VMC Operation · Datum & pockets", duration: "55 min", status: "Queued", owner: "Production", note: "Validate fixture datum, tool list, stock allowance and in-process inspection before releasing the batch.", vendor: "Tech Mach", setupMinutes: 25, cycleSeconds: 90, quantity: 520, pricePerPart: 80, startDate: "2025-12-05", targetDate: "2025-12-08", transportVendor: "TR-004", transportDate: "2025-12-08", transportCost: 0 },
-  { id: 5, name: "Heat Treatment", station: "Hardening + Tempering", duration: "1 day", status: "Queued", owner: "Procurement", note: "Approve heat-treatment specification, batch traceability, hardness range and certificate before accepting the subcontract operation.", vendor: "HeatTreat Co", quantity: 520, pricePerPart: 25, startDate: "2025-12-09", targetDate: "2025-12-12", transportVendor: "TR-005", transportDate: "2025-12-12", transportCost: 2100 },
-  { id: 6, name: "Cylindrical Grinding", station: "Precision Grinding · OD", duration: "60 min", status: "Queued", owner: "Production", note: "Control grind allowance, runout, surface finish and temperature; log gauge IDs and final dimensions.", vendor: "Precision Grind", setupMinutes: 15, cycleSeconds: 75, quantity: 520, pricePerPart: 40, startDate: "2025-12-12", targetDate: "2025-12-15", transportVendor: "TR-006", transportDate: "2025-12-15", transportCost: 900 },
-  { id: 7, name: "Tapping", station: "M12 Tapping · Thread gauge", duration: "25 min", status: "Queued", owner: "Production", note: "Confirm thread specification, tool life, lubricant and GO/NO-GO gauge results. Segregate and record any rejected quantity.", vendor: "TapTech", quantity: 520, pricePerPart: 10, startDate: "2025-12-16", targetDate: "2025-12-18", transportVendor: "TR-007", transportDate: "2025-12-18", transportCost: 1500 },
-  { id: 8, name: "Surface Grinding", station: "Surface finish · Datum face", duration: "40 min", status: "Queued", owner: "Production", note: "Protect critical datums and verify flatness, parallelism and finish against the released drawing.", vendor: "SurfacePro", quantity: 520, pricePerPart: 35, startDate: "2025-12-19", targetDate: "2025-12-21", transportVendor: "TR-008", transportDate: "2025-12-21", transportCost: 1200 },
-  { id: 9, name: "Coating", station: "Zinc plating · Approved supplier", duration: "1 day", status: "Queued", owner: "Procurement", note: "Verify coating specification, thickness, coverage, masking and supplier certificate. Record dispatch and return custody.", vendor: "CoatWell", quantity: 520, pricePerPart: 20, startDate: "2025-12-22", targetDate: "2025-12-24", transportVendor: "TR-009", transportDate: "2025-12-24", transportCost: 1500 },
-  { id: 10, name: "Final Inspection", station: "Quality lab · CMM / gauges", duration: "45 min", status: "Queued", owner: "Quality", note: "Inspect all drawing-critical characteristics, review supplier certificates and record accepted, rejected and rework quantities before release.", quantity: 520, pricePerPart: 5, startDate: "2025-12-26", targetDate: "2025-12-27", transportVendor: "TR-010", transportDate: "2025-12-27", transportCost: 1200 },
-  { id: 11, name: "Delivery to Company", station: "Dispatch · Customer handover", duration: "30 min", status: "Queued", owner: "Dispatch", note: "Verify packing, quantity reconciliation, delivery documents, transport handover and customer receipt confirmation.", quantity: 500, startDate: "2025-12-28", targetDate: "2025-12-28" }
-];
+const startingSteps: ProcessStep[] = [];
 
 const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) => item.group)))];
 
 function App() {
+  useState(() => { removeLegacyDemoData(); return true; });
   const [activeModuleId, setActiveModuleId] = useState("command-centre");
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -85,9 +78,11 @@ function App() {
   const [notice, setNotice] = useState("");
   const [newJobOpen, setNewJobOpen] = useState(false);
   const [newJobName, setNewJobName] = useState("");
-  const [localJobs, setLocalJobs] = useState(["AX-2048 · Precision housing", "AX-2049 · Valve body", "AX-2050 · Mounting bracket"]);
-  const [factory, setFactory] = useState("Precision Works · Main Plant");
+  const [localJobs, setLocalJobs] = useState<string[]>([]);
+  const [factory, setFactory] = useState("");
 
+  const appMasterData = readManufacturingData();
+  const activeFactories = activeRows(appMasterData.factories);
   const activeModule = modules.find((item) => item.id === activeModuleId) ?? modules[0];
   const globalRecords = getAllModuleRecords();
   const globalVendorContacts = readLocal<VendorContact[]>(CONTACTS_KEY, seedContacts);
@@ -170,10 +165,9 @@ function App() {
         <div className="deck-divider" />
         <label className="factory-switcher">
           <Factory size={16} />
-          <select value={factory} onChange={(event) => { setFactory(event.target.value); setNotice("Factory selection changed in this prototype; company-scoped server data is not connected."); }} aria-label="Select factory">
-            <option>Precision Works · Main Plant</option>
-            <option>Precision Works · Plant 02</option>
-            <option>Prototype · Subcontract Network</option>
+          <select value={factory} onChange={(event) => setFactory(event.target.value)} aria-label="Select factory">
+            <option value="">Select factory…</option>
+            {activeFactories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
           <ChevronDown size={14} />
         </label>
@@ -183,14 +177,14 @@ function App() {
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
         <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>32</b></button>
-        <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("Demo notifications: 1 simulated tool-life warning and 1 simulated quality sign-off reminder.")}><Bell size={18} /><i /></button>
-        <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">PE</span><span className="profile-name">Owner</span><ChevronDown size={13} /></button>
+        <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
+        <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
       </header>
 
       <div className="status-ribbon">
         <span className="ribbon-dot" /> PROTOTYPE WORKSPACE
         <span className="ribbon-separator">/</span>
-        <span>Sample data · No live machine or financial integrations</span>
+        <span>No example records loaded · production metrics populate from saved records</span>
         <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
       </div>
 
@@ -210,11 +204,13 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <ProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
-        ) : activeModuleId === "process-master" ? (
-          <ProcessMasterWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
+          <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
-          <CostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "process-master" ? (
+          <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
           <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "communications" ? (
@@ -443,19 +439,8 @@ function ModuleShortcut({ module, onClick }: { module: ModuleItem; onClick: () =
 type CostingLine={id:string;process:string;vendor:string;qty:number;rate:number;marketRate:number;transport:number;actual:boolean};
 type CostingComponent={id:string;code:string;name:string;revision:string;material:string;batchQty:number;salePrice:number;stockQty:number;materialQty:number;materialRate:number;marketMaterialRate:number;overhead:number;toolingCost:number;reworkCost:number;rejectedQty:number;scrapCost:number;gstRate:number;lines:CostingLine[]};
 const COSTING_KEY="aximach.costing.components.v1";
-const costingSeeds:CostingComponent[]=[
- {id:"cmp-1001",code:"CMP-1001",name:"Hydraulic Shaft",revision:"A",material:"EN8 Ø80 mm",batchQty:500,salePrice:3200,stockQty:500,materialQty:520,materialRate:120,marketMaterialRate:135,overhead:0,toolingCost:0,reworkCost:0,rejectedQty:0,scrapCost:0,gstRate:0,lines:[
- {id:"raw",process:"Raw material & cut-off",vendor:"Steel Mart",qty:520,rate:120,marketRate:135,transport:2500,actual:true},
- {id:"turn",process:"CNC Turning",vendor:"Ramesh CNC",qty:520,rate:60,marketRate:75,transport:1800,actual:true},
- {id:"mill",process:"CNC Milling",vendor:"Tech Mach",qty:520,rate:80,marketRate:95,transport:1200,actual:true},
- {id:"heat",process:"Heat Treatment",vendor:"HeatTreat Co",qty:520,rate:25,marketRate:30,transport:2100,actual:false},
- {id:"grind",process:"Cylindrical Grinding",vendor:"Precision Grind",qty:520,rate:40,marketRate:48,transport:900,actual:false},
- {id:"tap",process:"Tapping",vendor:"TapTech",qty:520,rate:10,marketRate:12,transport:1500,actual:false},
- {id:"coat",process:"Zinc Coating",vendor:"CoatWell",qty:520,rate:20,marketRate:24,transport:1500,actual:false},
- {id:"inspect",process:"Final Inspection",vendor:"In-house",qty:500,rate:5,marketRate:8,transport:0,actual:false}
- ]}
-];
-function CostingWorkspace({onBack,onNotice,notice}:{onBack:()=>void;onNotice:(value:string)=>void;notice:string}){
+const costingSeeds:CostingComponent[]=[];
+function CostingWorkspacefunction CostingWorkspace({onBack,onNotice,notice}:{onBack:()=>void;onNotice:(value:string)=>void;notice:string}){
  const [components,setComponents]=useState<CostingComponent[]>(()=>readLocal(COSTING_KEY,costingSeeds));
  const [selectedId,setSelectedId]=useState("cmp-1001");const [search,setSearch]=useState("");const [tab,setTab]=useState<"costing"|"inventory"|"components">("costing");
  const [editing,setEditing]=useState(false);
@@ -489,17 +474,8 @@ function CostingWorkspace({onBack,onNotice,notice}:{onBack:()=>void;onNotice:(va
 
 type ProcessMasterItem = { id:string; name:string; category:string; machine:string; vendor:string; setupMin:number; cycleSec:number; defaultRate:number; inspection:string; tooling:string; notes:string };
 const PROCESS_MASTER_KEY="aximach.processMaster.v1";
-const processMasterSeeds:ProcessMasterItem[]=[
- {id:"pm-turn",name:"CNC Turning",category:"Turning & Lathe",machine:"CNC turning centre",vendor:"",setupMin:30,cycleSec:45,defaultRate:60,inspection:"Diameter, length, runout and surface finish",tooling:"Turning insert, boring bar, collet/chuck",notes:"Record drawing revision and first-off approval."},
- {id:"pm-vmc",name:"VMC Milling",category:"Milling",machine:"Vertical machining centre",vendor:"",setupMin:45,cycleSec:90,defaultRate:80,inspection:"Hole position, pocket size, flatness and profile",tooling:"End mill, drill, tap, holder and fixture",notes:"Confirm workholding, tool offsets and datum."},
- {id:"pm-grind",name:"Cylindrical Grinding",category:"Grinding",machine:"Cylindrical grinder",vendor:"",setupMin:35,cycleSec:75,defaultRate:40,inspection:"Diameter, roundness, cylindricity and Ra",tooling:"Grinding wheel, dresser and centres",notes:"Record wheel specification and dressing interval."},
- {id:"pm-wire",name:"Wire EDM",category:"EDM",machine:"Wire EDM",vendor:"",setupMin:40,cycleSec:120,defaultRate:100,inspection:"Profile, kerf, corner condition and dimensions",tooling:"Wire, guides, dielectric and fixture",notes:"Confirm wire diameter and cut strategy."},
- {id:"pm-heat",name:"Heat Treatment",category:"Thermal Processing",machine:"Heat-treatment furnace",vendor:"",setupMin:60,cycleSec:0,defaultRate:25,inspection:"Hardness, case depth and material certificate",tooling:"Batch fixture and calibrated temperature probes",notes:"Capture batch certificate and process parameters."},
- {id:"pm-coat",name:"Surface Coating",category:"Surface Treatment",machine:"Coating line / approved subcontractor",vendor:"",setupMin:30,cycleSec:0,defaultRate:20,inspection:"Coating thickness, adhesion, coverage and appearance",tooling:"Masking plugs, hanging fixture and gauges",notes:"Record specification, thickness and certificate."},
- {id:"pm-inspect",name:"Final Inspection",category:"Quality",machine:"Inspection bench / CMM",vendor:"",setupMin:15,cycleSec:20,defaultRate:5,inspection:"All drawing-critical characteristics and traceability",tooling:"CMM, micrometers, gauges and surface tester",notes:"Record accepted, rejected and rework quantities."},
- {id:"pm-transport",name:"Transport / Handover",category:"Logistics",machine:"Approved transporter",vendor:"",setupMin:10,cycleSec:0,defaultRate:1200,inspection:"Pickup, delivery, package count and receipt proof",tooling:"Packing list, labels and handover documents",notes:"Capture dispatch and receipt timestamps."}
-];
-function ProcessMasterWorkspace({onBack,onNotice,notice}:{onBack:()=>void;onNotice:(value:string)=>void;notice:string}){
+const processMasterSeeds:ProcessMasterItem[]=[];
+function ProcessMasterWorkspacefunction ProcessMasterWorkspace({onBack,onNotice,notice}:{onBack:()=>void;onNotice:(value:string)=>void;notice:string}){
  const [items,setItems]=useState<ProcessMasterItem[]>(()=>readLocal(PROCESS_MASTER_KEY,processMasterSeeds));
  const [search,setSearch]=useState("");const [selectedId,setSelectedId]=useState("pm-turn");const [editing,setEditing]=useState(false);
  const [draft,setDraft]=useState<ProcessMasterItem>(processMasterSeeds[0]);
@@ -724,11 +700,8 @@ type VendorContact = { id: string; company: string; contact: string; role: strin
 type FollowUpItem = { id: string; contactId: string; due: string; channel: "WhatsApp" | "Call" | "Email"; message: string; status: "Scheduled" | "Done" | "Cancelled" };
 const CONTACTS_KEY = "aximach.vendorContacts.v1";
 const FOLLOWUPS_KEY = "aximach.followUps.v1";
-const seedContacts: VendorContact[] = [
-  { id: "demo-v1", company: "Example CNC Works", contact: "Demo Contact", role: "Sales / RFQ", phone: "", email: "", processes: "CNC Turning, VMC", notes: "Replace with your actual vendor details." },
-  { id: "demo-v2", company: "Example Heat Treatment", contact: "Demo Contact", role: "Operations", phone: "", email: "", processes: "Hardening, Tempering", notes: "Demo record — not a real verified vendor." }
-];
-function readLocal<T,>(key: string, fallback: T): T {
+const seedContacts: VendorContact[] = [];
+function readLocalfunction readLocal<T,>(key: string, fallback: T): T {
   try { const raw = window.localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
 }
 function saveLocal<T,>(key: string, value: T) {
