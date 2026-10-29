@@ -3,7 +3,7 @@ import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
   ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge,
-  GitBranch, Grid2X2, HardDrive, Handshake, Layers3, Menu, MessageCircle,
+  GitBranch, HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
   Package, Pause, Play, Plug, Plus, RotateCcw, ScanLine, Search, Settings2,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Truck, Users,
   Wallet, Workflow, Wrench, X, Zap
@@ -173,7 +173,7 @@ function App() {
         <button className="command-search" onClick={() => { setCommandOpen(true); setModuleExplorerOpen(false); }} aria-label="Open command search">
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
-        <button className="deck-action" onClick={openModuleExplorer}><Grid2X2 size={17} /><span>Modules</span><b>32</b></button>
+        <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>32</b></button>
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("Demo notifications: 1 simulated tool-life warning and 1 simulated quality sign-off reminder.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">PE</span><span className="profile-name">Engineer</span><ChevronDown size={13} /></button>
       </header>
@@ -213,7 +213,7 @@ function App() {
         <button className={activeModuleId === "production" ? "rail-active" : ""} onClick={() => selectModule("production")}><Activity size={17} /><span>Production</span></button>
         <button className={activeModuleId === "vendors" ? "rail-active" : ""} onClick={() => selectModule("vendors")}><Users size={17} /><span>Vendors</span></button>
         <button className={activeModuleId === "quality" ? "rail-active" : ""} onClick={() => selectModule("quality")}><ClipboardCheck size={17} /><span>Quality</span></button>
-        <button className="rail-all" onClick={openModuleExplorer}><Grid2X2 size={17} /><span>All modules</span></button>
+        <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>All modules</span></button>
       </nav>
 
       {moduleExplorerOpen && (
@@ -247,7 +247,7 @@ function App() {
               })}
               {filteredModules.length === 0 && <div className="no-modules"><Search size={24} /><strong>No modules found</strong><span>Try another search or choose a different domain.</span><button onClick={() => { setQuery(""); setDomain("All domains"); }}>Clear filters</button></div>}
             </div>
-            <div className="universe-footer"><span><Grid2X2 size={14} /> {filteredModules.length} of 32 modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
+            <div className="universe-footer"><span><LayoutGrid size={14} /> {filteredModules.length} of 32 modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
           </section>
         </div>
       )}
@@ -300,7 +300,7 @@ function CommandCentre(props: {
           <div className="eyebrow"><span className="eyebrow-mark" /> MANUFACTURING INTELLIGENCE / 01</div>
           <h1>See the whole flow.<br /><em>Control the details.</em></h1>
           <p>One connected view of work orders, machines, suppliers, quality and cost — designed for how real manufacturing runs.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><Grid2X2 size={16} /> Explore all 32 modules</button></div>
+          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all 32 modules</button></div>
         </div>
         <div className="hero-graphic" aria-label="Illustrative connected manufacturing process visualization">
           <div className="graphic-grid" />
@@ -470,7 +470,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules }: { module: 
       <div className="module-hero">
         <div className="module-hero-icon"><Icon size={27} /></div>
         <div className="module-hero-copy"><div className="eyebrow"><span className="eyebrow-mark" /> {module.group.toUpperCase()} / AXIMACH MODULE</div><h1>{module.title}<span>.</span></h1><p>{module.description}</p></div>
-        <button className="button-quiet" onClick={onOpenModules}><Grid2X2 size={16} /> Switch module</button>
+        <button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Switch module</button>
       </div>
       <div className="module-preview-banner"><ShieldCheck size={17} /><span><strong>Module shell ready for detailed implementation.</strong> This is a navigable design prototype. Connect the database, permissions and module-specific operations before using business data.</span></div>
       <div className="module-kpi-grid"><div className="module-kpi"><small>WORKSPACE</small><strong>Available</strong><span>Navigation prototype</span></div><div className="module-kpi"><small>DATA CONNECTION</small><strong>Not connected</strong><span>No live records queried</span></div><div className="module-kpi"><small>PERMISSIONS</small><strong>Not enforced</strong><span>Server-side access control pending</span></div><div className="module-kpi"><small>INTEGRATION</small><strong>Not configured</strong><span>External actions disabled</span></div></div>
