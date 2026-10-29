@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 export type SearchableOption = { id: string; label: string };
 type Props = {
