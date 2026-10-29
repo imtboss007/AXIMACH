@@ -67,7 +67,7 @@ export type StockTransactionKind = "Opening balance" | "Receipt" | "Issue to pro
 export type InventoryTransactionRecord = {
   id: string; itemType: "material" | "component"; itemId: string; transactionType: StockTransactionKind;
   direction: "in" | "out"; quantity: number; occurredAt: string; reference: string; notes: string;
-  companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string;
+  companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string; vendorId: string;
   reversalOfId: string; createdAt: string; createdBy: string;
 };
 export type ManufacturingData = {
