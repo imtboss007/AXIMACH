@@ -485,6 +485,8 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
           <button className="button-primary" onClick={addOperation}><Plus size={15} /> Add operation</button>
         </div>
       </section>}
+      <div className="route-canvas-detail-grid">
+      <div className="route-canvas-column">
       <div className={"route-scroll " + (orientation === "vertical" ? "route-vertical" : "")} tabIndex={0} aria-label="Scrollable manufacturing process route">
         <div className="route-track" style={{ zoom } as CSSProperties}>
           {visibleSteps.map((step, index) => (
@@ -500,6 +502,7 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
         </div>
       </div>
       <div className="route-legend"><span><i className="legend-done" /> Complete</span><span><i className="legend-live" /> Running</span><span><i className="legend-queued" /> Queued</span><span><i className="legend-hold" /> Quality hold</span><span className="route-scroll-note">Scroll sideways or use Shift + mouse wheel · Swipe on mobile</span></div>
+      </div>
       {activeStep && <section className="operation-detail">
         <div className="operation-detail-head"><div><div className="eyebrow"><span className="eyebrow-mark" /> SELECTED OPERATION / OP {String(activeStep.id * 10).padStart(3, "0")}</div><h3>{activeStep.name}</h3><p>{activeStep.note}</p></div><span className={"operation-status status-" + activeStep.status.toLowerCase().replace(" ", "-")}>{activeStep.status}</span></div>
         {editMode ? <div className="route-detail-editor">
@@ -513,6 +516,7 @@ function ProcessRoute({ onNotice }: { onNotice: (value: string) => void }) {
         </div> : <div className="operation-detail-grid"><div><small>MACHINE / STATION / VENDOR</small><strong>{activeStep.station}</strong></div><div><small>PLANNED DURATION</small><strong>{activeStep.duration}</strong></div><div><small>RESPONSIBLE TEAM</small><strong>{activeStep.owner}</strong></div><div><small>RECORD STATUS</small><strong>Sample data only</strong></div></div>}
         {!editMode && <div className="operation-detail-footer"><span><ShieldCheck size={14} /> Select “Edit route” to change fields, reorder or remove this operation.</span><button className="button-primary small-primary" onClick={() => setEditMode(true)}><GitBranch size={14} /> Edit selected operation</button></div>}
       </section>}
+      </div>
       <div className="route-bottom-note"><ShieldCheck size={14} /> This is an interactive sample route. Changes are temporary and reset when the page reloads; production API, version history, approvals and database persistence are not connected.</div>
     </div>
   );
