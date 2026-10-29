@@ -25,8 +25,17 @@ async function save() {
   await writeFile(tmp, JSON.stringify({ ...state, qr: null, connected: false }, null, 2), { mode: 0o600 });
   await rename(tmp, DATA);
 }
+const allowedOrigins = new Set(String(process.env.AXIMACH_ALLOWED_ORIGINS || process.env.AXIMACH_ALLOWED_ORIGIN || "http://localhost:5173")
+  .split(",").map(origin => origin.trim()).filter(Boolean));
+function applyCors(req, res) {
+  const origin = String(req.headers.origin || "");
+  res.setHeader("vary", "Origin");
+  if (origin && allowedOrigins.has(origin)) res.setHeader("access-control-allow-origin", origin);
+  res.setHeader("access-control-allow-headers", "content-type,x-aximach-key");
+  res.setHeader("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
+}
 function reply(res, status, data) {
-  res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": process.env.AXIMACH_ALLOWED_ORIGIN || "http://localhost:5173", "access-control-allow-headers": "content-type,x-aximach-key", "access-control-allow-methods": "GET,POST,PATCH,OPTIONS" });
+  res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(JSON.stringify(data));
 }
 async function readBody(req) {
@@ -113,7 +122,8 @@ async function schedulerTick() {
   } finally { busy = false; }
 }
 const server = createServer(async (req, res) => {
-  if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-allow-origin": process.env.AXIMACH_ALLOWED_ORIGIN || "http://localhost:5173", "access-control-allow-headers": "content-type,x-aximach-key", "access-control-allow-methods": "GET,POST,PATCH,OPTIONS" }); return res.end(); }
+  applyCors(req, res);
+  if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-max-age": "86400" }); return res.end(); }
   const url = new URL(req.url, "http://localhost");
   if (url.pathname === "/health" && req.method === "GET") return reply(res, 200, { ok: true, service: "AXIMACH WhatsApp Web bridge", connected: state.connected, credentialsPersisted: true });
   if (!auth(req)) return reply(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
