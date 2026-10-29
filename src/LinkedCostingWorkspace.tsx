@@ -4,7 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type QuotationRecord 
 import SearchablePicker from "./SearchablePicker";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
-type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; unitPrice: number; componentId: string };
+type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; unitPrice: number; componentId: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const stamp = () => new Date().toISOString().slice(0,10);
 
@@ -32,7 +32,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
 
   const selectedComponent = components.find(c => c.id === componentId);
   const componentLines: ComponentLineRef[] = useMemo(() => orders.flatMap(po => po.lines.filter(line => line.componentId === selectedComponent?.id).map(line => ({
-    key: po.id + "::" + line.id, poId: po.id, poNumber: po.number, lineId: line.id, quantity: line.quantity, targetDelivery: line.targetDelivery || po.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId
+    key: po.id + "::" + line.id, poId: po.id, poNumber: po.number, lineId: line.id, quantity: line.quantity, targetDelivery: line.targetDelivery || po.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId, materialQty: line.materialQty, materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost, reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
   }))), [orders, selectedComponent?.id]);
   const selectedLine = componentLines.find(line => line.key === lineKey) || componentLines[0];
   const routeOperations = operations.filter(op => op.componentId === selectedComponent?.id && (!selectedLine || (op.poId === selectedLine.poId && op.poLineId === selectedLine.lineId)));
@@ -40,16 +40,26 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const quoteRows = quotations.filter(q => q.componentId === selectedComponent?.id && (!selectedLine || (q.poId === selectedLine.poId && q.poLineId === selectedLine.lineId)) && (!selectedOperation || q.operationId === selectedOperation.id))
     .filter(q => (q.quoteReference + " " + (vendors.find(v=>v.id===q.vendorId)?.company||"") + " " + q.status + " " + (routeOperations.find(op=>op.id===q.operationId)?.name||"")).toLowerCase().includes(quoteSearch.toLowerCase().trim()))
     .sort((a,b) => (b.quotedAt || "").localeCompare(a.quotedAt || ""));
-  const materialCost = selectedComponent ? selectedComponent.materialQty * selectedComponent.materialRate : 0;
+  // PO-line overrides isolate material/cost/rejection inputs between different orders for the same component.
+  const materialQty = selectedLine?.materialQty ?? selectedComponent?.materialQty ?? 0;
+  const materialRate = selectedLine?.materialRate ?? selectedComponent?.materialRate ?? 0;
+  const benchmarkMaterialRate = selectedLine?.benchmarkMaterialRate ?? selectedComponent?.benchmarkMaterialRate ?? 0;
+  const overhead = selectedLine?.overhead ?? selectedComponent?.overhead ?? 0;
+  const toolingCost = selectedLine?.toolingCost ?? selectedComponent?.toolingCost ?? 0;
+  const reworkCost = selectedLine?.reworkCost ?? selectedComponent?.reworkCost ?? 0;
+  const scrapCost = selectedLine?.scrapCost ?? selectedComponent?.scrapCost ?? 0;
+  const rejectedQty = selectedLine?.rejectedQty ?? selectedComponent?.rejectedQty ?? 0;
+  const gstRate = selectedLine?.gstRate ?? selectedComponent?.gstRate ?? 0;
+  const materialCost = materialQty * materialRate;
   const operationPlanned = routeOperations.reduce((sum,op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
   const operationActual = routeOperations.reduce((sum,op) => sum + op.quantity * (op.actualRatePerPart || 0) + op.transportCost, 0);
-  const selectedQuoteCost = routeOperations.reduce((sum,op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
-  const extraCharges = selectedComponent ? selectedComponent.overhead + selectedComponent.toolingCost + selectedComponent.reworkCost + selectedComponent.scrapCost : 0;
+  const extraCharges = overhead + toolingCost + reworkCost + scrapCost;
   const plannedTotal = materialCost + operationPlanned + extraCharges;
   const actualTotal = materialCost + operationActual + extraCharges;
-  const sellingRate = selectedLine?.unitPrice || selectedComponent?.salePrice || 0;
+  const sellingRate = selectedLine ? selectedLine.unitPrice : (selectedComponent?.salePrice || 0);
   const revenue = (selectedLine?.quantity || 0) * sellingRate;
-  const acceptedQty = selectedLine ? Math.max(0, selectedLine.quantity - (selectedComponent?.rejectedQty || 0)) : 0;
+  const finalOperation = routeOperations[routeOperations.length - 1];
+  const acceptedQty = selectedLine ? (finalOperation && finalOperation.completed > 0 ? finalOperation.accepted : Math.max(0, selectedLine.quantity - rejectedQty)) : 0;
   const profit = revenue - plannedTotal;
   const costPerAccepted = acceptedQty ? plannedTotal / acceptedQty : 0;
 
@@ -90,8 +100,21 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   };
   const setExtra = (key: "overhead" | "toolingCost" | "reworkCost" | "scrapCost" | "materialRate" | "benchmarkMaterialRate" | "materialQty" | "salePrice" | "rejectedQty" | "gstRate", value: number) => {
     if (!selectedComponent) return;
+    const amount = Math.max(0, value);
     const updatedAt = nowIso();
-    update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, [key]: Math.max(0, value), updatedAt } : component) }));
+    if (selectedLine) {
+      const lineKeyName = key === "salePrice" ? "unitPrice" : key;
+      update(current => ({
+        ...current,
+        purchaseOrders: current.purchaseOrders.map(po => po.id !== selectedLine.poId ? po : {
+          ...po, updatedAt,
+          lines: po.lines.map(line => line.id === selectedLine.lineId ? { ...line, [lineKeyName]: amount } : line)
+        })
+      }));
+      return;
+    }
+    const componentKey = key === "salePrice" ? "salePrice" : key;
+    update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, [componentKey]: amount, updatedAt } : component) }));
   };
 
   return <section className="workspace-page linked-costing-page">
@@ -133,20 +156,20 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLIER QUOTATION HISTORY</div><h3>Quotes received ({quoteRows.length})</h3><p>Compare real quotations supplied by vendors; missing rates stay blank rather than being guessed.</p></div><label className="module-record-search"><Search size={14}/><input value={quoteSearch} onChange={e=>setQuoteSearch(e.target.value)} placeholder="Search quote, vendor, process…"/></label></div>
         {quoteRows.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Process</th><th>Vendor</th><th>Quote reference</th><th>Quote date</th><th>Validity</th><th>Qty</th><th>Rate / part</th><th>Transport</th><th>Lead days</th><th>Status</th><th>Action</th></tr></thead><tbody>{quoteRows.map(q => <tr key={q.id}><td>{routeOperations.find(op=>op.id===q.operationId)?.name || "Archived operation"}</td><td>{vendors.find(v=>v.id===q.vendorId)?.company || "Vendor archived"}</td><td>{q.quoteReference || "Not entered"}</td><td>{q.quotedAt || "—"}</td><td>{q.validUntil || "—"}</td><td>{q.quantity.toLocaleString("en-IN")}</td><td>{money(q.ratePerPart)}</td><td>{money(q.transportCost)}</td><td>{q.leadDays || "—"}</td><td><span className={"record-state state-" + q.status.toLowerCase()}>{q.status}</span></td><td>{q.status === "Selected" ? <span>Applied to operation</span> : <button className="button-primary compact-button" onClick={() => selectQuote(q)}><Check size={12}/> Use this rate</button>}</td></tr>)}</tbody></table></div> : <div className="vendor-empty">No quotations saved for this component/PO line/process yet.</div>}
       </section>
-      <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMPONENT OTHER COSTS</div><h3>Material, overhead and other entered costs</h3><p>These values are stored on this component master and reused across its PO lines; enter current rates only.</p></div></div>
+      <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMPONENT OTHER COSTS</div><h3>Material, overhead and other entered costs</h3><p>When a PO line is selected, edits are saved to that line only so this order’s costs and rejects do not affect another order for the same part. Component master values are used as defaults when a line-specific override has not been entered.</p></div></div>
         <div className="module-record-form">
-          <label>Material quantity<input type="number" min="0" step="0.001" value={selectedComponent?.materialQty || 0} onChange={e=>setExtra("materialQty",Number(e.target.value)||0)}/></label>
-          <label>Material rate per unit (₹)<input type="number" min="0" step="0.01" value={selectedComponent?.materialRate || 0} onChange={e=>setExtra("materialRate",Number(e.target.value)||0)}/></label>
-          <label>Benchmark material rate (₹)<input type="number" min="0" step="0.01" value={selectedComponent?.benchmarkMaterialRate || 0} onChange={e=>setExtra("benchmarkMaterialRate",Number(e.target.value)||0)}/></label>
-          <label>Selling rate per part (₹)<input type="number" min="0" step="0.01" value={selectedComponent?.salePrice || 0} onChange={e=>setExtra("salePrice",Number(e.target.value)||0)}/></label>
-          <label>Overhead (₹)<input type="number" min="0" step="0.01" value={selectedComponent?.overhead || 0} onChange={e=>setExtra("overhead",Number(e.target.value)||0)}/></label>
-          <label>Tooling / fixture (₹)<input type="number" min="0" step="0.01" value={selectedComponent?.toolingCost || 0} onChange={e=>setExtra("toolingCost",Number(e.target.value)||0)}/></label>
-          <label>Rework cost (₹)<input type="number" min="0" step="0.01" value={selectedComponent?.reworkCost || 0} onChange={e=>setExtra("reworkCost",Number(e.target.value)||0)}/></label>
-          <label>Scrap / rejection loss (₹)<input type="number" min="0" step="0.01" value={selectedComponent?.scrapCost || 0} onChange={e=>setExtra("scrapCost",Number(e.target.value)||0)}/></label>
-          <label>Rejected quantity (pcs)<input type="number" min="0" value={selectedComponent?.rejectedQty || 0} onChange={e=>setExtra("rejectedQty",Number(e.target.value)||0)}/></label>
-          <label>GST rate (%)<input type="number" min="0" max="100" step="0.01" value={selectedComponent?.gstRate || 0} onChange={e=>setExtra("gstRate",Math.min(100,Number(e.target.value)||0))}/></label>
+          <label>Material quantity<input type="number" min="0" step="0.001" value={materialQty} onChange={e=>setExtra("materialQty",Number(e.target.value)||0)}/></label>
+          <label>Material rate per unit (₹)<input type="number" min="0" step="0.01" value={materialRate} onChange={e=>setExtra("materialRate",Number(e.target.value)||0)}/></label>
+          <label>Benchmark material rate (₹)<input type="number" min="0" step="0.01" value={benchmarkMaterialRate} onChange={e=>setExtra("benchmarkMaterialRate",Number(e.target.value)||0)}/></label>
+          <label>Selling rate per part (₹)<input type="number" min="0" step="0.01" value={sellingRate} onChange={e=>setExtra("salePrice",Number(e.target.value)||0)}/></label>
+          <label>Overhead (₹)<input type="number" min="0" step="0.01" value={overhead} onChange={e=>setExtra("overhead",Number(e.target.value)||0)}/></label>
+          <label>Tooling / fixture (₹)<input type="number" min="0" step="0.01" value={toolingCost} onChange={e=>setExtra("toolingCost",Number(e.target.value)||0)}/></label>
+          <label>Rework cost (₹)<input type="number" min="0" step="0.01" value={reworkCost} onChange={e=>setExtra("reworkCost",Number(e.target.value)||0)}/></label>
+          <label>Scrap / rejection loss (₹)<input type="number" min="0" step="0.01" value={scrapCost} onChange={e=>setExtra("scrapCost",Number(e.target.value)||0)}/></label>
+          <label>Rejected quantity (pcs)<input type="number" min="0" value={rejectedQty} onChange={e=>setExtra("rejectedQty",Number(e.target.value)||0)}/></label>
+          <label>GST rate (%)<input type="number" min="0" max="100" step="0.01" value={gstRate} onChange={e=>setExtra("gstRate",Math.min(100,Number(e.target.value)||0))}/></label>
         </div>
-        <div className="linked-cost-summary-lines"><div><span>Material cost</span><strong>{money(materialCost)}</strong></div><div><span>Planned process + transport</span><strong>{money(operationPlanned)}</strong></div><div><span>Entered overhead / tooling / rework / scrap</span><strong>{money(extraCharges)}</strong></div><div><span>Planned total</span><strong>{money(plannedTotal)}</strong></div><div><span>Actual-rate total (actual rates still missing are counted as zero)</span><strong>{money(actualTotal)}</strong></div><div><span>Estimated P/L before GST</span><strong>{money(profit)}</strong></div></div>
+        <div className="linked-cost-summary-lines"><div><span>Material cost</span><strong>{money(materialCost)}</strong></div><div><span>Planned process + transport</span><strong>{money(operationPlanned)}</strong></div><div><span>Entered overhead / tooling / rework / scrap</span><strong>{money(extraCharges)}</strong></div><div><span>Planned total</span><strong>{money(plannedTotal)}</strong></div><div><span>Entered material/extras + actual operation rates (missing actual rates count as zero)</span><strong>{money(actualTotal)}</strong></div><div><span>Estimated P/L before GST</span><strong>{money(profit)}</strong></div></div>
       </section>
     </>}
     <div className="module-safety-note"><ShieldCheck size={15}/><span>Quotation amounts are supplier inputs, not live market benchmarks. Selecting a quote updates the operation's planned vendor/rate; it does not mark it as an invoice or actual expense.</span></div>
