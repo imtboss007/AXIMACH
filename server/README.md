@@ -52,6 +52,8 @@ docker run --name aximach-scheduler -p 8787:8787 \
 
 Use your host's secret manager instead of putting real credentials in shell history. The volume must be persistent and backups should be configured. Put the service behind HTTPS.
 
+For the QR-paired bridge, build the separate container from the repository root with `docker build -f Dockerfile.whatsapp -t aximach-whatsapp .`. Run it with port 8788 exposed and a persistent volume mounted at `/data`; set `AXIMACH_API_KEY` and `AXIMACH_ALLOWED_ORIGIN` as environment variables. Keep `/data/whatsapp-auth` private and backed up securely. The Follow-up Centre's **QR-paired WhatsApp account** panel uses the bridge URL and the same API key. On a trusted browser, connection settings are retained locally and the panel attempts to reconnect when reopened.
+
 ## Frontend connection and security
 
 The Communication & Follow-up screen can connect to this API, add contacts with explicit opt-in, create one-time/daily/weekly individual schedules, pause/resume schedules, refresh records and export contacts as CSV. Module records are also synced to `/api/records` while a valid server URL and API key are available in the current browser session; the browser keeps a local cache for continuity. The API key is held in browser session storage for the active tab session. This is a connector prototype, **not a multi-user security boundary**: anyone allowed to use the UI can potentially inspect/use that key. Do not expose this configuration to untrusted users or deploy it publicly without adding real user authentication, per-user authorization and a server-side session/proxy.
