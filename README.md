@@ -18,7 +18,7 @@ The repository now includes **linked manufacturing master workflows and an optio
 - The existing server/index.mjs API now includes GET/PUT /api/manufacturing-data, uses the configured persistent JSON file, merges rows by ID/update timestamp and supports an explicit CORS origin allowlist (AXIMACH_ALLOWED_ORIGINS).
 - GitHub Actions builds the web app, Windows installer and Android debug APK.
 
-**Important deployment limits:** master data syncs across devices only after the scheduler API is deployed on an always-on host with a persistent volume, its URL/API key are configured, and each client origin is allowed by CORS. Without that, browser-local records remain local to that device. The optional Baileys QR-linked WhatsApp bridge is unofficial, best-effort, may not expose every address-book contact, and must also remain online with persistent authentication storage for scheduled actions. Imported contacts are not approved vendors or proof of messaging consent. Server-side per-user/tenant authorization, a production database, deployment, delivery/reply webhooks, stock transaction ledger and live machine telemetry are still pending.
+**Important deployment limits:** master data syncs across devices only after the scheduler API is deployed on an always-on host with a persistent volume, its URL/API key are configured, and each client origin is allowed by CORS. Without that, browser-local records remain local to that device. The optional Baileys QR-linked WhatsApp bridge is unofficial, best-effort, may not expose every address-book contact, and must also remain online with persistent authentication storage for scheduled actions. Imported contacts are not approved vendors or proof of messaging consent. Server-side per-user/tenant authorization, a production database, deployment, delivery/reply webhooks, automatic shop-floor quantity reconciliation and live machine telemetry are still pending.
 
 ## Run locally
 
@@ -75,7 +75,7 @@ npm run preview
 
 1. Add server-side authentication, authorization and company/factory tenant boundaries before production business use.
 2. Complete route revisions, explicit operation dependencies, quantity reconciliation, custody confirmations and quality gates.
-3. Build inventory transactions (receipts, issues, WIP, returns, scrap, finished goods and dispatch) on the shared component/PO data model.
+3. Integrate BOM requirements with purchase receipts and production issue planning; complete paired WIP/finished-goods/dispatch reconciliation and tested reversal workflows for the stock ledger.
 4. Connect dispatch, payments, document revisions and audit history with immutable transaction references.
 5. Add backups, restore tests, import/export validation, retries and service health monitoring.
 6. Test Windows, Android and browser data-sync behavior against a deployed persistent server.
