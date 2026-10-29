@@ -229,3 +229,13 @@
 .scheduler-grid+.followup-list-panel{margin-top:0}
 @media(max-width:900px){.scheduler-grid{grid-template-columns:1fr}.scheduler-connect-form{grid-template-columns:1fr 1fr}.scheduler-connect-form .button-primary{grid-column:1/-1}}
 @media(max-width:560px){.scheduler-connect-form{grid-template-columns:1fr}.scheduler-connect-form .button-primary{grid-column:auto}.scheduler-contact{align-items:flex-start}.scheduler-optin-chip,.scheduler-noopt-chip{white-space:normal}.scheduler-form-panel,.scheduler-connect-panel{padding:15px}}
+
+
+/* Unified cross-module search and independent vendor/contact lookup fields */
+.vendor-search-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.vendor-search-pair .vendor-search{margin-top:0;min-width:0}
+.palette-label{padding:12px 16px 6px;color:#7a8da7;font:700 9px 'DM Mono';letter-spacing:.8px}
+.palette-results+.palette-label{border-top:1px solid #edf1f7}
+.palette-results{max-height:220px;overflow:auto}
+.palette-empty{padding:14px 16px;color:#8797ad;font-size:11px}
+@media(max-width:600px){.vendor-search-pair{grid-template-columns:1fr}}
