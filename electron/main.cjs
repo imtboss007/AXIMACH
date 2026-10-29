@@ -17,6 +17,7 @@ function startWhatsAppBridge() {
       ...process.env,
       ELECTRON_RUN_AS_NODE: "1",
       WA_WEB_PORT: "8788",
+      WA_WEB_HOST: "127.0.0.1",
       AXIMACH_API_KEY: process.env.AXIMACH_API_KEY || LOCAL_BRIDGE_KEY,
       AXIMACH_ALLOWED_ORIGIN: "null",
       WA_WEB_DATA_FILE: path.join(dataDir, "whatsapp-web.json"),
