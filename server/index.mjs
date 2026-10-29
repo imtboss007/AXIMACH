@@ -7,7 +7,7 @@ const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
 const DB_PATH = resolve(process.env.AXIMACH_DATA_FILE || "./data/aximach.json");
 const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
-let db = { contacts: [], schedules: [], logs: [] };
+let db = { contacts: [], schedules: [], logs: [], records: {} };
 let busy = false;
 
 async function loadDb() {
@@ -74,6 +74,17 @@ const server = createServer(async (req, res) => {
   if (url.pathname === "/health" && req.method === "GET") return json(res, 200, { ok: true, service: "AXIMACH scheduler", credentialsConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID), persistentStore: DB_PATH });
   if (!authorized(req)) return json(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
   try {
+    if (url.pathname === "/api/records" && req.method === "GET") return json(res, 200, { records: db.records || {}, updatedAt: db.recordsUpdatedAt || null });
+    if (url.pathname === "/api/records" && req.method === "PUT") {
+      const input = await body(req);
+      if (!input.records || typeof input.records !== "object" || Array.isArray(input.records)) return json(res, 400, { error: "records must be an object keyed by module ID." });
+      const encoded = JSON.stringify(input.records);
+      if (encoded.length > 8_000_000) return json(res, 413, { error: "Record payload exceeds the 8 MB limit. Export/archive older records first." });
+      db.records = input.records;
+      db.recordsUpdatedAt = new Date().toISOString();
+      await saveDb();
+      return json(res, 200, { ok: true, updatedAt: db.recordsUpdatedAt });
+    }
     if (url.pathname === "/api/contacts" && req.method === "GET") return json(res, 200, { contacts: db.contacts });
     if (url.pathname === "/api/contacts" && req.method === "POST") {
       const input = await body(req); if (!String(input.name || "").trim() || !normalisePhone(input.phone)) return json(res, 400, { error: "Contact name and international phone number are required." });
