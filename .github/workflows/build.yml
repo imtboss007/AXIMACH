@@ -1,22 +1,44 @@
-name: AxiMach build
+name: AXIMACH frontend verification
+
 on:
   push:
-    branches: [main]
+    branches: ["main"]
   pull_request:
-    branches: [main]
+    branches: ["main"]
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aximach-frontend-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: Type-check and build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
       - name: Install dependencies
-        run: npm install
-      - name: Build application
+        run: npm install --no-audit --no-fund
+
+      - name: Type-check and build
         run: npm run build
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aximach-web-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
