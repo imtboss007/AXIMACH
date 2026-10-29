@@ -16,14 +16,16 @@
     "cap:sync": "cap sync android",
     "cap:android": "cap open android",
     "package:windows": "npm run build && electron-builder --win nsis --x64 --publish never",
-    "start:scheduler": "node server/index.mjs"
+    "start:scheduler": "node server/index.mjs",
+    "start:whatsapp-web": "node server/whatsapp-web.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
     "@capacitor/core": "^7.4.3",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@whiskeysockets/baileys": "^6.7.18"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
