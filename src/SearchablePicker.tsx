@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 
 export type SearchableOption = { id: string; label: string };
 type Props = {
@@ -18,7 +18,6 @@ export default function SearchablePicker({ id, label, value, options, onChange, 
   const [query, setQuery] = useState("");
   const selectedLabel = options.find(option => option.id === value)?.label || "";
 
-  useEffect(() => { setQuery(""); }, [value]);
 
   const handleChange = (nextValue: string) => {
     const match = options.find(option => option.label.trim().toLocaleLowerCase() === nextValue.trim().toLocaleLowerCase());
