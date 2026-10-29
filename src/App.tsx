@@ -9,6 +9,11 @@ import {
   Wallet, Workflow, Wrench, X, Zap
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import ManufacturingMasterWorkspace from "./ManufacturingMasterWorkspace";
+import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
+import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
+import InventoryWorkspace from "./InventoryWorkspace";
+import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
 type ModuleItem = {
   id: string;
@@ -54,26 +59,10 @@ const modules: ModuleItem[] = [
   { id: "continuity", title: "Business Continuity & Recovery", group: "Data & Platform", description: "Manage backups, recovery targets, restore evidence and incident runbooks.", icon: HardDrive, action: "Explore recovery readiness" }
 ];
 
-type ProcessStatus = "Complete" | "Running" | "Queued" | "Quality hold";
-type ProcessStep = { id: number; name: string; station: string; duration: string; status: ProcessStatus; owner: string; note: string; linkedModules?: string[]; vendor?: string; setupMinutes?: number; cycleSeconds?: number; quantity?: number; pricePerPart?: number; missingQuantity?: number; branch?: string; parentId?: number; startDate?: string; targetDate?: string; transportVendor?: string; transportDate?: string; transportCost?: number };
-
-const startingSteps: ProcessStep[] = [
-  { id: 1, name: "Component & Design", station: "Engineering · Drawing Rev A", duration: "20 min", status: "Complete", owner: "Engineering", note: "Verify drawing revision, critical dimensions, tolerance stack, material specification and customer approval before releasing the route.", quantity: 500, startDate: "2025-12-01", targetDate: "2025-12-02", transportVendor: "TR-001", transportDate: "2025-12-02", transportCost: 2500 },
-  { id: 2, name: "Raw Material", station: "Stores · EN8 Round Bar Ø80 mm", duration: "30 min", status: "Complete", owner: "Stores", note: "Verify heat number, material certificate, incoming inspection, quantity and traceable receipt before issuing material.", vendor: "Steel Mart", quantity: 520, pricePerPart: 120, startDate: "2025-12-02", targetDate: "2025-12-03", transportVendor: "TR-002", transportDate: "2025-12-03", transportCost: 1200 },
-  { id: 3, name: "CNC Turning", station: "CNC Turning · OD/ID", duration: "42 min", status: "Running", owner: "Production", note: "Confirm chucking, tool offsets, first-off approval and bore/OD measurement. Record machine, operator, setup and cycle time.", vendor: "Ramesh CNC", setupMinutes: 20, cycleSeconds: 60, quantity: 520, pricePerPart: 60, startDate: "2025-12-02", targetDate: "2025-12-04", transportVendor: "TR-003", transportDate: "2025-12-04", transportCost: 1800 },
-  { id: 4, name: "CNC Milling", station: "VMC Operation · Datum & pockets", duration: "55 min", status: "Queued", owner: "Production", note: "Validate fixture datum, tool list, stock allowance and in-process inspection before releasing the batch.", vendor: "Tech Mach", setupMinutes: 25, cycleSeconds: 90, quantity: 520, pricePerPart: 80, startDate: "2025-12-05", targetDate: "2025-12-08", transportVendor: "TR-004", transportDate: "2025-12-08", transportCost: 0 },
-  { id: 5, name: "Heat Treatment", station: "Hardening + Tempering", duration: "1 day", status: "Queued", owner: "Procurement", note: "Approve heat-treatment specification, batch traceability, hardness range and certificate before accepting the subcontract operation.", vendor: "HeatTreat Co", quantity: 520, pricePerPart: 25, startDate: "2025-12-09", targetDate: "2025-12-12", transportVendor: "TR-005", transportDate: "2025-12-12", transportCost: 2100 },
-  { id: 6, name: "Cylindrical Grinding", station: "Precision Grinding · OD", duration: "60 min", status: "Queued", owner: "Production", note: "Control grind allowance, runout, surface finish and temperature; log gauge IDs and final dimensions.", vendor: "Precision Grind", setupMinutes: 15, cycleSeconds: 75, quantity: 520, pricePerPart: 40, startDate: "2025-12-12", targetDate: "2025-12-15", transportVendor: "TR-006", transportDate: "2025-12-15", transportCost: 900 },
-  { id: 7, name: "Tapping", station: "M12 Tapping · Thread gauge", duration: "25 min", status: "Queued", owner: "Production", note: "Confirm thread specification, tool life, lubricant and GO/NO-GO gauge results. Segregate and record any rejected quantity.", vendor: "TapTech", quantity: 520, pricePerPart: 10, startDate: "2025-12-16", targetDate: "2025-12-18", transportVendor: "TR-007", transportDate: "2025-12-18", transportCost: 1500 },
-  { id: 8, name: "Surface Grinding", station: "Surface finish · Datum face", duration: "40 min", status: "Queued", owner: "Production", note: "Protect critical datums and verify flatness, parallelism and finish against the released drawing.", vendor: "SurfacePro", quantity: 520, pricePerPart: 35, startDate: "2025-12-19", targetDate: "2025-12-21", transportVendor: "TR-008", transportDate: "2025-12-21", transportCost: 1200 },
-  { id: 9, name: "Coating", station: "Zinc plating · Approved supplier", duration: "1 day", status: "Queued", owner: "Procurement", note: "Verify coating specification, thickness, coverage, masking and supplier certificate. Record dispatch and return custody.", vendor: "CoatWell", quantity: 520, pricePerPart: 20, startDate: "2025-12-22", targetDate: "2025-12-24", transportVendor: "TR-009", transportDate: "2025-12-24", transportCost: 1500 },
-  { id: 10, name: "Final Inspection", station: "Quality lab · CMM / gauges", duration: "45 min", status: "Queued", owner: "Quality", note: "Inspect all drawing-critical characteristics, review supplier certificates and record accepted, rejected and rework quantities before release.", quantity: 520, pricePerPart: 5, startDate: "2025-12-26", targetDate: "2025-12-27", transportVendor: "TR-010", transportDate: "2025-12-27", transportCost: 1200 },
-  { id: 11, name: "Delivery to Company", station: "Dispatch · Customer handover", duration: "30 min", status: "Queued", owner: "Dispatch", note: "Verify packing, quantity reconciliation, delivery documents, transport handover and customer receipt confirmation.", quantity: 500, startDate: "2025-12-28", targetDate: "2025-12-28" }
-];
-
 const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) => item.group)))];
 
 function App() {
+  useState(() => { removeLegacyDemoData(); return true; });
   const [activeModuleId, setActiveModuleId] = useState("command-centre");
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -83,14 +72,10 @@ function App() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
-  const [newJobOpen, setNewJobOpen] = useState(false);
-  const [newJobName, setNewJobName] = useState("");
-  const [localJobs, setLocalJobs] = useState(["AX-2048 · Precision housing", "AX-2049 · Valve body", "AX-2050 · Mounting bracket"]);
-  const [factory, setFactory] = useState("Precision Works · Main Plant");
 
   const activeModule = modules.find((item) => item.id === activeModuleId) ?? modules[0];
   const globalRecords = getAllModuleRecords();
-  const globalVendorContacts = readLocal<VendorContact[]>(CONTACTS_KEY, seedContacts);
+  const globalVendorContacts = activeRows(readManufacturingData().vendors);
   const normalizedGlobalQuery = query.toLowerCase().trim();
   const globalRecordResults = normalizedGlobalQuery ? Object.entries(globalRecords).flatMap(([moduleId, records]) => records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(normalizedGlobalQuery)).map((record) => ({ ...record, moduleId }))).slice(0, 8) : [];
   const globalVendorResults = normalizedGlobalQuery ? globalVendorContacts.filter((contact) => (contact.company + " " + contact.contact + " " + contact.role + " " + contact.phone + " " + contact.email + " " + contact.processes + " " + contact.notes).toLowerCase().includes(normalizedGlobalQuery)).slice(0, 8) : [];
@@ -111,7 +96,6 @@ function App() {
       if (event.key === "Escape") {
         setCommandOpen(false);
         setModuleExplorerOpen(false);
-        setNewJobOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -138,25 +122,17 @@ function App() {
     if (!prompt) return;
     const lower = prompt.toLowerCase();
     if (lower.includes("delay") || lower.includes("late")) {
-      setAiResponse("Demo insight: review the queued EDM profile and final CMM inspection before confirming the delivery promise. No live order data is connected yet.");
+      setAiResponse("No connected production schedule is available to analyse yet. Add a real PO, component and route first; no delivery promise has been inferred.");
     } else if (lower.includes("vendor") || lower.includes("supplier")) {
-      setAiResponse("Demo insight: compare process capability, available capacity, lead time, quality history and total landed cost. AXIMACH must show source evidence before recommending a vendor.");
+      setAiResponse("No vendor recommendation is generated until vendor capability, quotations, lead times and recorded quality history are available.");
     } else if (lower.includes("cost") || lower.includes("profit")) {
-      setAiResponse("Demo insight: separate material, setup, cycle time, tooling, subcontracting, inspection, transport, rejection, overhead and tax. Compare actual cost per accepted piece—not only cost per produced piece.");
+      setAiResponse("Use the linked Costing workspace to record material, process quotations, transport, actual rates, rejects, overhead and tax for a selected component.");
     } else if (lower.includes("quality") || lower.includes("inspection")) {
-      setAiResponse("Demo insight: keep the affected batch on hold until an authorised quality role reviews the measurement evidence and records a release decision.");
+      setAiResponse("Quality recommendations are not connected to a live inspection record yet. No release or production action has been executed.");
     } else {
-      setAiResponse("Demo response: I can help scope this request, but live records, connected models and authorised actions are not configured in this prototype. No business action has been executed.");
+      setAiResponse("AXIMACH AI analysis is not connected to an inference service yet. This screen will not invent live facts or execute a business action.");
     }
-    setNotice("Illustrative AI response only — no live business data was queried and no action was executed.");
-  };
-
-  const addLocalJob = () => {
-    if (!newJobName.trim()) return;
-    setLocalJobs((jobs) => [newJobName.trim(), ...jobs]);
-    setNotice("The example work order was added to this browser session only; it is not saved to a server.");
-    setNewJobName("");
-    setNewJobOpen(false);
+    setNotice("AI service not connected. No live business data was queried and no action was executed.");
   };
 
   return (
@@ -168,29 +144,23 @@ function App() {
         </button>
 
         <div className="deck-divider" />
-        <label className="factory-switcher">
-          <Factory size={16} />
-          <select value={factory} onChange={(event) => { setFactory(event.target.value); setNotice("Factory selection changed in this prototype; company-scoped server data is not connected."); }} aria-label="Select factory">
-            <option>Precision Works · Main Plant</option>
-            <option>Precision Works · Plant 02</option>
-            <option>Prototype · Subcontract Network</option>
-          </select>
-          <ChevronDown size={14} />
-        </label>
+        <button className="factory-switcher" onClick={() => selectModule("companies")} aria-label="Manage companies and factories">
+          <Factory size={16} /><span>Companies &amp; Factories</span><ChevronDown size={14}/>
+        </button>
 
         <div className="deck-spacer" />
         <button className="command-search" onClick={() => { setCommandOpen(true); setModuleExplorerOpen(false); }} aria-label="Open command search">
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
         <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>32</b></button>
-        <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("Demo notifications: 1 simulated tool-life warning and 1 simulated quality sign-off reminder.")}><Bell size={18} /><i /></button>
-        <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">PE</span><span className="profile-name">Owner</span><ChevronDown size={13} /></button>
+        <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
+        <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
       </header>
 
       <div className="status-ribbon">
-        <span className="ribbon-dot" /> PROTOTYPE WORKSPACE
+        <span className="ribbon-dot" /> AXIMACH WORKSPACE
         <span className="ribbon-separator">/</span>
-        <span>Sample data · No live machine or financial integrations</span>
+        <span>No example records loaded · production metrics populate from saved records</span>
         <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
       </div>
 
@@ -200,23 +170,25 @@ function App() {
             activeModule={activeModule}
             aiPrompt={aiPrompt}
             aiResponse={aiResponse}
-            localJobs={localJobs}
             notice={notice}
             onAiPromptChange={setAiPrompt}
             onRunCommand={runCommand}
             onNotice={setNotice}
-            onNewJob={() => setNewJobOpen(true)}
             onSelectModule={selectModule}
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <ProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
-        ) : activeModuleId === "process-master" ? (
-          <ProcessMasterWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
+          <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "inventory" ? (
+          <InventoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
-          <CostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "process-master" ? (
+          <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
-          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "communications" ? (
           <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : (
@@ -284,29 +256,18 @@ function App() {
         </div>
       )}
 
-      {newJobOpen && (
-        <div className="overlay-shell modal-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setNewJobOpen(false); }}>
-          <section className="new-job-modal" role="dialog" aria-modal="true" aria-labelledby="new-job-title">
-            <div className="modal-heading"><span className="modal-icon"><Plus size={19} /></span><button className="close-round compact" onClick={() => setNewJobOpen(false)} aria-label="Close"><X size={18} /></button></div>
-            <h2 id="new-job-title">Create a work order<span>.</span></h2>
-            <p>Prototype only. This creates a session example, not a production order in a connected database.</p>
-            <label htmlFor="job-name">Job name or part number</label>
-            <input id="job-name" value={newJobName} onChange={(event) => setNewJobName(event.target.value)} placeholder="e.g. AX-2051 · Mounting bracket" onKeyDown={(event) => { if (event.key === "Enter") addLocalJob(); }} autoFocus />
-            <div className="modal-actions"><button className="button-quiet" onClick={() => setNewJobOpen(false)}>Cancel</button><button className="button-primary" disabled={!newJobName.trim()} onClick={addLocalJob}><Plus size={16} /> Add example</button></div>
-          </section>
-        </div>
-      )}
-      <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Design prototype v0.2 · Backend not connected</span></footer>
+      <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Master records · server sync status shown in each workspace</span></footer>
     </div>
   );
 }
 
 function CommandCentre(props: {
-  activeModule: ModuleItem; aiPrompt: string; aiResponse: string; localJobs: string[]; notice: string;
+  activeModule: ModuleItem; aiPrompt: string; aiResponse: string; notice: string;
   onAiPromptChange: (value: string) => void; onRunCommand: () => void; onNotice: (value: string) => void;
-  onNewJob: () => void; onSelectModule: (id: string) => void; onOpenModules: () => void;
+  onSelectModule: (id: string) => void; onOpenModules: () => void;
 }) {
-  const { aiPrompt, aiResponse, localJobs, notice, onAiPromptChange, onRunCommand, onNotice, onNewJob, onSelectModule, onOpenModules } = props;
+  const { aiPrompt, aiResponse, notice, onAiPromptChange, onRunCommand, onNotice, onSelectModule, onOpenModules } = props;
+  const actualData = readManufacturingData();
   return (
     <>
       {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
@@ -337,90 +298,45 @@ function CommandCentre(props: {
             <g className="orbit-node"><circle cx="65" cy="174" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M57 174 L63 180 L73 168" fill="none" stroke="#3975da" strokeWidth="1.6" /></g>
             <g className="orbit-node"><circle cx="168" cy="254" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M160 250 H176 V258 H160 Z M163 246 H173 V250" fill="none" stroke="#3975da" strokeWidth="1.4" /></g>
           </svg>
-          <div className="graphic-caption"><span className="ribbon-dot" /> CONNECTED FLOW / DEMO VISUAL</div>
+          <div className="graphic-caption"><span className="ribbon-dot" /> MANUFACTURING FLOW / LIVE RECORDS WHEN CONNECTED</div>
           <span className="graphic-coordinate coord-one">01 / MATERIAL</span><span className="graphic-coordinate coord-two">07 / QUALITY</span>
         </div>
       </section>
 
       <section className="pulse-heading">
-        <div><div className="eyebrow"><span className="eyebrow-mark" /> FACTORY PULSE</div><h2>Operational overview<span>.</span></h2><p>Illustrative values for interface review — not live shop-floor telemetry.</p></div>
-        <div className="pulse-actions"><span className="demo-pill"><i /> SAMPLE DATA</span><button className="button-quiet compact-button" onClick={() => onNotice("Report export is not connected. No file was generated.")}><FileDown size={15} /> Export</button></div>
+        <div><div className="eyebrow"><span className="eyebrow-mark"/> FACTORY PULSE</div><h2>Operational overview<span>.</span></h2><p>Only saved AXIMACH records appear here; no sample jobs, fabricated rates or simulated machine readings are loaded.</p></div>
+        <div className="pulse-actions"><span className="demo-pill"><i/> RECORD-DRIVEN</span><button className="button-primary compact-button" onClick={() => onSelectModule("companies")}><Plus size={14}/> Start with company</button></div>
       </section>
-
       <section className="metric-grid">
-        <MetricCard title="Active work orders" value="24" trend="+12.8%" detail="sample · vs prior week" icon={ClipboardCheck} accent="blue" />
-        <MetricCard title="Machine utilization" value="86.4%" trend="+4.2%" detail="sample · vs prior shift" icon={Gauge} accent="violet" />
-        <MetricCard title="On-time completion" value="94.8%" trend="+2.6%" detail="sample · target comparison" icon={Activity} accent="green" />
-        <MetricCard title="Quality alerts" value="02" trend="Needs review" detail="sample · 1 high priority" icon={ScanLine} accent="amber" />
+        <MetricCard title="Companies" value={String(activeRows(actualData.companies).length)} trend="Saved records" detail="Company master" icon={Factory} accent="blue"/>
+        <MetricCard title="PO component lines" value={String(activeRows(actualData.purchaseOrders).reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0))} trend="Linked records" detail="Quantity and delivery target" icon={Package} accent="violet"/>
+        <MetricCard title="Components" value={String(activeRows(actualData.components).length)} trend="Saved records" detail="Part numbers and revisions" icon={Boxes} accent="green"/>
+        <MetricCard title="Operations" value={String(activeRows(actualData.operations).length)} trend="Saved records" detail="Routes linked to PO lines" icon={Activity} accent="amber"/>
       </section>
-
-      <section className="insight-grid">
-        <article className="surface-panel insight-panel histogram-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> PRODUCTION SIGNALS</div><h3>Output histogram</h3><p>Illustrative hourly accepted parts · replace with recorded production data</p></div><span className="insight-live-pill"><i/> DEMO</span></div>
-          <div className="histogram" role="img" aria-label="Illustrative hourly output histogram">
-            {[{h:36,l:"06"},{h:52,l:"07"},{h:43,l:"08"},{h:70,l:"09"},{h:61,l:"10"},{h:86,l:"11"},{h:66,l:"12"},{h:92,l:"13"},{h:74,l:"14"},{h:100,l:"15"},{h:81,l:"16"},{h:58,l:"17"}].map((bar,index)=><div className="histogram-column" key={bar.l}><div className="histogram-track"><span className="histogram-bar" style={{"--bar-height":bar.h+"%","--bar-delay":index*55+"ms"} as CSSProperties}/></div><small>{bar.l}</small></div>)}
-          </div>
-          <div className="chart-footer"><span><i className="legend-dot blue-dot"/> Accepted parts / hour</span><strong>Live data not connected</strong></div>
-        </article>
-        <article className="surface-panel insight-panel utilization-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> CAPACITY PROFILE</div><h3>Machine utilization</h3><p>Illustrative capacity profile by shift</p></div><Gauge size={18} className="insight-icon"/></div>
-          <div className="utilization-list">
-            {[{n:"CNC turning",v:82},{n:"VMC milling",v:68},{n:"Grinding",v:74},{n:"Wire EDM",v:46}].map((item,index)=><div className="utilization-row" key={item.n}><div><span>{item.n}</span><strong>{item.v}%</strong></div><div className="utilization-track"><span style={{"--util-width":item.v+"%","--bar-delay":index*90+"ms"} as CSSProperties}/></div></div>)}
-          </div>
-          <div className="chart-footer"><span><i className="legend-dot violet-dot"/> Planned load</span><strong>Sample only</strong></div>
-        </article>
-        <article className="surface-panel insight-panel planner-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> FINITE CAPACITY</div><h3>Process planner</h3><p>Route sequence and planned time window</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={14}/> Open planner</button></div>
-          <div className="planner-timeline">
-            <div className="planner-axis"><span>06:00</span><span>09:00</span><span>12:00</span><span>15:00</span><span>18:00</span></div>
-            {[{n:"Raw material",start:0,width:16,c:"planned-green"},{n:"CNC turning",start:14,width:25,c:"planned-blue"},{n:"VMC milling",start:38,width:22,c:"planned-cyan"},{n:"Inspection",start:62,width:15,c:"planned-violet"},{n:"Dispatch",start:80,width:15,c:"planned-amber"}].map((item,index)=><div className="planner-row" key={item.n}><span className="planner-label">{item.n}</span><div className="planner-lane"><span className={"planner-task "+item.c} style={{left:item.start+"%",width:item.width+"%","--bar-delay":index*110+"ms"} as CSSProperties}/></div></div>)}
-          </div>
-          <div className="planner-foot"><span><Activity size={14}/> Sequence preview · not a committed production schedule</span><button onClick={() => onSelectModule("process-map")}>Manage process route <ArrowRight size={14}/></button></div>
-        </article>
-      </section>
-
-      <section className="dashboard-grid">
+      <section className="dashboard-grid actual-data-dashboard">
         <div className="surface-panel flow-preview">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> LIVE WORKFLOW PREVIEW</div><h3>Machining process route</h3><p>AX-2048 · Precision housing · Rev C</p></div><button className="round-action" onClick={() => onSelectModule("process-map")} aria-label="Expand process map"><ArrowUpRight size={18} /></button></div>
-          <div className="mini-route">
-            <span className="mini-node done"><Check size={13} /></span><span className="mini-connector complete" />
-            <span className="mini-node done"><Check size={13} /></span><span className="mini-connector complete" />
-            <span className="mini-node active"><Zap size={13} /></span><span className="mini-connector" />
-            <span className="mini-node"><span>04</span></span><span className="mini-connector" />
-            <span className="mini-node"><span>05</span></span><span className="mini-connector" />
-            <span className="mini-node"><span>06</span></span><span className="mini-connector" />
-            <span className="mini-node"><span>07</span></span>
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA SETUP</div><h3>Build your manufacturing records</h3><p>Save each master once; choose its ID from linked workflows.</p></div><button className="round-action" onClick={() => onSelectModule("companies")} aria-label="Open company master"><ArrowUpRight size={18}/></button></div>
+          <div className="setup-steps">
+            <button onClick={() => onSelectModule("companies")}><span>01</span><strong>Company & factory</strong><small>{activeRows(actualData.companies).length} companies · {activeRows(actualData.factories).length} factories</small></button>
+            <button onClick={() => onSelectModule("components")}><span>02</span><strong>Component master</strong><small>{activeRows(actualData.components).length} part numbers saved</small></button>
+            <button onClick={() => onSelectModule("purchasing")}><span>03</span><strong>Purchase order lines</strong><small>{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.length,0)} lines saved</small></button>
+            <button onClick={() => onSelectModule("vendors")}><span>04</span><strong>Vendor directory</strong><small>{activeRows(actualData.vendors).length} saved vendor/contact records</small></button>
           </div>
-          <div className="mini-route-labels"><span>Material</span><span>Inspection</span><span>Machining</span><span>+4 steps</span></div>
-          <div className="flow-summary"><span><i className="state-dot good" /> 2 complete</span><span><i className="state-dot live" /> 1 running</span><span><i className="state-dot pending" /> 4 queued</span><button onClick={() => onSelectModule("process-map")}>Explore full route <ArrowRight size={14} /></button></div>
         </div>
-
-        <div className="surface-panel ai-panel">
-          <div className="ai-panel-heading"><span className="ai-symbol"><Sparkles size={17} /></span><div><h3>AXIMACH intelligence</h3><p>Ask about manufacturing decisions</p></div><span className="demo-ai-label">DEMO</span></div>
-          <form className="ai-form" onSubmit={(event) => { event.preventDefault(); onRunCommand(); }}>
-            <input aria-label="Ask AXIMACH intelligence" value={aiPrompt} onChange={(event) => onAiPromptChange(event.target.value)} placeholder="e.g. Find delayed jobs…" />
-            <button type="submit" disabled={!aiPrompt.trim()} aria-label="Send command"><ArrowRight size={17} /></button>
-          </form>
-          <div className="prompt-chips"><button onClick={() => onAiPromptChange("Which jobs are delayed?")}>Delayed jobs</button><button onClick={() => onAiPromptChange("Compare alternate vendors")}>Alternate vendors</button><button onClick={() => onAiPromptChange("Review job cost")}>Job cost</button></div>
-          {aiResponse ? <div className="ai-response"><Sparkles size={15} /><span>{aiResponse}</span></div> : <div className="ai-disclaimer"><ShieldCheck size={15} /><span>Recommendations must cite source records. Payments, quality release and safety-critical actions require human approval.</span></div>}
-        </div>
-
         <div className="surface-panel jobs-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> PLANNING QUEUE</div><h3>Work orders</h3><p>Session examples only · not saved to a database</p></div><button className="button-primary small-primary" onClick={onNewJob}><Plus size={15} /> Add example</button></div>
-          <div className="job-list">
-            {localJobs.slice(0, 4).map((job, index) => <div className="job-row" key={job}><span className="job-number">{String(index + 1).padStart(2, "0")}</span><span className="job-main"><strong>{job}</strong><small>{index === 0 ? "Prototype queue" : index === 1 ? "Plan review" : index === 2 ? "Material verification" : "New session record"}</small></span><span className={"job-chip " + (index === 0 ? "job-running" : "job-planned")}>{index === 0 ? "Running*" : "Planned*"}</span></div>)}
-          </div>
-          <div className="panel-footnote"><Clock3 size={13} /> All statuses are illustrative. *No work order is connected.</div>
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PRODUCTION ROUTES</div><h3>Recent operations</h3><p>Only operations saved for real PO component lines.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={14}/> Process Map</button></div>
+          {activeRows(actualData.operations).length ? <div className="job-list">{activeRows(actualData.operations).slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,5).map(op => <div className="job-row" key={op.id}><span className="job-number">{String(op.sequence).padStart(2,"0")}</span><span className="job-main"><strong>{op.name}</strong><small>{actualData.components.find(c=>c.id===op.componentId)?.partNumber || "Component"} · {actualData.purchaseOrders.find(po=>po.id===op.poId)?.number || "PO"}</small></span><span className="job-chip">{op.status}</span></div>)}</div> : <div className="module-empty-state"><Workflow size={24}/><h3>No operations yet</h3><p>Select a PO component line and add the processes that this job actually needs.</p><button className="button-primary" onClick={() => onSelectModule("process-map")}><Plus size={14}/> Open Process Map</button></div>}
         </div>
-
         <div className="surface-panel attention-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> ATTENTION QUEUE</div><h3>Review priorities</h3><p>Example alerts for workflow design</p></div><span className="attention-count">02</span></div>
-          <button className="attention-row" onClick={() => onSelectModule("tooling")}><span className="attention-symbol amber-symbol"><Wrench size={17} /></span><span className="attention-copy"><strong>Tool-life warning</strong><small>VMC-04 · End mill T12 · example alert</small><em>Open tooling workspace</em></span><ArrowUpRight size={16} /></button>
-          <button className="attention-row" onClick={() => onSelectModule("quality")}><span className="attention-symbol red-symbol"><ClipboardCheck size={17} /></span><span className="attention-copy"><strong>Inspection sign-off pending</strong><small>AX-2041 · Final CMM report · example alert</small><em>Open quality workspace</em></span><ArrowUpRight size={16} /></button>
-          <div className="attention-safety"><ShieldCheck size={14} /> Quality holds release only through an authorised role.</div>
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTATIONS</div><h3>Supplier rate history</h3><p>Received quotes are linked to a component, PO line, process and vendor.</p></div><span className="attention-count">{activeRows(actualData.quotations).length}</span></div>
+          {activeRows(actualData.quotations).length ? <div className="job-list">{activeRows(actualData.quotations).slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,4).map(q => <div className="job-row" key={q.id}><span className="job-number"><CircleDollarSign size={15}/></span><span className="job-main"><strong>{actualData.components.find(x=>x.id===q.componentId)?.partNumber || "Component"} · {actualData.operations.find(x=>x.id===q.operationId)?.name || "Process"}</strong><small>{actualData.vendors.find(x=>x.id===q.vendorId)?.company || "Vendor"} · {q.quoteReference || "No reference"}</small></span><span className="job-chip">{q.status}</span></div>)}</div> : <div className="module-empty-state"><CircleDollarSign size={24}/><h3>No quotations yet</h3><p>Add real vendor quotations to compare rates per component and process.</p><button className="button-primary" onClick={() => onSelectModule("costing")}><Plus size={14}/> Add quotation</button></div>}
+        </div>
+        <div className="surface-panel attention-panel">
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> REVIEW QUEUE</div><h3>Recorded risks</h3><p>No illustrative alerts are shown.</p></div><ShieldCheck size={18}/></div>
+          {activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).length ? activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).slice(0,5).map(op => <button className="attention-row" key={op.id} onClick={() => onSelectModule("process-map")}><span className="attention-symbol red-symbol"><ShieldAlert size={17}/></span><span className="attention-copy"><strong>{op.name}</strong><small>{op.status === "Quality hold" ? "Quality hold entered" : "Target date overdue"} · {op.plannedEnd || "No target date"}</small><em>Open linked Process Map</em></span><ArrowUpRight size={16}/></button>) : <div className="vendor-empty">No overdue operations or quality holds are recorded.</div>}
+          <div className="attention-safety"><ShieldCheck size={14}/> Alerts are calculated from saved operation status and target dates.</div>
         </div>
       </section>
-
       <section className="module-shortcuts">
         <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all 32 modules <ArrowRight size={15} /></button></div>
         <div className="shortcut-grid">
@@ -442,378 +358,70 @@ function ModuleShortcut({ module, onClick }: { module: ModuleItem; onClick: () =
 
 type CostingLine={id:string;process:string;vendor:string;qty:number;rate:number;marketRate:number;transport:number;actual:boolean};
 type CostingComponent={id:string;code:string;name:string;revision:string;material:string;batchQty:number;salePrice:number;stockQty:number;materialQty:number;materialRate:number;marketMaterialRate:number;overhead:number;toolingCost:number;reworkCost:number;rejectedQty:number;scrapCost:number;gstRate:number;lines:CostingLine[]};
-const COSTING_KEY="aximach.costing.components.v1";
-const costingSeeds:CostingComponent[]=[
- {id:"cmp-1001",code:"CMP-1001",name:"Hydraulic Shaft",revision:"A",material:"EN8 Ø80 mm",batchQty:500,salePrice:3200,stockQty:500,materialQty:520,materialRate:120,marketMaterialRate:135,overhead:0,toolingCost:0,reworkCost:0,rejectedQty:0,scrapCost:0,gstRate:0,lines:[
- {id:"raw",process:"Raw material & cut-off",vendor:"Steel Mart",qty:520,rate:120,marketRate:135,transport:2500,actual:true},
- {id:"turn",process:"CNC Turning",vendor:"Ramesh CNC",qty:520,rate:60,marketRate:75,transport:1800,actual:true},
- {id:"mill",process:"CNC Milling",vendor:"Tech Mach",qty:520,rate:80,marketRate:95,transport:1200,actual:true},
- {id:"heat",process:"Heat Treatment",vendor:"HeatTreat Co",qty:520,rate:25,marketRate:30,transport:2100,actual:false},
- {id:"grind",process:"Cylindrical Grinding",vendor:"Precision Grind",qty:520,rate:40,marketRate:48,transport:900,actual:false},
- {id:"tap",process:"Tapping",vendor:"TapTech",qty:520,rate:10,marketRate:12,transport:1500,actual:false},
- {id:"coat",process:"Zinc Coating",vendor:"CoatWell",qty:520,rate:20,marketRate:24,transport:1500,actual:false},
- {id:"inspect",process:"Final Inspection",vendor:"In-house",qty:500,rate:5,marketRate:8,transport:0,actual:false}
- ]}
-];
-function CostingWorkspace({onBack,onNotice,notice}:{onBack:()=>void;onNotice:(value:string)=>void;notice:string}){
- const [components,setComponents]=useState<CostingComponent[]>(()=>readLocal(COSTING_KEY,costingSeeds));
- const [selectedId,setSelectedId]=useState("cmp-1001");const [search,setSearch]=useState("");const [tab,setTab]=useState<"costing"|"inventory"|"components">("costing");
- const [editing,setEditing]=useState(false);
- useEffect(()=>{saveLocal(COSTING_KEY,components);},[components]);
- const current=components.find(c=>c.id===selectedId)||components[0];
- const [draft,setDraft]=useState<CostingComponent>(current);
- useEffect(()=>{if(current&&!editing)setDraft({...current,lines:current.lines.map(x=>({...x}))});},[selectedId,components,editing]);
- const filtered=components.filter(c=>(c.code+" "+c.name+" "+c.material).toLowerCase().includes(search.toLowerCase().trim()));
- const updateComponent=(patch:Partial<CostingComponent>)=>setComponents(prev=>prev.map(c=>c.id===draft.id?{...draft,...patch}:c));
- const addComponent=()=>{const id="cmp-"+Date.now().toString(36);const c:CostingComponent={id,code:"CMP-NEW",name:"New component",revision:"A",material:"",batchQty:1,salePrice:0,stockQty:0,materialQty:1,materialRate:0,marketMaterialRate:0,overhead:0,toolingCost:0,reworkCost:0,rejectedQty:0,scrapCost:0,gstRate:0,lines:[]};setComponents(prev=>[...prev,c]);setSelectedId(id);setDraft(c);setEditing(true);setTab("components");};
- const patchLine=(lineId:string,patch:Partial<CostingLine>)=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,lines:c.lines.map(l=>l.id===lineId?{...l,...patch}:l)}:c));
- const addLine=()=>{if(!current)return;setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,lines:[...c.lines,{id:"op-"+Date.now().toString(36),process:"New process",vendor:"",qty:c.batchQty,rate:0,marketRate:0,transport:0,actual:false}]}:c));};
- const syncProcessMap=()=>{try{const raw=window.localStorage.getItem("aximach.processRoute.v2");if(!raw){onNotice("No saved Process Map route found in this browser. Open Process Map and save the component route first.");return;}const route=JSON.parse(raw) as ProcessStep[];const mapped:CostingLine[]=route.map(step=>({id:"route-"+step.id,process:step.name,vendor:step.vendor||step.station||"",qty:Number(step.quantity)||current.batchQty,rate:Number(step.pricePerPart)||0,marketRate:0,transport:Number(step.transportCost)||0,actual:step.status==="Complete"}));setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,lines:mapped}:c));onNotice("Process Map synced to "+current.code+". Review imported process rates and enter current supplier quotations or market benchmarks; no market price is invented.");}catch{onNotice("Could not read the saved Process Map route. Check the route data and try again.");}};
- const costOf=(c:CostingComponent,market=false,actualOnly=false)=>c.materialQty*(market?c.marketMaterialRate:c.materialRate)+c.lines.filter(l=>!actualOnly||l.actual).reduce((sum,l)=>sum+l.qty*(market?l.marketRate:l.rate)+l.transport,0)+c.overhead+c.toolingCost+c.reworkCost+c.scrapCost;
- const actual=costOf(current,false,true);const planned=costOf(current,false,false);const market=costOf(current,true,false);const accepted=Math.max(0,current.batchQty-current.rejectedQty);const revenue=accepted*current.salePrice;const gstAmount=revenue*current.gstRate/100;const costPerPart=accepted?planned/accepted:0;const profit=revenue-planned;const profitAfterGST=revenue-gstAmount-planned;const marketProfit=revenue-market;
- const fmt=(v:number)=>"₹"+v.toLocaleString("en-IN",{maximumFractionDigits:2});
- return <section className="workspace-page costing-page">
- {notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
- <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> COMPONENT COST & INVENTORY LEDGER</span></div>
- <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> FINANCE / COMPONENT TRACEABILITY</div><h1>Cost, inventory & profit<span>.</span></h1><p>One component → every process cost → stock position → realistic rate comparison → estimated profit or loss.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(components,null,2)],{type:"application/json"}));a.download="aximach-component-cost-ledger.json";a.click();}}><FileDown size={15}/> Export ledger</button><button className="button-primary" onClick={addComponent}><Plus size={15}/> Add Component</button></div></div>
- <div className="costing-component-bar"><label><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search component code, name, material…"/></label><label>Selected component<select value={selectedId} onChange={e=>{setSelectedId(e.target.value);setEditing(false);}}>{filtered.map(c=><option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}</select></label><div className="costing-component-badge"><Box size={16}/><span><strong>{current.code}</strong><small>Revision {current.revision} · {current.material||"Material not set"}</small></span></div></div>
- <div className="costing-tabs">{(["costing","inventory","components"] as const).map(t=><button className={tab===t?"costing-tab-active":""} onClick={()=>setTab(t)} key={t}>{t==="costing"?<CircleDollarSign size={15}/>:t==="inventory"?<Boxes size={15}/>:<Box size={15}/>} {t==="costing"?"Cost Breakdown & P/L":t==="inventory"?"Component Inventory":"Component Master"}</button>)}</div>
- {tab==="costing"&&<><div className="costing-kpis"><div><small>ACTUAL / ENTERED COST</small><strong>{fmt(actual)}</strong><span>Material + process lines marked Actual + overheads</span></div><div><small>MARKET / BENCHMARK COST</small><strong>{fmt(market)}</strong><span>Editable benchmark rates</span></div><div><small>EXPECTED SALES VALUE</small><strong>{fmt(revenue)}</strong><span>{accepted.toLocaleString("en-IN")} accepted pcs × {fmt(current.salePrice)}/pc</span></div><div className={profit>=0?"costing-profit":"costing-loss"}><small>ESTIMATED PROFIT / LOSS</small><strong>{fmt(profitAfterGST)}</strong><span>{revenue?((profitAfterGST/revenue)*100).toFixed(1):"0.0"}% after entered GST · estimated</span></div></div>
- <section className="surface-panel costing-lines"><div className="panel-heading"><div><h3>Operation-by-operation cost</h3><p>Enter your vendor quotation / actual rate separately from the benchmark rate. Costs are linked to this component.</p></div><div className="costing-toolbar-actions"><button className="button-quiet compact-button" onClick={syncProcessMap}><RotateCcw size={13}/> Sync from Process Map</button><button className="button-primary small-primary" onClick={addLine}><Plus size={14}/> Add Process Cost</button></div></div><div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Process / cost head</th><th>Vendor</th><th>Qty</th><th>Your rate / pc</th><th>Benchmark rate / pc</th><th>Transport ₹</th><th>Your total</th><th>Benchmark total</th><th>Variance</th><th>Actual?</th><th/></tr></thead><tbody><tr><td><strong>Material: {current.material||"Unspecified"}</strong></td><td>Material supplier</td><td><input type="number" min="0" value={current.materialQty} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,materialQty:Math.max(0,Number(e.target.value)||0)}:c))}/></td><td><input type="number" min="0" value={current.materialRate} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,materialRate:Math.max(0,Number(e.target.value)||0)}:c))}/></td><td><input type="number" min="0" value={current.marketMaterialRate} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,marketMaterialRate:Math.max(0,Number(e.target.value)||0)}:c))}/></td><td>—</td><td>{fmt(current.materialQty*current.materialRate)}</td><td>{fmt(current.materialQty*current.marketMaterialRate)}</td><td>{fmt(current.materialQty*(current.materialRate-current.marketMaterialRate))}</td><td>Editable</td><td/></tr>{current.lines.map(l=><tr key={l.id}><td><input value={l.process} onChange={e=>patchLine(l.id,{process:e.target.value})}/></td><td><input value={l.vendor} onChange={e=>patchLine(l.id,{vendor:e.target.value})}/></td><td><input type="number" min="0" value={l.qty} onChange={e=>patchLine(l.id,{qty:Math.max(0,Number(e.target.value)||0)})}/></td><td><input type="number" min="0" value={l.rate} onChange={e=>patchLine(l.id,{rate:Math.max(0,Number(e.target.value)||0),actual:true})}/></td><td><input type="number" min="0" value={l.marketRate} onChange={e=>patchLine(l.id,{marketRate:Math.max(0,Number(e.target.value)||0)})}/></td><td><input type="number" min="0" value={l.transport} onChange={e=>patchLine(l.id,{transport:Math.max(0,Number(e.target.value)||0)})}/></td><td>{fmt(l.qty*l.rate+l.transport)}</td><td>{fmt(l.qty*l.marketRate+l.transport)}</td><td className={(l.rate-l.marketRate)>0?"variance-bad":"variance-good"}>{fmt(l.qty*(l.rate-l.marketRate))}</td><td><select value={l.actual?"yes":"no"} onChange={e=>patchLine(l.id,{actual:e.target.value==="yes"})}><option value="yes">Actual</option><option value="no">Estimate</option></select></td><td><button className="button-quiet compact-button" onClick={()=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,lines:c.lines.filter(x=>x.id!==l.id)}:c))}><X size={13}/></button></td></tr>)}</tbody></table></div><div className="costing-footnote">Benchmark figures are editable planning references, not live market quotes. Replace them with current supplier quotations or invoices for a defensible comparison.</div></section>
- <div className="costing-bottom-grid"><section className="surface-panel costing-summary"><h3>Component P/L summary</h3><div><span>Revenue / sales value</span><strong>{fmt(revenue)}</strong></div><div><span>All entered planned production costs</span><strong>{fmt(planned)}</strong></div><div><span>Estimated profit / loss before GST</span><strong className={profit>=0?"text-profit":"text-loss"}>{fmt(profit)}</strong><span>Estimated profit / loss after entered GST</span><strong className={profitAfterGST>=0?"text-profit":"text-loss"}>{fmt(profitAfterGST)}</strong></div><div><span>Cost per accepted part</span><strong>{fmt(costPerPart)}</strong><span>Rejected quantity</span><strong>{current.rejectedQty.toLocaleString("en-IN")} pcs</strong><span>GST estimate on sales</span><strong>{fmt(gstAmount)}</strong></div><div><span>Market-benchmark cost per part</span><strong>{fmt(current.batchQty?market/current.batchQty:0)}</strong></div><div><span>Profit at benchmark cost</span><strong className={marketProfit>=0?"text-profit":"text-loss"}>{fmt(marketProfit)}</strong></div><div><span>Potential saving vs benchmark</span><strong>{fmt(market-actual)}</strong></div></section>
- <section className="surface-panel costing-summary"><h3>Commercial & batch inputs</h3><div className="costing-input-grid"><label>Batch / order quantity<input type="number" min="0" value={current.batchQty} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,batchQty:Math.max(0,Number(e.target.value)||0)}:c))}/></label><label>Selling price per part (₹)<input type="number" min="0" value={current.salePrice} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,salePrice:Math.max(0,Number(e.target.value)||0)}:c))}/></label><label>Overhead cost (₹)<input type="number" min="0" value={current.overhead} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,overhead:Math.max(0,Number(e.target.value)||0)}:c))}/></label><label>Tooling / fixture cost (₹)<input type="number" min="0" value={current.toolingCost} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,toolingCost:Math.max(0,Number(e.target.value)||0)}:c))}/></label><label>Rework cost (₹)<input type="number" min="0" value={current.reworkCost} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,reworkCost:Math.max(0,Number(e.target.value)||0)}:c))}/></label><label>Scrap / rejection loss (₹)<input type="number" min="0" value={current.scrapCost} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,scrapCost:Math.max(0,Number(e.target.value)||0)}:c))}/></label><label>Rejected quantity (pcs)<input type="number" min="0" value={current.rejectedQty} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,rejectedQty:Math.max(0,Math.min(c.batchQty,Number(e.target.value)||0))}:c))}/></label><label>GST rate (%)<input type="number" min="0" max="100" value={current.gstRate} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,gstRate:Math.max(0,Math.min(100,Number(e.target.value)||0))}:c))}/></label><label>Material / grade<input value={current.material} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,material:e.target.value}:c))}/></label><label>Drawing revision<input value={current.revision} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,revision:e.target.value}:c))}/></label></div><p className="costing-footnote">P/L is an estimate using the values entered here. Add overhead, tooling depreciation, rejection/rework, GST treatment and finance costs before using it for statutory accounts.</p></section></div></>}
- {tab==="inventory"&&<section className="surface-panel costing-summary"><h3>Component inventory · {current.code}</h3><div className="costing-input-grid"><label>Stock on hand (pcs)<input type="number" min="0" value={current.stockQty} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,stockQty:Math.max(0,Number(e.target.value)||0)}:c))}/></label><label>Batch required (pcs)<input type="number" min="0" value={current.batchQty} onChange={e=>setComponents(prev=>prev.map(c=>c.id===selectedId?{...c,batchQty:Math.max(0,Number(e.target.value)||0)}:c))}/></label><div><small>AVAILABLE AFTER ORDER</small><strong>{current.stockQty-current.batchQty} pcs</strong></div><div><small>STOCK VALUE AT ENTERED MATERIAL RATE</small><strong>{fmt(current.stockQty*current.materialRate)}</strong></div></div><div className="costing-footnote">This component stock ledger is a component-level planning register, not yet a lot/serial, bin, or warehouse-controlled inventory system.</div></section>}
- {tab==="components"&&<section className="surface-panel costing-summary"><div className="panel-heading"><div><h3>Component master</h3><p>Maintain the component identity and link it to its cost lines and stock record.</p></div><button className="button-primary small-primary" onClick={()=>setEditing(!editing)}><Wrench size={14}/> {editing?"Close editor":"Edit component"}</button></div>{editing&&<div className="costing-input-grid"><label>Component code<input value={draft.code} onChange={e=>setDraft({...draft,code:e.target.value})}/></label><label>Component name<input value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label><label>Revision<input value={draft.revision} onChange={e=>setDraft({...draft,revision:e.target.value})}/></label><label>Material / grade<input value={draft.material} onChange={e=>setDraft({...draft,material:e.target.value})}/></label><button className="button-primary" onClick={()=>{setComponents(prev=>prev.map(c=>c.id===selectedId?{...draft}:c));setEditing(false);onNotice("Component master updated; cost and inventory remain linked to this component.");}}><Check size={14}/> Save component</button></div>}</section>}
- </section>;
-}
-
-type ProcessMasterItem = { id:string; name:string; category:string; machine:string; vendor:string; setupMin:number; cycleSec:number; defaultRate:number; inspection:string; tooling:string; notes:string };
-const PROCESS_MASTER_KEY="aximach.processMaster.v1";
-const processMasterSeeds:ProcessMasterItem[]=[
- {id:"pm-turn",name:"CNC Turning",category:"Turning & Lathe",machine:"CNC turning centre",vendor:"",setupMin:30,cycleSec:45,defaultRate:60,inspection:"Diameter, length, runout and surface finish",tooling:"Turning insert, boring bar, collet/chuck",notes:"Record drawing revision and first-off approval."},
- {id:"pm-vmc",name:"VMC Milling",category:"Milling",machine:"Vertical machining centre",vendor:"",setupMin:45,cycleSec:90,defaultRate:80,inspection:"Hole position, pocket size, flatness and profile",tooling:"End mill, drill, tap, holder and fixture",notes:"Confirm workholding, tool offsets and datum."},
- {id:"pm-grind",name:"Cylindrical Grinding",category:"Grinding",machine:"Cylindrical grinder",vendor:"",setupMin:35,cycleSec:75,defaultRate:40,inspection:"Diameter, roundness, cylindricity and Ra",tooling:"Grinding wheel, dresser and centres",notes:"Record wheel specification and dressing interval."},
- {id:"pm-wire",name:"Wire EDM",category:"EDM",machine:"Wire EDM",vendor:"",setupMin:40,cycleSec:120,defaultRate:100,inspection:"Profile, kerf, corner condition and dimensions",tooling:"Wire, guides, dielectric and fixture",notes:"Confirm wire diameter and cut strategy."},
- {id:"pm-heat",name:"Heat Treatment",category:"Thermal Processing",machine:"Heat-treatment furnace",vendor:"",setupMin:60,cycleSec:0,defaultRate:25,inspection:"Hardness, case depth and material certificate",tooling:"Batch fixture and calibrated temperature probes",notes:"Capture batch certificate and process parameters."},
- {id:"pm-coat",name:"Surface Coating",category:"Surface Treatment",machine:"Coating line / approved subcontractor",vendor:"",setupMin:30,cycleSec:0,defaultRate:20,inspection:"Coating thickness, adhesion, coverage and appearance",tooling:"Masking plugs, hanging fixture and gauges",notes:"Record specification, thickness and certificate."},
- {id:"pm-inspect",name:"Final Inspection",category:"Quality",machine:"Inspection bench / CMM",vendor:"",setupMin:15,cycleSec:20,defaultRate:5,inspection:"All drawing-critical characteristics and traceability",tooling:"CMM, micrometers, gauges and surface tester",notes:"Record accepted, rejected and rework quantities."},
- {id:"pm-transport",name:"Transport / Handover",category:"Logistics",machine:"Approved transporter",vendor:"",setupMin:10,cycleSec:0,defaultRate:1200,inspection:"Pickup, delivery, package count and receipt proof",tooling:"Packing list, labels and handover documents",notes:"Capture dispatch and receipt timestamps."}
-];
-function ProcessMasterWorkspace({onBack,onNotice,notice}:{onBack:()=>void;onNotice:(value:string)=>void;notice:string}){
- const [items,setItems]=useState<ProcessMasterItem[]>(()=>readLocal(PROCESS_MASTER_KEY,processMasterSeeds));
- const [search,setSearch]=useState("");const [selectedId,setSelectedId]=useState("pm-turn");const [editing,setEditing]=useState(false);
- const [draft,setDraft]=useState<ProcessMasterItem>(processMasterSeeds[0]);
- const vendorDirectory=readLocal<VendorContact[]>(CONTACTS_KEY,seedContacts);
- useEffect(()=>{saveLocal(PROCESS_MASTER_KEY,items);},[items]);
- const visible=items.filter(x=>(x.name+" "+x.category+" "+x.machine+" "+x.vendor+" "+x.tooling).toLowerCase().includes(search.toLowerCase().trim()));
- const selected=items.find(x=>x.id===selectedId)||visible[0];
- const edit=(item:ProcessMasterItem)=>{setSelectedId(item.id);setDraft({...item});setEditing(true);};
- const save=()=>{if(!draft.name.trim()){onNotice("Enter a process name.");return;}const item={...draft,name:draft.name.trim()};setItems(prev=>prev.some(x=>x.id===item.id)?prev.map(x=>x.id===item.id?item:x):[...prev,item]);setSelectedId(item.id);setEditing(false);onNotice("Process master template saved in this browser.");};
- const add=()=>{const item:ProcessMasterItem={id:"pm-"+Date.now().toString(36),name:"",category:"Machining",machine:"",vendor:"",setupMin:0,cycleSec:0,defaultRate:0,inspection:"",tooling:"",notes:""};setDraft(item);setSelectedId(item.id);setEditing(true);};
- const remove=()=>{if(!selected)return;if(!window.confirm("Delete this process master template?"))return;setItems(prev=>prev.filter(x=>x.id!==selected.id));setSelectedId(items.find(x=>x.id!==selected.id)?.id||"");onNotice("Process template deleted from this browser.");};
- return <section className="workspace-page process-master-page">
- {notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
- <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> PROCESS MASTER LIBRARY</span></div>
- <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / STANDARD OPERATIONS</div><h1>Process Master<span>.</span></h1><p>Reusable manufacturing operation standards. Maintain process category, machine, approved vendor, setup/cycle time, rate, tooling and inspection requirements.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(items,null,2)],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download="aximach-process-master.json";a.click();URL.revokeObjectURL(url);}}><FileDown size={15}/> Export library</button><button className="button-primary" onClick={add}><Plus size={15}/> Add Process Template</button></div></div>
- <div className="process-master-layout"><section className="surface-panel process-master-list"><div className="panel-heading"><div><h3>Standard operations ({items.length})</h3><p>Search and select a reusable process standard.</p></div></div><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search process, machine, vendor…"/></label><div className="process-master-items">{visible.map(item=><button key={item.id} className={"process-master-item "+(selected?.id===item.id?"process-master-item-active":"")} onClick={()=>{setSelectedId(item.id);setEditing(false);}}><span className="related-icon"><Workflow size={17}/></span><span><strong>{item.name}</strong><small>{item.category} · {item.machine||"Machine not set"}</small><small>{item.vendor||"Vendor not assigned"} · ₹{item.defaultRate.toLocaleString("en-IN")}</small></span><ArrowRight size={14}/></button>)}{!visible.length&&<div className="module-empty-state">No process templates match the search.</div>}</div></section>
- <section className="surface-panel process-master-detail"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PROCESS STANDARD</div><h3>{editing?(draft.name||"New process template"):selected?.name||"Select a process"}</h3><p>These defaults are templates; each production route operation can override them.</p></div>{selected&&!editing&&<button className="button-primary" onClick={()=>edit(selected)}><Wrench size={14}/> Edit template</button>}</div>
- {editing?<div className="route-detail-editor process-master-form"><label>Process name<input value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label><label>Category<input value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}/></label><label>Machine / station<input value={draft.machine} onChange={e=>setDraft({...draft,machine:e.target.value})}/></label><label>Approved vendor<select value={draft.vendor} onChange={e=>setDraft({...draft,vendor:e.target.value})}><option value="">Not assigned</option>{vendorDirectory.map(v=><option key={v.id} value={v.company}>{v.company}</option>)}</select></label><label>Setup time (minutes)<input type="number" min="0" value={draft.setupMin} onChange={e=>setDraft({...draft,setupMin:Math.max(0,Number(e.target.value)||0)})}/></label><label>Cycle time (seconds / part)<input type="number" min="0" value={draft.cycleSec} onChange={e=>setDraft({...draft,cycleSec:Math.max(0,Number(e.target.value)||0)})}/></label><label>Default rate<input type="number" min="0" value={draft.defaultRate} onChange={e=>setDraft({...draft,defaultRate:Math.max(0,Number(e.target.value)||0)})}/></label><label>Tooling / fixtures<input value={draft.tooling} onChange={e=>setDraft({...draft,tooling:e.target.value})}/></label><label className="module-form-wide">Inspection / acceptance criteria<input value={draft.inspection} onChange={e=>setDraft({...draft,inspection:e.target.value})}/></label><label className="module-form-wide">Notes / setup instructions<input value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})}/></label><div className="module-form-actions"><button className="button-primary" onClick={save}><Check size={14}/> Save template</button><button className="button-quiet" onClick={()=>setEditing(false)}>Cancel</button></div></div>:selected?<div className="process-master-facts"><div><small>CATEGORY</small><strong>{selected.category}</strong></div><div><small>MACHINE / STATION</small><strong>{selected.machine}</strong></div><div><small>APPROVED VENDOR</small><strong>{selected.vendor||"Not assigned"}</strong></div><div><small>SETUP TIME</small><strong>{selected.setupMin} min</strong></div><div><small>CYCLE TIME</small><strong>{selected.cycleSec} sec / part</strong></div><div><small>DEFAULT RATE</small><strong>₹{selected.defaultRate.toLocaleString("en-IN")}</strong></div><div><small>TOOLING / FIXTURES</small><strong>{selected.tooling}</strong></div><div><small>INSPECTION REQUIREMENTS</small><strong>{selected.inspection}</strong></div><div className="module-form-wide"><small>PROCESS NOTES</small><strong>{selected.notes}</strong></div><div className="module-form-actions"><button className="button-quiet" onClick={()=>edit(selected)}><Wrench size={14}/> Edit template</button><button className="button-danger" onClick={remove}><X size={14}/> Delete template</button></div></div>:<div className="module-empty-state">Choose or add a process template.</div>}
- </section></div>
- <div className="module-safety-note"><ShieldCheck size={14}/><span>Process master is currently stored in this browser. Shared factory-wide standards, approvals and revision control require the persistent backend.</span></div>
- </section>;
-}
-
-function ProcessWorkspace({ onBack, onNotice, notice, onSelectModule }: { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void }) {
-  return (
-    <section className="workspace-page">
-      {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
-      <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15} /> Command centre</button><span className="demo-pill"><i /> SAMPLE ROUTE · LOCAL EDITING</span></div>
-      <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark" /> ENGINEERING / PROCESS GRAPH</div><h1>Process universe<span>.</span></h1><p>Add as many operations as your route needs. Select any process to edit its vendor, schedule, quantity, cost and quality details in the side panel.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onNotice("Export is not connected yet. Use the browser print option to save this screen as PDF.")}><FileDown size={15} /> Export / Print</button><button className="button-primary" onClick={() => window.dispatchEvent(new CustomEvent("aximach:add-process"))}><Plus size={15} /> Add Process</button></div></div>
-      <ProcessRoute onNotice={onNotice} onSelectModule={onSelectModule} />
-      <div className="route-principles"><div><ShieldCheck size={17} /><span><strong>Editable demo route</strong><small>Local changes are for testing only and are not saved to a server.</small></span></div><div><Truck size={17} /><span><strong>Traceable custody</strong><small>Production handoffs need confirmed receipt and audit evidence.</small></span></div><div><ClipboardCheck size={17} /><span><strong>Quality gate</strong><small>Production release controls must be implemented before live use.</small></span></div></div>
-    </section>
-  );
-}
-
-function ProcessRoute({ onNotice, onSelectModule }: { onNotice: (value: string) => void; onSelectModule: (id: string) => void }) {
-  const [steps, setSteps] = useState<ProcessStep[]>(() => { try { const saved = window.localStorage.getItem("aximach.processRoute.v2"); return saved ? JSON.parse(saved) as ProcessStep[] : startingSteps; } catch { return startingSteps; } });
-  const [vendorDirectory,setVendorDirectory]=useState<VendorContact[]>(()=>readLocal<VendorContact[]>(CONTACTS_KEY,seedContacts));
-  const vendorChoices = Array.from(new Set(vendorDirectory.flatMap(item=>[item.company,item.contact]).filter(Boolean)));
-  useEffect(()=>{const refreshVendors=()=>setVendorDirectory(readLocal<VendorContact[]>(CONTACTS_KEY,seedContacts));window.addEventListener("aximach-local-data-updated",refreshVendors);window.addEventListener("storage",refreshVendors);return()=>{window.removeEventListener("aximach-local-data-updated",refreshVendors);window.removeEventListener("storage",refreshVendors);};},[]);
-  const processMasterTemplates = readLocal<ProcessMasterItem[]>(PROCESS_MASTER_KEY, processMasterSeeds);
-  const savedCostingComponents = readLocal<CostingComponent[]>(COSTING_KEY,costingSeeds);
-  const [suggestionRevision,setSuggestionRevision]=useState(0);
-  useEffect(()=>{const refresh=()=>setSuggestionRevision(v=>v+1);window.addEventListener("aximach-local-data-updated",refresh);window.addEventListener("storage",refresh);return()=>{window.removeEventListener("aximach-local-data-updated",refresh);window.removeEventListener("storage",refresh);};},[]);
-  const processChoices = Array.from(new Set([...startingSteps.map((item) => item.name), ...steps.map((item) => item.name), ...processMasterTemplates.map((item) => item.name)].filter(Boolean)));
-  useEffect(() => { try { window.localStorage.setItem("aximach.processRoute.v2", JSON.stringify(steps)); } catch { /* browser storage may be unavailable */ } }, [steps]);
-  useEffect(() => { const openEditor = () => setEditMode(true); window.addEventListener("aximach:add-process", openEditor); return () => window.removeEventListener("aximach:add-process", openEditor); }, []);
-  const [activeStepId, setActiveStepId] = useState(3);
-  const [selectedStepIds,setSelectedStepIds]=useState<number[]>([]);
-  const [routeTab,setRouteTab]=useState("process-map");
-  const [poMeta,setPoMeta]=useState(()=>{try{return JSON.parse(window.localStorage.getItem("aximach.poMeta.v1")||'{"company":"ABC Precision Pvt Ltd","factory":"Bangalore Unit","poNumber":"PO-2026-001","component":"CMP-1001 - Hydraulic Shaft","plannedDelivery":"2025-12-22","quantity":500,"drawingRev":"A","material":"EN8"}')}catch{return {company:"ABC Precision Pvt Ltd",factory:"Bangalore Unit",poNumber:"PO-2026-001",component:"CMP-1001 - Hydraulic Shaft",plannedDelivery:"2025-12-22",quantity:500,drawingRev:"A",material:"EN8"}}});
-  useEffect(()=>{try{window.localStorage.setItem("aximach.poMeta.v1",JSON.stringify(poMeta))}catch{}},[poMeta]);
-  const fmtDate=(value?:string)=>value?new Date(value+"T12:00:00").toLocaleDateString("en-GB",{day:"2-digit",month:"short"}):"Not set";
-  const companyChoices=Array.from(new Set([poMeta?.company||"ABC Precision Pvt Ltd",...readLocal<any[]>("aximach.companies.v1",[]).map(x=>String(x.company||x.name||x.companyName||"")), ...readLocal<any[]>("aximach.companies",[]).map(x=>String(x.company||x.name||x.companyName||""))].filter(Boolean)));
-  const factoryChoices=Array.from(new Set([poMeta?.factory||"Bangalore Unit",...readLocal<any[]>("aximach.factories.v1",[]).map(x=>String(x.factory||x.name||x.factoryName||"")),...readLocal<any[]>("aximach.factories",[]).map(x=>String(x.factory||x.name||x.factoryName||""))].filter(Boolean)));
-  const poChoices=Array.from(new Set([poMeta?.poNumber||"PO-2026-001",...readLocal<any[]>("aximach.purchaseOrders.v1",[]).map(x=>String(x.poNumber||x.number||x.code||"")),...readLocal<any[]>("aximach.purchaseOrders",[]).map(x=>String(x.poNumber||x.number||x.code||""))].filter(Boolean)));
-  const componentChoices=Array.from(new Set([poMeta?.component||"",...savedCostingComponents.map(c=>c.code+" - "+c.name),...readLocal<any[]>("aximach.components.v1",[]).map(x=>String((x.code||x.partNumber||"")+" - "+(x.name||x.componentName||"")))].filter(Boolean)));
-  const [orientation, setOrientation] = useState<"horizontal" | "vertical">("horizontal");
-  const [zoom, setZoom] = useState(1);
-  const [playing, setPlaying] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [filter, setFilter] = useState("");
-  const [draft, setDraft] = useState({ name: "", station: "", duration: "1 day", owner: "Production", note: "", vendor: "", quantity: "1", pricePerPart: "0", missingQuantity: "0", branch: "Main route", startDate: new Date().toISOString().slice(0,10), targetDate: new Date(Date.now()+86400000).toISOString().slice(0,10) });
-  const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0];
-  const visibleSteps = steps.filter((step) => (step.name + " " + step.station + " " + step.owner + " " + step.vendor + " " + step.status).toLowerCase().includes(filter.toLowerCase().trim()));
-  const routeScheduledDays = steps.reduce((sum,step)=>{if(!step.startDate||!step.targetDate)return sum+1;const start=new Date(step.startDate+"T12:00:00").getTime();const end=new Date(step.targetDate+"T12:00:00").getTime();return sum+Math.max(1,Math.round((end-start)/86400000)+1);},0);
-  const routePlannedMinutes = routeScheduledDays * 480;
-  const routeVendorCost = steps.reduce((sum, step) => sum + (Number(step.pricePerPart) || 0) * (Number(step.quantity) || 0), 0);
-  const routeTransportCost = steps.reduce((sum, step) => sum + (Number(step.transportCost) || 0), 0);
-  const routeKnownCost = routeVendorCost + routeTransportCost;
-  const routeMissing = steps.reduce((sum, step) => sum + (Number(step.missingQuantity) || 0), 0);
-  const completedCount=steps.filter(step=>step.status==="Complete").length;
-  const runningCount=steps.filter(step=>step.status==="Running").length;
-  const qualityHoldCount=steps.filter(step=>step.status==="Quality hold").length;
-  const transportCount=steps.filter(step=>Boolean(step.transportVendor)).length;
-  const deliveryOnTrack=steps.length?Math.round(completedCount/steps.length*100):0;
-  const branchSteps = steps.filter((step) => step.parentId !== undefined);
-
-  const updateActive = (patch: Partial<ProcessStep>) => {
-    if (!activeStep) return;
-    setSteps((previous) => previous.map((step) => step.id === activeStep.id ? { ...step, ...patch } : step));
-    onNotice("Operation updated and saved in this browser. Shared server sync is still pending.");
+type VendorDraft = Omit<VendorRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
+const emptyVendorDraft = (): VendorDraft => ({
+  company:"",contact:"",role:"",phone:"",whatsappNumber:"",email:"",address:"",
+  processes:"",machines:"",materials:"",notes:"",status:"Unverified contact — review",
+  sourceContactId:"",whatsappSyncedAt:""
+});
+function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelectModule }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; onSelectModule:(id:string)=>void }) {
+  const { data, update, syncStatus } = useManufacturingData();
+  const contacts = activeRows(data.vendors);
+  const [search,setSearch]=useState(initialSearch);
+  const [selectedId,setSelectedId]=useState("");
+  const [editing,setEditing]=useState(false);
+  const [draft,setDraft]=useState<VendorDraft>(emptyVendorDraft());
+  const selected=contacts.find(v=>v.id===selectedId)||contacts[0];
+  const filtered=contacts.filter(v=>(v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.whatsappNumber+" "+v.email+" "+v.address+" "+v.processes+" "+v.machines+" "+v.materials+" "+v.notes+" "+v.status).toLowerCase().includes(search.toLowerCase().trim()));
+  const beginNew=()=>{setSelectedId("");setDraft(emptyVendorDraft());setEditing(true);};
+  const beginEdit=(v:VendorRecord)=>{setSelectedId(v.id);setDraft({company:v.company,contact:v.contact,role:v.role,phone:v.phone,whatsappNumber:v.whatsappNumber,email:v.email,address:v.address,processes:v.processes,machines:v.machines,materials:v.materials,notes:v.notes,status:v.status,sourceContactId:v.sourceContactId,whatsappSyncedAt:v.whatsappSyncedAt});setEditing(true);};
+  const saveContact=()=>{
+    if(!draft.company.trim()||!draft.contact.trim()){onNotice("Vendor company and contact person are required.");return;}
+    const phone=String(draft.phone||"").replace(/\D/g,"");
+    const whatsappNumber=String(draft.whatsappNumber||"").replace(/\D/g,"");
+    const duplicate=contacts.find(v=>v.id!==selectedId&&phone&&String(v.phone||"").replace(/\D/g,"")===phone);
+    if(duplicate){onNotice("This phone number is already linked to "+duplicate.company+". Edit that record to avoid duplicate vendor IDs.");return;}
+    const stamp=nowIso();const id=selectedId||makeId("vendor");
+    update(current=>{const old=current.vendors.find(v=>v.id===id);const record:VendorRecord={...draft,company:draft.company.trim(),contact:draft.contact.trim(),phone,whatsappNumber,id,createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};return {...current,vendors:[...current.vendors.filter(v=>v.id!==id),record]};});
+    setSelectedId(id);setEditing(false);onNotice(syncStatus==="synced"?"Vendor saved to shared AXIMACH data.":"Vendor saved; cross-device sync activates when the existing AXIMACH server is connected and reachable.");
   };
-  const addBranchFromActive = () => {
-    if (!activeStep) return;
-    const id = Math.max(0, ...steps.map((step) => step.id)) + 1;
-    const branchStep: ProcessStep = { id, name: "Alternate / rework operation", station: "Assign machine or vendor", duration: "15 min", status: "Queued", owner: activeStep.owner, note: "Define alternate route, acceptance criteria and return-to-main-route condition.", vendor: "", setupMinutes: 0, cycleSeconds: 0, quantity: activeStep.quantity ?? 1, pricePerPart: 0, missingQuantity: 0, branch: "Alternate vendor", parentId: activeStep.id };
-    setSteps(previous => [...previous, branchStep]); setActiveStepId(id); setEditMode(true);
-    onNotice("A linked branch was added from the selected operation. Configure its vendor, time and price.");
-  };
-  const addOperation = () => {
-    if (!draft.name.trim()) { onNotice("Enter an operation name before adding it."); return; }
-    const id = Math.max(0, ...steps.map((step) => step.id)) + 1;
-    const step: ProcessStep = { id, name: draft.name.trim(), station: draft.station.trim() || "Unassigned station", duration: draft.duration.trim() || "1 day", status: "Queued", owner: draft.owner.trim() || "Unassigned", note: draft.note.trim() || "Add the required setup, quality and acceptance instructions.", vendor: draft.vendor.trim(), quantity: Math.max(0,Number(draft.quantity)||0), pricePerPart: Math.max(0,Number(draft.pricePerPart)||0), missingQuantity: Math.max(0,Number(draft.missingQuantity)||0), branch: draft.branch.trim() || "Main route", startDate:draft.startDate,targetDate:draft.targetDate };
-    setSteps((previous) => [...previous, step]);
-    setActiveStepId(id);
-    setDraft({ name: "", station: "", duration: "1 day", owner: "Production", note: "", vendor: "", quantity: "1", pricePerPart: "0", missingQuantity: "0", branch: "Main route", startDate:new Date().toISOString().slice(0,10), targetDate:new Date(Date.now()+86400000).toISOString().slice(0,10) });
-    setFilter("");
-    onNotice("Operation added to the route and saved in this browser. Shared server sync is still pending.");
-  };
-  const moveActive = (direction: -1 | 1) => {
-    const index = steps.findIndex((step) => step.id === activeStepId);
-    const next = index + direction;
-    if (index < 0 || next < 0 || next >= steps.length) return;
-    setSteps((previous) => { const copy = [...previous]; [copy[index], copy[next]] = [copy[next], copy[index]]; return copy; });
-    onNotice("Route order updated and saved in this browser. Server revision history is still pending.");
-  };
-  const deleteActive = () => {
-    if (!activeStep) return;
-    if (steps.length <= 1) { onNotice("Keep at least one operation in the route."); return; }
-    const nextSteps = steps.filter((step) => step.id !== activeStep.id);
-    setSteps(nextSteps);
-    setActiveStepId(nextSteps[Math.max(0, steps.findIndex((step) => step.id === activeStepId) - 1)].id);
-    onNotice("Operation removed from this browser route. Shared server deletion and audit history are still pending.");
-  };
-
-  return (
-    <div className="route-workspace surface-panel">
-      <div className="route-topbar">
-        <div className="route-part"><span className="part-symbol"><Box size={20} /></span><span><strong>PH-2048-C · Precision housing</strong><small>Aluminium 6061-T6 <b>·</b> Batch 0241 <b>·</b> Revision C · DEMO</small></span></div>
-        <div className="route-progress"><span>ROUTE COMPLETION <strong>{steps.filter((step) => step.status === "Complete").length} / {steps.length}</strong></span><div><i style={{ width: (steps.filter((step) => step.status === "Complete").length / steps.length * 100) + "%" }} /></div></div>
-        <span className="demo-pill compact-demo"><i /> DEMO DATA</span>
-      </div>
-      <section className="route-kpi-row" aria-label="Manufacturing route summary">
-        <button className="route-kpi kpi-delivery" onClick={()=>{setRouteTab("timeline");document.getElementById("route-timeline")?.scrollIntoView({behavior:"smooth",block:"nearest"});}}><span className="kpi-icon"><Activity size={20}/></span><span><small>ROUTE COMPLETION</small><strong>{deliveryOnTrack}%</strong><em>{completedCount} / {steps.length} operations complete</em></span><b>↗</b></button>
-        <button className="route-kpi kpi-risk" onClick={()=>{setFilter("Quality hold");setRouteTab("process-map");}}><span className="kpi-icon"><ShieldAlert size={20}/></span><span><small>BOTTLENECK / QUALITY RISK</small><strong>{qualityHoldCount+routeMissing}</strong><em>{qualityHoldCount} quality holds · {routeMissing} short pcs</em></span><b>!</b></button>
-        <button className="route-kpi kpi-wip" onClick={()=>{setFilter("Running");setRouteTab("process-map");}}><span className="kpi-icon"><Users size={20}/></span><span><small>WORK IN PROGRESS</small><strong>{steps.reduce((n,x)=>n+(x.status==="Running"?(Number(x.quantity)||0):0),0).toLocaleString("en-IN")} pcs</strong><em>{runningCount} operations running</em></span><b>▥</b></button>
-        <button className="route-kpi kpi-cost" onClick={()=>{setRouteTab("costing");onSelectModule("costing");}}><span className="kpi-icon"><CircleDollarSign size={20}/></span><span><small>ENTERED PROCESS COST</small><strong>₹{routeKnownCost.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong><em>Entered values only · no live quote feed</em></span><b>↗</b></button>
-        <button className="route-kpi kpi-transport" onClick={()=>onSelectModule("transport")}><span className="kpi-icon"><Truck size={20}/></span><span><small>ACTIVE TRANSPORT</small><strong>{transportCount}</strong><em>Operations with transporter assigned</em></span><b>↗</b></button>
-        <button className="route-kpi kpi-quality" onClick={()=>onSelectModule("quality")}><span className="kpi-icon"><ShieldCheck size={20}/></span><span><small>QUALITY GATE</small><strong>{Math.max(0,100-Math.round(routeMissing/Math.max(1,steps.reduce((n,x)=>n+(Number(x.quantity)||0),0))*100))}%</strong><em>{qualityHoldCount} quality holds · entered shortage basis</em></span><b>↗</b></button>
-      </section>
-      <nav className="route-tabbar" aria-label="Process route linked workspaces">
-        {[["process-map","Process Map",Workflow],["components","Component Details",Box],["purchasing","PO Components",Package],["inventory","BOM & Material",Boxes],["costing","Costing",CircleDollarSign],["documents","Documents",FileDown],["history","History",Clock3],["events","Live Events",Activity],["quantity","Quantity Reconciliation",Boxes],["ledger","Cost Ledger",CircleDollarSign],["capacity","Vendor Capacity",Factory],["predictions","AI Predictions",Bot],["quality","Quality Records",ShieldCheck],["transport","Transport Tracking",Truck]].map(([id,label,Icon]:any)=><button key={id} className={routeTab===id?"route-tab-active":""} onClick={()=>{setRouteTab(id);if(id==="components")onSelectModule("components");else if(id==="purchasing")onSelectModule("purchasing");else if(id==="inventory")onSelectModule("inventory");else if(id==="costing")onSelectModule("costing");else if(id==="documents")onSelectModule("engineering-change");else if(id==="history"||id==="events")onSelectModule("reports");else if(id==="quantity")onSelectModule("inventory");else if(id==="ledger")onSelectModule("costing");else if(id==="capacity")onSelectModule("vendors");else if(id==="predictions")onSelectModule("risk-prediction");else if(id==="quality")onSelectModule("quality");else if(id==="transport")onSelectModule("transport");else document.getElementById("route-canvas")?.scrollIntoView({behavior:"smooth",block:"nearest"});}}><Icon size={14}/>{label}{id==="purchasing"?<span className="route-tab-count">{steps.length}</span>:null}</button>)}
-      </nav>
-      <div className="route-cost-strip"><div><small>ESTIMATED ROUTE TIME</small><strong>{Math.round(routePlannedMinutes*10)/10} min</strong><span>Setup + cycle × quantity</span></div><div><small>ENTERED VENDOR COST</small><strong>₹{routeVendorCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong><span>Quantity × price per part</span></div><div><small>SHORT / MISSING QTY</small><strong>{routeMissing.toLocaleString("en-IN")}</strong><span>Manual shortage entries</span></div></div>
-      <div className="route-controls">
-        <div className="route-controls-left"><span className="control-label">VIEW</span><button className={orientation === "horizontal" ? "control-active" : ""} onClick={() => setOrientation("horizontal")}>Horizontal</button><button className={orientation === "vertical" ? "control-active" : ""} onClick={() => setOrientation("vertical")}>Vertical</button></div>
-        <div className="route-controls-right">
-          <input className="route-filter" aria-label="Search operations" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Find operation…" />
-          <button className={"button-quiet compact-button " + (editMode ? "control-active" : "")} onClick={() => setEditMode((value) => !value)}><GitBranch size={14} /> {editMode ? "Close editor" : "Edit route"}</button><button className="button-quiet compact-button" onClick={addBranchFromActive}><GitBranch size={14} /> Add branch from selected</button>
-          <button className="icon-control" aria-label="Zoom out" disabled={zoom <= 0.6} onClick={() => setZoom((value) => Math.max(0.6, Math.round((value - 0.1) * 10) / 10))}>−</button><input aria-label="Route zoom" type="range" min="0.6" max="1.3" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /><button className="icon-control" aria-label="Zoom in" disabled={zoom >= 1.3} onClick={() => setZoom((value) => Math.min(1.3, Math.round((value + 0.1) * 10) / 10))}>+</button><span className="zoom-readout">{Math.round(zoom * 100)}%</span><button className="button-quiet compact-button" onClick={() => setZoom(1)}><RotateCcw size={14} /> Fit route</button><button className="button-quiet compact-button" onClick={()=>setSelectedStepIds([])}>Clear multi-select ({selectedStepIds.length})</button><button className="button-quiet compact-button" disabled={!selectedStepIds.length} onClick={()=>{setSteps(prev=>prev.map(step=>selectedStepIds.includes(step.id)?{...step,status:"Complete"}:step));onNotice("Updated status for "+selectedStepIds.length+" selected operations.");}}>Complete selected</button><button className="button-quiet compact-button" disabled={!selectedStepIds.length} onClick={()=>{setSteps(prev=>prev.map(step=>selectedStepIds.includes(step.id)?{...step,status:"Quality hold"}:step));onNotice("Placed "+selectedStepIds.length+" selected operations on quality hold.");}}>Quality hold</button>
-        </div>
-      </div>
-      {editMode && <section className="route-editor-panel">
-        <div className="route-editor-heading"><div><strong><Plus size={15} /> Add operation</strong><small>Fill the fields and add it to this sample route.</small></div><span>LOCAL DEMO EDITOR</span></div>
-        <div className="route-editor-form">
-          <label>Process / operation name<input list="aximach-process-name-options" value={draft.name} onChange={(event) => { const name=event.target.value; const template=processMasterTemplates.find(item=>item.name.toLowerCase()===name.toLowerCase()); setDraft(template?{...draft,name,station:template.machine||draft.station,vendor:template.vendor||draft.vendor,pricePerPart:String(template.defaultRate),note:[template.inspection,template.tooling,template.notes].filter(Boolean).join(" · ")}:{...draft,name}); }} placeholder="Type or select a process…" /><datalist id="aximach-process-name-options">{processChoices.map((name) => <option key={name} value={name} />)}</datalist><small className="field-hint">Type to search or open the list to select an existing process.</small></label>
-          <label>Machine / station / vendor<input list="aximach-vendor-name-options" value={draft.station} onChange={(event) => setDraft({ ...draft, station: event.target.value })} placeholder="Type or select vendor / station…" /><datalist id="aximach-vendor-name-options">{vendorChoices.map((name) => <option key={name} value={name} />)}</datalist></label>
-          <label>Duration (days)<input type="number" min="1" value={Math.max(1,Math.round((new Date(draft.targetDate+"T12:00:00").getTime()-new Date(draft.startDate+"T12:00:00").getTime())/86400000)+1)} readOnly /></label><label>Planned start date<input type="date" value={draft.startDate} onChange={event=>{const start=event.target.value;setDraft({...draft,startDate:start,targetDate:draft.targetDate<start?start:draft.targetDate});}}/></label><label>Planned target date<input type="date" value={draft.targetDate} min={draft.startDate} onChange={event=>setDraft({...draft,targetDate:event.target.value,duration:Math.max(1,Math.round((new Date(event.target.value+"T12:00:00").getTime()-new Date(draft.startDate+"T12:00:00").getTime())/86400000)+1)+" days"})}/></label>
-          <label>Responsible team<input value={draft.owner} onChange={(event) => setDraft({ ...draft, owner: event.target.value })} placeholder="Production" /></label>
-          <label>Vendor / subcontractor<input list="aximach-vendor-name-options" value={draft.vendor} onChange={(event) => setDraft({ ...draft, vendor: event.target.value })} placeholder="Type to search or select vendor…" /><small className="field-hint">Options come from the saved Vendor directory.</small></label>
-          
-          <label>Quantity to process<input type="number" min="0" value={draft.quantity} onChange={(event) => setDraft({ ...draft, quantity: event.target.value })} /></label>
-          <label>Vendor price / part (₹)<input type="number" min="0" step="0.01" value={draft.pricePerPart} onChange={(event) => setDraft({ ...draft, pricePerPart: event.target.value })} /></label>
-          <label>Missing / short quantity<input type="number" min="0" value={draft.missingQuantity} onChange={(event) => setDraft({ ...draft, missingQuantity: event.target.value })} /></label>
-          <label>Route branch<input value={draft.branch} onChange={(event) => setDraft({ ...draft, branch: event.target.value })} placeholder="Main route / Rework / Alternate vendor" /></label>
-          <label className="editor-wide">Work / quality notes<input value={draft.note} onChange={(event) => setDraft({ ...draft, note: event.target.value })} placeholder="Setup, inspection and acceptance notes" /></label>
-          <button className="button-primary" onClick={addOperation}><Plus size={15} /> Add operation</button>
-        </div>
-      </section>}
-      <section className="po-delivery-strip">
-        <label>Company<input list="aximach-company-options" value={poMeta.company} onChange={e=>setPoMeta({...poMeta,company:e.target.value})} placeholder="Type to search company…"/><datalist id="aximach-company-options">{companyChoices.map(x=><option key={x} value={x}/>)}</datalist></label>
-        <label>Factory<input list="aximach-factory-options" value={poMeta.factory} onChange={e=>setPoMeta({...poMeta,factory:e.target.value})} placeholder="Type to search factory…"/><datalist id="aximach-factory-options">{factoryChoices.map(x=><option key={x} value={x}/>)}</datalist></label>
-        <label>PO Number<input list="aximach-po-options" value={poMeta.poNumber} onChange={e=>setPoMeta({...poMeta,poNumber:e.target.value})} placeholder="Type to search PO…"/><datalist id="aximach-po-options">{poChoices.map(x=><option key={x} value={x}/>)}</datalist></label>
-        <label>Component<input list="aximach-component-options" value={poMeta.component} onChange={e=>setPoMeta({...poMeta,component:e.target.value})} placeholder="Type component code or name…"/><datalist id="aximach-component-options">{componentChoices.map(x=><option key={x} value={x}/>)}</datalist></label>
-        <label className="delivery-date-field"><CalendarClock size={16}/><span>Planned Delivery</span><input type="date" value={poMeta.plannedDelivery} onChange={e=>setPoMeta({...poMeta,plannedDelivery:e.target.value})}/></label>
-        <div className="delivery-date-countdown"><strong>{fmtDate(poMeta.plannedDelivery)}</strong><span>Customer delivery target</span></div>
-      </section>
-      <div id="route-canvas" className="route-canvas-detail-grid">
-      <div className="route-canvas-column">
-      <div className={"route-scroll " + (orientation === "vertical" ? "route-vertical" : "")} tabIndex={0} aria-label="Scrollable manufacturing process route">
-        <div className="route-track" style={{ zoom } as CSSProperties}>
-          {visibleSteps.map((step, index) => (
-            <div className="route-step-wrap" key={step.id}>
-              <button className={"route-step " + step.status.toLowerCase().replace(" ", "-") + (step.id === activeStepId ? " route-selected" : "") + (selectedStepIds.includes(step.id) ? " route-multi-selected" : "")} onClick={(event) => { if(event.ctrlKey||event.metaKey||event.shiftKey){setSelectedStepIds(prev=>prev.includes(step.id)?prev.filter(id=>id!==step.id):[...prev,step.id]);} setActiveStepId(step.id); }} aria-pressed={step.id === activeStepId} title="Click to inspect; Ctrl/Command-click to multi-select">
-                <span className="route-node">{step.status === "Complete" ? <Check size={16} /> : step.status === "Running" ? <Zap size={16} /> : step.status === "Quality hold" ? <ShieldAlert size={16} /> : <span>{String(index + 1).padStart(2, "0")}</span>}</span>
-                <span className="route-card"><span className="route-card-top"><small>OP {String((index + 1) * 10).padStart(3, "0")}</small><em>{step.status}</em></span><span className="route-visual-row"><span className={"route-illustration route-art-" + (step.name.toLowerCase().includes("inspect") || step.name.toLowerCase().includes("quality") ? "quality" : step.name.toLowerCase().includes("material") || step.name.toLowerCase().includes("receipt") ? "material" : step.name.toLowerCase().includes("transport") || step.name.toLowerCase().includes("delivery") ? "transport" : step.name.toLowerCase().includes("grind") ? "grinding" : step.name.toLowerCase().includes("coat") || step.name.toLowerCase().includes("paint") ? "coating" : step.name.toLowerCase().includes("turn") || step.name.toLowerCase().includes("mill") || step.name.toLowerCase().includes("machine") ? "machining" : "process")}><span className="route-art-orbit"></span>{step.name.toLowerCase().includes("inspect") || step.name.toLowerCase().includes("quality") ? <ClipboardCheck size={23} /> : step.name.toLowerCase().includes("material") || step.name.toLowerCase().includes("receipt") ? <Boxes size={23} /> : step.name.toLowerCase().includes("transport") || step.name.toLowerCase().includes("delivery") ? <Truck size={23} /> : step.name.toLowerCase().includes("grind") ? <Gauge size={23} /> : step.name.toLowerCase().includes("coat") || step.name.toLowerCase().includes("paint") ? <ScanLine size={23} /> : step.name.toLowerCase().includes("turn") || step.name.toLowerCase().includes("mill") || step.name.toLowerCase().includes("machine") ? <Wrench size={23} /> : <Factory size={23} />}</span><span className="route-visual-copy"><strong>{step.name}</strong><span className="route-station">{step.station}</span></span></span><span className="route-card-meta"><span><Boxes size={12}/> Qty: {step.quantity ?? poMeta.quantity} pcs</span><span><Users size={12}/> Vendor: {step.vendor || step.station || "Not assigned"}</span><span><CalendarClock size={12}/> Start: {fmtDate(step.startDate)}</span><span><Check size={12}/> Target: {fmtDate(step.targetDate)}</span><span><Check size={12}/> Done: {step.status==="Complete"?(step.quantity??poMeta.quantity):0} pcs</span><span><CircleDollarSign size={12}/> Rate: ₹{Number(step.pricePerPart||0).toLocaleString("en-IN")}/pc</span><span><Truck size={12}/> {step.transportVendor||"Transport not assigned"} · {fmtDate(step.transportDate)} · ₹{Number(step.transportCost||0).toLocaleString("en-IN")}</span></span><span className="route-card-bottom"><span><CalendarClock size={13} />{step.startDate&&step.targetDate?Math.max(1,Math.round((new Date(step.targetDate+"T12:00:00").getTime()-new Date(step.startDate+"T12:00:00").getTime())/86400000)+1)+" day(s)":"1 day"}</span><span>{step.owner}</span></span></span>
-              </button>
-              {index < visibleSteps.length - 1 && <span className={"route-connector " + (step.status === "Complete" ? "connector-done" : "")}><ArrowRight size={15} /></span>}
-            </div>
-          ))}
-          {visibleSteps.length === 0 && <div className="route-empty">No operations match “{filter}”. Clear the search or add an operation.</div>}
-        </div>
-      </div>
-      <div className="route-legend"><span><i className="legend-done" /> Complete</span><span><i className="legend-live" /> Running</span><span><i className="legend-queued" /> Queued</span><span><i className="legend-hold" /> Quality hold</span><span className="route-scroll-note">Scroll sideways or use Shift + mouse wheel · Swipe on mobile</span></div>
-      </div>
-      {activeStep && <section className="operation-detail">
-        <div className="operation-detail-head"><div><div className="eyebrow"><span className="eyebrow-mark" /> SELECTED OPERATION / OP {String(activeStep.id * 10).padStart(3, "0")}</div><h3>{activeStep.name}</h3><p>{activeStep.note}</p></div><span className={"operation-status status-" + activeStep.status.toLowerCase().replace(" ", "-")}>{activeStep.status}</span></div>
-        {editMode ? <div className="route-detail-editor">
-          <label>Operation name<input value={activeStep.name} onChange={(event) => updateActive({ name: event.target.value })} /></label>
-          <label>Machine / station / vendor<input value={activeStep.station} onChange={(event) => updateActive({ station: event.target.value })} /></label>
-          <label>Duration (days)<input readOnly type="number" value={activeStep.startDate&&activeStep.targetDate?Math.max(1,Math.round((new Date(activeStep.targetDate+"T12:00:00").getTime()-new Date(activeStep.startDate+"T12:00:00").getTime())/86400000)+1):1}/></label>
-          <label>Responsible team<input value={activeStep.owner} onChange={(event) => updateActive({ owner: event.target.value })} /></label>
-          <label>Vendor / subcontractor<select value={activeStep.vendor ?? ""} onChange={(event) => { updateActive({ vendor: event.target.value }); }}><option value="">Select from vendor directory…</option>{vendorDirectory.map((item) => <option key={item.id} value={item.company}>{item.company}{item.processes ? " · " + item.processes : ""}</option>)}</select><small>Vendor list is taken from Vendors & Sub-vendors. Add a vendor there first.</small></label>
-          <label>Quantity<input type="number" min="0" value={activeStep.quantity ?? 1} onChange={(event) => updateActive({ quantity: Math.max(0,Number(event.target.value)||0) })} /></label>
-          <label>Vendor price / part (₹)<input type="number" min="0" step="0.01" value={activeStep.pricePerPart ?? 0} onChange={(event) => updateActive({ pricePerPart: Math.max(0,Number(event.target.value)||0) })} /></label>
-          <label>Missing / short quantity<input type="number" min="0" value={activeStep.missingQuantity ?? 0} onChange={(event) => updateActive({ missingQuantity: Math.max(0,Number(event.target.value)||0) })} /></label>
-          <label>Start date<input type="date" value={activeStep.startDate ?? ""} onChange={event=>updateActive({startDate:event.target.value})}/></label><label>Target date<input type="date" value={activeStep.targetDate ?? ""} onChange={event=>updateActive({targetDate:event.target.value})}/></label><label>Transport vendor<input value={activeStep.transportVendor ?? ""} onChange={event=>updateActive({transportVendor:event.target.value})} placeholder="Transporter / logistics vendor"/></label><label>Transport date<input type="date" value={activeStep.transportDate ?? ""} onChange={event=>updateActive({transportDate:event.target.value})}/></label><label>Transport cost (₹)<input type="number" min="0" value={activeStep.transportCost ?? 0} onChange={event=>updateActive({transportCost:Math.max(0,Number(event.target.value)||0)})}/></label><label>Route branch<input value={activeStep.branch ?? "Main route"} onChange={(event) => updateActive({ branch: event.target.value })} /></label><fieldset className="route-module-links editor-wide"><legend>Link this operation to modules (select multiple)</legend><div className="route-module-checks">{modules.filter(m=>["components","purchasing","inventory","vendors","vendor-capabilities","process-master","production","transport","quality","costing","invoices","communications","documents","reports","maintenance","tooling"].includes(m.id)).map(m=><label key={m.id}><input type="checkbox" checked={(activeStep.linkedModules||[]).includes(m.id)} onChange={e=>updateActive({linkedModules:e.target.checked?Array.from(new Set([...(activeStep.linkedModules||[]),m.id])):(activeStep.linkedModules||[]).filter(id=>id!==m.id)})}/><m.icon size={14}/><span>{m.title}</span></label>)}</div><div className="route-module-open-actions">{(activeStep.linkedModules||[]).map(id=>{const m=modules.find(x=>x.id===id);return m?<button type="button" key={id} className="button-quiet compact-button" onClick={()=>onSelectModule(id)}>{m.title} <ArrowUpRight size={12}/></button>:null})}</div></fieldset>
-          <label>Operation status<select value={activeStep.status} onChange={(event) => updateActive({ status: event.target.value as ProcessStatus })}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
-          <label className="editor-wide">Work / quality notes<input value={activeStep.note} onChange={(event) => updateActive({ note: event.target.value })} /></label>
-          <div className="route-editor-actions"><button className="button-quiet" onClick={() => moveActive(-1)} disabled={steps.findIndex((step) => step.id === activeStepId) === 0}><ArrowUpRight size={14} /> Move earlier</button><button className="button-quiet" onClick={() => moveActive(1)} disabled={steps.findIndex((step) => step.id === activeStepId) === steps.length - 1}><ArrowDownRight size={14} /> Move later</button><button className="button-danger" onClick={deleteActive}><X size={14} /> Remove operation</button></div>
-        </div> : <div className="operation-detail-grid"><div><small>MACHINE / STATION / VENDOR</small><strong>{activeStep.station}</strong></div><div><small>PLANNED DURATION</small><strong>{activeStep.duration}</strong></div><div><small>START DATE</small><strong>{fmtDate(activeStep.startDate)}</strong></div><div><small>TARGET DATE</small><strong>{fmtDate(activeStep.targetDate)}</strong></div><div><small>TRANSPORT</small><strong>{activeStep.transportVendor || "Not assigned"}</strong></div><div><small>TRANSPORT DATE / COST</small><strong>{fmtDate(activeStep.transportDate)} · ₹{Number(activeStep.transportCost||0).toLocaleString("en-IN")}</strong></div><div><small>RESPONSIBLE TEAM</small><strong>{activeStep.owner}</strong></div><div><small>VENDOR / SUBCONTRACTOR</small><strong>{activeStep.vendor || "Not assigned"}</strong></div><div><small>SETUP + CYCLE × QTY</small><strong>{(Number(activeStep.setupMinutes)||0)+((Number(activeStep.cycleSeconds)||0)*(Number(activeStep.quantity)||0))/60} min</strong></div><div><small>VENDOR COST</small><strong>₹{((Number(activeStep.pricePerPart)||0)*(Number(activeStep.quantity)||0)).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><small>SHORT / MISSING QTY</small><strong>{Number(activeStep.missingQuantity)||0}</strong></div><div><small>ROUTE BRANCH</small><strong>{activeStep.branch || "Main route"}</strong></div><div><small>RECORD STATUS</small><strong>Sample data only</strong></div></div>}
-        {!editMode && <div className="operation-detail-footer"><span><ShieldCheck size={14} /> Select “Edit route” to change fields, reorder or remove this operation.</span><button className="button-primary small-primary" onClick={() => setEditMode(true)}><GitBranch size={14} /> Edit selected operation</button></div>}
-      </section>}
-      </div>
-      {branchSteps.length > 0 && <section className="route-branches-panel"><div className="panel-heading"><div><h3><GitBranch size={16} /> Alternate routes & rework branches</h3><p>Each branch is linked to its parent operation and can be edited independently.</p></div><span className="module-number">{branchSteps.length} BRANCHES</span></div><div className="route-branch-list">{branchSteps.map(branch => { const parent = steps.find(step => step.id === branch.parentId); return <button key={branch.id} className={"route-branch-card " + (activeStepId === branch.id ? "route-branch-active" : "")} onClick={() => { setActiveStepId(branch.id); setEditMode(true); }}><span className="branch-link-icon"><GitBranch size={17} /></span><span><small>FROM OP {String((parent?.id ?? 0)*10).padStart(3,"0")} · {branch.branch || "Branch"}</small><strong>{branch.name}</strong><em>{branch.station} · {branch.vendor || "Vendor not assigned"}</em></span><span className="branch-metrics">{(Number(branch.setupMinutes)||0)+((Number(branch.cycleSeconds)||0)*(Number(branch.quantity)||0))/60} min<br/>₹{((Number(branch.pricePerPart)||0)*(Number(branch.quantity)||0)).toLocaleString("en-IN",{maximumFractionDigits:2})}</span></button>; })}</div></section>}
-      <section className="process-register-panel">
-        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> ROUTE REGISTER</div><h3>Process List ({steps.length})</h3><p>Every operation in the current route, including additional stages you add.</p></div><button className="button-primary small-primary" onClick={()=>setEditMode(true)}><Plus size={14}/> Add Process</button></div>
-        <div className="process-register-table-wrap"><table className="process-register-table"><thead><tr><th>#</th><th>Process</th><th>Vendor / station</th><th>Quantity</th><th>Status</th><th>Duration</th><th>Cost</th><th>Action</th></tr></thead><tbody>{steps.map((step,index)=><tr key={step.id}><td>{index+1}</td><td><button className="process-table-link" onClick={()=>{setActiveStepId(step.id);setEditMode(true);}}>{step.name}</button></td><td>{step.vendor||step.station||"Unassigned"}</td><td>{Number(step.quantity)||0}</td><td><span className={"operation-status status-"+step.status.toLowerCase().replace(" ","-")}>{step.status}</span></td><td>{step.duration}</td><td>₹{((Number(step.pricePerPart)||0)*(Number(step.quantity)||0)).toLocaleString("en-IN",{maximumFractionDigits:2})}</td><td><button className="button-quiet compact-button" onClick={()=>{setActiveStepId(step.id);setEditMode(true);}}>View / Edit</button></td></tr>)}</tbody></table></div>
-      </section>
-      <section id="route-timeline" className="process-bottom-summary">
-        <div className="process-summary-card"><div className="eyebrow"><span className="eyebrow-mark"/> COST BREAKDOWN</div><h3>Total Cost Summary</h3><div className="process-summary-line"><span>Entered vendor/process cost</span><strong>₹{routeVendorCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div className="process-summary-line"><span>Transport cost</span><strong>₹{routeTransportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div className="process-summary-line"><span>Route operations</span><strong>{steps.length}</strong></div><div className="process-summary-line"><span>Missing / short quantity</span><strong>{routeMissing.toLocaleString("en-IN")}</strong></div><div className="process-summary-line process-summary-total"><span>Known route cost</span><strong>₹{routeKnownCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><small>Includes entered process rates and transport costs only. Material, inspection, overhead and GST are excluded unless entered.</small></div>
-        <div className="process-summary-card"><div className="eyebrow"><span className="eyebrow-mark"/> TIMELINE & PROGRESS</div><h3>Route progress</h3><div className="process-progress-track"><i style={{width:(steps.filter(x=>x.status==="Complete").length/Math.max(1,steps.length)*100)+"%"}}/></div><div className="process-summary-line"><span>Completed</span><strong>{steps.filter(x=>x.status==="Complete").length} / {steps.length}</strong></div><div className="process-summary-line"><span>Running</span><strong>{steps.filter(x=>x.status==="Running").length}</strong></div><div className="process-summary-line"><span>Queued / other</span><strong>{steps.filter(x=>x.status!=="Complete"&&x.status!=="Running").length}</strong></div><div className="process-summary-line"><span>Scheduled operation-days (sum)</span><strong>{routeScheduledDays} days</strong></div><small>Planned sequence preview; this is not a live production schedule.</small></div>
-      </section>
-      <div className="route-bottom-note"><ShieldCheck size={14} /> Route edits persist in this browser. Shared multi-device database sync, revision history, approvals and production release controls still require backend deployment.</div>
-    </div>
-  );
-}
-
-
-type VendorContact = { id: string; company: string; contact: string; role: string; phone: string; email: string; processes: string; notes: string };
-type FollowUpItem = { id: string; contactId: string; due: string; channel: "WhatsApp" | "Call" | "Email"; message: string; status: "Scheduled" | "Done" | "Cancelled" };
-const CONTACTS_KEY = "aximach.vendorContacts.v1";
-const FOLLOWUPS_KEY = "aximach.followUps.v1";
-const seedContacts: VendorContact[] = [
-  { id: "demo-v1", company: "Example CNC Works", contact: "Demo Contact", role: "Sales / RFQ", phone: "", email: "", processes: "CNC Turning, VMC", notes: "Replace with your actual vendor details." },
-  { id: "demo-v2", company: "Example Heat Treatment", contact: "Demo Contact", role: "Operations", phone: "", email: "", processes: "Hardening, Tempering", notes: "Demo record — not a real verified vendor." }
-];
-function readLocal<T,>(key: string, fallback: T): T {
-  try { const raw = window.localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; }
-}
-function saveLocal<T,>(key: string, value: T) {
-  try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage may be unavailable */ }
-}
-function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "" }: { onBack: () => void; onNotice: (value: string) => void; notice: string; initialSearch?: string }) {
-  const [contacts, setContacts] = useState<VendorContact[]>(() => readLocal(CONTACTS_KEY, seedContacts));
-  const [followUps, setFollowUps] = useState<FollowUpItem[]>(() => readLocal(FOLLOWUPS_KEY, []));
-  const [search, setSearch] = useState(initialSearch);
-  const [companySearch, setCompanySearch] = useState("");
-  const [contactSearch, setContactSearch] = useState("");
-  const [selectedId, setSelectedId] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<Omit<VendorContact, "id">>({ company: "", contact: "", role: "", phone: "", email: "", processes: "", notes: "" });
-  const selected = contacts.find((c) => c.id === selectedId) ?? contacts[0];
-  const [task, setTask] = useState({ due: new Date(Date.now() + 86400000).toISOString().slice(0,10), channel: "WhatsApp" as FollowUpItem["channel"], message: "Hello, following up on our machining RFQ. Please share your quotation, lead time and current capacity." });
-  const filtered = contacts.filter((c) => (c.company+" "+c.contact+" "+c.role+" "+c.phone+" "+c.email+" "+c.processes+" "+c.notes).toLowerCase().includes(search.toLowerCase().trim()) && c.company.toLowerCase().includes(companySearch.toLowerCase().trim()) && (c.contact+" "+c.role+" "+c.phone+" "+c.email).toLowerCase().includes(contactSearch.toLowerCase().trim()));
-  useEffect(() => { saveLocal(CONTACTS_KEY, contacts); }, [contacts]);
-  useEffect(() => { saveLocal(FOLLOWUPS_KEY, followUps); }, [followUps]);
-  useEffect(() => {
-    const refresh = () => { setContacts(readLocal(CONTACTS_KEY, seedContacts)); setFollowUps(readLocal(FOLLOWUPS_KEY, [])); };
-    window.addEventListener("aximach-local-data-updated", refresh);
-    return () => window.removeEventListener("aximach-local-data-updated", refresh);
-  }, []);
-  const beginNew = () => { setSelectedId(""); setDraft({ company:"",contact:"",role:"",phone:"",email:"",processes:"",notes:"" }); setEditing(true); };
-  const beginEdit = (c: VendorContact) => { setSelectedId(c.id); setDraft({ company:c.company,contact:c.contact,role:c.role,phone:c.phone,email:c.email,processes:c.processes,notes:c.notes }); setEditing(true); };
-  const saveContact = () => {
-    if (!draft.company.trim() || !draft.contact.trim()) { onNotice("Vendor company and contact name are required."); return; }
-    if (selectedId && contacts.some(c=>c.id===selectedId)) setContacts(previous=>previous.map(c=>c.id===selectedId?{...draft,id:selectedId}:c));
-    else { const id = "v-"+Date.now().toString(36); setContacts(previous=>[{...draft,id},...previous]); setSelectedId(id); }
-    setEditing(false); onNotice("Vendor contact saved on this device only. No cloud sync or server database is connected.");
-  };
-  const addFollowUp = () => {
-    if (!selected) { onNotice("Select a vendor contact first."); return; }
-    const item: FollowUpItem = { id:"fu-"+Date.now().toString(36), contactId:selected.id, due:task.due, channel:task.channel, message:task.message, status:"Scheduled" };
-    setFollowUps(previous=>[item,...previous]); onNotice("Follow-up saved locally. Browser-based reminders are not guaranteed when the app is closed.");
-  };
-  const openChannel = (c: VendorContact, channel: FollowUpItem["channel"], message = task.message) => {
-    const phone = c.phone.replace(/[^0-9]/g,"");
-    if (channel === "WhatsApp") {
-      if (!phone) { onNotice("Add the contact's phone number including country code before opening WhatsApp."); return; }
-      window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(message), "_blank", "noopener,noreferrer");
-    } else if (channel === "Email") {
-      if (!c.email) { onNotice("Add an email address to this vendor contact first."); return; }
-      window.location.href = "mailto:"+c.email+"?subject="+encodeURIComponent("AXIMACH vendor follow-up")+"&body="+encodeURIComponent(message);
-    } else {
-      if (!phone) { onNotice("Add the contact's phone number including country code first."); return; }
-      window.location.href = "tel:"+phone;
-    }
-  };
-  return <section className="workspace-page">
-    {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
-    <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> DEVICE-SAVED CONTACTS</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / CONTACTS</div><h1>Vendor network<span>.</span></h1><p>Manage vendor contacts, capabilities and follow-ups from one linked workspace.</p></div><div className="workspace-title-actions"><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add vendor contact</button></div></div>
+  const archive=(v:VendorRecord)=>{if(!window.confirm("Archive this vendor? Historical operations and quotations will retain the vendor ID."))return;const stamp=nowIso();update(current=>({...current,vendors:current.vendors.map(x=>x.id===v.id?{...x,deletedAt:stamp,updatedAt:stamp}:x)}));setSelectedId("");setEditing(false);onNotice("Vendor archived; historical operation and quotation links were retained.");};
+  return <section className="workspace-page vendor-master-page">
+    {notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
+    <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill "+(syncStatus==="synced"?"scheduler-connected":"")}><i/>{syncStatus==="synced"?"SHARED SERVER DATA":syncStatus==="syncing"?"SYNCING":syncStatus==="error"?"SYNC ERROR · LOCAL COPY KEPT":"NO DEMO VENDORS · MASTER RECORDS"}</span></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / CONTACT MASTER</div><h1>Vendor network<span>.</span></h1><p>One vendor record connects its phone number, machine/process capability, operation assignments and quotation history.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={()=>onSelectModule("communications")}><CalendarClock size={15}/> Communications & follow-up</button><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add vendor</button></div></div>
+    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search vendor, phone, process, machine, material…"/></label><span className="module-number">{contacts.length} VENDORS / CONTACTS</span></div>
     <div className="vendor-workspace-grid">
-      <section className="surface-panel vendor-list-panel">
-        <div className="panel-heading"><div><h3>Vendor directory</h3><p>{contacts.length} records · saved in this browser only</p></div></div>
-        <label className="vendor-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search all vendor fields…"/></label>
-         <div className="vendor-search-pair"><label className="vendor-search"><Search size={15}/><input value={companySearch} onChange={e=>setCompanySearch(e.target.value)} placeholder="Search vendor/company name…"/></label><label className="vendor-search"><Search size={15}/><input value={contactSearch} onChange={e=>setContactSearch(e.target.value)} placeholder="Search contact name, phone, email…"/></label></div>
-        <div className="vendor-record-list">{filtered.map(c=><button key={c.id} className={"vendor-record "+(selected?.id===c.id?"vendor-record-active":"")} onClick={()=>{setSelectedId(c.id);setEditing(false);}}><span className="vendor-avatar">{c.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{c.company}</strong><small>{c.contact} · {c.role||"Contact role not set"}</small><small>{c.processes||"Capabilities not set"}</small></span><ArrowRight size={14}/></button>)}{!filtered.length&&<p className="vendor-empty">No matching vendors. Add a contact or clear the search.</p>}</div>
-        <div className="vendor-panel-foot">Export/import and multi-user sync are not connected yet.</div>
+      <section className="surface-panel vendor-list-panel"><div className="panel-heading"><div><h3>Vendor directory</h3><p>Shared master records · imported WhatsApp contacts remain unverified until reviewed</p></div></div>
+        <div className="vendor-record-list">{filtered.map(v=><button key={v.id} className={"vendor-record "+(selected?.id===v.id?"vendor-record-active":"")} onClick={()=>{setSelectedId(v.id);setEditing(false);}}><span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.contact} · {v.phone?"+"+v.phone:"Phone missing"}</small><small>{v.processes||"Capabilities not recorded"} · {v.status}</small></span><ArrowRight size={14}/></button>)}{!filtered.length&&<div className="module-empty-state"><Users size={25}/><h3>{search?"No matching vendor":"No vendors added"}</h3><p>{search?"Try another search.":"No placeholder vendors are preloaded. Add actual suppliers here or scan the WhatsApp bridge QR to import available contacts."}</p>{!search&&<button className="button-primary" onClick={beginNew}><Plus size={14}/> Add first vendor</button>}</div>}</div>
       </section>
       <section className="surface-panel vendor-detail-panel">
-        {editing ? <><div className="panel-heading"><div><h3>{selectedId?"Edit vendor contact":"New vendor contact"}</h3><p>Required fields: company and contact name.</p></div></div><div className="vendor-form">
-          <label>Vendor company *<input value={draft.company} onChange={e=>setDraft({...draft,company:e.target.value})} placeholder="Company name"/></label>
-          <label>Contact person *<input value={draft.contact} onChange={e=>setDraft({...draft,contact:e.target.value})} placeholder="Full name"/></label>
-          <label>Role / department<input value={draft.role} onChange={e=>setDraft({...draft,role:e.target.value})} placeholder="Sales, production, accounts…"/></label>
-          <label>Phone with country code<input value={draft.phone} onChange={e=>setDraft({...draft,phone:e.target.value})} placeholder="9198xxxxxxxx"/></label>
-          <label>Email<input type="email" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="name@company.com"/></label>
-          <label>Processes / capabilities<input value={draft.processes} onChange={e=>setDraft({...draft,processes:e.target.value})} placeholder="CNC turning, VMC, grinding…"/></label>
-          <label className="editor-wide">Notes<input value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} placeholder="Rates, capacity, lead time, certifications…"/></label>
-          <div className="vendor-form-actions"><button className="button-primary" onClick={saveContact}><Check size={14}/> Save contact</button><button className="button-quiet" onClick={()=>setEditing(false)}>Cancel</button></div>
-        </div></> : selected ? <><div className="vendor-detail-title"><span className="vendor-avatar vendor-avatar-large">{selected.company.slice(0,1).toUpperCase()}</span><div><h3>{selected.company}</h3><p>{selected.contact} · {selected.role||"Role not set"}</p></div><button className="button-quiet" onClick={()=>beginEdit(selected)}>Edit</button></div>
-          <div className="vendor-contact-grid"><div><small>PHONE</small><strong>{selected.phone||"Not added"}</strong></div><div><small>EMAIL</small><strong>{selected.email||"Not added"}</strong></div><div><small>CAPABILITIES</small><strong>{selected.processes||"Not added"}</strong></div><div><small>NOTES</small><strong>{selected.notes||"No notes"}</strong></div></div>
-          <div className="vendor-actions"><button className="button-primary" onClick={()=>openChannel(selected,"WhatsApp")}><MessageCircle size={15}/> Open WhatsApp</button><button className="button-quiet" onClick={()=>openChannel(selected,"Call")}><Users size={15}/> Call</button><button className="button-quiet" onClick={()=>openChannel(selected,"Email")}><MessageCircle size={15}/> Email</button></div>
-          <div className="followup-create"><h4><CalendarClock size={16}/> Schedule follow-up</h4><div className="followup-form"><label>Due date<input type="date" value={task.due} onChange={e=>setTask({...task,due:e.target.value})}/></label><label>Channel<select value={task.channel} onChange={e=>setTask({...task,channel:e.target.value as FollowUpItem["channel"]})}><option>WhatsApp</option><option>Call</option><option>Email</option></select></label><label className="editor-wide">Message<textarea value={task.message} onChange={e=>setTask({...task,message:e.target.value})}/></label><button className="button-primary" onClick={addFollowUp}><Plus size={14}/> Save follow-up</button></div></div>
-        </> : <div className="vendor-empty">Select a vendor or add a new contact to begin.</div>}
+        {editing?<><div className="panel-heading"><div><h3>{selectedId?"Edit vendor master":"New vendor master"}</h3><p>Company and contact person are required; phone numbers are checked for duplicates.</p></div><button className="icon-control" onClick={()=>setEditing(false)} aria-label="Close editor"><X size={14}/></button></div>
+          <div className="vendor-form">
+            <label>Vendor company *<input value={draft.company} onChange={e=>setDraft({...draft,company:e.target.value})} placeholder="Actual supplier / subcontractor name"/></label>
+            <label>Contact person *<input value={draft.contact} onChange={e=>setDraft({...draft,contact:e.target.value})} placeholder="Actual contact name"/></label>
+            <label>Role / department<input value={draft.role} onChange={e=>setDraft({...draft,role:e.target.value})} placeholder="Sales, production, accounts…"/></label>
+            <label>Phone with country code<input value={draft.phone} onChange={e=>setDraft({...draft,phone:e.target.value})} placeholder="Country code + number"/></label>
+            <label>WhatsApp number<input value={draft.whatsappNumber} onChange={e=>setDraft({...draft,whatsappNumber:e.target.value})} placeholder="Leave blank to use phone"/></label>
+            <label>Email<input type="email" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="name@company.com"/></label>
+            <label className="editor-wide">Address<input value={draft.address} onChange={e=>setDraft({...draft,address:e.target.value})} placeholder="Vendor site / dispatch address"/></label>
+            <label>Process capabilities<input value={draft.processes} onChange={e=>setDraft({...draft,processes:e.target.value})} placeholder="CNC turning, VMC, grinding, EDM…"/></label>
+            <label>Machines / capacity<input value={draft.machines} onChange={e=>setDraft({...draft,machines:e.target.value})} placeholder="Machine models, travel, capacity…"/></label>
+            <label>Material capabilities<input value={draft.materials} onChange={e=>setDraft({...draft,materials:e.target.value})} placeholder="Steel grades, aluminium, plastics…"/></label>
+            <label>Vendor status<select value={draft.status} onChange={e=>setDraft({...draft,status:e.target.value})}><option>Unverified contact — review</option><option>Review pending</option><option>Approved</option><option>Not approved</option><option>On hold</option></select></label>
+            <label className="editor-wide">Notes / lead time / certificates<input value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} placeholder="Quotation notes, lead time, certifications, capacity"/></label>
+            <div className="vendor-form-actions"><button className="button-primary" onClick={saveContact}><Check size={14}/> Save vendor master</button><button className="button-quiet" onClick={()=>setEditing(false)}>Cancel</button></div>
+          </div>
+        </>:selected?<><div className="vendor-detail-title"><span className="vendor-avatar vendor-avatar-large">{selected.company.slice(0,1).toUpperCase()}</span><div><h3>{selected.company}</h3><p>{selected.contact} · {selected.role||"Role not set"}</p><span className="record-state">{selected.status}</span></div><button className="button-quiet" onClick={()=>beginEdit(selected)}>Edit</button></div>
+          <div className="vendor-contact-grid"><div><small>PHONE</small><strong>{selected.phone||"Not added"}</strong></div><div><small>WHATSAPP</small><strong>{selected.whatsappNumber||selected.phone||"Not linked"}</strong></div><div><small>EMAIL</small><strong>{selected.email||"Not added"}</strong></div><div><small>ADDRESS</small><strong>{selected.address||"Not added"}</strong></div><div><small>PROCESS CAPABILITIES</small><strong>{selected.processes||"Not recorded"}</strong></div><div><small>MACHINES / CAPACITY</small><strong>{selected.machines||"Not recorded"}</strong></div><div><small>MATERIAL CAPABILITIES</small><strong>{selected.materials||"Not recorded"}</strong></div><div><small>WHATSAPP SYNC</small><strong>{selected.whatsappSyncedAt?new Date(selected.whatsappSyncedAt).toLocaleString():"Not synced"}</strong></div><div className="editor-wide"><small>NOTES</small><strong>{selected.notes||"No notes entered"}</strong></div></div>
+          <div className="vendor-actions"><button className="button-primary" onClick={()=>{const phone=(selected.whatsappNumber||selected.phone).replace(/\D/g,"");if(!phone){onNotice("Add a phone / WhatsApp number first.");return;}window.open("https://wa.me/"+phone,"_blank","noopener,noreferrer");}}><MessageCircle size={15}/> Open WhatsApp</button><button className="button-quiet" onClick={()=>onSelectModule("costing")}><CircleDollarSign size={15}/> Quotes & costing</button><button className="button-quiet" onClick={()=>onSelectModule("process-map")}><Workflow size={15}/> Assign to operation</button><button className="button-quiet" onClick={()=>onSelectModule("communications")}><CalendarClock size={15}/> Schedule follow-up</button><button className="button-quiet" onClick={()=>archive(selected)}><X size={14}/> Archive vendor</button></div>
+          <div className="module-safety-note"><ShieldCheck size={14}/><span>Operation assignments and quotations reference the vendor ID. QR-imported contacts stay unverified until you review them.</span></div>
+        </>:<div className="module-empty-state"><Users size={25}/><h3>Select or add a vendor</h3><p>QR-synced contacts appear here after the WhatsApp bridge connects and returns contacts.</p><button className="button-primary" onClick={beginNew}><Plus size={14}/> Add vendor</button></div>}
       </section>
     </div>
-    <section className="surface-panel followup-list-panel"><div className="panel-heading"><div><h3>Follow-up queue</h3><p>Due dates and status are saved locally; no background service is running.</p></div><span className="module-number">{followUps.filter(f=>f.status==="Scheduled").length} OPEN</span></div>
-      {followUps.length===0?<p className="vendor-empty">No follow-ups yet. Select a vendor, then create one above.</p>:<div className="followup-table-wrap"><table className="followup-table"><thead><tr><th>Due</th><th>Vendor contact</th><th>Channel</th><th>Message</th><th>Status</th><th>Actions</th></tr></thead><tbody>{followUps.map(f=>{const c=contacts.find(x=>x.id===f.contactId);return <tr key={f.id}><td>{f.due}</td><td>{c?c.company+" · "+c.contact:"Contact removed"}</td><td>{f.channel}</td><td>{f.message}</td><td><span className={"followup-status "+f.status.toLowerCase()}>{f.status}</span></td><td><div className="followup-row-actions">{c&&f.status==="Scheduled"&&<button onClick={()=>openChannel(c,f.channel,f.message)}>Open</button>}{f.status==="Scheduled"&&<button onClick={()=>setFollowUps(p=>p.map(x=>x.id===f.id?{...x,status:"Done"}:x))}>Mark done</button>}{f.status==="Scheduled"&&<button onClick={()=>setFollowUps(p=>p.map(x=>x.id===f.id?{...x,status:"Cancelled"}:x))}>Cancel</button>}</div></td></tr>})}</tbody></table></div>}
-    </section>
-    <div className="module-safety-note"><ShieldCheck size={16}/><span>WhatsApp button opens a prefilled message in WhatsApp for you to send. It does not send automatically, pair a WhatsApp device, monitor replies or run reminders in the background. Those require a separate running backend and integration.</span></div>
   </section>;
 }
+
 function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; onNotice: (value: string) => void; notice: string }) {
   type ApiContact = { id: string; name: string; phone: string; company: string; optedIn: boolean; createdAt: string };
   type ApiSchedule = { id: string; to: string; message: string; nextRunAt: string | null; repeat: "once" | "daily" | "weekly"; enabled: boolean; lastRunAt: string | null; lastError: string };
@@ -834,7 +442,9 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const [waConnected,setWaConnected]=useState(false);
   const [waQr,setWaQr]=useState("");
   const [waUser,setWaUser]=useState("");
-  const [waContacts,setWaContacts]=useState<Array<{id:string;phone:string;name:string;notify?:string}>>([]);
+  type WhatsAppContact = { id:string; phone:string; name:string; notify?:string };
+  const [waContacts,setWaContacts]=useState<WhatsAppContact[]>([]);
+  const { update: updateManufacturingData } = useManufacturingData();
   const [waGroups,setWaGroups]=useState<Array<{id:string;name:string;participants:number}>>([]);
   const [waSearch,setWaSearch]=useState("");
   const [waTarget,setWaTarget]=useState("");
@@ -846,18 +456,19 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const [waError,setWaError]=useState("");
   const waBase=waUrl.trim().replace(/\/+$/,"");
   const waRequest=async(path:string,init:RequestInit={})=>{const response=await fetch(waBase+path,{...init,headers:{"content-type":"application/json","x-aximach-key":apiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"WhatsApp bridge returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
-  const refreshWhatsApp=async()=>{setBusy(true);setWaError("");try{if(!apiKey.trim())throw new Error("Enter the server API key above first.");if(!waBase.startsWith("https://")&&!/^(http:\/\/localhost|http:\/\/127\.0\.0\.1)/.test(waBase))throw new Error("Use HTTPS for a deployed bridge. HTTP is allowed only for localhost.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");setWaContacts(co.contacts||[]);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; synced contacts and schedules loaded.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
+  const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{if(!incoming.length)return {added:0,updated:0};const current=readManufacturingData();const next=[...current.vendors];const syncedAt=nowIso();let added=0;let updated=0;for(const contact of incoming){const phone=String(contact.phone||"").replace(/\D/g,"");const label=String(contact.name||contact.notify||phone||"Imported WhatsApp contact").trim();const index=next.findIndex(v=>v.sourceContactId===contact.id||(phone&&([v.phone,v.whatsappNumber].some(value=>String(value||"").replace(/\D/g,"")===phone))));if(index>=0){const old=next[index];const patch:VendorRecord={...old,sourceContactId:old.sourceContactId||contact.id,phone:old.phone||phone,whatsappNumber:phone||old.whatsappNumber,contact:old.contact||label};const changed=patch.sourceContactId!==old.sourceContactId||patch.phone!==old.phone||patch.whatsappNumber!==old.whatsappNumber||patch.contact!==old.contact;if(changed){patch.whatsappSyncedAt=syncedAt;patch.updatedAt=syncedAt;next[index]=patch;updated++;}}else{next.push({id:makeId("vendor"),company:label,contact:label,role:"WhatsApp contact",phone,whatsappNumber:phone,email:"",address:"",processes:"",machines:"",materials:"",notes:"Imported from WhatsApp linked devices. Verify the real vendor identity, process capabilities and consent before approval.",status:"Unverified contact — review",sourceContactId:contact.id,whatsappSyncedAt:syncedAt,createdAt:syncedAt,updatedAt:syncedAt});added++;}}if(added||updated)updateManufacturingData(currentData=>({...currentData,vendors:next}));return {added,updated};};
+  const refreshWhatsApp=async()=>{setBusy(true);setWaError("");try{if(!apiKey.trim())throw new Error("Enter the server API key above first.");if(!waBase.startsWith("https://")&&!/^(http:\/\/localhost|http:\/\/127\.0\.0\.1)/.test(waBase))throw new Error("Use HTTPS for a deployed bridge. HTTP is allowed only for localhost.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");const contactRows:WhatsAppContact[]=co.contacts||[];setWaContacts(contactRows);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);const synced=st.connected?syncWhatsAppContactsToVendors(contactRows):{added:0,updated:0};window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; "+synced.added+" new contacts added to the AXIMACH vendor master and "+synced.updated+" existing records refreshed. They stay unverified until reviewed; cross-device persistence depends on the scheduler data server being connected.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
   const addWhatsAppSchedule=async()=>{setBusy(true);setWaError("");try{if(!waOptIn)throw new Error("Confirm you have permission to message this recipient.");const d=await waRequest("/api/whatsapp/schedules",{method:"POST",body:JSON.stringify({to:waTarget,message:waMessage,nextRunAt:new Date(waDue).toISOString(),repeat:waRepeat,optedIn:true})});setWaSchedules(prev=>[d.schedule,...prev]);setWaMessage("");onNotice("WhatsApp automation saved to the bridge server.");}catch(e){setWaError(e instanceof Error?e.message:"Could not save WhatsApp automation.");}finally{setBusy(false);}};
   const toggleWhatsAppSchedule=async(task:{id:string;enabled:boolean})=>{setBusy(true);setWaError("");try{const d=await waRequest("/api/whatsapp/schedules/"+task.id,{method:"PATCH",body:JSON.stringify({enabled:!task.enabled})});setWaSchedules(prev=>prev.map(x=>x.id===task.id?d.schedule:x));}catch(e){setWaError(e instanceof Error?e.message:"Could not update WhatsApp schedule.");}finally{setBusy(false);}};
   const visibleWaContacts=waContacts.filter(c=>(c.name+" "+c.notify+" "+c.phone).toLowerCase().includes(waSearch.toLowerCase().trim()));
-  const importWhatsAppContactsToVendors=()=>{if(!waContacts.length){setWaError("No WhatsApp contacts are synced yet. Link WhatsApp and refresh contacts first.");return;}const existing=readLocal<VendorContact[]>(CONTACTS_KEY,seedContacts);const merged=[...existing];let imported=0;for(const c of waContacts){const phone=String(c.phone||"").replace(/\\D/g,"");const found=merged.find(v=>(phone&&String(v.phone||"").replace(/\\D/g,"")===phone)||v.id==="wa-"+c.id);if(found){if(!found.phone&&phone)found.phone=phone;if(!found.contact)found.contact=c.name||c.notify||phone;}else{merged.push({id:"wa-"+c.id,company:c.name||c.notify||phone||"WhatsApp contact",contact:c.name||c.notify||phone,role:"WhatsApp contact",phone,email:"",processes:"",notes:"Imported from linked WhatsApp on "+new Date().toLocaleDateString()});imported++;}}saveLocal(CONTACTS_KEY,merged);window.dispatchEvent(new Event("aximach-local-data-updated"));onNotice(imported+" new WhatsApp contacts imported into Vendors & Sub-vendors; existing matching vendors were retained.");};
+  const importWhatsAppContactsToVendors=()=>{if(!waContacts.length){setWaError("No WhatsApp contacts are synced yet. Link WhatsApp and refresh contacts first.");return;}const result=syncWhatsAppContactsToVendors(waContacts);onNotice("Vendor master sync complete: "+result.added+" new contacts added, "+result.updated+" existing records refreshed. Every imported contact remains unverified until reviewed.");};
   useEffect(()=>{if(window.location.protocol==="file:"){window.localStorage.setItem("aximach.scheduler.key",apiKey);window.localStorage.setItem("aximach.whatsapp.url",waUrl);const timer=window.setTimeout(()=>{void refreshWhatsApp();},1800);return()=>window.clearTimeout(timer);}if(window.localStorage.getItem("aximach.scheduler.key"))void refreshWhatsApp();},[]);
-  useEffect(()=>{if(window.location.protocol!=="file:")return;const timer=window.setInterval(()=>{void(async()=>{try{const response=await fetch("http://127.0.0.1:8788/api/whatsapp/status",{headers:{"x-aximach-key":"aximach-desktop-local-bridge-v1"}});if(!response.ok)return;const st=await response.json();setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");if(st.connected){const [co,gr,sc]=await Promise.all([fetch("http://127.0.0.1:8788/api/whatsapp/contacts",{headers:{"x-aximach-key":"aximach-desktop-local-bridge-v1"}}),fetch("http://127.0.0.1:8788/api/whatsapp/groups",{headers:{"x-aximach-key":"aximach-desktop-local-bridge-v1"}}),fetch("http://127.0.0.1:8788/api/whatsapp/schedules",{headers:{"x-aximach-key":"aximach-desktop-local-bridge-v1"}})]);if(co.ok)setWaContacts((await co.json()).contacts||[]);if(gr.ok)setWaGroups((await gr.json()).groups||[]);if(sc.ok)setWaSchedules((await sc.json()).schedules||[]);}}catch{/* bridge may still be starting */}})();},2500);return()=>window.clearInterval(timer);},[]);
+  useEffect(()=>{const local=window.location.protocol==="file:";const pollBase=local?"http://127.0.0.1:8788":waBase;const pollKey=local?"aximach-desktop-local-bridge-v1":apiKey;if(!pollKey.trim())return;let cancelled=false;const poll=async()=>{try{const headers={"x-aximach-key":pollKey};const statusResponse=await fetch(pollBase+"/api/whatsapp/status",{headers});if(!statusResponse.ok)return;const status=await statusResponse.json();if(cancelled)return;setWaConnected(Boolean(status.connected));setWaQr(status.qrDataUrl||"");setWaUser(status.user||"");if(!status.connected)return;const [co,gr,sc]=await Promise.all([fetch(pollBase+"/api/whatsapp/contacts",{headers}),fetch(pollBase+"/api/whatsapp/groups",{headers}),fetch(pollBase+"/api/whatsapp/schedules",{headers})]);if(cancelled)return;if(co.ok){const rows:WhatsAppContact[]=(await co.json()).contacts||[];setWaContacts(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);syncWhatsAppContactsToVendors(rows);}if(gr.ok){const rows=(await gr.json()).groups||[];setWaGroups(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}if(sc.ok){const rows=(await sc.json()).schedules||[];setWaSchedules(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}}catch{/* bridge may be unavailable while starting */}};void poll();const timer=window.setInterval(()=>void poll(),5000);return()=>{cancelled=true;window.clearInterval(timer);};},[waBase,apiKey]);
 
   const base=apiUrl.trim().replace(/\/+$/,"");
   const visibleContacts=contacts.filter(c=>(c.name+" "+c.company+" "+c.phone).toLowerCase().includes(contactSearch.toLowerCase().trim()));
   const request=async(path:string,init:RequestInit={})=>{const response=await fetch(base+path,{...init,headers:{"content-type":"application/json","x-aximach-key":apiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"The service returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
-  const connect=async()=>{setBusy(true);setApiError("");try{if(!base.startsWith("https://")&&!/^(http:\/\/localhost|http:\/\/127\.0\.0\.1)/.test(base))throw new Error("Use HTTPS for a deployed service. HTTP is allowed only for localhost.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("Scheduler health check failed.");await request("/api/contacts");const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice("Connected to the AXIMACH scheduler. Data shown here comes from its server.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
+  const connect=async()=>{setBusy(true);setApiError("");try{if(!base.startsWith("https://")&&!/^(http:\/\/localhost|http:\/\/127\.0\.0\.1)/.test(base))throw new Error("Use HTTPS for a deployed service. HTTP is allowed only for localhost.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("Scheduler health check failed.");await request("/api/contacts");const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);updateManufacturingData(currentData=>({...currentData}));setApiError("");onNotice("Scheduler connected. AXIMACH is syncing your saved companies, factories, PO lines, components, vendors, operations and quotations to this server; check each workspace sync status.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
   const refresh=async()=>{setBusy(true);setApiError("");try{const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Refresh failed.");}finally{setBusy(false);}};
   const addContact=async()=>{setBusy(true);setApiError("");try{const d=await request("/api/contacts",{method:"POST",body:JSON.stringify({name,phone,company,optedIn})});setContacts(prev=>[...prev,d.contact]);setName("");setPhone("");setCompany("");setOptedIn(false);onNotice("Contact saved to the scheduler server.");}catch(e){setApiError(e instanceof Error?e.message:"Could not save contact.");}finally{setBusy(false);}};
   const addSchedule=async()=>{setBusy(true);setApiError("");try{const d=await request("/api/schedules",{method:"POST",body:JSON.stringify({to,message,nextRunAt:new Date(due).toISOString(),repeat})});setSchedules(prev=>[d.schedule,...prev]);setMessage("");onNotice("Schedule saved on the server. Actual sending still depends on valid Meta credentials and messaging policy.");}catch(e){setApiError(e instanceof Error?e.message:"Could not create schedule.");}finally{setBusy(false);}};
@@ -1012,7 +623,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
     onNotice(recordSync === "synced" ? "Record saved and synced to the AXIMACH server." : "Record saved on this device. Connect the scheduler server to enable shared backup and cross-device sync.");
   };
   const editRecord = (record: ModuleRecord) => { setDraft({ title: record.title, reference: record.reference, status: record.status, owner: record.owner, linkedModule: record.linkedModule, notes: record.notes }); setEditingId(record.id); setShowForm(true); };
-  const removeRecord = (id: string) => { if (!window.confirm("Remove this local sample record? This cannot be undone in this browser.")) return; persist({ ...allRecords, [module.id]: records.filter((item) => item.id !== id) }); onNotice("Record removed from this device. Reconnect to the server to sync the change."); };
+  const removeRecord = (id: string) => { if (!window.confirm("Remove this record from the current module? This cannot be undone in this browser.")) return; persist({ ...allRecords, [module.id]: records.filter((item) => item.id !== id) }); onNotice("Record removed from this device. Reconnect to the server to sync the change."); };
   const exportRecords = () => { const blob = new Blob([JSON.stringify({ module: module.id, exportedAt: new Date().toISOString(), records }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "aximach-" + module.id + "-records.json"; a.click(); URL.revokeObjectURL(url); onNotice("Module records exported as JSON."); };
   const totalLinked = Object.values(allRecords).flat().filter((record) => record.linkedModule).length;
   return (
