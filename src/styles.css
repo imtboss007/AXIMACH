@@ -496,3 +496,20 @@ img,svg,canvas,video{max-width:100%}
 .process-master-facts .module-form-actions{grid-column:1/-1;display:flex;gap:8px;padding:14px 8px 0}
 @media(max-width:900px){.process-master-layout{grid-template-columns:minmax(0,1fr)}.process-master-items{max-height:320px}}
 @media(max-width:560px){.process-master-form,.process-master-facts{grid-template-columns:minmax(0,1fr)}.process-master-form .module-form-wide,.process-master-facts .module-form-wide{grid-column:1}.process-master-facts .module-form-actions{flex-wrap:wrap}}
+
+.po-delivery-strip{display:grid;grid-template-columns:1fr 1fr 1fr 1.4fr 1.25fr .85fr;gap:10px;align-items:end;margin:10px 12px 0;padding:12px;border:1px solid #203d53;border-radius:10px;background:linear-gradient(110deg,#0b1a28,#10283b);color:#e8f3ff}
+.po-delivery-strip>label{display:grid;gap:5px;min-width:0;font-size:10px;color:#9eb5cc}
+.po-delivery-strip input{width:100%;min-width:0;max-width:100%;padding:9px 8px;border:1px solid #29465e;border-radius:6px;background:#071522;color:#e7f3ff;font-size:11px}
+.po-delivery-strip .delivery-date-field{display:grid;grid-template-columns:18px 1fr;align-items:center;column-gap:6px;color:#6fc8ff}
+.po-delivery-strip .delivery-date-field input{grid-column:1/-1}
+.delivery-date-countdown{display:grid;gap:5px;padding:6px 8px;border-left:2px solid #10b98a}
+.delivery-date-countdown strong{font-size:15px;color:#5ce0b2;white-space:nowrap}
+.delivery-date-countdown span{font-size:9px;color:#8da9c4}
+.route-card-meta{display:grid;gap:5px;margin-top:10px;padding-top:9px;border-top:1px solid #263f54;color:#b6cbe0;font-size:9px;line-height:1.3}
+.route-card-meta>span{display:flex;align-items:flex-start;gap:5px;min-width:0;overflow-wrap:anywhere}
+.route-card-meta svg{flex:0 0 12px;color:#66baff}
+.route-canvas-detail-grid .route-card{min-height:230px!important}
+.route-canvas-detail-grid .route-card-bottom{margin-top:auto;padding-top:8px}
+.route-detail-editor input[type="date"]{color-scheme:dark}
+@media(max-width:1250px){.po-delivery-strip{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:650px){.po-delivery-strip{grid-template-columns:repeat(2,minmax(0,1fr));margin:8px}.po-delivery-strip .delivery-date-countdown{border-left:0;border-top:2px solid #10b98a}.route-canvas-detail-grid .route-card{min-height:240px!important}}
