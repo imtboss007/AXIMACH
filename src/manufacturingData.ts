@@ -54,6 +54,22 @@ export type QuotationRecord = {
   transportCost: number; leadDays: number; status: "Received" | "Selected" | "Rejected" | "Expired";
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type MaterialRecord = {
+  id: string; code: string; name: string; grade: string; unit: string; specification: string;
+  preferredVendorId: string; ratePerUnit: number; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type BomLineRecord = {
+  id: string; componentId: string; materialId: string; revision: string; quantityPerPart: number;
+  scrapPercent: number; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type StockTransactionKind = "Opening balance" | "Receipt" | "Issue to production" | "WIP transfer" | "Return" | "Rejected" | "Scrap" | "Finished goods receipt" | "Dispatch" | "Adjustment";
+export type InventoryTransactionRecord = {
+  id: string; itemType: "material" | "component"; itemId: string; transactionType: StockTransactionKind;
+  direction: "in" | "out"; quantity: number; occurredAt: string; reference: string; notes: string;
+  companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string;
+  reversalOfId: string; createdAt: string; createdBy: string;
+};
 export type ManufacturingData = {
   updatedAt: string;
   companies: CompanyRecord[];
@@ -63,11 +79,14 @@ export type ManufacturingData = {
   vendors: VendorRecord[];
   operations: OperationRecord[];
   quotations: QuotationRecord[];
+  materials: MaterialRecord[];
+  bomLines: BomLineRecord[];
+  inventoryTransactions: InventoryTransactionRecord[];
 };
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [],
-  vendors: [], operations: [], quotations: []
+  vendors: [], operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: []
 });
 
 export function makeId(prefix: string): string {
@@ -87,7 +106,10 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     components: Array.isArray(value?.components) ? value.components : empty.components,
     vendors: Array.isArray(value?.vendors) ? value.vendors : empty.vendors,
     operations: Array.isArray(value?.operations) ? value.operations : empty.operations,
-    quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations
+    quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
+    materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
+    bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
+    inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions
   };
 }
 export function readManufacturingData(): ManufacturingData {
@@ -124,7 +146,10 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     components: mergeRows(local.components, remote.components),
     vendors: mergeRows(local.vendors, remote.vendors),
     operations: mergeRows(local.operations, remote.operations),
-    quotations: mergeRows(local.quotations, remote.quotations)
+    quotations: mergeRows(local.quotations, remote.quotations),
+    materials: mergeRows(local.materials, remote.materials),
+    bomLines: mergeRows(local.bomLines, remote.bomLines),
+    inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions)
   };
 }
 
