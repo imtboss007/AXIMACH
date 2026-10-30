@@ -64,6 +64,7 @@ const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) =>
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
   const [activeModuleId, setActiveModuleId] = useState("command-centre");
+  const [expandedNav, setExpandedNav] = useState<string[]>(["components"]);
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -197,9 +198,39 @@ function App() {
       </main>
 
       <nav className="command-rail" aria-label="Manufacturing modules">
-        <div className="rail-section-label">WORKSPACES</div>
-        {modules.map((item) => { const ItemIcon = item.icon; return <button key={item.id} title={item.title} className={activeModuleId === item.id ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16} /><span>{item.title}</span></button>; })}
-        <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={16} /><span>Module explorer</span></button>
+        <div className="rail-section-label">WORKSPACE</div>
+        {([
+          {label:"Dashboard",id:"command-centre",icon:LayoutGrid},
+          {label:"Command Centre",id:"command-centre",icon:Sparkles},
+          {label:"Companies & Factories",id:"companies",icon:Factory},
+          {label:"Purchase Orders",id:"purchasing",icon:Package},
+          {label:"Components",id:"components",icon:Box,group:"components",children:[{label:"All Components",id:"components"},{label:"Component Process Map",id:"process-map"},{label:"Drawings & Documents",id:"components"}]},
+          {label:"Process Master",id:"process-master",icon:Layers3,group:"process-master",children:[{label:"Process Library",id:"process-master"}]},
+          {label:"Production Planning",id:"production",icon:Activity},
+          {label:"Vendors & Sub-vendors",id:"vendors",icon:Users},
+          {label:"Material & Inventory",id:"inventory",icon:Boxes},
+          {label:"Transport & Dispatch",id:"dispatch",icon:Truck},
+          {label:"Quality & Inspection",id:"quality",icon:ClipboardCheck},
+          {label:"Costing & Payments",id:"costing",icon:CircleDollarSign},
+          {label:"Reports & Analytics",id:"reports",icon:BarChart3},
+          {label:"AI Insights",id:"risk",icon:Zap},
+          {label:"Export Centre",id:"export",icon:FileDown,divider:true},
+          {label:"Import Data",id:"import",icon:FileUp},
+          {label:"Users & Permissions",id:"admin-security",icon:ShieldCheck},
+          {label:"Integrations",id:"integrations",icon:Plug},
+          {label:"Settings",id:"admin-security",icon:Settings2}
+        ] as const).map((item) => {
+          const ItemIcon = item.icon;
+          const expanded = "group" in item && !!item.group && expandedNav.includes(item.group);
+          const active = activeModuleId === item.id || ("children" in item && item.children?.some(child => child.id === activeModuleId));
+          return <div className={"rail-entry" + ("divider" in item && item.divider ? " rail-entry-divider" : "")} key={item.label}>
+            <div className="rail-entry-main">
+              <button title={item.label} className={active ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16}/><span>{item.label}</span></button>
+              {"group" in item && item.group && <button className="rail-expand" aria-label={"Toggle " + item.label} onClick={() => setExpandedNav(current => current.includes(item.group!) ? current.filter(value => value !== item.group) : [...current,item.group!])}><ChevronDown size={14} style={{transform:expanded ? "rotate(180deg)" : "none"}}/></button>}
+            </div>
+            {expanded && "children" in item && <div className="rail-submenu">{item.children?.map(child => <button key={child.label} className={activeModuleId === child.id && child.id !== item.id ? "rail-sub-active" : ""} onClick={() => selectModule(child.id)}><span className="rail-sub-dot"/> <span>{child.label}</span></button>)}</div>}
+          </div>;
+        })}
       </nav>
 
       {moduleExplorerOpen && (
