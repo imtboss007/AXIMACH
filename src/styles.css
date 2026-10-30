@@ -872,3 +872,15 @@ html,body,#root{min-height:100%;background:#07111e;color:#dcecff}body{background
 .linked-process-page .linked-operation-node .linked-node-status{display:inline-flex;align-self:flex-start;padding:3px 6px;border-radius:4px;background:#123e55;color:#a5eafa;font-size:9px;font-weight:700}
 .linked-process-page .linked-node-arrow{width:48px}
 @media(max-width:600px){.linked-process-page .linked-operation-node{width:158px;min-height:198px}.linked-process-page .linked-operation-node .linked-node-illustration{height:66px;min-height:66px}}
+
+/* Reference sidebar: grouped navigation and nested component/process links */
+.command-rail .rail-entry{width:100%;min-width:0}
+.command-rail .rail-entry-main{display:flex;align-items:center;width:100%;gap:2px}
+.command-rail .rail-entry-main>button:first-child{flex:1;min-width:0}
+.command-rail .rail-entry-main .rail-expand{width:27px;min-width:27px;min-height:34px;padding:5px;display:grid;place-items:center;background:transparent;border:0;color:#789bb5}
+.command-rail .rail-entry-main .rail-expand:hover{background:#0b2940;color:#d7f5ff}
+.command-rail .rail-submenu{display:flex;flex-direction:column;gap:1px;margin:1px 0 5px 23px;padding-left:10px;border-left:1px solid #244a64}
+.command-rail .rail-submenu button{display:flex;align-items:center;justify-content:flex-start;gap:9px;width:100%;min-height:27px;padding:5px 8px;border:0;border-radius:5px;background:transparent;color:#8caac1;font-size:10px;font-weight:500;text-align:left}
+.command-rail .rail-submenu button:hover,.command-rail .rail-submenu button.rail-sub-active{background:#0a2c43;color:#6de2f6}
+.command-rail .rail-sub-dot{width:5px;height:5px;border-radius:50%;background:#547e9b;flex:0 0 5px}
+.command-rail .rail-entry-divider{margin-top:12px;padding-top:10px;border-top:1px solid #19384f}
