@@ -86,14 +86,13 @@ export default function MachineCapacityWorkspace({ mode, onBack, onNotice, onSel
   const totalEstimatedDemand = capacityRows.reduce((s,r)=>s+r.estimatedDemand,0);
   const scheduleProposals = useMemo(() => validRange ? proposeMachineSchedule({operations,machines,events,fromDate,toDate}) : [],[operations,machines,events,fromDate,toDate,validRange]);
   const scheduleUnallocated = operations.filter(op=>op.status!=="Complete" && op.machineResourceId && op.plannedStart && (Number(op.setupHours||0)>0 || Number(op.cycleTimeSeconds||0)>0) && !scheduleProposals.some(p=>p.operation.id===op.id));
-  const localDateFromIso = (value:string) => { const d=new Date(value); return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-"); };
   const applyScheduleProposals = () => {
     if(!scheduleProposals.length){onNotice("No machine slots are available to apply. Check machine calendars, downtime and estimates.");return;}
     const stamp=nowIso();
     update(current=>({...current,operations:current.operations.map(op=>{
       const proposal=scheduleProposals.find(p=>p.operation.id===op.id);
       if(!proposal)return op;
-      return {...op,machineResourceId:proposal.machine.id,machine:proposal.machine.code+" · "+proposal.machine.name,plannedSlotStartAt:proposal.startAt,plannedSlotEndAt:proposal.endAt,plannedStart:localDateFromIso(proposal.startAt),plannedEnd:localDateFromIso(proposal.endAt),updatedAt:stamp};
+      return {...op,machineResourceId:proposal.machine.id,machine:proposal.machine.code+" · "+proposal.machine.name,plannedSlotStartAt:proposal.startAt,plannedSlotEndAt:proposal.endAt,updatedAt:stamp};
     })}));
     onNotice("Proposed machine slots applied to the selected operations. Review the updated Process Map dates and machine assignments before releasing work.");
   };
