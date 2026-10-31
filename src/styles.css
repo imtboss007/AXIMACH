@@ -936,3 +936,40 @@ html,body,#root{min-height:100%;background:#07111e;color:#dcecff}body{background
 .vendor-master-page .vendor-allocation-actual{display:block;margin-top:3px;color:#70dbb8;font-size:9px;white-space:nowrap}
 .vendor-master-page .vendor-allocation-table .record-state{white-space:nowrap}
 .vendor-master-page .vendor-allocation-table .button-quiet{white-space:nowrap}
+
+
+/* Persistent process definition and vendor capability workspaces */
+.master-data-page .master-editor{margin:14px 0;padding:16px}
+.master-data-page .master-process-form,.master-data-page .capability-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;padding-top:14px}
+.master-data-page .master-process-form>label,.master-data-page .capability-form>label{display:grid;gap:6px;min-width:0;color:#b9cce0;font-size:11px;font-weight:600}
+.master-data-page .master-process-form input,.master-data-page .master-process-form select,.master-data-page .capability-form input,.master-data-page .capability-form select{width:100%;min-width:0;min-height:36px;padding:9px 10px;background:#061526;border:1px solid #294964;border-radius:7px;color:#e6f2ff;font:11px 'DM Sans',sans-serif}
+.master-data-page .master-process-form input::placeholder,.master-data-page .capability-form input::placeholder{color:#66849f}
+.master-data-page .master-form-wide{grid-column:1/-1}
+.master-data-page .master-data-list{display:grid;gap:10px;margin-top:14px}
+.master-data-page .master-data-card{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:start;padding:14px}
+.master-data-page .master-card-icon{width:34px;height:34px;display:grid;place-items:center;border:1px solid #28516b;border-radius:8px;background:#0b263b;color:#6dd9f1}
+.master-data-page .master-card-copy{display:grid;gap:6px;min-width:0}
+.master-data-page .master-card-heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.master-data-page .master-card-heading strong{color:#eff7ff;font-size:13px;overflow-wrap:anywhere}
+.master-data-page .master-card-copy p{margin:0;color:#9cb6cc;font-size:10px;line-height:1.5}
+.master-data-page .master-card-copy>small{color:#8ba7bf;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.master-data-page .master-link-stats{display:flex;gap:7px;flex-wrap:wrap;margin-top:2px}
+.master-data-page .master-link-stats span{padding:4px 7px;border:1px solid #24445e;border-radius:5px;background:#091e30;color:#a8c4d9;font-size:9px}
+.master-data-page .master-related-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+.master-data-page .capability-envelope,.master-data-page .capability-evidence{grid-column:1/-1;padding:12px;border:1px solid #23445e;border-radius:8px;background:#081a2b}
+.master-data-page .capability-envelope>strong{display:block;margin-bottom:9px;color:#dbeaf7;font-size:11px}
+.master-data-page .capability-envelope>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.master-data-page .capability-envelope label{display:grid;gap:5px;color:#a9c0d3;font-size:10px}
+.master-data-page .capability-evidence .vendor-section-heading>span{color:#7fdaf0;font-size:10px}
+.master-data-page .capability-evidence-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.master-data-page .capability-evidence-list label{display:flex;align-items:flex-start;gap:8px;min-width:0;padding:9px;border:1px solid #20415b;border-radius:7px;background:#061728}
+.master-data-page .capability-evidence-list input{width:14px;min-height:14px;margin:2px 0 0;accent-color:#2dd4e8}
+.master-data-page .capability-evidence-list span{display:grid;gap:3px;min-width:0}
+.master-data-page .capability-evidence-list strong{color:#dceaf7;font-size:10px;overflow-wrap:anywhere}
+.master-data-page .capability-evidence-list small{color:#89a6bf;font-size:9px;overflow-wrap:anywhere}
+.master-data-page .capability-prerequisites{margin-top:12px;padding:16px}
+.master-data-page .capability-prerequisites h3{margin:0 0 7px;color:#eaf5ff;font-size:13px}
+.master-data-page .capability-prerequisites p{margin:0 0 12px;color:#91abc4;font-size:11px;line-height:1.55}
+.master-data-page .capability-prerequisites .linked-empty-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:900px){.master-data-page .master-related-actions{grid-template-columns:1fr}}
+@media(max-width:650px){.master-data-page .master-process-form,.master-data-page .capability-form{grid-template-columns:1fr}.master-data-page .master-form-wide,.master-data-page .capability-envelope,.master-data-page .capability-evidence{grid-column:1}.master-data-page .master-data-card{grid-template-columns:32px minmax(0,1fr)}.master-data-page .master-data-card .module-record-card-actions{grid-column:2;justify-content:flex-start}.master-data-page .capability-evidence-list{grid-template-columns:1fr}}
