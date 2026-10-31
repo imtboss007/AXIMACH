@@ -25,6 +25,8 @@ type ModuleItem = {
   action: string;
 };
 
+const dashboardItem: ModuleItem = { id: "dashboard", title: "Dashboard", group: "Overview", description: "Live overview of saved manufacturing records, active work and operational exceptions.", icon: LayoutGrid, action: "Open dashboard" };
+
 const modules: ModuleItem[] = [
   { id: "command-centre", title: "Command Centre & AI Copilot", group: "Command", description: "Factory health, alerts, priorities and evidence-linked AI assistance.", icon: Sparkles, action: "Open command centre" },
   { id: "companies", title: "Companies & Factories", group: "Governance", description: "Manage company, factory, shift and operating scopes.", icon: Factory, action: "Explore factory structure" },
@@ -64,7 +66,7 @@ const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) =>
 
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
-  const [activeModuleId, setActiveModuleId] = useState("command-centre");
+  const [activeModuleId, setActiveModuleId] = useState("dashboard");
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -74,7 +76,7 @@ function App() {
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
 
-  const activeModule = modules.find((item) => item.id === activeModuleId) ?? modules[0];
+  const activeModule = activeModuleId === "dashboard" ? dashboardItem : modules.find((item) => item.id === activeModuleId) ?? modules[0];
   const globalRecords = getAllModuleRecords();
   const globalVendorContacts = activeRows(readManufacturingData().vendors);
   const normalizedGlobalQuery = query.toLowerCase().trim();
@@ -139,7 +141,7 @@ function App() {
   return (
     <div className="app-shell">
       <header className="command-deck">
-        <button className="brand-lockup" onClick={() => selectModule("command-centre")} aria-label="Open AXIMACH command centre">
+        <button className="brand-lockup" onClick={() => selectModule("dashboard")} aria-label="Open AXIMACH dashboard">
           <span className="brand-symbol"><span>A</span><i /></span>
           <span className="brand-copy"><strong>Machining Flow Control</strong><small>Multi-Company Manufacturing OS</small></span>
         </button>
@@ -166,7 +168,7 @@ function App() {
       </div>
 
       <main className="page-content">
-        {activeModuleId === "command-centre" ? (
+        {activeModuleId === "dashboard" ? (
           <CommandCentre
             activeModule={activeModule}
             aiPrompt={aiPrompt}
@@ -201,6 +203,7 @@ function App() {
 
       <nav className="command-rail" aria-label="Manufacturing modules">
         <div className="rail-section-label">WORKSPACES</div>
+        <button title="Dashboard" className={activeModuleId === "dashboard" ? "rail-active" : ""} onClick={() => selectModule("dashboard")}><LayoutGrid size={16} /><span>Dashboard</span></button>
         {modules.map((item) => { const ItemIcon = item.icon; return <button key={item.id} title={item.title} className={activeModuleId === item.id ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16} /><span>{item.title}</span></button>; })}
         <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={16} /><span>Module explorer</span></button>
       </nav>
