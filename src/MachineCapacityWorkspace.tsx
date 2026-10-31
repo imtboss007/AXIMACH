@@ -7,7 +7,7 @@ type MachineDraft = Omit<MachineResourceRecord, "id" | "createdAt" | "updatedAt"
 type EventDraft = Omit<MaintenanceEventRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 const today = () => new Date().toISOString().slice(0, 10);
 const dateTimeLocal = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-const blankMachine = (): MachineDraft => ({ factoryId: "", code: "", name: "", category: "CNC", makeModel: "", workingHoursPerDay: 8, workingDays: [1,2,3,4,5,6], status: "Available", notes: "" });
+const blankMachine = (): MachineDraft => ({ factoryId: "", code: "", name: "", category: "CNC", makeModel: "", workingHoursPerDay: 8, shiftStartTime: "08:00", workingDays: [1,2,3,4,5,6], status: "Available", notes: "" });
 const blankEvent = (): EventDraft => ({ resourceId: "", type: "Preventive", title: "", reason: "", priority: "Medium", status: "Scheduled", plannedStartAt: dateTimeLocal(new Date(Date.now() + 3600000)), plannedEndAt: dateTimeLocal(new Date(Date.now() + 7200000)), actualStartAt: "", actualEndAt: "", assignedTo: "", workOrderRef: "", notes: "" });
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const activeEvent = (event: MaintenanceEventRecord) => event.status !== "Cancelled";
@@ -24,6 +24,22 @@ function overlapHours(intervals: Array<[number, number]>, from: number, to: numb
   for (const [a,b] of clipped) { if (!start && !end) { start=a; end=b; } else if (a<=end) end=Math.max(end,b); else { total += end-start; start=a; end=b; } }
   if (end>start) total += end-start;
   return total / 3600000;
+}
+function downtimeWithinShifts(machine: MachineResourceRecord, intervals: Array<[number,number]>, from: Date, to: Date) {
+  const days = new Set(machine.workingDays || []);
+  let total = 0;
+  const cursor = new Date(from.getFullYear(),from.getMonth(),from.getDate());
+  const last = new Date(to.getFullYear(),to.getMonth(),to.getDate());
+  while (cursor <= last) {
+    if (days.has(cursor.getDay())) {
+      const [hour,minute] = (machine.shiftStartTime || "08:00").split(":").map(Number);
+      const shiftStart = new Date(cursor.getFullYear(),cursor.getMonth(),cursor.getDate(),hour||0,minute||0).getTime();
+      const shiftEnd = shiftStart + Math.max(0,machine.workingHoursPerDay||0)*3600000;
+      total += overlapHours(intervals,Math.max(shiftStart,from.getTime()),Math.min(shiftEnd,to.getTime()));
+    }
+    cursor.setDate(cursor.getDate()+1);
+  }
+  return total;
 }
 function workingHours(machine: MachineResourceRecord, from: Date, to: Date) {
   const days = new Set(machine.workingDays || []);
@@ -54,7 +70,7 @@ export default function MachineCapacityWorkspace({ mode, onBack, onNotice, onSel
   const capacityRows = useMemo(() => machines.map(machine => {
     const base = validRange && machine.status === "Available" ? workingHours(machine, rangeStart, rangeEnd) : 0;
     const intervals = events.filter(event=>event.resourceId===machine.id).map(intervalFor).filter((x): x is [number,number] => Boolean(x));
-    const downtime = validRange ? Math.min(base, overlapHours(intervals,rangeStart.getTime(),rangeEnd.getTime())) : 0;
+    const downtime = validRange ? Math.min(base, downtimeWithinShifts(machine,intervals,rangeStart,rangeEnd)) : 0;
     return { machine, base, downtime, available: Math.max(0,base-downtime), utilisationLoss: base ? downtime/base*100 : 0 };
   }),[machines,events,fromDate,toDate,validRange]);
   const totalBase = capacityRows.reduce((s,r)=>s+r.base,0);
@@ -65,7 +81,7 @@ export default function MachineCapacityWorkspace({ mode, onBack, onNotice, onSel
   const resetEvent = () => { setShowEventForm(false); setEventEditingId(""); setEventDraft(blankEvent()); };
   const saveMachine = () => {
     if (!machineDraft.code.trim() || !machineDraft.name.trim() || !machineDraft.factoryId) { onNotice("Select a factory and enter the machine code and name."); return; }
-    if (!(machineDraft.workingHoursPerDay>0) || !machineDraft.workingDays.length) { onNotice("Set positive working hours and at least one working day."); return; }
+    if (!(machineDraft.workingHoursPerDay>0) || machineDraft.workingHoursPerDay>24 || !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(machineDraft.shiftStartTime) || !machineDraft.workingDays.length) { onNotice("Set positive working hours and at least one working day."); return; }
     const stamp=nowIso(), id=machineEditingId||makeId("machine");
     update(current=>({...current,machineResources:[...current.machineResources.filter(x=>x.id!==id),{...machineDraft,code:machineDraft.code.trim(),name:machineDraft.name.trim(),id,createdAt:current.machineResources.find(x=>x.id===id)?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined}]}));
     resetMachine(); onNotice("Machine resource saved. It is now available to maintenance and production-capacity calculations.");
@@ -78,7 +94,7 @@ export default function MachineCapacityWorkspace({ mode, onBack, onNotice, onSel
     update(current=>({...current,maintenanceEvents:[...current.maintenanceEvents.filter(x=>x.id!==id),{...eventDraft,title:eventDraft.title.trim(),id,createdAt:current.maintenanceEvents.find(x=>x.id===id)?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined}]}));
     resetEvent(); onNotice("Maintenance / downtime event saved. Its overlapping hours are deducted from machine capacity.");
   };
-  const editMachine=(m:MachineResourceRecord)=>{setMachineEditingId(m.id);setMachineDraft({factoryId:m.factoryId,code:m.code,name:m.name,category:m.category,makeModel:m.makeModel,workingHoursPerDay:m.workingHoursPerDay,workingDays:m.workingDays,status:m.status,notes:m.notes});setShowMachineForm(true);};
+  const editMachine=(m:MachineResourceRecord)=>{setMachineEditingId(m.id);setMachineDraft({factoryId:m.factoryId,code:m.code,name:m.name,category:m.category,makeModel:m.makeModel,workingHoursPerDay:m.workingHoursPerDay,shiftStartTime:m.shiftStartTime||"08:00",workingDays:m.workingDays,status:m.status,notes:m.notes});setShowMachineForm(true);};
   const editEvent=(e:MaintenanceEventRecord)=>{setEventEditingId(e.id);setEventDraft({resourceId:e.resourceId,type:e.type,title:e.title,reason:e.reason,priority:e.priority,status:e.status,plannedStartAt:e.plannedStartAt,plannedEndAt:e.plannedEndAt,actualStartAt:e.actualStartAt,actualEndAt:e.actualEndAt,assignedTo:e.assignedTo,workOrderRef:e.workOrderRef,notes:e.notes});setShowEventForm(true);};
   const archiveMachine=(m:MachineResourceRecord)=>{if(events.some(e=>e.resourceId===m.id&&e.status==="In progress")){onNotice("Cannot archive a machine with an in-progress maintenance event.");return;}const stamp=nowIso();update(current=>({...current,machineResources:current.machineResources.map(x=>x.id===m.id?{...x,deletedAt:stamp,updatedAt:stamp}:x)}));onNotice("Machine archived; its historical maintenance records are retained.");};
   const archiveEvent=(e:MaintenanceEventRecord)=>{const stamp=nowIso();update(current=>({...current,maintenanceEvents:current.maintenanceEvents.map(x=>x.id===e.id?{...x,deletedAt:stamp,updatedAt:stamp}:x)}));onNotice("Maintenance event archived.");};
@@ -105,7 +121,7 @@ export default function MachineCapacityWorkspace({ mode, onBack, onNotice, onSel
         <label>Machine name *<input value={machineDraft.name} onChange={e=>setMachineDraft({...machineDraft,name:e.target.value})} placeholder="e.g. Vertical machining centre"/></label>
         <label>Category<input value={machineDraft.category} onChange={e=>setMachineDraft({...machineDraft,category:e.target.value})} placeholder="CNC / VMC / EDM / Grinding"/></label>
         <label>Make / model<input value={machineDraft.makeModel} onChange={e=>setMachineDraft({...machineDraft,makeModel:e.target.value})} placeholder="Manufacturer and model"/></label>
-        <label>Working hours per day *<input type="number" min="0.1" step="0.25" value={machineDraft.workingHoursPerDay} onChange={e=>setMachineDraft({...machineDraft,workingHoursPerDay:Number(e.target.value)})}/></label>
+        <label>Shift start time *<input type="time" value={machineDraft.shiftStartTime} onChange={e=>setMachineDraft({...machineDraft,shiftStartTime:e.target.value})}/></label>\n        <label>Working hours per day *<input type="number" min="0.1" max="24" step="0.25" value={machineDraft.workingHoursPerDay} onChange={e=>setMachineDraft({...machineDraft,workingHoursPerDay:Number(e.target.value)})}/></label>
         <label>Resource status<select value={machineDraft.status} onChange={e=>setMachineDraft({...machineDraft,status:e.target.value as MachineDraft["status"]})}><option>Available</option><option>Restricted</option><option>Retired</option></select></label>
         <div className="capacity-days"><strong>Working days *</strong><div>{dayNames.map((name,index)=><label key={name}><input type="checkbox" checked={machineDraft.workingDays.includes(index)} onChange={e=>setMachineDraft({...machineDraft,workingDays:e.target.checked?[...machineDraft.workingDays,index]:machineDraft.workingDays.filter(d=>d!==index)})}/>{name}</label>)}</div></div>
         <label className="capacity-wide">Notes<input value={machineDraft.notes} onChange={e=>setMachineDraft({...machineDraft,notes:e.target.value})} placeholder="Cell, spindle, operating constraints…"/></label>
