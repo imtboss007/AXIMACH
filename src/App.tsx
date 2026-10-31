@@ -181,12 +181,10 @@ function App() {
             onSelectModule={selectModule}
             onOpenModules={openModuleExplorer}
           />
-        ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" ? (
-          <ProductionPlanningWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
+          <CombinedProductionWorkspace initialView={productionView} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "maintenance" ? (
           <MachineCapacityWorkspace mode="maintenance" onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (

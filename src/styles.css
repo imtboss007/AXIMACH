@@ -1102,13 +1102,3 @@ img,svg,canvas,video{max-width:100%}
 .process-directory-empty{padding:15px;color:#8796aa;font-size:10px;line-height:1.5}
 .process-directory-page .costing-table{min-width:780px}
 @media(max-width:760px){.process-directory-layout{grid-template-columns:1fr}.process-directory-type{flex-direction:column}.process-directory-type-actions{justify-content:flex-start}.process-directory-toolbar{align-items:stretch;flex-direction:column}.process-directory-rate-filter{align-items:stretch;flex-direction:column}}
-
-/* Combined Production Planning / Process Map workspace */
-.combined-production-workspace{display:flex;flex-direction:column;gap:16px;min-width:0}
-.combined-production-header{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding:18px 20px;border:1px solid #dce5f1;border-radius:14px;background:#fff}
-.combined-production-header h1{margin:5px 0;font-size:22px;color:#203653}
-.combined-production-header p{margin:0;color:#71839b;font-size:12px}
-.combined-production-tabs{display:flex;gap:7px;flex-wrap:wrap}
-.combined-production-tabs button{display:inline-flex;align-items:center;gap:7px;padding:10px 13px;border:1px solid #dce5f1;border-radius:8px;background:#f8fafd;color:#526781;font-size:12px;font-weight:650;cursor:pointer}
-.combined-production-tabs button.active{border-color:#7da9e9;background:#edf4ff;color:#245fae}
-@media(max-width:760px){.combined-production-header{align-items:stretch;flex-direction:column;padding:14px}.combined-production-tabs{display:grid;grid-template-columns:1fr 1fr}.combined-production-tabs button{justify-content:center;padding:10px 6px}}

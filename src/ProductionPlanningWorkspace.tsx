@@ -198,7 +198,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
         transportVendorId: previous?.transportVendorId || "", transportPickup: previous?.transportPickup || "",
         transportDelivery: previous?.transportDelivery || "", transportCost: previous?.transportCost || 0,
         qualityNotes: previous?.qualityNotes || "", inspectionResult: previous?.inspectionResult || "",
-        notes: draft.notes, branch: draft.branch, parentId: draft.branch === "Main route" ? "" : draft.parentId,
+        notes: draft.notes, vendorPaymentStatus: previous?.vendorPaymentStatus || "Not Paid", branch: draft.branch, parentId: draft.branch === "Main route" ? "" : draft.parentId,
         createdAt: previous?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined
       };
       return { ...current, operations: [...current.operations.filter(operation => operation.id !== id), next] };

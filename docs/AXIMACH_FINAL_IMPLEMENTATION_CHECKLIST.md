@@ -82,19 +82,19 @@ Exactly the eight approved functions:
 - [x] Process Directory remains a catalogue/rate source. Actual vendor assignment to a component's operation occurs in Process Map.
 
 ### 08 — Production Planning + Process Map (combined user-facing menu)
-- [ ] Combine the two user reference screens into one integrated workspace; do not redesign into an unrelated layout.
-- [ ] No Factory filter or factory selector in the user-facing planning screen.
-- [ ] Searchable multi-select filters with checkboxes: Company, PO Number, Component and optional Vendor.
-- [ ] Vendor filter shows components/operations assigned to that vendor.
-- [ ] Add/select Company, PO and existing PO component line in the workspace.
-- [ ] Add process/operation to the selected component route.
-- [ ] Each operation records process, assigned vendor, start/given date, due date, quantity and price/rate.
-- [ ] Vendor is selected from Vendor Master; no duplicate vendor entry.
+- [x] Combine the two user reference screens into one integrated workspace; do not redesign into an unrelated layout.
+- [x] No Factory filter or factory selector in the user-facing planning screen.
+- [x] Searchable multi-select filters with checkboxes: Company, PO Number, Component and optional Vendor.
+- [x] Vendor filter shows components/operations assigned to that vendor.
+- [x] Add/select Company, PO and existing PO component line in the workspace.
+- [x] Add process/operation to the selected component route.
+- [x] Each operation records process, assigned vendor, start/given date, due date, quantity and price/rate.
+- [x] Vendor is selected from Vendor Master; no duplicate vendor entry.
 - [x] New Process Map operations select a Process Directory type; legacy unlinked operations remain editable without losing their saved names.
-- [ ] Each component has its own connected process route with arrows/connectors and supported branching/crossover paths.
-- [ ] Preserve the approved reference layout elements: operation table, process cards/graph, side detail panel, Gantt/Calendar Day/Week/Month, Upcoming Deliveries (Next 7 Days), Vendor Workload, Delays & Risks, and the agreed KPI/action areas.
-- [ ] Show vendor payment status on the relevant operation/process card and detail panel: **Paid / Not Paid**.
-- [ ] Payment status is entered/updated in Process Map and is the source of truth for the costing comparison.
+- [x] Each component has its own connected process route with arrows/connectors and supported branching/crossover paths.
+- [x] Preserve the approved reference layout elements: operation table, process cards/graph, side detail panel, Gantt/Calendar Day/Week/Month, Upcoming Deliveries (Next 7 Days), Vendor Workload, Delays & Risks, and the agreed KPI/action areas.
+- [x] Show vendor payment status on the relevant operation/process card and detail panel: **Paid / Not Paid**.
+- [x] Payment status is entered/updated in Process Map and is the source of truth for the costing comparison.
 - [ ] No demo business records.
 - [ ] Verify real saved data and navigation across Company → PO → Component → Operation → Vendor → Costing.
 
@@ -244,3 +244,5 @@ Exactly the eight approved functions:
 - Process Map now stores the optional processTypeId on catalogue-linked operations. Existing operations without it keep their legacy process name/category when edited.
 - Existing PO-operation quotation rows remain separate and unchanged.
 - TypeScript/Vite build and browser/Electron/Capacitor workflow regression checks remain pending execution in a runnable checkout. Gap 1 must not be accepted until those checks pass.
+- Combined workspace is exposed through one Production Planning / Process Map navigation item with Planning and Process Map views. The old Process Map route is an internal alias, not a separate menu.
+- Vendor payment status is stored as an optional operation field to preserve existing records. Vendor-assigned legacy operations display Not Paid until explicitly updated; Process Map is the edit/source of truth, and planning views only display the saved status.
