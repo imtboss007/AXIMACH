@@ -13,6 +13,12 @@ import ManufacturingMasterWorkspace from "./ManufacturingMasterWorkspace";
 import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
 import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
 import InventoryWorkspace from "./InventoryWorkspace";
+import VendorWorkspace from "./VendorWorkspace";
+import ProcessMasterWorkspace from "./ProcessMasterWorkspace";
+import VendorCapabilityWorkspace from "./VendorCapabilityWorkspace";
+import QualityInspectionWorkspace from "./QualityInspectionWorkspace";
+import WipDispatchWorkspace from "./WipDispatchWorkspace";
+import ProductionPlanningWorkspace from "./ProductionPlanningWorkspace";
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
 type ModuleItem = {
@@ -36,6 +42,7 @@ const modules: ModuleItem[] = [
   { id: "vendor-capability", title: "Vendor Capability Master", group: "Supply Network", description: "Match process capabilities, machine envelopes, tolerances and certificates.", icon: Cpu, action: "Explore capability matching" },
   { id: "rates", title: "Material & Rate Book", group: "Supply Network", description: "Track material grades, rate history, yield assumptions and pricing sources.", icon: Gauge, action: "Review rate book" },
   { id: "inventory", title: "Material & Inventory", group: "Operations", description: "Track lots, stock, reservations, shortages, scrap and balances.", icon: Boxes, action: "Explore inventory" },
+  { id: "wip-transfers", title: "WIP Transfers & Vendor Handover", group: "Operations", description: "Track component custody between process operations, factories and subcontract vendors.", icon: Workflow, action: "Manage WIP handovers" },
   { id: "production", title: "Production & Capacity", group: "Operations", description: "Plan finite capacity across machines, shifts, people and outside processes.", icon: Activity, action: "Open production planning" },
   { id: "shop-floor", title: "Shop-floor Mobile & QR", group: "Operations", description: "Capture scan events, operation progress, custody and offline updates.", icon: ScanLine, action: "Explore shop-floor flow" },
   { id: "dispatch", title: "Transport & Dispatch", group: "Operations", description: "Track packing, challans, consignments, handoffs and confirmed receipt.", icon: Truck, action: "Explore logistics" },
@@ -64,11 +71,18 @@ const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) =>
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
   const [activeModuleId, setActiveModuleId] = useState("command-centre");
+  const [expandedNav, setExpandedNav] = useState<string[]>(["components"]);
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("All domains");
   const [vendorSearchJump, setVendorSearchJump] = useState("");
+  const [vendorRecordJump, setVendorRecordJump] = useState("");
+  const [vendorCapabilityJump, setVendorCapabilityJump] = useState("");
+  const [processJump, setProcessJump] = useState<{ companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string } | null>(null);
+  const [qualityJump, setQualityJump] = useState("");
+  const [wipJump, setWipJump] = useState<{ companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string } | null>(null);
+  const [productionJump, setProductionJump] = useState<{ companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string } | null>(null);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
@@ -78,7 +92,7 @@ function App() {
   const globalVendorContacts = activeRows(readManufacturingData().vendors);
   const normalizedGlobalQuery = query.toLowerCase().trim();
   const globalRecordResults = normalizedGlobalQuery ? Object.entries(globalRecords).flatMap(([moduleId, records]) => records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(normalizedGlobalQuery)).map((record) => ({ ...record, moduleId }))).slice(0, 8) : [];
-  const globalVendorResults = normalizedGlobalQuery ? globalVendorContacts.filter((contact) => (contact.company + " " + contact.contact + " " + contact.role + " " + contact.phone + " " + contact.email + " " + contact.processes + " " + contact.notes).toLowerCase().includes(normalizedGlobalQuery)).slice(0, 8) : [];
+  const globalVendorResults = normalizedGlobalQuery ? globalVendorContacts.filter((contact) => (contact.company + " " + contact.gstin + " " + (contact.contacts||[]).map(person=>person.name+" "+person.phone+" "+person.email).join(" ") + " " + contact.contact + " " + contact.role + " " + contact.phone + " " + contact.email + " " + contact.processes + " " + contact.notes).toLowerCase().includes(normalizedGlobalQuery)).slice(0, 8) : [];
 
   const filteredModules = useMemo(() => modules.filter((item) => {
     const matchesDomain = domain === "All domains" || item.group === domain;
@@ -104,6 +118,33 @@ function App() {
 
   const selectModule = (id: string) => {
     setActiveModuleId(id);
+    setModuleExplorerOpen(false);
+    setCommandOpen(false);
+    setQuery("");
+    setNotice("");
+  };
+
+  const openWipTransfer = (selection: { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string }) => {
+    setWipJump(selection);
+    setActiveModuleId("wip-transfers");
+    setModuleExplorerOpen(false);
+    setCommandOpen(false);
+    setQuery("");
+    setNotice("");
+  };
+
+  const openProductionPlan = (selection: { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string }) => {
+    setProductionJump(selection);
+    setActiveModuleId("production");
+    setModuleExplorerOpen(false);
+    setCommandOpen(false);
+    setQuery("");
+    setNotice("");
+  };
+
+  const openVendorOperation = (selection: { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string }) => {
+    setProcessJump(selection);
+    setActiveModuleId("process-map");
     setModuleExplorerOpen(false);
     setCommandOpen(false);
     setQuery("");
@@ -178,17 +219,44 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <LinkedProcessWorkspace initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={operationId => { setQualityJump(operationId); selectModule("quality"); }} onOpenWipTransfer={openWipTransfer} onOpenProductionPlan={openProductionPlan} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "production" ? (
+          <ProductionPlanningWorkspace key="production" initialSelection={productionJump} onInitialSelectionApplied={() => setProductionJump(null)} onOpenOperation={openVendorOperation} onOpenWipTransfer={openWipTransfer} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
           <InventoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "wip-transfers" ? (
+          <WipDispatchWorkspace key="wip-transfers" mode="wip" initialSelection={wipJump} onInitialSelectionApplied={() => setWipJump(null)} onOpenOperation={openVendorOperation} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "dispatch" ? (
+          <WipDispatchWorkspace key="dispatch" mode="dispatch" onOpenOperation={openVendorOperation} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
           <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "quality" ? (
+          <QualityInspectionWorkspace
+            initialOperationId={qualityJump}
+            onInitialOperationApplied={() => setQualityJump("")}
+            onOpenOperation={openVendorOperation}
+            onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule}
+          />
         ) : activeModuleId === "process-master" ? (
-          <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
+          <ProcessMasterWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "vendor-capability" ? (
+          <VendorCapabilityWorkspace
+            initialVendorId={vendorCapabilityJump}
+            onInitialVendorApplied={() => setVendorCapabilityJump("")}
+            onOpenVendor={vendorId => { setVendorRecordJump(vendorId); selectModule("vendors"); }}
+            onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule}
+          />
         ) : activeModuleId === "vendors" ? (
-          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <VendorWorkspace
+            initialSearch={vendorSearchJump}
+            initialVendorId={vendorRecordJump}
+            onInitialVendorApplied={() => setVendorRecordJump("")}
+            onOpenCapability={vendorId => { setVendorCapabilityJump(vendorId); selectModule("vendor-capability"); }}
+            onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice}
+            onSelectModule={selectModule} onOpenOperation={openVendorOperation}
+          />
         ) : activeModuleId === "communications" ? (
           <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : (
@@ -197,9 +265,39 @@ function App() {
       </main>
 
       <nav className="command-rail" aria-label="Manufacturing modules">
-        <div className="rail-section-label">WORKSPACES</div>
-        {modules.map((item) => { const ItemIcon = item.icon; return <button key={item.id} title={item.title} className={activeModuleId === item.id ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16} /><span>{item.title}</span></button>; })}
-        <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={16} /><span>Module explorer</span></button>
+        <div className="rail-section-label">WORKSPACE</div>
+        {([
+          {label:"Dashboard",id:"command-centre",icon:LayoutGrid},
+          {label:"Command Centre",id:"command-centre",icon:Sparkles},
+          {label:"Companies",id:"companies",icon:Factory},
+          {label:"Purchase Orders",id:"purchasing",icon:Package},
+          {label:"Components",id:"components",icon:Box,group:"components",children:[{label:"All Components",id:"components"},{label:"Component Process Map",id:"process-map"},{label:"Drawings & Documents",id:"components"}]},
+          {label:"Vendors & Sub-vendors",id:"vendors",icon:Users,group:"vendors",children:[{label:"Vendor Directory & Work Allocation",id:"vendors"},{label:"Capability Directory",id:"vendor-capability"}]},
+          {label:"Process Master",id:"process-master",icon:Layers3,group:"process-master",children:[{label:"Process Library",id:"process-master"}]},
+          {label:"Production Planning",id:"production",icon:Activity},
+          {label:"Material & Inventory",id:"inventory",icon:Boxes,group:"inventory",children:[{label:"Materials / BOM / Stock Ledger",id:"inventory"},{label:"WIP Transfers & Vendor Handover",id:"wip-transfers"}]},
+          {label:"Transport & Dispatch",id:"dispatch",icon:Truck},
+          {label:"Quality & Inspection",id:"quality",icon:ClipboardCheck},
+          {label:"Costing & Payments",id:"costing",icon:CircleDollarSign},
+          {label:"Reports & Analytics",id:"reports",icon:BarChart3},
+          {label:"AI Insights",id:"risk",icon:Zap},
+          {label:"Export Centre",id:"export",icon:FileDown,divider:true},
+          {label:"Import Data",id:"import",icon:FileUp},
+          {label:"Users & Permissions",id:"admin-security",icon:ShieldCheck},
+          {label:"Integrations",id:"integrations",icon:Plug},
+          {label:"Settings",id:"admin-security",icon:Settings2}
+        ] as const).map((item) => {
+          const ItemIcon = item.icon;
+          const expanded = "group" in item && !!item.group && expandedNav.includes(item.group);
+          const active = activeModuleId === item.id || ("children" in item && item.children?.some(child => child.id === activeModuleId));
+          return <div className={"rail-entry" + ("divider" in item && item.divider ? " rail-entry-divider" : "")} key={item.label}>
+            <div className="rail-entry-main">
+              <button title={item.label} className={active ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16}/><span>{item.label}</span></button>
+              {"group" in item && item.group && <button className="rail-expand" aria-label={"Toggle " + item.label} onClick={() => setExpandedNav(current => current.includes(item.group!) ? current.filter(value => value !== item.group) : [...current,item.group!])}><ChevronDown size={14} style={{transform:expanded ? "rotate(180deg)" : "none"}}/></button>}
+            </div>
+            {expanded && "children" in item && <div className="rail-submenu">{item.children?.map(child => <button key={child.label} className={activeModuleId === child.id && child.id !== item.id ? "rail-sub-active" : ""} onClick={() => selectModule(child.id)}><span className="rail-sub-dot"/> <span>{child.label}</span></button>)}</div>}
+          </div>;
+        })}
       </nav>
 
       {moduleExplorerOpen && (
@@ -340,7 +438,7 @@ function CommandCentre(props: {
       <section className="module-shortcuts">
         <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all 32 modules <ArrowRight size={15} /></button></div>
         <div className="shortcut-grid">
-          {modules.filter((item) => ["process-map", "production", "vendors", "quality", "costing", "inventory"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
+          {modules.filter((item) => ["process-map", "production", "vendors", "quality", "costing", "inventory", "wip-transfers", "dispatch"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
         </div>
       </section>
     </>
@@ -358,70 +456,6 @@ function ModuleShortcut({ module, onClick }: { module: ModuleItem; onClick: () =
 
 type CostingLine={id:string;process:string;vendor:string;qty:number;rate:number;marketRate:number;transport:number;actual:boolean};
 type CostingComponent={id:string;code:string;name:string;revision:string;material:string;batchQty:number;salePrice:number;stockQty:number;materialQty:number;materialRate:number;marketMaterialRate:number;overhead:number;toolingCost:number;reworkCost:number;rejectedQty:number;scrapCost:number;gstRate:number;lines:CostingLine[]};
-type VendorDraft = Omit<VendorRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
-const emptyVendorDraft = (): VendorDraft => ({
-  company:"",contact:"",role:"",phone:"",whatsappNumber:"",email:"",address:"",
-  processes:"",machines:"",materials:"",notes:"",status:"Unverified contact — review",
-  sourceContactId:"",whatsappSyncedAt:""
-});
-function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelectModule }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; onSelectModule:(id:string)=>void }) {
-  const { data, update, syncStatus } = useManufacturingData();
-  const contacts = activeRows(data.vendors);
-  const [search,setSearch]=useState(initialSearch);
-  const [selectedId,setSelectedId]=useState("");
-  const [editing,setEditing]=useState(false);
-  const [draft,setDraft]=useState<VendorDraft>(emptyVendorDraft());
-  const selected=contacts.find(v=>v.id===selectedId)||contacts[0];
-  const filtered=contacts.filter(v=>(v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.whatsappNumber+" "+v.email+" "+v.address+" "+v.processes+" "+v.machines+" "+v.materials+" "+v.notes+" "+v.status).toLowerCase().includes(search.toLowerCase().trim()));
-  const beginNew=()=>{setSelectedId("");setDraft(emptyVendorDraft());setEditing(true);};
-  const beginEdit=(v:VendorRecord)=>{setSelectedId(v.id);setDraft({company:v.company,contact:v.contact,role:v.role,phone:v.phone,whatsappNumber:v.whatsappNumber,email:v.email,address:v.address,processes:v.processes,machines:v.machines,materials:v.materials,notes:v.notes,status:v.status,sourceContactId:v.sourceContactId,whatsappSyncedAt:v.whatsappSyncedAt});setEditing(true);};
-  const saveContact=()=>{
-    if(!draft.company.trim()||!draft.contact.trim()){onNotice("Vendor company and contact person are required.");return;}
-    const phone=String(draft.phone||"").replace(/\D/g,"");
-    const whatsappNumber=String(draft.whatsappNumber||"").replace(/\D/g,"");
-    const duplicate=contacts.find(v=>v.id!==selectedId&&phone&&String(v.phone||"").replace(/\D/g,"")===phone);
-    if(duplicate){onNotice("This phone number is already linked to "+duplicate.company+". Edit that record to avoid duplicate vendor IDs.");return;}
-    const stamp=nowIso();const id=selectedId||makeId("vendor");
-    update(current=>{const old=current.vendors.find(v=>v.id===id);const record:VendorRecord={...draft,company:draft.company.trim(),contact:draft.contact.trim(),phone,whatsappNumber,id,createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};return {...current,vendors:[...current.vendors.filter(v=>v.id!==id),record]};});
-    setSelectedId(id);setEditing(false);onNotice(syncStatus==="synced"?"Vendor saved to shared AXIMACH data.":"Vendor saved; cross-device sync activates when the existing AXIMACH server is connected and reachable.");
-  };
-  const archive=(v:VendorRecord)=>{if(!window.confirm("Archive this vendor? Historical operations and quotations will retain the vendor ID."))return;const stamp=nowIso();update(current=>({...current,vendors:current.vendors.map(x=>x.id===v.id?{...x,deletedAt:stamp,updatedAt:stamp}:x)}));setSelectedId("");setEditing(false);onNotice("Vendor archived; historical operation and quotation links were retained.");};
-  return <section className="workspace-page vendor-master-page">
-    {notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
-    <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill "+(syncStatus==="synced"?"scheduler-connected":"")}><i/>{syncStatus==="synced"?"SHARED SERVER DATA":syncStatus==="syncing"?"SYNCING":syncStatus==="error"?"SYNC ERROR · LOCAL COPY KEPT":"NO DEMO VENDORS · MASTER RECORDS"}</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / CONTACT MASTER</div><h1>Vendor network<span>.</span></h1><p>One vendor record connects its phone number, machine/process capability, operation assignments and quotation history.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={()=>onSelectModule("communications")}><CalendarClock size={15}/> Communications & follow-up</button><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add vendor</button></div></div>
-    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search vendor, phone, process, machine, material…"/></label><span className="module-number">{contacts.length} VENDORS / CONTACTS</span></div>
-    <div className="vendor-workspace-grid">
-      <section className="surface-panel vendor-list-panel"><div className="panel-heading"><div><h3>Vendor directory</h3><p>Shared master records · imported WhatsApp contacts remain unverified until reviewed</p></div></div>
-        <div className="vendor-record-list">{filtered.map(v=><button key={v.id} className={"vendor-record "+(selected?.id===v.id?"vendor-record-active":"")} onClick={()=>{setSelectedId(v.id);setEditing(false);}}><span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.contact} · {v.phone?"+"+v.phone:"Phone missing"}</small><small>{v.processes||"Capabilities not recorded"} · {v.status}</small></span><ArrowRight size={14}/></button>)}{!filtered.length&&<div className="module-empty-state"><Users size={25}/><h3>{search?"No matching vendor":"No vendors added"}</h3><p>{search?"Try another search.":"No placeholder vendors are preloaded. Add actual suppliers here or scan the WhatsApp bridge QR to import available contacts."}</p>{!search&&<button className="button-primary" onClick={beginNew}><Plus size={14}/> Add first vendor</button>}</div>}</div>
-      </section>
-      <section className="surface-panel vendor-detail-panel">
-        {editing?<><div className="panel-heading"><div><h3>{selectedId?"Edit vendor master":"New vendor master"}</h3><p>Company and contact person are required; phone numbers are checked for duplicates.</p></div><button className="icon-control" onClick={()=>setEditing(false)} aria-label="Close editor"><X size={14}/></button></div>
-          <div className="vendor-form">
-            <label>Vendor company *<input value={draft.company} onChange={e=>setDraft({...draft,company:e.target.value})} placeholder="Actual supplier / subcontractor name"/></label>
-            <label>Contact person *<input value={draft.contact} onChange={e=>setDraft({...draft,contact:e.target.value})} placeholder="Actual contact name"/></label>
-            <label>Role / department<input value={draft.role} onChange={e=>setDraft({...draft,role:e.target.value})} placeholder="Sales, production, accounts…"/></label>
-            <label>Phone with country code<input value={draft.phone} onChange={e=>setDraft({...draft,phone:e.target.value})} placeholder="Country code + number"/></label>
-            <label>WhatsApp number<input value={draft.whatsappNumber} onChange={e=>setDraft({...draft,whatsappNumber:e.target.value})} placeholder="Leave blank to use phone"/></label>
-            <label>Email<input type="email" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="name@company.com"/></label>
-            <label className="editor-wide">Address<input value={draft.address} onChange={e=>setDraft({...draft,address:e.target.value})} placeholder="Vendor site / dispatch address"/></label>
-            <label>Process capabilities<input value={draft.processes} onChange={e=>setDraft({...draft,processes:e.target.value})} placeholder="CNC turning, VMC, grinding, EDM…"/></label>
-            <label>Machines / capacity<input value={draft.machines} onChange={e=>setDraft({...draft,machines:e.target.value})} placeholder="Machine models, travel, capacity…"/></label>
-            <label>Material capabilities<input value={draft.materials} onChange={e=>setDraft({...draft,materials:e.target.value})} placeholder="Steel grades, aluminium, plastics…"/></label>
-            <label>Vendor status<select value={draft.status} onChange={e=>setDraft({...draft,status:e.target.value})}><option>Unverified contact — review</option><option>Review pending</option><option>Approved</option><option>Not approved</option><option>On hold</option></select></label>
-            <label className="editor-wide">Notes / lead time / certificates<input value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} placeholder="Quotation notes, lead time, certifications, capacity"/></label>
-            <div className="vendor-form-actions"><button className="button-primary" onClick={saveContact}><Check size={14}/> Save vendor master</button><button className="button-quiet" onClick={()=>setEditing(false)}>Cancel</button></div>
-          </div>
-        </>:selected?<><div className="vendor-detail-title"><span className="vendor-avatar vendor-avatar-large">{selected.company.slice(0,1).toUpperCase()}</span><div><h3>{selected.company}</h3><p>{selected.contact} · {selected.role||"Role not set"}</p><span className="record-state">{selected.status}</span></div><button className="button-quiet" onClick={()=>beginEdit(selected)}>Edit</button></div>
-          <div className="vendor-contact-grid"><div><small>PHONE</small><strong>{selected.phone||"Not added"}</strong></div><div><small>WHATSAPP</small><strong>{selected.whatsappNumber||selected.phone||"Not linked"}</strong></div><div><small>EMAIL</small><strong>{selected.email||"Not added"}</strong></div><div><small>ADDRESS</small><strong>{selected.address||"Not added"}</strong></div><div><small>PROCESS CAPABILITIES</small><strong>{selected.processes||"Not recorded"}</strong></div><div><small>MACHINES / CAPACITY</small><strong>{selected.machines||"Not recorded"}</strong></div><div><small>MATERIAL CAPABILITIES</small><strong>{selected.materials||"Not recorded"}</strong></div><div><small>WHATSAPP SYNC</small><strong>{selected.whatsappSyncedAt?new Date(selected.whatsappSyncedAt).toLocaleString():"Not synced"}</strong></div><div className="editor-wide"><small>NOTES</small><strong>{selected.notes||"No notes entered"}</strong></div></div>
-          <div className="vendor-actions"><button className="button-primary" onClick={()=>{const phone=(selected.whatsappNumber||selected.phone).replace(/\D/g,"");if(!phone){onNotice("Add a phone / WhatsApp number first.");return;}window.open("https://wa.me/"+phone,"_blank","noopener,noreferrer");}}><MessageCircle size={15}/> Open WhatsApp</button><button className="button-quiet" onClick={()=>onSelectModule("costing")}><CircleDollarSign size={15}/> Quotes & costing</button><button className="button-quiet" onClick={()=>onSelectModule("process-map")}><Workflow size={15}/> Assign to operation</button><button className="button-quiet" onClick={()=>onSelectModule("communications")}><CalendarClock size={15}/> Schedule follow-up</button><button className="button-quiet" onClick={()=>archive(selected)}><X size={14}/> Archive vendor</button></div>
-          <div className="module-safety-note"><ShieldCheck size={14}/><span>Operation assignments and quotations reference the vendor ID. QR-imported contacts stay unverified until you review them.</span></div>
-        </>:<div className="module-empty-state"><Users size={25}/><h3>Select or add a vendor</h3><p>QR-synced contacts appear here after the WhatsApp bridge connects and returns contacts.</p><button className="button-primary" onClick={beginNew}><Plus size={14}/> Add vendor</button></div>}
-      </section>
-    </div>
-  </section>;
-}
-
 function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; onNotice: (value: string) => void; notice: string }) {
   type ApiContact = { id: string; name: string; phone: string; company: string; optedIn: boolean; createdAt: string };
   type ApiSchedule = { id: string; to: string; message: string; nextRunAt: string | null; repeat: "once" | "daily" | "weekly"; enabled: boolean; lastRunAt: string | null; lastError: string };
@@ -456,7 +490,43 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const [waError,setWaError]=useState("");
   const waBase=waUrl.trim().replace(/\/+$/,"");
   const waRequest=async(path:string,init:RequestInit={})=>{const response=await fetch(waBase+path,{...init,headers:{"content-type":"application/json","x-aximach-key":apiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"WhatsApp bridge returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
-  const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{if(!incoming.length)return {added:0,updated:0};const current=readManufacturingData();const next=[...current.vendors];const syncedAt=nowIso();let added=0;let updated=0;for(const contact of incoming){const phone=String(contact.phone||"").replace(/\D/g,"");const label=String(contact.name||contact.notify||phone||"Imported WhatsApp contact").trim();const index=next.findIndex(v=>v.sourceContactId===contact.id||(phone&&([v.phone,v.whatsappNumber].some(value=>String(value||"").replace(/\D/g,"")===phone))));if(index>=0){const old=next[index];const patch:VendorRecord={...old,sourceContactId:old.sourceContactId||contact.id,phone:old.phone||phone,whatsappNumber:phone||old.whatsappNumber,contact:old.contact||label};const changed=patch.sourceContactId!==old.sourceContactId||patch.phone!==old.phone||patch.whatsappNumber!==old.whatsappNumber||patch.contact!==old.contact;if(changed){patch.whatsappSyncedAt=syncedAt;patch.updatedAt=syncedAt;next[index]=patch;updated++;}}else{next.push({id:makeId("vendor"),company:label,contact:label,role:"WhatsApp contact",phone,whatsappNumber:phone,email:"",address:"",processes:"",machines:"",materials:"",notes:"Imported from WhatsApp linked devices. Verify the real vendor identity, process capabilities and consent before approval.",status:"Unverified contact — review",sourceContactId:contact.id,whatsappSyncedAt:syncedAt,createdAt:syncedAt,updatedAt:syncedAt});added++;}}if(added||updated)updateManufacturingData(currentData=>({...currentData,vendors:next}));return {added,updated};};
+  const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{
+    if(!incoming.length)return {added:0,updated:0};
+    const current=readManufacturingData();const next=[...current.vendors];const syncedAt=nowIso();let added=0;let updated=0;
+    for(const contact of incoming){
+      const phone=String(contact.phone||"").replace(/\\D/g,"");
+      const label=String(contact.name||contact.notify||phone||"Imported WhatsApp contact").trim();
+      const index=next.findIndex(v=>v.sourceContactId===contact.id||(phone&&(
+        [v.phone,v.whatsappNumber].some(value=>String(value||"").replace(/\\D/g,"")===phone)||
+        (v.contacts||[]).some(person=>String(person.phone||"").replace(/\\D/g,"")===phone)
+      )));
+      if(index>=0){
+        const old=next[index];
+        const contactRows=old.contacts?.length?[...old.contacts]:old.contact||old.phone||old.email?[{id:old.id+"-primary",name:old.contact||"",role:old.role||"",phone:old.phone||"",email:old.email||""}]:[];
+        const personIndex=contactRows.findIndex(person=>phone&&String(person.phone||"").replace(/\\D/g,"")===phone);
+        if(personIndex>=0){contactRows[personIndex]={...contactRows[personIndex],name:contactRows[personIndex].name||label};}
+        else contactRows.push({id:makeId("vcontact"),name:label,role:"WhatsApp contact",phone,email:""});
+        const patch:VendorRecord={
+          ...old,sourceContactId:old.sourceContactId||contact.id,phone:old.phone||phone,
+          whatsappNumber:phone||old.whatsappNumber,contact:old.contact||label,
+          contacts:contactRows,verificationStatus:old.verificationStatus||(!["Active","Inactive"].includes(old.status)?old.status:"")
+        };
+        const changed=JSON.stringify(patch.contacts)!==JSON.stringify(old.contacts)||patch.sourceContactId!==old.sourceContactId||patch.phone!==old.phone||patch.whatsappNumber!==old.whatsappNumber||patch.contact!==old.contact||patch.verificationStatus!==old.verificationStatus;
+        if(changed){patch.whatsappSyncedAt=syncedAt;patch.updatedAt=syncedAt;next[index]=patch;updated++;}
+      }else{
+        next.push({
+          id:makeId("vendor"),company:label,contact:label,role:"WhatsApp contact",phone,whatsappNumber:phone,
+          email:"",address:"",processes:"",machines:"",materials:"",
+          notes:"Imported from WhatsApp linked devices. Verify the real vendor identity before relying on this contact.",
+          status:"Active",verificationStatus:"Unverified contact — review",
+          contacts:[{id:makeId("vcontact"),name:label,role:"WhatsApp contact",phone,email:""}],documents:[],
+          sourceContactId:contact.id,whatsappSyncedAt:syncedAt,createdAt:syncedAt,updatedAt:syncedAt
+        });added++;
+      }
+    }
+    if(added||updated)updateManufacturingData(currentData=>({...currentData,vendors:next}));
+    return {added,updated};
+  };
   const refreshWhatsApp=async()=>{setBusy(true);setWaError("");try{if(!apiKey.trim())throw new Error("Enter the server API key above first.");if(!waBase.startsWith("https://")&&!/^(http:\/\/localhost|http:\/\/127\.0\.0\.1)/.test(waBase))throw new Error("Use HTTPS for a deployed bridge. HTTP is allowed only for localhost.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");const contactRows:WhatsAppContact[]=co.contacts||[];setWaContacts(contactRows);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);const synced=st.connected?syncWhatsAppContactsToVendors(contactRows):{added:0,updated:0};window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; "+synced.added+" new contacts added to the AXIMACH vendor master and "+synced.updated+" existing records refreshed. They stay unverified until reviewed; cross-device persistence depends on the scheduler data server being connected.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
   const addWhatsAppSchedule=async()=>{setBusy(true);setWaError("");try{if(!waOptIn)throw new Error("Confirm you have permission to message this recipient.");const d=await waRequest("/api/whatsapp/schedules",{method:"POST",body:JSON.stringify({to:waTarget,message:waMessage,nextRunAt:new Date(waDue).toISOString(),repeat:waRepeat,optedIn:true})});setWaSchedules(prev=>[d.schedule,...prev]);setWaMessage("");onNotice("WhatsApp automation saved to the bridge server.");}catch(e){setWaError(e instanceof Error?e.message:"Could not save WhatsApp automation.");}finally{setBusy(false);}};
   const toggleWhatsAppSchedule=async(task:{id:string;enabled:boolean})=>{setBusy(true);setWaError("");try{const d=await waRequest("/api/whatsapp/schedules/"+task.id,{method:"PATCH",body:JSON.stringify({enabled:!task.enabled})});setWaSchedules(prev=>prev.map(x=>x.id===task.id?d.schedule:x));}catch(e){setWaError(e instanceof Error?e.message:"Could not update WhatsApp schedule.");}finally{setBusy(false);}};
