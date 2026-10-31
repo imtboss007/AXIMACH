@@ -4,10 +4,10 @@ import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus,
 import SearchablePicker from "./SearchablePicker";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
-type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "machineResourceId" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch">;
+type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "machineResourceId" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "setupHours" | "cycleTimeSeconds" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch">;
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
   name: "", category: "", machine: "", machineResourceId: "", vendorId: "", status: "Queued", plannedStart: "", plannedEnd: line?.targetDelivery || "", actualStart: "", actualEnd: "",
-  quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0,
+  quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, setupHours: 0, cycleTimeSeconds: 0, ratePerPart: 0, actualRatePerPart: 0,
   transportVendorId: "", transportCost: 0, transportPickup: "", transportDelivery: "", qualityNotes: "", inspectionResult: "", notes: "", branch: "Main route"
 });
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
@@ -97,7 +97,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     setDraft({
       name: activeOperation.name, category: activeOperation.category, machine: activeOperation.machine, machineResourceId: activeOperation.machineResourceId || "", vendorId: activeOperation.vendorId,
       status: activeOperation.status, plannedStart: activeOperation.plannedStart, plannedEnd: activeOperation.plannedEnd, actualStart: activeOperation.actualStart || "", actualEnd: activeOperation.actualEnd || "",
-      quantity: activeOperation.quantity, completed: activeOperation.completed, accepted: activeOperation.accepted, rejected: activeOperation.rejected,
+      quantity: activeOperation.quantity, completed: activeOperation.completed, accepted: activeOperation.accepted, rejected: activeOperation.rejected, setupHours: activeOperation.setupHours || 0, cycleTimeSeconds: activeOperation.cycleTimeSeconds || 0,
       ratePerPart: activeOperation.ratePerPart, actualRatePerPart: activeOperation.actualRatePerPart || 0, transportVendorId: activeOperation.transportVendorId || "", transportCost: activeOperation.transportCost, transportPickup: activeOperation.transportPickup,
       transportDelivery: activeOperation.transportDelivery, qualityNotes: activeOperation.qualityNotes, inspectionResult: activeOperation.inspectionResult || "", notes: activeOperation.notes, branch: activeOperation.branch
     });
@@ -108,6 +108,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if (!draft.name.trim()) { onNotice("Enter the operation name."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
     if (draft.accepted + draft.rejected > draft.completed) { onNotice("Accepted plus rejected quantity cannot exceed completed quantity."); return; }
+    if (draft.setupHours < 0 || draft.cycleTimeSeconds < 0) { onNotice("Setup hours and cycle time cannot be negative."); return; }
     const stamp = nowIso();
     const operationId = editingId || makeId("operation");
     update(current => {
@@ -203,6 +204,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <label>Actual completion date<input type="date" min={draft.actualStart || undefined} value={draft.actualEnd} onChange={e => setDraft({...draft,actualEnd:e.target.value})}/></label>
             <label>Duration (calendar days)<input readOnly value={daysBetween(draft.plannedStart,draft.plannedEnd) || "—"}/></label>
             <label>Quantity to process<input type="number" min="0" value={draft.quantity || ""} onChange={e => setDraft({...draft,quantity:Math.max(0,Number(e.target.value)||0)})}/></label>
+            <label>Setup time (machine hours)<input type="number" min="0" step="0.25" value={draft.setupHours || ""} onChange={e => setDraft({...draft,setupHours:Math.max(0,Number(e.target.value)||0)})}/></label>
+            <label>Cycle time per piece (seconds)<input type="number" min="0" step="0.1" value={draft.cycleTimeSeconds || ""} onChange={e => setDraft({...draft,cycleTimeSeconds:Math.max(0,Number(e.target.value)||0)})}/></label>
+            <small className="field-hint">Machine-hour requirement = setup hours + (quantity × cycle seconds ÷ 3,600). Enter actual process estimates; zero means not yet estimated.</small>
             <label>Completed quantity<input type="number" min="0" value={draft.completed || ""} onChange={e => setDraft({...draft,completed:Math.max(0,Number(e.target.value)||0)})}/></label>
             <label>Accepted quantity<input type="number" min="0" value={draft.accepted || ""} onChange={e => setDraft({...draft,accepted:Math.max(0,Number(e.target.value)||0)})}/></label>
             <label>Rejected quantity<input type="number" min="0" value={draft.rejected || ""} onChange={e => setDraft({...draft,rejected:Math.max(0,Number(e.target.value)||0)})}/></label>
