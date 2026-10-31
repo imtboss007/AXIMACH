@@ -30,10 +30,17 @@ export type PurchaseOrderRecord = {
   targetDelivery: string; status: string; notes: string; lines: PurchaseOrderLine[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type VendorContactRecord = {
+  id: string; name: string; role: string; phone: string; email: string;
+};
+export type VendorDocumentRecord = {
+  id: string; title: string; reference: string; notes: string;
+};
 export type VendorRecord = {
   id: string; company: string; contact: string; role: string; phone: string; whatsappNumber: string;
   email: string; address: string; processes: string; machines: string; materials: string; notes: string;
   status: string; sourceContactId: string; whatsappSyncedAt: string;
+  gstin?: string; contacts?: VendorContactRecord[]; documents?: VendorDocumentRecord[]; verificationStatus?: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type OperationRecord = {
