@@ -5,9 +5,9 @@ import SearchablePicker from "./SearchablePicker";
 
 type ProcessSelection = { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string };
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; initialSelection?: ProcessSelection | null; onInitialSelectionApplied?: () => void };
-type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch">;
+type DraftOperation = Pick<OperationRecord, "processDefinitionId" | "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch">;
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
-  name: "", category: "", machine: "", vendorId: "", status: "Queued", plannedStart: "", plannedEnd: line?.targetDelivery || "", actualStart: "", actualEnd: "",
+  processDefinitionId: "", name: "", category: "", machine: "", vendorId: "", status: "Queued", plannedStart: "", plannedEnd: line?.targetDelivery || "", actualStart: "", actualEnd: "",
   quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0,
   transportVendorId: "", transportCost: 0, transportPickup: "", transportDelivery: "", qualityNotes: "", inspectionResult: "", notes: "", branch: "Main route"
 });
@@ -22,6 +22,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const purchaseOrders = activeRows(data.purchaseOrders);
   const components = activeRows(data.components);
   const vendors = activeRows(data.vendors);
+  const processDefinitions = activeRows(data.processDefinitions).filter(row => row.status !== "Retired");
   const operations = activeRows(data.operations);
 
   const [companyId, setCompanyId] = useState(initialSelection?.companyId || "");
@@ -107,7 +108,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const editActive = () => {
     if (!activeOperation) return;
     setDraft({
-      name: activeOperation.name, category: activeOperation.category, machine: activeOperation.machine, vendorId: activeOperation.vendorId,
+      processDefinitionId: activeOperation.processDefinitionId || "", name: activeOperation.name, category: activeOperation.category, machine: activeOperation.machine, vendorId: activeOperation.vendorId,
       status: activeOperation.status, plannedStart: activeOperation.plannedStart, plannedEnd: activeOperation.plannedEnd, actualStart: activeOperation.actualStart || "", actualEnd: activeOperation.actualEnd || "",
       quantity: activeOperation.quantity, completed: activeOperation.completed, accepted: activeOperation.accepted, rejected: activeOperation.rejected,
       ratePerPart: activeOperation.ratePerPart, actualRatePerPart: activeOperation.actualRatePerPart || 0, transportVendorId: activeOperation.transportVendorId || "", transportCost: activeOperation.transportCost, transportPickup: activeOperation.transportPickup,
@@ -127,6 +128,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       const old = current.operations.find(op => op.id === operationId);
       const next: OperationRecord = {
         id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
+        processDefinitionId: draft.processDefinitionId || "",
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
         ...draft, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
@@ -204,6 +206,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></div>
         {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
+            <SearchablePicker id="operation-process-definition" label="Process definition (optional)" value={draft.processDefinitionId || ""} placeholder="Select saved Process Master definition…" options={processDefinitions.map(row=>({id:row.id,label:(row.code ? row.code+" · " : "")+row.name+(row.revision ? " · Rev "+row.revision : "")}))} onChange={id=>{const definition=processDefinitions.find(row=>row.id===id);setDraft(current=>({...current,processDefinitionId:id,name:definition?.name||current.name,category:definition?.category||current.category}));}}/>
             <label>Operation name *<input value={draft.name} onChange={e => setDraft({...draft,name:e.target.value})} placeholder="CNC turning, VMC milling, heat treatment…"/></label>
             <label>Process type<input value={draft.category} onChange={e => setDraft({...draft,category:e.target.value})} placeholder="Machining, treatment, quality…"/></label>
             <label>Machine / station<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value})} placeholder="Machine / work centre"/></label>
