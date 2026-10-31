@@ -15,8 +15,10 @@ const moneyless = (value: number) => Number(value || 0).toLocaleString("en-IN");
 
 export default function VendorCapabilityWorkspace({ onBack, onNotice, notice, onSelectModule, initialVendorId = "", onInitialVendorApplied, onOpenVendor }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
+  const allVendors = data.vendors;
   const vendors = activeRows(data.vendors);
-  const processes = activeRows(data.processDefinitions);
+  const allProcessDefinitions = data.processDefinitions;
+  const processes = activeRows(data.processDefinitions).filter(row => row.status !== "Retired");
   const capabilities = activeRows(data.vendorCapabilities);
   const operations = activeRows(data.operations);
   const [search, setSearch] = useState("");
@@ -27,14 +29,24 @@ export default function VendorCapabilityWorkspace({ onBack, onNotice, notice, on
   const [draft, setDraft] = useState<Draft>(blankDraft());
   const today = new Date().toISOString().slice(0, 10);
   const filtered = useMemo(() => capabilities.filter(cap => {
-    const vendor = vendors.find(row => row.id === cap.vendorId);
-    const process = processes.find(row => row.id === cap.processDefinitionId);
+    const vendor = allVendors.find(row => row.id === cap.vendorId);
+    const process = allProcessDefinitions.find(row => row.id === cap.processDefinitionId);
     return (!vendorFilterId || cap.vendorId === vendorFilterId) &&
       [vendor?.company, process?.name, process?.code, cap.machineModel, cap.materialRange, cap.toleranceCapability, cap.certificationScope, cap.status]
         .join(" ").toLowerCase().includes(search.trim().toLowerCase());
   }), [capabilities, vendors, processes, search, vendorFilterId]);
-  const selectedVendor = vendors.find(row => row.id === draft.vendorId);
+  const selectedVendor = allVendors.find(row => row.id === draft.vendorId);
   const evidenceOptions = selectedVendor?.documents || [];
+  const editingCapability = capabilities.find(row => row.id === editingId);
+  const draftVendor = allVendors.find(row => row.id === draft.vendorId);
+  const vendorPickerOptions = [...vendors, ...(draftVendor && !vendors.some(row => row.id === draftVendor.id) ? [draftVendor] : [])]
+    .map(v => ({ id:v.id, label:v.company + (v.gstin ? " · " + v.gstin : "") + (v.deletedAt ? " · Archived" : !vendors.some(row => row.id === v.id) ? " · Inactive" : "") }));
+  const draftProcess = allProcessDefinitions.find(row => row.id === draft.processDefinitionId);
+  const processPickerRows = [...processes, ...(draftProcess && !processes.some(row => row.id === draftProcess.id) ? [draftProcess] : [])];
+  const processPickerOptions = processPickerRows.map(p => ({
+    id:p.id, label:(p.code ? p.code + " · " : "") + p.name + (p.revision ? " · Rev " + p.revision : "") +
+      (p.deletedAt ? " · Archived" : p.status === "Retired" ? " · Retired" : "")
+  }));
   const reset = () => { setShowForm(false); setEditingId(""); setDraft(blankDraft()); };
   const startNew = () => { setDraft(blankDraft()); setEditingId(""); setShowForm(true); };
   const edit = (row: VendorCapabilityRecord) => {
@@ -52,8 +64,10 @@ export default function VendorCapabilityWorkspace({ onBack, onNotice, notice, on
       : current.evidenceDocumentIds.filter(id => id !== documentId)
   }));
   const save = () => {
-    if (!vendors.some(v => v.id === draft.vendorId)) { onNotice("Select an existing vendor master record."); return; }
-    if (!processes.some(p => p.id === draft.processDefinitionId)) { onNotice("Select a saved process definition from Process Master."); return; }
+    const vendorAllowed = vendors.some(v => v.id === draft.vendorId) || editingCapability?.vendorId === draft.vendorId;
+    const processAllowed = processes.some(p => p.id === draft.processDefinitionId) || editingCapability?.processDefinitionId === draft.processDefinitionId;
+    if (!vendorAllowed) { onNotice("Select an active vendor master record."); return; }
+    if (!processAllowed) { onNotice("Select an active process definition from Process Master."); return; }
     if (draft.validFrom && draft.validUntil && draft.validUntil < draft.validFrom) { onNotice("Capability validity end date cannot be before its start date."); return; }
     const machineKey = draft.machineModel.trim().toLowerCase();
     const duplicate = capabilities.find(row => row.id !== editingId &&
@@ -91,8 +105,8 @@ export default function VendorCapabilityWorkspace({ onBack, onNotice, notice, on
     {!vendors.length || !processes.length ? <section className="surface-panel capability-prerequisites"><h3>Master records required</h3><p>{!vendors.length ? "Add actual vendors first. " : ""}{!processes.length ? "Create process definitions first. " : ""}Capability records must reference saved vendor and process IDs so that they can be reused across jobs without creating duplicate names.</p><div className="linked-empty-actions">{!vendors.length && <button className="button-quiet" onClick={() => onSelectModule("vendors")}>Open Vendor Directory <ArrowRight size={14}/></button>}{!processes.length && <button className="button-quiet" onClick={() => onSelectModule("process-master")}>Open Process Master <ArrowRight size={14}/></button>}</div></section> : null}
     {showForm && <section className="surface-panel master-editor"><div className="panel-heading"><div><h3>{editingId ? "Edit capability assessment" : "New vendor capability"}</h3><p>Qualification and evidence only. Actual outsourced jobs and their rates remain separately assigned on each Process Map operation.</p></div><button className="icon-control" onClick={reset} aria-label="Close editor"><X size={14}/></button></div>
       <div className="module-record-form capability-form">
-        <SearchablePicker id="capability-vendor" label="Vendor *" value={draft.vendorId} placeholder="Search saved vendor…" options={vendors.map(v => ({id:v.id,label:v.company + (v.gstin ? " · " + v.gstin : "")}))} onChange={chooseVendor}/>
-        <SearchablePicker id="capability-process" label="Process definition *" value={draft.processDefinitionId} placeholder="Search Process Master…" options={processes.map(p => ({id:p.id,label:(p.code ? p.code + " · " : "") + p.name + (p.revision ? " · Rev " + p.revision : "")}))} onChange={id => setDraft(current => ({...current,processDefinitionId:id}))}/>
+        <SearchablePicker id="capability-vendor" label="Vendor *" value={draft.vendorId} placeholder="Search saved vendor…" options={vendorPickerOptions} onChange={chooseVendor}/>
+        <SearchablePicker id="capability-process" label="Process definition *" value={draft.processDefinitionId} placeholder="Search Process Master…" options={processPickerOptions} onChange={id => setDraft(current => ({...current,processDefinitionId:id}))}/>
         <label>Machine / equipment model<input value={draft.machineModel} onChange={e => setDraft({...draft,machineModel:e.target.value})} placeholder="Machine make / model / asset reference"/></label>
         <label>Material / grade range<input value={draft.materialRange} onChange={e => setDraft({...draft,materialRange:e.target.value})} placeholder="Actual qualified material range"/></label>
         <label>Capability: tolerance<input value={draft.toleranceCapability} onChange={e => setDraft({...draft,toleranceCapability:e.target.value})} placeholder="Enter demonstrated tolerance / measurement scope"/></label>
@@ -113,14 +127,14 @@ export default function VendorCapabilityWorkspace({ onBack, onNotice, notice, on
     </section>}
     <div className="master-data-list">
       {filtered.map(row => {
-        const vendor = vendors.find(item => item.id === row.vendorId);
-        const process = processes.find(item => item.id === row.processDefinitionId);
+        const vendor = allVendors.find(item => item.id === row.vendorId);
+        const process = allProcessDefinitions.find(item => item.id === row.processDefinitionId);
         const evidence = (vendor?.documents || []).filter(doc => (row.evidenceDocumentIds || []).includes(doc.id));
         const allocationCount = getAllocationCount(row);
         return <article className="surface-panel master-data-card capability-card" key={row.id}>
           <div className="master-card-icon"><Cpu size={18}/></div>
           <div className="master-card-copy"><div className="master-card-heading"><strong>{vendor?.company || "Vendor record missing"} → {process?.name || "Process definition missing"}</strong><span className="record-state">{effectiveStatus(row)}</span></div>
-            <p>{process?.code || "No process code"} · {row.machineModel || "Machine not specified"} · {moneyless(row.capacityPerMonth)} pcs/month capacity</p>
+            <p>{process?.code || "No process code"} · {row.machineModel || "Machine not specified"} · {moneyless(row.capacityPerMonth)} pcs/month capacity{process?.status === "Retired" || process?.deletedAt ? " · Process definition retired/archived" : ""}</p>
             <small>Envelope: {row.envelopeX || "—"} × {row.envelopeY || "—"} × {row.envelopeZ || "—"} mm · Tolerance: {row.toleranceCapability || "Not entered"} · Material: {row.materialRange || "Not entered"}</small>
             <div className="master-link-stats"><span>{evidence.length} linked evidence document(s)</span><span>{allocationCount} actual operation allocation(s)</span><span>{row.certificationScope || "No certification scope entered"}</span></div>
             {row.notes && <small>{row.notes}</small>}
