@@ -5,7 +5,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type MachineResourceR
 type Props = { mode: "maintenance" | "production"; onBack: () => void; onNotice: (value: string) => void; onSelectModule: (id: string) => void };
 type MachineDraft = Omit<MachineResourceRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type EventDraft = Omit<MaintenanceEventRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
-const today = () => new Date().toISOString().slice(0, 10);
+const localDate = (date: Date) => [date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");\nconst today = () => localDate(new Date());
 const dateTimeLocal = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 const blankMachine = (): MachineDraft => ({ factoryId: "", code: "", name: "", category: "CNC", makeModel: "", workingHoursPerDay: 0, shiftStartTime: "", workingDays: [], status: "Available", notes: "" });
 const blankEvent = (): EventDraft => ({ resourceId: "", type: "Preventive", title: "", reason: "", priority: "Medium", status: "Scheduled", plannedStartAt: dateTimeLocal(new Date(Date.now() + 3600000)), plannedEndAt: dateTimeLocal(new Date(Date.now() + 7200000)), actualStartAt: "", actualEndAt: "", assignedTo: "", workOrderRef: "", notes: "" });
@@ -64,7 +64,7 @@ export default function MachineCapacityWorkspace({ mode, onBack, onNotice, onSel
   const [showMachineForm, setShowMachineForm] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
   const [fromDate, setFromDate] = useState(today());
-  const [toDate, setToDate] = useState(() => { const d=new Date(); d.setDate(d.getDate()+6); return d.toISOString().slice(0,10); });
+  const [toDate, setToDate] = useState(() => { const d=new Date(); d.setDate(d.getDate()+6); return localDate(d); });
   const [search, setSearch] = useState("");
   const rangeStart = new Date(fromDate + "T00:00:00");
   const rangeEnd = new Date(toDate + "T23:59:59.999");
