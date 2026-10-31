@@ -37,7 +37,8 @@ function allocate(machine: MachineResourceRecord, operation: OperationRecord, ea
     const [h,m] = (machine.shiftStartTime || "08:00").split(":").map(Number);
     const shiftStart = new Date(date.getFullYear(),date.getMonth(),date.getDate(),h||0,m||0).getTime();
     const shiftEnd = shiftStart + machine.workingHoursPerDay*3600000;
-    let free: Array<[number,number]> = [[Math.max(shiftStart,earliest),Math.min(shiftEnd,horizon)]].filter(([a,b])=>b>a);
+    const initialFree: Array<[number,number]> = [[Math.max(shiftStart,earliest),Math.min(shiftEnd,horizon)]];
+    let free: Array<[number,number]> = initialFree.filter(([a,b])=>b>a);
     for (const [blockStart,blockEnd] of blocks) {
       const next: Array<[number,number]> = [];
       for (const [a,b] of free) {
