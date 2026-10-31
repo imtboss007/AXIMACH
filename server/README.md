@@ -19,7 +19,7 @@ Run with Node.js 20.18+: `node server/index.mjs`.
 
 All routes except `GET /health` require header `x-aximach-key: <AXIMACH_API_KEY>`.
 
-- `GET /api/manufacturing-data` — read the linked company/factory/PO/component/vendor/operation/quotation collections.
+- `GET /api/manufacturing-data` — read the linked company/factory/PO/component/vendor/operation/quotation/material/BOM/inventory/machine-resource/maintenance collections.
 - `PUT /api/manufacturing-data` — merge linked manufacturing records by stable record ID and `updatedAt` into the persistent JSON store (maximum 8 MB per payload; archive records with a `deletedAt` timestamp to retain history).
 - `GET /api/records` — read all generic module records by module ID.
 - `PUT /api/records` JSON: `{"records":{"companies":[{"id":"...","title":"Example","updatedAt":"..."}]}}` — persist module records server-side (maximum 8 MB per payload).
