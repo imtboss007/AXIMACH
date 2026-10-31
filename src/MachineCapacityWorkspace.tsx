@@ -5,7 +5,8 @@ import { activeRows, makeId, nowIso, useManufacturingData, type MachineResourceR
 type Props = { mode: "maintenance" | "production"; onBack: () => void; onNotice: (value: string) => void; onSelectModule: (id: string) => void };
 type MachineDraft = Omit<MachineResourceRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type EventDraft = Omit<MaintenanceEventRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
-const localDate = (date: Date) => [date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");\nconst today = () => localDate(new Date());
+const localDate = (date: Date) => [date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
+const today = () => localDate(new Date());
 const dateTimeLocal = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 const blankMachine = (): MachineDraft => ({ factoryId: "", code: "", name: "", category: "CNC", makeModel: "", workingHoursPerDay: 0, shiftStartTime: "", workingDays: [], status: "Available", notes: "" });
 const blankEvent = (): EventDraft => ({ resourceId: "", type: "Preventive", title: "", reason: "", priority: "Medium", status: "Scheduled", plannedStartAt: dateTimeLocal(new Date(Date.now() + 3600000)), plannedEndAt: dateTimeLocal(new Date(Date.now() + 7200000)), actualStartAt: "", actualEndAt: "", assignedTo: "", workOrderRef: "", notes: "" });
