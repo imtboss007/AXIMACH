@@ -57,10 +57,18 @@ export type VendorCapabilityRecord = {
   evidenceDocumentIds: string[]; status: VendorCapabilityStatus; validFrom: string; validUntil: string;
   assessedBy: string; assessedAt: string; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type MachineResourceStatus = "Available" | "Maintenance" | "Inactive";
+export type MachineResourceRecord = {
+  id: string; factoryId: string; name: string; machineType: string; make: string; model: string;
+  envelopeX: number; envelopeY: number; envelopeZ: number;
+  capacityHoursPerShift: number; shiftsPerDay: number; workingDaysPerMonth: number;
+  status: MachineResourceStatus; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type OperationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; processDefinitionId?: string; sequence: number; name: string;
   category: string; machine: string; vendorId: string; status: LifecycleStatus;
-  plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string;
+  plannedStart: string; plannedEnd: string; plannedStartTime?: string; plannedEndTime?: string; plannedHours?: number; machineResourceId?: string;
+  actualStart: string; actualEnd: string;
   quantity: number; completed: number; accepted: number; rejected: number;
   ratePerPart: number; actualRatePerPart: number; transportVendorId: string; transportPickup: string; transportDelivery: string;
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
@@ -133,7 +141,7 @@ export type ManufacturingData = {
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
   qualityInspections: QualityInspectionRecord[];
-  processDefinitions: ProcessDefinitionRecord[]; vendorCapabilities: VendorCapabilityRecord[];
+  processDefinitions: ProcessDefinitionRecord[]; vendorCapabilities: VendorCapabilityRecord[]; machineResources: MachineResourceRecord[];
   inventoryTransactions: InventoryTransactionRecord[]; wipTransfers: WipTransferRecord[]; customerDispatches: CustomerDispatchRecord[];
 };
 
@@ -146,7 +154,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], bomLines: [], qualityInspections: [], processDefinitions: [], vendorCapabilities: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: []
+  operations: [], quotations: [], materials: [], bomLines: [], qualityInspections: [], processDefinitions: [], vendorCapabilities: [], machineResources: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -165,6 +173,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     qualityInspections: Array.isArray(value?.qualityInspections) ? value.qualityInspections : empty.qualityInspections,
     processDefinitions: Array.isArray(value?.processDefinitions) ? value.processDefinitions : empty.processDefinitions,
     vendorCapabilities: Array.isArray(value?.vendorCapabilities) ? value.vendorCapabilities : empty.vendorCapabilities,
+    machineResources: Array.isArray(value?.machineResources) ? value.machineResources : empty.machineResources,
     inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
     wipTransfers: Array.isArray(value?.wipTransfers) ? value.wipTransfers : empty.wipTransfers,
     customerDispatches: Array.isArray(value?.customerDispatches) ? value.customerDispatches : empty.customerDispatches
@@ -211,6 +220,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     qualityInspections: mergeRows(local.qualityInspections, remote.qualityInspections),
     processDefinitions: mergeRows(local.processDefinitions, remote.processDefinitions),
     vendorCapabilities: mergeRows(local.vendorCapabilities, remote.vendorCapabilities),
+    machineResources: mergeRows(local.machineResources, remote.machineResources),
     inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
     wipTransfers: mergeRows(local.wipTransfers, remote.wipTransfers),
     customerDispatches: mergeRows(local.customerDispatches, remote.customerDispatches)
