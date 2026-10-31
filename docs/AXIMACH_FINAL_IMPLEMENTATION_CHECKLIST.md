@@ -83,7 +83,7 @@ Exactly the eight approved functions:
 
 ### 08 — Production Planning + Process Map (combined user-facing menu)
 - [ ] Combine the two user reference screens into one integrated workspace; do not redesign into an unrelated layout.
-- [ ] No Factory filter or factory selector in the user-facing planning screen.
+- [x] No Factory filter or factory selector in the user-facing Process Map screen; legacy factory IDs remain internal for historical PO and machine-resource relationships.
 - [ ] Searchable multi-select filters with checkboxes: Company, PO Number, Component and optional Vendor.
 - [ ] Vendor filter shows components/operations assigned to that vendor.
 - [ ] Add/select Company, PO and existing PO component line in the workspace.
@@ -244,3 +244,7 @@ Exactly the eight approved functions:
 - Process Map now stores the optional processTypeId on catalogue-linked operations. Existing operations without it keep their legacy process name/category when edited.
 - Existing PO-operation quotation rows remain separate and unchanged.
 - TypeScript/Vite build and browser/Electron/Capacitor workflow regression checks remain pending execution in a runnable checkout. Gap 1 must not be accepted until those checks pass.
+## Gap 2 — Process Map / Production Planning integration note (2026-10-31)
+- Removed the user-facing Factory selector from Process Map. The route now follows Company → Purchase Order → PO component line.
+- PO choices are filtered directly by Company; historical factoryId fields are retained and the selected PO's internal factoryId continues to support existing machine-resource compatibility.
+- The separate Production Planning and Process Map routes remain unchanged in this focused correction; combining their approved reference layouts is still pending.
