@@ -3,7 +3,7 @@ import { ArrowRight, Check, Plus, Search, ShieldCheck, Truck, Warehouse, Workflo
 import {
   activeRows, makeId, nowIso, useManufacturingData,
   type CustomerDispatchRecord, type CustomerDispatchStatus, type InventoryTransactionRecord,
-  type OperationRecord, type StockLocationType, type WipTransferRecord, type WipTransferStatus
+  type MovementAcknowledgementRecord, type OperationRecord, type StockLocationType, type WipTransferRecord
 } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
@@ -108,7 +108,7 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
       sourceVendorId:source.vendorId,destinationVendorId:destination.vendorId,quantity:qty,dispatchedQuantity:0,receivedQuantity:0,
       status:"Prepared",preparedAt:wipDate,dispatchedAt:"",lastReceivedAt:"",challanReference:wipChallan.trim(),
       vehicleNumber:wipVehicle.trim(),transporterVendorId:wipTransporter,lrNumber:wipLr.trim(),receivedBy:"",
-      discrepancyNotes:"",notes:wipNotes.trim(),stockTransactionIds:[],createdAt:stamp,updatedAt:stamp
+      discrepancyNotes:"",receiptEvents:[],notes:wipNotes.trim(),stockTransactionIds:[],createdAt:stamp,updatedAt:stamp
     };
     update(current=>({...current,wipTransfers:[...current.wipTransfers,record]}));
     resetWipForm();
@@ -136,7 +136,8 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
     const incoming=makeTransaction({id:makeId("stock"),movementId:record.id,movementKind:"WIP transfer",itemId:record.componentId,direction:"in",quantity:qty,occurredAt:date,reference:record.challanReference||record.id,notes:"WIP received at destination operation "+record.toOperationId,companyId:record.companyId,factoryId:record.factoryId,poId:record.poId,poLineId:record.poLineId,operationId:record.toOperationId,vendorId:record.destinationVendorId,locationType:record.destinationLocationType,locationId:record.destinationLocationId});
     const discrepancy=wipDiscrepancy[record.id]?.trim()||"";
     const by=wipReceivedBy[record.id]?.trim()||"";
-    update(current=>({...current,inventoryTransactions:[...current.inventoryTransactions,out,incoming],wipTransfers:current.wipTransfers.map(row=>row.id===record.id?{...row,receivedQuantity:newReceived,status:newReceived===row.dispatchedQuantity?"Received":"Partially received",lastReceivedAt:date,receivedBy:by,discrepancyNotes:discrepancy||row.discrepancyNotes,stockTransactionIds:[...row.stockTransactionIds,out.id,incoming.id],updatedAt:stamp}:row)}));
+    const receiptEvent:MovementAcknowledgementRecord={id:makeId("wip-receipt"),quantity:qty,occurredAt:date,receivedBy:by,proofReference:"",discrepancyNotes:discrepancy,stockTransactionIds:[out.id,incoming.id]};
+    update(current=>({...current,inventoryTransactions:[...current.inventoryTransactions,out,incoming],wipTransfers:current.wipTransfers.map(row=>row.id===record.id?{...row,receivedQuantity:newReceived,status:newReceived===row.dispatchedQuantity?"Received":"Partially received",lastReceivedAt:date,receivedBy:by,discrepancyNotes:discrepancy||row.discrepancyNotes,receiptEvents:[...(row.receiptEvents||[]),receiptEvent],stockTransactionIds:[...row.stockTransactionIds,out.id,incoming.id],updatedAt:stamp}:row)}));
     onNotice(newReceived===record.dispatchedQuantity?"WIP receipt confirmed. Destination stock updated and handover is complete.":"Partial WIP receipt recorded. Remaining quantity stays in transit.");
   };
 
@@ -152,9 +153,9 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
     const record:CustomerDispatchRecord={
       id:makeId("dispatch"),companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,poId:selectedPO.id,poLineId:selectedLine.id,
       componentId:selectedComponent.id,quantity:qty,dispatchedQuantity:0,deliveredQuantity:0,status:"Prepared",
-      deliveryChallan:challan.trim(),eWayBill:ewayBill.trim(),transporterVendorId:transporter,vehicleNumber:vehicle.trim(),
+      deliveryChallan:challan.trim(),actualDispatchDate:"",eWayBill:ewayBill.trim(),transporterVendorId:transporter,vehicleNumber:vehicle.trim(),
       lrNumber:lrNumber.trim(),destination:destination.trim(),dispatchDate,lastDeliveryDate:"",receivedBy:"",proofReference:"",
-      discrepancyNotes:"",notes:dispatchNotes.trim(),stockTransactionIds:[],createdAt:stamp,updatedAt:stamp
+      discrepancyNotes:"",deliveryEvents:[],notes:dispatchNotes.trim(),stockTransactionIds:[],createdAt:stamp,updatedAt:stamp
     };
     update(current=>({...current,customerDispatches:[...current.customerDispatches,record]}));
     setDispatchFormOpen(false);setDispatchQuantity("");setDispatchDate(today());setChallan("");setEwayBill("");setTransporter("");setVehicle("");setLrNumber("");setDestination("");setDispatchNotes("");
@@ -167,7 +168,7 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
     const stamp=nowIso(),date=today();
     const out=makeTransaction({id:makeId("stock"),movementId:record.id,movementKind:"Customer dispatch",itemId:record.componentId,direction:"out",quantity:record.quantity,occurredAt:date,reference:record.deliveryChallan||record.id,notes:"Customer dispatch to "+(record.destination||"destination not entered"),companyId:record.companyId,factoryId:record.factoryId,poId:record.poId,poLineId:record.poLineId,operationId:"",vendorId:"",locationType:"factory",locationId:record.factoryId});
     const transit=makeTransaction({id:makeId("stock"),movementId:record.id,movementKind:"Customer dispatch",itemId:record.componentId,direction:"in",quantity:record.quantity,occurredAt:date,reference:record.deliveryChallan||record.id,notes:"Customer shipment in transit",companyId:record.companyId,factoryId:record.factoryId,poId:record.poId,poLineId:record.poLineId,operationId:"",vendorId:record.transporterVendorId,locationType:"transit",locationId:record.id});
-    update(current=>({...current,inventoryTransactions:[...current.inventoryTransactions,out,transit],customerDispatches:current.customerDispatches.map(row=>row.id===record.id?{...row,status:"In transit",dispatchedQuantity:record.quantity,stockTransactionIds:[...row.stockTransactionIds,out.id,transit.id],updatedAt:stamp}:row)}));
+    update(current=>({...current,inventoryTransactions:[...current.inventoryTransactions,out,transit],customerDispatches:current.customerDispatches.map(row=>row.id===record.id?{...row,status:"In transit",dispatchedQuantity:record.quantity,actualDispatchDate:date,stockTransactionIds:[...row.stockTransactionIds,out.id,transit.id],updatedAt:stamp}:row)}));
     onNotice("Customer goods dispatched. Factory stock reduced and shipment placed in transit; delivery is still unconfirmed.");
   };
   const confirmDelivery=(record:CustomerDispatchRecord)=>{
@@ -181,7 +182,8 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
     const by=deliveryReceivedBy[record.id]?.trim()||"";
     const proof=deliveryProof[record.id]?.trim()||"";
     const discrepancy=deliveryDiscrepancy[record.id]?.trim()||"";
-    update(current=>({...current,inventoryTransactions:[...current.inventoryTransactions,out],customerDispatches:current.customerDispatches.map(row=>row.id===record.id?{...row,deliveredQuantity:newDelivered,status:newDelivered===row.dispatchedQuantity?"Delivered":"Partially delivered",lastDeliveryDate:date,receivedBy:by,proofReference:proof,discrepancyNotes:discrepancy||row.discrepancyNotes,stockTransactionIds:[...row.stockTransactionIds,out.id],updatedAt:stamp}:row)}));
+    const deliveryEvent:MovementAcknowledgementRecord={id:makeId("delivery-event"),quantity:qty,occurredAt:date,receivedBy:by,proofReference:proof,discrepancyNotes:discrepancy,stockTransactionIds:[out.id]};
+    update(current=>({...current,inventoryTransactions:[...current.inventoryTransactions,out],customerDispatches:current.customerDispatches.map(row=>row.id===record.id?{...row,deliveredQuantity:newDelivered,status:newDelivered===row.dispatchedQuantity?"Delivered":"Partially delivered",lastDeliveryDate:date,receivedBy:by,proofReference:proof,discrepancyNotes:discrepancy||row.discrepancyNotes,deliveryEvents:[...(row.deliveryEvents||[]),deliveryEvent],stockTransactionIds:[...row.stockTransactionIds,out.id],updatedAt:stamp}:row)}));
     onNotice(newDelivered===record.dispatchedQuantity?"Customer delivery confirmed for the full shipment.":"Partial delivery recorded; outstanding quantity remains in transit.");
   };
   const cancelPrepared=(record:WipTransferRecord|CustomerDispatchRecord,kind:"wip"|"dispatch")=>{
