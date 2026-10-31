@@ -973,3 +973,12 @@ html,body,#root{min-height:100%;background:#07111e;color:#dcecff}body{background
 .master-data-page .capability-prerequisites .linked-empty-actions{display:flex;gap:8px;flex-wrap:wrap}
 @media(max-width:900px){.master-data-page .master-related-actions{grid-template-columns:1fr}}
 @media(max-width:650px){.master-data-page .master-process-form,.master-data-page .capability-form{grid-template-columns:1fr}.master-data-page .master-form-wide,.master-data-page .capability-envelope,.master-data-page .capability-evidence{grid-column:1}.master-data-page .master-data-card{grid-template-columns:32px minmax(0,1fr)}.master-data-page .master-data-card .module-record-card-actions{grid-column:2;justify-content:flex-start}.master-data-page .capability-evidence-list{grid-template-columns:1fr}}
+
+
+.linked-process-page .capability-match-note{display:grid;gap:4px;grid-column:1/-1;padding:9px 11px;border:1px solid #6b5730;border-radius:7px;background:#2a2416}
+.linked-process-page .capability-match-note span{color:#f4d58e;font-size:10px;font-weight:750}
+.linked-process-page .capability-match-note small{color:#c9b989;font-size:9px;line-height:1.4}
+.linked-process-page .capability-match-note button{justify-self:start;padding:0;border:0;background:transparent;color:#83dff0;font-size:9px;font-weight:700;text-decoration:underline}
+.linked-process-page .capability-match-approved{border-color:#246b58;background:#0d2d2a}
+.linked-process-page .capability-match-approved span{color:#8ee6c6}
+.linked-process-page .capability-match-approved small{color:#a7d4c6}
