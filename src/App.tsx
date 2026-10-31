@@ -17,6 +17,7 @@ import VendorWorkspace from "./VendorWorkspace";
 import ProcessMasterWorkspace from "./ProcessMasterWorkspace";
 import VendorCapabilityWorkspace from "./VendorCapabilityWorkspace";
 import QualityInspectionWorkspace from "./QualityInspectionWorkspace";
+import WipDispatchWorkspace from "./WipDispatchWorkspace";
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
 type ModuleItem = {
@@ -40,6 +41,7 @@ const modules: ModuleItem[] = [
   { id: "vendor-capability", title: "Vendor Capability Master", group: "Supply Network", description: "Match process capabilities, machine envelopes, tolerances and certificates.", icon: Cpu, action: "Explore capability matching" },
   { id: "rates", title: "Material & Rate Book", group: "Supply Network", description: "Track material grades, rate history, yield assumptions and pricing sources.", icon: Gauge, action: "Review rate book" },
   { id: "inventory", title: "Material & Inventory", group: "Operations", description: "Track lots, stock, reservations, shortages, scrap and balances.", icon: Boxes, action: "Explore inventory" },
+  { id: "wip-transfers", title: "WIP Transfers & Vendor Handover", group: "Operations", description: "Track component custody between process operations, factories and subcontract vendors.", icon: Workflow, action: "Manage WIP handovers" },
   { id: "production", title: "Production & Capacity", group: "Operations", description: "Plan finite capacity across machines, shifts, people and outside processes.", icon: Activity, action: "Open production planning" },
   { id: "shop-floor", title: "Shop-floor Mobile & QR", group: "Operations", description: "Capture scan events, operation progress, custody and offline updates.", icon: ScanLine, action: "Explore shop-floor flow" },
   { id: "dispatch", title: "Transport & Dispatch", group: "Operations", description: "Track packing, challans, consignments, handoffs and confirmed receipt.", icon: Truck, action: "Explore logistics" },
@@ -78,6 +80,7 @@ function App() {
   const [vendorCapabilityJump, setVendorCapabilityJump] = useState("");
   const [processJump, setProcessJump] = useState<{ companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string } | null>(null);
   const [qualityJump, setQualityJump] = useState("");
+  const [wipJump, setWipJump] = useState<{ companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string } | null>(null);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
@@ -113,6 +116,15 @@ function App() {
 
   const selectModule = (id: string) => {
     setActiveModuleId(id);
+    setModuleExplorerOpen(false);
+    setCommandOpen(false);
+    setQuery("");
+    setNotice("");
+  };
+
+  const openWipTransfer = (selection: { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string }) => {
+    setWipJump(selection);
+    setActiveModuleId("wip-transfers");
     setModuleExplorerOpen(false);
     setCommandOpen(false);
     setQuery("");
@@ -196,11 +208,15 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={operationId => { setQualityJump(operationId); selectModule("quality"); }} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <LinkedProcessWorkspace initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={operationId => { setQualityJump(operationId); selectModule("quality"); }} onOpenWipTransfer={openWipTransfer} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
           <InventoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "wip-transfers" ? (
+          <WipDispatchWorkspace key="wip-transfers" mode="wip" initialSelection={wipJump} onInitialSelectionApplied={() => setWipJump(null)} onOpenOperation={openVendorOperation} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "dispatch" ? (
+          <WipDispatchWorkspace key="dispatch" mode="dispatch" onOpenOperation={openVendorOperation} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
           <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "quality" ? (
@@ -246,7 +262,8 @@ function App() {
           {label:"Vendors & Sub-vendors",id:"vendors",icon:Users,group:"vendors",children:[{label:"Vendor Directory & Work Allocation",id:"vendors"},{label:"Capability Directory",id:"vendor-capability"}]},
           {label:"Process Master",id:"process-master",icon:Layers3,group:"process-master",children:[{label:"Process Library",id:"process-master"}]},
           {label:"Production Planning",id:"production",icon:Activity},
-          {label:"Material & Inventory",id:"inventory",icon:Boxes},
+          {label:"Material & Inventory",id:"inventory",icon:Boxes,group:"inventory",children:[{label:"Materials / BOM / Stock Ledger",id:"inventory"},{label:"WIP Transfers & Vendor Handover",id:"wip-transfers"}]},
+          {label:"Transport & Dispatch",id:"dispatch",icon:Truck},
           {label:"Quality & Inspection",id:"quality",icon:ClipboardCheck},
           {label:"Costing & Payments",id:"costing",icon:CircleDollarSign},
           {label:"Reports & Analytics",id:"reports",icon:BarChart3},
@@ -408,7 +425,7 @@ function CommandCentre(props: {
       <section className="module-shortcuts">
         <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all 32 modules <ArrowRight size={15} /></button></div>
         <div className="shortcut-grid">
-          {modules.filter((item) => ["process-map", "production", "vendors", "quality", "costing", "inventory"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
+          {modules.filter((item) => ["process-map", "production", "vendors", "quality", "costing", "inventory", "wip-transfers", "dispatch"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
         </div>
       </section>
     </>
