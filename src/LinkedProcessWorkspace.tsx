@@ -23,6 +23,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const components = activeRows(data.components);
   const vendors = activeRows(data.vendors);
   const processDefinitions = activeRows(data.processDefinitions).filter(row => row.status !== "Retired");
+  const vendorCapabilities = activeRows(data.vendorCapabilities);
   const operations = activeRows(data.operations);
 
   const [companyId, setCompanyId] = useState(initialSelection?.companyId || "");
@@ -138,7 +139,10 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     });
     setSelectedOperationId(operationId);
     setShowEditor(false); setEditingId("");
-    onNotice(editingId ? "Operation updated and linked to its PO line/component ID." : "Operation saved against the selected PO line. Cost and dates remain separate for this component.");
+    const qualificationWarning = !!(draft.vendorId && draft.processDefinitionId && !draftCapabilityApproved);
+    onNotice(qualificationWarning
+      ? "Operation saved, but no current Approved vendor capability is recorded for this vendor/process pair. Review Vendor Capability Master before release."
+      : editingId ? "Operation updated and linked to its PO line, component and process definition." : "Operation saved against the selected PO line. Cost and dates remain separate for this component.");
   };
   const updateOperation = (id: string, patch: Partial<OperationRecord>) => {
     const stamp = nowIso();
@@ -168,6 +172,12 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const selectedVendor = vendors.find(v => v.id === activeOperation?.vendorId);
   const selectedOperationQuotations = componentQuotes.filter(q => q.operationId === activeOperation?.id);
   const deliveryState = !finalDelivery ? "No delivery date" : allDone ? "Route complete" : lateOps.length ? "At risk" : "Scheduled";
+  const draftCapability = draft.vendorId && draft.processDefinitionId
+    ? vendorCapabilities.filter(cap => cap.vendorId === draft.vendorId && cap.processDefinitionId === draft.processDefinitionId)
+      .sort((a,b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))[0]
+    : undefined;
+  const draftCapabilityExpired = !!(draftCapability?.validUntil && draftCapability.validUntil < new Date().toISOString().slice(0,10));
+  const draftCapabilityApproved = draftCapability?.status === "Approved" && !draftCapabilityExpired;
   const tab = (id: string, title: string, Icon: typeof Workflow) => <button key={id} className={"route-tab " + (id === "process-map" ? "route-tab-current" : "")} onClick={() => id === "process-map" ? undefined : onSelectModule(id === "components" ? "components" : id === "purchasing" ? "purchasing" : id === "inventory" ? "inventory" : id === "costing" ? "costing" : id === "documents" ? "engineering-change" : id === "history" ? "reports" : "quality")}><Icon size={14}/>{title}</button>;
 
   return <section className="workspace-page linked-process-page">
@@ -211,6 +221,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <label>Process type<input value={draft.category} onChange={e => setDraft({...draft,category:e.target.value})} placeholder="Machining, treatment, quality…"/></label>
             <label>Machine / station<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value})} placeholder="Machine / work centre"/></label>
             <SearchablePicker id="operation-vendor-picker" label="Vendor" value={draft.vendorId} placeholder="Type vendor name or phone…" options={vendors.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{!vendors.length && <small className="field-hint">Scan/import contacts or add a vendor in Vendors first.</small>}
+            {draft.vendorId && draft.processDefinitionId && <div className={"capability-match-note " + (draftCapabilityApproved ? "capability-match-approved" : "capability-match-review")}><span>{draftCapabilityApproved ? "Approved capability recorded" : "Capability review required"}</span><small>{draftCapability ? draftCapability.status + (draftCapability.validUntil ? " · Valid until " + draftCapability.validUntil : "") + (draftCapabilityExpired ? " · validity date passed" : "") : "No vendor capability record exists for this process."}</small><button type="button" onClick={() => onSelectModule("vendor-capability")}>Open capability record</button></div>}
             <label>Planned start<input type="date" value={draft.plannedStart} onChange={e => setDraft({...draft,plannedStart:e.target.value})}/></label>
             <label>Planned target/end<input type="date" min={draft.plannedStart || undefined} value={draft.plannedEnd} onChange={e => setDraft({...draft,plannedEnd:e.target.value})}/></label>
             <label>Actual start date<input type="date" value={draft.actualStart} onChange={e => setDraft({...draft,actualStart:e.target.value})}/></label>
