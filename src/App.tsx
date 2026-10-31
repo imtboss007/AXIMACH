@@ -80,7 +80,7 @@ function App() {
   const globalVendorContacts = activeRows(readManufacturingData().vendors);
   const normalizedGlobalQuery = query.toLowerCase().trim();
   const globalRecordResults = normalizedGlobalQuery ? Object.entries(globalRecords).flatMap(([moduleId, records]) => records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(normalizedGlobalQuery)).map((record) => ({ ...record, moduleId }))).slice(0, 8) : [];
-  const globalVendorResults = normalizedGlobalQuery ? globalVendorContacts.filter((contact) => (contact.company + " " + contact.contact + " " + contact.role + " " + contact.phone + " " + contact.email + " " + contact.processes + " " + contact.notes).toLowerCase().includes(normalizedGlobalQuery)).slice(0, 8) : [];
+  const globalVendorResults = normalizedGlobalQuery ? globalVendorContacts.filter((contact) => (contact.company + " " + contact.gstin + " " + (contact.contacts||[]).map(person=>person.name+" "+person.phone+" "+person.email).join(" ") + " " + contact.contact + " " + contact.role + " " + contact.phone + " " + contact.email + " " + contact.processes + " " + contact.notes).toLowerCase().includes(normalizedGlobalQuery)).slice(0, 8) : [];
 
   const filteredModules = useMemo(() => modules.filter((item) => {
     const matchesDomain = domain === "All domains" || item.group === domain;
@@ -423,7 +423,43 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const [waError,setWaError]=useState("");
   const waBase=waUrl.trim().replace(/\/+$/,"");
   const waRequest=async(path:string,init:RequestInit={})=>{const response=await fetch(waBase+path,{...init,headers:{"content-type":"application/json","x-aximach-key":apiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"WhatsApp bridge returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
-  const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{if(!incoming.length)return {added:0,updated:0};const current=readManufacturingData();const next=[...current.vendors];const syncedAt=nowIso();let added=0;let updated=0;for(const contact of incoming){const phone=String(contact.phone||"").replace(/\D/g,"");const label=String(contact.name||contact.notify||phone||"Imported WhatsApp contact").trim();const index=next.findIndex(v=>v.sourceContactId===contact.id||(phone&&([v.phone,v.whatsappNumber].some(value=>String(value||"").replace(/\D/g,"")===phone))));if(index>=0){const old=next[index];const patch:VendorRecord={...old,sourceContactId:old.sourceContactId||contact.id,phone:old.phone||phone,whatsappNumber:phone||old.whatsappNumber,contact:old.contact||label};const changed=patch.sourceContactId!==old.sourceContactId||patch.phone!==old.phone||patch.whatsappNumber!==old.whatsappNumber||patch.contact!==old.contact;if(changed){patch.whatsappSyncedAt=syncedAt;patch.updatedAt=syncedAt;next[index]=patch;updated++;}}else{next.push({id:makeId("vendor"),company:label,contact:label,role:"WhatsApp contact",phone,whatsappNumber:phone,email:"",address:"",processes:"",machines:"",materials:"",notes:"Imported from WhatsApp linked devices. Verify the real vendor identity, process capabilities and consent before approval.",status:"Active",verificationStatus:"Unverified contact — review",contacts:[{id:makeId("vcontact"),name:label,role:"WhatsApp contact",phone, email:""}],documents:[],sourceContactId:contact.id,whatsappSyncedAt:syncedAt,createdAt:syncedAt,updatedAt:syncedAt});added++;}}if(added||updated)updateManufacturingData(currentData=>({...currentData,vendors:next}));return {added,updated};};
+  const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{
+    if(!incoming.length)return {added:0,updated:0};
+    const current=readManufacturingData();const next=[...current.vendors];const syncedAt=nowIso();let added=0;let updated=0;
+    for(const contact of incoming){
+      const phone=String(contact.phone||"").replace(/\\D/g,"");
+      const label=String(contact.name||contact.notify||phone||"Imported WhatsApp contact").trim();
+      const index=next.findIndex(v=>v.sourceContactId===contact.id||(phone&&(
+        [v.phone,v.whatsappNumber].some(value=>String(value||"").replace(/\\D/g,"")===phone)||
+        (v.contacts||[]).some(person=>String(person.phone||"").replace(/\\D/g,"")===phone)
+      )));
+      if(index>=0){
+        const old=next[index];
+        const contactRows=old.contacts?.length?[...old.contacts]:old.contact||old.phone||old.email?[{id:old.id+"-primary",name:old.contact||"",role:old.role||"",phone:old.phone||"",email:old.email||""}]:[];
+        const personIndex=contactRows.findIndex(person=>phone&&String(person.phone||"").replace(/\\D/g,"")===phone);
+        if(personIndex>=0){contactRows[personIndex]={...contactRows[personIndex],name:contactRows[personIndex].name||label};}
+        else contactRows.push({id:makeId("vcontact"),name:label,role:"WhatsApp contact",phone,email:""});
+        const patch:VendorRecord={
+          ...old,sourceContactId:old.sourceContactId||contact.id,phone:old.phone||phone,
+          whatsappNumber:phone||old.whatsappNumber,contact:old.contact||label,
+          contacts:contactRows,verificationStatus:old.verificationStatus||(!["Active","Inactive"].includes(old.status)?old.status:"")
+        };
+        const changed=JSON.stringify(patch.contacts)!==JSON.stringify(old.contacts)||patch.sourceContactId!==old.sourceContactId||patch.phone!==old.phone||patch.whatsappNumber!==old.whatsappNumber||patch.contact!==old.contact||patch.verificationStatus!==old.verificationStatus;
+        if(changed){patch.whatsappSyncedAt=syncedAt;patch.updatedAt=syncedAt;next[index]=patch;updated++;}
+      }else{
+        next.push({
+          id:makeId("vendor"),company:label,contact:label,role:"WhatsApp contact",phone,whatsappNumber:phone,
+          email:"",address:"",processes:"",machines:"",materials:"",
+          notes:"Imported from WhatsApp linked devices. Verify the real vendor identity before relying on this contact.",
+          status:"Active",verificationStatus:"Unverified contact — review",
+          contacts:[{id:makeId("vcontact"),name:label,role:"WhatsApp contact",phone,email:""}],documents:[],
+          sourceContactId:contact.id,whatsappSyncedAt:syncedAt,createdAt:syncedAt,updatedAt:syncedAt
+        });added++;
+      }
+    }
+    if(added||updated)updateManufacturingData(currentData=>({...currentData,vendors:next}));
+    return {added,updated};
+  };
   const refreshWhatsApp=async()=>{setBusy(true);setWaError("");try{if(!apiKey.trim())throw new Error("Enter the server API key above first.");if(!waBase.startsWith("https://")&&!/^(http:\/\/localhost|http:\/\/127\.0\.0\.1)/.test(waBase))throw new Error("Use HTTPS for a deployed bridge. HTTP is allowed only for localhost.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");const contactRows:WhatsAppContact[]=co.contacts||[];setWaContacts(contactRows);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);const synced=st.connected?syncWhatsAppContactsToVendors(contactRows):{added:0,updated:0};window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; "+synced.added+" new contacts added to the AXIMACH vendor master and "+synced.updated+" existing records refreshed. They stay unverified until reviewed; cross-device persistence depends on the scheduler data server being connected.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
   const addWhatsAppSchedule=async()=>{setBusy(true);setWaError("");try{if(!waOptIn)throw new Error("Confirm you have permission to message this recipient.");const d=await waRequest("/api/whatsapp/schedules",{method:"POST",body:JSON.stringify({to:waTarget,message:waMessage,nextRunAt:new Date(waDue).toISOString(),repeat:waRepeat,optedIn:true})});setWaSchedules(prev=>[d.schedule,...prev]);setWaMessage("");onNotice("WhatsApp automation saved to the bridge server.");}catch(e){setWaError(e instanceof Error?e.message:"Could not save WhatsApp automation.");}finally{setBusy(false);}};
   const toggleWhatsAppSchedule=async(task:{id:string;enabled:boolean})=>{setBusy(true);setWaError("");try{const d=await waRequest("/api/whatsapp/schedules/"+task.id,{method:"PATCH",body:JSON.stringify({enabled:!task.enabled})});setWaSchedules(prev=>prev.map(x=>x.id===task.id?d.schedule:x));}catch(e){setWaError(e instanceof Error?e.message:"Could not update WhatsApp schedule.");}finally{setBusy(false);}};
