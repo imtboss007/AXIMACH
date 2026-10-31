@@ -139,7 +139,7 @@ export default function VendorCapabilityWorkspace({ onBack, onNotice, notice, on
             <div className="master-link-stats"><span>{evidence.length} linked evidence document(s)</span><span>{allocationCount} actual operation allocation(s)</span><span>{row.certificationScope || "No certification scope entered"}</span></div>
             {row.notes && <small>{row.notes}</small>}
           </div>
-          <div className="module-record-card-actions"><button onClick={() => onOpenVendor(row.vendorId)} disabled={!vendor}>Open vendor</button><button onClick={() => edit(row)}>Edit</button><button onClick={() => archive(row)}>Archive</button></div>
+          <div className="module-record-card-actions"><button onClick={() => onOpenVendor(row.vendorId)} disabled={!vendors.some(activeVendor => activeVendor.id === row.vendorId)}>Open vendor</button><button onClick={() => edit(row)}>Edit</button><button onClick={() => archive(row)}>Archive</button></div>
         </article>;
       })}
       {!filtered.length && <div className="module-empty-state"><Cpu size={28}/><h3>{search ? "No matching capability" : "No vendor capabilities recorded"}</h3><p>{search ? "Try another vendor or process keyword." : "No capabilities are preloaded. Add only capabilities supported by your actual vendor evidence and assessment."}</p>{!search && vendors.length > 0 && processes.length > 0 && <button className="button-primary" onClick={startNew}><Plus size={14}/> Add first capability</button>}</div>}
