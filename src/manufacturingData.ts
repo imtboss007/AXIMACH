@@ -66,6 +66,19 @@ export type InventoryTransactionRecord = {
   companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string; vendorId: string;
   reversalOfId: string; createdAt: string; createdBy: string;
 };
+export type MachineResourceRecord = {
+  id: string; factoryId: string; code: string; name: string; category: string; makeModel: string;
+  workingHoursPerDay: number; workingDays: number[]; status: "Available" | "Restricted" | "Retired";
+  notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type MaintenanceEventRecord = {
+  id: string; resourceId: string; type: "Preventive" | "Breakdown" | "Inspection" | "Setup / Calibration" | "Other";
+  title: string; reason: string; priority: "Low" | "Medium" | "High" | "Critical";
+  status: "Scheduled" | "In progress" | "Completed" | "Cancelled";
+  plannedStartAt: string; plannedEndAt: string; actualStartAt: string; actualEndAt: string;
+  assignedTo: string; workOrderRef: string; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type ManufacturingData = {
   updatedAt: string;
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
