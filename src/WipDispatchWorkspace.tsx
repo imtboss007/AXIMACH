@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check, Plus, Search, ShieldCheck, Truck, Warehouse, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
-  type CustomerDispatchRecord, type CustomerDispatchStatus, type InventoryTransactionRecord,
+  type CustomerDispatchRecord, type InventoryTransactionRecord,
   type MovementAcknowledgementRecord, type OperationRecord, type StockLocationType, type WipTransferRecord
 } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
