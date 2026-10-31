@@ -68,7 +68,7 @@ export type InventoryTransactionRecord = {
 };
 export type MachineResourceRecord = {
   id: string; factoryId: string; code: string; name: string; category: string; makeModel: string;
-  workingHoursPerDay: number; workingDays: number[]; status: "Available" | "Restricted" | "Retired";
+  workingHoursPerDay: number; shiftStartTime: string; workingDays: number[]; status: "Available" | "Restricted" | "Retired";
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type MaintenanceEventRecord = {
