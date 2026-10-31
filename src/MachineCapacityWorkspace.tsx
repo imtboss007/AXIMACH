@@ -78,7 +78,7 @@ export default function MachineCapacityWorkspace({ mode, onBack, onNotice, onSel
     const estimatedDemand = demandOps.reduce((sum,op) => sum + Math.max(0,op.setupHours || 0) + Math.max(0,op.quantity || 0) * Math.max(0,op.cycleTimeSeconds || 0) / 3600,0);
     const unestimatedCount = demandOps.filter(op => !(Number(op.setupHours || 0) > 0 || Number(op.cycleTimeSeconds || 0) > 0)).length;
     return { machine, base, downtime, available: Math.max(0,base-downtime), utilisationLoss: base ? downtime/base*100 : 0, estimatedDemand, unestimatedCount, demandOps };
-  }),[machines,events,fromDate,toDate,validRange]);
+  }),[machines,events,operations,fromDate,toDate,validRange]);
   const totalBase = capacityRows.reduce((s,r)=>s+r.base,0);
   const totalDowntime = capacityRows.reduce((s,r)=>s+r.downtime,0);
   const totalAvailable = capacityRows.reduce((s,r)=>s+r.available,0);
