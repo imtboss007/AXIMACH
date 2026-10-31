@@ -108,7 +108,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if (!draft.name.trim()) { onNotice("Enter the operation name."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
     if (draft.accepted + draft.rejected > draft.completed) { onNotice("Accepted plus rejected quantity cannot exceed completed quantity."); return; }
-    if (draft.setupHours < 0 || draft.cycleTimeSeconds < 0) { onNotice("Setup hours and cycle time cannot be negative."); return; }
+    if ((draft.setupHours || 0) < 0 || (draft.cycleTimeSeconds || 0) < 0) { onNotice("Setup hours and cycle time cannot be negative."); return; }
     const stamp = nowIso();
     const operationId = editingId || makeId("operation");
     update(current => {
