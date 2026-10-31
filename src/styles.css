@@ -923,3 +923,16 @@ html,body,#root{min-height:100%;background:#07111e;color:#dcecff}body{background
 .vendor-master-page .vendor-master-notes{color:#b9cce0;font-size:11px;line-height:1.6;white-space:pre-wrap}
 @media(max-width:900px){.vendor-master-page .vendor-master-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:650px){.vendor-master-page .vendor-master-form{grid-template-columns:1fr}.vendor-master-page .vendor-master-wide{grid-column:1}.vendor-master-page .vendor-contact-row,.vendor-master-page .vendor-document-row{grid-template-columns:1fr 30px}.vendor-master-page .vendor-contact-row label,.vendor-master-page .vendor-document-row label{grid-column:1}.vendor-master-page .vendor-row-remove{grid-column:2;grid-row:1}.vendor-master-page .vendor-document-row .vendor-master-wide{grid-column:1}.vendor-master-page .vendor-master-contact-list>div{grid-template-columns:1fr 1fr}}
+
+
+/* Vendor-wise work allocation linked to original PO component process records */
+.vendor-master-page .vendor-allocation-section{min-width:0}
+.vendor-master-page .vendor-allocation-table-wrap{width:100%;overflow:auto;margin-top:12px;border:1px solid #1e3d57;border-radius:8px}
+.vendor-master-page .vendor-allocation-table{width:100%;min-width:1040px;border-collapse:collapse;text-align:left}
+.vendor-master-page .vendor-allocation-table th{position:sticky;top:0;padding:10px 9px;background:#102b40;color:#91b9d6;border-bottom:1px solid #294a64;font:9px 'DM Mono';white-space:nowrap}
+.vendor-master-page .vendor-allocation-table td{padding:10px 9px;border-bottom:1px solid #1b354c;color:#c2d5e6;font-size:10px;line-height:1.45;vertical-align:middle}
+.vendor-master-page .vendor-allocation-table tr:last-child td{border-bottom:0}
+.vendor-master-page .vendor-allocation-table td:first-child,.vendor-master-page .vendor-allocation-table td:nth-child(3){min-width:145px;max-width:210px;overflow-wrap:anywhere}
+.vendor-master-page .vendor-allocation-actual{display:block;margin-top:3px;color:#70dbb8;font-size:9px;white-space:nowrap}
+.vendor-master-page .vendor-allocation-table .record-state{white-space:nowrap}
+.vendor-master-page .vendor-allocation-table .button-quiet{white-space:nowrap}
