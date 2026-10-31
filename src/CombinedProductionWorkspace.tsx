@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarDays, Workflow } from "lucide-react";
 import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
 import ProductionPlanningWorkspace from "./ProductionPlanningWorkspace";
@@ -7,6 +7,7 @@ type Props = { initialView: "planning" | "map"; onBack: () => void; onNotice: (v
 
 export default function CombinedProductionWorkspace({ initialView, onBack, onNotice, notice, onSelectModule }: Props) {
   const [view, setView] = useState<"planning" | "map">(initialView);
+  useEffect(() => setView(initialView), [initialView]);
   return <section className="combined-production-workspace">
     <header className="combined-production-header">
       <div><div className="eyebrow">AXIMACH / OPERATIONS CONTROL</div><h1>Production Planning / Process Map</h1><p>One workspace for component planning, process routes, vendor execution and delivery control.</p></div>

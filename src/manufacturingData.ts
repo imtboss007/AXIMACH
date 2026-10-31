@@ -44,7 +44,7 @@ export type OperationRecord = {
   /** Planned setup time in machine hours; explicit estimate, never inferred. */
   setupHours?: number; /** Planned cycle time per piece in seconds; explicit estimate, never inferred. */
   cycleTimeSeconds?: number;
-  ratePerPart: number; actualRatePerPart: number; vendorPaymentStatus?: "Paid" | "Not Paid"; transportVendorId: string; transportPickup: string; transportDelivery: string;
+  ratePerPart: number; actualRatePerPart: number; transportVendorId: string; transportPickup: string; transportDelivery: string;
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
   branch: string; parentId: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
