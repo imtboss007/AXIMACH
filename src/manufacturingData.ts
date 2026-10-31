@@ -39,7 +39,7 @@ export type VendorRecord = {
 export type OperationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; sequence: number; name: string;
   category: string; machine: string; machineResourceId?: string; vendorId: string; status: LifecycleStatus;
-  plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string;
+  plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string; plannedSlotStartAt?: string; plannedSlotEndAt?: string;
   quantity: number; completed: number; accepted: number; rejected: number;
   /** Planned setup time in machine hours; explicit estimate, never inferred. */
   setupHours?: number; /** Planned cycle time per piece in seconds; explicit estimate, never inferred. */
