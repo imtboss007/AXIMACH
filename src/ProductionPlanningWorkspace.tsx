@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Activity, AlertTriangle, ArrowRight, CalendarClock, Check, ClipboardList, Factory, Gauge, MonitorCog, Plus, RefreshCw, ShieldCheck, Truck, Wrench, X } from "lucide-react";
 import SearchablePicker from "./SearchablePicker";
 import { activeRows, makeId, nowIso, useManufacturingData, type MachineResourceRecord, type OperationRecord } from "./manufacturingData";
@@ -63,6 +63,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, notice, 
   const [editingResourceId, setEditingResourceId] = useState("");
   const [resourceFormOpen, setResourceFormOpen] = useState(false);
 
+  useEffect(() => { if (initialSelection) onInitialSelectionApplied?.(); }, []);
+
   const companyFactories = factories.filter(row => !companyId || row.companyId === companyId);
   const companyOrders = orders.filter(row => (!companyId || row.companyId === companyId) && (!factoryId || row.factoryId === factoryId));
   const selectedPO = orders.find(row => row.id === poId);
@@ -77,6 +79,9 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, notice, 
     ? capabilities.filter(row => row.vendorId === selectedOperation.vendorId && row.processDefinitionId === selectedOperation.processDefinitionId)
       .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))[0]
     : undefined;
+  const selectedCapabilityCurrentlyValid = !!selectedCapability && selectedCapability.status === "Approved"
+    && (!selectedCapability.validFrom || selectedCapability.validFrom <= (selectedOperation?.plannedStart || new Date().toISOString().slice(0, 10)))
+    && (!selectedCapability.validUntil || selectedCapability.validUntil >= (selectedOperation?.plannedStart || new Date().toISOString().slice(0, 10)));
 
   const visibleOperations = useMemo(() => operations.filter(op => {
     const po = orders.find(row => row.id === op.poId);
@@ -174,7 +179,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, notice, 
 
   const monthlyPlanHours = (resourceId: string) => operations.filter(op => op.machineResourceId === resourceId && !op.deletedAt && (op.plannedStart || "").slice(0, 7) === month)
     .reduce((sum, op) => sum + (Number(op.plannedHours) || 0), 0);
-  const monthlyVendorRows = capabilities.filter(cap => !cap.deletedAt && (!factoryId || true)).map(cap => {
+  const monthlyVendorRows = capabilities.filter(cap => !cap.deletedAt).map(cap => {
     const vendor = vendors.find(row => row.id === cap.vendorId);
     const process = data.processDefinitions.find(row => row.id === cap.processDefinitionId);
     const planned = operations.filter(op => op.vendorId === cap.vendorId && op.processDefinitionId === cap.processDefinitionId && !op.deletedAt && (op.plannedStart || "").slice(0, 7) === month)
@@ -211,7 +216,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, notice, 
   const recordedWipReceived = linkedWipReceipts.reduce((sum, row) => sum + row.receivedQuantity, 0);
   const recordedStock = selectedOperation ? locationBalance(selectedOperation) : null;
   const selectedOperationWarnings = selectedOperation ? [
-    selectedOperation.vendorId && (!selectedCapability || selectedCapability.status !== "Approved") ? "No current Approved vendor capability is recorded for this vendor/process pair." : "",
+    selectedOperation.vendorId && !selectedCapabilityCurrentlyValid ? "No current Approved vendor capability valid for the planned start date is recorded for this vendor/process pair." : "",
     selectedOrderLine?.targetDelivery && selectedOperation.plannedEnd && selectedOperation.plannedEnd > selectedOrderLine.targetDelivery ? "Operation target is later than the PO component delivery commitment." : "",
     selectedOperation.machineResourceId && resources.find(row => row.id === selectedOperation.machineResourceId)?.status !== "Available" ? "Assigned machine is not marked Available." : ""
   ].filter(Boolean) : [];
