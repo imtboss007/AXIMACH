@@ -95,11 +95,33 @@ export type BomLineRecord = {
   scrapPercent: number; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type StockTransactionKind = "Opening balance" | "Receipt" | "Issue to production" | "WIP transfer" | "Return" | "Rejected" | "Scrap" | "Finished goods receipt" | "Dispatch" | "Adjustment";
+export type StockLocationType = "factory" | "vendor" | "transit";
 export type InventoryTransactionRecord = {
   id: string; itemType: "material" | "component"; itemId: string; transactionType: StockTransactionKind;
   direction: "in" | "out"; quantity: number; occurredAt: string; reference: string; notes: string;
   companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string; vendorId: string;
   reversalOfId: string; createdAt: string; createdBy: string;
+  locationType?: StockLocationType; locationId?: string; movementId?: string; movementKind?: "WIP transfer" | "Customer dispatch";
+};
+export type WipTransferStatus = "Prepared" | "In transit" | "Partially received" | "Received" | "Cancelled";
+export type WipTransferRecord = {
+  id: string; companyId: string; factoryId: string; poId: string; poLineId: string; componentId: string;
+  fromOperationId: string; toOperationId: string;
+  sourceLocationType: "factory" | "vendor"; sourceLocationId: string; destinationLocationType: "factory" | "vendor"; destinationLocationId: string;
+  sourceVendorId: string; destinationVendorId: string; quantity: number; dispatchedQuantity: number; receivedQuantity: number;
+  status: WipTransferStatus; preparedAt: string; dispatchedAt: string; lastReceivedAt: string;
+  challanReference: string; vehicleNumber: string; transporterVendorId: string; lrNumber: string;
+  receivedBy: string; discrepancyNotes: string; notes: string; stockTransactionIds: string[];
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type CustomerDispatchStatus = "Prepared" | "In transit" | "Partially delivered" | "Delivered" | "Cancelled";
+export type CustomerDispatchRecord = {
+  id: string; companyId: string; factoryId: string; poId: string; poLineId: string; componentId: string;
+  quantity: number; dispatchedQuantity: number; deliveredQuantity: number; status: CustomerDispatchStatus;
+  deliveryChallan: string; eWayBill: string; transporterVendorId: string; vehicleNumber: string; lrNumber: string;
+  destination: string; dispatchDate: string; lastDeliveryDate: string; receivedBy: string; proofReference: string;
+  discrepancyNotes: string; notes: string; stockTransactionIds: string[];
+  createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ManufacturingData = {
   updatedAt: string;
@@ -108,7 +130,7 @@ export type ManufacturingData = {
   quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
   qualityInspections: QualityInspectionRecord[];
   processDefinitions: ProcessDefinitionRecord[]; vendorCapabilities: VendorCapabilityRecord[];
-  inventoryTransactions: InventoryTransactionRecord[];
+  inventoryTransactions: InventoryTransactionRecord[]; wipTransfers: WipTransferRecord[]; customerDispatches: CustomerDispatchRecord[];
 };
 
 export const nowIso = () => new Date().toISOString();
@@ -120,7 +142,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], bomLines: [], qualityInspections: [], processDefinitions: [], vendorCapabilities: [], inventoryTransactions: []
+  operations: [], quotations: [], materials: [], bomLines: [], qualityInspections: [], processDefinitions: [], vendorCapabilities: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -139,7 +161,9 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     qualityInspections: Array.isArray(value?.qualityInspections) ? value.qualityInspections : empty.qualityInspections,
     processDefinitions: Array.isArray(value?.processDefinitions) ? value.processDefinitions : empty.processDefinitions,
     vendorCapabilities: Array.isArray(value?.vendorCapabilities) ? value.vendorCapabilities : empty.vendorCapabilities,
-    inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions
+    inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
+    wipTransfers: Array.isArray(value?.wipTransfers) ? value.wipTransfers : empty.wipTransfers,
+    customerDispatches: Array.isArray(value?.customerDispatches) ? value.customerDispatches : empty.customerDispatches
   };
 }
 
@@ -183,7 +207,9 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     qualityInspections: mergeRows(local.qualityInspections, remote.qualityInspections),
     processDefinitions: mergeRows(local.processDefinitions, remote.processDefinitions),
     vendorCapabilities: mergeRows(local.vendorCapabilities, remote.vendorCapabilities),
-    inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions)
+    inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
+    wipTransfers: mergeRows(local.wipTransfers, remote.wipTransfers),
+    customerDispatches: mergeRows(local.customerDispatches, remote.customerDispatches)
   };
 }
 
