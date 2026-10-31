@@ -16,6 +16,7 @@ import InventoryWorkspace from "./InventoryWorkspace";
 import VendorWorkspace from "./VendorWorkspace";
 import ProcessMasterWorkspace from "./ProcessMasterWorkspace";
 import VendorCapabilityWorkspace from "./VendorCapabilityWorkspace";
+import QualityInspectionWorkspace from "./QualityInspectionWorkspace";
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
 type ModuleItem = {
@@ -76,6 +77,7 @@ function App() {
   const [vendorRecordJump, setVendorRecordJump] = useState("");
   const [vendorCapabilityJump, setVendorCapabilityJump] = useState("");
   const [processJump, setProcessJump] = useState<{ companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string } | null>(null);
+  const [qualityJump, setQualityJump] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
@@ -194,13 +196,20 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <LinkedProcessWorkspace initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={operationId => { setQualityJump(operationId); selectModule("quality"); }} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
           <InventoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
           <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "quality" ? (
+          <QualityInspectionWorkspace
+            initialOperationId={qualityJump}
+            onInitialOperationApplied={() => setQualityJump("")}
+            onOpenOperation={openVendorOperation}
+            onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule}
+          />
         ) : activeModuleId === "process-master" ? (
           <ProcessMasterWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendor-capability" ? (
