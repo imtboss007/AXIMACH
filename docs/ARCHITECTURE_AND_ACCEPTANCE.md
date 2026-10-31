@@ -98,7 +98,7 @@ These are proposed directions, not claims of completed backend components. Any c
 - Compare cost per accepted piece as well as produced piece.
 - Payment approval, bank-detail changes, quality release, safety-critical engineering changes and destructive operations require human approval and audit.
 
-## 6. AI autonomy and safeguards
+## 6. Machine resources, maintenance and capacity\n\n- Machine resources are first-class records linked to a factory by stable ID, with machine code, type, shift start, hours per day, working days and lifecycle state.\n- Maintenance and downtime events reference a machine resource ID and retain planned and actual start/end timestamps, type, priority, status, technician, work-order reference and notes.\n- Scheduled downtime blocks its planned interval; in-progress breakdowns block from actual start through the current time; completed events use actual timestamps when present; cancelled events do not reduce capacity.\n- Capacity is calculated by intersecting the union of downtime intervals with each machine's configured working-shift windows. Overlapping events cannot double-deduct hours, and downtime outside a configured shift does not reduce productive hours.\n- Restricted and retired machines contribute zero available hours. Gross capacity, downtime and net available hours are exposed to Production Capacity.\n- Capacity hours are a planning ceiling, not a live telemetry signal or a guarantee of achievable output. Operation-level cycle-time allocation, finite scheduling, automatic rescheduling and machine telemetry remain separate future work.\n\n## 7. AI autonomy and safeguards
 
 - AI may summarise, explain, detect patterns, forecast with confidence ranges, propose alternates and draft actions.
 - Every recommendation must identify supporting records and disclose uncertainty.
@@ -108,13 +108,13 @@ These are proposed directions, not claims of completed backend components. Any c
 - Payments, bank changes, role changes, quality release, safety-critical engineering and destructive data actions remain human-authorised.
 - AI must never release an unvalidated CNC program or invent validated cutting parameters.
 
-## 7. Messaging and background schedules
+## 8. Messaging and background schedules
 
 Communication workflows must store schedule, recipient mapping, consent/source where applicable, attempt count, next attempt, delivery state, reply state, cancellation reason and audit events. They must distinguish sent, delivered, read and replied only when the provider reports those states.
 
 WhatsApp integration choice must be made before implementation. Official WhatsApp Business Platform and QR-linked web-session approaches have different limitations, lifecycle risks and costs. Do not promise that a QR-linked session is permanent or risk-free. Retries must stop when a reply or cancellation condition is confirmed, where supported by the chosen channel.
 
-## 8. Release acceptance gates
+## 9. Release acceptance gates
 
 A release cannot be considered production-ready until evidence is attached for all applicable gates:
 
@@ -136,7 +136,7 @@ A release cannot be considered production-ready until evidence is attached for a
 
 Scale numbers are test targets, not present performance claims.
 
-## 9. Delivery sequence
+## 10. Delivery sequence
 
 - **Stage 0 — Foundation:** product decisions, data model, threat model, permission matrix, migration policy, test strategy and CI.
 - **Stage 1 — Core records:** authentication, tenancy, audit, vendors, components, process master/routes, purchase/subcontract orders and quantity/custody ledgers.
@@ -145,6 +145,6 @@ Scale numbers are test targets, not present performance claims.
 - **Stage 4 — Intelligence:** risk register, constrained scheduling, simulation, forecasts and evaluated AI assistance.
 - **Stage 5 — Controlled automation:** approved low-risk automation, background schedules, validated integrations, monitoring and recovery drills.
 
-## 10. Prototype exit rule
+## 11. Prototype exit rule
 
 The current prototype is for navigation and design review. Do not use it to record production activity, promise delivery, release quality, issue purchase orders, approve payments or act as a system of record until the relevant backend, authorization, audit and validation gates are implemented.
