@@ -134,7 +134,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
         ...draft, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         plannedStartTime: old?.plannedStartTime || "", plannedEndTime: old?.plannedEndTime || "", plannedHours: old?.plannedHours,
-        machineResourceId: draft.machine !== old?.machine ? "" : old?.machineResourceId || "",
+        machineResourceId: draft.vendorId ? "" : (draft.machine !== old?.machine ? "" : old?.machineResourceId || ""),
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
         parentId: old?.parentId || (draft.branch !== "Main route" ? activeOperation?.id || "" : "")
       };
