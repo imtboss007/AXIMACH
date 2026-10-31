@@ -13,8 +13,9 @@ const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const activeEvent = (event: MaintenanceEventRecord) => event.status !== "Cancelled";
 function intervalFor(event: MaintenanceEventRecord): [number, number] | null {
   if (!activeEvent(event)) return null;
-  const start = event.status === "Completed" && event.actualStartAt ? event.actualStartAt : event.status === "In progress" && event.actualStartAt ? event.actualStartAt : event.plannedStartAt;
-  const end = event.status === "Completed" && event.actualEndAt ? event.actualEndAt : event.status === "In progress" ? (event.actualEndAt || new Date().toISOString()) : event.plannedEndAt;
+  const completedActual = event.status === "Completed" && Boolean(event.actualStartAt) && Boolean(event.actualEndAt);
+  const start = completedActual ? event.actualStartAt : event.status === "In progress" && event.actualStartAt ? event.actualStartAt : event.plannedStartAt;
+  const end = completedActual ? event.actualEndAt : event.status === "In progress" ? (event.actualEndAt || new Date().toISOString()) : event.plannedEndAt;
   const a = Date.parse(start), b = Date.parse(end);
   return Number.isFinite(a) && Number.isFinite(b) && b > a ? [a, b] : null;
 }
@@ -91,6 +92,7 @@ export default function MachineCapacityWorkspace({ mode, onBack, onNotice, onSel
   const saveEvent = () => {
     if (!eventDraft.resourceId || !eventDraft.title.trim() || !eventDraft.plannedStartAt || !eventDraft.plannedEndAt) { onNotice("Select a machine, enter a downtime title and set the planned start and end."); return; }
     if (Date.parse(eventDraft.plannedEndAt)<=Date.parse(eventDraft.plannedStartAt)) { onNotice("Downtime end must be after its start."); return; }
+    if (eventDraft.status==="Completed" && (!eventDraft.actualStartAt || !eventDraft.actualEndAt)) { onNotice("Enter both actual start and actual end before marking maintenance completed."); return; }
     if (eventDraft.status==="Completed" && eventDraft.actualStartAt && eventDraft.actualEndAt && Date.parse(eventDraft.actualEndAt)<=Date.parse(eventDraft.actualStartAt)) { onNotice("Actual downtime end must be after its actual start."); return; }
     const stamp=nowIso(), id=eventEditingId||makeId("maintenance");
     update(current=>({...current,maintenanceEvents:[...current.maintenanceEvents.filter(x=>x.id!==id),{...eventDraft,title:eventDraft.title.trim(),plannedStartAt:new Date(eventDraft.plannedStartAt).toISOString(),plannedEndAt:new Date(eventDraft.plannedEndAt).toISOString(),actualStartAt:eventDraft.actualStartAt?new Date(eventDraft.actualStartAt).toISOString():"",actualEndAt:eventDraft.actualEndAt?new Date(eventDraft.actualEndAt).toISOString():"",id,createdAt:current.maintenanceEvents.find(x=>x.id===id)?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined}]}));
