@@ -18,6 +18,7 @@ import ProcessMasterWorkspace from "./ProcessMasterWorkspace";
 import VendorCapabilityWorkspace from "./VendorCapabilityWorkspace";
 import QualityInspectionWorkspace from "./QualityInspectionWorkspace";
 import WipDispatchWorkspace from "./WipDispatchWorkspace";
+import ProductionPlanningWorkspace from "./ProductionPlanningWorkspace";
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
 type ModuleItem = {
@@ -81,6 +82,7 @@ function App() {
   const [processJump, setProcessJump] = useState<{ companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string } | null>(null);
   const [qualityJump, setQualityJump] = useState("");
   const [wipJump, setWipJump] = useState<{ companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string } | null>(null);
+  const [productionJump, setProductionJump] = useState<{ companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string } | null>(null);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
@@ -125,6 +127,15 @@ function App() {
   const openWipTransfer = (selection: { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string }) => {
     setWipJump(selection);
     setActiveModuleId("wip-transfers");
+    setModuleExplorerOpen(false);
+    setCommandOpen(false);
+    setQuery("");
+    setNotice("");
+  };
+
+  const openProductionPlan = (selection: { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string }) => {
+    setProductionJump(selection);
+    setActiveModuleId("production");
     setModuleExplorerOpen(false);
     setCommandOpen(false);
     setQuery("");
@@ -208,7 +219,9 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={operationId => { setQualityJump(operationId); selectModule("quality"); }} onOpenWipTransfer={openWipTransfer} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <LinkedProcessWorkspace initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={operationId => { setQualityJump(operationId); selectModule("quality"); }} onOpenWipTransfer={openWipTransfer} onOpenProductionPlan={openProductionPlan} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "production" ? (
+          <ProductionPlanningWorkspace key="production" initialSelection={productionJump} onInitialSelectionApplied={() => setProductionJump(null)} onOpenOperation={openVendorOperation} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
