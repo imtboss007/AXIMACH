@@ -179,7 +179,9 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, notice, 
 
   const monthlyPlanHours = (resourceId: string) => operations.filter(op => op.machineResourceId === resourceId && !op.deletedAt && (op.plannedStart || "").slice(0, 7) === month)
     .reduce((sum, op) => sum + (Number(op.plannedHours) || 0), 0);
-  const monthlyVendorRows = capabilities.filter(cap => !cap.deletedAt).map(cap => {
+  const latestCapabilityRows = [...capabilities].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))
+    .filter((cap, index, rows) => rows.findIndex(row => row.vendorId === cap.vendorId && row.processDefinitionId === cap.processDefinitionId) === index);
+  const monthlyVendorRows = latestCapabilityRows.filter(cap => !cap.deletedAt).map(cap => {
     const vendor = vendors.find(row => row.id === cap.vendorId);
     const process = data.processDefinitions.find(row => row.id === cap.processDefinitionId);
     const planned = operations.filter(op => op.vendorId === cap.vendorId && op.processDefinitionId === cap.processDefinitionId && !op.deletedAt && (op.plannedStart || "").slice(0, 7) === month)
@@ -297,14 +299,14 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, notice, 
     </>}
 
     {tab === "capacity" && <div className="production-capacity-grid">
-      <section className="surface-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> INTERNAL / MACHINE HOURS</div><h3>{monthLabel} machine loading</h3><p>Only manually entered planned hours are counted. Monthly capacity is calculated from each resource's declared shift pattern.</p></div><Gauge size={18}/></div>
+      <section className="surface-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> INTERNAL / MACHINE HOURS</div><h3>{monthLabel} machine loading</h3><p>Only manually entered planned hours are counted and attributed to the month of operation start. Cross-month hours are not prorated. Monthly capacity is calculated from each resource's declared shift pattern.</p></div><Gauge size={18}/></div>
         {resourceRows.length ? resourceRows.map(resource => {
           const used = monthlyPlanHours(resource.id), capacity = resource.capacityHoursPerShift * resource.shiftsPerDay * resource.workingDaysPerMonth;
           const pct = capacity > 0 ? used / capacity * 100 : 0;
           return <div className="production-capacity-row" key={resource.id}><div><strong>{resource.name}</strong><small>{factoryName(resource.factoryId)} · {resource.machineType || "Machine / station"} · {resource.status}</small></div><strong>{number(used)} / {number(capacity)} h</strong><div className="production-capacity-track"><i style={{ width: Math.min(100, Math.max(0, pct)) + "%" }}/></div><small>{number(pct)}% planned utilisation{pct > 100 ? " · exceeds declared monthly hours" : ""}</small></div>;
         }) : <div className="module-empty-state"><MonitorCog size={24}/><p>No machine resources have been recorded. Add a real machine master before capacity is calculated.</p></div>}
       </section>
-      <section className="surface-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OUTSIDE / VENDOR CAPACITY</div><h3>Vendor process loading</h3><p>Compared with recorded capability capacity for the same vendor and process definition. Other vendor commitments are not visible here.</p></div><Truck size={18}/></div>
+      <section className="surface-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OUTSIDE / VENDOR CAPACITY</div><h3>Vendor process loading</h3><p>AXIMACH planned quantities are attributed to the operation start month and compared with the latest capability record per vendor/process. Other vendor commitments are not visible here.</p></div><Truck size={18}/></div>
         {monthlyVendorRows.length ? monthlyVendorRows.map(row => <div className="production-capacity-row" key={row.cap.id}><div><strong>{row.vendor?.company || "Vendor record missing"} · {row.process?.name || "Process definition missing"}</strong><small>{row.cap.status} · {row.cap.machineModel || "Machine model not entered"}</small></div><strong>{number(row.planned)} / {number(row.cap.capacityPerMonth)} pcs</strong><div className="production-capacity-track"><i style={{ width: (row.cap.capacityPerMonth > 0 ? Math.min(100, row.planned / row.cap.capacityPerMonth * 100) : row.planned > 0 ? 100 : 0) + "%" }}/></div><small>{!row.valid ? "Not currently Approved / outside validity · review required" : row.planned > row.cap.capacityPerMonth ? "Recorded capacity exceeded by AXIMACH planned load" : "Within recorded capability capacity; other vendor commitments unknown"}</small></div>) : <div className="module-empty-state"><Truck size={24}/><p>No vendor capability capacity records are available for the selected month. No outside capacity is assumed.</p><button className="button-quiet" onClick={() => onSelectModule("vendor-capability")}>Open Vendor Capability Master</button></div>}
       </section>
     </div>}
