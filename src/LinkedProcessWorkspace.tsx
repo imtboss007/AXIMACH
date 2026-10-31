@@ -198,7 +198,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         createdAt: stamp,
         updatedAt: stamp,
         deletedAt: undefined,
-        notes: [operation.notes, "Batch " + (index + 1) + "/" + batches + " split from " + operation.name + ". Setup allowance and transport charge retained on batch 1 only."].filter(Boolean).join("\\n")
+        notes: [operation.notes, "Batch " + (index + 1) + "/" + batches + " split from " + operation.name + ". Setup allowance and transport charge retained on batch 1 only."].filter(Boolean).join("\n")
       });
     }
     update(current => ({
