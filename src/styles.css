@@ -818,3 +818,46 @@ img,svg,canvas,video{max-width:100%}
 .linked-process-page .linked-node-vertical .linked-route-lane .linked-operation-node{width:100%;min-height:0}
 .linked-process-page .linked-node-vertical .linked-route-lane .linked-node-arrow{height:25px;width:auto;transform:rotate(90deg)}
 .route-master-picker .searchable-picker{width:100%}
+
+/* Machine resources, maintenance downtime and capacity integration */
+.machine-capacity-page{display:flex;flex-direction:column;gap:18px}
+.machine-capacity-page .capacity-filter{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:16px 18px}
+.machine-capacity-page .capacity-filter>div{display:flex;flex-direction:column;gap:5px;flex:1}
+.machine-capacity-page .capacity-filter small,.machine-capacity-page .capacity-actions p{color:#71839a;font-size:12px;line-height:1.5}
+.machine-capacity-page .capacity-filter label{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#51657d}
+.machine-capacity-page .capacity-filter input,.machine-capacity-page .capacity-form-grid input,.machine-capacity-page .capacity-form-grid select,.machine-capacity-page .capacity-search{border:1px solid #d6e0eb;background:#fff;color:#18304d;border-radius:8px;padding:9px 10px;min-height:38px}
+.machine-capacity-page .capacity-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.machine-capacity-page .capacity-kpis article{display:flex;flex-direction:column;gap:7px;padding:17px;background:#fff;border:1px solid #dce5ef;border-radius:13px;box-shadow:0 6px 20px rgba(28,55,89,.04)}
+.machine-capacity-page .capacity-kpis small{font-size:10px;font-weight:800;letter-spacing:.07em;color:#647991}
+.machine-capacity-page .capacity-kpis strong{font-size:26px;color:#173454;font-variant-numeric:tabular-nums}
+.machine-capacity-page .capacity-kpis span{font-size:11px;color:#71839a}
+.machine-capacity-page .capacity-impact-panel,.machine-capacity-page .capacity-editor,.machine-capacity-page .capacity-event-panel{padding:18px}
+.machine-capacity-page .capacity-table-wrap{overflow:auto}
+.machine-capacity-page .capacity-table{width:100%;border-collapse:collapse;min-width:920px;font-size:12px}
+.machine-capacity-page .capacity-table th{text-align:left;padding:11px 10px;background:#f1f5fa;color:#536a84;font-size:10px;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.machine-capacity-page .capacity-table td{padding:12px 10px;border-bottom:1px solid #e8eef5;color:#53677e;vertical-align:middle}
+.machine-capacity-page .capacity-table td:first-child strong{display:block;color:#1d3857}
+.machine-capacity-page .capacity-table td small{display:block;margin-top:4px;color:#8494a8}
+.machine-capacity-page .capacity-table .capacity-downtime{color:#c44c4c;font-weight:800}
+.machine-capacity-page .capacity-actions{display:flex;align-items:center;justify-content:space-between;gap:15px}
+.machine-capacity-page .capacity-actions h2{font-size:19px;color:#1c3654;margin:0 0 4px}
+.machine-capacity-page .capacity-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:14px}
+.machine-capacity-page .capacity-form-grid>label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:700;color:#526980;min-width:0}
+.machine-capacity-page .capacity-form-grid .capacity-wide,.machine-capacity-page .capacity-form-grid .module-form-actions{grid-column:1/-1}
+.machine-capacity-page .capacity-days{display:flex;flex-direction:column;gap:9px;color:#526980;font-size:11px;font-weight:700}
+.machine-capacity-page .capacity-days>div{display:flex;gap:11px;flex-wrap:wrap}
+.machine-capacity-page .capacity-days label{display:flex;align-items:center;gap:4px;font-weight:500}
+.machine-capacity-page .capacity-event-panel .panel-heading{align-items:center}
+.machine-capacity-page .capacity-event-list{display:flex;flex-direction:column}
+.machine-capacity-page .capacity-event-list article{display:grid;grid-template-columns:38px minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #e8eef5}
+.machine-capacity-page .capacity-event-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:#eaf2ff;color:#3169b8}
+.machine-capacity-page .capacity-event-icon.is-breakdown{background:#fff0ed;color:#c64b3e}
+.machine-capacity-page .capacity-event-main{min-width:0}
+.machine-capacity-page .capacity-event-main strong{display:block;color:#1b3654}
+.machine-capacity-page .capacity-event-main small{display:block;color:#788ba1;margin-top:4px;font-size:10px}
+.machine-capacity-page .capacity-event-main p{margin:5px 0;color:#526980;font-size:11px}
+.machine-capacity-page .capacity-event-actions{display:flex;gap:8px}
+.machine-capacity-page .capacity-event-actions button{border:0;background:transparent;color:#2b6bb4;font-size:11px;font-weight:700;cursor:pointer}
+.machine-capacity-page .capacity-planner-note{display:flex;align-items:flex-start;gap:10px;padding:13px;border:1px solid #f0d9a7;background:#fff9e9;border-radius:9px;color:#775b24;font-size:12px;line-height:1.55}
+@media(max-width:900px){.machine-capacity-page .capacity-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.machine-capacity-page .capacity-filter{flex-wrap:wrap}.machine-capacity-page .capacity-filter>div{flex-basis:100%}}
+@media(max-width:620px){.machine-capacity-page .capacity-kpis{grid-template-columns:1fr 1fr}.machine-capacity-page .capacity-form-grid{grid-template-columns:1fr}.machine-capacity-page .capacity-form-grid .capacity-wide,.machine-capacity-page .capacity-form-grid .module-form-actions{grid-column:1}.machine-capacity-page .capacity-event-list article{grid-template-columns:34px minmax(0,1fr)}.machine-capacity-page .capacity-event-list article>.record-state,.machine-capacity-page .capacity-event-actions{grid-column:2}.machine-capacity-page .capacity-actions{align-items:flex-start;flex-direction:column}}
