@@ -221,7 +221,7 @@ function App() {
         ) : activeModuleId === "process-map" ? (
           <LinkedProcessWorkspace initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={operationId => { setQualityJump(operationId); selectModule("quality"); }} onOpenWipTransfer={openWipTransfer} onOpenProductionPlan={openProductionPlan} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" ? (
-          <ProductionPlanningWorkspace key="production" initialSelection={productionJump} onInitialSelectionApplied={() => setProductionJump(null)} onOpenOperation={openVendorOperation} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <ProductionPlanningWorkspace key="production" initialSelection={productionJump} onInitialSelectionApplied={() => setProductionJump(null)} onOpenOperation={openVendorOperation} onOpenWipTransfer={openWipTransfer} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
