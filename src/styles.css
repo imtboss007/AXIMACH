@@ -1076,3 +1076,29 @@ img,svg,canvas,video{max-width:100%}
   .production-planning .pp-calendar-row{grid-template-columns:76px minmax(105px,1fr) 75px 78px}
   .production-planning .pp-workload-row{grid-template-columns:minmax(80px,1fr) 25px 38px 38px 38px 55px}
 }
+
+/* Process Directory */
+.process-directory-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0}
+.process-directory-toolbar .module-record-search{flex:1;max-width:560px}
+.process-directory-layout{display:grid;grid-template-columns:minmax(240px,.7fr) minmax(0,1.6fr);gap:14px}
+.process-directory-categories,.process-directory-types,.process-directory-rate-history{padding:17px}
+.process-directory-category{display:flex;align-items:center;gap:5px;border-top:1px solid #edf1f7}
+.process-directory-category>button:first-child{display:flex;flex:1;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 8px;border:0;background:transparent;text-align:left}
+.process-directory-category>button:first-child strong{font-size:11px}
+.process-directory-category>button:first-child small,.process-directory-type small{font-size:9px;color:#8b9bb1}
+.process-directory-category>button:last-child{padding:6px;border:0;background:transparent;color:#8999ad}
+.process-directory-category.active{background:#eff5ff}
+.process-directory-category.active strong{color:#2365c6}
+.process-directory-type{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-top:1px solid #edf1f7}
+.process-directory-type>div:first-child{min-width:0}
+.process-directory-type strong{display:block;font-size:12px;color:#2b4262}
+.process-directory-type p{margin:5px 0 0;color:#8090a6;font-size:10px}
+.process-directory-type-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.process-directory-type-actions>span{font:9px 'DM Mono';color:#72839b;white-space:nowrap}
+.process-directory-rate-history{margin-top:14px}
+.process-directory-rate-filter{display:flex;align-items:flex-end;gap:10px;margin:15px 0}
+.process-directory-rate-filter label{display:flex;flex-direction:column;gap:5px;flex:1;font-size:10px;color:#70839e}
+.process-directory-rate-filter select{height:36px;padding:7px;border:1px solid #dce5f1;border-radius:7px;background:#fff;color:#2b4262}
+.process-directory-empty{padding:15px;color:#8796aa;font-size:10px;line-height:1.5}
+.process-directory-page .costing-table{min-width:780px}
+@media(max-width:760px){.process-directory-layout{grid-template-columns:1fr}.process-directory-type{flex-direction:column}.process-directory-type-actions{justify-content:flex-start}.process-directory-toolbar{align-items:stretch;flex-direction:column}.process-directory-rate-filter{align-items:stretch;flex-direction:column}}

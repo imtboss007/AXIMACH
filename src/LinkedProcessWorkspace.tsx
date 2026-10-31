@@ -23,6 +23,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const vendors = activeRows(data.vendors);
   const machineResources = activeRows(data.machineResources).filter(m => m.status !== "Retired");
   const operations = activeRows(data.operations);
+  const processTypes = activeRows(data.processTypes);
+  const processCategories = activeRows(data.processCategories);
 
   const [companyId, setCompanyId] = useState("");
   const [factoryId, setFactoryId] = useState("");
@@ -35,6 +37,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [showEditor, setShowEditor] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
+  const [processTypeId, setProcessTypeId] = useState("");
 
   const companyFactories = factories.filter(f => f.companyId === companyId);
   const companyOrders = purchaseOrders.filter(p => p.companyId === companyId && (!factoryId || p.factoryId === factoryId));
@@ -86,6 +89,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       return;
     }
     const base = blankOperation(selectedLine);
+    setProcessTypeId("");
     if (transport) { base.name = "Transport / handover"; base.category = "Logistics"; base.branch = "Main route"; }
     if (branch && activeOperation) { base.branch = "Alternate / rework"; base.name = "Alternate / rework operation"; }
     setDraft(base);
@@ -94,6 +98,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   };
   const editActive = () => {
     if (!activeOperation) return;
+    setProcessTypeId(activeOperation.processTypeId || "");
     setDraft({
       name: activeOperation.name, category: activeOperation.category, machine: activeOperation.machine, machineResourceId: activeOperation.machineResourceId || "", vendorId: activeOperation.vendorId,
       status: activeOperation.status, plannedStart: activeOperation.plannedStart, plannedEnd: activeOperation.plannedEnd, actualStart: activeOperation.actualStart || "", actualEnd: activeOperation.actualEnd || "",
@@ -105,7 +110,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   };
   const saveOperation = () => {
     if (!selectedPO || !selectedLine || !selectedComponent) { onNotice("Select a PO component line first."); return; }
-    if (!draft.name.trim()) { onNotice("Enter the operation name."); return; }
+    if (!draft.name.trim()) { onNotice("Select a process type from Process Directory."); return; }
+    if (!editingId && !processTypeId) { onNotice("Select a process type from Process Directory."); return; }
+    if (processTypeId && !processTypes.some(item => item.id === processTypeId)) { onNotice("The selected process type is no longer active in Process Directory."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
     if (draft.accepted + draft.rejected > draft.completed) { onNotice("Accepted plus rejected quantity cannot exceed completed quantity."); return; }
     if ((draft.setupHours || 0) < 0 || (draft.cycleTimeSeconds || 0) < 0) { onNotice("Setup hours and cycle time cannot be negative."); return; }
@@ -117,7 +124,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       const next: OperationRecord = {
         id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
-        ...draft, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
+        ...draft, processTypeId: processTypeId || old?.processTypeId, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         plannedSlotStartAt: old && old.machineResourceId === draft.machineResourceId && old.plannedStart === draft.plannedStart && old.plannedEnd === draft.plannedEnd ? old.plannedSlotStartAt : undefined,
         plannedSlotEndAt: old && old.machineResourceId === draft.machineResourceId && old.plannedStart === draft.plannedStart && old.plannedEnd === draft.plannedEnd ? old.plannedSlotEndAt : undefined,
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
@@ -253,8 +260,11 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></div>
         {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
-            <label>Operation name *<input value={draft.name} onChange={e => setDraft({...draft,name:e.target.value})} placeholder="CNC turning, VMC milling, heat treatment…"/></label>
-            <label>Process type<input value={draft.category} onChange={e => setDraft({...draft,category:e.target.value})} placeholder="Machining, treatment, quality…"/></label>
+            <label>Process type {editingId ? "(legacy name retained if unlinked)" : "*"}<select value={processTypeId} onChange={e=>{const selected=processTypes.find(item=>item.id===e.target.value);const category=processCategories.find(item=>item.id===selected?.categoryId);setProcessTypeId(e.target.value);if(selected)setDraft(current=>({...current,name:selected.name,category:category?.name||current.category}));}}>
+              <option value="">{editingId ? "Keep legacy process name" : "Select from Process Directory…"}</option>
+              {processCategories.map(category=><optgroup key={category.id} label={category.name}>{processTypes.filter(item=>item.categoryId===category.id).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</optgroup>)}
+            </select></label>
+            {!processTypes.length && <small className="field-hint">Create process categories and types in Process Directory first.</small>}
             <label>Machine / station (text)<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value})} placeholder="Machine / work centre"/></label>
             <label>Linked machine resource<select value={draft.machineResourceId || ""} onChange={e => { const resource=machineResources.find(m=>m.id===e.target.value); setDraft({...draft,machineResourceId:e.target.value,machine:resource?resource.code+" · "+resource.name:draft.machine}); }}><option value="">Not linked to a registered machine</option>{machineResources.filter(m=>!selectedPO || m.factoryId===selectedPO.factoryId).map(m=><option key={m.id} value={m.id}>{m.code} · {m.name}</option>)}</select></label>{!machineResources.length&&<small className="field-hint">Register machine resources in Maintenance & Downtime to link operations to machine capacity.</small>}
             <SearchablePicker id="operation-vendor-picker" label="Vendor" value={draft.vendorId} placeholder="Type vendor name or phone…" options={vendors.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{!vendors.length && <small className="field-hint">Scan/import contacts or add a vendor in Vendors first.</small>}

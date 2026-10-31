@@ -71,15 +71,15 @@ Exactly the eight approved functions:
 - [ ] Sub-vendor parent-link rules and exact vendor fields: **confirm before implementation**.
 
 ### 07 — Process Directory
-- [ ] Dedicated hierarchical process catalogue: main process category → process type/sub-process.
-- [ ] Include the user's specified categories and subcategories, including Milling, Turning, Grinding, Welding, Surface Treatment, Heat Treatment, Cutting, EDM, Drilling, Fabrication, Casting, Forging, Finishing and Assembly.
-- [ ] Support many subcategories per main category; catalogue is extensible.
-- [ ] One process type can be linked to multiple vendors; one vendor can perform multiple process types.
-- [ ] Store vendor-specific quotations/rates, validity and rate history against the relevant process/vendor relationship.
-- [ ] Vendor autocomplete searches Vendor Master; selecting a result reuses its ID.
-- [ ] If a vendor does not exist, Add New Vendor creates it in Vendor Master, then returns to the current process workflow.
+- [x] Dedicated hierarchical process catalogue: main process category → process type/sub-process.
+- [x] Include the specified main process categories: Milling, Turning, Grinding, Welding, Surface Treatment, Heat Treatment, Cutting, EDM, Drilling, Fabrication, Casting, Forging, Finishing and Assembly.
+- [x] Support many process types under each main category; catalogue is extensible.
+- [x] One process type can be linked to multiple vendors; one vendor can perform multiple process types through separate quotation records.
+- [x] Store vendor-specific quotations/rates, validity and rate history against the relevant process/vendor relationship.
+- [x] Vendor autocomplete searches Vendor Master; selecting a result reuses its ID.
+- [x] If a vendor does not exist, Add New Vendor creates it in Vendor Master, then returns to the current process workflow.
 - [ ] Material supplier/material rate information already entered in Process Directory must remain the source of truth; do not duplicate it in Material & Inventory.
-- [ ] Process Directory remains a catalogue/rate source. Actual vendor assignment to a component's operation occurs in Process Map.
+- [x] Process Directory remains a catalogue/rate source. Actual vendor assignment to a component's operation occurs in Process Map.
 
 ### 08 — Production Planning + Process Map (combined user-facing menu)
 - [ ] Combine the two user reference screens into one integrated workspace; do not redesign into an unrelated layout.
@@ -90,7 +90,7 @@ Exactly the eight approved functions:
 - [ ] Add process/operation to the selected component route.
 - [ ] Each operation records process, assigned vendor, start/given date, due date, quantity and price/rate.
 - [ ] Vendor is selected from Vendor Master; no duplicate vendor entry.
-- [ ] Process type should be selected from Process Directory; do not create free-text duplicate process names when catalogue integration is implemented.
+- [x] New Process Map operations select a Process Directory type; legacy unlinked operations remain editable without losing their saved names.
 - [ ] Each component has its own connected process route with arrows/connectors and supported branching/crossover paths.
 - [ ] Preserve the approved reference layout elements: operation table, process cards/graph, side detail panel, Gantt/Calendar Day/Week/Month, Upcoming Deliveries (Next 7 Days), Vendor Workload, Delays & Risks, and the agreed KPI/action areas.
 - [ ] Show vendor payment status on the relevant operation/process card and detail panel: **Paid / Not Paid**.
@@ -234,3 +234,13 @@ Exactly the eight approved functions:
 - Existing code includes dedicated Company/PO/Component master workspace, Process Map, Production Planning, Vendor workspace, Costing, Inventory and Machine Capacity workspaces.
 - Several other modules still route through the generic ModuleWorkspace; actual underlying subfeatures must be audited before any rebuild.
 - This checklist is the execution baseline; items marked pending are not implementation authorisation.
+
+## Gap 1 — Process Directory implementation note (2026-10-31)
+- Added stable-ID process category, process type and reusable process-vendor quotation collections.
+- Added the 14 specified standard main categories as master configuration data (not sample business records); additional categories and process types remain extensible.
+- Added a dedicated Process Directory workspace with search, process type creation, vendor quotation/rate history and validity dates.
+- Vendor selection reuses Vendor Master IDs. Add New Vendor writes to the same Vendor Master collection, applies the required company/contact and duplicate-phone checks, and returns the new ID to the current quotation form.
+- Legacy process-master rows migrate without deleting the old storage key. Original process type IDs and the complete legacy row payload are retained; exact known demo defaults are excluded.
+- Process Map now stores the optional processTypeId on catalogue-linked operations. Existing operations without it keep their legacy process name/category when edited.
+- Existing PO-operation quotation rows remain separate and unchanged.
+- TypeScript/Vite build and browser/Electron/Capacitor workflow regression checks remain pending execution in a runnable checkout. Gap 1 must not be accepted until those checks pass.
