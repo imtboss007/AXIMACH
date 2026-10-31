@@ -79,9 +79,14 @@ export function proposeMachineSchedule(input: {
     const primary=activeMachines.find(m=>m.id===operation.machineResourceId);
     if(!primary) continue;
     const alternates=activeMachines.filter(m=>m.id!==primary.id && m.factoryId===primary.factoryId && m.category.trim().toLowerCase()===primary.category.trim().toLowerCase());
-    const candidates=[primary,...alternates].map(machine=>allocate(machine,operation,Math.max(requested,nextFree.get(machine.id)||requested),horizon,events)).filter((v):v is MachineSlotProposal=>Boolean(v));
-    candidates.sort((a,b)=>Date.parse(a.endAt)-Date.parse(b.endAt));
-    const chosen=candidates[0];
+    const primaryProposal=allocate(primary,operation,Math.max(requested,nextFree.get(primary.id)||requested),horizon,events);
+    const deadline=operation.plannedEnd ? new Date(operation.plannedEnd+"T23:59:59.999").getTime() : horizon;
+    let chosen=primaryProposal && Date.parse(primaryProposal.endAt)<=deadline ? primaryProposal : null;
+    if(!chosen){
+      const alternateProposals=alternates.map(machine=>allocate(machine,operation,Math.max(requested,nextFree.get(machine.id)||requested),horizon,events)).filter((v):v is MachineSlotProposal=>Boolean(v));
+      alternateProposals.sort((a,b)=>Date.parse(a.endAt)-Date.parse(b.endAt));
+      chosen=alternateProposals[0] || primaryProposal;
+    }
     if(!chosen) continue;
     proposals.push(chosen);
     nextFree.set(chosen.machine.id,Date.parse(chosen.endAt));
