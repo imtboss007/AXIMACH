@@ -43,8 +43,22 @@ export type VendorRecord = {
   gstin?: string; contacts?: VendorContactRecord[]; documents?: VendorDocumentRecord[]; verificationStatus?: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type ProcessDefinitionStatus = "Draft" | "Under review" | "Validated" | "Released" | "Retired";
+export type ProcessDefinitionRecord = {
+  id: string; code: string; name: string; category: string; revision: string; description: string;
+  applicableMaterials: string; equipmentRequirements: string; parameters: string; acceptanceCriteria: string;
+  status: ProcessDefinitionStatus; owner: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type VendorCapabilityStatus = "Unverified" | "Evidence requested" | "Under evaluation" | "Approved" | "Expired" | "Rejected";
+export type VendorCapabilityRecord = {
+  id: string; vendorId: string; processDefinitionId: string; machineModel: string;
+  envelopeX: number; envelopeY: number; envelopeZ: number; materialRange: string;
+  toleranceCapability: string; capacityPerMonth: number; certificationScope: string;
+  evidenceDocumentIds: string[]; status: VendorCapabilityStatus; validFrom: string; validUntil: string;
+  assessedBy: string; assessedAt: string; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type OperationRecord = {
-  id: string; poId: string; poLineId: string; componentId: string; sequence: number; name: string;
+  id: string; poId: string; poLineId: string; componentId: string; processDefinitionId?: string; sequence: number; name: string;
   category: string; machine: string; vendorId: string; status: LifecycleStatus;
   plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string;
   quantity: number; completed: number; accepted: number; rejected: number;
@@ -78,6 +92,7 @@ export type ManufacturingData = {
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
+  processDefinitions: ProcessDefinitionRecord[]; vendorCapabilities: VendorCapabilityRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
 };
 
@@ -90,7 +105,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: []
+  operations: [], quotations: [], materials: [], bomLines: [], processDefinitions: [], vendorCapabilities: [], inventoryTransactions: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -106,6 +121,8 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
+    processDefinitions: Array.isArray(value?.processDefinitions) ? value.processDefinitions : empty.processDefinitions,
+    vendorCapabilities: Array.isArray(value?.vendorCapabilities) ? value.vendorCapabilities : empty.vendorCapabilities,
     inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions
   };
 }
@@ -147,6 +164,8 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     quotations: mergeRows(local.quotations, remote.quotations),
     materials: mergeRows(local.materials, remote.materials),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
+    processDefinitions: mergeRows(local.processDefinitions, remote.processDefinitions),
+    vendorCapabilities: mergeRows(local.vendorCapabilities, remote.vendorCapabilities),
     inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions)
   };
 }
