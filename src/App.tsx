@@ -71,6 +71,7 @@ function App() {
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("All domains");
   const [vendorSearchJump, setVendorSearchJump] = useState("");
+  const [processJump, setProcessJump] = useState<{ companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string } | null>(null);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
@@ -106,6 +107,15 @@ function App() {
 
   const selectModule = (id: string) => {
     setActiveModuleId(id);
+    setModuleExplorerOpen(false);
+    setCommandOpen(false);
+    setQuery("");
+    setNotice("");
+  };
+
+  const openVendorOperation = (selection: { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string }) => {
+    setProcessJump(selection);
+    setActiveModuleId("process-map");
     setModuleExplorerOpen(false);
     setCommandOpen(false);
     setQuery("");
@@ -180,7 +190,7 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <LinkedProcessWorkspace initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
@@ -190,7 +200,7 @@ function App() {
         ) : activeModuleId === "process-master" ? (
           <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
-          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenOperation={openVendorOperation} />
         ) : activeModuleId === "communications" ? (
           <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : (
