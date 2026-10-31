@@ -294,7 +294,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                         <span className="pp-route-node-data">Start: {day(operation.plannedStart)}</span>
                         <span className="pp-route-node-data">Due: {day(operation.plannedEnd)}</span>
                         <span className="pp-route-node-data">Qty: {operation.quantity.toLocaleString("en-IN")} pcs</span>
-                        <span className="pp-route-node-data">Price: {money(operation.ratePerPart)}</span>
+                        <span className="pp-route-node-data">Price: {money(operation.ratePerPart)}</span><span className="pp-route-node-data">Vendor payment: {operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</span>
                         <strong className="pp-status">{operation.status}</strong>
                       </button>
                       {index < mainRoute.length - 1 && <span className="pp-route-arrow"><ArrowRight size={22}/></span>}
@@ -348,12 +348,12 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           </div>
         </div>
         <div className="pp-table-scroll"><table>
-          <thead><tr><th>#</th><th>Process</th><th>Category</th><th>Execution</th><th>Vendor</th><th>Start Date</th><th>Due Date</th><th>Qty (pcs)</th><th>Price (₹/pc)</th><th>Total Cost (₹)</th><th>Status</th><th>Action</th></tr></thead>
+          <thead><tr><th>#</th><th>Process</th><th>Category</th><th>Execution</th><th>Vendor</th><th>Start Date</th><th>Due Date</th><th>Qty (pcs)</th><th>Price (₹/pc)</th><th>Total Cost (₹)</th><th>Status</th><th>Vendor Payment</th><th>Action</th></tr></thead>
           <tbody>{searchedRows.map((operation, index) => <tr key={operation.id} onClick={() => setSelectedId(operation.id)} className={selected?.id === operation.id ? "active" : ""}>
             <td>{index + 1}</td><td>{operation.name}</td><td>{operation.category || "—"}</td><td>{operation.vendorId ? "Outsourced" : "Internal"}</td>
             <td>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</td><td>{day(operation.plannedStart)}</td><td>{day(operation.plannedEnd)}</td>
             <td>{operation.quantity.toLocaleString("en-IN")}</td><td>{money(operation.ratePerPart)}</td><td>{money(operation.quantity * operation.ratePerPart + operation.transportCost)}</td>
-            <td><span className={"pp-table-status " + statusClass(operation.status)}>{operation.status}</span></td>
+            <td><span className={"pp-table-status " + statusClass(operation.status)}>{operation.status}</span></td><td>{operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</td>
             <td><button onClick={event => { event.stopPropagation(); openEdit(operation); }}>Edit</button></td>
           </tr>)}</tbody>
         </table></div>
@@ -365,7 +365,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
         {selected ? <>
           <div className="pp-tabs">{["General", "Dates & Qty", "Vendor", "Cost", "Remarks"].map(item => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>
           <div className="pp-detail-body">
-            {tab === "General" ? <><p><b>Process:</b><span>{selected.name}</span></p><p><b>Category:</b><span>{selected.category || "—"}</span></p><p><b>Execution:</b><span>{selected.vendorId ? "Outsourced" : "Internal"}</span></p><p><b>Company:</b><span>{companies.find(company => company.id === selectedPO?.companyId)?.name || "—"}</span></p><p><b>PO:</b><span>{orders.find(po => po.id === selected.poId)?.number || "—"}</span></p><p><b>Component:</b><span>{components.find(component => component.id === selected.componentId)?.partNumber || "—"}</span></p><p><b>Status:</b><span>{selected.status}</span></p></> :
+            {tab === "General" ? <><p><b>Process:</b><span>{selected.name}</span></p><p><b>Category:</b><span>{selected.category || "—"}</span></p><p><b>Execution:</b><span>{selected.vendorId ? "Outsourced" : "Internal"}</span></p><p><b>Company:</b><span>{companies.find(company => company.id === selectedPO?.companyId)?.name || "—"}</span></p><p><b>PO:</b><span>{orders.find(po => po.id === selected.poId)?.number || "—"}</span></p><p><b>Component:</b><span>{components.find(component => component.id === selected.componentId)?.partNumber || "—"}</span></p><p><b>Status:</b><span>{selected.status}</span></p><p><b>Vendor payment:</b><span>{selected.vendorId ? (selected.vendorPaymentStatus || "Not Paid") : "—"}</span></p></> :
             tab === "Dates & Qty" ? <><p><b>Start:</b><span>{day(selected.plannedStart)}</span></p><p><b>Due:</b><span>{day(selected.plannedEnd)}</span></p><p><b>Quantity:</b><span>{selected.quantity.toLocaleString("en-IN")}</span></p><p><b>Completed:</b><span>{selected.completed.toLocaleString("en-IN")}</span></p><p><b>Accepted:</b><span>{selected.accepted.toLocaleString("en-IN")}</span></p><p><b>Rejected:</b><span>{selected.rejected.toLocaleString("en-IN")}</span></p></> :
             tab === "Vendor" ? <><p><b>Vendor:</b><span>{vendors.find(vendor => vendor.id === selected.vendorId)?.company || "In-house / unassigned"}</span></p><p><b>Vendor Phone:</b><span>{vendors.find(vendor => vendor.id === selected.vendorId)?.phone || "—"}</span></p><p><b>Transport Vendor:</b><span>{vendors.find(vendor => vendor.id === selected.transportVendorId)?.company || "Not assigned"}</span></p></> :
             tab === "Cost" ? <><p><b>Rate per part:</b><span>{money(selected.ratePerPart)}</span></p><p><b>Actual rate:</b><span>{money(selected.actualRatePerPart)}</span></p><p><b>Transport cost:</b><span>{money(selected.transportCost)}</span></p><p><b>Total planned:</b><span>{money(selected.quantity * selected.ratePerPart + selected.transportCost)}</span></p></> :
