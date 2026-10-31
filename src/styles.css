@@ -982,3 +982,20 @@ html,body,#root{min-height:100%;background:#07111e;color:#dcecff}body{background
 .linked-process-page .capability-match-approved{border-color:#246b58;background:#0d2d2a}
 .linked-process-page .capability-match-approved span{color:#8ee6c6}
 .linked-process-page .capability-match-approved small{color:#a7d4c6}
+
+
+/* Vendor profile: process qualification links and capability summaries */
+.vendor-master-page .vendor-capability-section{min-width:0}
+.vendor-master-page .vendor-capability-list{display:grid;gap:9px;margin-top:12px}
+.vendor-master-page .vendor-capability-list article{display:grid;gap:6px;padding:11px;border:1px solid #24455e;border-radius:8px;background:#081a2b;min-width:0}
+.vendor-master-page .vendor-capability-heading{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap}
+.vendor-master-page .vendor-capability-heading strong{color:#eaf5ff;font-size:11px;overflow-wrap:anywhere}
+.vendor-master-page .vendor-capability-list article p{margin:0;color:#99b5cb;font-size:10px}
+.vendor-master-page .vendor-capability-list article>small{color:#86a4be;font-size:9px;line-height:1.5;overflow-wrap:anywhere}
+.vendor-master-page .vendor-capability-list article .inline-module-link{justify-self:start}
+.capability-filter-bar{display:grid;grid-template-columns:minmax(220px,1fr) minmax(230px,.7fr) auto auto;gap:10px;align-items:end}
+.capability-filter-bar .searchable-picker{display:grid;gap:5px;color:#afc4d8;font-size:10px}
+.capability-filter-bar .searchable-picker input{width:100%;min-height:36px;padding:8px 10px;border:1px solid #294964;border-radius:7px;background:#061526;color:#e6f2ff;font:11px 'DM Sans',sans-serif}
+.capability-filter-bar .module-number{white-space:nowrap}
+@media(max-width:850px){.capability-filter-bar{grid-template-columns:1fr 1fr}.capability-filter-bar .module-record-search{grid-column:1/-1}}
+@media(max-width:550px){.capability-filter-bar{grid-template-columns:1fr}.capability-filter-bar .module-record-search{grid-column:1}.capability-filter-bar .module-number{white-space:normal}}
