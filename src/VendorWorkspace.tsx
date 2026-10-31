@@ -11,6 +11,7 @@ type Props = {
   notice: string;
   initialSearch?: string;
   onSelectModule: (id: string) => void;
+  onOpenOperation: (selection: { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string }) => void;
 };
 
 type VendorDraft = {
@@ -42,7 +43,7 @@ const legacyContacts = (vendor: VendorRecord): VendorContactRecord[] => {
 
 const isActive = (status: string) => !["Inactive", "Not approved", "On hold"].includes(status);
 
-export default function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "" }: Props) {
+export default function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onOpenOperation }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const vendors = activeRows(data.vendors);
   const [search, setSearch] = useState(initialSearch);
@@ -51,6 +52,19 @@ export default function VendorWorkspace({ onBack, onNotice, notice, initialSearc
   const [draft, setDraft] = useState<VendorDraft>(emptyDraft());
 
   const selected = vendors.find(v => v.id === selectedId) || vendors[0];
+  const workAllocations = selected ? activeRows(data.operations)
+    .filter(operation => operation.vendorId === selected.id)
+    .map(operation => {
+      const po = data.purchaseOrders.find(order => order.id === operation.poId);
+      const line = po?.lines.find(row => row.id === operation.poLineId);
+      const component = data.components.find(row => row.id === (operation.componentId || line?.componentId));
+      const company = data.companies.find(row => row.id === po?.companyId);
+      const quantity = Number(operation.quantity) || 0;
+      const plannedRate = Number(operation.ratePerPart) || 0;
+      const actualRate = Number(operation.actualRatePerPart) || 0;
+      return { operation, po, line, component, company, quantity, plannedRate, actualRate };
+    })
+    .sort((a, b) => (a.operation.plannedEnd || "9999-12-31").localeCompare(b.operation.plannedEnd || "9999-12-31")) : [];
   const filtered = vendors.filter(v => {
     const contactText = legacyContacts(v).map(c => [c.name, c.role, c.phone, c.email].join(" ")).join(" ");
     const documentText = (v.documents || []).map(d => [d.title, d.reference, d.notes].join(" ")).join(" ");
@@ -237,6 +251,23 @@ export default function VendorWorkspace({ onBack, onNotice, notice, initialSearc
             </div>
             <div className="vendor-master-detail-section"><div className="vendor-section-heading"><div><strong>Documents</strong><small>{(selected.documents || []).length} saved document reference(s)</small></div></div>
               {(selected.documents || []).length ? <div className="vendor-master-doc-list">{(selected.documents || []).map(doc => <div key={doc.id}><FileText size={16}/><span><strong>{doc.title || "Document"}</strong><small>{doc.notes || doc.reference || "No reference added"}</small></span>{doc.reference && (doc.reference.startsWith("https://") || doc.reference.startsWith("http://")) && <a href={doc.reference} target="_blank" rel="noreferrer"><Link2 size={13}/> Open</a>}</div>)}</div> : <p className="vendor-empty">No documents linked.</p>}
+            </div>
+            <div className="vendor-master-detail-section vendor-allocation-section">
+              <div className="vendor-section-heading"><div><strong>Work allocated to this vendor</strong><small>{workAllocations.length} linked process operation(s) · grouped by original company, PO and component records</small></div><span className="module-number">{new Set(workAllocations.map(row => row.po?.id).filter(Boolean)).size} PO(s)</span></div>
+              {workAllocations.length ? <div className="vendor-allocation-table-wrap"><table className="vendor-allocation-table"><thead><tr><th>Company</th><th>PO</th><th>Component</th><th>Process</th><th>Given / Start</th><th>Due date</th><th>Qty</th><th>Vendor cost / pc</th><th>Status</th><th></th></tr></thead><tbody>
+                {workAllocations.map(({operation,po,line,component,company,quantity,plannedRate,actualRate}) => <tr key={operation.id}>
+                  <td>{company?.name || "Company record unavailable"}</td>
+                  <td>{po?.number || "PO unavailable"}</td>
+                  <td>{component ? component.partNumber + " · " + component.name : "Component record unavailable"}</td>
+                  <td>{operation.name}</td>
+                  <td>{operation.plannedStart || "—"}</td>
+                  <td>{operation.plannedEnd || line?.targetDelivery || "—"}</td>
+                  <td>{quantity.toLocaleString("en-IN")}</td>
+                  <td>{plannedRate ? "₹" + plannedRate.toLocaleString("en-IN",{maximumFractionDigits:2}) : "—"}{actualRate>0 ? <small className="vendor-allocation-actual">Actual: ₹{actualRate.toLocaleString("en-IN",{maximumFractionDigits:2})}</small> : null}</td>
+                  <td><span className="record-state">{operation.status}</span></td>
+                  <td><button className="button-quiet compact-button" onClick={()=>po&&line&&company&&onOpenOperation({companyId:company.id,factoryId:po.factoryId,poId:po.id,poLineId:line.id,operationId:operation.id})} disabled={!po||!line||!company}>Open process chart</button></td>
+                </tr>)}
+              </tbody></table></div> : <p className="vendor-empty">No process operations have been assigned to this vendor yet. When this vendor is selected on a component's process card, that work will appear here automatically.</p>}
             </div>
             <div className="vendor-master-detail-section"><div className="vendor-section-heading"><div><strong>Notes</strong></div></div><p className="vendor-master-notes">{selected.notes || "No notes entered."}</p></div>
             {selected.verificationStatus && <div className="module-safety-note"><ShieldCheck size={14}/><span>Verification: {selected.verificationStatus}</span></div>}
