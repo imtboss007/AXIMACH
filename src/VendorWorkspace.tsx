@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowRight, Check, FileText, Link2, MapPin, Plus, Search, ShieldCheck, Trash2, Users, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, Check, Cpu, FileText, Link2, MapPin, Plus, Search, ShieldCheck, Trash2, Users, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
   type VendorContactRecord, type VendorDocumentRecord, type VendorRecord
@@ -10,6 +10,9 @@ type Props = {
   onNotice: (value: string) => void;
   notice: string;
   initialSearch?: string;
+  initialVendorId?: string;
+  onInitialVendorApplied?: () => void;
+  onOpenCapability: (vendorId: string) => void;
   onSelectModule: (id: string) => void;
   onOpenOperation: (selection: { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string }) => void;
 };
@@ -43,15 +46,21 @@ const legacyContacts = (vendor: VendorRecord): VendorContactRecord[] => {
 
 const isActive = (status: string) => !["Inactive", "Not approved", "On hold"].includes(status);
 
-export default function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onOpenOperation }: Props) {
+export default function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", initialVendorId = "", onInitialVendorApplied, onOpenCapability, onOpenOperation }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const vendors = activeRows(data.vendors);
   const [search, setSearch] = useState(initialSearch);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(initialVendorId);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<VendorDraft>(emptyDraft());
 
+  useEffect(() => { if (initialVendorId) onInitialVendorApplied?.(); }, []);
   const selected = vendors.find(v => v.id === selectedId) || vendors[0];
+  const selectedCapabilities = selected ? activeRows(data.vendorCapabilities)
+    .filter(capability => capability.vendorId === selected.id)
+    .map(capability => ({ ...capability, process: data.processDefinitions.find(process => process.id === capability.processDefinitionId) }))
+    .sort((a,b) => (a.process?.name || "").localeCompare(b.process?.name || "")) : [];
+  const today = new Date().toISOString().slice(0,10);
   const workAllocations = selected ? activeRows(data.operations)
     .filter(operation => operation.vendorId === selected.id)
     .map(operation => {
@@ -251,6 +260,20 @@ export default function VendorWorkspace({ onBack, onNotice, notice, initialSearc
             </div>
             <div className="vendor-master-detail-section"><div className="vendor-section-heading"><div><strong>Documents</strong><small>{(selected.documents || []).length} saved document reference(s)</small></div></div>
               {(selected.documents || []).length ? <div className="vendor-master-doc-list">{(selected.documents || []).map(doc => <div key={doc.id}><FileText size={16}/><span><strong>{doc.title || "Document"}</strong><small>{doc.notes || doc.reference || "No reference added"}</small></span>{doc.reference && (doc.reference.startsWith("https://") || doc.reference.startsWith("http://")) && <a href={doc.reference} target="_blank" rel="noreferrer"><Link2 size={13}/> Open</a>}</div>)}</div> : <p className="vendor-empty">No documents linked.</p>}
+            </div>
+            <div className="vendor-master-detail-section vendor-capability-section">
+              <div className="vendor-section-heading"><div><strong>Qualified processes & capabilities</strong><small>{selectedCapabilities.length} capability assessment(s) linked to this vendor</small></div><button className="button-quiet compact-button" onClick={() => onOpenCapability(selected.id)}><Cpu size={13}/> Manage capabilities</button></div>
+              {selectedCapabilities.length ? <div className="vendor-capability-list">{selectedCapabilities.map(capability => {
+                const expired = !!(capability.validUntil && capability.validUntil < today);
+                const status = capability.status === "Approved" && expired ? "Expired · validity date passed" : capability.status;
+                return <article key={capability.id}>
+                  <div className="vendor-capability-heading"><strong>{capability.process?.name || "Process definition missing"}</strong><span className={"record-state " + (capability.status === "Approved" && !expired ? "state-complete" : "")}>{status}</span></div>
+                  <p>{capability.process?.code || "No process code"} · Rev {capability.process?.revision || "—"} · {capability.machineModel || "Machine not specified"}</p>
+                  <small>Envelope {capability.envelopeX || "—"} × {capability.envelopeY || "—"} × {capability.envelopeZ || "—"} mm · Tolerance {capability.toleranceCapability || "Not entered"} · Material {capability.materialRange || "Not entered"}</small>
+                  <small>{capability.certificationScope || "No certification scope entered"} · {capability.evidenceDocumentIds?.length || 0} evidence link(s) · {capability.validUntil ? "Valid until " + capability.validUntil : "No validity end date"}</small>
+                  <button className="inline-module-link" onClick={() => onOpenCapability(selected.id)}>Open capability register <ArrowRight size={13}/></button>
+                </article>;
+              })}</div> : <p className="vendor-empty">No process capabilities have been assessed for this vendor. Actual work allocations are shown separately below.</p>}
             </div>
             <div className="vendor-master-detail-section vendor-allocation-section">
               <div className="vendor-section-heading"><div><strong>Work allocated to this vendor</strong><small>{workAllocations.length} linked process operation(s) · grouped by original company, PO and component records</small></div><span className="module-number">{new Set(workAllocations.map(row => row.po?.id).filter(Boolean)).size} PO(s)</span></div>
