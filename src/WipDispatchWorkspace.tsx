@@ -233,8 +233,7 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
           <label>Handover quantity (pcs) *<input type="number" min="0.000001" step="0.000001" value={wipQuantity} onChange={e=>setWipQuantity(e.target.value)}/></label>
           <label>Preparation date *<input type="date" value={wipDate} onChange={e=>setWipDate(e.target.value)}/></label>
           <label>Challan / handover reference<input value={wipChallan} onChange={e=>setWipChallan(e.target.value)} placeholder="Actual challan / job reference"/></label>
-          <label>Transporter<input value={wipTransporter} onChange={e=>setWipTransporter(e.target.value)} placeholder="Select a transporter below or leave blank"/></label>
-          <SearchablePicker id="wip-transporter" label="Transport vendor" value={wipTransporter} placeholder="Select transporter…" options={vendors.map(v=>({id:v.id,label:v.company}))} onChange={setWipTransporter}/>
+<SearchablePicker id="wip-transporter" label="Transport vendor" value={wipTransporter} placeholder="Select transporter…" options={vendors.map(v=>({id:v.id,label:v.company}))} onChange={setWipTransporter}/>
           <label>Vehicle number<input value={wipVehicle} onChange={e=>setWipVehicle(e.target.value)} placeholder="Vehicle registration"/></label>
           <label>LR / consignment number<input value={wipLr} onChange={e=>setWipLr(e.target.value)} placeholder="Transport LR reference"/></label>
           <label className="movement-form-wide">Handover notes<input value={wipNotes} onChange={e=>setWipNotes(e.target.value)} placeholder="Condition, packaging, batch/lot or handover notes"/></label>
