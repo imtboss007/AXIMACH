@@ -52,8 +52,8 @@ export default function ProcessMasterWorkspace({ onBack, onNotice, notice, onSel
     const capabilityCount = capabilities.filter(cap => cap.processDefinitionId === row.id).length;
     if (!window.confirm("Retire this process definition from active selection? " + useCount + " operation link(s) and " + capabilityCount + " vendor capability link(s) will remain in historical records.")) return;
     const stamp = nowIso();
-    update(current => ({ ...current, processDefinitions: current.processDefinitions.map(item => item.id === row.id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item) }));
-    onNotice("Process definition archived from active selection. Linked history was retained.");
+    update(current => ({ ...current, processDefinitions: current.processDefinitions.map(item => item.id === row.id ? { ...item, status: "Retired", updatedAt: stamp } : item) }));
+    onNotice("Process definition marked Retired. It is excluded from new route/capability selection, while linked operations and capability records retain a readable process definition.");
   };
 
   return <section className="workspace-page master-data-page">
