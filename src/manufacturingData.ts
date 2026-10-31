@@ -66,6 +66,20 @@ export type OperationRecord = {
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
   branch: string; parentId: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type InspectionMeasurementResult = "Not measured" | "Pass" | "Fail";
+export type InspectionMeasurementRecord = {
+  id: string; characteristic: string; nominal: string; lowerLimit: string; upperLimit: string;
+  actual: string; unit: string; gaugeReference: string; result: InspectionMeasurementResult;
+};
+export type QualityInspectionStatus = "Pending" | "Accepted" | "Rejected" | "Conditional" | "Hold";
+export type QualityInspectionRecord = {
+  id: string; companyId: string; factoryId: string; poId: string; poLineId: string;
+  componentId: string; operationId: string; stage: string; inspectionDate: string; inspector: string;
+  instrument: string; sampleSize: number; inspectedQty: number; acceptedQty: number; rejectedQty: number;
+  status: QualityInspectionStatus; measurements: InspectionMeasurementRecord[];
+  nonConformanceReference: string; correctiveAction: string; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type QuotationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; operationId: string; vendorId: string;
   quoteReference: string; quotedAt: string; validUntil: string; quantity: number; ratePerPart: number;
@@ -92,6 +106,7 @@ export type ManufacturingData = {
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
+  qualityInspections: QualityInspectionRecord[];
   processDefinitions: ProcessDefinitionRecord[]; vendorCapabilities: VendorCapabilityRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
 };
@@ -105,7 +120,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], bomLines: [], processDefinitions: [], vendorCapabilities: [], inventoryTransactions: []
+  operations: [], quotations: [], materials: [], bomLines: [], qualityInspections: [], processDefinitions: [], vendorCapabilities: [], inventoryTransactions: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -121,6 +136,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
+    qualityInspections: Array.isArray(value?.qualityInspections) ? value.qualityInspections : empty.qualityInspections,
     processDefinitions: Array.isArray(value?.processDefinitions) ? value.processDefinitions : empty.processDefinitions,
     vendorCapabilities: Array.isArray(value?.vendorCapabilities) ? value.vendorCapabilities : empty.vendorCapabilities,
     inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions
@@ -164,6 +180,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     quotations: mergeRows(local.quotations, remote.quotations),
     materials: mergeRows(local.materials, remote.materials),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
+    qualityInspections: mergeRows(local.qualityInspections, remote.qualityInspections),
     processDefinitions: mergeRows(local.processDefinitions, remote.processDefinitions),
     vendorCapabilities: mergeRows(local.vendorCapabilities, remote.vendorCapabilities),
     inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions)
