@@ -41,6 +41,9 @@ export type OperationRecord = {
   category: string; machine: string; machineResourceId?: string; vendorId: string; status: LifecycleStatus;
   plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string;
   quantity: number; completed: number; accepted: number; rejected: number;
+  /** Planned setup time in machine hours; explicit estimate, never inferred. */
+  setupHours?: number; /** Planned cycle time per piece in seconds; explicit estimate, never inferred. */
+  cycleTimeSeconds?: number;
   ratePerPart: number; actualRatePerPart: number; transportVendorId: string; transportPickup: string; transportDelivery: string;
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
   branch: string; parentId: string; createdAt: string; updatedAt: string; deletedAt?: string;
