@@ -33,7 +33,7 @@ const legacyContacts = (vendor: VendorRecord): VendorContactRecord[] => {
   if (vendor.contacts?.length) return vendor.contacts;
   if (vendor.contact || vendor.phone || vendor.email) {
     return [{
-      id: makeId("vcontact"), name: vendor.contact || "", role: vendor.role || "",
+      id: vendor.id + "-primary", name: vendor.contact || "", role: vendor.role || "",
       phone: vendor.phone || "", email: vendor.email || ""
     }];
   }
