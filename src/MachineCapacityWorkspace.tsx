@@ -7,7 +7,7 @@ type MachineDraft = Omit<MachineResourceRecord, "id" | "createdAt" | "updatedAt"
 type EventDraft = Omit<MaintenanceEventRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 const today = () => new Date().toISOString().slice(0, 10);
 const dateTimeLocal = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-const blankMachine = (): MachineDraft => ({ factoryId: "", code: "", name: "", category: "CNC", makeModel: "", workingHoursPerDay: 8, shiftStartTime: "08:00", workingDays: [1,2,3,4,5,6], status: "Available", notes: "" });
+const blankMachine = (): MachineDraft => ({ factoryId: "", code: "", name: "", category: "CNC", makeModel: "", workingHoursPerDay: 0, shiftStartTime: "", workingDays: [], status: "Available", notes: "" });
 const blankEvent = (): EventDraft => ({ resourceId: "", type: "Preventive", title: "", reason: "", priority: "Medium", status: "Scheduled", plannedStartAt: dateTimeLocal(new Date(Date.now() + 3600000)), plannedEndAt: dateTimeLocal(new Date(Date.now() + 7200000)), actualStartAt: "", actualEndAt: "", assignedTo: "", workOrderRef: "", notes: "" });
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const activeEvent = (event: MaintenanceEventRecord) => event.status !== "Cancelled";
@@ -15,7 +15,7 @@ function intervalFor(event: MaintenanceEventRecord): [number, number] | null {
   if (!activeEvent(event)) return null;
   const completedActual = event.status === "Completed" && Boolean(event.actualStartAt) && Boolean(event.actualEndAt);
   const start = completedActual ? event.actualStartAt : event.status === "In progress" && event.actualStartAt ? event.actualStartAt : event.plannedStartAt;
-  const end = completedActual ? event.actualEndAt : event.status === "In progress" ? (event.actualEndAt || new Date().toISOString()) : event.plannedEndAt;
+  const end = completedActual ? event.actualEndAt : event.status === "In progress" ? (event.actualEndAt || new Date(Math.max(Date.now(),Date.parse(event.plannedEndAt))).toISOString()) : event.plannedEndAt;
   const a = Date.parse(start), b = Date.parse(end);
   return Number.isFinite(a) && Number.isFinite(b) && b > a ? [a, b] : null;
 }
@@ -84,7 +84,7 @@ export default function MachineCapacityWorkspace({ mode, onBack, onNotice, onSel
   const resetEvent = () => { setShowEventForm(false); setEventEditingId(""); setEventDraft(blankEvent()); };
   const saveMachine = () => {
     if (!machineDraft.code.trim() || !machineDraft.name.trim() || !machineDraft.factoryId) { onNotice("Select a factory and enter the machine code and name."); return; }
-    if (!(machineDraft.workingHoursPerDay>0) || machineDraft.workingHoursPerDay>24 || !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(machineDraft.shiftStartTime) || !machineDraft.workingDays.length) { onNotice("Set positive working hours and at least one working day."); return; }
+    if (!(machineDraft.workingHoursPerDay>0) || machineDraft.workingHoursPerDay>24 || !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(machineDraft.shiftStartTime) || !machineDraft.workingDays.length) { onNotice("Enter a valid shift start, positive shift hours and at least one working day."); return; }
     const stamp=nowIso(), id=machineEditingId||makeId("machine");
     update(current=>({...current,machineResources:[...current.machineResources.filter(x=>x.id!==id),{...machineDraft,code:machineDraft.code.trim(),name:machineDraft.name.trim(),id,createdAt:current.machineResources.find(x=>x.id===id)?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined}]}));
     resetMachine(); onNotice("Machine resource saved. It is now available to maintenance and production-capacity calculations.");
@@ -133,7 +133,7 @@ export default function MachineCapacityWorkspace({ mode, onBack, onNotice, onSel
         <div className="module-form-actions"><button className="button-primary" onClick={saveMachine}><Check size={14}/> Save machine</button><button className="button-quiet" onClick={resetMachine}>Cancel</button></div>
       </div></section>}
       <section className="capacity-actions"><div><h2>Maintenance & downtime events</h2><p>Planned preventive work and unplanned breakdowns both block the machine for their effective interval.</p></div><button className="button-primary" disabled={!machines.length} onClick={()=>{setEventDraft({...blankEvent(),resourceId:machines[0]?.id||""});setEventEditingId("");setShowEventForm(true);}}><Plus size={15}/> Record downtime</button></section>
-      {showEventForm&&<section className="surface-panel capacity-editor"><div className="panel-heading"><div><h3>{eventEditingId?"Edit maintenance event":"New maintenance / downtime event"}</h3><p>Scheduled events reduce future capacity; in-progress breakdowns use actual start through now.</p></div><button className="icon-control" onClick={resetEvent}><X size={15}/></button></div><div className="capacity-form-grid">
+      {showEventForm&&<section className="surface-panel capacity-editor"><div className="panel-heading"><div><h3>{eventEditingId?"Edit maintenance event":"New maintenance / downtime event"}</h3><p>Scheduled events reduce future capacity; in-progress breakdowns use actual start through the estimated repair end, at least through now.</p></div><button className="icon-control" onClick={resetEvent}><X size={15}/></button></div><div className="capacity-form-grid">
         <label>Machine resource *<select value={eventDraft.resourceId} onChange={e=>setEventDraft({...eventDraft,resourceId:e.target.value})}><option value="">Select machine…</option>{machines.map(m=><option key={m.id} value={m.id}>{m.code} · {m.name}</option>)}</select></label>
         <label>Event type<select value={eventDraft.type} onChange={e=>setEventDraft({...eventDraft,type:e.target.value as EventDraft["type"]})}>{["Preventive","Breakdown","Inspection","Setup / Calibration","Other"].map(v=><option key={v}>{v}</option>)}</select></label>
         <label>Title *<input value={eventDraft.title} onChange={e=>setEventDraft({...eventDraft,title:e.target.value})} placeholder="Spindle bearing replacement"/></label>
