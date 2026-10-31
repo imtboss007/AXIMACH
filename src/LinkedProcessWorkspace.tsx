@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, GitBranch, Package, Plus, Search, Settings as SettingsIcon, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
-type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
+type ProcessSelection = { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string };
+type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; initialSelection?: ProcessSelection | null; onInitialSelectionApplied?: () => void };
 type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch">;
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
   name: "", category: "", machine: "", vendorId: "", status: "Queued", plannedStart: "", plannedEnd: line?.targetDelivery || "", actualStart: "", actualEnd: "",
@@ -14,7 +15,7 @@ const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en
 const shortDate = (value?: string) => value ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Not set";
 const daysBetween = (start?: string, end?: string) => start && end ? Math.max(1, Math.round((new Date(end + "T12:00:00").getTime() - new Date(start + "T12:00:00").getTime()) / 86400000) + 1) : 0;
 
-export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSelectModule }: Props) {
+export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSelectModule, initialSelection, onInitialSelectionApplied }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const companies = activeRows(data.companies);
   const factories = activeRows(data.factories);
@@ -23,17 +24,29 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
 
-  const [companyId, setCompanyId] = useState("");
-  const [factoryId, setFactoryId] = useState("");
-  const [poId, setPoId] = useState("");
-  const [poLineId, setPoLineId] = useState("");
-  const [selectedOperationId, setSelectedOperationId] = useState("");
+  const [companyId, setCompanyId] = useState(initialSelection?.companyId || "");
+  const [factoryId, setFactoryId] = useState(initialSelection?.factoryId || "");
+  const [poId, setPoId] = useState(initialSelection?.poId || "");
+  const [poLineId, setPoLineId] = useState(initialSelection?.poLineId || "");
+  const [selectedOperationId, setSelectedOperationId] = useState(initialSelection?.operationId || "");
   const [search, setSearch] = useState("");
   const [vertical, setVertical] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [showEditor, setShowEditor] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
+
+  useEffect(() => {
+    if (!initialSelection) return;
+    setCompanyId(initialSelection.companyId);
+    setFactoryId(initialSelection.factoryId);
+    setPoId(initialSelection.poId);
+    setPoLineId(initialSelection.poLineId);
+    setSelectedOperationId(initialSelection.operationId);
+    setSearch("");
+    setShowEditor(false);
+    onInitialSelectionApplied?.();
+  }, [initialSelection, onInitialSelectionApplied]);
 
   const companyFactories = factories.filter(f => f.companyId === companyId);
   const companyOrders = purchaseOrders.filter(p => p.companyId === companyId && (!factoryId || p.factoryId === factoryId));
