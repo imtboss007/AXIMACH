@@ -187,7 +187,7 @@ export default function VendorWorkspace({ onBack, onNotice, notice, initialSearc
               const people = legacyContacts(v);
               return <button key={v.id} className={"vendor-record " + (selected?.id === v.id ? "vendor-record-active" : "")} onClick={() => { setSelectedId(v.id); setEditing(false); }}>
                 <span className="vendor-avatar">{v.company.slice(0, 1).toUpperCase()}</span>
-                <span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.gstin || "GSTIN not entered"} · {people.length} contact(s)</small><small>{v.status === "Inactive" ? "Inactive" : "Active"}</small></span>
+                <span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.gstin || "GSTIN not entered"} · {people.length} contact(s)</small><small>{isActive(v.status) ? "Active" : "Inactive"}</small></span>
                 <ArrowRight size={14}/>
               </button>;
             })}
@@ -229,7 +229,7 @@ export default function VendorWorkspace({ onBack, onNotice, notice, initialSearc
           </> : selected ? <>
             <div className="vendor-detail-title">
               <span className="vendor-avatar vendor-avatar-large">{selected.company.slice(0, 1).toUpperCase()}</span>
-              <div><h3>{selected.company}</h3><p>{selected.gstin || "GSTIN not entered"} · {selected.address || "Address not entered"}</p><span className="record-state">{selected.status === "Inactive" ? "Inactive" : "Active"}</span></div>
+              <div><h3>{selected.company}</h3><p>{selected.gstin || "GSTIN not entered"} · {selected.address || "Address not entered"}</p><span className="record-state">{isActive(selected.status) ? "Active" : "Inactive"}</span></div>
               <button className="button-quiet" onClick={() => beginEdit(selected)}>Edit</button>
             </div>
             <div className="vendor-master-detail-section"><div className="vendor-section-heading"><div><strong>Contact persons</strong><small>{legacyContacts(selected).length} saved contact(s)</small></div></div>
@@ -240,7 +240,7 @@ export default function VendorWorkspace({ onBack, onNotice, notice, initialSearc
             </div>
             <div className="vendor-master-detail-section"><div className="vendor-section-heading"><div><strong>Notes</strong></div></div><p className="vendor-master-notes">{selected.notes || "No notes entered."}</p></div>
             {selected.verificationStatus && <div className="module-safety-note"><ShieldCheck size={14}/><span>Verification: {selected.verificationStatus}</span></div>}
-            <div className="vendor-actions"><button className="button-quiet" onClick={() => toggleStatus(selected)}>{selected.status === "Inactive" ? "Activate vendor" : "Deactivate vendor"}</button><button className="button-quiet" onClick={() => archiveVendor(selected)}><X size={14}/> Archive</button></div>
+            <div className="vendor-actions"><button className="button-quiet" onClick={() => toggleStatus(selected)}>{isActive(selected.status) ? "Deactivate vendor" : "Activate vendor"}</button><button className="button-quiet" onClick={() => archiveVendor(selected)}><X size={14}/> Archive</button></div>
             <div className="module-safety-note"><ShieldCheck size={14}/><span>This vendor ID is retained by historical process operations and quotations. Vendor costs are entered separately on each component's process chart.</span></div>
           </> : <div className="module-empty-state"><Users size={25}/><h3>Select or add a vendor</h3><p>Vendor records are shared across companies, purchase orders and components without copying the vendor master.</p><button className="button-primary" onClick={beginNew}><Plus size={14}/> Add vendor</button></div>}
         </section>
