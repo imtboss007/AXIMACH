@@ -180,7 +180,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       children.push({
         ...operation,
         id: makeId("operation"),
-        sequence: operation.sequence + index,
+        sequence: operation.sequence,
         name: operation.name + " · Batch " + (index + 1) + "/" + batches,
         quantity,
         completed: 0,
@@ -203,10 +203,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     }
     update(current => ({
       ...current,
-      operations: [
-        ...current.operations.map(item => item.id === operation.id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item),
-        ...children
-      ]
+      operations: current.operations.flatMap(item => item.id === operation.id
+        ? [{ ...item, deletedAt: stamp, updatedAt: stamp }, ...children]
+        : [item])
     }));
     setSelectedOperationId(children[0]?.id || "");
     onNotice("Operation split into " + batches + " queued batches. Total quantity is preserved; setup hours and transport cost remain on batch 1 only. Review and schedule each batch.");
