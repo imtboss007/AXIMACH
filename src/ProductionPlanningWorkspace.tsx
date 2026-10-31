@@ -6,7 +6,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type MachineResourceR
 type ProcessSelection = { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string };
 type Props = {
   onBack: () => void; onNotice: (value: string) => void; notice: string;
-  onSelectModule: (id: string) => void; onOpenOperation: (selection: ProcessSelection) => void;
+  onSelectModule: (id: string) => void; onOpenOperation: (selection: ProcessSelection) => void; onOpenWipTransfer: (selection: ProcessSelection) => void;
   initialSelection?: ProcessSelection | null; onInitialSelectionApplied?: () => void;
 };
 type ResourceDraft = {
@@ -40,7 +40,7 @@ const overlaps = (a: OperationRecord, b: OperationRecord) => {
 };
 const statusClass = (status: string) => "record-state state-" + status.toLowerCase().replace(/\s+/g, "-");
 
-export default function ProductionPlanningWorkspace({ onBack, onNotice, notice, onSelectModule, onOpenOperation, initialSelection, onInitialSelectionApplied }: Props) {
+export default function ProductionPlanningWorkspace({ onBack, onNotice, notice, onSelectModule, onOpenOperation, onOpenWipTransfer, initialSelection, onInitialSelectionApplied }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const companies = activeRows(data.companies);
   const factories = activeRows(data.factories);
@@ -285,7 +285,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, notice, 
         </div>
         {conflicts.length > 0 && <div className="production-warning-box"><AlertTriangle size={16}/><div><strong>Potential machine schedule overlap</strong><small>{conflicts.map(op => op.name + " (" + (orders.find(po => po.id === op.poId)?.number || "PO") + ", " + dateLabel(op.plannedStart) + ")").join(" · ")}. Resolve or retain with a documented planning decision. This is a warning, not a hard block.</small></div></div>}
         {selectedOperation.vendorId && <div className="production-capability-note"><strong>Vendor capability status: {selectedCapability?.status || "No capability record"}</strong><span>{selectedCapability ? "Recorded monthly capacity: " + number(selectedCapability.capacityPerMonth) + " pcs · Valid " + (selectedCapability.validFrom || "date not set") + " to " + (selectedCapability.validUntil || "date not set") : "No vendor/process capacity is assumed. Open Vendor Capability Master to record verified capacity."}</span><button className="button-quiet compact-button" onClick={() => onSelectModule("vendor-capability")}>Open vendor capability</button></div>}
-        <div className="production-editor-actions"><button className="button-primary" onClick={saveSchedule}><Check size={14}/> Save schedule</button><button className="button-quiet" onClick={() => { const selection = routeSelection(selectedOperation); if (selection) onOpenOperation(selection); }}>Open exact operation in Process Map</button><button className="button-quiet" onClick={() => onSelectModule("wip-transfers")}>WIP transfers</button></div>
+        <div className="production-editor-actions"><button className="button-primary" onClick={saveSchedule}><Check size={14}/> Save schedule</button><button className="button-quiet" onClick={() => { const selection = routeSelection(selectedOperation); if (selection) onOpenOperation(selection); }}>Open exact operation in Process Map</button><button className="button-quiet" onClick={() => { const selection = routeSelection(selectedOperation); if (selection) onOpenWipTransfer(selection); }}>WIP handover</button></div>
         <div className="production-linked-facts">
           <div><small>PO COMPONENT DELIVERY</small><strong>{dateLabel(selectedOrderLine?.targetDelivery || selectedOrder?.targetDelivery)}</strong></div>
           <div><small>RECORDED INBOUND WIP</small><strong>{number(recordedWipReceived)} pcs</strong><span>{linkedWipReceipts.length} linked receipt(s); no receipt is inferred.</span></div>
