@@ -14,6 +14,8 @@ import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
 import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
 import InventoryWorkspace from "./InventoryWorkspace";
 import VendorWorkspace from "./VendorWorkspace";
+import ProcessMasterWorkspace from "./ProcessMasterWorkspace";
+import VendorCapabilityWorkspace from "./VendorCapabilityWorkspace";
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
 type ModuleItem = {
@@ -198,7 +200,9 @@ function App() {
         ) : activeModuleId === "costing" ? (
           <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" ? (
-          <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
+          <ProcessMasterWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "vendor-capability" ? (
+          <VendorCapabilityWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
           <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenOperation={openVendorOperation} />
         ) : activeModuleId === "communications" ? (
@@ -216,7 +220,7 @@ function App() {
           {label:"Companies",id:"companies",icon:Factory},
           {label:"Purchase Orders",id:"purchasing",icon:Package},
           {label:"Components",id:"components",icon:Box,group:"components",children:[{label:"All Components",id:"components"},{label:"Component Process Map",id:"process-map"},{label:"Drawings & Documents",id:"components"}]},
-          {label:"Vendors & Sub-vendors",id:"vendors",icon:Users},
+          {label:"Vendors & Sub-vendors",id:"vendors",icon:Users,group:"vendors",children:[{label:"Vendor Directory & Work Allocation",id:"vendors"},{label:"Capability Directory",id:"vendor-capability"}]},
           {label:"Process Master",id:"process-master",icon:Layers3,group:"process-master",children:[{label:"Process Library",id:"process-master"}]},
           {label:"Production Planning",id:"production",icon:Activity},
           {label:"Material & Inventory",id:"inventory",icon:Boxes},
