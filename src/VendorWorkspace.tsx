@@ -277,11 +277,12 @@ export default function VendorWorkspace({ onBack, onNotice, notice, initialSearc
             </div>
             <div className="vendor-master-detail-section vendor-allocation-section">
               <div className="vendor-section-heading"><div><strong>Work allocated to this vendor</strong><small>{workAllocations.length} linked process operation(s) · grouped by original company, PO and component records</small></div><span className="module-number">{new Set(workAllocations.map(row => row.po?.id).filter(Boolean)).size} PO(s)</span></div>
-              {workAllocations.length ? <div className="vendor-allocation-table-wrap"><table className="vendor-allocation-table"><thead><tr><th>Company</th><th>PO</th><th>Component</th><th>Process</th><th>Given / Start</th><th>Due date</th><th>Qty</th><th>Vendor cost / pc</th><th>Status</th><th></th></tr></thead><tbody>
+              {workAllocations.length ? <div className="vendor-allocation-table-wrap"><table className="vendor-allocation-table"><thead><tr><th>Company</th><th>PO</th><th>Component</th><th>Process Master</th><th>Operation</th><th>Given / Start</th><th>Due date</th><th>Qty</th><th>Vendor cost / pc</th><th>Status</th><th></th></tr></thead><tbody>
                 {workAllocations.map(({operation,po,line,component,company,quantity,plannedRate,actualRate}) => <tr key={operation.id}>
                   <td>{company?.name || "Company record unavailable"}</td>
                   <td>{po?.number || "PO unavailable"}</td>
                   <td>{component ? component.partNumber + " · " + component.name : "Component record unavailable"}</td>
+                  <td>{data.processDefinitions.find(definition => definition.id === operation.processDefinitionId)?.name || "Not mapped"}</td>
                   <td>{operation.name}</td>
                   <td>{operation.plannedStart || "—"}</td>
                   <td>{operation.plannedEnd || line?.targetDelivery || "—"}</td>
