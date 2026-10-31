@@ -82,7 +82,7 @@ Exactly the eight approved functions:
 - [x] Process Directory remains a catalogue/rate source. Actual vendor assignment to a component's operation occurs in Process Map.
 
 ### 08 — Production Planning + Process Map (combined user-facing menu)
-- [ ] Combine the two user reference screens into one integrated workspace; do not redesign into an unrelated layout.
+- [x] Combine the two user reference screens into one integrated workspace; do not redesign into an unrelated layout.
 - [x] No Factory filter or factory selector in the user-facing Process Map screen; legacy factory IDs remain internal for historical PO and machine-resource relationships.
 - [ ] Searchable multi-select filters with checkboxes: Company, PO Number, Component and optional Vendor.
 - [ ] Vendor filter shows components/operations assigned to that vendor.
@@ -93,8 +93,8 @@ Exactly the eight approved functions:
 - [x] New Process Map operations select a Process Directory type; legacy unlinked operations remain editable without losing their saved names.
 - [ ] Each component has its own connected process route with arrows/connectors and supported branching/crossover paths.
 - [ ] Preserve the approved reference layout elements: operation table, process cards/graph, side detail panel, Gantt/Calendar Day/Week/Month, Upcoming Deliveries (Next 7 Days), Vendor Workload, Delays & Risks, and the agreed KPI/action areas.
-- [ ] Show vendor payment status on the relevant operation/process card and detail panel: **Paid / Not Paid**.
-- [ ] Payment status is entered/updated in Process Map and is the source of truth for the costing comparison.
+- [x] Show vendor payment status on the relevant operation/process card and detail panel: **Paid / Not Paid**.
+- [x] Payment status is entered/updated in Process Map and is the source of truth for the costing comparison.
 - [ ] No demo business records.
 - [ ] Verify real saved data and navigation across Company → PO → Component → Operation → Vendor → Costing.
 
@@ -248,3 +248,5 @@ Exactly the eight approved functions:
 - Removed the user-facing Factory selector from Process Map. The route now follows Company → Purchase Order → PO component line.
 - PO choices are filtered directly by Company; historical factoryId fields are retained and the selected PO's internal factoryId continues to support existing machine-resource compatibility.
 - The separate Production Planning and Process Map routes remain unchanged in this focused correction; combining their approved reference layouts is still pending.
+- Combined workspace presents Planning and Process Map under one approved navigation item; the previous Process Map route is retained only as an internal navigation alias.
+- Vendor payment status is an optional operation field for backward compatibility. Existing vendor-assigned operations default visually to Not Paid; status is editable in Process Map and displayed in planning cards, table and detail view. Planning edits preserve the status.
