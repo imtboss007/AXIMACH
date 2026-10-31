@@ -14,6 +14,7 @@ import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
 import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
 import InventoryWorkspace from "./InventoryWorkspace";
 import MachineCapacityWorkspace from "./MachineCapacityWorkspace";
+import ProductionPlanningWorkspace from "./ProductionPlanningWorkspace";
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
 type ModuleItem = {
@@ -184,8 +185,10 @@ function App() {
           <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
-        ) : activeModuleId === "maintenance" || activeModuleId === "production" ? (
-          <MachineCapacityWorkspace mode={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
+        ) : activeModuleId === "production" ? (
+          <ProductionPlanningWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
+        ) : activeModuleId === "maintenance" ? (
+          <MachineCapacityWorkspace mode="maintenance" onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
           <InventoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
