@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check, Cpu, FileText, Plus, Search, ShieldCheck, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type VendorCapabilityRecord, type VendorCapabilityStatus } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
-type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
+type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; initialVendorId?: string; onInitialVendorApplied?: () => void; onOpenVendor: (vendorId: string) => void };
 type Draft = Omit<VendorCapabilityRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 const blankDraft = (): Draft => ({
   vendorId: "", processDefinitionId: "", machineModel: "", envelopeX: 0, envelopeY: 0, envelopeZ: 0,
@@ -13,13 +13,15 @@ const blankDraft = (): Draft => ({
 const statuses: VendorCapabilityStatus[] = ["Unverified", "Evidence requested", "Under evaluation", "Approved", "Expired", "Rejected"];
 const moneyless = (value: number) => Number(value || 0).toLocaleString("en-IN");
 
-export default function VendorCapabilityWorkspace({ onBack, onNotice, notice, onSelectModule }: Props) {
+export default function VendorCapabilityWorkspace({ onBack, onNotice, notice, onSelectModule, initialVendorId = "", onInitialVendorApplied, onOpenVendor }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const vendors = activeRows(data.vendors);
   const processes = activeRows(data.processDefinitions);
   const capabilities = activeRows(data.vendorCapabilities);
   const operations = activeRows(data.operations);
   const [search, setSearch] = useState("");
+  const [vendorFilterId, setVendorFilterId] = useState(initialVendorId);
+  useEffect(() => { if (initialVendorId) onInitialVendorApplied?.(); }, []);
   const [editingId, setEditingId] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState<Draft>(blankDraft());
@@ -27,9 +29,10 @@ export default function VendorCapabilityWorkspace({ onBack, onNotice, notice, on
   const filtered = useMemo(() => capabilities.filter(cap => {
     const vendor = vendors.find(row => row.id === cap.vendorId);
     const process = processes.find(row => row.id === cap.processDefinitionId);
-    return [vendor?.company, process?.name, process?.code, cap.machineModel, cap.materialRange, cap.toleranceCapability, cap.certificationScope, cap.status]
-      .join(" ").toLowerCase().includes(search.trim().toLowerCase());
-  }), [capabilities, vendors, processes, search]);
+    return (!vendorFilterId || cap.vendorId === vendorFilterId) &&
+      [vendor?.company, process?.name, process?.code, cap.machineModel, cap.materialRange, cap.toleranceCapability, cap.certificationScope, cap.status]
+        .join(" ").toLowerCase().includes(search.trim().toLowerCase());
+  }), [capabilities, vendors, processes, search, vendorFilterId]);
   const selectedVendor = vendors.find(row => row.id === draft.vendorId);
   const evidenceOptions = selectedVendor?.documents || [];
   const reset = () => { setShowForm(false); setEditingId(""); setDraft(blankDraft()); };
@@ -84,7 +87,7 @@ export default function VendorCapabilityWorkspace({ onBack, onNotice, notice, on
     {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/>{syncStatus === "synced" ? "SHARED SERVER DATA" : syncStatus === "syncing" ? "SYNCING DATA" : syncStatus === "error" ? "SYNC ERROR · LOCAL COPY KEPT" : "CAPABILITY REGISTER"}</span></div>
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / QUALIFICATION MASTER</div><h1>Vendor Capability Master<span>.</span></h1><p>Map each vendor to the process definitions they can perform, with machine envelope, material range, tolerance, capacity and linked evidence.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("process-master")}><Cpu size={15}/> Process Master</button><button className="button-primary" onClick={startNew}><Plus size={15}/> Add capability</button></div></div>
-    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search vendor, process, machine, material, tolerance or status…"/></label><span className="module-number">{capabilities.length} CAPABILITY RECORDS</span></div>
+    <div className="module-action-bar capability-filter-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search process, machine, material, tolerance or status…"/></label><SearchablePicker id="capability-vendor-filter" label="Filter vendor" value={vendorFilterId} placeholder="All vendors" options={vendors.map(v => ({id:v.id,label:v.company + (v.gstin ? " · " + v.gstin : "")}))} onChange={setVendorFilterId}/>{vendorFilterId && <button className="button-quiet compact-button" onClick={() => setVendorFilterId("")}>Clear vendor</button>}<span className="module-number">{filtered.length} / {capabilities.length} RECORDS</span></div>
     {!vendors.length || !processes.length ? <section className="surface-panel capability-prerequisites"><h3>Master records required</h3><p>{!vendors.length ? "Add actual vendors first. " : ""}{!processes.length ? "Create process definitions first. " : ""}Capability records must reference saved vendor and process IDs so that they can be reused across jobs without creating duplicate names.</p><div className="linked-empty-actions">{!vendors.length && <button className="button-quiet" onClick={() => onSelectModule("vendors")}>Open Vendor Directory <ArrowRight size={14}/></button>}{!processes.length && <button className="button-quiet" onClick={() => onSelectModule("process-master")}>Open Process Master <ArrowRight size={14}/></button>}</div></section> : null}
     {showForm && <section className="surface-panel master-editor"><div className="panel-heading"><div><h3>{editingId ? "Edit capability assessment" : "New vendor capability"}</h3><p>Qualification and evidence only. Actual outsourced jobs and their rates remain separately assigned on each Process Map operation.</p></div><button className="icon-control" onClick={reset} aria-label="Close editor"><X size={14}/></button></div>
       <div className="module-record-form capability-form">
@@ -122,7 +125,7 @@ export default function VendorCapabilityWorkspace({ onBack, onNotice, notice, on
             <div className="master-link-stats"><span>{evidence.length} linked evidence document(s)</span><span>{allocationCount} actual operation allocation(s)</span><span>{row.certificationScope || "No certification scope entered"}</span></div>
             {row.notes && <small>{row.notes}</small>}
           </div>
-          <div className="module-record-card-actions"><button onClick={() => edit(row)}>Edit</button><button onClick={() => archive(row)}>Archive</button></div>
+          <div className="module-record-card-actions"><button onClick={() => onOpenVendor(row.vendorId)} disabled={!vendor}>Open vendor</button><button onClick={() => edit(row)}>Edit</button><button onClick={() => archive(row)}>Archive</button></div>
         </article>;
       })}
       {!filtered.length && <div className="module-empty-state"><Cpu size={28}/><h3>{search ? "No matching capability" : "No vendor capabilities recorded"}</h3><p>{search ? "Try another vendor or process keyword." : "No capabilities are preloaded. Add only capabilities supported by your actual vendor evidence and assessment."}</p>{!search && vendors.length > 0 && processes.length > 0 && <button className="button-primary" onClick={startNew}><Plus size={14}/> Add first capability</button>}</div>}
