@@ -84,7 +84,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const companyOptions = useMemo(() => companies.map(company => ({ id: company.id, label: company.name })), [companies]);
   const filteredCompanyOrders = orders.filter(po => isSelected(companyIds, po.companyId));
   const poOptions = filteredCompanyOrders.map(po => ({ id: po.id, label: po.number }));
-  const filteredFilterLines = filteredCompanyOrders.flatMap(po => po.lines.map(line => ({ po, line })));
+  const filteredFilterLines = filteredCompanyOrders.filter(po => isSelected(poIds, po.id)).flatMap(po => po.lines.map(line => ({ po, line })));
   const componentOptions = components.filter(component => filteredFilterLines.some(row => row.line.componentId === component.id)).map(component => ({ id: component.id, label: component.partNumber + " — " + component.name }));
   const vendorOptions = vendors.map(vendor => ({ id: vendor.id, label: vendor.company }));
   const categoryOptions = [...new Set(operations.map(operation => operation.category.trim()).filter(Boolean))].sort().map(category => ({ id: category, label: category }));
@@ -303,18 +303,18 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                 </div> : null}
                 {branches.map(branch => {
                   const branchOperations = group.operations.filter(operation => (operation.branch || "Main route") === branch);
-                  const connectors = branchOperations.map((operation, index) => {
+                  const connectors = branchOperations.flatMap((operation, index) => {
                     const parent = group.operations.find(item => item.id === operation.parentId);
                     const parentIndex = mainRoute.findIndex(item => item.id === operation.parentId);
-                    if (!parent || parentIndex < 0) return null;
+                    if (!parent || parentIndex < 0) return [];
                     const startX = Math.round(((parentIndex + 0.5) / Math.max(1, mainRoute.length)) * 1000);
                     const endX = Math.round(((index + 0.5) / Math.max(1, branchOperations.length)) * 1000);
-                    return <path key={operation.id} d={"M " + startX + " 2 C " + startX + " 24 " + endX + " 24 " + endX + " 52"} />;
-                  }).filter(Boolean);
+                    return [{ key: operation.id, d: "M " + startX + " 2 C " + startX + " 24 " + endX + " 24 " + endX + " 52" }];
+                  });
                   const parentNames = [...new Set(branchOperations.map(operation => group.operations.find(item => item.id === operation.parentId)?.name).filter(Boolean))];
                   return <div className="pp-route-branch" key={branch}>
                     <div className="pp-route-lane-label pp-branch-label"><span>↘ {branch}</span><small>{parentNames.length ? "Branches from " + parentNames.join(", ") : "Alternate route"}</small></div>
-                    {connectors.length ? <svg className="pp-route-connectors" viewBox="0 0 1000 58" preserveAspectRatio="none" aria-hidden="true"><defs><marker id={routeId} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#31b8ff" strokeWidth="1.2"/></marker></defs>{connectors.map((path, index) => <path key={index} d={path.props.d} markerEnd={"url(#" + routeId + ")"} />)}</svg> : null}
+                    {connectors.length ? <svg className="pp-route-connectors" viewBox="0 0 1000 58" preserveAspectRatio="none" aria-hidden="true"><defs><marker id={routeId} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#31b8ff" strokeWidth="1.2"/></marker></defs>{connectors.map(connector => <path key={connector.key} d={connector.d} markerEnd={"url(#" + routeId + ")"} />)}</svg> : null}
                     <div className="pp-route-track">
                       {branchOperations.map((operation, index) => <Fragment key={operation.id}>
                         <button className={"pp-route-node " + statusClass(operation.status) + (selected?.id === operation.id ? " selected" : "")} onClick={() => { setSelectedId(operation.id); setTab("General"); }}>
