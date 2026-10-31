@@ -103,6 +103,10 @@ export type InventoryTransactionRecord = {
   reversalOfId: string; createdAt: string; createdBy: string;
   locationType?: StockLocationType; locationId?: string; movementId?: string; movementKind?: "WIP transfer" | "Customer dispatch";
 };
+export type MovementAcknowledgementRecord = {
+  id: string; quantity: number; occurredAt: string; receivedBy: string; proofReference: string;
+  discrepancyNotes: string; stockTransactionIds: string[];
+};
 export type WipTransferStatus = "Prepared" | "In transit" | "Partially received" | "Received" | "Cancelled";
 export type WipTransferRecord = {
   id: string; companyId: string; factoryId: string; poId: string; poLineId: string; componentId: string;
@@ -111,16 +115,16 @@ export type WipTransferRecord = {
   sourceVendorId: string; destinationVendorId: string; quantity: number; dispatchedQuantity: number; receivedQuantity: number;
   status: WipTransferStatus; preparedAt: string; dispatchedAt: string; lastReceivedAt: string;
   challanReference: string; vehicleNumber: string; transporterVendorId: string; lrNumber: string;
-  receivedBy: string; discrepancyNotes: string; notes: string; stockTransactionIds: string[];
+  receivedBy: string; discrepancyNotes: string; receiptEvents?: MovementAcknowledgementRecord[]; notes: string; stockTransactionIds: string[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type CustomerDispatchStatus = "Prepared" | "In transit" | "Partially delivered" | "Delivered" | "Cancelled";
 export type CustomerDispatchRecord = {
   id: string; companyId: string; factoryId: string; poId: string; poLineId: string; componentId: string;
   quantity: number; dispatchedQuantity: number; deliveredQuantity: number; status: CustomerDispatchStatus;
-  deliveryChallan: string; eWayBill: string; transporterVendorId: string; vehicleNumber: string; lrNumber: string;
+  deliveryChallan: string; actualDispatchDate: string; eWayBill: string; transporterVendorId: string; vehicleNumber: string; lrNumber: string;
   destination: string; dispatchDate: string; lastDeliveryDate: string; receivedBy: string; proofReference: string;
-  discrepancyNotes: string; notes: string; stockTransactionIds: string[];
+  discrepancyNotes: string; deliveryEvents?: MovementAcknowledgementRecord[]; notes: string; stockTransactionIds: string[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ManufacturingData = {
