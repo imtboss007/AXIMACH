@@ -11,6 +11,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { saveBlobFile } from "./fileDownload";
 import ManufacturingMasterWorkspace from "./ManufacturingMasterWorkspace";
+import ComponentDirectoryWorkspace from "./ComponentDirectoryWorkspace";
 import CombinedProductionWorkspace from "./CombinedProductionWorkspace";
 import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
 import QualityInspectionWorkspace from "./QualityInspectionWorkspace";
@@ -42,6 +43,7 @@ const moduleCatalogue: ModuleItem[] = [
   { id: "customers", title: "Customers, RFQs & Sales Orders", group: "Commercial", description: "Customer requirements, quotations, commitments and order intake.", icon: Target, action: "Review commercial pipeline" },
   { id: "purchasing", title: "Purchase Orders", group: "Commercial", description: "Purchase approvals, subcontract work, acknowledgements and receipts.", icon: Package, action: "Review purchase workflow" },
   { id: "components", title: "Components", group: "Engineering", description: "Part masters, bills of material, drawings and linked revisions.", icon: Box, action: "Explore component records" },
+  { id: "component-directory", title: "Component Directory", group: "Engineering", description: "Component-wise process history, fully processed cost and PO price comparison.", icon: Boxes, action: "Review component cost registers" },
   { id: "process-master", title: "Process Directory", group: "Engineering", description: "Maintain hierarchical processes, vendor quotations, validity and rate history.", icon: Layers3, action: "Browse process library" },
   { id: "vendors", title: "Vendors", group: "Supply Network", description: "Manage vendors, contacts and their single assigned process.", icon: Users, action: "Explore vendor records" },
   { id: "vendor-capability", title: "Vendor Capability Master", group: "Supply Network", description: "Match process capabilities, machine envelopes, tolerances and certificates.", icon: Cpu, action: "Explore capability matching" },
@@ -70,7 +72,7 @@ const moduleCatalogue: ModuleItem[] = [
   { id: "continuity", title: "Business Continuity & Recovery", group: "Data & Platform", description: "Manage backups, recovery targets, restore evidence and incident runbooks.", icon: HardDrive, action: "Explore recovery readiness" }
 ];
 
-const approvedMenuIds = new Set(["command-centre","companies","purchasing","components","process-master","vendors","inventory","production","dispatch","quality","costing","reports","ai-insights","export","import"]);
+const approvedMenuIds = new Set(["command-centre","companies","purchasing","components","component-directory","process-master","vendors","inventory","production","dispatch","quality","costing","reports","ai-insights","export","import"]);
 const modules: ModuleItem[] = moduleCatalogue.filter(item => approvedMenuIds.has(item.id));
 const groupOptions = ["All approved workspaces", ...Array.from(new Set(modules.map((item) => item.group)))];
 
@@ -253,6 +255,8 @@ function App() {
           <CommandControlWorkspace onBack={() => selectModule("dashboard")} onSelectModule={selectModule} onOpenOperation={openProcessOperation} onOpenQuality={openQualityOperation} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "component-directory" ? (
+          <ComponentDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" ? (
           <CombinedProductionWorkspace initialView={productionView} initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={openQualityOperation} onOpenWipTransfer={openWipTransfer} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "maintenance" ? (
