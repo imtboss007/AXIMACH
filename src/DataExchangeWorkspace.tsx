@@ -105,6 +105,7 @@ export default function DataExchangeWorkspace({mode,onBack,onNotice}:Props) {
         return {record,line:index+2};
       });
       const keys=new Set<string>();
+      const seenVendorNumbers=new Set<string>();
       const existing=data[importKind] as unknown as Row[];
       const categories=data.processCategories;
       const processTypes=data.processTypes;
@@ -131,12 +132,13 @@ export default function DataExchangeWorkspace({mode,onBack,onNotice}:Props) {
           const process=processTypes.find(item=>item.id===String(record.processTypeId||"").trim()&&!item.deletedAt);
           if(!process)errors.push("processTypeId does not match an active Process Directory type.");
           const phone=String(record.phone||"").replace(/\D/g,""),whatsapp=String(record.whatsappNumber||"").replace(/\D/g,"");
-          if(!phone&&!whatsapp)errors.push("At least one phone or WhatsApp number is required for import duplicate control.");
           const numbers=[phone,whatsapp].filter(Boolean);
+          if(vendors.some(item=>norm(item.company)===norm(record.company)&&norm(item.contact)===norm(record.contact)))errors.push("Vendor company/contact already exists in Vendor Master.");
           if(vendors.some(item=>numbers.some(number=>[item.phone,item.whatsappNumber].some(value=>String(value||"").replace(/\D/g,"")===number))))errors.push("Phone / WhatsApp number already belongs to an existing vendor.");
+          if(numbers.some(number=>seenVendorNumbers.has(number)))errors.push("Phone / WhatsApp number is duplicated within this file.");
+          numbers.forEach(number=>seenVendorNumbers.add(number));
           const key="vendor:"+norm(record.company)+"::"+norm(record.contact);
           if(keys.has(key))errors.push("Duplicate company/contact within this file.");keys.add(key);
-          if(process&&numbers.length===0)errors.push("Vendor cannot be imported without a contact number.");
           row={id:makeId("vendor"),company:String(record.company||"").trim(),contact:String(record.contact||"").trim(),processTypeId:process?.id||"",processes:process?.name||"",role:String(record.role||"").trim(),phone,whatsappNumber:whatsapp,email:String(record.email||"").trim(),address:String(record.address||"").trim(),machines:String(record.machines||"").trim(),materials:String(record.materials||"").trim(),notes:String(record.notes||"").trim(),status:String(record.status||"Unverified contact — review").trim(),sourceContactId:"",whatsappSyncedAt:"",createdAt:nowIso(),updatedAt:nowIso()};
         } else if(importKind==="materials"){
           add("code","Material code is required.");add("name","Material name is required.");add("unit","Unit is required.");

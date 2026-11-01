@@ -33,7 +33,9 @@ export default function ReportsAnalyticsWorkspace({onBack,onSelectModule}:Props)
   const rejected=windowInspections.reduce((sum,row)=>sum+(Number(row.rejectedQty)||0),0);
   const inspected=windowInspections.reduce((sum,row)=>sum+(Number(row.inspectedQty)||0),0);
   const rejectionRate=inspected>0?rejected/inspected*100:0;
-  const dueLines=orders.flatMap(po=>po.lines.filter(line=>!("deletedAt" in line&&(line as typeof line & {deletedAt?:string}).deletedAt).map(line=>({po,line,due:line.targetDelivery||po.targetDelivery,component:components.find(c=>c.id===line.componentId)})));
+  const dueLines=orders.flatMap(po=>po.lines
+    .filter(line=>!("deletedAt" in line&&(line as typeof line & {deletedAt?:string}).deletedAt))
+    .map(line=>({po,line,due:line.targetDelivery||po.targetDelivery,component:components.find(c=>c.id===line.componentId)})));
   const overdueDeliveries=dueLines.filter(row=>row.due&&row.due<day()&&row.po.status!=="Complete"&&row.po.status!=="Cancelled");
   const quoteSummary=useMemo(()=>data.processTypes.filter(type=>!type.deletedAt).map(type=>{
     const rows=windowQuotes.filter(q=>q.processTypeId===type.id&&q.status!=="Rejected");
