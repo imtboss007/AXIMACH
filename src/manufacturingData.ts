@@ -232,11 +232,15 @@ export function migrateLegacyProcessDirectory(data: ManufacturingData): Manufact
   const categories = [...data.processCategories];
   const types = [...data.processTypes];
   const stamp = nowIso();
-  const standardNames = ["Milling","Turning","Grinding","Welding","Surface Treatment","Heat Treatment","Cutting","EDM","Drilling","Fabrication","Casting","Forging","Finishing","Assembly"];
+  const standardNames = ["Milling","Turning","Grinding","Welding","Surface Treatment","Heat Treatment","Cutting","EDM","Drilling","Fabrication","Casting","Forging","Finishing","Assembly","Logistics & Dispatch"];
   for (const name of standardNames) {
     if (categories.some(row => row.name.toLowerCase() === name.toLowerCase())) continue;
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
     categories.push({id:"process-category-standard-"+slug,name,code:"",description:"Standard manufacturing process category.",sortOrder:categories.length+1,createdAt:stamp,updatedAt:stamp});
+  }
+  const logisticsCategory = categories.find(row => /logistics|transport|dispatch/i.test(row.name));
+  if (logisticsCategory && !types.some(row => /transport|dispatch|freight|courier|shipment/i.test(row.name))) {
+    types.push({id:"process-type-standard-transport-dispatch",categoryId:logisticsCategory.id,name:"Transport / Dispatch",code:"LOG-TRN",description:"Vendor-linked movement, pickup, delivery, freight, dispatch and handover operation. Enter charges in Process Planning.",createdAt:stamp,updatedAt:stamp});
   }
   if (!migrationDone) {
     let legacy: unknown;
