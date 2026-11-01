@@ -75,8 +75,8 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
 
   const locationBalance = (itemId:string, locationType:StockLocationType, locationId:string) => data.inventoryTransactions.reduce((sum,row)=>{
     if(row.itemType!=="component" || row.itemId!==itemId) return sum;
-    const effectiveType = row.locationType || (row.factoryId ? "factory" : row.vendorId ? "vendor" : undefined);
-    const effectiveId = row.locationId || (effectiveType==="vendor" ? row.vendorId : effectiveType==="factory" ? row.factoryId : "");
+    const effectiveType = row.locationType || (row.factoryId ? "factory" : row.vendorId ? "vendor" : row.companyId ? "company" : undefined);
+    const effectiveId = row.locationId || (effectiveType==="vendor" ? row.vendorId : effectiveType==="factory" ? row.factoryId : effectiveType==="company" ? row.companyId : "");
     if(effectiveType!==locationType || effectiveId!==locationId) return sum;
     return sum + (row.direction==="in" ? row.quantity : -row.quantity);
   },0);
