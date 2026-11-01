@@ -95,6 +95,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const [periodEnd, setPeriodEnd] = useState("");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [selectedOperationIds, setSelectedOperationIds] = useState<string[]>([]);
   const [tab, setTab] = useState("General");
   const [calendar, setCalendar] = useState(false);
   const [scale, setScale] = useState("Week");
@@ -115,7 +116,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const poOptions = filteredCompanyOrders.map(po => ({ id: po.id, label: po.number }));
   const filteredFilterLines = filteredCompanyOrders.filter(po => isSelected(poIds, po.id)).flatMap(po => po.lines.map(line => ({ po, line })));
   const componentOptions = components.filter(component => filteredFilterLines.some(row => row.line.componentId === component.id)).map(component => ({ id: component.id, label: component.partNumber + " — " + component.name }));
-  const vendorOptions = vendors.map(vendor => ({ id: vendor.id, label: vendor.company }));
+  const vendorOptions = [{ id: "__internal__", label: "In-house operation" }, ...vendors.map(vendor => ({ id: vendor.id, label: vendor.company }))];
   const categoryOptions = [...new Set(operations.map(operation => operation.category.trim()).filter(Boolean))].sort().map(category => ({ id: category, label: category }));
   const statusOptions = ["Queued", "Running", "Complete", "Quality hold"].map(status => ({ id: status, label: status }));
   const executionOptions = [{ id: "Internal", label: "Internal" }, { id: "Outsourced", label: "Outsourced" }];
@@ -125,7 +126,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const baseLineIds = new Set(baseLines.map(row => row.line.id));
   const filteredOperations = operations.filter(operation => {
     if (!baseLineIds.has(operation.poLineId)) return false;
-    if (!isSelected(vendorIds, operation.vendorId || "__internal__")) return false;
+    if (vendorIds.includes("__none__")) return false;
+    if (vendorIds.length > 0 && !vendorIds.includes(operation.vendorId || "__internal__") && !vendorIds.includes(operation.transportVendorId || "__no_transport__")) return false;
     if (!isSelected(statusIds, operation.status)) return false;
     const executionType = operation.vendorId ? "Outsourced" : "Internal";
     if (!isSelected(executionIds, executionType)) return false;
@@ -161,7 +163,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const pending = Math.max(0, totalQty - completed - inProgress);
   const today = new Date().toISOString().slice(0, 10);
   const delayed = displayRows.filter(operation => operation.status !== "Complete" && operation.plannedEnd && operation.plannedEnd < today);
-  const assigned = new Set(displayRows.map(operation => operation.vendorId).filter(Boolean)).size;
+  const assigned = new Set(displayRows.flatMap(operation => [operation.vendorId, operation.transportVendorId]).filter(Boolean)).size;
   const processCount = displayRows.length;
   const processLabel = (operation: OperationRecord) => operation.name || operation.category || "Operation";
   const allDates = displayRows.flatMap(operation => [operation.plannedStart, operation.plannedEnd]).filter(Boolean).sort();
@@ -178,6 +180,21 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const updatePaymentStatus = (operationId: string, status: "Paid" | "Not Paid") => {
     update(current => ({...current, operations: current.operations.map(operation => operation.id === operationId ? {...operation, vendorPaymentStatus: status, updatedAt: nowIso()} : operation)}));
     onNotice("Vendor payment status updated.");
+  };
+  const finishOperations = (operationIds: string[]) => {
+    const requested = operations.filter(operation => operationIds.includes(operation.id) && operation.status !== "Complete");
+    const blocked = requested.filter(operation => operation.status === "Quality hold");
+    const finishable = requested.filter(operation => operation.status !== "Quality hold");
+    if (!finishable.length) {
+      onNotice(blocked.length ? "Quality-hold operations cannot be finished. Resolve the quality hold first." : "The selected operations are already complete.");
+      return;
+    }
+    const ids = new Set(finishable.map(operation => operation.id));
+    const stamp = nowIso();
+    const finishDate = stamp.slice(0, 10);
+    update(current => ({...current, operations: current.operations.map(operation => ids.has(operation.id) ? {...operation, status: "Complete", actualEnd: operation.actualEnd || finishDate, updatedAt: stamp} : operation)}));
+    setSelectedOperationIds([]);
+    onNotice("Finished " + finishable.length + " operation(s)." + (blocked.length ? " " + blocked.length + " quality-hold operation(s) were left unchanged." : "") + " Entered completed, accepted and rejected quantities and actual rates were preserved; update them separately where required.");
   };
   const runSimulation = () => setSimulationOpen(true);
   const openAdd = () => {
@@ -199,7 +216,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     setDraft({
       companyId: po?.companyId || "", poId: operation.poId, poLineId: operation.poLineId,
       categoryId:processType?.categoryId||"",processTypeIds:operation.processTypeId?[operation.processTypeId]:[],
-      name: operation.name, category: operation.category, vendorId: operation.vendorId || "",
+      name: operation.name, category: operation.category, vendorId: operation.vendorId || "", transportVendorId: operation.transportVendorId || "",
       plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "", plannedStartTime: operation.plannedStartTime || (operation.plannedSlotStartAt ? new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5) : ""), plannedEndTime: operation.plannedEndTime || (operation.plannedSlotEndAt ? new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5) : ""),
       quantity: String(operation.quantity), ratePerPart: String(operation.ratePerPart), transportCost: String(operation.transportCost || 0),
       status: operation.status, vendorPaymentStatus: operation.vendorPaymentStatus || "Not Paid",
@@ -233,6 +250,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     });
     for(const item of assignmentsToSave){
       const {processType,assignment,quantity,rate,transport}=item;
+      if(assignment.transportVendorId&&!vendors.some(vendor=>vendor.id===assignment.transportVendorId)){onNotice("Select a saved Vendor Master record for the transport / dispatch assignment.");return;}
       if(!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(rate)||rate<0||!Number.isFinite(transport)||transport<0){onNotice("Each process needs a positive quantity and valid non-negative rate and transport cost.");return;}
       if(assignment.plannedStart&&assignment.plannedEnd&&assignment.plannedEnd<assignment.plannedStart){onNotice("Due date cannot be earlier than the start date for "+(processType?.name||"this process")+".");return;}
       if(assignment.plannedStart&&assignment.plannedEnd&&assignment.plannedStart===assignment.plannedEnd&&assignment.plannedStartTime&&assignment.plannedEndTime&&assignment.plannedEndTime<assignment.plannedStartTime){onNotice("Due time cannot be earlier than the start time on the same day for "+(processType?.name||"this process")+".");return;}
@@ -296,7 +314,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const toggleComponent = (key: string) => setCollapsedComponents(current => current.includes(key) ? current.filter(item => item !== key) : [...current, key]);
   const allCollapsed = componentGroups.length > 0 && componentGroups.every(group => collapsedComponents.includes(group.key));
   const workloads = vendors.map(vendor => {
-    const vendorOperations = displayRows.filter(operation => operation.vendorId === vendor.id);
+    const vendorOperations = displayRows.filter(operation => operation.vendorId === vendor.id || operation.transportVendorId === vendor.id);
     return { id: vendor.id, name: vendor.company, operations: vendorOperations };
   }).filter(item => item.operations.length);
   const internalOperations = displayRows.filter(operation => !operation.vendorId);
@@ -325,7 +343,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const simulationMissing=displayRows.length-simulationScheduled;
   const simulationOverdue=displayRows.filter(operation=>operation.status!=="Complete"&&operation.plannedEnd&&operation.plannedEnd<today).length;
   const simulationUnpaid=displayRows.filter(operation=>operation.vendorId&&(operation.vendorPaymentStatus||"Not Paid")!=="Paid").length;
-  const simulationAssignedVendors=new Set(displayRows.map(operation=>operation.vendorId).filter(Boolean)).size;
+  const simulationAssignedVendors=new Set(displayRows.flatMap(operation=>[operation.vendorId,operation.transportVendorId]).filter(Boolean)).size;
   const simulationValue=displayRows.reduce((sum,operation)=>sum+operation.quantity*operation.ratePerPart+operation.transportCost,0);
   const simulationConflicts:Array<{id:string;first:OperationRecord;second:OperationRecord;reason:string}>=[];
   for(let firstIndex=0;firstIndex<displayRows.length;firstIndex++){
@@ -467,17 +485,19 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           <div><h2>Process Operations ({visible.length})</h2><p>Process, vendor, planned dates, quantity and price for each selected component.</p></div>
           <div className="pp-table-tools">
             <label className="pp-search"><Search size={14}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search process, vendor…"/></label>
+            <button type="button" className="button-quiet compact-button" disabled={!searchedRows.length} onClick={() => setSelectedOperationIds(searchedRows.map(operation => operation.id))}>Select filtered</button>
+            <button type="button" className="pp-add-process" disabled={!selectedOperationIds.length} onClick={() => finishOperations(selectedOperationIds)}><CheckCircle2 size={14}/> Finish selected ({selectedOperationIds.length})</button>
             <button className="pp-add-process" onClick={openAdd}><Plus size={14}/> Add Process</button>
           </div>
         </div>
         <div className="pp-table-scroll"><table>
-          <thead><tr><th>#</th><th>Process</th><th>Category</th><th>Execution</th><th>Vendor</th><th>Start Date</th><th>Due Date</th><th>Qty (pcs)</th><th>Price (₹/pc)</th><th>Vendor Payment</th><th>Total Cost (₹)</th><th>Status</th><th>Action</th></tr></thead>
+          <thead><tr><th><input aria-label="Select all filtered processes" type="checkbox" checked={searchedRows.length > 0 && searchedRows.every(operation => selectedOperationIds.includes(operation.id))} onChange={event => setSelectedOperationIds(event.target.checked ? searchedRows.map(operation => operation.id) : [])}/></th><th>#</th><th>Process</th><th>Category</th><th>Execution</th><th>Process Vendor</th><th>Transport Vendor</th><th>Start Date</th><th>Due Date</th><th>Qty (pcs)</th><th>Price (₹/pc)</th><th>Vendor Payment</th><th>Total Cost (₹)</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>{searchedRows.map((operation, index) => <tr key={operation.id} onClick={() => openEdit(operation)} className={selected?.id === operation.id ? "active" : ""}>
-            <td>{index + 1}</td><td>{operation.name}</td><td>{operation.category || "—"}</td><td>{operation.vendorId ? "Outsourced" : "Internal"}</td>
-            <td>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</td><td>{day(operation.plannedStart)}</td><td>{day(operation.plannedEnd)}</td>
+            <td><input aria-label={"Select " + operation.name} type="checkbox" checked={selectedOperationIds.includes(operation.id)} onClick={event => event.stopPropagation()} onChange={event => setSelectedOperationIds(current => event.target.checked ? [...new Set([...current, operation.id])] : current.filter(id => id !== operation.id))}/></td><td>{index + 1}</td><td>{operation.name}</td><td>{operation.category || "—"}</td><td>{operation.vendorId ? "Outsourced" : "Internal"}</td>
+            <td>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</td><td>{vendors.find(vendor => vendor.id === operation.transportVendorId)?.company || "—"}</td><td>{day(operation.plannedStart)}</td><td>{day(operation.plannedEnd)}</td>
             <td>{operation.quantity.toLocaleString("en-IN")}</td><td>{money(operation.ratePerPart)}</td><td>{operation.vendorId ? <select aria-label={"Payment status for "+operation.name} value={operation.vendorPaymentStatus || "Not Paid"} onClick={event=>event.stopPropagation()} onChange={event=>updatePaymentStatus(operation.id,event.target.value as "Paid" | "Not Paid")}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select> : "—"}</td><td>{money(operation.quantity * operation.ratePerPart + operation.transportCost)}</td>
             <td><span className={"pp-table-status " + statusClass(operation.status)}>{operation.status}</span></td>
-            <td><button onClick={event => { event.stopPropagation(); openEdit(operation); }}>Edit</button></td>
+            <td><button onClick={event => { event.stopPropagation(); openEdit(operation); }}>Edit</button>{operation.status !== "Complete" && <button type="button" disabled={operation.status === "Quality hold"} title={operation.status === "Quality hold" ? "Resolve quality hold before finishing" : "Mark this operation complete"} onClick={event => { event.stopPropagation(); finishOperations([operation.id]); }}>Finish</button>}</td>
           </tr>)}</tbody>
         </table></div>
         {!searchedRows.length ? <div className="pp-empty pp-table-empty"><strong>No process operations found.</strong><span>Add a process or change the process search.</span></div> : null}
