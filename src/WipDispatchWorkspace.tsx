@@ -69,11 +69,6 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
   const poLines = selectedPO?.lines.filter(line=>!("deletedAt" in line && (line as typeof line & {deletedAt?:string}).deletedAt)) || [];
   const selectedLine = poLines.find(row=>row.id===poLineId);
   const selectedComponent = components.find(row=>row.id===selectedLine?.componentId);
-  const stockLocationType: StockLocationType = selectedPO?.factoryId ? "factory" : "company";
-  const stockLocationId = selectedPO?.factoryId || selectedPO?.companyId || "";
-  const stockLocationLabel = selectedPO?.factoryId ? "FACTORY STOCK AVAILABLE" : "COMPANY STOCK AVAILABLE";
-  const stockLocationDescription = selectedPO?.factoryId ? "Ledger-derived component balance at the PO’s legacy factory location" : "Ledger-derived component balance at the company stock location";
-  const selectedStockBalance = selectedComponent && stockLocationId ? locationBalance(selectedComponent.id,stockLocationType,stockLocationId) : 0;
   const lineOperations = operations.filter(row=>row.poId===poId && row.poLineId===poLineId && row.componentId===selectedLine?.componentId).sort((a,b)=>a.sequence-b.sequence);
   const sourceOperation = lineOperations.find(row=>row.id===sourceOperationId);
   const destinationOperation = lineOperations.find(row=>row.id===destinationOperationId);
@@ -85,6 +80,11 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
     if(effectiveType!==locationType || effectiveId!==locationId) return sum;
     return sum + (row.direction==="in" ? row.quantity : -row.quantity);
   },0);
+  const stockLocationType: StockLocationType = selectedPO?.factoryId ? "factory" : "company";
+  const stockLocationId = selectedPO?.factoryId || selectedPO?.companyId || "";
+  const stockLocationLabel = selectedPO?.factoryId ? "FACTORY STOCK AVAILABLE" : "COMPANY STOCK AVAILABLE";
+  const stockLocationDescription = selectedPO?.factoryId ? "Ledger-derived component balance at the PO’s legacy factory location" : "Ledger-derived component balance at the company stock location";
+  const selectedStockBalance = selectedComponent && stockLocationId ? locationBalance(selectedComponent.id,stockLocationType,stockLocationId) : 0;
   const transitBalance = (itemId:string, movementId:string) => locationBalance(itemId,"transit",movementId);
   const makeTransaction = (args:{id:string;movementId:string;movementKind:"WIP transfer"|"Customer dispatch";itemId:string;direction:"in"|"out";quantity:number;occurredAt:string;reference:string;notes:string;companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string;vendorId:string;locationType:StockLocationType;locationId:string}):InventoryTransactionRecord=>({
     id:args.id,itemType:"component",itemId:args.itemId,transactionType:args.movementKind==="WIP transfer"?"WIP transfer":"Dispatch",
