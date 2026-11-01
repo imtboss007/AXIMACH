@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
-import { tablerIconNames } from "./tablerIconCatalogue";
+import { tablerIconCatalogue } from "./tablerIconCatalogue";
 
-type IconMeta = { name: string; category?: string; tags?: string[]; version?: string; unicode?: string };
-type IconAssignment = { iconName: string; palette: string; finish: string; depth: number; tilt: number; updatedAt: string };
+type IconMeta = { name: string; category?: string; tags?: string[]; version?: string; unicode?: string; variant: "outline" | "filled" };
+type IconAssignment = { iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string };
 type Assignments = Record<string, IconAssignment>;
 
-const ICONS: IconMeta[] = tablerIconNames.map((name) => ({ name, category: "Outline", tags: name.split("-") }));
+const ICONS: IconMeta[] = tablerIconCatalogue.map((item) => ({ name: item.name, category: item.variant, tags: item.name.split("-"), variant: item.variant }));
+const iconKey = (item: Pick<IconMeta, "name" | "variant">) => `${item.variant}:${item.name}`;
 
 const families = [
   "General", "CNC Turning", "VMC / Milling", "Wire EDM", "Grinding", "Welding",
@@ -142,7 +143,7 @@ function iconSearchText(item: IconMeta) {
   return [item.name, item.category || "", ...(Array.isArray(item.tags) ? item.tags : [])].join(" ").toLowerCase();
 }
 
-function iconClass(name: string) { return `ti ti-${name}`; }
+function iconClass(name: string, variant: "outline" | "filled" = "outline") { return `ti ti-${name}${variant === "filled" ? " ti-filled" : ""}`; }
 
 export function ProcessIcon({ processName, fallback }: { processName: string; fallback: ReactNode }) {
   const [assignments, setAssignments] = useState<Assignments>(() => readAssignments());
@@ -161,7 +162,7 @@ export function ProcessIcon({ processName, fallback }: { processName: string; fa
   const palette = palettes.find((item) => item.name === assignment.palette) || palettes[0];
   return (
     <span className={`linked-node-icon linked-node-icon-3d ax-process-icon ax-icon-finish-${normaliseWords(assignment.finish).replaceAll(" ", "-")}`} style={{ "--ax-icon-accent": palette.color, "--ax-icon-depth": assignment.depth, "--ax-icon-tilt": assignment.tilt + "deg" } as CSSProperties} title={`Saved ${family} icon: ${assignment.iconName}`}>
-      <i className={iconClass(assignment.iconName)} aria-hidden="true" />
+      <i className={iconClass(assignment.iconName, assignment.iconVariant)} aria-hidden="true" />
     </span>
   );
 }
@@ -170,7 +171,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"all" | "favourites" | "assigned">("all");
   const [family, setFamily] = useState("CNC Turning");
-  const [selectedIcon, setSelectedIcon] = useState("settings");
+  const [selectedIcon, setSelectedIcon] = useState("outline:settings");
   const [paletteName, setPaletteName] = useState(palettes[0].name);
   const [finish, setFinish] = useState(finishes[0]);
   const [depth, setDepth] = useState(3);
@@ -239,14 +240,14 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
     const query = search.trim().toLowerCase();
     return ICONS.filter((item) => {
       if (tab === "favourites" && !favourites.includes(item.name)) return false;
-      if (tab === "assigned" && !Object.values(assignments).some((assignment) => assignment.iconName === item.name)) return false;
+      if (tab === "assigned" && !Object.values(assignments).some((assignment) => assignment.iconName === item.name && (assignment.iconVariant || "outline") === item.variant)) return false;
       return !query || iconSearchText(item).includes(query);
     });
   }, [search, tab, favourites, assignments]);
   const pageSize = 72;
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const visible = filtered.slice(page * pageSize, (page + 1) * pageSize);
-  const selected = ICONS.find((item) => item.name === selectedIcon);
+  const selected = ICONS.find((item) => iconKey(item) === selectedIcon);
   const activePalette = palettes.find((item) => item.name === paletteName) || palettes[0];
   const variantStyle = { "--ax-icon-accent": activePalette.color, "--ax-icon-depth": depth, "--ax-icon-tilt": tilt + "deg" } as CSSProperties;
   const variantClass = `ax-icon-finish-${normaliseWords(finish).replaceAll(" ", "-")}`;
@@ -259,15 +260,17 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
     void persistShared(bundle).then(setSyncStatus);
   };
   const saveAssignment = () => {
-    const assignment: IconAssignment = { iconName: selectedIcon, palette: paletteName, finish, depth, tilt, updatedAt: new Date().toISOString() };
+    const selectedMeta = ICONS.find((item) => iconKey(item) === selectedIcon);
+    if (!selectedMeta) return;
+    const assignment: IconAssignment = { iconName: selectedMeta.name, iconVariant: selectedMeta.variant, palette: paletteName, finish, depth, tilt, updatedAt: new Date().toISOString() };
     const next = { ...assignments, [family]: assignment };
     setAssignments(next);
-    const nextPresets = [assignment, ...presets.filter((preset) => preset.iconName !== assignment.iconName || preset.palette !== assignment.palette || preset.finish !== assignment.finish)].slice(0, 120);
+    const nextPresets = [assignment, ...presets.filter((preset) => preset.iconName !== assignment.iconName || preset.iconVariant !== assignment.iconVariant || preset.palette !== assignment.palette || preset.finish !== assignment.finish)].slice(0, 120);
     setPresets(nextPresets);
     const bundle = { assignments: next, favourites, presets: nextPresets, updatedAt: new Date().toISOString() };
     writePreferenceBundle(bundle);
     void persistShared(bundle);
-    setNotice(`Saved ${selectedIcon} for ${family}. Matching process nodes now use this 3D icon.`);
+    setNotice(`Saved ${selectedMeta.name} (${selectedMeta.variant}) for ${family}. Matching process nodes now use this 3D icon.`);
   };
   const removeAssignment = (targetFamily: string) => {
     const next = { ...assignments };
@@ -296,7 +299,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
             </div>
             <div className="ax-icon-studio-body">
               <section className="ax-icon-browser">
-                <div className="ax-icon-search"><Search size={17}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search 6,000+ icons: lathe, milling, gear, inspection…" autoFocus/><span>{filtered.length.toLocaleString("en-IN")}</span></div>
+                <div className="ax-icon-search"><Search size={17}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search 6,257 outline and filled glyphs: lathe, milling, gear, inspection…" autoFocus/><span>{filtered.length.toLocaleString("en-IN")}</span></div>
                 <div className="ax-icon-tabs" role="tablist" aria-label="Icon catalogue views">
                   <button className={tab === "all" ? "active" : ""} onClick={() => setTab("all")}><Layers3 size={14}/> All icons</button>
                   <button className={tab === "favourites" ? "active" : ""} onClick={() => setTab("favourites")}><Heart size={14}/> Saved favourites <b>{favourites.length}</b></button>
@@ -304,12 +307,12 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                 </div>
                 <div className="ax-icon-grid" role="list">
                   {visible.map((item) => (
-                    <div className={`ax-icon-option ${selectedIcon === item.name ? "selected" : ""}`} key={item.name}>
-                      <button className="ax-icon-option-main" onClick={() => setSelectedIcon(item.name)} aria-label={`Select ${item.name}`} title={item.name}>
-                        <span className="ax-icon-option-glyph"><i className={iconClass(item.name)} aria-hidden="true"/></span>
+                    <div className={`ax-icon-option ${selectedIcon === iconKey(item) ? "selected" : ""}`} key={iconKey(item)}>
+                      <button className="ax-icon-option-main" onClick={() => setSelectedIcon(iconKey(item))} aria-label={`Select ${item.name} ${item.variant}`} title={item.name}>
+                        <span className="ax-icon-option-glyph"><i className={iconClass(item.name, item.variant)} aria-hidden="true"/></span>
                         <span>{item.name.replaceAll("-", " ")}</span>
                       </button>
-                      <button className={`ax-icon-favourite ${favourites.includes(item.name) ? "is-favourite" : ""}`} onClick={() => toggleFavourite(item.name)} aria-label={favourites.includes(item.name) ? "Remove favourite" : "Save favourite"}><Heart size={12} fill={favourites.includes(item.name) ? "currentColor" : "none"}/></button>
+                      <button className={`ax-icon-favourite ${favourites.includes(iconKey(item)) ? "is-favourite" : ""}`} onClick={() => toggleFavourite(iconKey(item))} aria-label={favourites.includes(iconKey(item)) ? "Remove favourite" : "Save favourite"}><Heart size={12} fill={favourites.includes(item.name) ? "currentColor" : "none"}/></button>
                     </div>
                   ))}
                   {!visible.length && <div className="ax-icon-empty"><Search size={24}/><strong>No icons found</strong><span>Try a different word or switch to All icons.</span></div>}
@@ -332,9 +335,9 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                 <div className="ax-icon-field-label"><span>Saved style presets</span><small>{presets.length} saved</small></div>
                 <div className="ax-icon-presets-list">
                   {presets.slice(0, 6).map((preset, index) => (
-                    <button key={preset.iconName + preset.palette + preset.finish + index} onClick={() => { setSelectedIcon(preset.iconName); setPaletteName(preset.palette); setFinish(preset.finish); setDepth(preset.depth); setTilt(preset.tilt); }}>
-                      <i className={iconClass(preset.iconName)} aria-hidden="true"/>
-                      <span><strong>{preset.iconName.replaceAll("-", " ")}</strong><small>{preset.finish} · {preset.palette}</small></span>
+                    <button key={preset.iconName + (preset.iconVariant || "outline") + preset.palette + preset.finish + index} onClick={() => { setSelectedIcon(preset.iconName); setPaletteName(preset.palette); setFinish(preset.finish); setDepth(preset.depth); setTilt(preset.tilt); }}>
+                      <i className={iconClass(preset.iconName, preset.iconVariant)} aria-hidden="true"/>
+                      <span><strong>{preset.iconName.replaceAll("-", " ")}</strong><small>{preset.iconVariant || "outline"} · {preset.finish} · {preset.palette}</small></span>
                       <ChevronRight size={12}/>
                     </button>
                   ))}
