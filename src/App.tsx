@@ -18,6 +18,7 @@ import DispatchDeliveryWorkspace from "./DispatchDeliveryWorkspace";
 import MachineCapacityWorkspace from "./MachineCapacityWorkspace";
 import ProcessDirectoryWorkspace from "./ProcessDirectoryWorkspace";
 import CommandControlWorkspace from "./CommandControlWorkspace";
+import CommandControlWorkspace from "./CommandControlWorkspace";
 
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
@@ -186,7 +187,7 @@ function App() {
 
       <main className="page-content">
         {activeModuleId === "dashboard" ? (
-          <CommandCentre
+          <DashboardWorkspace
             activeModule={activeModule}
             aiPrompt={aiPrompt}
             aiResponse={aiResponse}
@@ -197,6 +198,8 @@ function App() {
             onSelectModule={selectModule}
             onOpenModules={openModuleExplorer}
           />
+        ) : activeModuleId === "command-centre" ? (
+          <CommandControlWorkspace onBack={() => selectModule("dashboard")} onSelectModule={selectModule} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" ? (
