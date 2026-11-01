@@ -64,17 +64,19 @@ Exactly the eight approved functions:
 - [x] Do not remove existing component data or fields without checking dependencies.
 
 ### 06 — Vendors & Sub-vendors
-- [ ] Maintain vendor and sub-vendor records and their relationship.
-- [ ] Vendor master stores vendor/sub-vendor details.
+- [x] Vendor records remain independent; no parent/sub-vendor hierarchy or parent-link relationship is required.
+- [x] Each vendor is assigned exactly one active Process Directory process type.
+- [x] Multiple vendors may be assigned to the same process type.
 - [x] Do not assign components to vendors in this menu; assignment belongs in Process Map.
 - [x] Vendor selection elsewhere must reuse the existing vendor ID.
-- [ ] Sub-vendor parent-link rules and exact vendor fields: **confirm before implementation**.
+- [x] Legacy/WhatsApp-imported contacts without a process assignment remain preserved and must be classified before use in a new operation or quotation.
 
 ### 07 — Process Directory
 - [x] Dedicated hierarchical process catalogue: main process category → process type/sub-process.
 - [x] Include the specified main process categories: Milling, Turning, Grinding, Welding, Surface Treatment, Heat Treatment, Cutting, EDM, Drilling, Fabrication, Casting, Forging, Finishing and Assembly.
 - [x] Support many process types under each main category; catalogue is extensible.
-- [x] One process type can be linked to multiple vendors; one vendor can perform multiple process types through separate quotation records.
+- [x] Each vendor is linked to exactly one process type through its Vendor Master record; a process type can have multiple vendors.
+- [x] Vendor quotations remain vendor-specific and retain their own validity, rate and history under that single assigned process type.
 - [x] Store vendor-specific quotations/rates, validity and rate history against the relevant process/vendor relationship.
 - [x] Vendor autocomplete searches Vendor Master; selecting a result reuses its ID.
 - [x] If a vendor does not exist, Add New Vendor creates it in Vendor Master, then returns to the current process workflow.
@@ -268,4 +270,4 @@ Exactly the eight approved functions:
 - New company-linked POs without an internal factory ID use a company-level stock location for WIP/customer dispatch custody. Legacy POs continue using their retained factory location ID; vendor-assigned operations continue using vendor locations.
 
 - Vendor Master verified: company/contact, role, phone, WhatsApp, email, address, process/machine/material capability, notes and status are saved against one stable vendor ID. Search, edit, archive and phone/WhatsApp duplicate protection are active. Process Directory, Process Map, Costing and Dispatch reuse those vendor IDs; component assignment is not offered in Vendor Master.
-- No sub-vendor parent relationship was invented. The parent-link model and exact sub-vendor fields remain blocked pending the explicit user rule recorded above.
+- Vendor process mapping confirmed by user: one vendor is assigned to one process type, while one process type can have multiple vendors. No parent/sub-vendor hierarchy is implemented. Existing free-text process capability values and stable vendor IDs remain preserved for legacy compatibility; unclassified legacy/WhatsApp contacts must be assigned one active Process Directory type before new use.

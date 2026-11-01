@@ -59,6 +59,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const visibleOperations = routeOperations.filter(op => (op.name + " " + op.category + " " + op.machine + " " + (machineResources.find(m=>m.id===op.machineResourceId)?.name || "") + " " + (vendors.find(v => v.id === op.vendorId)?.company || "") + " " + op.status + " " + (op.branch || "Main route")).toLowerCase().includes(search.toLowerCase().trim()));
   const visibleBranches = [...new Set(visibleOperations.map(op => op.branch || "Main route"))];
   const activeOperation = routeOperations.find(op => op.id === selectedOperationId) || routeOperations[0];
+  const editingOperation = editingId ? operations.find(op => op.id === editingId) : undefined;
+  const operationVendorOptions = vendors.filter(v => v.processTypeId === processTypeId || (editingOperation?.vendorId === v.id && (editingOperation.processTypeId || "") === (processTypeId || "")));
   const totalProcessCost = routeOperations.reduce((sum, op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
   const expectedQuantity = selectedLine?.quantity || 0;
   const completedQuantity = routeOperations.length ? Math.min(...routeOperations.map(op => op.accepted || 0)) : 0;
@@ -122,6 +124,15 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if (!draft.name.trim()) { onNotice("Select a process type from Process Directory."); return; }
     if (!editingId && !processTypeId) { onNotice("Select a process type from Process Directory."); return; }
     if (processTypeId && !processTypes.some(item => item.id === processTypeId)) { onNotice("The selected process type is no longer active in Process Directory."); return; }
+    const oldOperation = operations.find(op => op.id === editingId);
+    const effectiveProcessTypeId = processTypeId || oldOperation?.processTypeId || "";
+    if (draft.vendorId) {
+      const assignedVendor = vendors.find(vendor => vendor.id === draft.vendorId);
+      if (!assignedVendor) { onNotice("Select an active Vendor Master record."); return; }
+      const retainingHistoricalAssignment = oldOperation?.vendorId === draft.vendorId && (oldOperation.processTypeId || "") === (processTypeId || "");
+      if (!effectiveProcessTypeId && !retainingHistoricalAssignment) { onNotice("Select a Process Directory type before assigning a vendor."); return; }
+      if (effectiveProcessTypeId && assignedVendor.processTypeId !== effectiveProcessTypeId && !retainingHistoricalAssignment) { onNotice("This vendor is assigned to a different process type. Select a vendor registered for this operation’s process."); return; }
+    }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
     if (draft.accepted + draft.rejected > draft.completed) { onNotice("Accepted plus rejected quantity cannot exceed completed quantity."); return; }
     if ((draft.setupHours || 0) < 0 || (draft.cycleTimeSeconds || 0) < 0) { onNotice("Setup hours and cycle time cannot be negative."); return; }
@@ -268,14 +279,14 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></div>
         {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
-            <label>Process type {editingId ? "(legacy name retained if unlinked)" : "*"}<select value={processTypeId} onChange={e=>{const selected=processTypes.find(item=>item.id===e.target.value);const category=processCategories.find(item=>item.id===selected?.categoryId);setProcessTypeId(e.target.value);if(selected)setDraft(current=>({...current,name:selected.name,category:category?.name||current.category}));}}>
+            <label>Process type {editingId ? "(legacy name retained if unlinked)" : "*"}<select value={processTypeId} onChange={e=>{const selected=processTypes.find(item=>item.id===e.target.value);const category=processCategories.find(item=>item.id===selected?.categoryId);const nextProcessTypeId=e.target.value;setProcessTypeId(nextProcessTypeId);if(selected)setDraft(current=>({...current,name:selected.name,category:category?.name||current.category,vendorId:vendors.some(vendor=>vendor.id===current.vendorId&&vendor.processTypeId===nextProcessTypeId)||processTypeId===nextProcessTypeId?current.vendorId:""}));}}>
               <option value="">{editingId ? "Keep legacy process name" : "Select from Process Directory…"}</option>
               {processCategories.map(category=><optgroup key={category.id} label={category.name}>{processTypes.filter(item=>item.categoryId===category.id).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</optgroup>)}
             </select></label>
             {!processTypes.length && <small className="field-hint">Create process categories and types in Process Directory first.</small>}
             <label>Machine / station (text)<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value})} placeholder="Machine / work centre"/></label>
             <label>Linked machine resource<select value={draft.machineResourceId || ""} onChange={e => { const resource=machineResources.find(m=>m.id===e.target.value); setDraft({...draft,machineResourceId:e.target.value,machine:resource?resource.code+" · "+resource.name:draft.machine}); }}><option value="">Not linked to a registered machine</option>{machineResources.filter(m=>!selectedPO || m.factoryId===selectedPO.factoryId).map(m=><option key={m.id} value={m.id}>{m.code} · {m.name}</option>)}</select></label>{!machineResources.length&&<small className="field-hint">Register machine resources in Maintenance & Downtime to link operations to machine capacity.</small>}
-            <SearchablePicker id="operation-vendor-picker" label="Vendor" value={draft.vendorId} placeholder="Type vendor name or phone…" options={vendors.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{!vendors.length && <small className="field-hint">Scan/import contacts or add a vendor in Vendors first.</small>}
+            <SearchablePicker id="operation-vendor-picker" label="Vendor (assigned to this process)" value={draft.vendorId} placeholder="Search vendors for the selected process…" options={operationVendorOptions.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{processTypeId&&!operationVendorOptions.length && <small className="field-hint">No vendor is registered for this process yet. Add one in Vendor Master with this process type.</small>}
             <label>Vendor payment status<select value={draft.vendorPaymentStatus || "Not Paid"} onChange={e=>setDraft({...draft,vendorPaymentStatus:e.target.value as "Paid" | "Not Paid"})}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select></label>
             <label>Planned start<input type="date" value={draft.plannedStart} onChange={e => setDraft({...draft,plannedStart:e.target.value})}/></label>
             <label>Planned target/end<input type="date" min={draft.plannedStart || undefined} value={draft.plannedEnd} onChange={e => setDraft({...draft,plannedEnd:e.target.value})}/></label>

@@ -32,7 +32,8 @@ export type PurchaseOrderRecord = {
 };
 export type VendorRecord = {
   id: string; company: string; contact: string; role: string; phone: string; whatsappNumber: string;
-  email: string; address: string; processes: string; machines: string; materials: string; notes: string;
+  email: string; address: string; processes: string; /** Legacy free-text capability field; processTypeId is the single structured assignment. */
+  processTypeId?: string; machines: string; materials: string; notes: string;
   status: string; sourceContactId: string; whatsappSyncedAt: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
