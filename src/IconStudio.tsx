@@ -345,6 +345,17 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                 <div className="ax-icon-palette">{palettes.map((item) => <button key={item.name} title={item.name} aria-label={item.name} className={paletteName === item.name ? "active" : ""} style={{ background: item.color }} onClick={() => setPaletteName(item.name)}/>)}</div>
                 <label className="ax-icon-slider"><span>Bevel depth <b>{depth}/4</b></span><input type="range" min="1" max="4" step="1" value={depth} onChange={(event) => setDepth(Number(event.target.value))}/></label>
                 <label className="ax-icon-slider"><span>3D tilt <b>{tilt}°</b></span><input type="range" min="-18" max="18" step="9" value={tilt} onChange={(event) => setTilt(Number(event.target.value))}/></label>
+                <div className="ax-icon-field-label"><span>Saved style presets</span><small>{presets.length} saved</small></div>
+                <div className="ax-icon-presets-list">
+                  {presets.slice(0, 6).map((preset, index) => (
+                    <button key={preset.iconName + preset.palette + preset.finish + index} onClick={() => { setSelectedIcon(preset.iconName); setPaletteName(preset.palette); setFinish(preset.finish); setDepth(preset.depth); setTilt(preset.tilt); }}>
+                      <i className={iconClass(preset.iconName)} aria-hidden="true"/>
+                      <span><strong>{preset.iconName.replaceAll("-", " ")}</strong><small>{preset.finish} · {preset.palette}</small></span>
+                      <ChevronRight size={12}/>
+                    </button>
+                  ))}
+                  {!presets.length && <span className="ax-icon-presets-empty">Save a process icon to create your first reusable style.</span>}
+                </div>
                 <button className="ax-icon-save" onClick={saveAssignment}><Sparkles size={16}/> Save & apply to {family}</button>
                 {assignments[family] && <button className="ax-icon-reset" onClick={() => removeAssignment(family)}>Restore AXIMACH default icon</button>}
                 {notice && <div className="ax-icon-notice"><Check size={13}/>{notice}</div>}
