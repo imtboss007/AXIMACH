@@ -60,16 +60,17 @@ const amountLabel = (value: number, currency: string) => value > 0
 const cleanPhone = (value: string) => value.replace(/[^\d+]/g, "");
 
 function effectiveContact(contact: Contact360ContactRecord, vendors: VendorRecord[]) {
-  const linked = contact.syncToVendorMaster ? vendors.find(vendor => vendor.id === contact.linkedVendorId && !vendor.deletedAt) : undefined;
+  const linkedVendor = contact.linkedVendorId ? vendors.find(vendor => vendor.id === contact.linkedVendorId && !vendor.deletedAt) : undefined;
+  const primaryVendorContact = contact.syncToVendorMaster ? linkedVendor : undefined;
   return {
-    accountName: linked?.company || contact.accountName,
-    contactName: linked?.contact || contact.contactName,
-    role: linked?.role || contact.role,
-    phone: linked?.phone || contact.phone,
-    whatsappNumber: linked?.whatsappNumber || contact.whatsappNumber,
-    email: linked?.email || contact.email,
-    address: linked?.address || contact.address,
-    linkedVendor: linked
+    accountName: linkedVendor?.company || contact.accountName,
+    contactName: primaryVendorContact?.contact || contact.contactName,
+    role: primaryVendorContact?.role || contact.role,
+    phone: primaryVendorContact?.phone || contact.phone,
+    whatsappNumber: primaryVendorContact?.whatsappNumber || contact.whatsappNumber,
+    email: primaryVendorContact?.email || contact.email,
+    address: primaryVendorContact?.address || contact.address,
+    linkedVendor
   };
 }
 
