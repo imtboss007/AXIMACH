@@ -4,7 +4,7 @@ import {
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
   ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge,
   GitBranch, HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
-  Package, Pause, Play, Plug, Plus, Printer, RotateCcw, ScanLine, Search, Settings2,
+  Package, Pause, Pencil, Play, Plug, Plus, Printer, RotateCcw, ScanLine, Search, Settings2,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Truck, Users,
   Wallet, Workflow, Wrench, X, Zap
 } from "lucide-react";
