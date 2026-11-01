@@ -362,12 +362,12 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           </div>
         </div>
         <div className="pp-table-scroll"><table>
-          <thead><tr><th>#</th><th>Process</th><th>Category</th><th>Execution</th><th>Vendor</th><th>Start Date</th><th>Due Date</th><th>Qty (pcs)</th><th>Price (₹/pc)</th><th>Total Cost (₹)</th><th>Status</th><th>Vendor Payment</th><th>Action</th></tr></thead>
+          <thead><tr><th>#</th><th>Process</th><th>Category</th><th>Execution</th><th>Vendor</th><th>Start Date</th><th>Due Date</th><th>Qty (pcs)</th><th>Price (₹/pc)</th><th>Vendor Payment</th><th>Total Cost (₹)</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>{searchedRows.map((operation, index) => <tr key={operation.id} onClick={() => setSelectedId(operation.id)} className={selected?.id === operation.id ? "active" : ""}>
             <td>{index + 1}</td><td>{operation.name}</td><td>{operation.category || "—"}</td><td>{operation.vendorId ? "Outsourced" : "Internal"}</td>
             <td>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</td><td>{day(operation.plannedStart)}</td><td>{day(operation.plannedEnd)}</td>
-            <td>{operation.quantity.toLocaleString("en-IN")}</td><td>{money(operation.ratePerPart)}</td><td>{money(operation.quantity * operation.ratePerPart + operation.transportCost)}</td>
-            <td><span className={"pp-table-status " + statusClass(operation.status)}>{operation.status}</span></td><td>{operation.vendorId ? <select aria-label={"Payment status for "+operation.name} value={operation.vendorPaymentStatus || "Not Paid"} onClick={event=>event.stopPropagation()} onChange={event=>updatePaymentStatus(operation.id,event.target.value as "Paid" | "Not Paid")}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select> : "—"}</td>
+            <td>{operation.quantity.toLocaleString("en-IN")}</td><td>{money(operation.ratePerPart)}</td><td>{operation.vendorId ? <select aria-label={"Payment status for "+operation.name} value={operation.vendorPaymentStatus || "Not Paid"} onClick={event=>event.stopPropagation()} onChange={event=>updatePaymentStatus(operation.id,event.target.value as "Paid" | "Not Paid")}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select> : "—"}</td><td>{money(operation.quantity * operation.ratePerPart + operation.transportCost)}</td>
+            <td><span className={"pp-table-status " + statusClass(operation.status)}>{operation.status}</span></td>
             <td><button onClick={event => { event.stopPropagation(); openEdit(operation); }}>Edit</button></td>
           </tr>)}</tbody>
         </table></div>
