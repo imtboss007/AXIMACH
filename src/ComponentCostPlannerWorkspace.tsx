@@ -84,7 +84,6 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
   const targetSelling = Number(draft.targetSellingPricePerPart) || 0;
   const plannedMargin = targetSelling - plannedCostPerPart;
   const marginPercent = targetSelling > 0 ? plannedMargin / targetSelling * 100 : null;
-  const planSaved = Boolean(savedPlan);
   const processOptions = processTypes.map(type => ({
     id: type.id,
     label: (categories.find(category => category.id === type.categoryId)?.name || "Process") + " · " + type.name
