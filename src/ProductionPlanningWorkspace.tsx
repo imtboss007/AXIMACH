@@ -5,15 +5,31 @@ import SearchablePicker from "./SearchablePicker";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; onSelectModule: (id: string) => void };
 type FilterOption = { id: string; label: string };
+type ProcessAssignmentDraft = {
+  vendorId: string; plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string;
+  quantity: string; ratePerPart: string; status: LifecycleStatus; vendorPaymentStatus: "Paid" | "Not Paid"; notes: string;
+};
 type ProcessDraft = {
   companyId: string; poId: string; poLineId: string; categoryId: string; processTypeIds: string[]; name: string; category: string; vendorId: string;
   plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string; quantity: string; ratePerPart: string;
-  status: LifecycleStatus; branch: string; parentId: string; notes: string;
+  status: LifecycleStatus; vendorPaymentStatus: "Paid" | "Not Paid"; processAssignments: Record<string, ProcessAssignmentDraft>;
+  branch: string; parentId: string; notes: string;
 };
+const emptyProcessAssignment = (quantity = ""): ProcessAssignmentDraft => ({
+  vendorId: "", plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "",
+  quantity, ratePerPart: "", status: "Queued", vendorPaymentStatus: "Not Paid", notes: ""
+});
 const emptyDraft = (): ProcessDraft => ({
   companyId: "", poId: "", poLineId: "", categoryId: "", processTypeIds: [], name: "", category: "", vendorId: "",
   plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "", quantity: "", ratePerPart: "",
-  status: "Queued", branch: "Main route", parentId: "", notes: ""
+  status: "Queued", vendorPaymentStatus: "Not Paid", processAssignments: {}, branch: "Main route", parentId: "", notes: ""
+});
+const assignmentFromOperation = (operation: OperationRecord): ProcessAssignmentDraft => ({
+  vendorId: operation.vendorId || "", plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "",
+  plannedStartTime: operation.plannedStartTime || (operation.plannedSlotStartAt ? new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5) : ""),
+  plannedEndTime: operation.plannedEndTime || (operation.plannedSlotEndAt ? new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5) : ""),
+  quantity: String(operation.quantity || ""), ratePerPart: String(operation.ratePerPart ?? ""),
+  status: operation.status, vendorPaymentStatus: operation.vendorPaymentStatus || "Not Paid", notes: operation.notes || ""
 });
 const day = (value?: string) => value ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
@@ -66,6 +82,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const operations = activeRows(data.operations);
   const processCategories = activeRows(data.processCategories);
   const processTypes = activeRows(data.processTypes);
+  const processVendorRates = activeRows(data.processVendorRates);
 
   const [companyIds, setCompanyIds] = useState<string[]>([]);
   const [poIds, setPoIds] = useState<string[]>([]);
@@ -90,7 +107,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const [draft, setDraft] = useState<ProcessDraft>(emptyDraft());
   const [processQuery,setProcessQuery]=useState("");
   const draftProcessTypes=processTypes.filter(item=>draft.processTypeIds.includes(item.id));
-  const draftVendorOptions=draftProcessTypes.length?vendors.filter(vendor=>draftProcessTypes.every(type=>vendorSupportsProcessType(vendor,type.id))):vendors;
+  const draftVendorOptions=draftProcessTypes.length===1?vendors.filter(vendor=>vendorSupportsProcessType(vendor,draftProcessTypes[0].id)||vendor.id===draft.vendorId):vendors;
+  const latestProcessRate=(processTypeId:string,vendorId:string):number|undefined=>processVendorRates.filter(rate=>rate.processTypeId===processTypeId&&rate.vendorId===vendorId).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0]?.ratePerPart;
 
   const companyOptions = useMemo(() => companies.map(company => ({ id: company.id, label: company.name })), [companies]);
   const filteredCompanyOrders = orders.filter(po => isSelected(companyIds, po.companyId));
@@ -184,7 +202,9 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
       name: operation.name, category: operation.category, vendorId: operation.vendorId || "",
       plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "", plannedStartTime: operation.plannedStartTime || (operation.plannedSlotStartAt ? new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5) : ""), plannedEndTime: operation.plannedEndTime || (operation.plannedSlotEndAt ? new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5) : ""),
       quantity: String(operation.quantity), ratePerPart: String(operation.ratePerPart),
-      status: operation.status, branch: operation.branch || "Main route", parentId: operation.parentId || "", notes: operation.notes || ""
+      status: operation.status, vendorPaymentStatus: operation.vendorPaymentStatus || "Not Paid",
+      processAssignments: operation.processTypeId ? {[operation.processTypeId]:assignmentFromOperation(operation)} : {},
+      branch: operation.branch || "Main route", parentId: operation.parentId || "", notes: operation.notes || ""
     });
     setEditingId(operation.id); setShowEditor(true);
   };
@@ -203,24 +223,38 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     const selectedTypes=draft.processTypeIds.map(id=>processTypes.find(type=>type.id===id)).filter((item):item is typeof processTypes[number]=>Boolean(item));
     if(!selectedTypes.length&&!(editingId&&previous&&draft.name.trim())){onNotice("Choose a Process Directory category and one or more processes.");return;}
     if(selectedTypes.length&&selectedTypes.some(type=>type.categoryId!==draft.categoryId)){onNotice("Choose processes from the selected category. Add another process in a separate operation if it belongs to a different category.");return;}
-    const quantity = Number(draft.quantity || line.quantity);
-    const rate = Number(draft.ratePerPart || 0);
-    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(rate) || rate < 0) { onNotice("Quantity must be positive and price must be a valid non-negative number."); return; }
-    if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Due date cannot be earlier than the start date."); return; }
-    if(draft.plannedStart&&draft.plannedEnd&&draft.plannedStart===draft.plannedEnd&&draft.plannedStartTime&&draft.plannedEndTime&&draft.plannedEndTime<draft.plannedStartTime){onNotice("Delivery time cannot be earlier than the start time on the same day.");return;}
-    if(draft.vendorId){
-      const vendor=vendors.find(item=>item.id===draft.vendorId);
-      if(!vendor){onNotice("Select a saved Vendor Master record.");return;}
-      if(selectedTypes.length&&selectedTypes.some(type=>!vendorSupportsProcessType(vendor,type.id))){onNotice("This vendor is not assigned to every selected process. Choose a vendor capable of all selected processes or save them separately.");return;}
-      if(!selectedTypes.length&&previous?.vendorId!==vendor.id){onNotice("A vendor can only be assigned after selecting its Process Directory process.");return;}
-    }
-    const stamp = nowIso();
+
     const typesToSave:(typeof processTypes[number]|null)[]=selectedTypes.length?selectedTypes:[null];
-    const idsToSave=typesToSave.map((_,index)=>editingId&&index===0?editingId:makeId("operation"));
+    const assignmentsToSave=typesToSave.map(processType=>{
+      const assignment=selectedTypes.length>1&&processType
+        ? draft.processAssignments[processType.id]||emptyProcessAssignment(String(line.quantity))
+        : draft;
+      return {processType,assignment,quantity:Number(assignment.quantity||line.quantity),rate:Number(assignment.ratePerPart||0)};
+    });
+    for(const item of assignmentsToSave){
+      const {processType,assignment,quantity,rate}=item;
+      if(!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(rate)||rate<0){onNotice("Each process needs a positive quantity and a valid non-negative price.");return;}
+      if(assignment.plannedStart&&assignment.plannedEnd&&assignment.plannedEnd<assignment.plannedStart){onNotice("Due date cannot be earlier than the start date for "+(processType?.name||"this process")+".");return;}
+      if(assignment.plannedStart&&assignment.plannedEnd&&assignment.plannedStart===assignment.plannedEnd&&assignment.plannedStartTime&&assignment.plannedEndTime&&assignment.plannedEndTime<assignment.plannedStartTime){onNotice("Due time cannot be earlier than the start time on the same day for "+(processType?.name||"this process")+".");return;}
+      if(assignment.vendorId){
+        const vendor=vendors.find(item=>item.id===assignment.vendorId);
+        if(!vendor){onNotice("Select a saved Vendor Master record for "+(processType?.name||"this process")+".");return;}
+        const priorForProcess=processType?operations.find(operation=>operation.poLineId===line.id&&operation.processTypeId===processType.id):previous;
+        if(processType&&!vendorSupportsProcessType(vendor,processType.id)&&priorForProcess?.vendorId!==vendor.id){onNotice("The selected vendor is not assigned to "+processType.name+". Add that capability in Process Directory or select a capable vendor.");return;}
+        if(!processType&&previous?.vendorId!==vendor.id){onNotice("A vendor can only be assigned after selecting its Process Directory process.");return;}
+      }
+    }
+
+    const stamp = nowIso();
+    const idsToSave=typesToSave.map((processType,index)=>{
+      if(editingId&&index===0)return editingId;
+      const existing=processType?operations.find(operation=>operation.poLineId===line.id&&operation.processTypeId===processType.id&&operation.id!==editingId):undefined;
+      return existing?.id||makeId("operation");
+    });
     update(current => {
       const currentRoute = current.operations.filter(op => op.poLineId === line.id && op.poId === po.id && op.componentId === component.id && !op.deletedAt);
       const maximumSequence=Math.max(0,...currentRoute.map(operation=>operation.sequence));
-      const records:OperationRecord[]=typesToSave.map((processType,index)=>{
+      const records:OperationRecord[]=assignmentsToSave.map(({processType,assignment,quantity,rate},index)=>{
         const id=idsToSave[index];
         const old=current.operations.find(operation=>operation.id===id);
         const category=processType?processCategories.find(item=>item.id===processType.categoryId)?.name||draft.category:draft.category;
@@ -229,19 +263,19 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           sequence:old?.sequence??maximumSequence+(index+1)*10,
           processTypeId:processType?.id||old?.processTypeId,
           name:processType?.name||draft.name.trim(), category, machine:old?.machine||"",
-          machineResourceId:old?.machineResourceId, vendorId:draft.vendorId,
-          status:draft.status, plannedStart:draft.plannedStart, plannedEnd:draft.plannedEnd,
+          machineResourceId:old?.machineResourceId, vendorId:assignment.vendorId||"",
+          status:assignment.status, plannedStart:assignment.plannedStart, plannedEnd:assignment.plannedEnd,
           actualStart:old?.actualStart||"", actualEnd:old?.actualEnd||"",
-          plannedStartTime:draft.plannedStartTime||"",plannedEndTime:draft.plannedEndTime||"",
-          plannedSlotStartAt:old&&old.plannedStart===draft.plannedStart&&old.plannedEnd===draft.plannedEnd?old.plannedSlotStartAt:undefined,
-          plannedSlotEndAt:old&&old.plannedStart===draft.plannedStart&&old.plannedEnd===draft.plannedEnd?old.plannedSlotEndAt:undefined,
+          plannedStartTime:assignment.plannedStartTime||"",plannedEndTime:assignment.plannedEndTime||"",
+          plannedSlotStartAt:old&&old.plannedStart===assignment.plannedStart&&old.plannedEnd===assignment.plannedEnd?old.plannedSlotStartAt:undefined,
+          plannedSlotEndAt:old&&old.plannedStart===assignment.plannedStart&&old.plannedEnd===assignment.plannedEnd?old.plannedSlotEndAt:undefined,
           quantity, completed:old?.completed||0, accepted:old?.accepted||0, rejected:old?.rejected||0,
           setupHours:old?.setupHours||0, cycleTimeSeconds:old?.cycleTimeSeconds||0,
           ratePerPart:rate, actualRatePerPart:old?.actualRatePerPart||0,
           transportVendorId:old?.transportVendorId||"", transportPickup:old?.transportPickup||"",
           transportDelivery:old?.transportDelivery||"", transportCost:old?.transportCost||0,
           qualityNotes:old?.qualityNotes||"", inspectionResult:old?.inspectionResult||"",
-          notes:draft.notes, vendorPaymentStatus:old?.vendorPaymentStatus||"Not Paid", branch:draft.branch,
+          notes:assignment.notes, vendorPaymentStatus:assignment.vendorPaymentStatus||old?.vendorPaymentStatus||"Not Paid", branch:draft.branch,
           parentId:draft.branch==="Main route"?"":draft.parentId,
           createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined
         };
@@ -250,9 +284,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
       return {...current,operations:[...current.operations.filter(operation=>!ids.has(operation.id)),...records]};
     });
     setSelectedId(idsToSave[0]);setTab("General");setShowEditor(false);setEditingId("");
-    onNotice(editingId?(selectedTypes.length>1?"Process updated and "+(selectedTypes.length-1)+" additional process record(s) added.":"Process details updated; existing route ID and history were preserved."):(selectedTypes.length+" process record(s) saved from Process Directory."));
+    onNotice(editingId?"Process operation(s) updated. Each process retains its own vendor, schedule, quantity, rate and payment status.":(selectedTypes.length+" process operation(s) saved with independent vendor, schedule and rate details."));
   };
-
   const componentGroups = displayLines.map(row => {
     const component = components.find(item => item.id === row.line.componentId);
     const groupOperations = displayRows.filter(operation => operation.poLineId === row.line.id).slice().sort((a, b) => a.sequence - b.sequence);
@@ -471,24 +504,64 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           <SearchablePicker id="pp-add-company" label="Company" value={draft.companyId} placeholder="Search company…" options={companies.map(company => ({ id: company.id, label: company.name }))} onChange={id => setDraft(current => ({ ...current, companyId: id, poId: "", poLineId: "" }))}/>
           <SearchablePicker id="pp-add-po" label="PO Number" value={draft.poId} placeholder="Search purchase order…" options={orders.filter(po => !draft.companyId || po.companyId === draft.companyId).map(po => ({ id: po.id, label: po.number }))} onChange={id => setDraft(current => ({ ...current, poId: id, poLineId: "" }))}/>
           <SearchablePicker id="pp-add-component" label="Component" value={draft.poLineId} placeholder="Search PO component…" options={draftLineOptions} onChange={id => { const line = draftPO?.lines.find(item => item.id === id); setDraft(current => ({ ...current, poLineId: id, quantity: String(line?.quantity || "") })); }}/>
-          <label>Process category *<select value={draft.categoryId} onChange={event=>{const nextId=event.target.value;setProcessQuery("");setDraft(current=>({...current,categoryId:nextId,category:processCategories.find(item=>item.id===nextId)?.name||"",processTypeIds:[],name:"",vendorId:""}));}}><option value="">Select category…</option>{processCategories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-          <div className="pp-process-multi-select pp-modal-wide"><div className="pp-process-multi-head"><strong>Process / subcategory *</strong><span>Select one or more processes from the chosen category.</span><div><button type="button" onClick={()=>setDraft(current=>({...current,processTypeIds:processTypes.filter(type=>type.categoryId===current.categoryId).map(type=>type.id)}))} disabled={!draft.categoryId}>Select all</button><button type="button" onClick={()=>setDraft(current=>({...current,processTypeIds:[],vendorId:"",name:""}))}>Clear</button></div></div>
+          <label>Process category *<select value={draft.categoryId} onChange={event=>{const nextId=event.target.value;setProcessQuery("");setDraft(current=>({...current,categoryId:nextId,category:processCategories.find(item=>item.id===nextId)?.name||"",processTypeIds:[],processAssignments:{},name:"",vendorId:""}));}}><option value="">Select category…</option>{processCategories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+          <div className="pp-process-multi-select pp-modal-wide"><div className="pp-process-multi-head"><strong>Process / subcategory *</strong><span>Select one or more processes from the chosen category.</span><div><button type="button" onClick={()=>setDraft(current=>{
+                const ids=processTypes.filter(type=>type.categoryId===current.categoryId).map(type=>type.id);
+                const assignments={...current.processAssignments};
+                ids.forEach(id=>{if(!assignments[id]){const existing=operations.find(operation=>operation.poLineId===current.poLineId&&operation.processTypeId===id&&!operation.deletedAt);assignments[id]=existing?assignmentFromOperation(existing):emptyProcessAssignment(current.quantity);}});
+                const single=ids.length===1?assignments[ids[0]]:undefined;
+                return {...current,processTypeIds:ids,processAssignments:assignments,vendorId:single?.vendorId||"",...(single?{plannedStart:single.plannedStart,plannedEnd:single.plannedEnd,plannedStartTime:single.plannedStartTime,plannedEndTime:single.plannedEndTime,quantity:single.quantity,ratePerPart:single.ratePerPart,status:single.status,vendorPaymentStatus:single.vendorPaymentStatus,notes:single.notes}:{})};
+              })} disabled={!draft.categoryId}>Select all</button><button type="button" onClick={()=>setDraft(current=>({...current,processTypeIds:[],processAssignments:{},vendorId:"",name:""}))}>Clear</button></div></div>
             <details className="pp-process-dropdown"><summary><span>{draftProcessTypes.length?draftProcessTypes.slice(0,2).map(type=>type.name).join(", ")+(draftProcessTypes.length>2?" + "+(draftProcessTypes.length-2)+" more":""):"Choose process(es)…"}</span><ChevronDown size={14}/></summary>
               <div className="pp-process-dropdown-menu"><label className="pp-process-search"><Search size={13}/><input value={processQuery} onChange={event=>setProcessQuery(event.target.value)} placeholder="Search processes in this category…"/></label>
-                <div className="pp-process-multi-options">{processTypes.filter(type=>type.categoryId===draft.categoryId&&type.name.toLowerCase().includes(processQuery.toLowerCase().trim())).map(type=><label key={type.id}><input type="checkbox" checked={draft.processTypeIds.includes(type.id)} onChange={event=>setDraft(current=>{const ids=event.target.checked?[...new Set([...current.processTypeIds,type.id])]:current.processTypeIds.filter(id=>id!==type.id);return {...current,processTypeIds:ids,name:ids.length?processTypes.find(item=>item.id===ids[0])?.name||"":current.name,category:processCategories.find(item=>item.id===current.categoryId)?.name||current.category,vendorId:""};})}/><span>{type.name}</span></label>)}{draft.categoryId&&!processTypes.some(type=>type.categoryId===draft.categoryId)&&<small>No processes are configured under this category.</small>}{draft.categoryId&&processTypes.some(type=>type.categoryId===draft.categoryId)&&!processTypes.some(type=>type.categoryId===draft.categoryId&&type.name.toLowerCase().includes(processQuery.toLowerCase().trim()))&&<small>No matching processes.</small>}{!draft.categoryId&&<small>Select a category to load its saved processes.</small>}</div>
+                <div className="pp-process-multi-options">{processTypes.filter(type=>type.categoryId===draft.categoryId&&type.name.toLowerCase().includes(processQuery.toLowerCase().trim())).map(type=><label key={type.id}><input type="checkbox" checked={draft.processTypeIds.includes(type.id)} onChange={event=>setDraft(current=>{
+                  const ids=event.target.checked?[...new Set([...current.processTypeIds,type.id])]:current.processTypeIds.filter(id=>id!==type.id);
+                  const assignments={...current.processAssignments};
+                  if(event.target.checked&&!assignments[type.id]){
+                    const existing=operations.find(operation=>operation.poLineId===current.poLineId&&operation.processTypeId===type.id&&!operation.deletedAt);
+                    assignments[type.id]=existing?assignmentFromOperation(existing):emptyProcessAssignment(current.quantity);
+                  }
+                  const single=ids.length===1?assignments[ids[0]]:undefined;
+                  return {...current,processTypeIds:ids,processAssignments:assignments,name:ids.length?processTypes.find(item=>item.id===ids[0])?.name||"":current.name,category:processCategories.find(item=>item.id===current.categoryId)?.name||current.category,vendorId:single?.vendorId||"",...(single?{plannedStart:single.plannedStart,plannedEnd:single.plannedEnd,plannedStartTime:single.plannedStartTime,plannedEndTime:single.plannedEndTime,quantity:single.quantity,ratePerPart:single.ratePerPart,status:single.status,vendorPaymentStatus:single.vendorPaymentStatus,notes:single.notes}:{})};
+                })}/><span>{type.name}</span></label>)}{draft.categoryId&&!processTypes.some(type=>type.categoryId===draft.categoryId)&&<small>No processes are configured under this category.</small>}{draft.categoryId&&processTypes.some(type=>type.categoryId===draft.categoryId)&&!processTypes.some(type=>type.categoryId===draft.categoryId&&type.name.toLowerCase().includes(processQuery.toLowerCase().trim()))&&<small>No matching processes.</small>}{!draft.categoryId&&<small>Select a category to load its saved processes.</small>}</div>
               </div></details></div>
-          {!draft.processTypeIds.length&&editingId&&<label>Legacy process name<input value={draft.name} onChange={event=>setDraft(current=>({...current,name:event.target.value}))}/></label>}
-          <SearchablePicker id="pp-add-vendor" label="Vendor (optional)" value={draft.vendorId} placeholder="Search vendor company…" options={draftVendorOptions.map(vendor => ({ id: vendor.id, label: vendor.company }))} onChange={id => setDraft(current => ({ ...current, vendorId: id }))}/>
-          <label>Given / start date<input type="date" value={draft.plannedStart} onChange={event => setDraft(current => ({ ...current, plannedStart: event.target.value }))}/></label>
-          <label>Due date<input type="date" min={draft.plannedStart || undefined} value={draft.plannedEnd} onChange={event => setDraft(current => ({ ...current, plannedEnd: event.target.value }))}/></label>
-          <label>Start time<input type="time" value={draft.plannedStartTime} onChange={event => setDraft(current => ({ ...current, plannedStartTime: event.target.value }))}/></label>
-          <label>Due time<input type="time" value={draft.plannedEndTime} onChange={event => setDraft(current => ({ ...current, plannedEndTime: event.target.value }))}/></label>
-          <label>Quantity (pcs)<input type="number" min="0" value={draft.quantity} onChange={event => setDraft(current => ({ ...current, quantity: event.target.value }))}/></label>
-          <label>Price per piece (₹)<input type="number" min="0" step="0.01" value={draft.ratePerPart} onChange={event => setDraft(current => ({ ...current, ratePerPart: event.target.value }))}/></label>
-          <label>Process status<select value={draft.status} onChange={event => setDraft(current => ({ ...current, status: event.target.value as LifecycleStatus }))}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
+          {draft.processTypeIds.length>1 ? <div className="pp-modal-wide pp-operation-assignment-list">
+            <div className="pp-operation-assignment-intro"><strong>Independent operation details</strong><span>Each selected process has its own vendor, start/due date and time, quantity, rate, payment and status.</span></div>
+            {draftProcessTypes.map(type=>{
+              const assignment=draft.processAssignments[type.id]||emptyProcessAssignment(draft.quantity);
+              const capableVendors=vendors.filter(vendor=>vendorSupportsProcessType(vendor,type.id)||vendor.id===assignment.vendorId);
+              return <article className="pp-operation-assignment-card" key={type.id}>
+                <div className="pp-operation-assignment-title"><strong>{type.name}</strong><small>{processCategories.find(category=>category.id===type.categoryId)?.name||"Process category"}</small></div>
+                <div className="pp-operation-assignment-fields">
+                  <SearchablePicker id={"pp-vendor-"+type.id} label="Vendor (optional)" value={assignment.vendorId} placeholder="Search capable vendor…" options={capableVendors.map(vendor=>({id:vendor.id,label:vendor.company}))} onChange={id=>{const savedRate=latestProcessRate(type.id,id);setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,vendorId:id,ratePerPart:savedRate===undefined?previous.ratePerPart:String(savedRate)}}};}}}/>
+                  <label>Start date<input type="date" value={assignment.plannedStart} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,plannedStart:event.target.value}}};})}/></label>
+                  <label>Due date<input type="date" min={assignment.plannedStart||undefined} value={assignment.plannedEnd} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,plannedEnd:event.target.value}}};})}/></label>
+                  <label>Start time<input type="time" value={assignment.plannedStartTime} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,plannedStartTime:event.target.value}}};})}/></label>
+                  <label>Due time<input type="time" value={assignment.plannedEndTime} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,plannedEndTime:event.target.value}}};})}/></label>
+                  <label>Quantity (pcs)<input type="number" min="0" value={assignment.quantity} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,quantity:event.target.value}}};})}/></label>
+                  <label>Price per piece (₹)<input type="number" min="0" step="0.01" value={assignment.ratePerPart} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,ratePerPart:event.target.value}}};})}/></label>
+                  <label>Vendor payment<select value={assignment.vendorPaymentStatus} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,vendorPaymentStatus:event.target.value as "Paid"|"Not Paid"}}};})}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select></label>
+                  <label>Process status<select value={assignment.status} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,status:event.target.value as LifecycleStatus}}};})}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
+                  <label className="pp-modal-wide">Remarks<input value={assignment.notes} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,notes:event.target.value}}};})} placeholder="Optional process remarks"/></label>
+                  {!capableVendors.length?<small className="pp-operation-assignment-hint">No Vendor Master capability is linked to this process yet. Add the vendor and process rate in Process Directory.</small>:null}
+                </div>
+              </article>;
+            })}
+          </div> : <>
+            {!draft.processTypeIds.length&&editingId&&<label>Legacy process name<input value={draft.name} onChange={event=>setDraft(current=>({...current,name:event.target.value}))}/></label>}
+            <SearchablePicker id="pp-add-vendor" label="Vendor (optional)" value={draft.vendorId} placeholder="Search vendor company…" options={draftVendorOptions.map(vendor => ({ id: vendor.id, label: vendor.company }))} onChange={id => {const savedRate=draftProcessTypes[0]?latestProcessRate(draftProcessTypes[0].id,id):undefined;setDraft(current => ({ ...current, vendorId: id, ratePerPart:savedRate===undefined?current.ratePerPart:String(savedRate) }));}}/>
+            <label>Given / start date<input type="date" value={draft.plannedStart} onChange={event => setDraft(current => ({ ...current, plannedStart: event.target.value }))}/></label>
+            <label>Due date<input type="date" min={draft.plannedStart || undefined} value={draft.plannedEnd} onChange={event => setDraft(current => ({ ...current, plannedEnd: event.target.value }))}/></label>
+            <label>Start time<input type="time" value={draft.plannedStartTime} onChange={event => setDraft(current => ({ ...current, plannedStartTime: event.target.value }))}/></label>
+            <label>Due time<input type="time" value={draft.plannedEndTime} onChange={event => setDraft(current => ({ ...current, plannedEndTime: event.target.value }))}/></label>
+            <label>Quantity (pcs)<input type="number" min="0" value={draft.quantity} onChange={event => setDraft(current => ({ ...current, quantity: event.target.value }))}/></label>
+            <label>Price per piece (₹)<input type="number" min="0" step="0.01" value={draft.ratePerPart} onChange={event => setDraft(current => ({ ...current, ratePerPart: event.target.value }))}/></label>
+            <label>Vendor payment<select value={draft.vendorPaymentStatus} onChange={event=>setDraft(current=>({...current,vendorPaymentStatus:event.target.value as "Paid"|"Not Paid"}))}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select></label>
+            <label>Process status<select value={draft.status} onChange={event => setDraft(current => ({ ...current, status: event.target.value as LifecycleStatus }))}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
+            <label className="pp-modal-wide">Remarks<input value={draft.notes} onChange={event => setDraft(current => ({ ...current, notes: event.target.value }))} placeholder="Optional process remarks"/></label>
+          </>}
           <label>Route<select value={draft.branch} onChange={event => setDraft(current => ({ ...current, branch: event.target.value, parentId: "" }))}><option>Main route</option><option>Alternate / rework</option></select></label>
           {draft.branch !== "Main route" ? <SearchablePicker id="pp-add-parent" label="Branch from process" value={draft.parentId} placeholder="Select parent process…" options={parentOptions} onChange={id => setDraft(current => ({ ...current, parentId: id }))}/> : null}
-          <label className="pp-modal-wide">Remarks<input value={draft.notes} onChange={event => setDraft(current => ({ ...current, notes: event.target.value }))} placeholder="Optional process remarks"/></label>
         </div>
         <div className="pp-modal-actions"><button className="pp-add-process" onClick={saveProcess}><Plus size={14}/>{editingId ? "Save Process" : "Add Process"}</button><button onClick={() => setShowEditor(false)}>Cancel</button></div>
       </section>
