@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, useMotionValue, useReducedMotion } from "motion/react";
 import { Activity, Boxes, Factory, ShieldCheck, Workflow } from "lucide-react";
 
@@ -18,11 +18,11 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const reducedMotion = useReducedMotion();
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
 
-  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+  const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     drag.current = { x: event.clientX, y: event.clientY, rx: rotateX.get(), ry: rotateY.get() };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
-  const moveDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+  const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!drag.current) return;
     rotateY.set(drag.current.ry + (event.clientX - drag.current.x) * 0.72);
     rotateX.set(Math.max(-48, Math.min(48, drag.current.rx - (event.clientY - drag.current.y) * 0.55)));
