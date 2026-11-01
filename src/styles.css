@@ -1385,3 +1385,8 @@ img,svg,canvas,video{max-width:100%}
 .vendor-process-checks label{display:flex;align-items:center;gap:6px;min-width:0;padding:6px;border-radius:5px;background:#10283c;color:#c9deef;font-size:9px}
 .vendor-process-checks input{accent-color:#168be8;flex:0 0 auto}
 @media(max-width:600px){.vendor-process-checks{grid-template-columns:1fr}}
+
+/* Prevent accidental browser text-selection highlight in dashboard action cards. */
+.flow-preview .setup-steps,.flow-preview .setup-steps *,.jobs-panel .job-list .job-row-action,.jobs-panel .job-list .job-row-action *{-webkit-user-select:none;user-select:none}
+.production-planning .pp-filter-panel,.production-planning .pp-filter-grid,.production-planning .pp-secondary-filters{overflow:visible}
+.linked-process-layout .costing-table select{min-width:100px;padding:6px 8px;border:1px solid #2b5572;border-radius:6px;background:#0b2134;color:#dceeff;font-size:10px}
