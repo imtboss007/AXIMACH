@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, CalendarClock, Check, CircleDollarSign, FileText, Package, Plus, Search, ShieldCheck, Truck, Users, X } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type QuotationRecord } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, vendorSupportsProcessType, type QuotationRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
@@ -39,7 +39,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const routeOperations = operations.filter(op => op.componentId === selectedComponent?.id && (!selectedLine || (op.poId === selectedLine.poId && op.poLineId === selectedLine.lineId)));
   const selectedOperation = routeOperations.find(op => op.id === operationId) || routeOperations[0];
   const selectedOperationProcessTypeId = selectedOperation?.processTypeId || "";
-  const quoteVendors = selectedOperationProcessTypeId ? vendors.filter(vendor => vendor.processTypeId === selectedOperationProcessTypeId) : [];
+  const quoteVendors = selectedOperationProcessTypeId ? vendors.filter(vendor => vendorSupportsProcessType(vendor,selectedOperationProcessTypeId)) : [];
   const quoteRows = quotations.filter(q => q.componentId === selectedComponent?.id && (!selectedLine || (q.poId === selectedLine.poId && q.poLineId === selectedLine.lineId)) && (!selectedOperation || q.operationId === selectedOperation.id))
     .filter(q => (q.quoteReference + " " + (vendors.find(v=>v.id===q.vendorId)?.company||"") + " " + q.status + " " + (routeOperations.find(op=>op.id===q.operationId)?.name||"")).toLowerCase().includes(quoteSearch.toLowerCase().trim()))
     .sort((a,b) => (b.quotedAt || "").localeCompare(a.quotedAt || ""));
@@ -161,7 +161,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     if (!selectedComponent || !selectedLine || !selectedOperation || !vendorId) { onNotice("Choose a component, PO line, process operation and vendor."); return; }
     if (!selectedOperation.processTypeId) { onNotice("Link this operation to a Process Directory process type before recording a vendor quotation."); return; }
     const chosenVendor = vendors.find(vendor => vendor.id === vendorId);
-    if (!chosenVendor || chosenVendor.processTypeId !== selectedOperation.processTypeId) { onNotice("Select a Vendor Master record assigned to this operation’s exact Process Directory type."); return; }
+    if (!chosenVendor || !vendorSupportsProcessType(chosenVendor,selectedOperation.processTypeId)) { onNotice("Select a Vendor Master record assigned to this operation’s exact Process Directory type."); return; }
     const rate = Number(ratePerPart);
     const qty = Number(quantity);
     const transport = Number(transportCost || 0);
@@ -181,7 +181,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const selectQuote = (quote: QuotationRecord) => {
     const targetOperation = operations.find(operation => operation.id === quote.operationId);
     const targetVendor = vendors.find(vendor => vendor.id === quote.vendorId);
-    if (!targetOperation || !targetOperation.processTypeId || !targetVendor || targetVendor.processTypeId !== targetOperation.processTypeId) {
+    if (!targetOperation || !targetOperation.processTypeId || !targetVendor || !vendorSupportsProcessType(targetVendor,targetOperation.processTypeId)) {
       onNotice("This saved quotation’s vendor is not assigned to the operation’s current Process Directory type. It remains in history and has not been applied.");
       return;
     }
