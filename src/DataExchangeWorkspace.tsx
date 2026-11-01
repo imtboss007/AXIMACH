@@ -43,6 +43,83 @@ function rowsToCsv(rows:Row[]) {
   const headers=Array.from(new Set(rows.flatMap(row=>Object.keys(row))));
   return [headers.map(csvCell).join(","),...rows.map(row=>headers.map(key=>csvCell(row[key])).join(","))].join("\r\n");
 }
+async function readZipEntry(zip:Uint8Array,target:string):Promise<string|null>{
+  const view=new DataView(zip.buffer,zip.byteOffset,zip.byteLength);
+  let endOffset=-1;
+  for(let i=zip.length-22;i>=Math.max(0,zip.length-65557);i--){if(view.getUint32(i,true)===0x06054b50){endOffset=i;break;}}
+  if(endOffset<0)throw new Error("This Excel file does not contain a valid ZIP workbook directory.");
+  const count=view.getUint16(endOffset+10,true),centralOffset=view.getUint32(endOffset+16,true);
+  const decoder=new TextDecoder();let cursor=centralOffset;
+  for(let index=0;index<count;index++){
+    if(view.getUint32(cursor,true)!==0x02014b50)throw new Error("The Excel workbook directory is invalid.");
+    const method=view.getUint16(cursor+10,true),compressedSize=view.getUint32(cursor+20,true);
+    const nameLength=view.getUint16(cursor+28,true),extraLength=view.getUint16(cursor+30,true),commentLength=view.getUint16(cursor+32,true);
+    const localOffset=view.getUint32(cursor+42,true);
+    const name=decoder.decode(zip.subarray(cursor+46,cursor+46+nameLength));
+    cursor+=46+nameLength+extraLength+commentLength;
+    if(name!==target)continue;
+    if(view.getUint32(localOffset,true)!==0x04034b50)throw new Error("An Excel workbook entry has an invalid local header.");
+    const localNameLength=view.getUint16(localOffset+26,true),localExtraLength=view.getUint16(localOffset+28,true);
+    const dataOffset=localOffset+30+localNameLength+localExtraLength;
+    const compressed=zip.subarray(dataOffset,dataOffset+compressedSize);
+    if(method===0)return decoder.decode(compressed);
+    if(method===8){
+      if(typeof DecompressionStream==="undefined")throw new Error("This browser cannot decompress Excel workbooks. Save the sheet as CSV and import that file instead.");
+      const buffer=compressed.slice().buffer as ArrayBuffer;
+      const stream=new Blob([buffer]).stream().pipeThrough(new DecompressionStream("deflate-raw" as CompressionFormat));
+      return decoder.decode(await new Response(stream).arrayBuffer());
+    }
+    throw new Error("This Excel workbook uses an unsupported compression method.");
+  }
+  return null;
+}
+function excelCellColumn(reference:string):number{
+  const letters=reference.match(/^[A-Z]+/i)?.[0]?.toUpperCase()||"A";
+  let result=0;for(const char of letters)result=result*26+(char.charCodeAt(0)-64);return Math.max(0,result-1);
+}
+function excelXmlRows(xml:string,sharedStrings:string[]):string[][]{
+  const doc=new DOMParser().parseFromString(xml,"application/xml");
+  if(doc.getElementsByTagName("parsererror").length)throw new Error("The Excel worksheet XML could not be read.");
+  return Array.from(doc.getElementsByTagName("row")).map(row=>{
+    const values:string[]=[];
+    Array.from(row.getElementsByTagName("c")).forEach(cell=>{
+      const reference=cell.getAttribute("r")||"A1",column=excelCellColumn(reference),type=cell.getAttribute("t")||"";
+      const value=cell.getElementsByTagName("v")[0]?.textContent||"";
+      let text=value;
+      if(type==="s")text=sharedStrings[Number(value)]??"";
+      else if(type==="inlineStr")text=Array.from(cell.getElementsByTagName("t")).map(node=>node.textContent||"").join("");
+      else if(type==="b")text=value==="1"?"true":"false";
+      values[column]=text;
+    });
+    return values.map(value=>value??"");
+  });
+}
+async function parseXlsx(file:File):Promise<string[][]>{
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  const workbookXml=await readZipEntry(bytes,"xl/workbook.xml");
+  const relationshipsXml=await readZipEntry(bytes,"xl/_rels/workbook.xml.rels");
+  if(!workbookXml||!relationshipsXml)throw new Error("The Excel file is missing workbook or relationship metadata.");
+  const workbook=new DOMParser().parseFromString(workbookXml,"application/xml");
+  const relationships=new DOMParser().parseFromString(relationshipsXml,"application/xml");
+  const sheet=workbook.getElementsByTagName("sheet")[0];
+  const relationshipId=sheet?.getAttribute("r:id")||"";
+  if(!relationshipId)throw new Error("No worksheet was found in this Excel workbook.");
+  const relation=Array.from(relationships.getElementsByTagName("Relationship")).find(item=>item.getAttribute("Id")===relationshipId);
+  const target=relation?.getAttribute("Target");
+  if(!target)throw new Error("The first worksheet target is missing from the workbook relationships.");
+  const sheetPath=target.startsWith("/")?target.slice(1):target.startsWith("xl/")?target:"xl/"+target.replace(/^\.\//,"");
+  const sheetXml=await readZipEntry(bytes,sheetPath);
+  if(!sheetXml)throw new Error("The first worksheet could not be found in the Excel workbook.");
+  const sharedXml=await readZipEntry(bytes,"xl/sharedStrings.xml");
+  const sharedStrings=sharedXml?Array.from(new DOMParser().parseFromString(sharedXml,"application/xml").getElementsByTagName("si")).map(item=>Array.from(item.getElementsByTagName("t")).map(node=>node.textContent||"").join("")):[];
+  return excelXmlRows(sheetXml,sharedStrings).filter(row=>row.some(cell=>cell.trim()!==""));
+}
+async function parseUploadedFile(file:File):Promise<string[][]>{
+  const name=file.name.toLowerCase();
+  if(name.endsWith(".xlsx")||name.endsWith(".xlsm"))return parseXlsx(file);
+  if(name.endsWith(".csv"))return parseCsv(await file.text());
+  throw new Error("Use a CSV file or an Excel .xlsx/.xlsm workbook. Legacy .xls files are not supported; save them as .xlsx or CSV first.");
+}
 function parseCsv(source:string):string[][] {
   const rows:string[][]=[];let row:string[]=[];let value="";let quoted=false;
   for(let i=0;i<source.length;i++){
@@ -151,7 +228,7 @@ export default function DataExchangeWorkspace({mode,onBack,onNotice,notice}:Prop
     if(!file)return;
     setBusy(true);setFileError("");setPrepared([]);setFileName(file.name);
     try{
-      const parsed=parseCsv(await file.text());
+      const parsed=await parseUploadedFile(file);
       if(parsed.length<2)throw new Error("CSV must contain a header row and at least one data row.");
       const headers=parsed[0].map(value=>value.trim());
       const missing=template.headers.filter(header=>!headers.includes(header));
@@ -261,9 +338,9 @@ export default function DataExchangeWorkspace({mode,onBack,onNotice,notice}:Prop
         <div className="module-safety-note"><ShieldCheck size={14}/><span>Access control is not yet connected to a user/role identity system. Treat this export function as workspace-owner use on a trusted device; exported Vendor/Company and transaction data can contain business contact and financial information.</span></div>
       </section>
     </>:<>
-      <div className="workspace-title-row"><div><div className="eyebrow">DATA & GOVERNANCE / VALIDATE BEFORE WRITE</div><h1>Import Data<span>.</span></h1><p>Upload a CSV template, validate business keys and references, preview row-level results, then explicitly commit only new valid master records.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={templateDownload}><Download size={15}/> Download CSV template</button></div></div>
+      <div className="workspace-title-row"><div><div className="eyebrow">DATA & GOVERNANCE / VALIDATE BEFORE WRITE</div><h1>Import Data<span>.</span></h1><p>Upload a CSV template or Excel .xlsx/.xlsm workbook, validate business keys and references, preview row-level results, then explicitly commit only new valid master records.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={templateDownload}><Download size={15}/> Download CSV template</button></div></div>
       <section className="surface-panel quality-selection-panel"><div className="panel-heading"><div><h3>Select import template</h3><p>Imports append new master records only. Existing records are never overwritten.</p></div><span className="module-number">{validCount} VALID · {invalidCount} REJECTED</span></div>
-        <div className="quality-selectors"><label>Master data type<select value={importKind} onChange={event=>{setImportKind(event.target.value as ImportKind);clearImport();}}>{templates.map(item=><option key={item.kind} value={item.kind}>{item.label}</option>)}</select></label><div><strong>Business key: {template.key}</strong><p>{template.description}</p><p>Required columns: {template.headers.join(", ")}</p></div><label>CSV file<input type="file" accept=".csv,text/csv" disabled={busy} onChange={event=>void prepareFile(event.target.files?.[0])}/></label></div>
+        <div className="quality-selectors"><label>Master data type<select value={importKind} onChange={event=>{setImportKind(event.target.value as ImportKind);clearImport();}}>{templates.map(item=><option key={item.kind} value={item.kind}>{item.label}</option>)}</select></label><div><strong>Business key: {template.key}</strong><p>{template.description}</p><p>Required columns: {template.headers.join(", ")}</p></div><label>CSV / Excel file<input type="file" accept=".csv,.xlsx,.xlsm,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={busy} onChange={event=>void prepareFile(event.target.files?.[0])}/></label></div>
         {fileName&&<p className="module-number">FILE: {fileName}</p>}{fileError&&<p className="movement-discrepancy">{fileError}</p>}
       </section>
       {prepared.length>0&&<section className="surface-panel module-records-panel"><div className="panel-heading"><div><h3>Row validation preview</h3><p>{prepared.length} rows read · {validCount} can be added · {invalidCount} will be rejected.</p></div><div className="workspace-title-actions"><button className="button-primary" disabled={!validCount||busy} onClick={commitImport}><Check size={14}/> Commit {validCount} valid rows</button><button className="button-quiet" onClick={clearImport}><X size={14}/> Clear</button></div></div>
