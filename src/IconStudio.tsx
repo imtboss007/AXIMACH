@@ -269,7 +269,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
     setPresets(nextPresets);
     const bundle = { assignments: next, favourites, presets: nextPresets, updatedAt: new Date().toISOString() };
     writePreferenceBundle(bundle);
-    void persistShared(bundle);
+    void persistShared(bundle).then(setSyncStatus);
     setNotice(`Saved ${selectedMeta.name} (${selectedMeta.variant}) for ${family}. Matching process nodes now use this 3D icon.`);
   };
   const removeAssignment = (targetFamily: string) => {
@@ -312,7 +312,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                         <span className="ax-icon-option-glyph"><i className={iconClass(item.name, item.variant)} aria-hidden="true"/></span>
                         <span>{item.name.replaceAll("-", " ")}</span>
                       </button>
-                      <button className={`ax-icon-favourite ${favourites.includes(iconKey(item)) ? "is-favourite" : ""}`} onClick={() => toggleFavourite(iconKey(item))} aria-label={favourites.includes(iconKey(item)) ? "Remove favourite" : "Save favourite"}><Heart size={12} fill={favourites.includes(item.name) ? "currentColor" : "none"}/></button>
+                      <button className={`ax-icon-favourite ${favourites.includes(iconKey(item)) ? "is-favourite" : ""}`} onClick={() => toggleFavourite(iconKey(item))} aria-label={favourites.includes(iconKey(item)) ? "Remove favourite" : "Save favourite"}><Heart size={12} fill={favourites.includes(iconKey(item)) ? "currentColor" : "none"}/></button>
                     </div>
                   ))}
                   {!visible.length && <div className="ax-icon-empty"><Search size={24}/><strong>No icons found</strong><span>Try a different word or switch to All icons.</span></div>}
@@ -322,7 +322,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
               <aside className="ax-icon-customiser">
                 <div className="ax-icon-preview-label"><span>LIVE PREVIEW</span><small>DRAG / STYLE / SAVE</small></div>
                 <motion.div className={`ax-icon-preview-tile ${variantClass}`} style={variantStyle} animate={{ rotateX: tilt * -0.45, rotateY: tilt, y: [0, -3, 0] }} transition={{ rotateX: { duration: 0.35 }, rotateY: { duration: 0.35 }, y: { duration: 4, repeat: Infinity, ease: "easeInOut" } }}>
-                  <span className="ax-icon-preview-gloss"/><i className={iconClass(selectedIcon)} aria-hidden="true"/>
+                  <span className="ax-icon-preview-gloss"/><i className={iconClass(selected?.name || "settings", selected?.variant)} aria-hidden="true"/>
                 </motion.div>
                 <div className="ax-icon-selected-name"><strong>{selected?.name.replaceAll("-", " ") || selectedIcon}</strong><span>{selected?.category || "Tabler outline glyph"}</span></div>
                 <label className="ax-icon-field">Assign to process family<select value={family} onChange={(event) => setFamily(event.target.value)}>{families.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={13}/></label>
@@ -335,7 +335,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                 <div className="ax-icon-field-label"><span>Saved style presets</span><small>{presets.length} saved</small></div>
                 <div className="ax-icon-presets-list">
                   {presets.slice(0, 6).map((preset, index) => (
-                    <button key={preset.iconName + (preset.iconVariant || "outline") + preset.palette + preset.finish + index} onClick={() => { setSelectedIcon(preset.iconName); setPaletteName(preset.palette); setFinish(preset.finish); setDepth(preset.depth); setTilt(preset.tilt); }}>
+                    <button key={preset.iconName + (preset.iconVariant || "outline") + preset.palette + preset.finish + index} onClick={() => { setSelectedIcon(`${preset.iconVariant || "outline"}:${preset.iconName}`); setPaletteName(preset.palette); setFinish(preset.finish); setDepth(preset.depth); setTilt(preset.tilt); }}>
                       <i className={iconClass(preset.iconName, preset.iconVariant)} aria-hidden="true"/>
                       <span><strong>{preset.iconName.replaceAll("-", " ")}</strong><small>{preset.iconVariant || "outline"} · {preset.finish} · {preset.palette}</small></span>
                       <ChevronRight size={12}/>
