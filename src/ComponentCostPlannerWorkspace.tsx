@@ -192,7 +192,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
     }));
     setShowProcessForm(false);
     setEditingProcessId("");
-    onNotice("Planned process cost saved against this component. It is a benchmark only; it does not mark a vendor quotation, operation or payment as approved.");
+    onNotice("Process cost saved for this component. It is available in Costing & Payments only; no Process Map operation, vendor commitment or payment was changed.");
   };
   const archiveProcessPlan = (record: ComponentProcessCostRecord) => {
     if (!window.confirm("Archive this component's planned process-cost row? Costing history and actual payments will remain unchanged.")) return;
@@ -218,7 +218,6 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
       <div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / PER-COMPONENT COST BASELINE</div><h1>Component Cost Planner<span>.</span></h1><p>Choose a component from Component Directory and set its process-category/type cost assumptions here. These saved budgets appear in Costing & Payments only; they never feed Process Planning.</p></div>
       <div className="workspace-title-actions">
         <button className="button-quiet" onClick={() => onSelectModule("component-directory")}><Boxes size={14}/> Component Directory</button>
-        <button className="button-quiet" onClick={() => onSelectModule("production")}><Workflow size={14}/> Process Map</button>
         <button className="button-primary" onClick={() => onSelectModule("costing")}><CircleDollarSign size={14}/> Costing & Payments</button>
       </div>
     </div>
