@@ -31,6 +31,7 @@ const palettes = [
 const finishes = ["Anodised", "Brushed metal", "Carbon", "Ceramic", "Liquid glass"];
 const DEPTHS = [1, 2, 3, 4];
 const TILTS = [-18, -9, 0, 9, 18];
+const STYLE_VARIANTS_PER_ICON = palettes.length * finishes.length * DEPTHS.length * TILTS.length;
 const STORAGE_ASSIGNMENTS = "aximach.icon-assignments.v1";
 const STORAGE_FAVOURITES = "aximach.icon-favourites.v1";
 const STORAGE_PRESETS = "aximach.icon-presets.v1";
@@ -164,7 +165,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
             </header>
             <div className="ax-icon-studio-stats">
               <div><strong>{ICONS.length.toLocaleString("en-IN")}</strong><span>Tabler glyphs indexed</span></div>
-              <div><strong>5,000+</strong><span>3D style combinations</span></div>
+              <div><strong>{(ICONS.length * STYLE_VARIANTS_PER_ICON).toLocaleString("en-IN")}+</strong><span>3D style combinations</span></div>
               <div><strong>{Object.keys(assignments).length}</strong><span>Process families assigned</span></div>
               <div><strong>{presets.length.toLocaleString("en-IN")}</strong><span>Saved style presets</span></div>
             </div>
