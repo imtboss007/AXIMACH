@@ -103,10 +103,10 @@ Exactly the eight approved functions:
 - [ ] Do not implement or alter until the user reopens this menu.
 
 ### 10 — Material & Inventory
-- [ ] Preserve existing inventory/stock functionality and data until dependency audit is complete.
-- [ ] Do not duplicate vendor, supplier, process or rate management already handled in Process Directory.
+- [x] Preserve existing inventory/stock functionality and data until dependency audit is complete.
+- [x] Do not duplicate vendor, supplier, process or rate management already handled in Process Directory.
 - [ ] Exact user-approved Material & Inventory scope: **pending clarification**.
-- [ ] Audit existing BOM, stock ledger, WIP and stock-location flows before any change.
+- [x] Audit existing BOM, stock ledger, WIP and stock-location flows before any change.
 
 ### 11 — Quality & Inspection
 - [x] Dedicated inspection workspace connected to the exact Company, PO, component line and process operation.
@@ -259,3 +259,5 @@ Exactly the eight approved functions:
 - Stock movement records retain location type/ID and movement IDs. Existing stock rows without location metadata remain readable through their historical factory/vendor fields. Inventory ledger now displays the resolved stock location.
 - WIP handover preparation does not move stock; confirmed dispatch creates source OUT + transit IN, and each partial receipt creates transit OUT + destination IN with an acknowledgement event. Customer dispatch preparation reserves PO-line quantity only; confirmed dispatch creates factory OUT + transit IN, and partial/full delivery acknowledgements clear only the confirmed transit quantity.
 - Dispatch and WIP records preserve Company, PO, PO-line, component, operation, vendor, receipt/delivery acknowledgement and stock transaction IDs. They do not change operation completion, quality inspection or costing records.
+
+- Inventory audit completed: the current workspace retains Material Master, BOM and append-only Stock Ledger. Process Directory holds process types and process-vendor rates; it does not duplicate raw Material Master records. Material unit rate and preferred vendor remain on the material record and link to the existing Vendor Master ID. WIP/customer dispatch movements add location/movement IDs without overwriting prior stock transactions. Further inventory scope remains pending user clarification.
