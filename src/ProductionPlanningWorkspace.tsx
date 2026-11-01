@@ -48,7 +48,7 @@ function MultiSelectFilter({ label, options, value, onChange, optional = false, 
       <div className="pp-filter-menu-actions">
         <button type="button" onClick={() => onChange(optionIds)}>Select all</button>
         <button type="button" onClick={() => onChange(["__none__"])}>Unselect all</button>
-        <button type="button" onClick={() => onChange([])}>Clear filter</button>
+        <button type="button" onClick={() => {setQuery("");onChange([]);}}>Clear filter</button>
       </div>
       <div className="pp-filter-options">
         {filtered.map(option => <label key={option.id}><input type="checkbox" checked={isSelected(value, option.id)} onChange={() => toggle(option.id)}/><span>{option.label}</span></label>)}
