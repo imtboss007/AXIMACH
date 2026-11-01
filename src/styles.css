@@ -1110,3 +1110,64 @@ img,svg,canvas,video{max-width:100%}
 .combined-production-tabs button{display:inline-flex;align-items:center;gap:7px;padding:10px 13px;border:1px solid #dce5f1;border-radius:8px;background:#f8fafd;color:#526781;font-size:12px;font-weight:650;cursor:pointer}
 .combined-production-tabs button.active{border-color:#7da9e9;background:#edf4ff;color:#245fae}
 @media(max-width:760px){.combined-production-header{align-items:stretch;flex-direction:column;padding:14px}.combined-production-tabs{display:grid;grid-template-columns:1fr 1fr}.combined-production-tabs button{justify-content:center;padding:10px 6px}}
+
+
+/* Quality & Inspection workspace styles ported from the reviewed PR #4 implementation. */
+.route-step.quality-hold .route-node{border-color:#f1b9bd;background:#fff0f0;color:#c34f5b}
+.route-step.quality-hold .route-card{border-top:2px solid #d86570}
+.route-step.quality-hold .route-card-top em{background:#fff0f1;color:#c24f59}
+.status-quality-hold{background:#fff0f1;color:#be4c58}
+.route-step.quality-hold .route-node{background:#4a1d2a!important;border-color:#ad3c58!important;color:#ff9eaf!important}
+.route-step.quality-hold .route-card{border-top:2px solid #ff566d;border-color:#c63750;box-shadow:0 0 0 1px #ff566d33}
+.route-step.quality-hold .route-node{background:#511e2b;border-color:#ff566d;color:#ffd4dc}
+.linked-process-page .linked-operation-node.status-quality-hold{border-top-color:#fb7185}
+.linked-process-page .record-state.state-quality-hold,.linked-process-page .record-state.state-pending,.linked-costing-page .record-state.state-received{color:#ffd38b;border-color:#7a5c28;background:#312614}
+.quality-workspace-page .quality-selection-panel{padding:15px;margin-top:14px}
+.quality-workspace-page .quality-selectors{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding-top:12px}
+.quality-workspace-page .quality-selectors .searchable-picker{display:grid;gap:5px;min-width:0;color:#b9cce0;font-size:10px;font-weight:600}
+.quality-workspace-page .quality-selectors input{width:100%;min-width:0;min-height:36px;padding:8px 9px;border:1px solid #294964;border-radius:7px;background:#061526;color:#e6f2ff;font:11px 'DM Sans',sans-serif}
+.quality-workspace-page .quality-context-summary{display:grid;grid-template-columns:1.1fr 1fr;gap:12px;margin-top:13px;padding:12px;border:1px solid #24506a;border-radius:8px;background:#091e30}
+.quality-workspace-page .quality-context-summary>div{display:grid;gap:4px;min-width:0}
+.quality-workspace-page .quality-context-summary small{color:#72bbd6;font:9px 'DM Mono';letter-spacing:.06em}
+.quality-workspace-page .quality-context-summary strong{color:#eaf5ff;font-size:12px;overflow-wrap:anywhere}
+.quality-workspace-page .quality-context-summary span{color:#91abc4;font-size:10px;line-height:1.45}
+.quality-workspace-page .quality-editor,.quality-workspace-page .quality-operation-history,.quality-workspace-page .quality-register{margin-top:14px;padding:15px}
+.quality-workspace-page .quality-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;padding-top:13px}
+.quality-workspace-page .quality-form>label{display:grid;gap:5px;min-width:0;color:#b9cce0;font-size:10px;font-weight:600}
+.quality-workspace-page .quality-form input,.quality-workspace-page .quality-form select{width:100%;min-width:0;min-height:35px;padding:8px 9px;border:1px solid #294964;border-radius:7px;background:#061526;color:#e6f2ff;font:11px 'DM Sans',sans-serif}
+.quality-workspace-page .quality-form-wide{grid-column:1/-1}
+.quality-workspace-page .quality-measurements{grid-column:1/-1;display:grid;gap:10px;padding:12px;border:1px solid #23445e;border-radius:8px;background:#081a2b}
+.quality-workspace-page .quality-measurement-row{display:grid;grid-template-columns:1.2fr repeat(4,minmax(75px,.8fr)) .6fr .9fr auto 30px;gap:7px;align-items:end;padding:10px 0;border-top:1px solid #1d3a53}
+.quality-workspace-page .quality-measurement-row label{display:grid;gap:4px;min-width:0;color:#a9c0d3;font-size:9px}
+.quality-workspace-page .quality-measurement-row input{width:100%;min-width:0;min-height:32px;padding:7px 6px;font-size:10px}
+.quality-workspace-page .quality-measure-result{align-self:center;padding:5px 7px;border-radius:5px;background:#1e3444;color:#a9c2d6;font-size:9px;font-weight:700;white-space:nowrap}
+.quality-workspace-page .quality-result-pass{background:#123c35;color:#8de3c4}
+.quality-workspace-page .quality-result-fail{background:#4a2028;color:#ffabb5}
+.quality-workspace-page .quality-history-list{display:grid;gap:8px;margin-top:12px}
+.quality-workspace-page .quality-history-list article{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:10px;border:1px solid #21415a;border-radius:8px;background:#081a2b}
+.quality-workspace-page .quality-history-list article>div:first-child{display:grid;gap:4px;min-width:0}
+.quality-workspace-page .quality-history-list article strong{color:#eaf5ff;font-size:11px}
+.quality-workspace-page .quality-history-list article small{color:#91abc4;font-size:9px;line-height:1.4;overflow-wrap:anywhere}
+.quality-workspace-page .quality-table{min-width:1200px}
+.quality-workspace-page .quality-table .module-record-card-actions{flex-wrap:nowrap}
+.quality-workspace-page .module-empty-state p .button-primary{margin:10px 0 0}
+@media(max-width:1250px){
+.quality-workspace-page .quality-selectors{grid-template-columns:repeat(3,minmax(0,1fr))}
+.quality-workspace-page .quality-measurement-row{grid-template-columns:repeat(4,minmax(0,1fr))}
+.quality-workspace-page .quality-measurement-row .quality-measure-result{justify-self:start}
+}
+@media(max-width:850px){
+.quality-workspace-page .quality-selectors{grid-template-columns:repeat(2,minmax(0,1fr))}
+.quality-workspace-page .quality-context-summary{grid-template-columns:1fr}
+.quality-workspace-page .quality-history-list article{grid-template-columns:minmax(0,1fr) auto}
+.quality-workspace-page .quality-history-list article .module-record-card-actions{grid-column:1/-1}
+}
+@media(max-width:600px){
+.quality-workspace-page .quality-selectors,.quality-workspace-page .quality-form{grid-template-columns:1fr}
+.quality-workspace-page .quality-form-wide,.quality-workspace-page .quality-measurements{grid-column:1}
+.quality-workspace-page .quality-measurement-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+.quality-workspace-page .quality-measurement-row .vendor-row-remove{grid-column:2;justify-self:end}
+.quality-workspace-page .quality-history-list article{grid-template-columns:1fr}
+.quality-workspace-page .quality-history-list article .module-record-card-actions{grid-column:1}
+}
+.wip-dispatch-page .movement-editor,.wip-dispatch-page .movement-register,.wip-dispatch-page .quality-selection-panel{margin-top:14px;padding:15px}
