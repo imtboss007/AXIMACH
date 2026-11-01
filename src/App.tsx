@@ -58,7 +58,7 @@ const moduleCatalogue: ModuleItem[] = [
   { id: "workforce", title: "Workforce & Skills", group: "Operations", description: "Track qualifications, skill matrices, shifts and training requirements.", icon: Users, action: "Explore workforce" },
   { id: "costing", title: "Costing & Payments", group: "Finance", description: "Compare estimates, commitments, actuals and cost per accepted part.", icon: CircleDollarSign, action: "Explore job costing" },
   { id: "invoices", title: "Invoices, Payments & Cash Flow", group: "Finance", description: "Reconcile invoices, credits, approvals, dues and payment status.", icon: Wallet, action: "Review finance controls" },
-  { id: "communications", title: "Communication & Follow-up", group: "Connections", description: "Schedule supplier follow-ups and monitor messaging delivery and replies.", icon: MessageCircle, action: "Explore communication workflows" },
+  { id: "communications", title: "WhatsApp Automation", group: "Connections", description: "Pair the desktop bridge by QR, sync vendor contacts and schedule consent-based supplier messages.", icon: MessageCircle, action: "Open WhatsApp automation" },
   { id: "risk", title: "Risk & Failure Prediction", group: "Quality & Reliability", description: "Model delivery, quality, capacity and process risks with traceable evidence.", icon: ShieldAlert, action: "Explore risk register" },
   { id: "engineering-change", title: "Engineering Change & Configuration Control", group: "Engineering", description: "Assess revision impact on open jobs, inventory, vendors and inspection plans.", icon: GitBranch, action: "Explore change control" },
   { id: "reports", title: "Reports & Analytics", group: "Insights", description: "Analyse performance, trends and exceptions calculated from saved AXIMACH records.", icon: BarChart3, action: "Explore analytics" },
@@ -72,7 +72,7 @@ const moduleCatalogue: ModuleItem[] = [
   { id: "continuity", title: "Business Continuity & Recovery", group: "Data & Platform", description: "Manage backups, recovery targets, restore evidence and incident runbooks.", icon: HardDrive, action: "Explore recovery readiness" }
 ];
 
-const approvedMenuIds = new Set(["command-centre","companies","purchasing","components","component-directory","process-master","vendors","inventory","production","dispatch","quality","costing","reports","ai-insights","export","import"]);
+const approvedMenuIds = new Set(["command-centre","companies","purchasing","components","component-directory","process-master","vendors","inventory","production","dispatch","quality","costing","communications","reports","ai-insights","export","import"]);
 const modules: ModuleItem[] = moduleCatalogue.filter(item => approvedMenuIds.has(item.id));
 const groupOptions = ["All approved workspaces", ...Array.from(new Set(modules.map((item) => item.group)))];
 
