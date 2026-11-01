@@ -83,6 +83,25 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const processCategories = activeRows(data.processCategories);
   const processTypes = activeRows(data.processTypes);
   const processVendorRates = activeRows(data.processVendorRates);
+  const componentCostPlans = activeRows(data.componentPlannedCosts || []);
+  const componentProcessPlans = activeRows(data.componentProcessCosts || []);
+  const componentPlanFor = (componentId: string) => componentCostPlans.find(plan => plan.componentId === componentId);
+  const componentProcessPlanFor = (componentId: string, processTypeId?: string) =>
+    processTypeId ? componentProcessPlans.find(plan => plan.componentId === componentId && plan.processTypeId === processTypeId) : undefined;
+  const fullComponentPlanPerPart = (componentId: string) => {
+    const plan = componentPlanFor(componentId);
+    if (!plan) return undefined;
+    const base = plan.materialCostPerPart + plan.directLabourCostPerPart + plan.overheadCostPerPart +
+      plan.toolingCostPerPart + plan.qualityCostPerPart + plan.reworkScrapCostPerPart +
+      plan.packagingCostPerPart + plan.otherCostPerPart;
+    const route = componentProcessPlans.filter(row => row.componentId === componentId)
+      .reduce((sum,row) => sum + row.quantityPerPart * row.ratePerProcess + row.transportCostPerPart, 0);
+    return { total: base + route, base, route, status: plan.status };
+  };
+  const operationBenchmarkPerPart = (operation: OperationRecord) => {
+    const planned = componentProcessPlanFor(operation.componentId, operation.processTypeId);
+    return planned ? planned.quantityPerPart * planned.ratePerProcess + planned.transportCostPerPart : undefined;
+  };
 
   const [companyIds, setCompanyIds] = useState<string[]>([]);
   const [poIds, setPoIds] = useState<string[]>([]);
@@ -398,7 +417,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           const routeId = "route-arrow-" + group.line.id.replace(/[^a-z0-9]/gi, "");
           return <article className="pp-component-route" key={group.key}>
             <div className="pp-component-route-head">
-              <div><strong>{group.component ? group.component.partNumber + " — " + group.component.name : "Component record unavailable"}</strong><span>{group.po.number} · Qty {group.line.quantity.toLocaleString("en-IN")} pcs · Due {day(group.line.targetDelivery)}</span></div>
+              <div><strong>{group.component ? group.component.partNumber + " — " + group.component.name : "Component record unavailable"}</strong><span>{group.po.number} · Qty {group.line.quantity.toLocaleString("en-IN")} pcs · Due {day(group.line.targetDelivery)}{group.component && fullComponentPlanPerPart(group.component.id) ? " · MASTER PLAN " + money(fullComponentPlanPerPart(group.component.id)!.total) + " / pc" : " · COST PLAN NOT SET"}</span></div>
               <button onClick={() => toggleComponent(group.key)}>{collapsed ? "Expand" : "Collapse"} <ChevronDown size={13}/></button>
             </div>
             {!collapsed ? <div className="pp-route-map-body">
@@ -413,7 +432,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                         <span className="pp-route-node-data">Start: {day(operation.plannedStart)}{" · "+clock(operation.plannedStartTime||operation.plannedSlotStartAt)}</span>
                         <span className="pp-route-node-data">Due: {day(operation.plannedEnd)}{" · "+clock(operation.plannedEndTime||operation.plannedSlotEndAt)}</span>
                         <span className="pp-route-node-data">Qty: {operation.quantity.toLocaleString("en-IN")} pcs</span>
-                        <span className="pp-route-node-data">Price: {money(operation.ratePerPart)}</span><span className="pp-route-node-data">Vendor payment: {operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</span>
+                        <span className="pp-route-node-data">Route rate: {money(operation.ratePerPart)} / pc</span>
+                           <span className="pp-route-node-data">{operationBenchmarkPerPart(operation) === undefined ? "Component process plan: Not set" : "Component plan ref: " + money(operationBenchmarkPerPart(operation)!) + " / pc"}</span><span className="pp-route-node-data">Vendor payment: {operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</span>
                         <strong className="pp-status">{operation.status}</strong>
                       </button>
                       {index < mainRoute.length - 1 && <span className="pp-route-arrow"><ArrowRight size={22}/></span>}
@@ -426,8 +446,10 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                     const parent = group.operations.find(item => item.id === operation.parentId);
                     const parentIndex = mainRoute.findIndex(item => item.id === operation.parentId);
                     if (!parent || parentIndex < 0) return [];
-                    const startX = Math.round(((parentIndex + 0.5) / Math.max(1, mainRoute.length)) * 1000);
-                    const endX = Math.round(((index + 0.5) / Math.max(1, branchOperations.length)) * 1000);
+                    const routeCardAdvance = 218; // 184px card + 34px connector; mirrors .pp-route-node and .pp-route-arrow.
+                     const cardCenter = 92;
+                     const startX = cardCenter + parentIndex * routeCardAdvance;
+                     const endX = cardCenter + index * routeCardAdvance;
                     return [{ key: operation.id, d: "M " + startX + " 2 C " + startX + " 24 " + endX + " 24 " + endX + " 52" }];
                   });
                   const parentNames = [...new Set(branchOperations.map(operation => group.operations.find(item => item.id === operation.parentId)?.name).filter(Boolean))];
