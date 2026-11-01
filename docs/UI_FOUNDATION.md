@@ -11,7 +11,7 @@ AXIMACH remains the source application. The UI repositories below are references
 | [Motion](https://github.com/motiondivision/motion) | React entrance transitions, spring-based motion, hover/tap feedback and drag interaction for the interactive AXIMACH sphere. |
 | [Motion Primitives](https://github.com/ibelick/motion-primitives) | Reusable motion patterns, staggered reveal, layout transitions and compact interaction feedback. |
 | [Cult UI](https://www.cult-ui.com/docs) | Halo-style illuminated surfaces, customisable preview controls and shader-inspired hero treatment. |
-| [Tabler Icons](https://github.com/tabler/tabler-icons) | Full icon catalogue (6,257 glyphs in v3.50.0), searchable icon studio and process-family assignments with 3D material treatments. |
+| [Tabler Icons](https://github.com/tabler/tabler-icons) | Full icon catalogue (5,203 outline glyphs in v3.50.0), searchable icon studio and process-family assignments with 3D material treatments. |
 
 ## Implementation rules
 
