@@ -11,6 +11,7 @@ const stamp = () => new Date().toISOString().slice(0,10);
 export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSelectModule }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const components = activeRows(data.components);
+  const companies = activeRows(data.companies);
   const orders = activeRows(data.purchaseOrders);
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
@@ -326,7 +327,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
       <section className="surface-panel axi-cost-ledger">
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MULTI-COMPANY COST CONTROL</div><h3>Consolidated component / PO cost ledger</h3><p>One row per company + PO + component line. Process and transport costs come from Process Planning; PO value comes from the purchase order; actual processing uses entered actual operation rates.</p></div><span className="module-number">{visibleLedgerRows.length} LINES</span></div>
         <div className="axi-cost-ledger-filters">
-          <label>Company<select value={ledgerCompanyId} onChange={e=>setLedgerCompanyId(e.target.value)}><option value="">All companies</option>{[...new Map(orders.map(po=>[po.companyId,companies.find(c=>c.id===po.companyId)]).filter((x):x is [string,NonNullable<typeof x[1]>]=>Boolean(x[1]))).values()].map(company=><option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
+          <label>Company<select value={ledgerCompanyId} onChange={e=>setLedgerCompanyId(e.target.value)}><option value="">All companies</option>{companies.filter(company=>orders.some(po=>po.companyId===company.id)).map(company=><option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
           <label>Purchase order<select value={ledgerPoId} onChange={e=>setLedgerPoId(e.target.value)}><option value="">All POs</option>{orders.filter(po=>!ledgerCompanyId||po.companyId===ledgerCompanyId).map(po=><option key={po.id} value={po.id}>{po.number}</option>)}</select></label>
           <label>Component<select value={ledgerComponentId} onChange={e=>setLedgerComponentId(e.target.value)}><option value="">All components</option>{components.map(item=><option key={item.id} value={item.id}>{item.partNumber} · {item.name}</option>)}</select></label>
           <label>Vendor involved<select value={ledgerVendorId} onChange={e=>setLedgerVendorId(e.target.value)}><option value="">All vendors</option>{vendors.map(v=><option key={v.id} value={v.id}>{v.company}</option>)}</select></label>
