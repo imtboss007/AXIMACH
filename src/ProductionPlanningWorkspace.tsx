@@ -182,7 +182,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     onNotice("Vendor payment status updated.");
   };
   const finishOperations = (operationIds: string[]) => {
-    const requested = operations.filter(operation => operationIds.includes(operation.id) && operation.status !== "Complete");
+    const visibleIds = new Set(searchedRows.map(operation => operation.id));
+    const requested = operations.filter(operation => visibleIds.has(operation.id) && operationIds.includes(operation.id) && operation.status !== "Complete");
     const blocked = requested.filter(operation => operation.status === "Quality hold");
     const finishable = requested.filter(operation => operation.status !== "Quality hold");
     if (!finishable.length) {
@@ -486,7 +487,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           <div className="pp-table-tools">
             <label className="pp-search"><Search size={14}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search process, vendor…"/></label>
             <button type="button" className="button-quiet compact-button" disabled={!searchedRows.length} onClick={() => setSelectedOperationIds(searchedRows.map(operation => operation.id))}>Select filtered</button>
-            <button type="button" className="pp-add-process" disabled={!selectedOperationIds.length} onClick={() => finishOperations(selectedOperationIds)}><CheckCircle2 size={14}/> Finish selected ({selectedOperationIds.length})</button>
+            <button type="button" className="pp-add-process" disabled={!searchedRows.some(operation => selectedOperationIds.includes(operation.id))} onClick={() => finishOperations(selectedOperationIds)}><CheckCircle2 size={14}/> Finish selected ({searchedRows.filter(operation => selectedOperationIds.includes(operation.id)).length})</button>
             <button className="pp-add-process" onClick={openAdd}><Plus size={14}/> Add Process</button>
           </div>
         </div>
