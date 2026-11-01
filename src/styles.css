@@ -1407,3 +1407,11 @@ img,svg,canvas,video{max-width:100%}
 .searchable-picker-options>button span{flex:0 0 auto;color:#63d4af;font-size:8px}
 .searchable-picker-options>small{padding:9px;color:#89a8c0;font-size:9px;line-height:1.45}
 @media(max-width:600px){.searchable-picker-menu{max-height:240px}.searchable-picker-control{min-height:40px}.searchable-picker-control input{min-height:38px}}
+
+/* AXIMACH identity mark — precision-machining hex badge */
+.command-deck .brand-symbol{width:41px;height:41px;border-radius:0;clip-path:polygon(24% 2%,76% 2%,99% 50%,76% 98%,24% 98%,1% 50%);background:linear-gradient(145deg,#65d8ff 0%,#238fe1 36%,#1657af 72%,#0a2b57 100%);color:#f4fbff;box-shadow:0 0 0 1px rgba(96,211,255,.6),0 0 22px rgba(23,142,230,.34),inset 0 0 14px rgba(219,249,255,.28)}
+.command-deck .brand-symbol span{font:700 25px 'Space Grotesk';letter-spacing:-1.4px;text-shadow:0 1px 5px rgba(3,23,53,.4);transform:translateY(-1px)}
+.command-deck .brand-symbol i{width:5px;height:5px;right:9px;top:8px;background:#dcfbff;box-shadow:0 0 8px #8feaff,0 0 0 2px rgba(12,49,91,.42)}
+.command-deck .brand-copy strong{letter-spacing:-.5px}
+.command-deck .brand-copy small{letter-spacing:1.25px}
+.command-rail>button svg,.deck-action svg,.deck-icon svg{filter:drop-shadow(0 0 3px rgba(70,174,255,.12))}
