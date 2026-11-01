@@ -18,7 +18,6 @@ import DispatchDeliveryWorkspace from "./DispatchDeliveryWorkspace";
 import MachineCapacityWorkspace from "./MachineCapacityWorkspace";
 import ProcessDirectoryWorkspace from "./ProcessDirectoryWorkspace";
 import CommandControlWorkspace from "./CommandControlWorkspace";
-import CommandControlWorkspace from "./CommandControlWorkspace";
 
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
