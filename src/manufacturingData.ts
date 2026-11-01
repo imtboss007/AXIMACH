@@ -59,7 +59,8 @@ export type OperationRecord = {
 };
 export type ProcessCategoryRecord = { id: string; name: string; code: string; description: string; sortOrder: number; createdAt: string; updatedAt: string; deletedAt?: string; };
 export type ProcessTypeRecord = { id: string; categoryId: string; name: string; code: string; description: string; legacyData?: Record<string, unknown>; createdAt: string; updatedAt: string; deletedAt?: string; };
-export type ProcessVendorRateRecord = { id: string; processTypeId: string; vendorId: string; quoteReference: string; quotedAt: string; validFrom: string; validUntil: string; ratePerPart: number; currency: string; leadDays: number; notes: string; status: "Received" | "Approved" | "Rejected" | "Expired"; createdAt: string; updatedAt: string; deletedAt?: string; };
+export type ProcessVendorRateHistoryEntry = { processTypeId: string; vendorId: string; ratePerPart: number; notes: string; supersededAt: string; };
+export type ProcessVendorRateRecord = { id: string; processTypeId: string; vendorId: string; quoteReference: string; quotedAt: string; validFrom: string; validUntil: string; ratePerPart: number; currency: string; leadDays: number; notes: string; rateHistory?: ProcessVendorRateHistoryEntry[]; status: "Received" | "Approved" | "Rejected" | "Expired"; createdAt: string; updatedAt: string; deletedAt?: string; };
 export type InspectionMeasurementResult = "Not measured" | "Pass" | "Fail";
 export type InspectionMeasurementRecord = {
   id: string; characteristic: string; nominal: string; lowerLimit: string; upperLimit: string;
