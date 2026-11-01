@@ -47,7 +47,7 @@ const moduleCatalogue: ModuleItem[] = [
   { id: "purchasing", title: "Purchase Orders", group: "Commercial", description: "Purchase approvals, subcontract work, acknowledgements and receipts.", icon: Package, action: "Review purchase workflow" },
   { id: "components", title: "Components", group: "Engineering", description: "Part masters, bills of material, drawings and linked revisions.", icon: Box, action: "Explore component records" },
   { id: "component-directory", title: "Component Directory", group: "Engineering", description: "Component-wise process history, fully processed cost and PO price comparison.", icon: Boxes, action: "Review component cost registers" },
-  { id: "component-cost-planner", title: "Component Cost Planner", group: "Engineering", description: "Set your own per-component planned budget and process-wise benchmark, then compare it against Process Map and Costing & Payments.", icon: CircleDollarSign, action: "Plan and compare component costs" },
+  { id: "component-cost-planner", title: "Component Cost Planner", group: "Engineering", description: "Maintain a planned cost baseline for a Component Directory part, with category-wise process costs. Cost plan values are surfaced in Costing & Payments only.", icon: CircleDollarSign, action: "Plan component cost" },
   { id: "process-master", title: "Process Directory", group: "Engineering", description: "Maintain hierarchical processes, vendor quotations, validity and rate history.", icon: Layers3, action: "Browse process library" },
   { id: "vendors", title: "Vendors", group: "Supply Network", description: "Manage vendors, contacts and their single assigned process.", icon: Users, action: "Explore vendor records" },
   { id: "vendor-capability", title: "Vendor Capability Master", group: "Supply Network", description: "Match process capabilities, machine envelopes, tolerances and certificates.", icon: Cpu, action: "Explore capability matching" },
@@ -392,7 +392,6 @@ function DashboardWorkspace(props: {
   const liveComponents=activeRows(actualData.components);
   const liveVendors=activeRows(actualData.vendors);
   const liveOperations=activeRows(actualData.operations);
-  const liveComponentPlans=activeRows(actualData.componentPlannedCosts || []);
   const todayKey=new Date().toISOString().slice(0,10);
   const dueLimit=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
   const deliveryLines=liveOrders.flatMap(po=>po.lines.filter(line=>!("deletedAt" in line&&(line as typeof line & {deletedAt?:string}).deletedAt)).map(line=>({line,due:line.targetDelivery||po.targetDelivery}))).filter(row=>row.due&&row.due>=todayKey&&row.due<=dueLimit);
@@ -499,7 +498,7 @@ function DashboardWorkspace(props: {
         <MetricCard title="Unpaid vendor operations" value={String(vendorPaymentReview)} trend="Paid / Not Paid" detail="Process Map source" icon={CircleDollarSign} accent="amber"/>
         <MetricCard title="Quality holds" value={String(qualityHolds)} trend="Open operation holds" detail="From Process Map status" icon={ShieldAlert} accent="red"/>
         <MetricCard title="Movements in transit" value={String(inTransitMovements)} trend="WIP + customer dispatch" detail="Awaiting receipt / delivery" icon={Truck} accent="green"/>
-        <MetricCard title="Components with cost plans" value={String(liveComponentPlans.length)} trend="Planned baselines" detail="Budget coverage by component" icon={Calculator} accent="violet"/>
+
       </section>
       <section className="dashboard-insights-grid">
         <article className="surface-panel dashboard-chart-panel"><div className="panel-heading"><div><div className="eyebrow">LIVE PRODUCTION DATA</div><h3>Operation status distribution</h3><p>Counts from saved Process Map operations only.</p></div><Activity size={17}/></div><div className="dashboard-bars">{operationStatusStats.map(item=><div className="dashboard-bar-row" key={item.label}><span>{item.label}</span><div><i style={{width:(item.count/maxStatusCount*100)+"%"}}/></div><strong>{item.count}</strong></div>)}</div></article>
@@ -512,7 +511,7 @@ function DashboardWorkspace(props: {
           <button className="dashboard-master-card" onClick={() => onSelectModule("components")}><span className="dashboard-master-icon"><Boxes size={18}/></span><span className="dashboard-master-copy"><strong>Components</strong><small>{liveComponents.length} saved records</small></span><ArrowUpRight size={16}/></button>
           <button className="dashboard-master-card" onClick={() => onSelectModule("purchasing")}><span className="dashboard-master-icon"><Package size={18}/></span><span className="dashboard-master-copy"><strong>Purchase Orders</strong><small>{liveOrders.length} open orders</small></span><ArrowUpRight size={16}/></button>
           <button className="dashboard-master-card" onClick={() => onSelectModule("vendors")}><span className="dashboard-master-icon"><Users size={18}/></span><span className="dashboard-master-copy"><strong>Vendors</strong><small>{liveVendors.length} saved records</small></span><ArrowUpRight size={16}/></button>
-          <button className="dashboard-master-card dashboard-cost-plan-shortcut" onClick={() => onSelectModule("component-cost-planner")}><span className="dashboard-master-icon"><Calculator size={18}/></span><span className="dashboard-master-copy"><strong>Component Cost Planner</strong><small>{liveComponentPlans.length} saved cost plans</small></span><ArrowUpRight size={16}/></button>
+          <button className="dashboard-master-card dashboard-cost-plan-shortcut" onClick={() => onSelectModule("component-cost-planner")}><span className="dashboard-master-icon"><Calculator size={18}/></span><span className="dashboard-master-copy"><strong>Component Cost Planner</strong><small>Category-wise planned cost setup</small></span><ArrowUpRight size={16}/></button>
         </div>
       </section>
       <section className="surface-panel dashboard-operation-panel">
