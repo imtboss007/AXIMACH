@@ -46,9 +46,23 @@ export default function ComponentDirectoryWorkspace({onBack,onNotice,onSelectMod
   };
   const routeCostTotal=(route:OperationRecord[])=>route.reduce((sum,op)=>sum+op.quantity*op.ratePerPart+op.transportCost,0);
   const materialInputsComplete=(line?:PurchaseOrderLine)=>{
-    const materialQty=line?.materialQty??(selected?.materialQty&&selected.materialQty>0?selected.materialQty:line?bomMaterialQtyPerPart*line.quantity:bomMaterialQtyPerPart);
-    const materialRate=line?.materialRate??(selected?.materialRate&&selected.materialRate>0?selected.materialRate:bomWeightedMaterialRate);
-    return materialQty>0&&materialRate>0;
+    const lineQty=Number(line?.materialQty)||0;
+    const lineRate=Number(line?.materialRate)||0;
+    const masterQty=Number(selected?.materialQty)||0;
+    const masterRate=Number(selected?.materialRate)||0;
+    const useBomQty=lineQty<=0&&masterQty<=0;
+    const useBomRate=lineRate<=0&&masterRate<=0;
+    const bomQuantitiesComplete=bomLines.length>0&&bomLines.every(bomLine=>{
+      const material=data.materials.find(item=>item.id===bomLine.materialId);
+      return Boolean(material)&&bomLine.quantityPerPart>0;
+    });
+    const bomRatesComplete=bomLines.length>0&&bomLines.every(bomLine=>{
+      const material=data.materials.find(item=>item.id===bomLine.materialId);
+      return Boolean(material)&&Number(material?.ratePerUnit)>0&&bomLine.quantityPerPart>0;
+    });
+    const materialQty=lineQty>0?lineQty:masterQty>0?masterQty:line?bomMaterialQtyPerPart*line.quantity:bomMaterialQtyPerPart;
+    const materialRate=lineRate>0?lineRate:masterRate>0?masterRate:bomWeightedMaterialRate;
+    return materialQty>0&&materialRate>0&&(!useBomQty||bomQuantitiesComplete)&&(!useBomRate||bomRatesComplete);
   };
   const standardCosts=standardRecords.filter(row=>row.componentId===selected?.id).sort((a,b)=>a.processTypeId.localeCompare(b.processTypeId));
   const standardProcessCostPerPart=standardCosts.reduce((sum,row)=>sum+row.quantityPerPart*row.ratePerProcess+row.transportCostPerPart,0);
