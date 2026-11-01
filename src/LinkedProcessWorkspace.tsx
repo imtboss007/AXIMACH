@@ -359,7 +359,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         </div>
       </div>
     </section>
-    <ProcessMap3DViewer operations={visibleOperations} vendors={vendors.map(vendor=>({id:vendor.id,company:vendor.company}))} selectedOperationId={selectedOperationId} showVendor={showVendorOnMap} showPrice={showPriceOnMap} onSelectOperation={setSelectedOperationId}/>
+    <ProcessMap3DViewer key={poLineId} operations={visibleOperations} vendors={vendors.map(vendor=>({id:vendor.id,company:vendor.company}))} selectedOperationId={selectedOperationId} showVendor={showVendorOnMap} showPrice={showPriceOnMap} onSelectOperation={setSelectedOperationId}/>
     <div className="linked-process-layout">
       <section className="surface-panel linked-route-canvas">
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></div>
