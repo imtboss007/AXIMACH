@@ -36,7 +36,7 @@ function MultiSelectFilter({ label, options, value, onChange, optional = false, 
     if(noneSelected){onChange([id]);return;}
     const current=value.length===0?optionIds:value;
     const next=current.includes(id)?current.filter(item=>item!==id):[...current,id];
-    onChange(next.length===0?["__none__"]:next.length===options.length?[]:next);
+    onChange(next.length===0?["__none__"]:next.length===optionIds.length?[]:next);
   };
   return <div className={"pp-filter"+(isOpen?" pp-filter-open":"")} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget as Node|null))onClose();}}>
     <label>{label}{optional ? <small>Optional</small> : null}</label>
