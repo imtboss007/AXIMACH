@@ -35,11 +35,86 @@ const STYLE_VARIANTS_PER_ICON = palettes.length * finishes.length * DEPTHS.lengt
 const STORAGE_ASSIGNMENTS = "aximach.icon-assignments.v1";
 const STORAGE_FAVOURITES = "aximach.icon-favourites.v1";
 const STORAGE_PRESETS = "aximach.icon-presets.v1";
+const STORAGE_UPDATED_AT = "aximach.icon-preferences-updated-at.v1";
+const SHARED_SETTINGS_PATH = "/api/ui-preferences";
 
+async function persistShared(bundle: PreferenceBundle) {
+  if (!iconServerConfig()) return;
+  try {
+    const result = await putSharedPreferences(bundle);
+    if (result.shared) {
+      const current = readPreferenceBundle();
+      if ((Date.parse(result.preferences.updatedAt || "") || 0) > (Date.parse(current.updatedAt || "") || 0)) writePreferenceBundle(result.preferences);
+      window.dispatchEvent(new Event("aximach-icon-assignments-updated"));
+    }
+  } catch {
+    // The local copy remains saved; the visible sync state reports the remote failure.
+  }
+}
 function safeRead<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try { const value = window.localStorage.getItem(key); return value ? JSON.parse(value) as T : fallback; }
   catch { return fallback; }
+}
+type PreferenceBundle = { assignments: Assignments; favourites: string[]; presets: IconAssignment[]; updatedAt: string };
+function readPreferenceBundle(): PreferenceBundle {
+  return {
+    assignments: safeRead<Assignments>(STORAGE_ASSIGNMENTS, {}),
+    favourites: safeRead<string[]>(STORAGE_FAVOURITES, []),
+    presets: safeRead<IconAssignment[]>(STORAGE_PRESETS, []),
+    updatedAt: typeof window === "undefined" ? "" : window.localStorage.getItem(STORAGE_UPDATED_AT) || "1970-01-01T00:00:00.000Z"
+  };
+}
+function writePreferenceBundle(bundle: PreferenceBundle) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_ASSIGNMENTS, JSON.stringify(bundle.assignments));
+  window.localStorage.setItem(STORAGE_FAVOURITES, JSON.stringify(bundle.favourites));
+  window.localStorage.setItem(STORAGE_PRESETS, JSON.stringify(bundle.presets));
+  window.localStorage.setItem(STORAGE_UPDATED_AT, bundle.updatedAt);
+  window.dispatchEvent(new Event("aximach-icon-assignments-updated"));
+}
+function iconServerConfig() {
+  if (typeof window === "undefined") return null;
+  const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\\/+$/, "");
+  const key = window.localStorage.getItem("aximach.scheduler.key") || "";
+  if (!base || !key) return null;
+  if (!base.startsWith("https://") && !/^http:\\/\\/(localhost|127\\.0\\.0\\.1)(:\\d+)?$/.test(base)) return null;
+  return { base, key };
+}
+async function putSharedPreferences(bundle: PreferenceBundle) {
+  const cfg = iconServerConfig();
+  if (!cfg) return { shared: false as const, preferences: bundle };
+  const response = await fetch(cfg.base + SHARED_SETTINGS_PATH, {
+    method: "PUT",
+    headers: { "content-type": "application/json", "x-aximach-key": cfg.key },
+    body: JSON.stringify({ preferences: bundle })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Could not sync AXIMACH visual preferences.");
+  return { shared: true as const, preferences: (data.preferences || bundle) as PreferenceBundle };
+}
+async function fetchSharedPreferences() {
+  const cfg = iconServerConfig();
+  if (!cfg) return { shared: false as const, preferences: readPreferenceBundle() };
+  const response = await fetch(cfg.base + SHARED_SETTINGS_PATH, { headers: { "x-aximach-key": cfg.key } });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Could not read shared AXIMACH visual preferences.");
+  const remote = data.preferences as PreferenceBundle | null;
+  const local = readPreferenceBundle();
+  const remoteAt = Date.parse(remote?.updatedAt || "") || 0;
+  const localAt = Date.parse(local.updatedAt || "") || 0;
+  if (remote && remoteAt > localAt) {
+    const next = {
+      assignments: remote.assignments || {},
+      favourites: remote.favourites || [],
+      presets: remote.presets || [],
+      updatedAt: remote.updatedAt
+    };
+    writePreferenceBundle(next);
+    return { shared: true as const, preferences: next };
+  }
+  if (!remote || localAt > remoteAt) return putSharedPreferences({ ...local, updatedAt: local.updatedAt === "1970-01-01T00:00:00.000Z" ? new Date().toISOString() : local.updatedAt });
+  return { shared: true as const, preferences: local };
 }
 function readAssignments(): Assignments { return safeRead<Assignments>(STORAGE_ASSIGNMENTS, {}); }
 function normaliseWords(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
@@ -104,8 +179,54 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const [assignments, setAssignments] = useState<Assignments>(() => readAssignments());
   const [presets, setPresets] = useState<IconAssignment[]>(() => safeRead<IconAssignment[]>(STORAGE_PRESETS, []));
   const [notice, setNotice] = useState("");
+  const [syncStatus, setSyncStatus] = useState<"local" | "syncing" | "synced" | "error">("local");
 
   useEffect(() => { setPage(0); }, [search, tab]);
+  useEffect(() => {
+    let cancelled = false;
+    let busy = false;
+    const sync = async () => {
+      if (busy) return;
+      if (!iconServerConfig()) { if (!cancelled) setSyncStatus("local"); return; }
+      busy = true;
+      if (!cancelled) setSyncStatus("syncing");
+      try {
+        const result = await fetchSharedPreferences();
+        if (cancelled) return;
+        setAssignments(result.preferences.assignments || {});
+        setFavourites(result.preferences.favourites || []);
+        setPresets(result.preferences.presets || []);
+        setSyncStatus(result.shared ? "synced" : "local");
+      } catch {
+        if (!cancelled) setSyncStatus("error");
+      } finally { busy = false; }
+    };
+    const refresh = () => {
+      const next = readPreferenceBundle();
+      setAssignments(next.assignments);
+      setFavourites(next.favourites);
+      setPresets(next.presets);
+      void sync();
+    };
+    const active = () => { if (document.visibilityState !== "hidden") void sync(); };
+    window.addEventListener("storage", refresh);
+    window.addEventListener("aximach-icon-assignments-updated", refresh);
+    window.addEventListener("focus", active);
+    window.addEventListener("online", active);
+    document.addEventListener("visibilitychange", active);
+    void sync();
+    const timer = window.setInterval(() => { void sync(); }, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("aximach-icon-assignments-updated", refresh);
+      window.removeEventListener("focus", active);
+      window.removeEventListener("online", active);
+      document.removeEventListener("visibilitychange", active);
+    };
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -132,25 +253,28 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const toggleFavourite = (name: string) => {
     const next = favourites.includes(name) ? favourites.filter((item) => item !== name) : [...favourites, name];
     setFavourites(next);
-    window.localStorage.setItem(STORAGE_FAVOURITES, JSON.stringify(next));
+    const bundle = { ...readPreferenceBundle(), favourites: next, updatedAt: new Date().toISOString() };
+    writePreferenceBundle(bundle);
+    void persistShared(bundle);
   };
   const saveAssignment = () => {
     const assignment: IconAssignment = { iconName: selectedIcon, palette: paletteName, finish, depth, tilt, updatedAt: new Date().toISOString() };
     const next = { ...assignments, [family]: assignment };
     setAssignments(next);
-    window.localStorage.setItem(STORAGE_ASSIGNMENTS, JSON.stringify(next));
     const nextPresets = [assignment, ...presets.filter((preset) => preset.iconName !== assignment.iconName || preset.palette !== assignment.palette || preset.finish !== assignment.finish)].slice(0, 120);
     setPresets(nextPresets);
-    window.localStorage.setItem(STORAGE_PRESETS, JSON.stringify(nextPresets));
-    window.dispatchEvent(new Event("aximach-icon-assignments-updated"));
+    const bundle = { assignments: next, favourites, presets: nextPresets, updatedAt: new Date().toISOString() };
+    writePreferenceBundle(bundle);
+    void persistShared(bundle);
     setNotice(`Saved ${selectedIcon} for ${family}. Matching process nodes now use this 3D icon.`);
   };
   const removeAssignment = (targetFamily: string) => {
     const next = { ...assignments };
     delete next[targetFamily];
     setAssignments(next);
-    window.localStorage.setItem(STORAGE_ASSIGNMENTS, JSON.stringify(next));
-    window.dispatchEvent(new Event("aximach-icon-assignments-updated"));
+    const bundle = { ...readPreferenceBundle(), assignments: next, updatedAt: new Date().toISOString() };
+    writePreferenceBundle(bundle);
+    void persistShared(bundle);
     setNotice(`Cleared the custom icon for ${targetFamily}. AXIMACH default icon restored.`);
   };
 
@@ -209,7 +333,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                 {notice && <div className="ax-icon-notice"><Check size={13}/>{notice}</div>}
               </aside>
             </div>
-            <footer className="ax-icon-studio-bottom"><span><i/> Saved on this device · available in the process map after saving</span><span>Icon glyphs: Tabler Icons · MIT license</span></footer>
+            <footer className="ax-icon-studio-bottom"><span><i/> {syncStatus === "synced" ? "Saved and synced across connected AXIMACH devices" : syncStatus === "syncing" ? "Saving visual preferences to the shared AXIMACH server…" : syncStatus === "error" ? "Saved on this device · shared sync failed" : "Saved on this device · shared server not configured"}</span><span>Icon glyphs: Tabler Icons · MIT license</span></footer>
           </motion.section>
         </motion.div>
       )}
