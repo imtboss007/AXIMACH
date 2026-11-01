@@ -1,9 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
+import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, Download, Eye, EyeOff, FileText, GitBranch, Package, Plus, Printer, Search, ShieldAlert, ShieldCheck, SlidersHorizontal, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, vendorSupportsProcessType, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
+import ProcessMap3DViewer from "./ProcessMap3DViewer";
+import { saveBlobFile } from "./fileDownload";
 
 type ProcessSelection = { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string };
+type ProcessExportField = "process" | "givenDate" | "deliveryDate" | "quantity" | "vendor" | "price";
+const PROCESS_EXPORT_COLUMNS: { key: ProcessExportField; label: string }[] = [
+  { key: "process", label: "Process" },
+  { key: "givenDate", label: "Given date" },
+  { key: "deliveryDate", label: "Delivery date" },
+  { key: "quantity", label: "Quantity" },
+  { key: "vendor", label: "Vendor" },
+  { key: "price", label: "Price / piece" }
+];
+const processExportValue = (operation: OperationRecord, field: ProcessExportField, vendorName: string) => {
+  switch (field) {
+    case "process": return operation.category ? operation.category + " · " + operation.name : operation.name;
+    case "givenDate": return operation.plannedStart || "";
+    case "deliveryDate": return operation.plannedEnd || "";
+    case "quantity": return operation.quantity;
+    case "vendor": return vendorName;
+    case "price": return operation.ratePerPart > 0 ? operation.ratePerPart : "";
+  }
+};
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; initialSelection?: ProcessSelection | null; onInitialSelectionApplied?: () => void; onOpenQuality?: (operationId: string) => void; onOpenWipTransfer?: (selection: ProcessSelection) => void };
 type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "machineResourceId" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "setupHours" | "cycleTimeSeconds" | "ratePerPart" | "actualRatePerPart" | "vendorPaymentStatus" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { plannedStartTime: string; plannedEndTime: string };
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
@@ -36,6 +57,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [search, setSearch] = useState("");
   const [vertical, setVertical] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [showVendorOnMap, setShowVendorOnMap] = useState(false);
+  const [showPriceOnMap, setShowPriceOnMap] = useState(false);
+  const [exportFields, setExportFields] = useState<ProcessExportField[]>(["process", "givenDate", "deliveryDate", "quantity"]);
   const [showEditor, setShowEditor] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
@@ -248,6 +272,35 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const selectedVendor = vendors.find(v => v.id === activeOperation?.vendorId);
   const selectedOperationQuotations = componentQuotes.filter(q => q.operationId === activeOperation?.id);
   const deliveryState = !finalDelivery ? "No delivery date" : allDone ? "Route complete" : lateOps.length ? "At risk" : "Scheduled";
+  const selectedExportColumns = PROCESS_EXPORT_COLUMNS.filter(column => exportFields.includes(column.key));
+  const exportVendorName = (operation: OperationRecord) => vendors.find(vendor => vendor.id === operation.vendorId)?.company || "";
+  const exportCell = (value: unknown) => '"' + String(value ?? "").replace(/"/g, '""') + '"';
+  const toggleExportField = (field: ProcessExportField) => setExportFields(current =>
+    current.includes(field) ? current.filter(item => item !== field) : [...current, field]
+  );
+  const downloadProcessRoute = async () => {
+    if (!visibleOperations.length) { onNotice("There are no visible operation rows to export. Clear or change the search filter."); return; }
+    if (!selectedExportColumns.length) { onNotice("Choose at least one export field."); return; }
+    const rows = [
+      selectedExportColumns.map(column => exportCell(column.label)).join(","),
+      ...visibleOperations.map(operation => selectedExportColumns
+        .map(column => exportCell(processExportValue(operation, column.key, exportVendorName(operation))))
+        .join(","))
+    ];
+    const baseName = [selectedComponent?.partNumber || "Component", selectedPO?.number || "Process-Map"]
+      .join("-").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "");
+    try {
+      const result = await saveBlobFile("AXIMACH-" + baseName + "-Process-Map.csv", new Blob(["\\uFEFF" + rows.join("\\r\\n")], { type: "text/csv;charset=utf-8" }));
+      onNotice(result === "cancelled" ? "CSV download cancelled." : "Process Map CSV prepared with " + selectedExportColumns.length + " selected field(s) and " + visibleOperations.length + " operation(s).");
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Could not prepare the Process Map CSV.");
+    }
+  };
+  const printProcessRoute = () => {
+    if (!visibleOperations.length) { onNotice("There are no visible operation rows to print."); return; }
+    if (!selectedExportColumns.length) { onNotice("Choose at least one print field."); return; }
+    window.print();
+  };
   const tab = (id: string, title: string, Icon: typeof Workflow) => <button key={id} className={"route-tab " + (id === "process-map" ? "route-tab-current" : "")} onClick={() => id === "process-map" ? undefined : onSelectModule(id === "components" ? "components" : id === "purchasing" ? "purchasing" : id === "inventory" ? "inventory" : id === "costing" ? "costing" : id === "documents" ? "engineering-change" : id === "history" ? "reports" : "quality")}><Icon size={14}/>{title}</button>;
 
   return <section className="workspace-page linked-process-page">
