@@ -109,18 +109,18 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     setEditingId("");
     setShowEditor(true);
   };
-  const editActive = () => {
-    if (!activeOperation) return;
-    setProcessTypeId(activeOperation.processTypeId || "");
-    setProcessCategoryId(processTypes.find(item=>item.id===activeOperation.processTypeId)?.categoryId || "");
+  const editActive = (operation: OperationRecord | undefined = activeOperation) => {
+    if (!operation) return;
+    setProcessTypeId(operation.processTypeId || "");
+    setProcessCategoryId(processTypes.find(item=>item.id===operation.processTypeId)?.categoryId || "");
     setDraft({
-      name: activeOperation.name, category: activeOperation.category, machine: activeOperation.machine, machineResourceId: activeOperation.machineResourceId || "", vendorId: activeOperation.vendorId,
-      status: activeOperation.status, plannedStart: activeOperation.plannedStart, plannedEnd: activeOperation.plannedEnd, plannedStartTime: activeOperation.plannedSlotStartAt?new Date(activeOperation.plannedSlotStartAt).toTimeString().slice(0,5):"", plannedEndTime: activeOperation.plannedSlotEndAt?new Date(activeOperation.plannedSlotEndAt).toTimeString().slice(0,5):"", actualStart: activeOperation.actualStart || "", actualEnd: activeOperation.actualEnd || "",
-      quantity: activeOperation.quantity, completed: activeOperation.completed, accepted: activeOperation.accepted, rejected: activeOperation.rejected, setupHours: activeOperation.setupHours || 0, cycleTimeSeconds: activeOperation.cycleTimeSeconds || 0,
-      ratePerPart: activeOperation.ratePerPart, actualRatePerPart: activeOperation.actualRatePerPart || 0, vendorPaymentStatus: activeOperation.vendorPaymentStatus || "Not Paid", transportVendorId: activeOperation.transportVendorId || "", transportCost: activeOperation.transportCost, transportPickup: activeOperation.transportPickup,
-      transportDelivery: activeOperation.transportDelivery, qualityNotes: activeOperation.qualityNotes, inspectionResult: activeOperation.inspectionResult || "", notes: activeOperation.notes, branch: activeOperation.branch
+      name: operation.name, category: operation.category, machine: operation.machine, machineResourceId: operation.machineResourceId || "", vendorId: operation.vendorId,
+      status: operation.status, plannedStart: operation.plannedStart, plannedEnd: operation.plannedEnd, plannedStartTime: operation.plannedSlotStartAt?new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5):"", plannedEndTime: operation.plannedSlotEndAt?new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5):"", actualStart: operation.actualStart || "", actualEnd: operation.actualEnd || "",
+      quantity: operation.quantity, completed: operation.completed, accepted: operation.accepted, rejected: operation.rejected, setupHours: operation.setupHours || 0, cycleTimeSeconds: operation.cycleTimeSeconds || 0,
+      ratePerPart: operation.ratePerPart, actualRatePerPart: operation.actualRatePerPart || 0, vendorPaymentStatus: operation.vendorPaymentStatus || "Not Paid", transportVendorId: operation.transportVendorId || "", transportCost: operation.transportCost, transportPickup: operation.transportPickup,
+      transportDelivery: operation.transportDelivery, qualityNotes: operation.qualityNotes, inspectionResult: operation.inspectionResult || "", notes: operation.notes, branch: operation.branch
     });
-    setEditingId(activeOperation.id); setShowEditor(true);
+    setEditingId(operation.id); setShowEditor(true);
   };
   const saveOperation = () => {
     if (!selectedPO || !selectedLine || !selectedComponent) { onNotice("Select a PO component line first."); return; }
@@ -329,7 +329,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <div className="linked-node-track">{laneOperations.map((op,index) => {
               const vendor = vendors.find(v => v.id === op.vendorId);
               const selected = op.id === activeOperation?.id;
-              return <div className="linked-node-wrap" key={op.id}><button className={"linked-operation-node status-" + op.status.toLowerCase().replaceAll(" ","-") + (alternate ? " linked-node-alternate" : "") + (selected ? " linked-node-selected" : "")} onClick={() => {setSelectedOperationId(op.id);setShowEditor(false);}}><span className="linked-node-icon">{op.name.toLowerCase().includes("transport") || op.name.toLowerCase().includes("dispatch") ? <Truck size={19}/> : op.name.toLowerCase().includes("inspect") || op.name.toLowerCase().includes("quality") ? <ClipboardCheck size={19}/> : op.name.toLowerCase().includes("grind") ? <Wrench size={19}/> : <Workflow size={19}/>}</span><strong>{op.name}</strong><small>OP-{String(op.sequence).padStart(3,"0")}</small><span>{op.status}</span><small>{vendor?.company || "Vendor unassigned"}</small><small>Start: {shortDate(op.plannedStart)} · {shortTime(op.plannedSlotStartAt)}</small><small>Delivery: {shortDate(op.plannedEnd)} · {shortTime(op.plannedSlotEndAt)}</small><small>Vendor payment: {vendor ? (op.vendorPaymentStatus || "Not Paid") : "—"}</small><small>{daysBetween(op.plannedStart,op.plannedEnd) || "—"} day(s)</small></button>{index < laneOperations.length - 1 && <span className="linked-node-arrow"><ArrowRight size={18}/></span>}</div>;
+              return <div className="linked-node-wrap" key={op.id}><button className={"linked-operation-node status-" + op.status.toLowerCase().replaceAll(" ","-") + (alternate ? " linked-node-alternate" : "") + (selected ? " linked-node-selected" : "")} onClick={() => {setSelectedOperationId(op.id);editActive(op);}}><span className="linked-node-icon">{op.name.toLowerCase().includes("transport") || op.name.toLowerCase().includes("dispatch") ? <Truck size={19}/> : op.name.toLowerCase().includes("inspect") || op.name.toLowerCase().includes("quality") ? <ClipboardCheck size={19}/> : op.name.toLowerCase().includes("grind") ? <Wrench size={19}/> : <Workflow size={19}/>}</span><strong>{op.name}</strong><small>OP-{String(op.sequence).padStart(3,"0")}</small><span>{op.status}</span><small>{vendor?.company || "Vendor unassigned"}</small><small>Start: {shortDate(op.plannedStart)} · {shortTime(op.plannedSlotStartAt)}</small><small>Delivery: {shortDate(op.plannedEnd)} · {shortTime(op.plannedSlotEndAt)}</small><small>Vendor payment: {vendor ? (op.vendorPaymentStatus || "Not Paid") : "—"}</small><small>{daysBetween(op.plannedStart,op.plannedEnd) || "—"} day(s)</small></button>{index < laneOperations.length - 1 && <span className="linked-node-arrow"><ArrowRight size={18}/></span>}</div>;
             })}</div>
           </section>;
         })}{!visibleOperations.length && <div className="module-empty-state">No operations match this search.</div>}</div></div> : <div className="module-empty-state linked-no-operations"><Workflow size={28}/><h3>No operations saved for this component</h3><p>Add only the operations this part actually requires. There is no fixed stage limit and no sample CNC or heat-treatment data.</p><button className="button-primary" disabled={!selectedLine} onClick={() => startAdd()}><Plus size={14}/> Add first operation</button></div>}
