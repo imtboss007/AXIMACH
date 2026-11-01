@@ -38,6 +38,24 @@ export type VendorRecord = {
   status: string; sourceContactId: string; whatsappSyncedAt: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type Contact360GroupType = "Client" | "Vendor" | "Project" | "Lead" | "Other";
+export type Contact360GroupRecord = {
+  id: string; name: string; type: Contact360GroupType; description: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type Contact360ContactRecord = {
+  id: string; accountName: string; contactName: string; role: string;
+  phone: string; whatsappNumber: string; email: string; address: string;
+  groupIds: string[]; linkedVendorId: string; syncToVendorMaster: boolean; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type Contact360FollowUpStatus = "Open" | "Waiting for reply" | "Follow-up due" | "Completed" | "On hold";
+export type Contact360FollowUpRecord = {
+  id: string; contactId: string; groupId: string; description: string;
+  moduleType: string; moduleReference: string; amount: number; currency: string;
+  promisedBackDate: string; nextFollowUpDate: string; status: Contact360FollowUpStatus;
+  owner: string; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export const vendorProcessTypeIds = (vendor: VendorRecord): string[] => {
   const ids = [...(vendor.processTypeIds || []), ...(vendor.processTypeId ? [vendor.processTypeId] : [])];
   return [...new Set(ids.filter(Boolean))];
@@ -148,6 +166,8 @@ export type ManufacturingData = {
   qualityInspections: QualityInspectionRecord[];
   inventoryTransactions: InventoryTransactionRecord[]; wipTransfers: WipTransferRecord[]; customerDispatches: CustomerDispatchRecord[];
   machineResources: MachineResourceRecord[]; maintenanceEvents: MaintenanceEventRecord[];
+  contact360Groups: Contact360GroupRecord[]; contact360Contacts: Contact360ContactRecord[];
+  contact360FollowUps: Contact360FollowUpRecord[];
 };
 
 export const nowIso = () => new Date().toISOString();
@@ -159,7 +179,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], processCategories: [], processTypes: [], processVendorRates: [], componentProcessCosts: [], materials: [], bomLines: [], qualityInspections: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: [], machineResources: [], maintenanceEvents: []
+  operations: [], quotations: [], processCategories: [], processTypes: [], processVendorRates: [], componentProcessCosts: [], materials: [], bomLines: [], qualityInspections: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: [], machineResources: [], maintenanceEvents: [], contact360Groups: [], contact360Contacts: [], contact360FollowUps: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -184,7 +204,10 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     wipTransfers: Array.isArray(value?.wipTransfers) ? value.wipTransfers : empty.wipTransfers,
     customerDispatches: Array.isArray(value?.customerDispatches) ? value.customerDispatches : empty.customerDispatches,
     machineResources: Array.isArray(value?.machineResources) ? value.machineResources : empty.machineResources,
-    maintenanceEvents: Array.isArray(value?.maintenanceEvents) ? value.maintenanceEvents : empty.maintenanceEvents
+    maintenanceEvents: Array.isArray(value?.maintenanceEvents) ? value.maintenanceEvents : empty.maintenanceEvents,
+    contact360Groups: Array.isArray(value?.contact360Groups) ? value.contact360Groups : empty.contact360Groups,
+    contact360Contacts: Array.isArray(value?.contact360Contacts) ? value.contact360Contacts : empty.contact360Contacts,
+    contact360FollowUps: Array.isArray(value?.contact360FollowUps) ? value.contact360FollowUps : empty.contact360FollowUps
   };
 }
 
@@ -282,7 +305,10 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     wipTransfers: mergeRows(local.wipTransfers, remote.wipTransfers),
     customerDispatches: mergeRows(local.customerDispatches, remote.customerDispatches),
     machineResources: mergeRows(local.machineResources, remote.machineResources),
-    maintenanceEvents: mergeRows(local.maintenanceEvents, remote.maintenanceEvents)
+    maintenanceEvents: mergeRows(local.maintenanceEvents, remote.maintenanceEvents),
+    contact360Groups: mergeRows(local.contact360Groups, remote.contact360Groups),
+    contact360Contacts: mergeRows(local.contact360Contacts, remote.contact360Contacts),
+    contact360FollowUps: mergeRows(local.contact360FollowUps, remote.contact360FollowUps)
   };
 }
 
