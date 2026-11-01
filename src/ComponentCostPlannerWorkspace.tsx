@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowRight, BadgeCheck, Boxes, Calculator, Check, CircleDollarSign,
-  ClipboardList, FileText, Gauge, Package, Pencil, Plus, Search,
-  ShieldCheck, Trash2, TrendingUp, Workflow, Wrench, X
+  ArrowRight, Boxes, Calculator, Check, CircleDollarSign,
+  ClipboardList, Package, Pencil, Plus, Search, ShieldCheck,
+  Trash2, TrendingUp, Workflow, X
 } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData, vendorSupportsProcessType,
