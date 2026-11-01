@@ -575,7 +575,11 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                   const assignments={...current.processAssignments};
                   if(event.target.checked&&!assignments[type.id]){
                     const existing=operations.find(operation=>operation.poLineId===current.poLineId&&operation.processTypeId===type.id&&!operation.deletedAt);
-                    assignments[type.id]=existing?assignmentFromOperation(existing):emptyProcessAssignment(current.quantity);
+                    const po=orders.find(item=>item.id===current.poId);
+                    const componentId=po?.lines.find(item=>item.id===current.poLineId)?.componentId;
+                    const benchmark=(data.componentProcessCosts||[]).find(item=>item.componentId===componentId&&item.processTypeId===type.id&&!item.deletedAt);
+                    const plannedRate=benchmark?benchmark.quantityPerPart*benchmark.ratePerProcess+benchmark.transportCostPerPart:undefined;
+                    assignments[type.id]=existing?assignmentFromOperation(existing):{...emptyProcessAssignment(current.quantity),ratePerPart:plannedRate===undefined?"":String(plannedRate)};
                   }
                   const single=ids.length===1?assignments[ids[0]]:undefined;
                   return {...current,processTypeIds:ids,processAssignments:assignments,name:ids.length?processTypes.find(item=>item.id===ids[0])?.name||"":current.name,category:processCategories.find(item=>item.id===current.categoryId)?.name||current.category,vendorId:single?.vendorId||"",...(single?{plannedStart:single.plannedStart,plannedEnd:single.plannedEnd,plannedStartTime:single.plannedStartTime,plannedEndTime:single.plannedEndTime,quantity:single.quantity,ratePerPart:single.ratePerPart,status:single.status,vendorPaymentStatus:single.vendorPaymentStatus,notes:single.notes}:{})};
