@@ -315,7 +315,14 @@ function DashboardWorkspace(props: {
   onOpenOperation: (selection:{companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string}) => void;
 }) {
   const { aiPrompt, aiResponse, notice, onAiPromptChange, onRunCommand, onNotice, onSelectModule, onOpenModules, onOpenOperation } = props;
-  const actualData = readManufacturingData();
+  const { data: actualData } = useManufacturingData();
+  const liveOperations=activeRows(actualData.operations);
+  const todayKey=new Date().toISOString().slice(0,10);
+  const dueLimit=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const deliveryLines=actualData.purchaseOrders.flatMap(po=>po.lines.filter(line=>!("deletedAt" in line&&(line as typeof line & {deletedAt?:string}).deletedAt)).map(line=>({line,due:line.targetDelivery||po.targetDelivery}))).filter(row=>row.due&&row.due>=todayKey&&row.due<=dueLimit);
+  const vendorPaymentReview=liveOperations.filter(op=>op.vendorId&&(op.vendorPaymentStatus||"Not Paid")!=="Paid").length;
+  const qualityHolds=liveOperations.filter(op=>op.status==="Quality hold").length;
+  const inTransitMovements=activeRows(actualData.wipTransfers).filter(row=>row.status==="In transit"||row.status==="Partially received").length+activeRows(actualData.customerDispatches).filter(row=>row.status==="In transit"||row.status==="Partially delivered").length;
   const openSavedOperation=(operation:typeof actualData.operations[number])=>{
     const po=actualData.purchaseOrders.find(row=>row.id===operation.poId);
     if(!po){onSelectModule("production");return;}
@@ -365,6 +372,11 @@ function DashboardWorkspace(props: {
         <MetricCard title="PO component lines" value={String(activeRows(actualData.purchaseOrders).reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0))} trend="Linked records" detail="Quantity and delivery target" icon={Package} accent="violet"/>
         <MetricCard title="Components" value={String(activeRows(actualData.components).length)} trend="Saved records" detail="Part numbers and revisions" icon={Boxes} accent="green"/>
         <MetricCard title="Operations" value={String(activeRows(actualData.operations).length)} trend="Saved records" detail="Routes linked to PO lines" icon={Activity} accent="amber"/>
+        <MetricCard title="Vendors" value={String(activeRows(actualData.vendors).length)} trend="Saved master records" detail="Single process per vendor" icon={Users} accent="blue"/>
+        <MetricCard title="Deliveries due in 7 days" value={String(deliveryLines.length)} trend="PO line targets" detail="Saved due dates only" icon={CalendarClock} accent="violet"/>
+        <MetricCard title="Unpaid vendor operations" value={String(vendorPaymentReview)} trend="Paid / Not Paid" detail="Process Map source" icon={CircleDollarSign} accent="amber"/>
+        <MetricCard title="Quality holds" value={String(qualityHolds)} trend="Open operation holds" detail="From Process Map status" icon={ShieldAlert} accent="red"/>
+        <MetricCard title="Movements in transit" value={String(inTransitMovements)} trend="WIP + customer dispatch" detail="Awaiting receipt / delivery" icon={Truck} accent="green"/>
       </section>
       <section className="dashboard-grid actual-data-dashboard">
         <div className="surface-panel flow-preview">
