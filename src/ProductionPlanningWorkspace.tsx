@@ -6,12 +6,12 @@ import SearchablePicker from "./SearchablePicker";
 type Props = { onBack: () => void; onNotice: (value: string) => void; onSelectModule: (id: string) => void };
 type FilterOption = { id: string; label: string };
 type ProcessDraft = {
-  companyId: string; poId: string; poLineId: string; name: string; category: string; vendorId: string;
+  companyId: string; poId: string; poLineId: string; categoryId: string; processTypeIds: string[]; name: string; category: string; vendorId: string;
   plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string; quantity: string; ratePerPart: string;
   status: LifecycleStatus; branch: string; parentId: string; notes: string;
 };
 const emptyDraft = (): ProcessDraft => ({
-  companyId: "", poId: "", poLineId: "", name: "", category: "", vendorId: "",
+  companyId: "", poId: "", poLineId: "", categoryId: "", processTypeIds: [], name: "", category: "", vendorId: "",
   plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "", quantity: "", ratePerPart: "",
   status: "Queued", branch: "Main route", parentId: "", notes: ""
 });
@@ -63,6 +63,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const components = activeRows(data.components);
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
+  const processCategories = activeRows(data.processCategories);
+  const processTypes = activeRows(data.processTypes);
 
   const [companyIds, setCompanyIds] = useState<string[]>([]);
   const [poIds, setPoIds] = useState<string[]>([]);
@@ -85,6 +87,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const [showEditor, setShowEditor] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<ProcessDraft>(emptyDraft());
+  const draftProcessTypes=processTypes.filter(item=>draft.processTypeIds.includes(item.id));
+  const draftVendorOptions=draftProcessTypes.length?vendors.filter(vendor=>draftProcessTypes.every(type=>vendorSupportsProcessType(vendor,type.id))):vendors;
 
   const companyOptions = useMemo(() => companies.map(company => ({ id: company.id, label: company.name })), [companies]);
   const filteredCompanyOrders = orders.filter(po => isSelected(companyIds, po.companyId));
@@ -171,8 +175,10 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   };
   const openEdit = (operation: OperationRecord) => {
     const po = orders.find(item => item.id === operation.poId);
+    const processType=processTypes.find(item=>item.id===operation.processTypeId);
     setDraft({
       companyId: po?.companyId || "", poId: operation.poId, poLineId: operation.poLineId,
+      categoryId:processType?.categoryId||"",processTypeIds:operation.processTypeId?[operation.processTypeId]:[],
       name: operation.name, category: operation.category, vendorId: operation.vendorId || "",
       plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "", plannedStartTime: operation.plannedSlotStartAt ? new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5) : "", plannedEndTime: operation.plannedSlotEndAt ? new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5) : "",
       quantity: String(operation.quantity), ratePerPart: String(operation.ratePerPart),
@@ -191,37 +197,57 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     const line = po?.lines.find(item => item.id === draft.poLineId);
     const component = components.find(item => item.id === line?.componentId);
     if (!po || !line || !component) { onNotice("Select a saved company, purchase order and component before saving the process."); return; }
-    if (!draft.name.trim()) { onNotice("Enter the process name."); return; }
+    const previous=editingId?operations.find(operation=>operation.id===editingId):undefined;
+    const selectedTypes=draft.processTypeIds.map(id=>processTypes.find(type=>type.id===id)).filter((item):item is typeof processTypes[number]=>Boolean(item));
+    if(!selectedTypes.length&&!(editingId&&previous&&!previous.processTypeId&&draft.name.trim())){onNotice("Choose a Process Directory category and one or more processes.");return;}
+    if(selectedTypes.length&&selectedTypes.some(type=>type.categoryId!==draft.categoryId)){onNotice("Choose processes from the selected category. Add another process in a separate operation if it belongs to a different category.");return;}
     const quantity = Number(draft.quantity || line.quantity);
     const rate = Number(draft.ratePerPart || 0);
-    if (!Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(rate) || rate < 0) { onNotice("Quantity and price must be valid non-negative numbers."); return; }
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(rate) || rate < 0) { onNotice("Quantity must be positive and price must be a valid non-negative number."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Due date cannot be earlier than the start date."); return; }
+    if(draft.plannedStart&&draft.plannedEnd&&draft.plannedStart===draft.plannedEnd&&draft.plannedStartTime&&draft.plannedEndTime&&draft.plannedEndTime<draft.plannedStartTime){onNotice("Delivery time cannot be earlier than the start time on the same day.");return;}
+    if(draft.vendorId){
+      const vendor=vendors.find(item=>item.id===draft.vendorId);
+      if(!vendor){onNotice("Select a saved Vendor Master record.");return;}
+      if(selectedTypes.length&&selectedTypes.some(type=>!vendorSupportsProcessType(vendor,type.id))){onNotice("This vendor is not assigned to every selected process. Choose a vendor capable of all selected processes or save them separately.");return;}
+      if(!selectedTypes.length&&previous?.vendorId!==vendor.id){onNotice("A vendor can only be assigned after selecting its Process Directory process.");return;}
+    }
     const stamp = nowIso();
-    const id = editingId || makeId("operation");
+    const typesToSave:(typeof processTypes[number]|null)[]=selectedTypes.length?selectedTypes:[null];
+    const idsToSave=typesToSave.map((_,index)=>editingId&&index===0?editingId:makeId("operation"));
     update(current => {
-      const previous = current.operations.find(operation => operation.id === id);
-      const lineOperations = current.operations.filter(operation => operation.poLineId === line.id && operation.poId === po.id && !operation.deletedAt);
-      const next: OperationRecord = {
-        id, poId: po.id, poLineId: line.id, componentId: component.id,
-        sequence: previous?.sequence ?? (Math.max(0, ...lineOperations.map(operation => operation.sequence)) + 10),
-        name: draft.name.trim(), category: draft.category.trim(), machine: previous?.machine || "",
-        machineResourceId: previous?.machineResourceId, vendorId: draft.vendorId,
-        status: draft.status, plannedStart: draft.plannedStart, plannedEnd: draft.plannedEnd,
-        actualStart: previous?.actualStart || "", actualEnd: previous?.actualEnd || "",
-        plannedSlotStartAt: draft.plannedStart && draft.plannedStartTime ? new Date(draft.plannedStart+"T"+draft.plannedStartTime).toISOString() : undefined, plannedSlotEndAt: draft.plannedEnd && draft.plannedEndTime ? new Date(draft.plannedEnd+"T"+draft.plannedEndTime).toISOString() : undefined,
-        quantity, completed: previous?.completed || 0, accepted: previous?.accepted || 0, rejected: previous?.rejected || 0,
-        setupHours: previous?.setupHours || 0, cycleTimeSeconds: previous?.cycleTimeSeconds || 0,
-        ratePerPart: rate, actualRatePerPart: previous?.actualRatePerPart || 0,
-        transportVendorId: previous?.transportVendorId || "", transportPickup: previous?.transportPickup || "",
-        transportDelivery: previous?.transportDelivery || "", transportCost: previous?.transportCost || 0,
-        qualityNotes: previous?.qualityNotes || "", inspectionResult: previous?.inspectionResult || "",
-        notes: draft.notes, vendorPaymentStatus: previous?.vendorPaymentStatus || "Not Paid", branch: draft.branch, parentId: draft.branch === "Main route" ? "" : draft.parentId,
-        createdAt: previous?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined
-      };
-      return { ...current, operations: [...current.operations.filter(operation => operation.id !== id), next] };
+      const currentRoute = current.operations.filter(op => op.poLineId === line.id && op.poId === po.id && op.componentId === component.id && !op.deletedAt);
+      const maximumSequence=Math.max(0,...currentRoute.map(operation=>operation.sequence));
+      const records:OperationRecord[]=typesToSave.map((processType,index)=>{
+        const id=idsToSave[index];
+        const old=current.operations.find(operation=>operation.id===id);
+        const category=processType?processCategories.find(item=>item.id===processType.categoryId)?.name||draft.category:draft.category;
+        return {
+          id, poId:po.id, poLineId:line.id, componentId:component.id,
+          sequence:old?.sequence??maximumSequence+(index+1)*10,
+          processTypeId:processType?.id||old?.processTypeId,
+          name:processType?.name||draft.name.trim(), category, machine:old?.machine||"",
+          machineResourceId:old?.machineResourceId, vendorId:draft.vendorId,
+          status:draft.status, plannedStart:draft.plannedStart, plannedEnd:draft.plannedEnd,
+          actualStart:old?.actualStart||"", actualEnd:old?.actualEnd||"",
+          plannedSlotStartAt:draft.plannedStart&&draft.plannedStartTime?new Date(draft.plannedStart+"T"+draft.plannedStartTime).toISOString():undefined,
+          plannedSlotEndAt:draft.plannedEnd&&draft.plannedEndTime?new Date(draft.plannedEnd+"T"+draft.plannedEndTime).toISOString():undefined,
+          quantity, completed:old?.completed||0, accepted:old?.accepted||0, rejected:old?.rejected||0,
+          setupHours:old?.setupHours||0, cycleTimeSeconds:old?.cycleTimeSeconds||0,
+          ratePerPart:rate, actualRatePerPart:old?.actualRatePerPart||0,
+          transportVendorId:old?.transportVendorId||"", transportPickup:old?.transportPickup||"",
+          transportDelivery:old?.transportDelivery||"", transportCost:old?.transportCost||0,
+          qualityNotes:old?.qualityNotes||"", inspectionResult:old?.inspectionResult||"",
+          notes:draft.notes, vendorPaymentStatus:old?.vendorPaymentStatus||"Not Paid", branch:draft.branch,
+          parentId:draft.branch==="Main route"?"":draft.parentId,
+          createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined
+        };
+      });
+      const ids=new Set(records.map(record=>record.id));
+      return {...current,operations:[...current.operations.filter(operation=>!ids.has(operation.id)),...records]};
     });
-    setSelectedId(id); setTab("General"); setShowEditor(false); setEditingId("");
-    onNotice(editingId ? "Process details updated in the saved component route." : "Process added to the selected PO component route.");
+    setSelectedId(idsToSave[0]);setTab("General");setShowEditor(false);setEditingId("");
+    onNotice(editingId?(selectedTypes.length>1?"Process updated and "+(selectedTypes.length-1)+" additional process record(s) added.":"Process details updated; existing route ID and history were preserved."):(selectedTypes.length+" process record(s) saved from Process Directory."));
   };
 
   const componentGroups = allowedLines.map(row => {
