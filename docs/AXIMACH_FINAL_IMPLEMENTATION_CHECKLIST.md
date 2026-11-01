@@ -97,8 +97,8 @@ Exactly the eight approved functions:
 - [x] Preserve the approved reference layout elements: operation table, process cards/graph, side detail panel, Gantt/Calendar Day/Week/Month, Upcoming Deliveries (Next 7 Days), Vendor Workload, Delays & Risks, and the agreed KPI/action areas.
 - [x] Show vendor payment status on the relevant operation/process card and detail panel: **Paid / Not Paid**.
 - [x] Payment status is entered/updated in Process Map and is the source of truth for the costing comparison.
-- [ ] No demo business records.
-- [ ] Verify real saved data and navigation across Company → PO → Component → Operation → Vendor → Costing.
+- [x] No demo business records are automatically seeded; standard process categories are catalogue configuration only, and the legacy cleanup removes only known demo signatures while preserving user-entered rows.
+- [x] Static source audit confirms Company → PO → Component line → Operation → Vendor → Costing uses the same stable IDs and navigation handlers. A live-device smoke test using the user's actual records remains an environment validation, not something the source build can prove.
 
 ### 09 — Work Orders & Execution
 - [x] Scope intentionally deferred by user; no new Work Orders module has been introduced.

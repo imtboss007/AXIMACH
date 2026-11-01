@@ -220,7 +220,7 @@ function App() {
         ) : activeModuleId === "maintenance" ? (
           <MachineCapacityWorkspace mode="maintenance" onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
         ) : activeModuleId === "ai-insights" ? (
-          <AIInsightsWorkspace onBack={() => selectModule("command-centre")} onSelectModule={selectModule} />
+          <AIInsightsWorkspace onBack={() => selectModule("command-centre")} onSelectModule={selectModule} onOpenOperation={openProcessOperation} onOpenQuality={openQualityOperation} />
         ) : activeModuleId === "reports" ? (
           <ReportsAnalyticsWorkspace onBack={() => selectModule("command-centre")} onSelectModule={selectModule} />
         ) : activeModuleId === "export" ? (
@@ -321,7 +321,8 @@ function DashboardWorkspace(props: {
   const { aiPrompt, aiResponse, notice, onAiPromptChange, onRunCommand, onNotice, onSelectModule, onOpenModules, onOpenOperation } = props;
   const { data: actualData } = useManufacturingData();
   const liveCompanies=activeRows(actualData.companies);
-  const liveOrders=activeRows(actualData.purchaseOrders).filter(po=>!["complete","cancelled","closed"].includes(String(po.status||"").toLowerCase()));
+  const activeOrders=activeRows(actualData.purchaseOrders);
+  const liveOrders=activeOrders.filter(po=>!["complete","cancelled","closed"].includes(String(po.status||"").toLowerCase()));
   const liveComponents=activeRows(actualData.components);
   const liveVendors=activeRows(actualData.vendors);
   const liveOperations=activeRows(actualData.operations);
@@ -332,7 +333,7 @@ function DashboardWorkspace(props: {
   const qualityHolds=liveOperations.filter(op=>op.status==="Quality hold").length;
   const inTransitMovements=activeRows(actualData.wipTransfers).filter(row=>row.status==="In transit"||row.status==="Partially received").length+activeRows(actualData.customerDispatches).filter(row=>row.status==="In transit"||row.status==="Partially delivered").length;
   const openSavedOperation=(operation:typeof actualData.operations[number])=>{
-    const po=liveOrders.find(row=>row.id===operation.poId);
+    const po=activeOrders.find(row=>row.id===operation.poId);
     if(!po){onSelectModule("production");return;}
     onOpenOperation({companyId:po.companyId,factoryId:po.factoryId,poId:po.id,poLineId:operation.poLineId,operationId:operation.id});
   };
@@ -398,7 +399,7 @@ function DashboardWorkspace(props: {
         </div>
         <div className="surface-panel jobs-panel">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PRODUCTION ROUTES</div><h3>Recent operations</h3><p>Only operations saved for real PO component lines.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={14}/> Process Map</button></div>
-          {activeRows(actualData.operations).length ? <div className="job-list">{activeRows(actualData.operations).slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,5).map(op => <button type="button" className="job-row job-row-action" key={op.id} onClick={()=>openSavedOperation(op)}><span className="job-number">{String(op.sequence).padStart(2,"0")}</span><span className="job-main"><strong>{op.name}</strong><small>{liveComponents.find(c=>c.id===op.componentId)?.partNumber || "Component"} · {liveOrders.find(po=>po.id===op.poId)?.number || "PO"}</small></span><span className="job-chip">{op.status}</span></button>)}</div> : <div className="module-empty-state"><Workflow size={24}/><h3>No operations yet</h3><p>Select a PO component line and add the processes that this job actually needs.</p><button className="button-primary" onClick={() => onSelectModule("process-map")}><Plus size={14}/> Open Process Map</button></div>}
+          {activeRows(actualData.operations).length ? <div className="job-list">{activeRows(actualData.operations).slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,5).map(op => <button type="button" className="job-row job-row-action" key={op.id} onClick={()=>openSavedOperation(op)}><span className="job-number">{String(op.sequence).padStart(2,"0")}</span><span className="job-main"><strong>{op.name}</strong><small>{liveComponents.find(c=>c.id===op.componentId)?.partNumber || "Component"} · {activeOrders.find(po=>po.id===op.poId)?.number || "PO"}</small></span><span className="job-chip">{op.status}</span></button>)}</div> : <div className="module-empty-state"><Workflow size={24}/><h3>No operations yet</h3><p>Select a PO component line and add the processes that this job actually needs.</p><button className="button-primary" onClick={() => onSelectModule("process-map")}><Plus size={14}/> Open Process Map</button></div>}
         </div>
         <div className="surface-panel attention-panel">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTATIONS</div><h3>Supplier rate history</h3><p>Received quotes are linked to a component, PO line, process and vendor.</p></div><span className="attention-count">{activeRows(actualData.quotations).length}</span></div>

@@ -2,14 +2,19 @@ import { useMemo, useState } from "react";
 import { Activity, AlertTriangle, ArrowRight, BarChart3, CalendarClock, CheckCircle2, CircleDollarSign, ClipboardCheck, Package, ShieldAlert, ShieldCheck, Truck, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
 
-type Props={onBack:()=>void;onSelectModule:(id:string)=>void};
+type Props={
+  onBack:()=>void;
+  onSelectModule:(id:string)=>void;
+  onOpenOperation:(selection:{companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string})=>void;
+  onOpenQuality:(operationId:string)=>void;
+};
 type Period="7"|"30"|"90"|"all";
 const today=()=>new Date().toISOString().slice(0,10);
 const daysAgo=(n:number)=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10);};
 const inPeriod=(date:string|undefined,period:Period)=>period==="all"||!!date&&(date.slice(0,10)>=daysAgo(Number(period))&&date.slice(0,10)<=today());
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 
-export default function AIInsightsWorkspace({onBack,onSelectModule}:Props){
+export default function AIInsightsWorkspace({onBack,onSelectModule,onOpenOperation,onOpenQuality}:Props){
   const {data,syncStatus}=useManufacturingData();
   const [period,setPeriod]=useState<Period>("30");
   const operations=activeRows(data.operations);
@@ -25,6 +30,11 @@ export default function AIInsightsWorkspace({onBack,onSelectModule}:Props){
   const windowOperations=operations.filter(row=>inPeriod(row.actualEnd||row.plannedEnd||row.updatedAt,period));
   const windowInspections=inspections.filter(row=>inPeriod(row.inspectionDate||row.updatedAt,period));
   const windowRates=rates.filter(row=>inPeriod(row.quotedAt||row.createdAt,period));
+  const openOperation=(operation:typeof operations[number])=>{
+    const po=orders.find(row=>row.id===operation.poId);
+    if(!po){onSelectModule("production");return;}
+    onOpenOperation({companyId:po.companyId,factoryId:po.factoryId,poId:po.id,poLineId:operation.poLineId,operationId:operation.id});
+  };
   const overdue=windowOperations.filter(row=>row.status!=="Complete"&&!!row.plannedEnd&&row.plannedEnd<today());
   const nearDue=windowOperations.filter(row=>row.status!=="Complete"&&!!row.plannedEnd&&row.plannedEnd>=today()&&row.plannedEnd<=daysAgo(-7));
   const holdOperations=windowOperations.filter(row=>row.status==="Quality hold");
@@ -80,7 +90,7 @@ export default function AIInsightsWorkspace({onBack,onSelectModule}:Props){
     </section>
     <div className="dashboard-grid actual-data-dashboard">
       <section className="surface-panel attention-panel"><div className="panel-heading"><div><div className="eyebrow">PRODUCTION RISK</div><h3>Delay and schedule signals</h3><p>Source: Process Map planned / actual end dates. Open a row to inspect its saved route.</p></div><Activity size={18}/></div>
-        {overdue.length?overdue.slice(0,6).map(op=><button className="attention-row" key={op.id} onClick={()=>{const po=orders.find(row=>row.id===op.poId);if(po)onSelectModule("production");}}><span className="attention-symbol red-symbol"><AlertTriangle size={16}/></span><span className="attention-copy"><strong>{op.name}</strong><small>{orders.find(po=>po.id===op.poId)?.number||"PO"} · {op.plannedEnd} target</small><em>Open Process Map to review</em></span><ArrowRight size={15}/></button>):<div className="vendor-empty"><CheckCircle2 size={16}/> No overdue operations in this reporting period.</div>}
+        {overdue.length?overdue.slice(0,6).map(op=><button className="attention-row" key={op.id} onClick={()=>openOperation(op)}><span className="attention-symbol red-symbol"><AlertTriangle size={16}/></span><span className="attention-copy"><strong>{op.name}</strong><small>{orders.find(po=>po.id===op.poId)?.number||"PO"} · {op.plannedEnd} target</small><em>Open the linked saved operation</em></span><ArrowRight size={15}/></button>):<div className="vendor-empty"><CheckCircle2 size={16}/> No overdue operations in this reporting period.</div>}
         <button className="button-quiet compact-button" onClick={()=>onSelectModule("production")}>Open Production Planning <ArrowRight size={14}/></button>
       </section>
       <section className="surface-panel attention-panel"><div className="panel-heading"><div><div className="eyebrow">VENDOR QUOTE DIVERGENCE</div><h3>Saved rate spreads</h3><p>Source: current-valid, non-rejected Process Directory quotes with multiple vendors for the same process type.</p></div><CircleDollarSign size={18}/></div>
@@ -88,7 +98,7 @@ export default function AIInsightsWorkspace({onBack,onSelectModule}:Props){
         <button className="button-quiet compact-button" onClick={()=>onSelectModule("process-master")}>Open Process Directory <ArrowRight size={14}/></button>
       </section>
       <section className="surface-panel attention-panel"><div className="panel-heading"><div><div className="eyebrow">QUALITY SIGNALS</div><h3>Operation rejection share</h3><p>Source: summed inspection-event quantities in this period. Events are not deduplicated by serial or lot.</p></div><BarChart3 size={18}/></div>
-        {qualityByOperation.length?qualityByOperation.map(row=><div className="job-row" key={row.operationId}><span className="job-number"><ClipboardCheck size={14}/></span><span className="job-main"><strong>{row.name}</strong><small>{row.rejected} rejected / {row.inspected} inspected</small></span><span className="job-chip">{row.rate.toFixed(1)}%</span></div>):<div className="vendor-empty">No inspection quantities recorded in this period.</div>}
+        {qualityByOperation.length?qualityByOperation.map(row=><button type="button" className="job-row job-row-action" key={row.operationId} onClick={()=>onOpenQuality(row.operationId)}><span className="job-number"><ClipboardCheck size={14}/></span><span className="job-main"><strong>{row.name}</strong><small>{row.rejected} rejected / {row.inspected} inspected · Open linked inspections</small></span><span className="job-chip">{row.rate.toFixed(1)}%</span></button>):<div className="vendor-empty">No inspection quantities recorded in this period.</div>}
         <button className="button-quiet compact-button" onClick={()=>onSelectModule("quality")}>Open Quality & Inspection <ArrowRight size={14}/></button>
       </section>
       <section className="surface-panel attention-panel"><div className="panel-heading"><div><div className="eyebrow">DELIVERY EXPOSURE</div><h3>PO delivery dates</h3><p>Source: open PO component-line due dates. Dates are contractual targets, not predicted dispatch dates.</p></div><Truck size={18}/></div>
