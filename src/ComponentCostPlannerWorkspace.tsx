@@ -224,7 +224,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
     </div>
     <div className="ccp-layout">
       <aside className="surface-panel ccp-component-rail">
-        <div className="panel-heading"><div><div className="eyebrow">COMPONENT MASTER</div><h3>{components.length} components</h3><p>One planned budget per component ID.</p></div><span className="module-number">{plans.length} PLANS</span></div>
+        <div className="panel-heading"><div><div className="eyebrow">COMPONENT MASTER</div><h3>{components.length} components</h3><p>Source: active Component Directory components. One saved cost baseline per component ID.</p></div><span className="module-number">{plans.length} PLANS</span></div>
         <label className="module-record-search"><Search size={14}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search part number or name…"/></label>
         <div className="ccp-component-list">
           {visibleComponents.map(component => {
@@ -300,6 +300,6 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
         </section>
       </main> : <div className="surface-panel ccp-empty-main"><ClipboardList size={30}/><h3>Select a component to begin</h3><p>Each component has an independent cost plan. Your planned values will never be substituted for actual supplier invoices or payment entries.</p></div>}
     </div>
-    <div className="module-safety-note"><ShieldCheck size={14}/><span>Planned component costs are a separate benchmark. Process Map continues to store operation rates and payment states by PO line; Costing & Payments compares those saved values against this baseline without rewriting vendor actuals. No missing rates are silently converted into approved costs.</span></div>
+    <div className="module-safety-note"><ShieldCheck size={14}/><span>Planned component costs are stored separately from PO operation records. Only Costing & Payments reads this cost baseline; Process Planning never receives these values, pre-fills or budget labels. Actual operation/vendor rates and payment records remain untouched.</span></div>
   </section>;
 }
