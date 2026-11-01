@@ -151,10 +151,10 @@ export function ProcessIcon({ processName, fallback }: { processName: string; fa
   useEffect(() => {
     const refresh = () => setAssignments(readAssignments());
     window.addEventListener("storage", refresh);
-    window.addEventListener("aximach-icon-assignments-updated", refreshLocal);
+    window.addEventListener("aximach-icon-assignments-updated", refresh);
     return () => {
       window.removeEventListener("storage", refresh);
-      window.removeEventListener("aximach-icon-assignments-updated", refreshLocal);
+      window.removeEventListener("aximach-icon-assignments-updated", refresh);
     };
   }, []);
   const assignment = assignments[family];
