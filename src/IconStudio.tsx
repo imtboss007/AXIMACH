@@ -75,10 +75,12 @@ function writePreferenceBundle(bundle: PreferenceBundle) {
 }
 function iconServerConfig() {
   if (typeof window === "undefined") return null;
-  const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\\/+$/, "");
+  let base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim();
+  while (base.endsWith("/")) base = base.slice(0, -1);
   const key = window.localStorage.getItem("aximach.scheduler.key") || "";
-  if (!base || !key) return null;
-  if (!base.startsWith("https://") && !/^http:\\/\\/(localhost|127\\.0\\.0\\.1)(:\\d+)?$/.test(base)) return null;
+  const localHttp = base === "http://localhost" || base.startsWith("http://localhost:")
+    || base === "http://127.0.0.1" || base.startsWith("http://127.0.0.1:");
+  if (!base || !key || (!base.startsWith("https://") && !localHttp)) return null;
   return { base, key };
 }
 async function putSharedPreferences(bundle: PreferenceBundle) {
@@ -113,8 +115,23 @@ async function fetchSharedPreferences() {
     writePreferenceBundle(next);
     return { shared: true as const, preferences: next };
   }
-  if (!remote || localAt > remoteAt) return putSharedPreferences({ ...local, updatedAt: local.updatedAt === "1970-01-01T00:00:00.000Z" ? new Date().toISOString() : local.updatedAt });
+  if (!remote || localAt > remoteAt) {
+    const next = await putSharedPreferences({ ...local, updatedAt: local.updatedAt === "1970-01-01T00:00:00.000Z" ? new Date().toISOString() : local.updatedAt });
+    writePreferenceBundle(next.preferences);
+    return next;
+  }
   return { shared: true as const, preferences: local };
+}
+async function persistShared(bundle: PreferenceBundle): Promise<"local" | "synced" | "error"> {
+  if (!iconServerConfig()) return "local";
+  try {
+    const result = await putSharedPreferences(bundle);
+    const current = readPreferenceBundle();
+    if ((Date.parse(result.preferences.updatedAt || "") || 0) > (Date.parse(current.updatedAt || "") || 0)) writePreferenceBundle(result.preferences);
+    return result.shared ? "synced" : "local";
+  } catch {
+    return "error";
+  }
 }
 function readAssignments(): Assignments { return safeRead<Assignments>(STORAGE_ASSIGNMENTS, {}); }
 function normaliseWords(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
@@ -149,10 +166,10 @@ export function ProcessIcon({ processName, fallback }: { processName: string; fa
   useEffect(() => {
     const refresh = () => setAssignments(readAssignments());
     window.addEventListener("storage", refresh);
-    window.addEventListener("aximach-icon-assignments-updated", refresh);
+    window.addEventListener("aximach-icon-assignments-updated", refreshLocal);
     return () => {
       window.removeEventListener("storage", refresh);
-      window.removeEventListener("aximach-icon-assignments-updated", refresh);
+      window.removeEventListener("aximach-icon-assignments-updated", refreshLocal);
     };
   }, []);
   const assignment = assignments[family];
@@ -201,13 +218,13 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
         if (!cancelled) setSyncStatus("error");
       } finally { busy = false; }
     };
-    const refresh = () => {
+    const refreshLocal = () => {
       const next = readPreferenceBundle();
       setAssignments(next.assignments);
       setFavourites(next.favourites);
       setPresets(next.presets);
-      void sync();
     };
+    const refresh = () => { refreshLocal(); void sync(); };
     const active = () => { if (document.visibilityState !== "hidden") void sync(); };
     window.addEventListener("storage", refresh);
     window.addEventListener("aximach-icon-assignments-updated", refresh);
@@ -255,7 +272,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
     setFavourites(next);
     const bundle = { ...readPreferenceBundle(), favourites: next, updatedAt: new Date().toISOString() };
     writePreferenceBundle(bundle);
-    void persistShared(bundle);
+    void persistShared(bundle).then(setSyncStatus);
   };
   const saveAssignment = () => {
     const assignment: IconAssignment = { iconName: selectedIcon, palette: paletteName, finish, depth, tilt, updatedAt: new Date().toISOString() };
