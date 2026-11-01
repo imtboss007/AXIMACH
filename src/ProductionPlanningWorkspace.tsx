@@ -17,6 +17,7 @@ const emptyDraft = (): ProcessDraft => ({
 });
 const day = (value?: string) => value ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+const clock = (value?:string) => value ? new Date(value).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : "Time not set";
 const statusClass = (value: string) => value.toLowerCase().replace(/[^a-z]+/g, "-");
 const shiftIsoDate=(value:string,days:number)=>{const date=new Date(value+"T12:00:00");date.setDate(date.getDate()+days);return date.toISOString().slice(0,10)};
 const isSelected = (ids: string[], id: string) => ids.length === 0 || (ids[0] !== "__none__" && ids.includes(id));
@@ -336,11 +337,11 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                   <div className="pp-route-lane-label">MAIN ROUTE</div>
                   <div className="pp-route-track">
                     {mainRoute.map((operation, index) => <Fragment key={operation.id}>
-                      <button className={"pp-route-node " + statusClass(operation.status) + (selected?.id === operation.id ? " selected" : "")} onClick={() => { setSelectedId(operation.id); setTab("General"); }}>
+                      <button className={"pp-route-node " + statusClass(operation.status) + (selected?.id === operation.id ? " selected" : "")} onClick={() => { setSelectedId(operation.id); setTab("General"); openEdit(operation); }}>
                         <span className="pp-route-node-top"><b>{operation.sequence / 10 || index + 1}. {processLabel(operation)}</b><small>OP-{String(operation.sequence).padStart(3, "0")}</small></span>
                         <span className="pp-route-node-data">Vendor: {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</span>
-                        <span className="pp-route-node-data">Start: {day(operation.plannedStart)}{operation.plannedSlotStartAt ? " · " + new Date(operation.plannedSlotStartAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : ""}</span>
-                        <span className="pp-route-node-data">Due: {day(operation.plannedEnd)}{operation.plannedSlotEndAt ? " · " + new Date(operation.plannedSlotEndAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : ""}</span>
+                        <span className="pp-route-node-data">Start: {day(operation.plannedStart)}{" · "+clock(operation.plannedSlotStartAt)}</span>
+                        <span className="pp-route-node-data">Due: {day(operation.plannedEnd)}{" · "+clock(operation.plannedSlotEndAt)}</span>
                         <span className="pp-route-node-data">Qty: {operation.quantity.toLocaleString("en-IN")} pcs</span>
                         <span className="pp-route-node-data">Price: {money(operation.ratePerPart)}</span><span className="pp-route-node-data">Vendor payment: {operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</span>
                         <strong className="pp-status">{operation.status}</strong>
@@ -426,7 +427,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
 
     <section className="pp-schedule">
       <div className="pp-section-head"><div><h2>Production Schedule ({calendar ? "Calendar View" : "Gantt View"})</h2><p>Based on saved process start and due dates.</p></div>
-        <div className="pp-actions"><button className={!calendar ? "active" : ""} onClick={() => setCalendar(false)}>Gantt View</button><button className={calendar ? "active" : ""} onClick={() => setCalendar(true)}><CalendarDays size={13}/> Calendar View</button><label className="pp-scale-select"><span>View</span><select aria-label="Calendar scale" value={scale} onChange={event=>setScale(event.target.value)}><option value="Day">Day</option><option value="Week">Week</option><option value="Month">Month</option></select></label></div>
+        <div className="pp-actions"><button className={!calendar ? "active" : ""} onClick={() => setCalendar(false)}>Gantt View</button><button className={calendar ? "active" : ""} onClick={() => setCalendar(true)}><CalendarDays size={13}/> Calendar View</button>{!calendar&&<label className="pp-scale-select"><span>Gantt scale</span><select aria-label="Gantt scale" value={scale} onChange={event=>setScale(event.target.value)}><option value="Day">Day</option><option value="Week">Week</option><option value="Month">Month</option></select></label>}</div>
       </div>
       {calendar ? <div className={"pp-calendar-shell pp-calendar-"+scale.toLowerCase()}>
         <div className="pp-calendar-toolbar"><div className="pp-calendar-navigation"><button type="button" aria-label="Previous calendar period" onClick={()=>moveCalendar(-1)}><ChevronLeft size={16}/></button><strong>{calendarHeading}</strong><button type="button" aria-label="Next calendar period" onClick={()=>moveCalendar(1)}><ChevronRight size={16}/></button><button type="button" onClick={()=>setCalendarCursor(today)}>Today</button></div><label className="pp-scale-select"><span>Calendar view</span><select aria-label="Calendar view" value={scale} onChange={event=>setScale(event.target.value)}><option value="Day">Day</option><option value="Week">Week</option><option value="Month">Month</option></select></label></div>
