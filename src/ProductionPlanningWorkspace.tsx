@@ -248,11 +248,11 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
       const assignment=selectedTypes.length>1&&processType
         ? draft.processAssignments[processType.id]||emptyProcessAssignment(String(line.quantity))
         : draft;
-      return {processType,assignment,quantity:Number(assignment.quantity||line.quantity),rate:Number(assignment.ratePerPart||0)};
+      return {processType,assignment,quantity:Number(assignment.quantity||line.quantity),rate:Number(assignment.ratePerPart||0),transport:Number(assignment.transportCost||0)};
     });
     for(const item of assignmentsToSave){
-      const {processType,assignment,quantity,rate}=item;
-      if(!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(rate)||rate<0){onNotice("Each process needs a positive quantity and a valid non-negative price.");return;}
+      const {processType,assignment,quantity,rate,transport}=item;
+      if(!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(rate)||rate<0||!Number.isFinite(transport)||transport<0){onNotice("Each process needs a positive quantity and valid non-negative rate and transport cost.");return;}
       if(assignment.plannedStart&&assignment.plannedEnd&&assignment.plannedEnd<assignment.plannedStart){onNotice("Due date cannot be earlier than the start date for "+(processType?.name||"this process")+".");return;}
       if(assignment.plannedStart&&assignment.plannedEnd&&assignment.plannedStart===assignment.plannedEnd&&assignment.plannedStartTime&&assignment.plannedEndTime&&assignment.plannedEndTime<assignment.plannedStartTime){onNotice("Due time cannot be earlier than the start time on the same day for "+(processType?.name||"this process")+".");return;}
       if(assignment.vendorId){
@@ -275,7 +275,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     update(current => {
       const currentRoute = current.operations.filter(op => op.poLineId === line.id && op.poId === po.id && op.componentId === component.id && !op.deletedAt);
       const maximumSequence=Math.max(0,...currentRoute.map(operation=>operation.sequence));
-      const records:OperationRecord[]=assignmentsToSave.map(({processType,assignment,quantity,rate},index)=>{
+      const records:OperationRecord[]=assignmentsToSave.map(({processType,assignment,quantity,rate,transport},index)=>{
         const id=idsToSave[index];
         const old=current.operations.find(operation=>operation.id===id);
         const category=processType?processCategories.find(item=>item.id===processType.categoryId)?.name||draft.category:draft.category;
@@ -292,7 +292,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           plannedSlotEndAt:old&&old.plannedStart===assignment.plannedStart&&old.plannedEnd===assignment.plannedEnd?old.plannedSlotEndAt:undefined,
           quantity, completed:old?.completed||0, accepted:old?.accepted||0, rejected:old?.rejected||0,
           setupHours:old?.setupHours||0, cycleTimeSeconds:old?.cycleTimeSeconds||0,
-          ratePerPart:rate, actualRatePerPart:old?.actualRatePerPart||0,
+          ratePerPart:rate, actualRatePerPart:old?.actualRatePerPart||0, transportCost:transport,
           transportVendorId:old?.transportVendorId||"", transportPickup:old?.transportPickup||"",
           transportDelivery:old?.transportDelivery||"", transportCost:old?.transportCost||0,
           qualityNotes:old?.qualityNotes||"", inspectionResult:old?.inspectionResult||"",
