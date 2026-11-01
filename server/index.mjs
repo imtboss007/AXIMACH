@@ -7,7 +7,7 @@ const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
 const DB_PATH = resolve(process.env.AXIMACH_DATA_FILE || "./data/aximach.json");
 const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
-let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null };
+let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null };
 let busy = false;
 
 async function loadDb() {
@@ -142,6 +142,24 @@ const server = createServer(async (req, res) => {
       db.recordsUpdatedAt = new Date().toISOString();
       await saveDb();
       return json(res, 200, { ok: true, records: db.records, updatedAt: db.recordsUpdatedAt });
+    }
+    if (url.pathname === "/api/ui-preferences" && req.method === "GET") {
+      return json(res, 200, { preferences: db.uiPreferences || null, updatedAt: db.uiPreferences?.updatedAt || null });
+    }
+    if (url.pathname === "/api/ui-preferences" && req.method === "PUT") {
+      const input = await body(req);
+      if (!input.preferences || typeof input.preferences !== "object" || Array.isArray(input.preferences)) {
+        return json(res, 400, { error: "preferences must be a UI preference object." });
+      }
+      const encoded = JSON.stringify(input.preferences);
+      if (encoded.length > 2_000_000) return json(res, 413, { error: "UI preferences exceed the 2 MB limit." });
+      const incomingAt = Date.parse(input.preferences.updatedAt || "") || 0;
+      const currentAt = Date.parse(db.uiPreferences?.updatedAt || "") || 0;
+      if (!db.uiPreferences || incomingAt >= currentAt) {
+        db.uiPreferences = { ...input.preferences, updatedAt: input.preferences.updatedAt || new Date().toISOString() };
+        await saveDb();
+      }
+      return json(res, 200, { ok: true, preferences: db.uiPreferences, updatedAt: db.uiPreferences?.updatedAt || null });
     }
     if (url.pathname === "/api/contacts" && req.method === "GET") return json(res, 200, { contacts: db.contacts });
     if (url.pathname === "/api/contacts" && req.method === "POST") {
