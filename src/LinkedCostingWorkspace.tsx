@@ -142,7 +142,8 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     }));
     const componentProcessRows = (data.componentProcessCosts || []).filter(row => row.componentId === component.id && !row.deletedAt);
     const componentPlanPerPart = componentBaselinePerPart(componentPlanById.get(component.id), componentProcessRows);
-    return {key:po.id+"::"+line.id,companyId:po.companyId,poId:po.id,poNumber:po.number,componentId:component.id,componentName:component.partNumber+" · "+component.name,quantity:line.quantity,componentPlan:componentPlanPerPart*line.quantity,processPlanned:routeCosts.processPlanned,transportPlanned:routeCosts.transportPlanned,processedActual:routeCosts.processedActual,transportActual:routeCosts.transportActual,poCost:line.quantity*line.unitPrice,vendorIds:routeCosts.vendorIds,linked};
+    const vendorIds = [...new Set([...routeCosts.vendorIds, ...componentProcessRows.map(row => row.vendorId).filter(Boolean)])];
+    return {key:po.id+"::"+line.id,companyId:po.companyId,poId:po.id,poNumber:po.number,componentId:component.id,componentName:component.partNumber+" · "+component.name,quantity:line.quantity,componentPlan:componentPlanPerPart*line.quantity,processPlanned:routeCosts.processPlanned,transportPlanned:routeCosts.transportPlanned,processedActual:routeCosts.processedActual,transportActual:routeCosts.transportActual,poCost:line.quantity*line.unitPrice,vendorIds,linked};
   })).filter((row): row is NonNullable<typeof row> => Boolean(row));
   const visibleLedgerRows = costLedgerRows.filter(row =>
     (!ledgerCompanyId || row.companyId === ledgerCompanyId) &&
