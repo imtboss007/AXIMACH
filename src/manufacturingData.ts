@@ -22,6 +22,7 @@ export type ComponentRecord = {
 };
 export type PurchaseOrderLine = {
   id: string; componentId: string; quantity: number; targetDelivery: string; unitPrice: number; notes: string;
+  jobStatus?: "In progress" | "Finished"; jobFinishedAt?: string;
   materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number;
   overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number;
 };
