@@ -24,7 +24,7 @@ import ReportsAnalyticsWorkspace from "./ReportsAnalyticsWorkspace";
 import AIInsightsWorkspace from "./AIInsightsWorkspace";
 import DataExchangeWorkspace from "./DataExchangeWorkspace";
 
-import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
+import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, vendorProcessTypeIds, type VendorRecord } from "./manufacturingData";
 
 type ModuleItem = {
   id: string;
@@ -485,7 +485,7 @@ type CostingComponent={id:string;code:string;name:string;revision:string;materia
 type VendorDraft = Omit<VendorRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 const emptyVendorDraft = (): VendorDraft => ({
   company:"",contact:"",role:"",phone:"",whatsappNumber:"",email:"",address:"",
-  processes:"",processTypeId:"",machines:"",materials:"",notes:"",status:"Unverified contact — review",
+  processes:"",processTypeId:"",processTypeIds:[],machines:"",materials:"",notes:"",status:"Unverified contact — review",
   sourceContactId:"",whatsappSyncedAt:""
 });
 function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelectModule }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; onSelectModule:(id:string)=>void }) {
@@ -493,7 +493,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
   const contacts = activeRows(data.vendors);
   const processTypes = activeRows(data.processTypes);
   const processCategories = activeRows(data.processCategories);
-  const processName = (vendor: VendorRecord) => processTypes.find(process => process.id === vendor.processTypeId)?.name || vendor.processes || "Process not assigned";
+  const processName = (vendor: VendorRecord) => { const names=vendorProcessTypeIds(vendor).map(id=>processTypes.find(process=>process.id===id)?.name).filter(Boolean); return names.join(", ") || vendor.processes || "Process not assigned"; };
   const [search,setSearch]=useState(initialSearch);
   const [selectedId,setSelectedId]=useState("");
   const [editing,setEditing]=useState(false);
@@ -501,30 +501,27 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
   const selected=contacts.find(v=>v.id===selectedId)||contacts[0];
   const filtered=contacts.filter(v=>(v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.whatsappNumber+" "+v.email+" "+v.address+" "+processName(v)+" "+v.processes+" "+v.machines+" "+v.materials+" "+v.notes+" "+v.status).toLowerCase().includes(search.toLowerCase().trim()));
   const beginNew=()=>{setSelectedId("");setDraft(emptyVendorDraft());setEditing(true);};
-  const beginEdit=(v:VendorRecord)=>{setSelectedId(v.id);setDraft({company:v.company,contact:v.contact,role:v.role,phone:v.phone,whatsappNumber:v.whatsappNumber,email:v.email,address:v.address,processes:v.processes,processTypeId:v.processTypeId||"",machines:v.machines,materials:v.materials,notes:v.notes,status:v.status,sourceContactId:v.sourceContactId,whatsappSyncedAt:v.whatsappSyncedAt});setEditing(true);};
+  const beginEdit=(v:VendorRecord)=>{setSelectedId(v.id);setDraft({company:v.company,contact:v.contact,role:v.role,phone:v.phone,whatsappNumber:v.whatsappNumber,email:v.email,address:v.address,processes:v.processes,processTypeId:v.processTypeId||"",processTypeIds:vendorProcessTypeIds(v),machines:v.machines,materials:v.materials,notes:v.notes,status:v.status,sourceContactId:v.sourceContactId,whatsappSyncedAt:v.whatsappSyncedAt});setEditing(true);};
   const saveContact=()=>{
     if(!draft.company.trim()||!draft.contact.trim()){onNotice("Vendor company and contact person are required.");return;}
-    const processTypeId=String(draft.processTypeId||"").trim();
-    if(!processTypeId||!processTypes.some(process=>process.id===processTypeId)){onNotice("Assign exactly one active Process Directory type to this vendor.");return;}
-    const linkedProcessIds=selectedId?new Set([
-      ...data.processVendorRates.filter(row=>row.vendorId===selectedId&&!row.deletedAt).map(row=>row.processTypeId),
-      ...data.operations.filter(row=>row.vendorId===selectedId&&row.processTypeId&&!row.deletedAt).map(row=>row.processTypeId as string)
-    ]):new Set<string>();
-    if([...linkedProcessIds].some(linkedId=>linkedId!==processTypeId)){onNotice("This vendor already has quotations or assigned operations for another process. Reassign those records before changing the vendor’s single process type.");return;}
+    const processTypeIds=[...new Set((draft.processTypeIds?.length?draft.processTypeIds:(draft.processTypeId?[draft.processTypeId]:[])).filter(id=>processTypes.some(process=>process.id===id)))];
+    if(!processTypeIds.length){onNotice("Select at least one process capability from Process Directory.");return;}
+    const processTypeId=processTypeIds[0];
+    const processNames=processTypeIds.map(id=>processTypes.find(process=>process.id===id)?.name||"").filter(Boolean);
     const phone=String(draft.phone||"").replace(/\D/g,"");
     const whatsappNumber=String(draft.whatsappNumber||"").replace(/\D/g,"");
     const submittedNumbers=[phone,whatsappNumber].filter(Boolean);
     const duplicate=contacts.find(v=>v.id!==selectedId&&submittedNumbers.some(number=>[v.phone,v.whatsappNumber].some(value=>String(value||"").replace(/\D/g,"")===number)));
     if(duplicate){onNotice("This phone / WhatsApp number is already linked to "+duplicate.company+". Edit that record to avoid duplicate vendor IDs.");return;}
     const stamp=nowIso();const id=selectedId||makeId("vendor");
-    update(current=>{const old=current.vendors.find(v=>v.id===id);const record:VendorRecord={...draft,company:draft.company.trim(),contact:draft.contact.trim(),phone,whatsappNumber,processTypeId,id,createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};return {...current,vendors:[...current.vendors.filter(v=>v.id!==id),record]};});
+    update(current=>{const old=current.vendors.find(v=>v.id===id);const record:VendorRecord={...draft,company:draft.company.trim(),contact:draft.contact.trim(),phone,whatsappNumber,processTypeId,processTypeIds,processes:processNames.join(", "),id,createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};return {...current,vendors:[...current.vendors.filter(v=>v.id!==id),record]};});
     setSelectedId(id);setEditing(false);onNotice(syncStatus==="synced"?"Vendor saved to shared AXIMACH data.":"Vendor saved; cross-device sync activates when the existing AXIMACH server is connected and reachable.");
   };
   const archive=(v:VendorRecord)=>{if(!window.confirm("Archive this vendor? Historical operations and quotations will retain the vendor ID."))return;const stamp=nowIso();update(current=>({...current,vendors:current.vendors.map(x=>x.id===v.id?{...x,deletedAt:stamp,updatedAt:stamp}:x)}));setSelectedId("");setEditing(false);onNotice("Vendor archived; historical operation and quotation links were retained.");};
   return <section className="workspace-page vendor-master-page">
     {notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill "+(syncStatus==="synced"?"scheduler-connected":"")}><i/>{syncStatus==="synced"?"SHARED SERVER DATA":syncStatus==="syncing"?"SYNCING":syncStatus==="error"?"SYNC ERROR · LOCAL COPY KEPT":"NO DEMO VENDORS · MASTER RECORDS"}</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / CONTACT MASTER</div><h1>Vendor network<span>.</span></h1><p>Each vendor is assigned exactly one Process Directory type; each process can have multiple vendors and separate quotations.</p></div><div className="workspace-title-actions"><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add vendor</button></div></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / CONTACT MASTER</div><h1>Vendor network<span>.</span></h1><p>Assign each vendor to every category and process they can perform. Each assignment links directly to Process Directory.</p></div><div className="workspace-title-actions"><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add vendor</button></div></div>
     <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search vendor, phone, process, machine, material…"/></label><span className="module-number">{contacts.length} VENDORS / CONTACTS</span></div>
     <div className="vendor-workspace-grid">
       <section className="surface-panel vendor-list-panel"><div className="panel-heading"><div><h3>Vendor directory</h3><p>Shared master records · imported WhatsApp contacts remain unverified until reviewed</p></div></div>
@@ -540,7 +537,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
             <label>WhatsApp number<input value={draft.whatsappNumber} onChange={e=>setDraft({...draft,whatsappNumber:e.target.value})} placeholder="Leave blank to use phone"/></label>
             <label>Email<input type="email" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="name@company.com"/></label>
             <label className="editor-wide">Address<input value={draft.address} onChange={e=>setDraft({...draft,address:e.target.value})} placeholder="Vendor site / dispatch address"/></label>
-            <label>Process type *<select value={draft.processTypeId||""} onChange={e=>setDraft({...draft,processTypeId:e.target.value})}><option value="">Select exactly one process type…</option>{processCategories.map(category=>{const items=processTypes.filter(process=>process.categoryId===category.id);return items.length?<optgroup key={category.id} label={category.name}>{items.map(process=><option key={process.id} value={process.id}>{process.name}</option>)}</optgroup>:null;})}</select></label><small className="field-hint">Existing quotation and operation history keeps its original process link; this assignment is used for new records.</small>
+            <div className="vendor-process-assignment editor-wide"><div className="vendor-process-assignment-head"><strong>Process capabilities *</strong><small>Select every category and process this vendor can perform.</small><button type="button" className="button-quiet compact-button" onClick={()=>setDraft(current=>({...current,processTypeIds:processTypes.map(item=>item.id),processTypeId:processTypes[0]?.id||""}))}>Select all</button><button type="button" className="button-quiet compact-button" onClick={()=>setDraft(current=>({...current,processTypeIds:[],processTypeId:""}))}>Clear all</button></div>{processCategories.map(category=>{const items=processTypes.filter(process=>process.categoryId===category.id);return items.length?<fieldset key={category.id}><legend>{category.name}</legend><div className="vendor-process-checks">{items.map(process=><label key={process.id}><input type="checkbox" checked={(draft.processTypeIds||[]).includes(process.id)||(draft.processTypeIds||[]).length===0&&draft.processTypeId===process.id} onChange={event=>setDraft(current=>{const oldIds=current.processTypeIds?.length?current.processTypeIds:(current.processTypeId?[current.processTypeId]:[]);const nextIds=event.target.checked?[...new Set([...oldIds,process.id])]:oldIds.filter(id=>id!==process.id);return {...current,processTypeIds:nextIds,processTypeId:nextIds[0]||""};})}/><span>{process.name}</span></label>)}</div></fieldset>:null;})}{!processTypes.length&&<small className="field-hint">Create process types in Process Directory first.</small>}</div>
             <label>Machines / capacity<input value={draft.machines} onChange={e=>setDraft({...draft,machines:e.target.value})} placeholder="Machine models, travel, capacity…"/></label>
             <label>Material capabilities<input value={draft.materials} onChange={e=>setDraft({...draft,materials:e.target.value})} placeholder="Steel grades, aluminium, plastics…"/></label>
             <label>Vendor status<select value={draft.status} onChange={e=>setDraft({...draft,status:e.target.value})}><option>Unverified contact — review</option><option>Review pending</option><option>Approved</option><option>Not approved</option><option>On hold</option></select></label>
