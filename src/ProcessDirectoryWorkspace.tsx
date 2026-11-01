@@ -130,7 +130,8 @@ export default function ProcessDirectoryWorkspace({ onBack, onNotice, onSelectMo
     update(current=>({...current,
       processCategories:current.processCategories.map(row=>row.id===item.id?{...row,deletedAt:stamp,updatedAt:stamp}:row),
       processTypes:current.processTypes.map(row=>childIds.has(row.id)?{...row,deletedAt:stamp,updatedAt:stamp}:row),
-      processVendorRates:current.processVendorRates.map(row=>childIds.has(row.processTypeId)&&!row.deletedAt?{...row,deletedAt:stamp,updatedAt:stamp}:row)
+      processVendorRates:current.processVendorRates.map(row=>childIds.has(row.processTypeId)&&!row.deletedAt?{...row,deletedAt:stamp,updatedAt:stamp}:row),
+      vendors:current.vendors.map(vendor=>{const ids=vendorProcessTypeIds(vendor).filter(id=>!childIds.has(id));const names=ids.map(id=>current.processTypes.find(type=>type.id===id)?.name).filter(Boolean);return {...vendor,processTypeIds:ids,processTypeId:ids[0],processes:names.join(", "),updatedAt:stamp};})
     }));
     if(categoryId===item.id)setCategoryId("");
     onNotice("Category and its sub-processes removed from the active catalogue. Saved production history remains intact.");
@@ -140,7 +141,8 @@ export default function ProcessDirectoryWorkspace({ onBack, onNotice, onSelectMo
     const stamp=nowIso();
     update(current=>({...current,
       processTypes:current.processTypes.map(row=>row.id===item.id?{...row,deletedAt:stamp,updatedAt:stamp}:row),
-      processVendorRates:current.processVendorRates.map(row=>row.processTypeId===item.id&&!row.deletedAt?{...row,deletedAt:stamp,updatedAt:stamp}:row)
+      processVendorRates:current.processVendorRates.map(row=>row.processTypeId===item.id&&!row.deletedAt?{...row,deletedAt:stamp,updatedAt:stamp}:row),
+      vendors:current.vendors.map(vendor=>{const ids=vendorProcessTypeIds(vendor).filter(id=>id!==item.id);const names=ids.map(id=>current.processTypes.find(type=>type.id===id&&type.id!==item.id)?.name).filter(Boolean);return {...vendor,processTypeIds:ids,processTypeId:ids[0],processes:names.join(", "),updatedAt:stamp};})
     }));
     onNotice("Process removed from the active directory. Linked production history remains preserved.");
   };
