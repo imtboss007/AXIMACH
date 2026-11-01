@@ -1225,7 +1225,7 @@ img,svg,canvas,video{max-width:100%}
   body{margin:0!important}
   .app-shell{min-height:0!important;padding:0!important;overflow:visible!important;background:#fff!important}
   .command-deck,.status-ribbon,.command-rail,.global-footer,.workspace-topline,
-  .workspace-title-actions,.module-action-bar,.module-workflow-strip,.module-connection-panel,
+  .workspace-title-actions,.module-action-bar,.data-exchange-workspace .quality-selection-panel,.module-workflow-strip,.module-connection-panel,
   .module-storage-note,.module-safety-note,.notice-banner,.module-record-form-panel,
   .pp-modal-backdrop,.overlay-shell,.print-trigger{display:none!important}
   .page-content{padding:0!important;margin:0!important;overflow:visible!important}
