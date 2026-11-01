@@ -157,7 +157,9 @@ export function ProcessIcon({ processName, fallback }: { processName: string; fa
       window.removeEventListener("aximach-icon-assignments-updated", refresh);
     };
   }, []);
-  const assignment = assignments[family];
+  const specificKey = specificProcess.trim() ? `process:${normaliseWords(specificProcess)}` : "";
+  const assignmentKey = specificKey || family;
+  const assignment = assignments[specificKey] || assignments[family];
   if (!assignment) return <span className="linked-node-icon linked-node-icon-3d"><span className="linked-node-icon-fallback">{fallback}</span></span>;
   const palette = palettes.find((item) => item.name === assignment.palette) || palettes[0];
   return (
@@ -171,6 +173,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"all" | "favourites" | "assigned">("all");
   const [family, setFamily] = useState("CNC Turning");
+  const [specificProcess, setSpecificProcess] = useState("");
   const [selectedIcon, setSelectedIcon] = useState("outline:settings");
   const [paletteName, setPaletteName] = useState(palettes[0].name);
   const [finish, setFinish] = useState(finishes[0]);
@@ -264,14 +267,14 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
     const selectedMeta = ICONS.find((item) => iconKey(item) === selectedIcon);
     if (!selectedMeta) return;
     const assignment: IconAssignment = { iconName: selectedMeta.name, iconVariant: selectedMeta.variant, palette: paletteName, finish, depth, tilt, updatedAt: new Date().toISOString() };
-    const next = { ...assignments, [family]: assignment };
+    const next = { ...assignments, [assignmentKey]: assignment };
     setAssignments(next);
     const nextPresets = [assignment, ...presets.filter((preset) => preset.iconName !== assignment.iconName || preset.iconVariant !== assignment.iconVariant || preset.palette !== assignment.palette || preset.finish !== assignment.finish)].slice(0, 120);
     setPresets(nextPresets);
     const bundle = { assignments: next, favourites, presets: nextPresets, updatedAt: new Date().toISOString() };
     writePreferenceBundle(bundle);
     void persistShared(bundle).then(setSyncStatus);
-    setNotice(`Saved ${selectedMeta.name} (${selectedMeta.variant}) for ${family}. Matching process nodes now use this 3D icon.`);
+    setNotice(`Saved ${selectedMeta.name} (${selectedMeta.variant}) for ${specificKey ? specificProcess.trim() : family}. Matching process nodes now use this 3D icon.`);
   };
   const removeAssignment = (targetFamily: string) => {
     const next = { ...assignments };
@@ -327,7 +330,8 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                   <span className="ax-icon-preview-gloss"/><i className={iconClass(selected?.name || "settings", selected?.variant)} aria-hidden="true"/>
                 </motion.div>
                 <div className="ax-icon-selected-name"><strong>{selected?.name.replaceAll("-", " ") || selectedIcon}</strong><span>{selected?.category || "Tabler outline glyph"}</span></div>
-                <label className="ax-icon-field">Assign to process family<select value={family} onChange={(event) => setFamily(event.target.value)}>{families.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={13}/></label>
+                <label className="ax-icon-field">Default process family<select value={family} onChange={(event) => setFamily(event.target.value)}>{families.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={13}/></label>
+                <label className="ax-icon-field">Optional exact operation override<input value={specificProcess} onChange={(event) => setSpecificProcess(event.target.value)} placeholder="e.g. CNC Turning - Shaft OP10"/></label>
                 <div className="ax-icon-field-label"><span>Surface finish</span><small>{finish}</small></div>
                 <div className="ax-icon-finish-options">{finishes.map((item) => <button key={item} className={finish === item ? "active" : ""} onClick={() => setFinish(item)}>{item}</button>)}</div>
                 <div className="ax-icon-field-label"><span>Material / colour</span><small>{paletteName}</small></div>
@@ -345,8 +349,8 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                   ))}
                   {!presets.length && <span className="ax-icon-presets-empty">Save a process icon to create your first reusable style.</span>}
                 </div>
-                <button className="ax-icon-save" onClick={saveAssignment}><Sparkles size={16}/> Save & apply to {family}</button>
-                {assignments[family] && <button className="ax-icon-reset" onClick={() => removeAssignment(family)}>Restore AXIMACH default icon</button>}
+                <button className="ax-icon-save" onClick={saveAssignment}><Sparkles size={16}/> Save & apply to {specificProcess.trim() || family}</button>
+                {assignments[assignmentKey] && <button className="ax-icon-reset" onClick={() => removeAssignment(assignmentKey)}>Restore AXIMACH default icon</button>}
                 {notice && <div className="ax-icon-notice"><Check size={13}/>{notice}</div>}
               </aside>
             </div>
