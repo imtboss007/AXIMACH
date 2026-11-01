@@ -36,32 +36,32 @@
 
 ### 03 — Companies
 Exactly the eight approved functions:
-- [ ] Add company.
-- [ ] Edit company.
-- [ ] Search companies.
-- [ ] Store registered company name.
-- [ ] Store GSTIN.
-- [ ] Store phone number.
-- [ ] Store email.
-- [ ] Add notes.
-- [ ] No Factories tab, factory menu, or factory management in this user-facing menu.
-- [ ] Preserve company IDs and existing company links.
+- [x] Add company.
+- [x] Edit company.
+- [x] Search companies.
+- [x] Store registered company name.
+- [x] Store GSTIN.
+- [x] Store phone number.
+- [x] Store email.
+- [x] Add notes.
+- [x] No Factories tab, factory menu, or factory management in this user-facing menu.
+- [x] Preserve company IDs and existing company links.
 
 ### 04 — Purchase Orders
-- [ ] Create, edit and search purchase orders.
-- [ ] Link PO directly to Company; no mandatory Factory relationship.
-- [ ] Select existing Component Master records; do not recreate or retype component master details.
-- [ ] Selecting a component loads its saved master details.
-- [ ] Store PO-specific line details (e.g. quantity, delivery date and customer rate) against the selected component line.
-- [ ] Preserve PO IDs, PO-line IDs and downstream operation references.
+- [x] Create, edit and search purchase orders.
+- [x] Link PO directly to Company; no mandatory Factory relationship.
+- [x] Select existing Component Master records; do not recreate or retype component master details.
+- [x] Selecting a component loads its saved master details.
+- [x] Store PO-specific line details (e.g. quantity, delivery date and customer rate) against the selected component line.
+- [x] Preserve PO IDs, PO-line IDs and downstream operation references.
 - [ ] Exact PO fields/statuses beyond these approved points: **verify existing behaviour; ask before adding**.
 
 ### 05 — Components
-- [ ] Single Component Master; no duplicate component records across modules.
-- [ ] Add, edit and search component records.
-- [ ] Reuse component IDs in POs, Process Map and Costing & Payments.
+- [x] Single Component Master; no duplicate component records across modules.
+- [x] Add, edit and search component records.
+- [x] Reuse component IDs in POs, Process Map and Costing & Payments.
 - [ ] Component master field list and validation rules: **final approval pending**.
-- [ ] Do not remove existing component data or fields without checking dependencies.
+- [x] Do not remove existing component data or fields without checking dependencies.
 
 ### 06 — Vendors & Sub-vendors
 - [ ] Maintain vendor and sub-vendor records and their relationship.
@@ -261,3 +261,6 @@ Exactly the eight approved functions:
 - Dispatch and WIP records preserve Company, PO, PO-line, component, operation, vendor, receipt/delivery acknowledgement and stock transaction IDs. They do not change operation completion, quality inspection or costing records.
 
 - Inventory audit completed: the current workspace retains Material Master, BOM and append-only Stock Ledger. Process Directory holds process types and process-vendor rates; it does not duplicate raw Material Master records. Material unit rate and preferred vendor remain on the material record and link to the existing Vendor Master ID. WIP/customer dispatch movements add location/movement IDs without overwriting prior stock transactions. Further inventory scope remains pending user clarification.
+
+- Companies menu is now company-only; historical Factory records/IDs and PO factoryId fields remain in the data model for legacy compatibility. New POs can be created directly against Company with an empty internal factoryId.
+- Component master rejects a duplicate part-number + revision pair and displays the saved Component Master details on each selected PO line. PO-specific quantity, due date and customer rate remain separate from master fields.

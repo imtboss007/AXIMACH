@@ -74,9 +74,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
 
   const changeSelection = (nextCompanyId: string) => {
     setCompanyId(nextCompanyId);
-    const nextFactory = factories.find(f => f.companyId === nextCompanyId)?.id || "";
-    setFactoryId(nextFactory);
-    const nextPO = purchaseOrders.find(p => p.companyId === nextCompanyId && (!nextFactory || p.factoryId === nextFactory));
+    const nextPO = purchaseOrders.find(p => p.companyId === nextCompanyId);
+    setFactoryId(nextPO?.factoryId || "");
     setPoId(nextPO?.id || "");
     const firstLine = nextPO?.lines.find(line => !("deletedAt" in line && (line as PurchaseOrderLine & {deletedAt?: string}).deletedAt));
     setPoLineId(firstLine?.id || "");
