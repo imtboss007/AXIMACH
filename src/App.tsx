@@ -252,7 +252,7 @@ function App() {
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "component-directory" ? (
-          <ComponentDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
+          <ComponentDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} onOpenOperation={openProcessOperation} />
         ) : activeModuleId === "production" ? (
           <CombinedProductionWorkspace initialView={productionView} initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={openQualityOperation} onOpenWipTransfer={openWipTransfer} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "maintenance" ? (
