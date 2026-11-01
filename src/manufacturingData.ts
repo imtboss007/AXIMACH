@@ -84,6 +84,13 @@ export type ComponentProcessCostRecord = {
   quantityPerPart: number; ratePerProcess: number; transportCostPerPart: number;
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type ComponentPlannedCostRecord = {
+  id: string; componentId: string;
+  materialCostPerPart: number; directLabourCostPerPart: number; overheadCostPerPart: number;
+  toolingCostPerPart: number; qualityCostPerPart: number; reworkScrapCostPerPart: number;
+  packagingCostPerPart: number; otherCostPerPart: number; targetSellingPricePerPart: number;
+  status: "Draft" | "Approved"; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type InspectionMeasurementResult = "Not measured" | "Pass" | "Fail";
 export type InspectionMeasurementRecord = {
   id: string; characteristic: string; nominal: string; lowerLimit: string; upperLimit: string;
@@ -162,7 +169,7 @@ export type ManufacturingData = {
   updatedAt: string;
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
-  quotations: QuotationRecord[]; processCategories: ProcessCategoryRecord[]; processTypes: ProcessTypeRecord[]; processVendorRates: ProcessVendorRateRecord[]; componentProcessCosts: ComponentProcessCostRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
+  quotations: QuotationRecord[]; processCategories: ProcessCategoryRecord[]; processTypes: ProcessTypeRecord[]; processVendorRates: ProcessVendorRateRecord[]; componentProcessCosts: ComponentProcessCostRecord[]; componentPlannedCosts: ComponentPlannedCostRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
   qualityInspections: QualityInspectionRecord[];
   inventoryTransactions: InventoryTransactionRecord[]; wipTransfers: WipTransferRecord[]; customerDispatches: CustomerDispatchRecord[];
   machineResources: MachineResourceRecord[]; maintenanceEvents: MaintenanceEventRecord[];
@@ -179,7 +186,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], processCategories: [], processTypes: [], processVendorRates: [], componentProcessCosts: [], materials: [], bomLines: [], qualityInspections: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: [], machineResources: [], maintenanceEvents: [], contact360Groups: [], contact360Contacts: [], contact360FollowUps: []
+  operations: [], quotations: [], processCategories: [], processTypes: [], processVendorRates: [], componentProcessCosts: [], componentPlannedCosts: [], materials: [], bomLines: [], qualityInspections: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: [], machineResources: [], maintenanceEvents: [], contact360Groups: [], contact360Contacts: [], contact360FollowUps: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -197,6 +204,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     processTypes: Array.isArray(value?.processTypes) ? value.processTypes : empty.processTypes,
     processVendorRates: Array.isArray(value?.processVendorRates) ? value.processVendorRates : empty.processVendorRates,
     componentProcessCosts: Array.isArray(value?.componentProcessCosts) ? value.componentProcessCosts : empty.componentProcessCosts,
+    componentPlannedCosts: Array.isArray(value?.componentPlannedCosts) ? value.componentPlannedCosts : empty.componentPlannedCosts,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
     qualityInspections: Array.isArray(value?.qualityInspections) ? value.qualityInspections : empty.qualityInspections,
@@ -298,6 +306,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     processTypes: mergeRows(local.processTypes, remote.processTypes),
     processVendorRates: mergeRows(local.processVendorRates, remote.processVendorRates),
     componentProcessCosts: mergeRows(local.componentProcessCosts, remote.componentProcessCosts),
+    componentPlannedCosts: mergeRows(local.componentPlannedCosts, remote.componentPlannedCosts),
     materials: mergeRows(local.materials, remote.materials),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
     qualityInspections: mergeRows(local.qualityInspections, remote.qualityInspections),
