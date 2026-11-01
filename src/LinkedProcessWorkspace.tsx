@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, Download, Eye, EyeOff, FileText, GitBranch, Package, Plus, Printer, Search, ShieldAlert, ShieldCheck, SlidersHorizontal, Truck, Users, Workflow, Wrench, X } from "lucide-react";
+import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, Download, Eye, FileText, GitBranch, Package, Plus, Printer, Search, ShieldAlert, ShieldCheck, SlidersHorizontal, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, vendorSupportsProcessType, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import ProcessMap3DViewer from "./ProcessMap3DViewer";
@@ -290,7 +290,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const baseName = [selectedComponent?.partNumber || "Component", selectedPO?.number || "Process-Map"]
       .join("-").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "");
     try {
-      const result = await saveBlobFile("AXIMACH-" + baseName + "-Process-Map.csv", new Blob(["\\uFEFF" + rows.join("\\r\\n")], { type: "text/csv;charset=utf-8" }));
+      const result = await saveBlobFile("AXIMACH-" + baseName + "-Process-Map.csv", new Blob(["\uFEFF" + rows.join("\r\n")], { type: "text/csv;charset=utf-8" }));
       onNotice(result === "cancelled" ? "CSV download cancelled." : "Process Map CSV prepared with " + selectedExportColumns.length + " selected field(s) and " + visibleOperations.length + " operation(s).");
     } catch (error) {
       onNotice(error instanceof Error ? error.message : "Could not prepare the Process Map CSV.");
