@@ -42,7 +42,7 @@ function MultiSelectFilter({ label, options, value, onChange, optional = false }
       <div className="pp-filter-menu">
         <label className="pp-filter-search"><Search size={13}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={"Search " + label.toLowerCase() + "…"} /></label>
         <div className="pp-filter-menu-actions">
-          <button type="button" onClick={() => onChange([])}>Select all</button>
+          <button type="button" onClick={() => onChange(optionIds)}>Select all</button>
           <button type="button" onClick={() => onChange([])}>Clear filter</button>
         </div>
         <div className="pp-filter-options">
@@ -138,6 +138,18 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     setCompanyIds([]); setPoIds([]); setComponentIds([]); setVendorIds([]);
     setStatusIds([]); setExecutionIds([]); setCategoryIds([]);
     setPeriodStart(""); setPeriodEnd(""); setSearch(""); setSelectedId("");
+  };
+  const updatePaymentStatus = (operationId: string, status: "Paid" | "Not Paid") => {
+    update(current => ({...current, operations: current.operations.map(operation => operation.id === operationId ? {...operation, vendorPaymentStatus: status, updatedAt: nowIso()} : operation)}));
+    onNotice("Vendor payment status updated.");
+  };
+  const runSimulation = () => {
+    const scheduled = rows.filter(operation => operation.plannedStart && operation.plannedEnd).length;
+    const unscheduled = rows.length - scheduled;
+    const overdue = rows.filter(operation => operation.status !== "Complete" && operation.plannedEnd && operation.plannedEnd < today).length;
+    const unpaid = rows.filter(operation => operation.vendorId && (operation.vendorPaymentStatus || "Not Paid") !== "Paid").length;
+    const routeValue = rows.reduce((sum, operation) => sum + operation.quantity * operation.ratePerPart + operation.transportCost, 0);
+    onNotice("Simulation preview · " + rows.length + " operations · " + scheduled + " scheduled · " + unscheduled + " missing dates · " + overdue + " overdue · " + unpaid + " unpaid vendor operations · planned process value " + money(routeValue) + ". No records changed.");
   };
   const openAdd = () => {
     const next = emptyDraft();
@@ -266,7 +278,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
         <div className="pp-actions">
           <button onClick={() => onNotice("Auto Schedule is not enabled for this planning screen yet. No dates or assignments were changed.")}>✧ Auto Schedule (AI)</button>
           <button onClick={() => onSelectModule("process-map")}>Edit Plan</button>
-          <button onClick={() => onNotice("Simulation preview is not connected to a planning model yet. No records were changed.")}>Simulate</button>
+          <button onClick={runSimulation}>Simulate</button>
           <button onClick={() => setCollapsedComponents([])}><Maximize2 size={13}/> Expand All</button>
           <button onClick={() => setCollapsedComponents(componentGroups.map(group => group.key))}>Collapse All</button>
         </div>
@@ -291,8 +303,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                       <button className={"pp-route-node " + statusClass(operation.status) + (selected?.id === operation.id ? " selected" : "")} onClick={() => { setSelectedId(operation.id); setTab("General"); }}>
                         <span className="pp-route-node-top"><b>{operation.sequence / 10 || index + 1}. {processLabel(operation)}</b><small>OP-{String(operation.sequence).padStart(3, "0")}</small></span>
                         <span className="pp-route-node-data">Vendor: {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</span>
-                        <span className="pp-route-node-data">Start: {day(operation.plannedStart)}</span>
-                        <span className="pp-route-node-data">Due: {day(operation.plannedEnd)}</span>
+                        <span className="pp-route-node-data">Start: {day(operation.plannedStart)}{operation.plannedSlotStartAt ? " · " + new Date(operation.plannedSlotStartAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : ""}</span>
+                        <span className="pp-route-node-data">Due: {day(operation.plannedEnd)}{operation.plannedSlotEndAt ? " · " + new Date(operation.plannedSlotEndAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : ""}</span>
                         <span className="pp-route-node-data">Qty: {operation.quantity.toLocaleString("en-IN")} pcs</span>
                         <span className="pp-route-node-data">Price: {money(operation.ratePerPart)}</span><span className="pp-route-node-data">Vendor payment: {operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</span>
                         <strong className="pp-status">{operation.status}</strong>
@@ -320,8 +332,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                         <button className={"pp-route-node " + statusClass(operation.status) + (selected?.id === operation.id ? " selected" : "")} onClick={() => { setSelectedId(operation.id); setTab("General"); }}>
                           <span className="pp-route-node-top"><b>{operation.sequence / 10 || index + 1}. {processLabel(operation)}</b><small>OP-{String(operation.sequence).padStart(3, "0")}</small></span>
                           <span className="pp-route-node-data">Vendor: {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</span>
-                          <span className="pp-route-node-data">Start: {day(operation.plannedStart)}</span>
-                          <span className="pp-route-node-data">Due: {day(operation.plannedEnd)}</span>
+                          <span className="pp-route-node-data">Start: {day(operation.plannedStart)}{operation.plannedSlotStartAt ? " · " + new Date(operation.plannedSlotStartAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : ""}</span>
+                          <span className="pp-route-node-data">Due: {day(operation.plannedEnd)}{operation.plannedSlotEndAt ? " · " + new Date(operation.plannedSlotEndAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : ""}</span>
                           <span className="pp-route-node-data">Qty: {operation.quantity.toLocaleString("en-IN")} pcs</span>
                           <span className="pp-route-node-data">Price: {money(operation.ratePerPart)}</span>
                           <strong className="pp-status">{operation.status}</strong>
@@ -353,7 +365,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
             <td>{index + 1}</td><td>{operation.name}</td><td>{operation.category || "—"}</td><td>{operation.vendorId ? "Outsourced" : "Internal"}</td>
             <td>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</td><td>{day(operation.plannedStart)}</td><td>{day(operation.plannedEnd)}</td>
             <td>{operation.quantity.toLocaleString("en-IN")}</td><td>{money(operation.ratePerPart)}</td><td>{money(operation.quantity * operation.ratePerPart + operation.transportCost)}</td>
-            <td><span className={"pp-table-status " + statusClass(operation.status)}>{operation.status}</span></td><td>{operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</td>
+            <td><span className={"pp-table-status " + statusClass(operation.status)}>{operation.status}</span></td><td>{operation.vendorId ? <select aria-label={"Payment status for "+operation.name} value={operation.vendorPaymentStatus || "Not Paid"} onClick={event=>event.stopPropagation()} onChange={event=>updatePaymentStatus(operation.id,event.target.value as "Paid" | "Not Paid")}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select> : "—"}</td>
             <td><button onClick={event => { event.stopPropagation(); openEdit(operation); }}>Edit</button></td>
           </tr>)}</tbody>
         </table></div>
@@ -378,9 +390,9 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
 
     <section className="pp-schedule">
       <div className="pp-section-head"><div><h2>Production Schedule ({calendar ? "Calendar View" : "Gantt View"})</h2><p>Based on saved process start and due dates.</p></div>
-        <div className="pp-actions"><button className={!calendar ? "active" : ""} onClick={() => setCalendar(false)}>Gantt View</button><button className={calendar ? "active" : ""} onClick={() => setCalendar(true)}><CalendarDays size={13}/> Calendar View</button>{["Day", "Week", "Month"].map(item => <button className={scale === item ? "active" : ""} onClick={() => setScale(item)} key={item}>{item}</button>)}</div>
+        <div className="pp-actions"><button className={!calendar ? "active" : ""} onClick={() => setCalendar(false)}>Gantt View</button><button className={calendar ? "active" : ""} onClick={() => setCalendar(true)}><CalendarDays size={13}/> Calendar View</button><label className="pp-scale-select"><span>View</span><select aria-label="Calendar scale" value={scale} onChange={event=>setScale(event.target.value)}><option value="Day">Day</option><option value="Week">Week</option><option value="Month">Month</option></select></label></div>
       </div>
-      {calendar ? <div className="pp-calendar-list">{rows.filter(operation => operation.plannedStart || operation.plannedEnd).slice().sort((a, b) => (a.plannedStart || "").localeCompare(b.plannedStart || "")).map(operation => <div className="pp-calendar-row" key={operation.id}><strong>{day(operation.plannedStart)}</strong><span>{processLabel(operation)}</span><small>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</small><b>{day(operation.plannedEnd)}</b><em className={statusClass(operation.status)}>{operation.status}</em></div>)}{!rows.some(operation => operation.plannedStart || operation.plannedEnd) ? <div className="pp-empty pp-schedule-empty"><CalendarDays size={23}/><strong>No dated processes.</strong><span>Set process dates to populate the calendar.</span></div> : null}</div> :
+      {calendar ? <div className="pp-calendar-list">{rows.filter(operation => operation.plannedStart || operation.plannedEnd).slice().sort((a, b) => (a.plannedStart || "").localeCompare(b.plannedStart || "")).map(operation => <div className="pp-calendar-row" key={operation.id}><strong>{day(operation.plannedStart)}{operation.plannedSlotStartAt ? " · "+new Date(operation.plannedSlotStartAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : ""}</strong><span>{processLabel(operation)}</span><small>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</small><b>{day(operation.plannedEnd)}{operation.plannedSlotEndAt ? " · "+new Date(operation.plannedSlotEndAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : ""}</b><em className={statusClass(operation.status)}>{operation.status}</em></div>)}{!rows.some(operation => operation.plannedStart || operation.plannedEnd) ? <div className="pp-empty pp-schedule-empty"><CalendarDays size={23}/><strong>No dated processes.</strong><span>Set process dates to populate the calendar.</span></div> : null}</div> :
       ganttRows.length ? <div className={"pp-gantt pp-gantt-" + scale.toLowerCase()}>{ganttRows.map(operation => {
         const left = Math.max(0, (Date.parse(operation.plannedStart) - Date.parse(timelineStart)) / 86400000 / duration * 100);
         const width = Math.max(2, (Date.parse(operation.plannedEnd) - Date.parse(operation.plannedStart) + 86400000) / 86400000 / duration * 100);
