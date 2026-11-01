@@ -460,6 +460,31 @@ function DashboardWorkspace(props: {
         </div>
       </section>
 
+      <div className="axi-capability-marquee" aria-label="AXIMACH manufacturing workspaces">
+        <div className="axi-marquee-track">
+          <div className="axi-marquee-set">
+            <span><Boxes size={13}/> COMPONENT ENGINEERING</span><i/>
+            <span><Workflow size={13}/> ROUTE INTELLIGENCE</span><i/>
+            <span><Users size={13}/> SUPPLIER NETWORK</span><i/>
+            <span><ClipboardCheck size={13}/> QUALITY CONTROL</span><i/>
+            <span><Gauge size={13}/> CAPACITY PLANNING</span><i/>
+            <span><CircleDollarSign size={13}/> COST INTELLIGENCE</span><i/>
+            <span><Truck size={13}/> WIP & DELIVERY</span><i/>
+            <span><ShieldCheck size={13}/> TRACEABLE RECORDS</span><i/>
+          </div>
+          <div className="axi-marquee-set" aria-hidden="true">
+            <span><Boxes size={13}/> COMPONENT ENGINEERING</span><i/>
+            <span><Workflow size={13}/> ROUTE INTELLIGENCE</span><i/>
+            <span><Users size={13}/> SUPPLIER NETWORK</span><i/>
+            <span><ClipboardCheck size={13}/> QUALITY CONTROL</span><i/>
+            <span><Gauge size={13}/> CAPACITY PLANNING</span><i/>
+            <span><CircleDollarSign size={13}/> COST INTELLIGENCE</span><i/>
+            <span><Truck size={13}/> WIP & DELIVERY</span><i/>
+            <span><ShieldCheck size={13}/> TRACEABLE RECORDS</span><i/>
+          </div>
+        </div>
+      </div>
+
       <section className="pulse-heading">
         <div><div className="eyebrow"><span className="eyebrow-mark"/> THE FACTORY SIGNAL</div><h2>Operational pulse<span>.</span></h2><p>KPIs and activity calculated from saved AXIMACH records, never illustrative values.</p></div>
         <div className="pulse-actions"><span className="demo-pill"><i/> RECORD-DRIVEN</span><button className="button-quiet compact-button" onClick={onOpenModules}><LayoutGrid size={14}/> Browse workspaces</button></div>
