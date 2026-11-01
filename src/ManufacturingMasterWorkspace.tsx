@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, Building2, CalendarClock, Check, CircleDollarSign, Edit3, FileText, Package, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowRight, Building2, CalendarClock, Check, CircleDollarSign, Edit3, Factory, FileText, Package, Plus, Search, Trash2, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type PurchaseOrderLine, type PurchaseOrderRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
@@ -11,6 +11,7 @@ type Props = {
   onSelectModule: (id: string) => void;
 };
 
+const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const blankCompany = (): Omit<CompanyRecord, "id" | "createdAt" | "updatedAt" | "deletedAt"> => ({ name: "", gstin: "", phone: "", email: "", notes: "" });
 const blankComponent = (): Omit<ComponentRecord, "id" | "createdAt" | "updatedAt" | "deletedAt"> => ({
   partNumber: "", name: "", revision: "", material: "", drawingReference: "", notes: "",

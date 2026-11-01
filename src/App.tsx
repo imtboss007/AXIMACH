@@ -161,8 +161,8 @@ function App() {
         </button>
 
         <div className="deck-divider" />
-        <button className="factory-switcher" onClick={() => selectModule("companies")} aria-label="Manage companies and factories">
-          <Factory size={16} /><span>Companies &amp; Factories</span><ChevronDown size={14}/>
+        <button className="factory-switcher" onClick={() => selectModule("companies")} aria-label="Manage companies">
+          <Building2 size={16} /><span>Companies</span><ChevronDown size={14}/>
         </button>
 
         <div className="deck-spacer" />
