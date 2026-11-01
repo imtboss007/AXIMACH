@@ -215,10 +215,6 @@ function App() {
           <span className="brand-copy"><strong>Machining Flow Control</strong><small>Multi-Company Manufacturing OS</small></span>
         </button>
 
-        <div className="deck-divider" />
-        <button className="factory-switcher" onClick={() => selectModule("companies")} aria-label="Manage companies">
-          <Building2 size={16} /><span>Companies</span><ChevronDown size={14}/>
-        </button>
 
         <div className="deck-spacer" />
         <button className="command-search" onClick={() => { setCommandOpen(true); setModuleExplorerOpen(false); }} aria-label="Open command search">
