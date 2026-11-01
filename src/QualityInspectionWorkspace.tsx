@@ -124,7 +124,7 @@ export default function QualityInspectionWorkspace({ onBack, onNotice, notice, o
     };
     update(current => ({ ...current, qualityInspections: [...current.qualityInspections.filter(row => row.id !== record.id), record] }));
     setShowForm(false); setEditingId("");
-    onNotice("Inspection saved and linked to the exact company, factory, PO, component line and process operation. Operation cost/vendor assignment was not changed.");
+    onNotice("Inspection saved and linked to the exact company, PO, component line and process operation. Historical location IDs remain preserved; operation cost/vendor assignment was not changed.");
   };
   const archive = (row: QualityInspectionRecord) => {
     if (!window.confirm("Archive this inspection record? The saved measurements and links remain in historical data.")) return;
