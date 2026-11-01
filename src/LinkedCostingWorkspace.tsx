@@ -167,7 +167,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
         ? { ...q, status: q.id === quote.id ? "Selected" : q.status === "Selected" ? "Received" : q.status, updatedAt: selectedStamp }
         : q),
       operations: current.operations.map(op => op.id === quote.operationId
-        ? { ...op, vendorId: quote.vendorId, ratePerPart: quote.ratePerPart, transportCost: quote.transportCost, updatedAt: selectedStamp }
+        ? { ...op, vendorId: quote.vendorId, ratePerPart: quote.ratePerPart, transportCost: quote.transportCost, vendorPaymentStatus: op.vendorId === quote.vendorId ? (op.vendorPaymentStatus || "Not Paid") : "Not Paid", updatedAt: selectedStamp }
         : op)
     }));
     onNotice("Selected quote rate/vendor applied to this operation's planned cost. The quote remains separate from actual invoice cost.");
@@ -213,7 +213,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
       </section>
       {showQuoteForm && <section className="surface-panel module-record-form-panel linked-quote-form"><div className="panel-heading"><div><h3>New supplier quotation</h3><p>Quote source and status stay separate from actual accepted invoice / job cost.</p></div><button className="icon-control" onClick={() => setShowQuoteForm(false)} aria-label="Close quote form"><X size={15}/></button></div>
         <div className="module-record-form">
-          <label>PO / component line<select value={selectedLine?.key || ""} onChange={e => {setLineKey(e.target.value);setOperationId("");}}><option value="">Select line…</option>{componentLines.map(l=><option key={l.key} value={l.key}>{l.poNumber} · {l.quantity} pcs</option>)}</select></label>
+          <label>PO / component line<select value={selectedLine?.key || ""} onChange={e => {setLineKey(e.target.value);setOperationId("");setVendorId("");}}><option value="">Select line…</option>{componentLines.map(l=><option key={l.key} value={l.key}>{l.poNumber} · {l.quantity} pcs</option>)}</select></label>
           <label>Process operation *<select value={selectedOperation?.id || operationId} onChange={e => {setOperationId(e.target.value);setVendorId("");}}><option value="">Select operation…</option>{routeOperations.map(op=><option key={op.id} value={op.id}>{op.name} · OP-{op.sequence}</option>)}</select></label>
           <label>Vendor / supplier *<select value={vendorId} onChange={e => setVendorId(e.target.value)}><option value="">Select actual vendor…</option>{quoteVendors.map(v=><option key={v.id} value={v.id}>{v.company} · {v.phone || "No phone"}{v.status.toLowerCase().includes("unverified") ? " · Unverified contact" : ""}</option>)}</select>{!selectedOperationProcessTypeId?<small className="field-hint">Select an operation linked to a Process Directory type first.</small>:!quoteVendors.length?<small className="field-hint">No vendors are registered for this operation’s process type. Add one in Vendor Master under that process.</small>:null}</label>
           <label>Quotation reference<input value={quoteReference} onChange={e=>setQuoteReference(e.target.value)} placeholder="Supplier quote / email / RFQ reference"/></label>

@@ -149,6 +149,7 @@ Exactly the eight approved functions:
 - [x] Profitability requires positive material quantity and rate, selling rate and a positive planned rate for every operation; incomplete material overrides are not treated as complete coverage.
 - [x] Cost per accepted part uses only accepted quantity explicitly recorded on a completed final operation; it is not inferred from PO quantity or estimated rejects.
 - [x] New PO-operation quotations require a process-linked operation and a vendor whose single Vendor Master processTypeId matches that operation; stale mismatched historical quotes remain visible but cannot be applied.
+- [x] Applying a quotation that changes the operation vendor resets Paid / Not Paid to Not Paid; the existing status is retained when the vendor remains the same.
 - [x] Process Map requires a positive operation quantity; zero-quantity operations cannot be saved or counted as complete profitability inputs.
 
 ### 14 — Reports & Analytics
