@@ -85,6 +85,23 @@ async function connect() {
       state.logs = state.logs.slice(0, 2000);
       save().catch(console.error);
     });
+    socket.ev.on("messages.update", updates => {
+      for (const item of updates || []) {
+        const messageId = item.key?.id || "";
+        const statusCode = item.update?.status;
+        if (!item.key?.fromMe || !messageId || statusCode === undefined || statusCode === null) continue;
+        state.logs.unshift({
+          id: randomUUID(),
+          at: new Date().toISOString(),
+          status: "delivery_update",
+          messageId,
+          statusCode,
+          detail: "WhatsApp linked-device message status event (raw provider status code)."
+        });
+      }
+      state.logs = state.logs.slice(0, 2000);
+      save().catch(console.error);
+    });
   } catch (e) {
     state.connected = false;
     console.error("WhatsApp connection failed:", e.message);
