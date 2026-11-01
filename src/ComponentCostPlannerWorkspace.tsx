@@ -15,7 +15,7 @@ type PlanFields = Pick<ComponentPlannedCostRecord,
   "toolingCostPerPart" | "qualityCostPerPart" | "reworkScrapCostPerPart" |
   "packagingCostPerPart" | "otherCostPerPart" | "targetSellingPricePerPart" | "status" | "notes"
 >;
-type ProcessDraft = { processTypeId: string; vendorId: string; quantityPerPart: string; ratePerProcess: string; transportCostPerPart: string; notes: string };
+type ProcessDraft = { categoryId: string; processTypeId: string; vendorId: string; quantityPerPart: string; ratePerProcess: string; transportCostPerPart: string; notes: string };
 
 const blankFields = (): PlanFields => ({
   materialCostPerPart: 0, directLabourCostPerPart: 0, overheadCostPerPart: 0,
@@ -24,7 +24,7 @@ const blankFields = (): PlanFields => ({
   status: "Draft", notes: ""
 });
 const blankProcess = (): ProcessDraft => ({
-  processTypeId: "", vendorId: "", quantityPerPart: "1", ratePerProcess: "",
+  categoryId: "", processTypeId: "", vendorId: "", quantityPerPart: "1", ratePerProcess: "",
   transportCostPerPart: "0", notes: ""
 });
 const costFields: { key: Exclude<keyof PlanFields, "status" | "notes">; label: string; detail: string }[] = [
@@ -84,10 +84,6 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
   const targetSelling = Number(draft.targetSellingPricePerPart) || 0;
   const plannedMargin = targetSelling - plannedCostPerPart;
   const marginPercent = targetSelling > 0 ? plannedMargin / targetSelling * 100 : null;
-  const processOptions = processTypes.map(type => ({
-    id: type.id,
-    label: (categories.find(category => category.id === type.categoryId)?.name || "Process") + " · " + type.name
-  }));
   const vendorOptions = vendors.filter(vendor =>
     !processDraft.processTypeId || vendorSupportsProcessType(vendor, processDraft.processTypeId) ||
     vendor.id === processDraft.vendorId
@@ -128,7 +124,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
         record
       ]
     }));
-    onNotice("Component planned cost saved. Process Map and Costing & Payments will now show this component's budget reference separately from supplier actuals.");
+    onNotice("Component planned cost saved. This baseline is used in Costing & Payments only; Process Planning and operation rates are unchanged.");
   };
   const beginAddProcess = () => {
     setEditingProcessId("");
@@ -138,6 +134,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
   const beginEditProcess = (record: ComponentProcessCostRecord) => {
     setEditingProcessId(record.id);
     setProcessDraft({
+      categoryId: processTypes.find(type => type.id === record.processTypeId)?.categoryId || "",
       processTypeId: record.processTypeId,
       vendorId: record.vendorId || "",
       quantityPerPart: String(record.quantityPerPart),
@@ -148,8 +145,9 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
     setShowProcessForm(true);
   };
   const saveProcessPlan = () => {
-    if (!selected || !processDraft.processTypeId) {
-      onNotice("Select a saved component and a Process Directory process.");
+    const selectedProcessType = processTypes.find(type => type.id === processDraft.processTypeId);
+    if (!selected || !processDraft.categoryId || !selectedProcessType || selectedProcessType.categoryId !== processDraft.categoryId) {
+      onNotice("Select a saved component, process category and process type from Process Directory.");
       return;
     }
     const quantity = Number(processDraft.quantityPerPart);
@@ -197,7 +195,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
     onNotice("Planned process cost saved against this component. It is a benchmark only; it does not mark a vendor quotation, operation or payment as approved.");
   };
   const archiveProcessPlan = (record: ComponentProcessCostRecord) => {
-    if (!window.confirm("Archive this component's planned process-cost row? Existing Process Map operations and actual payments will remain unchanged.")) return;
+    if (!window.confirm("Archive this component's planned process-cost row? Costing history and actual payments will remain unchanged.")) return;
     const stamp = nowIso();
     update(current => ({
       ...current,
@@ -217,7 +215,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
       <span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/> {syncStatus === "synced" ? "SHARED SERVER DATA" : syncStatus === "syncing" ? "SYNCING" : syncStatus === "error" ? "SYNC ERROR · LOCAL COPY KEPT" : "LOCAL DATA · SERVER OPTIONAL"}</span>
     </div>
     <div className="workspace-title-row">
-      <div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / PER-COMPONENT COST BASELINE</div><h1>Component Cost Planner<span>.</span></h1><p>Set your own target cost for every component. Keep the planned budget separate from quotations, operation commitments and actual vendor payments.</p></div>
+      <div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / PER-COMPONENT COST BASELINE</div><h1>Component Cost Planner<span>.</span></h1><p>Choose a component from Component Directory and set its process-category/type cost assumptions here. These saved budgets appear in Costing & Payments only; they never feed Process Planning.</p></div>
       <div className="workspace-title-actions">
         <button className="button-quiet" onClick={() => onSelectModule("component-directory")}><Boxes size={14}/> Component Directory</button>
         <button className="button-quiet" onClick={() => onSelectModule("production")}><Workflow size={14}/> Process Map</button>
@@ -268,11 +266,12 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
         </section>
 
         <section className="surface-panel ccp-process-panel">
-          <div className="panel-heading"><div><div className="eyebrow">PROCESS-WISE BUDGET / LINKED TO PROCESS DIRECTORY</div><h3>Planned process route costs</h3><p>Define your expected cost for each required process. These rows are the per-component benchmarks shown beside Process Map operation rates.</p></div><button className="button-primary compact-button" onClick={beginAddProcess}><Plus size={13}/> Add process plan</button></div>
+          <div className="panel-heading"><div><div className="eyebrow">PROCESS-WISE BUDGET / LINKED TO PROCESS DIRECTORY</div><h3>Planned process route costs</h3><p>Define your expected cost for each required process. These rows are saved as component cost assumptions for Costing & Payments only; they do not feed Process Planning or vendor commitments.</p></div><button className="button-primary compact-button" onClick={beginAddProcess}><Plus size={13}/> Add process plan</button></div>
           {showProcessForm && <div className="ccp-process-editor">
             <div className="ccp-process-editor-head"><strong>{editingProcessId ? "Edit process cost plan" : "Add process cost plan"}</strong><button className="icon-control" onClick={() => setShowProcessForm(false)} aria-label="Close process plan editor"><X size={14}/></button></div>
             <div className="ccp-process-form-grid">
-              <label>Process / subcategory<select value={processDraft.processTypeId} onChange={event => setProcessDraft(current => ({ ...current, processTypeId: event.target.value, vendorId: vendors.some(vendor => vendorSupportsProcessType(vendor, event.target.value)) ? current.vendorId : "" }))}><option value="">Choose saved process…</option>{processOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
+              <label>Process category<select value={processDraft.categoryId} onChange={event => setProcessDraft(current => ({ ...current, categoryId: event.target.value, processTypeId: "", vendorId: "" }))}><option value="">Choose category…</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+              <label>Process type<select value={processDraft.processTypeId} disabled={!processDraft.categoryId} onChange={event => setProcessDraft(current => ({ ...current, processTypeId: event.target.value, vendorId: vendors.some(vendor => vendorSupportsProcessType(vendor, event.target.value)) ? current.vendorId : "" }))}><option value="">Choose process type…</option>{processTypes.filter(type => type.categoryId === processDraft.categoryId).map(type => <option key={type.id} value={type.id}>{type.name}{type.code ? " · "+type.code : ""}</option>)}</select></label>
               <label>Preferred capable vendor (optional)<select value={processDraft.vendorId} onChange={event => setProcessDraft(current => ({ ...current, vendorId: event.target.value }))}><option value="">In-house / not assigned</option>{vendorOptions.map(vendor => <option key={vendor.id} value={vendor.id}>{vendor.company} · {vendor.contact}</option>)}</select></label>
               <label>Process quantity per component<input type="number" min="0.0001" step="0.0001" value={processDraft.quantityPerPart} onChange={event => setProcessDraft(current => ({ ...current, quantityPerPart: event.target.value }))}/></label>
               <label>Rate per process unit (₹)<input type="number" min="0" step="0.01" value={processDraft.ratePerProcess} onChange={event => setProcessDraft(current => ({ ...current, ratePerProcess: event.target.value }))} placeholder="Enter rate"/></label>
@@ -280,7 +279,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
               <label>Calculated process plan / component (₹)<input readOnly value={money((Number(processDraft.quantityPerPart) || 0) * (Number(processDraft.ratePerProcess) || 0) + (Number(processDraft.transportCostPerPart) || 0))}/></label>
               <label className="ccp-process-notes"><span>Notes</span><input value={processDraft.notes} onChange={event => setProcessDraft(current => ({ ...current, notes: event.target.value }))} placeholder="Operation assumptions, tolerance, batch basis…"/></label>
             </div>
-            {!processTypes.length && <p className="ccp-inline-note">Create your actual process categories and types in Process Directory before adding process budgets.</p>}
+            {!processTypes.length && <p className="ccp-inline-note">Create or maintain process categories and process types in Process Directory, then select them here.</p>}
             <div className="ccp-process-actions"><button className="button-primary" onClick={saveProcessPlan}><Check size={13}/> Save process plan</button><button className="button-quiet" onClick={() => setShowProcessForm(false)}>Cancel</button></div>
           </div>}
           {selectedProcessPlans.length ? <div className="ccp-table-wrap"><table className="ccp-table"><thead><tr><th>Sequence / process</th><th>Preferred vendor</th><th>Qty / component</th><th>Rate / process unit</th><th>Transport / component</th><th>Planned route cost / component</th><th>Actions</th></tr></thead><tbody>{selectedProcessPlans.map(row => {
@@ -289,7 +288,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
             const category = categories.find(item => item.id === type?.categoryId);
             const cost = row.quantityPerPart * row.ratePerProcess + row.transportCostPerPart;
             return <tr key={row.id}><td><strong>{category?.name || "Process"} · {type?.name || "Archived process"}</strong><small>{row.notes || "No planning note"}</small></td><td>{vendor?.company || (row.vendorId ? "Vendor unavailable" : "In-house")}</td><td>{row.quantityPerPart}</td><td>{money(row.ratePerProcess)}</td><td>{money(row.transportCostPerPart)}</td><td><strong>{money(cost)}</strong></td><td><span className="ccp-actions"><button className="button-quiet compact-button" onClick={() => beginEditProcess(row)} title="Edit process cost"><Pencil size={12}/></button><button className="button-quiet compact-button" onClick={() => archiveProcessPlan(row)} title="Archive process cost"><Trash2 size={12}/></button></span></td></tr>;
-          })}</tbody></table></div> : <div className="ccp-empty-process"><Workflow size={25}/><strong>No process costs planned for this component</strong><span>Add only the stages this part actually needs. Process plan rows are independent of the operation execution/payment records.</span></div>}
+          })}</tbody></table></div> : <div className="ccp-empty-process"><Workflow size={25}/><strong>No process costs planned for this component</strong><span>Add only the process costs this component needs. These are costing assumptions, not Process Map operations or vendor commitments.</span></div>}
           <div className="ccp-process-total"><span>Planned process route / finished component</span><strong>{money(processCostPerPart)}</strong></div>
         </section>
 
