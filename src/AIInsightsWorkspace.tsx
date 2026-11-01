@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Activity, AlertTriangle, ArrowRight, BarChart3, CheckCircle2, CircleDollarSign, ClipboardCheck, Package, ShieldAlert, ShieldCheck, Truck, Workflow } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, BarChart3, CalendarClock, CheckCircle2, CircleDollarSign, ClipboardCheck, Package, ShieldAlert, ShieldCheck, Truck, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
 
 type Props={onBack:()=>void;onSelectModule:(id:string)=>void};
