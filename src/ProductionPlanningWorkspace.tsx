@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
-import { Activity, ArrowRight, CalendarDays, CheckCircle2, ChevronDown, Clock3, Maximize2, Plus, Search, ShieldAlert, SlidersHorizontal, Truck, Users, Workflow, X, Wrench } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord } from "./manufacturingData";
+import { Activity, ArrowRight, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Maximize2, Plus, Search, ShieldAlert, SlidersHorizontal, Truck, Users, Workflow, X, Wrench } from "lucide-react";
+import { activeRows, makeId, nowIso, useManufacturingData, vendorSupportsProcessType, type LifecycleStatus, type OperationRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; onSelectModule: (id: string) => void };
@@ -20,39 +20,39 @@ const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en
 const statusClass = (value: string) => value.toLowerCase().replace(/[^a-z]+/g, "-");
 const isSelected = (ids: string[], id: string) => ids.length === 0 || (ids[0] !== "__none__" && ids.includes(id));
 
-function MultiSelectFilter({ label, options, value, onChange, optional = false }: {
+function MultiSelectFilter({ label, options, value, onChange, optional = false, isOpen, onToggle, onClose }: {
   label: string; options: FilterOption[]; value: string[]; onChange: (ids: string[]) => void; optional?: boolean;
+  isOpen: boolean; onToggle: () => void; onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
   const optionIds = options.map(option => option.id);
   const filtered = options.filter(option => option.label.toLowerCase().includes(query.toLowerCase().trim()));
-  const allSelected = value.length === 0 || (value[0] !== "__none__" && value.length === options.length);
+  const noneSelected=value[0]==="__none__";
+  const allSelected=!noneSelected&&(value.length===0||value.length===options.length);
+  const selectedCount=noneSelected?0:value.length===0?options.length:value.length;
   const toggle = (id: string) => {
-    if (value[0] === "__none__") { onChange([id]); return; }
-    if (value.length === 0 || value.length === options.length) {
-      onChange(optionIds.filter(item => item !== id));
-      return;
-    }
-    const next = value.includes(id) ? value.filter(item => item !== id) : [...value, id];
-    onChange(next.length === options.length ? [] : next);
+    if(noneSelected){onChange([id]);return;}
+    const current=value.length===0?optionIds:value;
+    const next=current.includes(id)?current.filter(item=>item!==id):[...current,id];
+    onChange(next.length===0?["__none__"]:next.length===options.length?[]:next);
   };
-  return <div className="pp-filter">
+  return <div className={"pp-filter"+(isOpen?" pp-filter-open":"")} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget as Node|null))onClose();}}>
     <label>{label}{optional ? <small>Optional</small> : null}</label>
-    <details className="pp-multiselect">
-      <summary><Search size={13}/><span>{allSelected ? "All " + label.toLowerCase() : value.length + " selected"}</span><ChevronDown size={13}/></summary>
-      <div className="pp-filter-menu">
-        <label className="pp-filter-search"><Search size={13}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={"Search " + label.toLowerCase() + "…"} /></label>
-        <div className="pp-filter-menu-actions">
-          <button type="button" onClick={() => onChange(optionIds)}>Select all</button>
-          <button type="button" onClick={() => onChange(["__none__"])}>Unselect all</button>
-          <button type="button" onClick={() => onChange([])}>Clear filter</button>
-        </div>
-        <div className="pp-filter-options">
-          {filtered.map(option => <label key={option.id}><input type="checkbox" checked={isSelected(value, option.id)} onChange={() => toggle(option.id)}/><span>{option.label}</span></label>)}
-          {!filtered.length && <small>No matching saved records.</small>}
-        </div>
+    <button type="button" className="pp-multiselect-summary" aria-expanded={isOpen} onClick={onToggle}>
+      <Search size={13}/><span>{allSelected ? "All " + label.toLowerCase() : noneSelected ? "None selected" : selectedCount+" selected"}</span><ChevronDown size={13}/>
+    </button>
+    {isOpen&&<div className="pp-filter-menu">
+      <label className="pp-filter-search"><Search size={13}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={"Search " + label.toLowerCase() + "…"} /></label>
+      <div className="pp-filter-menu-actions">
+        <button type="button" onClick={() => onChange(optionIds)}>Select all</button>
+        <button type="button" onClick={() => onChange(["__none__"])}>Unselect all</button>
+        <button type="button" onClick={() => onChange([])}>Clear filter</button>
       </div>
-    </details>
+      <div className="pp-filter-options">
+        {filtered.map(option => <label key={option.id}><input type="checkbox" checked={isSelected(value, option.id)} onChange={() => toggle(option.id)}/><span>{option.label}</span></label>)}
+        {!filtered.length && <small>No matching saved records.</small>}
+      </div>
+    </div>}
   </div>;
 }
 
@@ -78,6 +78,9 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const [tab, setTab] = useState("General");
   const [calendar, setCalendar] = useState(false);
   const [scale, setScale] = useState("Week");
+  const [calendarCursor,setCalendarCursor]=useState(new Date().toISOString().slice(0,10));
+  const [openFilterId,setOpenFilterId]=useState("");
+  const [simulationOpen,setSimulationOpen]=useState(false);
   const [collapsedComponents, setCollapsedComponents] = useState<string[]>([]);
   const [showEditor, setShowEditor] = useState(false);
   const [editingId, setEditingId] = useState("");
@@ -248,17 +251,17 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
 
     <section className="pp-filter-panel">
       <div className="pp-filter-grid">
-        <MultiSelectFilter label="Company" options={companyOptions} value={companyIds} onChange={ids => { setSelection(setCompanyIds, ids); setPoIds([]); setComponentIds([]); }}/>
-        <MultiSelectFilter label="PO Number" options={poOptions} value={poIds} onChange={ids => { setSelection(setPoIds, ids); setComponentIds([]); }}/>
-        <MultiSelectFilter label="Component" options={componentOptions} value={componentIds} onChange={setComponentIds}/>
+        <MultiSelectFilter label="Company" options={companyOptions} value={companyIds} onChange={ids => { setSelection(setCompanyIds, ids); setPoIds([]); setComponentIds([]); }} isOpen={openFilterId==="Company"} onToggle={()=>setOpenFilterId(current=>current==="Company"?"":"Company")} onClose={()=>setOpenFilterId("")}/>
+        <MultiSelectFilter label="PO Number" options={poOptions} value={poIds} onChange={ids => { setSelection(setPoIds, ids); setComponentIds([]); }} isOpen={openFilterId==="PO Number"} onToggle={()=>setOpenFilterId(current=>current==="PO Number"?"":"PO Number")} onClose={()=>setOpenFilterId("")}/>
+        <MultiSelectFilter label="Component" options={componentOptions} value={componentIds} onChange={setComponentIds} isOpen={openFilterId==="Component"} onToggle={()=>setOpenFilterId(current=>current==="Component"?"":"Component")} onClose={()=>setOpenFilterId("")}/>
         <div className="pp-filter pp-date"><label>Plan Period</label><div className="pp-date-range"><input aria-label="Plan period start" type="date" value={periodStart} onChange={event => setPeriodStart(event.target.value)}/><span>to</span><input aria-label="Plan period end" type="date" value={periodEnd} onChange={event => setPeriodEnd(event.target.value)}/></div></div>
-        <MultiSelectFilter label="Vendor" options={vendorOptions} value={vendorIds} onChange={setVendorIds} optional/>
-        <div className="pp-filter-actions"><button className="pp-apply" onClick={() => onNotice("Filters applied to saved companies, purchase orders, components and vendor assignments.")}>Apply</button><button onClick={resetFilters}>Reset</button></div>
+        <MultiSelectFilter label="Vendor" options={vendorOptions} value={vendorIds} onChange={setVendorIds} optional isOpen={openFilterId==="Vendor"} onToggle={()=>setOpenFilterId(current=>current==="Vendor"?"":"Vendor")} onClose={()=>setOpenFilterId("")}/>
+        <div className="pp-filter-actions"><button className="pp-apply" onClick={() => {setOpenFilterId("");onNotice("Filters applied to saved companies, purchase orders, components and vendor assignments.");}}>Apply</button><button onClick={()=>{resetFilters();setOpenFilterId("");}}>Clear all</button></div>
       </div>
       <div className="pp-secondary-filters">
-        <MultiSelectFilter label="Process Status" options={statusOptions} value={statusIds} onChange={setStatusIds}/>
-        <MultiSelectFilter label="Execution Type" options={executionOptions} value={executionIds} onChange={setExecutionIds}/>
-        <MultiSelectFilter label="Process Category" options={categoryOptions} value={categoryIds} onChange={setCategoryIds}/>
+        <MultiSelectFilter label="Process Status" options={statusOptions} value={statusIds} onChange={setStatusIds} isOpen={openFilterId==="Process Status"} onToggle={()=>setOpenFilterId(current=>current==="Process Status"?"":"Process Status")} onClose={()=>setOpenFilterId("")}/>
+        <MultiSelectFilter label="Execution Type" options={executionOptions} value={executionIds} onChange={setExecutionIds} isOpen={openFilterId==="Execution Type"} onToggle={()=>setOpenFilterId(current=>current==="Execution Type"?"":"Execution Type")} onClose={()=>setOpenFilterId("")}/>
+        <MultiSelectFilter label="Process Category" options={categoryOptions} value={categoryIds} onChange={setCategoryIds} isOpen={openFilterId==="Process Category"} onToggle={()=>setOpenFilterId(current=>current==="Process Category"?"":"Process Category")} onClose={()=>setOpenFilterId("")}/>
         <span className="pp-filter-help"><SlidersHorizontal size={13}/> Search and check multiple values. Selecting a vendor shows only the components assigned to that vendor.</span>
       </div>
     </section>
