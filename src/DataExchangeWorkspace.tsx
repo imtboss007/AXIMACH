@@ -5,7 +5,7 @@ import {
   type CompanyRecord, type ComponentRecord, type MaterialRecord, type ProcessCategoryRecord, type ProcessTypeRecord, type VendorRecord
 } from "./manufacturingData";
 
-type Props = { mode: "export" | "import"; onBack: () => void; onNotice: (value: string) => void };
+type Props = { mode: "export" | "import"; onBack: () => void; onNotice: (value: string) => void; notice:string };
 type DataKey = "companies"|"purchaseOrders"|"components"|"vendors"|"operations"|"processCategories"|"processTypes"|"processVendorRates"|"materials"|"bomLines"|"quotations"|"qualityInspections"|"inventoryTransactions"|"wipTransfers"|"customerDispatches"|"machineResources"|"maintenanceEvents";
 type ImportKind = "companies"|"components"|"vendors"|"materials"|"processCategories"|"processTypes";
 type Row = Record<string, unknown>;
@@ -60,8 +60,56 @@ function parseCsv(source:string):string[][] {
 const norm=(value:unknown)=>String(value??"").trim().toLowerCase().replace(/\s+/g," ");
 const numeric=(value:unknown,label:string,errors:string[])=>{const raw=String(value??"").trim();if(!raw)return 0;const parsed=Number(raw);if(!Number.isFinite(parsed)||parsed<0)errors.push(label+" must be a non-negative number.");return Number.isFinite(parsed)&&parsed>=0?parsed:0;};
 const csvTemplate=(headers:string[])=>headers.map(csvCell).join(",")+"\r\n";
+const xmlEscape=(value:string)=>value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+const excelColumn=(index:number)=>{let n=index+1,result="";while(n>0){const digit=(n-1)%26;result=String.fromCharCode(65+digit)+result;n=Math.floor((n-1)/26);}return result;};
+function zipStored(files:{name:string;content:string}[]):ArrayBuffer{
+  const encoder=new TextEncoder(),localParts:Uint8Array[]=[],centralParts:Uint8Array[]=[];
+  const crc=(bytes:Uint8Array)=>{let value=0xffffffff;for(const byte of bytes){value^=byte;for(let bit=0;bit<8;bit++)value=(value>>>1)^((value&1)?0xedb88320:0);}return (value^0xffffffff)>>>0;};
+  let localOffset=0,centralSize=0;
+  for(const file of files){
+    const name=encoder.encode(file.name),body=encoder.encode(file.content),checksum=crc(body);
+    const local=new Uint8Array(30+name.length+body.length),lv=new DataView(local.buffer);
+    lv.setUint32(0,0x04034b50,true);lv.setUint16(4,20,true);lv.setUint16(6,0,true);lv.setUint16(8,0,true);
+    lv.setUint16(10,0,true);lv.setUint16(12,0x21,true);lv.setUint32(14,checksum,true);
+    lv.setUint32(18,body.length,true);lv.setUint32(22,body.length,true);lv.setUint16(26,name.length,true);lv.setUint16(28,0,true);
+    local.set(name,30);local.set(body,30+name.length);localParts.push(local);
+    const central=new Uint8Array(46+name.length),cv=new DataView(central.buffer);
+    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,0,true);cv.setUint16(10,0,true);
+    cv.setUint16(12,0,true);cv.setUint16(14,0x21,true);cv.setUint32(16,checksum,true);cv.setUint32(20,body.length,true);cv.setUint32(24,body.length,true);
+    cv.setUint16(28,name.length,true);cv.setUint16(30,0,true);cv.setUint16(32,0,true);cv.setUint16(34,0,true);cv.setUint16(36,0,true);
+    cv.setUint32(38,0,true);cv.setUint32(42,localOffset,true);central.set(name,46);centralParts.push(central);
+    localOffset+=local.length;centralSize+=central.length;
+  }
+  const end=new Uint8Array(22),ev=new DataView(end.buffer);
+  ev.setUint32(0,0x06054b50,true);ev.setUint16(4,0,true);ev.setUint16(6,0,true);
+  ev.setUint16(8,files.length,true);ev.setUint16(10,files.length,true);ev.setUint32(12,centralSize,true);
+  ev.setUint32(16,localOffset,true);ev.setUint16(20,0,true);
+  const out=new Uint8Array(localOffset+centralSize+end.length);let cursor=0;
+  for(const part of localParts){out.set(part,cursor);cursor+=part.length;}
+  for(const part of centralParts){out.set(part,cursor);cursor+=part.length;}
+  out.set(end,cursor);
+  return out.buffer;
+}
+function toXlsx(headers:string[],rows:Row[]):ArrayBuffer{
+  const encodeCell=(value:unknown,reference:string)=>{
+    if(typeof value==="number"&&Number.isFinite(value))return `<c r="${reference}"><v>${value}</v></c>`;
+    if(typeof value==="boolean")return `<c r="${reference}" t="b"><v>${value?1:0}</v></c>`;
+    const text=value==null?"":typeof value==="object"?JSON.stringify(value):String(value);
+    return `<c r="${reference}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(text)}</t></is></c>`;
+  };
+  const sheetRows=[headers,...rows.map(row=>headers.map(header=>row[header]))];
+  const sheetData=sheetRows.map((cells,rowIndex)=>`<row r="${rowIndex+1}">${cells.map((cell,index)=>encodeCell(cell,`${excelColumn(index)}${rowIndex+1}`)).join("")}</row>`).join("");
+  return zipStored([
+    {name:"[Content_Types].xml",content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'},
+    {name:"_rels/.rels",content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+    {name:"xl/workbook.xml",content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="AXIMACH Data" sheetId="1" r:id="rId1"/></sheets></workbook>'},
+    {name:"xl/_rels/workbook.xml.rels",content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'},
+    {name:"xl/worksheets/sheet1.xml",content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+sheetData+'</sheetData></worksheet>'}
+  ]);
+}
 
-export default function DataExchangeWorkspace({mode,onBack,onNotice}:Props) {
+
+export default function DataExchangeWorkspace({mode,onBack,onNotice,notice}:Props) {
   const {data,update,syncStatus}=useManufacturingData();
   const [source,setSource]=useState<DataKey>("purchaseOrders");
   const [search,setSearch]=useState("");
@@ -89,6 +137,14 @@ export default function DataExchangeWorkspace({mode,onBack,onNotice}:Props) {
   };
   const exportCsv=()=>{if(!exportRows.length){onNotice("No matching records to export.");return;}download("aximach-"+source+"-"+today()+".csv",rowsToCsv(exportRows),"text/csv;charset=utf-8");onNotice(exportRows.length+" saved "+sourceMeta.label.toLowerCase()+" record(s) exported as CSV.");};
   const exportJson=()=>{if(!exportRows.length){onNotice("No matching records to export.");return;}download("aximach-"+source+"-"+today()+".json",JSON.stringify({source,exportedAt:nowIso(),count:exportRows.length,records:exportRows},null,2),"application/json");onNotice(exportRows.length+" saved record(s) exported as JSON.");};
+  const exportExcel=()=>{
+    if(!exportRows.length){onNotice("No matching records to export.");return;}
+    const headers=Array.from(new Set(exportRows.flatMap(row=>Object.keys(row))));
+    const workbook=toXlsx(headers,exportRows);
+    const blob=new Blob([workbook],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    const url=URL.createObjectURL(blob);const anchor=document.createElement("a");anchor.href=url;anchor.download="aximach-"+source+"-"+today()+".xlsx";anchor.click();URL.revokeObjectURL(url);
+    onNotice(exportRows.length+" saved "+sourceMeta.label.toLowerCase()+" record(s) exported as Excel workbook.");
+  };
   const printPreview=()=>{if(!exportRows.length){onNotice("No matching records to print.");return;}window.print();};
   const template=templates.find(item=>item.kind===importKind)!;
   const prepareFile=async(file?:File)=>{
@@ -191,15 +247,17 @@ export default function DataExchangeWorkspace({mode,onBack,onNotice}:Props) {
   const invalidCount=prepared.length-validCount;
   const templateDownload=()=>download("aximach-"+importKind+"-template.csv",csvTemplate(template.headers),"text/csv;charset=utf-8");
 
-  return <section className="workspace-page module-functional-page">
+  return <section className={"workspace-page module-functional-page data-exchange-workspace "+(mode==="export"?"data-exchange-export":"data-exchange-import")}>
+    {notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command Centre</button><span className={"demo-pill "+(syncStatus==="synced"?"scheduler-connected":"")}><i/>{syncStatus==="synced"?"SHARED SERVER DATA":syncStatus==="error"?"SYNC ERROR · LOCAL DATA KEPT":syncStatus==="syncing"?"SYNCING":"LOCAL DATA"}</span></div>
     {mode==="export"?<>
-      <div className="workspace-title-row"><div><div className="eyebrow">DATA & GOVERNANCE / CONTROLLED OUTPUT</div><h1>Export Centre<span>.</span></h1><p>Preview and export real saved AXIMACH records. Filters apply before CSV, JSON or print output.</p></div><div className="workspace-title-actions"><button className="button-primary" onClick={exportCsv}><Download size={15}/> Export CSV</button><button className="button-quiet" onClick={exportJson}><FileDown size={15}/> Export JSON</button><button className="button-quiet" onClick={printPreview}><Printer size={15}/> Print / Save PDF</button></div></div>
+      <div className="workspace-title-row"><div><div className="eyebrow">DATA & GOVERNANCE / CONTROLLED OUTPUT</div><h1>Export Centre<span>.</span></h1><p>Preview and export real saved AXIMACH records. Filters apply before CSV, JSON or print output.</p></div><div className="workspace-title-actions"><button className="button-primary" onClick={exportCsv}><Download size={15}/> Export CSV</button><button className="button-quiet" onClick={exportExcel}><FileDown size={15}/> Export Excel</button><button className="button-quiet" onClick={exportJson}><FileDown size={15}/> Export JSON</button><button className="button-quiet" onClick={printPreview}><Printer size={15}/> Print / Save PDF</button></div></div>
       <section className="surface-panel quality-selection-panel"><div className="panel-heading"><div><h3>Choose saved source data</h3><p>{sourceMeta.label} · {allRows.length} active saved rows before filters.</p></div><span className="module-number">{exportRows.length} PREVIEW ROWS</span></div>
         <div className="quality-selectors"><label>Source dataset<select value={source} onChange={event=>setSource(event.target.value as DataKey)}>{exportSources.map(item=><option key={item.key} value={item.key}>{item.label}</option>)}</select></label><label>Search values<input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search within source records…"/></label><label>From date<input type="date" value={dateFrom} onChange={event=>setDateFrom(event.target.value)}/></label><label>To date<input type="date" value={dateTo} onChange={event=>setDateTo(event.target.value)}/></label></div>
       </section>
       <section className="surface-panel module-records-panel"><div className="panel-heading"><div><h3>Export preview</h3><p>Nested arrays/objects are preserved as JSON cells in CSV and as structured values in JSON.</p></div></div>
         {exportRows.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr>{Object.keys(exportRows[0]).slice(0,10).map(key=><th key={key}>{key}</th>)}</tr></thead><tbody>{exportRows.slice(0,50).map((row,index)=><tr key={String(row.id||index)}>{Object.keys(exportRows[0]).slice(0,10).map(key=><td key={key}>{typeof row[key]==="object"?JSON.stringify(row[key]):String(row[key]??"")}</td>)}</tr>)}</tbody></table></div>:<div className="module-empty-state"><Package size={24}/><h3>No matching records</h3><p>Change the source or filters. No example records are generated.</p></div>}
+        <div className="export-print-table"><table className="costing-table"><thead><tr>{Object.keys(exportRows[0]||{}).map(key=><th key={key}>{key}</th>)}</tr></thead><tbody>{exportRows.map((row,index)=><tr key={String(row.id||index)}>{Object.keys(exportRows[0]||{}).map(key=><td key={key}>{typeof row[key]==="object"?JSON.stringify(row[key]):String(row[key]??"")}</td>)}</tr>)}</tbody></table></div>
         <div className="module-safety-note"><ShieldCheck size={14}/><span>Access control is not yet connected to a user/role identity system. Treat this export function as workspace-owner use on a trusted device; exported Vendor/Company and transaction data can contain business contact and financial information.</span></div>
       </section>
     </>:<>

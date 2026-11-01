@@ -219,9 +219,9 @@ function App() {
         ) : activeModuleId === "reports" ? (
           <ReportsAnalyticsWorkspace onBack={() => selectModule("command-centre")} onSelectModule={selectModule} />
         ) : activeModuleId === "export" ? (
-          <DataExchangeWorkspace mode="export" onBack={() => selectModule("command-centre")} onNotice={setNotice} />
+          <DataExchangeWorkspace mode="export" onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "import" ? (
-          <DataExchangeWorkspace mode="import" onBack={() => selectModule("command-centre")} onNotice={setNotice} />
+          <DataExchangeWorkspace mode="import" onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "inventory" ? (
           <InventoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "quality" ? (
