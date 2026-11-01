@@ -1138,3 +1138,74 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
   .c360-contact-item,.metric-card,.dashboard-master-card,.shortcut-card,
   .dashboard-operation-card,.attention-row { transition:none !important; }
 }
+
+
+/* Navigation overlays and command search — consistent with the industrial console */
+.workspace-page h2,.workspace-page h3,.workspace-page h4 { color:#e6f2f8; }
+.workspace-page p { color:#91aabc; }
+.universe-header h2 { color:#edf7fc !important; }
+.universe-header h2 span { color:#57ddec !important; }
+.universe-header p { color:#8ba7ba !important; }
+.universe-search {
+  border-color:rgba(103,174,204,.3) !important;
+  background:rgba(5,22,36,.92) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03) !important;
+}
+.universe-search input { color:#e9f5fa !important;background:transparent !important; }
+.universe-search input::placeholder { color:#7593a8 !important; }
+.universe-search kbd,.palette-footer kbd {
+  color:#9edce7 !important;border-color:rgba(89,185,211,.27) !important;background:rgba(19,83,110,.28) !important;
+}
+.domain-filters button {
+  color:#92adbf !important;border-color:rgba(100,164,194,.22) !important;background:rgba(8,29,46,.7) !important;
+}
+.domain-filters button:hover,.domain-filters button.domain-active {
+  color:#e5faff !important;border-color:rgba(76,202,220,.58) !important;background:rgba(20,111,138,.32) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 0 0 1px rgba(65,184,205,.07) !important;
+}
+.universe-card {
+  border-color:rgba(104,167,197,.24) !important;
+  background:linear-gradient(145deg,rgba(16,45,66,.95),rgba(8,27,43,.96)) !important;
+  color:#c8dce8 !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 6px 17px rgba(0,0,0,.14) !important;
+}
+.universe-card:hover {
+  border-color:rgba(80,205,221,.6) !important;
+  background:linear-gradient(145deg,rgba(20,66,88,.98),rgba(10,36,57,.98)) !important;
+  box-shadow:0 12px 22px rgba(0,0,0,.22),0 0 0 1px rgba(66,181,202,.08) !important;
+}
+.universe-card-index { color:#6f9bb3 !important; }
+.universe-icon {
+  color:#7de4ee !important;border-color:rgba(88,194,215,.2) !important;background:rgba(22,114,139,.22) !important;
+}
+.universe-card-copy strong { color:#e4f1f7 !important; }
+.universe-card-copy small { color:#8ba8bb !important; }
+.universe-arrow { color:#7da8be !important; }
+.universe-footer { color:#789aae !important;border-color:rgba(100,163,193,.2) !important; }
+.no-modules,.palette-empty { color:#8daabc !important; }
+.no-modules strong { color:#dcebf3 !important; }
+.command-palette {
+  border:1px solid rgba(89,174,205,.32) !important;
+  background:linear-gradient(145deg,#102a3f,#071a2b) !important;
+  box-shadow:0 25px 80px rgba(0,0,0,.52),inset 0 1px 0 rgba(255,255,255,.045) !important;
+}
+.palette-search {
+  border-color:rgba(100,166,195,.24) !important;background:#071c2c !important;
+}
+.palette-search input { color:#ecf7fb !important;background:transparent !important; }
+.palette-search input::placeholder { color:#7693a8 !important; }
+.palette-label { color:#78a8bf !important; }
+.palette-results button {
+  color:#c8dce8 !important;border-color:rgba(99,165,195,.15) !important;background:transparent !important;
+}
+.palette-results button:hover {
+  background:rgba(28,123,151,.22) !important;border-color:rgba(74,195,215,.3) !important;
+}
+.palette-results strong { color:#e3f0f6 !important; }
+.palette-results small { color:#8aa8bc !important; }
+.palette-icon { color:#83dfe9 !important;background:rgba(20,111,137,.23) !important;border-color:rgba(88,193,212,.2) !important; }
+.palette-footer { color:#83a3b6 !important;border-color:rgba(99,161,191,.2) !important; }
+.close-round { color:#a6c0d0 !important;border-color:rgba(101,164,193,.25) !important;background:rgba(10,33,51,.7) !important; }
+.close-round:hover { color:#eefbff !important;border-color:rgba(85,203,220,.55) !important;background:rgba(22,96,120,.5) !important; }
+.global-footer { border-color:rgba(101,164,193,.17) !important;color:#6f8fa5 !important; }
+.global-footer b { color:#a0bdce !important; }
