@@ -211,8 +211,21 @@ function App() {
     <div className="app-shell">
       <header className="command-deck">
         <button className="brand-lockup" onClick={() => selectModule("dashboard")} aria-label="Open AXIMACH dashboard">
-          <span className="brand-symbol"><span>A</span><i /></span>
-          <span className="brand-copy"><strong>Machining Flow Control</strong><small>Multi-Company Manufacturing OS</small></span>
+          <span className="brand-symbol" aria-hidden="true">
+            <svg className="brand-emblem" viewBox="0 0 48 48" fill="none">
+              <path d="M24 2.8 43 13.6V34.4L24 45.2 5 34.4V13.6L24 2.8Z" fill="url(#axiBrandFill)" stroke="url(#axiBrandStroke)" strokeWidth="1.35"/>
+              <path d="M13 33 23.8 11.4 35 33" stroke="#E9FAFF" strokeWidth="3.1" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M17.6 24.8H30" stroke="#75E8F6" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M20.2 33H27.8" stroke="#75E8F6" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M8.8 16.2 13.1 13.8M34.9 13.8 39.2 16.2" stroke="#A7EFFF" strokeWidth="1.2" strokeLinecap="round" opacity=".8"/>
+              <defs>
+                <linearGradient id="axiBrandFill" x1="7" y1="5" x2="41" y2="44" gradientUnits="userSpaceOnUse"><stop stopColor="#1B6E9C"/><stop offset=".52" stopColor="#123E68"/><stop offset="1" stopColor="#091D35"/></linearGradient>
+                <linearGradient id="axiBrandStroke" x1="6" y1="7" x2="42" y2="42" gradientUnits="userSpaceOnUse"><stop stopColor="#8FF4FF"/><stop offset="1" stopColor="#2879C9"/></linearGradient>
+              </defs>
+            </svg>
+            <i />
+          </span>
+          <span className="brand-copy"><strong>AXIMACH<span>.</span></strong><small>PRECISION MANUFACTURING OS</small></span>
         </button>
 
 
@@ -227,10 +240,10 @@ function App() {
       </header>
 
       <div className="status-ribbon">
-        <span className="ribbon-dot" /> AXIMACH WORKSPACE
+        <span className="ribbon-dot" /> AXIMACH CONTROL PLANE
         <span className="ribbon-separator">/</span>
-        <span>No example records loaded · production metrics populate from saved records</span>
-        <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
+        <span>One connected workspace · saved manufacturing records · traceable operations</span>
+        <span className="ribbon-right"><ShieldCheck size={13} /> Record integrity first</span>
       </div>
 
       <main className="page-content">
@@ -388,10 +401,16 @@ function DashboardWorkspace(props: {
       {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
       <section className="hero-command">
         <div className="hero-copy">
-          <div className="eyebrow"><span className="eyebrow-mark" /> MANUFACTURING INTELLIGENCE / 01</div>
-          <h1>See the whole flow.<br /><em>Control the details.</em></h1>
-          <p>One connected view of companies, orders, components, operations, vendors, quality, delivery and cost — using saved AXIMACH records.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("command-centre")}><Workflow size={17} /> Open Command Centre <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore approved workspaces</button></div>
+          <div className="eyebrow"><span className="eyebrow-mark" /> PRECISION OPERATIONS / ONE CONNECTED SYSTEM</div>
+          <h1>Make every<br />operation <em>count.</em></h1>
+          <p>From customer demand to finished component, AXIMACH brings engineering, suppliers, production, quality, inventory and delivery into one traceable manufacturing control plane.</p>
+          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("command-centre")}><Workflow size={17} /> Enter Command Centre <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore workspaces</button></div>
+          <div className="hero-data-strip" aria-label="Saved AXIMACH record counts">
+            <div><span>COMPANIES</span><strong>{liveCompanies.length.toLocaleString("en-IN")}</strong></div>
+            <div><span>OPEN PURCHASE ORDERS</span><strong>{liveOrders.length.toLocaleString("en-IN")}</strong></div>
+            <div><span>PRODUCTION OPERATIONS</span><strong>{liveOperations.length.toLocaleString("en-IN")}</strong></div>
+            <small>Counts from saved records · no sample data</small>
+          </div>
         </div>
         <div className="hero-graphic" aria-label="Illustrative connected manufacturing process visualization">
           <div className="graphic-grid" />
@@ -413,13 +432,15 @@ function DashboardWorkspace(props: {
             <g className="orbit-node"><circle cx="65" cy="174" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M57 174 L63 180 L73 168" fill="none" stroke="#3975da" strokeWidth="1.6" /></g>
             <g className="orbit-node"><circle cx="168" cy="254" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M160 250 H176 V258 H160 Z M163 246 H173 V250" fill="none" stroke="#3975da" strokeWidth="1.4" /></g>
           </svg>
-          <div className="graphic-caption"><span className="ribbon-dot" /> MANUFACTURING FLOW / LIVE RECORDS WHEN CONNECTED</div>
+          <div className="graphic-caption"><span className="ribbon-dot" /> AXIMACH FLOW MAP / SYSTEM OVERVIEW</div>
           <span className="graphic-coordinate coord-one">01 / MATERIAL</span><span className="graphic-coordinate coord-two">07 / QUALITY</span>
+          <span className="hero-orbit-tag hero-orbit-tag-a">ROUTE INTELLIGENCE</span>
+          <span className="hero-orbit-tag hero-orbit-tag-b">TRACEABLE FLOW</span>
         </div>
       </section>
 
       <section className="pulse-heading">
-        <div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS PULSE</div><h2>Operational overview<span>.</span></h2><p>Live indicators and activity calculated only from saved AXIMACH records.</p></div>
+        <div><div className="eyebrow"><span className="eyebrow-mark"/> THE FACTORY SIGNAL</div><h2>Operational pulse<span>.</span></h2><p>KPIs and activity calculated from saved AXIMACH records, never illustrative values.</p></div>
         <div className="pulse-actions"><span className="demo-pill"><i/> RECORD-DRIVEN</span><button className="button-quiet compact-button" onClick={onOpenModules}><LayoutGrid size={14}/> Browse workspaces</button></div>
       </section>
       <section className="metric-grid" aria-label="Operational KPIs">
