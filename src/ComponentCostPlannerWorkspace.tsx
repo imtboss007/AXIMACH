@@ -173,7 +173,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
       vendorId: processDraft.vendorId,
       quantityPerPart: quantity,
       ratePerProcess: rate,
-      transportCostPerPart: 0,
+      transportCostPerPart: previous?.transportCostPerPart || 0,
       notes: processDraft.notes.trim(),
       createdAt: previous?.createdAt || stamp,
       updatedAt: stamp,
