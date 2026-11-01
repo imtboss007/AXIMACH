@@ -17,7 +17,7 @@ const emptyDraft = (): ProcessDraft => ({
 });
 const day = (value?: string) => value ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
-const clock = (value?:string) => value ? new Date(value).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : "Time not set";
+const clock = (value?:string) => value ? (/^\d{2}:\d{2}$/.test(value)?value:new Date(value).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})) : "Time not set";
 const statusClass = (value: string) => value.toLowerCase().replace(/[^a-z]+/g, "-");
 const shiftIsoDate=(value:string,days:number)=>{const date=new Date(value+"T12:00:00");date.setDate(date.getDate()+days);return date.toISOString().slice(0,10)};
 const isSelected = (ids: string[], id: string) => ids.length === 0 || (ids[0] !== "__none__" && ids.includes(id));
