@@ -20,7 +20,7 @@ const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en
 const clock = (value?:string) => value ? (/^\d{2}:\d{2}$/.test(value)?value:new Date(value).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})) : "Time not set";
 const statusClass = (value: string) => value.toLowerCase().replace(/[^a-z]+/g, "-");
 const shiftIsoDate=(value:string,days:number)=>{const date=new Date(value+"T12:00:00");date.setDate(date.getDate()+days);return date.toISOString().slice(0,10)};
-const isSelected = (ids: string[], id: string) => ids.length === 0 || (ids[0] !== "__none__" && ids.includes(id));
+const isSelected = (ids: string[], id: string) => ids.length === 0 || (!ids.includes("__none__") && ids.includes(id));
 
 function MultiSelectFilter({ label, options, value, onChange, optional = false, isOpen, onToggle, onClose }: {
   label: string; options: FilterOption[]; value: string[]; onChange: (ids: string[]) => void; optional?: boolean;
@@ -29,12 +29,11 @@ function MultiSelectFilter({ label, options, value, onChange, optional = false, 
   const [query, setQuery] = useState("");
   const optionIds = options.map(option => option.id);
   const filtered = options.filter(option => option.label.toLowerCase().includes(query.toLowerCase().trim()));
-  const noneSelected=value[0]==="__none__";
-  const allSelected=!noneSelected&&(value.length===0||value.length===options.length);
-  const selectedCount=noneSelected?0:value.length===0?options.length:value.length;
+  const noneSelected=value.includes("__none__");
+  const selectedCount=noneSelected?0:value.length===0?optionIds.length:optionIds.filter(id=>value.includes(id)).length;
+  const allSelected=!noneSelected&&selectedCount===optionIds.length;
   const toggle = (id: string) => {
-    if(noneSelected){onChange([id]);return;}
-    const current=value.length===0?optionIds:value;
+    const current=value.length===0?optionIds:value.filter(item=>item!=="__none__"&&optionIds.includes(item));
     const next=current.includes(id)?current.filter(item=>item!==id):[...current,id];
     onChange(next.length===0?["__none__"]:next.length===optionIds.length?[]:next);
   };
@@ -44,7 +43,7 @@ function MultiSelectFilter({ label, options, value, onChange, optional = false, 
       <Search size={13}/><span>{allSelected ? "All " + label.toLowerCase() : noneSelected ? "None selected" : selectedCount+" selected"}</span><ChevronDown size={13}/>
     </button>
     {isOpen&&<div className="pp-filter-menu">
-      <label className="pp-filter-search"><Search size={13}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={"Search " + label.toLowerCase() + "…"} /></label>
+      <label className="pp-filter-search"><Search size={13}/><input aria-label={"Search "+label+" options"} value={query} onChange={event => setQuery(event.target.value)} placeholder={"Search " + label.toLowerCase() + "…"} /></label>
       <div className="pp-filter-menu-actions">
         <button type="button" onClick={() => onChange(optionIds)}>Select all</button>
         <button type="button" onClick={() => onChange(["__none__"])}>Unselect all</button>
@@ -123,24 +122,31 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const rows = filteredOperations.filter(operation => allowedLineIds.has(operation.poLineId)).sort((a, b) => a.sequence - b.sequence);
   const visible = rows.filter(operation => {
     const vendorName = vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house";
-    return (operation.name + " " + operation.category + " " + operation.status + " " + vendorName).toLowerCase().includes(search.toLowerCase().trim());
+    const component = components.find(item => item.id === operation.componentId);
+    const po = orders.find(item => item.id === operation.poId);
+    const company = companies.find(item => item.id === po?.companyId);
+    const searchableText = [operation.name, operation.category, operation.status, vendorName, component?.partNumber, component?.name, po?.number, company?.name].filter(Boolean).join(" ");
+    return searchableText.toLowerCase().includes(search.toLowerCase().trim());
   });
-  const selected = visible.find(operation => operation.id === selectedId) || rows.find(operation => operation.id === selectedId) || visible[0] || rows[0];
-  const selectedLine = allowedLines.find(row => row.line.id === selected?.poLineId);
+  const displayRows = visible;
+  const displayLineIds = new Set(displayRows.map(operation => operation.poLineId));
+  const displayLines = search.trim() ? allowedLines.filter(row => displayLineIds.has(row.line.id)) : allowedLines;
+  const selected = displayRows.find(operation => operation.id === selectedId) || displayRows[0];
+  const selectedLine = displayLines.find(row => row.line.id === selected?.poLineId);
   const selectedComponent = components.find(component => component.id === (selected?.componentId || selectedLine?.line.componentId));
   const selectedPO = orders.find(po => po.id === (selected?.poId || selectedLine?.po.id));
 
-  const totalQty = allowedLines.reduce((sum, row) => sum + row.line.quantity, 0);
-  const planned = rows.filter(operation => operation.status === "Queued").reduce((sum, operation) => sum + operation.quantity, 0);
-  const inProgress = rows.filter(operation => operation.status === "Running").reduce((sum, operation) => sum + operation.quantity, 0);
-  const completed = rows.filter(operation => operation.status === "Complete").reduce((sum, operation) => sum + operation.accepted, 0);
+  const totalQty = displayLines.reduce((sum, row) => sum + row.line.quantity, 0);
+  const planned = displayRows.filter(operation => operation.status === "Queued").reduce((sum, operation) => sum + operation.quantity, 0);
+  const inProgress = displayRows.filter(operation => operation.status === "Running").reduce((sum, operation) => sum + operation.quantity, 0);
+  const completed = displayRows.filter(operation => operation.status === "Complete").reduce((sum, operation) => sum + operation.accepted, 0);
   const pending = Math.max(0, totalQty - completed - inProgress);
   const today = new Date().toISOString().slice(0, 10);
-  const delayed = rows.filter(operation => operation.status !== "Complete" && operation.plannedEnd && operation.plannedEnd < today);
-  const assigned = new Set(rows.map(operation => operation.vendorId).filter(Boolean)).size;
-  const processCount = rows.length;
+  const delayed = displayRows.filter(operation => operation.status !== "Complete" && operation.plannedEnd && operation.plannedEnd < today);
+  const assigned = new Set(displayRows.map(operation => operation.vendorId).filter(Boolean)).size;
+  const processCount = displayRows.length;
   const processLabel = (operation: OperationRecord) => operation.name || operation.category || "Operation";
-  const allDates = rows.flatMap(operation => [operation.plannedStart, operation.plannedEnd]).filter(Boolean).sort();
+  const allDates = displayRows.flatMap(operation => [operation.plannedStart, operation.plannedEnd]).filter(Boolean).sort();
   const timelineStart = allDates[0] || today;
   const timelineEnd = allDates[allDates.length - 1] || timelineStart;
   const duration = Math.max(1, (Date.parse(timelineEnd) - Date.parse(timelineStart)) / 86400000 + 1);
@@ -160,7 +166,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     const next = emptyDraft();
     if (companyIds.length === 1) next.companyId = companyIds[0];
     if (poIds.length === 1) next.poId = poIds[0];
-    const preferredLine = allowedLines.length === 1 ? allowedLines[0] : undefined;
+    const preferredLine = displayLines.length === 1 ? displayLines[0] : undefined;
     if (preferredLine) {
       next.companyId = preferredLine.po.companyId;
       next.poId = preferredLine.po.id;
@@ -247,35 +253,35 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     onNotice(editingId?(selectedTypes.length>1?"Process updated and "+(selectedTypes.length-1)+" additional process record(s) added.":"Process details updated; existing route ID and history were preserved."):(selectedTypes.length+" process record(s) saved from Process Directory."));
   };
 
-  const componentGroups = allowedLines.map(row => {
+  const componentGroups = displayLines.map(row => {
     const component = components.find(item => item.id === row.line.componentId);
-    const groupOperations = rows.filter(operation => operation.poLineId === row.line.id).slice().sort((a, b) => a.sequence - b.sequence);
+    const groupOperations = displayRows.filter(operation => operation.poLineId === row.line.id).slice().sort((a, b) => a.sequence - b.sequence);
     return { key: row.po.id + ":" + row.line.id, po: row.po, line: row.line, component, operations: groupOperations };
   });
   const toggleComponent = (key: string) => setCollapsedComponents(current => current.includes(key) ? current.filter(item => item !== key) : [...current, key]);
   const allCollapsed = componentGroups.length > 0 && componentGroups.every(group => collapsedComponents.includes(group.key));
   const workloads = vendors.map(vendor => {
-    const vendorOperations = rows.filter(operation => operation.vendorId === vendor.id);
+    const vendorOperations = displayRows.filter(operation => operation.vendorId === vendor.id);
     return { id: vendor.id, name: vendor.company, operations: vendorOperations };
   }).filter(item => item.operations.length);
-  const internalOperations = rows.filter(operation => !operation.vendorId);
+  const internalOperations = displayRows.filter(operation => !operation.vendorId);
   if (internalOperations.length) workloads.push({ id: "__internal__", name: "In-house", operations: internalOperations });
   const upcomingLimit = new Date(); upcomingLimit.setDate(upcomingLimit.getDate() + 7);
   const upcomingDate = upcomingLimit.toISOString().slice(0, 10);
-  const upcoming = allowedLines.filter(row => row.line.targetDelivery && row.line.targetDelivery >= today && row.line.targetDelivery <= upcomingDate);
-  const ganttRows = rows.filter(operation => operation.plannedStart && operation.plannedEnd);
-  const searchedRows = visible;
+  const upcoming = displayLines.filter(row => row.line.targetDelivery && row.line.targetDelivery >= today && row.line.targetDelivery <= upcomingDate);
+  const ganttRows = displayRows.filter(operation => operation.plannedStart && operation.plannedEnd);
+  const searchedRows = displayRows;
   const calendarStart=(()=>{const date=new Date(calendarCursor+"T12:00:00");if(scale==="Day")return calendarCursor;if(scale==="Week"){const mondayOffset=(date.getDay()+6)%7;return shiftIsoDate(calendarCursor,-mondayOffset);}const first=new Date(date.getFullYear(),date.getMonth(),1,12);const offset=(first.getDay()+6)%7;first.setDate(first.getDate()-offset);return first.toISOString().slice(0,10);})();
   const calendarDayCount=scale==="Day"?1:scale==="Week"?7:42;
   const calendarDates=Array.from({length:calendarDayCount},(_,index)=>shiftIsoDate(calendarStart,index));
-  const calendarEventsForDay=(dateKey:string)=>rows.filter(operation=>{const start=operation.plannedStart||operation.plannedEnd;const end=operation.plannedEnd||operation.plannedStart;return Boolean(start&&end&&start<=dateKey&&end>=dateKey);}).sort((a,b)=>a.sequence-b.sequence);
+  const calendarEventsForDay=(dateKey:string)=>displayRows.filter(operation=>{const start=operation.plannedStart||operation.plannedEnd;const end=operation.plannedEnd||operation.plannedStart;return Boolean(start&&end&&start<=dateKey&&end>=dateKey);}).sort((a,b)=>a.sequence-b.sequence);
   const calendarHeading=scale==="Month"?new Date(calendarCursor+"T12:00:00").toLocaleDateString("en-IN",{month:"long",year:"numeric"}):scale==="Week"?day(calendarStart)+" — "+day(shiftIsoDate(calendarStart,6)):day(calendarCursor);
   const moveCalendar=(direction:-1|1)=>{if(scale==="Month"){const date=new Date(calendarCursor+"T12:00:00");date.setDate(1);date.setMonth(date.getMonth()+direction);setCalendarCursor(date.toISOString().slice(0,10));}else setCalendarCursor(shiftIsoDate(calendarCursor,(scale==="Week"?7:1)*direction));};
-  const simulationScheduled=rows.filter(operation=>operation.plannedStart&&operation.plannedEnd).length;
-  const simulationMissing=rows.length-simulationScheduled;
-  const simulationOverdue=rows.filter(operation=>operation.status!=="Complete"&&operation.plannedEnd&&operation.plannedEnd<today).length;
-  const simulationUnpaid=rows.filter(operation=>operation.vendorId&&(operation.vendorPaymentStatus||"Not Paid")!=="Paid").length;
-  const simulationValue=rows.reduce((sum,operation)=>sum+operation.quantity*operation.ratePerPart+operation.transportCost,0);
+  const simulationScheduled=displayRows.filter(operation=>operation.plannedStart&&operation.plannedEnd).length;
+  const simulationMissing=displayRows.length-simulationScheduled;
+  const simulationOverdue=displayRows.filter(operation=>operation.status!=="Complete"&&operation.plannedEnd&&operation.plannedEnd<today).length;
+  const simulationUnpaid=displayRows.filter(operation=>operation.vendorId&&(operation.vendorPaymentStatus||"Not Paid")!=="Paid").length;
+  const simulationValue=displayRows.reduce((sum,operation)=>sum+operation.quantity*operation.ratePerPart+operation.transportCost,0);
 
   return <div className="production-planning">
     <header className="pp-heading">
@@ -290,7 +296,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
         <MultiSelectFilter label="Component" options={componentOptions} value={componentIds} onChange={setComponentIds} isOpen={openFilterId==="Component"} onToggle={()=>setOpenFilterId(current=>current==="Component"?"":"Component")} onClose={()=>setOpenFilterId("")}/>
         <div className="pp-filter pp-date"><label>Plan Period</label><div className="pp-date-range"><input aria-label="Plan period start" type="date" value={periodStart} onChange={event => setPeriodStart(event.target.value)}/><span>to</span><input aria-label="Plan period end" type="date" value={periodEnd} onChange={event => setPeriodEnd(event.target.value)}/></div></div>
         <MultiSelectFilter label="Vendor" options={vendorOptions} value={vendorIds} onChange={setVendorIds} optional isOpen={openFilterId==="Vendor"} onToggle={()=>setOpenFilterId(current=>current==="Vendor"?"":"Vendor")} onClose={()=>setOpenFilterId("")}/>
-        <div className="pp-filter-actions"><button className="pp-apply" onClick={() => {setOpenFilterId("");onNotice("Filters applied to saved companies, purchase orders, components and vendor assignments.");}}>Apply</button><button onClick={()=>{resetFilters();setOpenFilterId("");}}>Clear all</button></div>
+        <div className="pp-filter-actions"><span className="pp-filter-live-indicator"><i/> Filters update this view automatically</span><button type="button" onClick={()=>{resetFilters();setOpenFilterId("");}}>Clear all</button></div>
       </div>
       <div className="pp-secondary-filters">
         <MultiSelectFilter label="Process Status" options={statusOptions} value={statusIds} onChange={setStatusIds} isOpen={openFilterId==="Process Status"} onToggle={()=>setOpenFilterId(current=>current==="Process Status"?"":"Process Status")} onClose={()=>setOpenFilterId("")}/>
@@ -301,7 +307,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     </section>
 
     <section className="pp-kpis">
-      {[{ label: "Total Qty", value: totalQty, sub: allowedLines.length + " PO component lines", icon: Activity, kind: "blue" },
+      {[{ label: "Total Qty", value: totalQty, sub: displayLines.length + " PO component lines", icon: Activity, kind: "blue" },
         { label: "Planned", value: planned, sub: "Queued process quantity", icon: Clock3, kind: "green" },
         { label: "In Progress", value: inProgress, sub: "Running process quantity", icon: Activity, kind: "orange" },
         { label: "Completed", value: completed, sub: "Accepted pieces", icon: CheckCircle2, kind: "cyan" },
@@ -435,7 +441,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
         <div className="pp-calendar-toolbar"><div className="pp-calendar-navigation"><button type="button" aria-label="Previous calendar period" onClick={()=>moveCalendar(-1)}><ChevronLeft size={16}/></button><strong>{calendarHeading}</strong><button type="button" aria-label="Next calendar period" onClick={()=>moveCalendar(1)}><ChevronRight size={16}/></button><button type="button" onClick={()=>setCalendarCursor(today)}>Today</button></div><label className="pp-scale-select"><span>Calendar view</span><select aria-label="Calendar view" value={scale} onChange={event=>setScale(event.target.value)}><option value="Day">Day</option><option value="Week">Week</option><option value="Month">Month</option></select></label></div>
         {scale!=="Day"&&<div className="pp-calendar-weekdays">{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(label=><span key={label}>{label}</span>)}</div>}
         <div className="pp-calendar-grid">{calendarDates.map(dateKey=><article className={"pp-calendar-cell"+(dateKey===today?" pp-calendar-today":"")+(scale==="Month"&&dateKey.slice(0,7)!==calendarCursor.slice(0,7)?" pp-calendar-outside":"")} key={dateKey}><header><strong>{new Date(dateKey+"T12:00:00").getDate()}</strong><small>{scale==="Day"?new Date(dateKey+"T12:00:00").toLocaleDateString("en-IN",{weekday:"long",month:"long",year:"numeric"}):""}</small></header><div className="pp-calendar-events">{calendarEventsForDay(dateKey).map(operation=><button type="button" className={"pp-calendar-event "+statusClass(operation.status)} key={operation.id} onClick={()=>openEdit(operation)} title={"Edit "+processLabel(operation)}><strong>{processLabel(operation)}</strong><small>{vendors.find(vendor=>vendor.id===operation.vendorId)?.company||"In-house"}</small><span>{operation.plannedStart===dateKey&&(operation.plannedStartTime||operation.plannedSlotStartAt)?clock(operation.plannedStartTime||operation.plannedSlotStartAt):operation.plannedEnd===dateKey&&(operation.plannedEndTime||operation.plannedSlotEndAt)?"Due "+clock(operation.plannedEndTime||operation.plannedSlotEndAt):"All day"}</span></button>)}</div></article>)}</div>
-        {!rows.some(operation=>operation.plannedStart||operation.plannedEnd)&&<div className="pp-empty pp-schedule-empty"><CalendarDays size={23}/><strong>No dated processes.</strong><span>Set process dates and times to populate this calendar.</span></div>}
+        {!displayRows.some(operation=>operation.plannedStart||operation.plannedEnd)&&<div className="pp-empty pp-schedule-empty"><CalendarDays size={23}/><strong>No dated processes.</strong><span>Set process dates and times to populate this calendar.</span></div>}
       </div> :
       ganttRows.length ? <div className={"pp-gantt pp-gantt-" + scale.toLowerCase()}>{ganttRows.map(operation => {
         const left = Math.max(0, (Date.parse(operation.plannedStart) - Date.parse(timelineStart)) / 86400000 / duration * 100);
@@ -457,7 +463,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
       <article><h3><ShieldAlert size={16}/> Delays & Risks</h3><p>Past due processes from saved dates</p>{delayed.slice(0, 6).map(operation => <div className="pp-risk-row" key={operation.id}><span>{components.find(component => component.id === operation.componentId)?.partNumber || "Component"}</span><b>{operation.name}</b><span>{operation.vendorId ? "Vendor delay" : "Internal process delay"}</span><strong>{Math.ceil((Date.now() - Date.parse(operation.plannedEnd)) / 86400000)}d</strong><button onClick={() => { setSelectedId(operation.id); setTab("General"); }}>View</button></div>)}{!delayed.length ? <small>No overdue processes detected in this filtered view.</small> : null}</article>
     </section>
 
-    {simulationOpen&&<div className="pp-modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setSimulationOpen(false);}}><section className="pp-process-modal pp-simulation-modal" role="dialog" aria-modal="true" aria-labelledby="pp-simulation-title"><div className="pp-modal-head"><div><small>AXIMACH / PLANNING ENGINE</small><h2 id="pp-simulation-title">Production simulation</h2><p>Read-only review of the currently filtered component routes. No production records are changed.</p></div><button onClick={()=>setSimulationOpen(false)} aria-label="Close simulation"><X size={17}/></button></div><div className="pp-simulation-kpis"><article><small>Operations reviewed</small><strong>{rows.length}</strong></article><article><small>Fully dated</small><strong>{simulationScheduled}</strong></article><article><small>Missing dates</small><strong>{simulationMissing}</strong></article><article><small>Overdue</small><strong>{simulationOverdue}</strong></article><article><small>Unpaid vendor jobs</small><strong>{simulationUnpaid}</strong></article><article><small>Planned process value</small><strong>{money(simulationValue)}</strong></article></div><div className="pp-simulation-results"><div className="pp-section-head"><div><h3>Route-by-route schedule check</h3><p>Dates, assigned vendor, rate, payment and process status from saved records.</p></div></div>{rows.length?<div className="pp-table-scroll"><table><thead><tr><th>Component</th><th>Process</th><th>Vendor</th><th>Start</th><th>Due</th><th>Quantity</th><th>Process value</th><th>Payment</th><th>Status</th></tr></thead><tbody>{rows.map(operation=><tr key={operation.id}><td>{components.find(component=>component.id===operation.componentId)?.partNumber||"Component"}</td><td>{processLabel(operation)}</td><td>{vendors.find(vendor=>vendor.id===operation.vendorId)?.company||"In-house"}</td><td>{day(operation.plannedStart)} {clock(operation.plannedStartTime||operation.plannedSlotStartAt)}</td><td>{day(operation.plannedEnd)} {clock(operation.plannedEndTime||operation.plannedSlotEndAt)}</td><td>{operation.quantity.toLocaleString("en-IN")}</td><td>{money(operation.quantity*operation.ratePerPart+operation.transportCost)}</td><td>{operation.vendorId?(operation.vendorPaymentStatus||"Not Paid"):"—"}</td><td>{operation.status}</td></tr>)}</tbody></table></div>:<p className="process-directory-empty">No operations match the current filters. Add or select a component route before simulating.</p>}</div><div className="pp-modal-actions"><button className="button-primary" onClick={()=>setSimulationOpen(false)}>Close simulation</button></div></section></div>}
+    {simulationOpen&&<div className="pp-modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setSimulationOpen(false);}}><section className="pp-process-modal pp-simulation-modal" role="dialog" aria-modal="true" aria-labelledby="pp-simulation-title"><div className="pp-modal-head"><div><small>AXIMACH / PLANNING ENGINE</small><h2 id="pp-simulation-title">Production simulation</h2><p>Read-only review of the currently filtered component routes. No production records are changed.</p></div><button onClick={()=>setSimulationOpen(false)} aria-label="Close simulation"><X size={17}/></button></div><div className="pp-simulation-kpis"><article><small>Operations reviewed</small><strong>{displayRows.length}</strong></article><article><small>Fully dated</small><strong>{simulationScheduled}</strong></article><article><small>Missing dates</small><strong>{simulationMissing}</strong></article><article><small>Overdue</small><strong>{simulationOverdue}</strong></article><article><small>Unpaid vendor jobs</small><strong>{simulationUnpaid}</strong></article><article><small>Planned process value</small><strong>{money(simulationValue)}</strong></article></div><div className="pp-simulation-results"><div className="pp-section-head"><div><h3>Route-by-route schedule check</h3><p>Dates, assigned vendor, rate, payment and process status from saved records.</p></div></div>{displayRows.length?<div className="pp-table-scroll"><table><thead><tr><th>Component</th><th>Process</th><th>Vendor</th><th>Start</th><th>Due</th><th>Quantity</th><th>Process value</th><th>Payment</th><th>Status</th></tr></thead><tbody>{displayRows.map(operation=><tr key={operation.id}><td>{components.find(component=>component.id===operation.componentId)?.partNumber||"Component"}</td><td>{processLabel(operation)}</td><td>{vendors.find(vendor=>vendor.id===operation.vendorId)?.company||"In-house"}</td><td>{day(operation.plannedStart)} {clock(operation.plannedStartTime||operation.plannedSlotStartAt)}</td><td>{day(operation.plannedEnd)} {clock(operation.plannedEndTime||operation.plannedSlotEndAt)}</td><td>{operation.quantity.toLocaleString("en-IN")}</td><td>{money(operation.quantity*operation.ratePerPart+operation.transportCost)}</td><td>{operation.vendorId?(operation.vendorPaymentStatus||"Not Paid"):"—"}</td><td>{operation.status}</td></tr>)}</tbody></table></div>:<p className="process-directory-empty">No operations match the current filters. Add or select a component route before simulating.</p>}</div><div className="pp-modal-actions"><button className="button-primary" onClick={()=>setSimulationOpen(false)}>Close simulation</button></div></section></div>}
     {showEditor ? <div className="pp-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowEditor(false); }}>
       <section className="pp-process-modal" role="dialog" aria-modal="true" aria-labelledby="pp-process-modal-title">
         <div className="pp-modal-head"><div><small>COMPONENT PROCESS PLAN</small><h2 id="pp-process-modal-title">{editingId ? "Edit Process" : "Add Process"}</h2><p>Link this process to an existing company, purchase order and PO component line.</p></div><button onClick={() => setShowEditor(false)} aria-label="Close process editor"><X size={17}/></button></div>
