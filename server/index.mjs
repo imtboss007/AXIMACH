@@ -27,7 +27,7 @@ function applyCors(req, res) {
   res.setHeader("vary", "Origin");
   if (origin && allowedOrigins.has(origin)) res.setHeader("access-control-allow-origin", origin);
   res.setHeader("access-control-allow-headers", "content-type,x-aximach-key");
-  res.setHeader("access-control-allow-methods", "GET,POST,PATCH,DELETE,OPTIONS");
+  res.setHeader("access-control-allow-methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
 }
 function json(res, status, data) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
