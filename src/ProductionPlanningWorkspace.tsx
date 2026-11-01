@@ -206,7 +206,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
       processAssignments: operation.processTypeId ? {[operation.processTypeId]:assignmentFromOperation(operation)} : {},
       branch: operation.branch || "Main route", parentId: operation.parentId || "", notes: operation.notes || ""
     });
-    setEditingId(operation.id); setShowEditor(true);
+    setSelectedId(operation.id);setTab("General");setEditingId(operation.id);setShowEditor(true);
   };
   const draftPO = orders.find(po => po.id === draft.poId);
   const draftLineOptions = (draftPO?.lines || []).map(line => {
@@ -407,13 +407,14 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                     {connectors.length ? <svg className="pp-route-connectors" viewBox="0 0 1000 58" preserveAspectRatio="none" aria-hidden="true"><defs><marker id={routeId} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#31b8ff" strokeWidth="1.2"/></marker></defs>{connectors.map(connector => <path key={connector.key} d={connector.d} markerEnd={"url(#" + routeId + ")"} />)}</svg> : null}
                     <div className="pp-route-track">
                       {branchOperations.map((operation, index) => <Fragment key={operation.id}>
-                        <button className={"pp-route-node " + statusClass(operation.status) + (selected?.id === operation.id ? " selected" : "")} onClick={() => { setSelectedId(operation.id); setTab("General"); }}>
+                        <button className={"pp-route-node " + statusClass(operation.status) + (selected?.id === operation.id ? " selected" : "")} onClick={() => openEdit(operation)}>
                           <span className="pp-route-node-top"><b>{operation.sequence / 10 || index + 1}. {processLabel(operation)}</b><small>OP-{String(operation.sequence).padStart(3, "0")}</small></span>
                           <span className="pp-route-node-data">Vendor: {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</span>
                           <span className="pp-route-node-data">Start: {day(operation.plannedStart)}{" · "+clock(operation.plannedStartTime||operation.plannedSlotStartAt)}</span>
                           <span className="pp-route-node-data">Due: {day(operation.plannedEnd)}{" · "+clock(operation.plannedEndTime||operation.plannedSlotEndAt)}</span>
                           <span className="pp-route-node-data">Qty: {operation.quantity.toLocaleString("en-IN")} pcs</span>
                           <span className="pp-route-node-data">Price: {money(operation.ratePerPart)}</span>
+                          <span className="pp-route-node-data">Vendor payment: {operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</span>
                           <strong className="pp-status">{operation.status}</strong>
                         </button>
                         {index < branchOperations.length - 1 && <span className="pp-route-arrow"><ArrowRight size={22}/></span>}
@@ -439,7 +440,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
         </div>
         <div className="pp-table-scroll"><table>
           <thead><tr><th>#</th><th>Process</th><th>Category</th><th>Execution</th><th>Vendor</th><th>Start Date</th><th>Due Date</th><th>Qty (pcs)</th><th>Price (₹/pc)</th><th>Vendor Payment</th><th>Total Cost (₹)</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody>{searchedRows.map((operation, index) => <tr key={operation.id} onClick={() => setSelectedId(operation.id)} className={selected?.id === operation.id ? "active" : ""}>
+          <tbody>{searchedRows.map((operation, index) => <tr key={operation.id} onClick={() => openEdit(operation)} className={selected?.id === operation.id ? "active" : ""}>
             <td>{index + 1}</td><td>{operation.name}</td><td>{operation.category || "—"}</td><td>{operation.vendorId ? "Outsourced" : "Internal"}</td>
             <td>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</td><td>{day(operation.plannedStart)}</td><td>{day(operation.plannedEnd)}</td>
             <td>{operation.quantity.toLocaleString("en-IN")}</td><td>{money(operation.ratePerPart)}</td><td>{operation.vendorId ? <select aria-label={"Payment status for "+operation.name} value={operation.vendorPaymentStatus || "Not Paid"} onClick={event=>event.stopPropagation()} onChange={event=>updatePaymentStatus(operation.id,event.target.value as "Paid" | "Not Paid")}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select> : "—"}</td><td>{money(operation.quantity * operation.ratePerPart + operation.transportCost)}</td>
