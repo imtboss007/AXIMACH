@@ -58,6 +58,8 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
           <motion.div
             className="ax-orb-core"
             style={{ rotateX, rotateY, transformPerspective: 950 }}
+            animate={reducedMotion ? undefined : { y: [0, -5, 0] }}
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
           >
             <span className="ax-orb-gloss" />
             <span className="ax-orb-latitude ax-orb-latitude-one" />
