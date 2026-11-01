@@ -36,10 +36,13 @@ export default function ProcessMap3DViewer({
   const lanes = useMemo(() => {
     const names = [...new Set(sorted.map(operation => operation.branch || "Main route"))];
     names.sort((a, b) => a === "Main route" ? -1 : b === "Main route" ? 1 : a.localeCompare(b));
-    return names.map(name => ({
-      name,
-      items: sorted.filter(operation => (operation.branch || "Main route") === name)
-    }));
+    return names.map(name => {
+      const items = sorted.filter(operation => (operation.branch || "Main route") === name);
+      const parents = [...new Set(items.map(operation => operation.parentId).filter(Boolean))]
+        .map(id => sorted.find(operation => operation.id === id)?.name || "")
+        .filter(Boolean);
+      return { name, items, parents };
+    });
   }, [sorted]);
   const selected = sorted.find(operation => operation.id === selectedOperationId) || sorted[0];
 
@@ -138,7 +141,7 @@ export default function ProcessMap3DViewer({
       {sorted.length ? <div className="pm3d-scene" style={{ transform: "perspective(1350px) rotateX(" + pitch + "deg) rotateY(" + yaw + "deg) scale(" + zoom + ")" }}>
         <div className="pm3d-floor-plate"/>
         {lanes.map((lane, laneIndex) => <div className={"pm3d-lane " + (lane.name === "Main route" ? "pm3d-main-lane" : "pm3d-branch-lane")} key={lane.name} style={{ transform: "translateZ(" + (laneIndex * 18) + "px)" }}>
-          <div className="pm3d-lane-label"><b>{lane.name === "Main route" ? "PRIMARY ROUTE" : "ALTERNATE / REWORK"}</b><span>{lane.items.length} stage(s)</span></div>
+          <div className="pm3d-lane-label"><b>{lane.name === "Main route" ? "PRIMARY ROUTE" : "ALTERNATE / REWORK"}</b><span>{lane.items.length} stage(s){lane.parents.length ? " · branches from " + lane.parents.join(", ") : ""}</span></div>
           <div className="pm3d-node-row">
             {lane.items.map((operation, index) => {
               const globalIndex = sorted.findIndex(item => item.id === operation.id);
@@ -151,7 +154,7 @@ export default function ProcessMap3DViewer({
                   type="button"
                   className={"pm3d-node status-" + statusClass(operation.status) + (selectedNode ? " selected" : "") + (simulated ? " simulated" : "") + (isCurrent ? " simulation-current" : "")}
                   style={{ transform: "translateZ(" + (Math.min(index, 7) * 9) + "px)", animationDelay: (Math.min(index, 8) * 55) + "ms" }}
-                  onClick={() => {onSelectOperation(operation.id);setCloseup(true);setYaw(-4);setPitch(5);setZoom(1.16);}}
+                  onClick={() => {setPlaying(false);setSimulationStep(-1);onSelectOperation(operation.id);setCloseup(true);setYaw(-4);setPitch(5);setZoom(1.16);}}
                   title={"Focus " + operation.name}
                 >
                   <span className="pm3d-node-top"><small>STAGE {String(globalIndex + 1).padStart(2, "0")}</small><small>OP-{String(operation.sequence).padStart(3, "0")}</small></span>
