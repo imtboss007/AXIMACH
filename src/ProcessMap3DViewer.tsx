@@ -164,7 +164,8 @@ export default function ProcessMap3DViewer({
                   <span className="pm3d-node-date"><small>GIVEN</small><b>{dateLabel(operation.plannedStart)}</b></span>
                   <span className="pm3d-node-date"><small>DELIVERY</small><b>{dateLabel(operation.plannedEnd)}</b></span>
                   <span className="pm3d-node-qty"><small>QTY</small><b>{operation.quantity.toLocaleString("en-IN")} pcs</b></span>
-                  {showVendor && <span className="pm3d-node-optional"><small>VENDOR</small><b>{vendor}</b></span>}
+                  {showVendor && <span className="pm3d-node-optional"><small>PROCESS VENDOR</small><b>{vendor}</b></span>}
+                  {showVendor && <span className="pm3d-node-optional"><small>TRANSPORT VENDOR</small><b>{vendorName(operation.transportVendorId)}</b></span>}
                   {showPrice && <span className="pm3d-node-optional"><small>PRICE / PC</small><b>{money(operation.ratePerPart)}</b></span>}
                   <span className="pm3d-node-status">{operation.status}</span>
                   {isCurrent && <span className="pm3d-sim-beacon">SIMULATING</span>}
@@ -190,7 +191,8 @@ export default function ProcessMap3DViewer({
         <div><small>GIVEN DATE</small><strong>{dateLabel(selected.plannedStart)}</strong><span>{selected.plannedStartTime || "Time not set"}</span></div>
         <div><small>DELIVERY DATE</small><strong>{dateLabel(selected.plannedEnd)}</strong><span>{selected.plannedEndTime || "Time not set"}</span></div>
         <div><small>QUANTITY</small><strong>{selected.quantity.toLocaleString("en-IN")} pcs</strong><span>{selected.accepted.toLocaleString("en-IN")} accepted · {selected.rejected.toLocaleString("en-IN")} rejected</span></div>
-        {showVendor && <div><small>VENDOR</small><strong>{vendorName(selected.vendorId)}</strong><span>{selected.vendorPaymentStatus || "Payment not recorded"}</span></div>}
+        {showVendor && <div><small>PROCESS VENDOR</small><strong>{vendorName(selected.vendorId)}</strong><span>{selected.vendorPaymentStatus || "Payment not recorded"}</span></div>}
+        {showVendor && <div><small>TRANSPORT VENDOR</small><strong>{vendorName(selected.transportVendorId)}</strong><span>Assigned to this operation</span></div>}
         {showPrice && <div><small>PRICE / PIECE</small><strong>{money(selected.ratePerPart)}</strong><span>Actual rate: {selected.actualRatePerPart > 0 ? money(selected.actualRatePerPart) : "Not entered"}</span></div>}
       </div>
       <div className="pm3d-closeup-actions">
