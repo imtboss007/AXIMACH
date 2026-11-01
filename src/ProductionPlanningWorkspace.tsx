@@ -246,8 +246,10 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     }
 
     const stamp = nowIso();
+    const editingTypeIndex=previous?.processTypeId?typesToSave.findIndex(type=>type?.id===previous.processTypeId):-1;
+    const stableIdIndex=editingId?(editingTypeIndex>=0?editingTypeIndex:0):-1;
     const idsToSave=typesToSave.map((processType,index)=>{
-      if(editingId&&index===0)return editingId;
+      if(editingId&&index===stableIdIndex)return editingId;
       const existing=processType?operations.find(operation=>operation.poLineId===line.id&&operation.processTypeId===processType.id&&operation.id!==editingId):undefined;
       return existing?.id||makeId("operation");
     });
