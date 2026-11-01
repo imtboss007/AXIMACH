@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { Activity, Boxes, Building2, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, Cog, Factory, Maximize2, Pause, Play, RotateCcw, Truck, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import type { OperationRecord, ComponentRecord, PurchaseOrderRecord, CompanyRecord } from "./manufacturingData";
 
@@ -35,7 +35,7 @@ export default function DashboardFlow3D({operations,components,orders,companies,
   return <div className="axi-dashboard-flow3d">
     <div className="axi-flow3d-topline"><span><i/> LIVE ROUTE MODEL</span><span>{rows.length} SAVED STAGES · RECORD LINKED</span></div>
     <div className="axi-flow3d-stage">
-      <div className="axi-flow3d-scene" style={{"--flow-yaw":yaw+"deg","--flow-pitch":pitch+"deg","--flow-zoom":zoom} as React.CSSProperties}>
+      <div className="axi-flow3d-scene" style={{"--flow-yaw":yaw+"deg","--flow-pitch":pitch+"deg","--flow-zoom":zoom} as CSSProperties}>
         <div className="axi-flow3d-grid"/>
         <div className="axi-flow3d-ring ring-a"/><div className="axi-flow3d-ring ring-b"/>
         <div className="axi-flow3d-track">
