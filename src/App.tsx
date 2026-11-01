@@ -406,10 +406,10 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
     if(!draft.company.trim()||!draft.contact.trim()){onNotice("Vendor company and contact person are required.");return;}
     const processTypeId=String(draft.processTypeId||"").trim();
     if(!processTypeId||!processTypes.some(process=>process.id===processTypeId)){onNotice("Assign exactly one active Process Directory type to this vendor.");return;}
-    const linkedProcessIds=new Set([
+    const linkedProcessIds=selectedId?new Set([
       ...data.processVendorRates.filter(row=>row.vendorId===selectedId&&!row.deletedAt).map(row=>row.processTypeId),
       ...data.operations.filter(row=>row.vendorId===selectedId&&row.processTypeId&&!row.deletedAt).map(row=>row.processTypeId as string)
-    ]);
+    ]):new Set<string>();
     if([...linkedProcessIds].some(linkedId=>linkedId!==processTypeId)){onNotice("This vendor already has quotations or assigned operations for another process. Reassign those records before changing the vendor’s single process type.");return;}
     const phone=String(draft.phone||"").replace(/\D/g,"");
     const whatsappNumber=String(draft.whatsappNumber||"").replace(/\D/g,"");
