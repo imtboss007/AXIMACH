@@ -69,6 +69,11 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
   const poLines = selectedPO?.lines.filter(line=>!("deletedAt" in line && (line as typeof line & {deletedAt?:string}).deletedAt)) || [];
   const selectedLine = poLines.find(row=>row.id===poLineId);
   const selectedComponent = components.find(row=>row.id===selectedLine?.componentId);
+  const stockLocationType: StockLocationType = selectedPO?.factoryId ? "factory" : "company";
+  const stockLocationId = selectedPO?.factoryId || selectedPO?.companyId || "";
+  const stockLocationLabel = selectedPO?.factoryId ? "FACTORY STOCK AVAILABLE" : "COMPANY STOCK AVAILABLE";
+  const stockLocationDescription = selectedPO?.factoryId ? "Ledger-derived component balance at the PO’s legacy factory location" : "Ledger-derived component balance at the company stock location";
+  const selectedStockBalance = selectedComponent && stockLocationId ? locationBalance(selectedComponent.id,stockLocationType,stockLocationId) : 0;
   const lineOperations = operations.filter(row=>row.poId===poId && row.poLineId===poLineId && row.componentId===selectedLine?.componentId).sort((a,b)=>a.sequence-b.sequence);
   const sourceOperation = lineOperations.find(row=>row.id===sourceOperationId);
   const destinationOperation = lineOperations.find(row=>row.id===destinationOperationId);
@@ -141,7 +146,7 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
   };
 
   const createDispatch=()=>{
-    if(!selectedPO||!selectedLine||!selectedComponent){onNotice("Select the customer company, factory, PO and component line.");return;}
+    if(!selectedPO||!selectedLine||!selectedComponent){onNotice("Select the customer company, PO and component line.");return;}
     const qty=Number(dispatchQuantity);
     if(!Number.isFinite(qty)||qty<=0){onNotice("Enter a positive customer dispatch quantity.");return;}
     const committed=dispatches.filter(row=>row.poLineId===selectedLine.id&&row.status!=="Cancelled").reduce((sum,row)=>sum+row.quantity,0);
@@ -263,8 +268,8 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
     </>}
 
     {mode==="dispatch"&&<>
-      <section className="surface-panel quality-selection-panel"><div className="panel-heading"><div><h3>Customer order context</h3><p>Every shipment is linked to the original customer/company, factory, PO and component line.</p></div><span className="module-number">{dispatches.length} SHIPMENTS</span></div>{contextControls}
-        {selectedPO&&selectedLine&&<div className="quality-context-summary"><div><small>SELECTED ORDER LINE</small><strong>{selectedPO.number} · {selectedComponent?.partNumber||"Part"} · {selectedComponent?.name||""}</strong><span>{number(selectedLine.quantity)} pcs ordered · target {selectedLine.targetDelivery||selectedPO.targetDelivery||"not set"}</span></div><div><small>FACTORY STOCK AVAILABLE</small><strong>{number(selectedComponent?locationBalance(selectedComponent.id,"factory",selectedPO.factoryId):0)} pcs</strong><span>Ledger-derived component balance at the selected factory</span></div></div>}
+      <section className="surface-panel quality-selection-panel"><div className="panel-heading"><div><h3>Customer order context</h3><p>Every shipment is linked to the original customer company, PO and component line; legacy factory IDs are retained where present.</p></div><span className="module-number">{dispatches.length} SHIPMENTS</span></div>{contextControls}
+        {selectedPO&&selectedLine&&<div className="quality-context-summary"><div><small>SELECTED ORDER LINE</small><strong>{selectedPO.number} · {selectedComponent?.partNumber||"Part"} · {selectedComponent?.name||""}</strong><span>{number(selectedLine.quantity)} pcs ordered · target {selectedLine.targetDelivery||selectedPO.targetDelivery||"not set"}</span></div><div><small>{stockLocationLabel}</small><strong>{number(selectedStockBalance)} pcs</strong><span>{stockLocationDescription}</span></div></div>}
       </section>
       <div className="workspace-title-actions"><button className="button-primary" disabled={!selectedLine} onClick={()=>setDispatchFormOpen(true)}><Plus size={14}/> Prepare customer dispatch</button></div>
       {dispatchFormOpen&&<section className="surface-panel master-editor movement-editor"><div className="panel-heading"><div><h3>Prepare customer dispatch</h3><p>Preparation reserves the PO quantity in the dispatch register but does not deduct stock.</p></div><button className="icon-control" onClick={()=>setDispatchFormOpen(false)} aria-label="Close dispatch form"><X size={14}/></button></div>
