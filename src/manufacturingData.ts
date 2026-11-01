@@ -61,6 +61,11 @@ export type ProcessCategoryRecord = { id: string; name: string; code: string; de
 export type ProcessTypeRecord = { id: string; categoryId: string; name: string; code: string; description: string; legacyData?: Record<string, unknown>; createdAt: string; updatedAt: string; deletedAt?: string; };
 export type ProcessVendorRateHistoryEntry = { processTypeId: string; vendorId: string; ratePerPart: number; notes: string; supersededAt: string; };
 export type ProcessVendorRateRecord = { id: string; processTypeId: string; vendorId: string; quoteReference: string; quotedAt: string; validFrom: string; validUntil: string; ratePerPart: number; currency: string; leadDays: number; notes: string; rateHistory?: ProcessVendorRateHistoryEntry[]; status: "Received" | "Approved" | "Rejected" | "Expired"; createdAt: string; updatedAt: string; deletedAt?: string; };
+export type ComponentProcessCostRecord = {
+  id: string; componentId: string; processTypeId: string; vendorId: string;
+  quantityPerPart: number; ratePerProcess: number; transportCostPerPart: number;
+  notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type InspectionMeasurementResult = "Not measured" | "Pass" | "Fail";
 export type InspectionMeasurementRecord = {
   id: string; characteristic: string; nominal: string; lowerLimit: string; upperLimit: string;
@@ -139,7 +144,7 @@ export type ManufacturingData = {
   updatedAt: string;
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
-  quotations: QuotationRecord[]; processCategories: ProcessCategoryRecord[]; processTypes: ProcessTypeRecord[]; processVendorRates: ProcessVendorRateRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
+  quotations: QuotationRecord[]; processCategories: ProcessCategoryRecord[]; processTypes: ProcessTypeRecord[]; processVendorRates: ProcessVendorRateRecord[]; componentProcessCosts: ComponentProcessCostRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
   qualityInspections: QualityInspectionRecord[];
   inventoryTransactions: InventoryTransactionRecord[]; wipTransfers: WipTransferRecord[]; customerDispatches: CustomerDispatchRecord[];
   machineResources: MachineResourceRecord[]; maintenanceEvents: MaintenanceEventRecord[];
@@ -154,7 +159,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], processCategories: [], processTypes: [], processVendorRates: [], materials: [], bomLines: [], qualityInspections: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: [], machineResources: [], maintenanceEvents: []
+  operations: [], quotations: [], processCategories: [], processTypes: [], processVendorRates: [], componentProcessCosts: [], materials: [], bomLines: [], qualityInspections: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: [], machineResources: [], maintenanceEvents: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -171,6 +176,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     processCategories: Array.isArray(value?.processCategories) ? value.processCategories : empty.processCategories,
     processTypes: Array.isArray(value?.processTypes) ? value.processTypes : empty.processTypes,
     processVendorRates: Array.isArray(value?.processVendorRates) ? value.processVendorRates : empty.processVendorRates,
+    componentProcessCosts: Array.isArray(value?.componentProcessCosts) ? value.componentProcessCosts : empty.componentProcessCosts,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
     qualityInspections: Array.isArray(value?.qualityInspections) ? value.qualityInspections : empty.qualityInspections,
@@ -268,6 +274,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     processCategories: mergeRows(local.processCategories, remote.processCategories),
     processTypes: mergeRows(local.processTypes, remote.processTypes),
     processVendorRates: mergeRows(local.processVendorRates, remote.processVendorRates),
+    componentProcessCosts: mergeRows(local.componentProcessCosts, remote.componentProcessCosts),
     materials: mergeRows(local.materials, remote.materials),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
     qualityInspections: mergeRows(local.qualityInspections, remote.qualityInspections),
