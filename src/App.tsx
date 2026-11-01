@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot, Building2,
-  Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
+  Box, Boxes, Calculator, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
   ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge,
   GitBranch, HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
   Package, Pause, Pencil, Play, Plug, Plus, Printer, RotateCcw, ScanLine, Search, Settings2,
@@ -392,6 +392,7 @@ function DashboardWorkspace(props: {
   const liveComponents=activeRows(actualData.components);
   const liveVendors=activeRows(actualData.vendors);
   const liveOperations=activeRows(actualData.operations);
+  const liveComponentPlans=activeRows(actualData.componentPlannedCosts || []);
   const todayKey=new Date().toISOString().slice(0,10);
   const dueLimit=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
   const deliveryLines=liveOrders.flatMap(po=>po.lines.filter(line=>!("deletedAt" in line&&(line as typeof line & {deletedAt?:string}).deletedAt)).map(line=>({line,due:line.targetDelivery||po.targetDelivery}))).filter(row=>row.due&&row.due>=todayKey&&row.due<=dueLimit);
@@ -498,18 +499,20 @@ function DashboardWorkspace(props: {
         <MetricCard title="Unpaid vendor operations" value={String(vendorPaymentReview)} trend="Paid / Not Paid" detail="Process Map source" icon={CircleDollarSign} accent="amber"/>
         <MetricCard title="Quality holds" value={String(qualityHolds)} trend="Open operation holds" detail="From Process Map status" icon={ShieldAlert} accent="red"/>
         <MetricCard title="Movements in transit" value={String(inTransitMovements)} trend="WIP + customer dispatch" detail="Awaiting receipt / delivery" icon={Truck} accent="green"/>
+        <MetricCard title="Components with cost plans" value={String(liveComponentPlans.length)} trend="Planned baselines" detail="Budget coverage by component" icon={Calculator} accent="violet"/>
       </section>
       <section className="dashboard-insights-grid">
         <article className="surface-panel dashboard-chart-panel"><div className="panel-heading"><div><div className="eyebrow">LIVE PRODUCTION DATA</div><h3>Operation status distribution</h3><p>Counts from saved Process Map operations only.</p></div><Activity size={17}/></div><div className="dashboard-bars">{operationStatusStats.map(item=><div className="dashboard-bar-row" key={item.label}><span>{item.label}</span><div><i style={{width:(item.count/maxStatusCount*100)+"%"}}/></div><strong>{item.count}</strong></div>)}</div></article>
         <article className="surface-panel dashboard-chart-panel"><div className="panel-heading"><div><div className="eyebrow">PROCESS MIX</div><h3>Operations by category</h3><p>Top saved process categories; no sample values.</p></div><Workflow size={17}/></div>{processCategoryStats.length?<div className="dashboard-bars">{processCategoryStats.map(item=><div className="dashboard-bar-row" key={item.label}><span>{item.label}</span><div><i style={{width:(item.count/maxCategoryCount*100)+"%"}}/></div><strong>{item.count}</strong></div>)}</div>:<p className="process-directory-empty">Process category data will appear after operations are saved.</p>}</article>
       </section>
       <section className="dashboard-master-links" aria-label="Master data shortcuts">
-        <div className="dashboard-section-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA</div><h2>Core records<span>.</span></h2><p>Four compact entry points to the shared master records.</p></div></div>
+        <div className="dashboard-section-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA</div><h2>Core records<span>.</span></h2><p>Quick access to frequently used manufacturing and cost-planning masters.</p></div></div>
         <div className="dashboard-master-grid">
           <button className="dashboard-master-card" onClick={() => onSelectModule("companies")}><span className="dashboard-master-icon"><Building2 size={18}/></span><span className="dashboard-master-copy"><strong>Companies</strong><small>{liveCompanies.length} saved records</small></span><ArrowUpRight size={16}/></button>
           <button className="dashboard-master-card" onClick={() => onSelectModule("components")}><span className="dashboard-master-icon"><Boxes size={18}/></span><span className="dashboard-master-copy"><strong>Components</strong><small>{liveComponents.length} saved records</small></span><ArrowUpRight size={16}/></button>
           <button className="dashboard-master-card" onClick={() => onSelectModule("purchasing")}><span className="dashboard-master-icon"><Package size={18}/></span><span className="dashboard-master-copy"><strong>Purchase Orders</strong><small>{liveOrders.length} open orders</small></span><ArrowUpRight size={16}/></button>
           <button className="dashboard-master-card" onClick={() => onSelectModule("vendors")}><span className="dashboard-master-icon"><Users size={18}/></span><span className="dashboard-master-copy"><strong>Vendors</strong><small>{liveVendors.length} saved records</small></span><ArrowUpRight size={16}/></button>
+          <button className="dashboard-master-card dashboard-cost-plan-shortcut" onClick={() => onSelectModule("component-cost-planner")}><span className="dashboard-master-icon"><Calculator size={18}/></span><span className="dashboard-master-copy"><strong>Component Cost Planner</strong><small>{liveComponentPlans.length} saved cost plans</small></span><ArrowUpRight size={16}/></button>
         </div>
       </section>
       <section className="surface-panel dashboard-operation-panel">
