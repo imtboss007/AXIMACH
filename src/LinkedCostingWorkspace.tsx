@@ -37,6 +37,8 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const selectedLine = componentLines.find(line => line.key === lineKey) || componentLines[0];
   const routeOperations = operations.filter(op => op.componentId === selectedComponent?.id && (!selectedLine || (op.poId === selectedLine.poId && op.poLineId === selectedLine.lineId)));
   const selectedOperation = routeOperations.find(op => op.id === operationId) || routeOperations[0];
+  const selectedOperationProcessTypeId = selectedOperation?.processTypeId || "";
+  const quoteVendors = selectedOperationProcessTypeId ? vendors.filter(vendor => vendor.processTypeId === selectedOperationProcessTypeId) : [];
   const quoteRows = quotations.filter(q => q.componentId === selectedComponent?.id && (!selectedLine || (q.poId === selectedLine.poId && q.poLineId === selectedLine.lineId)) && (!selectedOperation || q.operationId === selectedOperation.id))
     .filter(q => (q.quoteReference + " " + (vendors.find(v=>v.id===q.vendorId)?.company||"") + " " + q.status + " " + (routeOperations.find(op=>op.id===q.operationId)?.name||"")).toLowerCase().includes(quoteSearch.toLowerCase().trim()))
     .sort((a,b) => (b.quotedAt || "").localeCompare(a.quotedAt || ""));
@@ -69,10 +71,11 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const revenue = (selectedLine?.quantity || 0) * sellingRate;
   const gstEstimate = revenue * gstRate / 100;
   const finalOperation = routeOperations[routeOperations.length - 1];
-  const acceptedQty = selectedLine ? (finalOperation && finalOperation.completed > 0 ? finalOperation.accepted : Math.max(0, selectedLine.quantity - rejectedQty)) : 0;
+  const acceptedQty = selectedLine && finalOperation && finalOperation.completed > 0 ? Math.max(0, Number(finalOperation.accepted) || 0) : 0;
   const profit = revenue - plannedTotal;
-  const costPerAccepted = acceptedQty ? plannedTotal / acceptedQty : 0;
-  const selectedCostComplete = materialCostSource !== "No material rate / BOM entered" && sellingRate > 0 && routeOperations.length > 0 && routeOperations.every(op => op.ratePerPart > 0);
+  const materialInputsComplete = Number.isFinite(materialQty) && materialQty > 0 && Number.isFinite(materialRate) && materialRate > 0;
+  const selectedCostComplete = materialInputsComplete && sellingRate > 0 && routeOperations.length > 0 && routeOperations.every(op => op.ratePerPart > 0);
+  const costPerAccepted = selectedCostComplete && acceptedQty > 0 ? plannedTotal / acceptedQty : null;
   const missingActualRates = routeOperations.filter(op => !(op.actualRatePerPart > 0)).length;
   const componentCostRows = orders.flatMap(po => po.lines.filter(line => components.some(component => component.id === line.componentId)).map(line => {
     const component = components.find(item => item.id === line.componentId)!;
@@ -82,13 +85,14 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const qty = line.materialQty ?? (component.materialQty > 0 ? component.materialQty : bomQtyPerPart * line.quantity);
     const rate = line.materialRate ?? (component.materialRate > 0 ? component.materialRate : bomQtyPerPart > 0 ? bomCostPerPart / bomQtyPerPart : 0);
     const materialSource = line.materialQty !== undefined || line.materialRate !== undefined ? "PO line" : component.materialQty > 0 && component.materialRate > 0 ? "Component master" : bomQtyPerPart > 0 ? "Linked BOM" : "Missing material rate";
+    const materialInputsComplete = Number.isFinite(qty) && qty > 0 && Number.isFinite(rate) && rate > 0;
     const lineOperations = operations.filter(op => op.componentId === component.id && op.poId === po.id && op.poLineId === line.id);
     const process = lineOperations.reduce((sum,op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
     const extras = (line.overhead ?? component.overhead ?? 0) + (line.toolingCost ?? component.toolingCost ?? 0) + (line.reworkCost ?? component.reworkCost ?? 0) + (line.scrapCost ?? component.scrapCost ?? 0);
     const material = qty * rate;
     const total = material + process + extras;
     const revenueValue = line.quantity * line.unitPrice;
-    const complete = materialSource !== "Missing material rate" && line.unitPrice > 0 && lineOperations.length > 0 && lineOperations.every(op => op.ratePerPart > 0);
+    const complete = materialInputsComplete && line.unitPrice > 0 && lineOperations.length > 0 && lineOperations.every(op => op.ratePerPart > 0);
     return { key: po.id + "::" + line.id, component, po, line, material, process, extras, total, revenue: revenueValue, profit: complete ? revenueValue - total : null, complete, materialSource, operationCount: lineOperations.length };
   }));
   const componentsWithoutPO = components.filter(component => !orders.some(po => po.lines.some(line => line.componentId === component.id))).map(component => ({
@@ -123,25 +127,39 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     if (!selectedComponent) { onNotice("Create a component master record first."); return; }
     if (!selectedLine) { onNotice("Link this component to a saved purchase-order line before entering a quote."); return; }
     if (!routeOperations.length) { onNotice("Add the required process operations in Process Map first, then enter each vendor quotation against the exact operation."); return; }
+    const targetOperation = routeOperations.find(operation => operation.id === forOperationId) || routeOperations[0];
+    if (!targetOperation?.processTypeId) { onNotice("Link this operation to a Process Directory process type before recording a vendor quotation."); return; }
     setQuoteReference(""); setQuotedAt(stamp()); setValidUntil(""); setQuantity(String(selectedLine.quantity)); setRatePerPart(""); setTransportCost("0"); setLeadDays(""); setQuoteNotes("");
-    setOperationId(forOperationId || routeOperations[0]?.id || ""); setVendorId(""); setShowQuoteForm(true);
+    setOperationId(targetOperation.id); setVendorId(""); setShowQuoteForm(true);
   };
   const saveQuote = () => {
     if (!selectedComponent || !selectedLine || !selectedOperation || !vendorId) { onNotice("Choose a component, PO line, process operation and vendor."); return; }
+    if (!selectedOperation.processTypeId) { onNotice("Link this operation to a Process Directory process type before recording a vendor quotation."); return; }
+    const chosenVendor = vendors.find(vendor => vendor.id === vendorId);
+    if (!chosenVendor || chosenVendor.processTypeId !== selectedOperation.processTypeId) { onNotice("Select a Vendor Master record assigned to this operation’s exact Process Directory type."); return; }
     const rate = Number(ratePerPart);
     const qty = Number(quantity);
-    if (!Number.isFinite(rate) || rate < 0 || !Number.isFinite(qty) || qty <= 0) { onNotice("Enter a valid quoted rate and positive quantity."); return; }
+    const transport = Number(transportCost || 0);
+    const lead = Number(leadDays || 0);
+    if (!Number.isFinite(rate) || rate < 0 || !Number.isFinite(qty) || qty <= 0 || !Number.isFinite(transport) || transport < 0 || !Number.isFinite(lead) || lead < 0) { onNotice("Enter a valid non-negative rate, transport and lead time, with a positive quoted quantity."); return; }
+    if (!quotedAt || (validUntil && validUntil < quotedAt)) { onNotice("Enter a quote date and ensure validity does not end before the quote date."); return; }
     const stampNow = nowIso(); const id = makeId("quote");
     const quote: QuotationRecord = {
       id, poId: selectedLine.poId, poLineId: selectedLine.lineId, componentId: selectedComponent.id, operationId: selectedOperation.id, vendorId,
       quoteReference: quoteReference.trim(), quotedAt: quotedAt || stamp(), validUntil, quantity: qty, ratePerPart: rate,
-      transportCost: Math.max(0, Number(transportCost) || 0), leadDays: Math.max(0, Number(leadDays) || 0),
+      transportCost: transport, leadDays: lead,
       status: "Received", notes: quoteNotes.trim(), createdAt: stampNow, updatedAt: stampNow
     };
     update(current => ({ ...current, quotations: [...current.quotations, quote] }));
     setShowQuoteForm(false); onNotice("Quotation saved with component ID, PO-line ID, operation ID and vendor ID. It is recorded as a received quote, not an actual purchase/invoice.");
   };
   const selectQuote = (quote: QuotationRecord) => {
+    const targetOperation = operations.find(operation => operation.id === quote.operationId);
+    const targetVendor = vendors.find(vendor => vendor.id === quote.vendorId);
+    if (!targetOperation || !targetOperation.processTypeId || !targetVendor || targetVendor.processTypeId !== targetOperation.processTypeId) {
+      onNotice("This saved quotation’s vendor is not assigned to the operation’s current Process Directory type. It remains in history and has not been applied.");
+      return;
+    }
     const selectedStamp = nowIso();
     update(current => ({
       ...current,
@@ -184,7 +202,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
         <SearchablePicker id="cost-operation" label="Process operation" value={selectedOperation?.id||""} placeholder="Type operation name…" options={routeOperations.map(op=>({id:op.id,label:op.name+" · OP-"+op.sequence}))} onChange={setOperationId}/>
       </div>
       {!componentLines.length && <div className="module-safety-note"><FileText size={14}/><span>This component is not yet linked to a PO line. Create or edit the actual order in Purchase Orders; quotes will then be stored against that order line.</span><button className="button-quiet compact-button" onClick={() => onSelectModule("purchasing")}>Open purchase orders</button></div>}
-      <div className="linked-component-summary"><div><small>COMPONENT</small><strong>{selectedComponent?.partNumber} · {selectedComponent?.name}</strong><span>Revision {selectedComponent?.revision || "—"} · {selectedComponent?.material || "Material not entered"}</span></div><div><small>MATERIAL COST</small><strong>{money(materialCost)}</strong><span>{materialQty.toLocaleString("en-IN")} units × {money(materialRate)} · {materialCostSource}</span></div><div><small>PROCESS + TRANSPORT</small><strong>{money(operationPlanned)}</strong><span>Rates selected or entered per operation</span></div><div><small>PLANNED COST / ACCEPTED PART</small><strong>{money(costPerAccepted)}</strong><span>Uses the selected PO quantity and entered rejects</span></div></div>
+      <div className="linked-component-summary"><div><small>COMPONENT</small><strong>{selectedComponent?.partNumber} · {selectedComponent?.name}</strong><span>Revision {selectedComponent?.revision || "—"} · {selectedComponent?.material || "Material not entered"}</span></div><div><small>MATERIAL COST</small><strong>{money(materialCost)}</strong><span>{materialQty.toLocaleString("en-IN")} units × {money(materialRate)} · {materialCostSource}</span></div><div><small>PROCESS + TRANSPORT</small><strong>{money(operationPlanned)}</strong><span>Rates selected or entered per operation</span></div><div><small>PLANNED COST / ACCEPTED PART</small><strong>{costPerAccepted === null ? "Not recorded" : money(costPerAccepted)}</strong><span>{acceptedQty > 0 ? acceptedQty.toLocaleString("en-IN")+" accepted in the final saved operation" : "Awaiting recorded accepted quantity in Process Map"}</span></div></div>
       <div className="linked-kpis linked-cost-kpis"><div className="route-kpi kpi-cost"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PLANNED COST</small><strong>{money(plannedTotal)}</strong><em>Material + planned process + transport + entered extras</em></span></div><div className="route-kpi kpi-quality"><span className="kpi-icon"><Check size={19}/></span><span><small>RECORDED ACTUAL COST</small><strong>{money(actualTotal)}</strong><em>{missingActualRates ? missingActualRates + " operation rate(s) missing · partial actual" : "Actual rates entered for every operation"}</em></span></div><div className="route-kpi kpi-delivery"><span className="kpi-icon"><Package size={19}/></span><span><small>ORDER VALUE</small><strong>{money(revenue)}</strong><em>{selectedLine?.quantity || 0} pcs × {money(sellingRate)}</em></span></div><div className="route-kpi kpi-risk"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>ESTIMATED PROFIT / LOSS</small><strong>{selectedCostComplete ? money(profit) : "Incomplete inputs"}</strong><em>{selectedCostComplete ? "Estimated P/L before GST" : "Enter material, selling and every planned process rate"}</em></span></div></div>
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTE-TO-OPERATION LINK</div><h3>Process costs for {selectedComponent?.partNumber}</h3><p>Each row references a specific operation ID and PO component line.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><ArrowRight size={14}/> Manage operations</button></div>
         {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Vendor payment</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Transport</th><th>Planned process cost</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
@@ -196,8 +214,8 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
       {showQuoteForm && <section className="surface-panel module-record-form-panel linked-quote-form"><div className="panel-heading"><div><h3>New supplier quotation</h3><p>Quote source and status stay separate from actual accepted invoice / job cost.</p></div><button className="icon-control" onClick={() => setShowQuoteForm(false)} aria-label="Close quote form"><X size={15}/></button></div>
         <div className="module-record-form">
           <label>PO / component line<select value={selectedLine?.key || ""} onChange={e => {setLineKey(e.target.value);setOperationId("");}}><option value="">Select line…</option>{componentLines.map(l=><option key={l.key} value={l.key}>{l.poNumber} · {l.quantity} pcs</option>)}</select></label>
-          <label>Process operation *<select value={selectedOperation?.id || operationId} onChange={e => setOperationId(e.target.value)}><option value="">Select operation…</option>{routeOperations.map(op=><option key={op.id} value={op.id}>{op.name} · OP-{op.sequence}</option>)}</select></label>
-          <label>Vendor / supplier *<select value={vendorId} onChange={e => setVendorId(e.target.value)}><option value="">Select actual vendor…</option>{vendors.map(v=><option key={v.id} value={v.id}>{v.company} · {v.phone || "No phone"}{v.status.toLowerCase().includes("unverified") ? " · Unverified contact" : ""}</option>)}</select>{!vendors.length&&<small className="field-hint">Add vendor details or QR-sync contacts in Vendors & Sub-vendors.</small>}</label>
+          <label>Process operation *<select value={selectedOperation?.id || operationId} onChange={e => {setOperationId(e.target.value);setVendorId("");}}><option value="">Select operation…</option>{routeOperations.map(op=><option key={op.id} value={op.id}>{op.name} · OP-{op.sequence}</option>)}</select></label>
+          <label>Vendor / supplier *<select value={vendorId} onChange={e => setVendorId(e.target.value)}><option value="">Select actual vendor…</option>{quoteVendors.map(v=><option key={v.id} value={v.id}>{v.company} · {v.phone || "No phone"}{v.status.toLowerCase().includes("unverified") ? " · Unverified contact" : ""}</option>)}</select>{!selectedOperationProcessTypeId?<small className="field-hint">Select an operation linked to a Process Directory type first.</small>:!quoteVendors.length?<small className="field-hint">No vendors are registered for this operation’s process type. Add one in Vendor Master under that process.</small>:null}</label>
           <label>Quotation reference<input value={quoteReference} onChange={e=>setQuoteReference(e.target.value)} placeholder="Supplier quote / email / RFQ reference"/></label>
           <label>Quote date<input type="date" value={quotedAt} onChange={e=>setQuotedAt(e.target.value)}/></label>
           <label>Valid until<input type="date" value={validUntil} onChange={e=>setValidUntil(e.target.value)}/></label>
@@ -225,7 +243,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
           <label>Rejected quantity (pcs)<input type="number" min="0" value={rejectedQty} onChange={e=>setExtra("rejectedQty",Number(e.target.value)||0)}/></label>
           <label>GST rate (%)<input type="number" min="0" max="100" step="0.01" value={gstRate} onChange={e=>setExtra("gstRate",Math.min(100,Number(e.target.value)||0))}/></label>
         </div>
-        <div className="linked-cost-summary-lines"><div><span>Entered material cost</span><strong>{money(materialCost)}</strong></div><div><span>Material cost source</span><strong>{materialCostSource}</strong></div><div><span>Entered benchmark material value (not live market data)</span><strong>{money(benchmarkMaterialCost)}</strong></div><div><span>Material variance vs entered benchmark</span><strong>{money(materialVariance)}</strong></div><div><span>Planned process + transport</span><strong>{money(operationPlanned)}</strong></div><div><span>Entered overhead / tooling / rework / scrap</span><strong>{money(extraCharges)}</strong></div><div><span>Planned total before GST</span><strong>{money(plannedTotal)}</strong></div><div><span>Recorded actual cost (partial where actual operation rates are missing)</span><strong>{money(actualTotal)}</strong></div><div><span>Estimated P/L before GST</span><strong>{money(profit)}</strong></div><div><span>Entered GST rate / illustrative GST on order value</span><strong>{gstRate}% · {money(gstEstimate)}</strong></div></div>
+        <div className="linked-cost-summary-lines"><div><span>Entered material cost</span><strong>{money(materialCost)}</strong></div><div><span>Material cost source</span><strong>{materialCostSource}</strong></div><div><span>Entered benchmark material value (not live market data)</span><strong>{money(benchmarkMaterialCost)}</strong></div><div><span>Material variance vs entered benchmark</span><strong>{money(materialVariance)}</strong></div><div><span>Planned process + transport</span><strong>{money(operationPlanned)}</strong></div><div><span>Entered overhead / tooling / rework / scrap</span><strong>{money(extraCharges)}</strong></div><div><span>Planned total before GST</span><strong>{money(plannedTotal)}</strong></div><div><span>Recorded actual cost (partial where actual operation rates are missing)</span><strong>{money(actualTotal)}</strong></div><div><span>Estimated P/L before GST</span><strong>{selectedCostComplete ? money(profit) : "Incomplete inputs"}</strong></div><div><span>Entered GST rate / illustrative GST on order value</span><strong>{gstRate}% · {money(gstEstimate)}</strong></div></div>
       </section>
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMPONENT PROFITABILITY</div><h3>All-component cost and selling-price comparison</h3><p>One row per PO component line. Profit/loss is ranked only where material, selling price and all planned operation rates are entered; master-only components remain visible but are not assigned invented revenue.</p></div><span className="module-number">{allComponentCostRows.length} ROWS</span></div>
         {allComponentCostRows.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Rank</th><th>Component</th><th>PO / line</th><th>Qty</th><th>Material cost</th><th>Process cost</th><th>Other costs</th><th>Total cost</th><th>Selling value</th><th>Profit / loss</th><th>Coverage</th></tr></thead><tbody>{allComponentCostRows.map(row => {const rank=rankedComponentRows.findIndex(item=>item.key===row.key);return <tr key={row.key}><td>{rank>=0 ? "#" + (rank+1) : "—"}</td><td><strong>{row.component.partNumber}</strong><small>{row.component.name}</small></td><td>{row.po?.number || "No PO line"}</td><td>{row.line?.quantity.toLocaleString("en-IN") || "—"}</td><td>{money(row.material)}</td><td>{money(row.process)}</td><td>{money(row.extras)}</td><td><strong>{money(row.total)}</strong></td><td>{row.line ? money(row.revenue) : "—"}</td><td>{row.profit === null ? "Incomplete" : <strong>{money(row.profit)}</strong>}</td><td>{row.complete ? "Complete inputs" : row.materialSource === "Missing material rate" ? "Material rate missing" : row.operationCount === 0 ? "No operations" : "Rate / selling inputs missing"}</td></tr>;})}</tbody></table></div> : <div className="vendor-empty">No component cost rows are linked to purchase orders yet.</div>}

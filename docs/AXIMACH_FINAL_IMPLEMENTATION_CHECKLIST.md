@@ -144,6 +144,9 @@ Exactly the eight approved functions:
 - [x] Show Paid / Not Paid process status sourced from Process Map.
 - [x] Do not create duplicate vendor payment records or a separate invoice/payment/reconciliation workflow here.
 - [x] Verify calculation basis, units, quantity multipliers, taxes and rate validity before presenting totals; do not silently mix per-part, batch and total values.
+- [x] Profitability requires positive material quantity and rate, selling rate and a positive planned rate for every operation; incomplete material overrides are not treated as complete coverage.
+- [x] Cost per accepted part uses only accepted quantity explicitly recorded on a completed final operation; it is not inferred from PO quantity or estimated rejects.
+- [x] New PO-operation quotations require a process-linked operation and a vendor whose single Vendor Master processTypeId matches that operation; stale mismatched historical quotes remain visible but cannot be applied.
 
 ### 14 — Reports & Analytics
 - [x] Dedicated reports workspace reads actual Company, PO, Component, Process Map, Vendor, Quality, Process Directory and Dispatch records.
