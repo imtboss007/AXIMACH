@@ -1231,9 +1231,20 @@ img,svg,canvas,video{max-width:100%}
   .page-content{padding:0!important;margin:0!important;overflow:visible!important}
   .workspace-page{max-width:none!important;padding:0!important;margin:0!important;background:#fff!important;color:#111!important}
   .workspace-title-row,.module-hero{margin:0 0 12px!important}
-  .surface-panel{box-shadow:none!important;border:1px solid #bbb!important;break-inside:avoid-page}
+  .surface-panel{box-shadow:none!important;border:1px solid #bbb!important;background:#fff!important;color:#111!important;break-inside:auto!important;page-break-inside:auto!important}
+  .workspace-page,.module-functional-page,.workspace-page>.surface-panel,.component-directory-detail,.component-directory-routes{break-inside:auto!important;page-break-inside:auto!important}
+  .workspace-page h1,.workspace-page h2,.workspace-page h3,.workspace-page h4,.workspace-page strong,.workspace-page p,.workspace-page small,.workspace-page label,.workspace-page span{color:#111!important}
   .costing-table-wrap,.module-record-list,.vendor-record-list,.module-workbench-grid,
-  .linked-cost-summary-lines,.linked-component-summary{overflow:visible!important;max-height:none!important}
+  .linked-cost-summary-lines,.linked-component-summary,.component-directory-items,.pp-table-scroll{overflow:visible!important;max-height:none!important}
+  .costing-table thead{display:table-header-group!important}
+  .costing-table tr,.export-print-table tr{break-inside:avoid!important;page-break-inside:avoid!important}
+  .component-directory-page .component-directory-list,.pp-modal-backdrop,.wa-pairing-box,.wa-sync-grid,
+  .scheduler-connect-form,.scheduler-form,.print-exclude{display:none!important}
+  .wa-log-panel,.wa-log-panel .followup-table-wrap{display:block!important;overflow:visible!important}
+  .wa-log-panel .followup-table{min-width:0!important;width:100%!important}
+  .workspace-page .surface-panel{background:#fff!important;color:#111!important}
+  .workspace-page .surface-panel *{box-shadow:none!important;text-shadow:none!important}
+  @page{margin:14mm 12mm}
   .costing-table{width:100%!important;border-collapse:collapse!important;font-size:8pt!important}
   .costing-table th,.costing-table td{border:1px solid #888!important;padding:4px!important;white-space:normal!important;overflow-wrap:anywhere!important;color:#111!important}
   button,.icon-control,.button-primary,.button-quiet,.back-link,.module-record-card-actions,.inline-module-link{display:none!important}
