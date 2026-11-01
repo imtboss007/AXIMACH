@@ -151,7 +151,7 @@ export default function ProcessMap3DViewer({
                   type="button"
                   className={"pm3d-node status-" + statusClass(operation.status) + (selectedNode ? " selected" : "") + (simulated ? " simulated" : "") + (isCurrent ? " simulation-current" : "")}
                   style={{ transform: "translateZ(" + (Math.min(index, 7) * 9) + "px)", animationDelay: (Math.min(index, 8) * 55) + "ms" }}
-                  onClick={() => {onSelectOperation(operation.id);setCloseup(true);}}
+                  onClick={() => {onSelectOperation(operation.id);setCloseup(true);setYaw(-4);setPitch(5);setZoom(1.16);}}
                   title={"Focus " + operation.name}
                 >
                   <span className="pm3d-node-top"><small>STAGE {String(globalIndex + 1).padStart(2, "0")}</small><small>OP-{String(operation.sequence).padStart(3, "0")}</small></span>
