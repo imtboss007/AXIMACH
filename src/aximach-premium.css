@@ -1954,3 +1954,12 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
 .axi-cost-ledger-totals strong{color:#153d5b;font-size:17px;font-variant-numeric:tabular-nums}
 @media(max-width:900px){.axi-cost-ledger-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.axi-cost-ledger-totals{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.axi-cost-ledger-filters,.axi-cost-ledger-totals{grid-template-columns:1fr}}
+
+.process-visual-icon{position:relative;display:inline-grid;place-items:center;isolation:isolate;flex:0 0 auto;perspective:120px}
+.process-visual-icon-face{position:relative;z-index:2;display:grid;place-items:center;border:1px solid rgba(135,205,235,.65);border-radius:9px;background:linear-gradient(145deg,#e9f8ff 0%,#9fc9ed 54%,#5b86bd 100%);color:#16466d;box-shadow:4px 5px 0 rgba(3,14,27,.36),inset 0 1px 0 #fff,0 0 14px rgba(65,181,220,.18);transform:rotateX(10deg) rotateY(-12deg)}
+.process-visual-icon-face svg{filter:drop-shadow(0 1px 1px rgba(255,255,255,.5))}
+.process-visual-icon-side{position:absolute;z-index:1;right:-3px;bottom:0;width:7px;height:80%;border-radius:0 4px 4px 0;background:linear-gradient(180deg,#4d7da9,#234b74);transform:skewY(32deg)}
+.process-visual-icon-sm .process-visual-icon-face{width:28px;height:28px}.process-visual-icon-sm svg{width:15px;height:15px}
+.process-visual-icon-md .process-visual-icon-face{width:42px;height:42px}.process-visual-icon-md svg{width:22px;height:22px}
+.process-visual-icon-lg .process-visual-icon-face{width:58px;height:58px}.process-visual-icon-lg svg{width:32px;height:32px}
+.pm3d-node-symbol .process-visual-icon{margin:2px auto 6px}
