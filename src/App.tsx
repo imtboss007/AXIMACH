@@ -403,8 +403,9 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
     if(!draft.company.trim()||!draft.contact.trim()){onNotice("Vendor company and contact person are required.");return;}
     const phone=String(draft.phone||"").replace(/\D/g,"");
     const whatsappNumber=String(draft.whatsappNumber||"").replace(/\D/g,"");
-    const duplicate=contacts.find(v=>v.id!==selectedId&&phone&&String(v.phone||"").replace(/\D/g,"")===phone);
-    if(duplicate){onNotice("This phone number is already linked to "+duplicate.company+". Edit that record to avoid duplicate vendor IDs.");return;}
+    const submittedNumbers=[phone,whatsappNumber].filter(Boolean);
+    const duplicate=contacts.find(v=>v.id!==selectedId&&submittedNumbers.some(number=>[v.phone,v.whatsappNumber].some(value=>String(value||"").replace(/\D/g,"")===number)));
+    if(duplicate){onNotice("This phone / WhatsApp number is already linked to "+duplicate.company+". Edit that record to avoid duplicate vendor IDs.");return;}
     const stamp=nowIso();const id=selectedId||makeId("vendor");
     update(current=>{const old=current.vendors.find(v=>v.id===id);const record:VendorRecord={...draft,company:draft.company.trim(),contact:draft.contact.trim(),phone,whatsappNumber,id,createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};return {...current,vendors:[...current.vendors.filter(v=>v.id!==id),record]};});
     setSelectedId(id);setEditing(false);onNotice(syncStatus==="synced"?"Vendor saved to shared AXIMACH data.":"Vendor saved; cross-device sync activates when the existing AXIMACH server is connected and reachable.");

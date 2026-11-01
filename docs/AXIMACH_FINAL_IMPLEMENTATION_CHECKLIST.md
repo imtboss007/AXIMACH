@@ -66,8 +66,8 @@ Exactly the eight approved functions:
 ### 06 — Vendors & Sub-vendors
 - [ ] Maintain vendor and sub-vendor records and their relationship.
 - [ ] Vendor master stores vendor/sub-vendor details.
-- [ ] Do not assign components to vendors in this menu; assignment belongs in Process Map.
-- [ ] Vendor selection elsewhere must reuse the existing vendor ID.
+- [x] Do not assign components to vendors in this menu; assignment belongs in Process Map.
+- [x] Vendor selection elsewhere must reuse the existing vendor ID.
 - [ ] Sub-vendor parent-link rules and exact vendor fields: **confirm before implementation**.
 
 ### 07 — Process Directory
@@ -266,3 +266,6 @@ Exactly the eight approved functions:
 - Component master rejects a duplicate part-number + revision pair and displays the saved Component Master details on each selected PO line. PO-specific quantity, due date and customer rate remain separate from master fields.
 
 - New company-linked POs without an internal factory ID use a company-level stock location for WIP/customer dispatch custody. Legacy POs continue using their retained factory location ID; vendor-assigned operations continue using vendor locations.
+
+- Vendor Master verified: company/contact, role, phone, WhatsApp, email, address, process/machine/material capability, notes and status are saved against one stable vendor ID. Search, edit, archive and phone/WhatsApp duplicate protection are active. Process Directory, Process Map, Costing and Dispatch reuse those vendor IDs; component assignment is not offered in Vendor Master.
+- No sub-vendor parent relationship was invented. The parent-link model and exact sub-vendor fields remain blocked pending the explicit user rule recorded above.
