@@ -13,7 +13,7 @@ const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
 });
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const shortDate = (value?: string) => value ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Not set";
-const shortTime = (value?: string) => value ? (/^\\d{2}:\\d{2}$/.test(value)?value:new Date(value).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})) : "Time not set";
+const shortTime = (value?: string) => value ? (/^\d{2}:\d{2}$/.test(value)?value:new Date(value).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})) : "Time not set";
 const daysBetween = (start?: string, end?: string) => start && end ? Math.max(1, Math.round((new Date(end + "T12:00:00").getTime() - new Date(start + "T12:00:00").getTime()) / 86400000) + 1) : 0;
 
 export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSelectModule, initialSelection, onInitialSelectionApplied, onOpenQuality, onOpenWipTransfer }: Props) {
