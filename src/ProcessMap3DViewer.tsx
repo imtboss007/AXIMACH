@@ -4,6 +4,7 @@ import {
   StepForward, ZoomIn, ZoomOut
 } from "lucide-react";
 import type { OperationRecord } from "./manufacturingData";
+import ProcessVisualIcon from "./ProcessVisualIcon";
 
 type VendorLabel = { id: string; company: string };
 type Props = {
@@ -158,7 +159,7 @@ export default function ProcessMap3DViewer({
                   title={"Focus " + operation.name}
                 >
                   <span className="pm3d-node-top"><small>STAGE {String(globalIndex + 1).padStart(2, "0")}</small><small>OP-{String(operation.sequence).padStart(3, "0")}</small></span>
-                  <span className="pm3d-node-symbol"><i/><i/><i/></span>
+                  <span className="pm3d-node-symbol"><ProcessVisualIcon name={operation.name} category={operation.category} size="md"/></span>
                   <strong>{operation.name}</strong>
                   <span className="pm3d-node-date"><small>GIVEN</small><b>{dateLabel(operation.plannedStart)}</b></span>
                   <span className="pm3d-node-date"><small>DELIVERY</small><b>{dateLabel(operation.plannedEnd)}</b></span>
