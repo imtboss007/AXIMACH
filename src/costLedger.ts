@@ -41,6 +41,6 @@ export function calculateRouteCostTotals(operations: readonly CostOperation[]) {
   return {processPlanned,transportPlanned,processedActual,transportActual,vendorIds};
 }
 export function componentBaselinePerPart(plan:ComponentPlanFields|null|undefined,processRows:readonly PlannedProcessCost[]=[]):number{
-  const base=[plan?.materialCostPerPart,plan?.directLabourCostPerPart,plan?.overheadCostPerPart,plan?.toolingCostPerPart,plan?.qualityCostPerPart,plan?.reworkScrapCostPerPart,plan?.packagingCostPerPart,plan?.otherCostPerPart].reduce((sum,value)=>sum+amount(value),0);
-  return base+processRows.reduce((sum,row)=>sum+amount(row.quantityPerPart)*amount(row.ratePerProcess),0);
+  const base=[plan?.materialCostPerPart,plan?.directLabourCostPerPart,plan?.overheadCostPerPart,plan?.toolingCostPerPart,plan?.qualityCostPerPart,plan?.reworkScrapCostPerPart,plan?.packagingCostPerPart,plan?.otherCostPerPart].reduce<number>((sum,value)=>sum+amount(value),0);
+  return base+processRows.reduce<number>((sum,row)=>sum+amount(row.quantityPerPart)*amount(row.ratePerProcess),0);
 }
