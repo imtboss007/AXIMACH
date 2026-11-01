@@ -239,7 +239,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return ICONS.filter((item) => {
-      if (tab === "favourites" && !favourites.includes(item.name)) return false;
+      if (tab === "favourites" && !favourites.includes(iconKey(item))) return false;
       if (tab === "assigned" && !Object.values(assignments).some((assignment) => assignment.iconName === item.name && (assignment.iconVariant || "outline") === item.variant)) return false;
       return !query || iconSearchText(item).includes(query);
     });
@@ -257,6 +257,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
     setFavourites(next);
     const bundle = { ...readPreferenceBundle(), favourites: next, updatedAt: new Date().toISOString() };
     writePreferenceBundle(bundle);
+    setSyncStatus(iconServerConfig() ? "syncing" : "local");
     void persistShared(bundle).then(setSyncStatus);
   };
   const saveAssignment = () => {
@@ -278,7 +279,8 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
     setAssignments(next);
     const bundle = { ...readPreferenceBundle(), assignments: next, updatedAt: new Date().toISOString() };
     writePreferenceBundle(bundle);
-    void persistShared(bundle);
+    setSyncStatus(iconServerConfig() ? "syncing" : "local");
+    void persistShared(bundle).then(setSyncStatus);
     setNotice(`Cleared the custom icon for ${targetFamily}. AXIMACH default icon restored.`);
   };
 
