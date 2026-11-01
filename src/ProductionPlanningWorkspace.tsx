@@ -18,7 +18,7 @@ const emptyDraft = (): ProcessDraft => ({
 const day = (value?: string) => value ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const statusClass = (value: string) => value.toLowerCase().replace(/[^a-z]+/g, "-");
-const isSelected = (ids: string[], id: string) => ids.length === 0 || ids.includes(id);
+const isSelected = (ids: string[], id: string) => ids.length === 0 || (ids[0] !== "__none__" && ids.includes(id));
 
 function MultiSelectFilter({ label, options, value, onChange, optional = false }: {
   label: string; options: FilterOption[]; value: string[]; onChange: (ids: string[]) => void; optional?: boolean;
@@ -26,8 +26,9 @@ function MultiSelectFilter({ label, options, value, onChange, optional = false }
   const [query, setQuery] = useState("");
   const optionIds = options.map(option => option.id);
   const filtered = options.filter(option => option.label.toLowerCase().includes(query.toLowerCase().trim()));
-  const allSelected = value.length === 0 || value.length === options.length;
+  const allSelected = value.length === 0 || (value[0] !== "__none__" && value.length === options.length);
   const toggle = (id: string) => {
+    if (value[0] === "__none__") { onChange([id]); return; }
     if (value.length === 0 || value.length === options.length) {
       onChange(optionIds.filter(item => item !== id));
       return;
@@ -43,6 +44,7 @@ function MultiSelectFilter({ label, options, value, onChange, optional = false }
         <label className="pp-filter-search"><Search size={13}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={"Search " + label.toLowerCase() + "…"} /></label>
         <div className="pp-filter-menu-actions">
           <button type="button" onClick={() => onChange(optionIds)}>Select all</button>
+          <button type="button" onClick={() => onChange(["__none__"])}>Unselect all</button>
           <button type="button" onClick={() => onChange([])}>Clear filter</button>
         </div>
         <div className="pp-filter-options">
