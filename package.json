@@ -17,7 +17,8 @@
     "cap:android": "cap open android",
     "package:windows": "npm run build && electron-builder --win nsis --x64 --publish never",
     "start:scheduler": "node server/index.mjs",
-    "start:whatsapp-web": "node server/whatsapp-web.mjs"
+    "start:whatsapp-web": "node server/whatsapp-web.mjs",
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
