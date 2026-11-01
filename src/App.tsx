@@ -373,6 +373,10 @@ function DashboardWorkspace(props: {
   const deliveryLines=liveOrders.flatMap(po=>po.lines.filter(line=>!("deletedAt" in line&&(line as typeof line & {deletedAt?:string}).deletedAt)).map(line=>({line,due:line.targetDelivery||po.targetDelivery}))).filter(row=>row.due&&row.due>=todayKey&&row.due<=dueLimit);
   const vendorPaymentReview=liveOperations.filter(op=>op.vendorId&&(op.vendorPaymentStatus||"Not Paid")!=="Paid").length;
   const qualityHolds=liveOperations.filter(op=>op.status==="Quality hold").length;
+  const operationStatusStats=["Queued","Running","Complete","Quality hold"].map(status=>({label:status,count:liveOperations.filter(op=>op.status===status).length}));
+  const processCategoryStats=Array.from(new Set(liveOperations.map(op=>op.category?.trim()).filter(Boolean))).slice(0,6).map(label=>({label:label as string,count:liveOperations.filter(op=>op.category?.trim()===label).length})).sort((a,b)=>b.count-a.count);
+  const maxStatusCount=Math.max(1,...operationStatusStats.map(item=>item.count));
+  const maxCategoryCount=Math.max(1,...processCategoryStats.map(item=>item.count));
   const inTransitMovements=activeRows(actualData.wipTransfers).filter(row=>row.status==="In transit"||row.status==="Partially received").length+activeRows(actualData.customerDispatches).filter(row=>row.status==="In transit"||row.status==="Partially delivered").length;
   const openSavedOperation=(operation:typeof actualData.operations[number])=>{
     const po=activeOrders.find(row=>row.id===operation.poId);
@@ -428,6 +432,10 @@ function DashboardWorkspace(props: {
         <MetricCard title="Unpaid vendor operations" value={String(vendorPaymentReview)} trend="Paid / Not Paid" detail="Process Map source" icon={CircleDollarSign} accent="amber"/>
         <MetricCard title="Quality holds" value={String(qualityHolds)} trend="Open operation holds" detail="From Process Map status" icon={ShieldAlert} accent="red"/>
         <MetricCard title="Movements in transit" value={String(inTransitMovements)} trend="WIP + customer dispatch" detail="Awaiting receipt / delivery" icon={Truck} accent="green"/>
+      </section>
+      <section className="dashboard-insights-grid">
+        <article className="surface-panel dashboard-chart-panel"><div className="panel-heading"><div><div className="eyebrow">LIVE PRODUCTION DATA</div><h3>Operation status distribution</h3><p>Counts from saved Process Map operations only.</p></div><Activity size={17}/></div><div className="dashboard-bars">{operationStatusStats.map(item=><div className="dashboard-bar-row" key={item.label}><span>{item.label}</span><div><i style={{width:(item.count/maxStatusCount*100)+"%"}}/></div><strong>{item.count}</strong></div>)}</div></article>
+        <article className="surface-panel dashboard-chart-panel"><div className="panel-heading"><div><div className="eyebrow">PROCESS MIX</div><h3>Operations by category</h3><p>Top saved process categories; no sample values.</p></div><Workflow size={17}/></div>{processCategoryStats.length?<div className="dashboard-bars">{processCategoryStats.map(item=><div className="dashboard-bar-row" key={item.label}><span>{item.label}</span><div><i style={{width:(item.count/maxCategoryCount*100)+"%"}}/></div><strong>{item.count}</strong></div>)}</div>:<p className="process-directory-empty">Process category data will appear after operations are saved.</p>}</article>
       </section>
       <section className="dashboard-grid actual-data-dashboard">
         <div className="surface-panel flow-preview">
