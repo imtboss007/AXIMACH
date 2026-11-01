@@ -1415,3 +1415,15 @@ img,svg,canvas,video{max-width:100%}
 .command-deck .brand-copy strong{letter-spacing:-.5px}
 .command-deck .brand-copy small{letter-spacing:1.25px}
 .command-rail>button svg,.deck-action svg,.deck-icon svg{filter:drop-shadow(0 0 3px rgba(70,174,255,.12))}
+
+.production-planning .pp-process-dropdown{display:grid;gap:0;min-width:0}
+.production-planning .pp-process-dropdown>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:38px;padding:8px 10px;border:1px solid #315773;border-radius:7px;background:#0b263b;color:#dceeff;font-size:10px;cursor:pointer;list-style:none}
+.production-planning .pp-process-dropdown>summary::-webkit-details-marker{display:none}
+.production-planning .pp-process-dropdown>summary span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.production-planning .pp-process-dropdown[open]>summary{border-color:#319be0;border-radius:7px 7px 0 0;background:#0e2f48}
+.production-planning .pp-process-dropdown-menu{display:grid;gap:7px;padding:8px;border:1px solid #315773;border-top:0;border-radius:0 0 7px 7px;background:#081c2d}
+.production-planning .pp-process-search{display:flex;align-items:center;gap:7px;padding:6px 8px;border:1px solid #284d68;border-radius:6px;background:#071727;color:#87bce0}
+.production-planning .pp-process-search input{width:100%;min-width:0;border:0!important;outline:0!important;background:transparent!important;color:#e2f1ff!important;font-size:10px}
+.production-planning .pp-process-dropdown .pp-process-multi-options{max-height:170px;overflow:auto;padding-right:2px}
+.production-planning .pp-process-multi-options label:hover{border-color:#3686b9;background:#12314a}
+@media(max-width:600px){.production-planning .pp-process-dropdown .pp-process-multi-options{max-height:210px}}
