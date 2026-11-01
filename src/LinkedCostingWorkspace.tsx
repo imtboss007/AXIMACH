@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, CalendarClock, Check, CircleDollarSign, FileText, Package, Plus, Search, ShieldCheck, Truck, Users, X } from "lucide-react";
+import { ArrowRight, CalendarClock, Calculator, Check, CircleDollarSign, FileText, Package, Plus, Search, ShieldCheck, Truck, Users, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, vendorSupportsProcessType, type QuotationRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
