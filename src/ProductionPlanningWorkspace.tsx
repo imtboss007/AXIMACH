@@ -294,7 +294,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           setupHours:old?.setupHours||0, cycleTimeSeconds:old?.cycleTimeSeconds||0,
           ratePerPart:rate, actualRatePerPart:old?.actualRatePerPart||0, transportCost:transport,
           transportVendorId:old?.transportVendorId||"", transportPickup:old?.transportPickup||"",
-          transportDelivery:old?.transportDelivery||"", transportCost:old?.transportCost||0,
+          transportDelivery:old?.transportDelivery||"",
           qualityNotes:old?.qualityNotes||"", inspectionResult:old?.inspectionResult||"",
           notes:assignment.notes, vendorPaymentStatus:assignment.vendorPaymentStatus||old?.vendorPaymentStatus||"Not Paid", branch:draft.branch,
           parentId:draft.branch==="Main route"?"":draft.parentId,
