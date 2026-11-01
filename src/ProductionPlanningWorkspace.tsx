@@ -7,12 +7,12 @@ type Props = { onBack: () => void; onNotice: (value: string) => void; onSelectMo
 type FilterOption = { id: string; label: string };
 type ProcessDraft = {
   companyId: string; poId: string; poLineId: string; name: string; category: string; vendorId: string;
-  plannedStart: string; plannedEnd: string; quantity: string; ratePerPart: string;
+  plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string; quantity: string; ratePerPart: string;
   status: LifecycleStatus; branch: string; parentId: string; notes: string;
 };
 const emptyDraft = (): ProcessDraft => ({
   companyId: "", poId: "", poLineId: "", name: "", category: "", vendorId: "",
-  plannedStart: "", plannedEnd: "", quantity: "", ratePerPart: "",
+  plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "", quantity: "", ratePerPart: "",
   status: "Queued", branch: "Main route", parentId: "", notes: ""
 });
 const day = (value?: string) => value ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -171,7 +171,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     setDraft({
       companyId: po?.companyId || "", poId: operation.poId, poLineId: operation.poLineId,
       name: operation.name, category: operation.category, vendorId: operation.vendorId || "",
-      plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "",
+      plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "", plannedStartTime: operation.plannedSlotStartAt ? new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5) : "", plannedEndTime: operation.plannedSlotEndAt ? new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5) : "",
       quantity: String(operation.quantity), ratePerPart: String(operation.ratePerPart),
       status: operation.status, branch: operation.branch || "Main route", parentId: operation.parentId || "", notes: operation.notes || ""
     });
@@ -205,7 +205,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
         machineResourceId: previous?.machineResourceId, vendorId: draft.vendorId,
         status: draft.status, plannedStart: draft.plannedStart, plannedEnd: draft.plannedEnd,
         actualStart: previous?.actualStart || "", actualEnd: previous?.actualEnd || "",
-        plannedSlotStartAt: previous?.plannedSlotStartAt, plannedSlotEndAt: previous?.plannedSlotEndAt,
+        plannedSlotStartAt: draft.plannedStart && draft.plannedStartTime ? new Date(draft.plannedStart+"T"+draft.plannedStartTime).toISOString() : undefined, plannedSlotEndAt: draft.plannedEnd && draft.plannedEndTime ? new Date(draft.plannedEnd+"T"+draft.plannedEndTime).toISOString() : undefined,
         quantity, completed: previous?.completed || 0, accepted: previous?.accepted || 0, rejected: previous?.rejected || 0,
         setupHours: previous?.setupHours || 0, cycleTimeSeconds: previous?.cycleTimeSeconds || 0,
         ratePerPart: rate, actualRatePerPart: previous?.actualRatePerPart || 0,
@@ -427,6 +427,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           <SearchablePicker id="pp-add-vendor" label="Vendor (optional)" value={draft.vendorId} placeholder="Type vendor name…" options={vendors.map(vendor => ({ id: vendor.id, label: vendor.company + (vendor.phone ? " · " + vendor.phone : "") }))} onChange={id => setDraft(current => ({ ...current, vendorId: id }))}/>
           <label>Given / start date<input type="date" value={draft.plannedStart} onChange={event => setDraft(current => ({ ...current, plannedStart: event.target.value }))}/></label>
           <label>Due date<input type="date" min={draft.plannedStart || undefined} value={draft.plannedEnd} onChange={event => setDraft(current => ({ ...current, plannedEnd: event.target.value }))}/></label>
+          <label>Start time<input type="time" value={draft.plannedStartTime} onChange={event => setDraft(current => ({ ...current, plannedStartTime: event.target.value }))}/></label>
+          <label>Due time<input type="time" value={draft.plannedEndTime} onChange={event => setDraft(current => ({ ...current, plannedEndTime: event.target.value }))}/></label>
           <label>Quantity (pcs)<input type="number" min="0" value={draft.quantity} onChange={event => setDraft(current => ({ ...current, quantity: event.target.value }))}/></label>
           <label>Price per piece (₹)<input type="number" min="0" step="0.01" value={draft.ratePerPart} onChange={event => setDraft(current => ({ ...current, ratePerPart: event.target.value }))}/></label>
           <label>Process status<select value={draft.status} onChange={event => setDraft(current => ({ ...current, status: event.target.value as LifecycleStatus }))}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
