@@ -116,10 +116,10 @@ Exactly the eight approved functions:
 - [ ] Final acceptance and any missing requirements: **verify with user**.
 
 ### 12 — Dispatch & Delivery
-- [ ] Dedicated dispatch/delivery workspace connected to Company, PO and component line.
-- [ ] Preserve existing shipment, WIP custody, partial receipt/delivery acknowledgement and stock transaction links if present.
-- [ ] Dispatch actions must not silently alter production quantities or unrelated finance records.
-- [ ] Audit current implementation and routing before building anything; PR history describes dispatch functionality that must not be duplicated.
+- [x] Dedicated dispatch/delivery workspace connected to Company, PO and component line.
+- [x] Preserve existing shipment, WIP custody, partial receipt/delivery acknowledgement and stock transaction links if present.
+- [x] Dispatch actions must not silently alter production quantities or unrelated finance records.
+- [x] Audit current implementation and routing before building anything; PR history describes dispatch functionality that must not be duplicated.
 - [ ] Final acceptance and any missing requirements: **verify with user**.
 
 ### 13 — Costing & Payments
@@ -254,3 +254,8 @@ Exactly the eight approved functions:
 - Quality inspection workspace ported from the reviewed PR #4 implementation onto the active feature branch without importing PR #4's separate Process Master/Vendor Capability architecture. Inspection records have their own stable-ID collection and are included in local normalization, merge and server persistence.
 - Quality context selection is Company → PO → Component line → Operation; no user-facing Factory picker. Historical factoryId is still stored from the linked PO. Process Map opens Quality for the selected operation; inspection history returns to the exact saved operation.
 - Numeric measurement Pass/Fail is calculated only when actual reading and at least one numeric limit are present. Quantity validations prevent accepted + rejected exceeding inspected. Inspection quantities do not update operation completion, costing or stock.
+
+- WIP Transfers and Customer Dispatch are tabs inside one approved Dispatch & Delivery workspace; no separate WIP Transfers menu was introduced. The WIP handover shortcut in Process Map preselects the source operation.
+- Stock movement records retain location type/ID and movement IDs. Existing stock rows without location metadata remain readable through their historical factory/vendor fields. Inventory ledger now displays the resolved stock location.
+- WIP handover preparation does not move stock; confirmed dispatch creates source OUT + transit IN, and each partial receipt creates transit OUT + destination IN with an acknowledgement event. Customer dispatch preparation reserves PO-line quantity only; confirmed dispatch creates factory OUT + transit IN, and partial/full delivery acknowledgements clear only the confirmed transit quantity.
+- Dispatch and WIP records preserve Company, PO, PO-line, component, operation, vendor, receipt/delivery acknowledgement and stock transaction IDs. They do not change operation completion, quality inspection or costing records.

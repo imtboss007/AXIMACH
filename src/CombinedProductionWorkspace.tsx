@@ -3,8 +3,8 @@ import { CalendarDays, Workflow } from "lucide-react";
 import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
 import ProductionPlanningWorkspace from "./ProductionPlanningWorkspace";
 type ProcessSelection = { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string };
-type Props = { initialView: "planning" | "map"; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; initialSelection?: ProcessSelection | null; onInitialSelectionApplied?: () => void; onOpenQuality?: (operationId: string) => void };
-export default function CombinedProductionWorkspace({ initialView, onBack, onNotice, notice, onSelectModule, initialSelection, onInitialSelectionApplied, onOpenQuality }: Props) {
+type Props = { initialView: "planning" | "map"; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; initialSelection?: ProcessSelection | null; onInitialSelectionApplied?: () => void; onOpenQuality?: (operationId: string) => void; onOpenWipTransfer?: (selection: ProcessSelection) => void };
+export default function CombinedProductionWorkspace({ initialView, onBack, onNotice, notice, onSelectModule, initialSelection, onInitialSelectionApplied, onOpenQuality, onOpenWipTransfer }: Props) {
   const [view, setView] = useState<"planning" | "map">(initialView);
   useEffect(() => setView(initialView), [initialView]);
   return <section className="combined-production-workspace">
@@ -15,6 +15,6 @@ export default function CombinedProductionWorkspace({ initialView, onBack, onNot
         <button type="button" className={view === "map" ? "active" : ""} onClick={() => setView("map")}><Workflow size={15}/> Process Map</button>
       </nav>
     </header>
-    {view === "planning" ? <ProductionPlanningWorkspace onBack={onBack} onNotice={onNotice} onSelectModule={onSelectModule}/> : <LinkedProcessWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={onSelectModule} initialSelection={initialSelection} onInitialSelectionApplied={onInitialSelectionApplied} onOpenQuality={onOpenQuality}/>}
+    {view === "planning" ? <ProductionPlanningWorkspace onBack={onBack} onNotice={onNotice} onSelectModule={onSelectModule}/> : <LinkedProcessWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={onSelectModule} initialSelection={initialSelection} onInitialSelectionApplied={onInitialSelectionApplied} onOpenQuality={onOpenQuality} onOpenWipTransfer={onOpenWipTransfer}/>}
   </section>;
 }
