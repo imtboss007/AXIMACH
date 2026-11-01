@@ -93,7 +93,7 @@ export default function ProcessDirectoryWorkspace({ onBack, onNotice, onSelectMo
       const processNames=nextIds.map(id=>current.processTypes.find(type=>type.id===id)?.name).filter(Boolean);
       const nextVendors=current.vendors.map(item=>item.id===rateVendorId?{...item,processTypeIds:nextIds,processTypeId:item.processTypeId||rateTypeId,processes:processNames.join(", "),updatedAt:stamp}:item);
       if(editingRateId){
-        return {...current,vendors:nextVendors,processVendorRates:current.processVendorRates.map(row=>row.id===editingRateId?{...row,vendorId:rateVendorId,ratePerPart:amount,notes:rateNotes.trim(),updatedAt:stamp}:row)};
+        return {...current,vendors:nextVendors,processVendorRates:current.processVendorRates.map(row=>row.id===editingRateId?{...row,processTypeId:rateTypeId,vendorId:rateVendorId,ratePerPart:amount,notes:rateNotes.trim(),updatedAt:stamp}:row)};
       }
       const row:ProcessVendorRateRecord={id:makeId("process-vendor-rate"),processTypeId:rateTypeId,vendorId:rateVendorId,quoteReference:"",quotedAt:new Date().toISOString().slice(0,10),validFrom:"",validUntil:"",ratePerPart:amount,currency:"INR",leadDays:0,notes:rateNotes.trim(),status:"Received",createdAt:stamp,updatedAt:stamp};
       return {...current,vendors:nextVendors,processVendorRates:[...current.processVendorRates,row]};
