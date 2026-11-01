@@ -32,11 +32,19 @@ export type PurchaseOrderRecord = {
 };
 export type VendorRecord = {
   id: string; company: string; contact: string; role: string; phone: string; whatsappNumber: string;
-  email: string; address: string; processes: string; /** Legacy free-text capability field; processTypeId is the single structured assignment. */
-  processTypeId?: string; machines: string; materials: string; notes: string;
+  email: string; address: string; processes: string; /** Legacy primary process assignment retained for older records and integrations. */
+  processTypeId?: string; /** New multi-process capability assignments; takes precedence when populated. */
+  processTypeIds?: string[]; machines: string; materials: string; notes: string;
   status: string; sourceContactId: string; whatsappSyncedAt: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export const vendorProcessTypeIds = (vendor: VendorRecord): string[] => {
+  const ids = [...(vendor.processTypeIds || []), ...(vendor.processTypeId ? [vendor.processTypeId] : [])];
+  return [...new Set(ids.filter(Boolean))];
+};
+export const vendorSupportsProcessType = (vendor: VendorRecord, processTypeId: string): boolean =>
+  vendorProcessTypeIds(vendor).includes(processTypeId);
+
 export type OperationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; sequence: number; processTypeId?: string; name: string;
   category: string; machine: string; machineResourceId?: string; vendorId: string; status: LifecycleStatus;
