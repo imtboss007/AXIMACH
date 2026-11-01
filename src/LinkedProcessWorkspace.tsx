@@ -149,6 +149,40 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     setSelectedOperationId(""); onNotice("Operation archived. Linked quotation history was retained as archived history.");
   };
 
+  const finishJob = () => {
+    if (!selectedPO || !selectedLine) return;
+    if (!allDone) {
+      onNotice("The job cannot be finished yet. Mark every required route operation Complete first. Operation completion and job completion are separate statuses.");
+      return;
+    }
+    if (!window.confirm("Mark this complete PO component line as Job Finished? This is a separate final job status and will not change the operation records.")) return;
+    const stamp = nowIso();
+    update(current => ({
+      ...current,
+      purchaseOrders: current.purchaseOrders.map(po => po.id !== selectedPO.id ? po : ({
+        ...po,
+        updatedAt: stamp,
+        lines: po.lines.map(line => line.id === selectedLine.id ? { ...line, jobStatus: "Finished", jobFinishedAt: stamp } : line)
+      }))
+    }));
+    onNotice("Job marked Finished. Individual process operation statuses and quantities were left unchanged.");
+  };
+
+  const reopenJob = () => {
+    if (!selectedPO || !selectedLine) return;
+    if (!window.confirm("Reopen this job? The saved operation completion history will remain unchanged.")) return;
+    const stamp = nowIso();
+    update(current => ({
+      ...current,
+      purchaseOrders: current.purchaseOrders.map(po => po.id !== selectedPO.id ? po : ({
+        ...po,
+        updatedAt: stamp,
+        lines: po.lines.map(line => line.id === selectedLine.id ? { ...line, jobStatus: "In progress", jobFinishedAt: undefined } : line)
+      }))
+    }));
+    onNotice("Job reopened. Existing process completion records were retained.");
+  };
+
   const componentQuotes = data.quotations.filter(q => q.poLineId === poLineId && q.componentId === selectedComponent?.id && !q.deletedAt);
   const selectedVendor = vendors.find(v => v.id === activeOperation?.vendorId);
   const selectedOperationQuotations = componentQuotes.filter(q => q.operationId === activeOperation?.id);
@@ -167,6 +201,22 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     </div>
     {selectedLine && selectedComponent ? <>
       <div className="linked-component-summary"><div><small>SELECTED COMPONENT</small><strong>{selectedComponent.partNumber} · {selectedComponent.name}</strong><span>Revision {selectedComponent.revision || "—"} · {selectedComponent.material || "Material not entered"} · PO {selectedPO?.number}</span></div><div><small>ORDER QUANTITY</small><strong>{expectedQuantity.toLocaleString("en-IN")} pcs</strong></div><div><small>LINE DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div><div><small>DRAWING / REFERENCE</small><strong>{selectedComponent.drawingReference || "Not entered"}</strong></div><button className="button-quiet compact-button" onClick={() => onSelectModule("components")}>Edit component master</button></div>
+      <div className={"job-completion-panel " + (selectedLine.jobStatus === "Finished" ? "job-completion-finished" : "")}>
+        <div className="job-completion-copy">
+          <span className="job-completion-icon"><Check size={19}/></span>
+          <div>
+            <small>JOB LIFECYCLE · SEPARATE FROM OPERATION STATUS</small>
+            <strong>{selectedLine.jobStatus === "Finished" ? "Job Finished" : "In Progress"}</strong>
+            <p>{selectedLine.jobStatus === "Finished"
+              ? "Finished " + (selectedLine.jobFinishedAt ? new Date(selectedLine.jobFinishedAt).toLocaleString("en-IN") : "—") + ". Operation history remains available."
+              : allDone ? "All saved route operations are Complete. Confirm final job closure when the job is actually finished."
+              : "Complete every required route operation first. A single process marked Complete does not finish the whole job."}</p>
+          </div>
+        </div>
+        {selectedLine.jobStatus === "Finished"
+          ? <button className="button-quiet" onClick={reopenJob}>Reopen job</button>
+          : <button className="button-primary" disabled={!allDone} onClick={finishJob}><Check size={14}/> Mark job finished</button>}
+      </div>
       <div className="linked-kpis">
         <button className="route-kpi kpi-delivery" onClick={() => document.getElementById("linked-timeline")?.scrollIntoView({behavior:"smooth",block:"nearest"})}><span className="kpi-icon"><CalendarClock size={19}/></span><span><small>DELIVERY FORECAST</small><strong>{deliveryState}</strong><em>{finalDelivery ? "Target " + shortDate(finalDelivery) : "Enter PO line delivery date"}</em></span></button>
         <button className={"route-kpi kpi-risk " + (lateOps.length ? "linked-kpi-alert" : "")} onClick={() => setSearch("Quality hold")}><span className="kpi-icon"><ShieldAlert size={19}/></span><span><small>BOTTLENECK / LATE OPERATIONS</small><strong>{lateOps.length}</strong><em>{lateOps.length ? "Late or overdue target dates" : "No overdue targets recorded"}</em></span></button>
