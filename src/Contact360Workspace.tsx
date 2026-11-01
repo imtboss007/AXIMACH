@@ -13,7 +13,10 @@ import {
 
 type Props = {
   initialVendorId?: string;
+  initialContactId?: string;
   onInitialVendorApplied?: () => void;
+  onInitialContactApplied?: () => void;
+  onOpenVendor?: (vendorId: string) => void;
   onBack: () => void;
   onNotice: (value: string) => void;
   notice: string;
@@ -71,7 +74,7 @@ function effectiveContact(contact: Contact360ContactRecord, vendors: VendorRecor
 }
 
 export default function Contact360Workspace({
-  initialVendorId = "", onInitialVendorApplied, onBack, onNotice, notice, onSelectModule
+  initialVendorId = "", initialContactId = "", onInitialVendorApplied, onInitialContactApplied, onOpenVendor, onBack, onNotice, notice, onSelectModule
 }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const contacts = activeRows(data.contact360Contacts);
@@ -94,6 +97,12 @@ export default function Contact360Workspace({
   const [groupEditType, setGroupEditType] = useState<Contact360GroupType>("Client");
 
   useEffect(() => {
+    if (initialContactId) {
+      const existingContact = contacts.find(contact => contact.id === initialContactId);
+      if (existingContact) { setSelectedId(existingContact.id); setEditingContactId(""); setFollowEditingId(""); }
+      onInitialContactApplied?.();
+      return;
+    }
     if (!initialVendorId) return;
     const existing = contacts.find(contact => contact.linkedVendorId === initialVendorId);
     if (existing) {
@@ -115,7 +124,7 @@ export default function Contact360Workspace({
       }
     }
     onInitialVendorApplied?.();
-  }, [initialVendorId]);
+  }, [initialVendorId, initialContactId]);
 
   const selected = editingContactId === "new" ? undefined
     : contacts.find(contact => contact.id === selectedId) || contacts[0];
@@ -442,6 +451,7 @@ export default function Contact360Workspace({
             <div className="c360-profile-links">
               <div><small>GROUP MEMBERSHIPS</small><span>{groupNames(selected.groupIds).length ? groupNames(selected.groupIds).map(name => <em key={name}>{name}</em>) : <i>No groups assigned</i>}</span></div>
               <div><small>LINKED MASTER</small>{selected.syncToVendorMaster && selectedDetails.linkedVendor ? <strong><Link2 size={13}/> Vendor Master · {selectedDetails.linkedVendor.company}</strong> : <span>{selected.linkedVendorId ? "Vendor linked · additional contact profile" : "Standalone Contact 360 record"}</span>}</div>
+              {selected.linkedVendorId && onOpenVendor && <button className="button-quiet compact-button" onClick={() => onOpenVendor(selected.linkedVendorId)}><Building2 size={13}/> Open Vendor Master</button>}
               {selectedDetails.phone && <button className="button-quiet compact-button" onClick={() => window.open("https://wa.me/" + (selectedDetails.whatsappNumber || selectedDetails.phone).replace(/\D/g, ""), "_blank", "noopener,noreferrer")}><MessageCircle size={13}/> WhatsApp</button>}
             </div>
             {selected.notes && <div className="c360-notes"><small>RELATIONSHIP NOTES</small><p>{selected.notes}</p></div>}
