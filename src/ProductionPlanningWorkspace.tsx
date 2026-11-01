@@ -7,28 +7,28 @@ type Props = { onBack: () => void; onNotice: (value: string) => void; onSelectMo
 type FilterOption = { id: string; label: string };
 type ProcessAssignmentDraft = {
   vendorId: string; plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string;
-  quantity: string; ratePerPart: string; status: LifecycleStatus; vendorPaymentStatus: "Paid" | "Not Paid"; notes: string;
+  quantity: string; ratePerPart: string; transportCost: string; status: LifecycleStatus; vendorPaymentStatus: "Paid" | "Not Paid"; notes: string;
 };
 type ProcessDraft = {
   companyId: string; poId: string; poLineId: string; categoryId: string; processTypeIds: string[]; name: string; category: string; vendorId: string;
-  plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string; quantity: string; ratePerPart: string;
+  plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string; quantity: string; ratePerPart: string; transportCost: string;
   status: LifecycleStatus; vendorPaymentStatus: "Paid" | "Not Paid"; processAssignments: Record<string, ProcessAssignmentDraft>;
   branch: string; parentId: string; notes: string;
 };
 const emptyProcessAssignment = (quantity = ""): ProcessAssignmentDraft => ({
   vendorId: "", plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "",
-  quantity, ratePerPart: "", status: "Queued", vendorPaymentStatus: "Not Paid", notes: ""
+  quantity, ratePerPart: "", transportCost: "0", status: "Queued", vendorPaymentStatus: "Not Paid", notes: ""
 });
 const emptyDraft = (): ProcessDraft => ({
   companyId: "", poId: "", poLineId: "", categoryId: "", processTypeIds: [], name: "", category: "", vendorId: "",
-  plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "", quantity: "", ratePerPart: "",
+  plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "", quantity: "", ratePerPart: "", transportCost: "0",
   status: "Queued", vendorPaymentStatus: "Not Paid", processAssignments: {}, branch: "Main route", parentId: "", notes: ""
 });
 const assignmentFromOperation = (operation: OperationRecord): ProcessAssignmentDraft => ({
   vendorId: operation.vendorId || "", plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "",
   plannedStartTime: operation.plannedStartTime || (operation.plannedSlotStartAt ? new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5) : ""),
   plannedEndTime: operation.plannedEndTime || (operation.plannedSlotEndAt ? new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5) : ""),
-  quantity: String(operation.quantity || ""), ratePerPart: String(operation.ratePerPart ?? ""),
+  quantity: String(operation.quantity || ""), ratePerPart: String(operation.ratePerPart ?? ""), transportCost: String(operation.transportCost || 0),
   status: operation.status, vendorPaymentStatus: operation.vendorPaymentStatus || "Not Paid", notes: operation.notes || ""
 });
 const day = (value?: string) => value ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -220,7 +220,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
       categoryId:processType?.categoryId||"",processTypeIds:operation.processTypeId?[operation.processTypeId]:[],
       name: operation.name, category: operation.category, vendorId: operation.vendorId || "",
       plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "", plannedStartTime: operation.plannedStartTime || (operation.plannedSlotStartAt ? new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5) : ""), plannedEndTime: operation.plannedEndTime || (operation.plannedSlotEndAt ? new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5) : ""),
-      quantity: String(operation.quantity), ratePerPart: String(operation.ratePerPart),
+      quantity: String(operation.quantity), ratePerPart: String(operation.ratePerPart), transportCost: String(operation.transportCost || 0),
       status: operation.status, vendorPaymentStatus: operation.vendorPaymentStatus || "Not Paid",
       processAssignments: operation.processTypeId ? {[operation.processTypeId]:assignmentFromOperation(operation)} : {},
       branch: operation.branch || "Main route", parentId: operation.parentId || "", notes: operation.notes || ""
