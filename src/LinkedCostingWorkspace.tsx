@@ -74,7 +74,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const acceptedQty = selectedLine && finalOperation && finalOperation.completed > 0 ? Math.max(0, Number(finalOperation.accepted) || 0) : 0;
   const profit = revenue - plannedTotal;
   const materialInputsComplete = Number.isFinite(materialQty) && materialQty > 0 && Number.isFinite(materialRate) && materialRate > 0;
-  const selectedCostComplete = materialInputsComplete && sellingRate > 0 && routeOperations.length > 0 && routeOperations.every(op => op.ratePerPart > 0);
+  const selectedCostComplete = materialInputsComplete && sellingRate > 0 && routeOperations.length > 0 && routeOperations.every(op => op.quantity > 0 && op.ratePerPart > 0);
   const costPerAccepted = selectedCostComplete && acceptedQty > 0 ? plannedTotal / acceptedQty : null;
   const missingActualRates = routeOperations.filter(op => !(op.actualRatePerPart > 0)).length;
   const componentCostRows = orders.flatMap(po => po.lines.filter(line => components.some(component => component.id === line.componentId)).map(line => {
@@ -92,7 +92,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const material = qty * rate;
     const total = material + process + extras;
     const revenueValue = line.quantity * line.unitPrice;
-    const complete = materialInputsComplete && line.unitPrice > 0 && lineOperations.length > 0 && lineOperations.every(op => op.ratePerPart > 0);
+    const complete = materialInputsComplete && line.unitPrice > 0 && lineOperations.length > 0 && lineOperations.every(op => op.quantity > 0 && op.ratePerPart > 0);
     return { key: po.id + "::" + line.id, component, po, line, material, process, extras, total, revenue: revenueValue, profit: complete ? revenueValue - total : null, complete, materialSource, operationCount: lineOperations.length };
   }));
   const componentsWithoutPO = components.filter(component => !orders.some(po => po.lines.some(line => line.componentId === component.id))).map(component => ({

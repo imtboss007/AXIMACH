@@ -133,6 +133,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       if (!effectiveProcessTypeId && !retainingHistoricalAssignment) { onNotice("Select a Process Directory type before assigning a vendor."); return; }
       if (effectiveProcessTypeId && assignedVendor.processTypeId !== effectiveProcessTypeId && !retainingHistoricalAssignment) { onNotice("This vendor is assigned to a different process type. Select a vendor registered for this operation’s process."); return; }
     }
+    if (!Number.isFinite(draft.quantity) || draft.quantity <= 0) { onNotice("Enter a positive quantity to process for this operation."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
     if (draft.accepted + draft.rejected > draft.completed) { onNotice("Accepted plus rejected quantity cannot exceed completed quantity."); return; }
     if ((draft.setupHours || 0) < 0 || (draft.cycleTimeSeconds || 0) < 0) { onNotice("Setup hours and cycle time cannot be negative."); return; }
