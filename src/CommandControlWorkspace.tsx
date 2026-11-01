@@ -1,7 +1,12 @@
 import { Activity, AlertTriangle, ArrowRight, CalendarClock, CheckCircle2, CircleDollarSign, ClipboardCheck, Package, ShieldAlert, ShieldCheck, Truck, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
 
-type Props = { onBack: () => void; onSelectModule: (id: string) => void };
+type Props = {
+  onBack: () => void;
+  onSelectModule: (id: string) => void;
+  onOpenOperation: (selection:{companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string}) => void;
+  onOpenQuality: (operationId:string) => void;
+};
 const dayKey = (value: string) => value ? value.slice(0,10) : "";
 const todayKey = () => new Date().toISOString().slice(0,10);
 const addDays = (days: number) => {
@@ -10,7 +15,7 @@ const addDays = (days: number) => {
   return date.toISOString().slice(0,10);
 };
 
-export default function CommandControlWorkspace({ onBack, onSelectModule }: Props) {
+export default function CommandControlWorkspace({ onBack, onSelectModule, onOpenOperation, onOpenQuality }: Props) {
   const { data, syncStatus } = useManufacturingData();
   const today = todayKey();
   const nextWeek = addDays(7);
@@ -38,6 +43,11 @@ export default function CommandControlWorkspace({ onBack, onSelectModule }: Prop
   ).filter(row => !!row.due && row.due >= today && row.due <= nextWeek).sort((a,b) => a.due.localeCompare(b.due));
   const activeTransfers = transfers.filter(row => row.status === "In transit" || row.status === "Partially received");
   const activeDispatches = dispatches.filter(row => row.status === "In transit" || row.status === "Partially delivered");
+  const openOperation = (operation:typeof data.operations[number]) => {
+    const po=data.purchaseOrders.find(row=>row.id===operation.poId);
+    if(!po){onSelectModule("production");return;}
+    onOpenOperation({companyId:po.companyId,factoryId:po.factoryId,poId:po.id,poLineId:operation.poLineId,operationId:operation.id});
+  };
   const syncLabel = syncStatus === "synced" ? "Shared server connected"
     : syncStatus === "syncing" ? "Syncing saved records"
     : syncStatus === "error" ? "Sync error · local data retained" : "Local records only";
@@ -85,7 +95,7 @@ export default function CommandControlWorkspace({ onBack, onSelectModule }: Prop
     <div className="dashboard-grid actual-data-dashboard">
       <section className="surface-panel attention-panel">
         <div className="panel-heading"><div><div className="eyebrow">EXCEPTION QUEUE</div><h3>Overdue operations ({overdue.length})</h3><p>Saved planned target dates compared with today.</p></div><AlertTriangle size={18}/></div>
-        {overdue.length ? overdue.slice(0,8).map(operation => <button className="attention-row" key={operation.id} onClick={() => onSelectModule("production")}>
+        {overdue.length ? overdue.slice(0,8).map(operation => <button className="attention-row" key={operation.id} onClick={() => openOperation(operation)}>
           <span className="attention-symbol red-symbol"><AlertTriangle size={16}/></span>
           <span className="attention-copy"><strong>{operation.name}</strong><small>{data.purchaseOrders.find(po => po.id === operation.poId)?.number || "PO"} · {components.find(component => component.id === operation.componentId)?.partNumber || "Component"} · Due {operation.plannedEnd}</small><em>Open Production Planning / Process Map</em></span>
           <ArrowRight size={15}/>
@@ -94,7 +104,7 @@ export default function CommandControlWorkspace({ onBack, onSelectModule }: Prop
 
       <section className="surface-panel attention-panel">
         <div className="panel-heading"><div><div className="eyebrow">PAYMENT QUEUE</div><h3>Vendor payments to review ({unpaid.length})</h3><p>Payment status is read from Process Map; no payment is initiated here.</p></div><CircleDollarSign size={18}/></div>
-        {unpaid.length ? unpaid.slice(0,8).map(operation => <button className="attention-row" key={operation.id} onClick={() => onSelectModule("production")}>
+        {unpaid.length ? unpaid.slice(0,8).map(operation => <button className="attention-row" key={operation.id} onClick={() => openOperation(operation)}>
           <span className="attention-symbol"><CircleDollarSign size={16}/></span>
           <span className="attention-copy"><strong>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "Vendor unavailable"} · {operation.name}</strong><small>{data.purchaseOrders.find(po => po.id === operation.poId)?.number || "PO"} · {operation.vendorPaymentStatus || "Not Paid"}</small><em>Open Process Map to update the source status</em></span>
           <ArrowRight size={15}/>
@@ -105,7 +115,7 @@ export default function CommandControlWorkspace({ onBack, onSelectModule }: Prop
         <div className="panel-heading"><div><div className="eyebrow">QUALITY QUEUE</div><h3>Quality actions ({qualityHolds.length + pendingInspections.length})</h3><p>Inspection statuses do not silently change production quantities.</p></div><ClipboardCheck size={18}/></div>
         {qualityHolds.length + pendingInspections.length ? <>
           <p className="module-number">{qualityHolds.length} operation hold(s) · {pendingInspections.length} pending / held inspection(s)</p>
-          <button className="button-primary compact-button" onClick={() => onSelectModule("quality")}>Open Quality & Inspection <ArrowRight size={14}/></button>
+          <button className="button-primary compact-button" onClick={() => pendingInspections[0] ? onOpenQuality(pendingInspections[0].operationId) : qualityHolds[0] ? openOperation(qualityHolds[0]) : onSelectModule("quality")}>Open next quality action <ArrowRight size={14}/></button>
         </> : <div className="vendor-empty"><CheckCircle2 size={17}/> No quality holds or pending/held inspections are recorded.</div>}
       </section>
 
