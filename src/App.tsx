@@ -428,7 +428,7 @@ function DashboardWorkspace(props: {
             <small>Counts from saved records · no sample data</small>
           </div>
         </div>
-        <DashboardFlow3D operations={liveOperations} components={liveComponents} orders={activeOrders} companies={liveCompanies} onOpenOperation={openSavedOperation} />
+        <DashboardFlow3D operations={liveOperations} components={liveComponents} orders={activeOrders} companies={liveCompanies} onOpenOperation={onOpenOperation} />
       </section>
 
       <div className="axi-capability-marquee" aria-label="AXIMACH manufacturing workspaces">
