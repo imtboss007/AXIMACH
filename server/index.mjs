@@ -39,7 +39,7 @@ async function body(req) {
 }
 function authorized(req) { return API_KEY && req.headers["x-aximach-key"] === API_KEY; }
 function normalisePhone(phone) { return String(phone || "").replace(/\D/g, ""); }
-const manufacturingCollections = ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "processCategories", "processTypes", "processVendorRates", "componentProcessCosts", "materials", "bomLines", "qualityInspections", "inventoryTransactions", "wipTransfers", "customerDispatches", "machineResources", "maintenanceEvents"];
+const manufacturingCollections = ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "processCategories", "processTypes", "processVendorRates", "componentProcessCosts", "materials", "bomLines", "qualityInspections", "inventoryTransactions", "wipTransfers", "customerDispatches", "machineResources", "maintenanceEvents", "contact360Groups", "contact360Contacts", "contact360FollowUps"];
 function mergeManufacturingData(existing, incoming) {
   const left = existing && typeof existing === "object" ? existing : {};
   const right = incoming && typeof incoming === "object" ? incoming : {};
