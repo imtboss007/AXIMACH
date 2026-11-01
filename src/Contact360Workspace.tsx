@@ -25,13 +25,14 @@ type Props = {
 
 type ContactDraft = Omit<Contact360ContactRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type FollowDraft = Omit<Contact360FollowUpRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
+type ModuleRecordOption = { id: string; label: string; reference: string };
 
 const emptyContactDraft = (): ContactDraft => ({
   accountName: "", contactName: "", role: "", phone: "", whatsappNumber: "",
   email: "", address: "", groupIds: [], linkedVendorId: "", syncToVendorMaster: false, notes: ""
 });
 const emptyFollowDraft = (contactId: string, groupId = ""): FollowDraft => ({
-  contactId, groupId, description: "", moduleType: "customers", moduleReference: "",
+  contactId, groupId, description: "", moduleType: "customers", moduleRecordId: "", moduleReference: "",
   amount: 0, currency: "INR", promisedBackDate: "", nextFollowUpDate: "",
   status: "Open", owner: "", notes: ""
 });
@@ -146,6 +147,49 @@ export default function Contact360Workspace({
     return aa.localeCompare(bb) || effectiveContact(a, vendors).contactName.localeCompare(effectiveContact(b, vendors).contactName);
   }), [contacts, vendors, groups, search, groupFilter]);
 
+  const moduleRecordOptions = useMemo<ModuleRecordOption[]>(() => {
+    const company = (id: string) => data.companies.find(item => item.id === id)?.name || "";
+    const component = (id: string) => {
+      const row = data.components.find(item => item.id === id);
+      return row ? row.partNumber + " · " + row.name : "";
+    };
+    const vendor = (id: string) => data.vendors.find(item => item.id === id)?.company || "";
+    switch (followDraft.moduleType) {
+      case "companies":
+      case "customers":
+        return activeRows(data.companies).map(row => ({ id: row.id, label: row.name, reference: row.gstin || row.phone || "" }));
+      case "purchasing":
+        return activeRows(data.purchaseOrders).map(row => ({ id: row.id, label: row.number, reference: company(row.companyId) }));
+      case "components":
+        return activeRows(data.components).map(row => ({ id: row.id, label: row.partNumber + " · " + row.name, reference: "Rev " + (row.revision || "—") }));
+      case "production":
+        return activeRows(data.operations).map(row => ({
+          id: row.id, label: row.name,
+          reference: component(row.componentId) + (row.poId ? " · " + (data.purchaseOrders.find(po => po.id === row.poId)?.number || "") : "")
+        }));
+      case "vendors":
+        return activeRows(data.vendors).map(row => ({ id: row.id, label: row.company, reference: row.contact }));
+      case "inventory":
+        return activeRows(data.materials).map(row => ({ id: row.id, label: row.code + " · " + row.name, reference: row.grade }));
+      case "quality":
+        return activeRows(data.qualityInspections).map(row => ({ id: row.id, label: row.stage + " · " + component(row.componentId), reference: row.nonConformanceReference || row.inspectionDate }));
+      case "dispatch":
+        return [
+          ...activeRows(data.wipTransfers).map(row => ({ id: row.id, label: "WIP · " + (row.challanReference || component(row.componentId)), reference: row.status + " · " + component(row.componentId) })),
+          ...activeRows(data.customerDispatches).map(row => ({ id: row.id, label: "Delivery · " + (row.deliveryChallan || component(row.componentId)), reference: row.status + " · " + row.destination }))
+        ];
+      case "costing":
+        return [
+          ...activeRows(data.quotations).map(row => ({ id: row.id, label: "Quote · " + (row.quoteReference || component(row.componentId)), reference: component(row.componentId) + " · " + vendor(row.vendorId) })),
+          ...activeRows(data.processVendorRates).map(row => ({ id: row.id, label: "Process rate · " + (row.quoteReference || "Rate entry"), reference: vendor(row.vendorId) }))
+        ];
+      case "communications":
+        return activeRows(data.contact360Contacts).map(row => ({ id: row.id, label: row.contactName, reference: row.accountName }));
+      default:
+        return [];
+    }
+  }, [data, followDraft.moduleType]);
+  const selectedModuleRecord = moduleRecordOptions.find(option => option.id === followDraft.moduleRecordId);
   const selectedFollowUps = selected ? followUps
     .filter(row => row.contactId === selected.id)
     .sort((a, b) => {
@@ -241,7 +285,7 @@ export default function Contact360Workspace({
     setFollowEditingId(row.id);
     setFollowDraft({
       contactId: row.contactId, groupId: row.groupId, description: row.description,
-      moduleType: row.moduleType, moduleReference: row.moduleReference,
+      moduleType: row.moduleType, moduleRecordId: row.moduleRecordId || "", moduleReference: row.moduleReference,
       amount: row.amount, currency: row.currency, promisedBackDate: row.promisedBackDate,
       nextFollowUpDate: row.nextFollowUpDate, status: row.status, owner: row.owner, notes: row.notes
     });
@@ -377,8 +421,12 @@ export default function Contact360Workspace({
       </div>
       <div className="c360-form-grid">
         <label className="c360-wide">Description / what needs follow-up *<input value={followDraft.description} onChange={event => setFollowDraft(current => ({ ...current, description: event.target.value }))} placeholder="Quotation requested, revised drawing, order confirmation…"/></label>
-        <label>Linked AXIMACH module<select value={followDraft.moduleType} onChange={event => setFollowDraft(current => ({ ...current, moduleType: event.target.value }))}>{linkedModules.map(module => <option key={module.id} value={module.id}>{module.label}</option>)}</select></label>
-        <label>Record reference<input value={followDraft.moduleReference} onChange={event => setFollowDraft(current => ({ ...current, moduleReference: event.target.value }))} placeholder="RFQ / PO / quote / job reference"/></label>
+        <label>Linked AXIMACH module<select value={followDraft.moduleType} onChange={event => setFollowDraft(current => ({ ...current, moduleType: event.target.value, moduleRecordId: "", moduleReference: "" }))}>{linkedModules.map(module => <option key={module.id} value={module.id}>{module.label}</option>)}</select></label>
+        <label>Link to saved module record<select value={followDraft.moduleRecordId || ""} onChange={event => {
+          const option = moduleRecordOptions.find(item => item.id === event.target.value);
+          setFollowDraft(current => ({ ...current, moduleRecordId: event.target.value, moduleReference: option ? [option.label, option.reference].filter(Boolean).join(" · ") : current.moduleReference }));
+        }}><option value="">No saved record selected</option>{followDraft.moduleRecordId && !selectedModuleRecord && <option value={followDraft.moduleRecordId}>Previously linked record · {followDraft.moduleReference || followDraft.moduleRecordId}</option>}{moduleRecordOptions.map(option => <option key={option.id} value={option.id}>{option.label}{option.reference ? " · " + option.reference : ""}</option>)}</select><small>{moduleRecordOptions.length ? moduleRecordOptions.length + " active record(s) available in this module. Selecting one saves its stable record ID." : "No active saved records are available for this module. You can still enter an external reference below."}</small></label>
+        <label>Reference / description<input value={followDraft.moduleReference} onChange={event => setFollowDraft(current => ({ ...current, moduleReference: event.target.value }))} placeholder="RFQ / PO / quote / job reference"/></label>
         <label>Amount<input type="number" min="0" step="0.01" value={followDraft.amount || ""} onChange={event => setFollowDraft(current => ({ ...current, amount: Number(event.target.value || 0) }))} placeholder="0.00"/></label>
         <label>Currency<select value={followDraft.currency} onChange={event => setFollowDraft(current => ({ ...current, currency: event.target.value }))}><option value="INR">INR ₹</option><option value="USD">USD $</option><option value="EUR">EUR €</option><option value="GBP">GBP £</option><option value="PLN">PLN zł</option></select></label>
         <label>They said they'll reach back on<input type="date" value={followDraft.promisedBackDate} onChange={event => setFollowDraft(current => ({ ...current, promisedBackDate: event.target.value }))}/></label>
@@ -466,7 +514,7 @@ export default function Contact360Workspace({
               <tbody>
                 {selectedFollowUps.map(row => <tr key={row.id} className={row.status === "Completed" ? "c360-row-complete" : ""}>
                   <td><strong>{row.description}</strong><small>{row.owner ? "Owner: " + row.owner : row.notes || "No extra notes"}</small></td>
-                  <td><span>{linkedModules.find(module => module.id === row.moduleType)?.label || row.moduleType}</span><small>{row.moduleReference || "Reference not entered"}</small></td>
+                  <td><span>{linkedModules.find(module => module.id === row.moduleType)?.label || row.moduleType}</span><small>{row.moduleReference || "Reference not entered"}{row.moduleRecordId ? " · Stable record linked" : ""}</small></td>
                   <td className="c360-amount">{amountLabel(row.amount, row.currency)}</td>
                   <td>{dateLabel(row.promisedBackDate)}</td>
                   <td>{dateLabel(row.nextFollowUpDate)}</td>
