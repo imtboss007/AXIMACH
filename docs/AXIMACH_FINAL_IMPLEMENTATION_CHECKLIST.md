@@ -46,6 +46,7 @@ Exactly the eight approved functions:
 - [x] Add notes.
 - [x] No Factories tab, factory menu, or factory management in this user-facing menu.
 - [x] Preserve company IDs and existing company links.
+- [x] Prevent duplicate registered company names and duplicate non-empty GSTINs in the active Company Master.
 
 ### 04 — Purchase Orders
 - [x] Create, edit and search purchase orders.
@@ -53,6 +54,7 @@ Exactly the eight approved functions:
 - [x] Select existing Component Master records; do not recreate or retype component master details.
 - [x] Selecting a component loads its saved master details.
 - [x] Store PO-specific line details (e.g. quantity, delivery date and customer rate) against the selected component line.
+- [x] Prevent duplicate PO numbers within the same Company; the same number remains available for a different company.
 - [x] Preserve PO IDs, PO-line IDs and downstream operation references.
 - [ ] Exact PO fields/statuses beyond these approved points: **verify existing behaviour; ask before adding**.
 

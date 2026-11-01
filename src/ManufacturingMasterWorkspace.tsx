@@ -55,10 +55,17 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
     setShowForm(true);
   };
   const saveCompany = () => {
-    if (!companyDraft.name.trim()) { onNotice("Enter a company name."); return; }
+    const name = companyDraft.name.trim();
+    const gstin = companyDraft.gstin.trim().toUpperCase();
+    if (!name) { onNotice("Enter a company name."); return; }
+    const duplicate = companies.find(row => row.id !== companyEditingId && (
+      row.name.trim().toLowerCase() === name.toLowerCase() ||
+      (!!gstin && row.gstin.trim().toUpperCase() === gstin)
+    ));
+    if (duplicate) { onNotice("A company with this registered name or GSTIN already exists. Edit the existing Company Master record instead of creating a duplicate."); return; }
     const stamp = nowIso();
     const id = companyEditingId || makeId("company");
-    update(current => ({ ...current, companies: [...current.companies.filter(x => x.id !== id), { ...companyDraft, name: companyDraft.name.trim(), id, createdAt: current.companies.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
+    update(current => ({ ...current, companies: [...current.companies.filter(x => x.id !== id), { ...companyDraft, name, gstin, id, createdAt: current.companies.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
     resetForms(); onNotice("Company saved. It can now be linked directly to purchase orders.");
   };
   const saveComponent = () => {
@@ -70,11 +77,14 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
     resetForms(); onNotice("Component master saved. Purchase-order lines, operations and quotations can link to this component ID.");
   };
   const savePO = () => {
-    if (!poDraft.number.trim() || !poDraft.companyId) { onNotice("Select a company and enter the purchase-order number."); return; }
-    if (!poLines.length || poLines.some(line => !line.componentId || line.quantity <= 0)) { onNotice("Add at least one component line and set a component and positive quantity on every line."); return; }
+    const number = poDraft.number.trim();
+    if (!number || !poDraft.companyId) { onNotice("Select a company and enter the purchase-order number."); return; }
+    const duplicate = orders.find(row => row.id !== poEditingId && row.companyId === poDraft.companyId && row.number.trim().toLowerCase() === number.toLowerCase());
+    if (duplicate) { onNotice("This purchase-order number already exists for the selected company. Edit the existing PO instead of creating a duplicate."); return; }
+    if (!poLines.length || poLines.some(line => !line.componentId || !Number.isFinite(line.quantity) || line.quantity <= 0)) { onNotice("Add at least one component line and set a component and positive quantity on every line."); return; }
     const stamp = nowIso(); const id = poEditingId || makeId("po");
     const lines = poLines.map(line => ({ ...line, id: line.id || makeId("line"), targetDelivery: line.targetDelivery || poDraft.targetDelivery }));
-    update(current => ({ ...current, purchaseOrders: [...current.purchaseOrders.filter(x => x.id !== id), { ...poDraft, number: poDraft.number.trim(), id, lines, createdAt: current.purchaseOrders.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
+    update(current => ({ ...current, purchaseOrders: [...current.purchaseOrders.filter(x => x.id !== id), { ...poDraft, number, id, lines, createdAt: current.purchaseOrders.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
     resetForms(); onNotice("Purchase order saved. Each PO line now points to a component record ID; the Process Map can load the selected line, quantity and delivery target automatically.");
   };
 
