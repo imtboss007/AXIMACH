@@ -108,7 +108,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
   const savePlan = () => {
     if (!selected) { onNotice("Create a component in Component Master before planning its cost."); return; }
     const numericFields = costFields.map(field => Number(draft[field.key]));
-    if (numericFields.some(value => !Number.isFinite(value) || value < 0)) {
+    if (numericFields.some(value => !Number.isFinite(value) || value < 0) || !Number.isFinite(Number(draft.targetSellingPricePerPart)) || Number(draft.targetSellingPricePerPart) < 0) {
       onNotice("All planned cost fields must be valid non-negative amounts. Enter 0 explicitly where a cost does not apply.");
       return;
     }
@@ -166,7 +166,8 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
     if (duplicate) { onNotice("This component already has a planned cost for that process. Edit the existing row to avoid double counting."); return; }
     if (processDraft.vendorId) {
       const vendor = vendors.find(row => row.id === processDraft.vendorId);
-      if (!vendor || !vendorSupportsProcessType(vendor, processDraft.processTypeId)) {
+      const previous = processPlans.find(row => row.id === editingProcessId);
+      if (!vendor || (!vendorSupportsProcessType(vendor, processDraft.processTypeId) && previous?.vendorId !== vendor.id)) {
         onNotice("Select a Vendor Master record with this process capability, or leave the process vendor blank for an in-house plan.");
         return;
       }
