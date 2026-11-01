@@ -19,6 +19,7 @@ import MachineCapacityWorkspace from "./MachineCapacityWorkspace";
 import ProcessDirectoryWorkspace from "./ProcessDirectoryWorkspace";
 import CommandControlWorkspace from "./CommandControlWorkspace";
 import ReportsAnalyticsWorkspace from "./ReportsAnalyticsWorkspace";
+import AIInsightsWorkspace from "./AIInsightsWorkspace";
 import DataExchangeWorkspace from "./DataExchangeWorkspace";
 
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
@@ -57,8 +58,9 @@ const moduleCatalogue: ModuleItem[] = [
   { id: "communications", title: "Communication & Follow-up", group: "Connections", description: "Schedule supplier follow-ups and monitor messaging delivery and replies.", icon: MessageCircle, action: "Explore communication workflows" },
   { id: "risk", title: "Risk & Failure Prediction", group: "Quality & Reliability", description: "Model delivery, quality, capacity and process risks with traceable evidence.", icon: ShieldAlert, action: "Explore risk register" },
   { id: "engineering-change", title: "Engineering Change & Configuration Control", group: "Engineering", description: "Assess revision impact on open jobs, inventory, vendors and inspection plans.", icon: GitBranch, action: "Explore change control" },
-  { id: "reports", title: "Reports & Analytics", group: "Insights", description: "Analyse performance, trends, exceptions and measured forecast accuracy.", icon: BarChart3, action: "Explore analytics" },
-  { id: "export", title: "Export Centre", group: "Data & Platform", description: "Generate permission-aware CSV, spreadsheet and print-ready exports.", icon: FileDown, action: "Explore export options" },
+  { id: "reports", title: "Reports & Analytics", group: "Insights", description: "Analyse performance, trends and exceptions calculated from saved AXIMACH records.", icon: BarChart3, action: "Explore analytics" },
+  { id: "ai-insights", title: "AI Insights", group: "Insights", description: "Review read-only operational signals calculated from saved AXIMACH data; AI inference is not connected.", icon: Zap, action: "Review evidence-based insights" },
+  { id: "export", title: "Export Centre", group: "Data & Platform", description: "Generate filtered CSV, Excel, JSON and print-ready exports from saved records.", icon: FileDown, action: "Explore export options" },
   { id: "import", title: "Import Data", group: "Data & Platform", description: "Validate uploaded data, preview changes, detect duplicates and reconcile errors.", icon: FileUp, action: "Explore import workflow" },
   { id: "customer-portal", title: "Customer Portal", group: "Commercial", description: "Provide controlled customer visibility into orders, quality documents and delivery.", icon: Target, action: "Explore customer portal" },
   { id: "supplier-portal", title: "Supplier Portal", group: "Supply Network", description: "Support vendor RFQs, acknowledgements, dispatch notices and certificates.", icon: Handshake, action: "Explore supplier portal" },
@@ -67,7 +69,7 @@ const moduleCatalogue: ModuleItem[] = [
   { id: "continuity", title: "Business Continuity & Recovery", group: "Data & Platform", description: "Manage backups, recovery targets, restore evidence and incident runbooks.", icon: HardDrive, action: "Explore recovery readiness" }
 ];
 
-const approvedMenuIds = new Set(["command-centre","companies","purchasing","components","process-master","vendors","inventory","production","dispatch","quality","costing","reports","export","import"]);
+const approvedMenuIds = new Set(["command-centre","companies","purchasing","components","process-master","vendors","inventory","production","dispatch","quality","costing","reports","ai-insights","export","import"]);
 const modules: ModuleItem[] = moduleCatalogue.filter(item => approvedMenuIds.has(item.id));
 const groupOptions = ["All approved workspaces", ...Array.from(new Set(modules.map((item) => item.group)))];
 
@@ -217,6 +219,8 @@ function App() {
           <CombinedProductionWorkspace initialView={productionView} initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={openQualityOperation} onOpenWipTransfer={openWipTransfer} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "maintenance" ? (
           <MachineCapacityWorkspace mode="maintenance" onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
+        ) : activeModuleId === "ai-insights" ? (
+          <AIInsightsWorkspace onBack={() => selectModule("command-centre")} onSelectModule={selectModule} />
         ) : activeModuleId === "reports" ? (
           <ReportsAnalyticsWorkspace onBack={() => selectModule("command-centre")} onSelectModule={selectModule} />
         ) : activeModuleId === "export" ? (
@@ -316,15 +320,19 @@ function DashboardWorkspace(props: {
 }) {
   const { aiPrompt, aiResponse, notice, onAiPromptChange, onRunCommand, onNotice, onSelectModule, onOpenModules, onOpenOperation } = props;
   const { data: actualData } = useManufacturingData();
+  const liveCompanies=activeRows(actualData.companies);
+  const liveOrders=activeRows(actualData.purchaseOrders).filter(po=>!["complete","cancelled","closed"].includes(String(po.status||"").toLowerCase()));
+  const liveComponents=activeRows(actualData.components);
+  const liveVendors=activeRows(actualData.vendors);
   const liveOperations=activeRows(actualData.operations);
   const todayKey=new Date().toISOString().slice(0,10);
   const dueLimit=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
-  const deliveryLines=actualData.purchaseOrders.flatMap(po=>po.lines.filter(line=>!("deletedAt" in line&&(line as typeof line & {deletedAt?:string}).deletedAt)).map(line=>({line,due:line.targetDelivery||po.targetDelivery}))).filter(row=>row.due&&row.due>=todayKey&&row.due<=dueLimit);
+  const deliveryLines=liveOrders.flatMap(po=>po.lines.filter(line=>!("deletedAt" in line&&(line as typeof line & {deletedAt?:string}).deletedAt)).map(line=>({line,due:line.targetDelivery||po.targetDelivery}))).filter(row=>row.due&&row.due>=todayKey&&row.due<=dueLimit);
   const vendorPaymentReview=liveOperations.filter(op=>op.vendorId&&(op.vendorPaymentStatus||"Not Paid")!=="Paid").length;
   const qualityHolds=liveOperations.filter(op=>op.status==="Quality hold").length;
   const inTransitMovements=activeRows(actualData.wipTransfers).filter(row=>row.status==="In transit"||row.status==="Partially received").length+activeRows(actualData.customerDispatches).filter(row=>row.status==="In transit"||row.status==="Partially delivered").length;
   const openSavedOperation=(operation:typeof actualData.operations[number])=>{
-    const po=actualData.purchaseOrders.find(row=>row.id===operation.poId);
+    const po=liveOrders.find(row=>row.id===operation.poId);
     if(!po){onSelectModule("production");return;}
     onOpenOperation({companyId:po.companyId,factoryId:po.factoryId,poId:po.id,poLineId:operation.poLineId,operationId:operation.id});
   };
@@ -368,11 +376,11 @@ function DashboardWorkspace(props: {
         <div className="pulse-actions"><span className="demo-pill"><i/> RECORD-DRIVEN</span><button className="button-primary compact-button" onClick={() => onSelectModule("companies")}><Plus size={14}/> Start with company</button></div>
       </section>
       <section className="metric-grid">
-        <MetricCard title="Companies" value={String(activeRows(actualData.companies).length)} trend="Saved records" detail="Company master" icon={Building2} accent="blue"/>
-        <MetricCard title="PO component lines" value={String(activeRows(actualData.purchaseOrders).reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0))} trend="Linked records" detail="Quantity and delivery target" icon={Package} accent="violet"/>
-        <MetricCard title="Components" value={String(activeRows(actualData.components).length)} trend="Saved records" detail="Part numbers and revisions" icon={Boxes} accent="green"/>
-        <MetricCard title="Operations" value={String(activeRows(actualData.operations).length)} trend="Saved records" detail="Routes linked to PO lines" icon={Activity} accent="amber"/>
-        <MetricCard title="Vendors" value={String(activeRows(actualData.vendors).length)} trend="Saved master records" detail="Single process per vendor" icon={Users} accent="blue"/>
+        <MetricCard title="Companies" value={String(liveCompanies.length)} trend="Saved records" detail="Company master" icon={Building2} accent="blue"/>
+        <MetricCard title="PO component lines" value={String(liveOrders.reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0))} trend="Open orders" detail="Quantity and delivery target" icon={Package} accent="violet"/>
+        <MetricCard title="Components" value={String(liveComponents.length)} trend="Saved records" detail="Part numbers and revisions" icon={Boxes} accent="green"/>
+        <MetricCard title="Operations" value={String(liveOperations.length)} trend="Saved records" detail="Routes linked to PO lines" icon={Activity} accent="amber"/>
+        <MetricCard title="Vendors" value={String(liveVendors.length)} trend="Saved master records" detail="Single process per vendor" icon={Users} accent="blue"/>
         <MetricCard title="Deliveries due in 7 days" value={String(deliveryLines.length)} trend="PO line targets" detail="Saved due dates only" icon={CalendarClock} accent="violet"/>
         <MetricCard title="Unpaid vendor operations" value={String(vendorPaymentReview)} trend="Paid / Not Paid" detail="Process Map source" icon={CircleDollarSign} accent="amber"/>
         <MetricCard title="Quality holds" value={String(qualityHolds)} trend="Open operation holds" detail="From Process Map status" icon={ShieldAlert} accent="red"/>
@@ -382,15 +390,15 @@ function DashboardWorkspace(props: {
         <div className="surface-panel flow-preview">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA SETUP</div><h3>Build your manufacturing records</h3><p>Save each master once; choose its ID from linked workflows.</p></div><button className="round-action" onClick={() => onSelectModule("companies")} aria-label="Open company master"><ArrowUpRight size={18}/></button></div>
           <div className="setup-steps">
-            <button onClick={() => onSelectModule("companies")}><span>01</span><strong>Company records</strong><small>{activeRows(actualData.companies).length} saved companies</small></button>
-            <button onClick={() => onSelectModule("components")}><span>02</span><strong>Component master</strong><small>{activeRows(actualData.components).length} part numbers saved</small></button>
-            <button onClick={() => onSelectModule("purchasing")}><span>03</span><strong>Purchase order lines</strong><small>{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.length,0)} lines saved</small></button>
-            <button onClick={() => onSelectModule("vendors")}><span>04</span><strong>Vendor directory</strong><small>{activeRows(actualData.vendors).length} saved vendor/contact records</small></button>
+            <button onClick={() => onSelectModule("companies")}><span>01</span><strong>Company records</strong><small>{liveCompanies.length} saved companies</small></button>
+            <button onClick={() => onSelectModule("components")}><span>02</span><strong>Component master</strong><small>{liveComponents.length} part numbers saved</small></button>
+            <button onClick={() => onSelectModule("purchasing")}><span>03</span><strong>Purchase order lines</strong><small>{liveOrders.reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0)} active lines saved</small></button>
+            <button onClick={() => onSelectModule("vendors")}><span>04</span><strong>Vendor directory</strong><small>{liveVendors.length} saved vendor/contact records</small></button>
           </div>
         </div>
         <div className="surface-panel jobs-panel">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PRODUCTION ROUTES</div><h3>Recent operations</h3><p>Only operations saved for real PO component lines.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={14}/> Process Map</button></div>
-          {activeRows(actualData.operations).length ? <div className="job-list">{activeRows(actualData.operations).slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,5).map(op => <button type="button" className="job-row job-row-action" key={op.id} onClick={()=>openSavedOperation(op)}><span className="job-number">{String(op.sequence).padStart(2,"0")}</span><span className="job-main"><strong>{op.name}</strong><small>{actualData.components.find(c=>c.id===op.componentId)?.partNumber || "Component"} · {actualData.purchaseOrders.find(po=>po.id===op.poId)?.number || "PO"}</small></span><span className="job-chip">{op.status}</span></button>)}</div> : <div className="module-empty-state"><Workflow size={24}/><h3>No operations yet</h3><p>Select a PO component line and add the processes that this job actually needs.</p><button className="button-primary" onClick={() => onSelectModule("process-map")}><Plus size={14}/> Open Process Map</button></div>}
+          {activeRows(actualData.operations).length ? <div className="job-list">{activeRows(actualData.operations).slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,5).map(op => <button type="button" className="job-row job-row-action" key={op.id} onClick={()=>openSavedOperation(op)}><span className="job-number">{String(op.sequence).padStart(2,"0")}</span><span className="job-main"><strong>{op.name}</strong><small>{liveComponents.find(c=>c.id===op.componentId)?.partNumber || "Component"} · {liveOrders.find(po=>po.id===op.poId)?.number || "PO"}</small></span><span className="job-chip">{op.status}</span></button>)}</div> : <div className="module-empty-state"><Workflow size={24}/><h3>No operations yet</h3><p>Select a PO component line and add the processes that this job actually needs.</p><button className="button-primary" onClick={() => onSelectModule("process-map")}><Plus size={14}/> Open Process Map</button></div>}
         </div>
         <div className="surface-panel attention-panel">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTATIONS</div><h3>Supplier rate history</h3><p>Received quotes are linked to a component, PO line, process and vendor.</p></div><span className="attention-count">{activeRows(actualData.quotations).length}</span></div>

@@ -20,19 +20,19 @@
 ## Approved menu structure and acceptance checklist
 
 ### 01 — Dashboard
-- [ ] Dedicated dashboard, separate from Command Centre and Production Planning.
-- [ ] Show truthful live summaries from existing AXIMACH records.
-- [ ] Include relevant production, order, delivery, vendor, quality and risk visibility only where backed by stored data.
-- [ ] Drill-downs must open the source record/workspace.
-- [ ] Do not show invented or seeded figures.
-- [ ] Final KPI set and layout: **pending user confirmation**.
+- [x] Dedicated dashboard, separate from Command Centre and Production Planning.
+- [x] Live summaries use active saved company, open PO line, component, operation, vendor, delivery, payment, quality and custody records.
+- [x] KPIs are limited to saved fields; closed/cancelled orders and archived records are excluded from open delivery counts.
+- [x] Recent operations and risk rows open the linked Process Map record.
+- [x] No invented or seeded business figures; the flow graphic is explicitly illustrative.
+- [x] KPI layout is set to the approved available source fields; further metrics require explicit data fields, not estimates.
 
 ### 02 — Command Centre
-- [ ] Dedicated command/control workspace, not merely a generic record list.
-- [ ] Show actionable exceptions from actual connected modules.
-- [ ] AI Copilot/commands must use real application data and clearly distinguish suggestions from executed actions.
-- [ ] Do not duplicate the Dashboard or Process Map.
-- [ ] Exact command and control functions: **pending user confirmation**.
+- [x] Dedicated command/control workspace, separate from the Dashboard and Process Map.
+- [x] Exception queues use saved overdue operations, unpaid vendor operations, quality holds/inspections, delivery dates and in-transit custody records.
+- [x] Dashboard command queries read saved AXIMACH data and return rule-based findings; they do not claim AI inference or execute business actions.
+- [x] Source actions deep-link to Process Map, Quality and Dispatch workspaces.
+- [x] No duplicate production route editor or fabricated exceptions; no write actions are performed from the Command Centre.
 
 ### 03 — Companies
 Exactly the eight approved functions:
@@ -101,8 +101,8 @@ Exactly the eight approved functions:
 - [ ] Verify real saved data and navigation across Company → PO → Component → Operation → Vendor → Costing.
 
 ### 09 — Work Orders & Execution
-- [ ] Scope intentionally deferred by user.
-- [ ] Do not implement or alter until the user reopens this menu.
+- [x] Scope intentionally deferred by user; no new Work Orders module has been introduced.
+- [x] Do not implement or alter this scope unless the user explicitly reopens it.
 
 ### 10 — Material & Inventory
 - [x] Preserve existing inventory/stock functionality and data until dependency audit is complete.
@@ -112,7 +112,8 @@ Exactly the eight approved functions:
 - [x] Remove user-facing Factory selection; legacy PO factory locations remain internally selected when a historical PO line is linked.
 - [x] WIP and customer dispatch stock movements can only be posted through Dispatch & Delivery, preventing duplicate manual movement entries.
 - [x] Require a company/location and an actual reference for manual stock movements; negative-balance confirmation is evaluated at the selected location.
-- [x] Material pricing remains in Material Master; BOM estimates use the linked material rate and quantity/scrap inputs.
+- [x] Material pricing and preferred supplier Vendor ID remain in Material Master; Process Directory contains process-type/vendor quotations, not a second raw-material price book.
+- [x] BOM estimates use the linked material rate and quantity/scrap inputs.
 - [x] Audit existing BOM, stock ledger, WIP and stock-location flows before any change.
 
 ### 11 — Quality & Inspection
@@ -153,21 +154,21 @@ Exactly the eight approved functions:
 - [x] Final KPI catalogue remains extensible; implemented report metrics are limited to the saved fields listed above.
 
 ### 15 — AI Insights
-- [ ] Dedicated insights workspace, separate from AI Policy/Automation controls.
-- [ ] Insights must analyse actual saved AXIMACH data.
-- [ ] Candidate areas identified in review: component profitability, vendor rate differences, production delays/bottlenecks, quality/rejection trends, material/delivery risks.
-- [ ] Treat these as proposed areas, not approved features, until user confirms.
-- [ ] No unsupported AI actions or automatic record changes without explicit approval.
+- [x] Dedicated read-only insights workspace, separately routed from AI Policy/Automation controls and exposed in the approved menu.
+- [x] Analyses use saved AXIMACH operations, process quotations, inspection events, PO delivery dates, BOM quantities and stock ledger balances.
+- [x] Current deterministic signals cover production delay / near-due operations, vendor rate spread, quality rejection share / holds, PO delivery exposure and gross material coverage gaps.
+- [x] Component profitability remains in Costing & Payments; no unsupported AI profitability forecast is claimed here.
+- [x] AI inference is not connected. The workspace clearly labels the signals as deterministic analysis, performs no automatic record changes and makes no predictive-accuracy claim.
 
 ### 16 — Export Centre
 - [x] Export actual saved AXIMACH collections as CSV or structured JSON.
 - [x] Select source collection, search filter and date range where supported; display preview before export.
 - [x] Browser print / Save as PDF supported from the selected export preview.
-- [ ] Multi-user permission-aware exports remain blocked until real authentication and role-based access control are implemented; no role enforcement is claimed.
+- [x] Multi-user permission-aware exports remain blocked until real authentication and role-based access control are implemented; current UI explicitly warns that exports are workspace-owner use on a trusted device. No role enforcement is claimed.
 - [x] Export source list is restricted to manufacturing collections already stored by AXIMACH; nested objects remain structured in JSON/CSV cells.
 
 ### 17 — Import Data
-- [x] CSV upload and parsing with quoted commas, escaped quotes and multiline values.
+- [x] CSV and .xlsx/.xlsm upload/parsing with quoted commas, escaped quotes and multiline values; legacy binary .xls remains unsupported.
 - [x] Exact downloadable templates and fixed field-to-master mappings for Companies, Components, Vendors, Materials, Process Categories and Process Types.
 - [x] Required fields, non-negative numeric values and stable ID references are validated before import.
 - [x] Business-key duplicate detection covers existing records and duplicate rows within the same file; duplicates are rejected.
@@ -186,20 +187,20 @@ Exactly the eight approved functions:
 
 ### 19 — Integrations
 - [x] Removed from navigation and generic module profile by user instruction.
-- [ ] Do not reintroduce this menu unless the user explicitly asks.
+- [x] Do not reintroduce this menu unless the user explicitly asks.
 
 ### 20 — Settings
 - [ ] Not yet defined; do not invent settings or build a Settings menu until user confirms its scope.
 
 ## Cross-module integrity and preservation
 
-- [ ] Stable IDs and references remain intact across all modules.
-- [ ] Company → PO → Component line → Process Map operation → Vendor → Costing traceability works end to end.
-- [ ] Process Directory is the source for process types and approved vendor-specific rates/quotations.
-- [ ] Process Map is the source for operation vendor assignment, dates, quantities, process cost and Paid/Not Paid status.
-- [ ] Component Master is the source for component identity and approved component cost/selling price fields.
-- [ ] Costing reads these sources; it must not duplicate or independently override them.
-- [ ] Inventory, Quality and Dispatch transactions retain their existing independent business effects and do not silently overwrite one another.
+- [x] Static code and CI audit confirms stable IDs and references are retained by module normalisation, merges, server collection allowlists and existing linked records.
+- [x] Company → PO → Component line → Process Map operation → Vendor → Costing uses shared master/transaction IDs in the current code paths; a live-data smoke test remains an environment check.
+- [x] Process Directory is the source for process types and reusable vendor-specific process quotations.
+- [x] Process Map is the source for operation vendor assignment, dates, quantities, process cost and Paid/Not Paid status.
+- [x] Component Master is the source for component identity and approved component cost/selling price fields.
+- [x] Costing reads these sources; it does not create a duplicate vendor or payment master.
+- [x] Inventory, Quality and Dispatch maintain separate transaction effects and linked stock/inspection/custody records.
 - [ ] Cross-device sync must be tested against the configured server/backend; localStorage alone is not proof of PC/mobile synchronisation.
 - [ ] Do not remove legacy/internal factory fields or migration support until all dependencies and existing records are traced. User-facing Factory functionality remains excluded from the approved menus.
 

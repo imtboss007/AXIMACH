@@ -38,7 +38,7 @@ const templates: {kind:ImportKind;label:string;headers:string[];key:string;descr
   {kind:"processTypes",label:"Process types",headers:["categoryId","name","code","description"],key:"category ID + type name",description:"categoryId must match an existing Process Directory category."}
 ];
 const today=()=>new Date().toISOString().slice(0,10);
-const csvCell=(value:unknown)=>{const text=typeof value==="string"?value:value==null?"":typeof value==="object"?JSON.stringify(value):String(value);return /[",\r\n]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;};
+const csvCell=(value:unknown)=>{let text=typeof value==="string"?value:value==null?"":typeof value==="object"?JSON.stringify(value):String(value);if(typeof value==="string"&&/^[\\u0000-\\u0020]*[=+@-]/.test(text))text="'"+text;return /[",\r\n]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;};
 function rowsToCsv(rows:Row[]) {
   const headers=Array.from(new Set(rows.flatMap(row=>Object.keys(row))));
   return [headers.map(csvCell).join(","),...rows.map(row=>headers.map(key=>csvCell(row[key])).join(","))].join("\r\n");
@@ -206,12 +206,13 @@ export default function DataExchangeWorkspace({mode,onBack,onNotice,notice}:Prop
     const matchesTo=!dateTo||(dateValue&&dateValue<=dateTo);
     return matchesSearch&&matchesFrom&&matchesTo;
   }),[allRows,search,dateFrom,dateTo,sourceMeta.dateFields.join("|")]);
-  const download=(filename:string,body:string,mime:string)=>{
-    const blob=new Blob([body],{type:mime});
+  const saveBlob=(filename:string,blob:Blob)=>{
     const url=URL.createObjectURL(blob);
-    const anchor=document.createElement("a");anchor.href=url;anchor.download=filename;anchor.click();
-    URL.revokeObjectURL(url);
+    const anchor=document.createElement("a");anchor.href=url;anchor.download=filename;anchor.style.display="none";
+    document.body.appendChild(anchor);anchor.click();anchor.remove();
+    window.setTimeout(()=>URL.revokeObjectURL(url),1000);
   };
+  const download=(filename:string,body:string,mime:string)=>saveBlob(filename,new Blob([body],{type:mime}));
   const exportCsv=()=>{if(!exportRows.length){onNotice("No matching records to export.");return;}download("aximach-"+source+"-"+today()+".csv",rowsToCsv(exportRows),"text/csv;charset=utf-8");onNotice(exportRows.length+" saved "+sourceMeta.label.toLowerCase()+" record(s) exported as CSV.");};
   const exportJson=()=>{if(!exportRows.length){onNotice("No matching records to export.");return;}download("aximach-"+source+"-"+today()+".json",JSON.stringify({source,exportedAt:nowIso(),count:exportRows.length,records:exportRows},null,2),"application/json");onNotice(exportRows.length+" saved record(s) exported as JSON.");};
   const exportExcel=()=>{
@@ -219,7 +220,7 @@ export default function DataExchangeWorkspace({mode,onBack,onNotice,notice}:Prop
     const headers=Array.from(new Set(exportRows.flatMap(row=>Object.keys(row))));
     const workbook=toXlsx(headers,exportRows);
     const blob=new Blob([workbook],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-    const url=URL.createObjectURL(blob);const anchor=document.createElement("a");anchor.href=url;anchor.download="aximach-"+source+"-"+today()+".xlsx";anchor.click();URL.revokeObjectURL(url);
+    saveBlob("aximach-"+source+"-"+today()+".xlsx",blob);
     onNotice(exportRows.length+" saved "+sourceMeta.label.toLowerCase()+" record(s) exported as Excel workbook.");
   };
   const printPreview=()=>{if(!exportRows.length){onNotice("No matching records to print.");return;}window.print();};
