@@ -15,7 +15,7 @@ type PlanFields = Pick<ComponentPlannedCostRecord,
   "toolingCostPerPart" | "qualityCostPerPart" | "reworkScrapCostPerPart" |
   "packagingCostPerPart" | "otherCostPerPart" | "targetSellingPricePerPart" | "status" | "notes"
 >;
-type ProcessDraft = { categoryId: string; processTypeId: string; vendorId: string; quantityPerPart: string; ratePerProcess: string; transportCostPerPart: string; notes: string };
+type ProcessDraft = { categoryId: string; processTypeId: string; vendorId: string; quantityPerPart: string; ratePerProcess: string; notes: string };
 
 const blankFields = (): PlanFields => ({
   materialCostPerPart: 0, directLabourCostPerPart: 0, overheadCostPerPart: 0,
@@ -24,8 +24,7 @@ const blankFields = (): PlanFields => ({
   status: "Draft", notes: ""
 });
 const blankProcess = (): ProcessDraft => ({
-  categoryId: "", processTypeId: "", vendorId: "", quantityPerPart: "1", ratePerProcess: "",
-  transportCostPerPart: "0", notes: ""
+  categoryId: "", processTypeId: "", vendorId: "", quantityPerPart: "1", ratePerProcess: "", notes: ""
 });
 const costFields: { key: Exclude<keyof PlanFields, "status" | "notes">; label: string; detail: string }[] = [
   { key: "materialCostPerPart", label: "Material cost / finished piece", detail: "Raw material and purchased material input" },
@@ -77,8 +76,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
   const selectedProcessPlans = selected ? processPlans
     .filter(record => record.componentId === selected.id)
     .sort((a, b) => a.processTypeId.localeCompare(b.processTypeId)) : [];
-  const processCostPerPart = selectedProcessPlans.reduce((sum, row) =>
-    sum + row.quantityPerPart * row.ratePerProcess + row.transportCostPerPart, 0);
+  const processCostPerPart = selectedProcessPlans.reduce((sum, row) => sum + row.quantityPerPart * row.ratePerProcess, 0);
   const nonProcessPlanPerPart = sumPlanFields(draft);
   const plannedCostPerPart = nonProcessPlanPerPart + processCostPerPart;
   const targetSelling = Number(draft.targetSellingPricePerPart) || 0;
@@ -139,7 +137,6 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
       vendorId: record.vendorId || "",
       quantityPerPart: String(record.quantityPerPart),
       ratePerProcess: String(record.ratePerProcess),
-      transportCostPerPart: String(record.transportCostPerPart),
       notes: record.notes || ""
     });
     setShowProcessForm(true);
@@ -152,11 +149,9 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
     }
     const quantity = Number(processDraft.quantityPerPart);
     const rate = Number(processDraft.ratePerProcess);
-    const transport = Number(processDraft.transportCostPerPart);
     if (!processDraft.quantityPerPart.trim() || !Number.isFinite(quantity) || quantity <= 0 ||
-        !processDraft.ratePerProcess.trim() || !Number.isFinite(rate) || rate < 0 ||
-        !processDraft.transportCostPerPart.trim() || !Number.isFinite(transport) || transport < 0) {
-      onNotice("Enter a positive process quantity and valid rate and transport amounts. Enter 0 explicitly when a charge does not apply.");
+        !processDraft.ratePerProcess.trim() || !Number.isFinite(rate) || rate < 0) {
+      onNotice("Enter a positive process quantity and a valid non-negative process rate. Transport and dispatch costs are entered separately in Process Planning.");
       return;
     }
     const duplicate = selectedProcessPlans.find(row => row.processTypeId === processDraft.processTypeId && row.id !== editingProcessId);
@@ -178,7 +173,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
       vendorId: processDraft.vendorId,
       quantityPerPart: quantity,
       ratePerProcess: rate,
-      transportCostPerPart: transport,
+      transportCostPerPart: 0,
       notes: processDraft.notes.trim(),
       createdAt: previous?.createdAt || stamp,
       updatedAt: stamp,
@@ -274,26 +269,26 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
               <label>Preferred capable vendor (optional)<select value={processDraft.vendorId} onChange={event => setProcessDraft(current => ({ ...current, vendorId: event.target.value }))}><option value="">In-house / not assigned</option>{vendorOptions.map(vendor => <option key={vendor.id} value={vendor.id}>{vendor.company} · {vendor.contact}</option>)}</select></label>
               <label>Process quantity per component<input type="number" min="0.0001" step="0.0001" value={processDraft.quantityPerPart} onChange={event => setProcessDraft(current => ({ ...current, quantityPerPart: event.target.value }))}/></label>
               <label>Rate per process unit (₹)<input type="number" min="0" step="0.01" value={processDraft.ratePerProcess} onChange={event => setProcessDraft(current => ({ ...current, ratePerProcess: event.target.value }))} placeholder="Enter rate"/></label>
-              <label>Transport cost per component (₹)<input type="number" min="0" step="0.01" value={processDraft.transportCostPerPart} onChange={event => setProcessDraft(current => ({ ...current, transportCostPerPart: event.target.value }))}/></label>
-              <label>Calculated process plan / component (₹)<input readOnly value={money((Number(processDraft.quantityPerPart) || 0) * (Number(processDraft.ratePerProcess) || 0) + (Number(processDraft.transportCostPerPart) || 0))}/></label>
+              <label>Calculated process plan / component (₹)<input readOnly value={money((Number(processDraft.quantityPerPart) || 0) * (Number(processDraft.ratePerProcess) || 0))}/></label>
+              <p className="ccp-inline-note">Transport / dispatch is not budgeted here. Add it as a separate vendor-linked operation in Process Planning.</p>
               <label className="ccp-process-notes"><span>Notes</span><input value={processDraft.notes} onChange={event => setProcessDraft(current => ({ ...current, notes: event.target.value }))} placeholder="Operation assumptions, tolerance, batch basis…"/></label>
             </div>
             {!processTypes.length && <p className="ccp-inline-note">Create or maintain process categories and process types in Process Directory, then select them here.</p>}
             <div className="ccp-process-actions"><button className="button-primary" onClick={saveProcessPlan}><Check size={13}/> Save process plan</button><button className="button-quiet" onClick={() => setShowProcessForm(false)}>Cancel</button></div>
           </div>}
-          {selectedProcessPlans.length ? <div className="ccp-table-wrap"><table className="ccp-table"><thead><tr><th>Sequence / process</th><th>Preferred vendor</th><th>Qty / component</th><th>Rate / process unit</th><th>Transport / component</th><th>Planned route cost / component</th><th>Actions</th></tr></thead><tbody>{selectedProcessPlans.map(row => {
+          {selectedProcessPlans.length ? <div className="ccp-table-wrap"><table className="ccp-table"><thead><tr><th>Sequence / process</th><th>Preferred vendor</th><th>Qty / component</th><th>Rate / process unit</th><th>Planned route cost / component</th><th>Actions</th></tr></thead><tbody>{selectedProcessPlans.map(row => {
             const type = processTypes.find(item => item.id === row.processTypeId);
             const vendor = vendors.find(item => item.id === row.vendorId);
             const category = categories.find(item => item.id === type?.categoryId);
-            const cost = row.quantityPerPart * row.ratePerProcess + row.transportCostPerPart;
-            return <tr key={row.id}><td><strong>{category?.name || "Process"} · {type?.name || "Archived process"}</strong><small>{row.notes || "No planning note"}</small></td><td>{vendor?.company || (row.vendorId ? "Vendor unavailable" : "In-house")}</td><td>{row.quantityPerPart}</td><td>{money(row.ratePerProcess)}</td><td>{money(row.transportCostPerPart)}</td><td><strong>{money(cost)}</strong></td><td><span className="ccp-actions"><button className="button-quiet compact-button" onClick={() => beginEditProcess(row)} title="Edit process cost"><Pencil size={12}/></button><button className="button-quiet compact-button" onClick={() => archiveProcessPlan(row)} title="Archive process cost"><Trash2 size={12}/></button></span></td></tr>;
+            const cost = row.quantityPerPart * row.ratePerProcess;
+            return <tr key={row.id}><td><strong>{category?.name || "Process"} · {type?.name || "Archived process"}</strong><small>{row.notes || "No planning note"}</small></td><td>{vendor?.company || (row.vendorId ? "Vendor unavailable" : "In-house")}</td><td>{row.quantityPerPart}</td><td>{money(row.ratePerProcess)}</td><td><strong>{money(cost)}</strong></td><td><span className="ccp-actions"><button className="button-quiet compact-button" onClick={() => beginEditProcess(row)} title="Edit process cost"><Pencil size={12}/></button><button className="button-quiet compact-button" onClick={() => archiveProcessPlan(row)} title="Archive process cost"><Trash2 size={12}/></button></span></td></tr>;
           })}</tbody></table></div> : <div className="ccp-empty-process"><Workflow size={25}/><strong>No process costs planned for this component</strong><span>Add only the process costs this component needs. These are costing assumptions, not Process Map operations or vendor commitments.</span></div>}
           <div className="ccp-process-total"><span>Planned process route / finished component</span><strong>{money(processCostPerPart)}</strong></div>
         </section>
 
         <section className="ccp-tally-strip">
           <div><small>NON-PROCESS COSTS / PIECE</small><strong>{money(nonProcessPlanPerPart)}</strong></div>
-          <div><small>PROCESS ROUTE / PIECE</small><strong>{money(processCostPerPart)}</strong></div>
+          <div><small>PLANNED PROCESS BASELINE / PIECE</small><strong>{money(processCostPerPart)}</strong></div>
           <div><small>MASTER PLANNED COST / PIECE</small><strong>{money(plannedCostPerPart)}</strong></div>
           <div><small>TARGET MARGIN / PIECE</small><strong>{money(plannedMargin)}</strong></div>
         </section>
