@@ -1569,3 +1569,115 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
   .metric-card,.dashboard-master-card,.dashboard-operation-card,.ccp-score { transition:none !important; }
   .metric-card:hover,.dashboard-master-card:hover,.dashboard-operation-card:hover,.ccp-score:hover { transform:none !important; }
 }
+
+
+/* 3D capability ribbon, spotlight details and animated module/navigation chrome */
+.axi-capability-marquee {
+  position:relative;overflow:hidden;display:flex;align-items:center;
+  height:37px;margin:13px 0 2px;border-top:1px solid rgba(91,182,211,.15);
+  border-bottom:1px solid rgba(91,182,211,.16);
+  background:linear-gradient(90deg,rgba(8,28,45,.84),rgba(12,44,66,.62),rgba(8,28,45,.84));
+  mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);
+}
+.axi-capability-marquee::before,.axi-capability-marquee::after {
+  content:"";position:absolute;top:0;bottom:0;width:70px;z-index:2;pointer-events:none;
+}
+.axi-capability-marquee::before { left:0;background:linear-gradient(90deg,#081b2d,transparent); }
+.axi-capability-marquee::after { right:0;background:linear-gradient(270deg,#081b2d,transparent); }
+.axi-marquee-track { display:flex;align-items:center;width:max-content;animation:axi-marquee-drift 46s linear infinite; }
+.axi-capability-marquee:hover .axi-marquee-track { animation-play-state:paused; }
+.axi-marquee-set { display:flex;align-items:center;gap:28px;padding-right:28px;white-space:nowrap; }
+.axi-marquee-set span { display:inline-flex;align-items:center;gap:7px;color:#87b3c9;font:8px 'DM Mono';letter-spacing:.8px; }
+.axi-marquee-set span svg { color:#5dd2e4;filter:drop-shadow(0 0 6px rgba(77,213,230,.35)); }
+.axi-marquee-set i { width:4px;height:4px;border-radius:50%;background:#4fbacb;box-shadow:0 0 9px rgba(67,207,221,.6); }
+.hero-copy h1 em {
+  background:linear-gradient(100deg,#70e7f2 5%,#75b8ff 42%,#9d9cff 70%,#70e7f2 95%);
+  background-size:220% 100%;background-clip:text;-webkit-background-clip:text;color:transparent;
+  animation:axi-heading-spectrum 7.5s linear infinite;
+}
+.hero-copy h1 { animation:axi-heading-rise .9s cubic-bezier(.2,.75,.2,1) both; }
+.hero-copy .eyebrow { animation:axi-caption-arrive .7s ease both; }
+.hero-copy>p { animation:axi-caption-arrive .9s .08s ease both; }
+.hero-actions button { position:relative;overflow:hidden;isolation:isolate; }
+.hero-actions button::after,.button-primary::after {
+  content:"";position:absolute;top:-80%;bottom:-80%;left:-70%;width:45%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent);
+  transform:skewX(-23deg);transition:left .72s ease;pointer-events:none;z-index:-1;
+}
+.hero-actions button:hover::after,.button-primary:hover::after { left:135%; }
+.command-rail button { position:relative;overflow:hidden;transition:color .22s ease,background .22s ease,transform .22s ease; }
+.command-rail button:hover { transform:translateX(2px); }
+.command-rail button.rail-active::after {
+  content:"";position:absolute;right:0;top:12%;bottom:12%;width:2px;border-radius:2px;
+  background:#58dfeb;box-shadow:0 0 12px #42d5e8;animation:axi-nav-beacon 2.8s ease-in-out infinite;
+}
+.brand-symbol { position:relative; }
+.brand-symbol::after {
+  content:"";position:absolute;inset:-4px;border:1px solid transparent;border-radius:14px;
+  background:conic-gradient(from 0deg,rgba(83,220,234,0),rgba(83,220,234,.42),rgba(85,127,236,0),rgba(83,220,234,0)) border-box;
+  -webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  animation:axi-logo-frame-spin 12s linear infinite;pointer-events:none;
+}
+.metric-card:hover::before {
+  content:"";position:absolute;inset:-40%;pointer-events:none;z-index:0;
+  background:radial-gradient(circle at 30% 20%,rgba(93,224,244,.14),transparent 36%);
+  transform:translateZ(22px);
+}
+.dashboard-master-card:hover .dashboard-master-icon { animation:axi-icon-orient .85s cubic-bezier(.2,.7,.2,1) both; }
+.dashboard-operation-heading>span:first-child { transform:translateZ(12px); }
+.dashboard-operation-card:hover .dashboard-operation-sequence { animation:axi-sequence-pulse 1.2s ease-in-out infinite; }
+.pp-route-node { min-height:170px !important; }
+.pp-route-node-data { color:#b8d2e3 !important; }
+.pp-route-connectors path {
+  stroke-dasharray:7 6;
+  animation:axi-route-current 2.5s linear infinite;
+}
+.pp-route-branch { overflow:hidden; }
+.pp-branch-label span { text-shadow:0 0 12px rgba(255,185,85,.18); }
+.ccp-costing-compare {
+  padding:15px 17px;
+  border-color:rgba(77,203,222,.3) !important;
+  background:radial-gradient(ellipse at 100% 0,rgba(33,153,180,.12),transparent 42%),linear-gradient(145deg,#102c42,#091f31) !important;
+}
+.ccp-costing-compare .panel-heading { align-items:flex-start; }
+.ccp-costing-compare-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px; }
+.ccp-costing-compare-grid>div {
+  display:grid;gap:6px;min-width:0;padding:12px;border:1px solid rgba(102,166,196,.21);
+  border-radius:9px;background:rgba(6,26,42,.6);
+}
+.ccp-costing-compare-grid small { color:#7fa4b9;font:8px 'DM Mono';letter-spacing:.45px; }
+.ccp-costing-compare-grid strong { color:#e6f3f8;font:600 17px 'Space Grotesk';overflow-wrap:anywhere; }
+.ccp-costing-compare-grid span { color:#86a5b9;font-size:8px;line-height:1.45; }
+.ccp-variance-over strong { color:#ffb17a; }
+.ccp-variance-under strong { color:#81e2c1; }
+.ccp-variance-missing strong { color:#a5bbca; }
+@media(max-width:720px) { .ccp-costing-compare-grid { grid-template-columns:1fr; } }
+@media(prefers-reduced-motion:reduce) {
+  .axi-capability-marquee .axi-marquee-track { animation:none!important; }
+  .brand-symbol::after,.command-rail button.rail-active::after,.hero-copy h1,.hero-copy .eyebrow,.hero-copy>p { animation:none!important; }
+  .hero-copy h1 em { animation:none!important;background:none;color:#70d9ea; }
+  .hero-actions button::after,.button-primary::after { display:none; }
+}
+
+@keyframes axi-marquee-drift { to { transform:translateX(-50%); } }
+@keyframes axi-heading-spectrum { to { background-position:220% 0; } }
+@keyframes axi-heading-rise { from{opacity:0;transform:translateY(15px);filter:blur(5px)} to{opacity:1;transform:translateY(0);filter:blur(0)} }
+@keyframes axi-caption-arrive { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes axi-logo-frame-spin { to { transform:rotate(360deg); } }
+@keyframes axi-nav-beacon { 0%,100%{opacity:.55;transform:scaleY(.65)} 50%{opacity:1;transform:scaleY(1)} }
+@keyframes axi-icon-orient { 0%{transform:translateZ(20px) rotateY(0)} 45%{transform:translateZ(36px) rotateY(190deg) rotateX(10deg)} 100%{transform:translateZ(20px) rotateY(360deg)} }
+@keyframes axi-sequence-pulse { 0%,100%{box-shadow:0 0 0 rgba(74,201,224,0)} 50%{box-shadow:0 0 18px rgba(74,201,224,.22)} }
+@keyframes axi-route-current { to { stroke-dashoffset:-26; } }
+
+@supports (animation-timeline:view()) {
+  .metric-card,.dashboard-chart-panel,.dashboard-operation-panel,.dashboard-master-card {
+    animation-name:axi-scroll-reveal;
+    animation-timeline:view();
+    animation-range:entry 0% cover 26%;
+  }
+  @keyframes axi-scroll-reveal {
+    from { opacity:.35;translate:0 26px;scale:.985; }
+    to { opacity:1;translate:0 0;scale:1; }
+  }
+}
