@@ -1,7 +1,7 @@
 {
   "name": "aximach",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "type": "module",
   "description": "AXIMACH Manufacturing OS",
   "author": "AXIMACH",
@@ -26,7 +26,10 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "@whiskeysockets/baileys": "^6.7.18",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "@tabler/icons": "3.50.0",
+    "@tabler/icons-webfont": "3.50.0",
+    "motion": "^14.9.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
