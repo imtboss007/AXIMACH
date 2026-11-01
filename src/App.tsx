@@ -722,7 +722,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
   const filtered = records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(search.toLowerCase()));
   const persist = (next: Record<string, ModuleRecord[]>) => {
     const latestLocal = getAllModuleRecords();
-    const updated = { ...latestLocal, [module.id]: next[module.id] || [] };
+    const updated = mergeModuleRecordSets(latestLocal, next);
     setAllRecords(updated);
     setAllModuleRecords(updated);
     window.dispatchEvent(new Event("aximach-module-records-updated"));
