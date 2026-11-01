@@ -83,25 +83,6 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const processCategories = activeRows(data.processCategories);
   const processTypes = activeRows(data.processTypes);
   const processVendorRates = activeRows(data.processVendorRates);
-  const componentCostPlans = activeRows(data.componentPlannedCosts || []);
-  const componentProcessPlans = activeRows(data.componentProcessCosts || []);
-  const componentPlanFor = (componentId: string) => componentCostPlans.find(plan => plan.componentId === componentId);
-  const componentProcessPlanFor = (componentId: string, processTypeId?: string) =>
-    processTypeId ? componentProcessPlans.find(plan => plan.componentId === componentId && plan.processTypeId === processTypeId) : undefined;
-  const fullComponentPlanPerPart = (componentId: string) => {
-    const plan = componentPlanFor(componentId);
-    if (!plan) return undefined;
-    const base = plan.materialCostPerPart + plan.directLabourCostPerPart + plan.overheadCostPerPart +
-      plan.toolingCostPerPart + plan.qualityCostPerPart + plan.reworkScrapCostPerPart +
-      plan.packagingCostPerPart + plan.otherCostPerPart;
-    const route = componentProcessPlans.filter(row => row.componentId === componentId)
-      .reduce((sum,row) => sum + row.quantityPerPart * row.ratePerProcess + row.transportCostPerPart, 0);
-    return { total: base + route, base, route, status: plan.status };
-  };
-  const operationBenchmarkPerPart = (operation: OperationRecord) => {
-    const planned = componentProcessPlanFor(operation.componentId, operation.processTypeId);
-    return planned ? planned.quantityPerPart * planned.ratePerProcess + planned.transportCostPerPart : undefined;
-  };
 
   const [companyIds, setCompanyIds] = useState<string[]>([]);
   const [poIds, setPoIds] = useState<string[]>([]);
@@ -417,7 +398,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           const routeId = "route-arrow-" + group.line.id.replace(/[^a-z0-9]/gi, "");
           return <article className="pp-component-route" key={group.key}>
             <div className="pp-component-route-head">
-              <div><strong>{group.component ? group.component.partNumber + " — " + group.component.name : "Component record unavailable"}</strong><span>{group.po.number} · Qty {group.line.quantity.toLocaleString("en-IN")} pcs · Due {day(group.line.targetDelivery)}{group.component && fullComponentPlanPerPart(group.component.id) ? " · MASTER PLAN " + money(fullComponentPlanPerPart(group.component.id)!.total) + " / pc" : " · COST PLAN NOT SET"}</span></div>
+              <div><strong>{group.component ? group.component.partNumber + " — " + group.component.name : "Component record unavailable"}</strong><span>{group.po.number} · Qty {group.line.quantity.toLocaleString("en-IN")} pcs · Due {day(group.line.targetDelivery)}</span></div>
               <button onClick={() => toggleComponent(group.key)}>{collapsed ? "Expand" : "Collapse"} <ChevronDown size={13}/></button>
             </div>
             {!collapsed ? <div className="pp-route-map-body">
@@ -433,7 +414,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                         <span className="pp-route-node-data">Due: {day(operation.plannedEnd)}{" · "+clock(operation.plannedEndTime||operation.plannedSlotEndAt)}</span>
                         <span className="pp-route-node-data">Qty: {operation.quantity.toLocaleString("en-IN")} pcs</span>
                         <span className="pp-route-node-data">Route rate: {money(operation.ratePerPart)} / pc</span>
-                           <span className="pp-route-node-data">{operationBenchmarkPerPart(operation) === undefined ? "Component process plan: Not set" : "Component plan ref: " + money(operationBenchmarkPerPart(operation)!) + " / pc"}</span><span className="pp-route-node-data">Vendor payment: {operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</span>
+                           <span className="pp-route-node-data">Vendor payment: {operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</span>
                         <strong className="pp-status">{operation.status}</strong>
                       </button>
                       {index < mainRoute.length - 1 && <span className="pp-route-arrow"><ArrowRight size={22}/></span>}
@@ -564,7 +545,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           <div className="pp-process-multi-select pp-modal-wide"><div className="pp-process-multi-head"><strong>Process / subcategory *</strong><span>Select one or more processes from the chosen category.</span><div><button type="button" onClick={()=>setDraft(current=>{
                 const ids=processTypes.filter(type=>type.categoryId===current.categoryId).map(type=>type.id);
                 const assignments={...current.processAssignments};
-                ids.forEach(id=>{if(!assignments[id]){const existing=operations.find(operation=>operation.poLineId===current.poLineId&&operation.processTypeId===id&&!operation.deletedAt);const po=orders.find(item=>item.id===current.poId);const componentId=po?.lines.find(item=>item.id===current.poLineId)?.componentId;const benchmark=(data.componentProcessCosts||[]).find(item=>item.componentId===componentId&&item.processTypeId===id&&!item.deletedAt);assignments[id]=existing?assignmentFromOperation(existing):{...emptyProcessAssignment(current.quantity),ratePerPart:benchmark?String(benchmark.quantityPerPart*benchmark.ratePerProcess):"",transportCost:benchmark?String(benchmark.transportCostPerPart*Number(current.quantity||0)):"0"};}});
+                ids.forEach(id=>{if(!assignments[id]){const existing=operations.find(operation=>operation.poLineId===current.poLineId&&operation.processTypeId===id&&!operation.deletedAt);assignments[id]=existing?assignmentFromOperation(existing):emptyProcessAssignment(current.quantity);}});
                 const single=ids.length===1?assignments[ids[0]]:undefined;
                 return {...current,processTypeIds:ids,processAssignments:assignments,vendorId:single?.vendorId||"",...(single?{plannedStart:single.plannedStart,plannedEnd:single.plannedEnd,plannedStartTime:single.plannedStartTime,plannedEndTime:single.plannedEndTime,quantity:single.quantity,ratePerPart:single.ratePerPart,transportCost:single.transportCost,status:single.status,vendorPaymentStatus:single.vendorPaymentStatus,notes:single.notes}:{})};
               })} disabled={!draft.categoryId}>Select all</button><button type="button" onClick={()=>setDraft(current=>({...current,processTypeIds:[],processAssignments:{},vendorId:"",name:""}))}>Clear</button></div></div>
@@ -575,12 +556,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                   const assignments={...current.processAssignments};
                   if(event.target.checked&&!assignments[type.id]){
                     const existing=operations.find(operation=>operation.poLineId===current.poLineId&&operation.processTypeId===type.id&&!operation.deletedAt);
-                    const po=orders.find(item=>item.id===current.poId);
-                    const componentId=po?.lines.find(item=>item.id===current.poLineId)?.componentId;
-                    const benchmark=(data.componentProcessCosts||[]).find(item=>item.componentId===componentId&&item.processTypeId===type.id&&!item.deletedAt);
-                    const plannedRate=benchmark?benchmark.quantityPerPart*benchmark.ratePerProcess:undefined;
-                    const plannedTransport=benchmark?benchmark.transportCostPerPart*Number(current.quantity||0):undefined;
-                    assignments[type.id]=existing?assignmentFromOperation(existing):{...emptyProcessAssignment(current.quantity),ratePerPart:plannedRate===undefined?"":String(plannedRate),transportCost:plannedTransport===undefined?"0":String(plannedTransport)};
+                    assignments[type.id]=existing?assignmentFromOperation(existing):emptyProcessAssignment(current.quantity);
                   }
                   const single=ids.length===1?assignments[ids[0]]:undefined;
                   return {...current,processTypeIds:ids,processAssignments:assignments,name:ids.length?processTypes.find(item=>item.id===ids[0])?.name||"":current.name,category:processCategories.find(item=>item.id===current.categoryId)?.name||current.category,vendorId:single?.vendorId||"",...(single?{plannedStart:single.plannedStart,plannedEnd:single.plannedEnd,plannedStartTime:single.plannedStartTime,plannedEndTime:single.plannedEndTime,quantity:single.quantity,ratePerPart:single.ratePerPart,status:single.status,vendorPaymentStatus:single.vendorPaymentStatus,notes:single.notes}:{})};
