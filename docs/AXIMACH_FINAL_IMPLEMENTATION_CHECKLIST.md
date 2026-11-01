@@ -123,19 +123,19 @@ Exactly the eight approved functions:
 - [ ] Final acceptance and any missing requirements: **verify with user**.
 
 ### 13 — Costing & Payments
-- [ ] Component-wise costing only; no separate invoice/payment-management workflow in this menu.
-- [ ] Read the component cost entered in Component Master.
-- [ ] Read process costs from the component's assigned operations/processes.
-- [ ] Total component cost = component cost + sum of its process costs.
-- [ ] Compare total cost against the component selling price and calculate profit or loss per component.
-- [ ] Compare all components in one view.
-- [ ] Process-wise cost comparison across components.
-- [ ] Vendor-wise rate comparison for the same process where multiple vendor rates/quotations exist.
-- [ ] Show lowest-cost vendor and rate differences; display quotation validity/context so comparisons are meaningful.
-- [ ] Rank component profitability and identify loss-making components.
-- [ ] Show Paid / Not Paid process status sourced from Process Map.
-- [ ] Do not create duplicate vendor payment records or a separate invoice/payment/reconciliation workflow here.
-- [ ] Verify calculation basis, units, quantity multipliers, taxes and rate validity before presenting totals; do not silently mix per-part, batch and total values.
+- [x] Component-wise costing only; no separate invoice/payment-management workflow in this menu.
+- [x] Read the component cost entered in Component Master.
+- [x] Read process costs from the component's assigned operations/processes.
+- [x] Total component cost = component cost + sum of its process costs.
+- [x] Compare total cost against the component selling price and calculate profit or loss per component.
+- [x] Compare all components in one view.
+- [x] Process-wise cost comparison across components.
+- [x] Vendor-wise rate comparison for the same process where multiple vendor rates/quotations exist.
+- [x] Show lowest-cost vendor and rate differences; display quotation validity/context so comparisons are meaningful.
+- [x] Rank component profitability and identify loss-making components.
+- [x] Show Paid / Not Paid process status sourced from Process Map.
+- [x] Do not create duplicate vendor payment records or a separate invoice/payment/reconciliation workflow here.
+- [x] Verify calculation basis, units, quantity multipliers, taxes and rate validity before presenting totals; do not silently mix per-part, batch and total values.
 
 ### 14 — Reports & Analytics
 - [ ] Replace generic KPI-definition placeholder with actual reports only after report list is approved.
@@ -246,3 +246,7 @@ Exactly the eight approved functions:
 - TypeScript/Vite build and browser/Electron/Capacitor workflow regression checks remain pending execution in a runnable checkout. Gap 1 must not be accepted until those checks pass.
 - Combined workspace is exposed through one Production Planning / Process Map navigation item with Planning and Process Map views. The old Process Map route is an internal alias, not a separate menu.
 - Vendor payment status is stored as an optional operation field to preserve existing records. Vendor-assigned legacy operations display Not Paid until explicitly updated; Process Map is the edit/source of truth, and planning views only display the saved status.
+
+- Component comparison is one row per active PO component line, with master-only components shown separately as incomplete because there is no order revenue quantity. Only fully entered material, selling and planned process rates receive a profitability rank.
+- Process-wise totals use each saved operation's own quantity × planned rate + transport exactly once. Supplier comparisons group quotations by Process Directory process type (legacy operation name fallback) and compare landed per-part rate including transport allocation; quote validity, date and status are displayed.
+- Recorded actual cost is explicitly labelled partial when one or more actual operation rates have not been entered; missing actual rates are not presented as confirmed zero-cost operations.
