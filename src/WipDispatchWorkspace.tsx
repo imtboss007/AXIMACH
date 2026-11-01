@@ -15,9 +15,9 @@ type Props = {
 };
 const today = () => new Date().toISOString().slice(0,10);
 const number = (value: number) => Number(value || 0).toLocaleString("en-IN");
-const locationOfOperation = (operation: OperationRecord, factoryId: string): { type: "factory"|"vendor"; id: string; vendorId: string } => operation.vendorId
+const locationOfOperation = (operation: OperationRecord, factoryId: string, companyId: string): { type: "company"|"factory"|"vendor"; id: string; vendorId: string } => operation.vendorId
   ? { type:"vendor", id:operation.vendorId, vendorId:operation.vendorId }
-  : { type:"factory", id:factoryId, vendorId:"" };
+  : factoryId ? { type:"factory", id:factoryId, vendorId:"" } : { type:"company", id:companyId, vendorId:"" };
 
 export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, onSelectModule, onChangeMode, initialSelection, onInitialSelectionApplied, onOpenOperation }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
@@ -97,8 +97,8 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
     if(!Number.isFinite(qty)||qty<=0){onNotice("Enter a positive WIP handover quantity.");return;}
     if(qty>selectedLine.quantity){onNotice("WIP transfer quantity cannot exceed this PO component line quantity.");return;}
     if(!wipDate){onNotice("Enter the actual handover preparation date.");return;}
-    const source=locationOfOperation(sourceOperation,selectedPO.factoryId);
-    const destination=locationOfOperation(destinationOperation,selectedPO.factoryId);
+    const source=locationOfOperation(sourceOperation,selectedPO.factoryId,selectedPO.companyId);
+    const destination=locationOfOperation(destinationOperation,selectedPO.factoryId,selectedPO.companyId);
     const stamp=nowIso();
     const record:WipTransferRecord={
       id:makeId("wip"),companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,poId:selectedPO.id,poLineId:selectedLine.id,
@@ -162,10 +162,12 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
   };
   const dispatchCustomerGoods=(record:CustomerDispatchRecord)=>{
     if(record.status!=="Prepared")return;
-    const available=locationBalance(record.componentId,"factory",record.factoryId);
+    const sourceLocationType=record.factoryId?"factory":"company";
+    const sourceLocationId=record.factoryId||record.companyId;
+    const available=locationBalance(record.componentId,sourceLocationType,sourceLocationId);
     if(available<record.quantity){onNotice("Insufficient finished/component stock at the selected factory. Available: "+number(available)+" pcs. Receive/complete the actual production quantity first.");return;}
     const stamp=nowIso(),date=today();
-    const out=makeTransaction({id:makeId("stock"),movementId:record.id,movementKind:"Customer dispatch",itemId:record.componentId,direction:"out",quantity:record.quantity,occurredAt:date,reference:record.deliveryChallan||record.id,notes:"Customer dispatch to "+(record.destination||"destination not entered"),companyId:record.companyId,factoryId:record.factoryId,poId:record.poId,poLineId:record.poLineId,operationId:"",vendorId:"",locationType:"factory",locationId:record.factoryId});
+    const out=makeTransaction({id:makeId("stock"),movementId:record.id,movementKind:"Customer dispatch",itemId:record.componentId,direction:"out",quantity:record.quantity,occurredAt:date,reference:record.deliveryChallan||record.id,notes:"Customer dispatch to "+(record.destination||"destination not entered"),companyId:record.companyId,factoryId:record.factoryId,poId:record.poId,poLineId:record.poLineId,operationId:"",vendorId:"",locationType:sourceLocationType,locationId:sourceLocationId});
     const transit=makeTransaction({id:makeId("stock"),movementId:record.id,movementKind:"Customer dispatch",itemId:record.componentId,direction:"in",quantity:record.quantity,occurredAt:date,reference:record.deliveryChallan||record.id,notes:"Customer shipment in transit",companyId:record.companyId,factoryId:record.factoryId,poId:record.poId,poLineId:record.poLineId,operationId:"",vendorId:record.transporterVendorId,locationType:"transit",locationId:record.id});
     update(current=>({...current,inventoryTransactions:[...current.inventoryTransactions,out,transit],customerDispatches:current.customerDispatches.map(row=>row.id===record.id?{...row,status:"In transit",dispatchedQuantity:record.quantity,actualDispatchDate:date,stockTransactionIds:[...row.stockTransactionIds,out.id,transit.id],updatedAt:stamp}:row)}));
     onNotice("Customer goods dispatched. Factory stock reduced and shipment placed in transit; delivery is still unconfirmed.");
@@ -245,8 +247,8 @@ export default function WipDispatchWorkspace({ mode, onBack, onNotice, notice, o
         {visibleWip.length?<div className="movement-card-list">{visibleWip.map(row=>{
           const po=orders.find(item=>item.id===row.poId),company=data.companies.find(item=>item.id===row.companyId),component=components.find(item=>item.id===row.componentId);
           const from=operations.find(item=>item.id===row.fromOperationId),to=operations.find(item=>item.id===row.toOperationId);
-          const sourceName=row.sourceLocationType==="vendor"?vendors.find(v=>v.id===row.sourceLocationId)?.company||"Vendor unavailable":factories.find(f=>f.id===row.sourceLocationId)?.name||"Factory unavailable";
-          const destinationName=row.destinationLocationType==="vendor"?vendors.find(v=>v.id===row.destinationLocationId)?.company||"Vendor unavailable":factories.find(f=>f.id===row.destinationLocationId)?.name||"Factory unavailable";
+          const sourceName=row.sourceLocationType==="vendor"?vendors.find(v=>v.id===row.sourceLocationId)?.company||"Vendor unavailable":row.sourceLocationType==="company"?companies.find(c=>c.id===row.sourceLocationId)?.name||"Company location":factories.find(f=>f.id===row.sourceLocationId)?.name||"Factory unavailable";
+          const destinationName=row.destinationLocationType==="vendor"?vendors.find(v=>v.id===row.destinationLocationId)?.company||"Vendor unavailable":row.destinationLocationType==="company"?companies.find(c=>c.id===row.destinationLocationId)?.name||"Company location":factories.find(f=>f.id===row.destinationLocationId)?.name||"Factory unavailable";
           const outstanding=row.dispatchedQuantity-row.receivedQuantity;
           return <article className="surface-panel movement-card" key={row.id}>
             <div className="movement-card-head"><div><strong>{po?.number||"PO unavailable"} · {component?.partNumber||"Part unavailable"} · {component?.name||""}</strong><small>{company?.name||"Company"} · {row.challanReference||row.id}</small></div><span className="record-state">{row.status}</span></div>

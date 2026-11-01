@@ -264,3 +264,5 @@ Exactly the eight approved functions:
 
 - Companies menu is now company-only; historical Factory records/IDs and PO factoryId fields remain in the data model for legacy compatibility. New POs can be created directly against Company with an empty internal factoryId.
 - Component master rejects a duplicate part-number + revision pair and displays the saved Component Master details on each selected PO line. PO-specific quantity, due date and customer rate remain separate from master fields.
+
+- New company-linked POs without an internal factory ID use a company-level stock location for WIP/customer dispatch custody. Legacy POs continue using their retained factory location ID; vendor-assigned operations continue using vendor locations.

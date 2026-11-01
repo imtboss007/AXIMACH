@@ -87,7 +87,7 @@ export type InventoryTransactionRecord = {
   reversalOfId: string; createdAt: string; createdBy: string;
   locationType?: StockLocationType; locationId?: string; movementId?: string; movementKind?: "WIP transfer" | "Customer dispatch";
 };
-export type StockLocationType = "factory" | "vendor" | "transit";
+export type StockLocationType = "company" | "factory" | "vendor" | "transit";
 export type MovementAcknowledgementRecord = {
   id: string; quantity: number; occurredAt: string; receivedBy: string; proofReference: string;
   discrepancyNotes: string; stockTransactionIds: string[];
@@ -96,7 +96,7 @@ export type WipTransferStatus = "Prepared" | "In transit" | "Partially received"
 export type WipTransferRecord = {
   id: string; companyId: string; factoryId: string; poId: string; poLineId: string; componentId: string;
   fromOperationId: string; toOperationId: string;
-  sourceLocationType: "factory" | "vendor"; sourceLocationId: string; destinationLocationType: "factory" | "vendor"; destinationLocationId: string;
+  sourceLocationType: "company" | "factory" | "vendor"; sourceLocationId: string; destinationLocationType: "company" | "factory" | "vendor"; destinationLocationId: string;
   sourceVendorId: string; destinationVendorId: string; quantity: number; dispatchedQuantity: number; receivedQuantity: number;
   status: WipTransferStatus; preparedAt: string; dispatchedAt: string; lastReceivedAt: string;
   challanReference: string; vehicleNumber: string; transporterVendorId: string; lrNumber: string;
