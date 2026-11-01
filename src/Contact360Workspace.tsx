@@ -322,8 +322,9 @@ export default function Contact360Workspace({
   const groupNames = (ids: string[]) => ids.map(id => groups.find(group => group.id === id)?.name).filter(Boolean);
   const openLinkedModule = (row: Contact360FollowUpRecord) => {
     const found = linkedModules.find(module => module.id === row.moduleType);
-    if (found && found.id !== "other") onSelectModule(found.id);
-    else onNotice("Reference " + (row.moduleReference || "not supplied") + " is saved as an external link. Select the correct workspace from the module explorer to review it.");
+    const navigable = new Set(["companies","purchasing","components","vendors","inventory","production","dispatch","quality","costing","communications","reports"]);
+    if (found && navigable.has(found.id)) onSelectModule(found.id);
+    else onNotice("Reference " + (row.moduleReference || "not supplied") + " is saved and linked to " + (found?.label || "an external workspace") + ". That destination is not yet an active AXIMACH workspace; open it from the module explorer when available.");
   };
 
   const contactForm = (newMode: boolean) => (
