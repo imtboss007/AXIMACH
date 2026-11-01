@@ -109,10 +109,10 @@ Exactly the eight approved functions:
 - [ ] Audit existing BOM, stock ledger, WIP and stock-location flows before any change.
 
 ### 11 — Quality & Inspection
-- [ ] Dedicated inspection workspace connected to the exact Company, PO, component line and process operation.
-- [ ] Preserve existing inspection records, measurements, NCR/corrective-action history and accepted/rejected quantities if present.
-- [ ] Quality results must not silently change production completion, costing or stock.
-- [ ] Audit the current implementation and routing before building anything; PR history describes inspection functionality that must not be duplicated.
+- [x] Dedicated inspection workspace connected to the exact Company, PO, component line and process operation.
+- [x] Preserve existing inspection records, measurements, NCR/corrective-action history and accepted/rejected quantities if present.
+- [x] Quality results must not silently change production completion, costing or stock.
+- [x] Audit the current implementation and routing before building anything; PR history describes inspection functionality that must not be duplicated.
 - [ ] Final acceptance and any missing requirements: **verify with user**.
 
 ### 12 — Dispatch & Delivery
@@ -250,3 +250,7 @@ Exactly the eight approved functions:
 - Component comparison is one row per active PO component line, with master-only components shown separately as incomplete because there is no order revenue quantity. Only fully entered material, selling and planned process rates receive a profitability rank.
 - Process-wise totals use each saved operation's own quantity × planned rate + transport exactly once. Supplier comparisons group quotations by Process Directory process type (legacy operation name fallback) and compare landed per-part rate including transport allocation; quote validity, date and status are displayed.
 - Recorded actual cost is explicitly labelled partial when one or more actual operation rates have not been entered; missing actual rates are not presented as confirmed zero-cost operations.
+
+- Quality inspection workspace ported from the reviewed PR #4 implementation onto the active feature branch without importing PR #4's separate Process Master/Vendor Capability architecture. Inspection records have their own stable-ID collection and are included in local normalization, merge and server persistence.
+- Quality context selection is Company → PO → Component line → Operation; no user-facing Factory picker. Historical factoryId is still stored from the linked PO. Process Map opens Quality for the selected operation; inspection history returns to the exact saved operation.
+- Numeric measurement Pass/Fail is calculated only when actual reading and at least one numeric limit are present. Quantity validations prevent accepted + rejected exceeding inspected. Inspection quantities do not update operation completion, costing or stock.

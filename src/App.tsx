@@ -12,6 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import ManufacturingMasterWorkspace from "./ManufacturingMasterWorkspace";
 import CombinedProductionWorkspace from "./CombinedProductionWorkspace";
 import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
+import QualityInspectionWorkspace from "./QualityInspectionWorkspace";
 import InventoryWorkspace from "./InventoryWorkspace";
 import MachineCapacityWorkspace from "./MachineCapacityWorkspace";
 import ProcessDirectoryWorkspace from "./ProcessDirectoryWorkspace";
@@ -76,6 +77,8 @@ function App() {
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
   const [productionView, setProductionView] = useState<"planning" | "map">("planning");
+  const [qualityJump, setQualityJump] = useState("");
+  const [processJump, setProcessJump] = useState<{companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string} | null>(null);
 
   const activeModule = activeModuleId === "dashboard" ? dashboardItem : modules.find((item) => item.id === activeModuleId) ?? modules[0];
   const globalRecords = getAllModuleRecords();
@@ -115,6 +118,9 @@ function App() {
     setQuery("");
     setNotice("");
   };
+
+  const openQualityOperation = (operationId: string) => { setQualityJump(operationId); setActiveModuleId("quality"); setNotice(""); };
+  const openProcessOperation = (selection: {companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string}) => { setProcessJump(selection); setProductionView("map"); setActiveModuleId("production"); setNotice(""); };
 
   const openModuleExplorer = () => {
     setQuery("");
@@ -186,11 +192,13 @@ function App() {
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" ? (
-          <CombinedProductionWorkspace initialView={productionView} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <CombinedProductionWorkspace initialView={productionView} initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={openQualityOperation} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "maintenance" ? (
           <MachineCapacityWorkspace mode="maintenance" onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
           <InventoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "quality" ? (
+          <QualityInspectionWorkspace initialOperationId={qualityJump} onInitialOperationApplied={() => setQualityJump("")} onOpenOperation={openProcessOperation} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
           <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" ? (

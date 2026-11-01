@@ -51,6 +51,20 @@ export type OperationRecord = {
 export type ProcessCategoryRecord = { id: string; name: string; code: string; description: string; sortOrder: number; createdAt: string; updatedAt: string; deletedAt?: string; };
 export type ProcessTypeRecord = { id: string; categoryId: string; name: string; code: string; description: string; legacyData?: Record<string, unknown>; createdAt: string; updatedAt: string; deletedAt?: string; };
 export type ProcessVendorRateRecord = { id: string; processTypeId: string; vendorId: string; quoteReference: string; quotedAt: string; validFrom: string; validUntil: string; ratePerPart: number; currency: string; leadDays: number; notes: string; status: "Received" | "Approved" | "Rejected" | "Expired"; createdAt: string; updatedAt: string; deletedAt?: string; };
+export type InspectionMeasurementResult = "Not measured" | "Pass" | "Fail";
+export type InspectionMeasurementRecord = {
+  id: string; characteristic: string; nominal: string; lowerLimit: string; upperLimit: string;
+  actual: string; unit: string; gaugeReference: string; result: InspectionMeasurementResult;
+};
+export type QualityInspectionStatus = "Pending" | "Accepted" | "Rejected" | "Conditional" | "Hold";
+export type QualityInspectionRecord = {
+  id: string; companyId: string; factoryId: string; poId: string; poLineId: string;
+  componentId: string; operationId: string; stage: string; inspectionDate: string; inspector: string;
+  instrument: string; sampleSize: number; inspectedQty: number; acceptedQty: number; rejectedQty: number;
+  status: QualityInspectionStatus; measurements: InspectionMeasurementRecord[];
+  nonConformanceReference: string; correctiveAction: string; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type QuotationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; operationId: string; vendorId: string;
   quoteReference: string; quotedAt: string; validUntil: string; quantity: number; ratePerPart: number;
@@ -90,6 +104,7 @@ export type ManufacturingData = {
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; processCategories: ProcessCategoryRecord[]; processTypes: ProcessTypeRecord[]; processVendorRates: ProcessVendorRateRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
+  qualityInspections: QualityInspectionRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
   machineResources: MachineResourceRecord[]; maintenanceEvents: MaintenanceEventRecord[];
 };
@@ -103,7 +118,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], processCategories: [], processTypes: [], processVendorRates: [], materials: [], bomLines: [], inventoryTransactions: [], machineResources: [], maintenanceEvents: []
+  operations: [], quotations: [], processCategories: [], processTypes: [], processVendorRates: [], materials: [], bomLines: [], qualityInspections: [], inventoryTransactions: [], machineResources: [], maintenanceEvents: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -122,6 +137,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     processVendorRates: Array.isArray(value?.processVendorRates) ? value.processVendorRates : empty.processVendorRates,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
+    qualityInspections: Array.isArray(value?.qualityInspections) ? value.qualityInspections : empty.qualityInspections,
     inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
     machineResources: Array.isArray(value?.machineResources) ? value.machineResources : empty.machineResources,
     maintenanceEvents: Array.isArray(value?.maintenanceEvents) ? value.maintenanceEvents : empty.maintenanceEvents
@@ -216,6 +232,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     processVendorRates: mergeRows(local.processVendorRates, remote.processVendorRates),
     materials: mergeRows(local.materials, remote.materials),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
+    qualityInspections: mergeRows(local.qualityInspections, remote.qualityInspections),
     inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
     machineResources: mergeRows(local.machineResources, remote.machineResources),
     maintenanceEvents: mergeRows(local.maintenanceEvents, remote.maintenanceEvents)

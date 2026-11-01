@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
-type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
+type ProcessSelection = { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string };
+type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; initialSelection?: ProcessSelection | null; onInitialSelectionApplied?: () => void; onOpenQuality?: (operationId: string) => void };
 type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "machineResourceId" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "setupHours" | "cycleTimeSeconds" | "ratePerPart" | "actualRatePerPart" | "vendorPaymentStatus" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch">;
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
   name: "", category: "", machine: "", machineResourceId: "", vendorId: "", status: "Queued", plannedStart: "", plannedEnd: line?.targetDelivery || "", actualStart: "", actualEnd: "",
@@ -14,7 +15,7 @@ const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en
 const shortDate = (value?: string) => value ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Not set";
 const daysBetween = (start?: string, end?: string) => start && end ? Math.max(1, Math.round((new Date(end + "T12:00:00").getTime() - new Date(start + "T12:00:00").getTime()) / 86400000) + 1) : 0;
 
-export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSelectModule }: Props) {
+export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSelectModule, initialSelection, onInitialSelectionApplied, onOpenQuality }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const companies = activeRows(data.companies);
   const factories = activeRows(data.factories);
@@ -26,11 +27,11 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const processTypes = activeRows(data.processTypes);
   const processCategories = activeRows(data.processCategories);
 
-  const [companyId, setCompanyId] = useState("");
-  const [factoryId, setFactoryId] = useState("");
-  const [poId, setPoId] = useState("");
-  const [poLineId, setPoLineId] = useState("");
-  const [selectedOperationId, setSelectedOperationId] = useState("");
+  const [companyId, setCompanyId] = useState(initialSelection?.companyId || "");
+  const [factoryId, setFactoryId] = useState(initialSelection?.factoryId || "");
+  const [poId, setPoId] = useState(initialSelection?.poId || "");
+  const [poLineId, setPoLineId] = useState(initialSelection?.poLineId || "");
+  const [selectedOperationId, setSelectedOperationId] = useState(initialSelection?.operationId || "");
   const [search, setSearch] = useState("");
   const [vertical, setVertical] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -38,6 +39,14 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
   const [processTypeId, setProcessTypeId] = useState("");
+
+  useEffect(() => {
+    if (!initialSelection) return;
+    setCompanyId(initialSelection.companyId); setFactoryId(initialSelection.factoryId);
+    setPoId(initialSelection.poId); setPoLineId(initialSelection.poLineId);
+    setSelectedOperationId(initialSelection.operationId); setShowEditor(false);
+    onInitialSelectionApplied?.();
+  }, [initialSelection]);
 
   const companyFactories = factories.filter(f => f.companyId === companyId);
   // Keep factoryId only for legacy machine-resource compatibility; PO selection is company-first.
@@ -314,7 +323,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       <aside className="surface-panel linked-operation-side">
         {activeOperation ? <><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> SELECTED OPERATION</div><h3>{activeOperation.name}</h3><p>{activeOperation.category || "Process type not specified"} · OP-{String(activeOperation.sequence).padStart(3,"0")}</p></div><button className="icon-control" aria-label="Edit selected operation" onClick={editActive}><Wrench size={14}/></button></div>
           <div className="linked-detail-grid"><div><small>APPROVED MACHINE SLOT</small><strong>{activeOperation.plannedSlotStartAt ? new Date(activeOperation.plannedSlotStartAt).toLocaleString("en-IN")+" – "+new Date(activeOperation.plannedSlotEndAt || activeOperation.plannedSlotStartAt).toLocaleString("en-IN") : "Not scheduled into a machine shift"}</strong><span>Generated by Production Capacity planner; review before release</span></div><div><small>VENDOR</small><strong>{selectedVendor?.company || "Not assigned"}</strong><span>{selectedVendor?.phone || "No vendor number linked"}</span></div><div><small>VENDOR PAYMENT</small><strong>{selectedVendor ? (activeOperation.vendorPaymentStatus || "Not Paid") : "—"}</strong><span>Updated in Process Map · source of truth for Costing</span></div><div><small>MACHINE / STATION</small><strong>{activeOperation.machine || "Not entered"}</strong></div><div><small>PLANNED SCHEDULE</small><strong>{shortDate(activeOperation.plannedStart)} – {shortDate(activeOperation.plannedEnd)}</strong><span>{daysBetween(activeOperation.plannedStart,activeOperation.plannedEnd) || "—"} calendar day(s)</span></div><div><small>ACTUAL SCHEDULE</small><strong>{shortDate(activeOperation.actualStart)} – {shortDate(activeOperation.actualEnd)}</strong></div><div><small>QUANTITY</small><strong>{activeOperation.quantity.toLocaleString("en-IN")} pcs</strong><span>{activeOperation.completed.toLocaleString("en-IN")} completed</span></div><div><small>ACCEPTED / REJECTED</small><strong>{activeOperation.accepted.toLocaleString("en-IN")} / {activeOperation.rejected.toLocaleString("en-IN")}</strong></div><div><small>QUOTED / PLANNED RATE</small><strong>{money(activeOperation.ratePerPart)}</strong></div><div><small>ACTUAL RATE / PART</small><strong>{activeOperation.actualRatePerPart ? money(activeOperation.actualRatePerPart) : "Not entered"}</strong></div><div><small>PROCESS + TRANSPORT COST</small><strong>{money(activeOperation.quantity * activeOperation.ratePerPart + activeOperation.transportCost)}</strong></div><div><small>TRANSPORT</small><strong>{vendors.find(v=>v.id===activeOperation.transportVendorId)?.company || "No transporter assigned"}</strong><span>{activeOperation.transportPickup || activeOperation.transportDelivery ? shortDate(activeOperation.transportPickup) + " → " + shortDate(activeOperation.transportDelivery) : "Not scheduled"} · {money(activeOperation.transportCost)}</span></div><div><small>STATUS</small><strong>{activeOperation.status}</strong></div><div className="linked-detail-wide"><small>QUALITY / INSPECTION REQUIREMENT</small><strong>{activeOperation.qualityNotes || "No quality notes recorded"}</strong></div><div className="linked-detail-wide"><small>INSPECTION RESULT</small><strong>{activeOperation.inspectionResult || "Not entered"}</strong></div><div className="linked-detail-wide"><small>NOTES</small><strong>{activeOperation.notes || "No operation notes entered"}</strong></div></div>
-          <div className="linked-side-actions"><button className="button-primary" onClick={editActive}><Wrench size={14}/> Edit operation</button><button className="button-quiet" disabled={routeOperations.findIndex(op=>op.id===activeOperation.id)<=0} onClick={()=>moveOperation(activeOperation.id,-1)}><ArrowUp size={14}/> Move earlier</button><button className="button-quiet" disabled={routeOperations.findIndex(op=>op.id===activeOperation.id)>=routeOperations.length-1} onClick={()=>moveOperation(activeOperation.id,1)}><ArrowDown size={14}/> Move later</button><button className="button-quiet" disabled={activeOperation.status !== "Queued" || activeOperation.completed > 0 || activeOperation.accepted > 0 || activeOperation.rejected > 0 || Boolean(activeOperation.actualStart) || Boolean(activeOperation.plannedSlotStartAt) || activeOperation.quantity < 2} onClick={() => splitOperationIntoBatches(activeOperation)}><Boxes size={14}/> Split into batches</button><button className="button-quiet" onClick={() => onSelectModule("costing")}><CircleDollarSign size={14}/> Quotes / costing</button><button className="button-quiet" onClick={() => archiveOperation(activeOperation)}><X size={14}/> Archive</button></div>
+          <div className="linked-side-actions"><button className="button-primary" onClick={editActive}><Wrench size={14}/> Edit operation</button><button className="button-quiet" disabled={routeOperations.findIndex(op=>op.id===activeOperation.id)<=0} onClick={()=>moveOperation(activeOperation.id,-1)}><ArrowUp size={14}/> Move earlier</button><button className="button-quiet" disabled={routeOperations.findIndex(op=>op.id===activeOperation.id)>=routeOperations.length-1} onClick={()=>moveOperation(activeOperation.id,1)}><ArrowDown size={14}/> Move later</button><button className="button-quiet" disabled={activeOperation.status !== "Queued" || activeOperation.completed > 0 || activeOperation.accepted > 0 || activeOperation.rejected > 0 || Boolean(activeOperation.actualStart) || Boolean(activeOperation.plannedSlotStartAt) || activeOperation.quantity < 2} onClick={() => splitOperationIntoBatches(activeOperation)}><Boxes size={14}/> Split into batches</button><button className="button-quiet" onClick={() => onSelectModule("costing")}><CircleDollarSign size={14}/> Quotes / costing</button><button className="button-quiet" onClick={() => onOpenQuality ? onOpenQuality(activeOperation.id) : onSelectModule("quality")}><ClipboardCheck size={14}/> Quality inspection</button><button className="button-quiet" onClick={() => archiveOperation(activeOperation)}><X size={14}/> Archive</button></div>
           <div className="linked-quote-preview"><div className="panel-heading"><div><h3>Vendor quotations</h3><p>{selectedOperationQuotations.length} quote(s) linked to this operation</p></div></div>{selectedOperationQuotations.length ? selectedOperationQuotations.map(q => <div key={q.id} className="linked-quote-mini"><strong>{vendors.find(v=>v.id===q.vendorId)?.company || "Vendor archived"}</strong><span>{money(q.ratePerPart)}/part · {q.leadDays} lead day(s)</span><small>{q.quoteReference || "No quote reference"} · {q.status}</small></div>) : <div className="vendor-empty">No quotations recorded for this operation yet. Add a quote from Costing.</div>}</div>
         </> : <div className="module-empty-state"><Workflow size={28}/><h3>Select an operation</h3><p>Operation details, schedule, vendor link, quantities, quality and cost will appear here.</p></div>}
       </aside>
