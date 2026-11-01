@@ -435,10 +435,16 @@ function DashboardWorkspace(props: {
             <circle cx="220" cy="158" r="77" fill="none" stroke="#a7c5f5" strokeWidth="1" strokeDasharray="2 8" />
             <path d="M84 91 L163 133 L282 73 L350 139 L287 232 L163 203 L84 91" fill="none" stroke="url(#flow-line)" strokeWidth="1.8" />
             <path d="M163 133 L168 254 L287 232 M282 73 L282 158 L350 139 M84 91 L65 174 L163 203" fill="none" stroke="#9dbded" strokeWidth="1.2" strokeDasharray="4 5" />
-            <circle cx="220" cy="158" r="54" fill="#f9fbff" stroke="#7ba7f2" strokeWidth="1.4" />
-            <circle cx="220" cy="158" r="44" fill="#e6efff" stroke="#b3cdf8" />
-            <text x="220" y="151" fontSize="10" fontWeight="700" textAnchor="middle" fill="#4269b1" letterSpacing="2">AXI</text>
-            <text x="220" y="169" fontSize="17" fontWeight="700" textAnchor="middle" fill="#142a4c">FLOW</text>
+            <ellipse className="hero-core-halo" cx="220" cy="158" rx="103" ry="33" fill="none" stroke="#55d9ed" strokeWidth="1.2" strokeDasharray="4 8"/>
+            <g className="hero-core-3d">
+              <circle cx="220" cy="158" r="60" fill="#58d9ed" opacity=".08"/>
+              <circle cx="220" cy="158" r="54" fill="#f9fbff" stroke="#7ba7f2" strokeWidth="1.4" />
+              <circle cx="220" cy="158" r="44" fill="#e6efff" stroke="#b3cdf8" />
+              <circle className="hero-core-scan" cx="220" cy="158" r="49" fill="none" stroke="#43bff0" strokeWidth="2" strokeDasharray="62 246"/>
+              <path d="M220 105 L220 112 M273 158 L266 158 M220 211 L220 204 M167 158 L174 158" stroke="#53cde7" strokeWidth="2" strokeLinecap="round"/>
+              <text x="220" y="151" fontSize="10" fontWeight="700" textAnchor="middle" fill="#4269b1" letterSpacing="2">AXI</text>
+              <text x="220" y="169" fontSize="17" fontWeight="700" textAnchor="middle" fill="#142a4c">FLOW</text>
+            </g>
             <g className="orbit-node"><circle cx="84" cy="91" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M76 93 L84 85 L92 93 M78 94 V100 H90 V94" fill="none" stroke="#3975da" strokeWidth="1.4" /></g>
             <g className="orbit-node"><circle cx="282" cy="73" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><rect x="274" y="65" width="16" height="16" rx="3" fill="none" stroke="#3975da" strokeWidth="1.4" /><path d="M278 69 H286 M278 73 H286 M278 77 H283" stroke="#3975da" strokeWidth="1.2" /></g>
             <g className="orbit-node"><circle cx="350" cy="139" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M342 141 H358 M345 136 H355 M347 131 H353" stroke="#3975da" strokeWidth="1.6" /></g>
