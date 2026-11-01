@@ -75,10 +75,14 @@ function upsertContact(c) {
     (number && x.phone === number)
   );
   const stableId = existing?.id || id;
+  const previousPhoneIsLid = String(existing?.id || "").endsWith("@lid") &&
+    phoneNumber(existing?.phone) !== "" &&
+    phoneNumber(existing?.phone) === phoneNumber(existing?.id);
+  const safePreviousPhone = previousPhoneIsLid ? "" : (existing?.phone || "");
   const item = {
     id: stableId,
     lid: lid || existing?.lid || "",
-    phone: number || existing?.phone || "",
+    phone: number || safePreviousPhone,
     name: c.name || c.notify || c.verifiedName || existing?.name || number || stableId,
     notify: c.notify || existing?.notify || "",
     syncedAt: new Date().toISOString()
@@ -105,9 +109,20 @@ async function connect() {
     });
     socket.ev.on("contacts.upsert", list => { for (const c of list) upsertContact(c); save().catch(console.error); });
     socket.ev.on("contacts.update", list => { for (const c of list) upsertContact(c); save().catch(console.error); });
-    socket.ev.on("messaging-history.set", ({ contacts = [], chats = [] }) => {
+    socket.ev.on("messaging-history.set", ({ contacts = [], chats = [], lidPnMappings = [] }) => {
       for (const c of contacts) upsertContact(c);
       for (const c of chats) if (c.id && !c.id.endsWith("@g.us")) upsertContact({ id: c.id, name: c.name, notify: c.name });
+      for (const mapping of lidPnMappings) {
+        const lid = String(mapping.lid || "");
+        const phone = mapping.pn || mapping.phoneNumber || "";
+        if (lid.endsWith("@lid") && phone) upsertContact({ id: lid, lid, phoneNumber: phone });
+      }
+      save().catch(console.error);
+    });
+    socket.ev.on("lid-mapping.update", mapping => {
+      const lid = String(mapping?.lid || "");
+      const phone = mapping?.pn || mapping?.phoneNumber || "";
+      if (lid.endsWith("@lid") && phone) upsertContact({ id: lid, lid, phoneNumber: phone });
       save().catch(console.error);
     });
     socket.ev.on("messages.upsert", ({ messages = [], type }) => {
