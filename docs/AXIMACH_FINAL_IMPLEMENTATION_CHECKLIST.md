@@ -80,7 +80,7 @@ Exactly the eight approved functions:
 - [x] Store vendor-specific quotations/rates, validity and rate history against the relevant process/vendor relationship.
 - [x] Vendor autocomplete searches Vendor Master; selecting a result reuses its ID.
 - [x] If a vendor does not exist, Add New Vendor creates it in Vendor Master, then returns to the current process workflow.
-- [ ] Material supplier/material rate information already entered in Process Directory must remain the source of truth; do not duplicate it in Material & Inventory.
+- [x] Material grade, unit rate and preferred supplier remain in Material Master; Process Directory is the source of truth for process types and process-vendor quotations. Do not duplicate material pricing in Process Directory or process pricing in Material Master.
 - [x] Process Directory remains a catalogue/rate source. Actual vendor assignment to a component's operation occurs in Process Map.
 
 ### 08 — Production Planning + Process Map (combined user-facing menu)
@@ -107,7 +107,12 @@ Exactly the eight approved functions:
 ### 10 — Material & Inventory
 - [x] Preserve existing inventory/stock functionality and data until dependency audit is complete.
 - [x] Do not duplicate vendor, supplier, process or rate management already handled in Process Directory.
-- [ ] Exact user-approved Material & Inventory scope: **pending clarification**.
+- [x] Retain the existing three work areas: Material Master, Component BOM and append-only Stock Ledger; no new inventory workflow was added.
+- [x] Stock balances and issue validation are location-aware; legacy location metadata is resolved without rewriting old transactions.
+- [x] Remove user-facing Factory selection; legacy PO factory locations remain internally selected when a historical PO line is linked.
+- [x] WIP and customer dispatch stock movements can only be posted through Dispatch & Delivery, preventing duplicate manual movement entries.
+- [x] Require a company/location and an actual reference for manual stock movements; negative-balance confirmation is evaluated at the selected location.
+- [x] Material pricing remains in Material Master; BOM estimates use the linked material rate and quantity/scrap inputs.
 - [x] Audit existing BOM, stock ledger, WIP and stock-location flows before any change.
 
 ### 11 — Quality & Inspection
@@ -262,7 +267,8 @@ Exactly the eight approved functions:
 - WIP handover preparation does not move stock; confirmed dispatch creates source OUT + transit IN, and each partial receipt creates transit OUT + destination IN with an acknowledgement event. Customer dispatch preparation reserves PO-line quantity only; confirmed dispatch creates factory OUT + transit IN, and partial/full delivery acknowledgements clear only the confirmed transit quantity.
 - Dispatch and WIP records preserve Company, PO, PO-line, component, operation, vendor, receipt/delivery acknowledgement and stock transaction IDs. They do not change operation completion, quality inspection or costing records.
 
-- Inventory audit completed: the current workspace retains Material Master, BOM and append-only Stock Ledger. Process Directory holds process types and process-vendor rates; it does not duplicate raw Material Master records. Material unit rate and preferred vendor remain on the material record and link to the existing Vendor Master ID. WIP/customer dispatch movements add location/movement IDs without overwriting prior stock transactions. Further inventory scope remains pending user clarification.
+- Inventory audit completed: the workspace retains Material Master, BOM and append-only Stock Ledger. Process Directory holds process types and process-vendor rates; it does not duplicate raw Material Master records. Material unit rate and preferred vendor remain on the material record and link to the existing Vendor Master ID. WIP/customer dispatch movements add location/movement IDs without overwriting prior stock transactions.
+- Inventory controls hardened: manual stock movements require a company/location and movement reference; negative-balance warnings use the selected stock location, not an all-location aggregate. Factory selection is not exposed; legacy PO stock locations remain internally selected from the PO line. WIP and Dispatch transaction types are reserved for the paired Dispatch & Delivery workflows.
 
 - Companies menu is now company-only; historical Factory records/IDs and PO factoryId fields remain in the data model for legacy compatibility. New POs can be created directly against Company with an empty internal factoryId.
 - Component master rejects a duplicate part-number + revision pair and displays the saved Component Master details on each selected PO line. PO-specific quantity, due date and customer rate remain separate from master fields.
