@@ -176,44 +176,76 @@ export function useManufacturingData() {
   useEffect(() => {
     let cancelled = false;
     let busy = false;
-    const refreshLocal = (event?: Event) => {
-      const eventData = (event as CustomEvent<ManufacturingData> | undefined)?.detail;
-      setData(eventData ? normaliseData(eventData) : readManufacturingData());
-    };
-    window.addEventListener("aximach-manufacturing-data-updated", refreshLocal as EventListener);
-    window.addEventListener("storage", refreshLocal);
+    let syncPending = false;
+
     const syncOnce = async () => {
-      if (busy) return;
+      if (busy) { syncPending = true; return; }
       const cfg = serverConfig();
       if (!cfg) { if (!cancelled) setSyncStatus("local"); return; }
+
       busy = true;
       try {
-        const local = readManufacturingData();
-        const remote = await getRemote(cfg);
-        const merged = mergeManufacturingData(local, remote);
-        const remoteAlreadyHasMergedData = JSON.stringify(merged) === JSON.stringify(remote);
-        if (!remoteAlreadyHasMergedData) {
-          if (!cancelled) setSyncStatus("syncing");
-          const saved = await putRemote(merged, cfg);
-          const finalData = mergeManufacturingData(merged, saved);
-          writeLocal(finalData, false);
-          if (!cancelled) setData(finalData);
-        } else if (JSON.stringify(merged) !== JSON.stringify(local)) {
-          writeLocal(merged, false);
-          if (!cancelled) setData(merged);
-        }
+        do {
+          syncPending = false;
+          const localBeforeFetch = readManufacturingData();
+          const remote = await getRemote(cfg);
+          const localAfterFetch = readManufacturingData();
+
+          // An edit made while the network request was in flight must be sent on
+          // the next pass rather than being hidden by an older response.
+          if (JSON.stringify(localAfterFetch) !== JSON.stringify(localBeforeFetch)) syncPending = true;
+
+          const merged = mergeManufacturingData(localAfterFetch, remote);
+          if (JSON.stringify(merged) !== JSON.stringify(remote)) {
+            if (!cancelled) setSyncStatus("syncing");
+            const saved = await putRemote(merged, cfg);
+            const localAfterPut = readManufacturingData();
+            if (JSON.stringify(localAfterPut) !== JSON.stringify(localAfterFetch)) syncPending = true;
+            const finalData = mergeManufacturingData(localAfterPut, saved);
+            writeLocal(finalData, false);
+            if (!cancelled) setData(finalData);
+          } else if (JSON.stringify(merged) !== JSON.stringify(localAfterFetch)) {
+            writeLocal(merged, false);
+            if (!cancelled) setData(merged);
+          }
+        } while (syncPending && !cancelled);
+
         if (!cancelled) setSyncStatus("synced");
       } catch {
         if (!cancelled) setSyncStatus("error");
-      } finally { busy = false; }
+      } finally {
+        busy = false;
+        if (syncPending && !cancelled) void syncOnce();
+      }
     };
+
+    const refreshLocal = (event?: Event) => {
+      const eventData = (event as CustomEvent<ManufacturingData> | undefined)?.detail;
+      setData(eventData ? normaliseData(eventData) : readManufacturingData());
+      // Same-window edits and other-tab edits sync immediately, not on the
+      // next polling interval. The queue above coalesces overlapping changes.
+      void syncOnce();
+    };
+    const syncWhenActive = () => {
+      if (document.visibilityState !== "hidden") void syncOnce();
+    };
+
+    window.addEventListener("aximach-manufacturing-data-updated", refreshLocal as EventListener);
+    window.addEventListener("storage", refreshLocal);
+    window.addEventListener("focus", syncWhenActive);
+    window.addEventListener("online", syncWhenActive);
+    document.addEventListener("visibilitychange", syncWhenActive);
+
     void syncOnce();
-    const timer = window.setInterval(() => { void syncOnce(); }, 8000);
+    const timer = window.setInterval(() => { void syncOnce(); }, 4000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
       window.removeEventListener("aximach-manufacturing-data-updated", refreshLocal as EventListener);
       window.removeEventListener("storage", refreshLocal);
+      window.removeEventListener("focus", syncWhenActive);
+      window.removeEventListener("online", syncWhenActive);
+      document.removeEventListener("visibilitychange", syncWhenActive);
     };
   }, []);
 
@@ -223,21 +255,11 @@ export function useManufacturingData() {
     next.updatedAt = nowIso();
     writeLocal(next);
     setData(next);
-    const cfg = serverConfig();
-    if (!cfg) { setSyncStatus("local"); return; }
-    setSyncStatus("syncing");
-    void putRemote(next, cfg).then(remote => {
-      const currentLocal = readManufacturingData();
-      const merged = mergeManufacturingData(currentLocal, remote);
-      writeLocal(merged, false);
-      setData(merged);
-      setSyncStatus("synced");
-    }).catch(() => setSyncStatus("error"));
+    setSyncStatus(serverConfig() ? "syncing" : "local");
   }, []);
 
   return { data, update, syncStatus };
 }
-
 /** Remove only known AXIMACH demo seeds; preserve user-edited and user-entered records. */
 export function removeLegacyDemoData() {
   if (typeof window === "undefined") return;
