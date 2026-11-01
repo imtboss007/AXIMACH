@@ -32,7 +32,7 @@ function applyCors(req, res) {
   res.setHeader("vary", "Origin");
   if (origin && allowedOrigins.has(origin)) res.setHeader("access-control-allow-origin", origin);
   res.setHeader("access-control-allow-headers", "content-type,x-aximach-key");
-  res.setHeader("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
+  res.setHeader("access-control-allow-methods", "GET,POST,PATCH,DELETE,OPTIONS");
 }
 function reply(res, status, data) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -151,10 +151,34 @@ const server = createServer(async (req, res) => {
       state.schedules.push(task); await save(); return reply(res, 201, { schedule: task });
     }
     const match = url.pathname.match(/^\/api\/whatsapp\/schedules\/([\w-]+)$/);
-    if (match && req.method === "PATCH") {
+    if (match && (req.method === "PATCH" || req.method === "DELETE")) {
       const task = state.schedules.find(x => x.id === match[1]); if (!task) return reply(res, 404, { error: "Schedule not found." });
-      const input = await readBody(req); if (typeof input.enabled === "boolean") task.enabled = input.enabled;
-      if (input.nextRunAt && Number.isFinite(Date.parse(input.nextRunAt))) task.nextRunAt = new Date(input.nextRunAt).toISOString();
+      const stamp = new Date().toISOString();
+      if (req.method === "DELETE") {
+        task.enabled = false; task.nextRunAt = null; task.cancelledAt = stamp; task.updatedAt = stamp;
+        state.logs.unshift({ id: randomUUID(), scheduleId: task.id, at: stamp, status: "cancelled", detail: "Schedule cancelled by AXIMACH operator." });
+        state.logs = state.logs.slice(0, 2000);
+        await save(); return reply(res, 200, { schedule: task });
+      }
+      const input = await readBody(req);
+      if (input.to !== undefined) { const to = String(input.to || "").trim(); if (!to) return reply(res, 400, { error: "A recipient is required." }); task.to = to; }
+      if (input.message !== undefined) { const message = String(input.message || "").trim(); if (!message) return reply(res, 400, { error: "A message is required." }); task.message = message; }
+      if (input.repeat !== undefined) { if (!["once", "daily", "weekly"].includes(input.repeat)) return reply(res, 400, { error: "Repeat must be once, daily or weekly." }); task.repeat = input.repeat; }
+      if (input.nextRunAt !== undefined) {
+        const due = Date.parse(input.nextRunAt);
+        if (!Number.isFinite(due)) return reply(res, 400, { error: "A valid nextRunAt date is required." });
+        if ((input.enabled === true || task.enabled) && due <= Date.now()) return reply(res, 400, { error: "An enabled schedule must have a future nextRunAt." });
+        task.nextRunAt = new Date(due).toISOString();
+      }
+      if (input.optedIn !== true && (input.to !== undefined || input.message !== undefined || input.nextRunAt !== undefined || input.repeat !== undefined)) {
+        return reply(res, 400, { error: "Confirm recipient consent before editing this schedule." });
+      }
+      if (typeof input.enabled === "boolean") {
+        if (input.enabled && task.cancelledAt) return reply(res, 409, { error: "Cancelled schedules cannot be resumed. Create a new schedule after reconfirming consent." });
+        if (input.enabled && (!task.nextRunAt || Date.parse(task.nextRunAt) <= Date.now())) return reply(res, 400, { error: "Choose a future send time before resuming this schedule." });
+        task.enabled = input.enabled;
+      }
+      task.updatedAt = stamp;
       await save(); return reply(res, 200, { schedule: task });
     }
     return reply(res, 404, { error: "Route not found." });
