@@ -28,6 +28,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const [leadDays, setLeadDays] = useState("");
   const [quoteNotes, setQuoteNotes] = useState("");
   const [quoteSearch, setQuoteSearch] = useState("");
+  const [rateSearch, setRateSearch] = useState("");
   const [showQuoteForm, setShowQuoteForm] = useState(false);
 
   const selectedComponent = components.find(c => c.id === componentId);
@@ -112,16 +113,40 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     plannedCost: op.quantity * op.ratePerPart + op.transportCost,
     processName: data.processTypes.find(type => type.id === op.processTypeId)?.name || op.name
   })).sort((a,b) => a.processName.localeCompare(b.processName) || a.component.partNumber.localeCompare(b.component.partNumber));
-  const vendorRateRows = quotations.filter(q => !q.deletedAt && vendors.some(vendor => vendor.id === q.vendorId)).map(q => {
+  const directoryVendorRateRows = data.processVendorRates.filter(rate => !rate.deletedAt).flatMap(rate => {
+    const vendor = vendors.find(item => item.id === rate.vendorId);
+    if (!vendor) return [];
+    const processType = data.processTypes.find(item => item.id === rate.processTypeId);
+    return [{
+      id: rate.id, source: "Process Directory" as const, componentId: "", poId: "",
+      vendor, quoteReference: rate.quoteReference, quotedAt: rate.quotedAt,
+      validFrom: rate.validFrom, validUntil: rate.validUntil, quantity: null as number | null,
+      ratePerPart: rate.ratePerPart, transportCost: 0, leadDays: rate.leadDays,
+      status: rate.status, processName: processType?.name || "Archived process type",
+      processKey: rate.processTypeId, landedRate: rate.ratePerPart
+    }];
+  });
+  const operationVendorRateRows = quotations.filter(q => !q.deletedAt).flatMap(q => {
+    const vendor = vendors.find(item => item.id === q.vendorId);
+    if (!vendor) return [];
     const operation = operations.find(op => op.id === q.operationId);
     const processName = operation ? (data.processTypes.find(type => type.id === operation.processTypeId)?.name || operation.name) : "Archived operation";
     const processKey = operation?.processTypeId || (operation ? operation.category + "::" + operation.name : q.operationId);
     const landedRate = q.ratePerPart + (q.quantity > 0 ? q.transportCost / q.quantity : 0);
-    return { quote: q, operation, processName, processKey, vendor: vendors.find(vendor => vendor.id === q.vendorId)!, landedRate };
+    return [{
+      id: q.id, source: "PO operation" as const, componentId: q.componentId, poId: q.poId,
+      vendor, quoteReference: q.quoteReference, quotedAt: q.quotedAt,
+      validFrom: "", validUntil: q.validUntil, quantity: q.quantity,
+      ratePerPart: q.ratePerPart, transportCost: q.transportCost, leadDays: q.leadDays,
+      status: q.status, processName, processKey, landedRate
+    }];
   });
+  const vendorRateRows = [...directoryVendorRateRows, ...operationVendorRateRows];
   const lowestVendorRateByProcess = new Map<string,number>();
   vendorRateRows.forEach(row => lowestVendorRateByProcess.set(row.processKey, Math.min(lowestVendorRateByProcess.get(row.processKey) ?? Number.POSITIVE_INFINITY, row.landedRate)));
-  const sortedVendorRateRows = vendorRateRows.slice().sort((a,b) => a.processName.localeCompare(b.processName) || a.landedRate - b.landedRate);
+  const sortedVendorRateRows = vendorRateRows
+    .filter(row => !rateSearch.trim() || [row.source,row.processName,row.vendor.company,row.componentId ? components.find(c=>c.id===row.componentId)?.partNumber : "",row.poId ? orders.find(po=>po.id===row.poId)?.number : "",row.quoteReference,row.status,row.validFrom,row.validUntil].join(" ").toLowerCase().includes(rateSearch.toLowerCase().trim()))
+    .sort((a,b) => a.processName.localeCompare(b.processName) || a.landedRate - b.landedRate);
 
   const openQuote = (forOperationId?: string) => {
     if (!selectedComponent) { onNotice("Create a component master record first."); return; }
@@ -252,9 +277,9 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PROCESS-WISE COST COMPARISON</div><h3>Process costs across components</h3><p>Actual Process Map operation quantities, planned rates, transport costs and vendor payment statuses; operations are not multiplied by PO quantity a second time.</p></div></div>
         {processCostRows.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Process</th><th>Component</th><th>PO</th><th>Vendor</th><th>Qty processed</th><th>Rate / part</th><th>Transport</th><th>Planned process cost</th><th>Vendor payment</th></tr></thead><tbody>{processCostRows.map(row=><tr key={row.operation.id}><td>{row.processName}</td><td>{row.component.partNumber}</td><td>{row.po?.number || "Archived PO"}</td><td>{row.vendor?.company || "Not assigned"}</td><td>{row.operation.quantity.toLocaleString("en-IN")}</td><td>{money(row.operation.ratePerPart)}</td><td>{money(row.operation.transportCost)}</td><td>{money(row.plannedCost)}</td><td>{row.vendor ? (row.operation.vendorPaymentStatus || "Not Paid") : "—"}</td></tr>)}</tbody></table></div> : <div className="vendor-empty">No saved Process Map operations to compare.</div>}
       </section>
-      <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> VENDOR RATE COMPARISON</div><h3>Supplier rates for the same process</h3><p>Quotes are grouped by Process Directory type (or the saved legacy operation name). Landed comparison rate = quoted rate per part + quote transport divided by quoted quantity. Validity and quote status remain visible.</p></div></div>
-        {sortedVendorRateRows.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Process</th><th>Component</th><th>PO</th><th>Vendor</th><th>Quote reference</th><th>Quote date</th><th>Valid until</th><th>Qty</th><th>Rate / part</th><th>Transport</th><th>Landed / part</th><th>Difference vs lowest</th><th>Status</th></tr></thead><tbody>{sortedVendorRateRows.map(row=>{const lowest=lowestVendorRateByProcess.get(row.processKey) || row.landedRate;return <tr key={row.quote.id}><td>{row.processName}</td><td>{row.quote.componentId ? components.find(c=>c.id===row.quote.componentId)?.partNumber || "Archived" : "—"}</td><td>{orders.find(po=>po.id===row.quote.poId)?.number || "Archived PO"}</td><td>{row.vendor.company}</td><td>{row.quote.quoteReference || "Not entered"}</td><td>{row.quote.quotedAt || "—"}</td><td>{row.quote.validUntil || "Not recorded"}</td><td>{row.quote.quantity.toLocaleString("en-IN")}</td><td>{money(row.quote.ratePerPart)}</td><td>{money(row.quote.transportCost)}</td><td><strong>{money(row.landedRate)}</strong></td><td>{row.landedRate === lowest ? "Lowest entered" : money(row.landedRate-lowest)}</td><td>{row.quote.status}</td></tr>;})}</tbody></table></div> : <div className="vendor-empty">No saved supplier quotations to compare across processes.</div>}
-      </section>
+      <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> VENDOR RATE COMPARISON</div><h3>Supplier rates for the same process</h3><p>Includes reusable Process Directory rates and PO-operation quotations. The source is labelled; PO quotation landed rates include transport per quoted unit, while Process Directory rates use the entered process rate because no transport field is recorded there.</p></div><label className="module-record-search"><Search size={14}/><input value={rateSearch} onChange={e=>setRateSearch(e.target.value)} placeholder="Search process, vendor, quote or PO…"/></label></div>
+         {sortedVendorRateRows.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Source</th><th>Process</th><th>Component</th><th>PO</th><th>Vendor</th><th>Quote reference</th><th>Quote date</th><th>Valid from</th><th>Valid until</th><th>Qty</th><th>Rate / part</th><th>Transport</th><th>Landed / part</th><th>Difference vs lowest</th><th>Status</th></tr></thead><tbody>{sortedVendorRateRows.map(row=>{const lowest=lowestVendorRateByProcess.get(row.processKey) ?? row.landedRate;return <tr key={row.source+":"+row.id}><td>{row.source}</td><td>{row.processName}</td><td>{row.componentId ? components.find(c=>c.id===row.componentId)?.partNumber || "Archived" : "—"}</td><td>{row.poId ? orders.find(po=>po.id===row.poId)?.number || "Archived PO" : "—"}</td><td>{row.vendor.company}</td><td>{row.quoteReference || "Not entered"}</td><td>{row.quotedAt || "—"}</td><td>{row.validFrom || "—"}</td><td>{row.validUntil || "Not recorded"}</td><td>{row.quantity === null ? "—" : row.quantity.toLocaleString("en-IN")}</td><td>{money(row.ratePerPart)}</td><td>{money(row.transportCost)}</td><td><strong>{money(row.landedRate)}</strong></td><td>{row.landedRate === lowest ? "Lowest entered" : money(row.landedRate-lowest)}</td><td>{row.status}</td></tr>;})}</tbody></table></div> : <div className="vendor-empty">No Process Directory rates or PO-operation quotations match this comparison.</div>}
+       </section>
     </>}
     <div className="module-safety-note"><ShieldCheck size={15}/><span>Quotation amounts are supplier inputs, not live market benchmarks. Selecting a quote updates the operation's planned vendor/rate; it does not mark it as an invoice or actual expense.</span></div>
   </section>;
