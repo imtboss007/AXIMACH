@@ -34,11 +34,11 @@ type ModuleItem = {
 const dashboardItem: ModuleItem = { id: "dashboard", title: "Dashboard", group: "Overview", description: "Live overview of saved manufacturing records, active work and operational exceptions.", icon: LayoutGrid, action: "Open dashboard" };
 
 const moduleCatalogue: ModuleItem[] = [
-  { id: "command-centre", title: "Command Centre & AI Copilot", group: "Command", description: "Factory health, alerts, priorities and evidence-linked AI assistance.", icon: Sparkles, action: "Open command centre" },
+  { id: "command-centre", title: "Command Centre & AI Copilot", group: "Command", description: "Live operational exceptions, saved-record queries and evidence-linked priorities.", icon: Sparkles, action: "Open command centre" },
   { id: "companies", title: "Companies", group: "Governance", description: "Manage registered company records reused by purchase orders and manufacturing workflows.", icon: Building2, action: "Manage companies" },
   { id: "customers", title: "Customers, RFQs & Sales Orders", group: "Commercial", description: "Customer requirements, quotations, commitments and order intake.", icon: Target, action: "Review commercial pipeline" },
-  { id: "purchasing", title: "Purchase Orders & Subcontract Orders", group: "Commercial", description: "Purchase approvals, subcontract work, acknowledgements and receipts.", icon: Package, action: "Review purchase workflow" },
-  { id: "components", title: "Components, BOMs & Drawings", group: "Engineering", description: "Part masters, bills of material, drawings and linked revisions.", icon: Box, action: "Explore component records" },
+  { id: "purchasing", title: "Purchase Orders", group: "Commercial", description: "Purchase approvals, subcontract work, acknowledgements and receipts.", icon: Package, action: "Review purchase workflow" },
+  { id: "components", title: "Components", group: "Engineering", description: "Part masters, bills of material, drawings and linked revisions.", icon: Box, action: "Explore component records" },
   { id: "process-master", title: "Process Directory", group: "Engineering", description: "Maintain hierarchical processes, vendor quotations, validity and rate history.", icon: Layers3, action: "Browse process library" },
   { id: "vendors", title: "Vendors", group: "Supply Network", description: "Manage vendors, contacts and their single assigned process.", icon: Users, action: "Explore vendor records" },
   { id: "vendor-capability", title: "Vendor Capability Master", group: "Supply Network", description: "Match process capabilities, machine envelopes, tolerances and certificates.", icon: Cpu, action: "Explore capability matching" },
@@ -51,7 +51,7 @@ const moduleCatalogue: ModuleItem[] = [
   { id: "tooling", title: "Tooling, Fixtures & Tool Crib", group: "Operations", description: "Manage tooling, fixtures, offsets, life limits and availability.", icon: Wrench, action: "Explore tooling" },
   { id: "maintenance", title: "Maintenance & Spare Parts", group: "Operations", description: "Preventive maintenance, faults, spare parts and machine readiness.", icon: Settings2, action: "Review maintenance" },
   { id: "workforce", title: "Workforce & Skills", group: "Operations", description: "Track qualifications, skill matrices, shifts and training requirements.", icon: Users, action: "Explore workforce" },
-  { id: "costing", title: "Costing & Profitability", group: "Finance", description: "Compare estimates, commitments, actuals and cost per accepted part.", icon: CircleDollarSign, action: "Explore job costing" },
+  { id: "costing", title: "Costing & Payments", group: "Finance", description: "Compare estimates, commitments, actuals and cost per accepted part.", icon: CircleDollarSign, action: "Explore job costing" },
   { id: "invoices", title: "Invoices, Payments & Cash Flow", group: "Finance", description: "Reconcile invoices, credits, approvals, dues and payment status.", icon: Wallet, action: "Review finance controls" },
   { id: "communications", title: "Communication & Follow-up", group: "Connections", description: "Schedule supplier follow-ups and monitor messaging delivery and replies.", icon: MessageCircle, action: "Explore communication workflows" },
   { id: "risk", title: "Risk & Failure Prediction", group: "Quality & Reliability", description: "Model delivery, quality, capacity and process risks with traceable evidence.", icon: ShieldAlert, action: "Explore risk register" },
@@ -142,18 +142,27 @@ function App() {
     const prompt = aiPrompt.trim();
     if (!prompt) return;
     const lower = prompt.toLowerCase();
-    if (lower.includes("delay") || lower.includes("late")) {
-      setAiResponse("No connected production schedule is available to analyse yet. Add a real PO, component and route first; no delivery promise has been inferred.");
-    } else if (lower.includes("vendor") || lower.includes("supplier")) {
-      setAiResponse("No vendor recommendation is generated until vendor capability, quotations, lead times and recorded quality history are available.");
+    const data=readManufacturingData();
+    const today=new Date().toISOString().slice(0,10);
+    const overdue=data.operations.filter(op=>!op.deletedAt&&op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<today);
+    const unpaid=data.operations.filter(op=>!op.deletedAt&&op.vendorId&&(op.vendorPaymentStatus||"Not Paid")!=="Paid");
+    const holds=data.operations.filter(op=>!op.deletedAt&&op.status==="Quality hold");
+    const inTransitWip=data.wipTransfers.filter(row=>!row.deletedAt&&(row.status==="In transit"||row.status==="Partially received"));
+    const inTransitDispatch=data.customerDispatches.filter(row=>!row.deletedAt&&(row.status==="In transit"||row.status==="Partially delivered"));
+    if (lower.includes("delay") || lower.includes("late") || lower.includes("overdue")) {
+      setAiResponse(overdue.length ? "Saved records show "+overdue.length+" overdue operation(s): "+overdue.slice(0,6).map(op=>op.name+" (target "+op.plannedEnd+")").join("; ")+". Open Process Map to review. No dates or delivery promises were changed." : "No overdue operations are currently recorded from the saved planned-end dates. This is a rule-based check of saved AXIMACH data, not an AI forecast.");
+    } else if (lower.includes("vendor") || lower.includes("supplier") || lower.includes("payment")) {
+      setAiResponse(unpaid.length ? unpaid.length+" vendor-assigned operation(s) are marked Not Paid or have no saved payment status: "+unpaid.slice(0,6).map(op=>op.name+" · "+(data.vendors.find(v=>v.id===op.vendorId)?.company||"Vendor unavailable")).join("; ")+". Payment status is maintained in Process Map." : "No unpaid vendor-assigned operations are recorded. This check uses the Paid / Not Paid field in Process Map.");
     } else if (lower.includes("cost") || lower.includes("profit")) {
-      setAiResponse("Use the linked Costing workspace to record material, process quotations, transport, actual rates, rejects, overhead and tax for a selected component.");
-    } else if (lower.includes("quality") || lower.includes("inspection")) {
-      setAiResponse("Quality recommendations are not connected to a live inspection record yet. No release or production action has been executed.");
+      setAiResponse("Cost and profitability are calculated from saved Component Master, PO line, BOM/material and Process Map rates. Open Costing & Payments to review component-level totals; no missing rate is assumed to be a confirmed zero.");
+    } else if (lower.includes("quality") || lower.includes("inspection") || lower.includes("hold")) {
+      setAiResponse(holds.length ? holds.length+" operation(s) are on Quality hold: "+holds.slice(0,6).map(op=>op.name).join(", ")+". Open Quality & Inspection and the linked Process Map before release. No release action was executed." : "No operation is currently marked Quality hold. Review the Quality & Inspection register for recorded measurement and inspection outcomes.");
+    } else if (lower.includes("dispatch") || lower.includes("delivery") || lower.includes("transit")) {
+      setAiResponse(inTransitWip.length+" WIP transfer(s) and "+inTransitDispatch.length+" customer shipment(s) are currently in transit or partially received/delivered. Open Dispatch & Delivery to review actual acknowledgement records.");
     } else {
-      setAiResponse("AXIMACH AI analysis is not connected to an inference service yet. This screen will not invent live facts or execute a business action.");
+      setAiResponse("Live record check: "+data.companies.filter(row=>!row.deletedAt).length+" companies, "+data.purchaseOrders.filter(row=>!row.deletedAt).length+" purchase orders, "+data.components.filter(row=>!row.deletedAt).length+" components, "+data.operations.filter(row=>!row.deletedAt).length+" operations, "+overdue.length+" overdue operations, "+holds.length+" quality holds and "+unpaid.length+" unpaid vendor operations. This is rule-based reporting; the AI inference service is not connected.");
     }
-    setNotice("AI service not connected. No live business data was queried and no action was executed.");
+    setNotice("Checked saved AXIMACH records only. No business action or data change was executed.");
   };
 
   return (
@@ -305,7 +314,7 @@ function DashboardWorkspace(props: {
         <div className="hero-copy">
           <div className="eyebrow"><span className="eyebrow-mark" /> MANUFACTURING INTELLIGENCE / 01</div>
           <h1>See the whole flow.<br /><em>Control the details.</em></h1>
-          <p>One connected view of work orders, machines, suppliers, quality and cost — designed for how real manufacturing runs.</p>
+          <p>One connected view of companies, orders, components, operations, vendors, quality, delivery and cost — using saved AXIMACH records.</p>
           <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("command-centre")}><Workflow size={17} /> Open Command Centre <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore approved workspaces</button></div>
         </div>
         <div className="hero-graphic" aria-label="Illustrative connected manufacturing process visualization">
