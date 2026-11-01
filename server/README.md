@@ -80,9 +80,14 @@ Endpoints (all except `GET /health` require `x-aximach-key`):
 - `GET /api/whatsapp/contacts` — contacts learned from WhatsApp contact/history sync.
 - `GET /api/whatsapp/groups` — participating groups.
 - `POST /api/whatsapp/send` — JSON `{"to":"9198XXXXXXXX","message":"Hello","optedIn":true}`; `to` may be a group JID for group messages.
-- `GET /api/whatsapp/schedules`, `POST /api/whatsapp/schedules` and `PATCH /api/whatsapp/schedules/:id` — persistent one-time/daily/weekly schedules. Include `optedIn:true` when creating a schedule.
+- `GET /api/whatsapp/schedules` — returns saved schedules and recent activity logs.
+- `POST /api/whatsapp/schedules` — create a one-time/daily/weekly schedule; include `optedIn:true`.
+- `PATCH /api/whatsapp/schedules/:id` — pause/resume with `{"enabled":false|true}` or edit recipient/message/time/repeat using `{"to":"...","message":"...","nextRunAt":"2030-01-01T09:00:00.000Z","repeat":"once","optedIn":true,"enabled":true}`. Editing message, recipient, recurrence or time requires consent to be reconfirmed. An enabled schedule must have a future next-run time.
+- `DELETE /api/whatsapp/schedules/:id` — cancel the schedule while retaining the record and audit log; cancelled tasks cannot be resumed.
+
+The QR bridge activity log records incoming messages, cancellation, send attempts accepted by the linked session and raw `messages.update` status codes when WhatsApp emits them. A `sent` event is not proof of delivery; raw status codes are preserved as provider event evidence and are not converted into a delivery claim.
 - `POST /api/whatsapp/refresh-groups` — refresh group list.
 
 The bridge persists the linked-device auth state and schedule/contact cache to disk and reconnects after temporary disconnects. The phone/app can be closed while this server remains running. If the server host sleeps, is shut down, loses its persistent volume, or WhatsApp logs the linked device out, schedules will not run until restored/reconnected. This bridge is based on an **unofficial WhatsApp Web protocol library**, not a WhatsApp/Meta-supported API; account restriction or breakage is possible. Use only with an account you control, respect WhatsApp rules, recipient consent, and rate limits. Contact sync is best-effort and depends on what WhatsApp sync events make available; it cannot guarantee every phone address-book entry is exposed. Do not send unsolicited or bulk messages.
 
-This is an API/service integration commit, not yet a claim that a QR scanner UI, all-device record synchronization, delivery/reply webhooks, or production hosting has been completed or verified.
+The Follow-up Centre includes live QR display, contact/group sync controls and schedule editing/cancellation UI. Successful pairing on a physical phone, long-session reconnect, completeness of WhatsApp address-book sync, delivery/reply semantics, and production-host persistence remain environment acceptance checks. The linked-device bridge is unofficial and is not a Meta-supported API.
