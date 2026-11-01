@@ -87,6 +87,7 @@ function App() {
   const [domain, setDomain] = useState("All approved workspaces");
   const [vendorSearchJump, setVendorSearchJump] = useState("");
   const [contact360VendorJump, setContact360VendorJump] = useState("");
+  const [contact360ContactJump, setContact360ContactJump] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
@@ -177,7 +178,9 @@ function App() {
   const openProcessOperation = (selection: {companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string}) => { setProcessJump(selection); setProductionView("map"); setActiveModuleId("production"); setNotice(""); };
 
   const openWipTransfer = (selection: {companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string}) => { setWipJump(selection); setDispatchMode("wip"); setActiveModuleId("dispatch"); setNotice(""); };
-  const openContact360ForVendor = (vendorId: string) => { setContact360VendorJump(vendorId); selectModule("contact-360"); };
+  const openContact360ForVendor = (vendorId: string) => { setContact360VendorJump(vendorId); setContact360ContactJump(""); selectModule("contact-360"); };
+  const openContact360Contact = (contactId: string) => { setContact360ContactJump(contactId); setContact360VendorJump(""); selectModule("contact-360"); };
+  const openVendorMasterFromContact360 = (vendorId: string) => { const vendor=manufacturingData.vendors.find(item=>item.id===vendorId); setVendorSearchJump(vendor ? vendor.company+" "+vendor.contact : ""); selectModule("vendors"); };
 
   const openModuleExplorer = () => {
     setQuery("");
@@ -295,11 +298,11 @@ function App() {
         ) : activeModuleId === "process-master" ? (
           <ProcessDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
         ) : activeModuleId === "contact-360" ? (
-          <Contact360Workspace initialVendorId={contact360VendorJump} onInitialVendorApplied={() => setContact360VendorJump("")} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <Contact360Workspace initialVendorId={contact360VendorJump} initialContactId={contact360ContactJump} onInitialVendorApplied={() => setContact360VendorJump("")} onInitialContactApplied={() => setContact360ContactJump("")} onOpenVendor={openVendorMasterFromContact360} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
           <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenContact360={openContact360ForVendor} />
         ) : activeModuleId === "communications" ? (
-          <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenContact360={openContact360Contact} />
         ) : (
           <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         )}
@@ -610,7 +613,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
   </section>;
 }
 
-function FollowUpWorkspace({ onBack, onNotice, notice, onSelectModule }: { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule:(id:string)=>void }) {
+function FollowUpWorkspace({ onBack, onNotice, notice, onSelectModule, onOpenContact360 }: { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule:(id:string)=>void; onOpenContact360:(contactId:string)=>void }) {
   type ApiContact = { id: string; name: string; phone: string; company: string; optedIn: boolean; createdAt: string };
   type ApiSchedule = { id: string; to: string; message: string; nextRunAt: string | null; repeat: "once" | "daily" | "weekly"; enabled: boolean; lastRunAt: string | null; lastError: string };
   type ApiLog = { id: string; scheduleId: string; at: string; status: string; detail: string; providerMessageId?: string };
@@ -712,7 +715,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, onSelectModule }: { onBac
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMMUNICATION / CRM</div><h1>Follow-up centre<span>.</span></h1><p>Contacts, one-time and recurring individual messages, server schedules and send logs.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={()=>onSelectModule("contact-360")}><Users size={15}/> Contact 360 register</button><button className="button-quiet" onClick={downloadContacts} disabled={!contacts.length}><FileDown size={15}/> Export contacts CSV</button></div></div>
     <section className="surface-panel c360-linked-followups">
       <div className="panel-heading"><div><h3><CalendarClock size={17}/> Contact 360 follow-ups</h3><p>One live view of the editable Contact 360 register. Open a row to edit its canonical record.</p></div><button className="button-quiet compact-button" onClick={()=>onSelectModule("contact-360")}><Users size={13}/> Manage all contacts</button></div>
-      {contact360FollowUps.length ? <div className="followup-table-wrap"><table className="followup-table"><thead><tr><th>Client / person</th><th>Follow-up item</th><th>Module</th><th>Amount</th><th>Promised response</th><th>Next follow-up</th><th>State</th><th>Open</th></tr></thead><tbody>{contact360FollowUps.map(row=>{const contact=contact360ContactFor(row.contactId);return <tr key={row.id}><td><strong>{contact?.accountName||"Archived contact"}</strong><small>{contact?.contactName||"Contact history retained"}</small></td><td>{row.description}</td><td>{contact360ModuleLabel(row.moduleType)}<small>{row.moduleReference||"No reference"}</small></td><td>{contact360AmountLabel(row.amount,row.currency)}</td><td>{contact360DateLabel(row.promisedBackDate)}</td><td>{contact360DateLabel(row.nextFollowUpDate)}</td><td>{row.status}</td><td><button className="button-quiet compact-button" disabled={!contact} onClick={()=>onSelectModule("contact-360")}><ArrowUpRight size={12}/> Open 360</button></td></tr>;})}</tbody></table></div> : <div className="c360-inline-empty">No open Contact 360 follow-ups yet. Add a client, people and actions in Contact 360; they will appear here automatically.</div>}
+      {contact360FollowUps.length ? <div className="followup-table-wrap"><table className="followup-table"><thead><tr><th>Client / person</th><th>Follow-up item</th><th>Module</th><th>Amount</th><th>Promised response</th><th>Next follow-up</th><th>State</th><th>Open</th></tr></thead><tbody>{contact360FollowUps.map(row=>{const contact=contact360ContactFor(row.contactId);return <tr key={row.id}><td><strong>{contact?.accountName||"Archived contact"}</strong><small>{contact?.contactName||"Contact history retained"}</small></td><td>{row.description}</td><td>{contact360ModuleLabel(row.moduleType)}<small>{row.moduleReference||"No reference"}</small></td><td>{contact360AmountLabel(row.amount,row.currency)}</td><td>{contact360DateLabel(row.promisedBackDate)}</td><td>{contact360DateLabel(row.nextFollowUpDate)}</td><td>{row.status}</td><td><button className="button-quiet compact-button" disabled={!contact} onClick={()=>onOpenContact360(row.contactId)}><ArrowUpRight size={12}/> Open 360</button></td></tr>;})}</tbody></table></div> : <div className="c360-inline-empty">No open Contact 360 follow-ups yet. Add a client, people and actions in Contact 360; they will appear here automatically.</div>}
     </section>
     <section className="surface-panel followup-list-panel scheduler-connect-panel"><div className="panel-heading"><div><h3><Plug size={17}/> Scheduler connection</h3><p>Enter the URL of your deployed AXIMACH scheduler and its server API key.</p></div><span className={"module-number "+(connected?"scheduler-connected":"")}>{connected?"CONNECTED":"NOT CONNECTED"}</span></div>
       <div className="scheduler-connect-form"><label>Scheduler URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="https://your-scheduler.example.com"/></label><label>API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label><button className="button-primary" disabled={busy||!apiUrl.trim()||!apiKey.trim()} onClick={connect}>{busy?"Connecting…":"Connect / refresh"}</button></div>
