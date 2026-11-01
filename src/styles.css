@@ -1505,3 +1505,33 @@ img,svg,canvas,video{max-width:100%}
 .pp-simulation-conflict>strong{color:#f2d39a;font-size:9px}
 .pp-simulation-conflict>span{color:#d8e5ef;font-size:9px;line-height:1.4}
 .pp-simulation-conflict>small{color:#bda77f;font-size:8px;line-height:1.4}
+
+
+/* Component Directory: separate standard definitions from PO-specific actual costing */
+.component-directory-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
+.component-standard-costs .panel-heading{align-items:center}
+.component-standard-summary{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #244a67;border-radius:8px;background:#0b2134;margin:9px 0 12px}
+.component-standard-summary strong{color:#65d7b0;font:600 16px 'Space Grotesk'}
+.component-standard-summary span{color:#94aec4;font-size:9px}
+.component-cost-actions{display:inline-flex;gap:5px;white-space:nowrap}
+.component-cost-actions>button{min-width:28px;min-height:27px;padding:5px!important}
+.component-po-cost-status{display:grid;gap:4px;min-width:145px}
+.component-po-cost-status>strong{font-size:9px}
+.component-po-cost-status>strong.complete{color:#4fd5a8}
+.component-po-cost-status>strong.incomplete{color:#e7bb75}
+.component-po-cost-status>small{color:#9bb1c5;font-size:8px;line-height:1.4}
+.component-directory-page .cost-incomplete{color:#e7bb75;font-weight:650}
+.component-cost-modal{width:min(640px,calc(100vw - 28px));max-height:90vh;overflow:auto}
+.component-cost-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+.component-cost-form .searchable-picker{display:grid;gap:5px;min-width:0}
+.component-cost-form .searchable-picker input{width:100%;min-width:0}
+.component-cost-form>label{display:flex;flex-direction:column;gap:5px;color:#a9c7df;font-size:10px;min-width:0}
+.component-cost-form>label input{width:100%;min-width:0;height:36px;padding:7px 9px;background:#061626;color:#e6f4ff;border:1px solid #285372;border-radius:5px;font-size:11px}
+.component-cost-form .pp-modal-wide{grid-column:1/-1}
+.component-cost-calculation{display:grid;gap:5px;margin-top:13px;padding:11px 12px;border:1px solid #28506e;border-radius:8px;background:#0a2439}
+.component-cost-calculation>span{color:#9eb8cd;font-size:9px}
+.component-cost-calculation>strong{color:#65d7b0;font:600 16px 'Space Grotesk';overflow-wrap:anywhere}
+.component-cost-calculation>small{color:#829fb7;font-size:8px;line-height:1.4}
+@media(max-width:1100px){.component-directory-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.component-directory-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.component-cost-form{grid-template-columns:1fr}.component-cost-form .pp-modal-wide{grid-column:1}.component-directory-kpis{grid-template-columns:1fr 1fr}.component-cost-modal{padding:13px}.component-standard-summary{align-items:flex-start;flex-direction:column}}
