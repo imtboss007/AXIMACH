@@ -1963,3 +1963,29 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
 .process-visual-icon-md .process-visual-icon-face{width:42px;height:42px}.process-visual-icon-md svg{width:22px;height:22px}
 .process-visual-icon-lg .process-visual-icon-face{width:58px;height:58px}.process-visual-icon-lg svg{width:32px;height:32px}
 .pm3d-node-symbol .process-visual-icon{margin:2px auto 6px}
+
+/* Dashboard route studio: a manufacturing path, not a decorative orbit graphic. */
+.axi-dashboard-flow3d{gap:10px}
+.axi-flow3d-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.axi-flow3d-filters label{display:grid;gap:4px;min-width:0;color:#7fa9c1;font:7px 'DM Mono',monospace;letter-spacing:.7px}
+.axi-flow3d-filters select{width:100%;min-width:0;height:29px;padding:0 7px;border:1px solid rgba(104,183,214,.28);border-radius:7px;background:#0a2236;color:#d6eafa;font:9px Inter,system-ui,sans-serif}
+.axi-flow3d-scene{min-height:285px;background:linear-gradient(145deg,#071a2a,#0b2a42 70%,#071a2b)}
+.axi-flow3d-scene.is-closeup{background:radial-gradient(ellipse at 55% 42%,rgba(47,153,195,.22),transparent 60%),linear-gradient(145deg,#071a2a,#0b2a42)}
+.axi-flow3d-track{inset:8px 8px 42px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-content:center;justify-items:center;gap:16px 6px;padding:12px;overflow:auto;transform:rotateX(var(--flow-pitch)) rotateY(var(--flow-yaw)) scale(var(--flow-zoom));transform-style:preserve-3d;transition:transform .35s ease}
+.axi-flow3d-track:before{left:5%;right:5%;top:50%;height:3px;border-radius:6px;background:linear-gradient(90deg,#237aa9,#69d9dd,#4c8de1);box-shadow:0 0 17px rgba(70,199,225,.36);transform:translateZ(-14px)}
+.axi-flow3d-node{display:flex;min-width:0;width:100%;gap:4px;transform:translateY(calc((var(--node-index) % 2)*-7px)) translateZ(calc(var(--node-index)*2px))}
+.axi-flow3d-node .process-visual-icon{margin:0}
+.axi-flow3d-node small{font-size:7px}
+.axi-flow3d-node>span:last-child{display:-webkit-box;max-width:100%;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;text-align:center;color:#9fc0d4;font-size:8px;line-height:1.25}
+.axi-flow3d-node.is-active>span:last-child{color:#f2fcff;font-weight:700}
+.axi-flow3d-node.is-active{color:#fff;transform:translateY(-7px) translateZ(24px)}
+.axi-flow3d-focus{grid-template-columns:42px minmax(0,1fr);max-width:72%;gap:3px 10px}
+.axi-flow3d-focus .process-visual-icon{grid-row:span 3}
+.axi-flow3d-bottom{grid-template-columns:minmax(0,1.3fr) minmax(90px,.7fr) auto}
+.process-directory-type-identity{display:flex;align-items:center;gap:12px;min-width:0}
+.process-directory-type-identity>div{display:grid;gap:3px;min-width:0}
+.process-directory-type-identity strong{color:#eaf5ff;font-size:13px}
+.process-directory-type-identity small{color:#81a8c1;font-size:10px}
+.axi-cost-ledger-totals{grid-template-columns:repeat(6,minmax(0,1fr))}
+@media(max-width:1120px){.axi-cost-ledger-totals{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:680px){.axi-flow3d-filters{grid-template-columns:1fr}.axi-flow3d-track{grid-template-columns:repeat(3,minmax(0,1fr));inset:8px 5px 48px;gap:12px 4px}.axi-flow3d-scene{min-height:300px}.axi-flow3d-bottom{grid-template-columns:1fr}.axi-cost-ledger-totals{grid-template-columns:repeat(2,minmax(0,1fr))}}
