@@ -1535,3 +1535,15 @@ img,svg,canvas,video{max-width:100%}
 @media(max-width:1100px){.component-directory-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.component-directory-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.component-cost-form{grid-template-columns:1fr}.component-cost-form .pp-modal-wide{grid-column:1}.component-directory-kpis{grid-template-columns:1fr 1fr}.component-cost-modal{padding:13px}.component-standard-summary{align-items:flex-start;flex-direction:column}}
+
+
+/* QR-linked WhatsApp schedule editing and activity evidence */
+.wa-schedule-row{align-items:flex-start;gap:10px;min-width:0}
+.wa-schedule-row>span:nth-child(2){flex:1;min-width:0}
+.wa-schedule-state{display:block;margin-top:3px;color:#90b1c9;font-size:8px;letter-spacing:.25px;text-transform:uppercase}
+.wa-schedule-actions{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;min-width:0}
+.wa-schedule-actions .button-quiet{display:inline-flex;align-items:center;gap:4px;min-height:28px;font-size:9px;white-space:nowrap}
+.wa-log-panel{margin-top:14px;min-width:0}
+.wa-log-panel .followup-table-wrap{max-width:100%;overflow-x:auto}
+.wa-log-panel .followup-table{min-width:620px}
+@media(max-width:700px){.wa-schedule-row{display:grid;grid-template-columns:32px minmax(0,1fr);align-items:start}.wa-schedule-actions{grid-column:2;justify-content:flex-start}.wa-schedule-actions .button-quiet{min-height:32px}.wa-log-panel .panel-heading{align-items:flex-start}}
