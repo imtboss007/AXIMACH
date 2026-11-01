@@ -157,9 +157,7 @@ export function ProcessIcon({ processName, fallback }: { processName: string; fa
       window.removeEventListener("aximach-icon-assignments-updated", refresh);
     };
   }, []);
-  const specificKey = specificProcess.trim() ? `process:${normaliseWords(specificProcess)}` : "";
-  const assignmentKey = specificKey || family;
-  const assignment = assignments[specificKey] || assignments[family];
+  const assignment = assignments[`process:${normaliseWords(processName)}`] || assignments[family];
   if (!assignment) return <span className="linked-node-icon linked-node-icon-3d"><span className="linked-node-icon-fallback">{fallback}</span></span>;
   const palette = palettes.find((item) => item.name === assignment.palette) || palettes[0];
   return (
@@ -254,6 +252,8 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const activePalette = palettes.find((item) => item.name === paletteName) || palettes[0];
   const variantStyle = { "--ax-icon-accent": activePalette.color, "--ax-icon-depth": depth, "--ax-icon-tilt": tilt + "deg" } as CSSProperties;
   const variantClass = `ax-icon-finish-${normaliseWords(finish).replaceAll(" ", "-")}`;
+  const specificKey = specificProcess.trim() ? `process:${normaliseWords(specificProcess)}` : "";
+  const assignmentKey = specificKey || family;
 
   const toggleFavourite = (name: string) => {
     const next = favourites.includes(name) ? favourites.filter((item) => item !== name) : [...favourites, name];
