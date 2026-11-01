@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { saveBlobFile } from "./fileDownload";
 import { ArrowRight, Check, Download, FileDown, FileUp, Package, Printer, Search, ShieldCheck, Upload, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
@@ -206,22 +207,21 @@ export default function DataExchangeWorkspace({mode,onBack,onNotice,notice}:Prop
     const matchesTo=!dateTo||(dateValue&&dateValue<=dateTo);
     return matchesSearch&&matchesFrom&&matchesTo;
   }),[allRows,search,dateFrom,dateTo,sourceMeta.dateFields.join("|")]);
-  const saveBlob=(filename:string,blob:Blob)=>{
-    const url=URL.createObjectURL(blob);
-    const anchor=document.createElement("a");anchor.href=url;anchor.download=filename;anchor.style.display="none";
-    document.body.appendChild(anchor);anchor.click();anchor.remove();
-    window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const saveBlob=(filename:string,blob:Blob,successMessage:string)=>{
+    void saveBlobFile(filename,blob).then(result=>{
+      if(result==="cancelled"){onNotice("File save was cancelled.");return;}
+      onNotice(result==="shared"?successMessage+" Choose Save to Files or Downloads in the device share sheet.":successMessage+" Download started.");
+    }).catch(error=>onNotice(error instanceof Error?error.message:"Could not start the file export."));
   };
-  const download=(filename:string,body:string,mime:string)=>saveBlob(filename,new Blob([body],{type:mime}));
-  const exportCsv=()=>{if(!exportRows.length){onNotice("No matching records to export.");return;}download("aximach-"+source+"-"+today()+".csv",rowsToCsv(exportRows),"text/csv;charset=utf-8");onNotice(exportRows.length+" saved "+sourceMeta.label.toLowerCase()+" record(s) exported as CSV.");};
-  const exportJson=()=>{if(!exportRows.length){onNotice("No matching records to export.");return;}download("aximach-"+source+"-"+today()+".json",JSON.stringify({source,exportedAt:nowIso(),count:exportRows.length,records:exportRows},null,2),"application/json");onNotice(exportRows.length+" saved record(s) exported as JSON.");};
+  const download=(filename:string,body:string,mime:string,successMessage="File ready.")=>saveBlob(filename,new Blob([body],{type:mime}),successMessage);
+  const exportCsv=()=>{if(!exportRows.length){onNotice("No matching records to export.");return;}download("aximach-"+source+"-"+today()+".csv",rowsToCsv(exportRows),"text/csv;charset=utf-8",exportRows.length+" saved "+sourceMeta.label.toLowerCase()+" record(s) exported as CSV.");};
+  const exportJson=()=>{if(!exportRows.length){onNotice("No matching records to export.");return;}download("aximach-"+source+"-"+today()+".json",JSON.stringify({source,exportedAt:nowIso(),count:exportRows.length,records:exportRows},null,2),"application/json",exportRows.length+" saved record(s) exported as JSON.");};
   const exportExcel=()=>{
     if(!exportRows.length){onNotice("No matching records to export.");return;}
     const headers=Array.from(new Set(exportRows.flatMap(row=>Object.keys(row))));
     const workbook=toXlsx(headers,exportRows);
     const blob=new Blob([workbook],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-    saveBlob("aximach-"+source+"-"+today()+".xlsx",blob);
-    onNotice(exportRows.length+" saved "+sourceMeta.label.toLowerCase()+" record(s) exported as Excel workbook.");
+    saveBlob("aximach-"+source+"-"+today()+".xlsx",blob,exportRows.length+" saved "+sourceMeta.label.toLowerCase()+" record(s) exported as Excel workbook.");
   };
   const printPreview=()=>{if(!exportRows.length){onNotice("No matching records to print.");return;}window.print();};
   const template=templates.find(item=>item.kind===importKind)!;
@@ -323,7 +323,7 @@ export default function DataExchangeWorkspace({mode,onBack,onNotice,notice}:Prop
   };
   const validCount=prepared.filter(row=>row.errors.length===0).length;
   const invalidCount=prepared.length-validCount;
-  const templateDownload=()=>download("aximach-"+importKind+"-template.csv",csvTemplate(template.headers),"text/csv;charset=utf-8");
+  const templateDownload=()=>download("aximach-"+importKind+"-template.csv",csvTemplate(template.headers),"text/csv;charset=utf-8",template.label+" CSV template ready.");
 
   return <section className={"workspace-page module-functional-page data-exchange-workspace "+(mode==="export"?"data-exchange-export":"data-exchange-import")}>
     {notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}

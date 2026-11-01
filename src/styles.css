@@ -1221,12 +1221,26 @@ img,svg,canvas,video{max-width:100%}
 
 .export-print-table{display:none}
 @media print{
-  .command-deck,.status-ribbon,.command-rail,.global-footer,.workspace-topline,.data-exchange-workspace .workspace-title-actions,.data-exchange-workspace .quality-selection-panel,.data-exchange-workspace .module-action-bar,.data-exchange-workspace .module-safety-note,.notice-banner{display:none!important}
-  .page-content{padding:0!important;margin:0!important}
+  html,body,#root{min-width:0!important;background:#fff!important;color:#111!important}
+  body{margin:0!important}
+  .app-shell{min-height:0!important;padding:0!important;overflow:visible!important;background:#fff!important}
+  .command-deck,.status-ribbon,.command-rail,.global-footer,.workspace-topline,
+  .workspace-title-actions,.module-action-bar,.module-workflow-strip,.module-connection-panel,
+  .module-storage-note,.module-safety-note,.notice-banner,.module-record-form-panel,
+  .pp-modal-backdrop,.overlay-shell,.print-trigger{display:none!important}
+  .page-content{padding:0!important;margin:0!important;overflow:visible!important}
+  .workspace-page{max-width:none!important;padding:0!important;margin:0!important;background:#fff!important;color:#111!important}
+  .workspace-title-row,.module-hero{margin:0 0 12px!important}
+  .surface-panel{box-shadow:none!important;border:1px solid #bbb!important;break-inside:avoid-page}
+  .costing-table-wrap,.module-record-list,.vendor-record-list,.module-workbench-grid,
+  .linked-cost-summary-lines,.linked-component-summary{overflow:visible!important;max-height:none!important}
+  .costing-table{width:100%!important;border-collapse:collapse!important;font-size:8pt!important}
+  .costing-table th,.costing-table td{border:1px solid #888!important;padding:4px!important;white-space:normal!important;overflow-wrap:anywhere!important;color:#111!important}
+  button,.icon-control,.button-primary,.button-quiet,.back-link,.module-record-card-actions,.inline-module-link{display:none!important}
   .data-exchange-workspace{padding:0!important;background:#fff!important;color:#111!important}
   .data-exchange-workspace .workspace-title-row{margin:0 0 12px!important}
   .data-exchange-workspace .module-records-panel{border:0!important;box-shadow:none!important;padding:0!important}
-  .data-exchange-workspace .costing-table-wrap{display:none!important}
+  .data-exchange-export .costing-table-wrap{display:none!important}
   .data-exchange-export .export-print-table{display:block!important}
   .data-exchange-export .export-print-table table{width:100%;border-collapse:collapse;font-size:7pt}
   .data-exchange-export .export-print-table th,.data-exchange-export .export-print-table td{border:1px solid #777;padding:3px;white-space:normal;overflow-wrap:anywhere}
