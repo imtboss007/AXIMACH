@@ -370,9 +370,13 @@ function DashboardWorkspace(props: {
   const vendorPaymentReview=liveOperations.filter(op=>op.vendorId&&(op.vendorPaymentStatus||"Not Paid")!=="Paid").length;
   const qualityHolds=liveOperations.filter(op=>op.status==="Quality hold").length;
   const operationStatusStats=["Queued","Running","Complete","Quality hold"].map(status=>({label:status,count:liveOperations.filter(op=>op.status===status).length}));
-  const processCategoryStats=Array.from(new Set(liveOperations.map(op=>op.category?.trim()).filter(Boolean))).slice(0,6).map(label=>({label:label as string,count:liveOperations.filter(op=>op.category?.trim()===label).length})).sort((a,b)=>b.count-a.count);
+  const processCategoryStats=Array.from(new Set(liveOperations.map(op=>op.category?.trim()).filter(Boolean))).map(label=>({label:label as string,count:liveOperations.filter(op=>op.category?.trim()===label).length})).sort((a,b)=>b.count-a.count).slice(0,6);
   const maxStatusCount=Math.max(1,...operationStatusStats.map(item=>item.count));
   const maxCategoryCount=Math.max(1,...processCategoryStats.map(item=>item.count));
+  const recentOperations=liveOperations.slice().sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,5);
+  const formatDashboardDate=(value?:string)=>value?new Date(value+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"Not scheduled";
+  const formatDashboardTime=(value?:string)=>value?(/^\d{2}:\d{2}$/.test(value)?value:new Date(value).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})):"Time not set";
+  const formatDashboardMoney=(value:number)=>"₹"+value.toLocaleString("en-IN",{maximumFractionDigits:2});
   const inTransitMovements=activeRows(actualData.wipTransfers).filter(row=>row.status==="In transit"||row.status==="Partially received").length+activeRows(actualData.customerDispatches).filter(row=>row.status==="In transit"||row.status==="Partially delivered").length;
   const openSavedOperation=(operation:typeof actualData.operations[number])=>{
     const po=activeOrders.find(row=>row.id===operation.poId);
@@ -415,15 +419,14 @@ function DashboardWorkspace(props: {
       </section>
 
       <section className="pulse-heading">
-        <div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS PULSE</div><h2>Operational overview<span>.</span></h2><p>Only saved AXIMACH records appear here; no sample jobs, fabricated rates or simulated machine readings are loaded.</p></div>
-        <div className="pulse-actions"><span className="demo-pill"><i/> RECORD-DRIVEN</span><button className="button-primary compact-button" onClick={() => onSelectModule("companies")}><Plus size={14}/> Start with company</button></div>
+        <div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS PULSE</div><h2>Operational overview<span>.</span></h2><p>Live indicators and activity calculated only from saved AXIMACH records.</p></div>
+        <div className="pulse-actions"><span className="demo-pill"><i/> RECORD-DRIVEN</span><button className="button-quiet compact-button" onClick={onOpenModules}><LayoutGrid size={14}/> Browse workspaces</button></div>
       </section>
-      <section className="metric-grid">
-        <MetricCard title="Companies" value={String(liveCompanies.length)} trend="Saved records" detail="Company master" icon={Building2} accent="blue"/>
+      <section className="metric-grid" aria-label="Operational KPIs">
         <MetricCard title="PO component lines" value={String(liveOrders.reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0))} trend="Open orders" detail="Quantity and delivery target" icon={Package} accent="violet"/>
         <MetricCard title="Components" value={String(liveComponents.length)} trend="Saved records" detail="Part numbers and revisions" icon={Boxes} accent="green"/>
         <MetricCard title="Operations" value={String(liveOperations.length)} trend="Saved records" detail="Routes linked to PO lines" icon={Activity} accent="amber"/>
-        <MetricCard title="Vendors" value={String(liveVendors.length)} trend="Saved master records" detail="Single process per vendor" icon={Users} accent="blue"/>
+        <MetricCard title="Vendors" value={String(liveVendors.length)} trend="Saved master records" detail="Vendor directory" icon={Users} accent="blue"/>
         <MetricCard title="Deliveries due in 7 days" value={String(deliveryLines.length)} trend="PO line targets" detail="Saved due dates only" icon={CalendarClock} accent="violet"/>
         <MetricCard title="Unpaid vendor operations" value={String(vendorPaymentReview)} trend="Paid / Not Paid" detail="Process Map source" icon={CircleDollarSign} accent="amber"/>
         <MetricCard title="Quality holds" value={String(qualityHolds)} trend="Open operation holds" detail="From Process Map status" icon={ShieldAlert} accent="red"/>
@@ -433,22 +436,47 @@ function DashboardWorkspace(props: {
         <article className="surface-panel dashboard-chart-panel"><div className="panel-heading"><div><div className="eyebrow">LIVE PRODUCTION DATA</div><h3>Operation status distribution</h3><p>Counts from saved Process Map operations only.</p></div><Activity size={17}/></div><div className="dashboard-bars">{operationStatusStats.map(item=><div className="dashboard-bar-row" key={item.label}><span>{item.label}</span><div><i style={{width:(item.count/maxStatusCount*100)+"%"}}/></div><strong>{item.count}</strong></div>)}</div></article>
         <article className="surface-panel dashboard-chart-panel"><div className="panel-heading"><div><div className="eyebrow">PROCESS MIX</div><h3>Operations by category</h3><p>Top saved process categories; no sample values.</p></div><Workflow size={17}/></div>{processCategoryStats.length?<div className="dashboard-bars">{processCategoryStats.map(item=><div className="dashboard-bar-row" key={item.label}><span>{item.label}</span><div><i style={{width:(item.count/maxCategoryCount*100)+"%"}}/></div><strong>{item.count}</strong></div>)}</div>:<p className="process-directory-empty">Process category data will appear after operations are saved.</p>}</article>
       </section>
-      <section className="dashboard-grid actual-data-dashboard">
-        <div className="surface-panel flow-preview">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA SETUP</div><h3>Build your manufacturing records</h3><p>Save each master once; choose its ID from linked workflows.</p></div><button className="round-action" onClick={() => onSelectModule("companies")} aria-label="Open company master"><ArrowUpRight size={18}/></button></div>
-          <div className="setup-steps">
-            <button onClick={() => onSelectModule("companies")}><span>01</span><strong>Company records</strong><small>{liveCompanies.length} saved companies</small></button>
-            <button onClick={() => onSelectModule("components")}><span>02</span><strong>Component master</strong><small>{liveComponents.length} part numbers saved</small></button>
-            <button onClick={() => onSelectModule("purchasing")}><span>03</span><strong>Purchase order lines</strong><small>{liveOrders.reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0)} active lines saved</small></button>
-            <button onClick={() => onSelectModule("vendors")}><span>04</span><strong>Vendor directory</strong><small>{liveVendors.length} saved vendor/contact records</small></button>
-          </div>
+      <section className="dashboard-master-links" aria-label="Master data shortcuts">
+        <div className="dashboard-section-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA</div><h2>Core records<span>.</span></h2><p>Four compact entry points to the shared master records.</p></div></div>
+        <div className="dashboard-master-grid">
+          <button className="dashboard-master-card" onClick={() => onSelectModule("companies")}><span className="dashboard-master-icon"><Building2 size={18}/></span><span className="dashboard-master-copy"><strong>Companies</strong><small>{liveCompanies.length} saved records</small></span><ArrowUpRight size={16}/></button>
+          <button className="dashboard-master-card" onClick={() => onSelectModule("components")}><span className="dashboard-master-icon"><Boxes size={18}/></span><span className="dashboard-master-copy"><strong>Components</strong><small>{liveComponents.length} saved records</small></span><ArrowUpRight size={16}/></button>
+          <button className="dashboard-master-card" onClick={() => onSelectModule("purchasing")}><span className="dashboard-master-icon"><Package size={18}/></span><span className="dashboard-master-copy"><strong>Purchase Orders</strong><small>{liveOrders.length} open orders</small></span><ArrowUpRight size={16}/></button>
+          <button className="dashboard-master-card" onClick={() => onSelectModule("vendors")}><span className="dashboard-master-icon"><Users size={18}/></span><span className="dashboard-master-copy"><strong>Vendors</strong><small>{liveVendors.length} saved records</small></span><ArrowUpRight size={16}/></button>
         </div>
-        <div className="surface-panel jobs-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PRODUCTION ROUTES</div><h3>Recent operations</h3><p>Only operations saved for real PO component lines.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={14}/> Process Map</button></div>
-          {activeRows(actualData.operations).length ? <div className="job-list">{activeRows(actualData.operations).slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,5).map(op => <button type="button" className="job-row job-row-action" key={op.id} onClick={()=>openSavedOperation(op)}><span className="job-number">{String(op.sequence).padStart(2,"0")}</span><span className="job-main"><strong>{op.name}</strong><small>{liveComponents.find(c=>c.id===op.componentId)?.partNumber || "Component"} · {activeOrders.find(po=>po.id===op.poId)?.number || "PO"}</small></span><span className="job-chip">{op.status}</span></button>)}</div> : <div className="module-empty-state"><Workflow size={24}/><h3>No operations yet</h3><p>Select a PO component line and add the processes that this job actually needs.</p><button className="button-primary" onClick={() => onSelectModule("process-map")}><Plus size={14}/> Open Process Map</button></div>}
-        </div>
+      </section>
+      <section className="surface-panel dashboard-operation-panel">
+        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PRODUCTION ROUTES</div><h3>Recent operations</h3><p>Latest saved operations, linked to their PO component line and vendor.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("production")}><Workflow size={14}/> Open Process Map</button></div>
+        {recentOperations.length ? <div className="dashboard-operation-list">{recentOperations.map(op=>{
+          const po=activeOrders.find(row=>row.id===op.poId);
+          const component=liveComponents.find(row=>row.id===op.componentId);
+          const vendor=liveVendors.find(row=>row.id===op.vendorId);
+          const quantity=Number(op.quantity)||0;
+          const rate=Number(op.ratePerPart)||0;
+          const plannedCost=quantity>0&&rate>0?formatDashboardMoney(quantity*rate):"Not available";
+          const company=po?liveCompanies.find(row=>row.id===po.companyId):undefined;
+          const paymentStatus=op.vendorId?(op.vendorPaymentStatus||"Not Paid"):"Vendor missing";
+          return <button type="button" className="dashboard-operation-card" key={op.id} onClick={()=>openSavedOperation(op)} aria-label={"Open "+op.name+" operation"}>
+            <span className="dashboard-operation-heading">
+              <span className="dashboard-operation-sequence">{String(op.sequence).padStart(2,"0")}</span>
+              <span className="dashboard-operation-title"><strong>{op.name||"Unnamed process"}</strong><small>{op.category||"Category not set"} · {component?.partNumber||"Component not linked"} · {po?.number||"PO not linked"} · {company?.name||"Company not linked"}</small></span>
+              <span className="dashboard-operation-state"><span className={"dashboard-payment-chip "+(paymentStatus==="Paid"?"paid":"unpaid")}>{paymentStatus}</span><span className="dashboard-process-chip">{op.status}</span></span>
+              <ArrowUpRight size={16}/>
+            </span>
+            <span className="dashboard-operation-meta">
+              <span><small>Vendor</small><strong>{vendor?.company||(op.vendorId?"Vendor record unavailable":"Not assigned")}</strong></span>
+              <span><small>Start date / time</small><strong>{formatDashboardDate(op.plannedStart)}</strong><em>{formatDashboardTime(op.plannedStartTime)}</em></span>
+              <span><small>Due date / time</small><strong>{formatDashboardDate(op.plannedEnd)}</strong><em>{formatDashboardTime(op.plannedEndTime)}</em></span>
+              <span><small>Quantity</small><strong>{quantity>0?quantity.toLocaleString("en-IN"):"Not entered"}</strong></span>
+              <span><small>Rate / piece</small><strong>{rate>0?formatDashboardMoney(rate):"Not entered"}</strong></span>
+              <span><small>Planned process cost</small><strong>{plannedCost}</strong></span>
+            </span>
+          </button>;
+        })}</div> : <div className="module-empty-state"><Workflow size={24}/><h3>No operations yet</h3><p>Select a PO component line and add the processes that this job actually needs.</p><button className="button-primary" onClick={() => onSelectModule("production")}><Plus size={14}/> Open Process Map</button></div>}
+      </section>
+      <section className="dashboard-bottom-grid">
         <div className="surface-panel attention-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTATIONS</div><h3>Supplier rate history</h3><p>Received quotes are linked to a component, PO line, process and vendor.</p></div><span className="attention-count">{activeRows(actualData.quotations).length}</span></div>
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTATIONS</div><h3>Supplier rate history</h3><p>Received quotes linked to their component, PO line, process and vendor.</p></div><span className="attention-count">{activeRows(actualData.quotations).length}</span></div>
           {activeRows(actualData.quotations).length ? <div className="job-list">{activeRows(actualData.quotations).slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,4).map(q => <div className="job-row" key={q.id}><span className="job-number"><CircleDollarSign size={15}/></span><span className="job-main"><strong>{actualData.components.find(x=>x.id===q.componentId)?.partNumber || "Component"} · {actualData.operations.find(x=>x.id===q.operationId)?.name || "Process"}</strong><small>{actualData.vendors.find(x=>x.id===q.vendorId)?.company || "Vendor"} · {q.quoteReference || "No reference"}</small></span><span className="job-chip">{q.status}</span></div>)}</div> : <div className="module-empty-state"><CircleDollarSign size={24}/><h3>No quotations yet</h3><p>Add real vendor quotations to compare rates per component and process.</p><button className="button-primary" onClick={() => onSelectModule("costing")}><Plus size={14}/> Add quotation</button></div>}
         </div>
         <div className="surface-panel attention-panel">
