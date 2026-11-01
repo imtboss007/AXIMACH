@@ -40,6 +40,22 @@ async function body(req) {
 function authorized(req) { return API_KEY && req.headers["x-aximach-key"] === API_KEY; }
 function normalisePhone(phone) { return String(phone || "").replace(/\D/g, ""); }
 const manufacturingCollections = ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions"];
+function mergeModuleRecords(existing, incoming) {
+  const left = existing && typeof existing === "object" ? existing : {};
+  const right = incoming && typeof incoming === "object" ? incoming : {};
+  const merged = {};
+  for (const moduleId of new Set([...Object.keys(left), ...Object.keys(right)])) {
+    const rows = new Map();
+    for (const row of Array.isArray(left[moduleId]) ? left[moduleId] : []) if (row?.id) rows.set(row.id, row);
+    for (const row of Array.isArray(right[moduleId]) ? right[moduleId] : []) {
+      if (!row?.id) continue;
+      const old = rows.get(row.id);
+      if (!old || (Date.parse(row.updatedAt || "") || 0) >= (Date.parse(old.updatedAt || "") || 0)) rows.set(row.id, row);
+    }
+    merged[moduleId] = [...rows.values()];
+  }
+  return merged;
+}
 function mergeManufacturingData(existing, incoming) {
   const left = existing && typeof existing === "object" ? existing : {};
   const right = incoming && typeof incoming === "object" ? incoming : {};
@@ -119,12 +135,13 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/records" && req.method === "PUT") {
       const input = await body(req);
       if (!input.records || typeof input.records !== "object" || Array.isArray(input.records)) return json(res, 400, { error: "records must be an object keyed by module ID." });
+      if (Object.values(input.records).some(rows => !Array.isArray(rows))) return json(res, 400, { error: "Each module ID must contain a records array." });
       const encoded = JSON.stringify(input.records);
       if (encoded.length > 8_000_000) return json(res, 413, { error: "Record payload exceeds the 8 MB limit. Export/archive older records first." });
-      db.records = input.records;
+      db.records = mergeModuleRecords(db.records, input.records);
       db.recordsUpdatedAt = new Date().toISOString();
       await saveDb();
-      return json(res, 200, { ok: true, updatedAt: db.recordsUpdatedAt });
+      return json(res, 200, { ok: true, records: db.records, updatedAt: db.recordsUpdatedAt });
     }
     if (url.pathname === "/api/contacts" && req.method === "GET") return json(res, 200, { contacts: db.contacts });
     if (url.pathname === "/api/contacts" && req.method === "POST") {
