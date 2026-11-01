@@ -60,6 +60,9 @@ export default function ProcessMap3DViewer({
       setPlaying(false);
     }
   }, [sorted.length, simulationStep]);
+  useEffect(() => {
+    if (simulationStep >= 0 && sorted[simulationStep]) onSelectOperation(sorted[simulationStep].id);
+  }, [simulationStep]);
 
   const startSimulation = () => {
     if (!sorted.length) return;
@@ -104,6 +107,8 @@ export default function ProcessMap3DViewer({
         <button type="button" className="button-quiet compact-button" onClick={() => setYaw(value => Math.min(55, value + 9))} title="Rotate right"><RotateCw size={13}/> Right</button>
         <button type="button" className="button-quiet compact-button" onClick={() => setPitch(value => Math.max(-8, value - 6))} title="Lower camera">Lower</button>
         <button type="button" className="button-quiet compact-button" onClick={() => setPitch(value => Math.min(38, value + 6))} title="Raise camera">Raise</button>
+        <label className="pm3d-angle-control">YAW<input aria-label="Camera yaw" type="range" min="-55" max="55" step="1" value={yaw} onChange={event=>setYaw(Number(event.target.value))}/></label>
+        <label className="pm3d-angle-control">PITCH<input aria-label="Camera pitch" type="range" min="-8" max="38" step="1" value={pitch} onChange={event=>setPitch(Number(event.target.value))}/></label>
       </div>
       <div className="pm3d-control-group">
         <span className="pm3d-control-label">ZOOM</span>
