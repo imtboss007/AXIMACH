@@ -52,7 +52,7 @@ export type Contact360ContactRecord = {
 export type Contact360FollowUpStatus = "Open" | "Waiting for reply" | "Follow-up due" | "Completed" | "On hold";
 export type Contact360FollowUpRecord = {
   id: string; contactId: string; groupId: string; description: string;
-  moduleType: string; moduleReference: string; amount: number; currency: string;
+  moduleType: string; moduleRecordId?: string; moduleReference: string; amount: number; currency: string;
   promisedBackDate: string; nextFollowUpDate: string; status: Contact360FollowUpStatus;
   owner: string; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
