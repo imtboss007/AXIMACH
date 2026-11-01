@@ -17,6 +17,7 @@ import InventoryWorkspace from "./InventoryWorkspace";
 import DispatchDeliveryWorkspace from "./DispatchDeliveryWorkspace";
 import MachineCapacityWorkspace from "./MachineCapacityWorkspace";
 import ProcessDirectoryWorkspace from "./ProcessDirectoryWorkspace";
+import CommandControlWorkspace from "./CommandControlWorkspace";
 
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
@@ -31,14 +32,14 @@ type ModuleItem = {
 
 const dashboardItem: ModuleItem = { id: "dashboard", title: "Dashboard", group: "Overview", description: "Live overview of saved manufacturing records, active work and operational exceptions.", icon: LayoutGrid, action: "Open dashboard" };
 
-const modules: ModuleItem[] = [
+const moduleCatalogue: ModuleItem[] = [
   { id: "command-centre", title: "Command Centre & AI Copilot", group: "Command", description: "Factory health, alerts, priorities and evidence-linked AI assistance.", icon: Sparkles, action: "Open command centre" },
   { id: "companies", title: "Companies", group: "Governance", description: "Manage registered company records reused by purchase orders and manufacturing workflows.", icon: Building2, action: "Manage companies" },
   { id: "customers", title: "Customers, RFQs & Sales Orders", group: "Commercial", description: "Customer requirements, quotations, commitments and order intake.", icon: Target, action: "Review commercial pipeline" },
   { id: "purchasing", title: "Purchase Orders & Subcontract Orders", group: "Commercial", description: "Purchase approvals, subcontract work, acknowledgements and receipts.", icon: Package, action: "Review purchase workflow" },
   { id: "components", title: "Components, BOMs & Drawings", group: "Engineering", description: "Part masters, bills of material, drawings and linked revisions.", icon: Box, action: "Explore component records" },
   { id: "process-master", title: "Process Directory", group: "Engineering", description: "Maintain hierarchical processes, vendor quotations, validity and rate history.", icon: Layers3, action: "Browse process library" },
-  { id: "vendors", title: "Vendors & Sub-vendors", group: "Supply Network", description: "Manage suppliers, subcontractors, sites, contacts and relationships.", icon: Users, action: "Explore supplier network" },
+  { id: "vendors", title: "Vendors", group: "Supply Network", description: "Manage vendors, contacts and their single assigned process.", icon: Users, action: "Explore vendor records" },
   { id: "vendor-capability", title: "Vendor Capability Master", group: "Supply Network", description: "Match process capabilities, machine envelopes, tolerances and certificates.", icon: Cpu, action: "Explore capability matching" },
   { id: "rates", title: "Material & Rate Book", group: "Supply Network", description: "Track material grades, rate history, yield assumptions and pricing sources.", icon: Gauge, action: "Review rate book" },
   { id: "inventory", title: "Material & Inventory", group: "Operations", description: "Track lots, stock, reservations, shortages, scrap and balances.", icon: Boxes, action: "Explore inventory" },
@@ -64,7 +65,9 @@ const modules: ModuleItem[] = [
   { id: "continuity", title: "Business Continuity & Recovery", group: "Data & Platform", description: "Manage backups, recovery targets, restore evidence and incident runbooks.", icon: HardDrive, action: "Explore recovery readiness" }
 ];
 
-const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) => item.group)))];
+const approvedMenuIds = new Set(["command-centre","companies","purchasing","components","process-master","vendors","inventory","production","dispatch","quality","costing","reports","export","import"]);
+const modules: ModuleItem[] = moduleCatalogue.filter(item => approvedMenuIds.has(item.id));
+const groupOptions = ["All approved workspaces", ...Array.from(new Set(modules.map((item) => item.group)))];
 
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
@@ -72,7 +75,7 @@ function App() {
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [domain, setDomain] = useState("All domains");
+  const [domain, setDomain] = useState("All approved workspaces");
   const [vendorSearchJump, setVendorSearchJump] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
@@ -87,11 +90,11 @@ function App() {
   const globalRecords = getAllModuleRecords();
   const globalVendorContacts = activeRows(readManufacturingData().vendors);
   const normalizedGlobalQuery = query.toLowerCase().trim();
-  const globalRecordResults = normalizedGlobalQuery ? Object.entries(globalRecords).flatMap(([moduleId, records]) => records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(normalizedGlobalQuery)).map((record) => ({ ...record, moduleId }))).slice(0, 8) : [];
+  const globalRecordResults = normalizedGlobalQuery ? Object.entries(globalRecords).filter(([moduleId]) => modules.some(module => module.id === moduleId)).flatMap(([moduleId, records]) => records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(normalizedGlobalQuery)).map((record) => ({ ...record, moduleId }))).slice(0, 8) : [];
   const globalVendorResults = normalizedGlobalQuery ? globalVendorContacts.filter((contact) => (contact.company + " " + contact.contact + " " + contact.role + " " + contact.phone + " " + contact.email + " " + contact.processes + " " + contact.notes).toLowerCase().includes(normalizedGlobalQuery)).slice(0, 8) : [];
 
   const filteredModules = useMemo(() => modules.filter((item) => {
-    const matchesDomain = domain === "All domains" || item.group === domain;
+    const matchesDomain = domain === "All approved workspaces" || item.group === domain;
     const text = (item.title + " " + item.description + " " + item.group).toLowerCase();
     return matchesDomain && text.includes(query.toLowerCase().trim());
   }), [domain, query]);
@@ -129,7 +132,7 @@ function App() {
 
   const openModuleExplorer = () => {
     setQuery("");
-    setDomain("All domains");
+    setDomain("All approved workspaces");
     setModuleExplorerOpen(true);
     setCommandOpen(false);
   };
@@ -169,7 +172,7 @@ function App() {
         <button className="command-search" onClick={() => { setCommandOpen(true); setModuleExplorerOpen(false); }} aria-label="Open command search">
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
-        <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>32</b></button>
+        <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>{modules.length + 1}</b></button>
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
       </header>
@@ -285,7 +288,7 @@ function App() {
   );
 }
 
-function CommandCentre(props: {
+function DashboardWorkspace(props: {
   activeModule: ModuleItem; aiPrompt: string; aiResponse: string; notice: string;
   onAiPromptChange: (value: string) => void; onRunCommand: () => void; onNotice: (value: string) => void;
   onSelectModule: (id: string) => void; onOpenModules: () => void;
@@ -300,7 +303,7 @@ function CommandCentre(props: {
           <div className="eyebrow"><span className="eyebrow-mark" /> MANUFACTURING INTELLIGENCE / 01</div>
           <h1>See the whole flow.<br /><em>Control the details.</em></h1>
           <p>One connected view of work orders, machines, suppliers, quality and cost — designed for how real manufacturing runs.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all 32 modules</button></div>
+          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("command-centre")}><Workflow size={17} /> Open Command Centre <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore approved workspaces</button></div>
         </div>
         <div className="hero-graphic" aria-label="Illustrative connected manufacturing process visualization">
           <div className="graphic-grid" />
@@ -328,11 +331,11 @@ function CommandCentre(props: {
       </section>
 
       <section className="pulse-heading">
-        <div><div className="eyebrow"><span className="eyebrow-mark"/> FACTORY PULSE</div><h2>Operational overview<span>.</span></h2><p>Only saved AXIMACH records appear here; no sample jobs, fabricated rates or simulated machine readings are loaded.</p></div>
+        <div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS PULSE</div><h2>Operational overview<span>.</span></h2><p>Only saved AXIMACH records appear here; no sample jobs, fabricated rates or simulated machine readings are loaded.</p></div>
         <div className="pulse-actions"><span className="demo-pill"><i/> RECORD-DRIVEN</span><button className="button-primary compact-button" onClick={() => onSelectModule("companies")}><Plus size={14}/> Start with company</button></div>
       </section>
       <section className="metric-grid">
-        <MetricCard title="Companies" value={String(activeRows(actualData.companies).length)} trend="Saved records" detail="Company master" icon={Factory} accent="blue"/>
+        <MetricCard title="Companies" value={String(activeRows(actualData.companies).length)} trend="Saved records" detail="Company master" icon={Building2} accent="blue"/>
         <MetricCard title="PO component lines" value={String(activeRows(actualData.purchaseOrders).reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0))} trend="Linked records" detail="Quantity and delivery target" icon={Package} accent="violet"/>
         <MetricCard title="Components" value={String(activeRows(actualData.components).length)} trend="Saved records" detail="Part numbers and revisions" icon={Boxes} accent="green"/>
         <MetricCard title="Operations" value={String(activeRows(actualData.operations).length)} trend="Saved records" detail="Routes linked to PO lines" icon={Activity} accent="amber"/>
@@ -341,7 +344,7 @@ function CommandCentre(props: {
         <div className="surface-panel flow-preview">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA SETUP</div><h3>Build your manufacturing records</h3><p>Save each master once; choose its ID from linked workflows.</p></div><button className="round-action" onClick={() => onSelectModule("companies")} aria-label="Open company master"><ArrowUpRight size={18}/></button></div>
           <div className="setup-steps">
-            <button onClick={() => onSelectModule("companies")}><span>01</span><strong>Company & factory</strong><small>{activeRows(actualData.companies).length} companies · {activeRows(actualData.factories).length} factories</small></button>
+            <button onClick={() => onSelectModule("companies")}><span>01</span><strong>Company records</strong><small>{activeRows(actualData.companies).length} saved companies</small></button>
             <button onClick={() => onSelectModule("components")}><span>02</span><strong>Component master</strong><small>{activeRows(actualData.components).length} part numbers saved</small></button>
             <button onClick={() => onSelectModule("purchasing")}><span>03</span><strong>Purchase order lines</strong><small>{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.length,0)} lines saved</small></button>
             <button onClick={() => onSelectModule("vendors")}><span>04</span><strong>Vendor directory</strong><small>{activeRows(actualData.vendors).length} saved vendor/contact records</small></button>
@@ -362,9 +365,9 @@ function CommandCentre(props: {
         </div>
       </section>
       <section className="module-shortcuts">
-        <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all 32 modules <ArrowRight size={15} /></button></div>
+        <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into an approved workspace<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View approved workspaces <ArrowRight size={15} /></button></div>
         <div className="shortcut-grid">
-          {modules.filter((item) => ["process-map", "production", "vendors", "quality", "costing", "inventory"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
+          {modules.filter((item) => ["production", "vendors", "quality", "costing", "inventory", "dispatch"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
         </div>
       </section>
     </>
@@ -700,7 +703,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
         </section>
         <aside className="surface-panel module-connection-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> CROSS-MODULE LINKS</div><h3>Connected workspaces</h3><p>{totalLinked} linked records across local modules</p></div></div>
           {related.map((item) => { const RelatedIcon = item.icon; return <button className="related-row" key={item.id} onClick={() => onSelectModule(item.id)}><span className="related-icon"><RelatedIcon size={16} /></span><span><strong>{item.title}</strong><small>{(allRecords[item.id] ?? []).length} local records · {item.group}</small></span><ArrowUpRight size={14} /></button>; })}
-          <button className="related-all" onClick={onOpenModules}>Browse all 32 modules <ArrowRight size={14} /></button>
+          <button className="related-all" onClick={onOpenModules}>Browse approved workspaces <ArrowRight size={14} /></button>
         </aside>
       </div>
       <div className="module-safety-note"><ShieldCheck size={16} /><span>This workspace now supports local create, edit, delete, search, export and navigation links. It is not a production database; multi-user sync, server permissions, automated external actions and audit-grade persistence remain to be implemented.</span></div>
