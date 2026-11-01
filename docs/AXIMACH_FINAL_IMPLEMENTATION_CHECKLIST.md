@@ -145,10 +145,12 @@ Exactly the eight approved functions:
 - [x] Verify calculation basis, units, quantity multipliers, taxes and rate validity before presenting totals; do not silently mix per-part, batch and total values.
 
 ### 14 — Reports & Analytics
-- [ ] Replace generic KPI-definition placeholder with actual reports only after report list is approved.
-- [ ] Reports must use real AXIMACH data and show source/period/filter context.
-- [ ] No fabricated metrics.
-- [ ] Report catalogue, comparisons and export requirements: **pending user definition**.
+- [x] Dedicated reports workspace reads actual Company, PO, Component, Process Map, Vendor, Quality, Process Directory and Dispatch records.
+- [x] Reporting period selector: 7 / 30 / 90 days or all saved history.
+- [x] Every report section identifies its source and date basis; rows with blank relevant dates are excluded from period summaries.
+- [x] Production status, overdue operation, PO delivery-date, inspection quantity/rejection, vendor Paid/Not Paid, process quotation and WIP/customer transit summaries are calculated from stored records.
+- [x] No sample records, fabricated prices, predictive estimates or simulated metrics are shown.
+- [x] Final KPI catalogue remains extensible; implemented report metrics are limited to the saved fields listed above.
 
 ### 15 — AI Insights
 - [ ] Dedicated insights workspace, separate from AI Policy/Automation controls.
@@ -158,23 +160,21 @@ Exactly the eight approved functions:
 - [ ] No unsupported AI actions or automatic record changes without explicit approval.
 
 ### 16 — Export Centre
-- [ ] Actual CSV/Excel/PDF generation from selected AXIMACH records.
-- [ ] Select source module/data, filters and date range where applicable.
-- [ ] Preview exported rows before generating.
-- [ ] Respect access permissions and sensitive-field scope.
-- [ ] Verify file contents and downloaded output.
-- [ ] Exact format/module list: **confirm before implementation**.
+- [x] Export actual saved AXIMACH collections as CSV or structured JSON.
+- [x] Select source collection, search filter and date range where supported; display preview before export.
+- [x] Browser print / Save as PDF supported from the selected export preview.
+- [ ] Multi-user permission-aware exports remain blocked until real authentication and role-based access control are implemented; no role enforcement is claimed.
+- [x] Export source list is restricted to manufacturing collections already stored by AXIMACH; nested objects remain structured in JSON/CSV cells.
 
 ### 17 — Import Data
-- [ ] Actual CSV/Excel file upload and parsing.
-- [ ] Map uploaded columns to the correct AXIMACH master/transaction fields.
-- [ ] Validate required fields, data types and references.
-- [ ] Detect duplicates using stable business keys and existing records.
-- [ ] Preview creates/updates/rejections before commit.
-- [ ] Explicit user confirmation before writing imported records.
-- [ ] Report row-level validation errors and import results.
-- [ ] Preserve existing records; no silent overwrites.
-- [ ] Supported templates and importable modules: **confirm before implementation**.
+- [x] CSV upload and parsing with quoted commas, escaped quotes and multiline values.
+- [x] Exact downloadable templates and fixed field-to-master mappings for Companies, Components, Vendors, Materials, Process Categories and Process Types.
+- [x] Required fields, non-negative numeric values and stable ID references are validated before import.
+- [x] Business-key duplicate detection covers existing records and duplicate rows within the same file; duplicates are rejected.
+- [x] Row-by-row preview labels records Ready or Rejected with reasons.
+- [x] Explicit confirmation is required before appending valid rows.
+- [x] Existing records are never silently updated or overwritten.
+- [x] PO, operation, stock, Quality and Dispatch transactions are intentionally not CSV-importable until dedicated cross-reference and stock/custody reconciliation exists.
 
 ### 18 — Users & Permissions
 - [ ] Actual user account lifecycle and authentication integration.
@@ -277,3 +277,4 @@ Exactly the eight approved functions:
 
 - Vendor Master verified: company/contact, role, phone, WhatsApp, email, address, process/machine/material capability, notes and status are saved against one stable vendor ID. Search, edit, archive and phone/WhatsApp duplicate protection are active. Process Directory, Process Map, Costing and Dispatch reuse those vendor IDs; component assignment is not offered in Vendor Master.
 - Vendor process mapping confirmed by user: one vendor is assigned to one process type, while one process type can have multiple vendors. No parent/sub-vendor hierarchy is implemented. Existing free-text process capability values and stable vendor IDs remain preserved for legacy compatibility; unclassified legacy/WhatsApp contacts must be assigned one active Process Directory type before new use.
+- Approved menu/navigation reconciliation: Dashboard and Command Centre are separate workspaces; the rail and module explorer expose only the approved menu set. Other historic module profiles/routes remain in the codebase but are not listed in user-facing navigation. Reports, Export and Import use purpose-built data-backed workspaces rather than generic module record lists.
