@@ -544,3 +544,22 @@
   .ax-icon-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
   .ax-icon-studio-bottom { flex-direction: column; }
 }
+
+.ax-icon-presets-list {
+  display: flex; flex-direction: column; gap: 5px;
+  max-height: 142px; overflow-y: auto; margin: 0 0 10px;
+  scrollbar-width: thin; scrollbar-color: #c3d3e9 transparent;
+}
+.ax-icon-presets-list > button {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-width: 0; padding: 7px 8px;
+  border: 1px solid #e1e9f3; border-radius: 8px;
+  background: linear-gradient(145deg,#fff,#f7faff);
+  color: #3e6da9; text-align: left;
+}
+.ax-icon-presets-list > button:hover { border-color: #abc5ed; background: #f0f6ff; }
+.ax-icon-presets-list > button > i { flex: 0 0 24px; display: grid; place-items: center; font-size: 16px; }
+.ax-icon-presets-list > button > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ax-icon-presets-list strong { overflow: hidden; color: #536f93; font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; text-transform: capitalize; }
+.ax-icon-presets-list small { overflow: hidden; color: #94a3b7; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.ax-icon-presets-empty { padding: 7px; color: #98a7ba; font-size: 8px; line-height: 1.45; }
