@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, Boxes, CircleDollarSign, FileText, Search, Workflow } from "lucide-react";
-import { activeRows, useManufacturingData, type PurchaseOrderLine } from "./manufacturingData";
+import { activeRows, useManufacturingData, type PurchaseOrderLine, type OperationRecord } from "./manufacturingData";
 
 type Props = { onBack:()=>void; onNotice:(value:string)=>void; onSelectModule:(id:string)=>void };
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
