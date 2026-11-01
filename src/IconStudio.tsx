@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
-import iconMetadata from "@tabler/icons/icons.json";
+import { tablerIconNames } from "./tablerIconCatalogue";
 
 type IconMeta = { name: string; category?: string; tags?: string[]; version?: string; unicode?: string };
 type IconAssignment = { iconName: string; palette: string; finish: string; depth: number; tilt: number; updatedAt: string };
 type Assignments = Record<string, IconAssignment>;
 
-const rawMetadata: unknown = iconMetadata;
-const ICONS = (Array.isArray(rawMetadata) ? rawMetadata : Object.values((rawMetadata || {}) as Record<string, unknown>))
-  .filter((item): item is IconMeta => Boolean(item && typeof item === "object" && "name" in item && typeof (item as IconMeta).name === "string"))
-  .sort((a, b) => a.name.localeCompare(b.name));
+const ICONS: IconMeta[] = tablerIconNames.map((name) => ({ name, category: "Outline", tags: name.split("-") }));
 
 const families = [
   "General", "CNC Turning", "VMC / Milling", "Wire EDM", "Grinding", "Welding",
@@ -38,19 +35,6 @@ const STORAGE_PRESETS = "aximach.icon-presets.v1";
 const STORAGE_UPDATED_AT = "aximach.icon-preferences-updated-at.v1";
 const SHARED_SETTINGS_PATH = "/api/ui-preferences";
 
-async function persistShared(bundle: PreferenceBundle) {
-  if (!iconServerConfig()) return;
-  try {
-    const result = await putSharedPreferences(bundle);
-    if (result.shared) {
-      const current = readPreferenceBundle();
-      if ((Date.parse(result.preferences.updatedAt || "") || 0) > (Date.parse(current.updatedAt || "") || 0)) writePreferenceBundle(result.preferences);
-      window.dispatchEvent(new Event("aximach-icon-assignments-updated"));
-    }
-  } catch {
-    // The local copy remains saved; the visible sync state reports the remote failure.
-  }
-}
 function safeRead<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try { const value = window.localStorage.getItem(key); return value ? JSON.parse(value) as T : fallback; }
@@ -227,7 +211,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
     const refresh = () => { refreshLocal(); void sync(); };
     const active = () => { if (document.visibilityState !== "hidden") void sync(); };
     window.addEventListener("storage", refresh);
-    window.addEventListener("aximach-icon-assignments-updated", refresh);
+    window.addEventListener("aximach-icon-assignments-updated", refreshLocal);
     window.addEventListener("focus", active);
     window.addEventListener("online", active);
     document.addEventListener("visibilitychange", active);
@@ -237,7 +221,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
       cancelled = true;
       window.clearInterval(timer);
       window.removeEventListener("storage", refresh);
-      window.removeEventListener("aximach-icon-assignments-updated", refresh);
+      window.removeEventListener("aximach-icon-assignments-updated", refreshLocal);
       window.removeEventListener("focus", active);
       window.removeEventListener("online", active);
       document.removeEventListener("visibilitychange", active);
