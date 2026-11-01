@@ -1268,3 +1268,120 @@ img,svg,canvas,video{max-width:100%}
 .dashboard-insights-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}.dashboard-chart-panel{padding:16px;background:linear-gradient(145deg,#0d2032,#0a1928);border:1px solid #203d56}.dashboard-chart-panel .panel-heading{color:#e6f1ff}.dashboard-chart-panel .panel-heading h3{color:#e6f1ff}.dashboard-chart-panel .panel-heading p{color:#8fa5bd}.dashboard-bars{display:grid;gap:13px;margin-top:16px}.dashboard-bar-row{display:grid;grid-template-columns:minmax(90px,140px) minmax(50px,1fr) 26px;align-items:center;gap:10px}.dashboard-bar-row>span{font-size:10px;color:#b6c9dd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dashboard-bar-row>div{height:9px;border-radius:99px;background:#1b344a;overflow:hidden}.dashboard-bar-row>div i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#238de5,#52c4e9);min-width:0}.dashboard-bar-row>strong{font-size:11px;color:#e5f1ff;text-align:right;font-variant-numeric:tabular-nums}@media(max-width:760px){.dashboard-insights-grid{grid-template-columns:1fr}.dashboard-bar-row{grid-template-columns:90px minmax(40px,1fr) 24px}}
 
 @media print{.component-directory-list{display:none!important}.component-directory-layout{display:block!important}.component-directory-detail{width:100%!important}.component-directory-page .component-directory-summary,.component-directory-page .component-directory-routes,.component-directory-page .component-directory-kpis{break-inside:avoid;page-break-inside:avoid}.component-directory-page .component-directory-routes{margin-top:10px}.component-directory-page .component-directory-summary h2{color:#152b45!important}.component-directory-page .component-directory-summary p,.component-directory-page .component-directory-kpis span,.component-directory-page .component-directory-kpis small{color:#40566f!important}.component-directory-page .component-directory-kpis article{background:#fff!important;border:1px solid #ccd5df!important}.component-directory-page .component-directory-kpis strong{color:#142b4d!important}}
+
+
+/* AXIMACH quality pass — dashboard cards, controlled filters, process directory and planning calendar */
+.flow-preview .setup-steps{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}
+.flow-preview .setup-steps>button{display:grid!important;grid-template-columns:30px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;gap:3px 9px;width:100%;min-width:0;min-height:56px;padding:10px 11px;border:1px solid #26445c!important;border-radius:9px!important;background:linear-gradient(145deg,#0d2336,#0a1b2b)!important;color:#e4f1ff!important;text-align:left;white-space:normal!important;box-shadow:none!important;outline:none}
+.flow-preview .setup-steps>button:hover{border-color:#398cc4!important;background:#102d45!important}
+.flow-preview .setup-steps>button>span{grid-row:1/3;grid-column:1;display:grid;place-items:center;width:29px;height:29px;border-radius:8px;background:#123958;color:#8ed9ff;font:10px 'DM Mono';font-weight:700}
+.flow-preview .setup-steps>button>strong{grid-column:2;display:block;font-size:11px;line-height:1.25;color:#e8f3ff;overflow-wrap:anywhere}
+.flow-preview .setup-steps>button>small{grid-column:2;display:block;margin:0;color:#85a4bf;font-size:9px;line-height:1.3}
+.jobs-panel .job-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+.jobs-panel .job-row.job-row-action{display:grid!important;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:9px;width:100%;min-width:0;min-height:60px;margin:0;padding:10px;border:1px solid #23435d!important;border-radius:9px!important;background:linear-gradient(145deg,#0d2336,#091b2b)!important;color:#e7f2ff!important;text-align:left;box-shadow:none!important}
+.jobs-panel .job-row.job-row-action:hover{border-color:#398ec7!important;background:#102b43!important}
+.jobs-panel .job-row .job-number{width:30px;height:30px;border:1px solid #285679;background:#123653;color:#91d7ff}
+.jobs-panel .job-row .job-main strong{font-size:11px;color:#e9f4ff}
+.jobs-panel .job-row .job-main small{font-size:9px;color:#88a5bf}
+.jobs-panel .job-row .job-chip{background:#173a52;color:#b5dafa;font-size:8px}
+@media(max-width:900px){.jobs-panel .job-list{grid-template-columns:1fr}}
+@media(max-width:650px){.flow-preview .setup-steps{grid-template-columns:1fr}.jobs-panel .job-list{grid-template-columns:1fr}}
+
+.production-planning .pp-filter{position:relative;z-index:1;min-width:0}
+.production-planning .pp-filter.pp-filter-open{z-index:80}
+.production-planning .pp-multiselect-summary{display:flex;align-items:center;gap:8px;width:100%;height:35px;padding:0 9px;border:1px solid #244966;border-radius:7px;background:#071a2c;color:#bdd5e9;text-align:left;cursor:pointer;font-size:10px;white-space:nowrap}
+.production-planning .pp-multiselect-summary span{flex:1;overflow:hidden;text-overflow:ellipsis}
+.production-planning .pp-multiselect-summary:hover,.production-planning .pp-filter-open .pp-multiselect-summary{border-color:#2799e7;box-shadow:0 0 0 2px #168be825}
+.production-planning .pp-filter-menu{position:absolute;top:calc(100% + 5px);left:0;z-index:120;display:grid;gap:7px;width:max(100%,245px);max-width:min(360px,calc(100vw - 32px));padding:9px;border:1px solid #2a5a7d;border-radius:10px;background:#091c2e;box-shadow:0 18px 38px rgba(0,0,0,.5)}
+.production-planning .pp-filter-menu-actions{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:6px}
+.production-planning .pp-filter-menu-actions button{padding:6px 8px;border-radius:6px;background:#123b5c;color:#c7e8ff;border:1px solid #2e6288;font-size:9px;cursor:pointer}
+.production-planning .pp-filter-menu-actions button:hover{background:#18517b}
+.production-planning .pp-filter-options{max-height:220px;overflow:auto}
+.production-planning .pp-filter-options label{display:flex;align-items:center;gap:8px;padding:8px 5px;border-bottom:1px solid rgba(48,85,115,.32);font-size:10px;color:#d2e4f5}
+.production-planning .pp-filter-options input[type=checkbox]{width:14px;height:14px;accent-color:#168be8;flex:0 0 14px}
+.production-planning .pp-process-multi-select{display:grid;gap:8px;padding:10px;border:1px solid #264b69;border-radius:9px;background:#0a1e30;min-width:0}
+.production-planning .pp-process-multi-head{display:grid;grid-template-columns:1fr auto;gap:4px 8px;align-items:center}
+.production-planning .pp-process-multi-head strong{font-size:10px;color:#dcecff}
+.production-planning .pp-process-multi-head>span{grid-column:1/-1;color:#8ba9c2;font-size:9px}
+.production-planning .pp-process-multi-head>div{display:flex;gap:5px}
+.production-planning .pp-process-multi-head button{padding:5px 7px;border:1px solid #315d7d;border-radius:6px;background:#123754;color:#c4e5ff;font-size:9px}
+.production-planning .pp-process-multi-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;max-height:160px;overflow:auto}
+.production-planning .pp-process-multi-options label{display:flex;align-items:center;gap:7px;min-width:0;padding:7px;border:1px solid #1e4059;border-radius:6px;background:#0d263b;color:#cbdff0;font-size:10px}
+.production-planning .pp-process-multi-options input{accent-color:#168be8;flex:0 0 auto}
+.production-planning .pp-process-multi-options span{overflow-wrap:anywhere}
+@media(max-width:600px){.production-planning .pp-process-multi-options{grid-template-columns:1fr}}
+
+.production-planning .pp-calendar-shell{display:grid;gap:10px;min-width:0}
+.production-planning .pp-calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px 10px;border:1px solid #1d405d;border-radius:9px;background:#0b2033}
+.production-planning .pp-calendar-navigation{display:flex;align-items:center;gap:7px;min-width:0}
+.production-planning .pp-calendar-navigation strong{color:#e3f2ff;font:600 12px 'Space Grotesk';padding:0 5px}
+.production-planning .pp-calendar-navigation button{display:grid;place-items:center;min-height:29px;padding:5px 8px;border:1px solid #2a506d;border-radius:6px;background:#12334f;color:#c9e6ff;font-size:9px}
+.production-planning .pp-calendar-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.production-planning .pp-calendar-weekdays span{text-align:center;padding:5px;color:#80a8c9;font:9px 'DM Mono';text-transform:uppercase}
+.production-planning .pp-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;min-width:0}
+.production-planning .pp-calendar-day .pp-calendar-grid{grid-template-columns:minmax(0,1fr)}
+.production-planning .pp-calendar-cell{display:flex;flex-direction:column;gap:7px;min-width:0;min-height:106px;padding:7px;border:1px solid #23445e;border-radius:7px;background:#091c2c}
+.production-planning .pp-calendar-week .pp-calendar-cell{min-height:150px}
+.production-planning .pp-calendar-day .pp-calendar-cell{min-height:220px}
+.production-planning .pp-calendar-cell>header{display:flex;align-items:center;justify-content:space-between;min-height:18px;color:#d9ebfb}
+.production-planning .pp-calendar-cell>header strong{display:grid;place-items:center;min-width:23px;height:23px;border-radius:7px;background:#12334e;color:#e5f4ff;font-size:10px}
+.production-planning .pp-calendar-cell>header small{color:#84a4bf;font-size:9px}
+.production-planning .pp-calendar-cell.pp-calendar-today{border-color:#258ec8;box-shadow:inset 0 0 0 1px rgba(37,142,200,.22)}
+.production-planning .pp-calendar-cell.pp-calendar-outside{opacity:.45}
+.production-planning .pp-calendar-events{display:grid;gap:5px;align-content:start;min-width:0}
+.production-planning .pp-calendar-event{display:grid;gap:3px;min-width:0;padding:6px;border:1px solid #28618a;border-left:3px solid #329fd6;border-radius:5px;background:#0c2b43;color:#dceeff;text-align:left}
+.production-planning .pp-calendar-event strong{font-size:9px;overflow-wrap:anywhere}
+.production-planning .pp-calendar-event small{font-size:8px;color:#8eb4d0;overflow-wrap:anywhere}
+.production-planning .pp-calendar-event span{font-size:8px;color:#a7d5f1}
+.production-planning .pp-calendar-event.complete{border-left-color:#29c596}
+.production-planning .pp-calendar-event.running{border-left-color:#f0ad4e}
+.production-planning .pp-calendar-event.quality-hold{border-left-color:#ee6b74}
+.production-planning .pp-calendar-event.queued{border-left-color:#349fe1}
+@media(max-width:760px){.production-planning .pp-calendar-grid,.production-planning .pp-calendar-weekdays{min-width:700px}.production-planning .pp-calendar-month,.production-planning .pp-calendar-week{overflow-x:auto}.production-planning .pp-calendar-toolbar{align-items:flex-start}.production-planning .pp-calendar-navigation{flex-wrap:wrap}.production-planning .pp-calendar-navigation strong{width:100%;order:-1}.production-planning .pp-calendar-month .pp-calendar-cell{min-height:90px;padding:5px}.production-planning .pp-calendar-event small{display:none}}
+@media(max-width:420px){.production-planning .pp-calendar-toolbar{display:grid}.production-planning .pp-calendar-navigation{display:grid;grid-template-columns:32px minmax(0,1fr) 32px auto}.production-planning .pp-calendar-navigation strong{grid-column:1/-1}.production-planning .pp-calendar-navigation button{min-width:0}}
+
+.pp-simulation-modal{width:min(1040px,calc(100vw - 32px));max-height:min(88vh,900px);overflow:auto}
+.pp-simulation-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+.pp-simulation-kpis article{display:grid;gap:5px;padding:11px;border:1px solid #244a67;border-radius:8px;background:#0b2134}
+.pp-simulation-kpis small{color:#8eabc4;font-size:9px}
+.pp-simulation-kpis strong{color:#e5f3ff;font:600 17px 'Space Grotesk';overflow-wrap:anywhere}
+.pp-simulation-results{margin-top:14px;padding-top:12px;border-top:1px solid #264860}
+.pp-simulation-results .pp-section-head{margin-bottom:9px}
+@media(max-width:600px){.pp-simulation-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.process-directory-page .process-directory-categories,.process-directory-page .process-directory-types{padding:14px}
+.process-directory-page .process-directory-category{display:grid;grid-template-columns:minmax(0,1fr) 30px 30px;align-items:center;gap:4px}
+.process-directory-page .process-directory-category>button:not(.process-directory-category-select){display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid #294760;border-radius:6px;background:#0b2133;color:#9cbbd3}
+.process-directory-page .process-directory-category-select{display:grid;gap:4px;width:100%;min-width:0;padding:10px;border:1px solid transparent;border-radius:7px;background:transparent;color:#dcecff;text-align:left}
+.process-directory-page .process-directory-category.active .process-directory-category-select{border-color:#2b668e;background:#102e46}
+.process-directory-page .process-directory-type{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid #29465d}
+.process-directory-page .process-directory-type-main{display:grid;gap:4px;min-width:0;flex:1}
+.process-directory-page .process-directory-type-main>strong{color:#e1efff;font-size:12px}
+.process-directory-page .process-directory-type-main>small{color:#81a0ba;font-size:9px}
+.process-directory-page .process-directory-type-main>p{margin:3px 0;color:#9bb1c5;font-size:9px}
+.process-directory-page .process-directory-type-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.process-directory-page .process-directory-vendor-rates{display:grid;gap:4px;margin-top:7px;max-width:680px}
+.process-directory-page .process-directory-vendor-rate{display:grid;grid-template-columns:minmax(100px,1fr) auto minmax(0,1.4fr) 26px 26px;align-items:center;gap:8px;padding:6px 8px;border:1px solid #203f57;border-radius:6px;background:#091e30}
+.process-directory-page .process-directory-vendor-rate>span{color:#cde1f2;font-size:10px;overflow-wrap:anywhere}
+.process-directory-page .process-directory-vendor-rate>strong{color:#62d9b5;font-size:10px;white-space:nowrap}
+.process-directory-page .process-directory-vendor-rate>small{color:#809db4;font-size:8px;overflow-wrap:anywhere}
+.process-directory-page .process-directory-vendor-rate>button{display:grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid #294964;border-radius:5px;background:#102a40;color:#9cc7e5}
+.process-directory-rate-modal,.process-directory-vendor-modal{width:min(520px,calc(100vw - 28px));max-height:88vh;overflow:auto}
+.process-directory-rate-modal .pp-modal-form,.process-directory-vendor-modal .pp-modal-form{grid-template-columns:1fr}
+.process-directory-rate-modal .pp-modal-form label,.process-directory-vendor-modal .pp-modal-form label{display:grid;gap:5px}
+.process-directory-rate-modal .pp-modal-form input,.process-directory-rate-modal .pp-modal-form select,.process-directory-vendor-modal .pp-modal-form input{width:100%;min-width:0}
+.process-directory-rate-modal .searchable-picker{display:grid;gap:5px;min-width:0}
+.process-directory-rate-modal .searchable-picker input{width:100%;min-width:0}
+@media(max-width:650px){.process-directory-page .process-directory-type{display:grid}.process-directory-page .process-directory-vendor-rate{grid-template-columns:minmax(0,1fr) auto 26px 26px}.process-directory-page .process-directory-vendor-rate>small{grid-column:1/-1;grid-row:2}.process-directory-page .process-directory-type-actions{justify-content:flex-start}}
+
+.vendor-process-assignment{display:grid;gap:9px;padding:11px;border:1px solid #294861;border-radius:8px;background:#0b1f31}
+.vendor-process-assignment-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.vendor-process-assignment-head>strong{flex:1;color:#e4f0fc;font-size:10px}
+.vendor-process-assignment-head>small{width:100%;color:#8aa8c0;font-size:9px}
+.vendor-process-assignment-head button{padding:5px 8px!important}
+.vendor-process-assignment fieldset{margin:0;padding:8px;border:1px solid #203f58;border-radius:6px}
+.vendor-process-assignment legend{padding:0 5px;color:#87c9ed;font-size:9px;font-weight:700}
+.vendor-process-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.vendor-process-checks label{display:flex;align-items:center;gap:6px;min-width:0;padding:6px;border-radius:5px;background:#10283c;color:#c9deef;font-size:9px}
+.vendor-process-checks input{accent-color:#168be8;flex:0 0 auto}
+@media(max-width:600px){.vendor-process-checks{grid-template-columns:1fr}}
