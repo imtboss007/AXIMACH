@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { Activity, ArrowRight, Boxes, Check, ClipboardList, Factory, FileText, Package, Plus, Search, ShieldCheck, Trash2, Truck, Users, Warehouse, X } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialRecord, type StockTransactionKind } from "./manufacturingData";
+import { Activity, ArrowRight, Boxes, Check, ClipboardList, FileText, Package, Plus, Search, ShieldCheck, Trash2, Truck, Users, Warehouse, X } from "lucide-react";
+import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialRecord, type StockLocationType, type StockTransactionKind } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
@@ -10,6 +10,9 @@ type BomDraft = Omit<BomLineRecord, "id" | "createdAt" | "updatedAt" | "deletedA
 const emptyMaterial = (): MaterialDraft => ({ code: "", name: "", grade: "", unit: "kg", specification: "", preferredVendorId: "", ratePerUnit: 0, notes: "" });
 const emptyBom = (): BomDraft => ({ componentId: "", materialId: "", revision: "", quantityPerPart: 0, scrapPercent: 0, notes: "" });
 const stockKinds: StockTransactionKind[] = ["Opening balance", "Receipt", "Issue to production", "WIP transfer", "Return", "Rejected", "Scrap", "Finished goods receipt", "Dispatch", "Adjustment"];
+// WIP and customer dispatch transactions are posted only by Dispatch & Delivery,
+// which creates paired source/transit/destination ledger entries and custody events.
+const manualStockKinds: StockTransactionKind[] = stockKinds.filter(kind => kind !== "WIP transfer" && kind !== "Dispatch");
 const money = (v: number) => "₹" + (Number(v) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const dateToday = () => new Date().toISOString().slice(0, 10);
 
@@ -45,7 +48,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const [operationId, setOperationId] = useState("");
   const [vendorId, setVendorId] = useState("");
 
-  const companyOrders = orders.filter(po => po.companyId === companyId && (!factoryId || po.factoryId === factoryId));
+  const companyOrders = orders.filter(po => po.companyId === companyId);
   const poLineOptions = companyOrders.flatMap(po => po.lines.map(line => {
     const component = components.find(c => c.id === line.componentId);
     return { id: po.id + "::" + line.id, po, line, label: po.number + " · " + (component?.partNumber || "Component") + " · " + line.quantity.toLocaleString("en-IN") + " pcs" };
@@ -55,6 +58,20 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const itemOptions = itemType === "material" ? materials.map(m => ({ id: m.id, label: m.code + " · " + m.name + " · " + m.grade })) : components.map(c => ({ id: c.id, label: c.partNumber + " · " + c.name + " · Rev " + (c.revision || "—") }));
   const selectedItem = itemType === "material" ? materials.find(m => m.id === itemId) : components.find(c => c.id === itemId);
   const stockBalance = (type: "material" | "component", id: string) => data.inventoryTransactions.reduce((total, row) => row.itemType === type && row.itemId === id ? total + (row.direction === "in" ? row.quantity : -row.quantity) : total, 0);
+  const stockLocationBalance = (type: "material" | "component", id: string, locationType: StockLocationType, locationId: string) =>
+    data.inventoryTransactions.reduce((total, row) => {
+      if (row.itemType !== type || row.itemId !== id) return total;
+      const rowLocationType = row.locationType || (row.factoryId ? "factory" : row.vendorId ? "vendor" : row.companyId ? "company" : undefined);
+      const rowLocationId = row.locationId || (rowLocationType === "factory" ? row.factoryId : rowLocationType === "vendor" ? row.vendorId : rowLocationType === "company" ? row.companyId : "");
+      if (rowLocationType !== locationType || rowLocationId !== locationId) return total;
+      return total + (row.direction === "in" ? row.quantity : -row.quantity);
+    }, 0);
+  const transactionLocationType: StockLocationType = factoryId ? "factory" : "company";
+  const transactionLocationId = factoryId || companyId;
+  const transactionLocationLabel = factoryId ? "Legacy PO stock location" : companies.find(row => row.id === companyId)?.name || "Company stock location";
+  const selectedLocationBalance = selectedItem && transactionLocationId
+    ? stockLocationBalance(itemType, itemId, transactionLocationType, transactionLocationId)
+    : 0;
   const visibleMaterials = useMemo(() => materials.filter(m => (m.code + " " + m.name + " " + m.grade + " " + m.specification + " " + m.notes).toLowerCase().includes(search.toLowerCase().trim())), [materials, search]);
   const visibleBom = useMemo(() => bomLines.filter(row => {
     const component = components.find(c => c.id === row.componentId);
@@ -118,20 +135,24 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const resetTransaction = () => { setItemId(""); setQuantity(""); setOccurredAt(dateToday()); setReference(""); setNotes(""); setPoLineKey(""); setOperationId(""); setVendorId(""); };
   const postTransaction = () => {
     if (!itemId || !selectedItem) { onNotice("Select the material or component that physically moved."); return; }
+    if (!companyId) { onNotice("Select the company / stock location for this movement."); return; }
+    if (factoryId && !factories.some(row => row.id === factoryId && row.companyId === companyId)) { onNotice("The legacy PO stock location does not belong to the selected company. Re-select the PO line."); return; }
+    if (!manualStockKinds.includes(transactionType)) { onNotice("WIP transfers and customer dispatches must be posted through Dispatch & Delivery to preserve paired stock and custody records."); return; }
+    if (!reference.trim()) { onNotice("Enter the actual movement reference (GRN, challan, issue slip, job or adjustment reference)."); return; }
     const q = Number(quantity);
     if (!Number.isFinite(q) || q <= 0) { onNotice("Enter a positive quantity for the stock movement."); return; }
     if (!occurredAt) { onNotice("Enter the date of the physical stock movement."); return; }
     if (selectedPoLine && selectedPoLine.line.componentId && itemType === "component" && selectedPoLine.line.componentId !== itemId) { onNotice("The selected component stock item does not match the chosen PO line. Choose the matching part number."); return; }
-    const currentBalance = stockBalance(itemType, itemId);
+    const currentBalance = stockLocationBalance(itemType, itemId, transactionLocationType, transactionLocationId);
     const nextBalance = currentBalance + (direction === "in" ? q : -q);
-    if (direction === "out" && nextBalance < 0 && !window.confirm("This issue will make the calculated balance negative (" + nextBalance.toLocaleString("en-IN") + "). Post anyway? Check the opening balance/receipts first.")) return;
-    if (transactionType === "Receipt" && !vendorId && !reference.trim()) { onNotice("For a receipt, enter the supplier/vendor or a source reference such as a delivery challan."); return; }
+    if (direction === "out" && nextBalance < 0 && !window.confirm("This issue will make the selected stock location balance negative (" + nextBalance.toLocaleString("en-IN") + "). Post anyway? Check that location’s opening balance/receipts first.")) return;
     const stamp = nowIso();
     const row: InventoryTransactionRecord = {
       id: makeId("stock"), itemType, itemId, transactionType, direction, quantity: q, occurredAt,
       reference: reference.trim(), notes: notes.trim(), companyId, factoryId,
       poId: selectedPoLine?.po.id || "", poLineId: selectedPoLine?.line.id || "",
-      operationId, vendorId, reversalOfId: "", createdAt: stamp, createdBy: "AXIMACH operator (not identity-verified)"
+      operationId, vendorId, reversalOfId: "", createdAt: stamp, createdBy: "AXIMACH operator (not identity-verified)",
+      locationType: transactionLocationType, locationId: transactionLocationId
     };
     update(current => ({ ...current, inventoryTransactions: [...current.inventoryTransactions, row] }));
     resetTransaction();
@@ -185,22 +206,21 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       <section className="surface-panel module-record-form-panel"><div className="panel-heading"><div><h3>Post a stock movement</h3><p>Each posted row is an append-only record; corrections should be posted as a new adjustment/reversal instead of editing history.</p></div><span className="record-state">LEDGER</span></div><div className="module-record-form">
         <label>Item type<select value={itemType} onChange={e=>{setItemType(e.target.value as "material"|"component");setItemId("");}}><option value="material">Raw material</option><option value="component">Component / WIP / finished goods</option></select></label>
         <SearchablePicker id="stock-item" label={itemType==="material"?"Material *":"Component *"} value={itemId} placeholder="Type material/part number…" options={itemOptions} onChange={setItemId}/>
-        <label>Transaction type<select value={transactionType} onChange={e=>setTransactionType(e.target.value as StockTransactionKind)}>{stockKinds.map(k=><option key={k}>{k}</option>)}</select></label>
+        <label>Transaction type<select value={transactionType} onChange={e=>setTransactionType(e.target.value as StockTransactionKind)}>{manualStockKinds.map(k=><option key={k}>{k}</option>)}</select></label><small className="field-hint">WIP and customer dispatch movements are managed in Dispatch & Delivery so source, transit, destination and acknowledgement records stay linked.</small>
         <label>Movement direction<select value={direction} onChange={e=>setDirection(e.target.value as "in"|"out")}><option value="in">Stock in (+)</option><option value="out">Stock out (−)</option></select></label>
         <label>Quantity *<input type="number" min="0.000001" step="0.000001" value={quantity} onChange={e=>setQuantity(e.target.value)} placeholder="Actual moved quantity"/></label>
         <label>Movement date *<input type="date" value={occurredAt} onChange={e=>setOccurredAt(e.target.value)}/></label>
-        <SearchablePicker id="stock-company" label="Company" value={companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name}))} onChange={id=>{setCompanyId(id);setFactoryId("");setPoLineKey("");setOperationId("");}}/>
-        <SearchablePicker id="stock-factory" label="Factory" value={factoryId} placeholder="Type factory name…" options={factories.filter(f=>f.companyId===companyId).map(f=>({id:f.id,label:f.name}))} onChange={id=>{setFactoryId(id);setPoLineKey("");setOperationId("");}}/>
-        <SearchablePicker id="stock-po-line" label="PO component line (optional)" value={poLineKey} placeholder="Type PO / part number…" options={poLineOptions.map(row=>({id:row.id,label:row.label}))} onChange={id=>{setPoLineKey(id);const row=poLineOptions.find(x=>x.id===id);if(row){setCompanyId(row.po.companyId);setFactoryId(row.po.factoryId);}setOperationId("");}}/>
+        <SearchablePicker id="stock-company" label="Company / stock location *" value={companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name}))} onChange={id=>{setCompanyId(id);setFactoryId("");setPoLineKey("");setOperationId("");}}/>
+        <SearchablePicker id="stock-po-line" label="PO component line (optional)" value={poLineKey} placeholder="Type PO / part number…" options={poLineOptions.map(row=>({id:row.id,label:row.label}))} onChange={id=>{setPoLineKey(id);const row=poLineOptions.find(x=>x.id===id);setCompanyId(row?.po.companyId||companyId);setFactoryId(row?.po.factoryId||"");setOperationId("");}}/>
         <SearchablePicker id="stock-operation" label="Operation (optional)" value={operationId} placeholder="Type operation name…" options={operationOptions.map(op=>({id:op.id,label:op.name+" · "+(components.find(c=>c.id===op.componentId)?.partNumber||"Component")}))} onChange={setOperationId}/>
         <SearchablePicker id="stock-vendor" label="Supplier / vendor (optional)" value={vendorId} placeholder="Type vendor / phone…" options={vendors.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")}))} onChange={setVendorId}/>
         <label>Reference (GRN/challan/job) *<input value={reference} onChange={e=>setReference(e.target.value)} placeholder="Receipt, issue slip, challan, batch…"/></label>
         <label className="module-form-wide">Movement notes / reason<input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Actual receipt, issue, return, reject, scrap or adjustment reason"/></label>
-        {selectedItem&&<div className="module-safety-note module-form-wide"><Warehouse size={14}/><span>Current calculated balance: <strong>{stockBalance(itemType,itemId).toLocaleString("en-IN")} {"unit" in selectedItem?selectedItem.unit:"pcs"}</strong>. After this movement: <strong>{(stockBalance(itemType,itemId)+(direction==="in"?Math.max(0,Number(quantity)||0):-Math.max(0,Number(quantity)||0))).toLocaleString("en-IN")} {"unit" in selectedItem?selectedItem.unit:"pcs"}</strong>. No stock changes until you press Post movement.</span></div>}
+        {selectedItem&&<div className="module-safety-note module-form-wide"><Warehouse size={14}/><span>Selected location: <strong>{transactionLocationLabel}</strong>. Current calculated balance at this location: <strong>{selectedLocationBalance.toLocaleString("en-IN")} {"unit" in selectedItem?selectedItem.unit:"pcs"}</strong>. After this movement: <strong>{(selectedLocationBalance+(direction==="in"?Math.max(0,Number(quantity)||0):-Math.max(0,Number(quantity)||0))).toLocaleString("en-IN")} {"unit" in selectedItem?selectedItem.unit:"pcs"}</strong>. Total across all locations: {stockBalance(itemType,itemId).toLocaleString("en-IN")} {"unit" in selectedItem?selectedItem.unit:"pcs"}. No stock changes until you press Post movement.</span></div>}
         <div className="module-form-actions"><button className="button-primary" onClick={postTransaction}><Check size={14}/> Post movement</button><button className="button-quiet" onClick={resetTransaction}>Clear form</button></div>
       </div></section>
       <section className="surface-panel module-records-panel"><div className="panel-heading"><div><h3>Stock movement history ({visibleTransactions.length})</h3><p>Every row shows source, quantity and reference. The ledger is not silently edited when stock is displayed.</p></div></div>
-        {visibleTransactions.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Date</th><th>Item</th><th>Transaction</th><th>Movement</th><th>Quantity</th><th>Balance after all posted entries</th><th>Company / factory</th><th>PO / operation</th><th>Vendor</th><th>Reference / notes</th></tr></thead><tbody>{visibleTransactions.map(row=>{const item=row.itemType==="material"?materials.find(m=>m.id===row.itemId):components.find(x=>x.id===row.itemId);const po=orders.find(p=>p.id===row.poId);const op=operations.find(x=>x.id===row.operationId);const balance=stockBalance(row.itemType,row.itemId);return <tr key={row.id}><td>{row.occurredAt}</td><td><strong>{item?("code" in item?(item as MaterialRecord).code:(item as any).partNumber):"Archived item"}</strong><small>{item?.name||"Missing item"}</small></td><td>{row.transactionType}</td><td><span className={row.direction==="in"?"record-state state-complete":"record-state state-pending"}>{row.direction==="in"?"IN +":"OUT −"}</span></td><td>{row.quantity.toLocaleString("en-IN")} {"unit" in (item||{})?(item as MaterialRecord).unit:"pcs"}</td><td>{balance.toLocaleString("en-IN")} {"unit" in (item||{})?(item as MaterialRecord).unit:"pcs"}</td><td>{companies.find(x=>x.id===row.companyId)?.name||"—"} / {factories.find(x=>x.id===row.factoryId)?.name||"—"}</td><td>{po?.number||"—"} / {op?.name||"—"}</td><td>{vendors.find(v=>v.id===row.vendorId)?.company||"—"}</td><td>{row.reference||"—"}{row.notes?" · "+row.notes:""}</td></tr>})}</tbody></table></div>:<div className="module-empty-state"><ClipboardList size={26}/><h3>No stock movements posted</h3><p>Post an opening balance or actual receipt/issue. Stock balances remain empty until ledger transactions exist.</p></div>}
+        {visibleTransactions.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Date</th><th>Item</th><th>Transaction</th><th>Movement</th><th>Quantity</th><th>Current total across locations</th><th>Company / factory</th><th>PO / operation</th><th>Vendor</th><th>Stock location</th><th>Reference / notes</th></tr></thead><tbody>{visibleTransactions.map(row=>{const item=row.itemType==="material"?materials.find(m=>m.id===row.itemId):components.find(x=>x.id===row.itemId);const po=orders.find(p=>p.id===row.poId);const op=operations.find(x=>x.id===row.operationId);const balance=stockBalance(row.itemType,row.itemId);return <tr key={row.id}><td>{row.occurredAt}</td><td><strong>{item?("code" in item?(item as MaterialRecord).code:(item as any).partNumber):"Archived item"}</strong><small>{item?.name||"Missing item"}</small></td><td>{row.transactionType}</td><td><span className={row.direction==="in"?"record-state state-complete":"record-state state-pending"}>{row.direction==="in"?"IN +":"OUT −"}</span></td><td>{row.quantity.toLocaleString("en-IN")} {"unit" in (item||{})?(item as MaterialRecord).unit:"pcs"}</td><td>{balance.toLocaleString("en-IN")} {"unit" in (item||{})?(item as MaterialRecord).unit:"pcs"}</td><td>{companies.find(x=>x.id===row.companyId)?.name||"—"} / {factories.find(x=>x.id===row.factoryId)?.name||"—"}</td><td>{po?.number||"—"} / {op?.name||"—"}</td><td>{vendors.find(v=>v.id===row.vendorId)?.company||"—"}</td><td>{row.locationType==="transit"?"In transit":row.locationType==="company"||(!row.locationType&&!row.factoryId&&!row.vendorId&&row.companyId)?companies.find(c=>c.id===(row.locationId||row.companyId))?.name||"Company location":row.locationType==="vendor"?vendors.find(v=>v.id===(row.locationId||row.vendorId))?.company||"Vendor location":row.locationType==="factory"||row.factoryId?factories.find(f=>f.id===(row.locationId||row.factoryId))?.name||"Legacy factory location":"Unassigned location"}</td><td>{row.reference||"—"}{row.notes?" · "+row.notes:""}</td></tr>})}</tbody></table></div>:<div className="module-empty-state"><ClipboardList size={26}/><h3>No stock movements posted</h3><p>Post an opening balance or actual receipt/issue. Stock balances remain empty until ledger transactions exist.</p></div>}
       </section>
     </>}
     <div className="module-safety-note"><ShieldCheck size={15}/><span>Material and component stock are ledger-derived. Receipt/issue, WIP, rejected, scrap, finished-goods and dispatch rows carry IDs to the material/component and optional PO line/operation/vendor. This workspace does not delete posted history; use a new adjustment for corrections.</span></div>

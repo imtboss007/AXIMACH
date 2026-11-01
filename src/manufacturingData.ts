@@ -32,18 +32,53 @@ export type PurchaseOrderRecord = {
 };
 export type VendorRecord = {
   id: string; company: string; contact: string; role: string; phone: string; whatsappNumber: string;
-  email: string; address: string; processes: string; machines: string; materials: string; notes: string;
+  email: string; address: string; processes: string; /** Legacy primary process assignment retained for older records and integrations. */
+  processTypeId?: string; /** New multi-process capability assignments; takes precedence when populated. */
+  processTypeIds?: string[]; machines: string; materials: string; notes: string;
   status: string; sourceContactId: string; whatsappSyncedAt: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export const vendorProcessTypeIds = (vendor: VendorRecord): string[] => {
+  const ids = [...(vendor.processTypeIds || []), ...(vendor.processTypeId ? [vendor.processTypeId] : [])];
+  return [...new Set(ids.filter(Boolean))];
+};
+export const vendorSupportsProcessType = (vendor: VendorRecord, processTypeId: string): boolean =>
+  vendorProcessTypeIds(vendor).includes(processTypeId);
+
 export type OperationRecord = {
-  id: string; poId: string; poLineId: string; componentId: string; sequence: number; name: string;
-  category: string; machine: string; vendorId: string; status: LifecycleStatus;
-  plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string;
+  id: string; poId: string; poLineId: string; componentId: string; sequence: number; processTypeId?: string; name: string;
+  category: string; machine: string; machineResourceId?: string; vendorId: string; status: LifecycleStatus;
+  plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string; /** User-entered operation schedule times; distinct from approved machine-capacity slots. */ plannedStartTime?: string; plannedEndTime?: string; plannedSlotStartAt?: string; plannedSlotEndAt?: string;
   quantity: number; completed: number; accepted: number; rejected: number;
-  ratePerPart: number; actualRatePerPart: number; transportVendorId: string; transportPickup: string; transportDelivery: string;
+  /** Planned setup time in machine hours; explicit estimate, never inferred. */
+  setupHours?: number; /** Planned cycle time per piece in seconds; explicit estimate, never inferred. */
+  cycleTimeSeconds?: number;
+  ratePerPart: number; actualRatePerPart: number; vendorPaymentStatus?: "Paid" | "Not Paid"; transportVendorId: string; transportPickup: string; transportDelivery: string;
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
   branch: string; parentId: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type ProcessCategoryRecord = { id: string; name: string; code: string; description: string; sortOrder: number; createdAt: string; updatedAt: string; deletedAt?: string; };
+export type ProcessTypeRecord = { id: string; categoryId: string; name: string; code: string; description: string; legacyData?: Record<string, unknown>; createdAt: string; updatedAt: string; deletedAt?: string; };
+export type ProcessVendorRateHistoryEntry = { processTypeId: string; vendorId: string; ratePerPart: number; notes: string; supersededAt: string; };
+export type ProcessVendorRateRecord = { id: string; processTypeId: string; vendorId: string; quoteReference: string; quotedAt: string; validFrom: string; validUntil: string; ratePerPart: number; currency: string; leadDays: number; notes: string; rateHistory?: ProcessVendorRateHistoryEntry[]; status: "Received" | "Approved" | "Rejected" | "Expired"; createdAt: string; updatedAt: string; deletedAt?: string; };
+export type ComponentProcessCostRecord = {
+  id: string; componentId: string; processTypeId: string; vendorId: string;
+  quantityPerPart: number; ratePerProcess: number; transportCostPerPart: number;
+  notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type InspectionMeasurementResult = "Not measured" | "Pass" | "Fail";
+export type InspectionMeasurementRecord = {
+  id: string; characteristic: string; nominal: string; lowerLimit: string; upperLimit: string;
+  actual: string; unit: string; gaugeReference: string; result: InspectionMeasurementResult;
+};
+export type QualityInspectionStatus = "Pending" | "Accepted" | "Rejected" | "Conditional" | "Hold";
+export type QualityInspectionRecord = {
+  id: string; companyId: string; factoryId: string; poId: string; poLineId: string;
+  componentId: string; operationId: string; stage: string; inspectionDate: string; inspector: string;
+  instrument: string; sampleSize: number; inspectedQty: number; acceptedQty: number; rejectedQty: number;
+  status: QualityInspectionStatus; measurements: InspectionMeasurementRecord[];
+  nonConformanceReference: string; correctiveAction: string; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type QuotationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; operationId: string; vendorId: string;
@@ -65,13 +100,54 @@ export type InventoryTransactionRecord = {
   direction: "in" | "out"; quantity: number; occurredAt: string; reference: string; notes: string;
   companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string; vendorId: string;
   reversalOfId: string; createdAt: string; createdBy: string;
+  locationType?: StockLocationType; locationId?: string; movementId?: string; movementKind?: "WIP transfer" | "Customer dispatch";
+};
+export type StockLocationType = "company" | "factory" | "vendor" | "transit";
+export type MovementAcknowledgementRecord = {
+  id: string; quantity: number; occurredAt: string; receivedBy: string; proofReference: string;
+  discrepancyNotes: string; stockTransactionIds: string[];
+};
+export type WipTransferStatus = "Prepared" | "In transit" | "Partially received" | "Received" | "Cancelled";
+export type WipTransferRecord = {
+  id: string; companyId: string; factoryId: string; poId: string; poLineId: string; componentId: string;
+  fromOperationId: string; toOperationId: string;
+  sourceLocationType: "company" | "factory" | "vendor"; sourceLocationId: string; destinationLocationType: "company" | "factory" | "vendor"; destinationLocationId: string;
+  sourceVendorId: string; destinationVendorId: string; quantity: number; dispatchedQuantity: number; receivedQuantity: number;
+  status: WipTransferStatus; preparedAt: string; dispatchedAt: string; lastReceivedAt: string;
+  challanReference: string; vehicleNumber: string; transporterVendorId: string; lrNumber: string;
+  receivedBy: string; discrepancyNotes: string; receiptEvents?: MovementAcknowledgementRecord[]; notes: string; stockTransactionIds: string[];
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type CustomerDispatchStatus = "Prepared" | "In transit" | "Partially delivered" | "Delivered" | "Cancelled";
+export type CustomerDispatchRecord = {
+  id: string; companyId: string; factoryId: string; poId: string; poLineId: string; componentId: string;
+  quantity: number; dispatchedQuantity: number; deliveredQuantity: number; status: CustomerDispatchStatus;
+  deliveryChallan: string; actualDispatchDate: string; eWayBill: string; transporterVendorId: string; vehicleNumber: string; lrNumber: string;
+  destination: string; dispatchDate: string; lastDeliveryDate: string; receivedBy: string; proofReference: string;
+  discrepancyNotes: string; deliveryEvents?: MovementAcknowledgementRecord[]; notes: string; stockTransactionIds: string[];
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type MachineResourceRecord = {
+  id: string; factoryId: string; code: string; name: string; category: string; makeModel: string;
+  workingHoursPerDay: number; shiftStartTime: string; workingDays: number[]; status: "Available" | "Restricted" | "Retired";
+  notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type MaintenanceEventRecord = {
+  id: string; resourceId: string; type: "Preventive" | "Breakdown" | "Inspection" | "Setup / Calibration" | "Other";
+  title: string; reason: string; priority: "Low" | "Medium" | "High" | "Critical";
+  status: "Scheduled" | "In progress" | "Completed" | "Cancelled";
+  plannedStartAt: string; plannedEndAt: string; actualStartAt: string; actualEndAt: string;
+  assignedTo: string; workOrderRef: string; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ManufacturingData = {
   updatedAt: string;
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
-  quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
-  inventoryTransactions: InventoryTransactionRecord[];
+  quotations: QuotationRecord[]; processCategories: ProcessCategoryRecord[]; processTypes: ProcessTypeRecord[]; processVendorRates: ProcessVendorRateRecord[]; componentProcessCosts: ComponentProcessCostRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
+  qualityInspections: QualityInspectionRecord[];
+  inventoryTransactions: InventoryTransactionRecord[]; wipTransfers: WipTransferRecord[]; customerDispatches: CustomerDispatchRecord[];
+  machineResources: MachineResourceRecord[]; maintenanceEvents: MaintenanceEventRecord[];
 };
 
 export const nowIso = () => new Date().toISOString();
@@ -83,7 +159,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: []
+  operations: [], quotations: [], processCategories: [], processTypes: [], processVendorRates: [], componentProcessCosts: [], materials: [], bomLines: [], qualityInspections: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: [], machineResources: [], maintenanceEvents: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -97,9 +173,18 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     vendors: Array.isArray(value?.vendors) ? value.vendors : empty.vendors,
     operations: Array.isArray(value?.operations) ? value.operations : empty.operations,
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
+    processCategories: Array.isArray(value?.processCategories) ? value.processCategories : empty.processCategories,
+    processTypes: Array.isArray(value?.processTypes) ? value.processTypes : empty.processTypes,
+    processVendorRates: Array.isArray(value?.processVendorRates) ? value.processVendorRates : empty.processVendorRates,
+    componentProcessCosts: Array.isArray(value?.componentProcessCosts) ? value.componentProcessCosts : empty.componentProcessCosts,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
-    inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions
+    qualityInspections: Array.isArray(value?.qualityInspections) ? value.qualityInspections : empty.qualityInspections,
+    inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
+    wipTransfers: Array.isArray(value?.wipTransfers) ? value.wipTransfers : empty.wipTransfers,
+    customerDispatches: Array.isArray(value?.customerDispatches) ? value.customerDispatches : empty.customerDispatches,
+    machineResources: Array.isArray(value?.machineResources) ? value.machineResources : empty.machineResources,
+    maintenanceEvents: Array.isArray(value?.maintenanceEvents) ? value.maintenanceEvents : empty.maintenanceEvents
   };
 }
 
@@ -107,6 +192,54 @@ export function readManufacturingData(): ManufacturingData {
   if (typeof window === "undefined") return emptyManufacturingData();
   try { return normaliseData(JSON.parse(window.localStorage.getItem(MANUFACTURING_DATA_KEY) || "null")); }
   catch { return emptyManufacturingData(); }
+}
+
+/** Non-destructive migration of legacy process-master rows; the original localStorage key remains a backup. */
+export function migrateLegacyProcessDirectory(data: ManufacturingData): ManufacturingData {
+  if (typeof window === "undefined") return data;
+  const migrationDone = window.localStorage.getItem("aximach.processDirectory.migration.v1") === "done";
+  const categories = [...data.processCategories];
+  const types = [...data.processTypes];
+  const stamp = nowIso();
+  const standardNames = ["Milling","Turning","Grinding","Welding","Surface Treatment","Heat Treatment","Cutting","EDM","Drilling","Fabrication","Casting","Forging","Finishing","Assembly"];
+  for (const name of standardNames) {
+    if (categories.some(row => row.name.toLowerCase() === name.toLowerCase())) continue;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+    categories.push({id:"process-category-standard-"+slug,name,code:"",description:"Standard manufacturing process category.",sortOrder:categories.length+1,createdAt:stamp,updatedAt:stamp});
+  }
+  if (!migrationDone) {
+    let legacy: unknown;
+    try { legacy = JSON.parse(window.localStorage.getItem("aximach.processMaster.v1") || "null"); } catch { legacy = null; }
+    if (Array.isArray(legacy)) {
+      const seeds: Record<string,{name:string;notes:string}> = {
+        "pm-turn":{name:"CNC Turning",notes:"Record drawing revision and first-off approval."},
+        "pm-vmc":{name:"VMC Milling",notes:"Confirm workholding, tool offsets and datum."},
+        "pm-grind":{name:"Cylindrical Grinding",notes:"Record wheel specification and dressing interval."},
+        "pm-wire":{name:"Wire EDM",notes:"Confirm wire diameter and cut strategy."},
+        "pm-heat":{name:"Heat Treatment",notes:"Capture batch certificate and process parameters."},
+        "pm-coat":{name:"Surface Coating",notes:"Record specification, thickness and certificate."},
+        "pm-inspect":{name:"Final Inspection",notes:"Record accepted, rejected and rework quantities."},
+        "pm-transport":{name:"Transport / Handover",notes:"Capture dispatch and receipt timestamps."}
+      };
+      for (const item of legacy as Array<Record<string,unknown>>) {
+        const id=String(item?.id||"").trim(), name=String(item?.name||"").trim();
+        if (!id || !name || types.some(row=>row.id===id)) continue;
+        const seed=seeds[id];
+        if (seed && name===seed.name && String(item?.vendor||"")==="" && String(item?.notes||"")===seed.notes) continue;
+        const categoryName=String(item?.category||item?.type||"").trim();
+        let category=categoryName?categories.find(row=>row.name.toLowerCase()===categoryName.toLowerCase()):undefined;
+        if (categoryName && !category) { category={id:makeId("process-category"),name:categoryName,code:"",description:"Migrated from legacy Process Master.",sortOrder:categories.length+1,createdAt:stamp,updatedAt:stamp}; categories.push(category); }
+        if (!category && !categories.some(row=>row.id==="legacy-uncategorized")) categories.push({id:"legacy-uncategorized",name:"Uncategorized (legacy)",code:"",description:"Legacy process type without a category; review and assign one.",sortOrder:categories.length+1,createdAt:stamp,updatedAt:stamp});
+        types.push({id,categoryId:category?.id||"legacy-uncategorized",name,code:String(item?.code||""),description:String(item?.notes||""),legacyData:{...item},createdAt:String(item?.createdAt||stamp),updatedAt:String(item?.updatedAt||stamp)});
+      }
+    }
+    window.localStorage.setItem("aximach.processDirectory.migration.v1","done");
+  }
+  const changed = categories.length!==data.processCategories.length || types.length!==data.processTypes.length;
+  if (!changed) return data;
+  const migrated={...data,processCategories:categories,processTypes:types};
+  writeLocal(migrated);
+  return migrated;
 }
 function writeLocal(data: ManufacturingData, broadcast = true) {
   if (typeof window === "undefined") return;
@@ -138,9 +271,18 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     vendors: mergeRows(local.vendors, remote.vendors),
     operations: mergeRows(local.operations, remote.operations),
     quotations: mergeRows(local.quotations, remote.quotations),
+    processCategories: mergeRows(local.processCategories, remote.processCategories),
+    processTypes: mergeRows(local.processTypes, remote.processTypes),
+    processVendorRates: mergeRows(local.processVendorRates, remote.processVendorRates),
+    componentProcessCosts: mergeRows(local.componentProcessCosts, remote.componentProcessCosts),
     materials: mergeRows(local.materials, remote.materials),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
-    inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions)
+    qualityInspections: mergeRows(local.qualityInspections, remote.qualityInspections),
+    inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
+    wipTransfers: mergeRows(local.wipTransfers, remote.wipTransfers),
+    customerDispatches: mergeRows(local.customerDispatches, remote.customerDispatches),
+    machineResources: mergeRows(local.machineResources, remote.machineResources),
+    maintenanceEvents: mergeRows(local.maintenanceEvents, remote.maintenanceEvents)
   };
 }
 
@@ -170,7 +312,7 @@ async function getRemote(cfg: { base: string; key: string }): Promise<Manufactur
 }
 
 export function useManufacturingData() {
-  const [data, setData] = useState<ManufacturingData>(() => readManufacturingData());
+  const [data, setData] = useState<ManufacturingData>(() => migrateLegacyProcessDirectory(readManufacturingData()));
   const [syncStatus, setSyncStatus] = useState<DataStatus>("local");
 
   useEffect(() => {
@@ -188,7 +330,7 @@ export function useManufacturingData() {
       if (!cfg) { if (!cancelled) setSyncStatus("local"); return; }
       busy = true;
       try {
-        const local = readManufacturingData();
+        const local = migrateLegacyProcessDirectory(readManufacturingData());
         const remote = await getRemote(cfg);
         const merged = mergeManufacturingData(local, remote);
         const remoteAlreadyHasMergedData = JSON.stringify(merged) === JSON.stringify(remote);
@@ -218,7 +360,7 @@ export function useManufacturingData() {
   }, []);
 
   const update = useCallback((change: (current: ManufacturingData) => ManufacturingData) => {
-    const current = readManufacturingData();
+    const current = migrateLegacyProcessDirectory(readManufacturingData());
     const next = normaliseData(change(current));
     next.updatedAt = nowIso();
     writeLocal(next);
