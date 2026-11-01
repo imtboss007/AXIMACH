@@ -63,6 +63,11 @@ export default function ProcessMap3DViewer({
 
   const startSimulation = () => {
     if (!sorted.length) return;
+    if (sorted.length === 1) {
+      setSimulationStep(0);
+      setPlaying(false);
+      return;
+    }
     if (simulationStep >= sorted.length - 1 || simulationStep < 0) setSimulationStep(0);
     setPlaying(true);
   };
