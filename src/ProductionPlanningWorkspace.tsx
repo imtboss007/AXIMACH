@@ -6,26 +6,26 @@ import SearchablePicker from "./SearchablePicker";
 type Props = { onBack: () => void; onNotice: (value: string) => void; onSelectModule: (id: string) => void };
 type FilterOption = { id: string; label: string };
 type ProcessAssignmentDraft = {
-  vendorId: string; plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string;
+  vendorId: string; transportVendorId: string; plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string;
   quantity: string; ratePerPart: string; transportCost: string; status: LifecycleStatus; vendorPaymentStatus: "Paid" | "Not Paid"; notes: string;
 };
 type ProcessDraft = {
   companyId: string; poId: string; poLineId: string; categoryId: string; processTypeIds: string[]; name: string; category: string; vendorId: string;
-  plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string; quantity: string; ratePerPart: string; transportCost: string;
+  plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string; quantity: string; ratePerPart: string; transportCost: string; transportVendorId: string;
   status: LifecycleStatus; vendorPaymentStatus: "Paid" | "Not Paid"; processAssignments: Record<string, ProcessAssignmentDraft>;
   branch: string; parentId: string; notes: string;
 };
 const emptyProcessAssignment = (quantity = ""): ProcessAssignmentDraft => ({
-  vendorId: "", plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "",
+  vendorId: "", transportVendorId: "", plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "",
   quantity, ratePerPart: "", transportCost: "0", status: "Queued", vendorPaymentStatus: "Not Paid", notes: ""
 });
 const emptyDraft = (): ProcessDraft => ({
   companyId: "", poId: "", poLineId: "", categoryId: "", processTypeIds: [], name: "", category: "", vendorId: "",
-  plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "", quantity: "", ratePerPart: "", transportCost: "0",
+  plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "", quantity: "", ratePerPart: "", transportCost: "0", transportVendorId: "",
   status: "Queued", vendorPaymentStatus: "Not Paid", processAssignments: {}, branch: "Main route", parentId: "", notes: ""
 });
 const assignmentFromOperation = (operation: OperationRecord): ProcessAssignmentDraft => ({
-  vendorId: operation.vendorId || "", plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "",
+  vendorId: operation.vendorId || "", transportVendorId: operation.transportVendorId || "", plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "",
   plannedStartTime: operation.plannedStartTime || (operation.plannedSlotStartAt ? new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5) : ""),
   plannedEndTime: operation.plannedEndTime || (operation.plannedSlotEndAt ? new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5) : ""),
   quantity: String(operation.quantity || ""), ratePerPart: String(operation.ratePerPart ?? ""), transportCost: String(operation.transportCost || 0),
@@ -274,7 +274,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           quantity, completed:old?.completed||0, accepted:old?.accepted||0, rejected:old?.rejected||0,
           setupHours:old?.setupHours||0, cycleTimeSeconds:old?.cycleTimeSeconds||0,
           ratePerPart:rate, actualRatePerPart:old?.actualRatePerPart||0, transportCost:transport,
-          transportVendorId:old?.transportVendorId||"", transportPickup:old?.transportPickup||"",
+          transportVendorId:assignment.transportVendorId||old?.transportVendorId||"", transportPickup:old?.transportPickup||"",
           transportDelivery:old?.transportDelivery||"",
           qualityNotes:old?.qualityNotes||"", inspectionResult:old?.inspectionResult||"",
           notes:assignment.notes, vendorPaymentStatus:assignment.vendorPaymentStatus||old?.vendorPaymentStatus||"Not Paid", branch:draft.branch,
@@ -571,6 +571,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                 <div className="pp-operation-assignment-title"><strong>{type.name}</strong><small>{processCategories.find(category=>category.id===type.categoryId)?.name||"Process category"}</small></div>
                 <div className="pp-operation-assignment-fields">
                   <SearchablePicker id={"pp-vendor-"+type.id} label="Vendor (optional)" value={assignment.vendorId} placeholder="Search capable vendor…" options={capableVendors.map(vendor=>({id:vendor.id,label:vendor.company}))} onChange={id=>{const savedRate=latestProcessRate(type.id,id);setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,vendorId:id,ratePerPart:savedRate===undefined?previous.ratePerPart:String(savedRate)}}};});}}/>
+                  <SearchablePicker id={"pp-transport-vendor-"+type.id} label="Transport / dispatch vendor" value={assignment.transportVendorId} placeholder="Select transporter for this stage…" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+(vendor.phone||"No phone")}))} onChange={id=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,transportVendorId:id}}};})}/>
                   <label>Start date<input type="date" value={assignment.plannedStart} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,plannedStart:event.target.value}}};})}/></label>
                   <label>Due date<input type="date" min={assignment.plannedStart||undefined} value={assignment.plannedEnd} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,plannedEnd:event.target.value}}};})}/></label>
                   <label>Start time<input type="time" value={assignment.plannedStartTime} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,plannedStartTime:event.target.value}}};})}/></label>
@@ -588,6 +589,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           </div> : <>
             {!draft.processTypeIds.length&&editingId&&<label>Legacy process name<input value={draft.name} onChange={event=>setDraft(current=>({...current,name:event.target.value}))}/></label>}
             <SearchablePicker id="pp-add-vendor" label="Vendor (optional)" value={draft.vendorId} placeholder="Search vendor company…" options={draftVendorOptions.map(vendor => ({ id: vendor.id, label: vendor.company }))} onChange={id => {const savedRate=draftProcessTypes[0]?latestProcessRate(draftProcessTypes[0].id,id):undefined;setDraft(current => ({ ...current, vendorId: id, ratePerPart:savedRate===undefined?current.ratePerPart:String(savedRate) }));}}/>
+            <SearchablePicker id="pp-add-transport-vendor" label="Transport / dispatch vendor" value={draft.transportVendorId} placeholder="Select transporter…" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+(vendor.phone||"No phone")}))} onChange={id=>setDraft(current=>({...current,transportVendorId:id}))}/>
             <label>Given / start date<input type="date" value={draft.plannedStart} onChange={event => setDraft(current => ({ ...current, plannedStart: event.target.value }))}/></label>
             <label>Due date<input type="date" min={draft.plannedStart || undefined} value={draft.plannedEnd} onChange={event => setDraft(current => ({ ...current, plannedEnd: event.target.value }))}/></label>
             <label>Start time<input type="time" value={draft.plannedStartTime} onChange={event => setDraft(current => ({ ...current, plannedStartTime: event.target.value }))}/></label>
