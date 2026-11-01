@@ -563,3 +563,7 @@
 .ax-icon-presets-list strong { overflow: hidden; color: #536f93; font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; text-transform: capitalize; }
 .ax-icon-presets-list small { overflow: hidden; color: #94a3b7; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
 .ax-icon-presets-empty { padding: 7px; color: #98a7ba; font-size: 8px; line-height: 1.45; }
+
+/* The two Tabler webfont CSS files share the .ti namespace; keep each glyph in its requested font. */
+.ti:not(.ti-filled) { font-family: "tabler-icons" !important; }
+.ti.ti-filled { font-family: "tabler-icons-filled" !important; }
