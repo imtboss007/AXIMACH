@@ -304,10 +304,22 @@ function CommandCentre(props: {
         <div className="surface-panel flow-preview">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA SETUP</div><h3>Build your manufacturing records</h3><p>Save each master once; choose its ID from linked workflows.</p></div><button className="round-action" onClick={() => onSelectModule("companies")} aria-label="Open company master"><ArrowUpRight size={18}/></button></div>
           <div className="setup-steps">
-            <button onClick={() => onSelectModule("companies")}><span>01</span><strong>Company & factory</strong><small>{activeRows(actualData.companies).length} companies · {activeRows(actualData.factories).length} factories</small></button>
-            <button onClick={() => onSelectModule("components")}><span>02</span><strong>Component master</strong><small>{activeRows(actualData.components).length} part numbers saved</small></button>
-            <button onClick={() => onSelectModule("purchasing")}><span>03</span><strong>Purchase order lines</strong><small>{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.length,0)} lines saved</small></button>
-            <button onClick={() => onSelectModule("vendors")}><span>04</span><strong>Vendor directory</strong><small>{activeRows(actualData.vendors).length} saved vendor/contact records</small></button>
+            <button onClick={() => onSelectModule("companies")}>
+              <span className="setup-step-icon"><Factory size={19}/></span>
+              <span className="setup-step-copy"><strong>Company & factory</strong><small><b>{activeRows(actualData.companies).length}</b> companies · <b>{activeRows(actualData.factories).length}</b> factories</small></span>
+            </button>
+            <button onClick={() => onSelectModule("components")}>
+              <span className="setup-step-icon"><Box size={19}/></span>
+              <span className="setup-step-copy"><strong>Component master</strong><small><b>{activeRows(actualData.components).length}</b> part numbers saved</small></span>
+            </button>
+            <button onClick={() => onSelectModule("purchasing")}>
+              <span className="setup-step-icon"><Package size={19}/></span>
+              <span className="setup-step-copy"><strong>Purchase orders</strong><small><b>{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0)}</b> component lines</small></span>
+            </button>
+            <button onClick={() => onSelectModule("vendors")}>
+              <span className="setup-step-icon"><Users size={19}/></span>
+              <span className="setup-step-copy"><strong>Contact 360</strong><small><b>{activeRows(actualData.vendors).length}</b> contacts / suppliers</small></span>
+            </button>
           </div>
         </div>
         <div className="surface-panel jobs-panel">
@@ -376,8 +388,9 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
   return <section className="workspace-page vendor-master-page">
     {notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill "+(syncStatus==="synced"?"scheduler-connected":"")}><i/>{syncStatus==="synced"?"SHARED SERVER DATA":syncStatus==="syncing"?"SYNCING":syncStatus==="error"?"SYNC ERROR · LOCAL COPY KEPT":"NO DEMO VENDORS · MASTER RECORDS"}</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / CONTACT MASTER</div><h1>Contact 360<span>.</span></h1><p>One connected contact master for vendor identities, verified phone and WhatsApp numbers, process capabilities, operation assignments and quotation history.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={()=>onSelectModule("communications")}><CalendarClock size={15}/> Communications & follow-up</button><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add vendor</button></div></div>
-    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search vendor, phone, process, machine, material…"/></label><span className="module-number">{contacts.length} VENDORS / CONTACTS</span></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / CONTACT MASTER</div><h1>Contact 360<span>.</span></h1><p>One connected contact master for vendor identities, verified phone and WhatsApp numbers, process capabilities, operation assignments and quotation history.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={()=>onSelectModule("communications")}><ScanLine size={15}/> WhatsApp sync & follow-up</button><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add vendor</button></div></div>
+    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search vendor, phone, process, machine, material…"/></label><span className="module-number">{contacts.length} CONTACTS · {contacts.filter(v => String(v.phone || v.whatsappNumber || "").replace(/\D/g, "").length >= 8).length} WITH NUMBERS</span></div>
+    <div className="module-safety-note contact-sync-guidance"><ShieldCheck size={15}/><span>WhatsApp numbers are imported from Communications & WhatsApp. For PC ↔ mobile records to stay identical, both devices must use the same Shared AXIMACH data server URL and API key there. Without that shared server, records remain local to each device.</span><button className="button-quiet compact-button" onClick={()=>onSelectModule("communications")}><ScanLine size={13}/> Open sync settings</button></div>
     <div className="vendor-workspace-grid">
       <section className="surface-panel vendor-list-panel"><div className="panel-heading"><div><h3>Vendor directory</h3><p>Shared master records · imported WhatsApp contacts remain unverified until reviewed</p></div></div>
         <div className="vendor-record-list">{filtered.map(v=><button key={v.id} className={"vendor-record "+(selected?.id===v.id?"vendor-record-active":"")} onClick={()=>{setSelectedId(v.id);setEditing(false);}}><span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.contact} · {v.whatsappNumber ? "WhatsApp +" + v.whatsappNumber : v.phone ? "Phone +" + v.phone : "Number missing"}</small><small>{v.processes||"Capabilities not recorded"} · {v.status}</small></span><ArrowRight size={14}/></button>)}{!filtered.length&&<div className="module-empty-state"><Users size={25}/><h3>{search?"No matching vendor":"No vendors added"}</h3><p>{search?"Try another search.":"No placeholder vendors are preloaded. Add actual suppliers here or scan the WhatsApp bridge QR to import available contacts."}</p>{!search&&<button className="button-primary" onClick={beginNew}><Plus size={14}/> Add first vendor</button>}</div>}</div>
@@ -446,8 +459,8 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const waRequest=async(path:string,init:RequestInit={})=>{const response=await fetch(waBase+path,{...init,headers:{"content-type":"application/json","x-aximach-key":waApiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"WhatsApp bridge returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
   const verifiedWhatsAppPhone=(value:unknown)=>{
     const raw=String(value||"").trim();
-    if(!raw||/@(lid|g\\.us|broadcast)(?:$|[.:])/i.test(raw))return "";
-    const digits=raw.split("@")[0].split(":")[0].replace(/\\D/g,"");
+    if(!raw||/@(lid|g\.us|broadcast)(?:$|[.:])/i.test(raw))return "";
+    const digits=raw.split("@")[0].split(":")[0].replace(/\D/g,"");
     return digits.length>=8&&digits.length<=15?digits:"";
   };
   const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{
@@ -466,9 +479,9 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
         const old=next[index];
         const sameIdentity=identityKeys.includes(old.sourceContactId);
         const sourceWasLid=String(old.sourceContactId||"").endsWith("@lid");
-        const oldLidDigits=String(old.sourceContactId||"").split("@")[0].replace(/\\D/g,"");
-        const oldPhoneLooksLikeLid=sourceWasLid&&oldLidDigits&&oldLidDigits===String(old.phone||"").replace(/\\D/g,"");
-        const oldWhatsAppLooksLikeLid=sourceWasLid&&oldLidDigits&&oldLidDigits===String(old.whatsappNumber||"").replace(/\\D/g,"");
+        const oldLidDigits=String(old.sourceContactId||"").split("@")[0].replace(/\D/g,"");
+        const oldPhoneLooksLikeLid=sourceWasLid&&oldLidDigits&&oldLidDigits===String(old.phone||"").replace(/\D/g,"");
+        const oldWhatsAppLooksLikeLid=sourceWasLid&&oldLidDigits&&oldLidDigits===String(old.whatsappNumber||"").replace(/\D/g,"");
         const oldPhone=oldPhoneLooksLikeLid?"":verifiedWhatsAppPhone(old.phone);
         const oldWhatsApp=oldWhatsAppLooksLikeLid?"":verifiedWhatsAppPhone(old.whatsappNumber);
         const patch:VendorRecord={
