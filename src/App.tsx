@@ -296,7 +296,12 @@ function CommandCentre(props: {
   onSelectModule: (id: string) => void; onOpenModules: () => void;
 }) {
   const { aiPrompt, aiResponse, notice, onAiPromptChange, onRunCommand, onNotice, onSelectModule, onOpenModules } = props;
-  const actualData = readManufacturingData();
+  const [actualData, setActualData] = useState(readManufacturingData);
+  useEffect(() => {
+    const refresh = () => setActualData(readManufacturingData());
+    window.addEventListener("aximach-manufacturing-data-updated", refresh);
+    return () => window.removeEventListener("aximach-manufacturing-data-updated", refresh);
+  }, []);
   return (
     <>
       {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import { Activity, Boxes, Building2, Check, Factory, Maximize2, Minimize2, Package, Pin, PinOff, RotateCcw, Truck, Users, Workflow, X } from "lucide-react";
 import type { ManufacturingData } from "./manufacturingData";
-import { activeRows } from "./manufacturingData";
+import { activeRows, readManufacturingData } from "./manufacturingData";
 type PanelId="companies"|"orders"|"components"|"operations"|"supply"|"materials"|"quality";
 type Size={width?:number;height?:number};
 type Layout={order:PanelId[];hidden:PanelId[];collapsed:PanelId[];pinned:PanelId[];sizes:Partial<Record<PanelId,Size>>};
@@ -27,6 +27,9 @@ function PanelBody({id,data}:{id:PanelId;data:ManufacturingData}):ReactNode{
 }
 export default function DashboardTheatre({open,onClose,data,onSelectModule}:{open:boolean;onClose:()=>void;data:ManufacturingData;onSelectModule:(id:string)=>void}){
  const [layout,setLayout]=useState<Layout>(readLayout),[group,setGroup]=useState("All"),[maximised,setMaximised]=useState<PanelId|null>(null),[dragging,setDragging]=useState<PanelId|null>(null);
+ const [liveData,setLiveData]=useState<ManufacturingData>(data);
+ useEffect(()=>{setLiveData(data);},[data]);
+ useEffect(()=>{const refresh=()=>setLiveData(readManufacturingData());window.addEventListener("aximach-manufacturing-data-updated",refresh);return()=>window.removeEventListener("aximach-manufacturing-data-updated",refresh);},[]);
  useEffect(()=>{try{localStorage.setItem(KEY,JSON.stringify(layout));}catch{}},[layout]);
  useEffect(()=>{if(!open)return;const key=(event:KeyboardEvent)=>{if(event.key==="Escape")onClose();};window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key);},[open,onClose]);
  const visible=useMemo(()=>maximised?[maximised]:layout.order.filter(id=>!layout.hidden.includes(id)&&(group==="All"||definitions.find(item=>item.id===id)?.group===group)),[layout,group,maximised]);
@@ -39,7 +42,7 @@ export default function DashboardTheatre({open,onClose,data,onSelectModule}:{ope
   <nav className="axr-theatre-tabs">{["All","Factory","Engineering","Supply"].map(item=><button key={item} className={group===item?"active":""} onClick={()=>{setGroup(item);setMaximised(null);}}>{item}</button>)}<span>{visible.length} PANELS</span><button className="axr-theatre-reset" onClick={()=>{setLayout(defaults);setGroup("All");setMaximised(null);}}><RotateCcw size={13}/> Reset layout</button></nav>
   <div className={"axr-theatre-grid"+(maximised?" is-maximised":"")}>{visible.map(id=>{const meta=definitions.find(x=>x.id===id)!;const Icon=meta.icon,collapsed=layout.collapsed.includes(id),isMax=maximised===id,size=layout.sizes[id];return <article key={id} draggable={!layout.pinned.includes(id)&&!maximised} onDragStart={()=>setDragging(id)} onDragOver={event=>event.preventDefault()} onDrop={()=>movePanel(id)} onDragEnd={()=>setDragging(null)} className={"axr-theatre-panel axr-glass-panel"+(layout.pinned.includes(id)?" is-pinned":"")+(collapsed?" is-collapsed":"")+(isMax?" is-expanded":"")} style={isMax?undefined:{width:size?.width,height:collapsed?undefined:size?.height}} onPointerUp={event=>captureSize(id,event)}>
    <header><span className="axr-theatre-grip" title={layout.pinned.includes(id)?"Pinned panel":"Drag to rearrange"}>⠿</span><span className="axr-theatre-panel-icon"><Icon size={16}/></span><b>{meta.title}</b><div><button title={layout.pinned.includes(id)?"Unpin panel":"Pin panel"} onClick={()=>pin(id)}>{layout.pinned.includes(id)?<Pin size={13}/>:<PinOff size={13}/>}</button><button title={collapsed?"Expand panel":"Minimise panel"} onClick={()=>setLayout(current=>({...current,collapsed:collapsed?current.collapsed.filter(x=>x!==id):[...current.collapsed,id]}))}>{collapsed?<Maximize2 size={13}/>:<Minimize2 size={13}/>}</button><button title={isMax?"Restore panel":"Expand panel"} onClick={()=>setMaximised(isMax?null:id)}>{isMax?<Minimize2 size={13}/>:<Maximize2 size={13}/>}</button></div></header>
-   {!collapsed&&<div className="axr-theatre-panel-body"><PanelBody id={id} data={data}/><button className="axr-theatre-open" onClick={()=>{onClose();onSelectModule(id==="companies"?"companies":id==="orders"?"purchasing":id==="operations"?"process-map":id==="components"?"components":id==="supply"?"vendors":id==="materials"?"inventory":"quality");}}>Open linked workspace <ArrowRightIcon/></button></div>}
+   {!collapsed&&<div className="axr-theatre-panel-body"><PanelBody id={id} data={liveData}/><button className="axr-theatre-open" onClick={()=>{onClose();onSelectModule(id==="companies"?"companies":id==="orders"?"purchasing":id==="operations"?"process-map":id==="components"?"components":id==="supply"?"vendors":id==="materials"?"inventory":"quality");}}>Open linked workspace <ArrowRightIcon/></button></div>}
   </article>;})}</div>
   <footer className="axr-theatre-foot"><span>DRAG ⠿ TO REORDER · RESIZE FROM PANEL EDGE · PIN TO LOCK POSITION</span><span>LAYOUT SAVED ON THIS DEVICE</span></footer>
  </section></div>;
