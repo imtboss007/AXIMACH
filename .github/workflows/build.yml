@@ -45,7 +45,6 @@ jobs:
           retention-days: 7
 
   windows-installer:
-    if: github.event_name != 'pull_request'
     name: Build Windows installer
     runs-on: windows-latest
     timeout-minutes: 30
@@ -67,8 +66,13 @@ jobs:
         run: |
           $env:AXIMACH_SMOKE_TEST = "1"
           $env:AXIMACH_SMOKE_USER_DATA = Join-Path $env:RUNNER_TEMP "aximach-smoke-user-data"
-          $exe = Join-Path $PWD "release/win-unpacked/AXIMACH Manufacturing OS.exe"
-          if (-not (Test-Path $exe)) { throw "Packaged application executable not found: $exe" }
+          $installer = Get-ChildItem -Path "release" -Filter "*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "NSIS installer was not generated in release/." }
+          $installDir = Join-Path $env:RUNNER_TEMP "AXIMACH-smoke-install"
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList @("/S", "/D=$installDir") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "NSIS installer failed with exit code $($install.ExitCode)." }
+          $exe = Join-Path $installDir "AXIMACH Manufacturing OS.exe"
+          if (-not (Test-Path $exe)) { throw "Installed application executable not found: $exe" }
           $stdout = Join-Path $env:RUNNER_TEMP "aximach-electron-stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "aximach-electron-stderr.log"
           $process = Start-Process -FilePath $exe -ArgumentList @("--aximach-smoke-test", "--aximach-smoke-data-dir=$env:AXIMACH_SMOKE_USER_DATA", "--enable-logging", "--v=1") -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
@@ -97,7 +101,6 @@ jobs:
           retention-days: 14
 
   android-apk:
-    if: github.event_name != 'pull_request'
     name: Build Android APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -153,11 +156,13 @@ jobs:
           script: |
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb shell monkey -p com.aximach.manufacturingos -c android.intent.category.LAUNCHER 1
-            sleep 15
+            sleep 18
             adb shell pidof com.aximach.manufacturingos
-            adb shell uiautomator dump /sdcard/aximach-ui.xml
-            adb pull /sdcard/aximach-ui.xml aximach-ui.xml
-            grep -qi "AXIMACH" aximach-ui.xml
+            adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' | tee android-foreground.txt
+            grep -F "com.aximach.manufacturingos" android-foreground.txt
+            adb shell screencap -p /sdcard/aximach-screen.png
+            adb pull /sdcard/aximach-screen.png aximach-screen.png
+            test -s aximach-screen.png
             adb logcat -d -b crash | tee android-crash.log
             ! grep -q "FATAL EXCEPTION" android-crash.log
       - name: Upload Android APK
