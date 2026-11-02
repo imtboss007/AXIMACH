@@ -6,7 +6,7 @@ import ProcessMap3DViewer from "./ProcessMap3DViewer";
 import { saveBlobFile } from "./fileDownload";
 
 type ProcessSelection = { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string };
-type ProcessExportField = "process" | "description" | "givenDate" | "deliveryDate" | "quantity" | "vendor" | "price";
+type ProcessExportField = "process" | "description" | "givenDate" | "deliveryDate" | "quantity" | "vendor" | "price" | "amount";
 const PROCESS_EXPORT_COLUMNS: { key: ProcessExportField; label: string }[] = [
   { key: "process", label: "Process" },
   { key: "description", label: "Process description" },
@@ -14,7 +14,8 @@ const PROCESS_EXPORT_COLUMNS: { key: ProcessExportField; label: string }[] = [
   { key: "deliveryDate", label: "Delivery date" },
   { key: "quantity", label: "Quantity" },
   { key: "vendor", label: "Vendor" },
-  { key: "price", label: "Price / piece" }
+  { key: "price", label: "Price / piece" },
+  { key: "amount", label: "Process + transport amount" }
 ];
 const processExportValue = (operation: OperationRecord, field: ProcessExportField, vendorName: string) => {
   switch (field) {
@@ -25,6 +26,7 @@ const processExportValue = (operation: OperationRecord, field: ProcessExportFiel
     case "quantity": return operation.quantity;
     case "vendor": return vendorName;
     case "price": return operation.ratePerPart > 0 ? operation.ratePerPart : "";
+    case "amount": return operation.quantity * operation.ratePerPart + operation.transportCost;
   }
 };
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; initialSelection?: ProcessSelection | null; onInitialSelectionApplied?: () => void; onOpenQuality?: (operationId: string) => void; onOpenWipTransfer?: (selection: ProcessSelection) => void };
