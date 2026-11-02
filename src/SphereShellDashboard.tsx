@@ -177,13 +177,31 @@ export default function SphereShellDashboard({ modules, counts, onSelectModule, 
   const zoomRef = useRef(1);
   const playRef = useRef(true);
   const speedRef = useRef(0.19);
-  const [mode, setMode] = useState<ShapeMode>("sphere");
+  const [mode, setMode] = useState<ShapeMode>(() => {
+    try { const saved = JSON.parse(window.localStorage.getItem("aximach.visualPreferences.v1") || "{}"); return shapeOptions.some(option => option.id === saved.mode) ? saved.mode as ShapeMode : "sphere"; }
+    catch { return "sphere"; }
+  });
   const [playing, setPlaying] = useState(true);
-  const [speed, setSpeed] = useState("Normal");
+  const [speed, setSpeed] = useState(() => {
+    try { const saved = JSON.parse(window.localStorage.getItem("aximach.visualPreferences.v1") || "{}"); return saved.speed === "Slow" || saved.speed === "Fast" ? saved.speed : "Normal"; }
+    catch { return "Normal"; }
+  });
+  const [sphereSize, setSphereSize] = useState(1);
+  const [orbitIntensity, setOrbitIntensity] = useState(1);
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [reduceMotionOverride, setReduceMotionOverride] = useState(false);
+  const [performanceMode, setPerformanceMode] = useState<"Balanced" | "Performance">("Balanced");
   const [webglAvailable, setWebglAvailable] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
   useEffect(() => { playRef.current = playing; }, [playing]);
   useEffect(() => { speedRef.current = speed === "Slow" ? 0.07 : speed === "Fast" ? 0.36 : 0.19; }, [speed]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("aximach.visualPreferences.v1", JSON.stringify({
+        mode, speed, sphereSize, orbitIntensity, reduceMotionOverride, performanceMode
+      }));
+    } catch { /* Visual preferences remain usable when storage is unavailable. */ }
+  }, [mode, speed, sphereSize, orbitIntensity, reduceMotionOverride, performanceMode]);
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(media.matches);
@@ -227,7 +245,7 @@ export default function SphereShellDashboard({ modules, counts, onSelectModule, 
       let frame = 0, start = 0, last = 0, dragging = false, previousX = 0, previousY = 0;
       const resize = () => {
         const rect = canvas.getBoundingClientRect();
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const dpr = Math.min(window.devicePixelRatio || 1, performanceMode === "Performance" ? 1.25 : 2);
         const width = Math.max(1, Math.floor(rect.width * dpr));
         const height = Math.max(1, Math.floor(rect.height * dpr));
         if (canvas.width !== width || canvas.height !== height) {
@@ -261,7 +279,7 @@ export default function SphereShellDashboard({ modules, counts, onSelectModule, 
       const render = (now: number) => {
         if (!start) start = now;
         const dt = Math.min(0.05, (now - (last || now)) / 1000); last = now;
-        if (playRef.current && !reducedMotion && !dragging) yawRef.current += dt * speedRef.current;
+        if (playRef.current && !reducedMotion && !reduceMotionOverride && !dragging) yawRef.current += dt * speedRef.current;
         gl?.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl?.useProgram(program);
         if (yawLocation) gl?.uniform1f(yawLocation, yawRef.current);
@@ -288,7 +306,7 @@ export default function SphereShellDashboard({ modules, counts, onSelectModule, 
     } catch {
       setWebglAvailable(false);
     }
-  }, [mode, reducedMotion]);
+  }, [mode, reducedMotion, reduceMotionOverride, performanceMode]);
   const resetView = () => { yawRef.current = -0.42; pitchRef.current = 0.24; zoomRef.current = 1; };
   const scale = modules.length ? Math.min(1, 20 / modules.length) : 1;
   const nodes = modules.map((item, index) => {
@@ -308,8 +326,8 @@ export default function SphereShellDashboard({ modules, counts, onSelectModule, 
         <div className="axi-sphere-data-card"><span>COMPANIES</span><strong>{counts.companies.toLocaleString("en-IN")}</strong><small>Saved company records</small></div>
         <div className="axi-sphere-data-card"><span>PURCHASE ORDERS</span><strong>{counts.purchaseOrders.toLocaleString("en-IN")}</strong><small>Saved purchase orders</small></div>
       </div>
-      <div className="axi-sphere-core-wrap">
-        <div className="axi-sphere-orbit axi-sphere-orbit-one"/><div className="axi-sphere-orbit axi-sphere-orbit-two"/><div className="axi-sphere-orbit axi-sphere-orbit-three"/>
+      <div className="axi-sphere-core-wrap" style={{ transform: "scale(" + sphereSize + ")" }}>
+        <div className="axi-sphere-orbit axi-sphere-orbit-one" style={{ opacity: orbitIntensity }}/><div className="axi-sphere-orbit axi-sphere-orbit-two" style={{ opacity: orbitIntensity }}/><div className="axi-sphere-orbit axi-sphere-orbit-three" style={{ opacity: orbitIntensity }}/>
         <div className="axi-sphere-core">
           <canvas ref={canvasRef} className="axi-sphere-webgl" aria-label={"Interactive 3D " + mode + " visualisation. Drag to rotate and scroll to zoom."}/>
           {!webglAvailable && <div className="axi-sphere-fallback"><Sparkles size={34}/><strong>3D renderer unavailable</strong><span>Use the workspace navigation below.</span></div>}
@@ -328,6 +346,16 @@ export default function SphereShellDashboard({ modules, counts, onSelectModule, 
       <div className="axi-sphere-shape-picker" aria-label="3D visualisation shapes">{shapeOptions.map(option => <button type="button" key={option.id} className={mode===option.id?"is-selected":""} aria-pressed={mode===option.id} onClick={() => setMode(option.id)}>{option.label}</button>)}</div>
       <div className="axi-sphere-motion-tools"><button type="button" title="Rotate slower" onClick={() => setSpeed(value => value==="Fast"?"Normal":"Slow")}>−</button><span>{speed}</span><button type="button" title="Rotate faster" onClick={() => setSpeed(value => value==="Slow"?"Normal":"Fast")}>+</button><button type="button" title={playing?"Pause rotation":"Resume rotation"} onClick={() => setPlaying(value => !value)}>{playing?<Pause size={14}/>:<Play size={14}/>}</button><button type="button" title="Reset orientation and zoom" onClick={resetView}><RotateCcw size={14}/></button><button type="button" title="Zoom in" onClick={() => { zoomRef.current=Math.min(1.5,zoomRef.current+.1); }}><ZoomIn size={14}/></button><button type="button" title="Zoom out" onClick={() => { zoomRef.current=Math.max(.66,zoomRef.current-.1); }}><ZoomOut size={14}/></button></div>
     </div>
+    <div className="axi-sphere-studio-row">
+      <button type="button" className="axi-sphere-studio-toggle" aria-expanded={studioOpen} onClick={() => setStudioOpen(value => !value)}><Sparkles size={14}/> Visual Experience Studio <span>{studioOpen ? "Close" : "Customize"}</span></button>
+    </div>
+    {studioOpen && <div className="axi-sphere-studio-panel">
+      <label>Sphere size <input type="range" min="0.8" max="1.12" step="0.01" value={sphereSize} onChange={event=>setSphereSize(Number(event.target.value))}/><small>{Math.round(sphereSize*100)}%</small></label>
+      <label>Orbit intensity <input type="range" min="0" max="1" step="0.05" value={orbitIntensity} onChange={event=>setOrbitIntensity(Number(event.target.value))}/><small>{Math.round(orbitIntensity*100)}%</small></label>
+      <label>Rendering quality <select value={performanceMode} onChange={event=>setPerformanceMode(event.target.value as "Balanced" | "Performance")}><option>Balanced</option><option>Performance</option></select></label>
+      <label className="axi-sphere-motion-setting"><input type="checkbox" checked={reduceMotionOverride} onChange={event=>setReduceMotionOverride(event.target.checked)}/> Reduce motion and continuous movement</label>
+      <button type="button" className="axi-sphere-reset-prefs" onClick={() => {setMode("sphere");setSpeed("Normal");setSphereSize(1);setOrbitIntensity(1);setReduceMotionOverride(false);setPerformanceMode("Balanced");resetView();}}>Reset visual preferences</button>
+    </div>}
     <div className="axi-sphere-mobile-nav" aria-label="AXIMACH module navigation">{modules.map(item=>{const Icon=item.icon;return <button type="button" key={item.id} onClick={()=>onSelectModule(item.id)}><Icon size={14}/><span>{item.title}</span></button>;})}</div>
   </section>;
 }
