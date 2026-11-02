@@ -16,6 +16,8 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
   const quotations = activeRows(data.quotations);
+  const invoices = activeRows(data.invoices);
+  const payments = activeRows(data.payments);
   const [componentId, setComponentId] = useState("");
   const [lineKey, setLineKey] = useState("");
   const [operationId, setOperationId] = useState("");
@@ -99,6 +101,15 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const acceptedQty = selectedLine ? (finalOperation && finalOperation.completed > 0 ? finalOperation.accepted : Math.max(0, selectedLine.quantity - rejectedQty)) : 0;
   const profit = revenue - plannedTotal;
   const costPerAccepted = acceptedQty ? plannedTotal / acceptedQty : 0;
+  const linkedInvoices = selectedLine ? invoices.filter(invoice =>
+    invoice.status === "Approved" && invoice.status !== "Void" && invoice.poId === selectedLine.poId
+    && (!invoice.poLineId || invoice.poLineId === selectedLine.lineId)
+    && (!invoice.componentId || invoice.componentId === selectedComponent?.id)
+  ) : [];
+  const linkedInvoiceIds = new Set(linkedInvoices.map(invoice => invoice.id));
+  const linkedInvoicedValue = linkedInvoices.reduce((sum, invoice) => sum + invoice.taxableAmount + invoice.taxAmount, 0);
+  const linkedPaidValue = payments.filter(payment => linkedInvoiceIds.has(payment.invoiceId)).reduce((sum, payment) => sum + payment.amount, 0);
+  const linkedOutstanding = Math.max(0, linkedInvoicedValue - linkedPaidValue);
 
   const openQuote = (forOperationId?: string) => {
     if (!selectedComponent) { onNotice("Create a component master record first."); return; }
@@ -167,6 +178,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
       {!componentLines.length && <div className="module-safety-note"><FileText size={14}/><span>This component is not yet linked to a PO line. Create or edit the actual order in Purchase Orders; quotes will then be stored against that order line.</span><button className="button-quiet compact-button" onClick={() => onSelectModule("purchasing")}>Open purchase orders</button></div>}
       <div className="linked-component-summary"><div><small>COMPONENT</small><strong>{selectedComponent?.partNumber} · {selectedComponent?.name}</strong><span>Revision {selectedComponent?.revision || "—"} · {selectedComponent?.material || "Material not entered"}</span></div><div><small>MATERIAL COST</small><strong>{money(materialCost)}</strong><span>{materialQty.toLocaleString("en-IN")} units × {money(materialRate)} · {materialCostSource}</span></div><div><small>PROCESS + TRANSPORT</small><strong>{money(operationPlanned)}</strong><span>Rates selected or entered per operation</span></div><div><small>PLANNED COST / ACCEPTED PART</small><strong>{money(costPerAccepted)}</strong><span>Uses the selected PO quantity and entered rejects</span></div></div>
       <div className="linked-kpis linked-cost-kpis"><div className="route-kpi kpi-cost"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PLANNED COST</small><strong>{money(plannedTotal)}</strong><em>Material + planned process + transport + entered extras</em></span></div><div className="route-kpi kpi-quality"><span className="kpi-icon"><Check size={19}/></span><span><small>ACTUAL RATE COST</small><strong>{money(actualTotal)}</strong><em>Actual operation rates only where recorded</em></span></div><div className="route-kpi kpi-delivery"><span className="kpi-icon"><Package size={19}/></span><span><small>ORDER VALUE</small><strong>{money(revenue)}</strong><em>{selectedLine?.quantity || 0} pcs × {money(sellingRate)}</em></span></div><div className="route-kpi kpi-risk"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>ESTIMATED PROFIT / LOSS</small><strong>{money(profit)}</strong><em>Before GST/finance items not entered here</em></span></div></div>
+      <section className="surface-panel linked-process-table ax-cost-finance-link"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> APPROVED INVOICE / PAYMENT LINKAGE</div><h3>Actual finance against this PO line</h3><p>Only approved invoices linked to the selected PO line are counted. Draft invoices and supplier quotations remain outside the posted invoice balance.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("invoices")}><Wallet size={13}/> Open invoices & payments</button></div><div className="ax-cost-finance-grid"><div><small>APPROVED INVOICED VALUE</small><strong>{money(linkedInvoicedValue)}</strong></div><div><small>PAYMENTS POSTED</small><strong>{money(linkedPaidValue)}</strong></div><div><small>OUTSTANDING BALANCE</small><strong>{money(linkedOutstanding)}</strong></div></div>{!selectedLine && <div className="vendor-empty">Select a purchase-order line to see its approved invoice and payment linkage.</div>}</section>
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTE-TO-OPERATION LINK</div><h3>Process costs for {selectedComponent?.partNumber}</h3><p>Each row references a specific operation ID and PO component line.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><ArrowRight size={14}/> Manage operations</button></div>
         {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Transport</th><th>Planned process cost</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
           const quoteCount = quotations.filter(q => q.operationId === op.id && !q.deletedAt).length;
