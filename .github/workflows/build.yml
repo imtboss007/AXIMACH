@@ -93,6 +93,19 @@ jobs:
         run: npm run build
       - name: Add Android platform
         run: npx cap add android
+      - name: Permit private-LAN HTTP connection to the user's PC server
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          text = manifest.read_text(encoding="utf-8")
+          if "android.permission.INTERNET" not in text:
+              text = text.replace("<manifest", '<manifest xmlns:android="http://schemas.android.com/apk/res/android"', 1) if 'xmlns:android=' not in text else text
+              text = text.replace("<application", '    <uses-permission android:name="android.permission.INTERNET" />\n    <application', 1)
+          if "android:usesCleartextTraffic=" not in text:
+              text = text.replace("<application", '<application android:usesCleartextTraffic="true"', 1)
+          manifest.write_text(text, encoding="utf-8")
+          PY
       - name: Sync Android project
         run: npx cap sync android
       - name: Build debug APK
