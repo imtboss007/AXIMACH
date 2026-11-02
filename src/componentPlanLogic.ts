@@ -14,6 +14,8 @@ export type FinishedJobCostOperation = {
   ratePerPart: number;
   actualRatePerPart?: number;
   transportCost?: number;
+  name?: string;
+  category?: string;
 };
 
 export type FinishedJobProcessCostSnapshot = {
@@ -56,10 +58,11 @@ export function calculateFinishedJobProcessCost(
     const plannedRate = Math.max(0, Number(operation.ratePerPart) || 0);
     const actualRate = Math.max(0, Number(operation.actualRatePerPart) || 0);
     const transportCost = Math.max(0, Number(operation.transportCost) || 0);
+    const directTransport = /transport|dispatch|freight|courier|logistics/i.test((operation.name || "") + " " + (operation.category || ""));
     return {
       processCost: total.processCost + quantity * plannedRate + transportCost,
       actualProcessCost: total.actualProcessCost + quantity * actualRate + transportCost,
-      missingActualRates: total.missingActualRates + (actualRate > 0 ? 0 : 1),
+      missingActualRates: total.missingActualRates + (!directTransport && actualRate <= 0 ? 1 : 0),
       operationCount: total.operationCount + 1
     };
   }, { processCost: 0, actualProcessCost: 0, missingActualRates: 0, operationCount: 0 });
