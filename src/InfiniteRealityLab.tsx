@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { Activity, Boxes, Factory, Gauge, Network, RotateCcw, ShieldCheck, Workflow, X, Waves, Sparkles, Move3D, Plug, SlidersHorizontal } from "lucide-react";
+import { Activity, Factory, Gauge, Network, RotateCcw, X, Waves, Sparkles, Move3D, Plug, SlidersHorizontal } from "lucide-react";
 import type { OrbCounts } from "./AXIMACHOrb";
 import "./infinite-reality.css";
 
@@ -52,6 +52,13 @@ function calculateOutput(s: Scenario) {
 
 export default function InfiniteRealityLab({ counts, onClose }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const modeRef = useRef(mode);
+  const postFxRef = useRef(postFx);
+  const reducedMotionRef = useRef(reducedMotion);
+  const transitionActionRef = useRef<((name: Transition) => void) | undefined>(undefined);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+  useEffect(() => { postFxRef.current = postFx; }, [postFx]);
+  useEffect(() => { reducedMotionRef.current = reducedMotion; }, [reducedMotion]);
   const [mode, setMode] = useState<Mode>("fluid");
   const [transition, setTransition] = useState<Transition>("orbit");
   const [postFx, setPostFx] = useState(true);
@@ -202,13 +209,14 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
       if (name === "whip-pan") dashboardPlanes.rotation.y += Math.PI * 0.28;
       if (name === "orbit") dashboardPlanes.rotation.y = 0;
     };
-    startTransition("orbit");
+    transitionActionRef.current = startTransition;
+    startTransition(transition);
 
     let pointerDown = false;
     const onPointerDown = () => { pointerDown = true; };
     const onPointerUp = () => { pointerDown = false; };
     const onPointerMove = (event: PointerEvent) => {
-      if (!pointerDown || mode !== "cloth") return;
+      if (!pointerDown || modeRef.current !== "cloth") return;
       const rect = renderer.domElement.getBoundingClientRect();
       const nx = (event.clientX - rect.left) / rect.width;
       const ny = (event.clientY - rect.top) / rect.height;
@@ -230,7 +238,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
       if (bloom) bloom.setSize(w, h);
     };
     const observer = new ResizeObserver(resize); observer.observe(host); resize();
-    const reduced = reducedMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const systemReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let raf = 0, last = 0;
     const solveConstraint = (a: number, b: number, rest: number) => {
       const ai = a * 3, bi = b * 3;
@@ -251,7 +259,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
       raf = requestAnimationFrame(animate);
       const dt = Math.min(0.033, Math.max(0.001, (now - (last || now)) / 1000)); last = now;
       const t = now / 1000;
-      if (!reduced && document.visibilityState === "visible") {
+      if (!reducedMotionRef.current && !systemReducedMotion && document.visibilityState === "visible") {
         core.rotation.y += dt * 0.18; halo.rotation.z += dt * 0.15; dashboardPlanes.rotation.y += dt * 0.075;
         for (let i = 0; i < fluidCount; i++) {
           const p = i * 3, x = fluidStart[p], y = fluidStart[p + 1], z = fluidStart[p + 2];
@@ -296,15 +304,16 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
           camera.lookAt(cameraTarget);
         }
       }
-      fluid.visible = mode === "fluid";
-      cloth.visible = mode === "cloth"; pins.visible = mode === "cloth";
-      softBody.visible = mode === "soft";
-      core.visible = mode !== "soft";
-      if (postFx && composer) composer.render(); else renderer.render(scene, camera);
+      fluid.visible = modeRef.current === "fluid";
+      cloth.visible = modeRef.current === "cloth"; pins.visible = modeRef.current === "cloth";
+      softBody.visible = modeRef.current === "soft";
+      core.visible = modeRef.current !== "soft";
+      if (postFxRef.current && composer) composer.render(); else renderer.render(scene, camera);
     };
     raf = requestAnimationFrame(animate);
 
     return () => {
+      transitionActionRef.current = undefined;
       cancelAnimationFrame(raf); observer.disconnect();
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("pointerup", onPointerUp);
@@ -324,7 +333,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
       composer?.renderTarget1.dispose(); composer?.renderTarget2.dispose();
       renderer.dispose(); renderer.domElement.remove();
     };
-  }, [counts, mode, postFx, reducedMotion, transition]);
+  }, [counts.companies, counts.jobs, counts.components, counts.stockEvents, counts.qualityFlags, counts.processSteps]);
 
   const saveMachineProfile = () => {
     const payload = { protocol, machineName: machineName.trim(), endpoint: endpoint.trim(), savedAt: new Date().toISOString(), status: "configuration-only" };
@@ -350,7 +359,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
           <div className="irl-mode-tabs">{modes.map(item => <button key={item.id} type="button" onClick={() => setMode(item.id)} className={mode === item.id ? "selected" : ""}>{item.label}</button>)}</div>
           <p>{modes.find(item => item.id === mode)?.detail}. This is an interactive visual simulation, not a validated engineering solver.</p>
           <div className="irl-transition-heading"><small>CAMERA / CINEMATIC TRANSITIONS</small><span>1.5s smooth easing</span></div>
-          <div className="irl-transition-grid">{transitions.map(item => <button type="button" key={item.id} onClick={() => setTransition(item.id)} className={transition === item.id ? "selected" : ""}><Move3D size={13}/>{item.label}</button>)}</div>
+          <div className="irl-transition-grid">{transitions.map(item => <button type="button" key={item.id} onClick={() => { setTransition(item.id); transitionActionRef.current?.(item.id); }} className={transition === item.id ? "selected" : ""}><Move3D size={13}/>{item.label}</button>)}</div>
         </section>
         <section className="irl-card irl-scenario">
           <div className="irl-section-heading"><div><small>02 / DECISION SIMULATION</small><h2>Predictive scenario lab</h2></div><Gauge size={19}/></div>
