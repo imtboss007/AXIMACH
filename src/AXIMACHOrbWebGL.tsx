@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Activity, Boxes, Factory, ShieldCheck, Workflow, Truck, Calculator, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import type { OrbCounts } from "./AXIMACHOrb";
-type Props = { onSelectModule: (id: string) => void; counts: OrbCounts; onFailure: () => void; paused?: boolean };
+type Props = { onSelectModule: (id: string) => void; counts: OrbCounts; onFailure: () => void; paused?: boolean; rotationSpeed?: number; sphereScale?: number; orbitIntensity?: number };
 const satellites = [
   { id: "companies", label: "Company", Icon: Factory, color: 0x72dcf5, position: new THREE.Vector3(-2.25,.65,.1), countKey: "companies" as const },
   { id: "production", label: "Production", Icon: Workflow, color: 0x8d9cff, position: new THREE.Vector3(2.05,.55,.25), countKey: "processSteps" as const },
@@ -16,13 +16,13 @@ function readVisualSettings():VisualSettings {
   const fallback:VisualSettings={animationIntensity:72,particles:65,lighting:75,cameraSensitivity:60,performanceQuality:"balanced",reducedMotion:false};
   try{const saved=JSON.parse(localStorage.getItem("aximach.visual-experience.v1")||"{}") as Partial<VisualSettings>;return {...fallback,...saved};}catch{return fallback;}
 }
-export default function AXIMACHOrbWebGL({onSelectModule,counts,onFailure,paused=false}:Props) {
+export default function AXIMACHOrbWebGL({onSelectModule,counts,onFailure,paused=false,rotationSpeed=1,sphereScale=1,orbitIntensity=1}:Props) {
   const hostRef=useRef<HTMLDivElement>(null);
-  const latest=useRef({onSelectModule,counts,onFailure,paused});
+  const latest=useRef({onSelectModule,counts,onFailure,paused,rotationSpeed,sphereScale,orbitIntensity});
   const [zoom,setZoom]=useState(0);
   const [visualRevision,setVisualRevision]=useState(0);
   useEffect(()=>{const refresh=()=>setVisualRevision(value=>value+1);window.addEventListener("aximach-visual-preferences-updated",refresh);return()=>window.removeEventListener("aximach-visual-preferences-updated",refresh);},[]);
-  useEffect(()=>{latest.current={onSelectModule,counts,onFailure,paused};},[onSelectModule,counts,onFailure,paused]);
+  useEffect(()=>{latest.current={onSelectModule,counts,onFailure,paused,rotationSpeed,sphereScale,orbitIntensity};},[onSelectModule,counts,onFailure,paused,rotationSpeed,sphereScale,orbitIntensity]);
 
   useEffect(()=>{
     const host=hostRef.current;if(!host)return;
@@ -99,7 +99,7 @@ export default function AXIMACHOrbWebGL({onSelectModule,counts,onFailure,paused=
     const resize=()=>{const width=Math.max(1,host.clientWidth),height=Math.max(1,host.clientHeight);camera.aspect=width/height;camera.updateProjectionMatrix();renderer.setSize(width,height,false);};
     const observer=new ResizeObserver(resize);observer.observe(host);resize();
     const reducedMotion=settings.reducedMotion||window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const animate=(time:number)=>{frame=requestAnimationFrame(animate);const delta=Math.min(.05,Math.max(0,(time-(lastTime||time))/1000));lastTime=time;if(!reducedMotion&&!latest.current.paused&&document.visibilityState==="visible"){universe.rotation.y+=delta*.075*settings.animationIntensity/72;rings[0].rotation.z+=delta*.16;rings[1].rotation.x-=delta*.11;rings[2].rotation.y+=delta*.09;nodeGroups.forEach((g,i)=>{g.rotation.y+=delta*(.3+i*.035);g.rotation.x+=delta*.18;});stars.rotation.y+=delta*.0015;}renderer.render(scene,camera);};
+    const animate=(time:number)=>{frame=requestAnimationFrame(animate);const delta=Math.min(.05,Math.max(0,(time-(lastTime||time))/1000));lastTime=time;universe.scale.setScalar(THREE.MathUtils.clamp(latest.current.sphereScale,.82,1.12));ringMaterials.forEach((material,index)=>{material.opacity=(.72-index*.12)*THREE.MathUtils.clamp(latest.current.orbitIntensity,0,1);});if(!reducedMotion&&!latest.current.paused&&document.visibilityState==="visible"){const rate=THREE.MathUtils.clamp(latest.current.rotationSpeed,.35,1.8);universe.rotation.y+=delta*.075*settings.animationIntensity/72*rate;rings[0].rotation.z+=delta*.16*rate;rings[1].rotation.x-=delta*.11*rate;rings[2].rotation.y+=delta*.09*rate;nodeGroups.forEach((g,i)=>{g.rotation.y+=delta*(.3+i*.035)*rate;g.rotation.x+=delta*.18*rate;});stars.rotation.y+=delta*.0015*rate;}renderer.render(scene,camera);};
     frame=requestAnimationFrame(animate);
     return ()=>{
       cancelAnimationFrame(frame);observer.disconnect();
