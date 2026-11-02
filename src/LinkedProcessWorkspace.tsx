@@ -525,12 +525,12 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     </section>
     <section className="process-map-print-only">
       <h1>AXIMACH · PROCESS MAP</h1>
-      <p>{selectedComponent?.partNumber || "Component"} · {selectedComponent?.name || ""} · {selectedPO?.number || "No PO"} · {visibleOperations.length} filtered operation(s)</p>
+      <p>{selectedComponent?.partNumber || "Component"} · {selectedComponent?.name || ""} · {selectedPO?.number || "No PO"} · {exportOperations.length} exported operation(s)</p>
       <table>
         <thead><tr>{selectedExportColumns.map(column=><th key={column.key}>{column.label}</th>)}</tr></thead>
-        <tbody>{visibleOperations.map(operation=><tr key={operation.id}>{selectedExportColumns.map(column=><td key={column.key}>{String(processExportValue(operation,column.key,exportVendorName(operation)) ?? "")}</td>)}</tr>)}</tbody>
+        <tbody>{exportOperations.map(operation=><tr key={operation.id}>{selectedExportColumns.map(column=><td key={column.key}>{String(processExportValue(operation,column.key,exportVendorName(operation)) ?? "")}</td>)}</tr>)}</tbody>
       </table>
-      <small>Generated from the current AXIMACH Process Map filter. Only checked fields are included.</small>
+      <small>Generated from the current AXIMACH Process Map filter and export scope. Only checked fields are included.</small>
     </section>
     <div className="module-safety-note"><ShieldCheck size={15}/><span>Each route is keyed by PO line and component ID; no example company, PO, part number, quote or vendor is preloaded. Server-wide cross-device sync requires the existing AXIMACH server to be deployed with persistent storage and configured in Communication & Follow-up.</span></div>
   </section>;
