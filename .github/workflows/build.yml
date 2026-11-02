@@ -69,7 +69,7 @@ jobs:
           if (-not (Test-Path $exe)) { throw "Packaged application executable not found: $exe" }
           $stdout = Join-Path $env:RUNNER_TEMP "aximach-electron-stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "aximach-electron-stderr.log"
-          $process = Start-Process -FilePath $exe -ArgumentList @("--enable-logging", "--v=1") -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $process = Start-Process -FilePath $exe -ArgumentList @("--aximach-smoke-test", "--aximach-smoke-data-dir=$env:AXIMACH_SMOKE_USER_DATA", "--enable-logging", "--v=1") -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
           if (-not $process.WaitForExit(70000)) {
             $log = Join-Path $env:AXIMACH_SMOKE_USER_DATA "logs/startup.log"
             if (Test-Path $log) { Write-Host "=== AXIMACH startup.log ==="; Get-Content $log }
