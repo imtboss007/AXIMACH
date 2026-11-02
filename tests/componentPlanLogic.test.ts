@@ -38,3 +38,15 @@ test("job-finish snapshot handles empty route without inventing a cost", () => {
     processCost: 0, actualProcessCost: 0, missingActualRates: 0, operationCount: 0
   });
 });
+
+test("direct transport contributes to finished total without requiring a manufacturing actual rate", () => {
+  const snapshot = calculateFinishedJobProcessCost([
+    { quantity: 100, ratePerPart: 0, actualRatePerPart: 0, transportCost: 500, name: "Transport / Dispatch", category: "Logistics" }
+  ]);
+  assert.deepEqual(snapshot, {
+    processCost: 500,
+    actualProcessCost: 500,
+    missingActualRates: 0,
+    operationCount: 1
+  });
+});
