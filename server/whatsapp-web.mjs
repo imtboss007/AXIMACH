@@ -43,14 +43,52 @@ async function readBody(req) {
   return raw ? JSON.parse(raw) : {};
 }
 function auth(req) { return Boolean(KEY) && req.headers["x-aximach-key"] === KEY; }
-function phoneNumber(jid) { return String(jid || "").split("@")[0].split(":")[0].replace(/\D/g, ""); }
+function phoneNumber(value) {
+  const raw = String(value || "").trim();
+  // WhatsApp LIDs are internal account identifiers, not telephone numbers.
+  if (!raw || /@(lid|g\.us|broadcast)(?:$|[.:])/i.test(raw)) return "";
+  const local = raw.split("@")[0].split(":")[0];
+  const digits = local.replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 15 ? digits : "";
+}
+function contactPhone(c) {
+  const candidates = [
+    c.phoneNumber, c.phone, c.number, c.pn, c.senderPn, c.participantPn,
+    c.remoteJidAlt, c.participantAlt, c.jid, c.id
+  ];
+  for (const candidate of candidates) {
+    const number = phoneNumber(candidate);
+    if (number) return number;
+  }
+  return "";
+}
 function upsertContact(c) {
-  const id = c.id || c.lid || "";
+  const rawId = String(c.id || c.jid || c.lid || c.phoneNumber || c.pn || "").trim();
+  const lid = String(c.lid || (rawId.endsWith("@lid") ? rawId : "")).trim();
+  const id = rawId || lid;
   if (!id || id.endsWith("@g.us") || id === "status@broadcast") return;
-  const number = phoneNumber(id);
-  const existing = state.contacts.find(x => x.id === id || (number && x.phone === number));
-  const item = { id, phone: number, name: c.name || c.notify || c.verifiedName || existing?.name || number || id, notify: c.notify || existing?.notify || "", syncedAt: new Date().toISOString() };
-  if (existing) Object.assign(existing, item); else state.contacts.push(item);
+
+  const number = contactPhone({ ...c, id });
+  const existing = state.contacts.find(x =>
+    x.id === id ||
+    (lid && (x.id === lid || x.lid === lid)) ||
+    (number && x.phone === number)
+  );
+  const stableId = existing?.id || id;
+  const previousPhoneIsLid = String(existing?.id || "").endsWith("@lid") &&
+    phoneNumber(existing?.phone) !== "" &&
+    phoneNumber(existing?.phone) === phoneNumber(existing?.id);
+  const safePreviousPhone = previousPhoneIsLid ? "" : (existing?.phone || "");
+  const item = {
+    id: stableId,
+    lid: lid || existing?.lid || "",
+    phone: number || safePreviousPhone,
+    name: c.name || c.notify || c.verifiedName || existing?.name || number || stableId,
+    notify: c.notify || existing?.notify || "",
+    syncedAt: new Date().toISOString()
+  };
+  if (existing) Object.assign(existing, item);
+  else state.contacts.push(item);
 }
 async function connect() {
   try {
@@ -71,16 +109,33 @@ async function connect() {
     });
     socket.ev.on("contacts.upsert", list => { for (const c of list) upsertContact(c); save().catch(console.error); });
     socket.ev.on("contacts.update", list => { for (const c of list) upsertContact(c); save().catch(console.error); });
-    socket.ev.on("messaging-history.set", ({ contacts = [], chats = [] }) => {
+    socket.ev.on("messaging-history.set", ({ contacts = [], chats = [], lidPnMappings = [] }) => {
       for (const c of contacts) upsertContact(c);
       for (const c of chats) if (c.id && !c.id.endsWith("@g.us")) upsertContact({ id: c.id, name: c.name, notify: c.name });
+      for (const mapping of lidPnMappings) {
+        const lid = String(mapping.lid || "");
+        const phone = mapping.pn || mapping.phoneNumber || "";
+        if (lid.endsWith("@lid") && phone) upsertContact({ id: lid, lid, phoneNumber: phone });
+      }
+      save().catch(console.error);
+    });
+    socket.ev.on("lid-mapping.update", mapping => {
+      const lid = String(mapping?.lid || "");
+      const phone = mapping?.pn || mapping?.phoneNumber || "";
+      if (lid.endsWith("@lid") && phone) upsertContact({ id: lid, lid, phoneNumber: phone });
       save().catch(console.error);
     });
     socket.ev.on("messages.upsert", ({ messages = [], type }) => {
       if (type !== "notify") return;
       for (const m of messages) {
         if (m.key?.fromMe) continue;
-        state.logs.unshift({ id: randomUUID(), at: new Date().toISOString(), status: "incoming", from: m.key?.remoteJid || "", text: m.message?.conversation || m.message?.extendedTextMessage?.text || "[non-text message]" });
+        const remoteJid = String(m.key?.remoteJid || "");
+        if (remoteJid && !remoteJid.endsWith("@g.us") && remoteJid !== "status@broadcast") {
+          const lid = [m.key?.participant, remoteJid].find(value => String(value || "").endsWith("@lid")) || "";
+          const phone = m.key?.senderPn || m.key?.participantPn || m.key?.remoteJidAlt || m.key?.participantAlt || remoteJid;
+          upsertContact({ id: lid || remoteJid, lid, phoneNumber: phone, name: m.pushName || "" });
+        }
+        state.logs.unshift({ id: randomUUID(), at: new Date().toISOString(), status: "incoming", from: remoteJid, text: m.message?.conversation || m.message?.extendedTextMessage?.text || "[non-text message]" });
       }
       state.logs = state.logs.slice(0, 2000);
       save().catch(console.error);

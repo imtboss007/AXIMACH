@@ -818,3 +818,115 @@ img,svg,canvas,video{max-width:100%}
 .linked-process-page .linked-node-vertical .linked-route-lane .linked-operation-node{width:100%;min-height:0}
 .linked-process-page .linked-node-vertical .linked-route-lane .linked-node-arrow{height:25px;width:auto;transform:rotate(90deg)}
 .route-master-picker .searchable-picker{width:100%}
+
+
+/* AXIMACH refinement: tactile icon surfaces and legible module labels on Android. */
+.universe-icon,
+.shortcut-icon,
+.metric-icon,
+.kpi-icon,
+.linked-node-icon {
+  border: 1px solid rgba(139, 168, 220, .46);
+  background: linear-gradient(145deg, #ffffff 0%, #edf3ff 42%, #d5e2fb 100%);
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,.95),
+    inset -2px -3px 5px rgba(83,116,177,.13),
+    0 4px 0 rgba(108,139,194,.16),
+    0 8px 15px rgba(38,73,132,.13);
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.55));
+}
+.universe-icon svg,
+.shortcut-icon svg,
+.metric-icon svg,
+.kpi-icon svg,
+.linked-node-icon svg {
+  filter: drop-shadow(0 2px 1px rgba(37,66,118,.23));
+}
+.universe-card:hover .universe-icon,
+.shortcut-card:hover .shortcut-icon {
+  transform: translateY(-2px) rotateX(5deg) rotateY(-5deg);
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,.98),
+    inset -2px -3px 5px rgba(83,116,177,.13),
+    0 5px 0 rgba(108,139,194,.17),
+    0 12px 18px rgba(38,73,132,.18);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.universe-card-copy strong { font-size: 12px; line-height: 1.35; }
+.universe-card-copy small { font-size: 10px; line-height: 1.45; }
+
+@media (max-width: 820px) {
+  .command-rail {
+    bottom: 8px;
+    width: max-content;
+    max-width: calc(100vw - 12px);
+    overflow-x: auto;
+    justify-content: flex-start;
+    gap: 5px;
+    padding: 6px;
+    scroll-snap-type: x proximity;
+  }
+  .command-rail .rail-section-label { display: none !important; }
+  .command-rail button {
+    flex: 0 0 86px;
+    min-width: 0;
+    min-height: 62px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 4px;
+    white-space: normal;
+    scroll-snap-align: start;
+  }
+  .command-rail button span {
+    display: block !important;
+    width: 100%;
+    max-width: 78px;
+    text-align: center;
+    font-size: 9px;
+    line-height: 1.15;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .command-rail button svg { width: 19px; height: 19px; flex: 0 0 auto; }
+  .command-rail .rail-all span { display: block !important; }
+  .universe-card { min-height: 104px; }
+  .universe-card-copy strong { font-size: 12px; }
+  .universe-card-copy small { font-size: 10px; -webkit-line-clamp: 3; }
+}
+@media (max-width: 520px) {
+  .command-rail button { flex-basis: 78px; min-height: 64px; padding: 6px 3px; }
+  .command-rail button span { max-width: 70px; font-size: 8.5px; }
+  .universe-card-copy strong { font-size: 12px; }
+  .universe-card-copy small { font-size: 9.5px; }
+}
+
+/* A job close-out is separate from individual operation completion. */
+.job-completion-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 12px 0 16px;
+  padding: 16px 18px;
+  border: 1px solid #d7e4f6;
+  border-radius: 13px;
+  background: linear-gradient(120deg, #f8fbff 0%, #edf4ff 100%);
+}
+.job-completion-copy { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.job-completion-icon {
+  display: grid; place-items: center; flex: 0 0 42px; height: 42px;
+  color: #2c69c8; border: 1px solid #c7d9f7; border-radius: 12px;
+  background: linear-gradient(145deg, #fff, #cfdef8);
+  box-shadow: inset 1px 1px 0 #fff, 0 4px 8px rgba(38,73,132,.13);
+}
+.job-completion-copy small { display: block; color: #6b85aa; font: 700 8px 'DM Mono'; letter-spacing: .6px; }
+.job-completion-copy strong { display: block; margin-top: 4px; color: #233d63; font: 600 16px 'Space Grotesk'; }
+.job-completion-copy p { margin: 4px 0 0; color: #7184a0; font-size: 10px; line-height: 1.45; }
+.job-completion-finished { border-color: #c5e3d3; background: linear-gradient(120deg, #f7fcf8, #e8f6ee); }
+.job-completion-finished .job-completion-icon { color: #16835f; border-color: #c5e3d3; background: linear-gradient(145deg, #fff, #cdebdc); }
+.job-completion-finished .job-completion-copy strong { color: #17694f; }
+@media (max-width: 520px) {
+  .job-completion-panel { align-items: stretch; flex-direction: column; padding: 13px; }
+  .job-completion-panel > button { width: 100%; justify-content: center; }
+}

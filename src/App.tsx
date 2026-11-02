@@ -9,11 +9,29 @@ import {
   Wallet, Workflow, Wrench, X, Zap
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import AXIMACHOrb from "./AXIMACHOrb";
+import IconStudio from "./IconStudio";
 import ManufacturingMasterWorkspace from "./ManufacturingMasterWorkspace";
 import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
 import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
 import InventoryWorkspace from "./InventoryWorkspace";
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
+
+function isAllowedAxMachServiceUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.replace(/^\[|\]$/g, "");
+    const octets = host.split(".").map(Number);
+    const privateIpv4 = octets.length === 4 && octets.every(n => Number.isInteger(n) && n >= 0 && n <= 255)
+      && (octets[0] === 10
+        || (octets[0] === 192 && octets[1] === 168)
+        || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31));
+    const localHost = host === "localhost" || host === "127.0.0.1";
+    return parsed.protocol === "https:" || (parsed.protocol === "http:" && (localHost || privateIpv4));
+  } catch {
+    return false;
+  }
+}
 
 type ModuleItem = {
   id: string;
@@ -32,7 +50,7 @@ const modules: ModuleItem[] = [
   { id: "components", title: "Components, BOMs & Drawings", group: "Engineering", description: "Part masters, bills of material, drawings and linked revisions.", icon: Box, action: "Explore component records" },
   { id: "process-map", title: "Process Map / Process Graph", group: "Engineering", description: "Explore route operations, branches, subcontracting and rework loops.", icon: Workflow, action: "Open process universe" },
   { id: "process-master", title: "Process Master", group: "Engineering", description: "Maintain reusable manufacturing process definitions and parameters.", icon: Layers3, action: "Browse process library" },
-  { id: "vendors", title: "Vendors & Sub-vendors", group: "Supply Network", description: "Manage suppliers, subcontractors, sites, contacts and relationships.", icon: Users, action: "Explore supplier network" },
+  { id: "vendors", title: "Contact 360 & Vendors", group: "Supply Network", description: "Manage suppliers, subcontractors, sites, contacts and relationships.", icon: Users, action: "Explore supplier network" },
   { id: "vendor-capability", title: "Vendor Capability Master", group: "Supply Network", description: "Match process capabilities, machine envelopes, tolerances and certificates.", icon: Cpu, action: "Explore capability matching" },
   { id: "rates", title: "Material & Rate Book", group: "Supply Network", description: "Track material grades, rate history, yield assumptions and pricing sources.", icon: Gauge, action: "Review rate book" },
   { id: "inventory", title: "Material & Inventory", group: "Operations", description: "Track lots, stock, reservations, shortages, scrap and balances.", icon: Boxes, action: "Explore inventory" },
@@ -65,6 +83,7 @@ function App() {
   useState(() => { removeLegacyDemoData(); return true; });
   const [activeModuleId, setActiveModuleId] = useState("command-centre");
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
+  const [iconStudioOpen, setIconStudioOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("All domains");
@@ -77,7 +96,7 @@ function App() {
   const globalRecords = getAllModuleRecords();
   const globalVendorContacts = activeRows(readManufacturingData().vendors);
   const normalizedGlobalQuery = query.toLowerCase().trim();
-  const globalRecordResults = normalizedGlobalQuery ? Object.entries(globalRecords).flatMap(([moduleId, records]) => records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(normalizedGlobalQuery)).map((record) => ({ ...record, moduleId }))).slice(0, 8) : [];
+  const globalRecordResults = normalizedGlobalQuery ? Object.entries(globalRecords).flatMap(([moduleId, records]) => records.filter((record) => !record.deletedAt && (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(normalizedGlobalQuery)).map((record) => ({ ...record, moduleId }))).slice(0, 8) : [];
   const globalVendorResults = normalizedGlobalQuery ? globalVendorContacts.filter((contact) => (contact.company + " " + contact.contact + " " + contact.role + " " + contact.phone + " " + contact.email + " " + contact.processes + " " + contact.notes).toLowerCase().includes(normalizedGlobalQuery)).slice(0, 8) : [];
 
   const filteredModules = useMemo(() => modules.filter((item) => {
@@ -153,6 +172,7 @@ function App() {
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
         <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>32</b></button>
+        <button className="deck-action deck-icon-studio" onClick={() => setIconStudioOpen(true)}><Sparkles size={16} /><span>3D Icon Studio</span></button>
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
       </header>
@@ -256,6 +276,8 @@ function App() {
         </div>
       )}
 
+      <IconStudio open={iconStudioOpen} onClose={() => setIconStudioOpen(false)} />
+
       <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Master records · server sync status shown in each workspace</span></footer>
     </div>
   );
@@ -278,28 +300,9 @@ function CommandCentre(props: {
           <p>One connected view of work orders, machines, suppliers, quality and cost — designed for how real manufacturing runs.</p>
           <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all 32 modules</button></div>
         </div>
-        <div className="hero-graphic" aria-label="Illustrative connected manufacturing process visualization">
+        <div className="hero-graphic axim-hero-graphic" aria-label="Interactive AXIMACH 3D operations sphere">
           <div className="graphic-grid" />
-          <svg className="orbit-svg" viewBox="0 0 440 330" role="img" aria-label="Abstract manufacturing flow network">
-            <defs><linearGradient id="flow-line" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#8ebfff" /><stop offset="100%" stopColor="#2765e8" /></linearGradient></defs>
-            <circle cx="220" cy="158" r="112" fill="none" stroke="#b5cef7" strokeWidth="1" strokeDasharray="3 7" />
-            <circle cx="220" cy="158" r="77" fill="none" stroke="#a7c5f5" strokeWidth="1" strokeDasharray="2 8" />
-            <path d="M84 91 L163 133 L282 73 L350 139 L287 232 L163 203 L84 91" fill="none" stroke="url(#flow-line)" strokeWidth="1.8" />
-            <path d="M163 133 L168 254 L287 232 M282 73 L282 158 L350 139 M84 91 L65 174 L163 203" fill="none" stroke="#9dbded" strokeWidth="1.2" strokeDasharray="4 5" />
-            <circle cx="220" cy="158" r="54" fill="#f9fbff" stroke="#7ba7f2" strokeWidth="1.4" />
-            <circle cx="220" cy="158" r="44" fill="#e6efff" stroke="#b3cdf8" />
-            <text x="220" y="151" fontSize="10" fontWeight="700" textAnchor="middle" fill="#4269b1" letterSpacing="2">AXI</text>
-            <text x="220" y="169" fontSize="17" fontWeight="700" textAnchor="middle" fill="#142a4c">FLOW</text>
-            <g className="orbit-node"><circle cx="84" cy="91" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M76 93 L84 85 L92 93 M78 94 V100 H90 V94" fill="none" stroke="#3975da" strokeWidth="1.4" /></g>
-            <g className="orbit-node"><circle cx="282" cy="73" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><rect x="274" y="65" width="16" height="16" rx="3" fill="none" stroke="#3975da" strokeWidth="1.4" /><path d="M278 69 H286 M278 73 H286 M278 77 H283" stroke="#3975da" strokeWidth="1.2" /></g>
-            <g className="orbit-node"><circle cx="350" cy="139" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M342 141 H358 M345 136 H355 M347 131 H353" stroke="#3975da" strokeWidth="1.6" /></g>
-            <g className="orbit-node"><circle cx="287" cy="232" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M279 226 H295 V238 H279 Z M283 230 H291 M283 234 H291" fill="none" stroke="#3975da" strokeWidth="1.4" /></g>
-            <g className="orbit-node"><circle cx="163" cy="203" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><circle cx="163" cy="203" r="8" fill="none" stroke="#3975da" strokeWidth="1.4" /><path d="M163 191 V195 M163 211 V215 M151 203 H155 M171 203 H175" stroke="#3975da" strokeWidth="1.2" /></g>
-            <g className="orbit-node"><circle cx="65" cy="174" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M57 174 L63 180 L73 168" fill="none" stroke="#3975da" strokeWidth="1.6" /></g>
-            <g className="orbit-node"><circle cx="168" cy="254" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M160 250 H176 V258 H160 Z M163 246 H173 V250" fill="none" stroke="#3975da" strokeWidth="1.4" /></g>
-          </svg>
-          <div className="graphic-caption"><span className="ribbon-dot" /> MANUFACTURING FLOW / LIVE RECORDS WHEN CONNECTED</div>
-          <span className="graphic-coordinate coord-one">01 / MATERIAL</span><span className="graphic-coordinate coord-two">07 / QUALITY</span>
+          <AXIMACHOrb onSelectModule={onSelectModule} />
         </div>
       </section>
 
@@ -317,10 +320,22 @@ function CommandCentre(props: {
         <div className="surface-panel flow-preview">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA SETUP</div><h3>Build your manufacturing records</h3><p>Save each master once; choose its ID from linked workflows.</p></div><button className="round-action" onClick={() => onSelectModule("companies")} aria-label="Open company master"><ArrowUpRight size={18}/></button></div>
           <div className="setup-steps">
-            <button onClick={() => onSelectModule("companies")}><span>01</span><strong>Company & factory</strong><small>{activeRows(actualData.companies).length} companies · {activeRows(actualData.factories).length} factories</small></button>
-            <button onClick={() => onSelectModule("components")}><span>02</span><strong>Component master</strong><small>{activeRows(actualData.components).length} part numbers saved</small></button>
-            <button onClick={() => onSelectModule("purchasing")}><span>03</span><strong>Purchase order lines</strong><small>{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.length,0)} lines saved</small></button>
-            <button onClick={() => onSelectModule("vendors")}><span>04</span><strong>Vendor directory</strong><small>{activeRows(actualData.vendors).length} saved vendor/contact records</small></button>
+            <button onClick={() => onSelectModule("companies")}>
+              <span className="setup-step-icon"><Factory size={19}/></span>
+              <span className="setup-step-copy"><strong>Company & factory</strong><small><b>{activeRows(actualData.companies).length}</b> companies · <b>{activeRows(actualData.factories).length}</b> factories</small></span>
+            </button>
+            <button onClick={() => onSelectModule("components")}>
+              <span className="setup-step-icon"><Box size={19}/></span>
+              <span className="setup-step-copy"><strong>Component master</strong><small><b>{activeRows(actualData.components).length}</b> part numbers saved</small></span>
+            </button>
+            <button onClick={() => onSelectModule("purchasing")}>
+              <span className="setup-step-icon"><Package size={19}/></span>
+              <span className="setup-step-copy"><strong>Purchase orders</strong><small><b>{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0)}</b> component lines</small></span>
+            </button>
+            <button onClick={() => onSelectModule("vendors")}>
+              <span className="setup-step-icon"><Users size={19}/></span>
+              <span className="setup-step-copy"><strong>Contact 360</strong><small><b>{activeRows(actualData.vendors).length}</b> contacts / suppliers</small></span>
+            </button>
           </div>
         </div>
         <div className="surface-panel jobs-panel">
@@ -389,11 +404,12 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
   return <section className="workspace-page vendor-master-page">
     {notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill "+(syncStatus==="synced"?"scheduler-connected":"")}><i/>{syncStatus==="synced"?"SHARED SERVER DATA":syncStatus==="syncing"?"SYNCING":syncStatus==="error"?"SYNC ERROR · LOCAL COPY KEPT":"NO DEMO VENDORS · MASTER RECORDS"}</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / CONTACT MASTER</div><h1>Vendor network<span>.</span></h1><p>One vendor record connects its phone number, machine/process capability, operation assignments and quotation history.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={()=>onSelectModule("communications")}><CalendarClock size={15}/> Communications & follow-up</button><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add vendor</button></div></div>
-    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search vendor, phone, process, machine, material…"/></label><span className="module-number">{contacts.length} VENDORS / CONTACTS</span></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / CONTACT MASTER</div><h1>Contact 360<span>.</span></h1><p>One connected contact master for vendor identities, verified phone and WhatsApp numbers, process capabilities, operation assignments and quotation history.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={()=>onSelectModule("communications")}><ScanLine size={15}/> WhatsApp sync & follow-up</button><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add vendor</button></div></div>
+    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search vendor, phone, process, machine, material…"/></label><span className="module-number">{contacts.length} CONTACTS · {contacts.filter(v => String(v.phone || v.whatsappNumber || "").replace(/\D/g, "").length >= 8).length} WITH NUMBERS</span></div>
+    <div className="module-safety-note contact-sync-guidance"><ShieldCheck size={15}/><span>WhatsApp numbers are imported from Communications & WhatsApp. For PC ↔ mobile records to stay identical, both devices must use the same Shared AXIMACH data server URL and API key there. Without that shared server, records remain local to each device.</span><button className="button-quiet compact-button" onClick={()=>onSelectModule("communications")}><ScanLine size={13}/> Open sync settings</button></div>
     <div className="vendor-workspace-grid">
       <section className="surface-panel vendor-list-panel"><div className="panel-heading"><div><h3>Vendor directory</h3><p>Shared master records · imported WhatsApp contacts remain unverified until reviewed</p></div></div>
-        <div className="vendor-record-list">{filtered.map(v=><button key={v.id} className={"vendor-record "+(selected?.id===v.id?"vendor-record-active":"")} onClick={()=>{setSelectedId(v.id);setEditing(false);}}><span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.contact} · {v.phone?"+"+v.phone:"Phone missing"}</small><small>{v.processes||"Capabilities not recorded"} · {v.status}</small></span><ArrowRight size={14}/></button>)}{!filtered.length&&<div className="module-empty-state"><Users size={25}/><h3>{search?"No matching vendor":"No vendors added"}</h3><p>{search?"Try another search.":"No placeholder vendors are preloaded. Add actual suppliers here or scan the WhatsApp bridge QR to import available contacts."}</p>{!search&&<button className="button-primary" onClick={beginNew}><Plus size={14}/> Add first vendor</button>}</div>}</div>
+        <div className="vendor-record-list">{filtered.map(v=><button key={v.id} className={"vendor-record "+(selected?.id===v.id?"vendor-record-active":"")} onClick={()=>{setSelectedId(v.id);setEditing(false);}}><span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.contact} · {v.whatsappNumber ? "WhatsApp +" + v.whatsappNumber : v.phone ? "Phone +" + v.phone : "Number missing"}</small><small>{v.processes||"Capabilities not recorded"} · {v.status}</small></span><ArrowRight size={14}/></button>)}{!filtered.length&&<div className="module-empty-state"><Users size={25}/><h3>{search?"No matching vendor":"No vendors added"}</h3><p>{search?"Try another search.":"No placeholder vendors are preloaded. Add actual suppliers here or scan the WhatsApp bridge QR to import available contacts."}</p>{!search&&<button className="button-primary" onClick={beginNew}><Plus size={14}/> Add first vendor</button>}</div>}</div>
       </section>
       <section className="surface-panel vendor-detail-panel">
         {editing?<><div className="panel-heading"><div><h3>{selectedId?"Edit vendor master":"New vendor master"}</h3><p>Company and contact person are required; phone numbers are checked for duplicates.</p></div><button className="icon-control" onClick={()=>setEditing(false)} aria-label="Close editor"><X size={14}/></button></div>
@@ -426,9 +442,30 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   type ApiContact = { id: string; name: string; phone: string; company: string; optedIn: boolean; createdAt: string };
   type ApiSchedule = { id: string; to: string; message: string; nextRunAt: string | null; repeat: "once" | "daily" | "weekly"; enabled: boolean; lastRunAt: string | null; lastError: string };
   type ApiLog = { id: string; scheduleId: string; at: string; status: string; detail: string; providerMessageId?: string };
-  const [apiUrl,setApiUrl]=useState(()=>window.localStorage.getItem("aximach.scheduler.url")||"http://localhost:8787");
-  const [apiKey,setApiKey]=useState(()=>window.localStorage.getItem("aximach.scheduler.key")||(window.location.protocol==="file:"?"aximach-desktop-local-bridge-v1":""));
+  const [apiUrl,setApiUrl]=useState(()=>window.localStorage.getItem("aximach.scheduler.url")||(window.location.protocol==="file:"?"http://127.0.0.1:8787":""));
+  const [apiKey,setApiKey]=useState(()=>window.localStorage.getItem("aximach.scheduler.key")||"");
   const [connected,setConnected]=useState(false);
+  const [lanInfo,setLanInfo]=useState<{addresses:string[];apiKey:string;port:number}|null>(null);
+  useEffect(()=>{
+    if(window.location.protocol!=="file:")return;
+    let cancelled=false;
+    let attempts=0;
+    let timer:number|undefined;
+    const loadLanInfo=async()=>{
+      try{
+        const response=await fetch("http://127.0.0.1:8787/api/connection-info",{cache:"no-store"});
+        if(!response.ok)throw new Error("Local server unavailable");
+        const info=await response.json();
+        if(!cancelled){setLanInfo(info);setApiKey(info.apiKey||"");setApiUrl("http://127.0.0.1:8787");}
+      }catch{
+        attempts++;
+        if(!cancelled&&attempts<12)timer=window.setTimeout(loadLanInfo,1000);
+      }
+    };
+    void loadLanInfo();
+    return()=>{cancelled=true;if(timer)window.clearTimeout(timer);};
+  },[]);
+
   const [busy,setBusy]=useState(false);
   const [apiError,setApiError]=useState("");
   const [contacts,setContacts]=useState<ApiContact[]>([]);
@@ -438,11 +475,11 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const [name,setName]=useState(""); const [phone,setPhone]=useState(""); const [company,setCompany]=useState(""); const [optedIn,setOptedIn]=useState(false);
   const [to,setTo]=useState(""); const [message,setMessage]=useState(""); const [due,setDue]=useState(()=>{const d=new Date(Date.now()+3600000);d.setMinutes(Math.ceil(d.getMinutes()/5)*5,0,0);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);});
   const [repeat,setRepeat]=useState<"once"|"daily"|"weekly">("once");
-  const [waUrl,setWaUrl]=useState(()=>window.localStorage.getItem("aximach.whatsapp.url")||(window.location.protocol==="file:"?"http://127.0.0.1:8788":"http://localhost:8788"));
+  const [waUrl,setWaUrl]=useState(()=>window.localStorage.getItem("aximach.whatsapp.url")||(window.location.protocol==="file:"?"http://127.0.0.1:8789":""));
   const [waConnected,setWaConnected]=useState(false);
   const [waQr,setWaQr]=useState("");
   const [waUser,setWaUser]=useState("");
-  type WhatsAppContact = { id:string; phone:string; name:string; notify?:string };
+  type WhatsAppContact = { id:string; phone:string; name:string; notify?:string; lid?:string };
   const [waContacts,setWaContacts]=useState<WhatsAppContact[]>([]);
   const { update: updateManufacturingData } = useManufacturingData();
   const [waGroups,setWaGroups]=useState<Array<{id:string;name:string;participants:number}>>([]);
@@ -455,20 +492,88 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const [waRepeat,setWaRepeat]=useState<"once"|"daily"|"weekly">("once");
   const [waError,setWaError]=useState("");
   const waBase=waUrl.trim().replace(/\/+$/,"");
-  const waRequest=async(path:string,init:RequestInit={})=>{const response=await fetch(waBase+path,{...init,headers:{"content-type":"application/json","x-aximach-key":apiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"WhatsApp bridge returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
-  const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{if(!incoming.length)return {added:0,updated:0};const current=readManufacturingData();const next=[...current.vendors];const syncedAt=nowIso();let added=0;let updated=0;for(const contact of incoming){const phone=String(contact.phone||"").replace(/\D/g,"");const label=String(contact.name||contact.notify||phone||"Imported WhatsApp contact").trim();const index=next.findIndex(v=>v.sourceContactId===contact.id||(phone&&([v.phone,v.whatsappNumber].some(value=>String(value||"").replace(/\D/g,"")===phone))));if(index>=0){const old=next[index];const patch:VendorRecord={...old,sourceContactId:old.sourceContactId||contact.id,phone:old.phone||phone,whatsappNumber:phone||old.whatsappNumber,contact:old.contact||label};const changed=patch.sourceContactId!==old.sourceContactId||patch.phone!==old.phone||patch.whatsappNumber!==old.whatsappNumber||patch.contact!==old.contact;if(changed){patch.whatsappSyncedAt=syncedAt;patch.updatedAt=syncedAt;next[index]=patch;updated++;}}else{next.push({id:makeId("vendor"),company:label,contact:label,role:"WhatsApp contact",phone,whatsappNumber:phone,email:"",address:"",processes:"",machines:"",materials:"",notes:"Imported from WhatsApp linked devices. Verify the real vendor identity, process capabilities and consent before approval.",status:"Unverified contact — review",sourceContactId:contact.id,whatsappSyncedAt:syncedAt,createdAt:syncedAt,updatedAt:syncedAt});added++;}}if(added||updated)updateManufacturingData(currentData=>({...currentData,vendors:next}));return {added,updated};};
-  const refreshWhatsApp=async()=>{setBusy(true);setWaError("");try{if(!apiKey.trim())throw new Error("Enter the server API key above first.");if(!waBase.startsWith("https://")&&!/^(http:\/\/localhost|http:\/\/127\.0\.0\.1)/.test(waBase))throw new Error("Use HTTPS for a deployed bridge. HTTP is allowed only for localhost.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");const contactRows:WhatsAppContact[]=co.contacts||[];setWaContacts(contactRows);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);const synced=st.connected?syncWhatsAppContactsToVendors(contactRows):{added:0,updated:0};window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; "+synced.added+" new contacts added to the AXIMACH vendor master and "+synced.updated+" existing records refreshed. They stay unverified until reviewed; cross-device persistence depends on the scheduler data server being connected.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
+  const waApiKey=apiKey;
+  const waRequest=async(path:string,init:RequestInit={})=>{const response=await fetch(waBase+path,{...init,headers:{"content-type":"application/json","x-aximach-key":waApiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"WhatsApp bridge returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
+  const verifiedWhatsAppPhone=(value:unknown)=>{
+    const raw=String(value||"").trim();
+    if(!raw||/@(lid|g\.us|broadcast)(?:$|[.:])/i.test(raw))return "";
+    const digits=raw.split("@")[0].split(":")[0].replace(/\D/g,"");
+    return digits.length>=8&&digits.length<=15?digits:"";
+  };
+  const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{
+    if(!incoming.length)return {added:0,updated:0};
+    const current=readManufacturingData();
+    const next=[...current.vendors];
+    const syncedAt=nowIso();
+    let added=0;
+    let updated=0;
+    for(const contact of incoming){
+      const phone=verifiedWhatsAppPhone(contact.phone);
+      const label=String(contact.name||contact.notify||"WhatsApp contact").trim();
+      const identityKeys=[contact.id,contact.lid].filter(Boolean);
+      const index=next.findIndex(v=>identityKeys.includes(v.sourceContactId)||(phone&&([v.phone,v.whatsappNumber].some(value=>verifiedWhatsAppPhone(value)===phone))));
+      if(index>=0){
+        const old=next[index];
+        const sameIdentity=identityKeys.includes(old.sourceContactId);
+        const sourceWasLid=String(old.sourceContactId||"").endsWith("@lid");
+        const oldLidDigits=String(old.sourceContactId||"").split("@")[0].replace(/\D/g,"");
+        const oldPhoneLooksLikeLid=sourceWasLid&&oldLidDigits&&oldLidDigits===String(old.phone||"").replace(/\D/g,"");
+        const oldWhatsAppLooksLikeLid=sourceWasLid&&oldLidDigits&&oldLidDigits===String(old.whatsappNumber||"").replace(/\D/g,"");
+        const oldPhone=oldPhoneLooksLikeLid?"":verifiedWhatsAppPhone(old.phone);
+        const oldWhatsApp=oldWhatsAppLooksLikeLid?"":verifiedWhatsAppPhone(old.whatsappNumber);
+        const patch:VendorRecord={
+          ...old,
+          sourceContactId:old.sourceContactId||contact.id,
+          phone:phone&&sameIdentity?phone:(oldPhone||phone),
+          whatsappNumber:phone&&sameIdentity?phone:(oldWhatsApp||phone),
+          contact:old.contact||label
+        };
+        const changed=patch.sourceContactId!==old.sourceContactId||patch.phone!==old.phone||patch.whatsappNumber!==old.whatsappNumber||patch.contact!==old.contact;
+        if(changed){patch.whatsappSyncedAt=syncedAt;patch.updatedAt=syncedAt;next[index]=patch;updated++;}
+      }else{
+        next.push({
+          id:makeId("vendor"),company:label,contact:label,role:"WhatsApp contact",
+          phone,whatsappNumber:phone,email:"",address:"",processes:"",machines:"",materials:"",
+          notes:"Imported from WhatsApp linked devices. Verify the real vendor identity, process capabilities and consent before approval.",
+          status:"Unverified contact — review",sourceContactId:contact.id,whatsappSyncedAt:syncedAt,
+          createdAt:syncedAt,updatedAt:syncedAt
+        });
+        added++;
+      }
+    }
+    if(added||updated)updateManufacturingData(currentData=>({...currentData,vendors:next}));
+    return {added,updated};
+  };
+  const refreshWhatsApp=async()=>{setBusy(true);setWaError("");try{if(!waApiKey.trim())throw new Error("AXIMACH shared API key is missing.");if(!isAllowedAxMachServiceUrl(waBase))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");const contactRows:WhatsAppContact[]=co.contacts||[];setWaContacts(contactRows);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);const synced=st.connected?syncWhatsAppContactsToVendors(contactRows):{added:0,updated:0};window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; "+synced.added+" new contacts added to the AXIMACH vendor master and "+synced.updated+" existing records refreshed. They stay unverified until reviewed; cross-device persistence depends on the scheduler data server being connected.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
   const addWhatsAppSchedule=async()=>{setBusy(true);setWaError("");try{if(!waOptIn)throw new Error("Confirm you have permission to message this recipient.");const d=await waRequest("/api/whatsapp/schedules",{method:"POST",body:JSON.stringify({to:waTarget,message:waMessage,nextRunAt:new Date(waDue).toISOString(),repeat:waRepeat,optedIn:true})});setWaSchedules(prev=>[d.schedule,...prev]);setWaMessage("");onNotice("WhatsApp automation saved to the bridge server.");}catch(e){setWaError(e instanceof Error?e.message:"Could not save WhatsApp automation.");}finally{setBusy(false);}};
   const toggleWhatsAppSchedule=async(task:{id:string;enabled:boolean})=>{setBusy(true);setWaError("");try{const d=await waRequest("/api/whatsapp/schedules/"+task.id,{method:"PATCH",body:JSON.stringify({enabled:!task.enabled})});setWaSchedules(prev=>prev.map(x=>x.id===task.id?d.schedule:x));}catch(e){setWaError(e instanceof Error?e.message:"Could not update WhatsApp schedule.");}finally{setBusy(false);}};
   const visibleWaContacts=waContacts.filter(c=>(c.name+" "+c.notify+" "+c.phone).toLowerCase().includes(waSearch.toLowerCase().trim()));
-  const importWhatsAppContactsToVendors=()=>{if(!waContacts.length){setWaError("No WhatsApp contacts are synced yet. Link WhatsApp and refresh contacts first.");return;}const result=syncWhatsAppContactsToVendors(waContacts);onNotice("Vendor master sync complete: "+result.added+" new contacts added, "+result.updated+" existing records refreshed. Every imported contact remains unverified until reviewed.");};
-  useEffect(()=>{if(window.location.protocol==="file:"){window.localStorage.setItem("aximach.scheduler.key",apiKey);window.localStorage.setItem("aximach.whatsapp.url",waUrl);const timer=window.setTimeout(()=>{void refreshWhatsApp();},1800);return()=>window.clearTimeout(timer);}if(window.localStorage.getItem("aximach.scheduler.key"))void refreshWhatsApp();},[]);
-  useEffect(()=>{const local=window.location.protocol==="file:";const pollBase=local?"http://127.0.0.1:8788":waBase;const pollKey=local?"aximach-desktop-local-bridge-v1":apiKey;if(!pollKey.trim())return;let cancelled=false;const poll=async()=>{try{const headers={"x-aximach-key":pollKey};const statusResponse=await fetch(pollBase+"/api/whatsapp/status",{headers});if(!statusResponse.ok)return;const status=await statusResponse.json();if(cancelled)return;setWaConnected(Boolean(status.connected));setWaQr(status.qrDataUrl||"");setWaUser(status.user||"");if(!status.connected)return;const [co,gr,sc]=await Promise.all([fetch(pollBase+"/api/whatsapp/contacts",{headers}),fetch(pollBase+"/api/whatsapp/groups",{headers}),fetch(pollBase+"/api/whatsapp/schedules",{headers})]);if(cancelled)return;if(co.ok){const rows:WhatsAppContact[]=(await co.json()).contacts||[];setWaContacts(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);syncWhatsAppContactsToVendors(rows);}if(gr.ok){const rows=(await gr.json()).groups||[];setWaGroups(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}if(sc.ok){const rows=(await sc.json()).schedules||[];setWaSchedules(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}}catch{/* bridge may be unavailable while starting */}};void poll();const timer=window.setInterval(()=>void poll(),5000);return()=>{cancelled=true;window.clearInterval(timer);};},[waBase,apiKey]);
+  const importWhatsAppContactsToVendors=()=>{if(!waContacts.length){setWaError("No WhatsApp contacts are synced yet. Link WhatsApp and refresh contacts first.");return;}const result=syncWhatsAppContactsToVendors(waContacts);const withoutNumber=waContacts.filter(c=>!verifiedWhatsAppPhone(c.phone)).length;onNotice("Contact 360 sync complete: "+result.added+" new contacts added, "+result.updated+" existing records refreshed. "+withoutNumber+" contacts did not have a phone number shared by WhatsApp and were not assigned a fabricated number.");};
+  useEffect(()=>{if(window.location.protocol==="file:"){if(apiUrl)window.localStorage.setItem("aximach.scheduler.url",apiUrl);if(apiKey)window.localStorage.setItem("aximach.scheduler.key",apiKey);if(waUrl)window.localStorage.setItem("aximach.whatsapp.url",waUrl);const timer=window.setTimeout(()=>{void refreshWhatsApp();},1800);return()=>window.clearTimeout(timer);}if(window.localStorage.getItem("aximach.scheduler.key"))void refreshWhatsApp();},[]);
+  useEffect(()=>{const local=window.location.protocol==="file:";const pollBase=local?"http://127.0.0.1:8789":waBase;const pollKey=apiKey;if(!pollKey.trim())return;let cancelled=false;const poll=async()=>{try{const headers={"x-aximach-key":pollKey};const statusResponse=await fetch(pollBase+"/api/whatsapp/status",{headers});if(!statusResponse.ok)return;const status=await statusResponse.json();if(cancelled)return;setWaConnected(Boolean(status.connected));setWaQr(status.qrDataUrl||"");setWaUser(status.user||"");if(!status.connected)return;const [co,gr,sc]=await Promise.all([fetch(pollBase+"/api/whatsapp/contacts",{headers}),fetch(pollBase+"/api/whatsapp/groups",{headers}),fetch(pollBase+"/api/whatsapp/schedules",{headers})]);if(cancelled)return;if(co.ok){const rows:WhatsAppContact[]=(await co.json()).contacts||[];setWaContacts(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);syncWhatsAppContactsToVendors(rows);}if(gr.ok){const rows=(await gr.json()).groups||[];setWaGroups(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}if(sc.ok){const rows=(await sc.json()).schedules||[];setWaSchedules(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}}catch{/* bridge may be unavailable while starting */}};void poll();const timer=window.setInterval(()=>void poll(),5000);return()=>{cancelled=true;window.clearInterval(timer);};},[waBase,apiKey]);
 
   const base=apiUrl.trim().replace(/\/+$/,"");
   const visibleContacts=contacts.filter(c=>(c.name+" "+c.company+" "+c.phone).toLowerCase().includes(contactSearch.toLowerCase().trim()));
   const request=async(path:string,init:RequestInit={})=>{const response=await fetch(base+path,{...init,headers:{"content-type":"application/json","x-aximach-key":apiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"The service returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
-  const connect=async()=>{setBusy(true);setApiError("");try{if(!base.startsWith("https://")&&!/^(http:\/\/localhost|http:\/\/127\.0\.0\.1)/.test(base))throw new Error("Use HTTPS for a deployed service. HTTP is allowed only for localhost.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("Scheduler health check failed.");await request("/api/contacts");const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);updateManufacturingData(currentData=>({...currentData}));setApiError("");onNotice("Scheduler connected. AXIMACH is syncing your saved companies, factories, PO lines, components, vendors, operations and quotations to this server; check each workspace sync status.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
+  const connect=async()=>{setBusy(true);setApiError("");try{if(!isAllowedAxMachServiceUrl(base))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("Scheduler health check failed.");await request("/api/contacts");const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);if(base.startsWith("http://")){const bridge=new URL(base);bridge.port="8789";const bridgeUrl=bridge.toString().replace(/\/$/,"");setWaUrl(bridgeUrl);window.localStorage.setItem("aximach.whatsapp.url",bridgeUrl);}updateManufacturingData(currentData=>({...currentData}));setApiError("");onNotice("Scheduler connected. AXIMACH is syncing saved companies, factories, PO lines, components, vendors, operations, quotations and module records to this server.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
+  useEffect(()=>{
+    if(!apiKey.trim()||!isAllowedAxMachServiceUrl(apiUrl))return;
+    let cancelled=false;
+    const verify=async()=>{
+      try{
+        const health=await fetch(apiUrl.trim().replace(/\/+$/,"")+"/health",{cache:"no-store"});
+        if(!health.ok)throw new Error("Server unavailable");
+        const response=await fetch(apiUrl.trim().replace(/\/+$/,"")+"/api/contacts",{headers:{"x-aximach-key":apiKey}});
+        if(!response.ok)throw new Error("Server authentication failed");
+        if(!cancelled)setConnected(true);
+      }catch{
+        if(!cancelled)setConnected(false);
+      }
+    };
+    void verify();
+    const timer=window.setInterval(()=>void verify(),10000);
+    return()=>{cancelled=true;window.clearInterval(timer);};
+  },[apiUrl,apiKey]);
   const refresh=async()=>{setBusy(true);setApiError("");try{const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Refresh failed.");}finally{setBusy(false);}};
   const addContact=async()=>{setBusy(true);setApiError("");try{const d=await request("/api/contacts",{method:"POST",body:JSON.stringify({name,phone,company,optedIn})});setContacts(prev=>[...prev,d.contact]);setName("");setPhone("");setCompany("");setOptedIn(false);onNotice("Contact saved to the scheduler server.");}catch(e){setApiError(e instanceof Error?e.message:"Could not save contact.");}finally{setBusy(false);}};
   const addSchedule=async()=>{setBusy(true);setApiError("");try{const d=await request("/api/schedules",{method:"POST",body:JSON.stringify({to,message,nextRunAt:new Date(due).toISOString(),repeat})});setSchedules(prev=>[d.schedule,...prev]);setMessage("");onNotice("Schedule saved on the server. Actual sending still depends on valid Meta credentials and messaging policy.");}catch(e){setApiError(e instanceof Error?e.message:"Could not create schedule.");}finally{setBusy(false);}};
@@ -478,19 +583,29 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
     {notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> SERVER-BACKED SCHEDULER CONNECTOR</span></div>
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMMUNICATION / CRM</div><h1>Follow-up centre<span>.</span></h1><p>Contacts, one-time and recurring individual messages, server schedules and send logs.</p></div><button className="button-quiet" onClick={downloadContacts} disabled={!contacts.length}><FileDown size={15}/> Export contacts CSV</button></div>
-    <section className="surface-panel followup-list-panel scheduler-connect-panel"><div className="panel-heading"><div><h3><Plug size={17}/> Scheduler connection</h3><p>Enter the URL of your deployed AXIMACH scheduler and its server API key.</p></div><span className={"module-number "+(connected?"scheduler-connected":"")}>{connected?"CONNECTED":"NOT CONNECTED"}</span></div>
-      <div className="scheduler-connect-form"><label>Scheduler URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="https://your-scheduler.example.com"/></label><label>API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label><button className="button-primary" disabled={busy||!apiUrl.trim()||!apiKey.trim()} onClick={connect}>{busy?"Connecting…":"Connect / refresh"}</button></div>
+    <section className="surface-panel followup-list-panel scheduler-connect-panel"><div className="panel-heading"><div><h3><Plug size={17}/> Scheduler connection</h3><p>Connect to your PC-hosted private Wi-Fi server or a deployed AXIMACH server.</p></div><span className={"module-number "+(connected?"scheduler-connected":"")}>{connected?"CONNECTED":"NOT CONNECTED"}</span></div>
+      <div className="scheduler-connect-form"><label>Shared AXIMACH data server URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="http://192.168.x.x:8787 (same Wi-Fi) or HTTPS server"/></label><label>API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label><button className="button-primary" disabled={busy||!apiUrl.trim()||!apiKey.trim()} onClick={connect}>{busy?"Connecting…":"Connect / refresh"}</button></div>
       {apiError&&<div className="scheduler-error"><ShieldAlert size={15}/>{apiError}</div>}
-      <div className="module-safety-note"><ShieldCheck size={15}/><span>The server API key is saved in this browser so you do not need to enter it every time. Use this only on a trusted device; local browser storage is not a secure vault. Use HTTPS outside localhost and keep WhatsApp auth files and provider tokens private.</span></div>
+      <div className="module-safety-note"><ShieldCheck size={15}/><span>Use one shared server URL and API key on both devices. A Windows-installed AXIMACH can host the private server: keep the PC and this Android device on the same Wi-Fi, keep AXIMACH running on the PC, then enter one of the PC LAN addresses below on Android (not localhost). Public HTTP is blocked; HTTPS and private LAN HTTP only are allowed. Keep the API key private.</span></div>
+      {lanInfo&&<div className="aximach-lan-share">
+        <div className="aximach-lan-share-heading"><strong>PC → Android private Wi-Fi connection</strong><span>LOCAL SERVER READY</span></div>
+        <p>On Android, enter one of these URLs as the Shared AXIMACH data server. Use the same API key shown below.</p>
+        <div className="aximach-lan-share-values">
+          {lanInfo.addresses.map(address=><div className="aximach-lan-share-row" key={address}><code>{address}</code><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(address);}}>Copy data URL</button><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(address.replace(/:8787$/,":8789"));}}>Copy WhatsApp URL</button></div>)}
+          {!lanInfo.addresses.length&&<small>No private Wi-Fi IPv4 address detected. Connect the PC to Wi-Fi/Ethernet and reopen this section.</small>}
+          <div className="aximach-lan-share-row"><code>{lanInfo.apiKey}</code><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(lanInfo.apiKey);}}>Copy API key</button></div>
+        </div>
+        <small>WhatsApp bridge (optional): use the same LAN address with port 8789, for example http://192.168.x.x:8788. The data server uses port 8787.</small>
+      </div>}
     </section>
     <section className="surface-panel followup-list-panel scheduler-connect-panel">
       <div className="panel-heading"><div><h3><ScanLine size={17}/> QR-paired WhatsApp account</h3><p>Link your WhatsApp account once. Keep this service running on an always-on host with persistent disk.</p></div><span className={"module-number "+(waConnected?"scheduler-connected":"")}>{waConnected?"LINKED":"NOT LINKED"}</span></div>
-      <div className="scheduler-connect-form"><label>WhatsApp bridge URL<input value={waUrl} onChange={e=>setWaUrl(e.target.value)} placeholder="https://your-whatsapp-bridge.example.com"/></label><button className="button-primary" disabled={busy||!waUrl.trim()||!apiKey.trim()} onClick={refreshWhatsApp}>{busy?"Connecting…":"Connect / refresh QR"}</button><button className="button-quiet" disabled={busy||!waConnected} onClick={()=>{setWaQr("");refreshWhatsApp();}}>Refresh status</button></div>
+      <div className="scheduler-connect-form"><label>WhatsApp bridge URL<input value={waUrl} onChange={e=>setWaUrl(e.target.value)} placeholder="http://192.168.x.x:8788 (PC Wi-Fi bridge) or HTTPS bridge"/></label><button className="button-primary" disabled={busy||!waUrl.trim()||!apiKey.trim()} onClick={refreshWhatsApp}>{busy?"Connecting…":"Connect / refresh QR"}</button><button className="button-quiet" disabled={busy||!waConnected} onClick={()=>{setWaQr("");refreshWhatsApp();}}>Refresh status</button></div>
       {waError&&<div className="scheduler-error"><ShieldAlert size={15}/>{waError}</div>}
       {waQr&&!waConnected&&<div className="wa-pairing-box"><img src={waQr} alt="WhatsApp linked-device QR code"/><div><strong>Scan with your phone</strong><p>WhatsApp → Settings → Linked devices → Link a device. Keep this page private; QR codes grant account access.</p></div></div>}
-      {waConnected&&<div className="module-safety-note"><ShieldCheck size={15}/><span>WhatsApp linked. {waUser?"Session: "+waUser+". ":""}The phone and AXIMACH UI can be closed while the bridge server remains online. This uses an unofficial WhatsApp Web library.</span></div>}
+      {waConnected&&<div className="module-safety-note"><ShieldCheck size={15}/><span>WhatsApp linked. {waUser?"Session: "+waUser+". ":""}The phone and AXIMACH UI can be closed while the bridge server remains online. WhatsApp only shares phone numbers when the linked-device sync provides a phone-number JID or sender phone field; contacts with an internal LID and no number stay visibly unnumbered. This uses an unofficial WhatsApp Web library.</span></div>}
       <div className="wa-sync-grid">
-        <div><div className="scheduler-subheading"><strong>Synced contacts</strong><span>{visibleWaContacts.length} / {waContacts.length}</span><button className="button-quiet compact-button" disabled={!waConnected||!waContacts.length} onClick={importWhatsAppContactsToVendors}><Users size={13}/> Import to vendors</button></div><label className="vendor-search scheduler-contact-search"><Search size={16}/><input value={waSearch} onChange={e=>setWaSearch(e.target.value)} placeholder="Search synced contact…"/></label><div className="wa-scroll-list">{visibleWaContacts.slice(0,100).map(c=><button key={c.id} className={"scheduler-contact "+(waTarget===c.id?"scheduler-contact-active":"")} onClick={()=>setWaTarget(c.id)}><span className="scheduler-avatar"><Users size={15}/></span><span><strong>{c.name}</strong><small>{c.phone?"+":""}{c.phone||c.id}</small></span></button>)}{!visibleWaContacts.length&&<div className="vendor-empty">No synced contacts yet. Pair the device and refresh after WhatsApp syncs contact history.</div>}</div></div>
+        <div><div className="scheduler-subheading"><strong>Contact 360 · WhatsApp contacts</strong><span>{visibleWaContacts.length} / {waContacts.length} · {waContacts.filter(c=>verifiedWhatsAppPhone(c.phone)).length} with numbers</span><button className="button-quiet compact-button" disabled={!waConnected||!waContacts.length} onClick={importWhatsAppContactsToVendors}><Users size={13}/> Import to Contact 360</button></div><label className="vendor-search scheduler-contact-search"><Search size={16}/><input value={waSearch} onChange={e=>setWaSearch(e.target.value)} placeholder="Search synced contact…"/></label><div className="wa-scroll-list">{visibleWaContacts.map(c=><button key={c.id} className={"scheduler-contact "+(waTarget===c.id?"scheduler-contact-active":"")} onClick={()=>setWaTarget(c.id)}><span className="scheduler-avatar"><Users size={15}/></span><span><strong>{c.name}</strong><small>{verifiedWhatsAppPhone(c.phone) ? "+"+verifiedWhatsAppPhone(c.phone) : "Phone number not shared by WhatsApp"}</small></span></button>)}{!visibleWaContacts.length&&<div className="vendor-empty">No synced contacts yet. Pair the device and refresh after WhatsApp syncs contact history.</div>}</div></div>
         <div><div className="scheduler-subheading"><strong>WhatsApp groups</strong><span>{waGroups.length} groups</span></div><div className="wa-scroll-list">{waGroups.map(g=><button key={g.id} className={"scheduler-contact "+(waTarget===g.id?"scheduler-contact-active":"")} onClick={()=>setWaTarget(g.id)}><span className="scheduler-avatar"><Users size={15}/></span><span><strong>{g.name}</strong><small>{g.participants} participants</small></span></button>)}{!waGroups.length&&<div className="vendor-empty">No groups loaded. Refresh after pairing.</div>}</div></div>
       </div>
       <div className="scheduler-grid">
@@ -532,7 +647,7 @@ const moduleProfiles: Record<string, ModuleProfile> = {
   "vendor-capability": { itemLabel:"Vendor capability",referenceLabel:"Capability ID / vendor code",ownerLabel:"Technical evaluator",notesLabel:"Machine envelope, tolerances, material range, certificates and evidence",statuses:["Unverified","Evidence requested","Under evaluation","Approved","Expired","Rejected"],workflow:["Claim","Evidence","Audit","Approve","Renew"] },
   "rates": { itemLabel:"Material / process rate",referenceLabel:"Rate code / supplier quote",ownerLabel:"Rate owner / source",notesLabel:"Grade, unit, currency, effective date, yield and source evidence",statuses:["Draft","Needs validation","Approved","Expired","Superseded"],workflow:["Capture","Validate source","Compare","Approve","Version"] },
   "inventory": { itemLabel:"Material lot / stock item",referenceLabel:"Item code / heat / lot number",ownerLabel:"Stores custodian",notesLabel:"Grade, location, quantity, reserved quantity and certificate",statuses:["Available","Reserved","Shortage","Quarantined","Scrap","Consumed"],workflow:["Receive","Inspect","Put away","Reserve","Issue / reconcile"] },
-  "production": { itemLabel:"Production job / operation",referenceLabel:"Work order / operation number",ownerLabel:"Planner / cell lead",notesLabel:"Machine, shift, planned quantity, cycle time and constraints",statuses:["Planned","Ready","Running","Waiting","Blocked","Complete","On hold"],workflow:["Plan","Check capacity","Release","Execute","Report actuals"] },
+  "production": { itemLabel:"Production job / operation",referenceLabel:"Work order / operation number",ownerLabel:"Planner / cell lead",notesLabel:"Machine, shift, planned quantity, cycle time and constraints",statuses:["Planned","Ready","Running","Waiting","Blocked","Complete","Job Finished","On hold"],workflow:["Plan","Check capacity","Release","Execute","Report actuals"] },
   "shop-floor": { itemLabel:"Shop-floor scan / job traveller",referenceLabel:"QR / traveller / lot ID",ownerLabel:"Operator / shift lead",notesLabel:"Operation, good quantity, scrap, timestamps and custody event",statuses:["Not started","In progress","Waiting","Blocked","Reported","Verified"],workflow:["Scan","Verify job","Record work","Record quantity","Confirm handoff"] },
   "dispatch": { itemLabel:"Dispatch / consignment",referenceLabel:"Challan / shipment number",ownerLabel:"Dispatch coordinator / carrier",notesLabel:"Packages, documents, carrier, handoff and confirmed receipt",statuses:["Packing","Ready to dispatch","Dispatched","In transit","Delivered pending confirmation","Received","Exception"],workflow:["Pack","Documents","Handoff","Track","Confirm receipt"] },
   "quality": { itemLabel:"Inspection / nonconformance",referenceLabel:"Inspection plan / NCR number",ownerLabel:"Quality engineer / inspector",notesLabel:"Characteristic, tolerance, actual reading, gauge ID and evidence",statuses:["Planned","Inspecting","Pass","Hold","Nonconforming","Corrective action","Released"],workflow:["Plan inspection","Measure","Record evidence","Disposition","Authorise release"] },
@@ -555,13 +670,30 @@ const moduleProfiles: Record<string, ModuleProfile> = {
   "continuity": { itemLabel:"Backup / recovery exercise",referenceLabel:"Run ID / incident ID",ownerLabel:"Recovery owner",notesLabel:"Backup point, RPO/RTO target, restore evidence and unresolved gaps",statuses:["Planned","Running","Passed","Failed","Remediation","Closed"],workflow:["Plan recovery","Verify backup","Restore","Validate integrity","Sign off"] }
 };
 
-type ModuleRecord = { id: string; title: string; reference: string; status: string; owner: string; linkedModule: string; notes: string; updatedAt: string };
+type ModuleRecord = { id: string; title: string; reference: string; status: string; owner: string; linkedModule: string; notes: string; updatedAt: string; deletedAt?: string };
 const MODULE_RECORDS_KEY = "aximach.moduleRecords.v1";
 function getAllModuleRecords(): Record<string, ModuleRecord[]> {
   try { const raw = window.localStorage.getItem(MODULE_RECORDS_KEY); return raw ? JSON.parse(raw) as Record<string, ModuleRecord[]> : {}; } catch { return {}; }
 }
 function setAllModuleRecords(data: Record<string, ModuleRecord[]>) {
   try { window.localStorage.setItem(MODULE_RECORDS_KEY, JSON.stringify(data)); } catch { /* browser storage may be unavailable */ }
+}
+function mergeModuleRecordSets(local: Record<string, ModuleRecord[]>, remote: Record<string, ModuleRecord[]>) {
+  const merged: Record<string, ModuleRecord[]> = {};
+  const moduleIds = new Set([...Object.keys(local || {}), ...Object.keys(remote || {})]);
+  for (const moduleId of moduleIds) {
+    const rows = new Map<string, ModuleRecord>();
+    for (const row of Array.isArray(remote?.[moduleId]) ? remote[moduleId] : []) if (row?.id) rows.set(row.id, row);
+    for (const row of Array.isArray(local?.[moduleId]) ? local[moduleId] : []) {
+      if (!row?.id) continue;
+      const old = rows.get(row.id);
+      const localTime = Date.parse(row.updatedAt || "") || 0;
+      const remoteTime = Date.parse(old?.updatedAt || "") || 0;
+      if (!old || localTime >= remoteTime) rows.set(row.id, row);
+    }
+    merged[moduleId] = [...rows.values()];
+  }
+  return merged;
 }
 function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModule }: { module: ModuleItem; onBack: () => void; onNotice: (value: string) => void; onOpenModules: () => void; onSelectModule: (id: string) => void }) {
   const Icon = module.icon;
@@ -570,48 +702,98 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
   const [allRecords, setAllRecords] = useState<Record<string, ModuleRecord[]>>(() => getAllModuleRecords());
   const [recordSync, setRecordSync] = useState<"local" | "syncing" | "synced" | "error">("local");
   useEffect(() => {
-    const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
-    const key = window.localStorage.getItem("aximach.scheduler.key") || "";
-    if (!base || !key) return;
     let cancelled = false;
-    const headers = { "content-type": "application/json", "x-aximach-key": key };
-    setRecordSync("syncing");
-    fetch(base + "/api/records", { headers })
-      .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error || "Record sync failed"); return data.records as Record<string, ModuleRecord[]>; })
-      .then(async remote => {
-        if (cancelled) return;
-        const local = getAllModuleRecords();
-        const merged: Record<string, ModuleRecord[]> = { ...(remote || {}) };
-        for (const [moduleId, rows] of Object.entries(local)) {
-          const byId = new Map((merged[moduleId] || []).map(row => [row.id, row]));
-          for (const row of rows) if (!byId.has(row.id) || Date.parse(row.updatedAt || "") > Date.parse(byId.get(row.id)?.updatedAt || "")) byId.set(row.id, row);
-          merged[moduleId] = Array.from(byId.values());
-        }
-        setAllRecords(merged);
-        setAllModuleRecords(merged);
-        const response = await fetch(base + "/api/records", { method: "PUT", headers, body: JSON.stringify({ records: merged }) });
-        if (!response.ok) throw new Error("Could not persist merged module records to server");
+    let busy = false;
+    let syncPending = false;
+
+    const sync = async () => {
+      if (busy) { syncPending = true; return; }
+      const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
+      const key = window.localStorage.getItem("aximach.scheduler.key") || "";
+      if (!base || !key) { if (!cancelled) setRecordSync("local"); return; }
+
+      busy = true;
+      const headers = { "content-type": "application/json", "x-aximach-key": key };
+      try {
+        do {
+          syncPending = false;
+          const beforeFetch = getAllModuleRecords();
+          const response = await fetch(base + "/api/records", { headers });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "Record sync failed");
+          if (cancelled) return;
+
+          const local = getAllModuleRecords();
+          if (JSON.stringify(local) !== JSON.stringify(beforeFetch)) syncPending = true;
+          const remote = (data.records || {}) as Record<string, ModuleRecord[]>;
+          const merged = mergeModuleRecordSets(local, remote);
+          if (JSON.stringify(merged) !== JSON.stringify(remote)) {
+            setRecordSync("syncing");
+            const write = await fetch(base + "/api/records", { method: "PUT", headers, body: JSON.stringify({ records: merged }) });
+            const saved = await write.json().catch(() => ({}));
+            if (!write.ok) throw new Error(saved.error || "Could not persist merged module records");
+            const latestLocal = getAllModuleRecords();
+            if (JSON.stringify(latestLocal) !== JSON.stringify(local)) syncPending = true;
+            const finalRecords = mergeModuleRecordSets(latestLocal, (saved.records || merged) as Record<string, ModuleRecord[]>);
+            setAllModuleRecords(finalRecords);
+            if (!cancelled) setAllRecords(finalRecords);
+          } else if (JSON.stringify(merged) !== JSON.stringify(local)) {
+            setAllModuleRecords(merged);
+            if (!cancelled) setAllRecords(merged);
+          }
+        } while (syncPending && !cancelled);
+
         if (!cancelled) setRecordSync("synced");
-      })
-      .catch(() => { if (!cancelled) setRecordSync("error"); });
-    return () => { cancelled = true; };
+      } catch {
+        if (!cancelled) setRecordSync("error");
+      } finally {
+        busy = false;
+        if (syncPending && !cancelled) void sync();
+      }
+    };
+
+    const refreshLocal = () => {
+      const latest = getAllModuleRecords();
+      setAllRecords(latest);
+      void sync();
+    };
+    const syncWhenActive = () => {
+      if (document.visibilityState !== "hidden") void sync();
+    };
+
+    window.addEventListener("aximach-module-records-updated", refreshLocal);
+    window.addEventListener("storage", refreshLocal);
+    window.addEventListener("focus", syncWhenActive);
+    window.addEventListener("online", syncWhenActive);
+    document.addEventListener("visibilitychange", syncWhenActive);
+    void sync();
+    const timer = window.setInterval(() => { void sync(); }, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("aximach-module-records-updated", refreshLocal);
+      window.removeEventListener("storage", refreshLocal);
+      window.removeEventListener("focus", syncWhenActive);
+      window.removeEventListener("online", syncWhenActive);
+      document.removeEventListener("visibilitychange", syncWhenActive);
+    };
   }, []);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState({ title: "", reference: "", status: "Open", owner: "", linkedModule: "", notes: "" });
-  const records = allRecords[module.id] ?? [];
+  const records = (allRecords[module.id] ?? []).filter(record => !record.deletedAt);
   const related = modules.filter((item) => item.id !== module.id && [module.group, "Engineering", "Operations", "Governance", "Supply Network", "Commercial", "Finance", "Connections"].includes(item.group)).slice(0, 8);
   const filtered = records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(search.toLowerCase()));
   const persist = (next: Record<string, ModuleRecord[]>) => {
-    setAllRecords(next); setAllModuleRecords(next);
+    const latestLocal = getAllModuleRecords();
+    const updated = mergeModuleRecordSets(latestLocal, next);
+    setAllRecords(updated);
+    setAllModuleRecords(updated);
+    window.dispatchEvent(new Event("aximach-module-records-updated"));
     const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
     const key = window.localStorage.getItem("aximach.scheduler.key") || "";
-    if (!base || !key) { setRecordSync("local"); return; }
-    setRecordSync("syncing");
-    fetch(base + "/api/records", { method: "PUT", headers: { "content-type": "application/json", "x-aximach-key": key }, body: JSON.stringify({ records: next }) })
-      .then(response => { if (!response.ok) throw new Error("Record sync failed"); setRecordSync("synced"); })
-      .catch(() => setRecordSync("error"));
+    setRecordSync(base && key ? "syncing" : "local");
   };
   const resetForm = () => { setDraft({ title: "", reference: "", status: "Open", owner: "", linkedModule: "", notes: "" }); setEditingId(""); setShowForm(false); };
   const saveRecord = () => {
@@ -623,9 +805,15 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
     onNotice(recordSync === "synced" ? "Record saved and synced to the AXIMACH server." : "Record saved on this device. Connect the scheduler server to enable shared backup and cross-device sync.");
   };
   const editRecord = (record: ModuleRecord) => { setDraft({ title: record.title, reference: record.reference, status: record.status, owner: record.owner, linkedModule: record.linkedModule, notes: record.notes }); setEditingId(record.id); setShowForm(true); };
-  const removeRecord = (id: string) => { if (!window.confirm("Remove this record from the current module? This cannot be undone in this browser.")) return; persist({ ...allRecords, [module.id]: records.filter((item) => item.id !== id) }); onNotice("Record removed from this device. Reconnect to the server to sync the change."); };
+  const removeRecord = (id: string) => {
+    if (!window.confirm("Remove this record from the current module? The deletion will sync to other AXIMACH devices when the shared server is connected.")) return;
+    const stamp = new Date().toISOString();
+    const rows = allRecords[module.id] || [];
+    persist({ ...allRecords, [module.id]: rows.map(item => item.id === id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item) });
+    onNotice("Record archived from this module. Its deletion marker will sync to other AXIMACH devices.");
+  };
   const exportRecords = () => { const blob = new Blob([JSON.stringify({ module: module.id, exportedAt: new Date().toISOString(), records }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "aximach-" + module.id + "-records.json"; a.click(); URL.revokeObjectURL(url); onNotice("Module records exported as JSON."); };
-  const totalLinked = Object.values(allRecords).flat().filter((record) => record.linkedModule).length;
+  const totalLinked = Object.values(allRecords).flat().filter((record) => !record.deletedAt && record.linkedModule).length;
   return (
     <section className="workspace-page module-functional-page">
       <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15} /> Command centre</button><span className="demo-pill"><i /> LOCAL WORKSPACE</span></div>
@@ -634,6 +822,11 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
         <div className="module-hero-copy"><div className="eyebrow"><span className="eyebrow-mark" /> {module.group.toUpperCase()} / AXIMACH MODULE</div><h1>{module.title}<span>.</span></h1><p>{module.description}</p></div>
         <button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> All modules</button>
       </div>
+      {module.id === "production" && <section className="production-route-launcher surface-panel">
+        <span className="production-route-launcher-icon"><Workflow size={21}/></span>
+        <div><div className="eyebrow"><span className="eyebrow-mark"/> LIVE PO-LINKED PRODUCTION ROUTE</div><h3>3D process graph & job completion</h3><p>Open the actual PO component route to view interactive 3D operations, branches, quantities, simulation preview and the separate Job Finished / Reopen job control. This does not replace your Production & Capacity records.</p></div>
+        <button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={15}/> Open 3D process planning</button>
+      </section>}
       <section className="module-workflow-strip surface-panel" aria-label={module.title + " workflow"}>
         <div className="module-workflow-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> MODULE-SPECIFIC WORKFLOW</div><strong>{profile.workflow[activeWorkflowStep]}</strong><small>Select a stage to start a record at that point in the workflow.</small></div><span className="module-number">STEP {activeWorkflowStep + 1} / {profile.workflow.length}</span></div>
         <div className="module-workflow-steps">{profile.workflow.map((stage, index) => <button key={stage} className={"module-workflow-step " + (index === activeWorkflowStep ? "workflow-step-active" : index < activeWorkflowStep ? "workflow-step-done" : "")} onClick={() => { setActiveWorkflowStep(index); setDraft({ title:"", reference:"", status:profile.statuses[Math.min(index, profile.statuses.length - 1)], owner:"", linkedModule:"", notes:stage + " stage: add the required evidence, owner and acceptance criteria." }); setEditingId(""); setShowForm(true); }}><span>{index < activeWorkflowStep ? <Check size={13}/> : String(index + 1).padStart(2,"0")}</span><strong>{stage}</strong><ArrowRight size={13}/></button>)}</div>

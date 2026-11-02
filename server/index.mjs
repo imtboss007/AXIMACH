@@ -2,12 +2,13 @@ import { createServer } from "node:http";
 import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { networkInterfaces } from "node:os";
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
 const DB_PATH = resolve(process.env.AXIMACH_DATA_FILE || "./data/aximach.json");
 const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
-let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null };
+let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null };
 let busy = false;
 
 async function loadDb() {
@@ -27,7 +28,7 @@ function applyCors(req, res) {
   res.setHeader("vary", "Origin");
   if (origin && allowedOrigins.has(origin)) res.setHeader("access-control-allow-origin", origin);
   res.setHeader("access-control-allow-headers", "content-type,x-aximach-key");
-  res.setHeader("access-control-allow-methods", "GET,POST,PATCH,DELETE,OPTIONS");
+  res.setHeader("access-control-allow-methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
 }
 function json(res, status, data) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -38,8 +39,40 @@ async function body(req) {
   return raw ? JSON.parse(raw) : {};
 }
 function authorized(req) { return API_KEY && req.headers["x-aximach-key"] === API_KEY; }
+function isLoopbackAddress(value) {
+  const address = String(value || "").replace(/^::ffff:/, "");
+  return address === "127.0.0.1" || address === "::1";
+}
+function privateLanAddresses() {
+  const found = new Set();
+  for (const entries of Object.values(networkInterfaces())) {
+    for (const entry of entries || []) {
+      if (entry.family !== "IPv4" || entry.internal) continue;
+      const ip = entry.address;
+      if (/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(ip)) found.add(ip);
+    }
+  }
+  return [...found].sort();
+}
+
 function normalisePhone(phone) { return String(phone || "").replace(/\D/g, ""); }
 const manufacturingCollections = ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions"];
+function mergeModuleRecords(existing, incoming) {
+  const left = existing && typeof existing === "object" ? existing : {};
+  const right = incoming && typeof incoming === "object" ? incoming : {};
+  const merged = {};
+  for (const moduleId of new Set([...Object.keys(left), ...Object.keys(right)])) {
+    const rows = new Map();
+    for (const row of Array.isArray(left[moduleId]) ? left[moduleId] : []) if (row?.id) rows.set(row.id, row);
+    for (const row of Array.isArray(right[moduleId]) ? right[moduleId] : []) {
+      if (!row?.id) continue;
+      const old = rows.get(row.id);
+      if (!old || (Date.parse(row.updatedAt || "") || 0) >= (Date.parse(old.updatedAt || "") || 0)) rows.set(row.id, row);
+    }
+    merged[moduleId] = [...rows.values()];
+  }
+  return merged;
+}
 function mergeManufacturingData(existing, incoming) {
   const left = existing && typeof existing === "object" ? existing : {};
   const right = incoming && typeof incoming === "object" ? incoming : {};
@@ -100,6 +133,16 @@ const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-max-age": "86400" }); return res.end(); }
   const url = new URL(req.url, "http://localhost");
   if (url.pathname === "/health" && req.method === "GET") return json(res, 200, { ok: true, service: "AXIMACH scheduler", credentialsConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID), persistentStore: DB_PATH });
+  if (url.pathname === "/api/connection-info" && req.method === "GET") {
+    if (!isLoopbackAddress(req.socket.remoteAddress)) return json(res, 403, { error: "Connection information is available only to the AXIMACH PC itself." });
+    return json(res, 200, {
+      service: "AXIMACH local shared-data server",
+      port: PORT,
+      apiKey: API_KEY,
+      addresses: privateLanAddresses().map(ip => "http://" + ip + ":" + PORT),
+      note: "Connect other AXIMACH devices to the same Wi-Fi and use one of these private LAN addresses with this API key."
+    });
+  }
   if (!authorized(req)) return json(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
   try {
     if (url.pathname === "/api/manufacturing-data" && req.method === "GET") {
@@ -119,12 +162,31 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/records" && req.method === "PUT") {
       const input = await body(req);
       if (!input.records || typeof input.records !== "object" || Array.isArray(input.records)) return json(res, 400, { error: "records must be an object keyed by module ID." });
+      if (Object.values(input.records).some(rows => !Array.isArray(rows))) return json(res, 400, { error: "Each module ID must contain a records array." });
       const encoded = JSON.stringify(input.records);
       if (encoded.length > 8_000_000) return json(res, 413, { error: "Record payload exceeds the 8 MB limit. Export/archive older records first." });
-      db.records = input.records;
+      db.records = mergeModuleRecords(db.records, input.records);
       db.recordsUpdatedAt = new Date().toISOString();
       await saveDb();
-      return json(res, 200, { ok: true, updatedAt: db.recordsUpdatedAt });
+      return json(res, 200, { ok: true, records: db.records, updatedAt: db.recordsUpdatedAt });
+    }
+    if (url.pathname === "/api/ui-preferences" && req.method === "GET") {
+      return json(res, 200, { preferences: db.uiPreferences || null, updatedAt: db.uiPreferences?.updatedAt || null });
+    }
+    if (url.pathname === "/api/ui-preferences" && req.method === "PUT") {
+      const input = await body(req);
+      if (!input.preferences || typeof input.preferences !== "object" || Array.isArray(input.preferences)) {
+        return json(res, 400, { error: "preferences must be a UI preference object." });
+      }
+      const encoded = JSON.stringify(input.preferences);
+      if (encoded.length > 2_000_000) return json(res, 413, { error: "UI preferences exceed the 2 MB limit." });
+      const incomingAt = Date.parse(input.preferences.updatedAt || "") || 0;
+      const currentAt = Date.parse(db.uiPreferences?.updatedAt || "") || 0;
+      if (!db.uiPreferences || incomingAt >= currentAt) {
+        db.uiPreferences = { ...input.preferences, updatedAt: input.preferences.updatedAt || new Date().toISOString() };
+        await saveDb();
+      }
+      return json(res, 200, { ok: true, preferences: db.uiPreferences, updatedAt: db.uiPreferences?.updatedAt || null });
     }
     if (url.pathname === "/api/contacts" && req.method === "GET") return json(res, 200, { contacts: db.contacts });
     if (url.pathname === "/api/contacts" && req.method === "POST") {
