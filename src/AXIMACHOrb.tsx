@@ -86,6 +86,18 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             animate={reducedMotion || reduceMotion || paused ? undefined : { y: [0, -5, 0] }}
             transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
           >
+            <span className="ax-orb-cube-geometry" aria-hidden="true">
+              <i className="ax-orb-cube-face ax-cube-front"/><i className="ax-orb-cube-face ax-cube-back"/>
+              <i className="ax-orb-cube-face ax-cube-right"/><i className="ax-orb-cube-face ax-cube-left"/>
+              <i className="ax-orb-cube-face ax-cube-top"/><i className="ax-orb-cube-face ax-cube-bottom"/>
+            </span>
+            <span className="ax-orb-vortex-geometry" aria-hidden="true"><i/><i/><i/><i/></span>
+            <span className="ax-orb-molecular-geometry" aria-hidden="true">
+              <svg viewBox="0 0 200 200">
+                <g className="ax-network-links"><path d="M35 48L92 26L151 51L164 119L110 163L49 143L35 48M92 26L110 163M35 48L164 119M151 51L49 143M35 48L110 163M92 26L49 143"/></g>
+                <g className="ax-network-nodes"><circle cx="35" cy="48" r="7"/><circle cx="92" cy="26" r="8"/><circle cx="151" cy="51" r="6"/><circle cx="164" cy="119" r="8"/><circle cx="110" cy="163" r="7"/><circle cx="49" cy="143" r="6"/></g>
+              </svg>
+            </span>
             <span className="ax-orb-gloss" />
             <span className="ax-orb-latitude ax-orb-latitude-one" />
             <span className="ax-orb-latitude ax-orb-latitude-two" />
