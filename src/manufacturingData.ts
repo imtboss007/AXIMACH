@@ -22,6 +22,8 @@ export type ComponentRecord = {
 };
 export type PurchaseOrderLine = {
   id: string; componentId: string; quantity: number; targetDelivery: string; unitPrice: number; notes: string;
+  /** PO-line job closure is separate from the status of each routed operation. */
+  jobStatus?: "In progress" | "Finished"; jobFinishedAt?: string; updatedAt?: string; deletedAt?: string;
   materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number;
   overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number;
 };
@@ -294,6 +296,34 @@ function mergeRows<T extends { id: string; updatedAt?: string }>(localRows: T[],
   }
   return [...rows.values()];
 }
+
+/** Merge PO component lines independently so finishing one job on one device does not
+ * overwrite edits to a different line made on another device. Stable line IDs are retained. */
+function mergePurchaseOrderRows(localRows: PurchaseOrderRecord[], remoteRows: PurchaseOrderRecord[]): PurchaseOrderRecord[] {
+  const localById = new Map(localRows.filter(row => row?.id).map(row => [row.id, row]));
+  const remoteById = new Map(remoteRows.filter(row => row?.id).map(row => [row.id, row]));
+  const merged: PurchaseOrderRecord[] = [];
+  for (const id of new Set([...remoteById.keys(), ...localById.keys()])) {
+    const local = localById.get(id);
+    const remote = remoteById.get(id);
+    if (!local) { merged.push(remote!); continue; }
+    if (!remote) { merged.push(local); continue; }
+    const localTime = Date.parse(local.updatedAt || "") || 0;
+    const remoteTime = Date.parse(remote.updatedAt || "") || 0;
+    const preferred = localTime >= remoteTime ? local : remote;
+    const lineMap = new Map<string, { line: PurchaseOrderLine; time: number }>();
+    for (const [row, parentTime] of [[remote, remoteTime], [local, localTime]] as const) {
+      for (const line of row.lines || []) {
+        if (!line?.id) continue;
+        const time = Date.parse(line.updatedAt || "") || parentTime;
+        const previous = lineMap.get(line.id);
+        if (!previous || time >= previous.time) lineMap.set(line.id, { line, time });
+      }
+    }
+    merged.push({ ...preferred, lines: [...lineMap.values()].map(entry => entry.line) });
+  }
+  return merged;
+}
 export function mergeManufacturingData(localValue: Partial<ManufacturingData>, remoteValue: Partial<ManufacturingData>): ManufacturingData {
   const local = normaliseData(localValue);
   const remote = normaliseData(remoteValue);
@@ -301,7 +331,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     updatedAt: local.updatedAt >= remote.updatedAt ? local.updatedAt : remote.updatedAt,
     companies: mergeRows(local.companies, remote.companies),
     factories: mergeRows(local.factories, remote.factories),
-    purchaseOrders: mergeRows(local.purchaseOrders, remote.purchaseOrders),
+    purchaseOrders: mergePurchaseOrderRows(local.purchaseOrders, remote.purchaseOrders),
     components: mergeRows(local.components, remote.components),
     vendors: mergeRows(local.vendors, remote.vendors),
     operations: mergeRows(local.operations, remote.operations),
