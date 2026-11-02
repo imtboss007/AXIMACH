@@ -7,12 +7,12 @@ import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { Activity, Factory, Gauge, Network, RotateCcw, X, Waves, Sparkles, Move3D, Plug, SlidersHorizontal } from "lucide-react";
 import type { OrbCounts } from "./AXIMACHOrb";
+import MachineTwinPanel from "./MachineTwinPanel";
 import "./infinite-reality.css";
 
 type Props = { counts: OrbCounts; onClose: () => void };
 type Mode = "fluid" | "cloth" | "soft";
 type Transition = "orbit" | "flythrough" | "dolly" | "roll" | "whip-pan" | "depth-shift";
-type Protocol = "OPC UA" | "Modbus TCP" | "MTConnect" | "REST gateway";
 type Scenario = { rate: number; hours: number; availability: number; downtime: number; scrap: number; orderQty: number };
 
 const modes: Array<{ id: Mode; label: string; detail: string }> = [
@@ -67,10 +67,6 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
   useEffect(() => { reducedMotionRef.current = reducedMotion; }, [reducedMotion]);
   const [material, setMaterial] = useState("plasma");
   const [iconMotion, setIconMotion] = useState("orbit");
-  const [protocol, setProtocol] = useState<Protocol>("OPC UA");
-  const [machineName, setMachineName] = useState("");
-  const [endpoint, setEndpoint] = useState("");
-  const [profileSaved, setProfileSaved] = useState(false);
   const [scenario, setScenario] = useState<Scenario>({ rate: 48, hours: 8, availability: 85, downtime: 0.5, scrap: 2, orderQty: 1200 });
   const output = useMemo(() => calculateOutput(scenario), [scenario]);
   const upside = useMemo(() => calculateOutput({ ...scenario, rate: scenario.rate * 1.1, availability: Math.min(100, scenario.availability + 5) }), [scenario]);
@@ -345,12 +341,6 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
     };
   }, [counts.companies, counts.jobs, counts.components, counts.stockEvents, counts.qualityFlags, counts.processSteps]);
 
-  const saveMachineProfile = () => {
-    const payload = { protocol, machineName: machineName.trim(), endpoint: endpoint.trim(), savedAt: new Date().toISOString(), status: "configuration-only" };
-    try { localStorage.setItem("aximach.machine-link-profile.v1", JSON.stringify(payload)); setProfileSaved(true); }
-    catch { setProfileSaved(false); }
-  };
-
   return <div className="irl-overlay" role="dialog" aria-modal="true" aria-label="AXIMACH Infinite Reality Lab">
     <section className="irl-window">
       <header className="irl-header">
@@ -389,17 +379,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
           <div className="irl-scenario-compare"><span>Upside case <b>{Math.round(upside.goodPartsPerShift).toLocaleString("en-IN")} / shift</b></span><span>Stress case <b>{Math.round(stress.goodPartsPerShift).toLocaleString("en-IN")} / shift</b></span></div>
           <small className="irl-assumption-note">Assumption: one shift per operating day. Validate cycle rates and availability against actual machine records before making commitments.</small>
         </section>
-        <section className="irl-card irl-connection">
-          <div className="irl-section-heading"><div><small>03 / INDUSTRIAL CONNECTIVITY</small><h2>Machine twin connection</h2></div><Plug size={19}/></div>
-          <div className="irl-connection-status"><i/> NOT CONNECTED <span>Gateway integration required</span></div>
-          <div className="irl-input-grid">
-            <label>Protocol <select value={protocol} onChange={e => setProtocol(e.target.value as Protocol)}><option>OPC UA</option><option>Modbus TCP</option><option>MTConnect</option><option>REST gateway</option></select></label>
-            <label>Machine / asset name <input value={machineName} onChange={e => setMachineName(e.target.value)} placeholder="e.g. VMC-01"/></label>
-            <label className="irl-endpoint-label">Gateway endpoint <input value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder="e.g. opc.tcp://gateway:4840"/></label>
-          </div>
-          <button type="button" className="irl-save-profile" onClick={saveMachineProfile} disabled={!machineName.trim() || !endpoint.trim()}>{profileSaved ? "Connection profile saved" : "Save connection profile"}</button>
-          <p className="irl-connection-note">Saving stores configuration only. No socket is opened and no PLC/CNC data is read. Live telemetry requires the actual machine protocol, approved gateway, network route and credentials; none are assumed or fabricated.</p>
-        </section>
+        <MachineTwinPanel />
         <section className="irl-card irl-icon-forge">
           <div className="irl-section-heading"><div><small>04 / ICON STUDIO EXPANSION</small><h2>Material & motion forge</h2></div><SlidersHorizontal size={19}/></div>
           <div className="irl-icon-demo"><span className={`irl-icon-preview material-${material} motion-${iconMotion}`}><Factory size={30}/></span><div><b>Factory command icon</b><small>{material.toUpperCase()} · {iconMotion.toUpperCase()}</small></div></div>
