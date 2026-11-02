@@ -99,7 +99,7 @@ function App() {
   const [dispatchMode, setDispatchMode] = useState<"wip" | "dispatch">("dispatch");
   const [wipJump, setWipJump] = useState<{companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string} | null>(null);
 
-  const activeModule = activeModuleId === "dashboard" ? dashboardItem : modules.find((item) => item.id === activeModuleId) ?? (activeModuleId === "component-cost-planner" ? { id: "component-cost-planner", title: "Component Cost Planner", group: "Finance", description: "Edit the component planned-cost baseline from Costing & Payments.", icon: Calculator, action: "Edit component cost baseline" } : modules[0]);
+  const activeModule = activeModuleId === "dashboard" ? dashboardItem : modules.find((item) => item.id === activeModuleId) ?? (activeModuleId === "component-cost-planner" ? { id: "component-cost-planner", title: "Planned Cost Register", group: "Finance", description: "Enter independent planned costs by component number and PO number.", icon: Calculator, action: "Edit planned cost" } : modules[0]);
   const manufacturingData = readManufacturingData();
   const globalRecords = getAllModuleRecords();
   const globalVendorContacts = activeRows(manufacturingData.vendors);
