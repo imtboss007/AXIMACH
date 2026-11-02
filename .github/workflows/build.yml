@@ -28,10 +28,12 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Check server syntax
+      - name: Check server and Electron syntax
         run: |
           node --check server/index.mjs
           node --check server/whatsapp-web.mjs
+          node --check electron/main.cjs
+          node --check electron/preload.cjs
       - name: Build application
         run: npm run build
       - name: Upload frontend build
