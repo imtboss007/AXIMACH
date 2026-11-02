@@ -25,8 +25,11 @@ async function save() {
   await writeFile(tmp, JSON.stringify({ ...state, qr: null, connected: false }, null, 2), { mode: 0o600 });
   await rename(tmp, DATA);
 }
-const allowedOrigins = new Set(String(process.env.AXIMACH_ALLOWED_ORIGINS || process.env.AXIMACH_ALLOWED_ORIGIN || "http://localhost:5173")
-  .split(",").map(origin => origin.trim()).filter(Boolean));
+const allowedOrigins = new Set([
+  "http://localhost:5173", "http://localhost", "https://localhost", "capacitor://localhost",
+  ...String(process.env.AXIMACH_ALLOWED_ORIGINS || process.env.AXIMACH_ALLOWED_ORIGIN || "")
+    .split(",").map(origin => origin.trim()).filter(Boolean)
+]);
 function applyCors(req, res) {
   const origin = String(req.headers.origin || "");
   res.setHeader("vary", "Origin");
