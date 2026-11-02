@@ -410,7 +410,7 @@ function DashboardWorkspace(props: {
   const finishedJobs=activePOLines.filter(line=>line.jobStatus==="Finished").length;
   const overdueOperations=liveOperations.filter(op=>op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<todayKey).length;
   const savedComponentPlans=activeRows(actualData.standaloneCostPlans||[]);
-  const savedComponentProcessPlans=savedComponentPlans;
+  const savedComponentProcessPlans=[] as typeof savedComponentPlans;
   const sphereCounts:Record<string,number>={
     "command-centre":overdueOperations+qualityHolds+vendorPaymentReview,
     companies:liveCompanies.length,
