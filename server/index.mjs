@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { networkInterfaces } from "node:os";
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
@@ -116,6 +117,16 @@ const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-max-age": "86400" }); return res.end(); }
   const url = new URL(req.url, "http://localhost");
   if (url.pathname === "/health" && req.method === "GET") return json(res, 200, { ok: true, service: "AXIMACH scheduler", credentialsConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID), persistentStore: DB_PATH });
+  if (url.pathname === "/api/connection-info" && req.method === "GET") {
+    if (!isLoopbackAddress(req.socket.remoteAddress)) return json(res, 403, { error: "Connection information is available only to the AXIMACH PC itself." });
+    return json(res, 200, {
+      service: "AXIMACH local shared-data server",
+      port: PORT,
+      apiKey: API_KEY,
+      addresses: privateLanAddresses().map(ip => "http://" + ip + ":" + PORT),
+      note: "Connect other AXIMACH devices to the same Wi-Fi and use one of these private LAN addresses with this API key."
+    });
+  }
   if (!authorized(req)) return json(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
   try {
     if (url.pathname === "/api/manufacturing-data" && req.method === "GET") {
