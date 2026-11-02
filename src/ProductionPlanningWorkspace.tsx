@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { Activity, ArrowRight, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Maximize2, Plus, Search, ShieldAlert, SlidersHorizontal, Truck, Users, Workflow, X, Wrench } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, vendorSupportsProcessType, type LifecycleStatus, type OperationRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
+import { ProcessIcon } from "./IconStudio";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; onSelectModule: (id: string) => void };
 type FilterOption = { id: string; label: string };
@@ -497,7 +498,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
             <td><input aria-label={"Select " + operation.name} type="checkbox" checked={selectedOperationIds.includes(operation.id)} onClick={event => event.stopPropagation()} onChange={event => setSelectedOperationIds(current => event.target.checked ? [...new Set([...current, operation.id])] : current.filter(id => id !== operation.id))}/></td><td>{index + 1}</td><td>{operation.name}</td><td>{operation.category || "—"}</td><td>{operation.vendorId ? "Outsourced" : "Internal"}</td>
             <td>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</td><td>{vendors.find(vendor => vendor.id === operation.transportVendorId)?.company || "—"}</td><td>{day(operation.plannedStart)}</td><td>{day(operation.plannedEnd)}</td>
             <td>{operation.quantity.toLocaleString("en-IN")}</td><td>{money(operation.ratePerPart)}</td><td>{operation.vendorId ? <select aria-label={"Payment status for "+operation.name} value={operation.vendorPaymentStatus || "Not Paid"} onClick={event=>event.stopPropagation()} onChange={event=>updatePaymentStatus(operation.id,event.target.value as "Paid" | "Not Paid")}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select> : "—"}</td><td>{money(operation.quantity * operation.ratePerPart + operation.transportCost)}</td>
-            <td><span className={"pp-table-status " + statusClass(operation.status)}>{operation.status}</span></td>
+            <td><span className={"pp-table-status " + statusClass(operation.status)}>{operation.status}</span>{operation.status === "Complete" && <span className="pp-finished-job-icon" title="Finished job icon assignment"><ProcessIcon processName="Finished Job" fallback={<CheckCircle2 size={13}/>} /></span>}</td>
             <td><button onClick={event => { event.stopPropagation(); openEdit(operation); }}>Edit</button>{operation.status !== "Complete" && <button type="button" disabled={operation.status === "Quality hold"} title={operation.status === "Quality hold" ? "Resolve quality hold before finishing" : "Mark this operation complete"} onClick={event => { event.stopPropagation(); finishOperations([operation.id]); }}>Finish</button>}</td>
           </tr>)}</tbody>
         </table></div>
