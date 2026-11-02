@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import { ProcessIcon } from "./IconStudio";
+import ProcessUniverse3D from "./ProcessUniverse3D";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
 type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch">;
@@ -32,6 +33,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [search, setSearch] = useState("");
   const [vertical, setVertical] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [routeView, setRouteView] = useState<"3d" | "list">("3d");
+  const [simulationActive, setSimulationActive] = useState(false);
+  const [simulationIndex, setSimulationIndex] = useState(-1);
   const [showEditor, setShowEditor] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
@@ -58,6 +62,23 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const durationDays = routeOperations.reduce((sum, op) => sum + daysBetween(op.plannedStart, op.plannedEnd), 0);
   const timelineStart = routeOperations.map(op => op.plannedStart).filter(Boolean).sort()[0] || "";
   const timelineEnd = routeOperations.map(op => op.plannedEnd).filter(Boolean).sort().at(-1) || finalDelivery;
+
+  useEffect(() => {
+    if (!simulationActive) return;
+    if (!visibleOperations.length || simulationIndex >= visibleOperations.length - 1) {
+      setSimulationActive(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSimulationIndex(index => index + 1), 950);
+    return () => window.clearTimeout(timer);
+  }, [simulationActive, simulationIndex, visibleOperations.length]);
+
+  const startRouteSimulation = () => {
+    if (!visibleOperations.length) { onNotice("Add at least one real operation before previewing the route."); return; }
+    setRouteView("3d");
+    setSimulationIndex(0);
+    setSimulationActive(true);
+  };
 
   const changeSelection = (nextCompanyId: string) => {
     setCompanyId(nextCompanyId);
@@ -152,11 +173,11 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
 
   const finishJob = () => {
     if (!selectedPO || !selectedLine) return;
-    if (!allDone) {
-      onNotice("The job cannot be finished yet. Mark every required route operation Complete first. Operation completion and job completion are separate statuses.");
-      return;
-    }
-    if (!window.confirm("Mark this complete PO component line as Job Finished? This is a separate final job status and will not change the operation records.")) return;
+    const unfinishedCount = routeOperations.filter(operation => operation.status !== "Complete").length;
+    const confirmation = unfinishedCount
+      ? unfinishedCount + " route operation(s) are not marked Complete. Mark the PO job Finished anyway? This only changes the PO-line job status; every operation status and quantity will remain unchanged."
+      : "Mark this PO component line as Job Finished? This is a separate final job status and will not change the operation records.";
+    if (!window.confirm(confirmation)) return;
     const stamp = nowIso();
     update(current => ({
       ...current,
@@ -166,7 +187,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         lines: po.lines.map(line => line.id === selectedLine.id ? { ...line, jobStatus: "Finished", jobFinishedAt: stamp } : line)
       }))
     }));
-    onNotice("Job marked Finished. Individual process operation statuses and quantities were left unchanged.");
+    onNotice(unfinishedCount ? "Job marked Finished independently. " + unfinishedCount + " unfinished route operation(s) and their quantities were left unchanged." : "Job marked Finished. Individual process operation statuses and quantities were left unchanged.");
   };
 
   const reopenJob = () => {
@@ -211,12 +232,12 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <p>{selectedLine.jobStatus === "Finished"
               ? "Finished " + (selectedLine.jobFinishedAt ? new Date(selectedLine.jobFinishedAt).toLocaleString("en-IN") : "—") + ". Operation history remains available."
               : allDone ? "All saved route operations are Complete. Confirm final job closure when the job is actually finished."
-              : "Complete every required route operation first. A single process marked Complete does not finish the whole job."}</p>
+              : "Job closure is a separate control. You may mark the PO line Finished when the job is actually finished; unfinished process statuses are not changed."}</p>
           </div>
         </div>
         {selectedLine.jobStatus === "Finished"
           ? <button className="button-quiet" onClick={reopenJob}>Reopen job</button>
-          : <button className="button-primary" disabled={!allDone} onClick={finishJob}><Check size={14}/> Mark job finished</button>}
+          : <button className="button-primary" onClick={finishJob}><Check size={14}/> Mark job finished</button>}
       </div>
       <div className="linked-kpis">
         <button className="route-kpi kpi-delivery" onClick={() => document.getElementById("linked-timeline")?.scrollIntoView({behavior:"smooth",block:"nearest"})}><span className="kpi-icon"><CalendarClock size={19}/></span><span><small>DELIVERY FORECAST</small><strong>{deliveryState}</strong><em>{finalDelivery ? "Target " + shortDate(finalDelivery) : "Enter PO line delivery date"}</em></span></button>
@@ -236,7 +257,25 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       {tab("documents","Documents",FileText)}
       {tab("history","History",Activity)}
     </nav>
-    <div className="linked-route-toolbar"><div className="linked-route-actions"><button className="button-primary compact-button" disabled={!selectedLine} onClick={() => startAdd()}><Plus size={14}/> Add operation</button><button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => startAdd(false, true)}><Truck size={14}/> Add transport</button><button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAdd(true)}><GitBranch size={14}/> Add branch / rework</button><button className="button-quiet compact-button" onClick={() => { setZoom(1); setSearch(""); }}><Search size={14}/> Clear search / fit</button></div><div className="linked-route-actions"><label className="linked-search"><Search size={14}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search operation, vendor, machine…"/></label><button className={"button-quiet compact-button " + (vertical ? "control-active" : "")} onClick={() => setVertical(v => !v)}>{vertical ? "Vertical layout" : "Horizontal layout"}</button><input aria-label="Route zoom" type="range" min="0.65" max="1.25" step="0.05" value={zoom} onChange={e => setZoom(Number(e.target.value))}/><span className="zoom-readout">{Math.round(zoom * 100)}%</span></div></div>
+    <div className="linked-route-toolbar">
+      <div className="linked-route-actions">
+        <button className="button-primary compact-button" disabled={!selectedLine} onClick={() => startAdd()}><Plus size={14}/> Add operation</button>
+        <button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => startAdd(false, true)}><Truck size={14}/> Add transport</button>
+        <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAdd(true)}><GitBranch size={14}/> Add branch / rework</button>
+        <button className="button-quiet compact-button" onClick={() => { setZoom(1); setSearch(""); }}><Search size={14}/> Clear search / fit</button>
+      </div>
+      <div className="linked-route-actions linked-route-visual-controls">
+        <button className={"button-quiet compact-button " + (routeView === "3d" ? "control-active" : "")} onClick={() => setRouteView("3d")}><Workflow size={14}/> 3D Process Universe</button>
+        <button className={"button-quiet compact-button " + (routeView === "list" ? "control-active" : "")} onClick={() => { setRouteView("list"); setSimulationActive(false); }}><Boxes size={14}/> Route list</button>
+        {!simulationActive
+          ? <button className="button-primary compact-button" disabled={!visibleOperations.length} onClick={startRouteSimulation}><Activity size={14}/> Simulate route</button>
+          : <button className="button-quiet compact-button" onClick={() => setSimulationActive(false)}><Activity size={14}/> Pause simulation</button>}
+        <button className="button-quiet compact-button" disabled={simulationIndex < 0} onClick={() => { setSimulationActive(false); setSimulationIndex(-1); }}><Check size={14}/> Reset</button>
+        <label className="linked-search"><Search size={14}/><input value={search} onChange={e => { setSearch(e.target.value); setSimulationActive(false); setSimulationIndex(-1); }} placeholder="Search operation, vendor, machine…"/></label>
+        <input aria-label="Route zoom" type="range" min="0.65" max="1.25" step="0.05" value={zoom} onChange={e => setZoom(Number(e.target.value))}/>
+        <span className="zoom-readout">{Math.round(zoom * 100)}%</span>
+      </div>
+    </div>
     <div className="linked-process-layout">
       <section className="surface-panel linked-route-canvas">
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></div>
@@ -270,7 +309,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <div className="module-form-actions"><button className="button-primary" onClick={saveOperation}><Check size={14}/> {editingId ? "Save changes" : "Save operation"}</button><button className="button-quiet" onClick={() => setShowEditor(false)}>Cancel</button></div>
           </div>
         </section>}
-        {routeOperations.length ? <div className={"linked-node-scroll " + (vertical ? "linked-node-vertical" : "")}><div className="linked-route-lanes" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{visibleBranches.map(branch => {
+        {routeView === "3d" && routeOperations.length
+          ? <ProcessUniverse3D operations={visibleOperations} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} />
+          : routeOperations.length ? <div className={"linked-node-scroll " + (vertical ? "linked-node-vertical" : "")}><div className="linked-route-lanes" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{visibleBranches.map(branch => {
           const laneOperations = visibleOperations.filter(op => (op.branch || "Main route") === branch);
           const alternate = branch !== "Main route";
           const branchParents = [...new Set(laneOperations.map(op => op.parentId ? routeOperations.find(parent => parent.id === op.parentId)?.name : "").filter(Boolean))];
