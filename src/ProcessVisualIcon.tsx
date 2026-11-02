@@ -1,6 +1,7 @@
 
 import { Activity, Anvil, Box, Boxes, Cable, CheckCircle2, CircleDot, Cog, Cpu, Drill, Factory, Flame, Gauge, Hammer, Layers, Package, Paintbrush, Ruler, ScanLine, Scissors, ShieldCheck, Truck, Waves, Wrench, Zap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { ProcessIcon } from "./IconStudio";
 type Props={name:string;category?:string;size?:"sm"|"md"|"lg"};
 const rules:[RegExp,LucideIcon][]=[
   [/5.?axis|3.?axis|vmc|hmc|cnc milling|milling|machining centre|machining center|face mill|end mill|slot mill|profile mill|pocket mill|gear cutting|keyway/,Cog],
@@ -51,5 +52,5 @@ const rules:[RegExp,LucideIcon][]=[
 export default function ProcessVisualIcon({name,category="",size="md"}:Props){
  const text=(name+" "+category).toLowerCase();
  const Icon=rules.find(([pattern])=>pattern.test(text))?.[1]||Factory;
- return <span className={"process-visual-icon process-visual-icon-"+size} title={name+" · "+(category||"Process")} aria-label={name+" process icon"}><span className="process-visual-icon-face"><Icon/></span><span className="process-visual-icon-side"/></span>;
+ return <span className={"process-visual-icon process-visual-icon-"+size} title={name+" · "+(category||"Process")} aria-label={name+" process icon"}><span className="process-visual-icon-face"><ProcessIcon processName={name} fallback={<Icon/>}/></span><span className="process-visual-icon-side"/></span>;
 }
