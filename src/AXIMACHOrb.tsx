@@ -91,7 +91,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
               <i className="ax-orb-cube-face ax-cube-right"/><i className="ax-orb-cube-face ax-cube-left"/>
               <i className="ax-orb-cube-face ax-cube-top"/><i className="ax-orb-cube-face ax-cube-bottom"/>
             </span>
-            <span className="ax-orb-vortex-geometry" aria-hidden="true"><i/><i/><i/><i/></span>
+            <span className="ax-orb-vortex-geometry" aria-hidden="true" style={{ animationPlayState: reducedMotion || reduceMotion || paused ? "paused" : "running" }}><i/><i/><i/><i/></span>
             <span className="ax-orb-molecular-geometry" aria-hidden="true">
               <svg viewBox="0 0 200 200">
                 <g className="ax-network-links"><path d="M35 48L92 26L151 51L164 119L110 163L49 143L35 48M92 26L110 163M35 48L164 119M151 51L49 143M35 48L110 163M92 26L49 143"/></g>
