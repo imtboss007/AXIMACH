@@ -1620,3 +1620,17 @@ img,svg,canvas,video{max-width:100%}
 @media (max-width: 820px) {
   .ccp-linked-po-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+
+/* Production route actions: direct transport and job-level completion are separate from per-operation completion. */
+.production-planning .pp-component-route-head{align-items:flex-start}
+.production-planning .pp-component-route-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;flex-shrink:0}
+.production-planning .pp-component-route-actions button{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:27px;padding:4px 8px;border:1px solid #2a648d;border-radius:5px;background:#123d60;color:#a6e2ff;font-size:8px;white-space:nowrap}
+.production-planning .pp-component-route-actions button:hover{border-color:#58cfe7;background:#155276;color:#e5fbff}
+.production-planning .pp-component-route-actions button:disabled{opacity:.4;cursor:not-allowed}
+.production-planning .pp-component-route-actions button:first-child{border-color:rgba(71,193,225,.4);background:rgba(9,93,122,.48);color:#9ceaf2}
+.production-planning .pp-component-route-actions button:nth-child(2){border-color:rgba(77,217,178,.42);background:rgba(7,82,69,.4);color:#9cebd1}
+@media(max-width:760px){
+  .production-planning .pp-component-route-head{align-items:flex-start;flex-direction:column}
+  .production-planning .pp-component-route-actions{width:100%;justify-content:flex-start}
+}
