@@ -40,7 +40,7 @@ export default function ProcessUniverse3D({
     }));
   }, [operations]);
 
-  const stageStyle = { "--route-zoom": zoom } as CSSProperties;
+  const stageStyle: CSSProperties = { transform: `scale(${zoom}) rotateX(2deg)`, transformOrigin: "top left", width: `${100 / zoom}%` };
 
   return (
     <section className="process-universe-3d" aria-label="Interactive 3D process route graph">
