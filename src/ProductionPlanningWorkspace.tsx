@@ -195,7 +195,21 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     const ids = new Set(finishable.map(operation => operation.id));
     const stamp = nowIso();
     const finishDate = stamp.slice(0, 10);
-    update(current => ({...current, operations: current.operations.map(operation => ids.has(operation.id) ? {...operation, status: "Complete", actualEnd: operation.actualEnd || finishDate, updatedAt: stamp} : operation)}));
+    const affectedLines = new Set(finishable.map(operation => operation.poLineId));
+    const affectedPOIds = new Set(finishable.map(operation => operation.poId));
+    update(current => ({
+      ...current,
+      operations: current.operations.map(operation => ids.has(operation.id) ? {...operation, status: "Complete", actualEnd: operation.actualEnd || finishDate, updatedAt: stamp} : operation),
+      purchaseOrders: current.purchaseOrders.map(po => !affectedPOIds.has(po.id) ? po : ({
+        ...po, updatedAt: stamp,
+        lines: po.lines.map(line => !affectedLines.has(line.id) || line.jobStatus !== "Finished" ? line : ({
+          ...line, jobStatus: "In progress", jobFinishedAt: undefined,
+          jobFinishedProcessCost: undefined, jobFinishedActualProcessCost: undefined,
+          jobFinishedMissingActualRates: undefined, jobFinishedOperationCount: undefined,
+          updatedAt: stamp
+        }))
+      }))
+    }));
     setSelectedOperationIds([]);
     onNotice("Finished " + finishable.length + " operation(s)." + (blocked.length ? " " + blocked.length + " quality-hold operation(s) were left unchanged." : "") + " Entered completed, accepted and rejected quantities and actual rates were preserved; update them separately where required.");
   };
