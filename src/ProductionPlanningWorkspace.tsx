@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { Activity, ArrowRight, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Maximize2, Plus, Search, ShieldAlert, SlidersHorizontal, Truck, Users, Workflow, X, Wrench } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, vendorSupportsProcessType, type LifecycleStatus, type OperationRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
+import { calculateFinishedJobProcessCost } from "./componentPlanLogic";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; onSelectModule: (id: string) => void };
 type FilterOption = { id: string; label: string };
@@ -11,7 +12,7 @@ type ProcessAssignmentDraft = {
 };
 type ProcessDraft = {
   companyId: string; poId: string; poLineId: string; categoryId: string; processTypeIds: string[]; name: string; category: string; vendorId: string;
-  plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string; quantity: string; ratePerPart: string; transportCost: string; transportVendorId: string;
+  plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string; quantity: string; ratePerPart: string; transportCost: string; transportVendorId: string; transportPickup: string; transportDelivery: string;
   status: LifecycleStatus; vendorPaymentStatus: "Paid" | "Not Paid"; processAssignments: Record<string, ProcessAssignmentDraft>;
   branch: string; parentId: string; notes: string;
 };
@@ -21,7 +22,7 @@ const emptyProcessAssignment = (quantity = ""): ProcessAssignmentDraft => ({
 });
 const emptyDraft = (): ProcessDraft => ({
   companyId: "", poId: "", poLineId: "", categoryId: "", processTypeIds: [], name: "", category: "", vendorId: "",
-  plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "", quantity: "", ratePerPart: "", transportCost: "0", transportVendorId: "",
+  plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "", quantity: "", ratePerPart: "", transportCost: "0", transportVendorId: "", transportPickup: "", transportDelivery: "",
   status: "Queued", vendorPaymentStatus: "Not Paid", processAssignments: {}, branch: "Main route", parentId: "", notes: ""
 });
 const assignmentFromOperation = (operation: OperationRecord): ProcessAssignmentDraft => ({
@@ -105,6 +106,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const [collapsedComponents, setCollapsedComponents] = useState<string[]>([]);
   const [showEditor, setShowEditor] = useState(false);
   const [editingId, setEditingId] = useState("");
+  const [isDirectTransport, setIsDirectTransport] = useState(false);
   const [draft, setDraft] = useState<ProcessDraft>(emptyDraft());
   const [processQuery,setProcessQuery]=useState("");
   const draftProcessTypes=processTypes.filter(item=>draft.processTypeIds.includes(item.id));
@@ -198,17 +200,25 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     onNotice("Finished " + finishable.length + " operation(s)." + (blocked.length ? " " + blocked.length + " quality-hold operation(s) were left unchanged." : "") + " Entered completed, accepted and rejected quantities and actual rates were preserved; update them separately where required.");
   };
   const runSimulation = () => setSimulationOpen(true);
-  const openAdd = () => {
+  const openAdd = (preferredLine?: typeof displayLines[number], directTransport = false) => {
     const next = emptyDraft();
     if (companyIds.length === 1) next.companyId = companyIds[0];
     if (poIds.length === 1) next.poId = poIds[0];
-    const preferredLine = displayLines.length === 1 ? displayLines[0] : undefined;
-    if (preferredLine) {
-      next.companyId = preferredLine.po.companyId;
-      next.poId = preferredLine.po.id;
-      next.poLineId = preferredLine.line.id;
-      next.quantity = String(preferredLine.line.quantity);
+    const lineContext = preferredLine || (displayLines.length === 1 ? displayLines[0] : undefined);
+    if (lineContext) {
+      next.companyId = lineContext.po.companyId;
+      next.poId = lineContext.po.id;
+      next.poLineId = lineContext.line.id;
+      next.quantity = String(lineContext.line.quantity);
     }
+    if (directTransport) {
+      next.name = "Transport / Dispatch";
+      next.category = "Logistics";
+      next.ratePerPart = "0";
+      next.processTypeIds = [];
+      next.branch = "Main route";
+    }
+    setIsDirectTransport(directTransport);
     setDraft(next); setEditingId(""); setShowEditor(true);
   };
   const openEdit = (operation: OperationRecord) => {
@@ -220,10 +230,13 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
       name: operation.name, category: operation.category, vendorId: operation.vendorId || "", transportVendorId: operation.transportVendorId || "",
       plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "", plannedStartTime: operation.plannedStartTime || (operation.plannedSlotStartAt ? new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5) : ""), plannedEndTime: operation.plannedEndTime || (operation.plannedSlotEndAt ? new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5) : ""),
       quantity: String(operation.quantity), ratePerPart: String(operation.ratePerPart), transportCost: String(operation.transportCost || 0),
+      transportPickup: operation.transportPickup || "", transportDelivery: operation.transportDelivery || "",
       status: operation.status, vendorPaymentStatus: operation.vendorPaymentStatus || "Not Paid",
       processAssignments: operation.processTypeId ? {[operation.processTypeId]:assignmentFromOperation(operation)} : {},
       branch: operation.branch || "Main route", parentId: operation.parentId || "", notes: operation.notes || ""
     });
+    const directTransport = /transport|dispatch|freight|logistics/i.test(operation.name + " " + operation.category);
+    setIsDirectTransport(directTransport);
     setSelectedId(operation.id);setTab("General");setEditingId(operation.id);setShowEditor(true);
   };
   const draftPO = orders.find(po => po.id === draft.poId);
@@ -239,7 +252,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     if (!po || !line || !component) { onNotice("Select a saved company, purchase order and component before saving the process."); return; }
     const previous=editingId?operations.find(operation=>operation.id===editingId):undefined;
     const selectedTypes=draft.processTypeIds.map(id=>processTypes.find(type=>type.id===id)).filter((item):item is typeof processTypes[number]=>Boolean(item));
-    if(!selectedTypes.length&&!(editingId&&previous&&draft.name.trim())){onNotice("Choose a Process Directory category and one or more processes.");return;}
+    if(!selectedTypes.length&&!(editingId&&previous&&draft.name.trim())&&!isDirectTransport){onNotice("Choose a Process Directory category and one or more processes.");return;}
     if(selectedTypes.length&&selectedTypes.some(type=>type.categoryId!==draft.categoryId)){onNotice("Choose processes from the selected category. Add another process in a separate operation if it belongs to a different category.");return;}
 
     const typesToSave:(typeof processTypes[number]|null)[]=selectedTypes.length?selectedTypes:[null];
@@ -283,7 +296,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           id, poId:po.id, poLineId:line.id, componentId:component.id,
           sequence:old?.sequence??maximumSequence+(index+1)*10,
           processTypeId:processType?.id||old?.processTypeId,
-          name:processType?.name||draft.name.trim(), category, machine:old?.machine||"",
+          name:isDirectTransport ? "Transport / Dispatch" : processType?.name||draft.name.trim(), category:isDirectTransport ? "Logistics" : category, machine:old?.machine||"",
           machineResourceId:old?.machineResourceId, vendorId:assignment.vendorId||"",
           status:assignment.status, plannedStart:assignment.plannedStart, plannedEnd:assignment.plannedEnd,
           actualStart:old?.actualStart||"", actualEnd:old?.actualEnd||"",
@@ -293,8 +306,9 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           quantity, completed:old?.completed||0, accepted:old?.accepted||0, rejected:old?.rejected||0,
           setupHours:old?.setupHours||0, cycleTimeSeconds:old?.cycleTimeSeconds||0,
           ratePerPart:rate, actualRatePerPart:old?.actualRatePerPart||0, transportCost:transport,
-          transportVendorId:assignment.transportVendorId||old?.transportVendorId||"", transportPickup:old?.transportPickup||"",
-          transportDelivery:old?.transportDelivery||"",
+          transportVendorId:assignment.transportVendorId||old?.transportVendorId||"",
+          transportPickup:isDirectTransport ? draft.transportPickup : old?.transportPickup||"",
+          transportDelivery:isDirectTransport ? draft.transportDelivery : old?.transportDelivery||"",
           qualityNotes:old?.qualityNotes||"", inspectionResult:old?.inspectionResult||"",
           notes:assignment.notes, vendorPaymentStatus:assignment.vendorPaymentStatus||old?.vendorPaymentStatus||"Not Paid", branch:draft.branch,
           parentId:draft.branch==="Main route"?"":draft.parentId,
@@ -304,14 +318,59 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
       const ids=new Set(records.map(record=>record.id));
       return {...current,operations:[...current.operations.filter(operation=>!ids.has(operation.id)),...records]};
     });
-    setSelectedId(idsToSave[0]);setTab("General");setShowEditor(false);setEditingId("");
-    onNotice(editingId?"Process operation(s) updated. Each process retains its own vendor, schedule, quantity, rate and payment status.":(selectedTypes.length+" process operation(s) saved with independent vendor, schedule and rate details."));
+    setSelectedId(idsToSave[0]);setTab("General");setShowEditor(false);setEditingId("");setIsDirectTransport(false);
+    onNotice(isDirectTransport ? "Transport / Dispatch activity saved directly to the selected PO component line. No Process Directory process was created." : editingId?"Process operation(s) updated. Each process retains its own vendor, schedule, quantity, rate and payment status.":(selectedTypes.length+" process operation(s) saved with independent vendor, schedule and rate details."));
   };
   const componentGroups = displayLines.map(row => {
     const component = components.find(item => item.id === row.line.componentId);
     const groupOperations = displayRows.filter(operation => operation.poLineId === row.line.id).slice().sort((a, b) => a.sequence - b.sequence);
     return { key: row.po.id + ":" + row.line.id, po: row.po, line: row.line, component, operations: groupOperations };
   });
+  const finishGroupJob = (group: typeof componentGroups[number]) => {
+    const jobOperations = operations.filter(operation =>
+      !operation.deletedAt && operation.poId === group.po.id &&
+      operation.poLineId === group.line.id && operation.componentId === group.line.componentId
+    );
+    if (!jobOperations.length) {
+      onNotice("Add at least one process or transport activity before finishing this job.");
+      return;
+    }
+    const snapshot = calculateFinishedJobProcessCost(jobOperations);
+    const stamp = nowIso();
+    update(current => ({
+      ...current,
+      purchaseOrders: current.purchaseOrders.map(po => po.id !== group.po.id ? po : ({
+        ...po, updatedAt: stamp,
+        lines: po.lines.map(line => line.id !== group.line.id ? line : ({
+          ...line, jobStatus: "Finished", jobFinishedAt: stamp,
+          jobFinishedProcessCost: snapshot.processCost,
+          jobFinishedActualProcessCost: snapshot.actualProcessCost,
+          jobFinishedMissingActualRates: snapshot.missingActualRates,
+          jobFinishedOperationCount: snapshot.operationCount,
+          updatedAt: stamp
+        }))
+      }))
+    }));
+    onNotice("Production job marked Finished. Total process + transport cost " + money(snapshot.processCost) +
+      " was saved for Costing & Payments." +
+      (snapshot.missingActualRates ? " " + snapshot.missingActualRates + " actual process rate(s) are missing." : ""));
+  };
+  const reopenGroupJob = (group: typeof componentGroups[number]) => {
+    const stamp = nowIso();
+    update(current => ({
+      ...current,
+      purchaseOrders: current.purchaseOrders.map(po => po.id !== group.po.id ? po : ({
+        ...po, updatedAt: stamp,
+        lines: po.lines.map(line => line.id !== group.line.id ? line : ({
+          ...line, jobStatus: "In progress", jobFinishedAt: undefined,
+          jobFinishedProcessCost: undefined, jobFinishedActualProcessCost: undefined,
+          jobFinishedMissingActualRates: undefined, jobFinishedOperationCount: undefined,
+          updatedAt: stamp
+        }))
+      }))
+    }));
+    onNotice("Production job reopened. Existing process, transport and actual-rate records were retained.");
+  };
   const toggleComponent = (key: string) => setCollapsedComponents(current => current.includes(key) ? current.filter(item => item !== key) : [...current, key]);
   const allCollapsed = componentGroups.length > 0 && componentGroups.every(group => collapsedComponents.includes(group.key));
   const workloads = vendors.map(vendor => {
@@ -417,8 +476,14 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           const routeId = "route-arrow-" + group.line.id.replace(/[^a-z0-9]/gi, "");
           return <article className="pp-component-route" key={group.key}>
             <div className="pp-component-route-head">
-              <div><strong>{group.component ? group.component.partNumber + " — " + group.component.name : "Component record unavailable"}</strong><span>{group.po.number} · Qty {group.line.quantity.toLocaleString("en-IN")} pcs · Due {day(group.line.targetDelivery)}</span></div>
-              <button onClick={() => toggleComponent(group.key)}>{collapsed ? "Expand" : "Collapse"} <ChevronDown size={13}/></button>
+              <div><strong>{group.component ? group.component.partNumber + " — " + group.component.name : "Component record unavailable"}</strong><span>{group.po.number} · Qty {group.line.quantity.toLocaleString("en-IN")} pcs · Due {day(group.line.targetDelivery)} · Job {group.line.jobStatus || "In progress"}</span></div>
+              <div className="pp-component-route-actions">
+                <button type="button" onClick={() => openAdd(group, true)}><Truck size={13}/> Add Transport</button>
+                {group.line.jobStatus === "Finished"
+                  ? <button type="button" onClick={() => reopenGroupJob(group)}>Reopen Job</button>
+                  : <button type="button" disabled={!group.operations.length} onClick={() => finishGroupJob(group)}><CheckCircle2 size={13}/> Finish Job</button>}
+                <button type="button" onClick={() => toggleComponent(group.key)}>{collapsed ? "Expand" : "Collapse"} <ChevronDown size={13}/></button>
+              </div>
             </div>
             {!collapsed ? <div className="pp-route-map-body">
               {group.operations.length ? <>
