@@ -86,17 +86,22 @@ function createWindow() {
       else { showRecoveryScreen(window, description + " (code " + code + ")"); if (!window.isDestroyed()) window.show(); }
     }
   });
-  window.webContents.on("did-finish-load", async () => {
+  window.webContents.on("dom-ready", () => logStartup("Renderer DOM ready"));
+  window.webContents.on("did-start-loading", () => logStartup("Renderer navigation started"));
+  window.webContents.on("did-stop-loading", () => logStartup("Renderer navigation stopped"));
+  window.webContents.on("console-message", (_event, details) => {
+    if (isSmokeTest && details.level >= 2) logStartup("Renderer console error", { message: details.message, line: details.lineNumber, source: details.sourceId });
+  });
+  window.webContents.on("did-finish-load", () => {
     if (!isSmokeTest || window.isDestroyed()) return;
-    try {
-      const snapshot = await window.webContents.executeJavaScript("({readyState:document.readyState,rootChildren:document.querySelector('#root')?.children.length||0,rootText:document.querySelector('#root')?.innerText?.slice(0,600)||''})");
-      const passed = snapshot.readyState === "complete" && snapshot.rootChildren > 0 && snapshot.rootText.includes("AXIMACH");
-      logStartup(passed ? "Windows packaged-renderer smoke test passed" : "Windows packaged-renderer smoke test failed", snapshot);
-      app.exit(passed ? 0 : 1);
-    } catch (error) {
-      logStartup("Windows packaged-renderer smoke test threw", error);
-      app.exit(1);
-    }
+    logStartup("Renderer did-finish-load received");
+    window.webContents.executeJavaScript("({readyState:document.readyState,rootChildren:document.querySelector('#root')?.children.length||0,rootText:document.querySelector('#root')?.innerText?.slice(0,600)||''})")
+      .then(snapshot => {
+        const passed = snapshot.readyState === "complete" && snapshot.rootChildren > 0 && snapshot.rootText.includes("AXIMACH");
+        logStartup(passed ? "Windows packaged-renderer smoke test passed" : "Windows packaged-renderer smoke test failed", snapshot);
+        app.exit(passed ? 0 : 1);
+      })
+      .catch(error => { logStartup("Windows packaged-renderer smoke evaluation failed", error); app.exit(1); });
   });
   window.webContents.on("render-process-gone", (_event, details) => {
     logStartup("Renderer process exited", details);
@@ -110,22 +115,43 @@ function createWindow() {
   const indexPath = path.join(app.getAppPath(), "dist", "index.html");
   logStartup("Loading renderer", indexPath);
   if (!fs.existsSync(indexPath)) { logStartup("Packaged renderer entry is missing", indexPath); showRecoveryScreen(window, "Packaged application file is missing: " + indexPath); window.show(); return window; }
-  window.loadFile(indexPath).then(() => { logStartup("Renderer loaded successfully"); if (!window.isDestroyed()) window.show(); }).catch(error => { logStartup("Renderer loadFile rejected", error); showRecoveryScreen(window, error.message); if (!window.isDestroyed()) window.show(); });
+  window.loadFile(indexPath).then(() => {
+    logStartup("Renderer loadFile promise resolved");
+    if (!isSmokeTest && !window.isDestroyed()) window.show();
+  }).catch(error => {
+    logStartup("Renderer loadFile rejected", error);
+    if (isSmokeTest) app.exit(1);
+    else { showRecoveryScreen(window, error.message); if (!window.isDestroyed()) window.show(); }
+  });
   return window;
 }
 function stopLocalServices() {
   for (const child of [manufacturingServer, whatsappBridge]) if (child && !child.killed) { try { child.kill(); } catch { /* already stopped */ } }
   manufacturingServer = undefined; whatsappBridge = undefined;
 }
+if (isSmokeTest && process.env.AXIMACH_SMOKE_USER_DATA) {
+  const earlyDir = path.join(process.env.AXIMACH_SMOKE_USER_DATA, "logs");
+  try {
+    fs.mkdirSync(earlyDir, { recursive: true });
+    fs.appendFileSync(path.join(earlyDir, "startup.log"), `[${new Date().toISOString()}] Electron main module loaded; waiting for app readiness\\n`, "utf8");
+  } catch {}
+}
+process.on("uncaughtException", error => { logStartup("Uncaught main-process exception", error); if (isSmokeTest) app.exit(1); });
+process.on("unhandledRejection", error => { logStartup("Unhandled main-process rejection", error); if (isSmokeTest) app.exit(1); });
 app.whenReady().then(() => {
   try {
     initialiseDiagnostics();
+    logStartup("Electron app.whenReady resolved");
     if (!isSmokeTest) startLocalServices();
     createWindow();
-    if (isSmokeTest) setTimeout(() => { logStartup("Windows packaged-renderer smoke test timed out"); app.exit(2); }, 30000);
+    if (isSmokeTest) setTimeout(() => { logStartup("Windows packaged-renderer smoke test timed out"); app.exit(2); }, 60000);
     app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
   }
-  catch (error) { logStartup("Fatal application startup error", error); if (!mainWindow || mainWindow.isDestroyed()) { mainWindow = new BrowserWindow({ width: 900, height: 650, show: true, backgroundColor: "#07111d" }); showRecoveryScreen(mainWindow, error.message); } }
-}).catch(error => console.error("AXIMACH failed before Electron became ready:", error));
+  catch (error) {
+    logStartup("Fatal application startup error", error);
+    if (isSmokeTest) { app.exit(1); return; }
+    if (!mainWindow || mainWindow.isDestroyed()) { mainWindow = new BrowserWindow({ width: 900, height: 650, show: true, backgroundColor: "#07111d" }); showRecoveryScreen(mainWindow, error.message); }
+  }
+}).catch(error => { logStartup("AXIMACH failed before Electron became ready", error); if (isSmokeTest) app.exit(1); });
 app.on("before-quit", stopLocalServices);
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
