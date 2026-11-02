@@ -9,6 +9,7 @@ type RotationSpeed = "Slow" | "Normal" | "Fast";
 type Props = {
   modules: ModuleNavItem[];
   counts: Counts;
+  syncStatus: string;
   onSelectModule: (id: string) => void;
   onOpenModules: () => void;
 };
@@ -171,7 +172,7 @@ function compileShader(gl: WebGLRenderingContext, kind: number, source: string):
   return shader;
 }
 
-export default function SphereShellDashboard({ modules, counts, onSelectModule, onOpenModules }: Props) {
+export default function SphereShellDashboard({ modules, counts, syncStatus, onSelectModule, onOpenModules }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const yawRef = useRef(-0.42);
   const pitchRef = useRef(0.24);
@@ -320,7 +321,7 @@ export default function SphereShellDashboard({ modules, counts, onSelectModule, 
   return <section className="axi-sphere-shell" aria-label="AXIMACH sphere command dashboard">
     <div className="axi-sphere-shell-heading">
       <div><div className="axi-sphere-kicker"><i/> SPATIAL COMMAND INTERFACE / AXIMACH</div><h2>One factory. <em>One command sphere.</em></h2><p>Choose an existing AXIMACH workspace from the orbital navigation. All figures are read from saved records.</p></div>
-      <div className="axi-sphere-heading-actions"><button type="button" className="axi-sphere-open-all" onClick={onOpenModules}><Maximize2 size={14}/> All workspaces</button><span className="axi-sphere-live"><i/> RECORD-LINKED</span></div>
+      <div className="axi-sphere-heading-actions"><button type="button" className="axi-sphere-open-all" onClick={onOpenModules}><Maximize2 size={14}/> All workspaces</button><span className="axi-sphere-live"><i/> RECORD-LINKED</span><span className={"axi-sphere-sync-state " + (syncStatus === "synced" ? "is-connected" : syncStatus === "syncing" ? "is-syncing" : syncStatus === "error" ? "has-error" : "is-local")}><i/>{syncStatus === "synced" ? "PC / MOBILE SYNCED" : syncStatus === "syncing" ? "SYNCING RECORDS" : syncStatus === "error" ? "SYNC ISSUE · LOCAL COPY KEPT" : "LOCAL / SERVER SYNC STATUS"}</span></div>
     </div>
     <div className="axi-sphere-layout">
       <div className="axi-sphere-side axi-sphere-side-left">
