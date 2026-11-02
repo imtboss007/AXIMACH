@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot, Building2,
-  Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
+  Box, Boxes, Calculator, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
   ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge,
   GitBranch, HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
   Package, Pause, Pencil, Play, Plug, Plus, Printer, RotateCcw, ScanLine, Search, Settings2,
@@ -23,6 +23,11 @@ import CommandControlWorkspace from "./CommandControlWorkspace";
 import ReportsAnalyticsWorkspace from "./ReportsAnalyticsWorkspace";
 import AIInsightsWorkspace from "./AIInsightsWorkspace";
 import DataExchangeWorkspace from "./DataExchangeWorkspace";
+import Contact360Workspace from "./Contact360Workspace";
+import ComponentCostPlannerWorkspace from "./ComponentCostPlannerWorkspace";
+import DashboardFlow3D from "./DashboardFlow3D";
+import AXIMACHOrb from "./AXIMACHOrb";
+import IconStudio from "./IconStudio";
 
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, vendorProcessTypeIds, type VendorRecord } from "./manufacturingData";
 
@@ -41,9 +46,11 @@ const moduleCatalogue: ModuleItem[] = [
   { id: "command-centre", title: "Command Centre", group: "Command", description: "Live operational exceptions, saved-record queries and evidence-linked priorities.", icon: Sparkles, action: "Open command centre" },
   { id: "companies", title: "Companies", group: "Governance", description: "Manage registered company records reused by purchase orders and manufacturing workflows.", icon: Building2, action: "Manage companies" },
   { id: "customers", title: "Customers, RFQs & Sales Orders", group: "Commercial", description: "Customer requirements, quotations, commitments and order intake.", icon: Target, action: "Review commercial pipeline" },
+  { id: "contact-360", title: "Contact 360", group: "Commercial", description: "One client account, multiple people and roles, reusable groups, linked vendors, amounts and promised follow-up dates.", icon: Users, action: "Open Contact 360 relationship register" },
   { id: "purchasing", title: "Purchase Orders", group: "Commercial", description: "Purchase approvals, subcontract work, acknowledgements and receipts.", icon: Package, action: "Review purchase workflow" },
   { id: "components", title: "Components", group: "Engineering", description: "Part masters, bills of material, drawings and linked revisions.", icon: Box, action: "Explore component records" },
   { id: "component-directory", title: "Component Directory", group: "Engineering", description: "Component-wise process history, fully processed cost and PO price comparison.", icon: Boxes, action: "Review component cost registers" },
+  { id: "component-cost-planner", title: "Component Cost Planner", group: "Engineering", description: "Maintain a planned cost baseline for a Component Directory part, with category-wise process costs. Cost plan values are surfaced in Costing & Payments only.", icon: CircleDollarSign, action: "Plan component cost" },
   { id: "process-master", title: "Process Directory", group: "Engineering", description: "Maintain hierarchical processes, vendor quotations, validity and rate history.", icon: Layers3, action: "Browse process library" },
   { id: "vendors", title: "Vendors", group: "Supply Network", description: "Manage vendors, contacts and their single assigned process.", icon: Users, action: "Explore vendor records" },
   { id: "vendor-capability", title: "Vendor Capability Master", group: "Supply Network", description: "Match process capabilities, machine envelopes, tolerances and certificates.", icon: Cpu, action: "Explore capability matching" },
@@ -72,7 +79,7 @@ const moduleCatalogue: ModuleItem[] = [
   { id: "continuity", title: "Business Continuity & Recovery", group: "Data & Platform", description: "Manage backups, recovery targets, restore evidence and incident runbooks.", icon: HardDrive, action: "Explore recovery readiness" }
 ];
 
-const approvedMenuIds = new Set(["command-centre","companies","purchasing","components","component-directory","process-master","vendors","inventory","production","dispatch","quality","costing","communications","reports","ai-insights","export","import"]);
+const approvedMenuIds = new Set(["command-centre","companies","contact-360","purchasing","components","component-directory","component-cost-planner","process-master","vendors","inventory","production","dispatch","quality","costing","communications","reports","ai-insights","export","import"]);
 const modules: ModuleItem[] = moduleCatalogue.filter(item => approvedMenuIds.has(item.id));
 const groupOptions = ["All approved workspaces", ...Array.from(new Set(modules.map((item) => item.group)))];
 
@@ -80,10 +87,14 @@ function App() {
   useState(() => { removeLegacyDemoData(); return true; });
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
+  const [iconStudioOpen, setIconStudioOpen] = useState(false);
+  const closeIconStudio = useCallback(() => setIconStudioOpen(false), []);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("All approved workspaces");
   const [vendorSearchJump, setVendorSearchJump] = useState("");
+  const [contact360VendorJump, setContact360VendorJump] = useState("");
+  const [contact360ContactJump, setContact360ContactJump] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
@@ -98,7 +109,7 @@ function App() {
   const globalRecords = getAllModuleRecords();
   const globalVendorContacts = activeRows(manufacturingData.vendors);
   const normalizedGlobalQuery = query.toLowerCase().trim();
-  type GlobalSearchHit = { id: string; title: string; reference: string; status: string; owner: string; moduleId: string; searchText: string };
+  type GlobalSearchHit = { id: string; title: string; reference: string; status: string; owner: string; moduleId: string; searchText: string; contactId?: string };
   const searchText = (...values: unknown[]) => values.filter(value => value !== null && value !== undefined).map(value => String(value)).join(" ").toLowerCase();
   const companyLabel = (id: string) => manufacturingData.companies.find(row => row.id === id)?.name || "";
   const componentLabel = (id: string) => {
@@ -126,7 +137,9 @@ function App() {
     ...activeRows(manufacturingData.wipTransfers).map(row => ({ id: row.id, title: row.challanReference || "WIP transfer", reference: componentLabel(row.componentId), status: row.status, owner: vendorLabel(row.transporterVendorId), moduleId: "dispatch", searchText: searchText(row.challanReference,row.vehicleNumber,row.lrNumber,row.status,row.notes,componentLabel(row.componentId),companyLabel(row.companyId),vendorLabel(row.sourceVendorId),vendorLabel(row.destinationVendorId),row.discrepancyNotes) })),
     ...activeRows(manufacturingData.customerDispatches).map(row => ({ id: row.id, title: row.deliveryChallan || "Customer dispatch", reference: componentLabel(row.componentId), status: row.status, owner: vendorLabel(row.transporterVendorId), moduleId: "dispatch", searchText: searchText(row.deliveryChallan,row.eWayBill,row.vehicleNumber,row.lrNumber,row.destination,row.status,row.notes,componentLabel(row.componentId),companyLabel(row.companyId),vendorLabel(row.transporterVendorId)) })),
     ...activeRows(manufacturingData.machineResources).map(row => ({ id: row.id, title: row.name, reference: row.code, status: row.status, owner: "", moduleId: "production", searchText: searchText(row.name,row.code,row.category,row.makeModel,row.notes) })),
-    ...activeRows(manufacturingData.maintenanceEvents).map(row => ({ id: row.id, title: row.title, reference: row.workOrderRef, status: row.status, owner: row.assignedTo, moduleId: "production", searchText: searchText(row.title,row.reason,row.workOrderRef,row.priority,row.status,row.assignedTo,row.notes) }))
+    ...activeRows(manufacturingData.maintenanceEvents).map(row => ({ id: row.id, title: row.title, reference: row.workOrderRef, status: row.status, owner: row.assignedTo, moduleId: "production", searchText: searchText(row.title,row.reason,row.workOrderRef,row.priority,row.status,row.assignedTo,row.notes) })),
+    ...activeRows(manufacturingData.contact360Contacts).map(row => ({ id: row.id, title: row.contactName, reference: row.accountName + (row.role ? " · " + row.role : ""), status: "Contact 360", owner: row.role, moduleId: "contact-360", searchText: searchText(row.accountName,row.contactName,row.role,row.phone,row.whatsappNumber,row.email,row.address,row.notes,row.groupIds.map(id=>manufacturingData.contact360Groups.find(group=>group.id===id)?.name||"").join(" ")) })),
+    ...activeRows(manufacturingData.contact360FollowUps).map(row => { const contact=manufacturingData.contact360Contacts.find(item=>item.id===row.contactId); return { id: row.id, contactId: row.contactId, title: row.description, reference: (contact?.accountName||"") + " · " + (contact?.contactName||"") + (row.moduleReference ? " · " + row.moduleReference : ""), status: row.status, owner: row.owner, moduleId: "contact-360", searchText: searchText(row.description,row.moduleType,row.moduleReference,row.amount,row.currency,row.promisedBackDate,row.nextFollowUpDate,row.status,row.owner,row.notes,contact?.accountName,contact?.contactName) }; })
   ];
   const genericRecordResults: GlobalSearchHit[] = Object.entries(globalRecords)
     .filter(([moduleId]) => modules.some(module => module.id === moduleId))
@@ -172,6 +185,9 @@ function App() {
   const openProcessOperation = (selection: {companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string}) => { setProcessJump(selection); setProductionView("map"); setActiveModuleId("production"); setNotice(""); };
 
   const openWipTransfer = (selection: {companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string}) => { setWipJump(selection); setDispatchMode("wip"); setActiveModuleId("dispatch"); setNotice(""); };
+  const openContact360ForVendor = (vendorId: string) => { setContact360VendorJump(vendorId); setContact360ContactJump(""); selectModule("contact-360"); };
+  const openContact360Contact = (contactId: string) => { setContact360ContactJump(contactId); setContact360VendorJump(""); selectModule("contact-360"); };
+  const openVendorMasterFromContact360 = (vendorId: string) => { const vendor=manufacturingData.vendors.find(item=>item.id===vendorId); setVendorSearchJump(vendor ? vendor.company+" "+vendor.contact : ""); selectModule("vendors"); };
 
   const openModuleExplorer = () => {
     setQuery("");
@@ -211,8 +227,21 @@ function App() {
     <div className="app-shell">
       <header className="command-deck">
         <button className="brand-lockup" onClick={() => selectModule("dashboard")} aria-label="Open AXIMACH dashboard">
-          <span className="brand-symbol"><span>A</span><i /></span>
-          <span className="brand-copy"><strong>Machining Flow Control</strong><small>Multi-Company Manufacturing OS</small></span>
+          <span className="brand-symbol" aria-hidden="true">
+            <svg className="brand-emblem" viewBox="0 0 48 48" fill="none">
+              <path d="M24 2.8 43 13.6V34.4L24 45.2 5 34.4V13.6L24 2.8Z" fill="url(#axiBrandFill)" stroke="url(#axiBrandStroke)" strokeWidth="1.35"/>
+              <path d="M13 33 23.8 11.4 35 33" stroke="#E9FAFF" strokeWidth="3.1" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M17.6 24.8H30" stroke="#75E8F6" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M20.2 33H27.8" stroke="#75E8F6" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M8.8 16.2 13.1 13.8M34.9 13.8 39.2 16.2" stroke="#A7EFFF" strokeWidth="1.2" strokeLinecap="round" opacity=".8"/>
+              <defs>
+                <linearGradient id="axiBrandFill" x1="7" y1="5" x2="41" y2="44" gradientUnits="userSpaceOnUse"><stop stopColor="#1B6E9C"/><stop offset=".52" stopColor="#123E68"/><stop offset="1" stopColor="#091D35"/></linearGradient>
+                <linearGradient id="axiBrandStroke" x1="6" y1="7" x2="42" y2="42" gradientUnits="userSpaceOnUse"><stop stopColor="#8FF4FF"/><stop offset="1" stopColor="#2879C9"/></linearGradient>
+              </defs>
+            </svg>
+            <i />
+          </span>
+          <span className="brand-copy"><strong>AXIMACH<span>.</span></strong><small>PRECISION MANUFACTURING OS</small></span>
         </button>
 
 
@@ -221,16 +250,17 @@ function App() {
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
         <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>{modules.length + 1}</b></button>
+        <button className="deck-icon deck-icon-studio" title="Open 3D Icon Studio" aria-label="Open 3D Icon Studio" onClick={() => setIconStudioOpen(true)}><Layers3 size={17}/></button>
         <button className="deck-icon print-trigger" title="Print / Save as PDF" aria-label="Print or save this module as PDF" onClick={() => window.print()}><Printer size={17}/></button>
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
       </header>
 
       <div className="status-ribbon">
-        <span className="ribbon-dot" /> AXIMACH WORKSPACE
+        <span className="ribbon-dot" /> AXIMACH CONTROL PLANE
         <span className="ribbon-separator">/</span>
-        <span>No example records loaded · production metrics populate from saved records</span>
-        <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
+        <span>One connected workspace · saved manufacturing records · traceable operations</span>
+        <span className="ribbon-right"><ShieldCheck size={13} /> Record integrity first</span>
       </div>
 
       <main className="page-content">
@@ -253,6 +283,8 @@ function App() {
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "component-directory" ? (
           <ComponentDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} onOpenOperation={openProcessOperation} />
+        ) : activeModuleId === "component-cost-planner" ? (
+          <ComponentCostPlannerWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" ? (
           <CombinedProductionWorkspace initialView={productionView} initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={openQualityOperation} onOpenWipTransfer={openWipTransfer} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "maintenance" ? (
@@ -275,10 +307,12 @@ function App() {
           <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" ? (
           <ProcessDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} />
+        ) : activeModuleId === "contact-360" ? (
+          <Contact360Workspace initialVendorId={contact360VendorJump} initialContactId={contact360ContactJump} onInitialVendorApplied={() => setContact360VendorJump("")} onInitialContactApplied={() => setContact360ContactJump("")} onOpenVendor={openVendorMasterFromContact360} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
-          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenContact360={openContact360ForVendor} />
         ) : activeModuleId === "communications" ? (
-          <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenContact360={openContact360Contact} />
         ) : (
           <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         )}
@@ -303,7 +337,7 @@ function App() {
               <button className="close-round" onClick={() => setModuleExplorerOpen(false)} aria-label="Close module universe"><X size={19} /></button>
             </div>
             <div className="universe-tools">
-              <label className="universe-search"><Search size={18} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find any module or capability…" /><kbd>32 MODULES</kbd></label>
+              <label className="universe-search"><Search size={18} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find any module or capability…" /><kbd>{modules.length + 1} MODULES</kbd></label>
               <div className="domain-filters" aria-label="Filter modules by domain">
                 {groupOptions.map((option) => <button key={option} className={domain === option ? "domain-active" : ""} onClick={() => setDomain(option)}>{option}</button>)}
               </div>
@@ -320,9 +354,9 @@ function App() {
                   </button>
                 );
               })}
-              {filteredModules.length === 0 && <div className="no-modules"><Search size={24} /><strong>No modules found</strong><span>Try another search or choose a different domain.</span><button onClick={() => { setQuery(""); setDomain("All domains"); }}>Clear filters</button></div>}
+              {filteredModules.length === 0 && <div className="no-modules"><Search size={24} /><strong>No modules found</strong><span>Try another search or choose a different domain.</span><button onClick={() => { setQuery(""); setDomain("All approved workspaces"); }}>Clear filters</button></div>}
             </div>
-            <div className="universe-footer"><span><LayoutGrid size={14} /> {filteredModules.length} of 32 modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
+            <div className="universe-footer"><span><LayoutGrid size={14} /> {filteredModules.length} of {modules.length + 1} modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
           </section>
         </div>
       )}
@@ -331,7 +365,7 @@ function App() {
         <div className="overlay-shell command-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setCommandOpen(false); }}>
           <section className="command-palette" role="dialog" aria-modal="true" aria-label="Command search">
             <div className="palette-search"><Command size={19} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search modules, vendors, contacts, jobs, references…" /><button className="close-round compact" onClick={() => setCommandOpen(false)} aria-label="Close search"><X size={17} /></button></div>
-            {normalizedGlobalQuery && <><div className="palette-label">VENDOR NAMES & CONTACTS</div><div className="palette-results">{globalVendorResults.map((contact) => <button key={contact.id} onClick={() => { setVendorSearchJump(contact.company + " " + contact.contact); selectModule("vendors"); }}><span className="palette-icon"><Users size={17}/></span><span><strong>{contact.company}</strong><small>{contact.contact} · {contact.phone || contact.email || "Contact details not added"}</small></span><ArrowUpRight size={15}/></button>)}{globalVendorResults.length === 0 && <div className="palette-empty">No vendor/contact matches.</div>}</div><div className="palette-label">MANUFACTURING RECORDS & SAVED WORK ITEMS</div><div className="palette-results">{globalRecordResults.map((record) => { const target = modules.find((item) => item.id === record.moduleId); const Icon = target?.icon ?? Box; return <button key={record.moduleId + ":" + record.id} onClick={() => selectModule(record.moduleId)}><span className="palette-icon"><Icon size={17}/></span><span><strong>{record.title}</strong><small>{target?.title || record.moduleId} · {record.reference || record.status}</small></span><ArrowUpRight size={15}/></button>; })}{globalRecordResults.length === 0 && <div className="palette-empty">No manufacturing record or saved work item matches.</div>}</div></>}
+            {normalizedGlobalQuery && <><div className="palette-label">VENDOR NAMES & CONTACTS</div><div className="palette-results">{globalVendorResults.map((contact) => <button key={contact.id} onClick={() => { setVendorSearchJump(contact.company + " " + contact.contact); selectModule("vendors"); }}><span className="palette-icon"><Users size={17}/></span><span><strong>{contact.company}</strong><small>{contact.contact} · {contact.phone || contact.email || "Contact details not added"}</small></span><ArrowUpRight size={15}/></button>)}{globalVendorResults.length === 0 && <div className="palette-empty">No vendor/contact matches.</div>}</div><div className="palette-label">MANUFACTURING RECORDS & SAVED WORK ITEMS</div><div className="palette-results">{globalRecordResults.map((record) => { const target = modules.find((item) => item.id === record.moduleId); const Icon = target?.icon ?? Box; return <button key={record.moduleId + ":" + record.id} onClick={() => { if(record.moduleId === "contact-360") openContact360Contact(record.contactId || record.id); else selectModule(record.moduleId); }}><span className="palette-icon"><Icon size={17}/></span><span><strong>{record.title}</strong><small>{target?.title || record.moduleId} · {record.reference || record.status}</small></span><ArrowUpRight size={15}/></button>; })}{globalRecordResults.length === 0 && <div className="palette-empty">No manufacturing record or saved work item matches.</div>}</div></>}
             <div className="palette-label">MODULES & WORKSPACES</div>
             <div className="palette-results">
               {modules.filter((item) => (item.title + " " + item.group + " " + item.description).toLowerCase().includes(query.toLowerCase().trim())).slice(0, 10).map((item) => {
@@ -345,6 +379,7 @@ function App() {
         </div>
       )}
 
+      <IconStudio open={iconStudioOpen} onClose={closeIconStudio} />
       <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Master records · server sync status shown in each workspace</span></footer>
     </div>
   );
@@ -388,38 +423,58 @@ function DashboardWorkspace(props: {
       {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
       <section className="hero-command">
         <div className="hero-copy">
-          <div className="eyebrow"><span className="eyebrow-mark" /> MANUFACTURING INTELLIGENCE / 01</div>
-          <h1>See the whole flow.<br /><em>Control the details.</em></h1>
-          <p>One connected view of companies, orders, components, operations, vendors, quality, delivery and cost — using saved AXIMACH records.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("command-centre")}><Workflow size={17} /> Open Command Centre <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore approved workspaces</button></div>
+          <div className="eyebrow"><span className="eyebrow-mark" /> PRECISION OPERATIONS / ONE CONNECTED SYSTEM</div>
+          <h1>Make every<br />operation <em>count.</em></h1>
+          <p>From customer demand to finished component, AXIMACH brings engineering, suppliers, production, quality, inventory and delivery into one traceable manufacturing control plane.</p>
+          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("command-centre")}><Workflow size={17} /> Enter Command Centre <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore workspaces</button></div>
+          <div className="hero-data-strip" aria-label="Saved AXIMACH record counts">
+            <div><span>COMPANIES</span><strong>{liveCompanies.length.toLocaleString("en-IN")}</strong></div>
+            <div><span>OPEN PURCHASE ORDERS</span><strong>{liveOrders.length.toLocaleString("en-IN")}</strong></div>
+            <div><span>PRODUCTION OPERATIONS</span><strong>{liveOperations.length.toLocaleString("en-IN")}</strong></div>
+            <small>Counts from saved records · no sample data</small>
+          </div>
         </div>
-        <div className="hero-graphic" aria-label="Illustrative connected manufacturing process visualization">
-          <div className="graphic-grid" />
-          <svg className="orbit-svg" viewBox="0 0 440 330" role="img" aria-label="Abstract manufacturing flow network">
-            <defs><linearGradient id="flow-line" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#8ebfff" /><stop offset="100%" stopColor="#2765e8" /></linearGradient></defs>
-            <circle cx="220" cy="158" r="112" fill="none" stroke="#b5cef7" strokeWidth="1" strokeDasharray="3 7" />
-            <circle cx="220" cy="158" r="77" fill="none" stroke="#a7c5f5" strokeWidth="1" strokeDasharray="2 8" />
-            <path d="M84 91 L163 133 L282 73 L350 139 L287 232 L163 203 L84 91" fill="none" stroke="url(#flow-line)" strokeWidth="1.8" />
-            <path d="M163 133 L168 254 L287 232 M282 73 L282 158 L350 139 M84 91 L65 174 L163 203" fill="none" stroke="#9dbded" strokeWidth="1.2" strokeDasharray="4 5" />
-            <circle cx="220" cy="158" r="54" fill="#f9fbff" stroke="#7ba7f2" strokeWidth="1.4" />
-            <circle cx="220" cy="158" r="44" fill="#e6efff" stroke="#b3cdf8" />
-            <text x="220" y="151" fontSize="10" fontWeight="700" textAnchor="middle" fill="#4269b1" letterSpacing="2">AXI</text>
-            <text x="220" y="169" fontSize="17" fontWeight="700" textAnchor="middle" fill="#142a4c">FLOW</text>
-            <g className="orbit-node"><circle cx="84" cy="91" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M76 93 L84 85 L92 93 M78 94 V100 H90 V94" fill="none" stroke="#3975da" strokeWidth="1.4" /></g>
-            <g className="orbit-node"><circle cx="282" cy="73" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><rect x="274" y="65" width="16" height="16" rx="3" fill="none" stroke="#3975da" strokeWidth="1.4" /><path d="M278 69 H286 M278 73 H286 M278 77 H283" stroke="#3975da" strokeWidth="1.2" /></g>
-            <g className="orbit-node"><circle cx="350" cy="139" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M342 141 H358 M345 136 H355 M347 131 H353" stroke="#3975da" strokeWidth="1.6" /></g>
-            <g className="orbit-node"><circle cx="287" cy="232" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M279 226 H295 V238 H279 Z M283 230 H291 M283 234 H291" fill="none" stroke="#3975da" strokeWidth="1.4" /></g>
-            <g className="orbit-node"><circle cx="163" cy="203" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><circle cx="163" cy="203" r="8" fill="none" stroke="#3975da" strokeWidth="1.4" /><path d="M163 191 V195 M163 211 V215 M151 203 H155 M171 203 H175" stroke="#3975da" strokeWidth="1.2" /></g>
-            <g className="orbit-node"><circle cx="65" cy="174" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M57 174 L63 180 L73 168" fill="none" stroke="#3975da" strokeWidth="1.6" /></g>
-            <g className="orbit-node"><circle cx="168" cy="254" r="18" fill="#fff" stroke="#75a9fb" strokeWidth="1.5" /><path d="M160 250 H176 V258 H160 Z M163 246 H173 V250" fill="none" stroke="#3975da" strokeWidth="1.4" /></g>
-          </svg>
-          <div className="graphic-caption"><span className="ribbon-dot" /> MANUFACTURING FLOW / LIVE RECORDS WHEN CONNECTED</div>
-          <span className="graphic-coordinate coord-one">01 / MATERIAL</span><span className="graphic-coordinate coord-two">07 / QUALITY</span>
-        </div>
+        <AXIMACHOrb onSelectModule={onSelectModule} />
       </section>
 
+      <section className="surface-panel axi-dashboard-flow-below">
+        <div className="panel-heading">
+          <div>
+            <div className="eyebrow"><span className="eyebrow-mark" /> ROUTE INTELLIGENCE / SAVED OPERATIONS</div>
+            <h3>Interactive production route</h3>
+            <p>The existing route explorer remains linked to saved purchase orders, component lines and operations. Filters, stage selection, playback and camera controls are retained.</p>
+          </div>
+        </div>
+        <DashboardFlow3D operations={liveOperations} components={liveComponents} orders={activeOrders} companies={liveCompanies} onOpenOperation={onOpenOperation} />
+      </section>
+
+      <div className="axi-capability-marquee" aria-label="AXIMACH manufacturing workspaces">
+        <div className="axi-marquee-track">
+          <div className="axi-marquee-set">
+            <span><Boxes size={13}/> COMPONENT ENGINEERING</span><i/>
+            <span><Workflow size={13}/> ROUTE INTELLIGENCE</span><i/>
+            <span><Users size={13}/> SUPPLIER NETWORK</span><i/>
+            <span><ClipboardCheck size={13}/> QUALITY CONTROL</span><i/>
+            <span><Gauge size={13}/> CAPACITY PLANNING</span><i/>
+            <span><CircleDollarSign size={13}/> COST INTELLIGENCE</span><i/>
+            <span><Truck size={13}/> WIP & DELIVERY</span><i/>
+            <span><ShieldCheck size={13}/> TRACEABLE RECORDS</span><i/>
+          </div>
+          <div className="axi-marquee-set" aria-hidden="true">
+            <span><Boxes size={13}/> COMPONENT ENGINEERING</span><i/>
+            <span><Workflow size={13}/> ROUTE INTELLIGENCE</span><i/>
+            <span><Users size={13}/> SUPPLIER NETWORK</span><i/>
+            <span><ClipboardCheck size={13}/> QUALITY CONTROL</span><i/>
+            <span><Gauge size={13}/> CAPACITY PLANNING</span><i/>
+            <span><CircleDollarSign size={13}/> COST INTELLIGENCE</span><i/>
+            <span><Truck size={13}/> WIP & DELIVERY</span><i/>
+            <span><ShieldCheck size={13}/> TRACEABLE RECORDS</span><i/>
+          </div>
+        </div>
+      </div>
+
       <section className="pulse-heading">
-        <div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS PULSE</div><h2>Operational overview<span>.</span></h2><p>Live indicators and activity calculated only from saved AXIMACH records.</p></div>
+        <div><div className="eyebrow"><span className="eyebrow-mark"/> THE FACTORY SIGNAL</div><h2>Operational pulse<span>.</span></h2><p>KPIs and activity calculated from saved AXIMACH records, never illustrative values.</p></div>
         <div className="pulse-actions"><span className="demo-pill"><i/> RECORD-DRIVEN</span><button className="button-quiet compact-button" onClick={onOpenModules}><LayoutGrid size={14}/> Browse workspaces</button></div>
       </section>
       <section className="metric-grid" aria-label="Operational KPIs">
@@ -431,18 +486,20 @@ function DashboardWorkspace(props: {
         <MetricCard title="Unpaid vendor operations" value={String(vendorPaymentReview)} trend="Paid / Not Paid" detail="Process Map source" icon={CircleDollarSign} accent="amber"/>
         <MetricCard title="Quality holds" value={String(qualityHolds)} trend="Open operation holds" detail="From Process Map status" icon={ShieldAlert} accent="red"/>
         <MetricCard title="Movements in transit" value={String(inTransitMovements)} trend="WIP + customer dispatch" detail="Awaiting receipt / delivery" icon={Truck} accent="green"/>
+
       </section>
       <section className="dashboard-insights-grid">
         <article className="surface-panel dashboard-chart-panel"><div className="panel-heading"><div><div className="eyebrow">LIVE PRODUCTION DATA</div><h3>Operation status distribution</h3><p>Counts from saved Process Map operations only.</p></div><Activity size={17}/></div><div className="dashboard-bars">{operationStatusStats.map(item=><div className="dashboard-bar-row" key={item.label}><span>{item.label}</span><div><i style={{width:(item.count/maxStatusCount*100)+"%"}}/></div><strong>{item.count}</strong></div>)}</div></article>
         <article className="surface-panel dashboard-chart-panel"><div className="panel-heading"><div><div className="eyebrow">PROCESS MIX</div><h3>Operations by category</h3><p>Top saved process categories; no sample values.</p></div><Workflow size={17}/></div>{processCategoryStats.length?<div className="dashboard-bars">{processCategoryStats.map(item=><div className="dashboard-bar-row" key={item.label}><span>{item.label}</span><div><i style={{width:(item.count/maxCategoryCount*100)+"%"}}/></div><strong>{item.count}</strong></div>)}</div>:<p className="process-directory-empty">Process category data will appear after operations are saved.</p>}</article>
       </section>
       <section className="dashboard-master-links" aria-label="Master data shortcuts">
-        <div className="dashboard-section-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA</div><h2>Core records<span>.</span></h2><p>Four compact entry points to the shared master records.</p></div></div>
+        <div className="dashboard-section-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA</div><h2>Core records<span>.</span></h2><p>Quick access to frequently used manufacturing and cost-planning masters.</p></div></div>
         <div className="dashboard-master-grid">
           <button className="dashboard-master-card" onClick={() => onSelectModule("companies")}><span className="dashboard-master-icon"><Building2 size={18}/></span><span className="dashboard-master-copy"><strong>Companies</strong><small>{liveCompanies.length} saved records</small></span><ArrowUpRight size={16}/></button>
           <button className="dashboard-master-card" onClick={() => onSelectModule("components")}><span className="dashboard-master-icon"><Boxes size={18}/></span><span className="dashboard-master-copy"><strong>Components</strong><small>{liveComponents.length} saved records</small></span><ArrowUpRight size={16}/></button>
           <button className="dashboard-master-card" onClick={() => onSelectModule("purchasing")}><span className="dashboard-master-icon"><Package size={18}/></span><span className="dashboard-master-copy"><strong>Purchase Orders</strong><small>{liveOrders.length} open orders</small></span><ArrowUpRight size={16}/></button>
           <button className="dashboard-master-card" onClick={() => onSelectModule("vendors")}><span className="dashboard-master-icon"><Users size={18}/></span><span className="dashboard-master-copy"><strong>Vendors</strong><small>{liveVendors.length} saved records</small></span><ArrowUpRight size={16}/></button>
+          <button className="dashboard-master-card dashboard-cost-plan-shortcut" onClick={() => onSelectModule("component-cost-planner")}><span className="dashboard-master-icon"><Calculator size={18}/></span><span className="dashboard-master-copy"><strong>Component Cost Planner</strong><small>Category-wise planned cost setup</small></span><ArrowUpRight size={16}/></button>
         </div>
       </section>
       <section className="surface-panel dashboard-operation-panel">
@@ -488,7 +545,7 @@ function DashboardWorkspace(props: {
       <section className="module-shortcuts">
         <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into an approved workspace<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View approved workspaces <ArrowRight size={15} /></button></div>
         <div className="shortcut-grid">
-          {modules.filter((item) => ["production", "vendors", "quality", "costing", "inventory", "dispatch"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
+          {modules.filter((item) => ["production", "vendors", "contact-360", "quality", "costing", "inventory", "dispatch"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
         </div>
       </section>
     </>
@@ -507,12 +564,15 @@ function ModuleShortcut({ module, onClick }: { module: ModuleItem; onClick: () =
 type CostingLine={id:string;process:string;vendor:string;qty:number;rate:number;marketRate:number;transport:number;actual:boolean};
 type CostingComponent={id:string;code:string;name:string;revision:string;material:string;batchQty:number;salePrice:number;stockQty:number;materialQty:number;materialRate:number;marketMaterialRate:number;overhead:number;toolingCost:number;reworkCost:number;rejectedQty:number;scrapCost:number;gstRate:number;lines:CostingLine[]};
 type VendorDraft = Omit<VendorRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
+const contact360DateLabel = (value:string) => value ? new Date(value + "T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "—";
+const contact360AmountLabel = (value:number,currency:string) => value > 0 ? new Intl.NumberFormat("en-IN",{style:"currency",currency:currency || "INR",maximumFractionDigits:2}).format(value) : "—";
+const contact360ModuleLabel = (value:string) => ({customers:"Customers / RFQ / Sales",companies:"Companies",purchasing:"Purchase Orders",components:"Components / BOM",production:"Production / Process Map",vendors:"Vendors / Subcontracting",costing:"Costing / Quotations",inventory:"Material / Inventory",quality:"Quality / Inspection",dispatch:"Dispatch / Delivery",communications:"Communication / WhatsApp",invoices:"Invoices / Payments",reports:"Reports / Analytics",other:"Other / External"} as Record<string,string>)[value] || value;
 const emptyVendorDraft = (): VendorDraft => ({
   company:"",contact:"",role:"",phone:"",whatsappNumber:"",email:"",address:"",
   processes:"",processTypeId:"",processTypeIds:[],machines:"",materials:"",notes:"",status:"Unverified contact — review",
   sourceContactId:"",whatsappSyncedAt:""
 });
-function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelectModule }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; onSelectModule:(id:string)=>void }) {
+function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelectModule, onOpenContact360 }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; onSelectModule:(id:string)=>void; onOpenContact360:(vendorId:string)=>void }) {
   const { data, update, syncStatus } = useManufacturingData();
   const contacts = activeRows(data.vendors);
   const processTypes = activeRows(data.processTypes);
@@ -570,7 +630,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
           </div>
         </>:selected?<><div className="vendor-detail-title"><span className="vendor-avatar vendor-avatar-large">{selected.company.slice(0,1).toUpperCase()}</span><div><h3>{selected.company}</h3><p>{selected.contact} · {selected.role||"Role not set"}</p><span className="record-state">{selected.status}</span></div><button className="button-quiet" onClick={()=>beginEdit(selected)}>Edit</button></div>
           <div className="vendor-contact-grid"><div><small>PHONE</small><strong>{selected.phone||"Not added"}</strong></div><div><small>WHATSAPP</small><strong>{selected.whatsappNumber||selected.phone||"Not linked"}</strong></div><div><small>EMAIL</small><strong>{selected.email||"Not added"}</strong></div><div><small>ADDRESS</small><strong>{selected.address||"Not added"}</strong></div><div><small>PROCESS TYPE</small><strong>{processName(selected)}</strong></div><div><small>MACHINES / CAPACITY</small><strong>{selected.machines||"Not recorded"}</strong></div><div><small>MATERIAL CAPABILITIES</small><strong>{selected.materials||"Not recorded"}</strong></div><div><small>WHATSAPP SYNC</small><strong>{selected.whatsappSyncedAt?new Date(selected.whatsappSyncedAt).toLocaleString():"Not synced"}</strong></div><div className="editor-wide"><small>NOTES</small><strong>{selected.notes||"No notes entered"}</strong></div></div>
-          <div className="vendor-actions"><button className="button-primary" onClick={()=>{const phone=(selected.whatsappNumber||selected.phone).replace(/\D/g,"");if(!phone){onNotice("Add a phone / WhatsApp number first.");return;}window.open("https://wa.me/"+phone,"_blank","noopener,noreferrer");}}><MessageCircle size={15}/> Open WhatsApp</button><button className="button-quiet" onClick={()=>onSelectModule("costing")}><CircleDollarSign size={15}/> Quotes & costing</button><button className="button-quiet" onClick={()=>onSelectModule("process-map")}><Workflow size={15}/> Assign to operation</button><button className="button-quiet" onClick={()=>archive(selected)}><X size={14}/> Archive vendor</button></div>
+          <div className="vendor-actions"><button className="button-primary" onClick={()=>{const phone=(selected.whatsappNumber||selected.phone).replace(/\D/g,"");if(!phone){onNotice("Add a phone / WhatsApp number first.");return;}window.open("https://wa.me/"+phone,"_blank","noopener,noreferrer");}}><MessageCircle size={15}/> Open WhatsApp</button><button className="button-quiet" onClick={()=>onOpenContact360(selected.id)}><Users size={15}/> Contact 360</button><button className="button-quiet" onClick={()=>onSelectModule("costing")}><CircleDollarSign size={15}/> Quotes & costing</button><button className="button-quiet" onClick={()=>onSelectModule("process-map")}><Workflow size={15}/> Assign to operation</button><button className="button-quiet" onClick={()=>archive(selected)}><X size={14}/> Archive vendor</button></div>
           <div className="module-safety-note"><ShieldCheck size={14}/><span>One vendor is assigned to one process type. Multiple vendors can be assigned to the same process. Operation and quotation records retain the stable vendor ID. QR-imported contacts stay unverified until you assign their process and review them.</span></div>
         </>:<div className="module-empty-state"><Users size={25}/><h3>Select or add a vendor</h3><p>QR-synced contacts appear here after the WhatsApp bridge connects and returns contacts.</p><button className="button-primary" onClick={beginNew}><Plus size={14}/> Add vendor</button></div>}
       </section>
@@ -578,7 +638,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
   </section>;
 }
 
-function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; onNotice: (value: string) => void; notice: string }) {
+function FollowUpWorkspace({ onBack, onNotice, notice, onSelectModule, onOpenContact360 }: { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule:(id:string)=>void; onOpenContact360:(contactId:string)=>void }) {
   type ApiContact = { id: string; name: string; phone: string; company: string; optedIn: boolean; createdAt: string };
   type ApiSchedule = { id: string; to: string; message: string; nextRunAt: string | null; repeat: "once" | "daily" | "weekly"; enabled: boolean; lastRunAt: string | null; lastError: string };
   type ApiLog = { id: string; scheduleId: string; at: string; status: string; detail: string; providerMessageId?: string };
@@ -600,7 +660,10 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const [waUser,setWaUser]=useState("");
   type WhatsAppContact = { id:string; phone:string; name:string; notify?:string };
   const [waContacts,setWaContacts]=useState<WhatsAppContact[]>([]);
-  const { update: updateManufacturingData } = useManufacturingData();
+  const { data: manufacturingData, update: updateManufacturingData } = useManufacturingData();
+  const contact360Contacts = activeRows(manufacturingData.contact360Contacts);
+  const contact360FollowUps = activeRows(manufacturingData.contact360FollowUps).filter(row => row.status !== "Completed").sort((a,b) => (a.nextFollowUpDate || a.promisedBackDate || "9999-12-31").localeCompare(b.nextFollowUpDate || b.promisedBackDate || "9999-12-31")).slice(0,30);
+  const contact360ContactFor = (id:string) => contact360Contacts.find(contact => contact.id === id);
   const [waGroups,setWaGroups]=useState<Array<{id:string;name:string;participants:number}>>([]);
   const [waSearch,setWaSearch]=useState("");
   const [waTarget,setWaTarget]=useState("");
@@ -674,7 +737,11 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   return <section className="workspace-page">
     {notice&&<div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={()=>onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> SERVER-BACKED SCHEDULER CONNECTOR</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMMUNICATION / CRM</div><h1>Follow-up centre<span>.</span></h1><p>Contacts, one-time and recurring individual messages, server schedules and send logs.</p></div><button className="button-quiet" onClick={downloadContacts} disabled={!contacts.length}><FileDown size={15}/> Export contacts CSV</button></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMMUNICATION / CRM</div><h1>Follow-up centre<span>.</span></h1><p>Contacts, one-time and recurring individual messages, server schedules and send logs.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={()=>onSelectModule("contact-360")}><Users size={15}/> Contact 360 register</button><button className="button-quiet" onClick={downloadContacts} disabled={!contacts.length}><FileDown size={15}/> Export contacts CSV</button></div></div>
+    <section className="surface-panel c360-linked-followups">
+      <div className="panel-heading"><div><h3><CalendarClock size={17}/> Contact 360 follow-ups</h3><p>One live view of the editable Contact 360 register. Open a row to edit its canonical record.</p></div><button className="button-quiet compact-button" onClick={()=>onSelectModule("contact-360")}><Users size={13}/> Manage all contacts</button></div>
+      {contact360FollowUps.length ? <div className="followup-table-wrap"><table className="followup-table"><thead><tr><th>Client / person</th><th>Follow-up item</th><th>Module</th><th>Amount</th><th>Promised response</th><th>Next follow-up</th><th>Assigned owner</th><th>State</th><th>Open</th></tr></thead><tbody>{contact360FollowUps.map(row=>{const contact=contact360ContactFor(row.contactId);return <tr key={row.id}><td><strong>{contact?.accountName||"Archived contact"}</strong><small>{contact?.contactName||"Contact history retained"}</small></td><td>{row.description}</td><td>{contact360ModuleLabel(row.moduleType)}<small>{row.moduleReference||"No reference"}</small></td><td>{contact360AmountLabel(row.amount,row.currency)}</td><td>{contact360DateLabel(row.promisedBackDate)}</td><td>{contact360DateLabel(row.nextFollowUpDate)}</td><td>{row.owner||"Not assigned"}</td><td>{row.status}</td><td><button className="button-quiet compact-button" disabled={!contact} onClick={()=>onOpenContact360(row.contactId)}><ArrowUpRight size={12}/> Open 360</button></td></tr>;})}</tbody></table></div> : <div className="c360-inline-empty">No open Contact 360 follow-ups yet. Add a client, people and actions in Contact 360; they will appear here automatically.</div>}
+    </section>
     <section className="surface-panel followup-list-panel scheduler-connect-panel"><div className="panel-heading"><div><h3><Plug size={17}/> Scheduler connection</h3><p>Enter the URL of your deployed AXIMACH scheduler and its server API key.</p></div><span className={"module-number "+(connected?"scheduler-connected":"")}>{connected?"CONNECTED":"NOT CONNECTED"}</span></div>
       <div className="scheduler-connect-form"><label>Scheduler URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="https://your-scheduler.example.com"/></label><label>API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label><button className="button-primary" disabled={busy||!apiUrl.trim()||!apiKey.trim()} onClick={connect}>{busy?"Connecting…":"Connect / refresh"}</button></div>
       {apiError&&<div className="scheduler-error"><ShieldAlert size={15}/>{apiError}</div>}

@@ -2,33 +2,34 @@ import { Fragment, useMemo, useState } from "react";
 import { Activity, ArrowRight, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Maximize2, Plus, Search, ShieldAlert, SlidersHorizontal, Truck, Users, Workflow, X, Wrench } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, vendorSupportsProcessType, type LifecycleStatus, type OperationRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
+import { ProcessIcon } from "./IconStudio";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; onSelectModule: (id: string) => void };
 type FilterOption = { id: string; label: string };
 type ProcessAssignmentDraft = {
-  vendorId: string; plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string;
-  quantity: string; ratePerPart: string; status: LifecycleStatus; vendorPaymentStatus: "Paid" | "Not Paid"; notes: string;
+  vendorId: string; transportVendorId: string; plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string;
+  quantity: string; ratePerPart: string; transportCost: string; status: LifecycleStatus; vendorPaymentStatus: "Paid" | "Not Paid"; notes: string;
 };
 type ProcessDraft = {
   companyId: string; poId: string; poLineId: string; categoryId: string; processTypeIds: string[]; name: string; category: string; vendorId: string;
-  plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string; quantity: string; ratePerPart: string;
+  plannedStart: string; plannedEnd: string; plannedStartTime: string; plannedEndTime: string; quantity: string; ratePerPart: string; transportCost: string; transportVendorId: string;
   status: LifecycleStatus; vendorPaymentStatus: "Paid" | "Not Paid"; processAssignments: Record<string, ProcessAssignmentDraft>;
   branch: string; parentId: string; notes: string;
 };
 const emptyProcessAssignment = (quantity = ""): ProcessAssignmentDraft => ({
-  vendorId: "", plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "",
-  quantity, ratePerPart: "", status: "Queued", vendorPaymentStatus: "Not Paid", notes: ""
+  vendorId: "", transportVendorId: "", plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "",
+  quantity, ratePerPart: "", transportCost: "0", status: "Queued", vendorPaymentStatus: "Not Paid", notes: ""
 });
 const emptyDraft = (): ProcessDraft => ({
   companyId: "", poId: "", poLineId: "", categoryId: "", processTypeIds: [], name: "", category: "", vendorId: "",
-  plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "", quantity: "", ratePerPart: "",
+  plannedStart: "", plannedEnd: "", plannedStartTime: "", plannedEndTime: "", quantity: "", ratePerPart: "", transportCost: "0", transportVendorId: "",
   status: "Queued", vendorPaymentStatus: "Not Paid", processAssignments: {}, branch: "Main route", parentId: "", notes: ""
 });
 const assignmentFromOperation = (operation: OperationRecord): ProcessAssignmentDraft => ({
-  vendorId: operation.vendorId || "", plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "",
+  vendorId: operation.vendorId || "", transportVendorId: operation.transportVendorId || "", plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "",
   plannedStartTime: operation.plannedStartTime || (operation.plannedSlotStartAt ? new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5) : ""),
   plannedEndTime: operation.plannedEndTime || (operation.plannedSlotEndAt ? new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5) : ""),
-  quantity: String(operation.quantity || ""), ratePerPart: String(operation.ratePerPart ?? ""),
+  quantity: String(operation.quantity || ""), ratePerPart: String(operation.ratePerPart ?? ""), transportCost: String(operation.transportCost || 0),
   status: operation.status, vendorPaymentStatus: operation.vendorPaymentStatus || "Not Paid", notes: operation.notes || ""
 });
 const day = (value?: string) => value ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -95,6 +96,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const [periodEnd, setPeriodEnd] = useState("");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [selectedOperationIds, setSelectedOperationIds] = useState<string[]>([]);
   const [tab, setTab] = useState("General");
   const [calendar, setCalendar] = useState(false);
   const [scale, setScale] = useState("Week");
@@ -115,7 +117,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const poOptions = filteredCompanyOrders.map(po => ({ id: po.id, label: po.number }));
   const filteredFilterLines = filteredCompanyOrders.filter(po => isSelected(poIds, po.id)).flatMap(po => po.lines.map(line => ({ po, line })));
   const componentOptions = components.filter(component => filteredFilterLines.some(row => row.line.componentId === component.id)).map(component => ({ id: component.id, label: component.partNumber + " — " + component.name }));
-  const vendorOptions = vendors.map(vendor => ({ id: vendor.id, label: vendor.company }));
+  const vendorOptions = [{ id: "__internal__", label: "In-house operation" }, ...vendors.map(vendor => ({ id: vendor.id, label: vendor.company }))];
   const categoryOptions = [...new Set(operations.map(operation => operation.category.trim()).filter(Boolean))].sort().map(category => ({ id: category, label: category }));
   const statusOptions = ["Queued", "Running", "Complete", "Quality hold"].map(status => ({ id: status, label: status }));
   const executionOptions = [{ id: "Internal", label: "Internal" }, { id: "Outsourced", label: "Outsourced" }];
@@ -125,7 +127,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const baseLineIds = new Set(baseLines.map(row => row.line.id));
   const filteredOperations = operations.filter(operation => {
     if (!baseLineIds.has(operation.poLineId)) return false;
-    if (!isSelected(vendorIds, operation.vendorId || "__internal__")) return false;
+    if (vendorIds.includes("__none__")) return false;
+    if (vendorIds.length > 0 && !vendorIds.includes(operation.vendorId || "__internal__") && !vendorIds.includes(operation.transportVendorId || "__no_transport__")) return false;
     if (!isSelected(statusIds, operation.status)) return false;
     const executionType = operation.vendorId ? "Outsourced" : "Internal";
     if (!isSelected(executionIds, executionType)) return false;
@@ -161,7 +164,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const pending = Math.max(0, totalQty - completed - inProgress);
   const today = new Date().toISOString().slice(0, 10);
   const delayed = displayRows.filter(operation => operation.status !== "Complete" && operation.plannedEnd && operation.plannedEnd < today);
-  const assigned = new Set(displayRows.map(operation => operation.vendorId).filter(Boolean)).size;
+  const assigned = new Set(displayRows.flatMap(operation => [operation.vendorId, operation.transportVendorId]).filter(Boolean)).size;
   const processCount = displayRows.length;
   const processLabel = (operation: OperationRecord) => operation.name || operation.category || "Operation";
   const allDates = displayRows.flatMap(operation => [operation.plannedStart, operation.plannedEnd]).filter(Boolean).sort();
@@ -178,6 +181,22 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const updatePaymentStatus = (operationId: string, status: "Paid" | "Not Paid") => {
     update(current => ({...current, operations: current.operations.map(operation => operation.id === operationId ? {...operation, vendorPaymentStatus: status, updatedAt: nowIso()} : operation)}));
     onNotice("Vendor payment status updated.");
+  };
+  const finishOperations = (operationIds: string[]) => {
+    const visibleIds = new Set(searchedRows.map(operation => operation.id));
+    const requested = operations.filter(operation => visibleIds.has(operation.id) && operationIds.includes(operation.id) && operation.status !== "Complete");
+    const blocked = requested.filter(operation => operation.status === "Quality hold");
+    const finishable = requested.filter(operation => operation.status !== "Quality hold");
+    if (!finishable.length) {
+      onNotice(blocked.length ? "Quality-hold operations cannot be finished. Resolve the quality hold first." : "The selected operations are already complete.");
+      return;
+    }
+    const ids = new Set(finishable.map(operation => operation.id));
+    const stamp = nowIso();
+    const finishDate = stamp.slice(0, 10);
+    update(current => ({...current, operations: current.operations.map(operation => ids.has(operation.id) ? {...operation, status: "Complete", actualEnd: operation.actualEnd || finishDate, updatedAt: stamp} : operation)}));
+    setSelectedOperationIds([]);
+    onNotice("Finished " + finishable.length + " operation(s)." + (blocked.length ? " " + blocked.length + " quality-hold operation(s) were left unchanged." : "") + " Entered completed, accepted and rejected quantities and actual rates were preserved; update them separately where required.");
   };
   const runSimulation = () => setSimulationOpen(true);
   const openAdd = () => {
@@ -199,9 +218,9 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     setDraft({
       companyId: po?.companyId || "", poId: operation.poId, poLineId: operation.poLineId,
       categoryId:processType?.categoryId||"",processTypeIds:operation.processTypeId?[operation.processTypeId]:[],
-      name: operation.name, category: operation.category, vendorId: operation.vendorId || "",
+      name: operation.name, category: operation.category, vendorId: operation.vendorId || "", transportVendorId: operation.transportVendorId || "",
       plannedStart: operation.plannedStart || "", plannedEnd: operation.plannedEnd || "", plannedStartTime: operation.plannedStartTime || (operation.plannedSlotStartAt ? new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5) : ""), plannedEndTime: operation.plannedEndTime || (operation.plannedSlotEndAt ? new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5) : ""),
-      quantity: String(operation.quantity), ratePerPart: String(operation.ratePerPart),
+      quantity: String(operation.quantity), ratePerPart: String(operation.ratePerPart), transportCost: String(operation.transportCost || 0),
       status: operation.status, vendorPaymentStatus: operation.vendorPaymentStatus || "Not Paid",
       processAssignments: operation.processTypeId ? {[operation.processTypeId]:assignmentFromOperation(operation)} : {},
       branch: operation.branch || "Main route", parentId: operation.parentId || "", notes: operation.notes || ""
@@ -229,11 +248,12 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
       const assignment=selectedTypes.length>1&&processType
         ? draft.processAssignments[processType.id]||emptyProcessAssignment(String(line.quantity))
         : draft;
-      return {processType,assignment,quantity:Number(assignment.quantity||line.quantity),rate:Number(assignment.ratePerPart||0)};
+      return {processType,assignment,quantity:Number(assignment.quantity||line.quantity),rate:Number(assignment.ratePerPart||0),transport:Number(assignment.transportCost||0)};
     });
     for(const item of assignmentsToSave){
-      const {processType,assignment,quantity,rate}=item;
-      if(!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(rate)||rate<0){onNotice("Each process needs a positive quantity and a valid non-negative price.");return;}
+      const {processType,assignment,quantity,rate,transport}=item;
+      if(assignment.transportVendorId&&!vendors.some(vendor=>vendor.id===assignment.transportVendorId)){onNotice("Select a saved Vendor Master record for the transport / dispatch assignment.");return;}
+      if(!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(rate)||rate<0||!Number.isFinite(transport)||transport<0){onNotice("Each process needs a positive quantity and valid non-negative rate and transport cost.");return;}
       if(assignment.plannedStart&&assignment.plannedEnd&&assignment.plannedEnd<assignment.plannedStart){onNotice("Due date cannot be earlier than the start date for "+(processType?.name||"this process")+".");return;}
       if(assignment.plannedStart&&assignment.plannedEnd&&assignment.plannedStart===assignment.plannedEnd&&assignment.plannedStartTime&&assignment.plannedEndTime&&assignment.plannedEndTime<assignment.plannedStartTime){onNotice("Due time cannot be earlier than the start time on the same day for "+(processType?.name||"this process")+".");return;}
       if(assignment.vendorId){
@@ -256,7 +276,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
     update(current => {
       const currentRoute = current.operations.filter(op => op.poLineId === line.id && op.poId === po.id && op.componentId === component.id && !op.deletedAt);
       const maximumSequence=Math.max(0,...currentRoute.map(operation=>operation.sequence));
-      const records:OperationRecord[]=assignmentsToSave.map(({processType,assignment,quantity,rate},index)=>{
+      const records:OperationRecord[]=assignmentsToSave.map(({processType,assignment,quantity,rate,transport},index)=>{
         const id=idsToSave[index];
         const old=current.operations.find(operation=>operation.id===id);
         const category=processType?processCategories.find(item=>item.id===processType.categoryId)?.name||draft.category:draft.category;
@@ -273,9 +293,9 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           plannedSlotEndAt:old&&old.plannedStart===assignment.plannedStart&&old.plannedEnd===assignment.plannedEnd?old.plannedSlotEndAt:undefined,
           quantity, completed:old?.completed||0, accepted:old?.accepted||0, rejected:old?.rejected||0,
           setupHours:old?.setupHours||0, cycleTimeSeconds:old?.cycleTimeSeconds||0,
-          ratePerPart:rate, actualRatePerPart:old?.actualRatePerPart||0,
-          transportVendorId:old?.transportVendorId||"", transportPickup:old?.transportPickup||"",
-          transportDelivery:old?.transportDelivery||"", transportCost:old?.transportCost||0,
+          ratePerPart:rate, actualRatePerPart:old?.actualRatePerPart||0, transportCost:transport,
+          transportVendorId:assignment.transportVendorId||old?.transportVendorId||"", transportPickup:old?.transportPickup||"",
+          transportDelivery:old?.transportDelivery||"",
           qualityNotes:old?.qualityNotes||"", inspectionResult:old?.inspectionResult||"",
           notes:assignment.notes, vendorPaymentStatus:assignment.vendorPaymentStatus||old?.vendorPaymentStatus||"Not Paid", branch:draft.branch,
           parentId:draft.branch==="Main route"?"":draft.parentId,
@@ -296,7 +316,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const toggleComponent = (key: string) => setCollapsedComponents(current => current.includes(key) ? current.filter(item => item !== key) : [...current, key]);
   const allCollapsed = componentGroups.length > 0 && componentGroups.every(group => collapsedComponents.includes(group.key));
   const workloads = vendors.map(vendor => {
-    const vendorOperations = displayRows.filter(operation => operation.vendorId === vendor.id);
+    const vendorOperations = displayRows.filter(operation => operation.vendorId === vendor.id || operation.transportVendorId === vendor.id);
     return { id: vendor.id, name: vendor.company, operations: vendorOperations };
   }).filter(item => item.operations.length);
   const internalOperations = displayRows.filter(operation => !operation.vendorId);
@@ -325,7 +345,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
   const simulationMissing=displayRows.length-simulationScheduled;
   const simulationOverdue=displayRows.filter(operation=>operation.status!=="Complete"&&operation.plannedEnd&&operation.plannedEnd<today).length;
   const simulationUnpaid=displayRows.filter(operation=>operation.vendorId&&(operation.vendorPaymentStatus||"Not Paid")!=="Paid").length;
-  const simulationAssignedVendors=new Set(displayRows.map(operation=>operation.vendorId).filter(Boolean)).size;
+  const simulationAssignedVendors=new Set(displayRows.flatMap(operation=>[operation.vendorId,operation.transportVendorId]).filter(Boolean)).size;
   const simulationValue=displayRows.reduce((sum,operation)=>sum+operation.quantity*operation.ratePerPart+operation.transportCost,0);
   const simulationConflicts:Array<{id:string;first:OperationRecord;second:OperationRecord;reason:string}>=[];
   for(let firstIndex=0;firstIndex<displayRows.length;firstIndex++){
@@ -413,7 +433,8 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                         <span className="pp-route-node-data">Start: {day(operation.plannedStart)}{" · "+clock(operation.plannedStartTime||operation.plannedSlotStartAt)}</span>
                         <span className="pp-route-node-data">Due: {day(operation.plannedEnd)}{" · "+clock(operation.plannedEndTime||operation.plannedSlotEndAt)}</span>
                         <span className="pp-route-node-data">Qty: {operation.quantity.toLocaleString("en-IN")} pcs</span>
-                        <span className="pp-route-node-data">Price: {money(operation.ratePerPart)}</span><span className="pp-route-node-data">Vendor payment: {operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</span>
+                        <span className="pp-route-node-data">Route rate: {money(operation.ratePerPart)} / pc</span>
+                           <span className="pp-route-node-data">Vendor payment: {operation.vendorId ? (operation.vendorPaymentStatus || "Not Paid") : "—"}</span>
                         <strong className="pp-status">{operation.status}</strong>
                       </button>
                       {index < mainRoute.length - 1 && <span className="pp-route-arrow"><ArrowRight size={22}/></span>}
@@ -426,14 +447,16 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                     const parent = group.operations.find(item => item.id === operation.parentId);
                     const parentIndex = mainRoute.findIndex(item => item.id === operation.parentId);
                     if (!parent || parentIndex < 0) return [];
-                    const startX = Math.round(((parentIndex + 0.5) / Math.max(1, mainRoute.length)) * 1000);
-                    const endX = Math.round(((index + 0.5) / Math.max(1, branchOperations.length)) * 1000);
+                    const routeCardAdvance = 218; // 184px card + 34px connector; mirrors .pp-route-node and .pp-route-arrow.
+                     const cardCenter = 92;
+                     const startX = cardCenter + parentIndex * routeCardAdvance;
+                     const endX = cardCenter + index * routeCardAdvance;
                     return [{ key: operation.id, d: "M " + startX + " 2 C " + startX + " 24 " + endX + " 24 " + endX + " 52" }];
                   });
                   const parentNames = [...new Set(branchOperations.map(operation => group.operations.find(item => item.id === operation.parentId)?.name).filter(Boolean))];
                   return <div className="pp-route-branch" key={branch}>
                     <div className="pp-route-lane-label pp-branch-label"><span>↘ {branch}</span><small>{parentNames.length ? "Branches from " + parentNames.join(", ") : "Alternate route"}</small></div>
-                    {connectors.length ? <svg className="pp-route-connectors" viewBox="0 0 1000 58" preserveAspectRatio="none" aria-hidden="true"><defs><marker id={routeId} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#31b8ff" strokeWidth="1.2"/></marker></defs>{connectors.map(connector => <path key={connector.key} d={connector.d} markerEnd={"url(#" + routeId + ")"} />)}</svg> : null}
+                    {connectors.length ? <svg className="pp-route-connectors" viewBox={"0 0 " + Math.max(218, Math.max(mainRoute.length, branchOperations.length) * 218) + " 58"} style={{width:Math.max(218, Math.max(mainRoute.length, branchOperations.length) * 218) + "px"}} preserveAspectRatio="xMinYMin meet" aria-hidden="true"><defs><marker id={routeId} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#31b8ff" strokeWidth="1.2"/></marker></defs>{connectors.map(connector => <path key={connector.key} d={connector.d} markerEnd={"url(#" + routeId + ")"} />)}</svg> : null}
                     <div className="pp-route-track">
                       {branchOperations.map((operation, index) => <Fragment key={operation.id}>
                         <button className={"pp-route-node " + statusClass(operation.status) + (selected?.id === operation.id ? " selected" : "")} onClick={() => openEdit(operation)}>
@@ -464,17 +487,19 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           <div><h2>Process Operations ({visible.length})</h2><p>Process, vendor, planned dates, quantity and price for each selected component.</p></div>
           <div className="pp-table-tools">
             <label className="pp-search"><Search size={14}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search process, vendor…"/></label>
+            <button type="button" className="button-quiet compact-button" disabled={!searchedRows.length} onClick={() => setSelectedOperationIds(searchedRows.map(operation => operation.id))}>Select filtered</button>
+            <button type="button" className="pp-add-process" disabled={!searchedRows.some(operation => selectedOperationIds.includes(operation.id))} onClick={() => finishOperations(selectedOperationIds)}><CheckCircle2 size={14}/> Finish selected ({searchedRows.filter(operation => selectedOperationIds.includes(operation.id)).length})</button>
             <button className="pp-add-process" onClick={openAdd}><Plus size={14}/> Add Process</button>
           </div>
         </div>
         <div className="pp-table-scroll"><table>
-          <thead><tr><th>#</th><th>Process</th><th>Category</th><th>Execution</th><th>Vendor</th><th>Start Date</th><th>Due Date</th><th>Qty (pcs)</th><th>Price (₹/pc)</th><th>Vendor Payment</th><th>Total Cost (₹)</th><th>Status</th><th>Action</th></tr></thead>
+          <thead><tr><th><input aria-label="Select all filtered processes" type="checkbox" checked={searchedRows.length > 0 && searchedRows.every(operation => selectedOperationIds.includes(operation.id))} onChange={event => setSelectedOperationIds(event.target.checked ? searchedRows.map(operation => operation.id) : [])}/></th><th>#</th><th>Process</th><th>Category</th><th>Execution</th><th>Process Vendor</th><th>Transport Vendor</th><th>Start Date</th><th>Due Date</th><th>Qty (pcs)</th><th>Price (₹/pc)</th><th>Vendor Payment</th><th>Total Cost (₹)</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>{searchedRows.map((operation, index) => <tr key={operation.id} onClick={() => openEdit(operation)} className={selected?.id === operation.id ? "active" : ""}>
-            <td>{index + 1}</td><td>{operation.name}</td><td>{operation.category || "—"}</td><td>{operation.vendorId ? "Outsourced" : "Internal"}</td>
-            <td>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</td><td>{day(operation.plannedStart)}</td><td>{day(operation.plannedEnd)}</td>
+            <td><input aria-label={"Select " + operation.name} type="checkbox" checked={selectedOperationIds.includes(operation.id)} onClick={event => event.stopPropagation()} onChange={event => setSelectedOperationIds(current => event.target.checked ? [...new Set([...current, operation.id])] : current.filter(id => id !== operation.id))}/></td><td>{index + 1}</td><td>{operation.name}</td><td>{operation.category || "—"}</td><td>{operation.vendorId ? "Outsourced" : "Internal"}</td>
+            <td>{vendors.find(vendor => vendor.id === operation.vendorId)?.company || "In-house"}</td><td>{vendors.find(vendor => vendor.id === operation.transportVendorId)?.company || "—"}</td><td>{day(operation.plannedStart)}</td><td>{day(operation.plannedEnd)}</td>
             <td>{operation.quantity.toLocaleString("en-IN")}</td><td>{money(operation.ratePerPart)}</td><td>{operation.vendorId ? <select aria-label={"Payment status for "+operation.name} value={operation.vendorPaymentStatus || "Not Paid"} onClick={event=>event.stopPropagation()} onChange={event=>updatePaymentStatus(operation.id,event.target.value as "Paid" | "Not Paid")}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select> : "—"}</td><td>{money(operation.quantity * operation.ratePerPart + operation.transportCost)}</td>
-            <td><span className={"pp-table-status " + statusClass(operation.status)}>{operation.status}</span></td>
-            <td><button onClick={event => { event.stopPropagation(); openEdit(operation); }}>Edit</button></td>
+            <td><span className={"pp-table-status " + statusClass(operation.status)}>{operation.status}</span>{operation.status === "Complete" && <span className="pp-finished-job-icon" title="Finished job icon assignment"><ProcessIcon processName="Finished Job" fallback={<CheckCircle2 size={13}/>} /></span>}</td>
+            <td><button onClick={event => { event.stopPropagation(); openEdit(operation); }}>Edit</button>{operation.status !== "Complete" && <button type="button" disabled={operation.status === "Quality hold"} title={operation.status === "Quality hold" ? "Resolve quality hold before finishing" : "Mark this operation complete"} onClick={event => { event.stopPropagation(); finishOperations([operation.id]); }}>Finish</button>}</td>
           </tr>)}</tbody>
         </table></div>
         {!searchedRows.length ? <div className="pp-empty pp-table-empty"><strong>No process operations found.</strong><span>Add a process or change the process search.</span></div> : null}
@@ -544,7 +569,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                 const assignments={...current.processAssignments};
                 ids.forEach(id=>{if(!assignments[id]){const existing=operations.find(operation=>operation.poLineId===current.poLineId&&operation.processTypeId===id&&!operation.deletedAt);assignments[id]=existing?assignmentFromOperation(existing):emptyProcessAssignment(current.quantity);}});
                 const single=ids.length===1?assignments[ids[0]]:undefined;
-                return {...current,processTypeIds:ids,processAssignments:assignments,vendorId:single?.vendorId||"",...(single?{plannedStart:single.plannedStart,plannedEnd:single.plannedEnd,plannedStartTime:single.plannedStartTime,plannedEndTime:single.plannedEndTime,quantity:single.quantity,ratePerPart:single.ratePerPart,status:single.status,vendorPaymentStatus:single.vendorPaymentStatus,notes:single.notes}:{})};
+                return {...current,processTypeIds:ids,processAssignments:assignments,vendorId:single?.vendorId||"",...(single?{plannedStart:single.plannedStart,plannedEnd:single.plannedEnd,plannedStartTime:single.plannedStartTime,plannedEndTime:single.plannedEndTime,quantity:single.quantity,ratePerPart:single.ratePerPart,transportCost:single.transportCost,status:single.status,vendorPaymentStatus:single.vendorPaymentStatus,notes:single.notes}:{})};
               })} disabled={!draft.categoryId}>Select all</button><button type="button" onClick={()=>setDraft(current=>({...current,processTypeIds:[],processAssignments:{},vendorId:"",name:""}))}>Clear</button></div></div>
             <details className="pp-process-dropdown"><summary><span>{draftProcessTypes.length?draftProcessTypes.slice(0,2).map(type=>type.name).join(", ")+(draftProcessTypes.length>2?" + "+(draftProcessTypes.length-2)+" more":""):"Choose process(es)…"}</span><ChevronDown size={14}/></summary>
               <div className="pp-process-dropdown-menu"><label className="pp-process-search"><Search size={13}/><input value={processQuery} onChange={event=>setProcessQuery(event.target.value)} placeholder="Search processes in this category…"/></label>
@@ -568,12 +593,14 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
                 <div className="pp-operation-assignment-title"><strong>{type.name}</strong><small>{processCategories.find(category=>category.id===type.categoryId)?.name||"Process category"}</small></div>
                 <div className="pp-operation-assignment-fields">
                   <SearchablePicker id={"pp-vendor-"+type.id} label="Vendor (optional)" value={assignment.vendorId} placeholder="Search capable vendor…" options={capableVendors.map(vendor=>({id:vendor.id,label:vendor.company}))} onChange={id=>{const savedRate=latestProcessRate(type.id,id);setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,vendorId:id,ratePerPart:savedRate===undefined?previous.ratePerPart:String(savedRate)}}};});}}/>
+                  <SearchablePicker id={"pp-transport-vendor-"+type.id} label="Transport / dispatch vendor" value={assignment.transportVendorId} placeholder="Select transporter for this stage…" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+(vendor.phone||"No phone")}))} onChange={id=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,transportVendorId:id}}};})}/>
                   <label>Start date<input type="date" value={assignment.plannedStart} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,plannedStart:event.target.value}}};})}/></label>
                   <label>Due date<input type="date" min={assignment.plannedStart||undefined} value={assignment.plannedEnd} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,plannedEnd:event.target.value}}};})}/></label>
                   <label>Start time<input type="time" value={assignment.plannedStartTime} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,plannedStartTime:event.target.value}}};})}/></label>
                   <label>Due time<input type="time" value={assignment.plannedEndTime} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,plannedEndTime:event.target.value}}};})}/></label>
                   <label>Quantity (pcs)<input type="number" min="0" value={assignment.quantity} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,quantity:event.target.value}}};})}/></label>
                   <label>Price per piece (₹)<input type="number" min="0" step="0.01" value={assignment.ratePerPart} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,ratePerPart:event.target.value}}};})}/></label>
+                   <label>Transport for this PO operation (₹)<input type="number" min="0" step="0.01" value={assignment.transportCost} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,transportCost:event.target.value}}};})}/></label>
                   <label>Vendor payment<select value={assignment.vendorPaymentStatus} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,vendorPaymentStatus:event.target.value as "Paid"|"Not Paid"}}};})}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select></label>
                   <label>Process status<select value={assignment.status} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,status:event.target.value as LifecycleStatus}}};})}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
                   <label className="pp-modal-wide">Remarks<input value={assignment.notes} onChange={event=>setDraft(current=>{const previous=current.processAssignments[type.id]||emptyProcessAssignment(current.quantity);return {...current,processAssignments:{...current.processAssignments,[type.id]:{...previous,notes:event.target.value}}};})} placeholder="Optional process remarks"/></label>
@@ -584,12 +611,14 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
           </div> : <>
             {!draft.processTypeIds.length&&editingId&&<label>Legacy process name<input value={draft.name} onChange={event=>setDraft(current=>({...current,name:event.target.value}))}/></label>}
             <SearchablePicker id="pp-add-vendor" label="Vendor (optional)" value={draft.vendorId} placeholder="Search vendor company…" options={draftVendorOptions.map(vendor => ({ id: vendor.id, label: vendor.company }))} onChange={id => {const savedRate=draftProcessTypes[0]?latestProcessRate(draftProcessTypes[0].id,id):undefined;setDraft(current => ({ ...current, vendorId: id, ratePerPart:savedRate===undefined?current.ratePerPart:String(savedRate) }));}}/>
+            <SearchablePicker id="pp-add-transport-vendor" label="Transport / dispatch vendor" value={draft.transportVendorId} placeholder="Select transporter…" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+(vendor.phone||"No phone")}))} onChange={id=>setDraft(current=>({...current,transportVendorId:id}))}/>
             <label>Given / start date<input type="date" value={draft.plannedStart} onChange={event => setDraft(current => ({ ...current, plannedStart: event.target.value }))}/></label>
             <label>Due date<input type="date" min={draft.plannedStart || undefined} value={draft.plannedEnd} onChange={event => setDraft(current => ({ ...current, plannedEnd: event.target.value }))}/></label>
             <label>Start time<input type="time" value={draft.plannedStartTime} onChange={event => setDraft(current => ({ ...current, plannedStartTime: event.target.value }))}/></label>
             <label>Due time<input type="time" value={draft.plannedEndTime} onChange={event => setDraft(current => ({ ...current, plannedEndTime: event.target.value }))}/></label>
             <label>Quantity (pcs)<input type="number" min="0" value={draft.quantity} onChange={event => setDraft(current => ({ ...current, quantity: event.target.value }))}/></label>
             <label>Price per piece (₹)<input type="number" min="0" step="0.01" value={draft.ratePerPart} onChange={event => setDraft(current => ({ ...current, ratePerPart: event.target.value }))}/></label>
+             <label>Transport for this PO operation (₹)<input type="number" min="0" step="0.01" value={draft.transportCost} onChange={event => setDraft(current => ({ ...current, transportCost: event.target.value }))}/></label>
             <label>Vendor payment<select value={draft.vendorPaymentStatus} onChange={event=>setDraft(current=>({...current,vendorPaymentStatus:event.target.value as "Paid"|"Not Paid"}))}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select></label>
             <label>Process status<select value={draft.status} onChange={event => setDraft(current => ({ ...current, status: event.target.value as LifecycleStatus }))}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
             <label className="pp-modal-wide">Remarks<input value={draft.notes} onChange={event => setDraft(current => ({ ...current, notes: event.target.value }))} placeholder="Optional process remarks"/></label>

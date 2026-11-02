@@ -28,6 +28,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Run cost ledger regression tests
+        run: npm test
       - name: Check server syntax
         run: |
           node --check server/index.mjs

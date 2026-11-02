@@ -11,6 +11,7 @@ The GitHub repository is the canonical source of truth for AXIMACH code, configu
 The repository now includes **linked manufacturing master workflows and an optional persistent JSON-backed server API**. It is still a work in progress—not a production-ready ERP, deployed multi-tenant system, or live factory telemetry platform.
 
 - Searchable Companies → Factories → Purchase Orders → individual PO component lines → Component master records, linked by stable IDs.
+- Contact 360 relationship register supports one client/account with multiple named people and roles, reusable groups, stable contact IDs, multiple editable follow-up records per person, linked module references, amount/currency, promised-return date, next follow-up date and owner. Primary vendor contacts can synchronise to Vendor Master; additional people remain distinct and linked to the same vendor ID.
 - Process Map operations are created per selected PO line/component, with planned and actual rates, planned/actual dates, processed/accepted/rejected quantities, transport, inspection, alternate/rework route lanes, reordering and vendor assignment.
 - Supplier quotations have separate persistent records linked to the exact component, PO line, operation and vendor; choosing a quote applies its planned rate without marking it as an actual invoice.
 - Machine resources have stable IDs, factory links, shift calendars and working-day patterns; preventive maintenance, breakdowns, inspections and calibration downtime are linked to those resources.
