@@ -34,6 +34,7 @@ export default function AxiCommandSphere({
   const [pitch, setPitch] = useState(8);
   const [paused, setPaused] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [zooming, setZooming] = useState(false);
   const drag = useRef<{ pointerId: number; x: number; y: number; yaw: number; pitch: number } | null>(null);
   const pageCount = Math.max(1, Math.ceil(modules.length / PAGE_SIZE));
   const visibleModules = useMemo(
@@ -67,8 +68,13 @@ export default function AxiCommandSphere({
     if (drag.current?.pointerId === event.pointerId) drag.current = null;
   };
   const turn = (direction: -1 | 1) => setYaw(value => clamp(value + direction * 12, -42, 42));
+  const openWorkspace = (id: string) => {
+    if (zooming) return;
+    setZooming(true);
+    window.setTimeout(() => onOpenModule(id), 250);
+  };
 
-  return <section className={"axi-command-universe" + (expanded ? " is-expanded" : "") + (viewMode === "cube" ? " is-cube" : "")}>
+  return <section className={"axi-command-universe" + (expanded ? " is-expanded" : "") + (viewMode === "cube" ? " is-cube" : "") + (zooming ? " is-zooming" : "")}>
     <div className="axi-universe-header">
       <div>
         <span className="axi-universe-eyebrow"><i/> LIVING INTELLIGENCE · RECORD-DRIVEN</span>
@@ -125,7 +131,8 @@ export default function AxiCommandSphere({
             return <button type="button" key={module.id}
               className={"axi-universe-module-node accent-" + (index % 6)}
               style={{ left: x + "%", top: y + "%", animationPlayState: paused ? "paused" : "running" } as CSSProperties}
-              onClick={() => onOpenModule(module.id)}
+              disabled={zooming}
+              onClick={() => openWorkspace(module.id)}
               title={module.title + " · " + count(module.quantity) + " records"}
               aria-label={"Open " + module.title + ", " + count(module.quantity) + " records"}>
               <span className="axi-universe-node-icon"><Icon size={19}/></span>
@@ -150,7 +157,7 @@ export default function AxiCommandSphere({
               <div className="axi-cube-face-modules">
                 {face.items.map(module => {
                   const Icon = module.icon;
-                  return <button type="button" key={module.id} onClick={() => onOpenModule(module.id)} title={module.title}>
+                  return <button type="button" key={module.id} disabled={zooming} onClick={() => openWorkspace(module.id)} title={module.title}>
                     <Icon size={17}/><span>{module.title}</span><b>{count(module.quantity)}</b>
                   </button>;
                 })}
