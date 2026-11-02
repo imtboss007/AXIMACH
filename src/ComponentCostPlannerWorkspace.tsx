@@ -55,6 +55,7 @@ const fromRecord = (record?: ComponentPlannedCostRecord): PlanFields => record ?
 export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice, onSelectModule }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const components = activeRows(data.components);
+  const orders = activeRows(data.purchaseOrders);
   const vendors = activeRows(data.vendors);
   const processTypes = activeRows(data.processTypes);
   const categories = activeRows(data.processCategories);
@@ -72,6 +73,11 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
       .toLowerCase().includes(search.toLowerCase().trim())
   ).sort((a, b) => a.partNumber.localeCompare(b.partNumber)), [components, search]);
   const selected = components.find(component => component.id === selectedId) || visibleComponents[0] || components[0];
+  // PO lines are discovered automatically through the stable component ID. One component plan
+  // therefore rolls up to every order line using that component without a separate link action.
+  const linkedPOLines = selected ? orders.flatMap(po => po.lines
+    .filter(line => line.componentId === selected.id && !line.deletedAt)
+    .map(line => ({ po, line }))) : [];
   const savedPlan = selected ? plans.find(record => record.componentId === selected.id) : undefined;
   const selectedProcessPlans = selected ? processPlans
     .filter(record => record.componentId === selected.id)
@@ -82,6 +88,11 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
   const targetSelling = Number(draft.targetSellingPricePerPart) || 0;
   const plannedMargin = targetSelling - plannedCostPerPart;
   const marginPercent = targetSelling > 0 ? plannedMargin / targetSelling * 100 : null;
+  const linkedPOQuantity = linkedPOLines.reduce((sum, row) => sum + row.line.quantity, 0);
+  const linkedPOValue = linkedPOLines.reduce((sum, row) => sum + row.line.quantity * row.line.unitPrice, 0);
+  const linkedPlannedValue = linkedPOLines.reduce((sum, row) => sum + row.line.quantity * plannedCostPerPart, 0);
+  const linkedPOPricesComplete = linkedPOLines.length > 0 && linkedPOLines.every(row => row.line.unitPrice > 0);
+  const linkedPlannedMargin = linkedPOPricesComplete ? linkedPOValue - linkedPlannedValue : null;
   const vendorOptions = vendors.filter(vendor =>
     !processDraft.processTypeId || vendorSupportsProcessType(vendor, processDraft.processTypeId) ||
     vendor.id === processDraft.vendorId
@@ -210,7 +221,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
       <span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/> {syncStatus === "synced" ? "SHARED SERVER DATA" : syncStatus === "syncing" ? "SYNCING" : syncStatus === "error" ? "SYNC ERROR · LOCAL COPY KEPT" : "LOCAL DATA · SERVER OPTIONAL"}</span>
     </div>
     <div className="workspace-title-row">
-      <div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / PER-COMPONENT COST BASELINE</div><h1>Component Cost Planner<span>.</span></h1><p>Choose a component from Component Directory and set its process-category/type cost assumptions here. These saved budgets appear in Costing & Payments only; they never feed Process Planning.</p></div>
+      <div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / PER-COMPONENT COST BASELINE</div><h1>Component Cost Planner<span>.</span></h1><p>Enter one planned cost baseline per component. AXIMACH automatically rolls it into every PO line using that component ID, then compares it against each PO value and the actual PO-specific Process Map costs.</p></div>
       <div className="workspace-title-actions">
         <button className="button-quiet" onClick={() => onSelectModule("component-directory")}><Boxes size={14}/> Component Directory</button>
         <button className="button-primary" onClick={() => onSelectModule("costing")}><CircleDollarSign size={14}/> Costing & Payments</button>
@@ -256,11 +267,11 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
             <label><span>Plan status</span><select value={draft.status} onChange={event => setDraft(current => ({ ...current, status: event.target.value as "Draft" | "Approved" }))}><option value="Draft">Draft / working estimate</option><option value="Approved">Approved internal baseline</option></select><small>Approval is an internal planning label; it does not approve a supplier quote or payment.</small></label>
             <label className="ccp-notes-field"><span>Planning notes</span><textarea rows={3} value={draft.notes} onChange={event => setDraft(current => ({ ...current, notes: event.target.value }))} placeholder="Assumptions, source drawing/revision, costing basis, exclusions…"/></label>
           </div>
-          <div className="ccp-save-row"><span><ShieldCheck size={14}/> Saving updates this component's master cost baseline only. Existing PO and actual cost records are preserved.</span><button className="button-primary" onClick={savePlan}><Check size={14}/> {savedPlan ? "Update planned cost" : "Save planned cost"}</button></div>
+          <div className="ccp-save-row"><span><ShieldCheck size={14}/> Saving updates the component baseline. All linked PO lines recalculate automatically; PO-specific material overrides and actual process records remain separate.</span><button className="button-primary" onClick={savePlan}><Check size={14}/> {savedPlan ? "Update planned cost" : "Save planned cost"}</button></div>
         </section>
 
         <section className="surface-panel ccp-process-panel">
-          <div className="panel-heading"><div><div className="eyebrow">PROCESS-WISE BUDGET / LINKED TO PROCESS DIRECTORY</div><h3>Planned process route costs</h3><p>Define your expected cost for each required process. These rows are saved as component cost assumptions for Costing & Payments only; they do not feed Process Planning or vendor commitments.</p></div><button className="button-primary compact-button" onClick={beginAddProcess}><Plus size={13}/> Add process plan</button></div>
+          <div className="panel-heading"><div><div className="eyebrow">PROCESS-WISE BUDGET / LINKED TO PROCESS DIRECTORY</div><h3>Planned process route costs</h3><p>These process assumptions are linked to this component ID and are included in the planned-cost comparison for every PO line using this component. Actual vendor, date, quantity, payment and process status stay editable on each PO-specific Process Map route.</p></div><button className="button-primary compact-button" onClick={beginAddProcess}><Plus size={13}/> Add process plan</button></div>
           {showProcessForm && <div className="ccp-process-editor">
             <div className="ccp-process-editor-head"><strong>{editingProcessId ? "Edit process cost plan" : "Add process cost plan"}</strong><button className="icon-control" onClick={() => setShowProcessForm(false)} aria-label="Close process plan editor"><X size={14}/></button></div>
             <div className="ccp-process-form-grid">
@@ -282,7 +293,7 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
             const category = categories.find(item => item.id === type?.categoryId);
             const cost = row.quantityPerPart * row.ratePerProcess;
             return <tr key={row.id}><td><strong>{category?.name || "Process"} · {type?.name || "Archived process"}</strong><small>{row.notes || "No planning note"}</small></td><td>{vendor?.company || (row.vendorId ? "Vendor unavailable" : "In-house")}</td><td>{row.quantityPerPart}</td><td>{money(row.ratePerProcess)}</td><td><strong>{money(cost)}</strong></td><td><span className="ccp-actions"><button className="button-quiet compact-button" onClick={() => beginEditProcess(row)} title="Edit process cost"><Pencil size={12}/></button><button className="button-quiet compact-button" onClick={() => archiveProcessPlan(row)} title="Archive process cost"><Trash2 size={12}/></button></span></td></tr>;
-          })}</tbody></table></div> : <div className="ccp-empty-process"><Workflow size={25}/><strong>No process costs planned for this component</strong><span>Add only the process costs this component needs. These are costing assumptions, not Process Map operations or vendor commitments.</span></div>}
+          })}</tbody></table></div> : <div className="ccp-empty-process"><Workflow size={25}/><strong>No process costs planned for this component</strong><span>Add only the process costs this component needs. The baseline automatically rolls into linked PO costing; it does not create a vendor commitment or fake a completed Process Map operation.</span></div>}
           <div className="ccp-process-total"><span>Planned process route / finished component</span><strong>{money(processCostPerPart)}</strong></div>
         </section>
 
@@ -292,8 +303,47 @@ export default function ComponentCostPlannerWorkspace({ onBack, onNotice, notice
           <div><small>MASTER PLANNED COST / PIECE</small><strong>{money(plannedCostPerPart)}</strong></div>
           <div><small>TARGET MARGIN / PIECE</small><strong>{money(plannedMargin)}</strong></div>
         </section>
-      </main> : <div className="surface-panel ccp-empty-main"><ClipboardList size={30}/><h3>Select a component to begin</h3><p>Each component has an independent cost plan. Your planned values will never be substituted for actual supplier invoices or payment entries.</p></div>}
+
+        <section className="surface-panel ccp-linked-po-panel">
+          <div className="panel-heading">
+            <div>
+              <div className="eyebrow">AUTOMATIC COMPONENT → PO COST ROLL-UP</div>
+              <h3>Every purchase order using this component</h3>
+              <p>Each row is discovered from the PO line's saved component ID. The baseline is applied by quantity; no manual linking or duplicate cost entry is required.</p>
+            </div>
+            <span className="module-number">{linkedPOLines.length} PO LINES</span>
+          </div>
+          {linkedPOLines.length ? <>
+            <div className="ccp-linked-po-totals">
+              <div><small>LINKED PO QUANTITY</small><strong>{linkedPOQuantity.toLocaleString("en-IN")} pcs</strong></div>
+              <div><small>PO ORDER VALUE</small><strong>{money(linkedPOValue)}</strong></div>
+              <div><small>PLANNED COST ACROSS PO LINES</small><strong>{money(linkedPlannedValue)}</strong></div>
+              <div><small>PROJECTED PLAN MARGIN</small><strong>{linkedPlannedMargin === null ? "PO price incomplete" : money(linkedPlannedMargin)}</strong></div>
+            </div>
+            <div className="ccp-table-wrap">
+              <table className="ccp-table">
+                <thead><tr><th>Company PO</th><th>PO component qty</th><th>PO price / pc</th><th>PO value</th><th>Planned cost / pc</th><th>Planned cost total</th><th>Projected margin</th><th>Job status</th></tr></thead>
+                <tbody>{linkedPOLines.map(({ po, line }) => {
+                  const poValue = line.quantity * line.unitPrice;
+                  const plannedTotal = line.quantity * plannedCostPerPart;
+                  const margin = line.unitPrice > 0 ? poValue - plannedTotal : null;
+                  return <tr key={po.id + "::" + line.id}>
+                    <td><strong>{po.number}</strong><small>{po.status || "PO"}</small></td>
+                    <td>{line.quantity.toLocaleString("en-IN")}</td>
+                    <td>{line.unitPrice > 0 ? money(line.unitPrice) : "Not entered"}</td>
+                    <td>{line.unitPrice > 0 ? money(poValue) : "—"}</td>
+                    <td>{money(plannedCostPerPart)}</td>
+                    <td>{money(plannedTotal)}</td>
+                    <td className={margin === null ? "cost-incomplete" : margin >= 0 ? "cost-positive" : "cost-negative"}>{margin === null ? "PO price incomplete" : money(margin)}</td>
+                    <td>{line.jobStatus === "Finished" ? "Finished" : "In progress"}</td>
+                  </tr>;
+                })}</tbody>
+              </table>
+            </div>
+          </> : <div className="ccp-empty-process"><Package size={24}/><strong>No PO lines use this component yet</strong><span>When a PO line is created with this component master, it will appear here automatically. Do not create a duplicate component or a manual link.</span></div>}
+        </section>
+      </main> : <div className="surface-panel ccp-empty-main"><ClipboardList size={30}/><h3>Select a component to begin</h3><p>Each component has one reusable planned baseline. Every PO line referencing it receives the automatic planned-cost roll-up; PO-specific actual costs remain separately recorded.</p></div>}
     </div>
-    <div className="module-safety-note"><ShieldCheck size={14}/><span>Planned component costs are stored separately from PO operation records. Only Costing & Payments reads this cost baseline; Process Planning never receives these values, pre-fills or budget labels. Actual operation/vendor rates and payment records remain untouched.</span></div>
+    <div className="module-safety-note"><ShieldCheck size={14}/><span>All records are interconnected by stable component and PO-line IDs: Component Cost Planner → Component Directory → every matching PO line → Costing & Payments. Planned costs feed the planned-cost and profitability ledgers automatically. They do not overwrite PO-line material overrides, actual Process Map rates, vendor payments or operation statuses.</span></div>
   </section>;
 }
