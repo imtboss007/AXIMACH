@@ -58,12 +58,12 @@ function startLocalServices() {
 
   if (!whatsappBridge) {
     whatsappBridge = spawnLocalService(path.join(appRoot, "server", "whatsapp-web.mjs"), {
-      WA_WEB_PORT: "8788",
+      WA_WEB_PORT: "8789",
       WA_WEB_HOST: "0.0.0.0",
       AXIMACH_API_KEY: sharedApiKey,
       AXIMACH_ALLOWED_ORIGINS: CLIENT_ORIGINS,
-      WA_WEB_DATA_FILE: path.join(whatsappDir, "whatsapp-web.json"),
-      WA_WEB_AUTH_DIR: path.join(whatsappDir, "whatsapp-auth"),
+      WA_WEB_DATA_FILE: path.join(whatsappDir, "whatsapp-web-lan.json"),
+      WA_WEB_AUTH_DIR: path.join(whatsappDir, "whatsapp-auth-lan"),
     }, "AXIMACH WhatsApp bridge");
   }
 }
