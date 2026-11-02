@@ -3,6 +3,8 @@ import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { Activity, Factory, Gauge, Network, RotateCcw, X, Waves, Sparkles, Move3D, Plug, SlidersHorizontal } from "lucide-react";
 import type { OrbCounts } from "./AXIMACHOrb";
 import "./infinite-reality.css";
@@ -174,11 +176,18 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
 
     let composer: EffectComposer | undefined;
     let bloom: UnrealBloomPass | undefined;
+    let ssao: SSAOPass | undefined;
     try {
       composer = new EffectComposer(renderer);
       composer.addPass(new RenderPass(scene, camera));
+      ssao = new SSAOPass(scene, camera, host.clientWidth || 1, host.clientHeight || 1);
+      ssao.kernelRadius = 12;
+      ssao.minDistance = 0.001;
+      ssao.maxDistance = 0.08;
+      composer.addPass(ssao);
       bloom = new UnrealBloomPass(new THREE.Vector2(host.clientWidth || 1, host.clientHeight || 1), 0.72, 0.48, 0.82);
       composer.addPass(bloom);
+      composer.addPass(new OutputPass());
     } catch {
       composer = undefined; bloom = undefined;
     }
@@ -235,6 +244,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
       const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
       camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h, false);
       composer?.setSize(w, h);
+      ssao?.setSize(w, h);
       if (bloom) bloom.setSize(w, h);
     };
     const observer = new ResizeObserver(resize); observer.observe(host); resize();
@@ -349,7 +359,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
       </header>
       <div className="irl-scene-wrap">
         <div className="irl-scene" ref={hostRef}/>
-        <div className="irl-scene-topline"><span>SPATIAL COMMAND ENVIRONMENT</span><span>THREE.JS · WEBGL · BLOOM POST-FX</span></div>
+        <div className="irl-scene-topline"><span>SPATIAL COMMAND ENVIRONMENT</span><span>THREE.JS · WEBGL · SSAO / BLOOM POST-FX</span></div>
         <div className="irl-scene-caption">INTERACT WITH THE CLOTH SURFACE · DASHBOARD PLANES ROTATE IN 3D SPACE · COUNTS ARE SAVED AXIMACH RECORDS</div>
         <div className="irl-scene-actions"><button type="button" onClick={() => setPostFx(value => !value)} className={postFx ? "active" : ""}><Sparkles size={14}/> Post FX {postFx ? "ON" : "OFF"}</button><button type="button" onClick={() => setReducedMotion(value => !value)} className={reducedMotion ? "active" : ""}><Activity size={14}/> Reduced motion</button><button type="button" onClick={() => setTransition("orbit")}><RotateCcw size={14}/> Reset camera</button></div>
       </div>
