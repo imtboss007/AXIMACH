@@ -41,6 +41,14 @@ export function validateMachineProfile(input) {
   const endpoint = String(input.endpoint || "").trim();
   if (!name || name.length > 100) fail("Machine name is required (maximum 100 characters).");
   if (!endpoint || endpoint.length > 500) fail("A machine endpoint is required (maximum 500 characters).");
+  let parsedEndpoint;
+  try { parsedEndpoint = new URL(endpoint.includes("://") ? endpoint : (protocol === "Modbus TCP" ? "tcp://" + endpoint : endpoint)); }
+  catch { fail("Machine endpoint must be a valid URL."); }
+  if (parsedEndpoint.username || parsedEndpoint.password) fail("Credentials must be stored in the local gateway secrets file, not inside the endpoint URL.");
+  if (protocol === "OPC UA" && parsedEndpoint.protocol !== "opc.tcp:") fail("OPC UA endpoints must use opc.tcp://.");
+  if (protocol === "Modbus TCP" && parsedEndpoint.protocol !== "tcp:") fail("Modbus endpoints must use tcp://host:port.");
+  if ((protocol === "MTConnect" || protocol === "REST gateway") && !["http:", "https:"].includes(parsedEndpoint.protocol)) fail("MTConnect and REST gateway endpoints must use HTTP or HTTPS.");
+
   if (!Array.isArray(input.signals) || input.signals.length < 1 || input.signals.length > MAX_SIGNALS) {
     fail("Add between 1 and 64 named telemetry signals.");
   }
