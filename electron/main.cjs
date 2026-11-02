@@ -4,9 +4,11 @@ const fs = require("node:fs");
 const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
 
-const isSmokeTest = process.env.AXIMACH_SMOKE_TEST === "1";
+const smokeDataArgument = process.argv.find(argument => argument.startsWith("--aximach-smoke-data-dir="));
+const smokeUserData = process.env.AXIMACH_SMOKE_USER_DATA || smokeDataArgument?.slice("--aximach-smoke-data-dir=".length) || "";
+const isSmokeTest = process.env.AXIMACH_SMOKE_TEST === "1" || process.argv.includes("--aximach-smoke-test");
 if (isSmokeTest) {
-  if (process.env.AXIMACH_SMOKE_USER_DATA) app.setPath("userData", process.env.AXIMACH_SMOKE_USER_DATA);
+  if (smokeUserData) app.setPath("userData", smokeUserData);
   app.commandLine.appendSwitch("disable-gpu");
 }
 
@@ -129,8 +131,8 @@ function stopLocalServices() {
   for (const child of [manufacturingServer, whatsappBridge]) if (child && !child.killed) { try { child.kill(); } catch { /* already stopped */ } }
   manufacturingServer = undefined; whatsappBridge = undefined;
 }
-if (isSmokeTest && process.env.AXIMACH_SMOKE_USER_DATA) {
-  const earlyDir = path.join(process.env.AXIMACH_SMOKE_USER_DATA, "logs");
+if (isSmokeTest && smokeUserData) {
+  const earlyDir = path.join(smokeUserData, "logs");
   try {
     fs.mkdirSync(earlyDir, { recursive: true });
     fs.appendFileSync(path.join(earlyDir, "startup.log"), `[${new Date().toISOString()}] Electron main module loaded; waiting for app readiness\\n`, "utf8");
