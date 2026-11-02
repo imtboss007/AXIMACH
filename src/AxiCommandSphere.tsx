@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import {
-  ChevronLeft, ChevronRight, Maximize2, Pause, Play, RotateCcw,
+  ChevronLeft, ChevronRight, Layers3, Maximize2, Pause, Play, RotateCcw,
   RotateCw, Sparkles
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -29,6 +29,7 @@ export default function AxiCommandSphere({
   modules, onOpenModule, liveOperations, finishedJobs, attentionItems
 }: Props) {
   const [page, setPage] = useState(0);
+  const [viewMode, setViewMode] = useState<"orbit" | "cube">("orbit");
   const [yaw, setYaw] = useState(-9);
   const [pitch, setPitch] = useState(8);
   const [paused, setPaused] = useState(false);
@@ -39,6 +40,17 @@ export default function AxiCommandSphere({
     () => modules.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
     [modules, page]
   );
+  const cubeFaces = useMemo(() => {
+    const configs = [
+      { id: "front", title: "ENGINEERING", groups: ["Engineering"] },
+      { id: "right", title: "OPERATIONS", groups: ["Operations"] },
+      { id: "back", title: "COMMERCIAL + SUPPLY", groups: ["Commercial", "Supply Network"] },
+      { id: "left", title: "FINANCE", groups: ["Finance"] },
+      { id: "top", title: "QUALITY + RELIABILITY", groups: ["Quality & Reliability"] },
+      { id: "bottom", title: "CONTROL + INTELLIGENCE", groups: ["Command", "Governance", "Connections", "Insights", "Data & Platform"] }
+    ];
+    return configs.map(config => ({ ...config, items: modules.filter(module => config.groups.includes(module.group)) }));
+  }, [modules]);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest("button")) return;
@@ -56,7 +68,7 @@ export default function AxiCommandSphere({
   };
   const turn = (direction: -1 | 1) => setYaw(value => clamp(value + direction * 12, -42, 42));
 
-  return <section className={"axi-command-universe" + (expanded ? " is-expanded" : "")}>
+  return <section className={"axi-command-universe" + (expanded ? " is-expanded" : "") + (viewMode === "cube" ? " is-cube" : "")}>
     <div className="axi-universe-header">
       <div>
         <span className="axi-universe-eyebrow"><i/> LIVING INTELLIGENCE · RECORD-DRIVEN</span>
@@ -65,6 +77,9 @@ export default function AxiCommandSphere({
       </div>
       <div className="axi-universe-header-actions">
         <span className="axi-universe-module-count">{count(modules.length)} WORKSPACES</span>
+        <button type="button" title={viewMode === "orbit" ? "Switch to 3D cube navigation" : "Switch to orbital navigation"} onClick={() => setViewMode(value => value === "orbit" ? "cube" : "orbit")}>
+          <Layers3 size={14}/> {viewMode === "orbit" ? "Cube view" : "Orbital view"}
+        </button>
         <button type="button" title={paused ? "Resume rotation" : "Pause rotation"} onClick={() => setPaused(value => !value)}>
           {paused ? <Play size={14}/> : <Pause size={14}/>} {paused ? "Resume" : "Pause"}
         </button>
@@ -103,11 +118,12 @@ export default function AxiCommandSphere({
           {visibleModules.map((module, index) => {
             const angle = (360 / Math.max(1, visibleModules.length)) * index - 90;
             const radians = angle * Math.PI / 180;
-            const x = 50 + Math.cos(radians) * 40.2;
-            const y = 50 + Math.sin(radians) * 40.2;
+            const orbitalRadius = expanded ? 46 : 40.2;
+            const x = 50 + Math.cos(radians) * orbitalRadius;
+            const y = 50 + Math.sin(radians) * orbitalRadius;
             const Icon = module.icon;
             return <button type="button" key={module.id}
-              className="axi-universe-module-node"
+              className={"axi-universe-module-node accent-" + (index % 6)}
               style={{ left: x + "%", top: y + "%", animationPlayState: paused ? "paused" : "running" } as CSSProperties}
               onClick={() => onOpenModule(module.id)}
               title={module.title + " · " + count(module.quantity) + " records"}
@@ -121,13 +137,35 @@ export default function AxiCommandSphere({
         <span className="axi-universe-coordinate coordinate-north">AX / 00</span>
         <span className="axi-universe-coordinate coordinate-east">LIVE / SYNC</span>
         <span className="axi-universe-coordinate coordinate-south">PRECISION · TRACEABLE · CONNECTED</span>
+        <div className="axi-universe-cube" aria-label="Six-sided workspace cube">
+          {cubeFaces.map(face => {
+            const transform = face.id === "front" ? "translateZ(128px)" :
+              face.id === "back" ? "rotateY(180deg) translateZ(128px)" :
+              face.id === "right" ? "rotateY(90deg) translateZ(128px)" :
+              face.id === "left" ? "rotateY(-90deg) translateZ(128px)" :
+              face.id === "top" ? "rotateX(90deg) translateZ(128px)" :
+              "rotateX(-90deg) translateZ(128px)";
+            return <section className={"axi-universe-cube-face cube-" + face.id} key={face.id} style={{transform}}>
+              <strong>{face.title}</strong>
+              <div className="axi-cube-face-modules">
+                {face.items.map(module => {
+                  const Icon = module.icon;
+                  return <button type="button" key={module.id} onClick={() => onOpenModule(module.id)} title={module.title}>
+                    <Icon size={17}/><span>{module.title}</span><b>{count(module.quantity)}</b>
+                  </button>;
+                })}
+                {!face.items.length && <small>No approved workspace in this area</small>}
+              </div>
+            </section>;
+          })}
+        </div>
       </div>
       <div className="axi-universe-stage-controls">
         <button type="button" title="Rotate left" onClick={() => turn(-1)}><RotateCcw size={14}/></button>
         <button type="button" title="Rotate right" onClick={() => turn(1)}><RotateCw size={14}/></button>
-        <button type="button" title="Toggle expanded sphere" onClick={() => setExpanded(value => !value)}><Maximize2 size={14}/></button>
+        <button type="button" title={expanded ? "Collapse orbital layout" : "Fan out orbital workspaces"} onClick={() => setExpanded(value => !value)}><Maximize2 size={14}/></button>
       </div>
-      <span className="axi-universe-drag-hint">DRAG · TOUCH · SELECT ORBITAL ICON</span>
+      <span className="axi-universe-drag-hint">{viewMode === "orbit" ? (expanded ? "FAN-OUT · DRAG · TOUCH · SELECT ICON" : "DRAG · TOUCH · SELECT ORBITAL ICON") : "DRAG TO ROTATE THE SIX-SIDED WORKSPACE CUBE"}</span>
     </div>
 
     <div className="axi-universe-footer">
