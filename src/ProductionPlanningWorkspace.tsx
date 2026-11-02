@@ -641,6 +641,20 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
             <label>Activity status<select value={draft.status} onChange={event => setDraft(current => ({ ...current, status: event.target.value as LifecycleStatus }))}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
             <label className="pp-modal-wide">Remarks<input value={draft.notes} onChange={event => setDraft(current => ({ ...current, notes: event.target.value }))} placeholder="Pickup location, delivery location, vehicle or other instructions"/></label>
           </> : <>
+          {isDirectTransport ? <>
+            <div className="pp-modal-wide route-transport-direct-note"><small>DIRECT TRANSPORT / DISPATCH</small><strong>Logistics activity · no Process Directory entry</strong><span>Saved directly to the selected PO component line and included in Production and Costing & Payments transport totals.</span></div>
+            <SearchablePicker id="pp-direct-transport-vendor" label="Transport / dispatch vendor (optional)" value={draft.transportVendorId} placeholder="Select transporter…" options={vendors.map(vendor => ({ id: vendor.id, label: vendor.company + " · " + (vendor.phone || "No phone") }))} onChange={id => setDraft(current => ({ ...current, transportVendorId: id }))}/>
+            <label>Pickup date<input type="date" value={draft.transportPickup} onChange={event => setDraft(current => ({ ...current, transportPickup: event.target.value }))}/></label>
+            <label>Delivery date<input type="date" min={draft.transportPickup || undefined} value={draft.transportDelivery} onChange={event => setDraft(current => ({ ...current, transportDelivery: event.target.value }))}/></label>
+            <label>Transport cost (₹)<input type="number" min="0" step="0.01" value={draft.transportCost} onChange={event => setDraft(current => ({ ...current, transportCost: event.target.value }))}/></label>
+            <label>Quantity (pcs)<input type="number" min="1" step="1" value={draft.quantity} onChange={event => setDraft(current => ({ ...current, quantity: event.target.value }))}/></label>
+            <label>Given / start date<input type="date" value={draft.plannedStart} onChange={event => setDraft(current => ({ ...current, plannedStart: event.target.value }))}/></label>
+            <label>Due date<input type="date" min={draft.plannedStart || undefined} value={draft.plannedEnd} onChange={event => setDraft(current => ({ ...current, plannedEnd: event.target.value }))}/></label>
+            <label>Start time<input type="time" value={draft.plannedStartTime} onChange={event => setDraft(current => ({ ...current, plannedStartTime: event.target.value }))}/></label>
+            <label>Due time<input type="time" value={draft.plannedEndTime} onChange={event => setDraft(current => ({ ...current, plannedEndTime: event.target.value }))}/></label>
+            <label>Activity status<select value={draft.status} onChange={event => setDraft(current => ({ ...current, status: event.target.value as LifecycleStatus }))}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
+            <label className="pp-modal-wide">Remarks<input value={draft.notes} onChange={event => setDraft(current => ({ ...current, notes: event.target.value }))} placeholder="Pickup location, drop location, vehicle or instructions"/></label>
+          </> : <>
           <label>Process category *<select value={draft.categoryId} onChange={event=>{const nextId=event.target.value;setProcessQuery("");setDraft(current=>({...current,categoryId:nextId,category:processCategories.find(item=>item.id===nextId)?.name||"",processTypeIds:[],processAssignments:{},name:"",vendorId:""}));}}><option value="">Select category…</option>{processCategories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
           <div className="pp-process-multi-select pp-modal-wide"><div className="pp-process-multi-head"><strong>Process / subcategory *</strong><span>Select one or more processes from the chosen category.</span><div><button type="button" onClick={()=>setDraft(current=>{
                 const ids=processTypes.filter(type=>type.categoryId===current.categoryId).map(type=>type.id);
@@ -700,6 +714,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
             <label>Vendor payment<select value={draft.vendorPaymentStatus} onChange={event=>setDraft(current=>({...current,vendorPaymentStatus:event.target.value as "Paid"|"Not Paid"}))}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select></label>
             <label>Process status<select value={draft.status} onChange={event => setDraft(current => ({ ...current, status: event.target.value as LifecycleStatus }))}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
             <label className="pp-modal-wide">Remarks<input value={draft.notes} onChange={event => setDraft(current => ({ ...current, notes: event.target.value }))} placeholder="Optional process remarks"/></label>
+          </>}
           </>}
           </>}
           <label>Route<select value={draft.branch} onChange={event => setDraft(current => ({ ...current, branch: event.target.value, parentId: "" }))}><option>Main route</option><option>Alternate / rework</option></select></label>
