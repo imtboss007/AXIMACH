@@ -1,5 +1,5 @@
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
-import { motion, useMotionValue, useReducedMotion } from "motion/react";
+import { motion, useAnimationFrame, useMotionValue, useReducedMotion } from "motion/react";
 import { Activity, Boxes, Factory, ShieldCheck, Workflow } from "lucide-react";
 
 type Props = { onSelectModule: (id: string) => void };
@@ -17,6 +17,11 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const rotateY = useMotionValue(22);
   const reducedMotion = useReducedMotion();
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
+
+  // The globe keeps rotating gently at rest; direct pointer/touch rotation takes precedence.
+  useAnimationFrame((_time, delta) => {
+    if (!drag.current && !reducedMotion) rotateY.set(rotateY.get() + delta * 0.0065);
+  });
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     drag.current = { x: event.clientX, y: event.clientY, rx: rotateX.get(), ry: rotateY.get() };
