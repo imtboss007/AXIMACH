@@ -22,8 +22,12 @@ export type ComponentRecord = {
 };
 export type PurchaseOrderLine = {
   id: string; componentId: string; quantity: number; targetDelivery: string; unitPrice: number; notes: string;
-  /** PO-line job closure is separate from the status of each routed operation. */
-  jobStatus?: "In progress" | "Finished"; jobFinishedAt?: string; updatedAt?: string; deletedAt?: string;
+  /** Manual PO-line job closure is separate from the status of each routed operation. */
+  jobStatus?: "In progress" | "Finished"; jobFinishedAt?: string;
+  /** Cost snapshot captured when the user presses Finish Job in Process Map. */
+  jobFinishedProcessCost?: number; jobFinishedActualProcessCost?: number;
+  jobFinishedMissingActualRates?: number; jobFinishedOperationCount?: number;
+  updatedAt?: string; deletedAt?: string;
   materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number;
   overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number;
 };
@@ -92,6 +96,19 @@ export type ComponentPlannedCostRecord = {
   toolingCostPerPart: number; qualityCostPerPart: number; reworkScrapCostPerPart: number;
   packagingCostPerPart: number; otherCostPerPart: number; targetSellingPricePerPart: number;
   status: "Draft" | "Approved"; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+/** A costing-only plan entered by component/PO number, with no foreign keys to operational masters. */
+export type StandalonePlannedProcess = {
+  id: string; category: string; processName: string;
+  quantityPerPart: number; ratePerUnit: number; transportPerPart: number; notes: string;
+};
+export type StandaloneCostPlanRecord = {
+  id: string; componentNumber: string; poNumber: string; poQuantity: number;
+  materialCostPerPart: number; directLabourCostPerPart: number; overheadCostPerPart: number;
+  toolingCostPerPart: number; qualityCostPerPart: number; reworkScrapCostPerPart: number;
+  packagingCostPerPart: number; otherCostPerPart: number; targetSellingPricePerPart: number;
+  processRows: StandalonePlannedProcess[]; status: "Draft" | "Approved"; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type InspectionMeasurementResult = "Not measured" | "Pass" | "Fail";
 export type InspectionMeasurementRecord = {
@@ -171,7 +188,7 @@ export type ManufacturingData = {
   updatedAt: string;
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
-  quotations: QuotationRecord[]; processCategories: ProcessCategoryRecord[]; processTypes: ProcessTypeRecord[]; processVendorRates: ProcessVendorRateRecord[]; componentProcessCosts: ComponentProcessCostRecord[]; componentPlannedCosts: ComponentPlannedCostRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
+  quotations: QuotationRecord[]; processCategories: ProcessCategoryRecord[]; processTypes: ProcessTypeRecord[]; processVendorRates: ProcessVendorRateRecord[]; componentProcessCosts: ComponentProcessCostRecord[]; componentPlannedCosts: ComponentPlannedCostRecord[]; standaloneCostPlans: StandaloneCostPlanRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
   qualityInspections: QualityInspectionRecord[];
   inventoryTransactions: InventoryTransactionRecord[]; wipTransfers: WipTransferRecord[]; customerDispatches: CustomerDispatchRecord[];
   machineResources: MachineResourceRecord[]; maintenanceEvents: MaintenanceEventRecord[];
@@ -188,7 +205,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], processCategories: [], processTypes: [], processVendorRates: [], componentProcessCosts: [], componentPlannedCosts: [], materials: [], bomLines: [], qualityInspections: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: [], machineResources: [], maintenanceEvents: [], contact360Groups: [], contact360Contacts: [], contact360FollowUps: []
+  operations: [], quotations: [], processCategories: [], processTypes: [], processVendorRates: [], componentProcessCosts: [], componentPlannedCosts: [], standaloneCostPlans: [], materials: [], bomLines: [], qualityInspections: [], inventoryTransactions: [], wipTransfers: [], customerDispatches: [], machineResources: [], maintenanceEvents: [], contact360Groups: [], contact360Contacts: [], contact360FollowUps: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -207,6 +224,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     processVendorRates: Array.isArray(value?.processVendorRates) ? value.processVendorRates : empty.processVendorRates,
     componentProcessCosts: Array.isArray(value?.componentProcessCosts) ? value.componentProcessCosts : empty.componentProcessCosts,
     componentPlannedCosts: Array.isArray(value?.componentPlannedCosts) ? value.componentPlannedCosts : empty.componentPlannedCosts,
+    standaloneCostPlans: Array.isArray(value?.standaloneCostPlans) ? value.standaloneCostPlans : empty.standaloneCostPlans,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
     qualityInspections: Array.isArray(value?.qualityInspections) ? value.qualityInspections : empty.qualityInspections,
@@ -341,6 +359,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     processVendorRates: mergeRows(local.processVendorRates, remote.processVendorRates),
     componentProcessCosts: mergeRows(local.componentProcessCosts, remote.componentProcessCosts),
     componentPlannedCosts: mergeRows(local.componentPlannedCosts, remote.componentPlannedCosts),
+    standaloneCostPlans: mergeRows(local.standaloneCostPlans, remote.standaloneCostPlans),
     materials: mergeRows(local.materials, remote.materials),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
     qualityInspections: mergeRows(local.qualityInspections, remote.qualityInspections),
