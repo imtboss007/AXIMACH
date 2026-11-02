@@ -117,9 +117,11 @@ async function connect() {
       for (const c of chats) if (c.id && !c.id.endsWith("@g.us")) upsertContact({ id: c.id, name: c.name, notify: c.name });
       const mappingRows = Array.isArray(lidPnMappings)
         ? lidPnMappings
-        : lidPnMappings && typeof lidPnMappings === "object"
-          ? Object.entries(lidPnMappings).map(([lid, pn]) => ({ lid, pn }))
-          : [];
+        : lidPnMappings instanceof Map
+          ? Array.from(lidPnMappings, ([lid, pn]) => ({ lid, pn }))
+          : lidPnMappings && typeof lidPnMappings === "object"
+            ? Object.entries(lidPnMappings).map(([lid, pn]) => ({ lid, pn }))
+            : [];
       for (const mapping of mappingRows) {
         const lid = String(mapping?.lid || "");
         const phone = mapping?.pn || mapping?.phoneNumber || mapping?.phone || "";
