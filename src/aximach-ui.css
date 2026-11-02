@@ -994,3 +994,20 @@
 .ax-orb-mode-cube .ax-orb-latitude,.ax-orb-mode-cube .ax-orb-longitude{border-radius:8px}
 @media(max-width:600px){.ax-orb-studio-panel{grid-template-columns:1fr;width:calc(100% - 20px)}.ax-orb-studio-panel .ax-orb-motion-setting{grid-column:auto}.ax-orb-status-bottom{white-space:normal;text-align:center;max-width:95%;line-height:1.5}}
 @media(prefers-reduced-motion:reduce){.ax-orb-studio-panel,.ax-orb-studio-toggle,.ax-orb-pause{transition:none!important}}
+
+
+/* Data-linked process map visual modes */
+.process-universe-layouts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.process-universe-layouts button{min-height:30px;padding:0 10px;border:1px solid rgba(100,155,205,.28);border-radius:8px;background:rgba(17,40,70,.72);color:#8eaaca;font:700 8px 'DM Mono',monospace}
+.process-universe-layouts button:hover,.process-universe-layouts button.active{border-color:rgba(94,205,232,.7);color:#e3f7ff;background:rgba(37,111,151,.24)}
+.process-universe-3d.mode-route .process-orbit-panel{display:none}
+.process-universe-3d.mode-sphere .process-universe-viewport,.process-universe-3d.mode-vortex .process-universe-viewport,.process-universe-3d.mode-cube .process-universe-viewport,.process-universe-3d.mode-molecular .process-universe-viewport{display:none}
+.process-universe-3d.mode-vortex .process-orbit-core{border-radius:44% 56% 62% 38%/42% 54% 46% 58%;filter:hue-rotate(48deg) saturate(1.25)}
+.process-universe-3d.mode-vortex .process-orbit-ring{border-style:dashed;filter:hue-rotate(40deg)}
+.process-universe-3d.mode-vortex .process-orbit-rotator{filter:drop-shadow(0 0 18px rgba(161,105,239,.25))}
+.process-universe-3d.mode-cube .process-orbit-core{border-radius:22%;transform:rotateX(10deg) rotateY(12deg);box-shadow:inset 12px 8px 26px rgba(255,255,255,.24),0 0 34px rgba(78,161,237,.28)}
+.process-universe-3d.mode-cube .process-orbit-ring{border-radius:18%;transform:rotateX(68deg) rotateZ(45deg);border-color:rgba(105,198,238,.5)}
+.process-universe-3d.mode-molecular .process-orbit-core{background:radial-gradient(circle at 20% 25%,#9cecff 0 3px,transparent 4px),radial-gradient(circle at 76% 24%,#a8cfff 0 4px,transparent 5px),radial-gradient(circle at 74% 76%,#a5e7ff 0 3px,transparent 4px),radial-gradient(circle at 24% 75%,#9bcaff 0 4px,transparent 5px),radial-gradient(circle at 50% 50%,#3b82ca,#0b2855 75%);box-shadow:inset 0 0 25px rgba(119,214,255,.35),0 0 34px rgba(78,161,237,.28)}
+.process-universe-3d.mode-molecular .process-orbit-node{border-radius:50% 50% 13px 13px}
+.process-universe-3d.mode-molecular .process-orbit-node-top{opacity:.85}
+@media(max-width:600px){.process-universe-layouts{gap:4px}.process-universe-layouts button{padding:0 7px;font-size:7px}}
