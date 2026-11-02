@@ -26,6 +26,7 @@ import DataExchangeWorkspace from "./DataExchangeWorkspace";
 import Contact360Workspace from "./Contact360Workspace";
 import ComponentCostPlannerWorkspace from "./ComponentCostPlannerWorkspace";
 import DashboardFlow3D from "./DashboardFlow3D";
+import AXIMACHOrb from "./AXIMACHOrb";
 
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, vendorProcessTypeIds, type VendorRecord } from "./manufacturingData";
 
@@ -426,6 +427,17 @@ function DashboardWorkspace(props: {
             <div><span>OPEN PURCHASE ORDERS</span><strong>{liveOrders.length.toLocaleString("en-IN")}</strong></div>
             <div><span>PRODUCTION OPERATIONS</span><strong>{liveOperations.length.toLocaleString("en-IN")}</strong></div>
             <small>Counts from saved records · no sample data</small>
+          </div>
+        </div>
+        <AXIMACHOrb onSelectModule={onSelectModule} />
+      </section>
+
+      <section className="surface-panel axi-dashboard-flow-below">
+        <div className="panel-heading">
+          <div>
+            <div className="eyebrow"><span className="eyebrow-mark" /> ROUTE INTELLIGENCE / SAVED OPERATIONS</div>
+            <h3>Interactive production route</h3>
+            <p>The existing route explorer remains linked to saved purchase orders, component lines and operations. Filters, stage selection, playback and camera controls are retained.</p>
           </div>
         </div>
         <DashboardFlow3D operations={liveOperations} components={liveComponents} orders={activeOrders} companies={liveCompanies} onOpenOperation={onOpenOperation} />
