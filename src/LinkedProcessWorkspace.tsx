@@ -437,7 +437,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <label><input type="checkbox" checked={exportIncludeArrows} onChange={event=>setExportIncludeArrows(event.target.checked)}/> Connection arrows</label>
             <label>Export scope<select value={exportScope} onChange={event=>setExportScope(event.target.value as "visible" | "selected-branch")}><option value="visible">Full visible map</option><option value="selected-branch" disabled={!activeOperation}>Selected branch</option></select></label>
           </div>
-          <small>Vendor, price and process description are optional. Scope and arrows apply to visual exports and CSV.</small>
+          <small>Vendor, price and process description are optional. Scope applies to CSV and visual exports; arrows apply to SVG and PNG.</small>
         </div>
         <div className="pm-export-actions">
           <button type="button" className="button-primary compact-button" onClick={downloadProcessRoute} disabled={!exportOperations.length || !selectedExportColumns.length}><Download size={14}/> CSV</button>
