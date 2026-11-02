@@ -11,8 +11,9 @@ Give AXIMACH a coherent sphere-centred manufacturing control-room interface whil
 - Uiverse — https://uiverse.io/
 - ForgeUI — https://forgeui.in/docs/introduction
 - Uilora — https://www.uilora.com/
+- Lora Design System (`lora-ds`) — https://www.npmjs.com/package/lora-ds
 
-These sources are not one shared component framework. Their component/runtime assumptions differ. AXIMACH therefore adopts compatible interaction and composition patterns in its own source rather than importing multiple competing design systems wholesale.
+“UI Lora” can refer to two different sources: Uilora is a copy-source web/mobile component library, while `lora-ds` is a React design system built around React Aria. They are separate projects. These sources are not one shared component framework. AXIMACH therefore adopts compatible interaction and composition patterns in its own source rather than importing multiple competing design systems wholesale.
 
 ## AXIMACH implementation
 
@@ -30,10 +31,11 @@ These sources are not one shared component framework. Their component/runtime as
 | Uiverse | Tactile button depth, layered hover states, focus rings and pressed feedback |
 | ForgeUI | Structured control-room panels, grouped actions, consistent card hierarchy and responsive work areas |
 | Uilora | Spatial surfaces, subtle depth, interaction feedback and responsive presentation polish |
+| Lora DS (`lora-ds`) | Accessible interaction principles: semantic controls, keyboard focus, dialog semantics, clear labels and visible focus states; adapted to existing native controls rather than adding a second component runtime |
 
 ## Compatibility and preservation
 
-- No Tailwind, Next.js, Radix or additional UI runtime was added solely to consume copy-paste examples.
+- No Tailwind, Next.js, Radix, React Aria or additional UI runtime was added solely to consume copy-paste examples. The Lora DS accessibility patterns are adapted to AXIMACH's native React controls; the `lora-ds` package itself is not installed.
 - No upstream component source bundle was copied wholesale. The implementation is AXIMACH-owned React/CSS adapted to the present application.
 - Existing module IDs and data routes are unchanged by the sphere. It is a navigation/presentation layer, not a second source of manufacturing records.
 - Sphere presentation preferences are stored separately under `aximach.orb.preferences.v1`; they do not mutate production, costing, inventory, quality or dispatch records.
