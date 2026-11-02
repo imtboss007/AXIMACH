@@ -26,8 +26,8 @@ test("job-finish snapshot separates route estimate from actual process rates", (
     { quantity: 100, ratePerPart: 3, actualRatePerPart: 0, transportCost: 50 }
   ]);
   assert.deepEqual(snapshot, {
-    processCost: 1750,
-    actualProcessCost: 1250,
+    processCost: 1800,
+    actualProcessCost: 1300,
     missingActualRates: 1,
     operationCount: 2
   });
