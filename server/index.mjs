@@ -21,8 +21,11 @@ async function saveDb() {
   await writeFile(temp, JSON.stringify(db, null, 2), { mode: 0o600 });
   await rename(temp, DB_PATH);
 }
-const allowedOrigins = new Set(String(process.env.AXIMACH_ALLOWED_ORIGINS || process.env.AXIMACH_ALLOWED_ORIGIN || "http://localhost:5173")
-  .split(",").map(origin => origin.trim()).filter(Boolean));
+const allowedOrigins = new Set([
+  "http://localhost:5173", "http://localhost", "https://localhost", "capacitor://localhost",
+  ...String(process.env.AXIMACH_ALLOWED_ORIGINS || process.env.AXIMACH_ALLOWED_ORIGIN || "")
+    .split(",").map(origin => origin.trim()).filter(Boolean)
+]);
 function applyCors(req, res) {
   const origin = String(req.headers.origin || "");
   res.setHeader("vary", "Origin");
@@ -73,11 +76,41 @@ function mergeModuleRecords(existing, incoming) {
   }
   return merged;
 }
+function mergePurchaseOrders(existingRows, incomingRows) {
+  const left = new Map((Array.isArray(existingRows) ? existingRows : []).filter(row => row?.id).map(row => [row.id, row]));
+  const right = new Map((Array.isArray(incomingRows) ? incomingRows : []).filter(row => row?.id).map(row => [row.id, row]));
+  const merged = [];
+  for (const id of new Set([...left.keys(), ...right.keys()])) {
+    const old = left.get(id);
+    const incoming = right.get(id);
+    if (!old) { merged.push(incoming); continue; }
+    if (!incoming) { merged.push(old); continue; }
+    const oldTime = Date.parse(old.updatedAt || "") || 0;
+    const incomingTime = Date.parse(incoming.updatedAt || "") || 0;
+    const preferred = incomingTime >= oldTime ? incoming : old;
+    const lines = new Map();
+    for (const [po, parentTime] of [[old, oldTime], [incoming, incomingTime]]) {
+      for (const line of Array.isArray(po.lines) ? po.lines : []) {
+        if (!line?.id) continue;
+        const time = Date.parse(line.updatedAt || "") || parentTime;
+        const prior = lines.get(line.id);
+        if (!prior || time >= prior.time) lines.set(line.id, { line, time });
+      }
+    }
+    merged.push({ ...preferred, lines: [...lines.values()].map(item => item.line) });
+  }
+  return merged;
+}
+
 function mergeManufacturingData(existing, incoming) {
   const left = existing && typeof existing === "object" ? existing : {};
   const right = incoming && typeof incoming === "object" ? incoming : {};
   const merged = {};
   for (const collection of manufacturingCollections) {
+    if (collection === "purchaseOrders") {
+      merged[collection] = mergePurchaseOrders(left[collection], right[collection]);
+      continue;
+    }
     const rows = new Map();
     for (const row of Array.isArray(left[collection]) ? left[collection] : []) if (row?.id) rows.set(row.id, row);
     for (const row of Array.isArray(right[collection]) ? right[collection] : []) {

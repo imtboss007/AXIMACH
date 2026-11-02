@@ -25,8 +25,11 @@ async function save() {
   await writeFile(tmp, JSON.stringify({ ...state, qr: null, connected: false }, null, 2), { mode: 0o600 });
   await rename(tmp, DATA);
 }
-const allowedOrigins = new Set(String(process.env.AXIMACH_ALLOWED_ORIGINS || process.env.AXIMACH_ALLOWED_ORIGIN || "http://localhost:5173")
-  .split(",").map(origin => origin.trim()).filter(Boolean));
+const allowedOrigins = new Set([
+  "http://localhost:5173", "http://localhost", "https://localhost", "capacitor://localhost",
+  ...String(process.env.AXIMACH_ALLOWED_ORIGINS || process.env.AXIMACH_ALLOWED_ORIGIN || "")
+    .split(",").map(origin => origin.trim()).filter(Boolean)
+]);
 function applyCors(req, res) {
   const origin = String(req.headers.origin || "");
   res.setHeader("vary", "Origin");
@@ -53,8 +56,8 @@ function phoneNumber(value) {
 }
 function contactPhone(c) {
   const candidates = [
-    c.phoneNumber, c.phone, c.number, c.pn, c.senderPn, c.participantPn,
-    c.remoteJidAlt, c.participantAlt, c.jid, c.id
+    c.phoneNumber, c.phone_number, c.phone, c.number, c.pn, c.senderPn, c.participantPn,
+    c.remoteJidAlt, c.participantAlt, c.remoteJid, c.userJid, c.chatId, c.jid, c.id
   ];
   for (const candidate of candidates) {
     const number = phoneNumber(candidate);
@@ -63,7 +66,7 @@ function contactPhone(c) {
   return "";
 }
 function upsertContact(c) {
-  const rawId = String(c.id || c.jid || c.lid || c.phoneNumber || c.pn || "").trim();
+  const rawId = String(c.id || c.jid || c.lid || c.phoneNumber || c.phone || c.number || c.pn || "").trim();
   const lid = String(c.lid || (rawId.endsWith("@lid") ? rawId : "")).trim();
   const id = rawId || lid;
   if (!id || id.endsWith("@g.us") || id === "status@broadcast") return;
@@ -112,10 +115,17 @@ async function connect() {
     socket.ev.on("messaging-history.set", ({ contacts = [], chats = [], lidPnMappings = [] }) => {
       for (const c of contacts) upsertContact(c);
       for (const c of chats) if (c.id && !c.id.endsWith("@g.us")) upsertContact({ id: c.id, name: c.name, notify: c.name });
-      for (const mapping of lidPnMappings) {
-        const lid = String(mapping.lid || "");
-        const phone = mapping.pn || mapping.phoneNumber || "";
-        if (lid.endsWith("@lid") && phone) upsertContact({ id: lid, lid, phoneNumber: phone });
+      const mappingRows = Array.isArray(lidPnMappings)
+        ? lidPnMappings
+        : lidPnMappings instanceof Map
+          ? Array.from(lidPnMappings, ([lid, pn]) => ({ lid, pn }))
+          : lidPnMappings && typeof lidPnMappings === "object"
+            ? Object.entries(lidPnMappings).map(([lid, pn]) => ({ lid, pn }))
+            : [];
+      for (const mapping of mappingRows) {
+        const lid = String(mapping?.lid || "");
+        const phone = mapping?.pn || mapping?.phoneNumber || mapping?.phone || "";
+        if (lid.endsWith("@lid") && phone) upsertContact({ id: lid, lid, phoneNumber: phone, remoteJidAlt: phone });
       }
       save().catch(console.error);
     });

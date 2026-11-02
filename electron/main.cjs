@@ -72,7 +72,7 @@ function injectLocalServerSettings(window) {
   const settings = {
     "aximach.scheduler.url": "http://127.0.0.1:8787",
     "aximach.scheduler.key": sharedApiKey,
-    "aximach.whatsapp.url": "http://127.0.0.1:8788",
+    "aximach.whatsapp.url": "http://127.0.0.1:8789",
   };
   const bootstrap = "(() => { try { const values = " + JSON.stringify(settings)
     + "; for (const [key, value] of Object.entries(values)) localStorage.setItem(key, value); } catch (_) {} })();";
