@@ -72,7 +72,7 @@ export type InventoryTransactionRecord = {
 };
 export type InvoiceRecord = {
   id: string; direction: "Payable" | "Receivable"; number: string;
-  counterpartyType: "vendor" | "company"; counterpartyId: string; poId: string;
+  counterpartyType: "vendor" | "company" | "other"; counterpartyId: string; counterpartyName: string; poId: string;
   invoiceDate: string; dueDate: string; subtotalAmount: number; taxAmount: number; totalAmount: number;
   status: "Draft" | "Approved" | "Disputed" | "Void"; notes: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
