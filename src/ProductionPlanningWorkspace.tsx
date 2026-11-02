@@ -579,7 +579,7 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
             <label className="pp-search"><Search size={14}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search process, vendor…"/></label>
             <button type="button" className="button-quiet compact-button" disabled={!searchedRows.length} onClick={() => setSelectedOperationIds(searchedRows.map(operation => operation.id))}>Select filtered</button>
             <button type="button" className="pp-add-process" disabled={!searchedRows.some(operation => selectedOperationIds.includes(operation.id))} onClick={() => finishOperations(selectedOperationIds)}><CheckCircle2 size={14}/> Finish selected ({searchedRows.filter(operation => selectedOperationIds.includes(operation.id)).length})</button>
-            <button className="pp-add-process" onClick={openAdd}><Plus size={14}/> Add Process</button>
+            <button className="pp-add-process" onClick={() => openAdd()}><Plus size={14}/> Add Process</button>
           </div>
         </div>
         <div className="pp-table-scroll"><table>
