@@ -159,7 +159,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if (!operation) return;
     setProcessTypeId(operation.processTypeId || "");
     setProcessCategoryId(processTypes.find(item=>item.id===operation.processTypeId)?.categoryId || "");
-    setIsDirectTransport(/transport|dispatch|freight|courier|handover|logistics/i.test(operation.name + " " + operation.category));
+    setIsDirectTransport(/transport|dispatch|freight|courier|handover/i.test(operation.name + " " + operation.category));
     setDraft({
       name: operation.name, category: operation.category, machine: operation.machine, machineResourceId: operation.machineResourceId || "", vendorId: operation.vendorId,
       status: operation.status, plannedStart: operation.plannedStart, plannedEnd: operation.plannedEnd, plannedStartTime: operation.plannedSlotStartAt?new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5):"", plannedEndTime: operation.plannedSlotEndAt?new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5):"", actualStart: operation.actualStart || "", actualEnd: operation.actualEnd || "",
@@ -177,7 +177,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if (processTypeId && !processTypes.some(item => item.id === processTypeId)) { onNotice("The selected process type is no longer active in Process Directory."); return; }
     const oldOperation = operations.find(op => op.id === editingId);
     const effectiveProcessTypeId = processTypeId || oldOperation?.processTypeId || "";
-    if (draft.vendorId) {
+    if (draft.vendorId && !directTransport) {
       const assignedVendor = vendors.find(vendor => vendor.id === draft.vendorId);
       if (!assignedVendor) { onNotice("Select an active Vendor Master record."); return; }
       const retainingHistoricalAssignment = oldOperation?.vendorId === draft.vendorId && (oldOperation.processTypeId || "") === (processTypeId || "");
@@ -197,7 +197,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       const next: OperationRecord = {
         id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
-        ...operationDraft, processTypeId: processTypeId || old?.processTypeId, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
+        ...operationDraft, processTypeId: processTypeId || old?.processTypeId, vendorId: directTransport ? "" : (draft.vendorId || ""), actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         plannedStartTime: plannedStartTime || "", plannedEndTime: plannedEndTime || "",
         plannedSlotStartAt: old && old.machineResourceId === draft.machineResourceId && old.plannedStart === draft.plannedStart && old.plannedEnd === draft.plannedEnd ? old.plannedSlotStartAt : undefined,
         plannedSlotEndAt: old && old.machineResourceId === draft.machineResourceId && old.plannedStart === draft.plannedStart && old.plannedEnd === draft.plannedEnd ? old.plannedSlotEndAt : undefined,
