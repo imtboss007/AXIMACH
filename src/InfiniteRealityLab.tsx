@@ -75,6 +75,12 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
   const output = useMemo(() => calculateOutput(scenario), [scenario]);
   const upside = useMemo(() => calculateOutput({ ...scenario, rate: scenario.rate * 1.1, availability: Math.min(100, scenario.availability + 5) }), [scenario]);
   const stress = useMemo(() => calculateOutput({ ...scenario, availability: Math.max(0, scenario.availability - 15), downtime: scenario.downtime + 1, scrap: Math.min(100, scenario.scrap + 3) }), [scenario]);
+  const scenarioCases = [
+    { label: "Baseline", value: output.goodPartsPerShift },
+    { label: "Upside", value: upside.goodPartsPerShift },
+    { label: "Stress", value: stress.goodPartsPerShift }
+  ];
+  const scenarioScale = Math.max(1, ...scenarioCases.map(item => item.value));
 
   useEffect(() => {
     const host = hostRef.current;
@@ -397,6 +403,11 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
             <div><small>SHIFTS FOR ORDER</small><b>{Number.isFinite(output.shiftsForOrder) ? output.shiftsForOrder.toFixed(1) : "—"}</b></div>
           </div>
           <div className="irl-scenario-compare"><span>Upside case <b>{Math.round(upside.goodPartsPerShift).toLocaleString("en-IN")} / shift</b></span><span>Stress case <b>{Math.round(stress.goodPartsPerShift).toLocaleString("en-IN")} / shift</b></span></div>
+          <div className="irl-scenario-chart" aria-label="Scenario production comparison">
+            {scenarioCases.map(item => <div className="irl-scenario-bar-row" key={item.label}>
+              <span>{item.label}</span><div><i style={{ width: (item.value / scenarioScale * 100) + "%" }}/></div><b>{Math.round(item.value).toLocaleString("en-IN")}</b>
+            </div>)}
+          </div>
           <small className="irl-assumption-note">Assumption: one shift per operating day. Validate cycle rates and availability against actual machine records before making commitments.</small>
         </section>
         <MachineTwinPanel />
