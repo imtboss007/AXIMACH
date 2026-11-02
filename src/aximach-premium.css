@@ -2334,3 +2334,84 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
   .job-finished-cost-card{grid-template-columns:1fr}
   .job-finished-cost-card>div:first-child{grid-column:auto}
 }
+
+
+/* AXIMACH Process Map — selectable 3D geometry studio */
+.pm3d-mode-control{position:relative;z-index:30;border-right:1px solid rgba(94,157,186,.16)}
+.pm3d-mode-control .pm3d-control-label{color:#73dce9}
+.pm3d-mode-arrow{display:grid!important;place-items:center;width:29px;min-width:29px;padding:4px!important;border-color:rgba(85,198,220,.3)!important;color:#8ee8f2!important;background:rgba(14,65,87,.66)!important}
+.pm3d-mode-arrow:hover{border-color:#6ce6ef!important;background:rgba(23,117,143,.72)!important;transform:translateY(-1px)}
+.pm3d-mode-current{display:flex!important;align-items:center;gap:7px;min-width:108px;padding:5px 9px!important;border-color:rgba(76,209,228,.42)!important;background:linear-gradient(135deg,rgba(17,104,133,.48),rgba(12,48,74,.86))!important;color:#e6fbff!important}
+.pm3d-mode-current strong{color:#e7fbff;font:700 8px 'DM Mono';letter-spacing:.75px}
+.pm3d-mode-current>svg{margin-left:auto;color:#73dce9}
+.pm3d-mode-glyph{position:relative;display:inline-block;flex:0 0 23px;width:23px;height:23px;border:1px solid rgba(108,225,237,.55);border-radius:6px;background:linear-gradient(145deg,rgba(32,140,165,.3),rgba(8,38,61,.64));box-shadow:inset 0 0 9px rgba(74,203,221,.08)}
+.pm3d-mode-glyph:before,.pm3d-mode-glyph:after{content:"";position:absolute;pointer-events:none}
+.pm3d-mode-glyph-sphere:before{left:4px;top:3px;width:13px;height:13px;border:1.5px solid #7be5ee;border-radius:50%;box-shadow:inset 3px 0 0 rgba(87,198,221,.12),0 0 7px rgba(84,219,235,.2)}
+.pm3d-mode-glyph-sphere:after{left:3px;top:8px;width:15px;height:5px;border-top:1px solid rgba(121,230,238,.7);border-radius:50%;transform:rotate(-25deg)}
+.pm3d-mode-glyph-cube:before{left:5px;top:5px;width:11px;height:11px;border:1.4px solid #7be5ee;transform:rotate(30deg) skew(-5deg,-5deg);box-shadow:3px 2px 0 -1px rgba(87,188,222,.28)}
+.pm3d-mode-glyph-pyramid:before{left:3px;top:3px;width:15px;height:15px;background:linear-gradient(145deg,rgba(123,231,241,.9),rgba(56,146,200,.22));clip-path:polygon(50% 0,100% 100%,0 100%)}
+.pm3d-mode-glyph-pyramid:after{left:3px;top:3px;width:15px;height:15px;background:transparent;clip-path:polygon(50% 0,100% 100%,0 100%);border:1px solid #83eaf1}
+.pm3d-mode-glyph-helix:before{left:5px;top:3px;width:11px;height:16px;border-left:1.5px solid #7be5ee;border-right:1.5px solid #7be5ee;border-radius:50%;transform:rotate(25deg)}
+.pm3d-mode-glyph-helix:after{left:4px;top:10px;width:14px;border-top:1px solid #7be5ee;transform:rotate(30deg);box-shadow:0 4px 0 rgba(123,229,238,.55),0 -4px 0 rgba(123,229,238,.55)}
+.pm3d-mode-glyph-orbit:before{left:3px;top:6px;width:15px;height:9px;border:1.4px solid #7be5ee;border-radius:50%;transform:rotate(-32deg)}
+.pm3d-mode-glyph-orbit:after{left:9px;top:9px;width:4px;height:4px;border-radius:50%;background:#8df4f0;box-shadow:0 0 7px #5bdde9}
+.pm3d-mode-glyph-vortex:before{left:3px;top:3px;width:15px;height:15px;border:1.5px solid #7be5ee;border-right-color:transparent;border-radius:50%;transform:rotate(-25deg)}
+.pm3d-mode-glyph-vortex:after{left:9px;top:9px;width:5px;height:5px;border:1px solid #8df4f0;border-radius:50%;box-shadow:0 0 7px rgba(93,221,235,.42)}
+.pm3d-auto-rotate{border-color:rgba(91,205,220,.25)!important}
+.pm3d-auto-rotate.control-active{border-color:rgba(84,234,191,.6)!important;color:#8cf0cf!important;background:rgba(14,102,82,.27)!important;box-shadow:0 0 13px rgba(62,211,173,.1)}
+.pm3d-mode-menu{position:absolute;top:calc(100% + 10px);left:4px;z-index:80;width:300px;padding:10px;border:1px solid rgba(81,202,222,.4);border-radius:11px;background:linear-gradient(150deg,rgba(9,39,59,.98),rgba(4,18,32,.99));box-shadow:0 18px 45px rgba(0,0,0,.56),inset 0 1px 0 rgba(222,250,255,.08);backdrop-filter:blur(18px);animation:pm3d-menu-enter .2s ease-out both}
+.pm3d-mode-menu-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:1px 2px 9px;padding-bottom:8px;border-bottom:1px solid rgba(106,183,208,.16);color:#83e6ee;font:8px 'DM Mono';letter-spacing:.8px}
+.pm3d-mode-menu-title small{color:#6f91a5;font-size:6px}
+.pm3d-mode-options{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pm3d-mode-option{display:flex;align-items:center;gap:8px;min-width:0;min-height:50px;padding:7px;border:1px solid rgba(106,178,202,.15);border-radius:7px;background:rgba(13,47,69,.58);color:#dceef6;text-align:left;cursor:pointer;transition:transform .18s,border-color .18s,background .18s}
+.pm3d-mode-option:hover,.pm3d-mode-option.active{border-color:rgba(104,225,235,.57);background:rgba(24,98,122,.42);transform:translateY(-1px)}
+.pm3d-mode-option>span:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.pm3d-mode-option strong{color:#e4f7fb;font:600 9px 'Space Grotesk'}
+.pm3d-mode-option small{color:#87a9ba;font-size:7px;line-height:1.3}
+.pm3d-mode-option>i{width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:#77ebde;box-shadow:0 0 9px #50e4d3}
+.pm3d-scene-viewport{align-items:flex-start;justify-content:center;overflow:auto;min-height:490px;padding:18px 24px 42px;perspective:1350px;perspective-origin:50% 45%}
+.pm3d-scene{display:block;width:100%;min-width:900px;min-height:300px;padding:8px 10px 34px;transform-style:preserve-3d;transform-origin:center center;transition:transform .38s cubic-bezier(.2,.7,.2,1)}
+.pm3d-geometry-stage{position:relative;display:flex;flex-direction:column;gap:20px;width:100%;min-height:300px;transform-style:preserve-3d}
+.pm3d-floor-plate{top:4%;bottom:2%;left:2%;right:2%;width:96%;min-width:0;border-radius:50%;opacity:.72;transform:translateZ(-90px) rotateX(72deg) scale(1.08)}
+.pm3d-lane{position:relative;display:block;width:100%;height:460px;min-height:460px;transform-style:preserve-3d}
+.pm3d-lane-label{position:relative;z-index:12;display:flex;align-items:center;gap:10px;padding:5px 8px 0;color:#8cc4d2}
+.pm3d-geometry-backdrop{position:absolute;z-index:0;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;transform-style:preserve-3d;animation:pm3d-shape-reveal .72s cubic-bezier(.2,.75,.2,1) both}
+.pm3d-geometry-lines{fill:none;stroke-width:1.45;stroke-linecap:round;stroke-linejoin:round;opacity:.65}
+.pm3d-geometry-orbit-points{fill:#78f0eb;opacity:.75;filter:drop-shadow(0 0 8px rgba(86,227,235,.65))}
+.pm3d-geometry-connectors{position:absolute;z-index:2;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;transform-style:preserve-3d}
+.pm3d-geometry-link{fill:none;stroke:#5ad9e8;stroke-width:2.1;stroke-linecap:round;stroke-dasharray:8 10;opacity:.8;filter:drop-shadow(0 0 5px rgba(77,219,234,.55));animation:pm3d-route-flow 2.5s linear infinite}
+.pm3d-node-row{position:absolute;z-index:4;inset:0;display:block;width:100%;height:100%;min-width:0;transform-style:preserve-3d}
+.pm3d-node-wrap{position:absolute;display:block;width:194px;max-width:194px;transform-style:preserve-3d;backface-visibility:visible;transition:left .72s cubic-bezier(.2,.75,.25,1),top .72s cubic-bezier(.2,.75,.25,1),transform .72s cubic-bezier(.2,.75,.25,1);will-change:left,top,transform}
+.pm3d-node{width:194px;min-height:204px;padding:10px;gap:6px;transform-style:preserve-3d}
+.pm3d-node-wrap .pm3d-node:hover{transform:translateZ(24px) rotateX(2deg) rotateY(-2deg) translateY(-4px)!important}
+.pm3d-scene-caption{position:relative;left:auto;right:auto;bottom:auto;display:flex;justify-content:space-between;gap:8px;padding:0 8px 4px;color:#5d879b;font:7px 'DM Mono';letter-spacing:.65px}
+.pm3d-scene.pm3d-auto-rotating .pm3d-geometry-stage{animation:pm3d-full-rotation 24s linear infinite;transform-origin:50% 50%;transform-style:preserve-3d}
+.pm3d-scene.pm3d-auto-rotating .pm3d-geometry-backdrop{opacity:.94}
+.pm3d-mode-control .pm3d-control-label{flex:0 0 auto}
+@keyframes pm3d-shape-reveal{0%{opacity:0;transform:scale(.74) rotateY(-32deg);filter:blur(5px)}65%{opacity:.85}100%{opacity:1;transform:scale(1) rotateY(0);filter:blur(0)}}
+@keyframes pm3d-menu-enter{from{opacity:0;transform:translateY(-5px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes pm3d-route-flow{to{stroke-dashoffset:-72}}
+@keyframes pm3d-full-rotation{from{transform:rotateY(0deg)}to{transform:rotateY(360deg)}}
+@media(max-width:1060px){
+  .pm3d-mode-control{width:auto!important;border-bottom:1px solid rgba(94,157,186,.12)}
+  .pm3d-mode-menu{left:2px}
+  .pm3d-scene-viewport{justify-content:flex-start}
+  .pm3d-scene{min-width:820px}
+}
+@media(max-width:720px){
+  .pm3d-mode-control{width:100%!important;flex-wrap:wrap}
+  .pm3d-mode-menu{left:0;width:min(300px,calc(100vw - 80px))}
+  .pm3d-scene-viewport{min-height:400px;max-height:520px;padding:14px 10px 36px}
+  .pm3d-scene{min-width:760px;padding:5px 5px 28px}
+  .pm3d-lane{height:420px;min-height:420px}
+  .pm3d-node-wrap{width:170px;max-width:170px}
+  .pm3d-node{width:170px;min-height:188px;padding:8px;gap:5px}
+  .pm3d-node>strong{font-size:10px}
+}
+@media(max-width:440px){
+  .pm3d-mode-menu{width:calc(100vw - 54px)}
+  .pm3d-mode-options{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  .pm3d-mode-menu,.pm3d-geometry-backdrop,.pm3d-geometry-link,.pm3d-node-wrap,.pm3d-scene.pm3d-auto-rotating .pm3d-geometry-stage{animation:none!important;transition:none!important}
+}
