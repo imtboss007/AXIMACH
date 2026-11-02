@@ -45,7 +45,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     key: po.id + "::" + line.id, poId: po.id, poNumber: po.number, lineId: line.id, quantity: line.quantity, targetDelivery: line.targetDelivery || po.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId, jobStatus: line.jobStatus, jobFinishedAt: line.jobFinishedAt, jobFinishedProcessCost: line.jobFinishedProcessCost, jobFinishedActualProcessCost: line.jobFinishedActualProcessCost, jobFinishedMissingActualRates: line.jobFinishedMissingActualRates, jobFinishedOperationCount: line.jobFinishedOperationCount, materialQty: line.materialQty, materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost, reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
   }))), [orders, selectedComponent?.id]);
   const selectedLine = componentLines.find(line => line.key === lineKey) || componentLines[0];
-  const normaliseManualKey = (value: string) => value.trim().toUpperCase().replace(/\\s+/g, "");
+  const normaliseManualKey = (value: string) => value.trim().toUpperCase().replace(/\s+/g, "");
   const standalonePlanFor = (componentNumber: string, poNumber: string) =>
     standaloneCostPlans.find(plan => normaliseManualKey(plan.componentNumber) === normaliseManualKey(componentNumber) &&
       normaliseManualKey(plan.poNumber) === normaliseManualKey(poNumber));
