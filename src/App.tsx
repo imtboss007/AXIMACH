@@ -17,6 +17,22 @@ import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
 import InventoryWorkspace from "./InventoryWorkspace";
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
+function isAllowedAxMachServiceUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.replace(/^\[|\]$/g, "");
+    const octets = host.split(".").map(Number);
+    const privateIpv4 = octets.length === 4 && octets.every(n => Number.isInteger(n) && n >= 0 && n <= 255)
+      && (octets[0] === 10
+        || (octets[0] === 192 && octets[1] === 168)
+        || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31));
+    const localHost = host === "localhost" || host === "127.0.0.1";
+    return parsed.protocol === "https:" || (parsed.protocol === "http:" && (localHost || privateIpv4));
+  } catch {
+    return false;
+  }
+}
+
 type ModuleItem = {
   id: string;
   title: string;
@@ -426,9 +442,30 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   type ApiContact = { id: string; name: string; phone: string; company: string; optedIn: boolean; createdAt: string };
   type ApiSchedule = { id: string; to: string; message: string; nextRunAt: string | null; repeat: "once" | "daily" | "weekly"; enabled: boolean; lastRunAt: string | null; lastError: string };
   type ApiLog = { id: string; scheduleId: string; at: string; status: string; detail: string; providerMessageId?: string };
-  const [apiUrl,setApiUrl]=useState(()=>window.localStorage.getItem("aximach.scheduler.url")||"");
-  const [apiKey,setApiKey]=useState(()=>window.localStorage.getItem("aximach.scheduler.key")||(window.location.protocol==="file:"?"aximach-desktop-local-bridge-v1":""));
+  const [apiUrl,setApiUrl]=useState(()=>window.localStorage.getItem("aximach.scheduler.url")||(window.location.protocol==="file:"?"http://127.0.0.1:8787":""));
+  const [apiKey,setApiKey]=useState(()=>window.localStorage.getItem("aximach.scheduler.key")||"");
   const [connected,setConnected]=useState(false);
+  const [lanInfo,setLanInfo]=useState<{addresses:string[];apiKey:string;port:number}|null>(null);
+  useEffect(()=>{
+    if(window.location.protocol!=="file:")return;
+    let cancelled=false;
+    let attempts=0;
+    let timer:number|undefined;
+    const loadLanInfo=async()=>{
+      try{
+        const response=await fetch("http://127.0.0.1:8787/api/connection-info",{cache:"no-store"});
+        if(!response.ok)throw new Error("Local server unavailable");
+        const info=await response.json();
+        if(!cancelled){setLanInfo(info);setApiKey(info.apiKey||"");setApiUrl("http://127.0.0.1:8787");}
+      }catch{
+        attempts++;
+        if(!cancelled&&attempts<12)timer=window.setTimeout(loadLanInfo,1000);
+      }
+    };
+    void loadLanInfo();
+    return()=>{cancelled=true;if(timer)window.clearTimeout(timer);};
+  },[]);
+
   const [busy,setBusy]=useState(false);
   const [apiError,setApiError]=useState("");
   const [contacts,setContacts]=useState<ApiContact[]>([]);
@@ -438,7 +475,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const [name,setName]=useState(""); const [phone,setPhone]=useState(""); const [company,setCompany]=useState(""); const [optedIn,setOptedIn]=useState(false);
   const [to,setTo]=useState(""); const [message,setMessage]=useState(""); const [due,setDue]=useState(()=>{const d=new Date(Date.now()+3600000);d.setMinutes(Math.ceil(d.getMinutes()/5)*5,0,0);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);});
   const [repeat,setRepeat]=useState<"once"|"daily"|"weekly">("once");
-  const [waUrl,setWaUrl]=useState(()=>window.localStorage.getItem("aximach.whatsapp.url")||(window.location.protocol==="file:"?"http://127.0.0.1:8788":"http://localhost:8788"));
+  const [waUrl,setWaUrl]=useState(()=>window.localStorage.getItem("aximach.whatsapp.url")||(window.location.protocol==="file:"?"http://127.0.0.1:8788":""));
   const [waConnected,setWaConnected]=useState(false);
   const [waQr,setWaQr]=useState("");
   const [waUser,setWaUser]=useState("");
@@ -455,7 +492,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const [waRepeat,setWaRepeat]=useState<"once"|"daily"|"weekly">("once");
   const [waError,setWaError]=useState("");
   const waBase=waUrl.trim().replace(/\/+$/,"");
-  const waApiKey=window.location.protocol==="file:"?"aximach-desktop-local-bridge-v1":apiKey;
+  const waApiKey=apiKey;
   const waRequest=async(path:string,init:RequestInit={})=>{const response=await fetch(waBase+path,{...init,headers:{"content-type":"application/json","x-aximach-key":waApiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"WhatsApp bridge returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
   const verifiedWhatsAppPhone=(value:unknown)=>{
     const raw=String(value||"").trim();
@@ -507,18 +544,18 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
     if(added||updated)updateManufacturingData(currentData=>({...currentData,vendors:next}));
     return {added,updated};
   };
-  const refreshWhatsApp=async()=>{setBusy(true);setWaError("");try{if(!waApiKey.trim())throw new Error("WhatsApp bridge API key is missing.");if(!waBase.startsWith("https://")&&!/^(http:\/\/localhost|http:\/\/127\.0\.0\.1)/.test(waBase))throw new Error("Use HTTPS for a deployed bridge. HTTP is allowed only for localhost.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");const contactRows:WhatsAppContact[]=co.contacts||[];setWaContacts(contactRows);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);const synced=st.connected?syncWhatsAppContactsToVendors(contactRows):{added:0,updated:0};window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; "+synced.added+" new contacts added to the AXIMACH vendor master and "+synced.updated+" existing records refreshed. They stay unverified until reviewed; cross-device persistence depends on the scheduler data server being connected.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
+  const refreshWhatsApp=async()=>{setBusy(true);setWaError("");try{if(!waApiKey.trim())throw new Error("AXIMACH shared API key is missing.");if(!isAllowedAxMachServiceUrl(waBase))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");const contactRows:WhatsAppContact[]=co.contacts||[];setWaContacts(contactRows);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);const synced=st.connected?syncWhatsAppContactsToVendors(contactRows):{added:0,updated:0};window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; "+synced.added+" new contacts added to the AXIMACH vendor master and "+synced.updated+" existing records refreshed. They stay unverified until reviewed; cross-device persistence depends on the scheduler data server being connected.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
   const addWhatsAppSchedule=async()=>{setBusy(true);setWaError("");try{if(!waOptIn)throw new Error("Confirm you have permission to message this recipient.");const d=await waRequest("/api/whatsapp/schedules",{method:"POST",body:JSON.stringify({to:waTarget,message:waMessage,nextRunAt:new Date(waDue).toISOString(),repeat:waRepeat,optedIn:true})});setWaSchedules(prev=>[d.schedule,...prev]);setWaMessage("");onNotice("WhatsApp automation saved to the bridge server.");}catch(e){setWaError(e instanceof Error?e.message:"Could not save WhatsApp automation.");}finally{setBusy(false);}};
   const toggleWhatsAppSchedule=async(task:{id:string;enabled:boolean})=>{setBusy(true);setWaError("");try{const d=await waRequest("/api/whatsapp/schedules/"+task.id,{method:"PATCH",body:JSON.stringify({enabled:!task.enabled})});setWaSchedules(prev=>prev.map(x=>x.id===task.id?d.schedule:x));}catch(e){setWaError(e instanceof Error?e.message:"Could not update WhatsApp schedule.");}finally{setBusy(false);}};
   const visibleWaContacts=waContacts.filter(c=>(c.name+" "+c.notify+" "+c.phone).toLowerCase().includes(waSearch.toLowerCase().trim()));
   const importWhatsAppContactsToVendors=()=>{if(!waContacts.length){setWaError("No WhatsApp contacts are synced yet. Link WhatsApp and refresh contacts first.");return;}const result=syncWhatsAppContactsToVendors(waContacts);const withoutNumber=waContacts.filter(c=>!verifiedWhatsAppPhone(c.phone)).length;onNotice("Contact 360 sync complete: "+result.added+" new contacts added, "+result.updated+" existing records refreshed. "+withoutNumber+" contacts did not have a phone number shared by WhatsApp and were not assigned a fabricated number.");};
-  useEffect(()=>{if(window.location.protocol==="file:"){window.localStorage.setItem("aximach.scheduler.key",apiKey);window.localStorage.setItem("aximach.whatsapp.url",waUrl);const timer=window.setTimeout(()=>{void refreshWhatsApp();},1800);return()=>window.clearTimeout(timer);}if(window.localStorage.getItem("aximach.scheduler.key"))void refreshWhatsApp();},[]);
-  useEffect(()=>{const local=window.location.protocol==="file:";const pollBase=local?"http://127.0.0.1:8788":waBase;const pollKey=local?"aximach-desktop-local-bridge-v1":apiKey;if(!pollKey.trim())return;let cancelled=false;const poll=async()=>{try{const headers={"x-aximach-key":pollKey};const statusResponse=await fetch(pollBase+"/api/whatsapp/status",{headers});if(!statusResponse.ok)return;const status=await statusResponse.json();if(cancelled)return;setWaConnected(Boolean(status.connected));setWaQr(status.qrDataUrl||"");setWaUser(status.user||"");if(!status.connected)return;const [co,gr,sc]=await Promise.all([fetch(pollBase+"/api/whatsapp/contacts",{headers}),fetch(pollBase+"/api/whatsapp/groups",{headers}),fetch(pollBase+"/api/whatsapp/schedules",{headers})]);if(cancelled)return;if(co.ok){const rows:WhatsAppContact[]=(await co.json()).contacts||[];setWaContacts(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);syncWhatsAppContactsToVendors(rows);}if(gr.ok){const rows=(await gr.json()).groups||[];setWaGroups(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}if(sc.ok){const rows=(await sc.json()).schedules||[];setWaSchedules(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}}catch{/* bridge may be unavailable while starting */}};void poll();const timer=window.setInterval(()=>void poll(),5000);return()=>{cancelled=true;window.clearInterval(timer);};},[waBase,apiKey]);
+  useEffect(()=>{if(window.location.protocol==="file:"){if(apiUrl)window.localStorage.setItem("aximach.scheduler.url",apiUrl);if(apiKey)window.localStorage.setItem("aximach.scheduler.key",apiKey);if(waUrl)window.localStorage.setItem("aximach.whatsapp.url",waUrl);const timer=window.setTimeout(()=>{void refreshWhatsApp();},1800);return()=>window.clearTimeout(timer);}if(window.localStorage.getItem("aximach.scheduler.key"))void refreshWhatsApp();},[]);
+  useEffect(()=>{const local=window.location.protocol==="file:";const pollBase=local?"http://127.0.0.1:8788":waBase;const pollKey=apiKey;if(!pollKey.trim())return;let cancelled=false;const poll=async()=>{try{const headers={"x-aximach-key":pollKey};const statusResponse=await fetch(pollBase+"/api/whatsapp/status",{headers});if(!statusResponse.ok)return;const status=await statusResponse.json();if(cancelled)return;setWaConnected(Boolean(status.connected));setWaQr(status.qrDataUrl||"");setWaUser(status.user||"");if(!status.connected)return;const [co,gr,sc]=await Promise.all([fetch(pollBase+"/api/whatsapp/contacts",{headers}),fetch(pollBase+"/api/whatsapp/groups",{headers}),fetch(pollBase+"/api/whatsapp/schedules",{headers})]);if(cancelled)return;if(co.ok){const rows:WhatsAppContact[]=(await co.json()).contacts||[];setWaContacts(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);syncWhatsAppContactsToVendors(rows);}if(gr.ok){const rows=(await gr.json()).groups||[];setWaGroups(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}if(sc.ok){const rows=(await sc.json()).schedules||[];setWaSchedules(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}}catch{/* bridge may be unavailable while starting */}};void poll();const timer=window.setInterval(()=>void poll(),5000);return()=>{cancelled=true;window.clearInterval(timer);};},[waBase,apiKey]);
 
   const base=apiUrl.trim().replace(/\/+$/,"");
   const visibleContacts=contacts.filter(c=>(c.name+" "+c.company+" "+c.phone).toLowerCase().includes(contactSearch.toLowerCase().trim()));
   const request=async(path:string,init:RequestInit={})=>{const response=await fetch(base+path,{...init,headers:{"content-type":"application/json","x-aximach-key":apiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"The service returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
-  const connect=async()=>{setBusy(true);setApiError("");try{if(!base.startsWith("https://")&&!/^(http:\/\/localhost|http:\/\/127\.0\.0\.1)/.test(base))throw new Error("Use HTTPS for a deployed service. HTTP is allowed only for localhost.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("Scheduler health check failed.");await request("/api/contacts");const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);updateManufacturingData(currentData=>({...currentData}));setApiError("");onNotice("Scheduler connected. AXIMACH is syncing your saved companies, factories, PO lines, components, vendors, operations and quotations to this server; check each workspace sync status.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
+  const connect=async()=>{setBusy(true);setApiError("");try{if(!isAllowedAxMachServiceUrl(base))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("Scheduler health check failed.");await request("/api/contacts");const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);updateManufacturingData(currentData=>({...currentData}));setApiError("");onNotice("Scheduler connected. AXIMACH is syncing your saved companies, factories, PO lines, components, vendors, operations and quotations to this server; check each workspace sync status.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
   const refresh=async()=>{setBusy(true);setApiError("");try{const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Refresh failed.");}finally{setBusy(false);}};
   const addContact=async()=>{setBusy(true);setApiError("");try{const d=await request("/api/contacts",{method:"POST",body:JSON.stringify({name,phone,company,optedIn})});setContacts(prev=>[...prev,d.contact]);setName("");setPhone("");setCompany("");setOptedIn(false);onNotice("Contact saved to the scheduler server.");}catch(e){setApiError(e instanceof Error?e.message:"Could not save contact.");}finally{setBusy(false);}};
   const addSchedule=async()=>{setBusy(true);setApiError("");try{const d=await request("/api/schedules",{method:"POST",body:JSON.stringify({to,message,nextRunAt:new Date(due).toISOString(),repeat})});setSchedules(prev=>[d.schedule,...prev]);setMessage("");onNotice("Schedule saved on the server. Actual sending still depends on valid Meta credentials and messaging policy.");}catch(e){setApiError(e instanceof Error?e.message:"Could not create schedule.");}finally{setBusy(false);}};
@@ -531,7 +568,17 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
     <section className="surface-panel followup-list-panel scheduler-connect-panel"><div className="panel-heading"><div><h3><Plug size={17}/> Scheduler connection</h3><p>Enter the URL of your deployed AXIMACH scheduler and its server API key.</p></div><span className={"module-number "+(connected?"scheduler-connected":"")}>{connected?"CONNECTED":"NOT CONNECTED"}</span></div>
       <div className="scheduler-connect-form"><label>Shared AXIMACH data server URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="https://your-shared-aximach-server.example.com"/></label><label>API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label><button className="button-primary" disabled={busy||!apiUrl.trim()||!apiKey.trim()} onClick={connect}>{busy?"Connecting…":"Connect / refresh"}</button></div>
       {apiError&&<div className="scheduler-error"><ShieldAlert size={15}/>{apiError}</div>}
-      <div className="module-safety-note"><ShieldCheck size={15}/><span>Use the same deployed HTTPS server URL and the same API key on the Windows PC and Android app. Do not enter localhost here: localhost means this individual device, not the other device. Both devices must reach the same server with persistent storage and an origin allow-list that includes the web/Android/Electron clients. The API key is saved in this browser; use trusted devices only and keep it private.</span></div>
+      <div className="module-safety-note"><ShieldCheck size={15}/><span>Use one shared server URL and API key on both devices. A Windows-installed AXIMACH can host the private server: keep the PC and this Android device on the same Wi-Fi, keep AXIMACH running on the PC, then enter one of the PC LAN addresses below on Android (not localhost). Public HTTP is blocked; HTTPS and private LAN HTTP only are allowed. Keep the API key private.</span></div>
+      {lanInfo&&<div className="aximach-lan-share">
+        <div className="aximach-lan-share-heading"><strong>PC → Android private Wi-Fi connection</strong><span>LOCAL SERVER READY</span></div>
+        <p>On Android, enter one of these URLs as the Shared AXIMACH data server. Use the same API key shown below.</p>
+        <div className="aximach-lan-share-values">
+          {lanInfo.addresses.map(address=><div className="aximach-lan-share-row" key={address}><code>{address}</code><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(address);}}>Copy URL</button></div>)}
+          {!lanInfo.addresses.length&&<small>No private Wi-Fi IPv4 address detected. Connect the PC to Wi-Fi/Ethernet and reopen this section.</small>}
+          <div className="aximach-lan-share-row"><code>{lanInfo.apiKey}</code><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(lanInfo.apiKey);}}>Copy API key</button></div>
+        </div>
+        <small>WhatsApp bridge (optional): use the same LAN address with port 8788, for example http://192.168.x.x:8788. The data server uses port 8787.</small>
+      </div>}
     </section>
     <section className="surface-panel followup-list-panel scheduler-connect-panel">
       <div className="panel-heading"><div><h3><ScanLine size={17}/> QR-paired WhatsApp account</h3><p>Link your WhatsApp account once. Keep this service running on an always-on host with persistent disk.</p></div><span className={"module-number "+(waConnected?"scheduler-connected":"")}>{waConnected?"LINKED":"NOT LINKED"}</span></div>
