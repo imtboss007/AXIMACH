@@ -22,7 +22,7 @@ export type ComponentRecord = {
 };
 export type PurchaseOrderLine = {
   id: string; componentId: string; quantity: number; targetDelivery: string; unitPrice: number; notes: string;
-  jobStatus?: "In progress" | "Finished"; jobFinishedAt?: string;
+  jobStatus?: "In progress" | "Finished"; jobFinishedAt?: string; updatedAt?: string; deletedAt?: string;
   materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number;
   overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number;
 };
@@ -127,6 +127,32 @@ function mergeRows<T extends { id: string; updatedAt?: string }>(localRows: T[],
   }
   return [...rows.values()];
 }
+function mergePurchaseOrderRows(localRows: PurchaseOrderRecord[], remoteRows: PurchaseOrderRecord[]): PurchaseOrderRecord[] {
+  const localById = new Map(localRows.filter(row => row?.id).map(row => [row.id, row]));
+  const remoteById = new Map(remoteRows.filter(row => row?.id).map(row => [row.id, row]));
+  const merged: PurchaseOrderRecord[] = [];
+  for (const id of new Set([...remoteById.keys(), ...localById.keys()])) {
+    const local = localById.get(id);
+    const remote = remoteById.get(id);
+    if (!local) { merged.push(remote!); continue; }
+    if (!remote) { merged.push(local); continue; }
+    const localTime = Date.parse(local.updatedAt || "") || 0;
+    const remoteTime = Date.parse(remote.updatedAt || "") || 0;
+    const preferred = localTime >= remoteTime ? local : remote;
+    const lineMap = new Map<string, { line: PurchaseOrderLine; time: number }>();
+    for (const [row, parentTime] of [[remote, remoteTime], [local, localTime]] as const) {
+      for (const line of row.lines || []) {
+        if (!line?.id) continue;
+        const time = Date.parse(line.updatedAt || "") || parentTime;
+        const previous = lineMap.get(line.id);
+        if (!previous || time >= previous.time) lineMap.set(line.id, { line, time });
+      }
+    }
+    merged.push({ ...preferred, lines: [...lineMap.values()].map(entry => entry.line) });
+  }
+  return merged;
+}
+
 export function mergeManufacturingData(localValue: Partial<ManufacturingData>, remoteValue: Partial<ManufacturingData>): ManufacturingData {
   const local = normaliseData(localValue);
   const remote = normaliseData(remoteValue);
@@ -134,7 +160,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     updatedAt: local.updatedAt >= remote.updatedAt ? local.updatedAt : remote.updatedAt,
     companies: mergeRows(local.companies, remote.companies),
     factories: mergeRows(local.factories, remote.factories),
-    purchaseOrders: mergeRows(local.purchaseOrders, remote.purchaseOrders),
+    purchaseOrders: mergePurchaseOrderRows(local.purchaseOrders, remote.purchaseOrders),
     components: mergeRows(local.components, remote.components),
     vendors: mergeRows(local.vendors, remote.vendors),
     operations: mergeRows(local.operations, remote.operations),
@@ -265,7 +291,26 @@ export function useManufacturingData() {
   const update = useCallback((change: (current: ManufacturingData) => ManufacturingData) => {
     const current = readManufacturingData();
     const next = normaliseData(change(current));
-    next.updatedAt = nowIso();
+    const stamp = nowIso();
+    next.updatedAt = stamp;
+    const previousOrders = new Map(current.purchaseOrders.map(po => [po.id, po]));
+    next.purchaseOrders = next.purchaseOrders.map(po => {
+      const previous = previousOrders.get(po.id);
+      const previousLines = new Map((previous?.lines || []).map(line => [line.id, line]));
+      let lineChanged = false;
+      const lines = po.lines.map(line => {
+        const old = previousLines.get(line.id);
+        const withoutTime = (value: PurchaseOrderLine | undefined) => {
+          if (!value) return null;
+          const { updatedAt: _updatedAt, ...rest } = value;
+          return rest;
+        };
+        const changed = !old || JSON.stringify(withoutTime(old)) !== JSON.stringify(withoutTime(line));
+        if (changed) lineChanged = true;
+        return { ...line, updatedAt: changed ? stamp : (line.updatedAt || old?.updatedAt || previous?.updatedAt || stamp) };
+      });
+      return { ...po, ...(lineChanged ? { updatedAt: stamp } : {}), lines };
+    });
     writeLocal(next);
     setData(next);
     setSyncStatus(serverConfig() ? "syncing" : "local");
