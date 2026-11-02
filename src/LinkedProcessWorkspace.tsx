@@ -228,7 +228,19 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         parentId: old?.parentId || (draft.branch !== "Main route" ? activeOperation?.id || "" : "")
       };
       const nextOperations = [...current.operations.filter(op => op.id !== next.id), next];
-      return { ...current, operations: nextOperations };
+      return {
+        ...current,
+        operations: nextOperations,
+        purchaseOrders: current.purchaseOrders.map(po => po.id !== selectedPO.id ? po : ({
+          ...po, updatedAt: stamp,
+          lines: po.lines.map(line => line.id !== selectedLine.id || line.jobStatus !== "Finished" ? line : ({
+            ...line, jobStatus: "In progress", jobFinishedAt: undefined,
+            jobFinishedProcessCost: undefined, jobFinishedActualProcessCost: undefined,
+            jobFinishedMissingActualRates: undefined, jobFinishedOperationCount: undefined,
+            updatedAt: stamp
+          }))
+        }))
+      };
     });
     setSelectedOperationId(operationId);
     setShowEditor(false); setEditingId(""); setIsDirectTransport(false);
@@ -259,7 +271,16 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     update(current => ({
       ...current,
       operations: current.operations.map(item => item.id === op.id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item),
-      quotations: current.quotations.map(q => q.operationId === op.id && !q.deletedAt ? { ...q, deletedAt: stamp, updatedAt: stamp } : q)
+      quotations: current.quotations.map(q => q.operationId === op.id && !q.deletedAt ? { ...q, deletedAt: stamp, updatedAt: stamp } : q),
+      purchaseOrders: current.purchaseOrders.map(po => po.id !== op.poId ? po : ({
+        ...po, updatedAt: stamp,
+        lines: po.lines.map(line => line.id !== op.poLineId || line.jobStatus !== "Finished" ? line : ({
+          ...line, jobStatus: "In progress", jobFinishedAt: undefined,
+          jobFinishedProcessCost: undefined, jobFinishedActualProcessCost: undefined,
+          jobFinishedMissingActualRates: undefined, jobFinishedOperationCount: undefined,
+          updatedAt: stamp
+        }))
+      }))
     }));
     setSelectedOperationId(""); onNotice("Operation archived. Linked quotation history was retained as archived history.");
   };
