@@ -150,7 +150,19 @@ function serverConfig() {
   const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
   const key = window.localStorage.getItem("aximach.scheduler.key") || "";
   if (!base || !key) return null;
-  if (!base.startsWith("https://") && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(base)) return null;
+  try {
+    const parsed = new URL(base);
+    const host = parsed.hostname.replace(/^\[|\]$/g, "");
+    const octets = host.split(".").map(Number);
+    const privateIpv4 = octets.length === 4 && octets.every(n => Number.isInteger(n) && n >= 0 && n <= 255)
+      && (octets[0] === 10
+        || (octets[0] === 192 && octets[1] === 168)
+        || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31));
+    const localHost = host === "localhost" || host === "127.0.0.1";
+    if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && (localHost || privateIpv4))) return null;
+  } catch {
+    return null;
+  }
   return { base, key };
 }
 async function putRemote(data: ManufacturingData, cfg: { base: string; key: string }): Promise<ManufacturingData> {
