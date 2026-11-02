@@ -202,7 +202,7 @@ export default function AxiCommandSphere({
           const relative = (index - dashboardIndex + dashboardCards.length) % dashboardCards.length;
           const position = relative === 0 ? "center" : relative === 1 ? "right" : "left";
           return <button type="button" key={card.id} className={"axi-dashboard-float-card deck-" + position + (relative === 0 ? " is-selected" : "")}
-            style={{transform:relative===0?"translateX(0) translateZ(42px) rotateY(0deg)":relative===1?"translateX(59%) translateZ(-78px) rotateY(-24deg)":"translateX(-59%) translateZ(-78px) rotateY(24deg)",zIndex:relative===0?3:1,opacity:relative===0?1:.68}}
+            style={{transform:relative===0?"translateX(-50%) translateZ(42px) rotateY(0deg)":relative===1?"translateX(-15%) translateZ(-78px) rotateY(-24deg)":"translateX(-85%) translateZ(-78px) rotateY(24deg)",zIndex:relative===0?3:1,opacity:relative===0?1:.68}}
             onClick={() => relative===0 ? openWorkspace(card.target) : setDashboardIndex(index)}>
             <small>{card.label}</small><strong>{card.title}</strong><b>{card.metric}</b><span>{card.metricLabel}</span>
             <div><em>{card.detailA}</em><em>{card.detailB}</em></div>
