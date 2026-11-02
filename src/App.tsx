@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot, Building2,
   Box, Boxes, Calculator, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
@@ -88,6 +88,7 @@ function App() {
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
+  const closeIconStudio = useCallback(() => setIconStudioOpen(false), []);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("All approved workspaces");
@@ -378,7 +379,7 @@ function App() {
         </div>
       )}
 
-      <IconStudio open={iconStudioOpen} onClose={() => setIconStudioOpen(false)} />
+      <IconStudio open={iconStudioOpen} onClose={closeIconStudio} />
       <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Master records · server sync status shown in each workspace</span></footer>
     </div>
   );
