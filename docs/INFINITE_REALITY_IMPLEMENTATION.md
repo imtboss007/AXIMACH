@@ -23,7 +23,7 @@
 - Scenario outputs are deterministic what-if calculations from user-entered assumptions, not an ML forecast and not based on live shop-floor telemetry.
 - Spatial dashboard values come from saved AXIMACH record counts. They are not live factory sensor metrics.
 - The machine connection panel stores a protocol/asset/endpoint profile only. It does not open network sockets or read/write controllers. A complete CNC/PLC digital twin still requires the actual machine models and allowed signals, protocol/gateway, addressing, credentials/certificates, network access and a safe read-only integration test plan. No readings or machine states are fabricated.
-- A CI smoke test checks the packaged Electron renderer in a Windows runner. It is not a physical test on the user's PC. Android APK packaging is a CI build only; installation, device GPU, touch, notification, safe-area and cross-device sync tests need the real target phone.
+- A CI smoke test checks the packaged Electron renderer in a Windows runner. It is not a physical test on the user's PC. The Android job installs and launches the APK in an Android emulator, but that is not a physical test on the user's phone; device GPU, touch, notification, safe-area and cross-device sync still need the target phone.
 
 ## Verification status
 - Feature branch CI type-check and production build: verify against the latest branch-head Actions run.
