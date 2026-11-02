@@ -15,7 +15,7 @@
 - Existing Icon Studio extended with saved float, orbit, pulse, scan and static animation profiles. Existing palette, finish, depth and tilt options remain. Reduced-motion rules included.
 - Multi-dashboard Command Theatre with record-derived panels, domain views, drag reorder, pin, minimise, maximise, resize and saved layout.
 - Visual Experience Studio with live preview, motion, depth, particles, lighting, reflections, transition, camera, haptic, reduced-motion and performance settings. Preferences persist locally and synchronise through the authenticated endpoint when configured.
-- Electron diagnostics and recovery screen. Packaged local service scripts are externalised from ASAR and receive their own ESM dependency installation so child processes can resolve Baileys and QR dependencies. The Windows pipeline now launches the packaged unpacked application in a headless renderer smoke-test mode and checks that the React root renders.
+- Electron diagnostics and recovery screen. A Windows startup defect was identified: the Electron 37.10.3 runtime did not expose the `webContents.addDocumentStartJavaScript` method used by the prior bootstrap path. Local service settings now arrive through a sandboxed preload and restricted IPC handler. Packaged local service scripts are externalised from ASAR and receive their own ESM dependency installation so child processes can resolve Baileys and QR dependencies. The Windows pipeline launches the packaged unpacked application in smoke-test mode and checks that the React root renders.
 
 ## Engineering and data boundaries (important)
 - Fluid/cloth/soft-body effects are interactive visual demonstrations, not validated CFD, textile or finite-element engineering solvers.
