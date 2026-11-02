@@ -26,6 +26,7 @@ import DataExchangeWorkspace from "./DataExchangeWorkspace";
 import Contact360Workspace from "./Contact360Workspace";
 import ComponentCostPlannerWorkspace from "./ComponentCostPlannerWorkspace";
 import DashboardFlow3D from "./DashboardFlow3D";
+import SphereShellDashboard from "./SphereShellDashboard";
 
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, vendorProcessTypeIds, type VendorRecord } from "./manufacturingData";
 
@@ -415,6 +416,18 @@ function DashboardWorkspace(props: {
   return (
     <>
       {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
+      <SphereShellDashboard
+        modules={modules}
+        counts={{
+          companies: liveCompanies.length,
+          purchaseOrders: liveOrders.length,
+          components: liveComponents.length,
+          operations: liveOperations.length,
+          vendors: liveVendors.length
+        }}
+        onSelectModule={onSelectModule}
+        onOpenModules={onOpenModules}
+      />
       <section className="hero-command">
         <div className="hero-copy">
           <div className="eyebrow"><span className="eyebrow-mark" /> PRECISION OPERATIONS / ONE CONNECTED SYSTEM</div>
