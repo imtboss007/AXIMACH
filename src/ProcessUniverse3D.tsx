@@ -38,7 +38,7 @@ export default function ProcessUniverse3D({ operations, selectedOperationId, sim
     const y = 1 - 2 * ((index + 0.5) / count);
     const latitude = Math.asin(Math.max(-1, Math.min(1, y))) * 180 / Math.PI;
     const longitude = index * (Math.PI * (3 - Math.sqrt(5))) * 180 / Math.PI;
-    const transform = `translate(-50%,-50%) rotateY(${longitude}deg) rotateX(${latitude}deg) translateZ(205px) rotateX(${-latitude}deg) rotateY(${-longitude}deg)`;
+    const transform = `translate(-50%,-50%) rotateY(${longitude}deg) rotateX(${latitude}deg) translateZ(var(--process-orbit-radius,205px)) rotateX(${-latitude}deg) rotateY(${-longitude}deg)`;
     return { operation, index, transform };
   }), [operations]);
 
