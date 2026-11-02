@@ -96,25 +96,46 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const totalAccepted = routeOperations.reduce((sum, op) => sum + op.accepted, 0);
   const allDone = routeOperations.length > 0 && routeOperations.every(op => op.status === "Complete");
   const completedOperationCount = routeOperations.filter(op => op.status === "Complete").length;
-  useEffect(() => {
-    if (!selectedPO || !selectedLine) return;
-    const desiredStatus = allDone ? "Finished" : "In progress";
-    if (selectedLine.jobStatus === desiredStatus && (!allDone || selectedLine.jobFinishedAt)) return;
+  const finishJob = () => {
+    if (!selectedPO || !selectedLine || !selectedComponent || routeOperations.length === 0) return;
     const stamp = nowIso();
+    const processCost = routeOperations.reduce((sum, op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
+    const actualProcessCost = routeOperations.reduce((sum, op) => sum + op.quantity * Math.max(0, op.actualRatePerPart || 0) + op.transportCost, 0);
+    const missingActualRates = routeOperations.filter(op => !(op.actualRatePerPart > 0)).length;
     update(current => ({
       ...current,
       purchaseOrders: current.purchaseOrders.map(po => po.id !== selectedPO.id ? po : ({
-        ...po,
-        updatedAt: stamp,
+        ...po, updatedAt: stamp,
         lines: po.lines.map(line => line.id !== selectedLine.id ? line : ({
-          ...line,
-          jobStatus: desiredStatus,
-          jobFinishedAt: allDone ? (line.jobStatus === "Finished" ? line.jobFinishedAt || stamp : stamp) : undefined,
+          ...line, jobStatus: "Finished", jobFinishedAt: stamp,
+          jobFinishedProcessCost: processCost,
+          jobFinishedActualProcessCost: actualProcessCost,
+          jobFinishedMissingActualRates: missingActualRates,
+          jobFinishedOperationCount: routeOperations.length,
           updatedAt: stamp
         }))
       }))
     }));
-  }, [selectedPO?.id, selectedLine?.id, selectedLine?.jobStatus, selectedLine?.jobFinishedAt, allDone, update]);
+    onNotice("Job marked Finished. Total Process Map cost " + money(processCost) + " was saved for Costing & Payments. " +
+      (missingActualRates ? missingActualRates + " actual process rate(s) are missing; the saved total uses entered route rates and transport." : "Actual process rates are recorded for every operation."));
+  };
+  const reopenJob = () => {
+    if (!selectedPO || !selectedLine) return;
+    const stamp = nowIso();
+    update(current => ({
+      ...current,
+      purchaseOrders: current.purchaseOrders.map(po => po.id !== selectedPO.id ? po : ({
+        ...po, updatedAt: stamp,
+        lines: po.lines.map(line => line.id !== selectedLine.id ? line : ({
+          ...line, jobStatus: "In progress", jobFinishedAt: undefined,
+          jobFinishedProcessCost: undefined, jobFinishedActualProcessCost: undefined,
+          jobFinishedMissingActualRates: undefined, jobFinishedOperationCount: undefined,
+          updatedAt: stamp
+        }))
+      }))
+    }));
+    onNotice("Job reopened. Process records and rates were retained; finish it again when complete.");
+  };
   const finalDelivery = selectedLine?.targetDelivery || selectedPO?.targetDelivery || "";
   const routeCost = routeOperations.reduce((sum, op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
   const durationDays = routeOperations.reduce((sum, op) => sum + daysBetween(op.plannedStart, op.plannedEnd), 0);
@@ -205,25 +226,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         parentId: old?.parentId || (draft.branch !== "Main route" ? activeOperation?.id || "" : "")
       };
       const nextOperations = [...current.operations.filter(op => op.id !== next.id), next];
-      const activeJobOperations = nextOperations.filter(op =>
-        op.poId === selectedPO.id && op.poLineId === selectedLine.id &&
-        op.componentId === selectedComponent.id && !op.deletedAt
-      );
-      const jobFinished = activeJobOperations.length > 0 && activeJobOperations.every(op => op.status === "Complete");
-      return {
-        ...current,
-        operations: nextOperations,
-        purchaseOrders: current.purchaseOrders.map(po => po.id !== selectedPO.id ? po : ({
-          ...po,
-          updatedAt: stamp,
-          lines: po.lines.map(line => line.id !== selectedLine.id ? line : ({
-            ...line,
-            jobStatus: jobFinished ? "Finished" : "In progress",
-            jobFinishedAt: jobFinished ? (line.jobStatus === "Finished" ? line.jobFinishedAt || stamp : stamp) : undefined,
-            updatedAt: stamp
-          }))
-        }))
-      };
+      return { ...current, operations: nextOperations };
     });
     setSelectedOperationId(operationId);
     setShowEditor(false); setEditingId(""); setIsDirectTransport(false);
@@ -251,29 +254,11 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const archiveOperation = (op: OperationRecord) => {
     if (!window.confirm("Archive this operation? Its history and quotations will be retained.")) return;
     const stamp = nowIso();
-    update(current => {
-      const nextOperations = current.operations.map(item => item.id === op.id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item);
-      const remainingJobOperations = nextOperations.filter(item =>
-        item.poId === selectedPO?.id && item.poLineId === selectedLine?.id &&
-        item.componentId === selectedComponent?.id && !item.deletedAt
-      );
-      const jobFinished = remainingJobOperations.length > 0 && remainingJobOperations.every(item => item.status === "Complete");
-      return {
-        ...current,
-        operations: nextOperations,
-        quotations: current.quotations.map(q => q.operationId === op.id && !q.deletedAt ? { ...q, deletedAt: stamp, updatedAt: stamp } : q),
-        purchaseOrders: !selectedPO || !selectedLine ? current.purchaseOrders : current.purchaseOrders.map(po => po.id !== selectedPO.id ? po : ({
-          ...po,
-          updatedAt: stamp,
-          lines: po.lines.map(line => line.id !== selectedLine.id ? line : ({
-            ...line,
-            jobStatus: jobFinished ? "Finished" : "In progress",
-            jobFinishedAt: jobFinished ? (line.jobStatus === "Finished" ? line.jobFinishedAt || stamp : stamp) : undefined,
-            updatedAt: stamp
-          }))
-        }))
-      };
-    });
+    update(current => ({
+      ...current,
+      operations: current.operations.map(item => item.id === op.id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item),
+      quotations: current.quotations.map(q => q.operationId === op.id && !q.deletedAt ? { ...q, deletedAt: stamp, updatedAt: stamp } : q)
+    }));
     setSelectedOperationId(""); onNotice("Operation archived. Linked quotation history was retained as archived history.");
   };
 
@@ -381,17 +366,18 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     </div>
     {selectedLine && selectedComponent ? <>
       <div className="linked-component-summary"><div><small>SELECTED COMPONENT</small><strong>{selectedComponent.partNumber} · {selectedComponent.name}</strong><span>Revision {selectedComponent.revision || "—"} · {selectedComponent.material || "Material not entered"} · PO {selectedPO?.number}</span></div><div><small>ORDER QUANTITY</small><strong>{expectedQuantity.toLocaleString("en-IN")} pcs</strong></div><div><small>LINE DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div><div><small>DRAWING / REFERENCE</small><strong>{selectedComponent.drawingReference || "Not entered"}</strong></div><button className="button-quiet compact-button" onClick={() => onSelectModule("components")}>Edit component master</button></div>
-      <div className={"job-completion-panel " + (allDone ? "job-completion-finished" : "")}>
+      <div className={"job-completion-panel " + (selectedLine.jobStatus === "Finished" ? "job-completion-finished" : "")}>
         <div className="job-completion-copy">
           <span className="job-completion-icon"><Check size={19}/></span>
           <div>
-            <small>JOB LIFECYCLE · AUTOMATIC FROM PROCESS MAP</small>
-            <strong>{allDone ? "Job Finished" : "In Progress"}</strong>
-            <p>{allDone
-              ? "All " + routeOperations.length + " active process operations are marked Complete. The PO component job is automatically Finished" + (selectedLine.jobFinishedAt ? " · " + new Date(selectedLine.jobFinishedAt).toLocaleString("en-IN") : "") + ". Cost & Payments receives the same linked job status."
+            <small>JOB LIFECYCLE · MANUAL CONTROL</small>
+            <strong>{selectedLine.jobStatus === "Finished" ? "Job Finished" : "In Progress"}</strong>
+            <p>{selectedLine.jobStatus === "Finished"
+              ? "Marked finished by you" + (selectedLine.jobFinishedAt ? " · " + new Date(selectedLine.jobFinishedAt).toLocaleString("en-IN") : "") + ". Saved Process Map total: " + money(selectedLine.jobFinishedProcessCost || 0) + ". Cost & Payments receives this total and status."
               : routeOperations.length
-                ? completedOperationCount + " of " + routeOperations.length + " active process operations are Complete. Mark every remaining operation Complete to finish this job automatically."
-                : "Add the required process operations for this PO component. The job will automatically become Finished when every active operation is marked Complete."}</p>
+                ? completedOperationCount + " of " + routeOperations.length + " operations are marked Complete. Press Finish Job when the full job is complete."
+                : "Add the job's process operations. Use Finish Job here when the job is complete."}
+            </p>
           </div>
         </div>
       </div>
@@ -413,7 +399,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       {tab("documents","Documents",FileText)}
       {tab("history","History",Activity)}
     </nav>
-    <div className="linked-route-toolbar"><div className="linked-route-actions"><button className="button-primary compact-button" disabled={!selectedLine} onClick={() => startAdd()}><Plus size={14}/> Add operation</button><button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => startAdd(false, true)}><Truck size={14}/> Add transport</button><button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAdd(true)}><GitBranch size={14}/> Add branch / rework</button><button className="button-quiet compact-button" onClick={() => { setZoom(1); setSearch(""); }}><Search size={14}/> Clear search / fit</button></div><div className="linked-route-actions"><label className="linked-search"><Search size={14}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search operation, vendor, machine…"/></label><button className={"button-quiet compact-button " + (vertical ? "control-active" : "")} onClick={() => setVertical(v => !v)}>{vertical ? "Vertical layout" : "Horizontal layout"}</button><input aria-label="Route zoom" type="range" min="0.65" max="1.25" step="0.05" value={zoom} onChange={e => setZoom(Number(e.target.value))}/><span className="zoom-readout">{Math.round(zoom * 100)}%</span></div></div>
+    <div className="linked-route-toolbar"><div className="linked-route-actions"><button className="button-primary compact-button" disabled={!selectedLine} onClick={() => startAdd()}><Plus size={14}/> Add operation</button><button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => startAdd(false, true)}><Truck size={14}/> Add transport</button><button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAdd(true)}><GitBranch size={14}/> Add branch / rework</button>{selectedLine?.jobStatus === "Finished" ? <button className="button-quiet compact-button" onClick={reopenJob}><Workflow size={14}/> Reopen Job</button> : <button className="button-primary compact-button" disabled={!selectedLine || !routeOperations.length} onClick={finishJob}><Check size={14}/> Finish Job</button>}<button className="button-quiet compact-button" onClick={() => { setZoom(1); setSearch(""); }}><Search size={14}/> Clear search / fit</button></div><div className="linked-route-actions"><label className="linked-search"><Search size={14}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search operation, vendor, machine…"/></label><button className={"button-quiet compact-button " + (vertical ? "control-active" : "")} onClick={() => setVertical(v => !v)}>{vertical ? "Vertical layout" : "Horizontal layout"}</button><input aria-label="Route zoom" type="range" min="0.65" max="1.25" step="0.05" value={zoom} onChange={e => setZoom(Number(e.target.value))}/><span className="zoom-readout">{Math.round(zoom * 100)}%</span></div></div>
     <section className="pm-export-panel surface-panel">
       <div className="pm-export-heading">
         <div><div className="eyebrow">VIEW & DOWNLOAD CONTROLS</div><h3><SlidersHorizontal size={15}/> Choose what appears and what gets exported</h3><p>Vendor and price are hidden by default. Display toggles affect this Process Map only; export checkboxes independently control the downloaded file.</p></div>
