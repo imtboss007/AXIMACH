@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import {
-  Activity, AlertTriangle, ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays,
-  CheckCircle2, ClipboardCheck, FileText, Plus, RotateCcw, Search, Truck, Wallet, X
+  Activity, AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, ClipboardCheck,
+  FileText, Plus, Search, Truck, Wallet, X
 } from "lucide-react";
+import { ProcessIcon } from "./IconStudio";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
   type InvoiceRecord, type PaymentRecord, type LifecycleStatus, type OperationRecord
@@ -85,6 +86,27 @@ export default function OperationalWorkspaces({ moduleId, onBack, onNotice, noti
     }
     return conflicts;
   }, [operations]);
+
+  const updateProductionJob = (poId: string, lineId: string, finished: boolean) => {
+    const stamp = nowIso();
+    const po = data.purchaseOrders.find(item => item.id === poId);
+    const line = po?.lines.find(item => item.id === lineId);
+    if (!po || !line) return;
+    const incomplete = operations.filter(operation => operation.poId === poId && operation.poLineId === lineId && operation.status !== "Complete");
+    if (finished && incomplete.length && !window.confirm(incomplete.length + " route operation(s) are not marked Complete. Mark the job Finished anyway? Operation statuses and history will remain unchanged.")) return;
+    update(current => ({
+      ...current,
+      purchaseOrders: current.purchaseOrders.map(order => order.id !== poId ? order : {
+        ...order, updatedAt: stamp,
+        lines: order.lines.map(item => item.id !== lineId ? item : {
+          ...item, jobStatus: finished ? "Finished" : "In progress", jobFinishedAt: finished ? stamp : undefined
+        })
+      })
+    }));
+    onNotice(finished
+      ? "PO-line job marked Finished. Operation status and quantity history were not changed."
+      : "PO-line job reopened as In progress. Existing operation history was retained.");
+  };
 
   const updateOperation = (id: string, patch: Partial<OperationRecord>) => {
     const stamp = nowIso();
@@ -193,6 +215,23 @@ export default function OperationalWorkspaces({ moduleId, onBack, onNotice, noti
         <div className="ow-panel">
           <div className="ow-panel-heading"><div><div className="eyebrow">FINITE-RESOURCE REVIEW</div><h3>Machine schedule & operation register</h3><p>Uses actual process operations and PO-line links; no synthetic capacity figures are generated.</p></div><span className="ow-pill"><CalendarDays size={13}/> {machineConflicts.length ? "Review conflicts" : "No detected overlaps"}</span></div>
           {machineConflicts.length > 0 && <div className="ow-alert"><AlertTriangle size={17}/><div><strong>{machineConflicts.length} machine schedule overlap(s) detected</strong><small>Review the matching machine and planned date ranges below before releasing work.</small></div></div>}
+          <div className="ow-job-table-heading"><h4><CheckCircle2 size={14}/> PO-line job close-out</h4><small>Job Finished is independent of each route operation's Complete status.</small></div>
+          <div className="ow-table-wrap"><table className="ow-table ow-job-table"><thead><tr><th>Purchase order</th><th>Component</th><th>Quantity</th><th>Route steps</th><th>Job state</th><th>Close-out action</th></tr></thead><tbody>
+            {jobRows.map(({ po, line, component, operations: lineOperations }) => {
+              const finished = line.jobStatus === "Finished";
+              return <tr key={po.id + ":" + line.id}>
+                <td><strong>{po.number}</strong><small>{po.targetDelivery || "No PO target"}</small></td>
+                <td><strong>{component?.partNumber || "Component not linked"}</strong><small>{component?.name || "PO line retained"}</small></td>
+                <td>{line.quantity.toLocaleString("en-IN")} pcs</td>
+                <td>{lineOperations.length} operations</td>
+                <td><span className={statusClass(finished ? "Job Finished" : "In Progress")}>{finished ? "Job Finished" : "In Progress"}</span></td>
+                <td><button className={finished ? "button-quiet compact-button" : "button-primary compact-button"} onClick={() => updateProductionJob(po.id, line.id, !finished)}>
+                  <ProcessIcon processName="Finished Job" fallback={<CheckCircle2 size={13}/>} /> {finished ? "Reopen job" : "Mark finished"}
+                </button></td>
+              </tr>;
+            })}
+          </tbody></table></div>
+          <div className="ow-table-heading"><h4><CalendarDays size={14}/> Machine schedule & operation register</h4></div>
           <div className="ow-table-wrap"><table className="ow-table"><thead><tr><th>PO / part</th><th>Operation</th><th>Machine / cell</th><th>Planned start</th><th>Planned end</th><th>Status</th><th>Actual good / reject</th></tr></thead><tbody>
             {jobRows.flatMap(row => row.operations.map(op => ({ ...row, op }))).map(({ po, line, component, company, op }) => (
               <tr key={op.id}>
