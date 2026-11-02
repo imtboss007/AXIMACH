@@ -206,7 +206,13 @@ function App() {
         ) : activeModuleId === "costing" ? (
           <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" || activeModuleId === "dispatch" || activeModuleId === "invoices" ? (
-          <OperationalWorkspaces moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <>
+            <OperationalWorkspaces moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+            <details className="ow-legacy-records">
+              <summary>Open existing module records and workflows</summary>
+              <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
+            </details>
+          </>
         ) : activeModuleId === "process-master" ? (
           <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
