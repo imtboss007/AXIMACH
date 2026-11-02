@@ -17,7 +17,7 @@ Give AXIMACH a coherent sphere-centred manufacturing control-room interface whil
 
 ## AXIMACH implementation
 
-- `src/AXIMACHOrb.tsx`: interactive sphere shell, drag rotation, orbital navigation, configurable presentation modes, motion speed, size, orbit intensity, pause and reduced-motion setting.
+- `src/AXIMACHOrb.tsx` and `src/AXIMACHOrbWebGL.tsx`: true Three.js/WebGL sphere by default, drag rotation, pinch/scroll zoom, ray-cast orbital navigation, real saved-record counts, adaptive rendering quality, motion speed, size, orbit intensity, pause and reduced-motion setting. A CSS sphere fallback remains for devices where WebGL cannot initialise.
 - `src/aximach-premium.css`: sphere material, orbital ring and responsive layouts; shared component interaction states; tactile press/hover feedback; layered glass and bento surfaces; reduced-motion fallbacks.
 - `src/App.tsx`: sphere is placed in the existing dashboard hero. The saved-record `DashboardFlow3D` remains visible in a separate section below it.
 - Sphere satellites route to approved modules: Companies, Production Planning / Process Map, Material & Inventory, Quality & Inspection, Dispatch & Delivery, and Component Cost Planner.
@@ -38,8 +38,10 @@ Give AXIMACH a coherent sphere-centred manufacturing control-room interface whil
 - No Tailwind, Next.js, Radix, React Aria or additional UI runtime was added solely to consume copy-paste examples. The Lora DS accessibility patterns are adapted to AXIMACH's native React controls; the `lora-ds` package itself is not installed.
 - No upstream component source bundle was copied wholesale. The implementation is AXIMACH-owned React/CSS adapted to the present application.
 - Existing module IDs and data routes are unchanged by the sphere. It is a navigation/presentation layer, not a second source of manufacturing records.
-- Sphere presentation preferences are stored separately under `aximach.orb.preferences.v1`; they do not mutate production, costing, inventory, quality or dispatch records.
-- The visual modes are CSS/transform-based presentation variants. They are not claimed to be independent WebGL geometries or engineering simulations.
+- Sphere presentation preferences are stored separately under `aximach.orb.preferences.v1`; WebGL quality settings can read `aximach.visual-experience.v1`. They do not mutate production, costing, inventory, quality or dispatch records.
+- The default sphere is an actual Three.js `SphereGeometry` scene with physical material, torus orbit rings, point/star particles, ray-cast module nodes, pointer/touch rotation, pinch and wheel zoom. Module counters are derived from saved AXIMACH companies, operations, inventory transactions, inspections, WIP/customer dispatches and components.
+- Three.js and its matching TypeScript declarations are pinned to the same release line (`three` and `@types/three` `^0.187.0`).
+- The default sphere is genuine WebGL. The selectable cube/vortex/molecular/orbit/mesh appearance variants remain CSS/transform presentation modes, not independent WebGL geometries or engineering simulations.
 - Review the source libraries' current licences and attribution requirements before copying any specific upstream component code into a distributable build.
 
 ## Acceptance checks still required
