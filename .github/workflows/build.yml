@@ -133,6 +133,23 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
+      - name: Install and launch APK in Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell monkey -p com.aximach.manufacturingos -c android.intent.category.LAUNCHER 1
+            sleep 15
+            adb shell pidof com.aximach.manufacturingos
+            adb shell uiautomator dump /sdcard/aximach-ui.xml
+            adb pull /sdcard/aximach-ui.xml aximach-ui.xml
+            grep -qi "AXIMACH" aximach-ui.xml
+            adb logcat -d -b crash | tee android-crash.log
+            ! grep -q "FATAL EXCEPTION" android-crash.log
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
