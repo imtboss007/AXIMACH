@@ -88,6 +88,10 @@ function App() {
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
   const [dashboardTheatreOpen, setDashboardTheatreOpen] = useState(false);
   const [visualExperienceOpen, setVisualExperienceOpen] = useState(false);
+  const [startupVisible, setStartupVisible] = useState(() => {
+    try { return !window.localStorage.getItem("aximach.startup-sequence-seen.v1") && !window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+    catch { return false; }
+  });
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("All domains");
@@ -108,6 +112,15 @@ function App() {
     const text = (item.title + " " + item.description + " " + item.group).toLowerCase();
     return matchesDomain && text.includes(query.toLowerCase().trim());
   }), [domain, query]);
+
+  useEffect(() => {
+    if (!startupVisible) return;
+    const timer = window.setTimeout(() => {
+      setStartupVisible(false);
+      try { window.localStorage.setItem("aximach.startup-sequence-seen.v1", "1"); } catch { /* storage may be unavailable */ }
+    }, 1900);
+    return () => window.clearTimeout(timer);
+  }, [startupVisible]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -189,7 +202,7 @@ function App() {
         <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
       </div>
 
-      <main className="page-content">
+      <main key={activeModuleId} className="page-content axr-workspace-scene">
         {activeModuleId === "command-centre" ? (
           <CommandCentre
             activeModule={activeModule}
@@ -285,6 +298,12 @@ function App() {
       <DashboardTheatre open={dashboardTheatreOpen} onClose={() => setDashboardTheatreOpen(false)} data={readManufacturingData()} onSelectModule={selectModule} />
       <VisualExperienceStudio open={visualExperienceOpen} onClose={() => setVisualExperienceOpen(false)} />
 
+      {startupVisible && <div className="axr-startup-overlay" role="dialog" aria-label="AXIMACH startup sequence">
+        <div className="axr-startup-architecture"><span/><span/><span/><i/></div>
+        <div className="axr-startup-brand"><b>AXI</b><strong>MACH</strong><small>INFINITE REALITY · MANUFACTURING INTELLIGENCE</small></div>
+        <div className="axr-startup-progress"><i/></div>
+        <button onClick={() => { setStartupVisible(false); try { window.localStorage.setItem("aximach.startup-sequence-seen.v1", "1"); } catch { /* storage may be unavailable */ } }}>Skip intro <ArrowRight size={13}/></button>
+      </div>}
       <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Master records · server sync status shown in each workspace</span></footer>
     </div>
   );
