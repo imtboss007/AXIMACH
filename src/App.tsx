@@ -278,7 +278,7 @@ function App() {
         ) : activeModuleId === "component-directory" ? (
           <ComponentDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} onSelectModule={selectModule} onOpenOperation={openProcessOperation} />
         ) : activeModuleId === "component-cost-planner" ? (
-          <ComponentCostPlannerWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <ComponentCostPlannerWorkspace onBack={() => selectModule("costing")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" ? (
           <CombinedProductionWorkspace initialView={productionView} initialSelection={processJump} onInitialSelectionApplied={() => setProcessJump(null)} onOpenQuality={openQualityOperation} onOpenWipTransfer={openWipTransfer} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "maintenance" ? (
@@ -409,8 +409,8 @@ function DashboardWorkspace(props: {
   const activePOLines=liveOrders.flatMap(po=>po.lines.filter(line=>!("deletedAt" in line&&(line as typeof line & {deletedAt?:string}).deletedAt)));
   const finishedJobs=activePOLines.filter(line=>line.jobStatus==="Finished").length;
   const overdueOperations=liveOperations.filter(op=>op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<todayKey).length;
-  const savedComponentPlans=activeRows(actualData.componentPlannedCosts||[]);
-  const savedComponentProcessPlans=activeRows(actualData.componentProcessCosts||[]);
+  const savedComponentPlans=activeRows(actualData.standaloneCostPlans||[]);
+  const savedComponentProcessPlans=savedComponentPlans;
   const sphereCounts:Record<string,number>={
     "command-centre":overdueOperations+qualityHolds+vendorPaymentReview,
     companies:liveCompanies.length,
