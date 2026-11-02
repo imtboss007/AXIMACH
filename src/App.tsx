@@ -27,6 +27,7 @@ import Contact360Workspace from "./Contact360Workspace";
 import ComponentCostPlannerWorkspace from "./ComponentCostPlannerWorkspace";
 import DashboardFlow3D from "./DashboardFlow3D";
 import AXIMACHOrb from "./AXIMACHOrb";
+import IconStudio from "./IconStudio";
 
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, vendorProcessTypeIds, type VendorRecord } from "./manufacturingData";
 
@@ -86,6 +87,7 @@ function App() {
   useState(() => { removeLegacyDemoData(); return true; });
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
+  const [iconStudioOpen, setIconStudioOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("All approved workspaces");
@@ -247,6 +249,7 @@ function App() {
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
         <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>{modules.length + 1}</b></button>
+        <button className="deck-icon deck-icon-studio" title="Open 3D Icon Studio" aria-label="Open 3D Icon Studio" onClick={() => setIconStudioOpen(true)}><Layers3 size={17}/></button>
         <button className="deck-icon print-trigger" title="Print / Save as PDF" aria-label="Print or save this module as PDF" onClick={() => window.print()}><Printer size={17}/></button>
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
@@ -375,6 +378,7 @@ function App() {
         </div>
       )}
 
+      <IconStudio open={iconStudioOpen} onClose={() => setIconStudioOpen(false)} />
       <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Master records · server sync status shown in each workspace</span></footer>
     </div>
   );
