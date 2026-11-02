@@ -2166,3 +2166,43 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
   .linked-cost-kpis{grid-template-columns:1fr!important}
   .route-transport-direct-note{grid-column:1/-1}
 }
+
+
+/* Six-sided cube workspace navigation and orbital fan-out */
+.axi-command-universe.is-expanded .axi-universe-stage{height:535px}
+.axi-universe-cube{display:none;position:absolute;left:50%;top:50%;width:256px;height:256px;margin:-128px 0 0 -128px;transform-style:preserve-3d;filter:drop-shadow(0 18px 30px rgba(0,0,0,.38))}
+.axi-command-universe.is-cube .axi-universe-cube{display:block}
+.axi-command-universe.is-cube .axi-universe-orbit,
+.axi-command-universe.is-cube .axi-universe-equator,
+.axi-command-universe.is-cube .axi-universe-core,
+.axi-command-universe.is-cube .axi-universe-node-orbit,
+.axi-command-universe.is-cube .axi-universe-coordinate{display:none}
+.axi-universe-cube-face{position:absolute;inset:0;display:flex;flex-direction:column;gap:11px;padding:15px;border:1px solid rgba(123,224,243,.56);border-radius:15px;
+  background:linear-gradient(145deg,rgba(17,73,104,.97),rgba(6,25,45,.985));backface-visibility:hidden;
+  box-shadow:inset 0 1px 0 rgba(232,252,255,.14),inset 0 -18px 32px rgba(0,0,0,.16)}
+.axi-universe-cube-face:after{content:"";position:absolute;inset:7px;border:1px solid rgba(137,221,242,.11);border-radius:10px;pointer-events:none}
+.axi-universe-cube-face>strong{position:relative;z-index:1;color:#8be9f0;font:8px 'DM Mono',monospace;letter-spacing:.9px;padding-bottom:8px;border-bottom:1px solid rgba(130,198,224,.19)}
+.axi-cube-face-modules{position:relative;z-index:1;display:flex;flex-direction:column;gap:6px;min-height:0;overflow:auto;padding:1px 3px 2px 0;scrollbar-width:thin;scrollbar-color:rgba(108,202,223,.35) transparent}
+.axi-cube-face-modules button{display:flex;align-items:center;gap:8px;min-height:29px;padding:5px 7px;border:1px solid rgba(123,205,230,.16);border-radius:7px;background:rgba(9,38,61,.69);color:#d9f2fb;text-align:left;cursor:pointer;transition:background .18s,border-color .18s,transform .18s}
+.axi-cube-face-modules button:hover,.axi-cube-face-modules button:focus-visible{border-color:rgba(112,231,240,.62);background:rgba(18,103,128,.62);transform:translateX(2px);outline:none}
+.axi-cube-face-modules button svg{flex:0 0 17px;color:#72dce9}
+.axi-cube-face-modules button span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:8px}
+.axi-cube-face-modules button b{color:#8fe5ec;font:700 9px 'Space Grotesk'}
+.axi-cube-face-modules>small{color:#86a9bc;font-size:8px;line-height:1.5}
+.cube-front{border-color:rgba(112,232,239,.72)}
+.cube-right{background:linear-gradient(145deg,rgba(20,80,92,.97),rgba(6,30,43,.985))}
+.cube-back{background:linear-gradient(145deg,rgba(42,62,111,.97),rgba(10,24,50,.985))}
+.cube-left{background:linear-gradient(145deg,rgba(65,57,107,.97),rgba(22,19,49,.985))}
+.cube-top{background:linear-gradient(145deg,rgba(28,91,88,.97),rgba(8,38,39,.985))}
+.cube-bottom{background:linear-gradient(145deg,rgba(30,68,105,.97),rgba(8,27,48,.985))}
+@media(max-width:520px){
+  .axi-command-universe.is-expanded .axi-universe-stage{height:390px}
+  .axi-universe-cube{width:214px;height:214px;margin:-107px 0 0 -107px}
+  .axi-universe-cube-face{padding:10px;gap:8px;border-radius:12px}
+  .axi-universe-cube-face>strong{font-size:7px;padding-bottom:6px}
+  .axi-cube-face-modules{gap:4px}
+  .axi-cube-face-modules button{min-height:25px;padding:4px 5px;gap:5px}
+  .axi-cube-face-modules button svg{width:14px;height:14px}
+  .axi-cube-face-modules button span{font-size:7px}
+  .axi-cube-face-modules button b{font-size:8px}
+}
