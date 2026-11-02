@@ -409,8 +409,6 @@ function DashboardWorkspace(props: {
   const activePOLines=liveOrders.flatMap(po=>po.lines.filter(line=>!("deletedAt" in line&&(line as typeof line & {deletedAt?:string}).deletedAt)));
   const finishedJobs=activePOLines.filter(line=>line.jobStatus==="Finished").length;
   const overdueOperations=liveOperations.filter(op=>op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<todayKey).length;
-  const savedComponentPlans=activeRows(actualData.standaloneCostPlans||[]);
-  const savedComponentProcessPlans=[] as typeof savedComponentPlans;
   const sphereCounts:Record<string,number>={
     "command-centre":overdueOperations+qualityHolds+vendorPaymentReview,
     companies:liveCompanies.length,
@@ -418,14 +416,13 @@ function DashboardWorkspace(props: {
     purchasing:liveOrders.length,
     components:liveComponents.length,
     "component-directory":liveComponents.filter(component=>liveOperations.some(op=>op.componentId===component.id)).length,
-    "component-cost-planner":savedComponentPlans.length,
     "process-master":activeRows(actualData.processTypes).length,
     vendors:liveVendors.length,
     inventory:activeRows(actualData.materials).length,
     production:liveOperations.length,
     dispatch:inTransitMovements,
     quality:activeRows(actualData.qualityInspections).length+qualityHolds,
-    costing:savedComponentPlans.length+savedComponentProcessPlans.length+activeRows(actualData.quotations).length,
+    costing:activeRows(actualData.quotations).length+liveOperations.length,
     reports:liveOrders.length+liveOperations.length,
     "ai-insights":overdueOperations+qualityHolds,
     export:0,
@@ -460,7 +457,6 @@ function DashboardWorkspace(props: {
           liveOperations={liveOperations.length}
           finishedJobs={finishedJobs}
           attentionItems={overdueOperations+qualityHolds}
-          componentPlanCount={savedComponentPlans.length}
         />
       </section>
 
