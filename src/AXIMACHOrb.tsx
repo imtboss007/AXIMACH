@@ -94,7 +94,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
       {cssFallback && <div className="ax-orb-stage-grid" />}
       {cssFallback && <div className="ax-orb-status ax-orb-status-top"><span /> AXIMACH / CONNECTED OPERATIONS</div>}
       {visualMode === "webgl" && !webglFailed ? (
-        <AXIMACHOrbWebGL onSelectModule={onSelectModule} counts={counts} paused={paused || reduceMotion} onFailure={() => setWebglFailed(true)} />
+        <AXIMACHOrbWebGL onSelectModule={onSelectModule} counts={counts} paused={paused || reduceMotion} rotationSpeed={speed === "Slow" ? .55 : speed === "Fast" ? 1.6 : 1} sphereScale={sphereSize} orbitIntensity={orbitIntensity} onFailure={() => setWebglFailed(true)} />
       ) : (
         <>
           <motion.div
