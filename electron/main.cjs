@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, shell, ipcMain } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const crypto = require("node:crypto");
@@ -71,15 +71,18 @@ function startLocalServices() {
   if (!whatsappBridge && fs.existsSync(whatsappEntry)) whatsappBridge = spawnLocalService(whatsappEntry, { WA_WEB_PORT: "8789", WA_WEB_HOST: "0.0.0.0", AXIMACH_API_KEY: sharedApiKey, AXIMACH_ALLOWED_ORIGINS: CLIENT_ORIGINS, WA_WEB_DATA_FILE: path.join(whatsappDir, "whatsapp-web-lan.json"), WA_WEB_AUTH_DIR: path.join(whatsappDir, "whatsapp-auth-lan"), NODE_PATH: path.join(appRoot, "node_modules") }, "AXIMACH WhatsApp bridge");
   else if (!fs.existsSync(whatsappEntry)) logStartup("WhatsApp bridge entry is missing", whatsappEntry);
 }
-function injectLocalServerSettings(window) {
-  const settings = { "aximach.scheduler.url": "http://127.0.0.1:8787", "aximach.scheduler.key": sharedApiKey, "aximach.whatsapp.url": "http://127.0.0.1:8789" };
-  const bootstrap = "(() => { try { const values = " + JSON.stringify(settings) + "; for (const [key, value] of Object.entries(values)) localStorage.setItem(key, value); } catch (_) {} })();";
-  window.webContents.addDocumentStartJavaScript(bootstrap);
-}
+ipcMain.on("aximach:get-bootstrap-settings", event => {
+  const frameUrl = String(event.senderFrame?.url || event.sender?.getURL?.() || "");
+  if (!frameUrl.startsWith("file://")) { event.returnValue = {}; return; }
+  event.returnValue = {
+    "aximach.scheduler.url": "http://127.0.0.1:8787",
+    "aximach.scheduler.key": sharedApiKey,
+    "aximach.whatsapp.url": "http://127.0.0.1:8789"
+  };
+});
 function createWindow() {
-  const window = new BrowserWindow({ width: 1600, height: 1000, minWidth: 980, minHeight: 680, autoHideMenuBar: false, backgroundColor: "#07111d", title: "AXIMACH — Manufacturing OS", show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  const window = new BrowserWindow({ width: 1600, height: 1000, minWidth: 980, minHeight: 680, autoHideMenuBar: false, backgroundColor: "#07111d", title: "AXIMACH — Manufacturing OS", show: false, webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   mainWindow = window;
-  injectLocalServerSettings(window);
   window.webContents.setWindowOpenHandler(({ url }) => { if (url.startsWith("https://") || url.startsWith("http://")) shell.openExternal(url); return { action: "deny" }; });
   window.webContents.on("did-fail-load", (_event, code, description, url, isMainFrame) => {
     if (isMainFrame) {
