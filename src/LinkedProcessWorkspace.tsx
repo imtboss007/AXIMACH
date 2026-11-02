@@ -3,6 +3,7 @@ import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, 
 import { activeRows, makeId, nowIso, useManufacturingData, vendorSupportsProcessType, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import ProcessMap3DViewer from "./ProcessMap3DViewer";
+import { calculateFinishedJobProcessCost } from "./componentPlanLogic";
 import { saveBlobFile } from "./fileDownload";
 
 type ProcessSelection = { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string };
@@ -99,9 +100,10 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const finishJob = () => {
     if (!selectedPO || !selectedLine || !selectedComponent || routeOperations.length === 0) return;
     const stamp = nowIso();
-    const processCost = routeOperations.reduce((sum, op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
-    const actualProcessCost = routeOperations.reduce((sum, op) => sum + op.quantity * Math.max(0, op.actualRatePerPart || 0) + op.transportCost, 0);
-    const missingActualRates = routeOperations.filter(op => !(op.actualRatePerPart > 0)).length;
+    const snapshot = calculateFinishedJobProcessCost(routeOperations);
+    const processCost = snapshot.processCost;
+    const actualProcessCost = snapshot.actualProcessCost;
+    const missingActualRates = snapshot.missingActualRates;
     update(current => ({
       ...current,
       purchaseOrders: current.purchaseOrders.map(po => po.id !== selectedPO.id ? po : ({
