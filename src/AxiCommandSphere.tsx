@@ -1,0 +1,146 @@
+import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  ChevronLeft, ChevronRight, Maximize2, Pause, Play, RotateCcw,
+  RotateCw, Sparkles
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+export type SphereModule = {
+  id: string;
+  title: string;
+  group: string;
+  icon: LucideIcon;
+  quantity: number;
+};
+
+type Props = {
+  modules: SphereModule[];
+  onOpenModule: (id: string) => void;
+  liveOperations: number;
+  finishedJobs: number;
+  attentionItems: number;
+};
+
+const PAGE_SIZE = 12;
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const count = (value: number) => Math.max(0, Number(value) || 0).toLocaleString("en-IN");
+
+export default function AxiCommandSphere({
+  modules, onOpenModule, liveOperations, finishedJobs, attentionItems
+}: Props) {
+  const [page, setPage] = useState(0);
+  const [yaw, setYaw] = useState(-9);
+  const [pitch, setPitch] = useState(8);
+  const [paused, setPaused] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const drag = useRef<{ pointerId: number; x: number; y: number; yaw: number; pitch: number } | null>(null);
+  const pageCount = Math.max(1, Math.ceil(modules.length / PAGE_SIZE));
+  const visibleModules = useMemo(
+    () => modules.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [modules, page]
+  );
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest("button")) return;
+    drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, yaw, pitch };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = drag.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    setYaw(clamp(start.yaw + (event.clientX - start.x) * 0.34, -42, 42));
+    setPitch(clamp(start.pitch - (event.clientY - start.y) * 0.2, -18, 26));
+  };
+  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (drag.current?.pointerId === event.pointerId) drag.current = null;
+  };
+  const turn = (direction: -1 | 1) => setYaw(value => clamp(value + direction * 12, -42, 42));
+
+  return <section className={"axi-command-universe" + (expanded ? " is-expanded" : "")}>
+    <div className="axi-universe-header">
+      <div>
+        <span className="axi-universe-eyebrow"><i/> LIVING INTELLIGENCE · RECORD-DRIVEN</span>
+        <h2>AXIMACH <em>command universe</em></h2>
+        <p>One connected manufacturing world. Select an orbital workspace or drag the sphere to explore.</p>
+      </div>
+      <div className="axi-universe-header-actions">
+        <span className="axi-universe-module-count">{count(modules.length)} WORKSPACES</span>
+        <button type="button" title={paused ? "Resume rotation" : "Pause rotation"} onClick={() => setPaused(value => !value)}>
+          {paused ? <Play size={14}/> : <Pause size={14}/>} {paused ? "Resume" : "Pause"}
+        </button>
+        <button type="button" title="Reset sphere view" onClick={() => {setYaw(-9);setPitch(8);setPage(0);}}>
+          <RotateCcw size={14}/> Reset
+        </button>
+      </div>
+    </div>
+
+    <div className="axi-universe-stage"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      aria-label="Interactive rotating AXIMACH module sphere. Drag to rotate.">
+      <div className="axi-universe-ambient axi-ambient-one"/>
+      <div className="axi-universe-ambient axi-ambient-two"/>
+      <div className="axi-universe-grid"/>
+      <div className="axi-universe-scene" style={{ transform: "perspective(1050px) rotateX(" + pitch + "deg) rotateY(" + yaw + "deg)" } as CSSProperties}>
+        <div className={"axi-universe-orbit axi-orbit-outer" + (paused ? " is-paused" : "")}/>
+        <div className={"axi-universe-orbit axi-orbit-middle" + (paused ? " is-paused" : "")}/>
+        <div className={"axi-universe-orbit axi-orbit-inner" + (paused ? " is-paused" : "")}/>
+        <div className="axi-universe-equator"/>
+        <div className="axi-universe-core">
+          <div className="axi-core-shell">
+            <div className="axi-core-latitudes"/>
+            <div className="axi-core-longitudes"/>
+            <div className="axi-core-energy"/>
+            <div className="axi-core-logo">AXI<span>MACH</span></div>
+            <small>MANUFACTURING INTELLIGENCE</small>
+          </div>
+          <div className="axi-core-caption"><Sparkles size={12}/> LIVE DATA CORE</div>
+        </div>
+
+        <div className={"axi-universe-node-orbit" + (paused ? " is-paused" : "")}>
+          {visibleModules.map((module, index) => {
+            const angle = (360 / Math.max(1, visibleModules.length)) * index - 90;
+            const radians = angle * Math.PI / 180;
+            const x = 50 + Math.cos(radians) * 40.2;
+            const y = 50 + Math.sin(radians) * 40.2;
+            const Icon = module.icon;
+            return <button type="button" key={module.id}
+              className="axi-universe-module-node"
+              style={{ left: x + "%", top: y + "%", animationPlayState: paused ? "paused" : "running" } as CSSProperties}
+              onClick={() => onOpenModule(module.id)}
+              title={module.title + " · " + count(module.quantity) + " records"}
+              aria-label={"Open " + module.title + ", " + count(module.quantity) + " records"}>
+              <span className="axi-universe-node-icon"><Icon size={19}/></span>
+              <strong>{count(module.quantity)}</strong>
+              <span className="axi-universe-node-label">{module.title}</span>
+            </button>;
+          })}
+        </div>
+        <span className="axi-universe-coordinate coordinate-north">AX / 00</span>
+        <span className="axi-universe-coordinate coordinate-east">LIVE / SYNC</span>
+        <span className="axi-universe-coordinate coordinate-south">PRECISION · TRACEABLE · CONNECTED</span>
+      </div>
+      <div className="axi-universe-stage-controls">
+        <button type="button" title="Rotate left" onClick={() => turn(-1)}><RotateCcw size={14}/></button>
+        <button type="button" title="Rotate right" onClick={() => turn(1)}><RotateCw size={14}/></button>
+        <button type="button" title="Toggle expanded sphere" onClick={() => setExpanded(value => !value)}><Maximize2 size={14}/></button>
+      </div>
+      <span className="axi-universe-drag-hint">DRAG · TOUCH · SELECT ORBITAL ICON</span>
+    </div>
+
+    <div className="axi-universe-footer">
+      <div className="axi-universe-signals">
+        <div><small>ACTIVE OPERATIONS</small><strong>{count(liveOperations)}</strong></div>
+        <div><small>FINISHED JOBS</small><strong>{count(finishedJobs)}</strong></div>
+        <div><small>ATTENTION ITEMS</small><strong>{count(attentionItems)}</strong></div>
+      </div>
+      <div className="axi-universe-pager">
+        <span>{String(page + 1).padStart(2, "0")} / {String(pageCount).padStart(2, "0")}</span>
+        <button type="button" aria-label="Previous orbital workspaces" disabled={page === 0} onClick={() => setPage(value => Math.max(0, value - 1))}><ChevronLeft size={15}/></button>
+        <button type="button" aria-label="Next orbital workspaces" disabled={page >= pageCount - 1} onClick={() => setPage(value => Math.min(pageCount - 1, value + 1))}><ChevronRight size={15}/></button>
+      </div>
+    </div>
+  </section>;
+}
