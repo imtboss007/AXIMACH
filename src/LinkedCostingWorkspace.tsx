@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, CalendarClock, Check, CircleDollarSign, FileText, Gauge, Package, Plus, Recycle, RotateCcw, Search, ShieldCheck, Truck, Users, Wallet, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type QuotationRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
@@ -31,13 +31,36 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const [quoteSearch, setQuoteSearch] = useState("");
   const [showQuoteForm, setShowQuoteForm] = useState(false);
 
+  // Land on the component/PO line that already has quotations first, so saved
+  // supplier prices never appear to vanish behind blank selectors.
+  const preferredComponentId =
+    quotations.find(q => !q.deletedAt && components.some(c => c.id === q.componentId))?.componentId ||
+    components.find(c => orders.some(po => po.lines.some(line => line.componentId === c.id && !("deletedAt" in line && (line as any).deletedAt))))?.id ||
+    components[0]?.id || "";
+  useEffect(() => {
+    if (!components.some(c => c.id === componentId) && preferredComponentId) setComponentId(preferredComponentId);
+    if (!preferredComponentId && componentId) setComponentId("");
+  }, [componentId, preferredComponentId]);
+
   const selectedComponent = components.find(c => c.id === componentId);
   const componentLines: ComponentLineRef[] = useMemo(() => orders.flatMap(po => po.lines.filter(line => line.componentId === selectedComponent?.id).map(line => ({
     key: po.id + "::" + line.id, poId: po.id, poNumber: po.number, lineId: line.id, quantity: line.quantity, targetDelivery: line.targetDelivery || po.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId, materialQty: line.materialQty, materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost, reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
   }))), [orders, selectedComponent?.id]);
-  const selectedLine = componentLines.find(line => line.key === lineKey) || componentLines[0];
+  const preferredLine = componentLines.find(line => quotations.some(q => !q.deletedAt && q.poLineId === line.lineId)) || componentLines[0];
+  useEffect(() => {
+    const currentLine = componentLines.find(line => line.key === lineKey);
+    const nextLine = currentLine || preferredLine;
+    if ((nextLine?.key || "") !== lineKey) setLineKey(nextLine?.key || "");
+  }, [componentLines, lineKey, preferredLine?.key]);
+  const selectedLine = componentLines.find(line => line.key === lineKey) || preferredLine;
   const routeOperations = operations.filter(op => op.componentId === selectedComponent?.id && (!selectedLine || (op.poId === selectedLine.poId && op.poLineId === selectedLine.lineId)));
-  const selectedOperation = routeOperations.find(op => op.id === operationId) || routeOperations[0];
+  const preferredOperation = routeOperations.find(op => quotations.some(q => !q.deletedAt && q.operationId === op.id)) || routeOperations[0];
+  useEffect(() => {
+    const currentOperation = routeOperations.find(op => op.id === operationId);
+    const nextOperation = currentOperation || preferredOperation;
+    if ((nextOperation?.id || "") !== operationId) setOperationId(nextOperation?.id || "");
+  }, [routeOperations, operationId, preferredOperation?.id]);
+  const selectedOperation = routeOperations.find(op => op.id === operationId) || preferredOperation;
   // Show saved quotes for every process in the selected component/PO line.
   // Filtering by the currently selected operation hid quotations saved against
   // other steps, making a populated costing register look empty.
@@ -168,7 +191,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
         </div>
       </section>}
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLIER QUOTATION HISTORY</div><h3>Saved quotations ({quoteRows.length})</h3><p>All process operations for this selected component and PO line are shown here. The current operation selector does not hide earlier saved quotes.</p></div><label className="module-record-search"><Search size={14}/><input value={quoteSearch} onChange={e=>setQuoteSearch(e.target.value)} placeholder="Search quote, vendor, process…"/></label></div>
-        {quoteRows.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Process</th><th>Vendor</th><th>Quote reference</th><th>Quote date</th><th>Validity</th><th>Qty</th><th>Rate / part</th><th>Transport</th><th>Lead days</th><th>Status</th><th>Action</th></tr></thead><tbody>{quoteRows.map(q => <tr key={q.id}><td>{routeOperations.find(op=>op.id===q.operationId)?.name || "Archived operation"}</td><td>{vendors.find(v=>v.id===q.vendorId)?.company || "Vendor archived"}</td><td>{q.quoteReference || "Not entered"}</td><td>{q.quotedAt || "—"}</td><td>{q.validUntil || "—"}</td><td>{q.quantity.toLocaleString("en-IN")}</td><td>{money(q.ratePerPart)}</td><td>{money(q.transportCost)}</td><td>{q.leadDays || "—"}</td><td><span className={"record-state state-" + q.status.toLowerCase()}>{q.status}</span></td><td>{q.status === "Selected" ? <span>Applied to operation</span> : <button className="button-primary compact-button" onClick={() => selectQuote(q)}><Check size={12}/> Use this rate</button>}</td></tr>)}</tbody></table></div> : <div className="vendor-empty">No quotations saved for this component/PO line/process yet.</div>}
+        {quoteRows.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Process</th><th>Vendor</th><th>Quote reference</th><th>Quote date</th><th>Validity</th><th>Qty</th><th>Rate / part</th><th>Transport</th><th>Lead days</th><th>Status</th><th>Action</th></tr></thead><tbody>{quoteRows.map(q => <tr key={q.id}><td><div className="cost-op-cell cost-quote-process"><ProcessIcon processName={routeOperations.find(op=>op.id===q.operationId)?.name || "Archived operation"} fallback={<Workflow size={16}/>} /><span><strong>{routeOperations.find(op=>op.id===q.operationId)?.name || "Archived operation"}</strong><small>OP-{routeOperations.find(op=>op.id===q.operationId)?.sequence ?? "—"}</small></span></div></td><td>{vendors.find(v=>v.id===q.vendorId)?.company || "Vendor archived"}</td><td>{q.quoteReference || "Not entered"}</td><td>{q.quotedAt || "—"}</td><td>{q.validUntil || "—"}</td><td>{q.quantity.toLocaleString("en-IN")}</td><td>{money(q.ratePerPart)}</td><td>{money(q.transportCost)}</td><td>{q.leadDays || "—"}</td><td><span className={"record-state state-" + q.status.toLowerCase()}>{q.status}</span></td><td>{q.status === "Selected" ? <span>Applied to operation</span> : <button className="button-primary compact-button" onClick={() => selectQuote(q)}><Check size={12}/> Use this rate</button>}</td></tr>)}</tbody></table></div> : <div className="vendor-empty">No quotations saved for this component/PO line/process yet.</div>}
       </section>
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMPONENT OTHER COSTS</div><h3>Material, overhead and other entered costs</h3><p>When a PO line is selected, edits are saved to that line only so this order’s costs and rejects do not affect another order for the same part. Blank material defaults are estimated from linked BOM lines and their entered material rates; this is an estimate, not a supplier invoice.</p></div></div>
         <div className="module-record-form">
