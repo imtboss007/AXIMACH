@@ -65,6 +65,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
   const [processTypeId, setProcessTypeId] = useState("");
   const [processCategoryId, setProcessCategoryId] = useState("");
+  const [isDirectTransport, setIsDirectTransport] = useState(false);
 
   useEffect(() => {
     if (!initialSelection) return;
@@ -147,6 +148,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     }
     const base = blankOperation(selectedLine);
     setProcessTypeId(""); setProcessCategoryId("");
+    setIsDirectTransport(transport);
     if (transport) { base.name = "Transport / handover"; base.category = "Logistics"; base.branch = "Main route"; }
     if (branch && activeOperation) { base.branch = "Alternate / rework"; base.name = "Alternate / rework operation"; }
     setDraft(base);
@@ -157,6 +159,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if (!operation) return;
     setProcessTypeId(operation.processTypeId || "");
     setProcessCategoryId(processTypes.find(item=>item.id===operation.processTypeId)?.categoryId || "");
+    setIsDirectTransport(/transport|dispatch|freight|courier|handover|logistics/i.test(operation.name + " " + operation.category));
     setDraft({
       name: operation.name, category: operation.category, machine: operation.machine, machineResourceId: operation.machineResourceId || "", vendorId: operation.vendorId,
       status: operation.status, plannedStart: operation.plannedStart, plannedEnd: operation.plannedEnd, plannedStartTime: operation.plannedSlotStartAt?new Date(operation.plannedSlotStartAt).toTimeString().slice(0,5):"", plannedEndTime: operation.plannedSlotEndAt?new Date(operation.plannedSlotEndAt).toTimeString().slice(0,5):"", actualStart: operation.actualStart || "", actualEnd: operation.actualEnd || "",
@@ -168,8 +171,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   };
   const saveOperation = () => {
     if (!selectedPO || !selectedLine || !selectedComponent) { onNotice("Select a PO component line first."); return; }
-    if (!draft.name.trim()) { onNotice("Select a process type from Process Directory."); return; }
-    if (!editingId && !processTypeId) { onNotice("Select a process type from Process Directory."); return; }
+    if (!draft.name.trim()) { onNotice("Enter an activity name."); return; }
+    const directTransport = isDirectTransport || /transport|dispatch|freight|courier|handover/i.test(draft.name + " " + draft.category);
+    if (!editingId && !processTypeId && !directTransport) { onNotice("Select a process type from Process Directory."); return; }
     if (processTypeId && !processTypes.some(item => item.id === processTypeId)) { onNotice("The selected process type is no longer active in Process Directory."); return; }
     const oldOperation = operations.find(op => op.id === editingId);
     const effectiveProcessTypeId = processTypeId || oldOperation?.processTypeId || "";
@@ -222,8 +226,10 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       };
     });
     setSelectedOperationId(operationId);
-    setShowEditor(false); setEditingId("");
-    onNotice(editingId ? "Operation updated and linked to its PO line/component ID." : "Operation saved against the selected PO line. Cost and dates remain separate for this component.");
+    setShowEditor(false); setEditingId(""); setIsDirectTransport(false);
+    onNotice(directTransport
+      ? (editingId ? "Transport activity updated and linked to this PO component line." : "Transport activity saved directly to this PO component line. Its transporter, cost and dates are included in Cost & Payments.")
+      : (editingId ? "Operation updated and linked to its PO line/component ID." : "Operation saved against the selected PO line. Cost and dates remain separate for this component."));
   };
   const updateOperation = (id: string, patch: Partial<OperationRecord>) => {
     const stamp = nowIso();
@@ -438,14 +444,16 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     <div className="linked-process-layout">
       <section className="surface-panel linked-route-canvas">
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></div>
-        {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
+        {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {isDirectTransport ? (editingId ? "Edit transport activity" : "Add transport activity") : (editingId ? "Edit operation" : "Add operation")}</strong><small>{isDirectTransport ? "Transport is a direct Process Map activity; no Process Directory process type is required." : "All saved changes are linked to this selected PO line and component."}</small></div><button className="icon-control" onClick={() => {setShowEditor(false);setIsDirectTransport(false);}} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
-            <label>Process category *<select value={processCategoryId} onChange={e=>{setProcessCategoryId(e.target.value);setProcessTypeId("");setDraft(current=>({...current,name:"",category:processCategories.find(item=>item.id===e.target.value)?.name||"",vendorId:""}));}}><option value="">Choose category…</option>{processCategories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-            <label>Process / subcategory *<select value={processTypeId} onChange={e=>{const selected=processTypes.find(item=>item.id===e.target.value);setProcessTypeId(e.target.value);if(selected)setDraft(current=>({...current,name:selected.name,category:processCategories.find(item=>item.id===selected.categoryId)?.name||current.category,vendorId:vendors.some(vendor=>vendorSupportsProcessType(vendor,selected.id))?current.vendorId:""}));}}><option value="">{editingId&&!processTypeId?"Keep legacy process name":"Choose process…"}</option>{processTypes.filter(item=>!processCategoryId||item.categoryId===processCategoryId).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-            {!processTypes.length && <small className="field-hint">Create process categories and types in Process Directory first.</small>}
+            {isDirectTransport ? <div className="route-transport-direct-note"><small>DIRECT ACTIVITY CATEGORY</small><strong>Logistics / transport</strong><span>Saved directly against the selected component and PO line. It is included in transport cost reporting without creating a placeholder manufacturing process.</span></div> : <>
+              <label>Process category *<select value={processCategoryId} onChange={e=>{setProcessCategoryId(e.target.value);setProcessTypeId("");setDraft(current=>({...current,name:"",category:processCategories.find(item=>item.id===e.target.value)?.name||"",vendorId:""}));}}><option value="">Choose category…</option>{processCategories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+              <label>Process / subcategory *<select value={processTypeId} onChange={e=>{const selected=processTypes.find(item=>item.id===e.target.value);setProcessTypeId(e.target.value);if(selected)setDraft(current=>({...current,name:selected.name,category:processCategories.find(item=>item.id===selected.categoryId)?.name||current.category,vendorId:vendors.some(vendor=>vendorSupportsProcessType(vendor,selected.id))?current.vendorId:""}));}}><option value="">{editingId&&!processTypeId?"Keep legacy process name":"Choose process…"}</option>{processTypes.filter(item=>!processCategoryId||item.categoryId===processCategoryId).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+              {!processTypes.length && <small className="field-hint">Create process categories and types in Process Directory first.</small>}
+            </>}
             <label>Machine / station (text)<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value})} placeholder="Machine / work centre"/></label>
             <label>Linked machine resource<select value={draft.machineResourceId || ""} onChange={e => { const resource=machineResources.find(m=>m.id===e.target.value); setDraft({...draft,machineResourceId:e.target.value,machine:resource?resource.code+" · "+resource.name:draft.machine}); }}><option value="">Not linked to a registered machine</option>{machineResources.filter(m=>!selectedPO || m.factoryId===selectedPO.factoryId).map(m=><option key={m.id} value={m.id}>{m.code} · {m.name}</option>)}</select></label>{!machineResources.length&&<small className="field-hint">Register machine resources in Maintenance & Downtime to link operations to machine capacity.</small>}
-            <SearchablePicker id="operation-vendor-picker" label="Vendor (capable of this process)" value={draft.vendorId} placeholder="Search vendors for the selected process…" options={operationVendorOptions.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{processTypeId&&!operationVendorOptions.length && <small className="field-hint">No vendor capability is assigned to this process yet. Add the vendor to this process in Vendor Master or Process Directory.</small>}
+            {!isDirectTransport && <><SearchablePicker id="operation-vendor-picker" label="Vendor (capable of this process)" value={draft.vendorId} placeholder="Search vendors for the selected process…" options={operationVendorOptions.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{processTypeId&&!operationVendorOptions.length && <small className="field-hint">No vendor capability is assigned to this process yet. Add the vendor to this process in Vendor Master or Process Directory.</small>}</>}
             <label>Vendor payment status<select value={draft.vendorPaymentStatus || "Not Paid"} onChange={e=>setDraft({...draft,vendorPaymentStatus:e.target.value as "Paid" | "Not Paid"})}><option value="Not Paid">Not Paid</option><option value="Paid">Paid</option></select></label>
             <label>Planned start<input type="date" value={draft.plannedStart} onChange={e => setDraft({...draft,plannedStart:e.target.value})}/></label>
             <label>Planned target/end<input type="date" min={draft.plannedStart || undefined} value={draft.plannedEnd} onChange={e => setDraft({...draft,plannedEnd:e.target.value})}/></label>
