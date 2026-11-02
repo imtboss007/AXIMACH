@@ -52,8 +52,14 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "server/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "aximach-server",
+        "filter": ["**/*"]
+      }
     ],
     "win": {
       "target": [
