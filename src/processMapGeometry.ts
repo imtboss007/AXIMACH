@@ -51,7 +51,7 @@ export function getProcessMapGeometryPoint(
         y: latitude,
         z: Math.sin(angle) * radius,
         rotateX: 0,
-        rotateY: angle * 180 / Math.PI
+        rotateY: 0
       };
     }
     case "cube": {
@@ -61,12 +61,12 @@ export function getProcessMapGeometryPoint(
       const u = faceCount === 1 ? 0 : (slot / (faceCount - 1)) * 1.2 - 0.6;
       const v = faceCount <= 2 ? (slot === 0 ? -0.18 : 0.18) : fract(slot * 0.61803398875) * 1.1 - 0.55;
       const facePoints: ProcessMapGeometryPoint[] = [
-        { x: u, y: v, z: 0.92, rotateX: 0, rotateY: 0 },
-        { x: 0.92, y: v, z: -u, rotateX: 0, rotateY: 90 },
-        { x: -u, y: v, z: -0.92, rotateX: 0, rotateY: 180 },
-        { x: -0.92, y: v, z: u, rotateX: 0, rotateY: -90 },
-        { x: u, y: 0.92, z: -v, rotateX: -90, rotateY: 0 },
-        { x: u, y: -0.92, z: v, rotateX: 90, rotateY: 0 }
+        { x: 0.55 + u * 0.18, y: v * 0.55, z: 0.92, rotateX: 0, rotateY: 0 },
+        { x: 0.92, y: v * 0.55, z: 0.55 - u * 0.18, rotateX: 0, rotateY: 0 },
+        { x: -0.55 - u * 0.18, y: v * 0.55, z: -0.92, rotateX: 0, rotateY: 0 },
+        { x: -0.92, y: v * 0.55, z: -0.55 + u * 0.18, rotateX: 0, rotateY: 0 },
+        { x: u * 0.72, y: 0.92, z: 0.55 + v * 0.2, rotateX: 0, rotateY: 0 },
+        { x: u * 0.72, y: -0.92, z: -0.55 - v * 0.2, rotateX: 0, rotateY: 0 }
       ];
       return facePoints[face];
     }
@@ -92,8 +92,8 @@ export function getProcessMapGeometryPoint(
         x: Math.cos(phase) * 0.76,
         y: 0.78 - progress * 1.56,
         z: Math.sin(phase) * 0.76,
-        rotateX: Math.sin(phase) * 9,
-        rotateY: phase * 180 / Math.PI + 90
+        rotateX: 0,
+        rotateY: 0
       };
     }
     case "orbit": {
@@ -103,7 +103,7 @@ export function getProcessMapGeometryPoint(
         y: Math.sin(orbitAngle) * 0.57,
         z: Math.sin(orbitAngle * 2) * 0.16,
         rotateX: 0,
-        rotateY: orbitAngle * 180 / Math.PI + 90
+        rotateY: 0
       };
     }
     case "vortex": {
@@ -113,8 +113,8 @@ export function getProcessMapGeometryPoint(
         x: Math.cos(vortexAngle) * vortexRadius,
         y: Math.sin(vortexAngle) * vortexRadius * 0.68,
         z: 0.62 - progress * 1.24,
-        rotateX: Math.sin(vortexAngle) * 12,
-        rotateY: vortexAngle * 180 / Math.PI + 90
+        rotateX: 0,
+        rotateY: 0
       };
     }
     default:
