@@ -6,9 +6,10 @@ import ProcessMap3DViewer from "./ProcessMap3DViewer";
 import { saveBlobFile } from "./fileDownload";
 
 type ProcessSelection = { companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string };
-type ProcessExportField = "process" | "givenDate" | "deliveryDate" | "quantity" | "vendor" | "price";
+type ProcessExportField = "process" | "description" | "givenDate" | "deliveryDate" | "quantity" | "vendor" | "price";
 const PROCESS_EXPORT_COLUMNS: { key: ProcessExportField; label: string }[] = [
   { key: "process", label: "Process" },
+  { key: "description", label: "Process description" },
   { key: "givenDate", label: "Given date" },
   { key: "deliveryDate", label: "Delivery date" },
   { key: "quantity", label: "Quantity" },
@@ -18,6 +19,7 @@ const PROCESS_EXPORT_COLUMNS: { key: ProcessExportField; label: string }[] = [
 const processExportValue = (operation: OperationRecord, field: ProcessExportField, vendorName: string) => {
   switch (field) {
     case "process": return operation.category ? operation.category + " · " + operation.name : operation.name;
+    case "description": return operation.notes || "";
     case "givenDate": return operation.plannedStart || "";
     case "deliveryDate": return operation.plannedEnd || "";
     case "quantity": return operation.quantity;
@@ -60,6 +62,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [showVendorOnMap, setShowVendorOnMap] = useState(false);
   const [showPriceOnMap, setShowPriceOnMap] = useState(false);
   const [exportFields, setExportFields] = useState<ProcessExportField[]>(["process", "givenDate", "deliveryDate", "quantity"]);
+  const [exportScope, setExportScope] = useState<"visible" | "selected-branch">("visible");
+  const [exportIncludeArrows, setExportIncludeArrows] = useState(true);
   const [showEditor, setShowEditor] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
@@ -275,29 +279,108 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const selectedExportColumns = PROCESS_EXPORT_COLUMNS.filter(column => exportFields.includes(column.key));
   const exportVendorName = (operation: OperationRecord) => vendors.find(vendor => vendor.id === operation.vendorId)?.company || "";
   const exportCell = (value: unknown) => '"' + String(value ?? "").replace(/"/g, '""') + '"';
+  const exportOperations = exportScope === "selected-branch" && activeOperation
+    ? visibleOperations.filter(operation => (operation.branch || "Main route") === (activeOperation.branch || "Main route"))
+    : visibleOperations;
+  const exportBaseName = [selectedComponent?.partNumber || "Component", selectedPO?.number || "Process-Map"]
+    .join("-").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "");
   const toggleExportField = (field: ProcessExportField) => setExportFields(current =>
     current.includes(field) ? current.filter(item => item !== field) : [...current, field]
   );
   const downloadProcessRoute = async () => {
-    if (!visibleOperations.length) { onNotice("There are no visible operation rows to export. Clear or change the search filter."); return; }
+    if (!exportOperations.length) { onNotice("There are no visible operation rows to export. Clear or change the search filter."); return; }
     if (!selectedExportColumns.length) { onNotice("Choose at least one export field."); return; }
     const rows = [
       selectedExportColumns.map(column => exportCell(column.label)).join(","),
-      ...visibleOperations.map(operation => selectedExportColumns
+      ...exportOperations.map(operation => selectedExportColumns
         .map(column => exportCell(processExportValue(operation, column.key, exportVendorName(operation))))
         .join(","))
     ];
-    const baseName = [selectedComponent?.partNumber || "Component", selectedPO?.number || "Process-Map"]
-      .join("-").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "");
     try {
-      const result = await saveBlobFile("AXIMACH-" + baseName + "-Process-Map.csv", new Blob(["\uFEFF" + rows.join("\r\n")], { type: "text/csv;charset=utf-8" }));
-      onNotice(result === "cancelled" ? "CSV download cancelled." : "Process Map CSV prepared with " + selectedExportColumns.length + " selected field(s) and " + visibleOperations.length + " operation(s).");
+      const result = await saveBlobFile("AXIMACH-" + exportBaseName + "-Process-Map.csv", new Blob(["\uFEFF" + rows.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+      onNotice(result === "cancelled" ? "CSV download cancelled." : "Process Map CSV prepared with " + selectedExportColumns.length + " selected field(s) and " + exportOperations.length + " operation(s).");
     } catch (error) {
       onNotice(error instanceof Error ? error.message : "Could not prepare the Process Map CSV.");
     }
   };
+  const escapeSvg = (value: unknown) => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  const buildProcessMapSvg = () => {
+    const branches = [...new Set(exportOperations.map(operation => operation.branch || "Main route"))]
+      .sort((a, b) => a === "Main route" ? -1 : b === "Main route" ? 1 : a.localeCompare(b));
+    const nodeWidth = 246, nodeHeight = Math.max(142, 88 + Math.max(0, selectedExportColumns.length - 1) * 18);
+    const gap = 58, left = 48, top = 78, laneHeight = nodeHeight + 66;
+    const maxNodes = Math.max(1, ...branches.map(branch => exportOperations.filter(operation => (operation.branch || "Main route") === branch).length));
+    const width = Math.max(920, left * 2 + maxNodes * nodeWidth + Math.max(0, maxNodes - 1) * gap);
+    const height = Math.max(270, top + branches.length * laneHeight + 44);
+    const svgText = (x: number, y: number, value: unknown, size = 12, colour = "#d9edf6", weight = 500) =>
+      "<text x=\"" + x + "\" y=\"" + y + "\" fill=\"" + colour + "\" font-family=\"Arial, sans-serif\" font-size=\"" + size + "\" font-weight=\"" + weight + "\">" + escapeSvg(value) + "</text>";
+    const laneMarkup = branches.map((branch, laneIndex) => {
+      const laneRows = exportOperations.filter(operation => (operation.branch || "Main route") === branch);
+      const y = top + laneIndex * laneHeight;
+      const cards = laneRows.map((operation, index) => {
+        const x = left + index * (nodeWidth + gap), cardY = y + 23;
+        const details = selectedExportColumns
+          .filter(column => column.key !== "process")
+          .map(column => ({ label: column.label, value: processExportValue(operation, column.key, exportVendorName(operation)) }))
+          .filter(item => item.value !== "" && item.value !== null && item.value !== undefined)
+          .slice(0, 7);
+        const statusColour = operation.status === "Complete" ? "#5bd5b0" : operation.status === "Running" ? "#68c9ed" : operation.status === "Quality hold" ? "#f0a3a9" : "#a9bfd0";
+        const detailMarkup = details.map((detail, detailIndex) =>
+          svgText(x + 14, cardY + 72 + detailIndex * 17, detail.label + ": " + detail.value, 10, "#a9c6d6", 400)
+        ).join("");
+        const arrow = exportIncludeArrows && index < laneRows.length - 1
+          ? "<path d=\"M " + (x + nodeWidth + 3) + " " + (cardY + 52) + " H " + (x + nodeWidth + gap - 13) + "\" stroke=\"#55cfe0\" stroke-width=\"2.5\" fill=\"none\" marker-end=\"url(#routeArrow)\"/>"
+          : "";
+        return arrow +
+          "<g><rect x=\"" + x + "\" y=\"" + cardY + "\" width=\"" + nodeWidth + "\" height=\"" + nodeHeight + "\" rx=\"13\" fill=\"#0d2b40\" stroke=\"#2e7893\" stroke-width=\"1.2\"/><rect x=\"" + x + "\" y=\"" + cardY + "\" width=\"" + nodeWidth + "\" height=\"4\" rx=\"2\" fill=\"#45c7db\"/>" +
+          svgText(x + 14, cardY + 25, "STAGE " + String(index + 1).padStart(2, "0") + " · OP-" + String(operation.sequence).padStart(3, "0"), 9, "#76b6ca", 600) +
+          svgText(x + 14, cardY + 50, operation.name || "Unnamed process", 14, "#effaff", 700) +
+          svgText(x + nodeWidth - 14, cardY + 25, operation.status, 9, statusColour, 600) +
+          detailMarkup + "</g>";
+      }).join("");
+      return svgText(left, y + 12, branch.toUpperCase() + " · " + laneRows.length + " STAGE(S)", 10, "#76b6ca", 700) + cards;
+    }).join("");
+    const title = (selectedComponent?.partNumber || "AXIMACH") + " · " + (selectedPO?.number || "PROCESS MAP");
+    return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" + width + "\" height=\"" + height + "\" viewBox=\"0 0 " + width + " " + height + "\"><defs><linearGradient id=\"bg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#071b2b\"/><stop offset=\"1\" stop-color=\"#0d3047\"/></linearGradient><marker id=\"routeArrow\" markerWidth=\"9\" markerHeight=\"9\" refX=\"7\" refY=\"4\" orient=\"auto\"><path d=\"M0 0 L8 4 L0 8 Z\" fill=\"#55cfe0\"/></marker></defs><rect width=\"100%\" height=\"100%\" fill=\"url(#bg)\"/>" + svgText(left, 38, title, 20, "#f0fbff", 700) + svgText(left, 58, "AXIMACH · DATA-LINKED PROCESS MAP · " + exportOperations.length + " SAVED OPERATION(S)", 9, "#7ca6bb", 500) + laneMarkup + "</svg>";
+  };
+  const downloadVisualProcessMap = async (format: "svg" | "png") => {
+    if (!exportOperations.length) { onNotice("There are no visible operation rows to export."); return; }
+    if (!selectedExportColumns.length) { onNotice("Choose at least one export field."); return; }
+    const svgBlob = new Blob([buildProcessMapSvg()], { type: "image/svg+xml;charset=utf-8" });
+    if (format === "svg") {
+      try {
+        const result = await saveBlobFile("AXIMACH-" + exportBaseName + "-Process-Map.svg", svgBlob);
+        onNotice(result === "cancelled" ? "SVG download cancelled." : "Process Map SVG exported from saved operation records.");
+      } catch (error) { onNotice(error instanceof Error ? error.message : "Could not export SVG."); }
+      return;
+    }
+    const objectUrl = URL.createObjectURL(svgBlob);
+    try {
+      const image = new Image();
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("The process map image could not be rendered."));
+        image.src = objectUrl;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas rendering is unavailable on this device.");
+      context.drawImage(image, 0, 0);
+      const pngBlob = await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("PNG export failed.")), "image/png")
+      );
+      const result = await saveBlobFile("AXIMACH-" + exportBaseName + "-Process-Map.png", pngBlob);
+      onNotice(result === "cancelled" ? "PNG download cancelled." : "Process Map PNG exported from saved operation records.");
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Could not export PNG.");
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  };
   const printProcessRoute = () => {
-    if (!visibleOperations.length) { onNotice("There are no visible operation rows to print."); return; }
+    if (!exportOperations.length) { onNotice("There are no visible operation rows to print."); return; }
     if (!selectedExportColumns.length) { onNotice("Choose at least one print field."); return; }
     window.print();
   };
@@ -350,12 +433,18 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
           <div className="pm-export-checkboxes">
             {PROCESS_EXPORT_COLUMNS.map(column=><label key={column.key}><input type="checkbox" checked={exportFields.includes(column.key)} onChange={()=>toggleExportField(column.key)}/>{column.label}</label>)}
           </div>
-          <small>Default: Process, Given date, Delivery date and Quantity. Vendor and Price are optional.</small>
+          <div className="pm-export-checkboxes">
+            <label><input type="checkbox" checked={exportIncludeArrows} onChange={event=>setExportIncludeArrows(event.target.checked)}/> Connection arrows</label>
+            <label>Export scope<select value={exportScope} onChange={event=>setExportScope(event.target.value as "visible" | "selected-branch")}><option value="visible">Full visible map</option><option value="selected-branch" disabled={!activeOperation}>Selected branch</option></select></label>
+          </div>
+          <small>Vendor, price and process description are optional. Scope and arrows apply to visual exports and CSV.</small>
         </div>
         <div className="pm-export-actions">
-          <button type="button" className="button-primary compact-button" onClick={downloadProcessRoute} disabled={!visibleOperations.length || !selectedExportColumns.length}><Download size={14}/> Download CSV</button>
-          <button type="button" className="button-quiet compact-button" onClick={printProcessRoute} disabled={!visibleOperations.length || !selectedExportColumns.length}><Printer size={14}/> Print / Save PDF</button>
-          <span>{selectedExportColumns.length} field(s) · {visibleOperations.length} filtered operation(s)</span>
+          <button type="button" className="button-primary compact-button" onClick={downloadProcessRoute} disabled={!exportOperations.length || !selectedExportColumns.length}><Download size={14}/> CSV</button>
+          <button type="button" className="button-quiet compact-button" onClick={()=>downloadVisualProcessMap("svg")} disabled={!exportOperations.length || !selectedExportColumns.length}><Download size={14}/> SVG</button>
+          <button type="button" className="button-quiet compact-button" onClick={()=>downloadVisualProcessMap("png")} disabled={!exportOperations.length || !selectedExportColumns.length}><Download size={14}/> PNG</button>
+          <button type="button" className="button-quiet compact-button" onClick={printProcessRoute} disabled={!exportOperations.length || !selectedExportColumns.length}><Printer size={14}/> Print / Save PDF</button>
+          <span>{selectedExportColumns.length} field(s) · {exportOperations.length} operation(s)</span>
         </div>
       </div>
     </section>
