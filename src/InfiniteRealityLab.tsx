@@ -54,6 +54,10 @@ function calculateOutput(s: Scenario) {
 
 export default function InfiniteRealityLab({ counts, onClose }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const [mode, setMode] = useState<Mode>("fluid");
+  const [transition, setTransition] = useState<Transition>("orbit");
+  const [postFx, setPostFx] = useState(true);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const modeRef = useRef(mode);
   const postFxRef = useRef(postFx);
   const reducedMotionRef = useRef(reducedMotion);
@@ -61,10 +65,6 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
   useEffect(() => { modeRef.current = mode; }, [mode]);
   useEffect(() => { postFxRef.current = postFx; }, [postFx]);
   useEffect(() => { reducedMotionRef.current = reducedMotion; }, [reducedMotion]);
-  const [mode, setMode] = useState<Mode>("fluid");
-  const [transition, setTransition] = useState<Transition>("orbit");
-  const [postFx, setPostFx] = useState(true);
-  const [reducedMotion, setReducedMotion] = useState(false);
   const [material, setMaterial] = useState("plasma");
   const [iconMotion, setIconMotion] = useState("orbit");
   const [protocol, setProtocol] = useState<Protocol>("OPC UA");
