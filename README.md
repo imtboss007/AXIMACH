@@ -107,3 +107,8 @@ See [server/README.md](server/README.md) and [server/.env.example](server/.env.e
 ## GitHub build artifacts
 
 The workflow at [.github/workflows/build.yml](.github/workflows/build.yml) builds the web frontend, Windows installer and Android debug APK on pushes to main and manual workflow dispatch. Open the repository's Actions tab, select the latest successful run, then download the matching artifact (aximach-web-dist, aximach-windows-installer, or aximach-android-debug-apk). Artifacts expire according to the workflow's retention settings. A debug APK is not a Play Store release, and an installer/APK must be tested on target devices before production use.
+
+
+## Sphere-centred AXIMACH shell (UI enhancement branch)
+
+The `feature/sphere-centred-shell-aximach` branch layers a data-linked, interactive WebGL command sphere over the existing AXIMACH v0.3.0 application snapshot. It retains the existing manufacturing workspaces and original dashboard process visualiser, adds selectable geometric shell modes and visual preferences, provides alternate process-map layouts, and extends process-map exports to CSV, SVG and PNG. This branch is an isolated UI enhancement proposal; it does not change the default branch or merge itself.
