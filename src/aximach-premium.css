@@ -2385,13 +2385,13 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
 .pm3d-node{width:194px;min-height:204px;padding:10px;gap:6px;transform-style:preserve-3d}
 .pm3d-node-wrap .pm3d-node:hover{transform:translateZ(24px) rotateX(2deg) rotateY(-2deg) translateY(-4px)!important}
 .pm3d-scene-caption{position:relative;left:auto;right:auto;bottom:auto;display:flex;justify-content:space-between;gap:8px;padding:0 8px 4px;color:#5d879b;font:7px 'DM Mono';letter-spacing:.65px}
-.pm3d-scene.pm3d-auto-rotating .pm3d-geometry-stage{animation:pm3d-full-rotation 24s linear infinite;transform-origin:50% 50%;transform-style:preserve-3d}
-.pm3d-scene.pm3d-auto-rotating .pm3d-geometry-backdrop{opacity:.94}
+.pm3d-scene.pm3d-auto-rotating .pm3d-geometry-backdrop{opacity:.94;animation:pm3d-wire-rotation 18s linear infinite;transform-origin:50% 50%;transform-style:preserve-3d}
+.pm3d-scene.pm3d-auto-rotating .pm3d-geometry-lines{opacity:.86;filter:drop-shadow(0 0 6px rgba(82,223,235,.4))}
 .pm3d-mode-control .pm3d-control-label{flex:0 0 auto}
 @keyframes pm3d-shape-reveal{0%{opacity:0;transform:scale(.74) rotateY(-32deg);filter:blur(5px)}65%{opacity:.85}100%{opacity:1;transform:scale(1) rotateY(0);filter:blur(0)}}
 @keyframes pm3d-menu-enter{from{opacity:0;transform:translateY(-5px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes pm3d-route-flow{to{stroke-dashoffset:-72}}
-@keyframes pm3d-full-rotation{from{transform:rotateY(0deg)}to{transform:rotateY(360deg)}}
+@keyframes pm3d-wire-rotation{from{transform:rotateY(0deg)}to{transform:rotateY(360deg)}}
 @media(max-width:1060px){
   .pm3d-mode-control{width:auto!important;border-bottom:1px solid rgba(94,157,186,.12)}
   .pm3d-mode-menu{left:2px}
@@ -2413,5 +2413,5 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
   .pm3d-mode-options{grid-template-columns:1fr}
 }
 @media(prefers-reduced-motion:reduce){
-  .pm3d-mode-menu,.pm3d-geometry-backdrop,.pm3d-geometry-link,.pm3d-node-wrap,.pm3d-scene.pm3d-auto-rotating .pm3d-geometry-stage{animation:none!important;transition:none!important}
+  .pm3d-mode-menu,.pm3d-geometry-backdrop,.pm3d-geometry-link,.pm3d-node-wrap,.pm3d-scene.pm3d-auto-rotating .pm3d-geometry-backdrop{animation:none!important;transition:none!important}
 }
