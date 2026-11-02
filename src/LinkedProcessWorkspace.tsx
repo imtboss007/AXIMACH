@@ -5,7 +5,7 @@ import SearchablePicker from "./SearchablePicker";
 import { ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 
-type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
+type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; onOpenIconStudio?: () => void };
 type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch">;
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
   name: "", category: "", machine: "", vendorId: "", status: "Queued", plannedStart: "", plannedEnd: line?.targetDelivery || "", actualStart: "", actualEnd: "",
@@ -16,7 +16,7 @@ const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en
 const shortDate = (value?: string) => value ? new Date(value + "T12:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Not set";
 const daysBetween = (start?: string, end?: string) => start && end ? Math.max(1, Math.round((new Date(end + "T12:00:00").getTime() - new Date(start + "T12:00:00").getTime()) / 86400000) + 1) : 0;
 
-export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSelectModule }: Props) {
+export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSelectModule, onOpenIconStudio }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const companies = activeRows(data.companies);
   const factories = activeRows(data.factories);
@@ -62,6 +62,32 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const durationDays = routeOperations.reduce((sum, op) => sum + daysBetween(op.plannedStart, op.plannedEnd), 0);
   const timelineStart = routeOperations.map(op => op.plannedStart).filter(Boolean).sort()[0] || "";
   const timelineEnd = routeOperations.map(op => op.plannedEnd).filter(Boolean).sort().at(-1) || finalDelivery;
+
+  // Restore the first valid saved route automatically. A blank selector must
+  // never hide a real PO-line job, route graph, or job-finished control.
+  useEffect(() => {
+    if (!companies.length) {
+      if (companyId) { setCompanyId(""); setFactoryId(""); setPoId(""); setPoLineId(""); }
+      return;
+    }
+    const company = companies.find(item => item.id === companyId) || companies[0];
+    if (company.id !== companyId) { setCompanyId(company.id); setFactoryId(""); setPoId(""); setPoLineId(""); return; }
+
+    const validFactories = factories.filter(item => item.companyId === company.id);
+    const factory = validFactories.find(item => item.id === factoryId) || validFactories[0];
+    const nextFactoryId = factory?.id || "";
+    if (nextFactoryId !== factoryId) { setFactoryId(nextFactoryId); setPoId(""); setPoLineId(""); return; }
+
+    const validOrders = purchaseOrders.filter(item => item.companyId === company.id && (!nextFactoryId || item.factoryId === nextFactoryId));
+    const order = validOrders.find(item => item.id === poId) || validOrders[0];
+    const nextPoId = order?.id || "";
+    if (nextPoId !== poId) { setPoId(nextPoId); setPoLineId(""); return; }
+
+    const validLines = (order?.lines || []).filter(line => !("deletedAt" in line && (line as PurchaseOrderLine & {deletedAt?: string}).deletedAt));
+    const line = validLines.find(item => item.id === poLineId) || validLines[0];
+    const nextLineId = line?.id || "";
+    if (nextLineId !== poLineId) setPoLineId(nextLineId);
+  }, [companies, factories, purchaseOrders, companyId, factoryId, poId, poLineId]);
 
   useEffect(() => {
     if (!simulationActive) return;
@@ -221,8 +247,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       <div className="route-master-picker"><SearchablePicker id="route-po" label="Purchase order" value={poId} placeholder="Type PO number…" options={companyOrders.map(po=>({id:po.id,label:po.number+" · "+po.status}))} onChange={changePO}/>{companyId&&!companyOrders.length&&<button type="button" onClick={()=>onSelectModule("purchasing")}>Add PO</button>}</div>
       <div className="route-master-picker"><SearchablePicker id="route-component-line" label="PO component line" value={poLineId} placeholder="Type part number or name…" options={poLines.map(line=>{const component=components.find(item=>item.id===line.componentId);return {id:line.id,label:(component?component.partNumber+" · "+component.name:"Missing component")+" · "+line.quantity.toLocaleString("en-IN")+" pcs"};})} onChange={changeLine}/>{poId&&!poLines.length&&<button type="button" onClick={()=>onSelectModule("purchasing")}>Add PO lines</button>}</div>
     </div>
-    {selectedLine && selectedComponent ? <>
-      <div className="linked-component-summary"><div><small>SELECTED COMPONENT</small><strong>{selectedComponent.partNumber} · {selectedComponent.name}</strong><span>Revision {selectedComponent.revision || "—"} · {selectedComponent.material || "Material not entered"} · PO {selectedPO?.number}</span></div><div><small>ORDER QUANTITY</small><strong>{expectedQuantity.toLocaleString("en-IN")} pcs</strong></div><div><small>LINE DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div><div><small>DRAWING / REFERENCE</small><strong>{selectedComponent.drawingReference || "Not entered"}</strong></div><button className="button-quiet compact-button" onClick={() => onSelectModule("components")}>Edit component master</button></div>
+    {selectedLine ? <>
+      {selectedComponent && <div className="linked-component-summary"><div><small>SELECTED COMPONENT</small><strong>{selectedComponent.partNumber} · {selectedComponent.name}</strong><span>Revision {selectedComponent.revision || "—"} · {selectedComponent.material || "Material not entered"} · PO {selectedPO?.number}</span></div><div><small>ORDER QUANTITY</small><strong>{expectedQuantity.toLocaleString("en-IN")} pcs</strong></div><div><small>LINE DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div><div><small>DRAWING / REFERENCE</small><strong>{selectedComponent.drawingReference || "Not entered"}</strong></div><button className="button-quiet compact-button" onClick={() => onSelectModule("components")}>Edit component master</button></div>}
       <div className={"job-completion-panel " + (selectedLine.jobStatus === "Finished" ? "job-completion-finished" : "")}>
         <div className="job-completion-copy">
           <span className="job-completion-icon"><Check size={19}/></span>
@@ -263,6 +289,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => startAdd(false, true)}><Truck size={14}/> Add transport</button>
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAdd(true)}><GitBranch size={14}/> Add branch / rework</button>
         <button className="button-quiet compact-button" onClick={() => { setZoom(1); setSearch(""); }}><Search size={14}/> Clear search / fit</button>
+        {onOpenIconStudio && <button className="button-quiet compact-button" onClick={onOpenIconStudio}><Boxes size={14}/> Customise process icons</button>}
       </div>
       <div className="linked-route-actions linked-route-visual-controls">
         <button className={"button-quiet compact-button " + (routeView === "3d" ? "control-active" : "")} onClick={() => setRouteView("3d")}><Workflow size={14}/> 3D Process Universe</button>
