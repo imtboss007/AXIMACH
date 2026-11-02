@@ -39,6 +39,22 @@ async function body(req) {
   return raw ? JSON.parse(raw) : {};
 }
 function authorized(req) { return API_KEY && req.headers["x-aximach-key"] === API_KEY; }
+function isLoopbackAddress(value) {
+  const address = String(value || "").replace(/^::ffff:/, "");
+  return address === "127.0.0.1" || address === "::1";
+}
+function privateLanAddresses() {
+  const found = new Set();
+  for (const entries of Object.values(networkInterfaces())) {
+    for (const entry of entries || []) {
+      if (entry.family !== "IPv4" || entry.internal) continue;
+      const ip = entry.address;
+      if (/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(ip)) found.add(ip);
+    }
+  }
+  return [...found].sort();
+}
+
 function normalisePhone(phone) { return String(phone || "").replace(/\D/g, ""); }
 const manufacturingCollections = ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions"];
 function mergeModuleRecords(existing, incoming) {
