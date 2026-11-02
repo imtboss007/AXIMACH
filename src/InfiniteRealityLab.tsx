@@ -5,6 +5,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { SSRPass } from "three/examples/jsm/postprocessing/SSRPass.js";
 import { Activity, Factory, Gauge, Network, RotateCcw, X, Waves, Sparkles, Move3D, Plug, SlidersHorizontal } from "lucide-react";
 import type { OrbCounts } from "./AXIMACHOrb";
 import MachineTwinPanel from "./MachineTwinPanel";
@@ -57,13 +58,16 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
   const [mode, setMode] = useState<Mode>("fluid");
   const [transition, setTransition] = useState<Transition>("orbit");
   const [postFx, setPostFx] = useState(true);
+  const [reflectionFx, setReflectionFx] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
   const modeRef = useRef(mode);
   const postFxRef = useRef(postFx);
+  const reflectionFxRef = useRef(reflectionFx);
   const reducedMotionRef = useRef(reducedMotion);
   const transitionActionRef = useRef<((name: Transition) => void) | undefined>(undefined);
   useEffect(() => { modeRef.current = mode; }, [mode]);
   useEffect(() => { postFxRef.current = postFx; }, [postFx]);
+  useEffect(() => { reflectionFxRef.current = reflectionFx; }, [reflectionFx]);
   useEffect(() => { reducedMotionRef.current = reducedMotion; }, [reducedMotion]);
   const [material, setMaterial] = useState("plasma");
   const [iconMotion, setIconMotion] = useState("orbit");
@@ -173,6 +177,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
     let composer: EffectComposer | undefined;
     let bloom: UnrealBloomPass | undefined;
     let ssao: SSAOPass | undefined;
+    let ssr: SSRPass | undefined;
     try {
       composer = new EffectComposer(renderer);
       composer.addPass(new RenderPass(scene, camera));
@@ -181,6 +186,18 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
       ssao.minDistance = 0.001;
       ssao.maxDistance = 0.08;
       composer.addPass(ssao);
+      try {
+        ssr = new SSRPass({ renderer, scene, camera, width: host.clientWidth || 1, height: host.clientHeight || 1, selects: [core, cloth, softBody, ...planeMeshes] });
+        ssr.resolutionScale = 0.45;
+        ssr.opacity = 0.62;
+        ssr.thickness = 0.018;
+        ssr.maxDistance = 4.5;
+        ssr.distanceAttenuation = true;
+        ssr.fresnel = true;
+        ssr.blur = true;
+        ssr.enabled = reflectionFxRef.current;
+        composer.addPass(ssr);
+      } catch { ssr = undefined; }
       bloom = new UnrealBloomPass(new THREE.Vector2(host.clientWidth || 1, host.clientHeight || 1), 0.72, 0.48, 0.82);
       composer.addPass(bloom);
       composer.addPass(new OutputPass());
@@ -241,6 +258,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
       camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h, false);
       composer?.setSize(w, h);
       ssao?.setSize(w, h);
+      ssr?.setSize(w, h);
       if (bloom) bloom.setSize(w, h);
     };
     const observer = new ResizeObserver(resize); observer.observe(host); resize();
@@ -314,6 +332,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
       cloth.visible = modeRef.current === "cloth"; pins.visible = modeRef.current === "cloth";
       softBody.visible = modeRef.current === "soft";
       core.visible = modeRef.current !== "soft";
+      if (ssr) ssr.enabled = reflectionFxRef.current;
       if (postFxRef.current && composer) composer.render(); else renderer.render(scene, camera);
     };
     raf = requestAnimationFrame(animate);
@@ -336,6 +355,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
         }
       });
       planeMeshes.forEach((mesh) => { const mat = mesh.material as THREE.MeshBasicMaterial; mat.map?.dispose(); });
+      ssr?.dispose();
       composer?.renderTarget1.dispose(); composer?.renderTarget2.dispose();
       renderer.dispose(); renderer.domElement.remove();
     };
@@ -349,9 +369,9 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
       </header>
       <div className="irl-scene-wrap">
         <div className="irl-scene" ref={hostRef}/>
-        <div className="irl-scene-topline"><span>SPATIAL COMMAND ENVIRONMENT</span><span>THREE.JS · WEBGL · SSAO / BLOOM POST-FX</span></div>
+        <div className="irl-scene-topline"><span>SPATIAL COMMAND ENVIRONMENT</span><span>THREE.JS · WEBGL · SSAO / SSR / BLOOM POST-FX</span></div>
         <div className="irl-scene-caption">INTERACT WITH THE CLOTH SURFACE · DASHBOARD PLANES ROTATE IN 3D SPACE · COUNTS ARE SAVED AXIMACH RECORDS</div>
-        <div className="irl-scene-actions"><button type="button" onClick={() => setPostFx(value => !value)} className={postFx ? "active" : ""}><Sparkles size={14}/> Post FX {postFx ? "ON" : "OFF"}</button><button type="button" onClick={() => setReducedMotion(value => !value)} className={reducedMotion ? "active" : ""}><Activity size={14}/> Reduced motion</button><button type="button" onClick={() => setTransition("orbit")}><RotateCcw size={14}/> Reset camera</button></div>
+        <div className="irl-scene-actions"><button type="button" onClick={() => setPostFx(value => !value)} className={postFx ? "active" : ""}><Sparkles size={14}/> Post FX {postFx ? "ON" : "OFF"}</button><button type="button" onClick={() => setReflectionFx(value => !value)} className={reflectionFx ? "active" : ""}><Sparkles size={14}/> Screen reflections {reflectionFx ? "ON" : "OFF"}</button><button type="button" onClick={() => setReducedMotion(value => !value)} className={reducedMotion ? "active" : ""}><Activity size={14}/> Reduced motion</button><button type="button" onClick={() => setTransition("orbit")}><RotateCcw size={14}/> Reset camera</button></div>
       </div>
       <div className="irl-controls">
         <section className="irl-card irl-physics">
