@@ -297,3 +297,35 @@ textarea:focus-visible, [role="button"]:focus-visible {
     transition-duration: .01ms !important;
   }
 }
+
+.ow-job-table { min-width: 760px; }
+.ow-job-table-heading, .ow-table-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 9px;
+}
+.ow-job-table-heading h4, .ow-table-heading h4 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: #365574;
+  font-size: 12px;
+}
+.ow-job-table-heading small { color: #8392a7; font-size: 9px; }
+.ow-status-job-finished { color: #16825e; }
+.ow-status-in-progress { color: #9a6a16; }
+.ow-job-table .button-primary, .ow-job-table .button-quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.ow-job-table .linked-node-icon {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  border-radius: 7px;
+}
