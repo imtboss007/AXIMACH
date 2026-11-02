@@ -142,7 +142,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     material: component.materialQty * component.materialRate, process: 0,
     extras: component.overhead + component.toolingCost + component.reworkCost + component.scrapCost,
     total: component.materialQty * component.materialRate + component.overhead + component.toolingCost + component.reworkCost + component.scrapCost,
-    componentPlanPerPart: plannedBaselineForComponent(component.id), plannedBaseline: null,
+    componentPlanPerPart: null, plannedBaseline: null,
     revenue: 0, profit: null, complete: false, materialSource: component.materialQty > 0 && component.materialRate > 0 ? "Component master" : "Missing material rate",
     operationCount: 0
   }));
