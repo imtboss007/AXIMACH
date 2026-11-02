@@ -276,7 +276,7 @@ export function useManufacturingData() {
     document.addEventListener("visibilitychange", syncWhenActive);
 
     void syncOnce();
-    const timer = window.setInterval(() => { void syncOnce(); }, 4000);
+    const timer = window.setInterval(() => { void syncOnce(); }, 2500);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -302,8 +302,9 @@ export function useManufacturingData() {
         const old = previousLines.get(line.id);
         const withoutTime = (value: PurchaseOrderLine | undefined) => {
           if (!value) return null;
-          const { updatedAt: _updatedAt, ...rest } = value;
-          return rest;
+          const copy = { ...value };
+          delete copy.updatedAt;
+          return copy;
         };
         const changed = !old || JSON.stringify(withoutTime(old)) !== JSON.stringify(withoutTime(line));
         if (changed) lineChanged = true;
