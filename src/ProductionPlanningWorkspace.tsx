@@ -728,7 +728,6 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
             <label className="pp-modal-wide">Remarks<input value={draft.notes} onChange={event => setDraft(current => ({ ...current, notes: event.target.value }))} placeholder="Optional process remarks"/></label>
           </>}
           </>}
-          </>}
           <label>Route<select value={draft.branch} onChange={event => setDraft(current => ({ ...current, branch: event.target.value, parentId: "" }))}><option>Main route</option><option>Alternate / rework</option></select></label>
           {draft.branch !== "Main route" ? <SearchablePicker id="pp-add-parent" label="Branch from process" value={draft.parentId} placeholder="Select parent process…" options={parentOptions} onChange={id => setDraft(current => ({ ...current, parentId: id }))}/> : null}
         </div>
