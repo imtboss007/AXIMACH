@@ -1,8 +1,8 @@
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useMemo, useState } from "react";
 import {
   Activity, ArrowRight, BadgeCheck, CalendarClock, Check, CircleAlert, CircleDollarSign,
   ClipboardList, FileText, Package, Plus, Receipt, RotateCcw, Search, ShieldCheck,
-  Truck, Wallet, X, Send, Factory
+  Truck, Wallet, X, Factory
 } from "lucide-react";
 import { motion } from "motion/react";
 import {
@@ -216,12 +216,17 @@ export function DispatchWorkspace({ onBack, onNotice, notice, onSelectModule }: 
     onNotice("Dispatch record saved against " + poLine.po.number + ". The inventory ledger was not changed automatically.");
   };
   const changeStatus = (record: DispatchRecord, status: DispatchStatus) => {
-    if (status === "Received" && !window.confirm("Confirm that the consignee has physically received this quantity? This closes the dispatch record but does not post an inventory receipt.")) return;
+    let receiver = record.receivedBy;
+    if (status === "Received") {
+      if (!window.confirm("Confirm that the consignee has physically received this quantity? This closes the dispatch record but does not post an inventory receipt.")) return;
+      receiver = window.prompt("Receiving person / consignee name (optional):", record.receivedBy || "") ?? record.receivedBy;
+    }
     const stamp = nowIso();
     update(current => ({ ...current, dispatches: current.dispatches.map(item => item.id !== record.id ? item : {
       ...item, status, updatedAt: stamp,
       dispatchedAt: ["Dispatched", "In transit", "Delivered pending confirmation", "Received"].includes(status) ? item.dispatchedAt || stamp : item.dispatchedAt,
-      receivedAt: status === "Received" ? stamp : item.receivedAt
+      receivedAt: status === "Received" ? stamp : item.receivedAt,
+      receivedBy: status === "Received" ? receiver : item.receivedBy
     }) }));
     onNotice(status === "Received" ? "Receipt confirmation saved. Post a separate stock receipt only when the actual stock transaction is verified." : "Dispatch status updated to " + status + ".");
   };
@@ -242,8 +247,8 @@ export function DispatchWorkspace({ onBack, onNotice, notice, onSelectModule }: 
       {filtered.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Challan / PO</th><th>Part / quantity</th><th>Carrier / vehicle</th><th>Pickup / due</th><th>Tracking</th><th>Freight</th><th>Status</th><th>Control</th></tr></thead><tbody>{filtered.map(row => {
         const po = orders.find(item => item.id === row.poId);
         const component = components.find(item => item.id === row.componentId);
-        const next = row.status === "Packing" ? "Ready" : row.status === "Ready" ? "Dispatched" : row.status === "Dispatched" ? "In transit" : row.status === "In transit" ? "Delivered pending confirmation" : "Received";
-        return <tr key={row.id}><td><strong>{row.challanNumber}</strong><small>{po?.number || "PO archived"}</small></td><td><strong>{component?.partNumber || "Component archived"}</strong><small>{row.quantity.toLocaleString("en-IN")} pcs</small></td><td>{row.carrier || vendors.find(item => item.id === row.carrierVendorId)?.company || "Not entered"}<small>{row.vehicleNumber || "Vehicle not entered"}</small></td><td>{prettyDate(row.pickupDate)}<small>Due {prettyDate(row.expectedDelivery)}</small></td><td>{row.trackingReference || "Not entered"}</td><td>{money(row.freightCost)}</td><td><span className={"record-state " + (row.status === "Received" ? "state-complete" : row.status === "Exception" ? "state-hold" : "state-open")}>{row.status}</span></td><td><div className="ax-enterprise-row-actions">{!["Received", "Cancelled"].includes(row.status) && <><select aria-label="Dispatch status" value={row.status} onChange={event => changeStatus(row, event.target.value as DispatchStatus)}>{dispatchStatuses.map(status => <option key={status}>{status}</option>)}</select>{row.status !== "Received" && <button className="button-primary compact-button" onClick={() => changeStatus(row, next)}>{next === "Received" ? "Confirm receipt" : next}</button>}</>}</div></td></tr>;
+        const next: DispatchStatus | undefined = row.status === "Packing" ? "Ready" : row.status === "Ready" ? "Dispatched" : row.status === "Dispatched" ? "In transit" : row.status === "In transit" ? "Delivered pending confirmation" : row.status === "Delivered pending confirmation" ? "Received" : undefined;
+        return <tr key={row.id}><td><strong>{row.challanNumber}</strong><small>{po?.number || "PO archived"}</small></td><td><strong>{component?.partNumber || "Component archived"}</strong><small>{row.quantity.toLocaleString("en-IN")} pcs</small></td><td>{row.carrier || vendors.find(item => item.id === row.carrierVendorId)?.company || "Not entered"}<small>{row.vehicleNumber || "Vehicle not entered"}</small></td><td>{prettyDate(row.pickupDate)}<small>Due {prettyDate(row.expectedDelivery)}</small></td><td>{row.trackingReference || "Not entered"}</td><td>{money(row.freightCost)}</td><td><span className={"record-state " + (row.status === "Received" ? "state-complete" : row.status === "Exception" ? "state-hold" : "state-open")}>{row.status}</span>{row.receivedBy && <small>Received by {row.receivedBy}</small>}</td><td><div className="ax-enterprise-row-actions">{!["Received", "Cancelled"].includes(row.status) && <><select aria-label="Dispatch status" value={row.status} onChange={event => changeStatus(row, event.target.value as DispatchStatus)}>{dispatchStatuses.map(status => <option key={status}>{status}</option>)}</select>{next && <button className="button-primary compact-button" onClick={() => changeStatus(row, next)}>{next === "Received" ? "Confirm receipt" : next}</button>}</>}</div></td></tr>;
       })}</tbody></table></div> : <div className="module-empty-state"><Truck size={28} /><h3>No dispatch records</h3><p>Shipment records appear only after you create them from a saved purchase order component line. No placeholder consignments are preloaded.</p><button className="button-primary" disabled={!lines.length} onClick={() => setShowForm(true)}><Plus size={14} /> Create first dispatch</button></div>}
     </section>
     {showForm && <section className="surface-panel module-record-form-panel ax-enterprise-panel">
@@ -272,7 +277,6 @@ export function DispatchWorkspace({ onBack, onNotice, notice, onSelectModule }: 
   </section>;
 }
 
-const invoiceStatuses: InvoiceStatus[] = ["Draft", "Approved", "On hold", "Void"];
 type InvoiceDraft = Omit<InvoiceRecord, "id" | "createdAt" | "updatedAt">;
 const emptyInvoiceDraft = (): InvoiceDraft => ({
   kind: "Payable", invoiceNumber: "", counterparty: "", companyId: "", factoryId: "", vendorId: "",
@@ -389,8 +393,16 @@ export function InvoicePaymentWorkspace({ onBack, onNotice, notice, onSelectModu
         <label>Factory<select value={draft.factoryId} onChange={event => setDraft(current => ({ ...current, factoryId: event.target.value }))}><option value="">Not linked</option>{data.factories.filter(factory => !factory.deletedAt && (!draft.companyId || factory.companyId === draft.companyId)).map(factory => <option key={factory.id} value={factory.id}>{factory.name}</option>)}</select></label>
         <label>Purchase order<select value={draft.poId} onChange={event => {
           const po = orders.find(item => item.id === event.target.value);
-          setDraft(current => ({ ...current, poId: event.target.value, companyId: po?.companyId || current.companyId, factoryId: po?.factoryId || current.factoryId }));
+          setDraft(current => ({ ...current, poId: event.target.value, poLineId: "", componentId: "", companyId: po?.companyId || current.companyId, factoryId: po?.factoryId || current.factoryId }));
         }}><option value="">Not linked</option>{orders.map(po => <option key={po.id} value={po.id}>{po.number}</option>)}</select></label>
+        <label>PO component line<select value={draft.poLineId} disabled={!draft.poId} onChange={event => {
+          const po = orders.find(item => item.id === draft.poId);
+          const line = po?.lines.find(item => item.id === event.target.value);
+          setDraft(current => ({ ...current, poLineId: event.target.value, componentId: line?.componentId || "" }));
+        }}><option value="">Not linked</option>{orders.find(po => po.id === draft.poId)?.lines.filter(line => !line.deletedAt).map(line => {
+          const part = components.find(component => component.id === line.componentId);
+          return <option key={line.id} value={line.id}>{part?.partNumber || "Part"} · {line.quantity.toLocaleString("en-IN")} pcs</option>;
+        })}</select></label>
         <label>Invoice date<input type="date" value={draft.invoiceDate} onChange={event => setDraft(current => ({ ...current, invoiceDate: event.target.value }))} /></label>
         <label>Payment due date<input type="date" value={draft.dueDate} onChange={event => setDraft(current => ({ ...current, dueDate: event.target.value }))} /></label>
         <label>Taxable amount (₹) *<input type="number" min="0" step="0.01" value={draft.taxableAmount || ""} onChange={event => setDraft(current => ({ ...current, taxableAmount: Math.max(0, Number(event.target.value) || 0) }))} /></label>
