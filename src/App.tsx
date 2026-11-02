@@ -714,6 +714,7 @@ function mergeModuleRecordSets(local: Record<string, ModuleRecord[]>, remote: Re
 function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModule }: { module: ModuleItem; onBack: () => void; onNotice: (value: string) => void; onOpenModules: () => void; onSelectModule: (id: string) => void }) {
   const Icon = module.icon;
   const profile = moduleProfiles[module.id] ?? defaultProfile;
+  const { data: linkedManufacturing, update: updateLinkedManufacturing } = useManufacturingData();
   const [activeWorkflowStep, setActiveWorkflowStep] = useState(0);
   const [allRecords, setAllRecords] = useState<Record<string, ModuleRecord[]>>(() => getAllModuleRecords());
   const [recordSync, setRecordSync] = useState<"local" | "syncing" | "synced" | "error">("local");
@@ -830,6 +831,35 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
   };
   const exportRecords = () => { const blob = new Blob([JSON.stringify({ module: module.id, exportedAt: new Date().toISOString(), records }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "aximach-" + module.id + "-records.json"; a.click(); URL.revokeObjectURL(url); onNotice("Module records exported as JSON."); };
   const totalLinked = Object.values(allRecords).flat().filter((record) => !record.deletedAt && record.linkedModule).length;
+  const productionJobRows = module.id === "production"
+    ? activeRows(linkedManufacturing.purchaseOrders).flatMap(po => po.lines.filter(line => !line.deletedAt).map(line => ({
+        po, line,
+        component: linkedManufacturing.components.find(component => component.id === line.componentId),
+        company: linkedManufacturing.companies.find(company => company.id === po.companyId),
+        operationCount: linkedManufacturing.operations.filter(operation => operation.poId === po.id && operation.poLineId === line.id).length
+      })))
+    : [];
+  const updateProductionJob = (poId: string, lineId: string, finished: boolean) => {
+    const stamp = nowIso();
+    const po = linkedManufacturing.purchaseOrders.find(item => item.id === poId);
+    const line = po?.lines.find(item => item.id === lineId);
+    if (!po || !line) return;
+    const incomplete = linkedManufacturing.operations.filter(operation => operation.poId === poId && operation.poLineId === lineId && operation.status !== "Complete");
+    if (finished && incomplete.length && !window.confirm(incomplete.length + " route operation(s) are not marked Complete. Mark the job Finished anyway? Operation statuses and history will remain unchanged.")) return;
+    updateLinkedManufacturing(current => ({
+      ...current,
+      purchaseOrders: current.purchaseOrders.map(order => order.id !== poId ? order : {
+        ...order, updatedAt: stamp,
+        lines: order.lines.map(item => item.id !== lineId ? item : {
+          ...item, jobStatus: finished ? "Finished" : "In progress",
+          jobFinishedAt: finished ? stamp : undefined
+        })
+      })
+    }));
+    onNotice(finished
+      ? "PO line job marked Finished. Operation status and quantity history were not changed."
+      : "PO line job reopened as In progress. Existing operation history was retained.");
+  };
   return (
     <section className="workspace-page module-functional-page">
       <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15} /> Command centre</button><span className="demo-pill"><i /> LOCAL WORKSPACE</span></div>
@@ -838,6 +868,23 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
         <div className="module-hero-copy"><div className="eyebrow"><span className="eyebrow-mark" /> {module.group.toUpperCase()} / AXIMACH MODULE</div><h1>{module.title}<span>.</span></h1><p>{module.description}</p></div>
         <button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> All modules</button>
       </div>
+      {module.id === "production" && <section className="surface-panel production-job-register">
+        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PO-LINE JOB LIFECYCLE</div><h3>Production jobs ({productionJobRows.length})</h3><p>Job Finished / In Progress is tracked separately from every operation's Complete status.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={14}/> Open 3D process plan</button></div>
+        {productionJobRows.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Purchase order</th><th>Part / component</th><th>Quantity</th><th>Delivery target</th><th>Route steps</th><th>Job status</th><th>Action</th></tr></thead><tbody>
+          {productionJobRows.map(({po,line,component,company,operationCount}) => {
+            const finished = line.jobStatus === "Finished";
+            return <tr key={po.id + ":" + line.id}>
+              <td><strong>{po.number}</strong><small>{company?.name || "Company"}</small></td>
+              <td><strong>{component?.partNumber || "Component master missing"}</strong><small>{component?.name || "PO line retained"}</small></td>
+              <td>{line.quantity.toLocaleString("en-IN")} pcs</td>
+              <td>{line.targetDelivery || po.targetDelivery || "—"}</td>
+              <td>{operationCount} operations</td>
+              <td><span className={"record-state " + (finished ? "state-selected" : "state-open")}>{finished ? "Job Finished" : "In Progress"}</span>{finished && line.jobFinishedAt && <small>{new Date(line.jobFinishedAt).toLocaleDateString("en-IN")}</small>}</td>
+              <td><div className="production-job-actions"><button className={finished ? "button-quiet compact-button" : "button-primary compact-button"} onClick={() => updateProductionJob(po.id,line.id,!finished)}>{finished ? <RotateCcw size={12}/> : <Check size={12}/>} {finished ? "Reopen job" : "Mark finished"}</button><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={12}/> Route</button></div></td>
+            </tr>;
+          })}
+        </tbody></table></div> : <div className="module-empty-state"><Package size={24}/><h3>No production PO lines yet</h3><p>Real production jobs appear here after a component line is saved in Purchase Orders.</p><button className="button-primary" onClick={() => onSelectModule("purchasing")}><Plus size={14}/> Open purchase orders</button></div>}
+      </section>}
       {module.id === "production" && <section className="production-route-launcher surface-panel">
         <span className="production-route-launcher-icon"><Workflow size={21}/></span>
         <div><div className="eyebrow"><span className="eyebrow-mark"/> LIVE PO-LINKED PRODUCTION ROUTE</div><h3>3D process graph & job completion</h3><p>Open the actual PO component route to view interactive 3D operations, branches, quantities, simulation preview and the separate Job Finished / Reopen job control. This does not replace your Production & Capacity records.</p></div>
