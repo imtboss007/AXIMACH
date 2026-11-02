@@ -30,6 +30,7 @@ export default function ProcessMap3DViewer({
   const [playing, setPlaying] = useState(false);
   const [simulationStep, setSimulationStep] = useState(-1);
   const [closeup, setCloseup] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<"route" | "sphere" | "vortex" | "cube" | "molecular">("route");
   const sorted = useMemo(
     () => [...operations].sort((a, b) => a.sequence - b.sequence || a.name.localeCompare(b.name)),
     [operations]
@@ -46,6 +47,39 @@ export default function ProcessMap3DViewer({
     });
   }, [sorted]);
   const selected = sorted.find(operation => operation.id === selectedOperationId) || sorted[0];
+  const spatialPositions = useMemo(() => sorted.map((operation, index) => {
+    const total = Math.max(1, sorted.length);
+    const t = (index + 0.5) / total;
+    let x = 50, y = 50, depth = 0;
+    if (layoutMode === "sphere" || layoutMode === "molecular") {
+      if (total === 1) { x = 50; y = 50; }
+      else {
+        const z = 1 - 2 * t;
+        const radius = Math.sqrt(Math.max(0, 1 - z * z));
+        const angle = index * 2.399963229728653;
+        x = 50 + radius * Math.cos(angle) * (layoutMode === "sphere" ? 39 : 33);
+        y = 50 - z * (layoutMode === "sphere" ? 34 : 29);
+        depth = z;
+      }
+    } else if (layoutMode === "vortex") {
+      const radius = 5 + t * 39;
+      const angle = index * 0.82 - Math.PI / 2;
+      x = 50 + Math.cos(angle) * radius;
+      y = 50 + Math.sin(angle) * radius * 0.72;
+      depth = t;
+    } else if (layoutMode === "cube") {
+      const layer = Math.floor(index / 4);
+      const inset = Math.max(0.28, 1 - layer * 0.19);
+      const corners = [{x:50,y:12},{x:88,y:34},{x:50,y:56},{x:12,y:34}];
+      const from = corners[index % 4], to = corners[(index % 4 + 1) % 4];
+      x = 50 + (from.x + (to.x - from.x) * 0.5 - 50) * inset;
+      y = 34 + (from.y + (to.y - from.y) * 0.5 - 34) * inset;
+      depth = inset;
+    }
+    return { id: operation.id, x, y, depth, index };
+  }), [sorted, layoutMode]);
+  const positionById = useMemo(() => new Map(spatialPositions.map(point => [point.id, point])), [spatialPositions]);
+
 
   useEffect(() => {
     if (!playing || sorted.length < 2) return;
@@ -104,6 +138,11 @@ export default function ProcessMap3DViewer({
       <span className="pm3d-live-indicator"><i/> RECORD-LINKED VIEW</span>
     </div>
 
+    <div className="pm3d-layout-switcher" aria-label="Process map visualisation modes">
+      {([{id:"route",label:"Conventional route"},{id:"sphere",label:"Sphere"},{id:"vortex",label:"Vortex"},{id:"cube",label:"Cube"},{id:"molecular",label:"Molecular network"}] as const).map(option =>
+        <button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}>{option.label}</button>
+      )}
+    </div>
     <div className="pm3d-control-deck">
       <div className="pm3d-control-group">
         <span className="pm3d-control-label">CAMERA</span>
@@ -137,7 +176,7 @@ export default function ProcessMap3DViewer({
       </div>
     </div>
 
-    <div className="pm3d-scene-viewport">
+    {layoutMode === "route" ? <div className="pm3d-scene-viewport">
       <div className="pm3d-scene-grid"/>
       {sorted.length ? <div className="pm3d-scene" style={{ transform: "perspective(1350px) rotateX(" + pitch + "deg) rotateY(" + yaw + "deg) scale(" + zoom + ")" }}>
         <div className="pm3d-floor-plate"/>
@@ -177,8 +216,45 @@ export default function ProcessMap3DViewer({
         </div>)}
         <div className="pm3d-scene-caption"><span>AXIMACH ROUTE MODEL</span><span>CAMERA X {pitch}° · Y {yaw}°</span></div>
       </div> : <div className="pm3d-empty"><Crosshair size={30}/><strong>No saved route stages to display</strong><span>Add a real operation to this PO component line, then the 3D route will build from those records.</span></div>}
-    </div>
-
+    </div> : <div className={"pm3d-spatial-viewport mode-" + layoutMode}>
+      <div className="pm3d-spatial-backdrop">
+        {layoutMode === "cube" && <svg className="pm3d-cube-outline" viewBox="0 0 100 70" preserveAspectRatio="none" aria-hidden="true"><path d="M50 5 90 25 50 47 10 25Z M10 25V57L50 68 90 57V25 M50 47V68" fill="none" stroke="rgba(82,211,228,.55)" strokeWidth=".7"/><path d="M50 5V35" stroke="rgba(95,151,235,.3)" strokeWidth=".5"/></svg>}
+        {layoutMode === "vortex" && <div className="pm3d-vortex-rings"/>}
+        {(layoutMode === "sphere" || layoutMode === "molecular") && <div className="pm3d-spatial-globe"/>}
+        <svg className="pm3d-spatial-connectors" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <defs><marker id="spatialRouteArrow" markerWidth="3" markerHeight="3" refX="2.3" refY="1.5" orient="auto"><path d="M0 0 L3 1.5 L0 3Z" fill="#63dce9"/></marker></defs>
+          {lanes.map(lane => {
+            const points = lane.items.map(operation => positionById.get(operation.id)).filter(Boolean);
+            return points.length > 1 ? <polyline key={lane.name} points={points.map(point => point!.x + "," + point!.y).join(" ")} fill="none" stroke="rgba(94,215,232,.66)" strokeWidth=".48" strokeDasharray="1.4 1.2" markerEnd="url(#spatialRouteArrow)"/> : null;
+          })}
+        </svg>
+        <div className="pm3d-spatial-nodes" style={{ transform: "perspective(1200px) rotateX(" + pitch + "deg) rotateY(" + yaw + "deg) scale(" + zoom + ")" }}>
+          {sorted.map((operation,index) => {
+            const point = positionById.get(operation.id);
+            if (!point) return null;
+            const selectedNode = operation.id === selected?.id;
+            const simulated = simulationStep >= index;
+            const isCurrent = simulationStep === index;
+            return <button type="button" key={operation.id}
+              className={"pm3d-spatial-node status-" + statusClass(operation.status) + (selectedNode ? " selected" : "") + (simulated ? " simulated" : "") + (isCurrent ? " simulation-current" : "")}
+              style={{ left: point.x + "%", top: point.y + "%", zIndex: 20 + Math.round((point.depth + 1) * 10) + index, transform: "translate(-50%,-50%) translateZ(" + (point.depth * 42) + "px)" }}
+              onClick={() => {setPlaying(false);setSimulationStep(-1);onSelectOperation(operation.id);setCloseup(true);setYaw(-4);setPitch(5);setZoom(1.12);}}
+              title={operation.name + " · " + operation.status}>
+              <span className="pm3d-spatial-node-top"><small>{String(index+1).padStart(2,"0")} / OP-{String(operation.sequence).padStart(3,"0")}</small><span className={"pm3d-spatial-status status-" + statusClass(operation.status)}>{operation.status}</span></span>
+              <span className="pm3d-spatial-node-icon"><ProcessVisualIcon name={operation.name} category={operation.category} size="md"/></span>
+              <strong>{operation.name}</strong>
+              <small>{operation.category || "Process"} · {operation.quantity.toLocaleString("en-IN")} pcs</small>
+              {showVendor && <small className="pm3d-spatial-extra">Vendor: {vendorName(operation.vendorId)}</small>}
+              {showVendor && <small className="pm3d-spatial-extra">Transport: {vendorName(operation.transportVendorId)}</small>}
+              {showPrice && <small className="pm3d-spatial-extra">Rate: {money(operation.ratePerPart)} / pc</small>}
+              {isCurrent && <i className="pm3d-spatial-beacon">SIMULATING</i>}
+            </button>;
+          })}
+        </div>
+      </div>
+      <div className="pm3d-spatial-caption">{layoutMode.toUpperCase()} PROCESS NETWORK · {sorted.length} SAVED STAGE(S) · BRANCH RELATIONSHIPS PRESERVED</div>
+    </div>}
+    
     <div className="pm3d-foot">
       <div className="pm3d-legend"><span><i className="pm3d-legend-queued"/> Queued</span><span><i className="pm3d-legend-running"/> Running</span><span><i className="pm3d-legend-complete"/> Complete</span><span><i className="pm3d-legend-hold"/> Quality hold</span><span><i className="pm3d-legend-sim"/> Simulation path</span></div>
       <span className="pm3d-privacy-hint">Vendor and price display can be enabled separately for this view and export.</span>
