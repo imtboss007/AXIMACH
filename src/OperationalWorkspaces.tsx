@@ -25,8 +25,9 @@ const dispatchStatuses = ["Awaiting pickup", "Collected", "In transit", "Deliver
 type InvoiceDraft = {
   direction: "Payable" | "Receivable";
   number: string;
-  counterpartyType: "vendor" | "company";
+  counterpartyType: "vendor" | "company" | "other";
   counterpartyId: string;
+  counterpartyName: string;
   poId: string;
   invoiceDate: string;
   dueDate: string;
@@ -37,7 +38,7 @@ type InvoiceDraft = {
 };
 
 const blankInvoice = (): InvoiceDraft => ({
-  direction: "Payable", number: "", counterpartyType: "vendor", counterpartyId: "",
+  direction: "Payable", number: "", counterpartyType: "vendor", counterpartyId: "", counterpartyName: "",
   poId: "", invoiceDate: new Date().toISOString().slice(0, 10),
   dueDate: "", subtotal: "", taxAmount: "0", status: "Draft", notes: ""
 });
@@ -137,7 +138,7 @@ export default function OperationalWorkspaces({ moduleId, onBack, onNotice, noti
   const saveInvoice = () => {
     const subtotal = Number(invoiceDraft.subtotal);
     const taxAmount = Number(invoiceDraft.taxAmount || 0);
-    if (!invoiceDraft.number.trim() || !invoiceDraft.counterpartyId || !Number.isFinite(subtotal) || subtotal <= 0 ||
+    if (!invoiceDraft.number.trim() || (invoiceDraft.counterpartyType === "other" ? !invoiceDraft.counterpartyName.trim() : !invoiceDraft.counterpartyId) || !Number.isFinite(subtotal) || subtotal <= 0 ||
       !Number.isFinite(taxAmount) || taxAmount < 0 || !invoiceDraft.invoiceDate) {
       onNotice("Enter an invoice number, counterparty, valid invoice date and positive subtotal before saving.");
       return;
@@ -149,6 +150,7 @@ export default function OperationalWorkspaces({ moduleId, onBack, onNotice, noti
     const row: InvoiceRecord = {
       id: makeId("inv"), direction: invoiceDraft.direction, number: invoiceDraft.number.trim(),
       counterpartyType: invoiceDraft.counterpartyType, counterpartyId: invoiceDraft.counterpartyId,
+      counterpartyName: invoiceDraft.counterpartyType === "other" ? invoiceDraft.counterpartyName.trim() : invoiceDraft.counterpartyType === "vendor" ? (vendors.find(item => item.id === invoiceDraft.counterpartyId)?.company || "") : (companies.find(item => item.id === invoiceDraft.counterpartyId)?.name || ""),
       poId: invoiceDraft.poId, invoiceDate: invoiceDraft.invoiceDate, dueDate: invoiceDraft.dueDate,
       subtotalAmount: subtotal, taxAmount, totalAmount: subtotal + taxAmount,
       status: invoiceDraft.status, notes: invoiceDraft.notes.trim(), createdAt: nowIso(), updatedAt: nowIso()
@@ -291,10 +293,10 @@ export default function OperationalWorkspaces({ moduleId, onBack, onNotice, noti
         <div className="ow-panel">
           <div className="ow-panel-heading"><div><div className="eyebrow">FINANCE / AUDITABLE LEDGER</div><h3>Invoices & payment register</h3><p>Invoice, counterparty, PO link, tax and individual payment entries are stored as separate records.</p></div><button className="button-primary" onClick={() => setShowInvoiceForm(value => !value)}>{showInvoiceForm ? <X size={15}/> : <Plus size={15}/>} {showInvoiceForm ? "Close form" : "New invoice"}</button></div>
           {showInvoiceForm && <div className="ow-form">
-            <label>Direction<select value={invoiceDraft.direction} onChange={event => setInvoiceDraft(value => ({ ...value, direction: event.target.value as InvoiceDraft["direction"] }))}><option>Payable</option><option>Receivable</option></select></label>
+            <label>Direction<select value={invoiceDraft.direction} onChange={event => setInvoiceDraft(value => ({ ...value, direction: event.target.value as InvoiceDraft["direction"], counterpartyType: event.target.value === "Receivable" ? "other" : "vendor", counterpartyId: "", counterpartyName: "" }))}><option>Payable</option><option>Receivable</option></select></label>
             <label>Invoice number<input value={invoiceDraft.number} onChange={event => setInvoiceDraft(value => ({ ...value, number: event.target.value }))} placeholder="Supplier / customer invoice no."/></label>
-            <label>Counterparty type<select value={invoiceDraft.counterpartyType} onChange={event => setInvoiceDraft(value => ({ ...value, counterpartyType: event.target.value as InvoiceDraft["counterpartyType"], counterpartyId: "" }))}><option value="vendor">Vendor / supplier</option><option value="company">AXIMACH company</option></select></label>
-            <label>Counterparty<select value={invoiceDraft.counterpartyId} onChange={event => setInvoiceDraft(value => ({ ...value, counterpartyId: event.target.value }))}><option value="">Select counterparty</option>{(invoiceDraft.counterpartyType === "vendor" ? vendors.map(item => ({ id: item.id, label: item.company })) : companies.map(item => ({ id: item.id, label: item.name }))).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            <label>Counterparty type<select value={invoiceDraft.counterpartyType} onChange={event => setInvoiceDraft(value => ({ ...value, counterpartyType: event.target.value as InvoiceDraft["counterpartyType"], counterpartyId: "", counterpartyName: "" }))}><option value="vendor">Vendor / supplier</option><option value="company">AXIMACH company / intercompany</option><option value="other">Customer / other party</option></select></label>
+            {invoiceDraft.counterpartyType === "other" ? <label>Customer / counterparty name<input value={invoiceDraft.counterpartyName} onChange={event => setInvoiceDraft(value => ({ ...value, counterpartyName: event.target.value }))} placeholder="Enter customer or other party"/></label> : <label>Counterparty<select value={invoiceDraft.counterpartyId} onChange={event => setInvoiceDraft(value => ({ ...value, counterpartyId: event.target.value }))}><option value="">Select counterparty</option>{(invoiceDraft.counterpartyType === "vendor" ? vendors.map(item => ({ id: item.id, label: item.company })) : companies.map(item => ({ id: item.id, label: item.name }))).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>}
             <label>Linked purchase order<select value={invoiceDraft.poId} onChange={event => setInvoiceDraft(value => ({ ...value, poId: event.target.value }))}><option value="">No PO link</option>{orders.map(item => <option key={item.id} value={item.id}>{item.number}</option>)}</select></label>
             <label>Invoice date<input type="date" value={invoiceDraft.invoiceDate} onChange={event => setInvoiceDraft(value => ({ ...value, invoiceDate: event.target.value }))}/></label>
             <label>Due date<input type="date" value={invoiceDraft.dueDate} onChange={event => setInvoiceDraft(value => ({ ...value, dueDate: event.target.value }))}/></label>
@@ -307,7 +309,7 @@ export default function OperationalWorkspaces({ moduleId, onBack, onNotice, noti
           </div>}
           <div className="ow-table-wrap"><table className="ow-table"><thead><tr><th>Invoice</th><th>Direction / party</th><th>PO / dates</th><th>Invoice value</th><th>Paid</th><th>Balance / state</th><th>Payment</th></tr></thead><tbody>
             {invoices.filter(row => [row.number, row.notes].join(" ").toLowerCase().includes(search.toLowerCase().trim())).map(invoice => {
-              const party = invoice.counterpartyType === "vendor" ? vendors.find(item => item.id === invoice.counterpartyId)?.company : companies.find(item => item.id === invoice.counterpartyId)?.name;
+              const party = invoice.counterpartyName || (invoice.counterpartyType === "vendor" ? vendors.find(item => item.id === invoice.counterpartyId)?.company : companies.find(item => item.id === invoice.counterpartyId)?.name);
               const paid = payments.filter(row => row.invoiceId === invoice.id).reduce((sum, row) => sum + row.amount, 0);
               const balance = Math.max(0, invoice.totalAmount - paid);
               const due = invoice.status === "Void" ? "Void" : invoice.status === "Disputed" ? "Disputed" : balance <= 0 ? "Paid" : paid > 0 ? "Part paid" : invoice.status;
