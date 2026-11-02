@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import { ArrowRight, CalendarClock, Calculator, Check, CircleDollarSign, FileText, Package, Plus, Search, ShieldCheck, Truck, Users, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, vendorSupportsProcessType, type QuotationRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
-import { calculateRouteCostTotals, componentBaselinePerPart } from "./costLedger";
+import { calculateRouteCostTotals } from "./costLedger";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
-type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; unitPrice: number; componentId: string; jobStatus?: string; jobFinishedAt?: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
+type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; unitPrice: number; componentId: string; jobStatus?: string; jobFinishedAt?: string; jobFinishedProcessCost?: number; jobFinishedActualProcessCost?: number; jobFinishedMissingActualRates?: number; jobFinishedOperationCount?: number; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const stamp = () => new Date().toISOString().slice(0,10);
 
@@ -17,6 +17,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
   const quotations = activeRows(data.quotations);
+  const standaloneCostPlans = activeRows(data.standaloneCostPlans || []);
   const [componentId, setComponentId] = useState("");
   const [lineKey, setLineKey] = useState("");
   const [operationId, setOperationId] = useState("");
@@ -41,9 +42,28 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
 
   const selectedComponent = components.find(c => c.id === componentId);
   const componentLines: ComponentLineRef[] = useMemo(() => orders.flatMap(po => po.lines.filter(line => line.componentId === selectedComponent?.id).map(line => ({
-    key: po.id + "::" + line.id, poId: po.id, poNumber: po.number, lineId: line.id, quantity: line.quantity, targetDelivery: line.targetDelivery || po.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId, jobStatus: line.jobStatus, jobFinishedAt: line.jobFinishedAt, materialQty: line.materialQty, materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost, reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
+    key: po.id + "::" + line.id, poId: po.id, poNumber: po.number, lineId: line.id, quantity: line.quantity, targetDelivery: line.targetDelivery || po.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId, jobStatus: line.jobStatus, jobFinishedAt: line.jobFinishedAt, jobFinishedProcessCost: line.jobFinishedProcessCost, jobFinishedActualProcessCost: line.jobFinishedActualProcessCost, jobFinishedMissingActualRates: line.jobFinishedMissingActualRates, jobFinishedOperationCount: line.jobFinishedOperationCount, materialQty: line.materialQty, materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost, reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
   }))), [orders, selectedComponent?.id]);
   const selectedLine = componentLines.find(line => line.key === lineKey) || componentLines[0];
+  const normaliseManualKey = (value: string) => value.trim().toUpperCase().replace(/\\s+/g, "");
+  const standalonePlanFor = (componentNumber: string, poNumber: string) =>
+    standaloneCostPlans.find(plan => normaliseManualKey(plan.componentNumber) === normaliseManualKey(componentNumber) &&
+      normaliseManualKey(plan.poNumber) === normaliseManualKey(poNumber));
+  const planPerPart = (plan?: typeof standaloneCostPlans[number]) => plan ? (
+    plan.materialCostPerPart + plan.directLabourCostPerPart + plan.overheadCostPerPart +
+    plan.toolingCostPerPart + plan.qualityCostPerPart + plan.reworkScrapCostPerPart +
+    plan.packagingCostPerPart + plan.otherCostPerPart +
+    (plan.processRows || []).reduce((sum, row) => sum + row.quantityPerPart * row.ratePerUnit + row.transportPerPart, 0)
+  ) : null;
+  const standalonePlan = selectedComponent && selectedLine ? standalonePlanFor(selectedComponent.partNumber, selectedLine.poNumber) : undefined;
+  const componentBasePlanPerPart = standalonePlan ? (
+    standalonePlan.materialCostPerPart + standalonePlan.directLabourCostPerPart + standalonePlan.overheadCostPerPart +
+    standalonePlan.toolingCostPerPart + standalonePlan.qualityCostPerPart + standalonePlan.reworkScrapCostPerPart +
+    standalonePlan.packagingCostPerPart + standalonePlan.otherCostPerPart
+  ) : null;
+  const componentProcessPlanPerPart = standalonePlan ? (standalonePlan.processRows || []).reduce((sum, row) => sum + row.quantityPerPart * row.ratePerUnit + row.transportPerPart, 0) : 0;
+  const componentPlanPerPart = planPerPart(standalonePlan);
+  const componentPlanTotalForLine = componentPlanPerPart === null || !selectedLine ? null : componentPlanPerPart * selectedLine.quantity;
   const routeOperations = operations.filter(op => op.componentId === selectedComponent?.id && (!selectedLine || (op.poId === selectedLine.poId && op.poLineId === selectedLine.lineId)));
   const selectedOperation = routeOperations.find(op => op.id === operationId) || routeOperations[0];
   const selectedOperationProcessTypeId = selectedOperation?.processTypeId || "";
@@ -76,27 +96,16 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const extraCharges = overhead + toolingCost + reworkCost + scrapCost;
   const plannedTotal = materialCost + operationPlanned + extraCharges;
   const actualTotal = materialCost + operationActual + extraCharges;
-  const componentCostPlan = (data.componentPlannedCosts || []).find(plan => plan.componentId === selectedComponent?.id && !plan.deletedAt);
-  const componentProcessPlanRows = (data.componentProcessCosts || []).filter(row => row.componentId === selectedComponent?.id && !row.deletedAt);
-  const componentProcessPlanPerPart = componentProcessPlanRows.reduce((sum,row) => sum + row.quantityPerPart * row.ratePerProcess, 0);
-  const componentBasePlanPerPart = componentCostPlan
-    ? componentCostPlan.materialCostPerPart + componentCostPlan.directLabourCostPerPart + componentCostPlan.overheadCostPerPart +
-      componentCostPlan.toolingCostPerPart + componentCostPlan.qualityCostPerPart + componentCostPlan.reworkScrapCostPerPart +
-      componentCostPlan.packagingCostPerPart + componentCostPlan.otherCostPerPart
-    : null;
-  const componentPlanPerPart = componentBasePlanPerPart === null ? null : componentBasePlanPerPart + componentProcessPlanPerPart;
-  const componentPlanTotalForLine = componentPlanPerPart === null || !selectedLine ? null : componentPlanPerPart * selectedLine.quantity;
-  const plannedBaselineForComponent = (id: string): number | null => {
-    const plan = (data.componentPlannedCosts || []).find(row => row.componentId === id && !row.deletedAt);
-    if (!plan) return null;
-    const processRows = (data.componentProcessCosts || []).filter(row => row.componentId === id && !row.deletedAt);
-    return componentBaselinePerPart(plan, processRows);
-  };
+  const plannedBaselineForLine = (componentNumber: string, poNumber: string): number | null =>
+    planPerPart(standalonePlanFor(componentNumber, poNumber));
   const routePlannedPerPart = selectedLine && selectedLine.quantity > 0 ? plannedTotal / selectedLine.quantity : null;
   const routeVsComponentPlan = componentPlanPerPart !== null && routePlannedPerPart !== null ? routePlannedPerPart - componentPlanPerPart : null;
-  const componentProcessBenchmark = (componentId: string, processTypeId?: string) => {
-    const row = processTypeId ? (data.componentProcessCosts || []).find(item => item.componentId === componentId && item.processTypeId === processTypeId && !item.deletedAt) : undefined;
-    return row ? row.quantityPerPart * row.ratePerProcess : undefined;
+  const componentProcessBenchmark = (operationName: string, operationCategory?: string) => {
+    const row = standalonePlan?.processRows.find(item =>
+      normaliseManualKey(item.processName) === normaliseManualKey(operationName) &&
+      (!operationCategory || !item.category || normaliseManualKey(item.category) === normaliseManualKey(operationCategory))
+    );
+    return row ? row.quantityPerPart * row.ratePerUnit + row.transportPerPart : undefined;
   };
   const sellingRate = selectedLine ? selectedLine.unitPrice : (selectedComponent?.salePrice || 0);
   const revenue = (selectedLine?.quantity || 0) * sellingRate;
@@ -122,7 +131,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const extras = (line.overhead ?? component.overhead ?? 0) + (line.toolingCost ?? component.toolingCost ?? 0) + (line.reworkCost ?? component.reworkCost ?? 0) + (line.scrapCost ?? component.scrapCost ?? 0);
     const material = qty * rate;
     const total = material + process + extras;
-    const componentPlanPerPart = plannedBaselineForComponent(component.id);
+    const componentPlanPerPart = plannedBaselineForLine(component.partNumber, po.number);
     const plannedBaseline = componentPlanPerPart === null ? null : componentPlanPerPart * line.quantity;
     const revenueValue = line.quantity * line.unitPrice;
     const complete = materialInputsComplete && line.unitPrice > 0 && lineOperations.length > 0 && lineOperations.every(op => op.quantity > 0 && op.ratePerPart > 0);
@@ -139,8 +148,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   }));
 
   const allComponentCostRows = [...componentCostRows, ...componentsWithoutPO];
-  // One finance row per PO component line. Component plan includes component process estimates; route and transport actuals come only from Process Planning.
-  const componentPlanById = new Map((data.componentPlannedCosts || []).filter(plan => !plan.deletedAt).map(plan => [plan.componentId, plan]));
+  // One finance row per PO component line. Planned amounts come only from the standalone component-number + PO-number register.
   const costLedgerRows = orders.flatMap(po => po.lines.filter(line => !("deletedAt" in line && (line as typeof line & {deletedAt?:string}).deletedAt)).map(line => {
     const component = components.find(item => item.id === line.componentId);
     if (!component) return null;
@@ -150,10 +158,10 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
       const category = type ? data.processCategories.find(item => item.id === type.categoryId) : undefined;
       return {...operation, processTypeName: type?.name, processCategoryName: category?.name};
     }));
-    const componentProcessRows = (data.componentProcessCosts || []).filter(row => row.componentId === component.id && !row.deletedAt);
-    const componentPlanPerPart = componentBaselinePerPart(componentPlanById.get(component.id), componentProcessRows);
-    const vendorIds = [...new Set([...routeCosts.vendorIds, ...componentProcessRows.map(row => row.vendorId).filter(Boolean)])];
-    return {key:po.id+"::"+line.id,companyId:po.companyId,poId:po.id,poNumber:po.number,componentId:component.id,componentName:component.partNumber+" · "+component.name,quantity:line.quantity,componentPlan:componentPlanPerPart*line.quantity,processPlanned:routeCosts.processPlanned,transportPlanned:routeCosts.transportPlanned,processedActual:routeCosts.processedActual,transportActual:routeCosts.transportActual,poCost:line.quantity*line.unitPrice,vendorIds,linked};
+    const componentPlanPerPart = plannedBaselineForLine(component.partNumber, po.number) || 0;
+    const vendorIds = [...new Set(routeCosts.vendorIds)];
+    const jobFinishedProcessCost = line.jobStatus === "Finished" ? Number(line.jobFinishedProcessCost) || 0 : 0;
+    return {key:po.id+"::"+line.id,companyId:po.companyId,poId:po.id,poNumber:po.number,componentId:component.id,componentName:component.partNumber+" · "+component.name,quantity:line.quantity,jobStatus:line.jobStatus||"In progress",jobFinishedProcessCost,componentPlan:componentPlanPerPart*line.quantity,processPlanned:routeCosts.processPlanned,transportPlanned:routeCosts.transportPlanned,processedActual:routeCosts.processedActual,transportActual:routeCosts.transportActual,poCost:line.quantity*line.unitPrice,vendorIds,linked};
   })).filter((row): row is NonNullable<typeof row> => Boolean(row));
   const visibleLedgerRows = costLedgerRows.filter(row =>
     (!ledgerCompanyId || row.companyId === ledgerCompanyId) &&
@@ -168,9 +176,10 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     process:sum.process+row.processPlanned,
     transport:sum.transport+row.transportPlanned,
     actual:sum.actual+row.processedActual,
+    finishedProcess:sum.finishedProcess+row.jobFinishedProcessCost,
     transportActual:sum.transportActual+row.transportActual,
     po:sum.po+row.poCost
-  }),{componentPlan:0,process:0,transport:0,actual:0,transportActual:0,po:0});
+  }),{componentPlan:0,process:0,transport:0,actual:0,finishedProcess:0,transportActual:0,po:0});
 
   const rankedComponentRows = componentCostRows.filter(row => row.profit !== null).sort((a,b) => (b.profit || 0) - (a.profit || 0));
   const processCostRows = operations.filter(op => components.some(component => component.id === op.componentId)).map(op => ({
