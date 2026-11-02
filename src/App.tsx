@@ -25,7 +25,7 @@ import AIInsightsWorkspace from "./AIInsightsWorkspace";
 import DataExchangeWorkspace from "./DataExchangeWorkspace";
 import Contact360Workspace from "./Contact360Workspace";
 import ComponentCostPlannerWorkspace from "./ComponentCostPlannerWorkspace";
-import DashboardFlow3D from "./DashboardFlow3D";
+import AxiCommandSphere, { type SphereModule } from "./AxiCommandSphere";
 
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, vendorProcessTypeIds, type VendorRecord } from "./manufacturingData";
 
@@ -407,6 +407,33 @@ function DashboardWorkspace(props: {
   const formatDashboardTime=(value?:string)=>value?(/^\d{2}:\d{2}$/.test(value)?value:new Date(value).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})):"Time not set";
   const formatDashboardMoney=(value:number)=>"₹"+value.toLocaleString("en-IN",{maximumFractionDigits:2});
   const inTransitMovements=activeRows(actualData.wipTransfers).filter(row=>row.status==="In transit"||row.status==="Partially received").length+activeRows(actualData.customerDispatches).filter(row=>row.status==="In transit"||row.status==="Partially delivered").length;
+  const activePOLines=liveOrders.flatMap(po=>po.lines.filter(line=>!("deletedAt" in line&&(line as typeof line & {deletedAt?:string}).deletedAt)));
+  const finishedJobs=activePOLines.filter(line=>line.jobStatus==="Finished").length;
+  const overdueOperations=liveOperations.filter(op=>op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<todayKey).length;
+  const savedComponentPlans=activeRows(actualData.componentPlannedCosts||[]);
+  const savedComponentProcessPlans=activeRows(actualData.componentProcessCosts||[]);
+  const sphereCounts:Record<string,number>={
+    "command-centre":overdueOperations+qualityHolds+vendorPaymentReview,
+    companies:liveCompanies.length,
+    "contact-360":activeRows(actualData.contact360Contacts).length+activeRows(actualData.contact360FollowUps).length,
+    purchasing:liveOrders.length,
+    components:liveComponents.length,
+    "component-directory":liveComponents.filter(component=>liveOperations.some(op=>op.componentId===component.id)).length,
+    "component-cost-planner":savedComponentPlans.length,
+    "process-master":activeRows(actualData.processTypes).length,
+    vendors:liveVendors.length,
+    inventory:activeRows(actualData.materials).length,
+    production:liveOperations.length,
+    dispatch:inTransitMovements,
+    quality:activeRows(actualData.qualityInspections).length+qualityHolds,
+    costing:savedComponentPlans.length+savedComponentProcessPlans.length+activeRows(actualData.quotations).length,
+    reports:liveOrders.length+liveOperations.length,
+    "ai-insights":overdueOperations+qualityHolds,
+    export:0,
+    import:0,
+    communications:0
+  };
+  const sphereModules:SphereModule[]=modules.map(module=>({...module,quantity:sphereCounts[module.id]??0}));
   const openSavedOperation=(operation:typeof actualData.operations[number])=>{
     const po=activeOrders.find(row=>row.id===operation.poId);
     if(!po){onSelectModule("production");return;}
@@ -418,8 +445,8 @@ function DashboardWorkspace(props: {
       <section className="hero-command">
         <div className="hero-copy">
           <div className="eyebrow"><span className="eyebrow-mark" /> PRECISION OPERATIONS / ONE CONNECTED SYSTEM</div>
-          <h1>Make every<br />operation <em>count.</em></h1>
-          <p>From customer demand to finished component, AXIMACH brings engineering, suppliers, production, quality, inventory and delivery into one traceable manufacturing control plane.</p>
+          <h1>One factory.<br /><em>One living universe.</em></h1>
+          <p>Navigate every manufacturing workspace from a rotating command sphere. Every orbital icon and quantity is connected to saved AXIMACH records.</p>
           <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("command-centre")}><Workflow size={17} /> Enter Command Centre <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore workspaces</button></div>
           <div className="hero-data-strip" aria-label="Saved AXIMACH record counts">
             <div><span>COMPANIES</span><strong>{liveCompanies.length.toLocaleString("en-IN")}</strong></div>
@@ -428,7 +455,13 @@ function DashboardWorkspace(props: {
             <small>Counts from saved records · no sample data</small>
           </div>
         </div>
-        <DashboardFlow3D operations={liveOperations} components={liveComponents} orders={activeOrders} companies={liveCompanies} onOpenOperation={onOpenOperation} />
+        <AxiCommandSphere
+          modules={sphereModules}
+          onOpenModule={onSelectModule}
+          liveOperations={liveOperations.length}
+          finishedJobs={finishedJobs}
+          attentionItems={overdueOperations+qualityHolds}
+        />
       </section>
 
       <div className="axi-capability-marquee" aria-label="AXIMACH manufacturing workspaces">
