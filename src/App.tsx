@@ -76,7 +76,7 @@ const moduleCatalogue: ModuleItem[] = [
   { id: "continuity", title: "Business Continuity & Recovery", group: "Data & Platform", description: "Manage backups, recovery targets, restore evidence and incident runbooks.", icon: HardDrive, action: "Explore recovery readiness" }
 ];
 
-const approvedMenuIds = new Set(["command-centre","companies","contact-360","purchasing","components","component-directory","component-cost-planner","process-master","vendors","inventory","production","dispatch","quality","costing","communications","reports","ai-insights","export","import"]);
+const approvedMenuIds = new Set(["command-centre","companies","contact-360","purchasing","components","component-directory","process-master","vendors","inventory","production","dispatch","quality","costing","communications","reports","ai-insights","export","import"]);
 const modules: ModuleItem[] = moduleCatalogue.filter(item => approvedMenuIds.has(item.id));
 const groupOptions = ["All approved workspaces", ...Array.from(new Set(modules.map((item) => item.group)))];
 
@@ -99,7 +99,7 @@ function App() {
   const [dispatchMode, setDispatchMode] = useState<"wip" | "dispatch">("dispatch");
   const [wipJump, setWipJump] = useState<{companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string} | null>(null);
 
-  const activeModule = activeModuleId === "dashboard" ? dashboardItem : modules.find((item) => item.id === activeModuleId) ?? modules[0];
+  const activeModule = activeModuleId === "dashboard" ? dashboardItem : modules.find((item) => item.id === activeModuleId) ?? (activeModuleId === "component-cost-planner" ? { id: "component-cost-planner", title: "Component Cost Planner", group: "Finance", description: "Edit the component planned-cost baseline from Costing & Payments.", icon: Calculator, action: "Edit component cost baseline" } : modules[0]);
   const manufacturingData = readManufacturingData();
   const globalRecords = getAllModuleRecords();
   const globalVendorContacts = activeRows(manufacturingData.vendors);
