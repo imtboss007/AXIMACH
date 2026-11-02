@@ -1,22 +1,32 @@
 # AXIMACH Infinite Reality — implementation and verification
 
-## Integrated in this feature branch
-- Existing AXIMACH modules, records, IDs, server sync and manufacturing workflows are retained.
-- Electron startup diagnostics and visible renderer recovery for missing packaged entry files, load failures and renderer crashes.
-- Lazy-loaded Three.js WebGL orb: physical 3D core, surface wireframe, molecular point layer, independently animated orbital rings, 3D module nodes, raycast selection, mouse/touch rotation, pinch/scroll zoom, camera reset, performance tiers and fallback to the legacy orb.
-- Orb quantities derive from saved company, purchase-order-line, inventory transaction and operation records.
+## Delivered in this feature branch
+- Existing AXIMACH modules, records, IDs, server sync, manufacturing workflows, Process Map, dashboard theatre and Icon Studio are retained.
+- Lazy-loaded Three.js WebGL navigation core with physical 3D materials, orbital rings, raycast-selected module nodes, touch/mouse rotation, pinch/scroll zoom, adaptive quality, reduced-motion support and fallback to the original orb.
+- Infinite Reality Lab, opened from the 3D core:
+  - Fluid-field particle advection visualisation.
+  - Cloth mesh with pinned edge, Verlet integration, distance constraints and pointer interaction.
+  - Soft-body surface deformation and elastic return.
+  - Spatial dashboard planes rotating in a 3D scene, showing record counts sourced from saved AXIMACH data.
+  - Six cinematic camera families: orbit sweep, fly-through, dolly zoom, axial roll, whip pan and depth shift.
+  - Screen-space ambient occlusion (SSAO), bloom, ACES tone mapping, physical materials and final output pass.
+  - Responsive layout and WebGL fallback message.
+- Predictive scenario lab with editable cycle rate, shift hours, availability, downtime, scrap and order quantity; it calculates a baseline and explicit upside/stress cases.
+- Existing Icon Studio extended with saved float, orbit, pulse, scan and static animation profiles. Existing palette, finish, depth and tilt options remain. Reduced-motion rules included.
 - Multi-dashboard Command Theatre with record-derived panels, domain views, drag reorder, pin, minimise, maximise, resize and saved layout.
-- Visual Experience Studio with live preview, motion, depth, particles, lighting, reflections, transition, camera, haptic, reduced-motion and performance settings. Preferences persist locally and synchronise through a separate authenticated endpoint when the shared AXIMACH server is configured.
-- Existing Icon Studio and process graph workflows remain in place.
+- Visual Experience Studio with live preview, motion, depth, particles, lighting, reflections, transition, camera, haptic, reduced-motion and performance settings. Preferences persist locally and synchronise through the authenticated endpoint when configured.
+- Electron diagnostics and recovery screen. Packaged local service scripts are externalised from ASAR and receive their own ESM dependency installation so child processes can resolve Baileys and QR dependencies. The Windows pipeline now launches the packaged unpacked application in a headless renderer smoke-test mode and checks that the React root renders.
 
-## Remaining limitations
-Advanced fluid/cloth/soft-body physics, all transition families, ray-traced post-processing, spatially rotating dashboard planes, full digital-twin models and predictive scenario visualisations are not all delivered by this branch. The 3D core is a visual navigation surface, not a connected machine digital twin. There is no live CNC/PLC telemetry adapter in this implementation.
-The Windows recovery screen adds diagnostics and prevents silent blank failure, but a launch test on a target Windows PC is still needed to prove the reported black-screen symptom is resolved on affected hardware.
-The Android APK is a CI build artifact; installation and physical touch testing remain necessary.
+## Engineering and data boundaries (important)
+- Fluid/cloth/soft-body effects are interactive visual demonstrations, not validated CFD, textile or finite-element engineering solvers.
+- Post-processing currently uses SSAO + bloom + physically based materials. This is **not hardware ray tracing or path tracing**.
+- Scenario outputs are deterministic what-if calculations from user-entered assumptions, not an ML forecast and not based on live shop-floor telemetry.
+- Spatial dashboard values come from saved AXIMACH record counts. They are not live factory sensor metrics.
+- The machine connection panel stores a protocol/asset/endpoint profile only. It does not open network sockets or read/write controllers. A complete CNC/PLC digital twin still requires the actual machine models and allowed signals, protocol/gateway, addressing, credentials/certificates, network access and a safe read-only integration test plan. No readings or machine states are fabricated.
+- A CI smoke test checks the packaged Electron renderer in a Windows runner. It is not a physical test on the user's PC. Android APK packaging is a CI build only; installation, device GPU, touch, notification, safe-area and cross-device sync tests need the real target phone.
 
-## Verification
-- CI type-check and production build.
-- CI Windows installer and Android APK packaging.
-- Windows installer launch and startup-log inspection on a physical Windows PC.
-- Android installation, touch/safe-area and cross-device sync tests.
-- Repeated module navigation and GPU-memory profiling on low/medium/high quality devices.
+## Verification status
+- Feature branch CI type-check and production build: verify against the latest branch-head Actions run.
+- Windows x64 installer and Android debug APK: generated only when the corresponding package jobs pass.
+- Packaged Windows Electron startup smoke test: added to the Windows package job; its result must be checked on the latest successful run.
+- Physical Windows and Android device testing remains outstanding until the user's machines/devices are available.
