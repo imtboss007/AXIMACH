@@ -556,6 +556,24 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const visibleContacts=contacts.filter(c=>(c.name+" "+c.company+" "+c.phone).toLowerCase().includes(contactSearch.toLowerCase().trim()));
   const request=async(path:string,init:RequestInit={})=>{const response=await fetch(base+path,{...init,headers:{"content-type":"application/json","x-aximach-key":apiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"The service returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
   const connect=async()=>{setBusy(true);setApiError("");try{if(!isAllowedAxMachServiceUrl(base))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("Scheduler health check failed.");await request("/api/contacts");const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);if(base.startsWith("http://")){const bridge=new URL(base);bridge.port="8788";const bridgeUrl=bridge.toString().replace(/\/$/,"");setWaUrl(bridgeUrl);window.localStorage.setItem("aximach.whatsapp.url",bridgeUrl);}updateManufacturingData(currentData=>({...currentData}));setApiError("");onNotice("Scheduler connected. AXIMACH is syncing saved companies, factories, PO lines, components, vendors, operations, quotations and module records to this server.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
+  useEffect(()=>{
+    if(!apiKey.trim()||!isAllowedAxMachServiceUrl(apiUrl))return;
+    let cancelled=false;
+    const verify=async()=>{
+      try{
+        const health=await fetch(apiUrl.trim().replace(/\/+$/,"")+"/health",{cache:"no-store"});
+        if(!health.ok)throw new Error("Server unavailable");
+        const response=await fetch(apiUrl.trim().replace(/\/+$/,"")+"/api/contacts",{headers:{"x-aximach-key":apiKey}});
+        if(!response.ok)throw new Error("Server authentication failed");
+        if(!cancelled)setConnected(true);
+      }catch{
+        if(!cancelled)setConnected(false);
+      }
+    };
+    void verify();
+    const timer=window.setInterval(()=>void verify(),10000);
+    return()=>{cancelled=true;window.clearInterval(timer);};
+  },[apiUrl,apiKey]);
   const refresh=async()=>{setBusy(true);setApiError("");try{const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Refresh failed.");}finally{setBusy(false);}};
   const addContact=async()=>{setBusy(true);setApiError("");try{const d=await request("/api/contacts",{method:"POST",body:JSON.stringify({name,phone,company,optedIn})});setContacts(prev=>[...prev,d.contact]);setName("");setPhone("");setCompany("");setOptedIn(false);onNotice("Contact saved to the scheduler server.");}catch(e){setApiError(e instanceof Error?e.message:"Could not save contact.");}finally{setBusy(false);}};
   const addSchedule=async()=>{setBusy(true);setApiError("");try{const d=await request("/api/schedules",{method:"POST",body:JSON.stringify({to,message,nextRunAt:new Date(due).toISOString(),repeat})});setSchedules(prev=>[d.schedule,...prev]);setMessage("");onNotice("Schedule saved on the server. Actual sending still depends on valid Meta credentials and messaging policy.");}catch(e){setApiError(e instanceof Error?e.message:"Could not create schedule.");}finally{setBusy(false);}};
