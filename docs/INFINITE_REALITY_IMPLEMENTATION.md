@@ -1,21 +1,22 @@
-# AXIMACH Infinite Reality — implementation notes
+# AXIMACH Infinite Reality — implementation and verification
 
-This branch is based on the latest main snapshot and upgrades the existing app. It does not replace manufacturing records, route logic, stable IDs, sync contracts or workspaces.
+## Integrated in this feature branch
+- Existing AXIMACH modules, records, IDs, server sync and manufacturing workflows are retained.
+- Electron startup diagnostics and visible renderer recovery for missing packaged entry files, load failures and renderer crashes.
+- Lazy-loaded Three.js WebGL orb: physical 3D core, surface wireframe, molecular point layer, independently animated orbital rings, 3D module nodes, raycast selection, mouse/touch rotation, pinch/scroll zoom, camera reset, performance tiers and fallback to the legacy orb.
+- Orb quantities derive from saved company, purchase-order-line, inventory transaction and operation records.
+- Multi-dashboard Command Theatre with record-derived panels, domain views, drag reorder, pin, minimise, maximise, resize and saved layout.
+- Visual Experience Studio with live preview, motion, depth, particles, lighting, reflections, transition, camera, haptic, reduced-motion and performance settings. Preferences persist locally and synchronise through a separate authenticated endpoint when the shared AXIMACH server is configured.
+- Existing Icon Studio and process graph workflows remain in place.
 
-## Windows renderer recovery
-Electron now logs startup and renderer failures to the application user-data `logs/startup.log`. Missing packaged renderer assets, failed main-frame navigation, renderer crashes and fatal startup exceptions show a recovery screen with a retry action rather than silently leaving a blank dark window.
+## Remaining limitations
+Advanced fluid/cloth/soft-body physics, all transition families, ray-traced post-processing, spatially rotating dashboard planes, full digital-twin models and predictive scenario visualisations are not all delivered by this branch. The 3D core is a visual navigation surface, not a connected machine digital twin. There is no live CNC/PLC telemetry adapter in this implementation.
+The Windows recovery screen adds diagnostics and prevents silent blank failure, but a launch test on a target Windows PC is still needed to prove the reported black-screen symptom is resolved on affected hardware.
+The Android APK is a CI build artifact; installation and physical touch testing remain necessary.
 
-This is defensive recovery handling, not proof that the previous Windows 0.4.0 issue is fixed on every machine. A packaged installer must still be launched and tested on Windows.
-
-## Visual foundation
-The additive `axr-*` tokens establish the spatial glass, depth, lighting, grid and reduced-motion primitives. Existing visual styles remain in place until each workspace is migrated and regression-tested.
-
-## Capability truth
-The current AXIMACH orb and process universe are interactive CSS/DOM 3D-style surfaces, not a complete WebGL industrial simulation. Machine telemetry and predictive analytics must only be presented as live when connected to real sources. Visual-only route playback remains labelled as simulation.
-
-## Remaining release verification
+## Verification
 - CI type-check and production build.
-- Packaged Windows installer launch on a Windows machine.
-- GPU/WebGL fallback and repeated-navigation memory profiling.
-- Android touch, safe-area, haptic capability and APK installation tests.
-- Data persistence, PC/mobile sync and manufacturing workflow regression.
+- CI Windows installer and Android APK packaging.
+- Windows installer launch and startup-log inspection on a physical Windows PC.
+- Android installation, touch/safe-area and cross-device sync tests.
+- Repeated module navigation and GPU-memory profiling on low/medium/high quality devices.
