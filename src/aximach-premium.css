@@ -2509,3 +2509,27 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
   .pm3d-vortex-rings::after { animation:none !important; }
   .pm3d-layout-switcher button,.pm3d-spatial-node,.pm3d-spatial-nodes { transition:none !important; animation:none !important; }
 }
+
+.axi-sphere-sync-state {
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  color:#84a6ba;
+  font:7px 'DM Mono',monospace;
+  letter-spacing:.55px;
+  white-space:nowrap;
+}
+.axi-sphere-sync-state i {
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#87a6ba;
+  box-shadow:0 0 9px rgba(135,166,186,.25);
+}
+.axi-sphere-sync-state.is-connected { color:#84e0bd; }
+.axi-sphere-sync-state.is-connected i { background:#57e2b5; box-shadow:0 0 11px rgba(87,226,181,.85); }
+.axi-sphere-sync-state.is-syncing { color:#86d7ed; }
+.axi-sphere-sync-state.is-syncing i { background:#62cde8; box-shadow:0 0 11px rgba(98,205,232,.75); }
+.axi-sphere-sync-state.has-error { color:#f0acb0; }
+.axi-sphere-sync-state.has-error i { background:#e58c95; box-shadow:0 0 11px rgba(229,140,149,.65); }
+@media (max-width:600px) { .axi-sphere-sync-state { font-size:6px; } }
