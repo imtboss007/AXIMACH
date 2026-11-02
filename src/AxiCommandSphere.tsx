@@ -29,6 +29,7 @@ export default function AxiCommandSphere({
   modules, onOpenModule, liveOperations, finishedJobs, attentionItems
 }: Props) {
   const [page, setPage] = useState(0);
+  const [dashboardIndex, setDashboardIndex] = useState(0);
   const [viewMode, setViewMode] = useState<"orbit" | "cube">("orbit");
   const [yaw, setYaw] = useState(-9);
   const [pitch, setPitch] = useState(8);
@@ -37,6 +38,21 @@ export default function AxiCommandSphere({
   const [zooming, setZooming] = useState(false);
   const drag = useRef<{ pointerId: number; x: number; y: number; yaw: number; pitch: number } | null>(null);
   const pageCount = Math.max(1, Math.ceil(modules.length / PAGE_SIZE));
+  const findCount = (id: string) => modules.find(module => module.id === id)?.quantity || 0;
+  const dashboardCards = [
+    {
+      id: "operations", title: "Operations", label: "LIVE PRODUCTION", metric: count(liveOperations),
+      metricLabel: "saved operations", detailA: count(finishedJobs) + " finished jobs", detailB: count(attentionItems) + " attention items", target: "production"
+    },
+    {
+      id: "supply", title: "Supply network", label: "VENDOR + PROCESS MASTERS", metric: count(findCount("vendors")),
+      metricLabel: "saved vendors", detailA: count(findCount("process-master")) + " process types", detailB: count(findCount("purchasing")) + " open purchase orders", target: "vendors"
+    },
+    {
+      id: "finance", title: "Finance", label: "COST + COMMERCIAL RECORDS", metric: count(findCount("costing")),
+      metricLabel: "linked cost records", detailA: count(findCount("component-cost-planner")) + " component plans", detailB: count(findCount("purchasing")) + " purchase orders", target: "costing"
+    }
+  ];
   const visibleModules = useMemo(
     () => modules.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
     [modules, page]
@@ -175,6 +191,25 @@ export default function AxiCommandSphere({
       <span className="axi-universe-drag-hint">{viewMode === "orbit" ? (expanded ? "FAN-OUT · DRAG · TOUCH · SELECT ICON" : "DRAG · TOUCH · SELECT ORBITAL ICON") : "DRAG TO ROTATE THE SIX-SIDED WORKSPACE CUBE"}</span>
     </div>
 
+    <div className="axi-dashboard-carousel" aria-label="3D live dashboard carousel">
+      <div className="axi-dashboard-carousel-heading">
+        <span><i/> FLOATING DASHBOARD DECK</span>
+        <div><button type="button" aria-label="Previous dashboard" onClick={() => setDashboardIndex(value => (value + dashboardCards.length - 1) % dashboardCards.length)}><ChevronLeft size={14}/></button><button type="button" aria-label="Next dashboard" onClick={() => setDashboardIndex(value => (value + 1) % dashboardCards.length)}><ChevronRight size={14}/></button></div>
+      </div>
+      <div className="axi-dashboard-carousel-track">
+        {dashboardCards.map((card,index) => {
+          const relative = (index - dashboardIndex + dashboardCards.length) % dashboardCards.length;
+          const position = relative === 0 ? "center" : relative === 1 ? "right" : "left";
+          return <button type="button" key={card.id} className={"axi-dashboard-float-card deck-" + position + (relative === 0 ? " is-selected" : "")}
+            style={{transform:relative===0?"translateX(0) translateZ(42px) rotateY(0deg)":relative===1?"translateX(59%) translateZ(-78px) rotateY(-24deg)":"translateX(-59%) translateZ(-78px) rotateY(24deg)",zIndex:relative===0?3:1,opacity:relative===0?1:.68}}
+            onClick={() => relative===0 ? openWorkspace(card.target) : setDashboardIndex(index)}>
+            <small>{card.label}</small><strong>{card.title}</strong><b>{card.metric}</b><span>{card.metricLabel}</span>
+            <div><em>{card.detailA}</em><em>{card.detailB}</em></div>
+            <i>OPEN LIVE VIEW <ChevronRight size={11}/></i>
+          </button>;
+        })}
+      </div>
+    </div>
     <div className="axi-universe-footer">
       <div className="axi-universe-signals">
         <div><small>ACTIVE OPERATIONS</small><strong>{count(liveOperations)}</strong></div>
