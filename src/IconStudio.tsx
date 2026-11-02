@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { tablerIconCatalogue } from "./tablerIconCatalogue";
 
@@ -169,6 +169,8 @@ export function ProcessIcon({ processName, fallback }: { processName: string; fa
 }
 
 export default function IconStudio({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const reduceMotion = useReducedMotion();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"all" | "favourites" | "assigned">("all");
   const [family, setFamily] = useState("CNC Turning");
@@ -187,6 +189,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
 
   useEffect(() => { setPage(0); }, [search, tab]);
   useEffect(() => {
+    if (!open) return;
     let cancelled = false;
     let busy = false;
     const sync = async () => {
@@ -229,13 +232,33 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
       window.removeEventListener("online", active);
       document.removeEventListener("visibilitychange", active);
     };
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusableSelector = 'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])';
+    const getFocusable = () => Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) || []);
+    const focusFrame = window.requestAnimationFrame(() => (getFocusable()[0] || dialogRef.current)?.focus());
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); return; }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (!focusable.length) { event.preventDefault(); dialogRef.current?.focus(); return; }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialogRef.current?.contains(document.activeElement))) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current?.contains(document.activeElement))) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", onKey);
+      previousFocus?.focus();
+    };
   }, [open, onClose]);
 
   const filtered = useMemo(() => {
@@ -291,8 +314,8 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="ax-icon-studio-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-          <motion.section className="ax-icon-studio" role="dialog" aria-modal="true" aria-labelledby="ax-icon-studio-title" initial={{ opacity: 0, y: 28, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 18, scale: 0.98 }} transition={{ type: "spring", stiffness: 100, damping: 20 }}>
+        <motion.div className="ax-icon-studio-backdrop" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={reduceMotion ? undefined : { opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.18 }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+          <motion.section ref={dialogRef} tabIndex={-1} className="ax-icon-studio" role="dialog" aria-modal="true" aria-labelledby="ax-icon-studio-title" initial={reduceMotion ? false : { opacity: 0, y: 28, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={reduceMotion ? undefined : { opacity: 0, y: 18, scale: 0.98 }} transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 100, damping: 20 }}>
             <header className="ax-icon-studio-header">
               <div className="ax-icon-studio-brand"><span><Layers3 size={20}/></span><div><div className="eyebrow">AXIMACH / VISUAL SYSTEM</div><h2 id="ax-icon-studio-title">3D Icon Studio</h2><p>Search, customise, assign and save manufacturing process icons.</p></div></div>
               <button className="ax-icon-studio-close" onClick={onClose} aria-label="Close icon studio"><X size={18}/></button>
