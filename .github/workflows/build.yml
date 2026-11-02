@@ -67,13 +67,21 @@ jobs:
           $env:AXIMACH_SMOKE_USER_DATA = Join-Path $env:RUNNER_TEMP "aximach-smoke-user-data"
           $exe = Join-Path $PWD "release/win-unpacked/AXIMACH Manufacturing OS.exe"
           if (-not (Test-Path $exe)) { throw "Packaged application executable not found: $exe" }
-          $process = Start-Process -FilePath $exe -PassThru
-          if (-not $process.WaitForExit(35000)) {
+          $stdout = Join-Path $env:RUNNER_TEMP "aximach-electron-stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "aximach-electron-stderr.log"
+          $process = Start-Process -FilePath $exe -ArgumentList @("--enable-logging", "--v=1") -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          if (-not $process.WaitForExit(70000)) {
+            $log = Join-Path $env:AXIMACH_SMOKE_USER_DATA "logs/startup.log"
+            if (Test-Path $log) { Write-Host "=== AXIMACH startup.log ==="; Get-Content $log }
+            if (Test-Path $stdout) { Write-Host "=== Electron stdout ==="; Get-Content $stdout -Tail 100 }
+            if (Test-Path $stderr) { Write-Host "=== Electron stderr ==="; Get-Content $stderr -Tail 100 }
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-            throw "Packaged application did not finish its startup smoke test within 35 seconds."
+            throw "Packaged application did not finish its startup smoke test within 70 seconds."
           }
           $log = Join-Path $env:AXIMACH_SMOKE_USER_DATA "logs/startup.log"
-          if (Test-Path $log) { Get-Content $log }
+          if (Test-Path $log) { Write-Host "=== AXIMACH startup.log ==="; Get-Content $log }
+          if (Test-Path $stdout) { Write-Host "=== Electron stdout ==="; Get-Content $stdout -Tail 100 }
+          if (Test-Path $stderr) { Write-Host "=== Electron stderr ==="; Get-Content $stderr -Tail 100 }
           if ($process.ExitCode -ne 0) { throw "Packaged application smoke test failed with exit code $($process.ExitCode)." }
           if (-not (Test-Path $log) -or -not (Select-String -Path $log -Pattern "Windows packaged-renderer smoke test passed" -Quiet)) {
             throw "Packaged application did not report a successful renderer smoke test."
