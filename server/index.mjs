@@ -3,12 +3,13 @@ import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { networkInterfaces } from "node:os";
+import { validateMachineProfile, readMachineTelemetry } from "./machine-telemetry.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
 const DB_PATH = resolve(process.env.AXIMACH_DATA_FILE || "./data/aximach.json");
 const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
-let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null, visualPreferences: null };
+let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null, visualPreferences: null, machineProfiles: [], machineLatest: {} };
 let busy = false;
 
 async function loadDb() {
@@ -231,6 +232,44 @@ const server = createServer(async (req, res) => {
       const currentAt = Date.parse(db.visualPreferences?.updatedAt || "") || 0;
       if (!db.visualPreferences || incomingAt >= currentAt) { db.visualPreferences = { ...input.settings, updatedAt: input.settings.updatedAt || new Date().toISOString() }; await saveDb(); }
       return json(res, 200, { ok: true, settings: db.visualPreferences, updatedAt: db.visualPreferences?.updatedAt || null });
+    }
+    if (url.pathname === "/api/machine-twins" && req.method === "GET") {
+      return json(res, 200, { profiles: db.machineProfiles || [], latest: db.machineLatest || {} });
+    }
+    if (url.pathname === "/api/machine-twins" && req.method === "POST") {
+      const input = await body(req);
+      let profile;
+      try { profile = validateMachineProfile(input.profile); }
+      catch (error) { return json(res, 400, { error: error.message }); }
+      db.machineProfiles ||= [];
+      const index = db.machineProfiles.findIndex(item => item.id === profile.id);
+      if (index >= 0) db.machineProfiles[index] = profile;
+      else db.machineProfiles.push(profile);
+      await saveDb();
+      return json(res, 200, { ok: true, profile });
+    }
+    const machinePoll = url.pathname.match(/^\\/api\\/machine-twins\\/([\\w-]+)\\/poll$/);
+    if (machinePoll && req.method === "POST") {
+      const profile = (db.machineProfiles || []).find(item => item.id === machinePoll[1]);
+      if (!profile) return json(res, 404, { error: "Machine twin profile not found." });
+      try {
+        const snapshot = await readMachineTelemetry(profile);
+        db.machineLatest ||= {};
+        db.machineLatest[profile.id] = snapshot;
+        await saveDb();
+        return json(res, 200, { snapshot });
+      } catch (error) {
+        return json(res, 502, { error: error.message || "Machine telemetry read failed.", readOnly: true });
+      }
+    }
+    const machineDelete = url.pathname.match(/^\\/api\\/machine-twins\\/([\\w-]+)$/);
+    if (machineDelete && req.method === "DELETE") {
+      const id = machineDelete[1];
+      db.machineProfiles = (db.machineProfiles || []).filter(item => item.id !== id);
+      db.machineLatest ||= {};
+      delete db.machineLatest[id];
+      await saveDb();
+      return json(res, 200, { ok: true, removed: id });
     }
     if (url.pathname === "/api/contacts" && req.method === "GET") return json(res, 200, { contacts: db.contacts });
     if (url.pathname === "/api/contacts" && req.method === "POST") {
