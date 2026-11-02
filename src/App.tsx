@@ -172,7 +172,6 @@ function App() {
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
         <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>32</b></button>
-        <button className="deck-action deck-icon-studio" onClick={() => setIconStudioOpen(true)}><Sparkles size={16} /><span>3D Icon Studio</span></button>
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
       </header>
@@ -198,7 +197,7 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={() => setIconStudioOpen(true)} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
@@ -319,22 +318,22 @@ function CommandCentre(props: {
       <section className="dashboard-grid actual-data-dashboard">
         <div className="surface-panel flow-preview">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA SETUP</div><h3>Build your manufacturing records</h3><p>Save each master once; choose its ID from linked workflows.</p></div><button className="round-action" onClick={() => onSelectModule("companies")} aria-label="Open company master"><ArrowUpRight size={18}/></button></div>
-          <div className="setup-steps">
-            <button onClick={() => onSelectModule("companies")}>
-              <span className="setup-step-icon"><Factory size={19}/></span>
-              <span className="setup-step-copy"><strong>Company & factory</strong><small><b>{activeRows(actualData.companies).length}</b> companies · <b>{activeRows(actualData.factories).length}</b> factories</small></span>
+          <div className="setup-steps setup-steps-compact">
+            <button onClick={() => onSelectModule("companies")} aria-label="Open companies and factories">
+              <span className="setup-step-icon"><Factory size={21}/></span>
+              <span className="setup-step-copy"><strong>Companies</strong><b className="setup-step-quantity">{activeRows(actualData.companies).length}</b><small>{activeRows(actualData.factories).length} factories</small></span>
             </button>
-            <button onClick={() => onSelectModule("components")}>
-              <span className="setup-step-icon"><Box size={19}/></span>
-              <span className="setup-step-copy"><strong>Component master</strong><small><b>{activeRows(actualData.components).length}</b> part numbers saved</small></span>
+            <button onClick={() => onSelectModule("components")} aria-label="Open component master">
+              <span className="setup-step-icon"><Box size={21}/></span>
+              <span className="setup-step-copy"><strong>Components</strong><b className="setup-step-quantity">{activeRows(actualData.components).length}</b><small>part numbers</small></span>
             </button>
-            <button onClick={() => onSelectModule("purchasing")}>
-              <span className="setup-step-icon"><Package size={19}/></span>
-              <span className="setup-step-copy"><strong>Purchase orders</strong><small><b>{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0)}</b> component lines</small></span>
+            <button onClick={() => onSelectModule("purchasing")} aria-label="Open purchase orders">
+              <span className="setup-step-icon"><Package size={21}/></span>
+              <span className="setup-step-copy"><strong>PO lines</strong><b className="setup-step-quantity">{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0)}</b><small>component lines</small></span>
             </button>
-            <button onClick={() => onSelectModule("vendors")}>
-              <span className="setup-step-icon"><Users size={19}/></span>
-              <span className="setup-step-copy"><strong>Contact 360</strong><small><b>{activeRows(actualData.vendors).length}</b> contacts / suppliers</small></span>
+            <button onClick={() => onSelectModule("vendors")} aria-label="Open Contact 360">
+              <span className="setup-step-icon"><Users size={21}/></span>
+              <span className="setup-step-copy"><strong>Contacts</strong><b className="setup-step-quantity">{activeRows(actualData.vendors).length}</b><small>Contact 360</small></span>
             </button>
           </div>
         </div>
