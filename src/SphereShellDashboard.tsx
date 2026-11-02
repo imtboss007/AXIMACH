@@ -5,6 +5,7 @@ import { Maximize2, Pause, Play, RotateCcw, Sparkles, ZoomIn, ZoomOut } from "lu
 type ModuleNavItem = { id: string; title: string; group: string; icon: LucideIcon };
 type Counts = { companies: number; purchaseOrders: number; components: number; operations: number; vendors: number };
 type ShapeMode = "sphere" | "cube" | "vortex" | "molecular" | "orbit" | "mesh" | "pyramid" | "torus";
+type RotationSpeed = "Slow" | "Normal" | "Fast";
 type Props = {
   modules: ModuleNavItem[];
   counts: Counts;
@@ -182,7 +183,7 @@ export default function SphereShellDashboard({ modules, counts, onSelectModule, 
     catch { return "sphere"; }
   });
   const [playing, setPlaying] = useState(true);
-  const [speed, setSpeed] = useState(() => {
+  const [speed, setSpeed] = useState<RotationSpeed>(() => {
     try { const saved = JSON.parse(window.localStorage.getItem("aximach.visualPreferences.v1") || "{}"); return saved.speed === "Slow" || saved.speed === "Fast" ? saved.speed : "Normal"; }
     catch { return "Normal"; }
   });
