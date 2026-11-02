@@ -460,6 +460,7 @@ function DashboardWorkspace(props: {
           liveOperations={liveOperations.length}
           finishedJobs={finishedJobs}
           attentionItems={overdueOperations+qualityHolds}
+          componentPlanCount={savedComponentPlans.length}
         />
       </section>
 
