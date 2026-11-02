@@ -18,7 +18,7 @@ type Props = {
 type Draft = Omit<StandaloneCostPlanRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
-const normaliseKey = (value: string) => value.trim().toUpperCase().replace(/\\s+/g, "");
+const normaliseKey = (value: string) => value.trim().toUpperCase().replace(/\s+/g, "");
 const planFields: { key: keyof Pick<Draft,
   "materialCostPerPart" | "directLabourCostPerPart" | "overheadCostPerPart" |
   "toolingCostPerPart" | "qualityCostPerPart" | "reworkScrapCostPerPart" |
