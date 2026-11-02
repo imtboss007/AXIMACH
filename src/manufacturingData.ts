@@ -97,13 +97,15 @@ export type ComponentPlannedCostRecord = {
   packagingCostPerPart: number; otherCostPerPart: number; targetSellingPricePerPart: number;
   status: "Draft" | "Approved"; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
-/** A costing-only plan entered by component/PO number, with no foreign keys to operational masters. */
+/** Component Plan Directory record. It has no operational foreign keys and is read by Costing & Payments only. */
 export type StandalonePlannedProcess = {
   id: string; category: string; processName: string;
   quantityPerPart: number; ratePerUnit: number; transportPerPart: number; notes: string;
 };
 export type StandaloneCostPlanRecord = {
-  id: string; componentNumber: string; poNumber: string; poQuantity: number;
+  id: string; componentName: string; componentNumber: string;
+  /** Legacy fields are retained only to read older saved 0.4.x plan entries. New plans do not use PO matching. */
+  poNumber?: string; poQuantity?: number;
   materialCostPerPart: number; directLabourCostPerPart: number; overheadCostPerPart: number;
   toolingCostPerPart: number; qualityCostPerPart: number; reworkScrapCostPerPart: number;
   packagingCostPerPart: number; otherCostPerPart: number; targetSellingPricePerPart: number;
