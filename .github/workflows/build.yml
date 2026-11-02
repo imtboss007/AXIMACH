@@ -32,6 +32,9 @@ jobs:
         run: |
           node --check server/index.mjs
           node --check server/whatsapp-web.mjs
+          node --check server/machine-telemetry.mjs
+          node --check server/machine-telemetry.test.mjs
+          node --test server/machine-telemetry.test.mjs
           node --check electron/main.cjs
           node --check electron/preload.cjs
       - name: Build application
