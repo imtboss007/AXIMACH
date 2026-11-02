@@ -894,3 +894,29 @@
   .production-route-launcher-icon { width: 40px; height: 40px; }
   .production-route-launcher > button { grid-column: 1 / -1; width: 100%; }
 }
+
+
+.aximach-lan-share {
+  margin-top: 13px;
+  padding: 13px;
+  border: 1px solid #bfd6f4;
+  border-radius: 11px;
+  background: linear-gradient(140deg,#f8fbff,#edf5ff);
+  box-shadow: inset 0 1px 0 #fff,0 5px 14px rgba(36,80,143,.05);
+}
+.aximach-lan-share-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.aximach-lan-share-heading strong { color: #365679; font: 600 11px 'Space Grotesk'; }
+.aximach-lan-share-heading > span {
+  padding: 4px 6px; border: 1px solid #bfe5d5; border-radius: 5px;
+  color: #218765; background: #eefaf5; font: 7px 'DM Mono'; letter-spacing: .4px;
+}
+.aximach-lan-share > p { margin: 8px 0; color: #768ba8; font-size: 9px; line-height: 1.5; }
+.aximach-lan-share-values { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.aximach-lan-share-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0;
+  padding: 7px 8px; border: 1px solid #dbe7f7; border-radius: 7px; background: #fff;
+}
+.aximach-lan-share-row code { min-width: 0; overflow-wrap: anywhere; color: #3a6090; font-size: 8px; }
+.aximach-lan-share-row button { flex: 0 0 auto; }
+.aximach-lan-share > small,.aximach-lan-share-values > small { display: block; color: #879bb5; font-size: 8px; line-height: 1.5; overflow-wrap: anywhere; }
+
