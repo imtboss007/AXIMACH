@@ -2256,3 +2256,81 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
   .axi-dashboard-float-card>div em{font-size:5.5px}
 }
 @media(prefers-reduced-motion:reduce){.axi-dashboard-float-card,.axi-command-universe.is-zooming .axi-dashboard-carousel{transition:none!important;transform:none!important;filter:none!important}}
+
+
+/* Standalone planned-cost register — finance-only workspace */
+.standalone-plan-layout{display:grid;grid-template-columns:minmax(250px,.72fr) minmax(0,1.55fr);gap:14px;align-items:start;margin-top:15px}
+.standalone-plan-list,.standalone-plan-key-panel,.standalone-plan-costs,.standalone-plan-processes,.standalone-plan-notes{padding:16px;min-width:0}
+.standalone-plan-records{display:flex;flex-direction:column;gap:7px;max-height:680px;overflow:auto;margin-top:12px}
+.standalone-plan-record{display:flex;flex-direction:column;gap:5px;width:100%;padding:12px;border:1px solid rgba(105,177,207,.18);border-radius:9px;background:rgba(8,31,50,.56);color:#d8edf7;text-align:left;cursor:pointer;transition:border-color .2s,background .2s,transform .2s}
+.standalone-plan-record:hover,.standalone-plan-record.active{border-color:rgba(98,222,237,.57);background:rgba(15,65,88,.62);transform:translateY(-1px)}
+.standalone-plan-record>span{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.standalone-plan-record>span strong{color:#eaf9ff;font:600 12px 'Space Grotesk';overflow-wrap:anywhere}
+.standalone-plan-record>span small{color:#8caec1;font-size:8px}
+.standalone-plan-record>b{color:#81e4ed;font:600 15px 'Space Grotesk'}
+.standalone-plan-record>em{color:#8daabc;font:8px 'DM Mono',monospace;font-style:normal}
+.standalone-plan-editor{display:flex;min-width:0;flex-direction:column;gap:12px}
+.standalone-plan-key-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin-top:13px}
+.standalone-plan-key-grid label,.standalone-plan-cost-grid label,.standalone-process-grid label,.standalone-plan-notes label{display:flex;min-width:0;flex-direction:column;gap:6px;color:#a7c1d0;font-size:9px;font-weight:600}
+.standalone-plan-key-grid input,.standalone-plan-key-grid select,.standalone-plan-cost-grid input,.standalone-process-grid input,.standalone-plan-notes textarea{
+  width:100%;min-width:0;min-height:36px;padding:8px 10px;border:1px solid rgba(107,173,205,.25);border-radius:7px;
+  background:rgba(4,22,39,.75);color:#e1f2fa;font:11px 'DM Sans',sans-serif;outline:none
+}
+.standalone-plan-key-grid input:focus,.standalone-plan-cost-grid input:focus,.standalone-process-grid input:focus,.standalone-plan-notes textarea:focus{border-color:#5ad9e7;box-shadow:0 0 0 2px rgba(72,197,218,.12)}
+.standalone-plan-cost-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:13px}
+.standalone-plan-processes .panel-heading{align-items:center}
+.standalone-process-list{display:flex;flex-direction:column;gap:9px;margin-top:13px}
+.standalone-process-row{padding:11px;border:1px solid rgba(103,176,206,.2);border-radius:9px;background:rgba(5,28,47,.57)}
+.standalone-process-row-head{display:flex;align-items:center;gap:9px;padding-bottom:9px}
+.standalone-process-row-head strong{color:#70dfe9;font:8px 'DM Mono',monospace;letter-spacing:.8px}
+.standalone-process-row-head>span{margin-left:auto;color:#e7f9ff;font:600 12px 'Space Grotesk'}
+.standalone-process-row-head button{min-height:27px}
+.standalone-process-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.standalone-plan-empty{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;min-height:150px;padding:18px;text-align:center;color:#81a3b7}
+.standalone-plan-empty svg{color:#65d9e8}
+.standalone-plan-empty strong{color:#d8edf6;font:600 11px 'Space Grotesk'}
+.standalone-plan-empty span{max-width:330px;color:#8caabc;font-size:9px;line-height:1.55}
+.standalone-plan-empty.compact{min-height:100px}
+.standalone-plan-totals{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.standalone-plan-totals>div{display:flex;min-width:0;flex-direction:column;gap:7px;padding:12px;border:1px solid rgba(100,187,215,.2);border-radius:9px;background:linear-gradient(145deg,rgba(12,47,68,.76),rgba(5,23,40,.82))}
+.standalone-plan-totals small{color:#83acbf;font:7px 'DM Mono',monospace;letter-spacing:.5px}
+.standalone-plan-totals strong{color:#e8f8ff;font:600 14px 'Space Grotesk';overflow-wrap:anywhere}
+.standalone-plan-notes>label{display:flex;flex-direction:column;gap:6px}
+.standalone-plan-notes textarea{min-height:82px;resize:vertical}
+.standalone-plan-savebar{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:12px}
+.standalone-plan-savebar>span{display:flex;align-items:flex-start;gap:7px;flex:1;min-width:220px;color:#86a9bc;font-size:8px;line-height:1.55}
+.standalone-plan-savebar>span svg{flex:0 0 14px;color:#70dfe9}
+.standalone-plan-empty-main{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;min-height:360px;padding:30px;text-align:center}
+.standalone-plan-empty-main>svg{color:#70dfe9;width:32px;height:32px}
+.standalone-plan-empty-main h3{margin:0;color:#e2f5fc;font:600 17px 'Space Grotesk'}
+.standalone-plan-empty-main p{max-width:470px;color:#8daebf;font-size:10px;line-height:1.6}
+.job-finished-cost-card{display:grid;grid-template-columns:minmax(0,1.3fr) repeat(2,minmax(170px,.7fr));align-items:center;gap:14px;padding:16px;border-color:rgba(91,214,184,.28)!important;background:linear-gradient(135deg,rgba(8,54,57,.38),rgba(7,29,47,.88))!important}
+.job-finished-cost-card h3{margin:5px 0;color:#e5f7fb;font:600 15px 'Space Grotesk'}
+.job-finished-cost-card p{margin:0;color:#91b1c1;font-size:9px;line-height:1.55}
+.job-finished-cost-card>div:not(:first-child){display:flex;flex-direction:column;gap:5px;padding:11px;border:1px solid rgba(96,202,180,.2);border-radius:8px;background:rgba(5,30,43,.7)}
+.job-finished-cost-card small{color:#88b9bd;font:7px 'DM Mono',monospace;letter-spacing:.6px}
+.job-finished-cost-card strong{color:#8af0ce;font:600 18px 'Space Grotesk'}
+.job-finished-cost-card span{color:#91b6bf;font-size:8px}
+@media(max-width:1100px){
+  .standalone-plan-layout{grid-template-columns:minmax(230px,.65fr) minmax(0,1.35fr)}
+  .standalone-plan-cost-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .standalone-plan-totals{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .standalone-process-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:800px){
+  .standalone-plan-layout{grid-template-columns:1fr}
+  .standalone-plan-records{max-height:260px}
+  .standalone-plan-key-grid{grid-template-columns:1fr}
+  .standalone-plan-totals{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .job-finished-cost-card{grid-template-columns:1fr 1fr}
+  .job-finished-cost-card>div:first-child{grid-column:1/-1}
+}
+@media(max-width:520px){
+  .standalone-plan-list,.standalone-plan-key-panel,.standalone-plan-costs,.standalone-plan-processes,.standalone-plan-notes{padding:12px}
+  .standalone-plan-cost-grid,.standalone-process-grid{grid-template-columns:1fr}
+  .standalone-plan-totals{grid-template-columns:1fr 1fr}
+  .standalone-plan-savebar>*{width:100%;justify-content:center}
+  .standalone-plan-savebar>span{min-width:0}
+  .job-finished-cost-card{grid-template-columns:1fr}
+  .job-finished-cost-card>div:first-child{grid-column:auto}
+}
