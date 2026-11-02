@@ -1589,3 +1589,34 @@ img,svg,canvas,video{max-width:100%}
   .job-completion-panel { align-items: stretch; flex-direction: column; padding: 13px; }
   .job-completion-panel > button { width: 100%; justify-content: center; }
 }
+
+
+.ccp-linked-po-totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.ccp-linked-po-totals > div {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line, #dce5f0);
+  border-radius: 10px;
+  background: var(--surface-soft, #f7f9fc);
+}
+.ccp-linked-po-totals small {
+  display: block;
+  color: var(--muted, #6b7b91);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .55px;
+}
+.ccp-linked-po-totals strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 820px) {
+  .ccp-linked-po-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
