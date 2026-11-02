@@ -387,7 +387,7 @@ function DashboardWorkspace(props: {
   onOpenOperation: (selection:{companyId:string;factoryId:string;poId:string;poLineId:string;operationId:string}) => void;
 }) {
   const { aiPrompt, aiResponse, notice, onAiPromptChange, onRunCommand, onNotice, onSelectModule, onOpenModules, onOpenOperation } = props;
-  const { data: actualData } = useManufacturingData();
+  const { data: actualData, syncStatus } = useManufacturingData();
   const liveCompanies=activeRows(actualData.companies);
   const activeOrders=activeRows(actualData.purchaseOrders);
   const liveOrders=activeOrders.filter(po=>!["complete","cancelled","closed"].includes(String(po.status||"").toLowerCase()));
@@ -425,6 +425,7 @@ function DashboardWorkspace(props: {
           operations: liveOperations.length,
           vendors: liveVendors.length
         }}
+        syncStatus={syncStatus}
         onSelectModule={onSelectModule}
         onOpenModules={onOpenModules}
       />
