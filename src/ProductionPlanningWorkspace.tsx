@@ -316,7 +316,19 @@ export default function ProductionPlanningWorkspace({ onBack, onNotice, onSelect
         };
       });
       const ids=new Set(records.map(record=>record.id));
-      return {...current,operations:[...current.operations.filter(operation=>!ids.has(operation.id)),...records]};
+      return {
+        ...current,
+        operations: [...current.operations.filter(operation => !ids.has(operation.id)), ...records],
+        purchaseOrders: current.purchaseOrders.map(order => order.id !== po.id ? order : ({
+          ...order, updatedAt: stamp,
+          lines: order.lines.map(poLine => poLine.id !== line.id || poLine.jobStatus !== "Finished" ? poLine : ({
+            ...poLine, jobStatus: "In progress", jobFinishedAt: undefined,
+            jobFinishedProcessCost: undefined, jobFinishedActualProcessCost: undefined,
+            jobFinishedMissingActualRates: undefined, jobFinishedOperationCount: undefined,
+            updatedAt: stamp
+          }))
+        }))
+      };
     });
     setSelectedId(idsToSave[0]);setTab("General");setShowEditor(false);setEditingId("");setIsDirectTransport(false);
     onNotice(isDirectTransport ? "Transport / Dispatch activity saved directly to the selected PO component line. No Process Directory process was created." : editingId?"Process operation(s) updated. Each process retains its own vendor, schedule, quantity, rate and payment status.":(selectedTypes.length+" process operation(s) saved with independent vendor, schedule and rate details."));
