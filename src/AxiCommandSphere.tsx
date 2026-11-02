@@ -19,7 +19,6 @@ type Props = {
   liveOperations: number;
   finishedJobs: number;
   attentionItems: number;
-  componentPlanCount: number;
 };
 
 const PAGE_SIZE = 12;
@@ -27,7 +26,7 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 const count = (value: number) => Math.max(0, Number(value) || 0).toLocaleString("en-IN");
 
 export default function AxiCommandSphere({
-  modules, onOpenModule, liveOperations, finishedJobs, attentionItems, componentPlanCount
+  modules, onOpenModule, liveOperations, finishedJobs, attentionItems
 }: Props) {
   const [page, setPage] = useState(0);
   const [dashboardIndex, setDashboardIndex] = useState(0);
@@ -51,7 +50,7 @@ export default function AxiCommandSphere({
     },
     {
       id: "finance", title: "Finance", label: "COST + COMMERCIAL RECORDS", metric: count(findCount("costing")),
-      metricLabel: "linked cost records", detailA: count(componentPlanCount) + " component plans", detailB: count(findCount("purchasing")) + " purchase orders", target: "costing"
+      metricLabel: "linked cost records", detailA: count(findCount("quotations")) + " saved quotations", detailB: count(findCount("purchasing")) + " purchase orders", target: "costing"
     }
   ];
   const visibleModules = useMemo(
