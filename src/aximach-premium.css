@@ -2738,3 +2738,40 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-v
 @media(prefers-reduced-motion:reduce) {
   .ax-icon-option,.ax-icon-save,.ax-icon-preview-tile { transition:none!important;animation:none!important; }
 }
+
+/* Genuine Three.js / WebGL orb — high-fidelity core with responsive touch controls. */
+.ax-orb-mode-webgl { min-height:360px; }
+.axr-orb-shell {position:relative;isolation:isolate;width:min(100%,480px);height:340px;min-height:340px;margin:7px auto 9px;overflow:visible;display:grid;place-items:center;perspective:1100px;}
+.axr-orb-canvas {position:absolute;inset:0;z-index:0;width:100%;height:100%;min-width:0;min-height:0;border-radius:50%;overflow:visible;cursor:grab;touch-action:none;background:radial-gradient(ellipse at 50% 52%,rgba(24,125,177,.15),rgba(6,26,44,.02) 55%,transparent 76%);}
+.axr-orb-canvas:active {cursor:grabbing;}
+.axr-orb-canvas canvas {display:block;width:100%;height:100%;outline:none;touch-action:none;}
+.axr-orb-core-label {position:absolute;z-index:2;left:50%;top:49%;display:flex;flex-direction:column;align-items:center;justify-content:center;transform:translate(-50%,-50%);color:#e9faff;text-align:center;pointer-events:none;text-shadow:0 2px 12px rgba(0,0,0,.78),0 0 22px rgba(65,205,238,.45);}
+.axr-orb-core-label b {font:700 11px 'DM Mono',monospace;letter-spacing:5px;opacity:.8;}
+.axr-orb-core-label strong {margin-top:3px;font:700 29px/1 'Space Grotesk',sans-serif;letter-spacing:2px;}
+.axr-orb-core-label small {margin-top:7px;color:#9acfe0;font:6px 'DM Mono',monospace;letter-spacing:1px;}
+.axr-orb-topline {position:absolute;z-index:4;top:2px;left:50%;display:flex;justify-content:center;gap:10px;align-items:center;transform:translateX(-50%);width:max-content;max-width:94%;color:#89b6c9;font:7px 'DM Mono',monospace;letter-spacing:.8px;pointer-events:none;white-space:nowrap;}
+.axr-orb-topline>span:first-child {display:flex;align-items:center;gap:6px;}
+.axr-orb-topline i {width:6px;height:6px;border-radius:50%;background:#32d5ae;box-shadow:0 0 0 3px rgba(50,213,174,.13),0 0 10px #32d5ae;}
+.axr-orb-module-constellation {position:absolute;z-index:5;inset:0;pointer-events:none;}
+.axr-orb-module {position:absolute;display:flex;align-items:center;gap:7px;width:112px;min-height:40px;padding:6px 8px;border:1px solid rgba(94,182,207,.32);border-radius:10px;background:linear-gradient(145deg,rgba(10,38,59,.94),rgba(7,24,42,.92));color:#cceaf4;text-align:left;box-shadow:inset 0 1px rgba(255,255,255,.06),0 7px 20px rgba(0,0,0,.24),0 0 14px rgba(54,166,200,.07);backdrop-filter:blur(9px);cursor:pointer;pointer-events:auto;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,background .18s ease;}
+.axr-orb-module:hover {transform:translateY(-2px) scale(1.035);border-color:rgba(105,222,241,.8);background:linear-gradient(145deg,rgba(16,58,82,.98),rgba(8,31,52,.98));box-shadow:inset 0 1px rgba(255,255,255,.1),0 10px 26px rgba(0,0,0,.28),0 0 20px rgba(54,196,222,.16);}
+.axr-orb-module:focus-visible {outline:2px solid #70e2f3;outline-offset:3px;}
+.axr-orb-module-icon {width:27px;height:27px;display:grid;place-items:center;flex:0 0 auto;border:1px solid rgba(122,196,221,.25);border-radius:8px;background:linear-gradient(145deg,rgba(64,137,174,.22),rgba(19,52,81,.45));}
+.axr-orb-module>span:nth-child(2) {display:flex;flex-direction:column;gap:3px;min-width:0;}
+.axr-orb-module b {color:#d8f1fa;font:650 8px 'DM Sans',sans-serif;white-space:nowrap;}
+.axr-orb-module small {color:#86abc0;font:6px 'DM Mono',monospace;white-space:nowrap;}
+.axr-orb-module>i {width:4px;height:4px;margin-left:auto;border-radius:50%;background:#64d9d4;box-shadow:0 0 7px #64d9d4;}
+.axr-orb-module:nth-child(1) {left:0;top:17%;}
+.axr-orb-module:nth-child(2) {right:0;top:17%;}
+.axr-orb-module:nth-child(3) {right:0;top:56%;}
+.axr-orb-module:nth-child(4) {right:0;bottom:12%;}
+.axr-orb-module:nth-child(5) {left:0;bottom:12%;}
+.axr-orb-module:nth-child(6) {left:0;top:56%;}
+.axr-orb-controls {position:absolute;z-index:6;right:50%;bottom:28px;transform:translateX(50%);display:flex;align-items:center;gap:5px;padding:4px;border:1px solid rgba(91,174,206,.27);border-radius:9px;background:rgba(4,22,39,.82);backdrop-filter:blur(8px);}
+.axr-orb-controls button {width:27px;height:27px;display:grid;place-items:center;border:1px solid transparent;border-radius:6px;background:transparent;color:#9ec9dc;cursor:pointer;transition:background .16s,border-color .16s,color .16s;}
+.axr-orb-controls button:hover {border-color:rgba(107,209,231,.38);background:rgba(55,132,166,.22);color:#e5fbff;}
+.axr-orb-hint {position:absolute;z-index:4;bottom:4px;left:50%;width:max-content;max-width:96%;transform:translateX(-50%);color:#719eb3;text-align:center;font:6px 'DM Mono',monospace;letter-spacing:.55px;pointer-events:none;}
+.ax-orb-webgl-fallback {position:absolute;left:50%;bottom:22px;z-index:8;transform:translateX(-50%);width:max-content;max-width:94%;padding:6px 9px;border:1px solid rgba(224,166,93,.35);border-radius:7px;background:rgba(42,29,17,.92);color:#efc58d;font:7px 'DM Mono',monospace;text-align:center;line-height:1.45;}
+@media(max-width:760px) {.ax-orb-mode-webgl{min-height:350px}.axr-orb-shell{width:100%;height:328px;min-height:328px}.axr-orb-module{width:104px;min-height:37px;padding:5px 6px;gap:6px}.axr-orb-module-icon{width:24px;height:24px}.axr-orb-module b{font-size:7px}.axr-orb-module small{font-size:5.5px}}
+@media(max-width:480px) {.ax-orb-mode-webgl{min-height:332px}.axr-orb-shell{height:310px;min-height:310px;margin-top:5px}.axr-orb-topline{top:0;font-size:6px;letter-spacing:.35px;gap:5px}.axr-orb-module{width:91px;min-height:34px;border-radius:8px;padding:4px 5px;gap:5px}.axr-orb-module-icon{width:22px;height:22px;border-radius:6px}.axr-orb-module-icon svg{width:13px;height:13px}.axr-orb-module b{font-size:6.5px}.axr-orb-module small{font-size:5px}.axr-orb-module:nth-child(1),.axr-orb-module:nth-child(6){left:0}.axr-orb-module:nth-child(2),.axr-orb-module:nth-child(3),.axr-orb-module:nth-child(4){right:0}.axr-orb-core-label strong{font-size:25px}.axr-orb-controls{bottom:26px}.axr-orb-hint{font-size:5px;letter-spacing:.2px}}
+@media(prefers-reduced-motion:reduce) {.axr-orb-module,.axr-orb-controls button{transition:none!important}}
