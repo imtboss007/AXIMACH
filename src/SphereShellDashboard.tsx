@@ -261,7 +261,7 @@ export default function SphereShellDashboard({ modules, counts, onSelectModule, 
       const render = (now: number) => {
         if (!start) start = now;
         const dt = Math.min(0.05, (now - (last || now)) / 1000); last = now;
-        if (playRef.current && !window.matchMedia("(prefers-reduced-motion: reduce)").matches && !dragging) yawRef.current += dt * speedRef.current;
+        if (playRef.current && !reducedMotion && !dragging) yawRef.current += dt * speedRef.current;
         gl?.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl?.useProgram(program);
         if (yawLocation) gl?.uniform1f(yawLocation, yawRef.current);
