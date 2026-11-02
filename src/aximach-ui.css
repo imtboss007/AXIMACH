@@ -1034,3 +1034,127 @@
   .process-export-print-only th,.process-export-print-only td{border:1px solid #aaa!important;padding:5px!important;text-align:left!important;color:#111!important}
   .process-export-print-only th{background:#e8edf2!important}
 }
+
+
+/* Enterprise manufacturing workspaces.
+   Integration approach: Vengeance UI interaction energy, Animate UI/Motion
+   accessible transitions, Uiverse tactile hover details, ForgeUI information
+   hierarchy, and Uilora spatial polish. These are adapted as owned source to
+   the AXIMACH Vite/CSS-token stack; no Tailwind or Next.js runtime is imposed. */
+.ax-enterprise-page { display:flex; flex-direction:column; gap:14px; }
+.ax-enterprise-hero {
+  align-items:flex-end; gap:20px; padding:24px 27px;
+  border:1px solid #dbe6f4; border-radius:17px;
+  background:linear-gradient(118deg,#fff 0%,#f8fbff 58%,#edf4ff 100%);
+  box-shadow:0 13px 36px rgba(22,52,92,.055);
+}
+.ax-enterprise-title { min-width:0; flex:1; }
+.ax-enterprise-title .back-link { margin-bottom:18px; }
+.ax-enterprise-title h1 { margin:9px 0 7px; color:#183252; font:600 clamp(27px,3.2vw,39px)/1.08 'Space Grotesk',sans-serif; letter-spacing:-1.45px; }
+.ax-enterprise-title h1 span { color:#397be7; }
+.ax-enterprise-title p { max-width:800px; margin:0; color:#71839c; font-size:11px; line-height:1.65; }
+.ax-enterprise-actions { display:flex; align-items:center; gap:12px; flex-shrink:0; }
+.ax-enterprise-emblem {
+  width:46px; height:46px; display:grid; place-items:center; flex-shrink:0;
+  border:1px solid #c7d9f3; border-radius:14px;
+  color:#2f70cf; background:linear-gradient(145deg,#fff,#dfebff);
+  box-shadow:inset 1px 1px 0 #fff,0 5px 0 rgba(57,101,174,.11),0 10px 20px rgba(57,101,174,.1);
+}
+.ax-enterprise-sync {
+  display:flex; align-items:center; gap:8px; color:#8392a8;
+  font:8px 'DM Mono',monospace; letter-spacing:.55px;
+}
+.ax-enterprise-sync>span { width:6px;height:6px;border-radius:50%;background:#d7a54b;box-shadow:0 0 0 3px rgba(215,165,75,.12); }
+.ax-enterprise-sync>span.is-synced { background:#30a97d;box-shadow:0 0 0 3px rgba(48,169,125,.12); }
+.ax-enterprise-stats { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px; }
+.ax-enterprise-stat {
+  position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);grid-template-rows:auto auto auto;
+  align-items:center;column-gap:10px;min-width:0;padding:14px 15px;
+  border:1px solid #e0e8f2;border-radius:12px;
+  background:linear-gradient(150deg,#fff,#fbfdff);
+  box-shadow:0 5px 17px rgba(26,56,98,.025);
+  transition:border-color .18s,box-shadow .18s;
+}
+.ax-enterprise-stat:hover { border-color:#c3d6f1;box-shadow:0 9px 20px rgba(35,76,133,.07); }
+.ax-enterprise-stat-icon { grid-column:1;grid-row:1/4;width:36px;height:36px;display:grid;place-items:center;border:1px solid #e0eafa;border-radius:11px;background:#edf4ff;color:#3975cd; }
+.ax-enterprise-stat small { color:#8292a8;font:8px 'DM Mono';letter-spacing:.65px; }
+.ax-enterprise-stat strong { margin-top:5px;color:#213b5d;font:600 23px/1.05 'Space Grotesk';letter-spacing:-.5px;overflow-wrap:anywhere; }
+.ax-enterprise-stat>span:last-child { margin-top:5px;color:#94a1b4;font-size:8px;line-height:1.4; }
+.ax-enterprise-panel { min-width:0;padding:17px 18px; }
+.ax-enterprise-panel .panel-heading { align-items:flex-start; }
+.ax-enterprise-panel .panel-heading p { max-width:860px;line-height:1.5; }
+.ax-enterprise-toolbar { display:flex;align-items:center;gap:9px;margin:0 0 13px; }
+.ax-enterprise-toolbar .module-record-search { flex:1;min-width:170px; }
+.ax-enterprise-toolbar>select,.ax-enterprise-row-actions>select {
+  min-height:34px;padding:0 10px;border:1px solid #dce5f1;border-radius:8px;
+  background:#fff;color:#536b89;font-size:10px;outline:none;
+}
+.ax-enterprise-toolbar>select:focus,.ax-enterprise-row-actions>select:focus { border-color:#8db3ef;box-shadow:0 0 0 3px rgba(76,133,224,.11); }
+.ax-enterprise-row-actions { display:flex;align-items:center;gap:5px;flex-wrap:wrap; }
+.ax-enterprise-row-actions button { flex:0 0 auto; }
+.ax-enterprise-panel .costing-table { min-width:900px; }
+.ax-enterprise-panel .costing-table td { vertical-align:middle; }
+.ax-enterprise-panel .costing-table td small { display:block;margin-top:4px;color:#8b9bb0;font-size:8px;line-height:1.4; }
+.ax-enterprise-panel .costing-table th { white-space:nowrap; }
+.ax-enterprise-overdue { color:#c14c59!important;font-weight:700; }
+.ax-enterprise-machine-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px; }
+.ax-enterprise-machine {
+  display:flex;align-items:center;gap:10px;min-width:0;padding:12px;
+  border:1px solid #e3eaf4;border-radius:10px;background:linear-gradient(145deg,#fff,#f8fbff);
+  color:#4e79b5;
+}
+.ax-enterprise-machine>span { display:flex;flex-direction:column;gap:4px;min-width:0;flex:1; }
+.ax-enterprise-machine strong { color:#3d5678;font-size:10px;overflow-wrap:anywhere; }
+.ax-enterprise-machine small { color:#8d9db2;font-size:8px; }
+.ax-enterprise-machine b { display:grid;place-items:center;width:27px;height:27px;border-radius:8px;background:#eaf2ff;color:#3972c4;font:600 12px 'Space Grotesk'; }
+.ax-enterprise-editor { width:min(840px,calc(100vw - 28px));max-height:92dvh;overflow:auto; }
+.ax-enterprise-editor .panel-heading { margin-bottom:13px; }
+.ax-enterprise-editor .module-record-form { gap:12px; }
+.ax-enterprise-page .button-primary {
+  position:relative;overflow:hidden;
+  transition:transform .17s ease,box-shadow .17s ease,filter .17s ease;
+}
+.ax-enterprise-page .button-primary::after {
+  content:"";position:absolute;inset:0;transform:translateX(-130%);
+  background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.23) 48%,transparent 70%);
+  transition:transform .55s ease;pointer-events:none;
+}
+.ax-enterprise-page .button-primary:hover::after { transform:translateX(130%); }
+.ax-enterprise-page .button-primary:hover { transform:translateY(-1px); }
+.ax-enterprise-page .button-primary:active { transform:translateY(1px) scale(.985); }
+.ax-enterprise-page .button-quiet { transition:transform .16s ease,border-color .16s ease,background .16s ease; }
+.ax-enterprise-page .button-quiet:hover { transform:translateY(-1px); }
+.ax-enterprise-panel .module-empty-state { padding:28px 15px; }
+.ax-enterprise-panel .module-empty-state p { max-width:570px;line-height:1.55; }
+@media(max-width:980px) {
+  .ax-enterprise-machine-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .ax-enterprise-hero { align-items:flex-start;flex-direction:column; }
+  .ax-enterprise-actions { width:100%;justify-content:flex-end; }
+}
+@media(max-width:760px) {
+  .ax-enterprise-stats { grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+  .ax-enterprise-panel { padding:14px 11px; }
+  .ax-enterprise-panel .panel-heading { gap:10px; }
+  .ax-enterprise-panel .panel-heading .button-primary,.ax-enterprise-panel .panel-heading .button-quiet { padding:8px 9px;font-size:9px; }
+  .ax-enterprise-toolbar { align-items:stretch;flex-direction:column; }
+  .ax-enterprise-toolbar>select { width:100%; }
+  .ax-enterprise-row-actions { min-width:0; }
+  .ax-enterprise-title .back-link { margin-bottom:12px; }
+  .ax-enterprise-hero { padding:18px 16px; }
+  .ax-enterprise-actions { justify-content:flex-start; }
+}
+@media(max-width:520px) {
+  .ax-enterprise-stats { gap:7px; }
+  .ax-enterprise-stat { grid-template-columns:30px minmax(0,1fr);column-gap:8px;padding:10px 9px; }
+  .ax-enterprise-stat-icon { width:30px;height:30px;border-radius:9px; }
+  .ax-enterprise-stat small { font-size:7px;letter-spacing:.3px; }
+  .ax-enterprise-stat strong { font-size:19px; }
+  .ax-enterprise-stat>span:last-child { font-size:7px; }
+  .ax-enterprise-machine-grid { grid-template-columns:1fr; }
+  .ax-enterprise-title h1 { font-size:27px; }
+  .ax-enterprise-actions .button-quiet { font-size:9px;padding:9px 10px; }
+  .ax-enterprise-editor { width:calc(100vw - 12px);max-height:96dvh;padding:14px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .ax-enterprise-page .button-primary,.ax-enterprise-page .button-primary::after,.ax-enterprise-page .button-quiet { transition:none!important; }
+}
