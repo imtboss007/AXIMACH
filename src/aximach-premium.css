@@ -2341,3 +2341,83 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
   .axi-sphere-orbit-one, .axi-sphere-orbit-two { animation: none !important; }
   .axi-sphere-module-node, .axi-sphere-shape-picker button, .axi-sphere-motion-tools button { transition: none !important; }
 }
+
+
+.axi-sphere-studio-row {
+  display:flex;
+  justify-content:flex-end;
+  margin:11px auto 0;
+  max-width:1050px;
+}
+.axi-sphere-studio-toggle {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  min-height:32px;
+  padding:0 12px;
+  border:1px solid rgba(119,190,215,.28);
+  border-radius:8px;
+  color:#b8e4ef;
+  background:rgba(117,183,211,.075);
+  font-size:9px;
+  font-weight:700;
+}
+.axi-sphere-studio-toggle:hover { border-color:rgba(95,220,235,.62); background:rgba(88,172,203,.13); }
+.axi-sphere-studio-toggle span { color:#6fa6bb; font:8px 'DM Mono',monospace; }
+.axi-sphere-studio-panel {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(180px,1fr));
+  align-items:center;
+  gap:12px 18px;
+  max-width:1050px;
+  margin:10px auto 0;
+  padding:14px;
+  border:1px solid rgba(114,184,210,.22);
+  border-radius:11px;
+  background:rgba(6,27,43,.8);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+.axi-sphere-studio-panel > label {
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:center;
+  gap:7px 12px;
+  color:#9fc4d5;
+  font-size:9px;
+}
+.axi-sphere-studio-panel input[type="range"] { grid-column:1; width:100%; accent-color:#54d0df; }
+.axi-sphere-studio-panel label small { color:#6fa6bb; font:8px 'DM Mono',monospace; }
+.axi-sphere-studio-panel select {
+  grid-column:1 / -1;
+  width:100%;
+  min-height:31px;
+  padding:0 8px;
+  border:1px solid rgba(116,180,206,.24);
+  border-radius:7px;
+  color:#cde9f2;
+  background:#0b263b;
+  font-size:9px;
+}
+.axi-sphere-studio-panel .axi-sphere-motion-setting {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  grid-column:1 / -1;
+}
+.axi-sphere-motion-setting input { accent-color:#54d0df; }
+.axi-sphere-reset-prefs {
+  justify-self:start;
+  min-height:30px;
+  padding:0 10px;
+  border:1px solid rgba(116,180,206,.24);
+  border-radius:7px;
+  color:#9ec7d9;
+  background:rgba(116,180,206,.07);
+  font-size:8px;
+}
+.axi-sphere-reset-prefs:hover { color:#fff; border-color:rgba(94,218,235,.55); }
+@media (max-width:600px) {
+  .axi-sphere-studio-panel { grid-template-columns:1fr; gap:10px; padding:11px; }
+  .axi-sphere-studio-row { justify-content:flex-start; }
+  .axi-sphere-studio-panel .axi-sphere-motion-setting { grid-column:auto; }
+}
