@@ -2206,3 +2206,19 @@ tbody tr:hover td { background:rgba(49,161,191,.09) !important; }
   .axi-cube-face-modules button span{font-size:7px}
   .axi-cube-face-modules button b{font-size:8px}
 }
+
+
+/* Cinematic workspace entry and sphere-to-workspace transition */
+.axi-universe-stage{transition:transform .28s cubic-bezier(.2,.75,.25,1),filter .28s ease,opacity .28s ease}
+.axi-command-universe.is-zooming .axi-universe-stage{transform:scale(1.045);filter:blur(1.3px) saturate(1.22);opacity:.18}
+.axi-command-universe.is-zooming .axi-universe-module-node{pointer-events:none}
+.axi-command-universe.is-zooming .axi-universe-core{filter:brightness(1.22);transition:filter .25s ease}
+.page-content>.workspace-page,.page-content>section.workspace-page{animation:axi-workspace-enter .38s cubic-bezier(.2,.75,.25,1) both;transform-origin:50% 34%}
+@keyframes axi-workspace-enter{
+  from{opacity:0;transform:translate3d(0,12px,0) scale(.992);filter:blur(2px)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0)}
+}
+@media(prefers-reduced-motion:reduce){
+  .axi-universe-stage,.axi-command-universe.is-zooming .axi-universe-stage,.axi-command-universe.is-zooming .axi-universe-core{transition:none!important;transform:none!important;filter:none!important;opacity:1!important}
+  .page-content>.workspace-page,.page-content>section.workspace-page{animation:none!important}
+}
