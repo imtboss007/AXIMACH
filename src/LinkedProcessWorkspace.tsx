@@ -90,6 +90,12 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   }, [companies, factories, purchaseOrders, companyId, factoryId, poId, poLineId]);
 
   useEffect(() => {
+    const current = routeOperations.find(operation => operation.id === selectedOperationId);
+    const next = current || routeOperations[0];
+    if ((next?.id || "") !== selectedOperationId) setSelectedOperationId(next?.id || "");
+  }, [routeOperations, selectedOperationId]);
+
+  useEffect(() => {
     if (!simulationActive) return;
     if (!visibleOperations.length || simulationIndex >= visibleOperations.length - 1) {
       setSimulationActive(false);
