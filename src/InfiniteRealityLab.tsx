@@ -193,7 +193,7 @@ export default function InfiniteRealityLab({ counts, onClose }: Props) {
       ssao.maxDistance = 0.08;
       composer.addPass(ssao);
       try {
-        ssr = new SSRPass({ renderer, scene, camera, width: host.clientWidth || 1, height: host.clientHeight || 1, selects: [core, cloth, softBody, ...planeMeshes] });
+        ssr = new SSRPass({ renderer, scene, camera, width: host.clientWidth || 1, height: host.clientHeight || 1, selects: [core, cloth, softBody, ...planeMeshes], groundReflector: null });
         ssr.resolutionScale = 0.45;
         ssr.opacity = 0.62;
         ssr.thickness = 0.018;
