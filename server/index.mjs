@@ -248,7 +248,7 @@ const server = createServer(async (req, res) => {
       await saveDb();
       return json(res, 200, { ok: true, profile });
     }
-    const machinePoll = url.pathname.match(/^\\/api\\/machine-twins\\/([\\w-]+)\\/poll$/);
+    const machinePoll = url.pathname.match(/^\/api\/machine-twins\/([\w-]+)\/poll$/);
     if (machinePoll && req.method === "POST") {
       const profile = (db.machineProfiles || []).find(item => item.id === machinePoll[1]);
       if (!profile) return json(res, 404, { error: "Machine twin profile not found." });
@@ -262,7 +262,7 @@ const server = createServer(async (req, res) => {
         return json(res, 502, { error: error.message || "Machine telemetry read failed.", readOnly: true });
       }
     }
-    const machineDelete = url.pathname.match(/^\\/api\\/machine-twins\\/([\\w-]+)$/);
+    const machineDelete = url.pathname.match(/^\/api\/machine-twins\/([\w-]+)$/);
     if (machineDelete && req.method === "DELETE") {
       const id = machineDelete[1];
       db.machineProfiles = (db.machineProfiles || []).filter(item => item.id !== id);
