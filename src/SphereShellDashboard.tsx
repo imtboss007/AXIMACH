@@ -159,6 +159,14 @@ void main() {
 }
 `;
 
+function readVisualPreferences(): Record<string, unknown> {
+  try {
+    return JSON.parse(window.localStorage.getItem("aximach.visualPreferences.v1") || "{}") as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
 function compileShader(gl: WebGLRenderingContext, kind: number, source: string): WebGLShader {
   const shader = gl.createShader(kind);
   if (!shader) throw new Error("WebGL could not create a shader.");
@@ -188,11 +196,17 @@ export default function SphereShellDashboard({ modules, counts, syncStatus, onSe
     try { const saved = JSON.parse(window.localStorage.getItem("aximach.visualPreferences.v1") || "{}"); return saved.speed === "Slow" || saved.speed === "Fast" ? saved.speed : "Normal"; }
     catch { return "Normal"; }
   });
-  const [sphereSize, setSphereSize] = useState(1);
-  const [orbitIntensity, setOrbitIntensity] = useState(1);
+  const [sphereSize, setSphereSize] = useState(() => {
+    const value = Number(readVisualPreferences().sphereSize);
+    return Number.isFinite(value) ? Math.max(0.8, Math.min(1.12, value)) : 1;
+  });
+  const [orbitIntensity, setOrbitIntensity] = useState(() => {
+    const value = Number(readVisualPreferences().orbitIntensity);
+    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
+  });
   const [studioOpen, setStudioOpen] = useState(false);
-  const [reduceMotionOverride, setReduceMotionOverride] = useState(false);
-  const [performanceMode, setPerformanceMode] = useState<"Balanced" | "Performance">("Balanced");
+  const [reduceMotionOverride, setReduceMotionOverride] = useState(() => readVisualPreferences().reduceMotionOverride === true);
+  const [performanceMode, setPerformanceMode] = useState<"Balanced" | "Performance">(() => readVisualPreferences().performanceMode === "Performance" ? "Performance" : "Balanced");
   const [webglAvailable, setWebglAvailable] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
   useEffect(() => { playRef.current = playing; }, [playing]);
