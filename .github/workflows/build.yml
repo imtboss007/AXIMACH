@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: aximach-build-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   frontend:
@@ -28,10 +28,12 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Check server syntax
+      - name: Check server and Electron syntax
         run: |
           node --check server/index.mjs
           node --check server/whatsapp-web.mjs
+          node --check electron/main.cjs
+          node --check electron/preload.cjs
       - name: Build application
         run: npm run build
       - name: Upload frontend build
@@ -56,8 +58,36 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Install packaged local-service dependencies
+        run: npm install --prefix server --no-audit --no-fund
       - name: Package Windows installer
         run: npm run package:windows
+      - name: Smoke-test packaged Windows application
+        shell: pwsh
+        run: |
+          $env:AXIMACH_SMOKE_TEST = "1"
+          $env:AXIMACH_SMOKE_USER_DATA = Join-Path $env:RUNNER_TEMP "aximach-smoke-user-data"
+          $exe = Join-Path $PWD "release/win-unpacked/AXIMACH Manufacturing OS.exe"
+          if (-not (Test-Path $exe)) { throw "Packaged application executable not found: $exe" }
+          $stdout = Join-Path $env:RUNNER_TEMP "aximach-electron-stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "aximach-electron-stderr.log"
+          $process = Start-Process -FilePath $exe -ArgumentList @("--aximach-smoke-test", "--aximach-smoke-data-dir=$env:AXIMACH_SMOKE_USER_DATA", "--enable-logging", "--v=1") -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          if (-not $process.WaitForExit(70000)) {
+            $log = Join-Path $env:AXIMACH_SMOKE_USER_DATA "logs/startup.log"
+            if (Test-Path $log) { Write-Host "=== AXIMACH startup.log ==="; Get-Content $log }
+            if (Test-Path $stdout) { Write-Host "=== Electron stdout ==="; Get-Content $stdout -Tail 100 }
+            if (Test-Path $stderr) { Write-Host "=== Electron stderr ==="; Get-Content $stderr -Tail 100 }
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            throw "Packaged application did not finish its startup smoke test within 70 seconds."
+          }
+          $log = Join-Path $env:AXIMACH_SMOKE_USER_DATA "logs/startup.log"
+          if (Test-Path $log) { Write-Host "=== AXIMACH startup.log ==="; Get-Content $log }
+          if (Test-Path $stdout) { Write-Host "=== Electron stdout ==="; Get-Content $stdout -Tail 100 }
+          if (Test-Path $stderr) { Write-Host "=== Electron stderr ==="; Get-Content $stderr -Tail 100 }
+          if ($process.ExitCode -ne 0) { throw "Packaged application smoke test failed with exit code $($process.ExitCode)." }
+          if (-not (Test-Path $log) -or -not (Select-String -Path $log -Pattern "Windows packaged-renderer smoke test passed" -Quiet)) {
+            throw "Packaged application did not report a successful renderer smoke test."
+          }
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
@@ -113,6 +143,23 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
+      - name: Install and launch APK in Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell monkey -p com.aximach.manufacturingos -c android.intent.category.LAUNCHER 1
+            sleep 15
+            adb shell pidof com.aximach.manufacturingos
+            adb shell uiautomator dump /sdcard/aximach-ui.xml
+            adb pull /sdcard/aximach-ui.xml aximach-ui.xml
+            grep -qi "AXIMACH" aximach-ui.xml
+            adb logcat -d -b crash | tee android-crash.log
+            ! grep -q "FATAL EXCEPTION" android-crash.log
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:

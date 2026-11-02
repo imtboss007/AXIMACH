@@ -4,12 +4,14 @@ import {
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
   ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge,
   GitBranch, HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
-  Package, Pause, Play, Plug, Plus, RotateCcw, ScanLine, Search, Settings2,
+  Package, PanelsTopLeft, Pause, Play, Plug, Plus, RotateCcw, ScanLine, Search, Settings2,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Truck, Users,
   Wallet, Workflow, Wrench, X, Zap
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AXIMACHOrb from "./AXIMACHOrb";
+import DashboardTheatre from "./DashboardTheatre";
+import VisualExperienceStudio from "./VisualExperienceStudio";
 import IconStudio from "./IconStudio";
 import ManufacturingMasterWorkspace from "./ManufacturingMasterWorkspace";
 import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
@@ -84,6 +86,12 @@ function App() {
   const [activeModuleId, setActiveModuleId] = useState("command-centre");
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
+  const [dashboardTheatreOpen, setDashboardTheatreOpen] = useState(false);
+  const [visualExperienceOpen, setVisualExperienceOpen] = useState(false);
+  const [startupVisible, setStartupVisible] = useState(() => {
+    try { return !window.localStorage.getItem("aximach.startup-sequence-seen.v1") && !window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+    catch { return false; }
+  });
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("All domains");
@@ -104,6 +112,15 @@ function App() {
     const text = (item.title + " " + item.description + " " + item.group).toLowerCase();
     return matchesDomain && text.includes(query.toLowerCase().trim());
   }), [domain, query]);
+
+  useEffect(() => {
+    if (!startupVisible) return;
+    const timer = window.setTimeout(() => {
+      setStartupVisible(false);
+      try { window.localStorage.setItem("aximach.startup-sequence-seen.v1", "1"); } catch { /* storage may be unavailable */ }
+    }, 1900);
+    return () => window.clearTimeout(timer);
+  }, [startupVisible]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -172,6 +189,8 @@ function App() {
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
         <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>32</b></button>
+        <button className="deck-action axr-deck-action" onClick={() => setDashboardTheatreOpen(true)} title="Open multi-dashboard command theatre"><PanelsTopLeft size={17}/><span>Theatre</span></button>
+        <button className="deck-action axr-deck-action" onClick={() => setVisualExperienceOpen(true)} title="Open Visual Experience Studio"><SlidersHorizontal size={17}/><span>Visual</span></button>
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
       </header>
@@ -183,7 +202,7 @@ function App() {
         <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
       </div>
 
-      <main className="page-content">
+      <main key={activeModuleId} className="page-content axr-workspace-scene">
         {activeModuleId === "command-centre" ? (
           <CommandCentre
             activeModule={activeModule}
@@ -276,7 +295,15 @@ function App() {
       )}
 
       <IconStudio open={iconStudioOpen} onClose={() => setIconStudioOpen(false)} />
+      <DashboardTheatre open={dashboardTheatreOpen} onClose={() => setDashboardTheatreOpen(false)} data={readManufacturingData()} onSelectModule={selectModule} />
+      <VisualExperienceStudio open={visualExperienceOpen} onClose={() => setVisualExperienceOpen(false)} />
 
+      {startupVisible && <div className="axr-startup-overlay" role="dialog" aria-label="AXIMACH startup sequence">
+        <div className="axr-startup-architecture"><span/><span/><span/><i/></div>
+        <div className="axr-startup-brand"><b>AXI</b><strong>MACH</strong><small>INFINITE REALITY · MANUFACTURING INTELLIGENCE</small></div>
+        <div className="axr-startup-progress"><i/></div>
+        <button onClick={() => { setStartupVisible(false); try { window.localStorage.setItem("aximach.startup-sequence-seen.v1", "1"); } catch { /* storage may be unavailable */ } }}>Skip intro <ArrowRight size={13}/></button>
+      </div>}
       <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Master records · server sync status shown in each workspace</span></footer>
     </div>
   );
@@ -288,7 +315,12 @@ function CommandCentre(props: {
   onSelectModule: (id: string) => void; onOpenModules: () => void;
 }) {
   const { aiPrompt, aiResponse, notice, onAiPromptChange, onRunCommand, onNotice, onSelectModule, onOpenModules } = props;
-  const actualData = readManufacturingData();
+  const [actualData, setActualData] = useState(readManufacturingData);
+  useEffect(() => {
+    const refresh = () => setActualData(readManufacturingData());
+    window.addEventListener("aximach-manufacturing-data-updated", refresh);
+    return () => window.removeEventListener("aximach-manufacturing-data-updated", refresh);
+  }, []);
   return (
     <>
       {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
@@ -301,7 +333,7 @@ function CommandCentre(props: {
         </div>
         <div className="hero-graphic axim-hero-graphic" aria-label="Interactive AXIMACH 3D operations sphere">
           <div className="graphic-grid" />
-          <AXIMACHOrb onSelectModule={onSelectModule} />
+          <AXIMACHOrb onSelectModule={onSelectModule} counts={{ companies: activeRows(actualData.companies).length, jobs: actualData.purchaseOrders.reduce((sum, po) => sum + po.lines.filter(line => !line.deletedAt).length, 0), components: activeRows(actualData.components).length, processSteps: activeRows(actualData.operations).length, stockEvents: actualData.inventoryTransactions.length, qualityFlags: activeRows(actualData.operations).filter(op => op.status === "Quality hold" || op.rejected > 0).length }} />
         </div>
       </section>
 

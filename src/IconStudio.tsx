@@ -4,7 +4,8 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Search, 
 import { tablerIconCatalogue } from "./tablerIconCatalogue";
 
 type IconMeta = { name: string; category?: string; tags?: string[]; version?: string; unicode?: string; variant: "outline" | "filled" };
-type IconAssignment = { iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string };
+type IconMotion = "float" | "orbit" | "pulse" | "scan" | "static";
+type IconAssignment = { iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; motion?: IconMotion; updatedAt: string };
 type Assignments = Record<string, IconAssignment>;
 
 const ICONS: IconMeta[] = tablerIconCatalogue.map((item) => ({ name: item.name, category: item.variant, tags: item.name.split("-"), variant: item.variant }));
@@ -161,7 +162,7 @@ export function ProcessIcon({ processName, fallback }: { processName: string; fa
   if (!assignment) return <span className="linked-node-icon linked-node-icon-3d"><span className="linked-node-icon-fallback">{fallback}</span></span>;
   const palette = palettes.find((item) => item.name === assignment.palette) || palettes[0];
   return (
-    <span className={`linked-node-icon linked-node-icon-3d ax-process-icon ax-icon-finish-${normaliseWords(assignment.finish).replaceAll(" ", "-")}`} style={{ "--ax-icon-accent": palette.color, "--ax-icon-depth": assignment.depth, "--ax-icon-tilt": assignment.tilt + "deg" } as CSSProperties} title={`Saved ${family} icon: ${assignment.iconName}`}>
+    <span className={`linked-node-icon linked-node-icon-3d ax-process-icon ax-icon-finish-${normaliseWords(assignment.finish).replaceAll(" ", "-")} ax-icon-motion-${assignment.motion || "float"}`} style={{ "--ax-icon-accent": palette.color, "--ax-icon-depth": assignment.depth, "--ax-icon-tilt": assignment.tilt + "deg" } as CSSProperties} title={`Saved ${family} icon: ${assignment.iconName}`}>
       <i className={iconClass(assignment.iconName, assignment.iconVariant)} aria-hidden="true" />
     </span>
   );
@@ -177,6 +178,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const [finish, setFinish] = useState(finishes[0]);
   const [depth, setDepth] = useState(3);
   const [tilt, setTilt] = useState(0);
+  const [motionStyle, setMotionStyle] = useState<IconMotion>("float");
   const [page, setPage] = useState(0);
   const [favourites, setFavourites] = useState<string[]>(() => safeRead<string[]>(STORAGE_FAVOURITES, []));
   const [assignments, setAssignments] = useState<Assignments>(() => readAssignments());
@@ -266,10 +268,10 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const saveAssignment = () => {
     const selectedMeta = ICONS.find((item) => iconKey(item) === selectedIcon);
     if (!selectedMeta) return;
-    const assignment: IconAssignment = { iconName: selectedMeta.name, iconVariant: selectedMeta.variant, palette: paletteName, finish, depth, tilt, updatedAt: new Date().toISOString() };
+    const assignment: IconAssignment = { iconName: selectedMeta.name, iconVariant: selectedMeta.variant, palette: paletteName, finish, depth, tilt, motion: motionStyle, updatedAt: new Date().toISOString() };
     const next = { ...assignments, [assignmentKey]: assignment };
     setAssignments(next);
-    const nextPresets = [assignment, ...presets.filter((preset) => preset.iconName !== assignment.iconName || preset.iconVariant !== assignment.iconVariant || preset.palette !== assignment.palette || preset.finish !== assignment.finish)].slice(0, 120);
+    const nextPresets = [assignment, ...presets.filter((preset) => preset.iconName !== assignment.iconName || preset.iconVariant !== assignment.iconVariant || preset.palette !== assignment.palette || preset.finish !== assignment.finish || (preset.motion || "float") !== motionStyle)].slice(0, 120);
     setPresets(nextPresets);
     const bundle = { assignments: next, favourites, presets: nextPresets, updatedAt: new Date().toISOString() };
     writePreferenceBundle(bundle);
@@ -326,7 +328,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
               </section>
               <aside className="ax-icon-customiser">
                 <div className="ax-icon-preview-label"><span>LIVE PREVIEW</span><small>DRAG / STYLE / SAVE</small></div>
-                <motion.div className={`ax-icon-preview-tile ${variantClass}`} style={variantStyle} animate={{ rotateX: tilt * -0.45, rotateY: tilt, y: [0, -3, 0] }} transition={{ rotateX: { duration: 0.35 }, rotateY: { duration: 0.35 }, y: { duration: 4, repeat: Infinity, ease: "easeInOut" } }}>
+                <motion.div className={`ax-icon-preview-tile ${variantClass} ax-icon-motion-${motionStyle}`} style={variantStyle} animate={{ rotateX: tilt * -0.45, rotateY: tilt, y: [0, -3, 0] }} transition={{ rotateX: { duration: 0.35 }, rotateY: { duration: 0.35 }, y: { duration: 4, repeat: Infinity, ease: "easeInOut" } }}>
                   <span className="ax-icon-preview-gloss"/><i className={iconClass(selected?.name || "settings", selected?.variant)} aria-hidden="true"/>
                 </motion.div>
                 <div className="ax-icon-selected-name"><strong>{selected?.name.replaceAll("-", " ") || selectedIcon}</strong><span>{selected?.category || "Tabler outline glyph"}</span></div>
@@ -338,10 +340,12 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                 <div className="ax-icon-palette">{palettes.map((item) => <button key={item.name} title={item.name} aria-label={item.name} className={paletteName === item.name ? "active" : ""} style={{ background: item.color }} onClick={() => setPaletteName(item.name)}/>)}</div>
                 <label className="ax-icon-slider"><span>Bevel depth <b>{depth}/4</b></span><input type="range" min="1" max="4" step="1" value={depth} onChange={(event) => setDepth(Number(event.target.value))}/></label>
                 <label className="ax-icon-slider"><span>3D tilt <b>{tilt}°</b></span><input type="range" min="-18" max="18" step="9" value={tilt} onChange={(event) => setTilt(Number(event.target.value))}/></label>
+                <div className="ax-icon-field-label"><span>Animation profile</span><small>{motionStyle}</small></div>
+                <div className="ax-icon-motion-options">{(["float", "orbit", "pulse", "scan", "static"] as IconMotion[]).map((item) => <button key={item} className={motionStyle === item ? "active" : ""} onClick={() => setMotionStyle(item)}>{item}</button>)}</div>
                 <div className="ax-icon-field-label"><span>Saved style presets</span><small>{presets.length} saved</small></div>
                 <div className="ax-icon-presets-list">
                   {presets.slice(0, 6).map((preset, index) => (
-                    <button key={preset.iconName + (preset.iconVariant || "outline") + preset.palette + preset.finish + index} onClick={() => { setSelectedIcon(`${preset.iconVariant || "outline"}:${preset.iconName}`); setPaletteName(preset.palette); setFinish(preset.finish); setDepth(preset.depth); setTilt(preset.tilt); }}>
+                    <button key={preset.iconName + (preset.iconVariant || "outline") + preset.palette + preset.finish + index} onClick={() => { setSelectedIcon(`${preset.iconVariant || "outline"}:${preset.iconName}`); setPaletteName(preset.palette); setFinish(preset.finish); setDepth(preset.depth); setTilt(preset.tilt); setMotionStyle(preset.motion || "float"); }}>
                       <i className={iconClass(preset.iconName, preset.iconVariant)} aria-hidden="true"/>
                       <span><strong>{preset.iconName.replaceAll("-", " ")}</strong><small>{preset.iconVariant || "outline"} · {preset.finish} · {preset.palette}</small></span>
                       <ChevronRight size={12}/>
