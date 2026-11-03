@@ -26,14 +26,12 @@ const daysBetween = (start?: string, end?: string) => start && end ? Math.max(1,
 export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSelectModule, onOpenIconStudio }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const companies = activeRows(data.companies);
-  const factories = activeRows(data.factories);
   const purchaseOrders = activeRows(data.purchaseOrders);
   const components = activeRows(data.components);
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
 
   const [companyId, setCompanyId] = useState("");
-  const [factoryId, setFactoryId] = useState("");
   const [poId, setPoId] = useState("");
   const [poLineId, setPoLineId] = useState("");
   const [selectedOperationId, setSelectedOperationId] = useState("");
@@ -50,8 +48,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [exportScope,setExportScope] = useState<"visible"|"selected-branch">("visible");
   const [exportArrows,setExportArrows] = useState(true);
 
-  const companyFactories = factories.filter(f => f.companyId === companyId);
-  const companyOrders = purchaseOrders.filter(p => p.companyId === companyId && (!factoryId || p.factoryId === factoryId));
+  const companyOrders = purchaseOrders.filter(p => p.companyId === companyId);
   const selectedPO = purchaseOrders.find(p => p.id === poId);
   const poLines = selectedPO ? selectedPO.lines.filter(line => !("deletedAt" in line && (line as PurchaseOrderLine & {deletedAt?: string}).deletedAt)) : [];
   const selectedLine = poLines.find(line => line.id === poLineId);
@@ -144,18 +141,13 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   // never hide a real PO-line job, route graph, or job-finished control.
   useEffect(() => {
     if (!companies.length) {
-      if (companyId) { setCompanyId(""); setFactoryId(""); setPoId(""); setPoLineId(""); }
+      if (companyId) { setCompanyId(""); setPoId(""); setPoLineId(""); }
       return;
     }
     const company = companies.find(item => item.id === companyId) || companies[0];
-    if (company.id !== companyId) { setCompanyId(company.id); setFactoryId(""); setPoId(""); setPoLineId(""); return; }
+    if (company.id !== companyId) { setCompanyId(company.id); setPoId(""); setPoLineId(""); return; }
 
-    const validFactories = factories.filter(item => item.companyId === company.id);
-    const factory = validFactories.find(item => item.id === factoryId) || validFactories[0];
-    const nextFactoryId = factory?.id || "";
-    if (nextFactoryId !== factoryId) { setFactoryId(nextFactoryId); setPoId(""); setPoLineId(""); return; }
-
-    const validOrders = purchaseOrders.filter(item => item.companyId === company.id && (!nextFactoryId || item.factoryId === nextFactoryId));
+    const validOrders = purchaseOrders.filter(item => item.companyId === company.id);
     const order = validOrders.find(item => item.id === poId) || validOrders[0];
     const nextPoId = order?.id || "";
     if (nextPoId !== poId) { setPoId(nextPoId); setPoLineId(""); return; }
@@ -164,7 +156,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const line = validLines.find(item => item.id === poLineId) || validLines[0];
     const nextLineId = line?.id || "";
     if (nextLineId !== poLineId) setPoLineId(nextLineId);
-  }, [companies, factories, purchaseOrders, companyId, factoryId, poId, poLineId]);
+  }, [companies, purchaseOrders, companyId, poId, poLineId]);
 
   useEffect(() => {
     const current = routeOperations.find(operation => operation.id === selectedOperationId);
@@ -191,9 +183,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
 
   const changeSelection = (nextCompanyId: string) => {
     setCompanyId(nextCompanyId);
-    const nextFactory = factories.find(f => f.companyId === nextCompanyId)?.id || "";
-    setFactoryId(nextFactory);
-    const nextPO = purchaseOrders.find(p => p.companyId === nextCompanyId && (!nextFactory || p.factoryId === nextFactory));
+    const nextPO = purchaseOrders.find(p => p.companyId === nextCompanyId);
     setPoId(nextPO?.id || "");
     const firstLine = nextPO?.lines.find(line => !("deletedAt" in line && (line as PurchaseOrderLine & {deletedAt?: string}).deletedAt));
     setPoLineId(firstLine?.id || "");
@@ -202,7 +192,6 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const changePO = (nextPoId: string) => {
     const next = purchaseOrders.find(p => p.id === nextPoId);
     setPoId(nextPoId);
-    setFactoryId(next?.factoryId || factoryId);
     setCompanyId(next?.companyId || companyId);
     const firstLine = next?.lines.find(line => !("deletedAt" in line && (line as PurchaseOrderLine & {deletedAt?: string}).deletedAt));
     setPoLineId(firstLine?.id || "");
@@ -326,7 +315,6 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / LINKED PROCESS ROUTE</div><h1>Process Map<span>.</span></h1><p>Choose existing master records once; operation schedules, rates, vendor assignments, quality and quotations attach to the selected PO component line.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendors</button><button className="button-primary" onClick={() => startAdd()} disabled={!selectedLine}><Plus size={15}/> Add Operation</button></div></div>
     <div className="linked-master-selectors">
       <SearchablePicker id="route-company" label="Company" value={companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name+(c.gstin?" · "+c.gstin:"")}))} onChange={changeSelection}/>
-      <div className="route-master-picker"><SearchablePicker id="route-factory" label="Factory" value={factoryId} placeholder="Type factory name…" options={companyFactories.map(f=>({id:f.id,label:f.name}))} onChange={id=>{setFactoryId(id);const next=purchaseOrders.find(po=>po.factoryId===id);setPoId(next?.id||"");setPoLineId(next?.lines[0]?.id||"");setSelectedOperationId("");}}/>{companyId&&!companyFactories.length&&<button type="button" onClick={()=>onSelectModule("companies")}>Add factory</button>}</div>
       <div className="route-master-picker"><SearchablePicker id="route-po" label="Purchase order" value={poId} placeholder="Type PO number…" options={companyOrders.map(po=>({id:po.id,label:po.number+" · "+po.status}))} onChange={changePO}/>{companyId&&!companyOrders.length&&<button type="button" onClick={()=>onSelectModule("purchasing")}>Add PO</button>}</div>
       <div className="route-master-picker"><SearchablePicker id="route-component-line" label="PO component line" value={poLineId} placeholder="Type part number or name…" options={poLines.map(line=>{const component=components.find(item=>item.id===line.componentId);return {id:line.id,label:(component?component.partNumber+" · "+component.name:"Missing component")+" · "+line.quantity.toLocaleString("en-IN")+" pcs"};})} onChange={changeLine}/>{poId&&!poLines.length&&<button type="button" onClick={()=>onSelectModule("purchasing")}>Add PO lines</button>}</div>
     </div>
@@ -356,7 +344,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <button className="route-kpi kpi-transport"><span className="kpi-icon"><Truck size={19}/></span><span><small>TRANSPORT ACTIVITIES</small><strong>{transportCount}</strong><em>Operations with transport cost/vendor</em></span></button>
         <button className="route-kpi kpi-quality"><span className="kpi-icon"><ClipboardCheck size={19}/></span><span><small>ACCEPTED / ORDER QTY</small><strong>{totalAccepted.toLocaleString("en-IN")} pcs</strong><em>Sum of accepted quantities entered per operation</em></span></button>
       </div>
-    </> : <section className="surface-panel linked-empty-master"><Package size={30}/><div><h3>Start with your real master records</h3><p>No company, PO or component is preloaded. Add each master record once; then select a real purchase-order line and AXIMACH will load the component, quantity and delivery date for its route.</p><div className="linked-empty-actions"><button className="button-primary" onClick={() => onSelectModule("companies")}><Plus size={14}/> Add company / factory</button><button className="button-quiet" onClick={() => onSelectModule("components")}><Package size={14}/> Add component</button><button className="button-quiet" onClick={() => onSelectModule("purchasing")}><FileText size={14}/> Create PO</button></div></div></section>}
+    </> : <section className="surface-panel linked-empty-master"><Package size={30}/><div><h3>Start with your real master records</h3><p>No company, PO or component is preloaded. Add each master record once; then select a real purchase-order line and AXIMACH will load the component, quantity and delivery date for its route.</p><div className="linked-empty-actions"><button className="button-primary" onClick={() => onSelectModule("companies")}><Plus size={14}/> Add company</button><button className="button-quiet" onClick={() => onSelectModule("components")}><Package size={14}/> Add component</button><button className="button-quiet" onClick={() => onSelectModule("purchasing")}><FileText size={14}/> Create PO</button></div></div></section>}
     <nav className="linked-route-tabs" aria-label="Linked component workspaces">
       {tab("process-map","Process Map",Workflow)}
       {tab("components","Component Details",Package)}
