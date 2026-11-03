@@ -37,6 +37,20 @@ export type VendorRecord = {
   status: string; sourceContactId: string; whatsappSyncedAt: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type ContactProfileRecord = {
+  id: string; linkedType: "company" | "vendor"; linkedId: string; name: string; role: string; group?: string;
+  phone: string; whatsapp: string; email: string; address: string; followUpDate: string; history: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type ProcessDefinitionRecord = {
+  id: string; processType: string; category: string; subcategories: string[]; vendorIds: string[];
+  notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type PlannedCostEntry = {
+  id: string; componentName: string; componentNumber: string; processType: string; processCategory: string;
+  plannedQty: number; unit: "piece" | "set"; plannedRate: number; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type OperationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; sequence: number; name: string;
   category: string; machine: string; vendorId: string; status: LifecycleStatus;
@@ -74,6 +88,7 @@ export type ManufacturingData = {
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
+  contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
 };
 
 export const nowIso = () => new Date().toISOString();
@@ -85,7 +100,8 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: []
+  operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: [],
+  contactProfiles: [], processDefinitions: [], plannedCosts: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -101,7 +117,10 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
-    inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions
+    inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
+    contactProfiles: Array.isArray(value?.contactProfiles) ? value.contactProfiles : empty.contactProfiles,
+    processDefinitions: Array.isArray(value?.processDefinitions) ? value.processDefinitions : empty.processDefinitions,
+    plannedCosts: Array.isArray(value?.plannedCosts) ? value.plannedCosts : empty.plannedCosts
   };
 }
 
@@ -168,7 +187,10 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     quotations: mergeRows(local.quotations, remote.quotations),
     materials: mergeRows(local.materials, remote.materials),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
-    inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions)
+    inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
+    contactProfiles: mergeRows(local.contactProfiles, remote.contactProfiles),
+    processDefinitions: mergeRows(local.processDefinitions, remote.processDefinitions),
+    plannedCosts: mergeRows(local.plannedCosts, remote.plannedCosts)
   };
 }
 
