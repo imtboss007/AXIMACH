@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 export const MANUFACTURING_DATA_KEY = "aximach.manufacturingData.v1";
 
 export type DataStatus = "local" | "syncing" | "synced" | "error";
-export type LifecycleStatus = "Queued" | "Running" | "Complete" | "Quality hold";
+export type LifecycleStatus = "Planned" | "Queued" | "Running" | "Complete" | "Quality hold" | "Rejected" | "Delayed";
 
 export type CompanyRecord = {
   id: string; name: string; gstin: string; contactPerson?: string; phone: string; email: string; address?: string;
@@ -34,7 +34,7 @@ export type PurchaseOrderRecord = {
 export type VendorRecord = {
   id: string; company: string; contact: string; role: string; phone: string; whatsappNumber: string;
   email: string; address: string; processes: string; machines: string; materials: string; notes: string;
-  status: string; sourceContactId: string; whatsappSyncedAt: string;
+  status: string; sourceContactId: string; whatsappSyncedAt: string; vendorType?: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ContactProfileRecord = {
@@ -58,7 +58,7 @@ export type OperationRecord = {
   quantity: number; completed: number; accepted: number; rejected: number;
   ratePerPart: number; actualRatePerPart: number; transportVendorId: string; transportPickup: string; transportDelivery: string;
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
-  paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;
+  paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;\n  executionType?: "Internal" | "Outsourced"; toleranceCategory?: "Standard" | "Precision" | "Close" | "Ultra Precision"; inspectionRequired?: boolean;
   branch: string; parentId: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type QuotationRecord = {
