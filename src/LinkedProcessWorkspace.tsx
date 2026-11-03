@@ -81,7 +81,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const selectedTransportVendor = vendors.find(vendor => vendor.id === draft.transportVendorId);
   const selectedTransportRoutes = selectedTransportVendor?.transportRoutes || [];
   const visibleOperations = routeOperations.filter(op => {
-    const text = (op.name + " " + op.category + " " + op.subcategory + " " + op.machine + " " + (vendors.find(v => v.id === op.vendorId)?.company || "") + " " + op.status + " " + (op.branch || "Main route")).toLowerCase();
+    const text = [op.name,op.category,op.subcategory,op.machine,op.executionType,op.status,op.branch,op.plannedStart,op.plannedEnd,op.actualStart,op.actualEnd,op.quantity,op.completed,op.accepted,op.rejected,op.ratePerPart,op.actualRatePerPart,op.transportCost,op.paymentStatus,op.paidAmount,op.toleranceCategory,op.inspectionResult,op.qualityNotes,op.notes,op.transportFrom,op.transportTo,op.transportVehicleType,vendors.find(v => v.id === op.vendorId)?.company,vendors.find(v => v.id === op.transportVendorId)?.company].join(" ").toLowerCase();
     const statusMatch = !statusFilters.length || statusFilters.includes(op.status);
     const executionMatch = !executionFilters.length || executionFilters.includes(op.executionType || "Outsourced");
     const categoryMatch = !categoryFilters.length || categoryFilters.includes(op.category);
