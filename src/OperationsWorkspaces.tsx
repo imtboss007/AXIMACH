@@ -10,8 +10,39 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:
  const {data,update,syncStatus}=useManufacturingData();
  const companies=activeRows(data.companies),pos=activeRows(data.purchaseOrders),components=activeRows(data.components),vendors=activeRows(data.vendors),ops=activeRows(data.operations);
  const [search,setSearch]=useState("");const [transportLine,setTransportLine]=useState<{poId:string;lineId:string}|null>(null);const [draft,setDraft]=useState(transportDraft());
+ const [companyFilters,setCompanyFilters]=useState<string[]>([]);
+ const [poFilters,setPoFilters]=useState<string[]>([]);
+ const [componentFilters,setComponentFilters]=useState<string[]>([]);
+ const [jobStatusFilters,setJobStatusFilters]=useState<string[]>([]);
+ const [selectedJobKeys,setSelectedJobKeys]=useState<string[]>([]);
+ const toggleSet=(setter:(next:string[]|((previous:string[])=>string[]))=>void,value:string)=>setter(previous=>previous.includes(value)?previous.filter(item=>item!==value):[...previous,value]);
+ const clearFilters=()=>{setSearch("");setCompanyFilters([]);setPoFilters([]);setComponentFilters([]);setJobStatusFilters([]);};
+
  const rows=useMemo(()=>pos.flatMap(po=>po.lines.filter(line=>!line.deletedAt).map(line=>({po,line,company:companies.find(c=>c.id===po.companyId),component:components.find(c=>c.id===line.componentId),operations:ops.filter(op=>op.poId===po.id&&op.poLineId===line.id)}))),[pos,companies,components,ops]);
- const filtered=rows.filter(row=>(row.company?.name+" "+row.po.number+" "+row.component?.name+" "+row.component?.partNumber+" "+(row.line.jobStatus||"In progress")).toLowerCase().includes(search.toLowerCase().trim()));
+ const filtered=rows.filter(row=>{
+  const text=[row.company?.name,row.po.number,row.component?.name,row.component?.partNumber,row.line.jobStatus].join(" ").toLowerCase();
+  return text.includes(search.toLowerCase().trim())
+   &&(!companyFilters.length||companyFilters.includes(row.po.companyId))
+   &&(!poFilters.length||poFilters.includes(row.po.id))
+   &&(!componentFilters.length||componentFilters.includes(row.line.componentId))
+   &&(!jobStatusFilters.length||jobStatusFilters.includes(row.line.jobStatus||"In Progress"));
+ });
+ const visibleJobKeys=filtered.map(row=>row.po.id+":"+row.line.id);
+ const selectedVisibleJobs=filtered.filter(row=>selectedJobKeys.includes(row.po.id+":"+row.line.id));
+ const selectVisibleJobs=(checked:boolean)=>setSelectedJobKeys(current=>checked?[...new Set([...current,...visibleJobKeys])]:current.filter(key=>!visibleJobKeys.includes(key)));
+ const finishSelectedJobs=(finished:boolean)=>{
+  if(!selectedVisibleJobs.length){onNotice("Select one or more PO component jobs first.");return;}
+  if(finished){
+    const selectedIds=new Set(selectedVisibleJobs.map(row=>row.line.id));
+    const incomplete=ops.filter(op=>selectedIds.has(op.poLineId)&&op.status!=="Complete");
+    if(incomplete.length&&!window.confirm(incomplete.length+" operation(s) on the selected jobs are not Complete. Finish the selected PO jobs anyway?"))return;
+  }
+  const keys=new Set(selectedVisibleJobs.map(row=>row.po.id+":"+row.line.id));
+  const stamp=nowIso();
+  update(current=>({...current,purchaseOrders:current.purchaseOrders.map(order=>({...order,updatedAt:stamp,lines:order.lines.map(line=>keys.has(order.id+":"+line.id)?{...line,jobStatus:finished?"Finished":"In Progress",jobFinishedAt:finished?stamp:undefined,updatedAt:stamp}:line)}))}));
+  onNotice((finished?"Finished ":"Reopened ")+selectedVisibleJobs.length+" selected PO component job(s). Operation history remains unchanged.");
+  setSelectedJobKeys([]);
+ };
  const setJob=(poId:string,lineId:string,finished:boolean)=>{
   const stamp=nowIso();const po=pos.find(x=>x.id===poId);const line=po?.lines.find(x=>x.id===lineId);if(!po||!line)return;
   if(finished){const incomplete=ops.filter(op=>op.poId===poId&&op.poLineId===lineId&&op.status!=="Complete");if(incomplete.length&&!window.confirm(incomplete.length+" process operation(s) are not Complete. Finish the PO-line job anyway? Operation records will remain unchanged."))return;}
@@ -43,7 +74,16 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:
   <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/>{syncStatus==="synced"?"SHARED DATA SYNCED":syncStatus==="error"?"SYNC ERROR · LOCAL COPY KEPT":"PO-LINKED PRODUCTION"}</span></div>
   {notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / PRODUCTION CONTROL</div><h1>Production Plan<span>.</span></h1><p>PO-wise and component-wise job control. Transport and job completion are saved against the same PO component line used by Process Plan.</p></div><button className="button-primary" onClick={()=>onSelectModule("process-map")}><Workflow size={15}/> Open Process Plan</button></div>
-  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, PO, component or status…"/></label><span className="module-number">{filtered.length} PO COMPONENT JOBS</span></div>
+  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, PO, component, number, quantity, due date or status…"/></label><span className="module-number">{filtered.length} PO COMPONENT JOBS</span><button className="button-quiet compact-button" onClick={clearFilters}>Clear filters</button></div>
+  <section className="surface-panel production-plan-filter-panel"><div className="panel-heading"><div><h3>Multi-select filters</h3><p>Combine company, multiple PO, component and job status filters.</p></div><button className="button-quiet compact-button" onClick={()=>{setCompanyFilters(companies.map(x=>x.id));setPoFilters(pos.map(x=>x.id));setComponentFilters(components.map(x=>x.id));setJobStatusFilters(["Finished","In Progress"]);}}>Select all</button></div>
+   <div className="contact360-filter-grid">
+    <div><strong>Company</strong>{companies.map(x=><label key={x.id}><input type="checkbox" checked={companyFilters.includes(x.id)} onChange={()=>toggleSet(setCompanyFilters,x.id)}/>{x.name}</label>)}</div>
+    <div><strong>Purchase order</strong>{pos.map(x=><label key={x.id}><input type="checkbox" checked={poFilters.includes(x.id)} onChange={()=>toggleSet(setPoFilters,x.id)}/>{x.number}</label>)}</div>
+    <div><strong>Component</strong>{components.map(x=><label key={x.id}><input type="checkbox" checked={componentFilters.includes(x.id)} onChange={()=>toggleSet(setComponentFilters,x.id)}/>{x.partNumber} · {x.name}</label>)}</div>
+    <div><strong>Job status</strong>{["In Progress","Finished"].map(x=><label key={x}><input type="checkbox" checked={jobStatusFilters.includes(x)} onChange={()=>toggleSet(setJobStatusFilters,x)}/>{x}</label>)}</div>
+   </div>
+  </section>
+  <div className="process-table-bulkbar production-plan-bulkbar"><label><input type="checkbox" checked={filtered.length>0&&filtered.every(row=>selectedJobKeys.includes(row.po.id+":"+row.line.id))} onChange={e=>selectVisibleJobs(e.target.checked)}/> Select all visible jobs</label><span>{selectedVisibleJobs.length} selected</span><button className="button-primary compact-button" disabled={!selectedVisibleJobs.length} onClick={()=>finishSelectedJobs(true)}>Finish selected jobs</button><button className="button-quiet compact-button" disabled={!selectedVisibleJobs.length} onClick={()=>finishSelectedJobs(false)}>Reopen selected jobs</button><button className="button-quiet compact-button" disabled={!selectedJobKeys.length} onClick={()=>setSelectedJobKeys([])}>Clear selection</button></div>
   {transportLine&&<section className="surface-panel"><div className="panel-heading"><div><h3>Add transport to PO component</h3><p>This creates a logistics operation linked to the selected PO component line.</p></div></div>
    <div className="module-record-form specialized-form">
     <label>Transport vendor *<select value={draft.vendorId} onChange={e=>setDraft({...draft,vendorId:e.target.value,routeId:"",from:"",to:"",vehicleType:"",cost:"0"})}><option value="">Select transport vendor</option>{vendors.filter(v=>v.vendorType==="Transport").map(v=><option key={v.id} value={v.id}>{v.company} · {v.contact}</option>)}</select></label>
@@ -57,9 +97,9 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:
    </div>
   </section>}
   <section className="surface-panel"><div className="panel-heading"><div><h3>Production jobs</h3><p>{rows.filter(x=>x.line.jobStatus!=="Finished").length} in progress · {rows.filter(x=>x.line.jobStatus==="Finished").length} finished</p></div></div>
-   {filtered.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Company</th><th>PO</th><th>Component</th><th>Quantity</th><th>Due date</th><th>Processes</th><th>Transport</th><th>Job status</th><th>Actions</th></tr></thead><tbody>{filtered.map(({po,line,company,component,operations})=>{
+   {filtered.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Select</th><th>Company</th><th>PO</th><th>Component</th><th>Quantity</th><th>Due date</th><th>Processes</th><th>Transport</th><th>Job status</th><th>Actions</th></tr></thead><tbody>{filtered.map(({po,line,company,component,operations})=>{
     const finished=line.jobStatus==="Finished";const transport=operations.filter(op=>op.transportVendorId||op.category==="Logistics");
-    return <tr key={po.id+":"+line.id}><td>{company?.name||"Company missing"}</td><td><strong>{po.number}</strong><small>{po.issueDate||"PO date not entered"}</small></td><td><strong>{component?.partNumber||"Part missing"}</strong><small>{component?.name||"Component record missing"}</small></td><td>{line.quantity.toLocaleString("en-IN")} pcs</td><td>{line.targetDelivery||po.targetDelivery||"—"}</td><td>{operations.filter(op=>op.category!=="Logistics").length}</td><td>{transport.length} entries</td><td><span className={"record-state "+(finished?"state-selected":"state-open")}>{finished?"Job Finished":"In Progress"}</span></td><td><div className="production-job-actions"><button className="button-quiet compact-button" onClick={()=>openTransport(po.id,line.id)}><Truck size={12}/> Add transport</button><button className={finished?"button-quiet compact-button":"button-primary compact-button"} onClick={()=>setJob(po.id,line.id,!finished)}>{finished?<RotateCcw size={12}/>:<Check size={12}/>} {finished?"Reopen":"Finish"}</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("process-map")}><Workflow size={12}/> Process Plan</button></div></td></tr>;
+    return <tr key={po.id+":"+line.id}><td><input type="checkbox" aria-label={"Select "+po.number+" "+(component?.partNumber||"component")} checked={selectedJobKeys.includes(po.id+":"+line.id)} onChange={()=>toggleSet(setSelectedJobKeys,po.id+":"+line.id)}/></td><td>{company?.name||"Company missing"}</td><td><strong>{po.number}</strong><small>{po.issueDate||"PO date not entered"}</small></td><td><strong>{component?.partNumber||"Part missing"}</strong><small>{component?.name||"Component record missing"}</small></td><td>{line.quantity.toLocaleString("en-IN")} pcs</td><td>{line.targetDelivery||po.targetDelivery||"—"}</td><td>{operations.filter(op=>op.category!=="Logistics").length}</td><td>{transport.length} entries</td><td><span className={"record-state "+(finished?"state-selected":"state-open")}>{finished?"Job Finished":"In Progress"}</span></td><td><div className="production-job-actions"><button className="button-quiet compact-button" onClick={()=>openTransport(po.id,line.id)}><Truck size={12}/> Add transport</button><button className={finished?"button-quiet compact-button":"button-primary compact-button"} onClick={()=>setJob(po.id,line.id,!finished)}>{finished?<RotateCcw size={12}/>:<Check size={12}/>} {finished?"Reopen":"Finish"}</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("process-map")}><Workflow size={12}/> Process Plan</button></div></td></tr>;
    })}</tbody></table></div>:<div className="module-empty-state"><Package size={25}/><h3>{search?"No matching jobs":"No PO component jobs yet"}</h3><p>Create a Company, Component and Purchase Order first. Production jobs are generated from saved PO component lines.</p><button className="button-primary" onClick={()=>onSelectModule("purchasing")}><Plus size={14}/> Open Purchase Orders</button></div>}
   </section>
   <div className="module-safety-note"><ShieldCheck size={15}/><span>Transport is saved as a process operation against the same PO component line. Finished/Reopen updates the PO line only and preserves process history. Shared cross-device behavior requires your configured shared AXIMACH data server.</span></div>
