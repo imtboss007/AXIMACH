@@ -10,7 +10,7 @@ const PLANNED_COST_KEY="aximach.componentPlannedCost.v1";
 function readRows<T>(key:string):T[]{try{const value=JSON.parse(localStorage.getItem(key)||"[]");return Array.isArray(value)?value as T[]:[];}catch{return[];}}
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 
-function ProcessDirectory({onNotice}:Pick<Props,"onNotice">){
+function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
  const {data}=useManufacturingData();const vendors=activeRows(data.vendors);
  const [rows,setRows]=useState<ProcessEntry[]>(()=>readRows<ProcessEntry>(PROCESS_KEY));
  const [search,setSearch]=useState("");const [processType,setProcessType]=useState("");const [category,setCategory]=useState("");const [subcategories,setSubcategories]=useState("");const [vendorIds,setVendorIds]=useState<string[]>([]);const [notes,setNotes]=useState("");
@@ -18,7 +18,7 @@ function ProcessDirectory({onNotice}:Pick<Props,"onNotice">){
  const save=()=>{if(!processType.trim()||!category.trim()){onNotice("Enter the process type and category.");return;}const stamp=nowIso();const next=[{id:makeId("process"),processType:processType.trim(),category:category.trim(),subcategories:subcategories.split(",").map(x=>x.trim()).filter(Boolean),vendorIds,notes:notes.trim(),createdAt:stamp,updatedAt:stamp},...rows];setRows(next);localStorage.setItem(PROCESS_KEY,JSON.stringify(next));setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");onNotice("Process definition saved independently in Process Directory.");};
  const remove=(id:string)=>{if(!window.confirm("Delete this process directory record? Existing production operation history is not changed."))return;const next=rows.filter(row=>row.id!==id);setRows(next);localStorage.setItem(PROCESS_KEY,JSON.stringify(next));onNotice("Process directory record deleted. Historical operations remain unchanged.");};
  return <section className="workspace-page specialized-directory">
-  <div className="workspace-topline"><button className="back-link" onClick={()=>window.history.length>1?window.history.back():undefined}><ArrowRight size={15}/> AXIMACH</button><span className="demo-pill"><i/> INDEPENDENT PROCESS MASTER</span></div>
+  <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> AXIMACH</button><span className="demo-pill"><i/> INDEPENDENT PROCESS MASTER</span></div>
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> MANUFACTURING / MASTER DATA</div><h1>Process Directory<span>.</span></h1><p>Define process types, categories, multiple subcategories and the vendors capable of each process.</p></div><span className="module-number">{rows.length} PROCESS RECORDS</span></div>
   <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search process, category, subcategory or vendor…"/></label></div>
   <section className="surface-panel"><div className="panel-heading"><div><h3>Add process definition</h3><p>One process type may contain multiple subcategories and linked vendors.</p></div></div>
@@ -38,14 +38,14 @@ function ProcessDirectory({onNotice}:Pick<Props,"onNotice">){
  </section>;
 }
 
-function PlannedCostDirectory({onNotice}:Pick<Props,"onNotice">){
+function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
  const [rows,setRows]=useState<PlannedCostEntry[]>(()=>readRows<PlannedCostEntry>(PLANNED_COST_KEY));
  const [search,setSearch]=useState("");const [componentName,setComponentName]=useState("");const [componentNumber,setComponentNumber]=useState("");const [processType,setProcessType]=useState("");const [processCategory,setProcessCategory]=useState("");const [plannedQty,setPlannedQty]=useState("1");const [unit,setUnit]=useState<"piece"|"set">("piece");const [plannedRate,setPlannedRate]=useState("");const [notes,setNotes]=useState("");
  const filtered=useMemo(()=>rows.filter(row=>(row.componentName+" "+row.componentNumber+" "+row.processType+" "+row.processCategory+" "+row.notes).toLowerCase().includes(search.toLowerCase().trim())),[rows,search]);
  const save=()=>{const qty=Number(plannedQty),rate=Number(plannedRate);if(!componentName.trim()||!componentNumber.trim()||!processType.trim()||!Number.isFinite(qty)||qty<=0||!Number.isFinite(rate)||rate<0){onNotice("Enter component name, component number, process, valid planned quantity and rate.");return;}const stamp=nowIso();const next=[{id:makeId("planned-cost"),componentName:componentName.trim(),componentNumber:componentNumber.trim(),processType:processType.trim(),processCategory:processCategory.trim(),plannedQty:qty,unit,plannedRate:rate,notes:notes.trim(),createdAt:stamp,updatedAt:stamp},...rows];setRows(next);localStorage.setItem(PLANNED_COST_KEY,JSON.stringify(next));setComponentName("");setComponentNumber("");setProcessType("");setProcessCategory("");setPlannedQty("1");setPlannedRate("");setNotes("");onNotice("Independent planned-cost record saved. It is not linked to the operational component or PO directories.");};
  const remove=(id:string)=>{if(!window.confirm("Delete this planned-cost record?"))return;const next=rows.filter(row=>row.id!==id);setRows(next);localStorage.setItem(PLANNED_COST_KEY,JSON.stringify(next));onNotice("Planned-cost record deleted.");};
  return <section className="workspace-page specialized-directory">
-  <div className="workspace-topline"><span className="demo-pill"><i/> INDEPENDENT COST DIRECTORY</span><span className="module-number">{rows.length} PLANNED COST RECORDS</span></div>
+  <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> INDEPENDENT COST DIRECTORY</span><span className="module-number">{rows.length} PLANNED COST RECORDS</span></div>
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> FINANCE / PLANNING REFERENCE</div><h1>Component Planned Cost<span>.</span></h1><p>Maintain planned component- and process-wise costs independently. Only Costing &amp; Payment reads these records for comparison.</p></div></div>
   <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search component, number or process…"/></label></div>
   <section className="surface-panel"><div className="panel-heading"><div><h3>Add planned cost</h3><p>Independent reference values; no PO or operational directory link is created.</p></div></div>
