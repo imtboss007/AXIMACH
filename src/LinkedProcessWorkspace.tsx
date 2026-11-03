@@ -6,11 +6,14 @@ import { ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; onOpenIconStudio?: () => void };
-type ProcessExportField = "operation" | "description" | "vendor" | "transportVendor" | "quantity" | "status" | "plannedStart" | "plannedEnd" | "price" | "amount";
+type ProcessExportField = "operation" | "category" | "subcategory" | "execution" | "description" | "vendor" | "transportVendor" | "transportRoute" | "vehicle" | "quantity" | "completed" | "rejected" | "status" | "tolerance" | "inspection" | "paymentStatus" | "paidAmount" | "plannedStart" | "plannedEnd" | "price" | "amount";
 const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
-  {key:"operation",label:"Operation"},{key:"description",label:"Description"},{key:"vendor",label:"Vendor"},
-  {key:"transportVendor",label:"Transport vendor"},{key:"quantity",label:"Quantity"},{key:"status",label:"Status"},
-  {key:"plannedStart",label:"Planned start"},{key:"plannedEnd",label:"Planned target"},
+  {key:"operation",label:"Process"},{key:"category",label:"Category"},{key:"subcategory",label:"Subcategory"},{key:"execution",label:"Execution type"},
+  {key:"description",label:"Operation notes"},{key:"vendor",label:"Vendor"},{key:"transportVendor",label:"Transport vendor"},
+  {key:"transportRoute",label:"Transport route"},{key:"vehicle",label:"Vehicle type"},{key:"quantity",label:"Planned quantity"},
+  {key:"completed",label:"Completed quantity"},{key:"rejected",label:"Rejected quantity"},{key:"status",label:"Status"},
+  {key:"tolerance",label:"Tolerance"},{key:"inspection",label:"Inspection result"},{key:"paymentStatus",label:"Payment status"},
+  {key:"paidAmount",label:"Paid amount"},{key:"plannedStart",label:"Start date/time"},{key:"plannedEnd",label:"Due date/time"},
   {key:"price",label:"Price / piece"},{key:"amount",label:"Process + transport amount"}
 ];
 type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean };
@@ -138,15 +141,26 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const exportValue = (op:OperationRecord,key:ProcessExportField):string|number => {
     switch(key) {
       case "operation": return op.name;
-      case "description": return op.notes || "";
+      case "category": return op.category || "";
+      case "subcategory": return op.subcategory || "";
+      case "execution": return op.executionType || "Outsourced";
+      case "description": return op.notes || op.qualityNotes || "";
       case "vendor": return vendors.find(v=>v.id===op.vendorId)?.company || "";
       case "transportVendor": return vendors.find(v=>v.id===op.transportVendorId)?.company || "";
+      case "transportRoute": return (op.transportFrom||"")+(op.transportTo?" → "+op.transportTo:"");
+      case "vehicle": return op.transportVehicleType || "";
       case "quantity": return op.quantity;
+      case "completed": return op.completed;
+      case "rejected": return op.rejected;
       case "status": return op.status;
+      case "tolerance": return op.toleranceCategory || "Standard";
+      case "inspection": return op.inspectionResult || op.qualityNotes || "";
+      case "paymentStatus": return op.paymentStatus || "Unpaid";
+      case "paidAmount": return paymentTotalFor(op);
       case "plannedStart": return op.plannedStart || "";
       case "plannedEnd": return op.plannedEnd || "";
-      case "price": return op.ratePerPart;
-      case "amount": return op.quantity*op.ratePerPart+op.transportCost;
+      case "price": return op.actualRatePerPart || op.ratePerPart;
+      case "amount": return op.quantity*(op.actualRatePerPart||op.ratePerPart)+op.transportCost;
     }
   };
   const saveExportBlob = (filename:string,blob:Blob) => {
