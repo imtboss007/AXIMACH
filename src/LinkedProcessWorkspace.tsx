@@ -114,6 +114,14 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const totalProcessCost = routeOperations.reduce((sum, op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
   const expectedQuantity = selectedLine?.quantity || 0;
   const completedQuantity = routeOperations.length ? Math.min(...routeOperations.map(op => op.accepted || 0)) : 0;
+  const finalRouteOperation = [...routeOperations].filter(op=>(op.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence).at(-1) || routeOperations[routeOperations.length-1];
+  const finalCompletedQty = Math.min(expectedQuantity,Math.max(0,finalRouteOperation?.accepted||finalRouteOperation?.completed||0));
+  const pendingProductionQty = Math.max(0,expectedQuantity-finalCompletedQty);
+  const inProgressProductionQty = Math.min(pendingProductionQty,routeOperations.filter(op=>op.status==="Running").reduce((sum,op)=>sum+Math.max(0,op.quantity-op.completed),0));
+  const plannedProductionQty = expectedQuantity;
+  const completionPercent = plannedProductionQty>0?Math.round(finalCompletedQty/plannedProductionQty*100):0;
+  const vendorAssignedPercent = routeOperations.length?Math.round(routeOperations.filter(op=>op.executionType==="Internal"||Boolean(op.vendorId)).length/routeOperations.length*100):0;
+  const delayedPercent = routeOperations.length?Math.round(lateOps.length/routeOperations.length*100):0;
   const lateOps = routeOperations.filter(op => op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0, 10));
   const transportCount = routeOperations.filter(op => op.transportCost > 0 || op.transportVendorId).length;
   const totalAccepted = routeOperations.reduce((sum, op) => sum + op.accepted, 0);
@@ -389,7 +397,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       <div className="route-master-picker"><SearchablePicker id="route-component-line" label="PO component line" value={poLineId} placeholder="Type part number or name…" options={poLines.map(line=>{const component=components.find(item=>item.id===line.componentId);return {id:line.id,label:(component?component.partNumber+" · "+component.name:"Missing component")+" · "+line.quantity.toLocaleString("en-IN")+" pcs"};})} onChange={changeLine}/>{poId&&!poLines.length&&<button type="button" onClick={()=>onSelectModule("purchasing")}>Add PO lines</button>}</div>
     </div>
     {selectedLine ? <>
-      {selectedComponent && <div className="linked-component-summary"><div><small>SELECTED COMPONENT</small><strong>{selectedComponent.partNumber} · {selectedComponent.name}</strong><span>Revision {selectedComponent.revision || "—"} · {selectedComponent.material || "Material not entered"} · PO {selectedPO?.number}</span></div><div><small>ORDER QUANTITY</small><strong>{expectedQuantity.toLocaleString("en-IN")} pcs</strong></div><div><small>LINE DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div><div><small>DRAWING / REFERENCE</small><strong>{selectedComponent.drawingReference || "Not entered"}</strong></div><button className="button-quiet compact-button" onClick={() => onSelectModule("components")}>Edit component master</button></div>}
+      {selectedComponent && <div className="linked-component-summary"><div><small>SELECTED COMPONENT</small><strong>{selectedComponent.partNumber} · {selectedComponent.name}</strong><span>Revision {selectedComponent.revision || "—"} · PO {selectedPO?.number}</span></div><div><small>ORDER QUANTITY</small><strong>{expectedQuantity.toLocaleString("en-IN")} pcs</strong></div><div><small>LINE DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div><div><small>DRAWING / REFERENCE</small><strong>{selectedComponent.drawingReference || "Not entered"}</strong></div><button className="button-quiet compact-button" onClick={() => onSelectModule("components")}>Edit component master</button></div>}
       <div className={"job-completion-panel " + (selectedLine.jobStatus === "Finished" ? "job-completion-finished" : "")}>
         <div className="job-completion-copy">
           <span className="job-completion-icon"><Check size={19}/></span>
@@ -414,6 +422,22 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <button className="route-kpi kpi-transport"><span className="kpi-icon"><Truck size={19}/></span><span><small>TRANSPORT ACTIVITIES</small><strong>{transportCount}</strong><em>Operations with transport cost/vendor</em></span></button>
         <button className="route-kpi kpi-quality"><span className="kpi-icon"><ClipboardCheck size={19}/></span><span><small>ACCEPTED / ORDER QTY</small><strong>{totalAccepted.toLocaleString("en-IN")} pcs</strong><em>Sum of accepted quantities entered per operation</em></span></button>
       </div>
+      <section className="surface-panel process-production-summary">
+        <div className="panel-heading"><div><div className="eyebrow">QUANTITY & EXECUTION OVERVIEW</div><h3>Production quantity status</h3><p>PO quantity is the control total; completion comes from the final process route step.</p></div><span className="module-number">{completionPercent}% COMPLETE</span></div>
+        <div className="production-quantity-grid">
+          <div><small>PLANNED</small><strong>{plannedProductionQty.toLocaleString("en-IN")} pcs</strong></div>
+          <div><small>IN PROGRESS</small><strong>{inProgressProductionQty.toLocaleString("en-IN")} pcs</strong></div>
+          <div><small>COMPLETED</small><strong>{finalCompletedQty.toLocaleString("en-IN")} pcs</strong></div>
+          <div><small>PENDING</small><strong>{pendingProductionQty.toLocaleString("en-IN")} pcs</strong></div>
+          <div><small>VENDORS ASSIGNED</small><strong>{vendorAssignedPercent}%</strong></div>
+          <div><small>DELAYED OPERATIONS</small><strong>{lateOps.length} · {delayedPercent}%</strong></div>
+        </div>
+        <div className="production-progress-track"><span style={{width:completionPercent+"%"}}/></div>
+        <div className="production-operation-histogram">
+          {routeOperations.map(op=>{const pct=op.quantity>0?Math.min(100,Math.round(op.completed/op.quantity*100)):0;return <div className="production-histogram-row" key={op.id}><span>{op.name}</span><div><i className={"histogram-status histogram-"+op.status.toLowerCase().replaceAll(" ","-")} style={{width:pct+"%"}}/></div><strong>{pct}%</strong><small>{op.completed}/{op.quantity} pcs · {op.status}</small></div>;})}
+          {!routeOperations.length&&<p className="field-hint">Add process operations to populate the per-process production histogram.</p>}
+        </div>
+      </section>
     </> : <section className="surface-panel linked-empty-master"><Package size={30}/><div><h3>Start with your real master records</h3><p>No company, PO or component is preloaded. Add each master record once; then select a real purchase-order line and AXIMACH will load the component, quantity and delivery date for its route.</p><div className="linked-empty-actions"><button className="button-primary" onClick={() => onSelectModule("companies")}><Plus size={14}/> Add company</button><button className="button-quiet" onClick={() => onSelectModule("components")}><Package size={14}/> Add component</button><button className="button-quiet" onClick={() => onSelectModule("purchasing")}><FileText size={14}/> Create PO</button></div></div></section>}
     <nav className="linked-route-tabs" aria-label="Linked component workspaces">
       {tab("process-map","Process Map",Workflow)}
