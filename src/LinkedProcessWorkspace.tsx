@@ -105,7 +105,6 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     setBulkStatus(""); setBulkVendorId(""); setBulkStart(""); setBulkEnd("");
   };
 
-  const visibleBranches = [...new Set(visibleOperations.map(op => op.branch || "Main route"))];
   const activeOperation = routeOperations.find(op => op.id === selectedOperationId) || routeOperations[0];
   const paymentRowsFor = (operationId:string) => activeRows(data.paymentTransactions).filter(payment=>payment.operationId===operationId);
   const paymentTotalFor = (operation:OperationRecord) => {
@@ -122,8 +121,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const plannedProductionQty = expectedQuantity;
   const completionPercent = plannedProductionQty>0?Math.round(finalCompletedQty/plannedProductionQty*100):0;
   const vendorAssignedPercent = routeOperations.length?Math.round(routeOperations.filter(op=>op.executionType==="Internal"||Boolean(op.vendorId)).length/routeOperations.length*100):0;
+  const lateOps = routeOperations.filter(op => op.plannedEnd && op.status !== "Complete" && op.plannedEnd.slice(0,10) < new Date().toISOString().slice(0, 10));
   const delayedPercent = routeOperations.length?Math.round(lateOps.length/routeOperations.length*100):0;
-  const lateOps = routeOperations.filter(op => op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0, 10));
   const transportCount = routeOperations.filter(op => op.transportCost > 0 || op.transportVendorId).length;
   const totalAccepted = routeOperations.reduce((sum, op) => sum + op.accepted, 0);
   const allDone = routeOperations.length > 0 && routeOperations.every(op => op.status === "Complete");
