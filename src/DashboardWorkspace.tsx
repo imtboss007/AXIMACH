@@ -1,9 +1,9 @@
-import { Activity, ArrowRight, ArrowUpRight, Boxes, Building2, CalendarClock, CheckCircle2, CircleAlert, Command, Factory, Package, ShieldCheck, Users, Workflow } from "lucide-react";
+import { Activity, ArrowRight, ArrowUpRight, Boxes, Building2, CalendarClock, CheckCircle2, CircleAlert, Command, Factory, Package, ShieldCheck, Users, Workflow, type LucideIcon } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
 
 type Props = { onSelectModule:(id:string)=>void; onOpenCommandCentre:()=>void; onOpenModules:()=>void };
 
-function Kpi({label,value,detail,icon:Icon}:{label:string;value:number;detail:string;icon:typeof Building2}) {
+function Kpi({label,value,detail,icon:Icon}:{label:string;value:number;detail:string;icon:LucideIcon}) {
   return <article className="metric-card dashboard-metric-card"><div className="metric-card-top"><span>{label}</span><span className="metric-icon blue"><Icon size={18}/></span></div><strong className="metric-number">{value.toLocaleString("en-IN")}</strong><div className="metric-card-bottom"><span className="metric-trend"><ArrowUpRight size={13}/> Saved records</span><span>{detail}</span></div></article>;
 }
 
