@@ -126,8 +126,34 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
 
 export function readManufacturingData(): ManufacturingData {
   if (typeof window === "undefined") return emptyManufacturingData();
-  try { return normaliseData(JSON.parse(window.localStorage.getItem(MANUFACTURING_DATA_KEY) || "null")); }
-  catch { return emptyManufacturingData(); }
+  let data: ManufacturingData;
+  try { data = normaliseData(JSON.parse(window.localStorage.getItem(MANUFACTURING_DATA_KEY) || "null")); }
+  catch { data = emptyManufacturingData(); }
+
+  // Read legacy directory stores into the canonical model without deleting or
+  // rewriting the source keys. Existing record IDs and newer shared edits win.
+  const mergeLegacy = <T extends { id: string; updatedAt?: string }>(current: T[], storageKey: string): T[] => {
+    try {
+      const value: unknown = JSON.parse(window.localStorage.getItem(storageKey) || "[]");
+      if (!Array.isArray(value)) return current;
+      const rows = new Map(current.filter(row => row?.id).map(row => [row.id, row]));
+      for (const incoming of value as T[]) {
+        if (!incoming?.id) continue;
+        const old = rows.get(incoming.id);
+        const incomingTime = Date.parse(incoming.updatedAt || "") || 0;
+        const oldTime = Date.parse(old?.updatedAt || "") || 0;
+        if (!old || incomingTime > oldTime) rows.set(incoming.id, incoming);
+      }
+      return [...rows.values()];
+    } catch { return current; }
+  };
+
+  return {
+    ...data,
+    contactProfiles: mergeLegacy(data.contactProfiles, "aximach.contact360.v1"),
+    processDefinitions: mergeLegacy(data.processDefinitions, "aximach.processDirectory.v1"),
+    plannedCosts: mergeLegacy(data.plannedCosts, "aximach.componentPlannedCost.v1")
+  };
 }
 function writeLocal(data: ManufacturingData, broadcast = true) {
   if (typeof window === "undefined") return;
