@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
-import SearchablePicker from "./SearchablePicker";
+import SearchablePicker from "./SearchablePicker";\nimport { readProcessDirectoryRecords } from "./processDirectoryData";
 import { ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 
@@ -13,10 +13,10 @@ const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
   {key:"plannedStart",label:"Planned start"},{key:"plannedEnd",label:"Planned target"},
   {key:"price",label:"Price / piece"},{key:"amount",label:"Process + transport amount"}
 ];
-type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch">;
+type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string };
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
   name: "", category: "", machine: "", vendorId: "", status: "Queued", plannedStart: "", plannedEnd: line?.targetDelivery || "", actualStart: "", actualEnd: "",
-  quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0,
+  quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0, paymentStatus:"Unpaid", paidAmount:0, paymentReference:"", subcategory:"",
   transportVendorId: "", transportCost: 0, transportPickup: "", transportDelivery: "", qualityNotes: "", inspectionResult: "", notes: "", branch: "Main route"
 });
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
@@ -218,7 +218,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       status: activeOperation.status, plannedStart: activeOperation.plannedStart, plannedEnd: activeOperation.plannedEnd, actualStart: activeOperation.actualStart || "", actualEnd: activeOperation.actualEnd || "",
       quantity: activeOperation.quantity, completed: activeOperation.completed, accepted: activeOperation.accepted, rejected: activeOperation.rejected,
       ratePerPart: activeOperation.ratePerPart, actualRatePerPart: activeOperation.actualRatePerPart || 0, transportVendorId: activeOperation.transportVendorId || "", transportCost: activeOperation.transportCost, transportPickup: activeOperation.transportPickup,
-      transportDelivery: activeOperation.transportDelivery, qualityNotes: activeOperation.qualityNotes, inspectionResult: activeOperation.inspectionResult || "", notes: activeOperation.notes, branch: activeOperation.branch
+      transportDelivery: activeOperation.transportDelivery, qualityNotes: activeOperation.qualityNotes, inspectionResult: activeOperation.inspectionResult || "", notes: activeOperation.notes, branch: activeOperation.branch, paymentStatus:activeOperation.paymentStatus||"Unpaid", paidAmount:activeOperation.paidAmount||0, paymentReference:activeOperation.paymentReference||"", subcategory:activeOperation.subcategory||""
     });
     setEditingId(activeOperation.id); setShowEditor(true);
   };
@@ -385,7 +385,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
             <label>Operation name *<input value={draft.name} onChange={e => setDraft({...draft,name:e.target.value})} placeholder="CNC turning, VMC milling, heat treatment…"/></label>
-            <label>Process type<input value={draft.category} onChange={e => setDraft({...draft,category:e.target.value})} placeholder="Machining, treatment, quality…"/></label>
+            <label>Process category<input value={draft.category} onChange={e => setDraft({...draft,category:e.target.value})} placeholder="Machining, treatment, quality…"/></label>
             <label>Machine / station<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value})} placeholder="Machine / work centre"/></label>
             <SearchablePicker id="operation-vendor-picker" label="Vendor" value={draft.vendorId} placeholder="Type vendor name or phone…" options={vendors.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{!vendors.length && <small className="field-hint">Scan/import contacts or add a vendor in Vendors first.</small>}
             <label>Planned start<input type="date" value={draft.plannedStart} onChange={e => setDraft({...draft,plannedStart:e.target.value})}/></label>
