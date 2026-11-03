@@ -55,6 +55,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [exportArrows,setExportArrows] = useState(true);
   const [visualStyle,setVisualStyle] = useState<"sphere"|"vortex"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined">("sphere");
   const [ganttScale,setGanttScale] = useState<"day"|"week"|"month">("week");
+  const [histogramStyle,setHistogramStyle] = useState<"bar"|"stacked"|"donut">("bar");
   const [statusFilters,setStatusFilters] = useState<string[]>([]);
   const [executionFilters,setExecutionFilters] = useState<string[]>([]);
   const [categoryFilters,setCategoryFilters] = useState<string[]>([]);
@@ -134,6 +135,14 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const durationDays = routeOperations.reduce((sum, op) => sum + daysBetween(op.plannedStart, op.plannedEnd), 0);
   const timelineStart = routeOperations.map(op => op.plannedStart).filter(Boolean).sort()[0] || "";
   const timelineEnd = routeOperations.map(op => op.plannedEnd).filter(Boolean).sort().at(-1) || finalDelivery;
+  const ganttBaseDate = timelineStart || finalDelivery || new Date().toISOString().slice(0,10);
+  const ganttSpanDays = Math.max(1,daysBetween(ganttBaseDate,timelineEnd||ganttBaseDate));
+  const ganttStepDays = ganttScale==="day"?1:ganttScale==="week"?7:30;
+  const ganttTicks = Array.from({length:Math.min(16,Math.ceil(ganttSpanDays/ganttStepDays)+1)},(_,index)=>{
+    const date=new Date(dateValue(ganttBaseDate).getTime()+index*ganttStepDays*86400000);
+    return date.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:ganttScale==="month"?"numeric":undefined});
+  });
+
   const exportColumns = PROCESS_EXPORT_FIELDS.filter(field=>exportFields.includes(field.key));
   const exportOperations = exportScope === "selected-branch" && activeOperation
     ? (selectedOperationIds.length ? selectedVisibleOperations : visibleOperations).filter(op=>(op.branch || "Main route") === (activeOperation.branch || "Main route"))
@@ -439,7 +448,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <button className="route-kpi kpi-quality"><span className="kpi-icon"><ClipboardCheck size={19}/></span><span><small>ACCEPTED / ORDER QTY</small><strong>{totalAccepted.toLocaleString("en-IN")} pcs</strong><em>Sum of accepted quantities entered per operation</em></span></button>
       </div>
       <section className="surface-panel process-production-summary">
-        <div className="panel-heading"><div><div className="eyebrow">QUANTITY & EXECUTION OVERVIEW</div><h3>Production quantity status</h3><p>PO quantity is the control total; completion comes from the final process route step.</p></div><span className="module-number">{completionPercent}% COMPLETE</span></div>
+        <div className="panel-heading"><div><div className="eyebrow">QUANTITY & EXECUTION OVERVIEW</div><h3>Production quantity status</h3><p>PO quantity is the control total; completion comes from the final process route step.</p></div><div className="module-form-actions"><label className="histogram-style-picker">Histogram<select value={histogramStyle} onChange={e=>setHistogramStyle(e.target.value as "bar"|"stacked"|"donut")}><option value="bar">Progress bars</option><option value="stacked">Completed / rejected</option><option value="donut">Donut progress</option></select></label><span className="module-number">{completionPercent}% COMPLETE</span></div></div>
         <div className="production-quantity-grid">
           <div><small>PLANNED</small><strong>{plannedProductionQty.toLocaleString("en-IN")} pcs</strong></div>
           <div><small>IN PROGRESS</small><strong>{inProgressProductionQty.toLocaleString("en-IN")} pcs</strong></div>
@@ -449,8 +458,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
           <div><small>DELAYED OPERATIONS</small><strong>{lateOps.length} · {delayedPercent}%</strong></div>
         </div>
         <div className="production-progress-track"><span style={{width:completionPercent+"%"}}/></div>
-        <div className="production-operation-histogram">
-          {routeOperations.map(op=>{const pct=op.quantity>0?Math.min(100,Math.round(op.completed/op.quantity*100)):0;return <div className="production-histogram-row" key={op.id}><span>{op.name}</span><div><i className={"histogram-status histogram-"+op.status.toLowerCase().replaceAll(" ","-")} style={{width:pct+"%"}}/></div><strong>{pct}%</strong><small>{op.completed}/{op.quantity} pcs · {op.status}</small></div>;})}
+        <div className={"production-operation-histogram histogram-style-"+histogramStyle}>
+          {routeOperations.map(op=>{const pct=op.quantity>0?Math.min(100,Math.round(op.completed/op.quantity*100)):0;const rejected=op.quantity>0?Math.min(100-pct,Math.round(op.rejected/op.quantity*100)):0;return <div className="production-histogram-row" key={op.id}><span>{op.name}</span>{histogramStyle==="donut"?<div className="production-donut" style={{background:"conic-gradient(#25a77b "+pct+"%, #df6e76 "+(pct+rejected)+"%, var(--line) "+(pct+rejected)+"%)"}}><b>{pct}%</b></div>:<div className={histogramStyle==="stacked"?"production-stacked-bar":""}><i className={"histogram-status histogram-"+op.status.toLowerCase().replaceAll(" ","-")} style={{width:pct+"%"}}/>{histogramStyle==="stacked"&&<b style={{width:rejected+"%"}}/>}</div>}<strong>{pct}%</strong><small>{op.completed}/{op.quantity} completed · {op.rejected} rejected · {op.status}</small></div>;})}
           {!routeOperations.length&&<p className="field-hint">Add process operations to populate the per-process production histogram.</p>}
         </div>
       </section>
@@ -551,7 +560,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         {["sphere","vortex","combined"].includes(visualStyle) && routeOperations.length
           ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D operations={visibleOperations} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} /></div>
           : visualStyle==="gantt" && routeOperations.length ? <div className="process-gantt-view">
-              <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {routeOperations.length} operations</span></div>
+              <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {routeOperations.length} operations</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
               {visibleOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));return <div className="process-gantt-row" key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small>{shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%"}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
             </div>
           : routeOperations.length ? <div className={"linked-node-scroll process-visual-"+visualStyle+" " + (visualStyle==="vertical" ? "linked-node-vertical" : "")}><div className="linked-route-lanes" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{visibleBranches.map(branch => {
