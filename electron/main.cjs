@@ -53,7 +53,10 @@ function registerFrontendProtocol() {
         diagnosticLog("frontend asset missing:", pathname);
         return new Response("AXIMACH frontend asset not found: " + pathname, { status: 404 });
       }
+      const ext = path.extname(filePath).toLowerCase();
+      if ([".html", ".js", ".css"].includes(ext)) diagnosticLog("frontend asset request:", pathname);
       const response = await net.fetch(pathToFileURL(filePath).toString());
+      if ([".html", ".js", ".css"].includes(ext)) diagnosticLog("frontend asset response:", pathname + " · " + response.status + " · " + (response.headers.get("content-type") || "unknown content type"));
       if (request.method === "HEAD") return new Response(null, { status: response.status, headers: response.headers });
       return response;
     } catch (error) {
@@ -175,13 +178,16 @@ function createWindow(frontendUrl = "aximach://bundle/index.html") {
   setTimeout(async () => {
     if (window.isDestroyed()) return;
     try {
-      const state = await window.webContents.executeJavaScript(`(() => ({
-        url: location.href, readyState: document.readyState,
-        rootExists: !!document.getElementById("root"),
-        appShell: !!document.querySelector(".app-shell"),
-        startupError: !!document.querySelector('[data-aximach-startup-error="true"]'),
-        resources: performance.getEntriesByType("resource").map(x => x.name).slice(-40)
-      }))()`);
+      const state = await Promise.race([
+        window.webContents.executeJavaScript(`(() => ({
+          url: location.href, readyState: document.readyState,
+          rootExists: !!document.getElementById("root"),
+          appShell: !!document.querySelector(".app-shell"),
+          startupError: !!document.querySelector('[data-aximach-startup-error="true"]'),
+          resources: performance.getEntriesByType("resource").map(x => x.name).slice(-40)
+        }))()`),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Renderer did not respond to the startup watchdog within 5 seconds.")), 5000))
+      ]);
       diagnosticLog("renderer watchdog:", JSON.stringify(state));
       if (state.appShell) {
         diagnosticLog("renderer status:", "React workspace mounted successfully");
