@@ -43,7 +43,7 @@ export type OperationRecord = {
   plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string;
   quantity: number; completed: number; accepted: number; rejected: number;
   ratePerPart: number; actualRatePerPart: number; transportVendorId: string; transportPickup: string; transportDelivery: string;
-  transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
+  transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;\n  paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;
   branch: string; parentId: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type QuotationRecord = {
