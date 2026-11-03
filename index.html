@@ -10,7 +10,47 @@
     <title>AXIMACH — Manufacturing OS</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main id="aximach-startup" style="min-height:100vh;display:grid;place-items:center;padding:32px;background:#0b1626;color:#e8f2ff;font-family:Segoe UI,Arial,sans-serif;text-align:center">
+        <div>
+          <div style="width:42px;height:42px;margin:0 auto 18px;border:3px solid rgba(152,196,240,.25);border-top-color:#69c6ed;border-radius:50%;animation:aximach-spin 1s linear infinite"></div>
+          <h1 style="margin:0 0 8px;font-size:24px;letter-spacing:2px">AXIMACH</h1>
+          <p style="margin:0;color:#9ab2ce">Starting Manufacturing OS…</p>
+        </div>
+      </main>
+      <style>@keyframes aximach-spin{to{transform:rotate(360deg)}}</style>
+    </div>
+    <script>
+      (() => {
+        const showStartupFailure = (message) => {
+          const root = document.getElementById("root");
+          if (!root || !root.querySelector("#aximach-startup")) return;
+          const page = document.createElement("main");
+          page.style.cssText = "min-height:100vh;box-sizing:border-box;padding:48px 24px;background:#0b1626;color:#e8f2ff;font:14px/1.6 Segoe UI,Arial,sans-serif";
+          const title = document.createElement("h1");
+          title.textContent = "AXIMACH could not start";
+          title.style.cssText = "font-size:26px;margin:0 0 12px;color:#fff";
+          const detail = document.createElement("p");
+          detail.textContent = message || "The application did not finish loading.";
+          detail.style.cssText = "max-width:900px;color:#b9cbe0;overflow-wrap:anywhere";
+          const help = document.createElement("p");
+          help.textContent = "Close AXIMACH and reopen it. If this message remains, send a screenshot of this screen to support.";
+          help.style.color = "#8da7c4";
+          page.append(title, detail, help);
+          root.replaceChildren(page);
+        };
+        window.addEventListener("error", (event) => {
+          showStartupFailure(event.message || "A startup script failed to load.");
+        });
+        window.addEventListener("unhandledrejection", (event) => {
+          const reason = event.reason;
+          showStartupFailure(reason && reason.message ? reason.message : String(reason || "An unexpected startup error occurred."));
+        });
+        window.setTimeout(() => {
+          showStartupFailure("The application did not finish initializing within 20 seconds. The installed frontend may be missing or blocked.");
+        }, 20000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
