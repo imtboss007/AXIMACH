@@ -40,6 +40,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     if (!preferredCompanyId && companyId) { setCompanyId(""); setPoId(""); setLineKey(""); }
   }, [companies, companyId, preferredCompanyId]);
   const companyOrders = orders.filter(po => po.companyId === companyId);
+  const paymentTransactionsForCompany = activeRows(data.paymentTransactions||[]);
   const companyRollupRows = companyOrders.flatMap(po => po.lines.filter(line=>!("deletedAt" in line && (line as any).deletedAt)).map(line=>{
     const component=components.find(item=>item.id===line.componentId);
     const linkedOperations=operations.filter(op=>op.poId===po.id&&op.poLineId===line.id&&op.componentId===line.componentId);
@@ -55,7 +56,6 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const recordedCost=processCost+transportCost;
     return {po,line,component,linkedOperations,revenue,processCost,transportCost,plannedCost,paid,recordedCost,profitLoss:revenue-recordedCost};
   }));
-  const paymentTransactionsForCompany = activeRows(data.paymentTransactions||[]);
   const visibleCompanyRollup = companyRollupRows.filter(row=>!rollupPoIds.length||rollupPoIds.includes(row.po.id));
   const companyRollupTotals = visibleCompanyRollup.reduce((sum,row)=>({
     revenue:sum.revenue+row.revenue,planned:sum.planned+row.plannedCost,process:sum.process+row.processCost,
