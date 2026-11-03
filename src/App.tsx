@@ -209,7 +209,7 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={() => setIconStudioOpen(true)} />
+          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={() => setIconStudioOpen(true)} onScheduleVendor={(vendorId,operationName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationName);else selectModule("vendors");}} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
