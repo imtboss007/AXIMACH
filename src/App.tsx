@@ -15,6 +15,7 @@ import ManufacturingMasterWorkspace from "./ManufacturingMasterWorkspace";
 import DashboardWorkspace from "./DashboardWorkspace";
 import SpecializedDirectoryWorkspace from "./SpecializedDirectoryWorkspace";
 import { Contact360Workspace, VendorNetworkWorkspace } from "./RelationshipWorkspaces";
+import { ProductionPlanWorkspace, TransportDispatchWorkspace, QualityInspectionWorkspace } from "./OperationsWorkspaces";
 import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
 import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
 import InventoryWorkspace from "./InventoryWorkspace";
@@ -200,6 +201,12 @@ function App() {
           <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" || activeModuleId === "planned-cost" ? (
           <SpecializedDirectoryWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+        ) : activeModuleId === "production" ? (
+          <ProductionPlanWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "dispatch" ? (
+          <TransportDispatchWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "quality" ? (
+          <QualityInspectionWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "contact360" ? (
           <Contact360Workspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendor-capability" ? (
