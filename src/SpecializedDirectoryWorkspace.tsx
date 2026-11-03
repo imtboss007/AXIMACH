@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, Check, CircleDollarSign, Layers3, Plus, Search, ShieldCheck, Trash2, Users } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData } from "./manufacturingData";
+import { PLANNED_COST_KEY, readPlannedCostRecords, savePlannedCostRecords, type PlannedCostEntry } from "./plannedCostData";
 
 type Props={moduleId:"process-master"|"planned-cost";onBack:()=>void;onNotice:(value:string)=>void;notice:string};
 type ProcessEntry={id:string;processType:string;category:string;subcategories:string[];vendorIds:string[];notes:string;createdAt:string;updatedAt:string};
-type PlannedCostEntry={id:string;componentName:string;componentNumber:string;processType:string;processCategory:string;plannedQty:number;unit:"piece"|"set";plannedRate:number;notes:string;createdAt:string;updatedAt:string};
 const PROCESS_KEY="aximach.processDirectory.v1";
-const PLANNED_COST_KEY="aximach.componentPlannedCost.v1";
 function readRows<T>(key:string):T[]{try{const value=JSON.parse(localStorage.getItem(key)||"[]");return Array.isArray(value)?value as T[]:[];}catch{return[];}}
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 
@@ -39,11 +38,11 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
 }
 
 function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
- const [rows,setRows]=useState<PlannedCostEntry[]>(()=>readRows<PlannedCostEntry>(PLANNED_COST_KEY));
+ const [rows,setRows]=useState<PlannedCostEntry[]>(()=>readPlannedCostRecords());
  const [search,setSearch]=useState("");const [componentName,setComponentName]=useState("");const [componentNumber,setComponentNumber]=useState("");const [processType,setProcessType]=useState("");const [processCategory,setProcessCategory]=useState("");const [plannedQty,setPlannedQty]=useState("1");const [unit,setUnit]=useState<"piece"|"set">("piece");const [plannedRate,setPlannedRate]=useState("");const [notes,setNotes]=useState("");
  const filtered=useMemo(()=>rows.filter(row=>(row.componentName+" "+row.componentNumber+" "+row.processType+" "+row.processCategory+" "+row.notes).toLowerCase().includes(search.toLowerCase().trim())),[rows,search]);
- const save=()=>{const qty=Number(plannedQty),rate=Number(plannedRate);if(!componentName.trim()||!componentNumber.trim()||!processType.trim()||!Number.isFinite(qty)||qty<=0||!Number.isFinite(rate)||rate<0){onNotice("Enter component name, component number, process, valid planned quantity and rate.");return;}const stamp=nowIso();const next=[{id:makeId("planned-cost"),componentName:componentName.trim(),componentNumber:componentNumber.trim(),processType:processType.trim(),processCategory:processCategory.trim(),plannedQty:qty,unit,plannedRate:rate,notes:notes.trim(),createdAt:stamp,updatedAt:stamp},...rows];setRows(next);localStorage.setItem(PLANNED_COST_KEY,JSON.stringify(next));setComponentName("");setComponentNumber("");setProcessType("");setProcessCategory("");setPlannedQty("1");setPlannedRate("");setNotes("");onNotice("Independent planned-cost record saved. It is not linked to the operational component or PO directories.");};
- const remove=(id:string)=>{if(!window.confirm("Delete this planned-cost record?"))return;const next=rows.filter(row=>row.id!==id);setRows(next);localStorage.setItem(PLANNED_COST_KEY,JSON.stringify(next));onNotice("Planned-cost record deleted.");};
+ const save=()=>{const qty=Number(plannedQty),rate=Number(plannedRate);if(!componentName.trim()||!componentNumber.trim()||!processType.trim()||!Number.isFinite(qty)||qty<=0||!Number.isFinite(rate)||rate<0){onNotice("Enter component name, component number, process, valid planned quantity and rate.");return;}const stamp=nowIso();const next=[{id:makeId("planned-cost"),componentName:componentName.trim(),componentNumber:componentNumber.trim(),processType:processType.trim(),processCategory:processCategory.trim(),plannedQty:qty,unit,plannedRate:rate,notes:notes.trim(),createdAt:stamp,updatedAt:stamp},...rows];setRows(next);savePlannedCostRecords(next);setComponentName("");setComponentNumber("");setProcessType("");setProcessCategory("");setPlannedQty("1");setPlannedRate("");setNotes("");onNotice("Independent planned-cost record saved. It is not linked to the operational component or PO directories.");};
+ const remove=(id:string)=>{if(!window.confirm("Delete this planned-cost record?"))return;const next=rows.filter(row=>row.id!==id);setRows(next);savePlannedCostRecords(next);onNotice("Planned-cost record deleted.");};
  return <section className="workspace-page specialized-directory">
   <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> INDEPENDENT COST DIRECTORY</span><span className="module-number">{rows.length} PLANNED COST RECORDS</span></div>
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> FINANCE / PLANNING REFERENCE</div><h1>Component Planned Cost<span>.</span></h1><p>Maintain planned component- and process-wise costs independently. Only Costing &amp; Payment reads these records for comparison.</p></div></div>
