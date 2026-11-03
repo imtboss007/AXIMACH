@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, useAnimationFrame, useMotionValue, useReducedMotion } from "motion/react";
-import { Activity, Boxes, Factory, ShieldCheck, Workflow } from "lucide-react";
+import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, FileUp, Layers3, MessageCircle, Package, Sparkles, Truck, Users, Wallet } from "lucide-react";
 
 type Props = { onSelectModule: (id: string) => void };
 
@@ -12,11 +12,24 @@ function readOrbPreferences(): Record<string, unknown> {
 }
 
 const satellites = [
-  { id: "companies", label: "Factory", Icon: Factory, className: "factory" },
-  { id: "process-map", label: "Process", Icon: Workflow, className: "process" },
-  { id: "inventory", label: "Material", Icon: Boxes, className: "material" },
-  { id: "quality", label: "Quality", Icon: ShieldCheck, className: "quality" },
-  { id: "production", label: "Production", Icon: Activity, className: "production" },
+  { id: "companies", label: "Company", Icon: Building2 },
+  { id: "components", label: "Components", Icon: Box },
+  { id: "purchasing", label: "Purchase Orders", Icon: Package },
+  { id: "vendors", label: "Vendors", Icon: Users },
+  { id: "contact360", label: "Contact 360", Icon: Users },
+  { id: "process-master", label: "Process Directory", Icon: Layers3 },
+  { id: "planned-cost", label: "Planned Cost", Icon: CircleDollarSign },
+  { id: "vendor-capability", label: "Vendor Network", Icon: Users },
+  { id: "inventory", label: "BOM & Inventory", Icon: Boxes },
+  { id: "production", label: "Production Plan", Icon: Activity },
+  { id: "dispatch", label: "Transport", Icon: Truck },
+  { id: "quality", label: "Quality", Icon: ClipboardCheck },
+  { id: "costing", label: "Cost & Payment", Icon: Wallet },
+  { id: "communications", label: "Follow-ups", Icon: MessageCircle },
+  { id: "reports", label: "Reports", Icon: BarChart3 },
+  { id: "ai-insights", label: "AI Insights", Icon: Sparkles },
+  { id: "export", label: "Export", Icon: FileDown },
+  { id: "import", label: "Import", Icon: FileUp },
 ];
 
 export default function AXIMACHOrb({ onSelectModule }: Props) {
@@ -105,10 +118,10 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             animate={reducedMotion || reduceMotion || paused ? undefined : { rotate: -360 }}
             transition={{ duration: speed === "Fast" ? 34 : speed === "Slow" ? 90 : 58, repeat: Infinity, ease: "linear" }}
           />
-          {satellites.map(({ id, label, Icon, className }, index) => (
+          {satellites.map(({ id, label, Icon }, index) => {\n            const angle = (index / satellites.length) * Math.PI * 2 - Math.PI / 2;\n            const left = 50 + Math.cos(angle) * 46;\n            const top = 50 + Math.sin(angle) * 43;\n            return (
             <motion.button
               key={id}
-              className={`ax-orb-satellite ax-orb-satellite-${className}`}
+              className="ax-orb-satellite"\n              style={{ left: `${left}%`, top: `${top}%`, right: "auto", bottom: "auto", transform: "translate(-50%, -50%)" }}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => onSelectModule(id)}
               aria-label={`Open ${label} module`}
@@ -122,7 +135,8 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
               <span><Icon size={17} strokeWidth={1.8} /></span>
               <small>{label}</small>
             </motion.button>
-          ))}
+            );
+          })}
         </div>
       </motion.div>
       <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> DRAG THE SPHERE TO ROTATE <i /> SELECT AN ORBIT NODE TO OPEN A WORKSPACE</div>
