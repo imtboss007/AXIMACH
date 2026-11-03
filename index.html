@@ -9,48 +9,74 @@
     <meta name="application-name" content="AXIMACH" />
     <title>AXIMACH — Manufacturing OS</title>
   </head>
-  <body>
-    <div id="root">
-      <main id="aximach-startup" style="min-height:100vh;display:grid;place-items:center;padding:32px;background:#0b1626;color:#e8f2ff;font-family:Segoe UI,Arial,sans-serif;text-align:center">
-        <div>
-          <div style="width:42px;height:42px;margin:0 auto 18px;border:3px solid rgba(152,196,240,.25);border-top-color:#69c6ed;border-radius:50%;animation:aximach-spin 1s linear infinite"></div>
-          <h1 style="margin:0 0 8px;font-size:24px;letter-spacing:2px">AXIMACH</h1>
-          <p style="margin:0;color:#9ab2ce">Starting Manufacturing OS…</p>
-        </div>
-      </main>
-      <style>@keyframes aximach-spin{to{transform:rotate(360deg)}}</style>
+  <body style="margin:0;min-width:320px;background:#0b1626">
+    <div id="root"></div>
+    <div id="aximach-boot-screen" role="status" style="position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:32px;box-sizing:border-box;background:#0b1626;color:#e8f2ff;font:14px/1.6 Segoe UI,Arial,sans-serif;text-align:center">
+      <div style="max-width:900px;width:100%">
+        <div id="aximach-boot-spinner" style="width:42px;height:42px;margin:0 auto 18px;border:3px solid rgba(152,196,240,.25);border-top-color:#69c6ed;border-radius:50%;animation:aximach-spin 1s linear infinite"></div>
+        <h1 id="aximach-boot-title" style="margin:0 0 8px;font-size:25px;letter-spacing:2px">AXIMACH</h1>
+        <p id="aximach-boot-message" style="margin:0;color:#9ab2ce">Starting Manufacturing OS…</p>
+        <pre id="aximach-boot-detail" style="display:none;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;margin:22px 0 0;padding:16px;background:#101f33;border:1px solid #36506b;border-radius:8px;color:#ffd5a6"></pre>
+      </div>
     </div>
+    <style>
+      @keyframes aximach-spin{to{transform:rotate(360deg)}}
+      #aximach-boot-screen.aximach-boot-error{place-items:start center;overflow:auto;text-align:left}
+      #aximach-boot-screen.aximach-boot-error #aximach-boot-spinner{display:none}
+      #aximach-boot-screen.aximach-boot-error #aximach-boot-title{letter-spacing:0}
+    </style>
     <script>
       (() => {
-        const showStartupFailure = (message) => {
-          const root = document.getElementById("root");
-          if (!root || !root.querySelector("#aximach-startup")) return;
-          const page = document.createElement("main");
-          page.style.cssText = "min-height:100vh;box-sizing:border-box;padding:48px 24px;background:#0b1626;color:#e8f2ff;font:14px/1.6 Segoe UI,Arial,sans-serif";
-          const title = document.createElement("h1");
-          title.textContent = "AXIMACH could not start";
-          title.style.cssText = "font-size:26px;margin:0 0 12px;color:#fff";
-          const detail = document.createElement("p");
-          detail.textContent = message || "The application did not finish loading.";
-          detail.style.cssText = "max-width:900px;color:#b9cbe0;overflow-wrap:anywhere";
-          const help = document.createElement("p");
-          help.textContent = "Close AXIMACH and reopen it. If this message remains, send a screenshot of this screen to support.";
-          help.style.color = "#8da7c4";
-          page.append(title, detail, help);
-          root.replaceChildren(page);
+        const overlay = document.getElementById("aximach-boot-screen");
+        const message = document.getElementById("aximach-boot-message");
+        const title = document.getElementById("aximach-boot-title");
+        const detail = document.getElementById("aximach-boot-detail");
+        let finished = false;
+        const fail = (heading, info) => {
+          if (finished || !overlay) return;
+          finished = true;
+          overlay.classList.add("aximach-boot-error");
+          title.textContent = heading || "AXIMACH could not start";
+          message.textContent = "The application window opened, but the workspace did not load. Send a screenshot of this screen.";
+          detail.style.display = "block";
+          detail.textContent = info || "No error details were reported. Check the AXIMACH startup.log file.";
         };
         window.addEventListener("error", (event) => {
-          showStartupFailure(event.message || "A startup script failed to load.");
-        });
+          const target = event.target;
+          const resource = target && target !== window ? (target.src || target.href || target.tagName) : "";
+          fail("AXIMACH startup error", event.message || (resource ? "Failed to load: " + resource : "A startup script failed."));
+        }, true);
         window.addEventListener("unhandledrejection", (event) => {
           const reason = event.reason;
-          showStartupFailure(reason && reason.message ? reason.message : String(reason || "An unexpected startup error occurred."));
+          fail("AXIMACH startup error", reason && reason.stack ? reason.stack : String(reason || "Unexpected promise rejection"));
         });
-        window.setTimeout(() => {
-          showStartupFailure("The application did not finish initializing within 20 seconds. The installed frontend may be missing or blocked.");
-        }, 20000);
+        const startedAt = Date.now();
+        const monitor = window.setInterval(() => {
+          const root = document.getElementById("root");
+          const appShell = root && root.querySelector(".app-shell");
+          const appError = root && root.querySelector('[data-aximach-startup-error="true"]');
+          if (appShell) {
+            finished = true;
+            overlay.style.display = "none";
+            window.clearInterval(monitor);
+          } else if (appError) {
+            finished = true;
+            overlay.style.display = "none";
+            window.clearInterval(monitor);
+          } else if (Date.now() - startedAt > 10000) {
+            const resources = performance.getEntriesByType("resource")
+              .map(item => item.name)
+              .filter(name => /assets\\/.*\\.(js|css)|index-.*\\.(js|css)/i.test(name))
+              .slice(-20);
+            fail("AXIMACH workspace did not mount",
+              "Startup waited 10 seconds but .app-shell was not created.\n\nCurrent URL: " + location.href
+              + "\nDocument state: " + document.readyState
+              + "\nRoot element: " + (root ? "present" : "missing")
+              + "\nLoaded app assets:\n" + (resources.join("\n") || "No bundled JS/CSS resource was reported."));
+            window.clearInterval(monitor);
+          }
+        }, 250);
       })();
     </script>
-    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
