@@ -408,7 +408,7 @@ type CostingComponent={id:string;code:string;name:string;revision:string;materia
 type VendorDraft = Omit<VendorRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 const emptyVendorDraft = (): VendorDraft => ({
   company:"",contact:"",role:"",phone:"",whatsappNumber:"",email:"",address:"",
-  processes:"",machines:"",materials:"",notes:"",status:"Unverified contact — review",vendorType:"",transportRoutes:[],
+  processes:"",machines:"",materials:"",notes:"",status:"Unverified contact — review",vendorType:"",transportRoutes:[],additionalPhones:[],
   sourceContactId:"",whatsappSyncedAt:""
 });
 function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelectModule, onScheduleVendor }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; onSelectModule:(id:string)=>void; onScheduleVendor:(vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string})=>void }) {
@@ -426,25 +426,26 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
     return (v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.whatsappNumber+" "+v.email+" "+v.address+" "+v.processes+" "+v.machines+" "+v.materials+" "+v.notes+" "+v.status+" "+linkedText).toLowerCase().includes(search.toLowerCase().trim());
   });
   const beginNew=()=>{setSelectedId("");setDraft(emptyVendorDraft());setEditing(true);};
-  const beginEdit=(v:VendorRecord)=>{setSelectedId(v.id);setDraft({company:v.company,contact:v.contact,role:v.role,phone:v.phone,whatsappNumber:v.whatsappNumber,email:v.email,address:v.address,processes:v.processes,machines:v.machines,materials:v.materials,notes:v.notes,status:v.status,vendorType:v.vendorType||"",transportRoutes:v.transportRoutes||[],sourceContactId:v.sourceContactId,whatsappSyncedAt:v.whatsappSyncedAt});setEditing(true);};
+  const beginEdit=(v:VendorRecord)=>{setSelectedId(v.id);setDraft({company:v.company,contact:v.contact,role:v.role,phone:v.phone,whatsappNumber:v.whatsappNumber,email:v.email,address:v.address,processes:v.processes,machines:v.machines,materials:v.materials,notes:v.notes,status:v.status,vendorType:v.vendorType||"",transportRoutes:v.transportRoutes||[],additionalPhones:v.additionalPhones||[],sourceContactId:v.sourceContactId,whatsappSyncedAt:v.whatsappSyncedAt});setEditing(true);};
   const saveContact=()=>{
     if(!draft.company.trim()||!draft.contact.trim()){onNotice("Vendor company and contact person are required.");return;}
     const phone=String(draft.phone||"").replace(/\D/g,"");
     const whatsappNumber=String(draft.whatsappNumber||"").replace(/\D/g,"");
+    const additionalPhones=[...new Set((draft.additionalPhones||[]).map(value=>String(value||"").replace(/\D/g,"")).filter(value=>value.length>=8&&value.length<=15&&value!==phone&&value!==whatsappNumber))];
     const duplicate=contacts.find(v=>v.id!==selectedId&&phone&&String(v.phone||"").replace(/\D/g,"")===phone);
     if(duplicate){onNotice("This phone number is already linked to "+duplicate.company+". Edit that record to avoid duplicate vendor IDs.");return;}
     const stamp=nowIso();const id=selectedId||makeId("vendor");
-    update(current=>{const old=current.vendors.find(v=>v.id===id);const record:VendorRecord={...draft,company:draft.company.trim(),contact:draft.contact.trim(),phone,whatsappNumber,vendorType:draft.vendorType||"",id,createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};return {...current,vendors:[...current.vendors.filter(v=>v.id!==id),record]};});
+    update(current=>{const old=current.vendors.find(v=>v.id===id);const record:VendorRecord={...draft,company:draft.company.trim(),contact:draft.contact.trim(),phone,whatsappNumber,additionalPhones,vendorType:draft.vendorType||"",id,createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};return {...current,vendors:[...current.vendors.filter(v=>v.id!==id),record]};});
     setSelectedId(id);setEditing(false);onNotice(syncStatus==="synced"?"Vendor saved to shared AXIMACH data.":"Vendor saved; cross-device sync activates when the existing AXIMACH server is connected and reachable.");
   };
   const archive=(v:VendorRecord)=>{if(!window.confirm("Archive this vendor? Historical operations and quotations will retain the vendor ID."))return;const stamp=nowIso();update(current=>({...current,vendors:current.vendors.map(x=>x.id===v.id?{...x,deletedAt:stamp,updatedAt:stamp}:x)}));setSelectedId("");setEditing(false);onNotice("Vendor archived; historical operation and quotation links were retained.");};
   const contactSuggestions = [
-    ...linkedPeople.map(person=>({name:person.name,phone:person.phone||person.whatsapp,whatsapp:person.whatsapp||person.phone,email:person.email,role:person.role,linkedId:person.linkedId})),
-    ...contacts.filter(v=>v.id!==selectedId).map(v=>({name:v.contact,phone:v.phone,whatsapp:v.whatsappNumber||v.phone,email:v.email,role:v.role,linkedId:v.id}))
+    ...linkedPeople.map(person=>({name:person.name,phone:person.phone||person.whatsapp,whatsapp:person.whatsapp||person.phone,additionalPhones:person.additionalPhones||[],email:person.email,role:person.role,linkedId:person.linkedId})),
+    ...contacts.filter(v=>v.id!==selectedId).map(v=>({name:v.contact,phone:v.phone,whatsapp:v.whatsappNumber||v.phone,additionalPhones:v.additionalPhones||[],email:v.email,role:v.role,linkedId:v.id}))
   ].filter(person=>person.name.trim());
   const fillContactFromSuggestion = (value:string) => {
     const match=contactSuggestions.find(person=>person.name.trim().toLowerCase()===value.trim().toLowerCase());
-    setDraft(current=>match?{...current,contact:match.name,phone:match.phone||current.phone,whatsappNumber:match.whatsapp||match.phone||current.whatsappNumber,email:match.email||current.email,role:match.role||current.role}:{...current,contact:value});
+    setDraft(current=>match?{...current,contact:match.name,phone:match.phone||current.phone,whatsappNumber:match.whatsapp||match.phone||current.whatsappNumber,additionalPhones:match.additionalPhones||current.additionalPhones,email:match.email||current.email,role:match.role||current.role}:{...current,contact:value});
   };
   const toggleProcessCapability = (processType:string) => {
     const selected=new Set(draft.processes.split(/[,;|]/).map(value=>value.trim()).filter(Boolean));
@@ -470,6 +471,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
             <label>Role / department<input value={draft.role} onChange={e=>setDraft({...draft,role:e.target.value})} placeholder="Sales, production, accounts…"/></label>
             <label>Phone with country code<input value={draft.phone} onChange={e=>setDraft({...draft,phone:e.target.value})} placeholder="Country code + number"/></label>
             <label>WhatsApp number<input value={draft.whatsappNumber} onChange={e=>setDraft({...draft,whatsappNumber:e.target.value})} placeholder="Leave blank to use phone"/></label>
+            <label>Additional phone numbers<input value={(draft.additionalPhones||[]).join(", ")} onChange={e=>setDraft({...draft,additionalPhones:e.target.value.split(/[,;|]/).map(value=>value.trim()).filter(Boolean)})} placeholder="Alternate office / mobile numbers, comma-separated"/></label>
             <label>Email<input type="email" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="name@company.com"/></label>
             <label className="editor-wide">Address<input value={draft.address} onChange={e=>setDraft({...draft,address:e.target.value})} placeholder="Vendor site / dispatch address"/></label>
             <div className="editor-wide vendor-process-capabilities"><strong>Process capabilities · Process Directory</strong>
