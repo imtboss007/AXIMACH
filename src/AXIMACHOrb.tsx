@@ -118,10 +118,15 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             animate={reducedMotion || reduceMotion || paused ? undefined : { rotate: -360 }}
             transition={{ duration: speed === "Fast" ? 34 : speed === "Slow" ? 90 : 58, repeat: Infinity, ease: "linear" }}
           />
-          {satellites.map(({ id, label, Icon }, index) => {\n            const angle = (index / satellites.length) * Math.PI * 2 - Math.PI / 2;\n            const left = 50 + Math.cos(angle) * 46;\n            const top = 50 + Math.sin(angle) * 43;\n            return (
+          {satellites.map(({ id, label, Icon }, index) => {
+            const angle = (index / satellites.length) * Math.PI * 2 - Math.PI / 2;
+            const left = 50 + Math.cos(angle) * 46;
+            const top = 50 + Math.sin(angle) * 43;
+            return (
             <motion.button
               key={id}
-              className="ax-orb-satellite"\n              style={{ left: `${left}%`, top: `${top}%`, right: "auto", bottom: "auto", transform: "translate(-50%, -50%)" }}
+              className="ax-orb-satellite"
+              style={{ left: `${left}%`, top: `${top}%`, right: "auto", bottom: "auto", transform: "translate(-50%, -50%)" }}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => onSelectModule(id)}
               aria-label={`Open ${label} module`}
