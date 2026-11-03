@@ -58,7 +58,8 @@ export type OperationRecord = {
   quantity: number; completed: number; accepted: number; rejected: number;
   ratePerPart: number; actualRatePerPart: number; transportVendorId: string; transportPickup: string; transportDelivery: string;
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
-  paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;\n  executionType?: "Internal" | "Outsourced"; toleranceCategory?: "Standard" | "Precision" | "Close" | "Ultra Precision"; inspectionRequired?: boolean;
+  paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;
+  executionType?: "Internal" | "Outsourced"; toleranceCategory?: "Standard" | "Precision" | "Close" | "Ultra Precision"; inspectionRequired?: boolean;
   branch: string; parentId: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type QuotationRecord = {
