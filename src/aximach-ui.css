@@ -1201,3 +1201,15 @@
 .vendor-assignment-chips em{font-style:normal;font-size:9px;color:var(--muted);background:var(--blue-soft);padding:4px 6px;border-radius:6px}
 @media(max-width:1100px){.process-map-filter-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}.production-quantity-grid,.company-rollup-totals{grid-template-columns:repeat(3,minmax(100px,1fr))}.process-map-support-grids{grid-template-columns:1fr}}
 @media(max-width:700px){.process-map-filter-grid{grid-template-columns:repeat(2,minmax(115px,1fr))}.production-quantity-grid,.company-rollup-totals{grid-template-columns:repeat(2,minmax(100px,1fr))}.process-gantt-row{grid-template-columns:1fr;gap:6px}.production-histogram-row{grid-template-columns:minmax(90px,125px) minmax(50px,1fr) 35px}.production-histogram-row small{display:none}.vendor-route-row,.planned-cost-process-row{grid-template-columns:1fr}.process-table-bulkbar{align-items:stretch}.process-visual-style-picker{width:100%;justify-content:space-between}}
+
+.process-gantt-axis{display:grid;grid-template-columns:minmax(180px,240px) minmax(260px,1fr);gap:12px;align-items:center;margin:8px 0;color:var(--muted);font:9px "DM Mono"}
+.process-gantt-axis>div{display:grid;gap:4px;text-align:center;border-bottom:1px solid var(--line);padding-bottom:6px}
+.process-gantt-axis small{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.histogram-style-picker{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:10px}
+.histogram-style-picker select{max-width:130px}
+.production-stacked-bar{display:flex!important}
+.production-stacked-bar i{flex:0 0 auto;background:linear-gradient(90deg,#169d75,#54cfa3)!important}
+.production-stacked-bar b{display:block;flex:0 0 auto;height:100%;background:linear-gradient(90deg,#c94358,#f08b77)}
+.production-donut{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;position:relative;justify-self:center}
+.production-donut:after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--panel)}
+.production-donut b{position:relative;z-index:1;font-size:9px;color:var(--ink)}
