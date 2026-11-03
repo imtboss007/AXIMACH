@@ -1102,3 +1102,14 @@
 .operations-workspace .module-record-form{margin-top:12px}
 @media(max-width:800px){.production-job-actions{min-width:0}.operations-workspace .costing-table{min-width:880px}}
 @media(max-width:600px){.operations-workspace .workspace-title-row{align-items:flex-start;flex-direction:column}.operations-workspace .workspace-title-actions{width:100%;flex-wrap:wrap}.operations-workspace .production-job-actions{min-width:230px}}
+
+/* Insights, report and import/export workspace layout */
+.intelligence-workspace{display:flex;flex-direction:column;gap:16px}
+.intelligence-export-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:10px}
+.intelligence-export-row select{min-width:220px;min-height:38px;padding:8px 10px;border:1px solid rgba(108,160,203,.3);border-radius:8px;background:#0b2541;color:#e4f1ff}
+.insight-high{border-color:rgba(239,91,91,.35)!important;color:#ff9b9b!important}
+.insight-medium{border-color:rgba(228,173,68,.35)!important;color:#ffd28b!important}
+.insight-low{border-color:rgba(91,181,133,.35)!important;color:#9be4bd!important}
+.intelligence-workspace .specialized-record-copy{gap:5px}
+.intelligence-workspace .metric-card{min-width:0}
+@media(max-width:640px){.intelligence-export-row{align-items:stretch;flex-direction:column}.intelligence-export-row select{width:100%;min-width:0}.intelligence-workspace .specialized-record{align-items:flex-start}}
