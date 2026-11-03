@@ -35,12 +35,12 @@ export type VendorTransportRoute = { id: string; fromLocation: string; toLocatio
 export type VendorRecord = {
   id: string; company: string; contact: string; role: string; phone: string; whatsappNumber: string;
   email: string; address: string; processes: string; machines: string; materials: string; notes: string;
-  status: string; sourceContactId: string; whatsappSyncedAt: string; vendorType?: string; transportRoutes?: VendorTransportRoute[];
+  status: string; sourceContactId: string; whatsappSyncedAt: string; vendorType?: string; transportRoutes?: VendorTransportRoute[]; additionalPhones?: string[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ContactProfileRecord = {
   id: string; linkedType: "company" | "vendor"; linkedId: string; name: string; role: string; group?: string;
-  phone: string; whatsapp: string; email: string; address: string; followUpDate: string; history: string;
+  phone: string; whatsapp: string; additionalPhones?: string[]; email: string; address: string; followUpDate: string; history: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ProcessDefinitionRecord = {
