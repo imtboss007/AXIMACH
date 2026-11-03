@@ -67,6 +67,10 @@ export type QuotationRecord = {
   transportCost: number; leadDays: number; status: "Received" | "Selected" | "Rejected" | "Expired";
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type PaymentTransactionRecord = {
+  id: string; operationId: string; poId: string; poLineId: string; componentId: string;
+  amount: number; paidAt: string; reference: string; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type MaterialRecord = {
   id: string; code: string; name: string; grade: string; unit: string; specification: string;
   preferredVendorId: string; ratePerUnit: number; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
@@ -89,6 +93,7 @@ export type ManufacturingData = {
   quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
   contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
+  paymentTransactions: PaymentTransactionRecord[];
 };
 
 export const nowIso = () => new Date().toISOString();
@@ -101,7 +106,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
   operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: [],
-  contactProfiles: [], processDefinitions: [], plannedCosts: []
+  contactProfiles: [], processDefinitions: [], plannedCosts: [], paymentTransactions: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -120,7 +125,8 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
     contactProfiles: Array.isArray(value?.contactProfiles) ? value.contactProfiles : empty.contactProfiles,
     processDefinitions: Array.isArray(value?.processDefinitions) ? value.processDefinitions : empty.processDefinitions,
-    plannedCosts: Array.isArray(value?.plannedCosts) ? value.plannedCosts : empty.plannedCosts
+    plannedCosts: Array.isArray(value?.plannedCosts) ? value.plannedCosts : empty.plannedCosts,
+    paymentTransactions: Array.isArray(value?.paymentTransactions) ? value.paymentTransactions : empty.paymentTransactions
   };
 }
 
@@ -216,7 +222,8 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
     contactProfiles: mergeRows(local.contactProfiles, remote.contactProfiles),
     processDefinitions: mergeRows(local.processDefinitions, remote.processDefinitions),
-    plannedCosts: mergeRows(local.plannedCosts, remote.plannedCosts)
+    plannedCosts: mergeRows(local.plannedCosts, remote.plannedCosts),
+    paymentTransactions: mergeRows(local.paymentTransactions, remote.paymentTransactions)
   };
 }
 
