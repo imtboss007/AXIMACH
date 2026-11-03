@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Activity, ArrowRight, CalendarClock, Check, ClipboardCheck, FileDown, Package, Plus, RotateCcw, Search, ShieldCheck, Truck, Workflow, Wrench } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type InspectionMeasurementRecord } from "./manufacturingData";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
@@ -80,13 +80,62 @@ export function TransportDispatchWorkspace({onBack,onNotice,notice,onSelectModul
 
 export function QualityInspectionWorkspace({onBack,onNotice,notice}:Props){
  const {data,update}=useManufacturingData();const ops=activeRows(data.operations);const vendors=activeRows(data.vendors),components=activeRows(data.components),pos=activeRows(data.purchaseOrders);
+ const measurements=activeRows(data.inspectionMeasurements||[]);
  const [search,setSearch]=useState("");
- const filtered=ops.filter(op=>(op.name+" "+op.category+" "+op.status+" "+op.inspectionResult+" "+op.qualityNotes+" "+(components.find(c=>c.id===op.componentId)?.partNumber||"")+" "+(pos.find(po=>po.id===op.poId)?.number||"")).toLowerCase().includes(search.toLowerCase().trim()));
- const patch=(id:string,key:"completed"|"accepted"|"rejected"|"inspectionResult"|"qualityNotes"|"status",value:string|number)=>{update(current=>({...current,operations:current.operations.map(op=>op.id===id?{...op,[key]:value,updatedAt:nowIso()}:op)}));onNotice("Inspection values saved to the linked process operation.");};
+ const [measurementOperationId,setMeasurementOperationId]=useState("");
+ const [characteristic,setCharacteristic]=useState("");
+ const [nominalValue,setNominalValue]=useState("");
+ const [lowerLimit,setLowerLimit]=useState("");
+ const [upperLimit,setUpperLimit]=useState("");
+ const [measuredValue,setMeasuredValue]=useState("");
+ const [unit,setUnit]=useState("mm");
+ const [measurementNotes,setMeasurementNotes]=useState("");
+ const filtered=ops.filter(op=>{
+  const historyText=measurements.filter(item=>item.operationId===op.id).map(item=>[item.characteristic,item.result,item.notes].join(" ")).join(" ");
+  return (op.name+" "+op.category+" "+op.status+" "+op.inspectionResult+" "+op.qualityNotes+" "+historyText+" "+(components.find(c=>c.id===op.componentId)?.partNumber||"")+" "+(pos.find(po=>po.id===op.poId)?.number||"")).toLowerCase().includes(search.toLowerCase().trim());
+ });
+ const selectedMeasurementOperation=filtered.find(op=>op.id===measurementOperationId)||filtered[0];
+ const patch=(id:string,key:"completed"|"accepted"|"rejected"|"inspectionResult"|"qualityNotes"|"status",value:string|number)=>{
+  update(current=>({...current,operations:current.operations.map(op=>op.id===id?{...op,[key]:value,updatedAt:nowIso()}:op)}));
+  onNotice("Inspection values saved to the linked process operation.");
+ };
+ const saveMeasurement=()=>{
+  const operation=ops.find(op=>op.id===(measurementOperationId||selectedMeasurementOperation?.id));
+  if(!operation){onNotice("Select a saved PO-linked operation before recording a measurement.");return;}
+  const value=Number(measuredValue);
+  const nominal=nominalValue.trim()===""?null:Number(nominalValue);
+  const lower=lowerLimit.trim()===""?null:Number(lowerLimit);
+  const upper=upperLimit.trim()===""?null:Number(upperLimit);
+  if(!characteristic.trim()||measuredValue.trim()===""||!Number.isFinite(value)){onNotice("Enter a characteristic and a valid measured value.");return;}
+  if((nominalValue.trim()!==""&&!Number.isFinite(nominal))||(lowerLimit.trim()!==""&&!Number.isFinite(lower))||(upperLimit.trim()!==""&&!Number.isFinite(upper))){onNotice("Nominal value and tolerance limits must be valid numbers.");return;}
+  if(lower!==null&&upper!==null&&lower>upper){onNotice("Lower tolerance cannot exceed upper tolerance.");return;}
+  const result:InspectionMeasurementRecord["result"]=lower===null&&upper===null?"Not assessed":((lower===null||value>=lower)&&(upper===null||value<=upper)?"Pass":"Fail");
+  const stamp=nowIso();
+  const row:InspectionMeasurementRecord={id:makeId("inspection"),operationId:operation.id,poId:operation.poId,poLineId:operation.poLineId,componentId:operation.componentId,characteristic:characteristic.trim(),nominalValue:nominal,lowerLimit:lower,upperLimit:upper,measuredValue:value,unit:unit.trim(),result,notes:measurementNotes.trim(),inspectedAt:stamp,createdAt:stamp,updatedAt:stamp};
+  update(current=>({...current,inspectionMeasurements:[...current.inspectionMeasurements,row]}));
+  setCharacteristic("");setNominalValue("");setLowerLimit("");setUpperLimit("");setMeasuredValue("");setMeasurementNotes("");
+  onNotice("Measurement saved as an immutable inspection-history record linked to the original PO component and process operation. Result: "+result+".");
+ };
  return <section className="workspace-page operations-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> OPERATION-LINKED INSPECTION</span></div>{notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
-  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUALITY / INSPECTION REGISTER</div><h1>Quality Inspection<span>.</span></h1><p>Inspection measurements and accepted/rejected quantities update the same operation record used by Process Plan and Costing.</p></div></div>
-  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search PO, component or operation…"/></label><span className="module-number">{filtered.length} OPERATIONS</span></div>
-  <section className="surface-panel">{filtered.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>PO / component</th><th>Operation</th><th>Completed</th><th>Accepted</th><th>Rejected</th><th>Inspection result</th><th>Status</th></tr></thead><tbody>{filtered.map(op=><tr key={op.id}><td><strong>{pos.find(po=>po.id===op.poId)?.number||"PO missing"}</strong><small>{components.find(c=>c.id===op.componentId)?.partNumber||"Component missing"}</small></td><td><strong>{op.name}</strong><small>{vendors.find(v=>v.id===op.vendorId)?.company||"Vendor not assigned"}</small><small>{op.qualityNotes||"No inspection requirement"}</small></td><td><input type="number" min="0" max={op.quantity} value={op.completed} onChange={e=>patch(op.id,"completed",Math.max(0,Number(e.target.value)||0))}/></td><td><input type="number" min="0" max={op.completed} value={op.accepted} onChange={e=>patch(op.id,"accepted",Math.max(0,Number(e.target.value)||0))}/></td><td><input type="number" min="0" max={op.completed} value={op.rejected} onChange={e=>patch(op.id,"rejected",Math.max(0,Number(e.target.value)||0))}/></td><td><input value={op.inspectionResult} onChange={e=>patch(op.id,"inspectionResult",e.target.value)} placeholder="Measured result / NCR ref"/></td><td><select value={op.status} onChange={e=>patch(op.id,"status",e.target.value)}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></td></tr>)}</tbody></table></div>:<div className="module-empty-state"><ClipboardCheck size={24}/><h3>{search?"No inspection rows match":"No process operations to inspect"}</h3><p>Add process operations in Process Plan; inspection records will appear here linked to the PO component.</p></div>}</section>
-  <div className="module-safety-note"><ShieldCheck size={15}/><span>Measurement values and quality notes entered here remain on the original process operation. A quality hold is not automatically cleared by entering accepted quantities.</span></div>
+  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUALITY / INSPECTION REGISTER</div><h1>Quality Inspection<span>.</span></h1><p>Inspection measurements, tolerance results, accepted/rejected quantities and inspection history stay linked to the same PO component and process operation.</p></div></div>
+  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search PO, component, operation or measurement…"/></label><span className="module-number">{filtered.length} OPERATIONS · {measurements.length} MEASUREMENTS</span></div>
+  <section className="surface-panel"><div className="panel-heading"><div><h3>Record an inspection measurement</h3><p>Each saved reading is retained as a dated history entry; tolerance checks are evaluated against the entered limits.</p></div></div>
+   {ops.length?<div className="module-record-form specialized-form">
+    <label className="module-form-wide">PO component / operation<select value={measurementOperationId||selectedMeasurementOperation?.id||""} onChange={e=>setMeasurementOperationId(e.target.value)}><option value="">Select operation</option>{ops.map(op=><option key={op.id} value={op.id}>{pos.find(po=>po.id===op.poId)?.number||"PO"} · {components.find(c=>c.id===op.componentId)?.partNumber||"Component"} · {op.name}</option>)}</select></label>
+    <label>Characteristic *<input value={characteristic} onChange={e=>setCharacteristic(e.target.value)} placeholder="Bore diameter, flatness, length…"/></label>
+    <label>Unit<input value={unit} onChange={e=>setUnit(e.target.value)} placeholder="mm, µm, kg…"/></label>
+    <label>Nominal value<input type="number" step="any" value={nominalValue} onChange={e=>setNominalValue(e.target.value)} placeholder="Optional"/></label>
+    <label>Lower limit<input type="number" step="any" value={lowerLimit} onChange={e=>setLowerLimit(e.target.value)} placeholder="Optional"/></label>
+    <label>Upper limit<input type="number" step="any" value={upperLimit} onChange={e=>setUpperLimit(e.target.value)} placeholder="Optional"/></label>
+    <label>Measured value *<input type="number" step="any" value={measuredValue} onChange={e=>setMeasuredValue(e.target.value)} placeholder="Actual reading"/></label>
+    <label className="module-form-wide">Inspection notes<input value={measurementNotes} onChange={e=>setMeasurementNotes(e.target.value)} placeholder="Gauge, instrument ID, sampling point or NCR reference…"/></label>
+    <div className="module-form-actions"><button className="button-primary" onClick={saveMeasurement}><Plus size={14}/> Save measurement</button></div>
+   </div>:<div className="module-empty-state"><ClipboardCheck size={24}/><h3>No process operations to inspect</h3><p>Add process operations in Process Plan; measurement capture will then be linked to the PO component.</p></div>}
+  </section>
+  <section className="surface-panel">{filtered.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>PO / component</th><th>Operation / requirement</th><th>Completed</th><th>Accepted</th><th>Rejected</th><th>Inspection result</th><th>Measurement history</th><th>Status</th></tr></thead><tbody>{filtered.map(op=>{
+   const history=measurements.filter(item=>item.operationId===op.id).sort((a,b)=>(b.inspectedAt||"").localeCompare(a.inspectedAt||""));
+   return <tr key={op.id}><td><strong>{pos.find(po=>po.id===op.poId)?.number||"PO missing"}</strong><small>{components.find(c=>c.id===op.componentId)?.partNumber||"Component missing"}</small></td><td><strong>{op.name}</strong><small>{vendors.find(v=>v.id===op.vendorId)?.company||"Vendor not assigned"}</small><small>{op.qualityNotes||"No inspection requirement"}</small></td><td><input type="number" min="0" max={op.quantity} value={op.completed} onChange={e=>patch(op.id,"completed",Math.max(0,Number(e.target.value)||0))}/></td><td><input type="number" min="0" max={op.completed} value={op.accepted} onChange={e=>patch(op.id,"accepted",Math.max(0,Number(e.target.value)||0))}/></td><td><input type="number" min="0" max={op.completed} value={op.rejected} onChange={e=>patch(op.id,"rejected",Math.max(0,Number(e.target.value)||0))}/></td><td><input value={op.inspectionResult} onChange={e=>patch(op.id,"inspectionResult",e.target.value)} placeholder="Measured result / NCR ref"/></td><td><div className="inspection-history-cell">{history.length?history.map(item=><small key={item.id}><strong>{item.characteristic}:</strong> {item.measuredValue} {item.unit} · {item.result}{item.lowerLimit!==null||item.upperLimit!==null?" · "+(item.lowerLimit??"−∞")+" to "+(item.upperLimit??"+∞"):""} · {new Date(item.inspectedAt).toLocaleString("en-IN")}{item.notes?" · "+item.notes:""}</small>):<small>No measurement history</small>}</div></td><td><select value={op.status} onChange={e=>patch(op.id,"status",e.target.value)}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></td></tr>;
+  })}</tbody></table></div>:<div className="module-empty-state"><ClipboardCheck size={24}/><h3>{search?"No inspection rows match":"No process operations to inspect"}</h3><p>Add process operations in Process Plan; inspection records will appear here linked to the PO component.</p></div>}</section>
+  <div className="module-safety-note"><ShieldCheck size={15}/><span>Measurement readings are append-only inspection history. Existing operation measurements and quantity/status fields remain attached to the same PO component. A quality hold is not automatically cleared by a passing reading.</span></div>
  </section>;
 }
