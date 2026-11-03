@@ -13,9 +13,9 @@ const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
   {key:"plannedStart",label:"Planned start"},{key:"plannedEnd",label:"Planned target"},
   {key:"price",label:"Price / piece"},{key:"amount",label:"Process + transport amount"}
 ];
-type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string };
+type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean };
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
-  name: "", category: "", machine: "", vendorId: "", status: "Queued", plannedStart: "", plannedEnd: line?.targetDelivery || "", actualStart: "", actualEnd: "",
+  name: "", category: "", machine: "", vendorId: "", status: "Planned", executionType:"Outsourced", toleranceCategory:"Standard", inspectionRequired:false, plannedStart: "", plannedEnd: line?.targetDelivery ? (line.targetDelivery.includes("T")?line.targetDelivery:line.targetDelivery+"T08:00") : "", actualStart: "", actualEnd: "",
   quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0, paymentStatus:"Unpaid", paidAmount:0, paymentReference:"", subcategory:"",
   transportVendorId: "", transportCost: 0, transportPickup: "", transportDelivery: "", qualityNotes: "", inspectionResult: "", notes: "", branch: "Main route"
 });
@@ -48,6 +48,19 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [exportFields,setExportFields] = useState<ProcessExportField[]>(["operation","quantity","status","plannedStart","plannedEnd"]);
   const [exportScope,setExportScope] = useState<"visible"|"selected-branch">("visible");
   const [exportArrows,setExportArrows] = useState(true);
+  const [visualStyle,setVisualStyle] = useState<"sphere"|"vortex"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined">("sphere");
+  const [ganttScale,setGanttScale] = useState<"day"|"week"|"month">("week");
+  const [statusFilters,setStatusFilters] = useState<string[]>([]);
+  const [executionFilters,setExecutionFilters] = useState<string[]>([]);
+  const [categoryFilters,setCategoryFilters] = useState<string[]>([]);
+  const [toleranceFilters,setToleranceFilters] = useState<string[]>([]);
+  const [paymentFilters,setPaymentFilters] = useState<string[]>([]);
+  const [selectedOperationIds,setSelectedOperationIds] = useState<string[]>([]);
+  const [bulkStatus,setBulkStatus] = useState("");
+  const [bulkVendorId,setBulkVendorId] = useState("");
+  const [bulkStart,setBulkStart] = useState("");
+  const [bulkEnd,setBulkEnd] = useState("");
+
 
   const companyOrders = purchaseOrders.filter(p => p.companyId === companyId);
   const selectedPO = purchaseOrders.find(p => p.id === poId);
@@ -56,7 +69,38 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
   const selectedProcessDefinition = processDefinitions.find(item => item.processType === draft.name);
   const routeOperations = operations.filter(op => op.poLineId === poLineId && op.poId === poId && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
-  const visibleOperations = routeOperations.filter(op => (op.name + " " + op.category + " " + op.machine + " " + (vendors.find(v => v.id === op.vendorId)?.company || "") + " " + op.status + " " + (op.branch || "Main route")).toLowerCase().includes(search.toLowerCase().trim()));
+  const processCategories = [...new Set(processDefinitions.map(item => item.category).filter(Boolean))].sort();
+  const processVendorOptions = selectedProcessDefinition?.vendorIds?.length ? vendors.filter(vendor => selectedProcessDefinition.vendorIds.includes(vendor.id)) : vendors;
+  const visibleOperations = routeOperations.filter(op => {
+    const text = (op.name + " " + op.category + " " + op.subcategory + " " + op.machine + " " + (vendors.find(v => v.id === op.vendorId)?.company || "") + " " + op.status + " " + (op.branch || "Main route")).toLowerCase();
+    const statusMatch = !statusFilters.length || statusFilters.includes(op.status);
+    const executionMatch = !executionFilters.length || executionFilters.includes(op.executionType || "Outsourced");
+    const categoryMatch = !categoryFilters.length || categoryFilters.includes(op.category);
+    const toleranceMatch = !toleranceFilters.length || toleranceFilters.includes(op.toleranceCategory || "Standard");
+    const paymentMatch = !paymentFilters.length || paymentFilters.includes(op.paymentStatus || "Unpaid");
+    return text.includes(search.toLowerCase().trim()) && statusMatch && executionMatch && categoryMatch && toleranceMatch && paymentMatch;
+  });
+  const visibleBranches = [...new Set(visibleOperations.map(op => op.branch || "Main route"))];
+  const toggleFilter = (setter: (next: string[] | ((previous: string[]) => string[])) => void, value: string) => setter(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value]);
+  const toggleOperationSelection = (id: string) => setSelectedOperationIds(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
+  const selectVisibleOperations = (checked: boolean) => setSelectedOperationIds(current => checked ? [...new Set([...current, ...visibleOperations.map(op => op.id)])] : current.filter(id => !visibleOperations.some(op => op.id === id)));
+  const selectedVisibleOperations = visibleOperations.filter(op => selectedOperationIds.includes(op.id));
+  const applyBulkUpdate = () => {
+    const ids = new Set(selectedVisibleOperations.map(op => op.id));
+    if (!ids.size) { onNotice("Select one or more visible process operations first."); return; }
+    const stamp = nowIso();
+    update(current => ({ ...current, operations: current.operations.map(op => !ids.has(op.id) ? op : {
+      ...op,
+      ...(bulkStatus ? { status: bulkStatus as LifecycleStatus } : {}),
+      ...(bulkVendorId ? { vendorId: bulkVendorId } : {}),
+      ...(bulkStart ? { plannedStart: bulkStart } : {}),
+      ...(bulkEnd ? { plannedEnd: bulkEnd } : {}),
+      updatedAt: stamp
+    }) }));
+    onNotice("Bulk update applied to " + ids.size + " selected operation(s).");
+    setBulkStatus(""); setBulkVendorId(""); setBulkStart(""); setBulkEnd("");
+  };
+
   const visibleBranches = [...new Set(visibleOperations.map(op => op.branch || "Main route"))];
   const activeOperation = routeOperations.find(op => op.id === selectedOperationId) || routeOperations[0];
   const paymentRowsFor = (operationId:string) => activeRows(data.paymentTransactions).filter(payment=>payment.operationId===operationId);
@@ -78,8 +122,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const timelineEnd = routeOperations.map(op => op.plannedEnd).filter(Boolean).sort().at(-1) || finalDelivery;
   const exportColumns = PROCESS_EXPORT_FIELDS.filter(field=>exportFields.includes(field.key));
   const exportOperations = exportScope === "selected-branch" && activeOperation
-    ? visibleOperations.filter(op=>(op.branch || "Main route") === (activeOperation.branch || "Main route"))
-    : visibleOperations;
+    ? (selectedOperationIds.length ? selectedVisibleOperations : visibleOperations).filter(op=>(op.branch || "Main route") === (activeOperation.branch || "Main route"))
+    : selectedOperationIds.length ? selectedVisibleOperations : visibleOperations;
   const exportValue = (op:OperationRecord,key:ProcessExportField):string|number => {
     switch(key) {
       case "operation": return op.name;
@@ -221,7 +265,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const editActive = () => {
     if (!activeOperation) return;
     setDraft({
-      name: activeOperation.name, category: activeOperation.category, machine: activeOperation.machine, vendorId: activeOperation.vendorId,
+      name: activeOperation.name, category: activeOperation.category, machine: activeOperation.machine, vendorId: activeOperation.vendorId, executionType:activeOperation.executionType||"Outsourced", toleranceCategory:activeOperation.toleranceCategory||"Standard", inspectionRequired:Boolean(activeOperation.inspectionRequired),
       status: activeOperation.status, plannedStart: activeOperation.plannedStart, plannedEnd: activeOperation.plannedEnd, actualStart: activeOperation.actualStart || "", actualEnd: activeOperation.actualEnd || "",
       quantity: activeOperation.quantity, completed: activeOperation.completed, accepted: activeOperation.accepted, rejected: activeOperation.rejected,
       ratePerPart: activeOperation.ratePerPart, actualRatePerPart: activeOperation.actualRatePerPart || 0, transportVendorId: activeOperation.transportVendorId || "", transportCost: activeOperation.transportCost, transportPickup: activeOperation.transportPickup,
@@ -232,6 +276,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const saveOperation = () => {
     if (!selectedPO || !selectedLine || !selectedComponent) { onNotice("Select a PO component line first."); return; }
     if (!draft.name.trim()) { onNotice("Enter the operation name."); return; }
+    if (draft.executionType === "Outsourced" && !draft.vendorId && draft.category !== "Logistics") { onNotice("Select a vendor for an outsourced operation, or change execution to Internal."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
     if (draft.accepted + draft.rejected > draft.completed) { onNotice("Accepted plus rejected quantity cannot exceed completed quantity."); return; }
     if (draft.paymentStatus === "Paid" && !(Number(draft.paidAmount) > 0)) { onNotice("Enter the actual amount paid before marking this operation Paid."); return; }
@@ -413,12 +458,13 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <label>Process subcategory{(selectedProcessDefinition?.subcategories||[]).length
               ? <select value={draft.subcategory} onChange={e=>setDraft({...draft,subcategory:e.target.value})}><option value="">Select subcategory</option>{selectedProcessDefinition!.subcategories.map(value=><option key={value}>{value}</option>)}</select>
               : <input value={draft.subcategory} onChange={e=>setDraft({...draft,subcategory:e.target.value})} placeholder="Optional subcategory"/>}</label>
+            <label>Execution type<select value={draft.executionType} onChange={e=>setDraft({...draft,executionType:e.target.value as "Internal"|"Outsourced",vendorId:e.target.value==="Internal"?"":draft.vendorId})}><option value="Internal">Internal</option><option value="Outsourced">Outsourced</option></select></label>
             <label>Machine / station<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value})} placeholder="Machine / work centre"/></label>
-            <SearchablePicker id="operation-vendor-picker" label="Vendor" value={draft.vendorId} placeholder="Type vendor name or phone…" options={vendors.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{!vendors.length && <small className="field-hint">Scan/import contacts or add a vendor in Vendors first.</small>}
-            <label>Planned start<input type="date" value={draft.plannedStart} onChange={e => setDraft({...draft,plannedStart:e.target.value})}/></label>
-            <label>Planned target/end<input type="date" min={draft.plannedStart || undefined} value={draft.plannedEnd} onChange={e => setDraft({...draft,plannedEnd:e.target.value})}/></label>
-            <label>Actual start date<input type="date" value={draft.actualStart} onChange={e => setDraft({...draft,actualStart:e.target.value})}/></label>
-            <label>Actual completion date<input type="date" min={draft.actualStart || undefined} value={draft.actualEnd} onChange={e => setDraft({...draft,actualEnd:e.target.value})}/></label>
+            <SearchablePicker id="operation-vendor-picker" label="Vendor" value={draft.vendorId} placeholder="Type vendor name or phone…" options={processVendorOptions.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{!vendors.length && <small className="field-hint">Scan/import contacts or add a vendor in Vendors first.</small>}
+            <label>Start date &amp; time<input type="datetime-local" value={(draft.plannedStart||"").slice(0,16)} onChange={e => setDraft({...draft,plannedStart:e.target.value})}/></label>
+            <label>Delivery date &amp; time<input type="datetime-local" min={(draft.plannedStart||"").slice(0,16)} value={(draft.plannedEnd||"").slice(0,16)} onChange={e => setDraft({...draft,plannedEnd:e.target.value})}/></label>
+            <label>Actual start date &amp; time<input type="datetime-local" value={(draft.actualStart||"").slice(0,16)} onChange={e => setDraft({...draft,actualStart:e.target.value})}/></label>
+            <label>Actual completion date &amp; time<input type="datetime-local" min={(draft.actualStart||"").slice(0,16)} value={(draft.actualEnd||"").slice(0,16)} onChange={e => setDraft({...draft,actualEnd:e.target.value})}/></label>
             <label>Duration (calendar days)<input readOnly value={daysBetween(draft.plannedStart,draft.plannedEnd) || "—"}/></label>
             <label>Quantity to process<input type="number" min="0" value={draft.quantity || ""} onChange={e => setDraft({...draft,quantity:Math.max(0,Number(e.target.value)||0)})}/></label>
             <label>Completed quantity<input type="number" min="0" value={draft.completed || ""} onChange={e => setDraft({...draft,completed:Math.max(0,Number(e.target.value)||0)})}/></label>
@@ -430,12 +476,14 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <label>Total amount paid (₹)<input type="number" min="0" step="0.01" value={draft.paidAmount || ""} onChange={e=>setDraft({...draft,paidAmount:Math.max(0,Number(e.target.value)||0)})}/><small className="field-hint">Increasing this total appends only the additional amount as a dated payment-ledger transaction.</small></label>
             <label>Payment reference<input value={draft.paymentReference} onChange={e=>setDraft({...draft,paymentReference:e.target.value})} placeholder="Voucher / UTR / receipt number"/></label>
             <label>Planned process cost (₹)<input readOnly value={money(draft.quantity * draft.ratePerPart)}/></label>
-            <label>Status<select value={draft.status} onChange={e => setDraft({...draft,status:e.target.value as LifecycleStatus})}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
+            <label>Status<select value={draft.status} onChange={e => setDraft({...draft,status:e.target.value as LifecycleStatus})}><option>Planned</option><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option><option>Rejected</option><option>Delayed</option></select></label>
             <label>Route type<input value={draft.branch} onChange={e => setDraft({...draft,branch:e.target.value})} placeholder="Main route / Alternate / Rework"/></label>
             <SearchablePicker id="operation-transport-vendor-picker" label="Transport vendor" value={draft.transportVendorId} placeholder="Type transporter name or phone…" options={vendors.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")}))} onChange={transportVendorId=>setDraft({...draft,transportVendorId})}/>
-            <label>Transport pickup date<input type="date" value={draft.transportPickup} onChange={e => setDraft({...draft,transportPickup:e.target.value})}/></label>
-            <label>Transport delivery date<input type="date" value={draft.transportDelivery} onChange={e => setDraft({...draft,transportDelivery:e.target.value})}/></label>
+            <label>Transport pickup date &amp; time<input type="datetime-local" value={(draft.transportPickup||"").slice(0,16)} onChange={e => setDraft({...draft,transportPickup:e.target.value})}/></label>
+            <label>Transport delivery date &amp; time<input type="datetime-local" value={(draft.transportDelivery||"").slice(0,16)} onChange={e => setDraft({...draft,transportDelivery:e.target.value})}/></label>
             <label>Transport cost (₹)<input type="number" min="0" step="0.01" value={draft.transportCost || ""} onChange={e => setDraft({...draft,transportCost:Math.max(0,Number(e.target.value)||0)})}/></label>
+            <label>Tolerance category<select value={draft.toleranceCategory} onChange={e=>setDraft({...draft,toleranceCategory:e.target.value as DraftOperation["toleranceCategory"]})}><option>Standard</option><option>Precision</option><option>Close</option><option>Ultra Precision</option></select></label>
+            <label className="editor-wide"><input type="checkbox" checked={draft.inspectionRequired} onChange={e=>setDraft({...draft,inspectionRequired:e.target.checked})}/> Quality / inspection required</label>
             <label className="editor-wide">Quality / inspection requirement<input value={draft.qualityNotes} onChange={e => setDraft({...draft,qualityNotes:e.target.value})} placeholder="Required checks, acceptance criteria, gauges…"/></label>
             <label className="editor-wide">Inspection result<input value={draft.inspectionResult} onChange={e => setDraft({...draft,inspectionResult:e.target.value})} placeholder="Not inspected, accepted, rejected, actual results…"/></label>
             <label className="editor-wide">Operation notes<input value={draft.notes} onChange={e => setDraft({...draft,notes:e.target.value})} placeholder="Setup, process constraints, delivery instructions"/></label>
