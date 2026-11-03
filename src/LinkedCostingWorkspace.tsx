@@ -111,6 +111,8 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   );
   const actualProcessTotal = operationActual;
   const independentVariance = actualProcessTotal - independentPlannedTotal;
+  const paidProcessTotal = routeOperations.reduce((sum,op) => sum + (op.paidAmount || (op.paymentStatus === "Paid" ? op.quantity * (op.actualRatePerPart || 0) + op.transportCost : 0)), 0);
+  const unpaidProcessBalance = Math.max(0, operationActual - paidProcessTotal);
   const profit = revenue - plannedTotal;
   const costPerAccepted = acceptedQty ? plannedTotal / acceptedQty : 0;
 
@@ -191,6 +193,15 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
         </div>
       </section>}
 
+      <section className="surface-panel costing-payment-summary">
+  <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PROCESS PAYMENT CONTROL</div><h3>Payment status for selected PO component</h3><p>Payment entries are stored per process operation in Process Plan.</p></div></div>
+  <div className="dashboard-job-summary">
+    <div><strong>{money(paidProcessTotal)}</strong><span>Paid / recorded payments</span></div>
+    <div><strong>{money(unpaidProcessBalance)}</strong><span>Remaining actual process balance</span></div>
+    <div><strong>{routeOperations.filter(op=>(op.paymentStatus||"Unpaid")==="Unpaid").length}</strong><span>Unpaid operations</span></div>
+  </div>
+  <button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Wallet size={14}/> Update operation payments</button>
+</section>
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTE-TO-OPERATION LINK</div><h3>Process costs for {selectedComponent?.partNumber}</h3><p>Each row references a specific operation ID and PO component line.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><ArrowRight size={14}/> Manage operations</button></div>
         {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Transport</th><th>Planned process cost</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
           const quoteCount = quotations.filter(q => q.operationId === op.id && !q.deletedAt).length;
