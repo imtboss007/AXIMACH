@@ -31,10 +31,11 @@ export type PurchaseOrderRecord = {
   targetDelivery: string; status: string; notes: string; lines: PurchaseOrderLine[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type VendorTransportRoute = { id: string; fromLocation: string; toLocation: string; fixedCost: number; vehicleType: string; notes?: string };
 export type VendorRecord = {
   id: string; company: string; contact: string; role: string; phone: string; whatsappNumber: string;
   email: string; address: string; processes: string; machines: string; materials: string; notes: string;
-  status: string; sourceContactId: string; whatsappSyncedAt: string; vendorType?: string;
+  status: string; sourceContactId: string; whatsappSyncedAt: string; vendorType?: string; transportRoutes?: VendorTransportRoute[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ContactProfileRecord = {
@@ -60,6 +61,7 @@ export type OperationRecord = {
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
   paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;
   executionType?: "Internal" | "Outsourced"; toleranceCategory?: "Standard" | "Precision" | "Close" | "Ultra Precision"; inspectionRequired?: boolean;
+  transportFrom?: string; transportTo?: string; transportVehicleType?: string; transportRouteId?: string;
   branch: string; parentId: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type QuotationRecord = {
