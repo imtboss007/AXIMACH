@@ -59,6 +59,11 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const visibleOperations = routeOperations.filter(op => (op.name + " " + op.category + " " + op.machine + " " + (vendors.find(v => v.id === op.vendorId)?.company || "") + " " + op.status + " " + (op.branch || "Main route")).toLowerCase().includes(search.toLowerCase().trim()));
   const visibleBranches = [...new Set(visibleOperations.map(op => op.branch || "Main route"))];
   const activeOperation = routeOperations.find(op => op.id === selectedOperationId) || routeOperations[0];
+  const paymentRowsFor = (operationId:string) => activeRows(data.paymentTransactions).filter(payment=>payment.operationId===operationId);
+  const paymentTotalFor = (operation:OperationRecord) => {
+    const transactions=paymentRowsFor(operation.id);
+    return transactions.length?transactions.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0):Math.max(0,Number(operation.paidAmount)||0);
+  };
   const totalProcessCost = routeOperations.reduce((sum, op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
   const expectedQuantity = selectedLine?.quantity || 0;
   const completedQuantity = routeOperations.length ? Math.min(...routeOperations.map(op => op.accepted || 0)) : 0;
@@ -220,7 +225,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       status: activeOperation.status, plannedStart: activeOperation.plannedStart, plannedEnd: activeOperation.plannedEnd, actualStart: activeOperation.actualStart || "", actualEnd: activeOperation.actualEnd || "",
       quantity: activeOperation.quantity, completed: activeOperation.completed, accepted: activeOperation.accepted, rejected: activeOperation.rejected,
       ratePerPart: activeOperation.ratePerPart, actualRatePerPart: activeOperation.actualRatePerPart || 0, transportVendorId: activeOperation.transportVendorId || "", transportCost: activeOperation.transportCost, transportPickup: activeOperation.transportPickup,
-      transportDelivery: activeOperation.transportDelivery, qualityNotes: activeOperation.qualityNotes, inspectionResult: activeOperation.inspectionResult || "", notes: activeOperation.notes, branch: activeOperation.branch, paymentStatus:activeOperation.paymentStatus||"Unpaid", paidAmount:activeOperation.paidAmount||0, paymentReference:activeOperation.paymentReference||"", subcategory:activeOperation.subcategory||""
+      transportDelivery: activeOperation.transportDelivery, qualityNotes: activeOperation.qualityNotes, inspectionResult: activeOperation.inspectionResult || "", notes: activeOperation.notes, branch: activeOperation.branch, paymentStatus:activeOperation.paymentStatus||"Unpaid", paidAmount:paymentTotalFor(activeOperation), paymentReference:activeOperation.paymentReference||"", subcategory:activeOperation.subcategory||""
     });
     setEditingId(activeOperation.id); setShowEditor(true);
   };
@@ -230,6 +235,10 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
     if (draft.accepted + draft.rejected > draft.completed) { onNotice("Accepted plus rejected quantity cannot exceed completed quantity."); return; }
     if (draft.paymentStatus === "Paid" && !(Number(draft.paidAmount) > 0)) { onNotice("Enter the actual amount paid before marking this operation Paid."); return; }
+    const previousOperation = operations.find(op=>op.id===editingId);
+    const previousPaidTotal = previousOperation ? paymentTotalFor(previousOperation) : 0;
+    const nextPaidTotal = Math.max(0,Number(draft.paidAmount)||0);
+    if (nextPaidTotal + 0.000001 < previousPaidTotal) { onNotice("Recorded payment totals cannot be reduced. Keep the previous total and add a separate correction record through the finance ledger."); return; }
     const stamp = nowIso();
     const operationId = editingId || makeId("operation");
     update(current => {
@@ -238,11 +247,21 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       const next: OperationRecord = {
         id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
-        ...draft, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
+        ...draft, paidAmount: nextPaidTotal, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
         parentId: old?.parentId || (draft.branch !== "Main route" ? activeOperation?.id || "" : "")
       };
-      return { ...current, operations: [...current.operations.filter(op => op.id !== next.id), next] };
+      const existingPayments = current.paymentTransactions.filter(payment=>payment.operationId===operationId&&!payment.deletedAt);
+      const ledgerTotal = existingPayments.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0);
+      const legacyTotal = existingPayments.length?0:Math.max(0,Number(old?.paidAmount)||0);
+      const paymentRecords = [...current.paymentTransactions];
+      if (!existingPayments.length && legacyTotal>0) {
+        paymentRecords.push({id:makeId("payment"),operationId,poId:selectedPO.id,poLineId:selectedLine.id,componentId:selectedComponent.id,amount:legacyTotal,paidAt:old?.updatedAt||stamp,reference:old?.paymentReference||"",notes:"Opening balance carried forward from the earlier operation payment total.",createdAt:stamp,updatedAt:stamp});
+      }
+      const recordedTotal=ledgerTotal+legacyTotal;
+      const paymentDelta=Math.max(0,nextPaidTotal-recordedTotal);
+      if(paymentDelta>0) paymentRecords.push({id:makeId("payment"),operationId,poId:selectedPO.id,poLineId:selectedLine.id,componentId:selectedComponent.id,amount:paymentDelta,paidAt:stamp,reference:draft.paymentReference.trim(),notes:"Additional payment recorded from Process Plan.",createdAt:stamp,updatedAt:stamp});
+      return { ...current, operations: [...current.operations.filter(op => op.id !== next.id), next], paymentTransactions: paymentRecords };
     });
     setSelectedOperationId(operationId);
     setShowEditor(false); setEditingId("");
@@ -408,7 +427,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <label>Quoted / planned rate per part (₹)<input type="number" min="0" step="0.01" value={draft.ratePerPart || ""} onChange={e => setDraft({...draft,ratePerPart:Math.max(0,Number(e.target.value)||0)})}/></label>
             <label>Actual rate per part (₹)<input type="number" min="0" step="0.01" value={draft.actualRatePerPart || ""} onChange={e => setDraft({...draft,actualRatePerPart:Math.max(0,Number(e.target.value)||0)})}/></label>
             <label>Payment status<select value={draft.paymentStatus} onChange={e=>setDraft({...draft,paymentStatus:e.target.value as "Paid"|"Unpaid"})}><option value="Unpaid">Unpaid</option><option value="Paid">Paid</option></select></label>
-            <label>Amount paid (₹)<input type="number" min="0" step="0.01" value={draft.paidAmount || ""} onChange={e=>setDraft({...draft,paidAmount:Math.max(0,Number(e.target.value)||0)})}/></label>
+            <label>Total amount paid (₹)<input type="number" min="0" step="0.01" value={draft.paidAmount || ""} onChange={e=>setDraft({...draft,paidAmount:Math.max(0,Number(e.target.value)||0)})}/><small className="field-hint">Increasing this total appends only the additional amount as a dated payment-ledger transaction.</small></label>
             <label>Payment reference<input value={draft.paymentReference} onChange={e=>setDraft({...draft,paymentReference:e.target.value})} placeholder="Voucher / UTR / receipt number"/></label>
             <label>Planned process cost (₹)<input readOnly value={money(draft.quantity * draft.ratePerPart)}/></label>
             <label>Status<select value={draft.status} onChange={e => setDraft({...draft,status:e.target.value as LifecycleStatus})}><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option></select></label>
