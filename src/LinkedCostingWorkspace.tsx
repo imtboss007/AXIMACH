@@ -12,12 +12,14 @@ const stamp = () => new Date().toISOString().slice(0,10);
 
 export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSelectModule }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
+  const companies = activeRows(data.companies);
   const components = activeRows(data.components);
   const orders = activeRows(data.purchaseOrders);
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
   const quotations = activeRows(data.quotations);
-  const [componentId, setComponentId] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [poId, setPoId] = useState("");
   const [lineKey, setLineKey] = useState("");
   const [operationId, setOperationId] = useState("");
   const [vendorId, setVendorId] = useState("");
@@ -32,21 +34,22 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const [quoteSearch, setQuoteSearch] = useState("");
   const [showQuoteForm, setShowQuoteForm] = useState(false);
 
-  // Land on the component/PO line that already has quotations first, so saved
-  // supplier prices never appear to vanish behind blank selectors.
-  const preferredComponentId =
-    quotations.find(q => !q.deletedAt && components.some(c => c.id === q.componentId))?.componentId ||
-    components.find(c => orders.some(po => po.lines.some(line => line.componentId === c.id && !("deletedAt" in line && (line as any).deletedAt))))?.id ||
-    components[0]?.id || "";
+  const preferredCompanyId = orders.find(po => po.lines.some(line => !("deletedAt" in line && (line as any).deletedAt)))?.companyId || companies[0]?.id || "";
   useEffect(() => {
-    if (!components.some(c => c.id === componentId) && preferredComponentId) setComponentId(preferredComponentId);
-    if (!preferredComponentId && componentId) setComponentId("");
-  }, [componentId, preferredComponentId]);
-
-  const selectedComponent = components.find(c => c.id === componentId);
-  const componentLines: ComponentLineRef[] = useMemo(() => orders.flatMap(po => po.lines.filter(line => line.componentId === selectedComponent?.id).map(line => ({
-    key: po.id + "::" + line.id, poId: po.id, poNumber: po.number, lineId: line.id, quantity: line.quantity, targetDelivery: line.targetDelivery || po.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId, materialQty: line.materialQty, materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost, reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
-  }))), [orders, selectedComponent?.id]);
+    if (!companies.some(company => company.id === companyId) && preferredCompanyId) { setCompanyId(preferredCompanyId); setPoId(""); setLineKey(""); }
+    if (!preferredCompanyId && companyId) { setCompanyId(""); setPoId(""); setLineKey(""); }
+  }, [companies, companyId, preferredCompanyId]);
+  const companyOrders = orders.filter(po => po.companyId === companyId);
+  useEffect(() => {
+    if (!companyOrders.some(po => po.id === poId)) { setPoId(companyOrders[0]?.id || ""); setLineKey(""); setOperationId(""); }
+  }, [companyOrders, poId]);
+  const selectedPO = companyOrders.find(po => po.id === poId);
+  const componentLines: ComponentLineRef[] = useMemo(() => (selectedPO?.lines || []).filter(line => !("deletedAt" in line && (line as any).deletedAt)).map(line => ({
+    key: selectedPO!.id + "::" + line.id, poId: selectedPO!.id, poNumber: selectedPO!.number, lineId: line.id, quantity: line.quantity,
+    targetDelivery: line.targetDelivery || selectedPO!.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId, materialQty: line.materialQty,
+    materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost,
+    reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
+  })), [selectedPO]);
   const preferredLine = componentLines.find(line => quotations.some(q => !q.deletedAt && q.poLineId === line.lineId)) || componentLines[0];
   useEffect(() => {
     const currentLine = componentLines.find(line => line.key === lineKey);
@@ -54,6 +57,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     if ((nextLine?.key || "") !== lineKey) setLineKey(nextLine?.key || "");
   }, [componentLines, lineKey, preferredLine?.key]);
   const selectedLine = componentLines.find(line => line.key === lineKey) || preferredLine;
+  const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
   const routeOperations = operations.filter(op => op.componentId === selectedComponent?.id && (!selectedLine || (op.poId === selectedLine.poId && op.poLineId === selectedLine.lineId)));
   const preferredOperation = routeOperations.find(op => quotations.some(q => !q.deletedAt && q.operationId === op.id)) || routeOperations[0];
   useEffect(() => {
@@ -167,12 +171,13 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   return <section className="workspace-page linked-costing-page">
     {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/> {syncStatus === "synced" ? "SHARED SERVER DATA" : syncStatus === "syncing" ? "SYNCING" : syncStatus === "error" ? "SYNC ERROR · LOCAL COPY KEPT" : "NO DEMO DATA · LOCAL UNTIL SERVER SYNC"}</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> FINANCE / COMPONENT + PROCESS RATE HISTORY</div><h1>Costing & quotations<span>.</span></h1><p>Store every supplier rate against the exact component, PO line and operation; compare quotations without treating them as actual invoices.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendor directory</button><button className="button-primary" onClick={() => openQuote()} disabled={!selectedComponent}><Plus size={15}/> Add process quotation</button></div></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> FINANCE / COMPONENT + PROCESS RATE HISTORY</div><h1>Costing &amp; Payment<span>.</span></h1><p>Store every supplier rate against the exact component, PO line and operation; compare quotations without treating them as actual invoices.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendor directory</button><button className="button-primary" onClick={() => openQuote()} disabled={!selectedComponent}><Plus size={15}/> Add process quotation</button></div></div>
     {!components.length ? <section className="surface-panel linked-empty-master"><Package size={30}/><div><h3>No component master records yet</h3><p>There are no sample components. Add your actual part number once; then create a PO line, add the required operations and record supplier quotations per operation.</p><button className="button-primary" onClick={() => onSelectModule("components")}><Plus size={14}/> Create component master</button></div></section> : <>
       <div className="linked-master-selectors linked-cost-selectors">
-        <SearchablePicker id="cost-component" label="Component / part number" value={selectedComponent?.id||""} placeholder="Type part number or name…" options={components.map(c=>({id:c.id,label:c.partNumber+" · "+c.name+" · Rev "+(c.revision||"—")}))} onChange={id=>{setComponentId(id);setLineKey("");setOperationId("");setShowQuoteForm(false);}}/>
-        <SearchablePicker id="cost-po-line" label="Purchase order / component line" value={selectedLine?.key||""} placeholder="Type PO number or due date…" options={componentLines.map(line=>({id:line.key,label:line.poNumber+" · "+line.quantity+" pcs · "+(line.targetDelivery||"No delivery date")}))} onChange={key=>{setLineKey(key);setOperationId("");}}/>
-        <SearchablePicker id="cost-operation" label="Process operation" value={selectedOperation?.id||""} placeholder="Type operation name…" options={routeOperations.map(op=>({id:op.id,label:op.name+" · OP-"+op.sequence}))} onChange={setOperationId}/>
+        <SearchablePicker id="cost-company" label="Company" value={companyId} placeholder="Select company…" options={companies.map(c=>({id:c.id,label:c.name}))} onChange={id=>{setCompanyId(id);setPoId("");setLineKey("");setOperationId("");setShowQuoteForm(false);}}/>
+        <SearchablePicker id="cost-po" label="Purchase order" value={poId} placeholder="Select PO…" options={companyOrders.map(po=>({id:po.id,label:po.number+" · "+po.status}))} onChange={id=>{setPoId(id);setLineKey("");setOperationId("");setShowQuoteForm(false);}}/>
+        <SearchablePicker id="cost-po-line" label="PO component line" value={selectedLine?.key||""} placeholder="Select component line…" options={componentLines.map(line=>({id:line.key,label:(components.find(c=>c.id===line.componentId)?.partNumber||"Part missing")+" · "+(components.find(c=>c.id===line.componentId)?.name||"")+" · "+line.quantity+" pcs"}))} onChange={key=>{setLineKey(key);setOperationId("");}}/>
+        <SearchablePicker id="cost-operation" label="Process operation" value={selectedOperation?.id||""} placeholder="Select operation…" options={routeOperations.map(op=>({id:op.id,label:op.name+" · OP-"+op.sequence}))} onChange={setOperationId}/>
       </div>
       {!componentLines.length && <div className="module-safety-note"><FileText size={14}/><span>This component is not yet linked to a PO line. Create or edit the actual order in Purchase Orders; quotes will then be stored against that order line.</span><button className="button-quiet compact-button" onClick={() => onSelectModule("purchasing")}>Open purchase orders</button></div>}
       <div className="linked-component-summary"><div><small>COMPONENT</small><strong>{selectedComponent?.partNumber} · {selectedComponent?.name}</strong><span>Revision {selectedComponent?.revision || "—"} · {selectedComponent?.material || "Material not entered"}</span></div><div><small>MATERIAL COST</small><strong>{money(materialCost)}</strong><span>{materialQty.toLocaleString("en-IN")} units × {money(materialRate)} · {materialCostSource}</span></div><div><small>PROCESS + TRANSPORT</small><strong>{money(operationPlanned)}</strong><span>Rates selected or entered per operation</span></div><div><small>PLANNED COST / ACCEPTED PART</small><strong>{money(costPerAccepted)}</strong><span>Uses the selected PO quantity and entered rejects</span></div></div>
