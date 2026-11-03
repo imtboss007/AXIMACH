@@ -3,6 +3,7 @@ import { Activity, ArrowRight, CalendarClock, Check, CircleDollarSign, FileText,
 import { activeRows, makeId, nowIso, useManufacturingData, type QuotationRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import { ProcessIcon } from "./IconStudio";
+import { readPlannedCostRecords } from "./plannedCostData";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
 type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; unitPrice: number; componentId: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
@@ -97,6 +98,15 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const gstEstimate = revenue * gstRate / 100;
   const finalOperation = routeOperations[routeOperations.length - 1];
   const acceptedQty = selectedLine ? (finalOperation && finalOperation.completed > 0 ? finalOperation.accepted : Math.max(0, selectedLine.quantity - rejectedQty)) : 0;
+  const independentPlannedCosts = selectedComponent ? readPlannedCostRecords().filter(row =>
+    row.componentNumber.trim().toLowerCase() === selectedComponent.partNumber.trim().toLowerCase()
+    || row.componentName.trim().toLowerCase() === selectedComponent.name.trim().toLowerCase()
+  ) : [];
+  const independentPlannedTotal = independentPlannedCosts.reduce((sum,row) =>
+    sum + row.plannedRate * (selectedLine?.quantity || row.plannedQty), 0
+  );
+  const actualProcessTotal = operationActual;
+  const independentVariance = actualProcessTotal - independentPlannedTotal;
   const profit = revenue - plannedTotal;
   const costPerAccepted = acceptedQty ? plannedTotal / acceptedQty : 0;
 
@@ -167,6 +177,15 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
       {!componentLines.length && <div className="module-safety-note"><FileText size={14}/><span>This component is not yet linked to a PO line. Create or edit the actual order in Purchase Orders; quotes will then be stored against that order line.</span><button className="button-quiet compact-button" onClick={() => onSelectModule("purchasing")}>Open purchase orders</button></div>}
       <div className="linked-component-summary"><div><small>COMPONENT</small><strong>{selectedComponent?.partNumber} · {selectedComponent?.name}</strong><span>Revision {selectedComponent?.revision || "—"} · {selectedComponent?.material || "Material not entered"}</span></div><div><small>MATERIAL COST</small><strong>{money(materialCost)}</strong><span>{materialQty.toLocaleString("en-IN")} units × {money(materialRate)} · {materialCostSource}</span></div><div><small>PROCESS + TRANSPORT</small><strong>{money(operationPlanned)}</strong><span>Rates selected or entered per operation</span></div><div><small>PLANNED COST / ACCEPTED PART</small><strong>{money(costPerAccepted)}</strong><span>Uses the selected PO quantity and entered rejects</span></div></div>
       <div className="linked-kpis linked-cost-kpis"><div className="route-kpi kpi-cost"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PLANNED COST</small><strong>{money(plannedTotal)}</strong><em>Material + planned process + transport + entered extras</em></span></div><div className="route-kpi kpi-quality"><span className="kpi-icon"><Check size={19}/></span><span><small>ACTUAL RATE COST</small><strong>{money(actualTotal)}</strong><em>Actual operation rates only where recorded</em></span></div><div className="route-kpi kpi-delivery"><span className="kpi-icon"><Package size={19}/></span><span><small>ORDER VALUE</small><strong>{money(revenue)}</strong><em>{selectedLine?.quantity || 0} pcs × {money(sellingRate)}</em></span></div><div className="route-kpi kpi-risk"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>ESTIMATED PROFIT / LOSS</small><strong>{money(profit)}</strong><em>Before GST/finance items not entered here</em></span></div></div>
+      {independentPlannedCosts.length > 0 && <section className="surface-panel planned-cost-comparison">
+        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> INDEPENDENT PLANNED COST REGISTER</div><h3>Planned vs actual process cost</h3><p>Matched by component name / number only. Planned Cost records remain independent of the operational PO and process records.</p></div><span className="module-number">{independentPlannedCosts.length} PLANNED PROCESS RATES</span></div>
+        <div className="dashboard-job-summary">
+          <div><strong>{money(independentPlannedTotal)}</strong><span>Planned cost at selected PO quantity</span></div>
+          <div><strong>{money(actualProcessTotal)}</strong><span>Actual entered process + transport</span></div>
+          <div><strong>{money(independentVariance)}</strong><span>{independentVariance > 0 ? "Actual above planned" : independentVariance < 0 ? "Actual below planned" : "Actual equals planned"}</span></div>
+        </div>
+      </section>}
+
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTE-TO-OPERATION LINK</div><h3>Process costs for {selectedComponent?.partNumber}</h3><p>Each row references a specific operation ID and PO component line.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><ArrowRight size={14}/> Manage operations</button></div>
         {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Transport</th><th>Planned process cost</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
           const quoteCount = quotations.filter(q => q.operationId === op.id && !q.deletedAt).length;
