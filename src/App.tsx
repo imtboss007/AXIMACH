@@ -13,6 +13,7 @@ import AXIMACHOrb from "./AXIMACHOrb";
 import IconStudio from "./IconStudio";
 import ManufacturingMasterWorkspace from "./ManufacturingMasterWorkspace";
 import DashboardWorkspace from "./DashboardWorkspace";
+import SpecializedDirectoryWorkspace from "./SpecializedDirectoryWorkspace";
 import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
 import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
 import InventoryWorkspace from "./InventoryWorkspace";
@@ -196,8 +197,8 @@ function App() {
           <InventoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
           <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
-        ) : activeModuleId === "process-master" ? (
-          <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
+        ) : activeModuleId === "process-master" || activeModuleId === "planned-cost" ? (
+          <SpecializedDirectoryWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "vendors" ? (
           <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "communications" ? (
