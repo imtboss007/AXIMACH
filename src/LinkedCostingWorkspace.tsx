@@ -58,6 +58,11 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const selectedLine = componentLines.find(line => line.key === lineKey) || preferredLine;
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
   const routeOperations = operations.filter(op => op.componentId === selectedComponent?.id && (!selectedLine || (op.poId === selectedLine.poId && op.poLineId === selectedLine.lineId)));
+  const paymentTransactions = activeRows(data.paymentTransactions || []);
+  const paymentTotalFor = (operation: typeof routeOperations[number]) => {
+    const rows=paymentTransactions.filter(payment=>payment.operationId===operation.id);
+    return rows.length?rows.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0):Math.max(0,Number(operation.paidAmount)||0);
+  };
   const preferredOperation = routeOperations.find(op => quotations.some(q => !q.deletedAt && q.operationId === op.id)) || routeOperations[0];
   useEffect(() => {
     const currentOperation = routeOperations.find(op => op.id === operationId);
@@ -110,7 +115,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   );
   const actualProcessTotal = operationActual;
   const independentVariance = actualProcessTotal - independentPlannedTotal;
-  const paidProcessTotal = routeOperations.reduce((sum,op) => sum + Math.max(0, Number(op.paidAmount) || 0), 0);
+  const paidProcessTotal = routeOperations.reduce((sum,op) => sum + paymentTotalFor(op), 0);
   const unpaidProcessBalance = Math.max(0, operationActual - paidProcessTotal);
   const profit = revenue - plannedTotal;
   const costPerAccepted = acceptedQty ? plannedTotal / acceptedQty : 0;
@@ -197,15 +202,16 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   <div className="dashboard-job-summary">
     <div><strong>{money(paidProcessTotal)}</strong><span>Paid / recorded payments</span></div>
     <div><strong>{money(unpaidProcessBalance)}</strong><span>Remaining actual process balance</span></div>
-    <div><strong>{routeOperations.filter(op=>Math.max(0,Number(op.paidAmount)||0)<(op.quantity*(op.actualRatePerPart||0)+op.transportCost)).length}</strong><span>Operations with unpaid balance</span></div>
+    <div><strong>{routeOperations.filter(op=>paymentTotalFor(op)<(op.quantity*(op.actualRatePerPart||0)+op.transportCost)).length}</strong><span>Operations with unpaid balance</span></div>
   </div>
   <button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Wallet size={14}/> Update operation payments</button>
 </section>
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTE-TO-OPERATION LINK</div><h3>Process costs for {selectedComponent?.partNumber}</h3><p>Each row references a specific operation ID and PO component line.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><ArrowRight size={14}/> Manage operations</button></div>
-        {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Transport</th><th>Planned process cost</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
+        {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Transport</th><th>Planned process cost</th><th>Payment ledger</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
           const quoteCount = quotations.filter(q => q.operationId === op.id && !q.deletedAt).length;
           const vendor = vendors.find(v => v.id === op.vendorId);
-          return <tr key={op.id}><td><div className="cost-op-cell"><ProcessIcon processName={op.name} fallback={<Workflow size={17}/>} /><span><strong>{op.name}</strong><small>{op.category || "Type not entered"} · OP-{op.sequence}</small></span></div></td><td>{vendor?.company || "Not assigned"}</td><td>{op.quantity.toLocaleString("en-IN")}</td><td>{money(op.ratePerPart)}</td><td>{(op.actualRatePerPart || 0) > 0 ? money(op.actualRatePerPart) : "Not entered"}</td><td>{money(op.transportCost)}</td><td>{money(op.quantity * op.ratePerPart + op.transportCost)}</td><td><button className="button-quiet compact-button" onClick={() => {openQuote(op.id);}}><Plus size={12}/> {quoteCount} · Add quote</button></td></tr>;
+          const paymentRows=paymentTransactions.filter(payment=>payment.operationId===op.id).sort((a,b)=>(a.paidAt||"").localeCompare(b.paidAt||""));
+          return <tr key={op.id}><td><div className="cost-op-cell"><ProcessIcon processName={op.name} fallback={<Workflow size={17}/>} /><span><strong>{op.name}</strong><small>{op.category || "Type not entered"} · OP-{op.sequence}</small></span></div></td><td>{vendor?.company || "Not assigned"}</td><td>{op.quantity.toLocaleString("en-IN")}</td><td>{money(op.ratePerPart)}</td><td>{(op.actualRatePerPart || 0) > 0 ? money(op.actualRatePerPart) : "Not entered"}</td><td>{money(op.transportCost)}</td><td>{money(op.quantity * op.ratePerPart + op.transportCost)}</td><td><div className="payment-ledger-cell">{paymentRows.length?paymentRows.map(payment=><small key={payment.id}>{money(payment.amount)} · {payment.paidAt?new Date(payment.paidAt).toLocaleDateString("en-IN"):"Date not set"}{payment.reference?" · "+payment.reference:""}</small>):<small>{op.paidAmount? "Legacy recorded total: "+money(op.paidAmount):"No payment recorded"}</small>}<strong>Recorded: {money(paymentRows.length?paymentRows.reduce((sum,payment)=>sum+payment.amount,0):op.paidAmount||0)}</strong></div></td><td><button className="button-quiet compact-button" onClick={() => {openQuote(op.id);}}><Plus size={12}/> {quoteCount} · Add quote</button></td></tr>;
         })}</tbody></table></div> : <div className="module-empty-state"><FileText size={25}/><h3>No process operations linked yet</h3><p>Add the actual operations in Process Map for this component and PO line before recording supplier quotations.</p><button className="button-primary" onClick={() => onSelectModule("process-map")}><Plus size={14}/> Add operations</button></div>}
       </section>
       {showQuoteForm && <section className="surface-panel module-record-form-panel linked-quote-form"><div className="panel-heading"><div><h3>New supplier quotation</h3><p>Quote source and status stay separate from actual accepted invoice / job cost.</p></div><button className="icon-control" onClick={() => setShowQuoteForm(false)} aria-label="Close quote form"><X size={15}/></button></div>
