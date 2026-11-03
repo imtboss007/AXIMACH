@@ -6,7 +6,7 @@ export type DataStatus = "local" | "syncing" | "synced" | "error";
 export type LifecycleStatus = "Queued" | "Running" | "Complete" | "Quality hold";
 
 export type CompanyRecord = {
-  id: string; name: string; gstin: string; phone: string; email: string;
+  id: string; name: string; gstin: string; contactPerson?: string; phone: string; email: string; address?: string;
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type FactoryRecord = {
@@ -14,7 +14,7 @@ export type FactoryRecord = {
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ComponentRecord = {
-  id: string; partNumber: string; name: string; revision: string; material: string;
+  id: string; companyId?: string; partNumber: string; name: string; revision: string; material: string;
   drawingReference: string; notes: string; salePrice: number; materialQty: number;
   materialRate: number; benchmarkMaterialRate: number; stockQty: number;
   overhead: number; toolingCost: number; reworkCost: number; scrapCost: number;
