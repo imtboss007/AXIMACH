@@ -3,7 +3,6 @@ import { Activity, ArrowRight, CalendarClock, Check, CircleDollarSign, FileText,
 import { activeRows, makeId, nowIso, useManufacturingData, type QuotationRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import { ProcessIcon } from "./IconStudio";
-import { readPlannedCostRecords } from "./plannedCostData";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
 type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; unitPrice: number; componentId: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
@@ -102,7 +101,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const gstEstimate = revenue * gstRate / 100;
   const finalOperation = routeOperations[routeOperations.length - 1];
   const acceptedQty = selectedLine ? (finalOperation && finalOperation.completed > 0 ? finalOperation.accepted : Math.max(0, selectedLine.quantity - rejectedQty)) : 0;
-  const independentPlannedCosts = selectedComponent ? readPlannedCostRecords().filter(row =>
+  const independentPlannedCosts = selectedComponent ? activeRows(data.plannedCosts).filter(row =>
     row.componentNumber.trim().toLowerCase() === selectedComponent.partNumber.trim().toLowerCase()
     || row.componentName.trim().toLowerCase() === selectedComponent.name.trim().toLowerCase()
   ) : [];
@@ -111,7 +110,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   );
   const actualProcessTotal = operationActual;
   const independentVariance = actualProcessTotal - independentPlannedTotal;
-  const paidProcessTotal = routeOperations.reduce((sum,op) => sum + (op.paidAmount || (op.paymentStatus === "Paid" ? op.quantity * (op.actualRatePerPart || 0) + op.transportCost : 0)), 0);
+  const paidProcessTotal = routeOperations.reduce((sum,op) => sum + Math.max(0, Number(op.paidAmount) || 0), 0);
   const unpaidProcessBalance = Math.max(0, operationActual - paidProcessTotal);
   const profit = revenue - plannedTotal;
   const costPerAccepted = acceptedQty ? plannedTotal / acceptedQty : 0;
@@ -198,7 +197,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   <div className="dashboard-job-summary">
     <div><strong>{money(paidProcessTotal)}</strong><span>Paid / recorded payments</span></div>
     <div><strong>{money(unpaidProcessBalance)}</strong><span>Remaining actual process balance</span></div>
-    <div><strong>{routeOperations.filter(op=>(op.paymentStatus||"Unpaid")==="Unpaid").length}</strong><span>Unpaid operations</span></div>
+    <div><strong>{routeOperations.filter(op=>Math.max(0,Number(op.paidAmount)||0)<(op.quantity*(op.actualRatePerPart||0)+op.transportCost)).length}</strong><span>Operations with unpaid balance</span></div>
   </div>
   <button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Wallet size={14}/> Update operation payments</button>
 </section>
