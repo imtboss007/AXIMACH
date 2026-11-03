@@ -120,7 +120,16 @@ function injectLocalServerSettings(window) {
   };
   const bootstrap = "(() => { try { const values = " + JSON.stringify(settings)
     + "; for (const [key, value] of Object.entries(values)) localStorage.setItem(key, value); } catch (_) {} })();";
-  window.webContents.addDocumentStartJavaScript(bootstrap);
+
+  // Electron WebContents does not expose addDocumentStartJavaScript().
+  // Use the documented executeJavaScript() once the page has finished loading.
+  window.webContents.once("did-finish-load", () => {
+    window.webContents.executeJavaScript(bootstrap).then(() => {
+      diagnosticLog("local service settings:", "injected after document load");
+    }).catch(error => {
+      diagnosticLog("local service settings injection failed:", error.stack || error.message);
+    });
+  });
 }
 
 function showDiagnosticPage(window, heading, detail) {
@@ -143,7 +152,11 @@ function createWindow(frontendUrl = "aximach://bundle/index.html") {
     title: "AXIMACH — Manufacturing OS",
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
-  injectLocalServerSettings(window);
+  try {
+    injectLocalServerSettings(window);
+  } catch (error) {
+    diagnosticLog("local service settings setup failed:", error.stack || error.message);
+  }
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https://") || url.startsWith("http://")) shell.openExternal(url);
     return { action: "deny" };
@@ -214,11 +227,26 @@ function stopLocalServices() {
   manufacturingServer = undefined; whatsappBridge = undefined;
 }
 app.whenReady().then(() => {
-  registerFrontendProtocol();
-  if (process.env.AXIMACH_SMOKE_TEST === "1") diagnosticLog("smoke test mode:", "local background services skipped");
-  else startLocalServices();
-  createWindow("aximach://bundle/index.html");
-  app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+  try {
+    diagnosticLog("application startup:", "Electron ready");
+    registerFrontendProtocol();
+    if (process.env.AXIMACH_SMOKE_TEST === "1") diagnosticLog("smoke test mode:", "local background services skipped");
+    else startLocalServices();
+    createWindow("aximach://bundle/index.html");
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow("aximach://bundle/index.html");
+    });
+  } catch (error) {
+    diagnosticLog("fatal application startup error:", error.stack || error.message);
+    if (process.env.AXIMACH_SMOKE_TEST === "1") app.exit(1);
+    else {
+      const diagnostic = new BrowserWindow({ width: 1000, height: 700, backgroundColor: "#0b1626" });
+      showDiagnosticPage(diagnostic, "AXIMACH could not start", error.stack || error.message);
+    }
+  }
+}).catch(error => {
+  diagnosticLog("Electron ready handler failed:", error.stack || error.message);
+  if (process.env.AXIMACH_SMOKE_TEST === "1") app.exit(1);
 });
 app.on("before-quit", stopLocalServices);
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
