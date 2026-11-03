@@ -3,7 +3,7 @@ import { ArrowRight, ArrowUpRight, Building2, CalendarClock, Mail, MessageCircle
 import { activeRows, makeId, nowIso, useManufacturingData } from "./manufacturingData";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
-type ContactRecord={id:string;linkedType:"company"|"vendor";linkedId:string;name:string;role:string;phone:string;whatsapp:string;email:string;address:string;followUpDate:string;history:string;createdAt:string;updatedAt:string};
+type ContactRecord={id:string;deletedAt?:string;linkedType:"company"|"vendor";linkedId:string;name:string;role:string;phone:string;whatsapp:string;email:string;address:string;followUpDate:string;history:string;createdAt:string;updatedAt:string};
 type ContactDraft=Omit<ContactRecord,"id"|"createdAt"|"updatedAt">;
 const CONTACT_KEY="aximach.contact360.v1";
 const blank=():ContactDraft=>({linkedType:"company",linkedId:"",name:"",role:"",phone:"",whatsapp:"",email:"",address:"",followUpDate:"",history:""});
@@ -14,8 +14,8 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule}:Prop
  const [rows,setRows]=useState<ContactRecord[]>(()=>readContacts());const [search,setSearch]=useState("");const [editingId,setEditingId]=useState("");const [showForm,setShowForm]=useState(false);const [draft,setDraft]=useState<ContactDraft>(blank());
  const relatedLabel=(row:ContactRecord)=>row.linkedType==="company"?companies.find(x=>x.id===row.linkedId)?.name||"Company record missing":vendors.find(x=>x.id===row.linkedId)?.company||"Vendor record missing";
  const generated=[
-  ...companies.filter(c=>c.contactPerson?.trim()).map(c=>({id:"company:"+c.id,name:c.contactPerson||"",role:"Company contact",phone:c.phone,email:c.email,address:c.address||"",relationship:c.name,source:"Company Directory"})),
-  ...vendors.map(v=>({id:"vendor:"+v.id,name:v.contact,role:v.role,phone:v.phone,email:v.email,address:v.address,relationship:v.company,source:"Vendor Directory"}))
+  ...companies.filter(c=>c.contactPerson?.trim()).map(c=>({id:"company:"+c.id,name:c.contactPerson||"",role:"Company contact",phone:c.phone,email:c.email,address:c.address||"",followUpDate:"",history:"",relationship:c.name,source:"Company Directory"})),
+  ...vendors.map(v=>({id:"vendor:"+v.id,name:v.contact,role:v.role,phone:v.phone,email:v.email,address:v.address,followUpDate:"",history:"",relationship:v.company,source:"Vendor Directory"}))
  ];
  const manual=rows.filter(row=>!row.deletedAt);
  const filtered=useMemo(()=>[
