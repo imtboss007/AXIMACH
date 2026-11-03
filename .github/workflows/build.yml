@@ -58,6 +58,28 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Package Windows installer
         run: npm run package:windows
+      - name: Install and launch-test packaged Windows app
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installer = Get-ChildItem "release" -Filter "*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "Windows installer was not produced." }
+          $installDir = Join-Path $env:RUNNER_TEMP "AXIMACHSmoke"
+          Start-Process -FilePath $installer.FullName -ArgumentList @("/S", "/D=$installDir") -Wait
+          $appExe = Join-Path $installDir "AXIMACH Manufacturing OS.exe"
+          if (-not (Test-Path $appExe)) {
+            $candidate = Get-ChildItem $installDir -Filter "*.exe" -Recurse | Select-Object -First 1
+            if (-not $candidate) { throw "Installed AXIMACH executable was not found in $installDir." }
+            $appExe = $candidate.FullName
+          }
+          $env:AXIMACH_SMOKE_TEST = "1"
+          $app = Start-Process -FilePath $appExe -PassThru
+          if (-not $app.WaitForExit(30000)) {
+            Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
+            throw "AXIMACH failed to exit after the renderer smoke-test window. Check the startup diagnostic logs."
+          }
+          if ($app.ExitCode -ne 0) { throw "AXIMACH renderer smoke test failed with exit code $($app.ExitCode)." }
+          Write-Host "PASS: installed AXIMACH app launched and its React workspace mounted."
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
