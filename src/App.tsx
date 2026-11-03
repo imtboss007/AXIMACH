@@ -43,14 +43,14 @@ type ModuleItem = {
 };
 
 const modules: ModuleItem[] = [
-  { id: "companies", title: "Company Directory", group: "Master Data", description: "Company name, GST, contact person, email and address.", icon: Building2, action: "Open company directory" },
+  { id: "companies", title: "Company Directory", group: "Master Data", description: "Company name, GST, contact person, email and address.", icon: Factory, action: "Open company directory" },
   { id: "components", title: "Component Directory", group: "Master Data", description: "Company-linked component names, numbers and piece or set prices.", icon: Box, action: "Open component directory" },
-  { id: "purchasing", title: "Purchase Orders", group: "Commercial", description: "Company purchase orders, dates, due dates and multiple component quantities.", icon: FileText, action: "Open purchase orders" },
+  { id: "purchasing", title: "Purchase Orders", group: "Commercial", description: "Company purchase orders, dates, due dates and multiple component quantities.", icon: Package, action: "Open purchase orders" },
   { id: "vendors", title: "Vendor Directory", group: "Supply Network", description: "Individual vendors with multiple process capabilities and contact details.", icon: Users, action: "Open vendor directory" },
-  { id: "contact360", title: "Contact 360", group: "Connections", description: "Interlinked company, vendor and contact records with communication history.", icon: ContactRound, action: "Open Contact 360" },
+  { id: "contact360", title: "Contact 360", group: "Connections", description: "Interlinked company, vendor and contact records with communication history.", icon: Users, action: "Open Contact 360" },
   { id: "process-master", title: "Process Directory", group: "Manufacturing", description: "Process types, categories, subcategories and linked vendors.", icon: Layers3, action: "Open process directory" },
-  { id: "planned-cost", title: "Component Planned Cost", group: "Finance", description: "Independent planned component and process costs for comparison in costing.", icon: Calculator, action: "Open planned costs" },
-  { id: "vendor-capability", title: "Vendor Network", group: "Supply Network", description: "Filter vendors by process category and supported processes.", icon: Network, action: "Open vendor network" },
+  { id: "planned-cost", title: "Component Planned Cost", group: "Finance", description: "Independent planned component and process costs for comparison in costing.", icon: CircleDollarSign, action: "Open planned costs" },
+  { id: "vendor-capability", title: "Vendor Network", group: "Supply Network", description: "Filter vendors by process category and supported processes.", icon: Workflow, action: "Open vendor network" },
   { id: "inventory", title: "BOM & Inventory", group: "Operations", description: "Interlinked bills of material, materials, stock and inventory movements.", icon: Boxes, action: "Open BOM and inventory" },
   { id: "production", title: "Production Plan & Process Plan", group: "Operations", description: "PO-wise component production, process assignments, transport and job completion.", icon: Activity, action: "Open production and process plans" },
   { id: "dispatch", title: "Transport & Dispatch", group: "Operations", description: "Transport vendors, pickup, delivery, cost and dispatch status.", icon: Truck, action: "Open transport and dispatch" },
