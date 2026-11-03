@@ -1,11 +1,18 @@
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, shell, protocol, net } = require("electron");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const fs = require("node:fs");
 const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
 
 app.disableHardwareAcceleration();
-const CLIENT_ORIGINS = "null,capacitor://localhost,https://localhost,http://localhost,http://localhost:5173";
+// Vite ES-module assets are served from a scoped, standard app:// origin instead of file://.
+// Electron recommends custom protocols for bundled local pages: https://www.electronjs.org/docs/latest/tutorial/security
+protocol.registerSchemesAsPrivileged([{
+  scheme: "aximach",
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
+}]);
+const CLIENT_ORIGINS = "null,aximach://bundle,capacitor://localhost,https://localhost,http://localhost,http://localhost:5173";
 let sharedApiKey = "";
 let manufacturingServer;
 let whatsappBridge;
@@ -17,6 +24,43 @@ function diagnosticLog(message, details) {
     fs.appendFileSync(path.join(logDir, "startup.log"),
       "[" + new Date().toISOString() + "] " + message + " " + (details || "") + "\n", "utf8");
   } catch (error) { console.error("AXIMACH could not write startup log:", error); }
+}
+
+function registerFrontendProtocol() {
+  const root = path.resolve(app.getAppPath(), "dist");
+  const index = path.join(root, "index.html");
+  diagnosticLog("frontend package check:", JSON.stringify({ root, indexExists: fs.existsSync(index) }));
+  if (!fs.existsSync(index)) throw new Error("Packaged AXIMACH frontend is missing: " + index);
+
+  protocol.handle("aximach", async request => {
+    try {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return new Response("Method not allowed", { status: 405 });
+      }
+      const url = new URL(request.url);
+      if (url.hostname !== "bundle") return new Response("Unknown AXIMACH resource host", { status: 404 });
+      let pathname;
+      try { pathname = decodeURIComponent(url.pathname); }
+      catch { return new Response("Invalid asset path", { status: 400 }); }
+      const relative = pathname === "/" ? "index.html" : pathname.replace(/^\\/+/, "");
+      let filePath = path.resolve(root, relative);
+      if (filePath !== root && !filePath.startsWith(root + path.sep)) {
+        diagnosticLog("blocked frontend path:", pathname);
+        return new Response("Forbidden", { status: 403 });
+      }
+      if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) filePath = path.join(filePath, "index.html");
+      if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+        diagnosticLog("frontend asset missing:", pathname);
+        return new Response("AXIMACH frontend asset not found: " + pathname, { status: 404 });
+      }
+      const response = await net.fetch(pathToFileURL(filePath).toString());
+      if (request.method === "HEAD") return new Response(null, { status: response.status, headers: response.headers });
+      return response;
+    } catch (error) {
+      diagnosticLog("frontend protocol error:", error.stack || error.message);
+      return new Response("AXIMACH local asset server error: " + (error.message || String(error)), { status: 500 });
+    }
+  });
 }
 
 function getSharedApiKey(dataDir) {
@@ -89,10 +133,10 @@ function showDiagnosticPage(window, heading, detail) {
   window.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
 }
 
-function createWindow() {
+function createWindow(frontendUrl = "aximach://bundle/index.html") {
   const window = new BrowserWindow({
     width: 1600, height: 1000, minWidth: 980, minHeight: 680,
-    autoHideMenuBar: false, backgroundColor: "#f4f7fc",
+    autoHideMenuBar: false, backgroundColor: "#0b1626",
     title: "AXIMACH — Manufacturing OS",
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
@@ -115,11 +159,11 @@ function createWindow() {
       JSON.stringify({ code, description, url, isMainFrame }, null, 2));
   });
 
-  const frontend = path.join(app.getAppPath(), "dist", "index.html");
-  diagnosticLog("loading frontend:", frontend + " exists=" + fs.existsSync(frontend));
-  window.loadFile(frontend).catch(error => {
+  diagnosticLog("loading frontend through scoped protocol:", frontendUrl);
+  window.loadURL(frontendUrl).catch(error => {
     diagnosticLog("frontend load rejected:", error.stack || error.message);
     showDiagnosticPage(window, "AXIMACH could not open its application files", error.stack || error.message);
+    if (process.env.AXIMACH_SMOKE_TEST === "1") app.exit(1);
   });
 
   window.webContents.on("did-finish-load", () => {
@@ -135,8 +179,18 @@ function createWindow() {
           resources: performance.getEntriesByType("resource").map(x => x.name).slice(-30)
         }))()`);
         diagnosticLog("renderer health check:", JSON.stringify(state));
-        if (!state.appShell && !state.startupError) {
+        if (state.appShell) {
+          if (process.env.AXIMACH_SMOKE_TEST === "1") {
+            diagnosticLog("Windows package smoke test:", "PASS — React workspace mounted");
+            app.quit();
+          }
+        } else if (!state.startupError) {
+          diagnosticLog("renderer mount failed:", JSON.stringify(state));
           showDiagnosticPage(window, "AXIMACH workspace did not mount", JSON.stringify(state, null, 2));
+          if (process.env.AXIMACH_SMOKE_TEST === "1") app.exit(1);
+        } else if (process.env.AXIMACH_SMOKE_TEST === "1") {
+          diagnosticLog("Windows package smoke test:", "FAIL — React startup boundary rendered an error");
+          app.exit(1);
         }
       } catch (error) {
         diagnosticLog("renderer health check failed:", error.stack || error.message);
@@ -153,8 +207,9 @@ function stopLocalServices() {
   manufacturingServer = undefined; whatsappBridge = undefined;
 }
 app.whenReady().then(() => {
+  registerFrontendProtocol();
   startLocalServices();
-  createWindow();
+  createWindow("aximach://bundle/index.html");
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 app.on("before-quit", stopLocalServices);
