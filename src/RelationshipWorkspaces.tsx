@@ -1,31 +1,32 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ArrowUpRight, Building2, CalendarClock, Mail, MessageCircle, Phone, Plus, Search, ShieldCheck, Trash2, Users, Wrench } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type ContactProfileRecord } from "./manufacturingData";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
-type ContactRecord={id:string;deletedAt?:string;linkedType:"company"|"vendor";linkedId:string;name:string;role:string;phone:string;whatsapp:string;email:string;address:string;followUpDate:string;history:string;createdAt:string;updatedAt:string};
+type ContactRecord=ContactProfileRecord;
 type ContactDraft=Omit<ContactRecord,"id"|"createdAt"|"updatedAt">;
 const CONTACT_KEY="aximach.contact360.v1";
-const blank=():ContactDraft=>({linkedType:"company",linkedId:"",name:"",role:"",phone:"",whatsapp:"",email:"",address:"",followUpDate:"",history:""});
+const blank=():ContactDraft=>({linkedType:"company",linkedId:"",name:"",role:"",group:"",phone:"",whatsapp:"",email:"",address:"",followUpDate:"",history:""});
 function readContacts():ContactRecord[]{try{const value=JSON.parse(localStorage.getItem(CONTACT_KEY)||"[]");return Array.isArray(value)?value as ContactRecord[]:[];}catch{return[];}}
 
 export function Contact360Workspace({onBack,onNotice,notice,onSelectModule}:Props){
- const {data}=useManufacturingData();const companies=activeRows(data.companies),vendors=activeRows(data.vendors);
- const [rows,setRows]=useState<ContactRecord[]>(()=>readContacts());const [search,setSearch]=useState("");const [editingId,setEditingId]=useState("");const [showForm,setShowForm]=useState(false);const [draft,setDraft]=useState<ContactDraft>(blank());
+ const {data,update}=useManufacturingData();const companies=activeRows(data.companies),vendors=activeRows(data.vendors);
+ const rows=data.contactProfiles||[];const [search,setSearch]=useState("");const [editingId,setEditingId]=useState("");const [showForm,setShowForm]=useState(false);const [draft,setDraft]=useState<ContactDraft>(blank());
+ useEffect(()=>{const legacy=readContacts();if(!legacy.length)return;update(current=>{const byId=new Map(current.contactProfiles.map(row=>[row.id,row]));let changed=false;for(const row of legacy){const old=byId.get(row.id);if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){byId.set(row.id,{...row,group:row.group||""});changed=true;}}return changed?{...current,contactProfiles:[...byId.values()]}:current;});},[update]);
  const relatedLabel=(row:ContactRecord)=>row.linkedType==="company"?companies.find(x=>x.id===row.linkedId)?.name||"Company record missing":vendors.find(x=>x.id===row.linkedId)?.company||"Vendor record missing";
  const generated=[
-  ...companies.filter(c=>c.contactPerson?.trim()).map(c=>({id:"company:"+c.id,name:c.contactPerson||"",role:"Company contact",phone:c.phone,email:c.email,address:c.address||"",followUpDate:"",history:"",relationship:c.name,source:"Company Directory"})),
-  ...vendors.map(v=>({id:"vendor:"+v.id,name:v.contact,role:v.role,phone:v.phone,email:v.email,address:v.address,followUpDate:"",history:"",relationship:v.company,source:"Vendor Directory"}))
+  ...companies.filter(c=>c.contactPerson?.trim()).map(c=>({id:"company:"+c.id,name:c.contactPerson||"",role:"Company contact",group:"",phone:c.phone,email:c.email,address:c.address||"",followUpDate:"",history:"",relationship:c.name,source:"Company Directory"})),
+  ...vendors.map(v=>({id:"vendor:"+v.id,name:v.contact,role:v.role,group:"",phone:v.phone,email:v.email,address:v.address,followUpDate:"",history:"",relationship:v.company,source:"Vendor Directory"}))
  ];
- const manual=rows.filter(row=>!row.deletedAt);
+ const manual=activeRows(rows);
  const filtered=useMemo(()=>[
   ...generated.map(row=>({...row,kind:"master" as const})),
   ...manual.map(row=>({...row,kind:"manual" as const,relationship:row.linkedType==="company"?companies.find(c=>c.id===row.linkedId)?.name||"Company":vendors.find(v=>v.id===row.linkedId)?.company||"Vendor",source:"Contact 360"}))
- ].filter(row=>(row.name+" "+row.role+" "+row.phone+" "+row.email+" "+row.address+" "+row.relationship+" "+row.source).toLowerCase().includes(search.toLowerCase().trim())),[generated,manual,search,companies,vendors]);
+ ].filter(row=>(row.name+" "+row.role+" "+(row.group||"")+" "+row.phone+" "+row.email+" "+row.address+" "+row.relationship+" "+row.source).toLowerCase().includes(search.toLowerCase().trim())),[generated,manual,search,companies,vendors]);
  const beginNew=()=>{setEditingId("");setDraft(blank());setShowForm(true);};
- const edit=(row:ContactRecord)=>{setEditingId(row.id);setDraft({linkedType:row.linkedType,linkedId:row.linkedId,name:row.name,role:row.role,phone:row.phone,whatsapp:row.whatsapp,email:row.email,address:row.address,followUpDate:row.followUpDate,history:row.history});setShowForm(true);};
- const save=()=>{if(!draft.name.trim()||!draft.linkedId){onNotice("Enter the contact name and link it to a company or vendor.");return;}const stamp=nowIso();const old=rows.find(x=>x.id===editingId);const row:ContactRecord={...draft,id:editingId||makeId("contact"),createdAt:old?.createdAt||stamp,updatedAt:stamp};const next=[row,...rows.filter(x=>x.id!==row.id)];setRows(next);localStorage.setItem(CONTACT_KEY,JSON.stringify(next));setShowForm(false);setEditingId("");setDraft(blank());onNotice("Contact profile saved with its company/vendor relationship and follow-up history.");};
- const remove=(id:string)=>{if(!window.confirm("Delete this Contact 360 profile? The linked company or vendor master will not be deleted."))return;const next=rows.filter(x=>x.id!==id);setRows(next);localStorage.setItem(CONTACT_KEY,JSON.stringify(next));onNotice("Contact profile deleted. Linked company/vendor master was retained.");};
+ const edit=(row:ContactRecord)=>{setEditingId(row.id);setDraft({linkedType:row.linkedType,linkedId:row.linkedId,name:row.name,role:row.role,group:row.group||"",phone:row.phone,whatsapp:row.whatsapp,email:row.email,address:row.address,followUpDate:row.followUpDate,history:row.history});setShowForm(true);};
+ const save=()=>{if(!draft.name.trim()||!draft.linkedId){onNotice("Enter the contact name and link it to a company or vendor.");return;}const stamp=nowIso();const old=rows.find(x=>x.id===editingId);const row:ContactRecord={...draft,id:editingId||makeId("contact"),createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};update(current=>({...current,contactProfiles:[row,...current.contactProfiles.filter(x=>x.id!==row.id)]}));setShowForm(false);setEditingId("");setDraft(blank());onNotice("Contact profile saved to shared AXIMACH contact data with its company/vendor relationship and follow-up history.");};
+ const remove=(id:string)=>{if(!window.confirm("Delete this Contact 360 profile? The linked company or vendor master will not be deleted."))return;const stamp=nowIso();update(current=>({...current,contactProfiles:current.contactProfiles.map(row=>row.id===id?{...row,deletedAt:stamp,updatedAt:stamp}:row)}));onNotice("Contact profile archived. Linked company/vendor master and historical record were retained.");};
  const options=draft.linkedType==="company"?companies.map(c=>({id:c.id,label:c.name})):vendors.map(v=>({id:v.id,label:v.company+" · "+v.contact}));
  return <section className="workspace-page relationship-workspace">
   <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> CONTACT GRAPH</span></div>
@@ -38,6 +39,7 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule}:Prop
     <label>Linked company / vendor *<select value={draft.linkedId} onChange={e=>setDraft({...draft,linkedId:e.target.value})}><option value="">Select related record</option>{options.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
     <label>Contact person *<input value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} placeholder="Full name"/></label>
     <label>Role / designation<input value={draft.role} onChange={e=>setDraft({...draft,role:e.target.value})} placeholder="Purchase, production, accounts…"/></label>
+    <label>Contact group<input value={draft.group||""} onChange={e=>setDraft({...draft,group:e.target.value})} placeholder="Purchase, production, accounts, management…"/></label>
     <label>Phone<input value={draft.phone} onChange={e=>setDraft({...draft,phone:e.target.value})} placeholder="Phone with country code"/></label>
     <label>WhatsApp<input value={draft.whatsapp} onChange={e=>setDraft({...draft,whatsapp:e.target.value})} placeholder="WhatsApp number"/></label>
     <label>Email<input type="email" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="name@company.com"/></label>
@@ -48,7 +50,7 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule}:Prop
    </div>
   </section>}
   <section className="surface-panel"><div className="panel-heading"><div><h3>Connected contacts</h3><p>Company/vendor contacts are read from their master records; additional profiles are stored in Contact 360.</p></div></div>
-   {filtered.length?<div className="specialized-record-list">{filtered.map(row=><article className="specialized-record contact360-row" key={row.id}><span className="specialized-record-icon"><Users size={18}/></span><div className="specialized-record-copy"><strong>{row.name}</strong><span>{row.relationship} · {row.role||row.source}</span><small><Phone size={12}/> {row.phone||"No phone"} · <Mail size={12}/> {row.email||"No email"}</small><small>{row.address||"Address not recorded"} · {row.source}</small>{row.followUpDate&&<small><CalendarClock size={12}/> Follow-up: {row.followUpDate}</small>}{row.history&&<p>{row.history}</p>}</div><div className="relationship-actions">{row.kind==="manual"?<><button className="button-quiet compact-button" onClick={()=>edit(rows.find(x=>x.id===row.id)!)}>Edit</button><button className="button-quiet compact-button" onClick={()=>remove(row.id)}><Trash2 size={13}/> Delete</button></>:<button className="button-quiet compact-button" onClick={()=>onSelectModule(row.source==="Company Directory"?"companies":"vendors")}>Open master <ArrowUpRight size={13}/></button>}</div></article>)}</div>:<div className="module-empty-state"><Users size={24}/><h3>No contacts match</h3><p>Add an individual contact or change your search.</p></div>}
+   {filtered.length?<div className="specialized-record-list">{filtered.map(row=><article className="specialized-record contact360-row" key={row.id}><span className="specialized-record-icon"><Users size={18}/></span><div className="specialized-record-copy"><strong>{row.name}</strong><span>{row.relationship} · {row.role||row.source}{row.group?" · "+row.group:""}</span><small><Phone size={12}/> {row.phone||"No phone"} · <Mail size={12}/> {row.email||"No email"}</small><small>{row.address||"Address not recorded"} · {row.source}</small>{row.followUpDate&&<small><CalendarClock size={12}/> Follow-up: {row.followUpDate}</small>}{row.history&&<p>{row.history}</p>}</div><div className="relationship-actions">{row.kind==="manual"?<><button className="button-quiet compact-button" onClick={()=>edit(rows.find(x=>x.id===row.id)!)}>Edit</button><button className="button-quiet compact-button" onClick={()=>remove(row.id)}><Trash2 size={13}/> Delete</button></>:<button className="button-quiet compact-button" onClick={()=>onSelectModule(row.source==="Company Directory"?"companies":"vendors")}>Open master <ArrowUpRight size={13}/></button>}</div></article>)}</div>:<div className="module-empty-state"><Users size={24}/><h3>No contacts match</h3><p>Add an individual contact or change your search.</p></div>}
   </section>
   <div className="module-safety-note"><ShieldCheck size={15}/><span>Deleting a Contact 360 profile does not delete the underlying company or vendor. Company and vendor master contacts remain visible here.</span></div>
  </section>;
