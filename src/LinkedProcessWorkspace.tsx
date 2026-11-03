@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import PptxGenJS from "pptxgenjs";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
@@ -218,6 +219,45 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       saveExportBlob(exportFileBase+".png",png);onNotice("PNG process map exported from saved records.");
     } catch(error){onNotice(error instanceof Error?error.message:"Could not export PNG.");}
     finally{URL.revokeObjectURL(url);}
+  };
+  const exportPowerPoint = async () => {
+    if(!exportOperations.length||!exportColumns.length){onNotice("Choose at least one field and ensure operations are visible.");return;}
+    try {
+      const deck = new PptxGenJS();
+      deck.layout = "LAYOUT_WIDE";
+      deck.author = "AXIMACH";
+      deck.subject = "Selected AXIMACH Process Map";
+      deck.title = exportFileBase+" Process Map";
+      deck.company = "AXIMACH";
+      const navy = "102A45";
+      const cyan = "4DBBD5";
+      const pale = "EAF2F8";
+      const first = deck.addSlide();
+      first.background = { color: navy };
+      first.addText("AXIMACH · PROCESS MAP", {x:0.55,y:0.55,w:12.2,h:0.55,fontFace:"Aptos Display",fontSize:25,bold:true,color:"FFFFFF",margin:0});
+      first.addText((selectedComponent?.partNumber||"Component")+" · "+(selectedComponent?.name||"") , {x:0.58,y:1.35,w:8.6,h:0.35,fontSize:16,bold:true,color:"A9DDEA",margin:0});
+      first.addText("Company: "+(selectedCompany?.name||"—")+"    PO: "+(selectedPO?.number||"—")+"    Operations: "+exportOperations.length, {x:0.58,y:1.92,w:11.8,h:0.35,fontSize:11,color:"DFEAF3",margin:0});
+      first.addShape(deck.ShapeType.line,{x:0.58,y:2.48,w:11.9,h:0,line:{color:cyan,width:2}});
+      first.addText("Export scope: "+(exportScope==="selected-branch"?"Selected branch":"Filtered / visible map"),{x:0.58,y:2.78,w:11.6,h:0.35,fontSize:12,color:"FFFFFF",margin:0});
+      first.addText("Fields selected: "+exportColumns.map(field=>field.label).join(" · "),{x:0.58,y:3.35,w:11.6,h:1.35,fontSize:11,color:"DFEAF3",breakLine:false,fit:"shrink",margin:0.04,valign:"top"});
+      first.addText("Generated from saved AXIMACH operation records.",{x:0.58,y:6.85,w:11.5,h:0.25,fontSize:9,color:"A9C3D7",margin:0});
+      const headers=exportColumns.map(field=>field.label);
+      const rowsPerSlide=9;
+      for(let offset=0;offset<exportOperations.length;offset+=rowsPerSlide){
+        const page=deck.addSlide();
+        page.background={color:"F5F8FC"};
+        page.addText("PROCESS MAP · "+(selectedPO?.number||"PO")+" · "+(selectedComponent?.partNumber||"Component"),{x:0.45,y:0.28,w:12.3,h:0.34,fontFace:"Aptos Display",fontSize:16,bold:true,color:navy,margin:0});
+        const chunk=exportOperations.slice(offset,offset+rowsPerSlide);
+        const tableRows=[headers,...chunk.map(op=>exportColumns.map(field=>String(exportValue(op,field.key)??"")))];
+        const widths=exportColumns.map(()=>12.1/Math.max(1,exportColumns.length));
+        page.addTable(tableRows,{x:0.45,y:0.9,w:12.1,h:5.85,border:{type:"solid",color:"D4DEE8",pt:0.6},fontFace:"Aptos",fontSize:Math.max(7,Math.min(10,12-exportColumns.length/2)),color:"1A2B40",rowH:0.48,colW:widths,margin:0.05,autoFit:false,breakLine:false,fill:"FFFFFF",bold:false,paraSpaceAfterPt:0,header:{bold:true,color:"FFFFFF",fill:navy,fontSize:9},});
+        page.addText("Operations "+(offset+1)+"–"+(offset+chunk.length)+" of "+exportOperations.length,{x:0.48,y:7.05,w:12,h:0.18,fontSize:8,color:"66788C",margin:0});
+      }
+      await deck.writeFile({fileName:exportFileBase+"-Process-Map.pptx"});
+      onNotice("PowerPoint exported with "+exportOperations.length+" operation(s) and "+exportColumns.length+" selected field(s).");
+    } catch(error) {
+      onNotice(error instanceof Error?"PowerPoint export failed: "+error.message:"PowerPoint export failed.");
+    }
   };
   const printExport = () => {if(!exportOperations.length||!exportColumns.length){onNotice("Choose at least one field and ensure operations are visible.");return;}window.print();};
 
@@ -510,7 +550,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <div className="process-export-panel">
           <div className="process-export-fields">{PROCESS_EXPORT_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={exportFields.includes(field.key)} onChange={()=>setExportFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div>
           <div className="process-export-options"><label><input type="checkbox" checked={exportArrows} onChange={event=>setExportArrows(event.target.checked)}/> Connection arrows</label><label>Scope<select value={exportScope} onChange={event=>setExportScope(event.target.value as "visible"|"selected-branch")}><option value="visible">Full visible map</option><option value="selected-branch" disabled={!activeOperation}>Selected branch</option></select></label></div>
-          <div className="process-export-actions"><button type="button" className="button-primary compact-button" onClick={exportCsv}><FileDown size={14}/> CSV</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("svg")}>SVG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("png")}>PNG</button><button type="button" className="button-quiet compact-button" onClick={printExport}><Printer size={14}/> Print / Save PDF</button><small>{exportOperations.length} operation(s) · {exportColumns.length} field(s)</small></div>
+          <div className="process-export-actions"><button type="button" className="button-primary compact-button" onClick={exportCsv}><FileDown size={14}/> CSV</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("svg")}>SVG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("png")}>PNG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportPowerPoint()}><FileText size={14}/> PowerPoint</button><button type="button" className="button-quiet compact-button" onClick={printExport}><Printer size={14}/> Print / Save PDF</button><small>{exportOperations.length} operation(s) · {exportColumns.length} field(s)</small></div>
         </div>
         {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
