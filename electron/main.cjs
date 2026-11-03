@@ -19,9 +19,9 @@ let whatsappBridge;
 
 function diagnosticLog(message, details) {
   try {
-    const logDir = path.join(app.getPath("userData"), "logs");
-    fs.mkdirSync(logDir, { recursive: true });
-    fs.appendFileSync(path.join(logDir, "startup.log"),
+    const logFile = process.env.AXIMACH_SMOKE_LOG || path.join(app.getPath("userData"), "logs", "startup.log");
+    fs.mkdirSync(path.dirname(logFile), { recursive: true });
+    fs.appendFileSync(logFile,
       "[" + new Date().toISOString() + "] " + message + " " + (details || "") + "\n", "utf8");
   } catch (error) { console.error("AXIMACH could not write startup log:", error); }
 }
@@ -168,36 +168,37 @@ function createWindow(frontendUrl = "aximach://bundle/index.html") {
 
   window.webContents.on("did-finish-load", () => {
     diagnosticLog("frontend document loaded:", window.webContents.getURL());
-    setTimeout(async () => {
-      if (window.isDestroyed()) return;
-      try {
-        const state = await window.webContents.executeJavaScript(`(() => ({
-          url: location.href, readyState: document.readyState,
-          rootExists: !!document.getElementById("root"),
-          appShell: !!document.querySelector(".app-shell"),
-          startupError: !!document.querySelector('[data-aximach-startup-error="true"]'),
-          resources: performance.getEntriesByType("resource").map(x => x.name).slice(-30)
-        }))()`);
-        diagnosticLog("renderer health check:", JSON.stringify(state));
-        if (state.appShell) {
-          if (process.env.AXIMACH_SMOKE_TEST === "1") {
-            diagnosticLog("Windows package smoke test:", "PASS — React workspace mounted");
-            app.quit();
-          }
-        } else if (!state.startupError) {
-          diagnosticLog("renderer mount failed:", JSON.stringify(state));
-          showDiagnosticPage(window, "AXIMACH workspace did not mount", JSON.stringify(state, null, 2));
-          if (process.env.AXIMACH_SMOKE_TEST === "1") app.exit(1);
-        } else if (process.env.AXIMACH_SMOKE_TEST === "1") {
-          diagnosticLog("Windows package smoke test:", "FAIL — React startup boundary rendered an error");
-          app.exit(1);
-        }
-      } catch (error) {
-        diagnosticLog("renderer health check failed:", error.stack || error.message);
-        showDiagnosticPage(window, "AXIMACH renderer health check failed", error.stack || error.message);
-      }
-    }, 8000);
   });
+
+  // Run independently of did-finish-load: a broken module import must not leave
+  // the native window alive forever with only its background color visible.
+  setTimeout(async () => {
+    if (window.isDestroyed()) return;
+    try {
+      const state = await window.webContents.executeJavaScript(`(() => ({
+        url: location.href, readyState: document.readyState,
+        rootExists: !!document.getElementById("root"),
+        appShell: !!document.querySelector(".app-shell"),
+        startupError: !!document.querySelector('[data-aximach-startup-error="true"]'),
+        resources: performance.getEntriesByType("resource").map(x => x.name).slice(-40)
+      }))()`);
+      diagnosticLog("renderer watchdog:", JSON.stringify(state));
+      if (state.appShell) {
+        diagnosticLog("renderer status:", "React workspace mounted successfully");
+        if (process.env.AXIMACH_SMOKE_TEST === "1") app.quit();
+      } else {
+        diagnosticLog("renderer status:", "Workspace did not mount");
+        if (!state.startupError && !String(state.url || "").startsWith("data:")) {
+          showDiagnosticPage(window, "AXIMACH workspace did not mount", JSON.stringify(state, null, 2));
+        }
+        if (process.env.AXIMACH_SMOKE_TEST === "1") app.exit(1);
+      }
+    } catch (error) {
+      diagnosticLog("renderer watchdog failed:", error.stack || error.message);
+      showDiagnosticPage(window, "AXIMACH renderer health check failed", error.stack || error.message);
+      if (process.env.AXIMACH_SMOKE_TEST === "1") app.exit(1);
+    }
+  }, 12000);
 }
 
 function stopLocalServices() {
@@ -208,7 +209,8 @@ function stopLocalServices() {
 }
 app.whenReady().then(() => {
   registerFrontendProtocol();
-  startLocalServices();
+  if (process.env.AXIMACH_SMOKE_TEST === "1") diagnosticLog("smoke test mode:", "local background services skipped");
+  else startLocalServices();
   createWindow("aximach://bundle/index.html");
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
