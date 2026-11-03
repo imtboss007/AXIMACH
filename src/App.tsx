@@ -12,6 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import AXIMACHOrb from "./AXIMACHOrb";
 import IconStudio from "./IconStudio";
 import ManufacturingMasterWorkspace from "./ManufacturingMasterWorkspace";
+import DashboardWorkspace from "./DashboardWorkspace";
 import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
 import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
 import InventoryWorkspace from "./InventoryWorkspace";
@@ -67,7 +68,7 @@ const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) =>
 
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
-  const [activeModuleId, setActiveModuleId] = useState("command-centre");
+  const [activeModuleId, setActiveModuleId] = useState("dashboard");
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -143,21 +144,24 @@ function App() {
   return (
     <div className="app-shell">
       <header className="command-deck">
-        <button className="brand-lockup" onClick={() => selectModule("command-centre")} aria-label="Open AXIMACH command centre">
+        <button className="brand-lockup" onClick={() => selectModule("dashboard")} aria-label="Open AXIMACH dashboard">
           <span className="brand-symbol"><span>A</span><i /></span>
           <span className="brand-copy"><strong>Machining Flow Control</strong><small>Multi-Company Manufacturing OS</small></span>
         </button>
 
         <div className="deck-divider" />
-        <button className="factory-switcher" onClick={() => selectModule("companies")} aria-label="Manage companies and factories">
-          <Factory size={16} /><span>Companies &amp; Factories</span><ChevronDown size={14}/>
+        <button className="factory-switcher" onClick={() => selectModule("dashboard")} aria-label="Open main dashboard">
+          <Gauge size={16} /><span>Dashboard</span>
+        </button>
+        <button className="factory-switcher" onClick={() => selectModule("command-centre")} aria-label="Open 3D command centre">
+          <Command size={16} /><span>3D Command Centre</span>
         </button>
 
         <div className="deck-spacer" />
         <button className="command-search" onClick={() => { setCommandOpen(true); setModuleExplorerOpen(false); }} aria-label="Open command search">
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
-        <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>32</b></button>
+        <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>18</b></button>
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
       </header>
@@ -170,7 +174,9 @@ function App() {
       </div>
 
       <main className="page-content">
-        {activeModuleId === "command-centre" ? (
+        {activeModuleId === "dashboard" ? (
+          <DashboardWorkspace onSelectModule={selectModule} onOpenCommandCentre={() => selectModule("command-centre")} onOpenModules={openModuleExplorer} />
+        ) : activeModuleId === "command-centre" ? (
           <CommandCentre
             activeModule={activeModule}
             aiPrompt={aiPrompt}
@@ -201,8 +207,11 @@ function App() {
         )}
       </main>
 
-      <nav className="command-rail" aria-label="Manufacturing modules">
-        <div className="rail-section-label">WORKSPACES</div>
+      <nav className="command-rail" aria-label="AXIMACH navigation">
+        <div className="rail-section-label">COMMAND CENTRES</div>
+        <button title="Main Dashboard" className={activeModuleId === "dashboard" ? "rail-active" : ""} onClick={() => selectModule("dashboard")}><Gauge size={16} /><span>Main Dashboard</span></button>
+        <button title="3D Command Centre" className={activeModuleId === "command-centre" ? "rail-active" : ""} onClick={() => selectModule("command-centre")}><Command size={16} /><span>3D Command Centre</span></button>
+        <div className="rail-section-label">MODULES 03–20</div>
         {modules.map((item) => { const ItemIcon = item.icon; return <button key={item.id} title={item.title} className={activeModuleId === item.id ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16} /><span>{item.title}</span></button>; })}
         <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={16} /><span>Module explorer</span></button>
       </nav>
@@ -280,10 +289,10 @@ function CommandCentre(props: {
       {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
       <section className="hero-command">
         <div className="hero-copy">
-          <div className="eyebrow"><span className="eyebrow-mark" /> MANUFACTURING INTELLIGENCE / 01</div>
-          <h1>See the whole flow.<br /><em>Control the details.</em></h1>
-          <p>One connected view of work orders, machines, suppliers, quality and cost — designed for how real manufacturing runs.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all 32 modules</button></div>
+          <div className="eyebrow"><span className="eyebrow-mark" /> 3D COMMAND CENTRE / 02</div>
+          <h1>One sphere.<br /><em>Every command.</em></h1>
+          <p>An interactive manufacturing command surface. Rotate the sphere, open workspaces and control the connected operating flow.</p>
+          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all 18 modules</button></div>
         </div>
         <div className="hero-graphic axim-hero-graphic" aria-label="Interactive AXIMACH 3D operations sphere">
           <div className="graphic-grid" />
@@ -305,9 +314,9 @@ function CommandCentre(props: {
         <div className="surface-panel flow-preview">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER DATA SETUP</div><h3>Build your manufacturing records</h3><p>Save each master once; choose its ID from linked workflows.</p></div><button className="round-action" onClick={() => onSelectModule("companies")} aria-label="Open company master"><ArrowUpRight size={18}/></button></div>
           <div className="setup-steps setup-steps-compact">
-            <button onClick={() => onSelectModule("companies")} aria-label="Open companies and factories">
+            <button onClick={() => onSelectModule("companies")} aria-label="Open company directory">
               <span className="setup-step-icon"><Factory size={21}/></span>
-              <span className="setup-step-copy"><strong>Companies</strong><b className="setup-step-quantity">{activeRows(actualData.companies).length}</b><small>{activeRows(actualData.factories).length} factories</small></span>
+              <span className="setup-step-copy"><strong>Companies</strong><b className="setup-step-quantity">{activeRows(actualData.companies).length}</b><small>Company master</small></span>
             </button>
             <button onClick={() => onSelectModule("components")} aria-label="Open component master">
               <span className="setup-step-icon"><Box size={21}/></span>
@@ -899,7 +908,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
       </section>}
       <div className="module-workbench-grid">
         <section className="surface-panel module-records-panel">
-          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> RECORDS / WORK ITEMS</div><h3>{module.title}</h3><p>{records.length} saved locally · {filtered.length} shown</p></div><span className="module-number">{String(modules.findIndex((item) => item.id === module.id) + 1).padStart(2, "0")} / 32</span></div>
+          <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> RECORDS / WORK ITEMS</div><h3>{module.title}</h3><p>{records.length} saved locally · {filtered.length} shown</p></div><span className="module-number">{String(modules.findIndex((item) => item.id === module.id) + 3).padStart(2, "0")} / 20</span></div>
           {filtered.length ? <div className="module-record-list">{filtered.map((record) => <article className="module-record-card" key={record.id}>
             <div className="module-record-mark"><Icon size={18} /></div><div className="module-record-copy"><strong>{record.title}</strong><span>{record.reference || "No reference"} · {record.owner || "Unassigned"}</span><p>{record.notes || "No notes added."}</p>{record.linkedModule && <button className="inline-module-link" onClick={() => onSelectModule(record.linkedModule)}><GitBranch size={13} /> Open linked {modules.find((item) => item.id === record.linkedModule)?.title ?? "module"} <ArrowUpRight size={13} /></button>}</div>
             <div className="module-record-card-actions"><span className={"record-state state-" + record.status.toLowerCase().replace(/[^a-z]+/g, "-")}>{record.status}</span><button onClick={() => editRecord(record)}>Edit</button><button onClick={() => removeRecord(record.id)}>Delete</button></div>
