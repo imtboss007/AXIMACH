@@ -89,23 +89,72 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule}:Prop
 }
 
 export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
- const {data}=useManufacturingData();const vendors=activeRows(data.vendors);
- const [search,setSearch]=useState("");const [category,setCategory]=useState("");const [process,setProcess]=useState("");
- const processOptions=[...new Set(vendors.flatMap(v=>v.processes.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
- const filtered=vendors.filter(v=>{
-  const text=(v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.processes+" "+v.machines+" "+v.materials+" "+v.notes).toLowerCase();
-  const matchesSearch=text.includes(search.toLowerCase().trim());
-  const matchesProcess=!process||v.processes.toLowerCase().split(/[,;|]/).some(x=>x.trim()===process.toLowerCase());
-  const matchesCategory=!category||v.role.toLowerCase().includes(category.toLowerCase())||v.processes.toLowerCase().includes(category.toLowerCase());
-  return matchesSearch&&matchesProcess&&matchesCategory;
+ const {data}=useManufacturingData();
+ const vendors=activeRows(data.vendors);
+ const operations=activeRows(data.operations);
+ const definitions=activeRows(data.processDefinitions);
+ const contacts=activeRows(data.contactProfiles||[]);
+ const [search,setSearch]=useState("");
+ const [vendorTypes,setVendorTypes]=useState<string[]>([]);
+ const [categories,setCategories]=useState<string[]>([]);
+ const [processTypes,setProcessTypes]=useState<string[]>([]);
+ const [subcategories,setSubcategories]=useState<string[]>([]);
+ const [executionTypes,setExecutionTypes]=useState<string[]>([]);
+ const [onlyAssigned,setOnlyAssigned]=useState(false);
+ const vendorTypeOptions=[...new Set(vendors.map(v=>v.vendorType||"").filter(Boolean))].sort();
+ const categoryOptions=[...new Set(definitions.map(p=>p.category).filter(Boolean))].sort();
+ const processOptions=[...new Set(definitions.map(p=>p.processType).filter(Boolean))].sort();
+ const selectedDefinitions=definitions.filter(p=>(!categories.length||categories.includes(p.category))&&(!processTypes.length||processTypes.includes(p.processType)));
+ const subcategoryOptions=[...new Set(selectedDefinitions.flatMap(p=>p.subcategories||[]))].sort();
+ const matchesAny=(selected:string[],source:string)=>!selected.length||selected.some(value=>source.toLowerCase().split(/[,;|]/).map(x=>x.trim()).includes(value.toLowerCase()));
+ const toggle=(setter:(next:string[]|((old:string[])=>string[]))=>void,value:string)=>setter(old=>old.includes(value)?old.filter(x=>x!==value):[...old,value]);
+ const clearFilters=()=>{setSearch("");setVendorTypes([]);setCategories([]);setProcessTypes([]);setSubcategories([]);setExecutionTypes([]);setOnlyAssigned(false);};
+ const rows=vendors.map(v=>{
+  const assigned=operations.filter(op=>op.vendorId===v.id||op.transportVendorId===v.id);
+  const contactRows=contacts.filter(c=>c.linkedType==="vendor"&&c.linkedId===v.id);
+  const assignedProcesses=[...new Set(assigned.filter(op=>op.vendorId===v.id).map(op=>op.name))];
+  const assignedPOs=[...new Set(assigned.map(op=>op.poId).filter(Boolean))];
+  return {vendor:v,assigned,contactRows,assignedProcesses,assignedPOs};
+ });
+ const filtered=rows.filter(({vendor:v,assigned})=>{
+  const linkedContacts=contacts.filter(c=>c.linkedType==="vendor"&&c.linkedId===v.id).map(c=>[c.name,c.role,c.phone,c.whatsapp,c.email,c.group].join(" ")).join(" ");
+  const fullText=(v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.email+" "+v.vendorType+" "+v.processes+" "+v.machines+" "+v.materials+" "+v.notes+" "+linkedContacts+" "+assigned.map(op=>op.name+" "+op.category+" "+op.status).join(" ")).toLowerCase();
+  const operationCategory=assigned.map(op=>op.category).join(" ");
+  const operationTypes=assigned.map(op=>op.name+" "+op.subcategory).join(" ");
+  const execution=assigned.map(op=>op.executionType||"Outsourced").join(" ");
+  return fullText.includes(search.toLowerCase().trim())
+   &&(!vendorTypes.length||vendorTypes.includes(v.vendorType||""))
+   &&matchesAny(categories,v.processes+" "+operationCategory)
+   &&matchesAny(processTypes,v.processes+" "+operationTypes)
+   &&matchesAny(subcategories,operationTypes+" "+v.processes)
+   &&matchesAny(executionTypes,execution)
+   &&(!onlyAssigned||assigned.length>0);
  });
  return <section className="workspace-page relationship-workspace">
   <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> VENDOR CAPABILITY NETWORK</span></div>
-  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / PROCESS CAPABILITIES</div><h1>Vendor Network<span>.</span></h1><p>Find vendors by process category and process, with their saved machines, materials and contact details.</p></div><button className="button-quiet" onClick={()=>onSelectModule("vendors")}><Users size={14}/> Manage vendors</button></div>
-  <div className="module-action-bar relationship-filters"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search vendor, contact, machine or material…"/></label><label>Process category<input value={category} onChange={e=>setCategory(e.target.value)} placeholder="Machining, treatment…"/></label><label>Process<select value={process} onChange={e=>setProcess(e.target.value)}><option value="">All processes</option>{processOptions.map(x=><option key={x}>{x}</option>)}</select></label></div>
-  <section className="surface-panel"><div className="panel-heading"><div><h3>Matching vendors</h3><p>{filtered.length} of {vendors.length} vendors match the selected capabilities.</p></div></div>
-   {filtered.length?<div className="vendor-record-list">{filtered.map(v=><article className="vendor-record" key={v.id}><span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.contact} · {v.role||"Role not recorded"}</small><small>{v.phone||"Phone not recorded"} · {v.email||"Email not recorded"}</small><small>{v.processes||"Process capabilities not recorded"}</small><small>{v.machines||"Machines not recorded"} · {v.materials||"Materials not recorded"}</small></span><button className="button-quiet compact-button" onClick={()=>onSelectModule("vendors")}>Open vendor <ArrowRight size={13}/></button></article>)}</div>:<div className="module-empty-state"><Wrench size={24}/><h3>No matching vendors</h3><p>Change the process filter or add capabilities in Vendor Directory.</p><button className="button-primary" onClick={()=>onSelectModule("vendors")}><Plus size={14}/> Open Vendor Directory</button></div>}
+  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / LIVE ASSIGNMENTS</div><h1>Vendor Network<span>.</span></h1><p>Filter process capabilities from Process Directory and see the actual operations assigned to each vendor in Process Plan / Production Plan.</p></div><button className="button-quiet" onClick={()=>onSelectModule("vendors")}><Users size={14}/> Manage vendors</button></div>
+  <div className="module-action-bar relationship-filters"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search vendor company, contact, process, machine, material or assigned PO…"/></label><label><input type="checkbox" checked={onlyAssigned} onChange={e=>setOnlyAssigned(e.target.checked)}/> Assigned vendors only</label><span className="module-number">{filtered.length} VENDORS</span><button className="button-quiet compact-button" onClick={clearFilters}>Clear filters</button></div>
+  <section className="surface-panel vendor-network-filter-panel"><div className="panel-heading"><div><h3>Capability filters</h3><p>Select multiple values. Process categories/types are sourced from Process Directory; assignments are read from saved operations.</p></div><button className="button-quiet compact-button" onClick={()=>{setVendorTypes(vendorTypeOptions);setCategories(categoryOptions);setProcessTypes(processOptions);setSubcategories(subcategoryOptions);setExecutionTypes(["Internal","Outsourced"]);}}>Select all</button></div>
+   <div className="contact360-filter-grid">
+    <div><strong>Vendor type</strong>{vendorTypeOptions.map(x=><label key={x}><input type="checkbox" checked={vendorTypes.includes(x)} onChange={()=>toggle(setVendorTypes,x)}/>{x}</label>)}</div>
+    <div><strong>Process category</strong>{categoryOptions.map(x=><label key={x}><input type="checkbox" checked={categories.includes(x)} onChange={()=>toggle(setCategories,x)}/>{x}</label>)}</div>
+    <div><strong>Process type</strong>{processOptions.map(x=><label key={x}><input type="checkbox" checked={processTypes.includes(x)} onChange={()=>toggle(setProcessTypes,x)}/>{x}</label>)}</div>
+    <div><strong>Subcategory</strong>{subcategoryOptions.map(x=><label key={x}><input type="checkbox" checked={subcategories.includes(x)} onChange={()=>toggle(setSubcategories,x)}/>{x}</label>)}</div>
+    <div><strong>Execution</strong>{["Internal","Outsourced"].map(x=><label key={x}><input type="checkbox" checked={executionTypes.includes(x)} onChange={()=>toggle(setExecutionTypes,x)}/>{x}</label>)}</div>
+   </div>
   </section>
-  <div className="module-safety-note"><ShieldCheck size={15}/><span>Vendor Network is a filtered view of saved Vendor Directory records. It does not create duplicate vendor masters.</span></div>
+  <section className="surface-panel"><div className="panel-heading"><div><h3>Vendors and production assignments</h3><p>{filtered.length} of {vendors.length} vendor records · {operations.length} saved operations scanned.</p></div></div>
+   {filtered.length?<div className="vendor-record-list">{filtered.map(({vendor:v,assigned,contactRows,assignedProcesses,assignedPOs})=><article className="vendor-record vendor-network-record" key={v.id}>
+    <span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span>
+    <span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.vendorType||"Vendor type not set"} · {v.contact} · {v.phone||"No phone"}</small>
+     <small>{v.processes||"No process capabilities"} · {v.machines||"Machines not recorded"} · {v.materials||"Materials not recorded"}</small>
+     <small>Linked people: {contactRows.map(c=>c.name+(c.phone?" · "+c.phone:"")).join(" | ")||"No additional contacts"}</small>
+     <small>Assigned process: {assignedProcesses.join(", ")||"No process operation assigned"}</small>
+     <small>{assigned.length} assigned operation(s) · {assignedPOs.length} PO(s)</small>
+     {assigned.length>0&&<span className="vendor-assignment-chips">{assigned.slice(0,12).map(op=><em key={op.id}>{op.name} · {op.status} · {op.executionType||"Outsourced"}</em>)}</span>}
+    </span><div className="vendor-network-actions"><button className="button-quiet compact-button" onClick={()=>onSelectModule("vendors")}>Open vendor</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("process-map")}>Open Process Plan</button></div>
+   </article>)}</div>:<div className="module-empty-state"><Wrench size={24}/><h3>No matching vendors</h3><p>Change the capability filters or add capabilities to Vendor Directory from Process Directory.</p><button className="button-primary" onClick={()=>onSelectModule("vendors")}><Plus size={14}/> Open Vendor Directory</button></div>}
+  </section>
+  <div className="module-safety-note"><ShieldCheck size={15}/><span>Capability data is sourced from Vendor Directory and Process Directory. Assignment counts and statuses are derived from existing PO-linked Process Plan operations; they are not manually duplicated here.</span></div>
  </section>;
 }
