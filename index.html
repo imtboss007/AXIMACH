@@ -66,7 +66,7 @@
           } else if (Date.now() - startedAt > 10000) {
             const resources = performance.getEntriesByType("resource")
               .map(item => item.name)
-              .filter(name => /assets\\/.*\\.(js|css)|index-.*\\.(js|css)/i.test(name))
+              .filter(name => name.includes(".js") || name.includes(".css"))
               .slice(-20);
             fail("AXIMACH workspace did not mount",
               "Startup waited 10 seconds but .app-shell was not created.\n\nCurrent URL: " + location.href
