@@ -82,7 +82,13 @@ function App() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
-  const [appearance, setAppearance] = useState<"light"|"dark"|"midnight"|"ocean">(() => { try { const saved=localStorage.getItem("aximach.ui.appearance"); return saved==="dark"||saved==="midnight"||saved==="ocean"?saved:"light"; } catch { return "light"; } });
+  const [appearance, setAppearance] = useState<"light"|"dark"|"midnight"|"ocean">(() => { try { const saved=localStorage.getItem("aximach.ui.appearance");
+  const [followUpSeed,setFollowUpSeed] = useState<{name:string;phone:string;company:string;vendorId:string;process:string;operationId:string}>({name:"",phone:"",company:"",vendorId:"",process:"",operationId:""});
+  const openVendorFollowUp = (vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string}, operationName="") => {
+    setFollowUpSeed({name:vendor.contact,phone:vendor.whatsappNumber||vendor.phone,company:vendor.company,vendorId:vendor.id,process:vendor.processes||"",operationId:operationName});
+    selectModule("communications");
+  };
+ return saved==="dark"||saved==="midnight"||saved==="ocean"?saved:"light"; } catch { return "light"; } });
   useEffect(() => { try { localStorage.setItem("aximach.ui.appearance",appearance); document.documentElement.dataset.theme=appearance; } catch { /* appearance remains active for this session */ } },[appearance]);
 
   const activeModule = modules.find((item) => item.id === activeModuleId) ?? modules[0];
@@ -231,9 +237,9 @@ function App() {
         ) : activeModuleId === "vendor-capability" ? (
           <VendorNetworkWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
-          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onScheduleVendor={openVendorFollowUp} />
         ) : activeModuleId === "communications" ? (
-          <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} initialRecipient={followUpSeed} />
         ) : (
           <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         )}
@@ -405,7 +411,7 @@ const emptyVendorDraft = (): VendorDraft => ({
   processes:"",machines:"",materials:"",notes:"",status:"Unverified contact — review",vendorType:"",transportRoutes:[],
   sourceContactId:"",whatsappSyncedAt:""
 });
-function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelectModule }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; onSelectModule:(id:string)=>void }) {
+function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelectModule, onScheduleVendor }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; onSelectModule:(id:string)=>void; onScheduleVendor:(vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string})=>void }) {
   const { data, update, syncStatus } = useManufacturingData();
   const contacts = activeRows(data.vendors);
   const linkedPeople = activeRows(data.contactProfiles || []).filter(person => person.linkedType === "vendor");
@@ -491,7 +497,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
         </>:selected?<><div className="vendor-detail-title"><span className="vendor-avatar vendor-avatar-large">{selected.company.slice(0,1).toUpperCase()}</span><div><h3>{selected.company}</h3><p>{selected.contact} · {selected.role||"Role not set"}</p><span className="record-state">{selected.status}</span></div><button className="button-quiet" onClick={()=>beginEdit(selected)}>Edit</button></div>
           <div className="vendor-contact-grid"><div><small>PHONE</small><strong>{selected.phone||"Not added"}</strong></div><div><small>WHATSAPP</small><strong>{selected.whatsappNumber||selected.phone||"Not linked"}</strong></div><div><small>EMAIL</small><strong>{selected.email||"Not added"}</strong></div><div><small>ADDRESS</small><strong>{selected.address||"Not added"}</strong></div><div><small>VENDOR TYPE</small><strong>{selected.vendorType||"Not specified"}</strong></div>{selected.vendorType==="Transport"&&<div className="editor-wide"><small>FIXED TRANSPORT ROUTES</small><strong>{(selected.transportRoutes||[]).map(route=>route.fromLocation+" → "+route.toLocation+" · ₹"+route.fixedCost.toLocaleString("en-IN")+" · "+(route.vehicleType||"Vehicle not set")).join(" | ")||"No routes added"}</strong></div>}<div><small>PROCESS CAPABILITIES</small><strong>{selected.processes||"Not recorded"}</strong></div><div><small>MACHINES / CAPACITY</small><strong>{selected.machines||"Not recorded"}</strong></div><div><small>MATERIAL CAPABILITIES</small><strong>{selected.materials||"Not recorded"}</strong></div><div><small>WHATSAPP SYNC</small><strong>{selected.whatsappSyncedAt?new Date(selected.whatsappSyncedAt).toLocaleString():"Not synced"}</strong></div><div className="editor-wide"><small>NOTES</small><strong>{selected.notes||"No notes entered"}</strong></div></div>
           <section className="vendor-linked-people"><div className="panel-heading"><div><h4>Other contact persons</h4><p>{linkedPeople.filter(person=>person.linkedId===selected.id).length} linked people</p></div><button className="button-quiet compact-button" onClick={()=>onSelectModule("contact360")}>Manage in Contact 360</button></div>{linkedPeople.filter(person=>person.linkedId===selected.id).map(person=><div className="vendor-linked-person" key={person.id}><strong>{person.name}</strong><span>{person.role||"Role not entered"} · {person.group||"No group"}</span><small>{person.phone||person.whatsapp||"No number"} · {person.email||"No email"}</small></div>)}{!linkedPeople.some(person=>person.linkedId===selected.id)&&<p className="field-hint">Add more people in Contact 360 and link them to this vendor company. Numbers remain attached to the individual contact.</p>}</section>
-          <div className="vendor-actions"><button className="button-primary" onClick={()=>{const phone=(selected.whatsappNumber||selected.phone).replace(/\D/g,"");if(!phone){onNotice("Add a phone / WhatsApp number first.");return;}window.open("https://wa.me/"+phone,"_blank","noopener,noreferrer");}}><MessageCircle size={15}/> Open WhatsApp</button><button className="button-quiet" onClick={()=>onSelectModule("costing")}><CircleDollarSign size={15}/> Quotes & costing</button><button className="button-quiet" onClick={()=>onSelectModule("process-map")}><Workflow size={15}/> Assign to operation</button><button className="button-quiet" onClick={()=>onSelectModule("communications")}><CalendarClock size={15}/> Schedule follow-up</button><button className="button-quiet" onClick={()=>archive(selected)}><X size={14}/> Archive vendor</button></div>
+          <div className="vendor-actions"><button className="button-primary" onClick={()=>{const phone=(selected.whatsappNumber||selected.phone).replace(/\D/g,"");if(!phone){onNotice("Add a phone / WhatsApp number first.");return;}window.open("https://wa.me/"+phone,"_blank","noopener,noreferrer");}}><MessageCircle size={15}/> Open WhatsApp</button><button className="button-quiet" onClick={()=>onSelectModule("costing")}><CircleDollarSign size={15}/> Quotes & costing</button><button className="button-quiet" onClick={()=>onSelectModule("process-map")}><Workflow size={15}/> Assign to operation</button><button className="button-quiet" onClick={()=>onScheduleVendor(selected)}><CalendarClock size={15}/> Schedule follow-up</button><button className="button-quiet" onClick={()=>archive(selected)}><X size={14}/> Archive vendor</button></div>
           <div className="module-safety-note"><ShieldCheck size={14}/><span>Operation assignments and quotations reference the vendor ID. QR-imported contacts stay unverified until you review them.</span></div>
         </>:<div className="module-empty-state"><Users size={25}/><h3>Select or add a vendor</h3><p>QR-synced contacts appear here after the WhatsApp bridge connects and returns contacts.</p><button className="button-primary" onClick={beginNew}><Plus size={14}/> Add vendor</button></div>}
       </section>
@@ -499,7 +505,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
   </section>;
 }
 
-function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; onNotice: (value: string) => void; notice: string }) {
+function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onBack: () => void; onNotice: (value: string) => void; notice: string; initialRecipient?: {name:string;phone:string;company:string;vendorId:string;process:string;operationId:string} }) {
   type ApiContact = { id: string; name: string; phone: string; company: string; optedIn: boolean; createdAt: string };
   type ApiSchedule = { id: string; to: string; message: string; nextRunAt: string | null; repeat: "once" | "daily" | "weekly"; enabled: boolean; lastRunAt: string | null; lastError: string };
   type ApiLog = { id: string; scheduleId: string; at: string; status: string; detail: string; providerMessageId?: string };
@@ -564,6 +570,17 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const [waDue,setWaDue]=useState(()=>{const d=new Date(Date.now()+3600000);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);});
   const [waRepeat,setWaRepeat]=useState<"once"|"daily"|"weekly">("once");
   const [waError,setWaError]=useState("");
+  useEffect(()=>{
+    if(!initialRecipient)return;
+    if(initialRecipient.phone){
+      const digits=verifiedWhatsAppPhone(initialRecipient.phone);
+      const matching=digits?waContacts.find(contact=>whatsappContactPhone(contact)===digits):undefined;
+      setWaTarget(matching?.id||digits||initialRecipient.phone);
+    }
+    const subject=initialRecipient.operationId||initialRecipient.process||"manufacturing follow-up";
+    setWaMessage("Hello "+(initialRecipient.name||"")+", regarding "+subject+" for "+initialRecipient.company+". Please share the current status and expected completion / delivery time. Thank you.");
+  },[initialRecipient?.vendorId,initialRecipient?.operationId,waContacts.length]);
+
   const waBase=waUrl.trim().replace(/\/+$/,"");
   const waApiKey=apiKey;
   const waRequest=async(path:string,init:RequestInit={})=>{const response=await fetch(waBase+path,{...init,headers:{"content-type":"application/json","x-aximach-key":waApiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"WhatsApp bridge returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
