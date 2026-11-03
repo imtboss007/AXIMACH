@@ -475,7 +475,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice }: { onBack: () => void; o
   const [connected,setConnected]=useState(false);
   const [lanInfo,setLanInfo]=useState<{addresses:string[];apiKey:string;port:number}|null>(null);
   useEffect(()=>{
-    if(window.location.protocol!=="file:")return;
+    if(window.location.protocol!=="file:"&&window.location.protocol!=="aximach:")return;
     let cancelled=false;
     let attempts=0;
     let timer:number|undefined;
