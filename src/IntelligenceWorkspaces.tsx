@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from "react";
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, Download, FileDown, FileUp, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
-import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord } from "./manufacturingData";
+import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord, type ManufacturingData } from "./manufacturingData";
 import { readPlannedCostRecords } from "./plannedCostData";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
@@ -10,7 +10,7 @@ function downloadFile(name:string,content:string,mime="text/csv;charset=utf-8"){
 }
 function csvCell(value:unknown){const text=String(value??"");return /[",\r\n]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;}
 function toCsv(rows:Record<string,unknown>[]){if(!rows.length)return "";const keys=[...new Set(rows.flatMap(row=>Object.keys(row)))];return [keys.map(csvCell).join(","),...rows.map(row=>keys.map(key=>csvCell(row[key])).join(","))].join("\r\n");}
-function rowsFor(moduleId:string,data:any):Record<string,unknown>[] {
+function rowsFor(moduleId:string,data:ManufacturingData):Record<string,unknown>[] {
  const companies=activeRows(data.companies),components=activeRows(data.components),pos=activeRows(data.purchaseOrders),vendors=activeRows(data.vendors),ops=activeRows(data.operations);
  if(moduleId==="companies")return companies.map(x=>({...x}));
  if(moduleId==="components")return components.map(x=>({...x,companyName:companies.find(c=>c.id===x.companyId)?.name||""}));
