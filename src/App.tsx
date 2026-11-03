@@ -260,7 +260,7 @@ function App() {
                 const Icon = item.icon;
                 return (
                   <button key={item.id} className="universe-card" onClick={() => selectModule(item.id)}>
-                    <span className="universe-card-index">{String(modules.indexOf(item) + 1).padStart(2, "0")}</span>
+                    <span className="universe-card-index">{String(modules.indexOf(item) + 3).padStart(2, "0")}</span>
                     <span className="universe-icon"><Icon size={20} strokeWidth={1.7} /></span>
                     <span className="universe-card-copy"><strong>{item.title}</strong><small>{item.description}</small></span>
                     <ArrowUpRight size={16} className="universe-arrow" />
