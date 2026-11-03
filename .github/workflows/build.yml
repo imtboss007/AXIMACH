@@ -87,11 +87,14 @@ jobs:
             $appExe = $candidate.FullName
           }
           $env:AXIMACH_SMOKE_TEST = "1"
+          $env:AXIMACH_SMOKE_LOG = Join-Path $env:RUNNER_TEMP "AXIMACH-startup.log"
           $app = Start-Process -FilePath $appExe -PassThru
-          if (-not $app.WaitForExit(30000)) {
+          if (-not $app.WaitForExit(25000)) {
             Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
-            throw "AXIMACH failed to exit after the renderer smoke-test window. Check the startup diagnostic logs."
+            if (Test-Path $env:AXIMACH_SMOKE_LOG) { Get-Content $env:AXIMACH_SMOKE_LOG }
+            throw "AXIMACH did not complete its renderer watchdog within 25 seconds."
           }
+          if (Test-Path $env:AXIMACH_SMOKE_LOG) { Get-Content $env:AXIMACH_SMOKE_LOG }
           if ($app.ExitCode -ne 0) { throw "AXIMACH renderer smoke test failed with exit code $($app.ExitCode)." }
           Write-Host "PASS: installed AXIMACH app launched and its React workspace mounted."
       - name: Upload Windows installer
