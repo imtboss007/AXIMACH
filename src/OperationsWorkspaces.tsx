@@ -20,7 +20,7 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:
 
  const rows=useMemo(()=>pos.flatMap(po=>po.lines.filter(line=>!line.deletedAt).map(line=>({po,line,company:companies.find(c=>c.id===po.companyId),component:components.find(c=>c.id===line.componentId),operations:ops.filter(op=>op.poId===po.id&&op.poLineId===line.id)}))),[pos,companies,components,ops]);
  const filtered=rows.filter(row=>{
-  const text=[row.company?.name,row.po.number,row.component?.name,row.component?.partNumber,row.line.jobStatus].join(" ").toLowerCase();
+  const text=[row.company?.name,row.po.number,row.component?.name,row.component?.partNumber,row.line.quantity,row.line.targetDelivery,row.po.targetDelivery,row.line.jobStatus,...row.operations.map(op=>[op.name,op.category,op.subcategory,op.status,op.vendorId,op.plannedStart,op.plannedEnd,op.quantity,op.completed,op.rejected,op.ratePerPart,op.transportCost,op.notes].join(" "))].join(" ").toLowerCase();
   return text.includes(search.toLowerCase().trim())
    &&(!companyFilters.length||companyFilters.includes(row.po.companyId))
    &&(!poFilters.length||poFilters.includes(row.po.id))
