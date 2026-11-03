@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
-import { readProcessDirectoryRecords } from "./processDirectoryData";
 import { ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 
@@ -31,7 +30,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const components = activeRows(data.components);
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
-  const processDefinitions = readProcessDirectoryRecords();
+  const processDefinitions = activeRows(data.processDefinitions);
 
   const [companyId, setCompanyId] = useState("");
   const [poId, setPoId] = useState("");
@@ -230,6 +229,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if (!draft.name.trim()) { onNotice("Enter the operation name."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
     if (draft.accepted + draft.rejected > draft.completed) { onNotice("Accepted plus rejected quantity cannot exceed completed quantity."); return; }
+    if (draft.paymentStatus === "Paid" && !(Number(draft.paidAmount) > 0)) { onNotice("Enter the actual amount paid before marking this operation Paid."); return; }
     const stamp = nowIso();
     const operationId = editingId || makeId("operation");
     update(current => {
