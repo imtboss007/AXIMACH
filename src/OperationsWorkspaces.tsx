@@ -4,7 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus,
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
-const transportDraft=()=>({vendorId:"",pickup:"",delivery:"",cost:"0",notes:""});
+const transportDraft=()=>({vendorId:"",routeId:"",from:"",to:"",vehicleType:"",pickup:"",delivery:"",cost:"0",notes:""});
 
 export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:Props){
  const {data,update,syncStatus}=useManufacturingData();
@@ -31,7 +31,7 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:
    name:"Transport / dispatch",category:"Logistics",machine:"",vendorId:"",status:"Queued" as LifecycleStatus,
    plannedStart:draft.pickup,plannedEnd:draft.delivery,actualStart:"",actualEnd:"",
    quantity:line.quantity,completed:0,accepted:0,rejected:0,ratePerPart:0,actualRatePerPart:0,
-   transportVendorId:vendor.id,transportPickup:draft.pickup,transportDelivery:draft.delivery,transportCost:cost,
+   transportVendorId:vendor.id,transportRouteId:draft.routeId,transportFrom:draft.from,transportTo:draft.to,transportVehicleType:draft.vehicleType,transportPickup:draft.pickup,transportDelivery:draft.delivery,transportCost:cost,
    qualityNotes:"",inspectionResult:"",notes:draft.notes,branch:"Main route",parentId:"",
    paymentStatus:"Unpaid",paidAmount:0,paymentReference:"",subcategory:"Transport",
    createdAt:stamp,updatedAt:stamp
@@ -46,10 +46,12 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:
   <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, PO, component or status…"/></label><span className="module-number">{filtered.length} PO COMPONENT JOBS</span></div>
   {transportLine&&<section className="surface-panel"><div className="panel-heading"><div><h3>Add transport to PO component</h3><p>This creates a logistics operation linked to the selected PO component line.</p></div></div>
    <div className="module-record-form specialized-form">
-    <label>Transport vendor *<select value={draft.vendorId} onChange={e=>setDraft({...draft,vendorId:e.target.value})}><option value="">Select transport vendor</option>{vendors.map(v=><option key={v.id} value={v.id}>{v.company} · {v.contact}</option>)}</select></label>
+    <label>Transport vendor *<select value={draft.vendorId} onChange={e=>setDraft({...draft,vendorId:e.target.value,routeId:"",from:"",to:"",vehicleType:"",cost:"0"})}><option value="">Select transport vendor</option>{vendors.filter(v=>v.vendorType==="Transport").map(v=><option key={v.id} value={v.id}>{v.company} · {v.contact}</option>)}</select></label>
+    <label>Saved route<select value={draft.routeId} onChange={e=>{const route=vendors.find(v=>v.id===draft.vendorId)?.transportRoutes?.find(r=>r.id===e.target.value);setDraft({...draft,routeId:e.target.value,from:route?.fromLocation||"",to:route?.toLocation||"",vehicleType:route?.vehicleType||"",cost:String(route?.fixedCost||0)});}}><option value="">Select route</option>{(vendors.find(v=>v.id===draft.vendorId)?.transportRoutes||[]).map(route=><option key={route.id} value={route.id}>{route.fromLocation} → {route.toLocation} · ₹{route.fixedCost.toLocaleString("en-IN")}</option>)}</select></label>
+    <label>From location<input readOnly value={draft.from}/></label><label>To location<input readOnly value={draft.to}/></label><label>Vehicle type<input readOnly value={draft.vehicleType}/></label>
     <label>Transport cost (₹)<input type="number" min="0" step="0.01" value={draft.cost} onChange={e=>setDraft({...draft,cost:e.target.value})}/></label>
-    <label>Pickup date<input type="date" value={draft.pickup} onChange={e=>setDraft({...draft,pickup:e.target.value})}/></label>
-    <label>Delivery date<input type="date" min={draft.pickup||undefined} value={draft.delivery} onChange={e=>setDraft({...draft,delivery:e.target.value})}/></label>
+    <label>Pickup date &amp; time<input type="datetime-local" value={draft.pickup} onChange={e=>setDraft({...draft,pickup:e.target.value})}/></label>
+    <label>Delivery date &amp; time<input type="datetime-local" min={draft.pickup||undefined} value={draft.delivery} onChange={e=>setDraft({...draft,delivery:e.target.value})}/></label>
     <label className="module-form-wide">Transport notes<input value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} placeholder="Pickup location, consignment reference, handover notes…"/></label>
     <div className="module-form-actions"><button className="button-primary" onClick={saveTransport}><Truck size={14}/> Save transport</button><button className="button-quiet" onClick={()=>setTransportLine(null)}>Cancel</button></div>
    </div>
