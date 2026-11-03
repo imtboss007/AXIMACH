@@ -1,6 +1,5 @@
-const { app, BrowserWindow, shell, protocol, net } = require("electron");
+const { app, BrowserWindow, shell, protocol } = require("electron");
 const path = require("node:path");
-const { pathToFileURL } = require("node:url");
 const fs = require("node:fs");
 const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
@@ -54,11 +53,36 @@ function registerFrontendProtocol() {
         return new Response("AXIMACH frontend asset not found: " + pathname, { status: 404 });
       }
       const ext = path.extname(filePath).toLowerCase();
+      const contentTypes = {
+        ".html": "text/html; charset=utf-8",
+        ".js": "text/javascript; charset=utf-8",
+        ".mjs": "text/javascript; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+        ".json": "application/json; charset=utf-8",
+        ".svg": "image/svg+xml",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".ico": "image/x-icon",
+        ".woff": "font/woff",
+        ".woff2": "font/woff2",
+        ".ttf": "font/ttf",
+        ".map": "application/json; charset=utf-8",
+      };
+      const contentType = contentTypes[ext] || "application/octet-stream";
       if ([".html", ".js", ".css"].includes(ext)) diagnosticLog("frontend asset request:", pathname);
-      const response = await net.fetch(pathToFileURL(filePath).toString());
-      if ([".html", ".js", ".css"].includes(ext)) diagnosticLog("frontend asset response:", pathname + " · " + response.status + " · " + (response.headers.get("content-type") || "unknown content type"));
-      if (request.method === "HEAD") return new Response(null, { status: response.status, headers: response.headers });
-      return response;
+      // Read using Electron's patched fs API so app.asar virtual paths work on Windows.
+      const body = fs.readFileSync(filePath);
+      const headers = {
+        "content-type": contentType,
+        "content-length": String(body.length),
+        "x-content-type-options": "nosniff",
+        "cache-control": relative.startsWith("assets/") ? "public, max-age=31536000, immutable" : "no-cache",
+      };
+      if ([".html", ".js", ".css"].includes(ext)) diagnosticLog("frontend asset response:", pathname + " · 200 · " + contentType + " · " + body.length + " bytes");
+      return new Response(request.method === "HEAD" ? null : body, { status: 200, headers });
     } catch (error) {
       diagnosticLog("frontend protocol error:", error.stack || error.message);
       return new Response("AXIMACH local asset server error: " + (error.message || String(error)), { status: 500 });
