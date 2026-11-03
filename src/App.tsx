@@ -16,6 +16,7 @@ import DashboardWorkspace from "./DashboardWorkspace";
 import SpecializedDirectoryWorkspace from "./SpecializedDirectoryWorkspace";
 import { Contact360Workspace, VendorNetworkWorkspace } from "./RelationshipWorkspaces";
 import { ProductionPlanWorkspace, TransportDispatchWorkspace, QualityInspectionWorkspace } from "./OperationsWorkspaces";
+import { ReportsAnalyticsWorkspace, AIInsightsWorkspace, ExportCentreWorkspace, ImportCentreWorkspace } from "./IntelligenceWorkspaces";
 import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
 import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
 import InventoryWorkspace from "./InventoryWorkspace";
@@ -201,6 +202,14 @@ function App() {
           <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" || activeModuleId === "planned-cost" ? (
           <SpecializedDirectoryWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+        ) : activeModuleId === "reports" ? (
+          <ReportsAnalyticsWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "ai-insights" ? (
+          <AIInsightsWorkspace onBack={() => selectModule("command-centre")} onSelectModule={selectModule} />
+        ) : activeModuleId === "export" ? (
+          <ExportCentreWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} />
+        ) : activeModuleId === "import" ? (
+          <ImportCentreWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" ? (
           <ProductionPlanWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "dispatch" ? (
