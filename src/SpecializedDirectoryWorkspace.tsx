@@ -1,0 +1,74 @@
+import { useMemo, useState } from "react";
+import { ArrowRight, Check, CircleDollarSign, Layers3, Plus, Search, ShieldCheck, Trash2, Users } from "lucide-react";
+import { activeRows, makeId, nowIso, useManufacturingData } from "./manufacturingData";
+
+type Props={moduleId:"process-master"|"planned-cost";onBack:()=>void;onNotice:(value:string)=>void;notice:string};
+type ProcessEntry={id:string;processType:string;category:string;subcategories:string[];vendorIds:string[];notes:string;createdAt:string;updatedAt:string};
+type PlannedCostEntry={id:string;componentName:string;componentNumber:string;processType:string;processCategory:string;plannedQty:number;unit:"piece"|"set";plannedRate:number;notes:string;createdAt:string;updatedAt:string};
+const PROCESS_KEY="aximach.processDirectory.v1";
+const PLANNED_COST_KEY="aximach.componentPlannedCost.v1";
+function readRows<T>(key:string):T[]{try{const value=JSON.parse(localStorage.getItem(key)||"[]");return Array.isArray(value)?value as T[]:[];}catch{return[];}}
+const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+
+function ProcessDirectory({onNotice}:Pick<Props,"onNotice">){
+ const {data}=useManufacturingData();const vendors=activeRows(data.vendors);
+ const [rows,setRows]=useState<ProcessEntry[]>(()=>readRows<ProcessEntry>(PROCESS_KEY));
+ const [search,setSearch]=useState("");const [processType,setProcessType]=useState("");const [category,setCategory]=useState("");const [subcategories,setSubcategories]=useState("");const [vendorIds,setVendorIds]=useState<string[]>([]);const [notes,setNotes]=useState("");
+ const filtered=useMemo(()=>rows.filter(row=>(row.processType+" "+row.category+" "+row.subcategories.join(" ")+" "+row.notes+" "+row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(" ")).toLowerCase().includes(search.toLowerCase().trim())),[rows,search,vendors]);
+ const save=()=>{if(!processType.trim()||!category.trim()){onNotice("Enter the process type and category.");return;}const stamp=nowIso();const next=[{id:makeId("process"),processType:processType.trim(),category:category.trim(),subcategories:subcategories.split(",").map(x=>x.trim()).filter(Boolean),vendorIds,notes:notes.trim(),createdAt:stamp,updatedAt:stamp},...rows];setRows(next);localStorage.setItem(PROCESS_KEY,JSON.stringify(next));setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");onNotice("Process definition saved independently in Process Directory.");};
+ const remove=(id:string)=>{if(!window.confirm("Delete this process directory record? Existing production operation history is not changed."))return;const next=rows.filter(row=>row.id!==id);setRows(next);localStorage.setItem(PROCESS_KEY,JSON.stringify(next));onNotice("Process directory record deleted. Historical operations remain unchanged.");};
+ return <section className="workspace-page specialized-directory">
+  <div className="workspace-topline"><button className="back-link" onClick={()=>window.history.length>1?window.history.back():undefined}><ArrowRight size={15}/> AXIMACH</button><span className="demo-pill"><i/> INDEPENDENT PROCESS MASTER</span></div>
+  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> MANUFACTURING / MASTER DATA</div><h1>Process Directory<span>.</span></h1><p>Define process types, categories, multiple subcategories and the vendors capable of each process.</p></div><span className="module-number">{rows.length} PROCESS RECORDS</span></div>
+  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search process, category, subcategory or vendor…"/></label></div>
+  <section className="surface-panel"><div className="panel-heading"><div><h3>Add process definition</h3><p>One process type may contain multiple subcategories and linked vendors.</p></div></div>
+   <div className="module-record-form specialized-form">
+    <label>Process type *<input value={processType} onChange={e=>setProcessType(e.target.value)} placeholder="CNC Turning, VMC Milling, Wire EDM…"/></label>
+    <label>Category *<input value={category} onChange={e=>setCategory(e.target.value)} placeholder="Machining, fabrication, treatment…"/></label>
+    <label className="module-form-wide">Subcategories (comma-separated)<input value={subcategories} onChange={e=>setSubcategories(e.target.value)} placeholder="Rough turning, finish turning, threading…"/></label>
+    <label className="module-form-wide">Linked vendors<select multiple value={vendorIds} onChange={e=>setVendorIds(Array.from(e.target.selectedOptions).map(option=>option.value))}>{vendors.map(v=><option key={v.id} value={v.id}>{v.company} · {v.processes||"Capabilities not recorded"}</option>)}</select><small>Use Ctrl/Cmd or touch selection to choose multiple vendors.</small></label>
+    <label className="module-form-wide">Notes<input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Process scope or requirements"/></label>
+    <div className="module-form-actions"><button className="button-primary" onClick={save}><Plus size={14}/> Add process</button></div>
+   </div>
+  </section>
+  <section className="surface-panel"><div className="panel-heading"><div><h3>Process definitions</h3><p>{filtered.length} of {rows.length} saved records</p></div></div>
+   {filtered.length?<div className="specialized-record-list">{filtered.map(row=><article className="specialized-record" key={row.id}><span className="specialized-record-icon"><Layers3 size={18}/></span><div className="specialized-record-copy"><strong>{row.processType}</strong><span>{row.category}</span><p>{row.subcategories.length?row.subcategories.join(" · "):"No subcategories added"}</p><small>{row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company).filter(Boolean).join(", ")||"No vendor linked"}</small>{row.notes&&<small>{row.notes}</small>}</div><button className="button-quiet compact-button" onClick={()=>remove(row.id)}><Trash2 size={13}/> Delete</button></article>)}</div>:<div className="module-empty-state"><Layers3 size={24}/><h3>{search?"No matching process":"No process definitions yet"}</h3><p>Add the actual process types used in your manufacturing flow.</p></div>}
+  </section>
+  <div className="module-safety-note"><ShieldCheck size={15}/><span>Process Directory is a separate master-data list. It does not create or alter purchase orders, process execution records or planned costs.</span></div>
+ </section>;
+}
+
+function PlannedCostDirectory({onNotice}:Pick<Props,"onNotice">){
+ const [rows,setRows]=useState<PlannedCostEntry[]>(()=>readRows<PlannedCostEntry>(PLANNED_COST_KEY));
+ const [search,setSearch]=useState("");const [componentName,setComponentName]=useState("");const [componentNumber,setComponentNumber]=useState("");const [processType,setProcessType]=useState("");const [processCategory,setProcessCategory]=useState("");const [plannedQty,setPlannedQty]=useState("1");const [unit,setUnit]=useState<"piece"|"set">("piece");const [plannedRate,setPlannedRate]=useState("");const [notes,setNotes]=useState("");
+ const filtered=useMemo(()=>rows.filter(row=>(row.componentName+" "+row.componentNumber+" "+row.processType+" "+row.processCategory+" "+row.notes).toLowerCase().includes(search.toLowerCase().trim())),[rows,search]);
+ const save=()=>{const qty=Number(plannedQty),rate=Number(plannedRate);if(!componentName.trim()||!componentNumber.trim()||!processType.trim()||!Number.isFinite(qty)||qty<=0||!Number.isFinite(rate)||rate<0){onNotice("Enter component name, component number, process, valid planned quantity and rate.");return;}const stamp=nowIso();const next=[{id:makeId("planned-cost"),componentName:componentName.trim(),componentNumber:componentNumber.trim(),processType:processType.trim(),processCategory:processCategory.trim(),plannedQty:qty,unit,plannedRate:rate,notes:notes.trim(),createdAt:stamp,updatedAt:stamp},...rows];setRows(next);localStorage.setItem(PLANNED_COST_KEY,JSON.stringify(next));setComponentName("");setComponentNumber("");setProcessType("");setProcessCategory("");setPlannedQty("1");setPlannedRate("");setNotes("");onNotice("Independent planned-cost record saved. It is not linked to the operational component or PO directories.");};
+ const remove=(id:string)=>{if(!window.confirm("Delete this planned-cost record?"))return;const next=rows.filter(row=>row.id!==id);setRows(next);localStorage.setItem(PLANNED_COST_KEY,JSON.stringify(next));onNotice("Planned-cost record deleted.");};
+ return <section className="workspace-page specialized-directory">
+  <div className="workspace-topline"><span className="demo-pill"><i/> INDEPENDENT COST DIRECTORY</span><span className="module-number">{rows.length} PLANNED COST RECORDS</span></div>
+  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> FINANCE / PLANNING REFERENCE</div><h1>Component Planned Cost<span>.</span></h1><p>Maintain planned component- and process-wise costs independently. Only Costing &amp; Payment reads these records for comparison.</p></div></div>
+  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search component, number or process…"/></label></div>
+  <section className="surface-panel"><div className="panel-heading"><div><h3>Add planned cost</h3><p>Independent reference values; no PO or operational directory link is created.</p></div></div>
+   <div className="module-record-form specialized-form">
+    <label>Component name *<input value={componentName} onChange={e=>setComponentName(e.target.value)} placeholder="Component name"/></label>
+    <label>Component number *<input value={componentNumber} onChange={e=>setComponentNumber(e.target.value)} placeholder="Component / part number"/></label>
+    <label>Process type *<input value={processType} onChange={e=>setProcessType(e.target.value)} placeholder="Turning, milling, grinding…"/></label>
+    <label>Process category<input value={processCategory} onChange={e=>setProcessCategory(e.target.value)} placeholder="Machining, heat treatment…"/></label>
+    <label>Planned quantity *<input type="number" min="0.001" step="any" value={plannedQty} onChange={e=>setPlannedQty(e.target.value)}/></label>
+    <label>Unit<select value={unit} onChange={e=>setUnit(e.target.value as "piece"|"set")}><option value="piece">Per piece</option><option value="set">Per set</option></select></label>
+    <label>Planned rate (₹) *<input type="number" min="0" step="0.01" value={plannedRate} onChange={e=>setPlannedRate(e.target.value)} placeholder="Rate per piece / set"/></label>
+    <label>Planned amount (₹)<input readOnly value={money((Number(plannedQty)||0)*(Number(plannedRate)||0))}/></label>
+    <label className="module-form-wide">Notes<input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Assumptions or rate basis"/></label>
+    <div className="module-form-actions"><button className="button-primary" onClick={save}><Plus size={14}/> Add planned cost</button></div>
+   </div>
+  </section>
+  <section className="surface-panel"><div className="panel-heading"><div><h3>Planned cost register</h3><p>{filtered.length} of {rows.length} saved records</p></div></div>
+   {filtered.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Component</th><th>Component number</th><th>Process</th><th>Category</th><th>Quantity</th><th>Planned rate</th><th>Planned amount</th><th>Action</th></tr></thead><tbody>{filtered.map(row=><tr key={row.id}><td><strong>{row.componentName}</strong><small>{row.notes||"Independent planned cost"}</small></td><td>{row.componentNumber}</td><td>{row.processType}</td><td>{row.processCategory||"—"}</td><td>{row.plannedQty.toLocaleString("en-IN")} {row.unit}</td><td>{money(row.plannedRate)}</td><td><strong>{money(row.plannedQty*row.plannedRate)}</strong></td><td><button className="button-quiet compact-button" onClick={()=>remove(row.id)}><Trash2 size={13}/> Delete</button></td></tr>)}</tbody></table></div>:<div className="module-empty-state"><CircleDollarSign size={24}/><h3>{search?"No matching planned costs":"No planned costs saved"}</h3><p>Create an independent planned rate for each component and process combination.</p></div>}
+  </section>
+  <div className="module-safety-note"><ShieldCheck size={15}/><span>This directory remains independent of Purchase Orders, Component Directory and Process Directory. It is a reference source for comparison in Costing &amp; Payment only.</span></div>
+ </section>;
+}
+
+export default function SpecializedDirectoryWorkspace(props:Props){
+ return props.moduleId==="process-master"?<ProcessDirectory {...props}/>:<PlannedCostDirectory {...props}/>;
+}
