@@ -26,36 +26,19 @@ class StartupErrorBoundary extends React.Component<
     if (this.state.error) {
       const detail = this.state.error.stack || this.state.error.message || String(this.state.error);
       return (
-        <main
-          role="alert"
-          style={{
-            minHeight: "100vh",
-            boxSizing: "border-box",
-            padding: "48px 24px",
-            background: "#0b1626",
-            color: "#e8f2ff",
-            fontFamily: "Segoe UI, Arial, sans-serif",
-          }}
-        >
+        <main data-aximach-startup-error="true" role="alert" style={{
+          minHeight: "100vh", boxSizing: "border-box", padding: "48px 24px",
+          background: "#0b1626", color: "#e8f2ff", fontFamily: "Segoe UI, Arial, sans-serif",
+        }}>
           <h1 style={{ margin: "0 0 12px", fontSize: 26 }}>AXIMACH could not start</h1>
           <p style={{ maxWidth: 900, color: "#b9cbe0" }}>
             A renderer error stopped the workspace from loading. Send this error to support.
           </p>
-          <pre
-            style={{
-              maxWidth: 1100,
-              padding: 16,
-              overflow: "auto",
-              whiteSpace: "pre-wrap",
-              overflowWrap: "anywhere",
-              border: "1px solid rgba(140,180,220,.25)",
-              borderRadius: 10,
-              background: "#101f33",
-              color: "#ffd5a6",
-            }}
-          >
-            {detail}
-          </pre>
+          <pre style={{
+            maxWidth: 1100, padding: 16, overflow: "auto", whiteSpace: "pre-wrap",
+            overflowWrap: "anywhere", border: "1px solid rgba(140,180,220,.25)",
+            borderRadius: 10, background: "#101f33", color: "#ffd5a6",
+          }}>{detail}</pre>
         </main>
       );
     }
@@ -71,8 +54,6 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <React.StrictMode>
-    <StartupErrorBoundary>
-      <App />
-    </StartupErrorBoundary>
+    <StartupErrorBoundary><App /></StartupErrorBoundary>
   </React.StrictMode>,
 );
