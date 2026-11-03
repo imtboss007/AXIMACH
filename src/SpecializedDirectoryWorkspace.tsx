@@ -9,33 +9,104 @@ function readRows<T>(key:string):T[]{try{const value=JSON.parse(localStorage.get
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 
 function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
- const {data,update}=useManufacturingData();const vendors=activeRows(data.vendors);
+ const {data,update}=useManufacturingData();
+ const vendors=activeRows(data.vendors);
  const rows=activeRows(data.processDefinitions);
- useEffect(()=>{const legacy=readRows<ProcessEntry>(PROCESS_KEY);if(!legacy.length)return;update(current=>{const byId=new Map(current.processDefinitions.map(row=>[row.id,row]));let changed=false;for(const row of legacy){const old=byId.get(row.id);if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){byId.set(row.id,row);changed=true;}}return changed?{...current,processDefinitions:[...byId.values()]}:current;});},[update]);
- const [search,setSearch]=useState("");const [editingId,setEditingId]=useState("");const [processType,setProcessType]=useState("");const [category,setCategory]=useState("");const [subcategories,setSubcategories]=useState("");const [vendorIds,setVendorIds]=useState<string[]>([]);const [notes,setNotes]=useState("");
+ useEffect(()=>{
+  const legacy=readRows<ProcessEntry>(PROCESS_KEY);
+  if(!legacy.length)return;
+  update(current=>{
+   const byId=new Map(current.processDefinitions.map(row=>[row.id,row]));
+   let changed=false;
+   for(const row of legacy){
+    const old=byId.get(row.id);
+    if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){
+     byId.set(row.id,row);changed=true;
+    }
+   }
+   return changed?{...current,processDefinitions:[...byId.values()]}:current;
+  });
+ },[update]);
+ const [search,setSearch]=useState("");
+ const [editingId,setEditingId]=useState("");
+ const [processType,setProcessType]=useState("");
+ const [category,setCategory]=useState("");
+ const [subcategories,setSubcategories]=useState("");
+ const [vendorIds,setVendorIds]=useState<string[]>([]);
+ const [notes,setNotes]=useState("");
  const filtered=useMemo(()=>rows.filter(row=>(row.processType+" "+row.category+" "+row.subcategories.join(" ")+" "+row.notes+" "+row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(" ")).toLowerCase().includes(search.toLowerCase().trim())),[rows,search,vendors]);
- const save=()=>{if(!processType.trim()||!category.trim()){onNotice("Enter the process type and category.");return;}const stamp=nowIso();const old=rows.find(row=>row.id===editingId);const row:ProcessEntry={id:editingId||makeId("process"),processType:processType.trim(),category:category.trim(),subcategories:subcategories.split(",").map(x=>x.trim()).filter(Boolean).slice(0,100),vendorIds,notes:notes.trim(),createdAt:old?.createdAt||stamp,updatedAt:stamp};update(current=>({...current,processDefinitions:[row,...current.processDefinitions.filter(item=>item.id!==row.id)]}));setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");setEditingId("");onNotice(editingId?"Process definition updated. Linked operation history remains attached to the saved process text.":"Process definition saved to shared AXIMACH Process Directory.");};\n const edit=(row:ProcessEntry)=>{setEditingId(row.id);setProcessType(row.processType);setCategory(row.category);setSubcategories(row.subcategories.join(", "));setVendorIds(row.vendorIds);setNotes(row.notes);};\n const exportCsv=()=>{const q=(v:unknown)=>\"\\\"\"+String(v??\"\").replace(/\\\"/g,\"\\\"\\\"\")+\"\\\"\";const csv=[\"Process Type,Category,Subcategories,Vendors,Notes\",...filtered.map(row=>[row.processType,row.category,row.subcategories.join(\"; \"),row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||\"\").join(\"; \"),row.notes].map(q).join(\",\"))].join(\"\\n\");const url=URL.createObjectURL(new Blob([csv],{type:\"text/csv;charset=utf-8\"}));const a=document.createElement(\"a\");a.href=url;a.download=\"AXIMACH-Process-Directory.csv\";a.click();URL.revokeObjectURL(url);};\n const exportPdf=()=>{const w=window.open(\"\",\"_blank\");if(!w){onNotice(\"Allow pop-ups to print / save the process directory as PDF.\");return;}const rowsHtml=filtered.map(row=>\"<tr><td>\"+row.processType+\"</td><td>\"+row.category+\"</td><td>\"+row.subcategories.join(\" · \" )+\"</td><td>\"+row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||\"\").join(\", \" )+\"</td></tr>\").join(\"\");w.document.write(\"<!doctype html><html><head><title>AXIMACH Process Directory</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:8px;text-align:left}</style></head><body><h1>AXIMACH · Process Directory</h1><table><thead><tr><th>Process type</th><th>Category</th><th>Subcategories</th><th>Vendors</th></tr></thead><tbody>\"+rowsHtml+\"</tbody></table></body></html>\");w.document.close();w.focus();w.print();};
- const remove=(id:string)=>{if(!window.confirm("Delete this process directory record? Existing production operation history is not changed."))return;const stamp=nowIso();update(current=>({...current,processDefinitions:current.processDefinitions.map(row=>row.id===id?{...row,deletedAt:stamp,updatedAt:stamp}:row)}));onNotice("Process directory record archived. Historical operations remain unchanged.");};
+ const reset=()=>{setEditingId("");setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");};
+ const save=()=>{
+  if(!processType.trim()||!category.trim()){onNotice("Enter the process type and category.");return;}
+  const stamp=nowIso();
+  const old=rows.find(row=>row.id===editingId);
+  const row:ProcessEntry={
+   id:editingId||makeId("process"),
+   processType:processType.trim(),
+   category:category.trim(),
+   subcategories:subcategories.split(",").map(x=>x.trim()).filter(Boolean).slice(0,100),
+   vendorIds,
+   notes:notes.trim(),
+   createdAt:old?.createdAt||stamp,
+   updatedAt:stamp
+  };
+  update(current=>({...current,processDefinitions:[row,...current.processDefinitions.filter(item=>item.id!==row.id)]}));
+  reset();
+  onNotice(editingId?"Process definition updated.":"Process definition saved to shared AXIMACH Process Directory.");
+ };
+ const edit=(row:ProcessEntry)=>{
+  setEditingId(row.id);setProcessType(row.processType);setCategory(row.category);
+  setSubcategories(row.subcategories.join(", "));setVendorIds(row.vendorIds);setNotes(row.notes);
+ };
+ const remove=(id:string)=>{
+  if(!window.confirm("Delete this process directory record? Existing production operation history will not be changed."))return;
+  const stamp=nowIso();
+  update(current=>({...current,processDefinitions:current.processDefinitions.map(row=>row.id===id?{...row,deletedAt:stamp,updatedAt:stamp}:row)}));
+  onNotice("Process directory record archived. Historical operations remain unchanged.");
+ };
+ const exportCsv=()=>{
+  const quote=(value:unknown)=>'"'+String(value??"").replace(/"/g,'""')+'"';
+  const csv=[
+   ["Process Type","Category","Subcategories","Vendors","Notes"].map(quote).join(","),
+   ...filtered.map(row=>[
+    row.processType,row.category,row.subcategories.join("; "),
+    row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join("; "),row.notes
+   ].map(quote).join(","))
+  ].join("\r\n");
+  const url=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}));
+  const a=document.createElement("a");a.href=url;a.download="AXIMACH-Process-Directory.csv";a.click();URL.revokeObjectURL(url);
+ };
+ const exportPdf=()=>{
+  const win=window.open("","_blank");
+  if(!win){onNotice("Allow pop-ups to print / save the process directory as PDF.");return;}
+  const esc=(value:unknown)=>String(value??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]!));
+  const html=filtered.map(row=>"<tr><td>"+esc(row.processType)+"</td><td>"+esc(row.category)+"</td><td>"+esc(row.subcategories.join(" · "))+"</td><td>"+esc(row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(", "))+"</td></tr>").join("");
+  win.document.write("<!doctype html><html><head><title>AXIMACH Process Directory</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:8px;text-align:left}th{background:#eef2f6}</style></head><body><h1>AXIMACH · Process Directory</h1><table><thead><tr><th>Process type</th><th>Category</th><th>Subcategories</th><th>Vendors</th></tr></thead><tbody>"+html+"</tbody></table></body></html>");
+  win.document.close();win.focus();win.print();
+ };
  return <section className="workspace-page specialized-directory">
   <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> AXIMACH</button><span className="demo-pill"><i/> INDEPENDENT PROCESS MASTER</span></div>
-  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> MANUFACTURING / MASTER DATA</div><h1>Process Directory<span>.</span></h1><p>Define process types, categories, multiple subcategories and the vendors capable of each process.</p></div><span className="module-number">{rows.length} PROCESS RECORDS</span></div>
+  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> MANUFACTURING / MASTER DATA</div><h1>Process Directory<span>.</span></h1><p>Define process categories, process types and up to 100 subcategories; link multiple vendors to each process.</p></div><span className="module-number">{rows.length} PROCESS RECORDS</span></div>
   <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search process, category, subcategory or vendor…"/></label></div>
-  <section className="surface-panel"><div className="panel-heading"><div><h3>{editingId?"Edit process definition":"Add process definition"}</h3><p>One process type may contain up to 100 subcategories and multiple linked vendors.</p></div></div>
+  <section className="surface-panel">
+   <div className="panel-heading"><div><h3>{editingId?"Edit process definition":"Add process definition"}</h3><p>One process type may contain up to 100 subcategories and multiple vendor assignments.</p></div></div>
    <div className="module-record-form specialized-form">
     <label>Process type *<input value={processType} onChange={e=>setProcessType(e.target.value)} placeholder="CNC Turning, VMC Milling, Wire EDM…"/></label>
     <label>Category *<input list="aximach-process-categories" value={category} onChange={e=>setCategory(e.target.value)} placeholder="Milling, grinding, turning, heat treatment…"/><datalist id="aximach-process-categories">{[...new Set(rows.map(row=>row.category))].map(value=><option key={value} value={value}/>)}</datalist></label>
     <label className="module-form-wide">Subcategories (comma-separated)<input value={subcategories} onChange={e=>setSubcategories(e.target.value)} placeholder="Rough turning, finish turning, threading, up to 100mm, small mill…"/></label>
-    <div className="module-form-wide process-vendor-selection"><strong>Linked vendors</strong><div>{vendors.map(v=><label key={v.id}><input type="checkbox" checked={vendorIds.includes(v.id)} onChange={()=>setVendorIds(current=>current.includes(v.id)?current.filter(id=>id!==v.id):[...current,v.id])}/>{v.company} · {v.contact}</label>)}</div><small>One process can be linked to multiple vendors; one vendor can be linked to multiple processes.</small></div>
+    <div className="module-form-wide process-vendor-selection"><strong>Linked vendors</strong><div>{vendors.map(v=><label key={v.id}><input type="checkbox" checked={vendorIds.includes(v.id)} onChange={()=>setVendorIds(current=>current.includes(v.id)?current.filter(id=>id!==v.id):[...current,v.id])}/>{v.company} · {v.contact}</label>)}</div><small>One process can link to multiple vendors; one vendor can be linked to multiple processes.</small></div>
     <label className="module-form-wide">Notes<input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Process scope or requirements"/></label>
-    <div className="module-form-actions"><button className="button-primary" onClick={save}><Check size={14}/> {editingId?"Save changes":"Add process"}</button>{editingId&&<button className="button-quiet" onClick={()=>{setEditingId("");setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");}}>Cancel edit</button>}</div>
+    <div className="module-form-actions"><button className="button-primary" onClick={save}><Check size={14}/>{editingId?"Save changes":"Add process"}</button>{editingId&&<button className="button-quiet" onClick={reset}>Cancel edit</button>}</div>
    </div>
   </section>
-  <section className="surface-panel"><div className="panel-heading"><div><h3>Process definitions</h3><p>{filtered.length} of {rows.length} saved records</p></div><div className="module-form-actions"><button className="button-quiet compact-button" onClick={exportCsv}><FileDown size={13}/> Excel / CSV</button><button className="button-quiet compact-button" onClick={exportPdf}><FileText size={13}/> PDF</button></div></div>
+  <section className="surface-panel">
+   <div className="panel-heading"><div><h3>Process definitions</h3><p>{filtered.length} of {rows.length} saved records</p></div><div className="module-form-actions"><button className="button-quiet compact-button" onClick={exportCsv}><FileDown size={13}/> Excel / CSV</button><button className="button-quiet compact-button" onClick={exportPdf}><FileText size={13}/> PDF</button></div></div>
    {filtered.length?<div className="specialized-record-list">{filtered.map(row=><article className="specialized-record" key={row.id}><span className="specialized-record-icon"><Layers3 size={18}/></span><div className="specialized-record-copy"><strong>{row.processType}</strong><span>{row.category}</span><p>{row.subcategories.length?row.subcategories.join(" · "):"No subcategories added"}</p><small>{row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company).filter(Boolean).join(", ")||"No vendor linked"}</small>{row.notes&&<small>{row.notes}</small>}</div><button className="button-quiet compact-button" onClick={()=>edit(row)}><Edit3 size={13}/> Edit</button><button className="button-quiet compact-button" onClick={()=>remove(row.id)}><Trash2 size={13}/> Delete</button></article>)}</div>:<div className="module-empty-state"><Layers3 size={24}/><h3>{search?"No matching process":"No process definitions yet"}</h3><p>Add the actual process types used in your manufacturing flow.</p></div>}
   </section>
-  <div className="module-safety-note"><ShieldCheck size={15}/><span>Process Directory is a separate master-data list. It does not create or alter purchase orders, process execution records or planned costs.</span></div>
+  <div className="module-safety-note"><ShieldCheck size={15}/><span>Process Directory is an independent master. It supplies process selectors and vendor capabilities without duplicating operational process executions.</span></div>
  </section>;
 }
+
 
 function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
  const {data,update}=useManufacturingData();const rows=activeRows(data.plannedCosts);
