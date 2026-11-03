@@ -42,7 +42,7 @@ function registerFrontendProtocol() {
       let pathname;
       try { pathname = decodeURIComponent(url.pathname); }
       catch { return new Response("Invalid asset path", { status: 400 }); }
-      const relative = pathname === "/" ? "index.html" : pathname.replace(/^\\/+/, "");
+      const relative = pathname === "/" ? "index.html" : (pathname.startsWith("/") ? pathname.slice(1) : pathname);
       let filePath = path.resolve(root, relative);
       if (filePath !== root && !filePath.startsWith(root + path.sep)) {
         diagnosticLog("blocked frontend path:", pathname);
