@@ -34,6 +34,18 @@ jobs:
           node --check server/whatsapp-web.mjs
       - name: Build application
         run: npm run build
+      - name: Verify packaged frontend entrypoint
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const html = fs.readFileSync("dist/index.html", "utf8");
+          const assets = fs.existsSync("dist/assets") ? fs.readdirSync("dist/assets") : [];
+          const hasModuleEntrypoint = /<script[^>]+type=["']module["'][^>]+src=/i.test(html);
+          if (!hasModuleEntrypoint || !assets.some(name => name.endsWith(".js"))) {
+            throw new Error("AXIMACH build is missing its module entrypoint or bundled JavaScript assets.");
+          }
+          console.log("Verified AXIMACH module entrypoint and JavaScript bundle:", assets.filter(name => name.endsWith(".js")));
+          NODE
       - name: Upload frontend build
         uses: actions/upload-artifact@v4
         with:
