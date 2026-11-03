@@ -205,9 +205,9 @@ function App() {
         ) : activeModuleId === "reports" ? (
           <ReportsAnalyticsWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "ai-insights" ? (
-          <AIInsightsWorkspace onBack={() => selectModule("command-centre")} onSelectModule={selectModule} />
+          <AIInsightsWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "export" ? (
-          <ExportCentreWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} />
+          <ExportCentreWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "import" ? (
           <ImportCentreWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" ? (
