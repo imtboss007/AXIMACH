@@ -43,6 +43,14 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const [reduceMotion, setReduceMotion] = useState(saved.current.reduceMotion === true);
   const [zoomed, setZoomed] = useState(saved.current.zoomed === true);
   const dragMoved = useRef(false);
+  const mobileFrameDelta = useRef(0);
+  const [compactViewport, setCompactViewport] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 650px)").matches);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 650px)");
+    const updateCompact = () => setCompactViewport(query.matches);
+    query.addEventListener("change", updateCompact);
+    return () => query.removeEventListener("change", updateCompact);
+  }, []);
   useEffect(() => {
     try { window.localStorage.setItem("aximach.orb.preferences.v1", JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed})); } catch { /* Preferences are optional. */ }
   }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed]);
@@ -53,7 +61,15 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
 
   // The globe keeps rotating gently at rest; direct pointer/touch rotation takes precedence.
   useAnimationFrame((_time, delta) => {
-    if (!drag.current && !reducedMotion && !reduceMotion && !paused) rotateY.set(rotateY.get() + delta * (speed === "Slow" ? 0.0028 : speed === "Fast" ? 0.011 : 0.0065));
+    if (drag.current || reducedMotion || reduceMotion || paused || document.visibilityState === "hidden") return;
+    let frameDelta = delta;
+    if (compactViewport) {
+      mobileFrameDelta.current += delta;
+      if (mobileFrameDelta.current < 32) return;
+      frameDelta = mobileFrameDelta.current;
+      mobileFrameDelta.current = 0;
+    }
+    rotateY.set(rotateY.get() + frameDelta * (speed === "Slow" ? 0.0028 : speed === "Fast" ? 0.011 : 0.0065));
   });
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
