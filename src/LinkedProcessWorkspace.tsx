@@ -7,15 +7,16 @@ import { ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; onOpenIconStudio?: () => void; onScheduleVendor?: (vendorId:string, operationName:string) => void };
-type ProcessExportField = "operation" | "category" | "subcategory" | "execution" | "description" | "vendor" | "transportVendor" | "transportRoute" | "vehicle" | "quantity" | "completed" | "rejected" | "status" | "tolerance" | "inspection" | "paymentStatus" | "paidAmount" | "plannedStart" | "plannedEnd" | "price" | "amount";
+type ProcessExportField = "company" | "po" | "component" | "componentNumber" | "operation" | "category" | "subcategory" | "execution" | "description" | "vendor" | "transportVendor" | "transportRoute" | "vehicle" | "quantity" | "quantityUnit" | "completed" | "rejected" | "status" | "tolerance" | "inspection" | "paymentStatus" | "paidAmount" | "plannedStart" | "plannedEnd" | "price" | "transportCost" | "amount";
 const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
+  {key:"company",label:"Company"},{key:"po",label:"PO number"},{key:"component",label:"Component name"},{key:"componentNumber",label:"Component number"},
   {key:"operation",label:"Process"},{key:"category",label:"Category"},{key:"subcategory",label:"Subcategory"},{key:"execution",label:"Execution type"},
   {key:"description",label:"Operation notes"},{key:"vendor",label:"Vendor"},{key:"transportVendor",label:"Transport vendor"},
-  {key:"transportRoute",label:"Transport route"},{key:"vehicle",label:"Vehicle type"},{key:"quantity",label:"Planned quantity"},
+  {key:"transportRoute",label:"Transport route"},{key:"vehicle",label:"Vehicle type"},{key:"quantity",label:"Planned quantity"},{key:"quantityUnit",label:"Quantity unit"},
   {key:"completed",label:"Completed quantity"},{key:"rejected",label:"Rejected quantity"},{key:"status",label:"Status"},
   {key:"tolerance",label:"Tolerance"},{key:"inspection",label:"Inspection result"},{key:"paymentStatus",label:"Payment status"},
   {key:"paidAmount",label:"Paid amount"},{key:"plannedStart",label:"Start date/time"},{key:"plannedEnd",label:"Due date/time"},
-  {key:"price",label:"Price / piece"},{key:"amount",label:"Process + transport amount"}
+  {key:"price",label:"Price / piece or set"},{key:"transportCost",label:"Transport cost"},{key:"amount",label:"Process + transport amount"}
 ];
 type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean };
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
@@ -62,7 +63,10 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [categoryFilters,setCategoryFilters] = useState<string[]>([]);
   const [toleranceFilters,setToleranceFilters] = useState<string[]>([]);
   const [paymentFilters,setPaymentFilters] = useState<string[]>([]);
-  const [vendorFilter,setVendorFilter] = useState("");
+  const [vendorFilters,setVendorFilters] = useState<string[]>([]);
+  const [processTypeFilters,setProcessTypeFilters] = useState<string[]>([]);
+  const [subcategoryFilters,setSubcategoryFilters] = useState<string[]>([]);
+  const [categorySearch,setCategorySearch] = useState("");
   const [dateFrom,setDateFrom] = useState("");
   const [dateTo,setDateTo] = useState("");
   const [minQuantity,setMinQuantity] = useState("");
@@ -84,9 +88,13 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const poLines = selectedPO ? selectedPO.lines.filter(line => !("deletedAt" in line && (line as PurchaseOrderLine & {deletedAt?: string}).deletedAt)) : [];
   const selectedLine = poLines.find(line => line.id === poLineId);
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
-  const selectedProcessDefinition = processDefinitions.find(item => item.processType === draft.name);
+  const selectedProcessDefinition = processDefinitions.find(item => item.processType === draft.name && item.category === draft.category);
   const routeOperations = operations.filter(op => op.poLineId === poLineId && op.poId === poId && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const processCategories = [...new Set(processDefinitions.map(item => item.category).filter(Boolean))].sort();
+  const processTypeOptions = [...new Set(processDefinitions.filter(item => !draft.category || item.category === draft.category).map(item => item.processType).filter(Boolean))].sort();
+  const processFilterTypes = [...new Set(processDefinitions.map(item => item.processType).filter(Boolean))].sort();
+  const processSubcategories = [...new Set(processDefinitions.flatMap(item => item.subcategories || []).filter(Boolean))].sort();
+  const quantityUnit = selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces";
   const processVendorOptions = selectedProcessDefinition?.vendorIds?.length ? vendors.filter(vendor => selectedProcessDefinition.vendorIds.includes(vendor.id)) : vendors;
   const selectedTransportVendor = vendors.find(vendor => vendor.id === draft.transportVendorId);
   const selectedTransportRoutes = selectedTransportVendor?.transportRoutes || [];
@@ -97,7 +105,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const categoryMatch = !categoryFilters.length || categoryFilters.includes(op.category);
     const toleranceMatch = !toleranceFilters.length || toleranceFilters.includes(op.toleranceCategory || "Standard");
     const paymentMatch = !paymentFilters.length || paymentFilters.includes(op.paymentStatus || "Unpaid");
-    const vendorMatch = !vendorFilter || op.vendorId === vendorFilter;
+    const vendorMatch = !vendorFilters.length || vendorFilters.includes(op.vendorId);
+    const processTypeMatch = !processTypeFilters.length || processTypeFilters.includes(op.name);
+    const subcategoryMatch = !subcategoryFilters.length || subcategoryFilters.includes(op.subcategory || "");
     const operationDate = (op.plannedEnd || op.plannedStart || "").slice(0,10);
     const dateMatch = (!dateFrom || Boolean(operationDate && operationDate >= dateFrom)) && (!dateTo || Boolean(operationDate && operationDate <= dateTo));
     const quantityMatch = (!minQuantity || op.quantity >= Number(minQuantity)) && (!maxQuantity || op.quantity <= Number(maxQuantity));
@@ -105,10 +115,11 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const effectiveAmount = op.quantity * effectivePrice + op.transportCost;
     const priceMatch = (!minPrice || effectivePrice >= Number(minPrice)) && (!maxPrice || effectivePrice <= Number(maxPrice));
     const amountMatch = (!minAmount || effectiveAmount >= Number(minAmount)) && (!maxAmount || effectiveAmount <= Number(maxAmount));
-    return text.includes(search.toLowerCase().trim()) && statusMatch && executionMatch && categoryMatch && toleranceMatch && paymentMatch && vendorMatch && dateMatch && quantityMatch && priceMatch && amountMatch;
+    return text.includes(search.toLowerCase().trim()) && statusMatch && executionMatch && categoryMatch && toleranceMatch && paymentMatch && vendorMatch && processTypeMatch && subcategoryMatch && dateMatch && quantityMatch && priceMatch && amountMatch;
   });
   const visibleBranches = [...new Set(visibleOperations.map(op => op.branch || "Main route"))];
   const toggleFilter = (setter: (next: string[] | ((previous: string[]) => string[])) => void, value: string) => setter(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value]);
+  const clearAllFilters = () => { setSearch(""); setStatusFilters([]); setExecutionFilters([]); setCategoryFilters([]); setToleranceFilters([]); setPaymentFilters([]); setVendorFilters([]); setProcessTypeFilters([]); setSubcategoryFilters([]); setCategorySearch(""); setDateFrom(""); setDateTo(""); setMinQuantity(""); setMaxQuantity(""); setMinPrice(""); setMaxPrice(""); setMinAmount(""); setMaxAmount(""); setSelectedOperationIds([]); };
   const toggleOperationSelection = (id: string) => setSelectedOperationIds(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
   const selectVisibleOperations = (checked: boolean) => setSelectedOperationIds(current => checked ? [...new Set([...current, ...visibleOperations.map(op => op.id)])] : current.filter(id => !visibleOperations.some(op => op.id === id)));
   const selectedVisibleOperations = visibleOperations.filter(op => selectedOperationIds.includes(op.id));
@@ -168,6 +179,10 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     : selectedOperationIds.length ? selectedVisibleOperations : visibleOperations;
   const exportValue = (op:OperationRecord,key:ProcessExportField):string|number => {
     switch(key) {
+      case "company": return selectedCompany?.name || "";
+      case "po": return selectedPO?.number || "";
+      case "component": return selectedComponent?.name || "";
+      case "componentNumber": return selectedComponent?.partNumber || "";
       case "operation": return op.name;
       case "category": return op.category || "";
       case "subcategory": return op.subcategory || "";
@@ -178,6 +193,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       case "transportRoute": return (op.transportFrom||"")+(op.transportTo?" → "+op.transportTo:"");
       case "vehicle": return op.transportVehicleType || "";
       case "quantity": return op.quantity;
+      case "quantityUnit": return selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces";
       case "completed": return op.completed;
       case "rejected": return op.rejected;
       case "status": return op.status;
@@ -188,6 +204,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       case "plannedStart": return op.plannedStart || "";
       case "plannedEnd": return op.plannedEnd || "";
       case "price": return op.actualRatePerPart || op.ratePerPart;
+      case "transportCost": return op.transportCost;
       case "amount": return op.quantity*(op.actualRatePerPart||op.ratePerPart)+op.transportCost;
     }
   };
@@ -406,6 +423,28 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     setShowEditor(false); setEditingId("");
     onNotice(editingId ? "Operation updated and linked to its PO line/component ID." : "Operation saved against the selected PO line. Cost and dates remain separate for this component.");
   };
+  const finishSelectedOperations = () => {
+    const ids = new Set(selectedVisibleOperations.map(op => op.id));
+    if (!ids.size) { onNotice("Select one or more visible operations to finish."); return; }
+    const stamp = nowIso();
+    update(current => {
+      const nextOperations = current.operations.map(op => ids.has(op.id) ? { ...op, status: "Complete" as LifecycleStatus, completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp, updatedAt: stamp } : op);
+      const touchedLines = new Set(selectedVisibleOperations.map(op => op.poId + "::" + op.poLineId));
+      const nextPurchaseOrders = current.purchaseOrders.map(order => ({
+        ...order,
+        lines: order.lines.map(line => {
+          if (!touchedLines.has(order.id + "::" + line.id)) return line;
+          const lineOperations = nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id && !op.deletedAt);
+          if (!lineOperations.length || !lineOperations.every(op => op.status === "Complete")) return line;
+          return { ...line, jobStatus: "Finished" as const, jobFinishedAt: stamp, updatedAt: stamp };
+        })
+      }));
+      return { ...current, operations: nextOperations, purchaseOrders: nextPurchaseOrders };
+    });
+    setSelectedOperationIds([]);
+    onNotice("Marked " + ids.size + " selected process operation(s) Complete. A PO component job becomes Finished only when every saved operation on that route is Complete; inspection acceptance remains separate.");
+  };
+
   const updateOperation = (id: string, patch: Partial<OperationRecord>) => {
     const stamp = nowIso();
     update(current => ({ ...current, operations: current.operations.map(op => op.id === id ? { ...op, ...patch, updatedAt: stamp } : op) }));
