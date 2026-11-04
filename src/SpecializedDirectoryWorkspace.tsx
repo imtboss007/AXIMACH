@@ -98,7 +98,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
    sheet.getRow(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF17324D"}};
    sheet.views=[{state:"frozen",ySplit:1}];
    const bytes=await workbook.xlsx.writeBuffer();
-   const blob=new Blob([bytes as BlobPart],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+   const blob=new Blob([new Uint8Array(bytes).buffer as ArrayBuffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
    const url=URL.createObjectURL(blob);const a=document.createElement("a");
    a.href=url;a.download="AXIMACH-Process-Directory.xlsx";a.click();URL.revokeObjectURL(url);
    onNotice("Excel workbook exported with "+filtered.length+" process record(s).");
