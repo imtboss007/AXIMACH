@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from "react";
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, Download, FileDown, FileUp, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
-import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord, type ContactProfileRecord, type ProcessDefinitionRecord, type PlannedCostEntry, type VendorTransportRoute, type ManufacturingData } from "./manufacturingData";
+import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord, type ContactProfileRecord, type ProcessDefinitionRecord, type PlannedCostEntry, type VendorTransportRoute, type ManufacturingData, type PurchaseOrderRecord, type PurchaseOrderLine, type OperationRecord } from "./manufacturingData";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
@@ -117,15 +117,97 @@ export function ExportCentreWorkspace({onBack,onNotice}:Props){
  const exportPdf=()=>{const w=window.open("","_blank");if(!w){onNotice("Allow pop-ups to use Print / Save PDF.");return;}const table=rows.length?'<table><thead><tr>'+Object.keys(rows[0]).map(x=>'<th>'+x+'</th>').join("")+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+Object.values(row).map(v=>'<td>'+String(v??"").replace(/[&<>]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch]!))+'</td>').join("")+'</tr>').join("")+'</tbody></table>':'<p>No saved records.</p>';w.document.write('<!doctype html><html><head><title>AXIMACH Export</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:6px;text-align:left}th{background:#eee}</style></head><body><h1>AXIMACH · '+options.find(x=>x[0]===moduleId)?.[1]+'</h1>'+table+'</body></html>');w.document.close();w.focus();w.print();};
  return <section className="workspace-page intelligence-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> DATA EXPORT</span></div>
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> DATA EXCHANGE / DOWNLOADS</div><h1>Export Centre<span>.</span></h1><p>Export saved module records and individual operation datasets to editable CSV, print/PDF or full JSON backup.</p></div></div>
+  <section className="surface-panel"><div className="panel-heading"><div><h3>AMADA costing demonstration</h3><p>Creates four linked sample jobs to compare customer PO rate, planned process cost and process-cost estimate.</p></div><span className="module-number">ASSUMED VALUES</span></div>
+   <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Component type</th><th>Qty</th><th>PO rate / pc</th><th>Planned cost / pc</th><th>Process cost / pc</th><th>Margin / pc</th></tr></thead><tbody>
+    <tr><td>Normal piece — Spacer CU Block</td><td>4</td><td>₹2,170</td><td>₹1,600</td><td>₹1,450</td><td>+₹720 Profit</td></tr>
+    <tr><td>Precision aerospace — assumed bracket</td><td>10</td><td>₹4,800</td><td>₹3,400</td><td>₹5,100</td><td>−₹300 Loss</td></tr>
+    <tr><td>Weldment — Gantry Weldment</td><td>2</td><td>₹18,000</td><td>₹16,000</td><td>₹18,000</td><td>₹0 Break-even</td></tr>
+    <tr><td>Shaft — assumed EN8 shaft</td><td>20</td><td>₹3,200</td><td>₹2,450</td><td>₹3,150</td><td>+₹50 Thin profit</td></tr>
+   </tbody></table></div>
+   <p className="module-safety-note">AMADA identities are used where drawings were found. The aerospace bracket and shaft are illustrative parts. PO rates and all process/planned costs are assumed demonstration values, not customer-confirmed prices or actual invoices. Transport, GST and payment transactions are excluded. Process estimates are stored on linked operations to make the Costing &amp; Payment comparison visible.</p>
+   <div className="module-form-actions"><button className="button-primary" onClick={loadAmadaDemo}><Sparkles size={14}/> Add AMADA demo records to AXIMACH</button></div>
+  </section>
   <section className="surface-panel"><div className="module-record-form specialized-form"><label>Module to export<select value={moduleId} onChange={e=>setModuleId(e.target.value)}>{options.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select></label><label>Matching saved records<input readOnly value={String(rows.length)}/></label><div className="module-form-actions"><button className="button-primary" onClick={exportExcel}><FileDown size={14}/> Excel workbook (.xlsx)</button><button className="button-quiet" onClick={exportCsv}>CSV</button><button className="button-quiet" onClick={exportPdf}>Print / Save PDF</button><button className="button-quiet" onClick={exportJson}><Download size={14}/> Full JSON backup</button></div></div></section>
   <div className="module-safety-note"><ShieldCheck size={15}/><span>CSV files are editable in Excel; PDF is generated through the device print dialog. Full JSON backup preserves the manufacturing data model. Specialized records held in browser-local module stores are exported when their matching module is selected.</span></div>
  </section>;
+}
+
+
+type AmadaDemoStep = {name:string;category:string;subcategory:string;machine:string;plannedRate:number;processRate:number;inspection?:boolean};
+type AmadaDemoItem = {partNumber:string;name:string;material:string;drawingReference:string;quantity:number;poNumber:string;poRate:number;plannedTotal:number;processTotal:number;tolerance:"Standard"|"Precision"|"Close"|"Ultra Precision";steps:AmadaDemoStep[];notes:string};
+const AMADA_DEMO_ITEMS:AmadaDemoItem[] = [
+ {partNumber:"AWTI-VHC-3-009-1111",name:"Spacer CU Block — normal machined piece",material:"Copper (ETP grade per quotation)",drawingReference:"AWTI-VHC-3-009-1111.pdf",quantity:4,poNumber:"AMADA-DEMO-2026-001",poRate:2170,plannedTotal:1600,processTotal:1450,tolerance:"Precision",notes:"Actual AMADA drawing identity and drawing quantity. ₹2,170 is an assumed demo PO rate using the earlier quotation only as a reference; it is not a confirmed customer PO rate.",steps:[
+  {name:"CNC Milling",category:"Machining",subcategory:"Face and profile milling",machine:"VMC",plannedRate:520,processRate:480},
+  {name:"Drilling & Boring",category:"Machining",subcategory:"Hole machining and boring",machine:"VMC / Boring setup",plannedRate:450,processRate:410},
+  {name:"Thread Tapping",category:"Threading",subcategory:"Thread tapping",machine:"Tapping setup",plannedRate:350,processRate:310},
+  {name:"Deburr & Inspection",category:"Finishing & Quality",subcategory:"Deburring and dimensional check",machine:"Bench / inspection",plannedRate:280,processRate:250,inspection:true}
+ ]},
+ {partNumber:"AMADA-DEMO-AERO-001",name:"Precision Aerospace Bracket — assumed demo part",material:"Aluminium 7075-T6 (assumed)",drawingReference:"ASSUMED DEMO PART — no AMADA drawing supplied",quantity:10,poNumber:"AMADA-DEMO-2026-002",poRate:4800,plannedTotal:3400,processTotal:5100,tolerance:"Ultra Precision",notes:"Entire part identity, quantity, material and price are illustrative assumptions for margin testing, not an AMADA-issued drawing or order.",steps:[
+  {name:"5-Axis CNC Milling",category:"Precision Machining",subcategory:"5-axis profile machining",machine:"5-axis VMC",plannedRate:1800,processRate:2600},
+  {name:"Precision Boring",category:"Precision Machining",subcategory:"Bore finishing",machine:"Precision boring setup",plannedRate:900,processRate:1300},
+  {name:"Edge Finishing",category:"Finishing",subcategory:"Deburr and edge break",machine:"Bench finishing",plannedRate:400,processRate:500},
+  {name:"CMM Inspection",category:"Quality",subcategory:"CMM dimensional inspection",machine:"CMM",plannedRate:300,processRate:700,inspection:true}
+ ]},
+ {partNumber:"AWTI-EEB-2-002",name:"Gantry Weldment",material:"Mild Steel (MS)",drawingReference:"AWTI-EEB-2-002.pdf",quantity:2,poNumber:"AMADA-DEMO-2026-003",poRate:18000,plannedTotal:16000,processTotal:18000,tolerance:"Standard",notes:"Actual AMADA drawing identity and drawing quantity 2. PO rate and all costing values are assumed demo values.",steps:[
+  {name:"Laser / Plasma Cutting",category:"Fabrication",subcategory:"Plate cutting",machine:"Laser / plasma cutting",plannedRate:2400,processRate:2800},
+  {name:"Fit-up & Tack Welding",category:"Welding",subcategory:"Fixture fit-up and tack",machine:"Welding fixture",plannedRate:2400,processRate:2700},
+  {name:"MIG Welding",category:"Welding",subcategory:"Structural MIG welding",machine:"MIG welding set",plannedRate:5000,processRate:6000},
+  {name:"Post-weld Machining",category:"Machining",subcategory:"Drilling and face machining",machine:"VMC / drill",plannedRate:3800,processRate:4200},
+  {name:"Powder Coating",category:"Surface Treatment",subcategory:"RAL 7036 powder coating",machine:"Powder coating line",plannedRate:1500,processRate:1800},
+  {name:"Final Inspection",category:"Quality",subcategory:"Weldment and dimensional inspection",machine:"Inspection tools",plannedRate:900,processRate:500,inspection:true}
+ ]},
+ {partNumber:"AMADA-DEMO-SHAFT-001",name:"Precision EN8 Shaft — assumed demo part",material:"EN8 steel (assumed)",drawingReference:"ASSUMED DEMO PART — no AMADA drawing supplied",quantity:20,poNumber:"AMADA-DEMO-2026-004",poRate:3200,plannedTotal:2450,processTotal:3150,tolerance:"Close",notes:"Part identity, drawing number, quantity, material and price are illustrative assumptions for margin testing, not an AMADA-issued drawing or order.",steps:[
+  {name:"Saw Cutting & Facing",category:"Cutting",subcategory:"Bar cutting and facing",machine:"Power saw / lathe",plannedRate:350,processRate:400},
+  {name:"CNC Turning",category:"Turning & Lathe",subcategory:"Rough and finish turning",machine:"CNC lathe",plannedRate:900,processRate:1150},
+  {name:"Keyway Milling",category:"Machining",subcategory:"Keyway milling",machine:"VMC",plannedRate:500,processRate:650},
+  {name:"Cylindrical Grinding",category:"Grinding",subcategory:"OD finish grinding",machine:"Cylindrical grinder",plannedRate:500,processRate:650},
+  {name:"Dimensional Inspection",category:"Quality",subcategory:"Shaft dimensional inspection",machine:"Micrometer / height gauge",plannedRate:200,processRate:300,inspection:true}
+ ]}
+];
+
+function addAmadaDemoScenario(current:ManufacturingData):{data:ManufacturingData;counts:{companies:number;components:number;purchaseOrders:number;operations:number;plannedCosts:number;processDefinitions:number}} {
+ const stamp=nowIso(), today=stamp.slice(0,10);
+ const next:ManufacturingData={...current,updatedAt:stamp,companies:[...current.companies],components:[...current.components],purchaseOrders:[...current.purchaseOrders],operations:[...current.operations],plannedCosts:[...current.plannedCosts],processDefinitions:[...current.processDefinitions]};
+ const counts={companies:0,components:0,purchaseOrders:0,operations:0,plannedCosts:0,processDefinitions:0};
+ let company=next.companies.find(row=>norm(row.name)==="amada weld tech india pvt ltd");
+ if(!company){company={id:makeId("company"),name:"AMADA WELD TECH INDIA PVT LTD",gstin:"",contactPerson:"Shainsha",phone:"",email:"design@amadaweldtech.in",address:"Bengaluru, Karnataka 560057",notes:"Customer details from AMADA drawings / quotation. DEMO scenario records below contain assumed PO and process-cost values.",createdAt:stamp,updatedAt:stamp};next.companies.push(company);counts.companies++;}
+ const dateAt=(days:number,hour:string)=>{const date=new Date(today+"T00:00:00");date.setDate(date.getDate()+days);return date.toISOString().slice(0,10)+"T"+hour;};
+ for(const item of AMADA_DEMO_ITEMS){
+  let component=next.components.find(row=>norm(row.partNumber)===norm(item.partNumber));
+  if(!component){
+   component={id:makeId("component"),companyId:company.id,partNumber:item.partNumber,name:item.name,revision:"",material:item.material,drawingReference:item.drawingReference,notes:"ASSUMED DEMO SCENARIO. "+item.notes,salePrice:item.poRate,salePriceUnit:"piece",overhead:0,toolingCost:0,reworkCost:0,scrapCost:0,rejectedQty:0,gstRate:0,createdAt:stamp,updatedAt:stamp};
+   next.components.push(component);counts.components++;
+  } else if(!component.salePrice){
+   component={...component,companyId:component.companyId||company.id,salePrice:item.poRate,salePriceUnit:component.salePriceUnit||"piece",notes:(component.notes+" | ASSUMED DEMO PO rate; not customer-confirmed.").trim(),updatedAt:stamp};
+   next.components=next.components.map(row=>row.id===component!.id?component!:row);
+  }
+  let order=next.purchaseOrders.find(row=>row.companyId===company!.id&&row.number===item.poNumber);
+  if(!order){order={id:makeId("po"),number:item.poNumber,companyId:company.id,factoryId:"",issueDate:today,targetDelivery:dateAt(15,"17:00").slice(0,10),status:"Open",notes:"DEMO ONLY — assumed PO rate and costs for testing planned cost vs PO value vs process cost. Not an AMADA-issued PO.",lines:[],createdAt:stamp,updatedAt:stamp};next.purchaseOrders.push(order);counts.purchaseOrders++;}
+  let line=order.lines.find(row=>row.componentId===component!.id);
+  if(!line){line={id:makeId("po-line"),componentId:component.id,quantity:item.quantity,targetDelivery:order.targetDelivery,unitPrice:component.salePrice||item.poRate,notes:"ASSUMED DEMO customer PO rate; not confirmed by an AMADA purchase order.",jobStatus:"In progress",updatedAt:stamp};order={...order,lines:[...order.lines,line],updatedAt:stamp};next.purchaseOrders=next.purchaseOrders.map(row=>row.id===order!.id?order!:row);}
+  const currentLine=line;
+  let parentId="";
+  item.steps.forEach((step,index)=>{
+   const processExists=next.processDefinitions.find(row=>norm(row.processType)===norm(step.name)&&norm(row.category)===norm(step.category));
+   if(!processExists){next.processDefinitions.push({id:makeId("process"),processType:step.name,category:step.category,subcategories:[step.subcategory],vendorIds:[],notes:"Process definition used by AMADA demo scenario; validate against actual process plan before production.",createdAt:stamp,updatedAt:stamp});counts.processDefinitions++;}
+   else if(!processExists.subcategories.some(sub=>norm(sub)===norm(step.subcategory))){next.processDefinitions=next.processDefinitions.map(row=>row.id===processExists.id?{...row,subcategories:[...row.subcategories,step.subcategory],updatedAt:stamp}:row);}
+   const exists=next.operations.find(row=>row.poId===order!.id&&row.poLineId===currentLine.id&&row.sequence===index+1&&norm(row.name)===norm(step.name));
+   if(!exists){
+    const op:OperationRecord={id:makeId("operation"),poId:order.id,poLineId:currentLine.id,componentId:component!.id,sequence:index+1,name:step.name,category:step.category,machine:step.machine,vendorId:"",status:"Planned",plannedStart:dateAt(1+index*2,"09:00"),plannedEnd:dateAt(2+index*2,"17:00"),actualStart:"",actualEnd:"",quantity:item.quantity,completed:0,accepted:0,rejected:0,ratePerPart:step.plannedRate,actualRatePerPart:step.processRate,transportVendorId:"",transportPickup:"",transportDelivery:"",transportCost:0,qualityNotes:step.inspection?"ASSUMED DEMO inspection step; actual readings and acceptance must be entered.":"",inspectionResult:"Not assessed",notes:"ASSUMED DEMO PROCESS COST — illustrative per-piece estimate only; not a supplier invoice or actual shop-floor posting.",paymentStatus:"Unpaid",paidAmount:0,paymentReference:"",subcategory:step.subcategory,executionType:"Internal",toleranceCategory:item.tolerance,inspectionRequired:!!step.inspection,transportFrom:"",transportTo:"",transportVehicleType:"",transportRouteId:"",branch:"Main route",parentId,createdAt:stamp,updatedAt:stamp};
+    next.operations.push(op);counts.operations++;parentId=op.id;
+   } else {parentId=exists.id;}
+   const plannedExists=next.plannedCosts.find(row=>norm(row.componentNumber)===norm(item.partNumber)&&norm(row.poNumber)===norm(item.poNumber)&&norm(row.processType)===norm(step.name)&&norm(row.processCategory)===norm(step.category));
+   if(!plannedExists){next.plannedCosts.push({id:makeId("planned-cost"),companyName:company!.name,poNumber:item.poNumber,componentName:item.name,componentNumber:item.partNumber,processType:step.name,processCategory:step.category,processSubcategory:step.subcategory,plannedQty:item.quantity,unit:"piece",plannedRate:step.plannedRate,notes:"ASSUMED DEMO planned rate per piece; scenario value only.",createdAt:stamp,updatedAt:stamp});counts.plannedCosts++;}
+  });
+ }
+ return {data:next,counts};
 }
 
 export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
  const {data,update}=useManufacturingData();const [type,setType]=useState<"companies"|"components"|"vendors"|"contact360"|"process-master"|"planned-cost"|"backup">("companies");
  const [fileName,setFileName]=useState("");const [source,setSource]=useState("");const [error,setError]=useState("");const [preview,setPreview]=useState<Record<string,string>[]>([]);
  const parsed=useMemo(()=>source&&type!=="backup"?parseCsv(source):{headers:[],rows:[]},[source,type]);
+ const loadAmadaDemo=()=>{let summary:{companies:number;components:number;purchaseOrders:number;operations:number;plannedCosts:number;processDefinitions:number}|null=null;update(current=>{const result=addAmadaDemoScenario(current);summary=result.counts;return result.data;});const added=summary||{companies:0,components:0,purchaseOrders:0,operations:0,plannedCosts:0,processDefinitions:0};onNotice("AMADA assumed-cost scenario merged. Added "+added.components+" components, "+added.purchaseOrders+" POs, "+added.operations+" linked process operations and "+added.plannedCosts+" planned-cost rows. Existing records were retained; all assumed values are clearly marked DEMO.");};
  const handleFile=async(event:ChangeEvent<HTMLInputElement>)=>{
   const file=event.target.files?.[0];if(!file)return;
   setError("");setFileName(file.name);setSource("");setPreview([]);
