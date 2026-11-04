@@ -30,7 +30,8 @@
     "@tabler/icons": "3.50.0",
     "@tabler/icons-webfont": "3.50.0",
     "motion": "^14.9.0",
-    "pptxgenjs": "^3.12.0"
+    "pptxgenjs": "^3.12.0",
+    "exceljs": "^4.4.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
