@@ -99,7 +99,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const paymentMatch = !paymentFilters.length || paymentFilters.includes(op.paymentStatus || "Unpaid");
     const vendorMatch = !vendorFilter || op.vendorId === vendorFilter;
     const operationDate = (op.plannedEnd || op.plannedStart || "").slice(0,10);
-    const dateMatch = (!dateFrom || (operationDate && operationDate >= dateFrom)) && (!dateTo || (operationDate && operationDate <= dateTo));
+    const dateMatch = (!dateFrom || Boolean(operationDate && operationDate >= dateFrom)) && (!dateTo || Boolean(operationDate && operationDate <= dateTo));
     const quantityMatch = (!minQuantity || op.quantity >= Number(minQuantity)) && (!maxQuantity || op.quantity <= Number(maxQuantity));
     const effectivePrice = op.actualRatePerPart || op.ratePerPart;
     const effectiveAmount = op.quantity * effectivePrice + op.transportCost;
