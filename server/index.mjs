@@ -235,7 +235,14 @@ const server = createServer(async (req, res) => {
       const contact = db.contacts.find(item => item.phone === to);
       if (!contact || !contact.optedIn) return json(res, 400, { error: "Add the contact and record their WhatsApp opt-in before scheduling." });
       const repeat = ["once", "daily", "weekly"].includes(input.repeat) ? input.repeat : "once";
-      const task = { id: randomUUID(), to, message, nextRunAt: new Date(due).toISOString(), repeat, enabled: true, createdAt: new Date().toISOString(), lastRunAt: null, lastError: "" };
+      const task = {
+        id: randomUUID(), to, message, nextRunAt: new Date(due).toISOString(), repeat, enabled: true,
+        vendorId: String(input.vendorId || "").trim().slice(0, 128),
+        operationId: String(input.operationId || "").trim().slice(0, 128),
+        process: String(input.process || "").trim().slice(0, 160),
+        company: String(input.company || "").trim().slice(0, 160),
+        createdAt: new Date().toISOString(), lastRunAt: null, lastError: ""
+      };
       db.schedules.push(task); await saveDb(); return json(res, 201, { schedule: task });
     }
     const match = url.pathname.match(/^\/api\/schedules\/([\w-]+)$/);
