@@ -4,7 +4,9 @@ const fs = require("node:fs");
 const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
 
-app.disableHardwareAcceleration();
+// Keep Chromium GPU acceleration enabled for smooth 3D orbit interaction by default.
+// Set AXIMACH_DISABLE_GPU=1 only as a troubleshooting fallback for unstable graphics drivers.
+if (process.env.AXIMACH_DISABLE_GPU === "1") app.disableHardwareAcceleration();
 // Vite ES-module assets are served from a scoped, standard app:// origin instead of file://.
 // Electron recommends custom protocols for bundled local pages: https://www.electronjs.org/docs/latest/tutorial/security
 protocol.registerSchemesAsPrivileged([{
