@@ -1311,3 +1311,16 @@
 .ax-orb-mode-multi-core .ax-orb-depth::after{transform:translate3d(132px,29px,-90px) scale(.58)}
 .ax-orb-mode-multi-core .ax-orb-core{background:radial-gradient(circle at 30% 24%,#bbf3ff,#3879ca 48%,#0d2655 100%);box-shadow:inset 0 0 34px rgba(194,243,255,.46),0 0 0 12px rgba(92,168,255,.1),0 0 46px rgba(84,161,245,.32)}
 @media(max-width:650px){.ax-orb-mode-radial .ax-orb-core{clip-path:polygon(50% 0%,60% 13%,75% 5%,80% 23%,96% 25%,87% 43%,100% 55%,83% 65%,89% 84%,68% 82%,50% 100%,32% 82%,11% 84%,17% 65%,0% 55%,13% 43%,4% 25%,20% 23%,25% 5%,40% 13%)}.ax-orb-mode-multi-core .ax-orb-depth::before{transform:translate3d(-104px,-18px,-55px) scale(.62)}.ax-orb-mode-multi-core .ax-orb-depth::after{transform:translate3d(104px,20px,-70px) scale(.5)}}
+
+/* Mobile-safe manufacturing charts: scroll long time axes instead of clipping plotted data. */
+.production-operation-histogram{min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;padding:2px 0 7px;overscroll-behavior-x:contain}
+.production-histogram-row{min-width:360px;max-width:100%;box-sizing:border-box}
+.production-histogram-row>span,.production-histogram-row>small{min-width:0;overflow-wrap:anywhere}
+.process-gantt-view{max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;padding-bottom:7px}
+.process-gantt-view .process-gantt-axis,.process-gantt-view .process-gantt-row{min-width:620px;box-sizing:border-box}
+@media(max-width:700px){
+ .production-operation-histogram{margin-left:-2px;margin-right:-2px;padding-left:2px;padding-right:2px}
+ .production-histogram-row{grid-template-columns:minmax(94px,120px) minmax(70px,1fr) 34px!important;gap:7px;align-items:center}
+ .production-histogram-row>small{display:none}
+ .process-gantt-view .process-gantt-axis,.process-gantt-view .process-gantt-row{min-width:620px}
+}
