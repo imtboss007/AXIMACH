@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import { motion, useAnimationFrame, useMotionValue, useReducedMotion } from "motion/react";
 import { Activity, ArrowRight, Boxes, ClipboardCheck, GitBranch, Truck, Workflow, Wrench } from "lucide-react";
 import type { OperationRecord } from "./manufacturingData";
