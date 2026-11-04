@@ -253,6 +253,7 @@ function App() {
         ) : (
           <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         )}
+        </Suspense>
       </main>
 
       {activeModuleId !== "dashboard" && activeModuleId !== "command-centre" && (
