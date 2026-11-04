@@ -49,7 +49,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const transportCost=linkedOperations.reduce((sum,op)=>sum+Math.max(0,Number(op.transportCost)||0),0);
     const plannedRows=activeRows(data.plannedCosts).filter(row=>row.componentNumber.trim().toLowerCase()===(component?.partNumber||"").trim().toLowerCase()||row.componentName.trim().toLowerCase()===(component?.name||"").trim().toLowerCase());
     const plannedCost=plannedRows.length
-      ? plannedRows.reduce((sum,row)=>sum+row.plannedRate*line.quantity,0)
+      ? plannedRows.reduce((sum,row)=>sum+row.plannedQty*row.plannedRate,0)
       : linkedOperations.reduce((sum,op)=>sum+op.quantity*op.ratePerPart,0);
     const paid=linkedOperations.reduce((sum,op)=>{
       const txns=paymentTransactionsForCompany.filter(txn=>txn.operationId===op.id);
@@ -137,7 +137,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     || row.componentName.trim().toLowerCase() === selectedComponent.name.trim().toLowerCase()
   ) : [];
   const independentPlannedTotal = independentPlannedCosts.reduce((sum,row) =>
-    sum + row.plannedRate * (selectedLine?.quantity || row.plannedQty), 0
+    sum + row.plannedQty * row.plannedRate, 0
   );
   const plannedProcessTotal = independentPlannedCosts.length ? independentPlannedTotal : plannedProcessFromOperations;
   const plannedTotal = materialCost + plannedProcessTotal + operationTransportTotal + extraCharges;
@@ -240,7 +240,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
           <div><strong>{money(actualProcessTotal)}</strong><span>Actual entered process cost (transport separate)</span></div>
           <div><strong>{money(independentVariance)}</strong><span>{independentVariance > 0 ? "Actual process above plan" : independentVariance < 0 ? "Actual process below plan" : "Actual process equals plan"}</span></div>
         </div>
-        <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Company reference</th><th>PO reference</th><th>Component</th><th>Process</th><th>Category</th><th>Subcategory</th><th>Planned qty</th><th>Unit</th><th>Planned rate</th><th>Planned amount for selected PO</th></tr></thead><tbody>{independentPlannedCosts.map(row=><tr key={row.id}><td>{row.companyName||selectedCompany?.name||"—"}</td><td>{row.poNumber||selectedPO?.number||"—"}</td><td>{row.processType}</td><td>{row.processCategory||"—"}</td><td>{row.processSubcategory||"—"}</td><td>{selectedComponent?.partNumber||selectedComponent?.name||"—"}</td><td>{row.plannedQty.toLocaleString("en-IN")}</td><td>{row.unit==="set"?"sets":"pieces"}</td><td>{money(row.plannedRate)}</td><td>{money(row.plannedRate*(selectedLine?.quantity||row.plannedQty))}</td></tr>)}</tbody></table></div>
+        <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Company name / reference</th><th>PO reference</th><th>Component name</th><th>Component number</th><th>Process type</th><th>Process category</th><th>Process subcategory</th><th>Planned quantity</th><th>Unit</th><th>Planned rate</th><th>Planned amount</th></tr></thead><tbody>{independentPlannedCosts.map(row=><tr key={row.id}><td>{row.companyName||selectedCompany?.name||"—"}</td><td>{row.poNumber||selectedPO?.number||"—"}</td><td>{row.componentName||selectedComponent?.name||"—"}</td><td>{row.componentNumber||selectedComponent?.partNumber||"—"}</td><td>{row.processType}</td><td>{row.processCategory||"—"}</td><td>{row.processSubcategory||"—"}</td><td>{row.plannedQty.toLocaleString("en-IN")}</td><td>{row.unit==="set"?"sets":"pieces"}</td><td>{money(row.plannedRate)}</td><td>{money(row.plannedQty*row.plannedRate)}</td></tr>)}</tbody></table></div>
       </section>}
 
       <section className="surface-panel costing-payment-summary">
