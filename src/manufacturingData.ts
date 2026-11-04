@@ -48,7 +48,7 @@ export type ProcessDefinitionRecord = {
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type PlannedCostEntry = {
-  id: string; componentName: string; componentNumber: string; processType: string; processCategory: string; processSubcategory?: string;
+  id: string; companyName?: string; poNumber?: string; componentName: string; componentNumber: string; processType: string; processCategory: string; processSubcategory?: string;
   plannedQty: number; unit: "piece" | "set"; plannedRate: number; notes: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
