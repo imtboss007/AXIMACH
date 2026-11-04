@@ -1,8 +1,9 @@
 import { createServer } from "node:http";
-import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rename, unlink } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { networkInterfaces } from "node:os";
+import { manufacturingCollections, mergeManufacturingData } from "./manufacturing-data.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
@@ -10,16 +11,29 @@ const DB_PATH = resolve(process.env.AXIMACH_DATA_FILE || "./data/aximach.json");
 const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
 let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null };
 let busy = false;
+let saveQueue = Promise.resolve();
 
 async function loadDb() {
   try { db = { ...db, ...JSON.parse(await readFile(DB_PATH, "utf8")) }; }
   catch (error) { if (error.code !== "ENOENT") console.error("Could not load data store:", error.message); }
 }
-async function saveDb() {
-  await mkdir(dirname(DB_PATH), { recursive: true });
-  const temp = DB_PATH + ".tmp";
-  await writeFile(temp, JSON.stringify(db, null, 2), { mode: 0o600 });
-  await rename(temp, DB_PATH);
+function saveDb() {
+  const persist = async () => {
+    await mkdir(dirname(DB_PATH), { recursive: true });
+    const temp = DB_PATH + "." + randomUUID() + ".tmp";
+    try {
+      await writeFile(temp, JSON.stringify(db, null, 2), { mode: 0o600 });
+      await rename(temp, DB_PATH);
+    } catch (error) {
+      try { await unlink(temp); } catch { /* temp may not have been created */ }
+      throw error;
+    }
+  };
+  // Serialize writes so overlapping API requests cannot race on one temp file
+  // or let an older snapshot replace a newer complete data store.
+  const next = saveQueue.then(persist, persist);
+  saveQueue = next.catch(() => {});
+  return next;
 }
 const allowedOrigins = new Set([
   "http://localhost:5173", "http://localhost", "https://localhost", "capacitor://localhost",
@@ -59,7 +73,6 @@ function privateLanAddresses() {
 }
 
 function normalisePhone(phone) { return String(phone || "").replace(/\D/g, ""); }
-const manufacturingCollections = ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "paymentTransactions", "inspectionMeasurements"];
 function mergeModuleRecords(existing, incoming) {
   const left = existing && typeof existing === "object" ? existing : {};
   const right = incoming && typeof incoming === "object" ? incoming : {};
@@ -76,54 +89,6 @@ function mergeModuleRecords(existing, incoming) {
   }
   return merged;
 }
-function mergePurchaseOrders(existingRows, incomingRows) {
-  const left = new Map((Array.isArray(existingRows) ? existingRows : []).filter(row => row?.id).map(row => [row.id, row]));
-  const right = new Map((Array.isArray(incomingRows) ? incomingRows : []).filter(row => row?.id).map(row => [row.id, row]));
-  const merged = [];
-  for (const id of new Set([...left.keys(), ...right.keys()])) {
-    const old = left.get(id);
-    const incoming = right.get(id);
-    if (!old) { merged.push(incoming); continue; }
-    if (!incoming) { merged.push(old); continue; }
-    const oldTime = Date.parse(old.updatedAt || "") || 0;
-    const incomingTime = Date.parse(incoming.updatedAt || "") || 0;
-    const preferred = incomingTime >= oldTime ? incoming : old;
-    const lines = new Map();
-    for (const [po, parentTime] of [[old, oldTime], [incoming, incomingTime]]) {
-      for (const line of Array.isArray(po.lines) ? po.lines : []) {
-        if (!line?.id) continue;
-        const time = Date.parse(line.updatedAt || "") || parentTime;
-        const prior = lines.get(line.id);
-        if (!prior || time >= prior.time) lines.set(line.id, { line, time });
-      }
-    }
-    merged.push({ ...preferred, lines: [...lines.values()].map(item => item.line) });
-  }
-  return merged;
-}
-
-function mergeManufacturingData(existing, incoming) {
-  const left = existing && typeof existing === "object" ? existing : {};
-  const right = incoming && typeof incoming === "object" ? incoming : {};
-  const merged = {};
-  for (const collection of manufacturingCollections) {
-    if (collection === "purchaseOrders") {
-      merged[collection] = mergePurchaseOrders(left[collection], right[collection]);
-      continue;
-    }
-    const rows = new Map();
-    for (const row of Array.isArray(left[collection]) ? left[collection] : []) if (row?.id) rows.set(row.id, row);
-    for (const row of Array.isArray(right[collection]) ? right[collection] : []) {
-      if (!row?.id) continue;
-      const current = rows.get(row.id);
-      if (!current || (Date.parse(row.updatedAt || "") || 0) >= (Date.parse(current.updatedAt || "") || 0)) rows.set(row.id, row);
-    }
-    merged[collection] = [...rows.values()];
-  }
-  merged.updatedAt = [left.updatedAt, right.updatedAt].sort().at(-1) || new Date().toISOString();
-  return merged;
-}
-
 async function sendWhatsApp(to, message) {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
