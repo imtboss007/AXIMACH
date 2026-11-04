@@ -23,7 +23,11 @@ function rowsFor(moduleId:string,data:ManufacturingData):Record<string,unknown>[
  if(moduleId==="process-master")return activeRows(data.processDefinitions).map(x=>({...x}));
  if(moduleId==="planned-cost")return activeRows(data.plannedCosts).map(x=>({...x}));
  if(moduleId==="contact360")return activeRows(data.contactProfiles).map(x=>({...x}));
- if(moduleId==="communications"){try{return JSON.parse(localStorage.getItem("aximach.followups.v1")||"[]");}catch{return[];}}
+ if(moduleId==="communications"){
+  const assignments=activeRows(data.followUpAssignments||[]).map(row=>({...row,recordType:"linked-record-contact"}));
+  try{return [...assignments,...(JSON.parse(localStorage.getItem("aximach.followups.v1")||"[]") as Record<string,unknown>[]).map(row=>({...row,recordType:"follow-up-schedule"}))];}
+  catch{return assignments;}
+ }
  return [];
 }
 function parseCsv(input:string):{headers:string[];rows:Record<string,string>[]}{
@@ -91,12 +95,27 @@ export function ExportCentreWorkspace({onBack,onNotice}:Props){
  const {data}=useManufacturingData();const [moduleId,setModuleId]=useState("companies");
  const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
  const rows=rowsFor(moduleId,data);
- const exportCsv=()=>{if(!rows.length){onNotice("There are no saved records to export for this selection.");return;}downloadFile("AXIMACH-"+moduleId+"-"+new Date().toISOString().slice(0,10)+".csv",toCsv(rows));onNotice("Excel-compatible CSV exported. Open it in Excel and save as .xlsx if required.");};
+ const exportCsv=()=>{if(!rows.length){onNotice("There are no saved records to export for this selection.");return;}downloadFile("AXIMACH-"+moduleId+"-"+new Date().toISOString().slice(0,10)+".csv",toCsv(rows));onNotice("Excel-compatible CSV exported.");};
+ const exportExcel=async()=>{
+  if(!rows.length){onNotice("There are no saved records to export for this selection.");return;}
+  try{
+   const imported=await import("exceljs");const workbook=new imported.default.Workbook();
+   workbook.creator="AXIMACH Manufacturing OS";workbook.created=new Date();
+   const sheet=workbook.addWorksheet(options.find(x=>x[0]===moduleId)?.[1]||moduleId);
+   const keys=[...new Set(rows.flatMap(row=>Object.keys(row)))];
+   sheet.columns=keys.map(key=>({header:key,key,width:Math.min(36,Math.max(14,key.length+4))}));
+   sheet.addRows(rows.map(row=>Object.fromEntries(keys.map(key=>{const value=row[key];return [key,value&&typeof value==="object"?JSON.stringify(value):value??""];}))));
+   sheet.views=[{state:"frozen",ySplit:1}];if(keys.length)sheet.autoFilter={from:{row:1,column:1},to:{row:1,column:keys.length}};
+   const buffer=await workbook.xlsx.writeBuffer();const blob=new Blob([buffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+   const url=URL.createObjectURL(blob);const anchor=document.createElement("a");anchor.href=url;anchor.download="AXIMACH-"+moduleId+"-"+new Date().toISOString().slice(0,10)+".xlsx";anchor.click();URL.revokeObjectURL(url);
+   onNotice("Native Excel workbook exported with "+rows.length+" record(s).");
+  }catch(error){onNotice(error instanceof Error?"Excel export failed: "+error.message:"Excel export failed.");}
+ };
  const exportJson=()=>{const moduleStores={followUps:JSON.parse(localStorage.getItem("aximach.followups.v1")||"[]")};downloadFile("AXIMACH-complete-backup.json",JSON.stringify({...data,moduleStores},null,2),"application/json");onNotice("Shared manufacturing, contact, process and independent planned-cost records exported with follow-up schedules as JSON backup.");};
  const exportPdf=()=>{const w=window.open("","_blank");if(!w){onNotice("Allow pop-ups to use Print / Save PDF.");return;}const table=rows.length?'<table><thead><tr>'+Object.keys(rows[0]).map(x=>'<th>'+x+'</th>').join("")+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+Object.values(row).map(v=>'<td>'+String(v??"").replace(/[&<>]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch]!))+'</td>').join("")+'</tr>').join("")+'</tbody></table>':'<p>No saved records.</p>';w.document.write('<!doctype html><html><head><title>AXIMACH Export</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:6px;text-align:left}th{background:#eee}</style></head><body><h1>AXIMACH · '+options.find(x=>x[0]===moduleId)?.[1]+'</h1>'+table+'</body></html>');w.document.close();w.focus();w.print();};
  return <section className="workspace-page intelligence-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> DATA EXPORT</span></div>
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> DATA EXCHANGE / DOWNLOADS</div><h1>Export Centre<span>.</span></h1><p>Export saved module records and individual operation datasets to editable CSV, print/PDF or full JSON backup.</p></div></div>
-  <section className="surface-panel"><div className="module-record-form specialized-form"><label>Module to export<select value={moduleId} onChange={e=>setModuleId(e.target.value)}>{options.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select></label><label>Matching saved records<input readOnly value={String(rows.length)}/></label><div className="module-form-actions"><button className="button-primary" onClick={exportCsv}><FileDown size={14}/> Excel-compatible CSV</button><button className="button-quiet" onClick={exportPdf}>Print / Save PDF</button><button className="button-quiet" onClick={exportJson}><Download size={14}/> Full JSON backup</button></div></div></section>
+  <section className="surface-panel"><div className="module-record-form specialized-form"><label>Module to export<select value={moduleId} onChange={e=>setModuleId(e.target.value)}>{options.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select></label><label>Matching saved records<input readOnly value={String(rows.length)}/></label><div className="module-form-actions"><button className="button-primary" onClick={exportExcel}><FileDown size={14}/> Excel workbook (.xlsx)</button><button className="button-quiet" onClick={exportCsv}>CSV</button><button className="button-quiet" onClick={exportPdf}>Print / Save PDF</button><button className="button-quiet" onClick={exportJson}><Download size={14}/> Full JSON backup</button></div></div></section>
   <div className="module-safety-note"><ShieldCheck size={15}/><span>CSV files are editable in Excel; PDF is generated through the device print dialog. Full JSON backup preserves the manufacturing data model. Specialized records held in browser-local module stores are exported when their matching module is selected.</span></div>
  </section>;
 }
