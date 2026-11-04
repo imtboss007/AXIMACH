@@ -251,7 +251,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         const chunk=exportOperations.slice(offset,offset+rowsPerSlide);
         const tableRows=[headers,...chunk.map(op=>exportColumns.map(field=>String(exportValue(op,field.key)??"")))].map(row=>row.map(text=>({text})));
         const widths=exportColumns.map(()=>12.1/Math.max(1,exportColumns.length));
-        page.addTable(tableRows,{x:0.45,y:0.9,w:12.1,h:5.85,border:{type:"solid",color:"D4DEE8",pt:0.6},fontFace:"Aptos",fontSize:Math.max(7,Math.min(10,12-exportColumns.length/2)),color:"1A2B40",rowH:0.48,colW:widths,margin:0.05,autoFit:false,breakLine:false,fill:"FFFFFF",bold:false,paraSpaceAfterPt:0,header:{bold:true,color:"FFFFFF",fill:navy,fontSize:9},});
+        page.addTable(tableRows,{x:0.45,y:0.9,w:12.1,h:5.85,border:{type:"solid",color:"D4DEE8",pt:0.6},fontFace:"Aptos",fontSize:Math.max(7,Math.min(10,12-exportColumns.length/2)),color:"1A2B40",rowH:0.48,colW:widths,margin:0.05,autoFit:false,breakLine:false,fill:{color:"FFFFFF"},bold:false,paraSpaceAfterPt:0,header:{bold:true,color:"FFFFFF",fill:navy,fontSize:9},});
         page.addText("Operations "+(offset+1)+"–"+(offset+chunk.length)+" of "+exportOperations.length,{x:0.48,y:7.05,w:12,h:0.18,fontSize:8,color:"66788C",margin:0});
       }
       await deck.writeFile({fileName:exportFileBase+"-Process-Map.pptx"});
