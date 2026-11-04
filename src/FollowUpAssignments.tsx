@@ -85,7 +85,7 @@ export default function FollowUpAssignmentsLauncher({ moduleId, moduleTitle, onN
     setContactId("");
   }, [moduleId]);
 
-  const selectedRecord = recordOptions.find(row => row.id === recordId) || recordOptions[0];
+  const selectedRecord = recordOptions.find(row => row.id === recordId);
   const assignments = activeRows(data.followUpAssignments || []).filter(row => row.moduleId === moduleId && row.recordId === (selectedRecord?.id || ""));
   const assignedContactIds = new Set(assignments.map(row => row.contactId));
   const availableContacts = contactOptions.filter(row => !assignedContactIds.has(row.id));
