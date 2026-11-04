@@ -1271,3 +1271,11 @@
  .ax-followup-add-row{grid-template-columns:minmax(0,1fr) auto;gap:6px}
  .ax-followup-add-button{padding:0 9px;font-size:9px}
 }
+
+.ax-orb-core{cursor:zoom-in;outline:none;transition:filter .2s ease,box-shadow .2s ease}
+.ax-orb-core:focus-visible{outline:2px solid #8de2ff;outline-offset:5px}
+.ax-orb-mode-sphere .ax-orb-core[aria-pressed="true"]{cursor:zoom-out;filter:saturate(1.08);box-shadow:inset 13px 10px 28px rgba(255,255,255,.42),inset -18px -20px 34px rgba(4,23,61,.48),0 9px 0 rgba(39,82,153,.19),0 21px 42px rgba(25,76,155,.25),0 0 68px rgba(88,178,255,.42)}
+.ax-orb-zoom{min-height:30px;padding:0 11px;border:1px solid rgba(103,159,218,.3);border-radius:8px;background:rgba(14,35,64,.82);color:#b9d3f3;font:700 8px 'DM Mono',monospace;letter-spacing:.25px;cursor:pointer}
+.ax-orb-zoom[aria-pressed="true"]{border-color:rgba(101,197,239,.7);background:rgba(21,80,119,.9);color:#fff}
+.ax-orb-zoom:hover{border-color:rgba(101,197,239,.7);color:#fff}
+@media(prefers-reduced-motion:reduce){.ax-orb-core{transition:none!important}}
