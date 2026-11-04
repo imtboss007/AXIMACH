@@ -124,7 +124,7 @@ export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
      rows.push(values);
     });
     if(!rows.length)throw new Error("The first worksheet is empty.");
-    setSource(rows.map(row=>row.map(csvCell).join(",")).join("\\r\\n"));
+    setSource(rows.map(row=>row.map(csvCell).join(",")).join(String.fromCharCode(13,10)));
    }catch(e){setError(e instanceof Error?"Excel workbook could not be read: "+e.message:"Excel workbook could not be read.");}
    return;
   }
