@@ -11,12 +11,15 @@ const stamp = () => new Date().toISOString().slice(0,10);
 
 export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSelectModule }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
+  const companies = activeRows(data.companies);
   const components = activeRows(data.components);
   const orders = activeRows(data.purchaseOrders);
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
   const quotations = activeRows(data.quotations);
-  const [componentId, setComponentId] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [rollupPoIds, setRollupPoIds] = useState<string[]>([]);
+  const [poId, setPoId] = useState("");
   const [lineKey, setLineKey] = useState("");
   const [operationId, setOperationId] = useState("");
   const [vendorId, setVendorId] = useState("");
@@ -31,21 +34,45 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const [quoteSearch, setQuoteSearch] = useState("");
   const [showQuoteForm, setShowQuoteForm] = useState(false);
 
-  // Land on the component/PO line that already has quotations first, so saved
-  // supplier prices never appear to vanish behind blank selectors.
-  const preferredComponentId =
-    quotations.find(q => !q.deletedAt && components.some(c => c.id === q.componentId))?.componentId ||
-    components.find(c => orders.some(po => po.lines.some(line => line.componentId === c.id && !("deletedAt" in line && (line as any).deletedAt))))?.id ||
-    components[0]?.id || "";
+  const preferredCompanyId = orders.find(po => po.lines.some(line => !("deletedAt" in line && (line as any).deletedAt)))?.companyId || companies[0]?.id || "";
   useEffect(() => {
-    if (!components.some(c => c.id === componentId) && preferredComponentId) setComponentId(preferredComponentId);
-    if (!preferredComponentId && componentId) setComponentId("");
-  }, [componentId, preferredComponentId]);
+    if (!companies.some(company => company.id === companyId) && preferredCompanyId) { setCompanyId(preferredCompanyId); setPoId(""); setLineKey(""); }
+    if (!preferredCompanyId && companyId) { setCompanyId(""); setPoId(""); setLineKey(""); }
+  }, [companies, companyId, preferredCompanyId]);
+  const companyOrders = orders.filter(po => po.companyId === companyId);
+  const paymentTransactionsForCompany = activeRows(data.paymentTransactions||[]);
+  const companyRollupRows = companyOrders.flatMap(po => po.lines.filter(line=>!("deletedAt" in line && (line as any).deletedAt)).map(line=>{
+    const component=components.find(item=>item.id===line.componentId);
+    const linkedOperations=operations.filter(op=>op.poId===po.id&&op.poLineId===line.id&&op.componentId===line.componentId);
+    const revenue=line.quantity*(component?.salePrice ?? line.unitPrice ?? 0);
+    const processCost=linkedOperations.reduce((sum,op)=>sum+op.quantity*(op.actualRatePerPart||0),0);
+    const transportCost=linkedOperations.reduce((sum,op)=>sum+Math.max(0,Number(op.transportCost)||0),0);
+    const plannedRows=activeRows(data.plannedCosts).filter(row=>row.componentNumber.trim().toLowerCase()===(component?.partNumber||"").trim().toLowerCase()||row.componentName.trim().toLowerCase()===(component?.name||"").trim().toLowerCase());
+    const plannedCost=plannedRows.reduce((sum,row)=>sum+row.plannedRate*line.quantity,0);
+    const paid=linkedOperations.reduce((sum,op)=>{
+      const txns=paymentTransactionsForCompany.filter(txn=>txn.operationId===op.id);
+      return sum+(txns.length?txns.reduce((sub,txn)=>sub+Math.max(0,Number(txn.amount)||0),0):Math.max(0,Number(op.paidAmount)||0));
+    },0);
+    const recordedCost=processCost+transportCost;
+    return {po,line,component,linkedOperations,revenue,processCost,transportCost,plannedCost,paid,recordedCost,profitLoss:revenue-recordedCost};
+  }));
+  const visibleCompanyRollup = companyRollupRows.filter(row=>!rollupPoIds.length||rollupPoIds.includes(row.po.id));
+  const companyRollupTotals = visibleCompanyRollup.reduce((sum,row)=>({
+    revenue:sum.revenue+row.revenue,planned:sum.planned+row.plannedCost,process:sum.process+row.processCost,
+    transport:sum.transport+row.transportCost,recorded:sum.recorded+row.recordedCost,paid:sum.paid+row.paid,
+    profitLoss:sum.profitLoss+row.profitLoss
+  }),{revenue:0,planned:0,process:0,transport:0,recorded:0,paid:0,profitLoss:0});
 
-  const selectedComponent = components.find(c => c.id === componentId);
-  const componentLines: ComponentLineRef[] = useMemo(() => orders.flatMap(po => po.lines.filter(line => line.componentId === selectedComponent?.id).map(line => ({
-    key: po.id + "::" + line.id, poId: po.id, poNumber: po.number, lineId: line.id, quantity: line.quantity, targetDelivery: line.targetDelivery || po.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId, materialQty: line.materialQty, materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost, reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
-  }))), [orders, selectedComponent?.id]);
+  useEffect(() => {
+    if (!companyOrders.some(po => po.id === poId)) { setPoId(companyOrders[0]?.id || ""); setLineKey(""); setOperationId(""); }
+  }, [companyOrders, poId]);
+  const selectedPO = companyOrders.find(po => po.id === poId);
+  const componentLines: ComponentLineRef[] = useMemo(() => (selectedPO?.lines || []).filter(line => !("deletedAt" in line && (line as any).deletedAt)).map(line => ({
+    key: selectedPO!.id + "::" + line.id, poId: selectedPO!.id, poNumber: selectedPO!.number, lineId: line.id, quantity: line.quantity,
+    targetDelivery: line.targetDelivery || selectedPO!.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId, materialQty: line.materialQty,
+    materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost,
+    reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
+  })), [selectedPO]);
   const preferredLine = componentLines.find(line => quotations.some(q => !q.deletedAt && q.poLineId === line.lineId)) || componentLines[0];
   useEffect(() => {
     const currentLine = componentLines.find(line => line.key === lineKey);
@@ -53,7 +80,13 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     if ((nextLine?.key || "") !== lineKey) setLineKey(nextLine?.key || "");
   }, [componentLines, lineKey, preferredLine?.key]);
   const selectedLine = componentLines.find(line => line.key === lineKey) || preferredLine;
+  const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
   const routeOperations = operations.filter(op => op.componentId === selectedComponent?.id && (!selectedLine || (op.poId === selectedLine.poId && op.poLineId === selectedLine.lineId)));
+  const paymentTransactions = activeRows(data.paymentTransactions || []);
+  const paymentTotalFor = (operation: typeof routeOperations[number]) => {
+    const rows=paymentTransactions.filter(payment=>payment.operationId===operation.id);
+    return rows.length?rows.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0):Math.max(0,Number(operation.paidAmount)||0);
+  };
   const preferredOperation = routeOperations.find(op => quotations.some(q => !q.deletedAt && q.operationId === op.id)) || routeOperations[0];
   useEffect(() => {
     const currentOperation = routeOperations.find(op => op.id === operationId);
@@ -92,11 +125,22 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const extraCharges = overhead + toolingCost + reworkCost + scrapCost;
   const plannedTotal = materialCost + operationPlanned + extraCharges;
   const actualTotal = materialCost + operationActual + extraCharges;
-  const sellingRate = selectedLine ? selectedLine.unitPrice : (selectedComponent?.salePrice || 0);
+  const sellingRate = selectedComponent?.salePrice ?? selectedLine?.unitPrice ?? 0;
   const revenue = (selectedLine?.quantity || 0) * sellingRate;
   const gstEstimate = revenue * gstRate / 100;
   const finalOperation = routeOperations[routeOperations.length - 1];
   const acceptedQty = selectedLine ? (finalOperation && finalOperation.completed > 0 ? finalOperation.accepted : Math.max(0, selectedLine.quantity - rejectedQty)) : 0;
+  const independentPlannedCosts = selectedComponent ? activeRows(data.plannedCosts).filter(row =>
+    row.componentNumber.trim().toLowerCase() === selectedComponent.partNumber.trim().toLowerCase()
+    || row.componentName.trim().toLowerCase() === selectedComponent.name.trim().toLowerCase()
+  ) : [];
+  const independentPlannedTotal = independentPlannedCosts.reduce((sum,row) =>
+    sum + row.plannedRate * (selectedLine?.quantity || row.plannedQty), 0
+  );
+  const actualProcessTotal = operationActual;
+  const independentVariance = actualProcessTotal - independentPlannedTotal;
+  const paidProcessTotal = routeOperations.reduce((sum,op) => sum + paymentTotalFor(op), 0);
+  const unpaidProcessBalance = Math.max(0, operationActual - paidProcessTotal);
   const profit = revenue - plannedTotal;
   const costPerAccepted = acceptedQty ? plannedTotal / acceptedQty : 0;
 
@@ -157,21 +201,55 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   return <section className="workspace-page linked-costing-page">
     {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/> {syncStatus === "synced" ? "SHARED SERVER DATA" : syncStatus === "syncing" ? "SYNCING" : syncStatus === "error" ? "SYNC ERROR · LOCAL COPY KEPT" : "NO DEMO DATA · LOCAL UNTIL SERVER SYNC"}</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> FINANCE / COMPONENT + PROCESS RATE HISTORY</div><h1>Costing & quotations<span>.</span></h1><p>Store every supplier rate against the exact component, PO line and operation; compare quotations without treating them as actual invoices.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendor directory</button><button className="button-primary" onClick={() => openQuote()} disabled={!selectedComponent}><Plus size={15}/> Add process quotation</button></div></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> FINANCE / COMPONENT + PROCESS RATE HISTORY</div><h1>Costing &amp; Payment<span>.</span></h1><p>Store every supplier rate against the exact component, PO line and operation; compare quotations without treating them as actual invoices.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendor directory</button><button className="button-primary" onClick={() => openQuote()} disabled={!selectedComponent}><Plus size={15}/> Add process quotation</button></div></div>
     {!components.length ? <section className="surface-panel linked-empty-master"><Package size={30}/><div><h3>No component master records yet</h3><p>There are no sample components. Add your actual part number once; then create a PO line, add the required operations and record supplier quotations per operation.</p><button className="button-primary" onClick={() => onSelectModule("components")}><Plus size={14}/> Create component master</button></div></section> : <>
+      <section className="surface-panel company-cost-rollup">
+        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMPANY-WIDE FINANCIAL ANALYSIS</div><h3>All purchase orders · component profit / loss</h3><p>Aggregates every PO and component for the selected company. Select one, several or all POs to narrow the analysis.</p></div><span className="module-number">{visibleCompanyRollup.length} COMPONENT LINES</span></div>
+        <div className="process-table-bulkbar"><label><input type="checkbox" checked={companyOrders.length>0&&companyOrders.every(po=>rollupPoIds.includes(po.id))} onChange={e=>setRollupPoIds(e.target.checked?companyOrders.map(po=>po.id):[])} /> Select all POs</label>{companyOrders.map(po=><label key={po.id}><input type="checkbox" checked={!rollupPoIds.length||rollupPoIds.includes(po.id)} onChange={e=>setRollupPoIds(current=>{const base=current.length?current:companyOrders.map(item=>item.id);const next=e.target.checked?[...new Set([...base,po.id])]:base.filter(id=>id!==po.id);return next.length===companyOrders.length?[]:next;})}/>{po.number}</label>)}<button className="button-quiet compact-button" onClick={()=>setRollupPoIds([])}>All POs</button></div>
+        <div className="dashboard-job-summary company-rollup-totals">
+          <div><strong>{money(companyRollupTotals.revenue)}</strong><span>Selected PO line value</span></div>
+          <div><strong>{money(companyRollupTotals.planned)}</strong><span>Independent planned process cost</span></div>
+          <div><strong>{money(companyRollupTotals.process)}</strong><span>Actual process cost recorded</span></div>
+          <div><strong>{money(companyRollupTotals.transport)}</strong><span>Transport cost</span></div>
+          <div><strong>{money(companyRollupTotals.paid)}</strong><span>Process amounts paid</span></div>
+          <div><strong className={companyRollupTotals.profitLoss<0?"loss-value":"profit-value"}>{money(companyRollupTotals.profitLoss)}</strong><span>Recorded contribution / loss</span></div>
+        </div>
+        <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>PO</th><th>Component</th><th>Qty</th><th>PO value</th><th>Planned process</th><th>Actual process</th><th>Transport</th><th>Paid</th><th>Recorded balance</th><th>Contribution / loss</th></tr></thead><tbody>{visibleCompanyRollup.map(row=><tr key={row.po.id+":"+row.line.id}><td><strong>{row.po.number}</strong><small>{row.po.issueDate||"No PO date"}</small></td><td><strong>{row.component?.name||"Missing component"}</strong><small>{row.component?.partNumber||"—"}</small></td><td>{row.line.quantity.toLocaleString("en-IN")}</td><td>{money(row.revenue)}</td><td>{money(row.plannedCost)}</td><td>{money(row.processCost)}</td><td>{money(row.transportCost)}</td><td>{money(row.paid)}</td><td>{money(Math.max(0,row.recordedCost-row.paid))}</td><td><strong className={row.profitLoss<0?"loss-value":"profit-value"}>{money(row.profitLoss)}</strong></td></tr>)}</tbody></table></div>
+        <div className="module-safety-note"><ShieldCheck size={14}/><span>Contribution is calculated as PO line value minus saved actual process and transport costs. Material, overhead, tax, finance and other costs not entered in the records are excluded; this is not an audited net-profit figure.</span></div>
+      </section>
       <div className="linked-master-selectors linked-cost-selectors">
-        <SearchablePicker id="cost-component" label="Component / part number" value={selectedComponent?.id||""} placeholder="Type part number or name…" options={components.map(c=>({id:c.id,label:c.partNumber+" · "+c.name+" · Rev "+(c.revision||"—")}))} onChange={id=>{setComponentId(id);setLineKey("");setOperationId("");setShowQuoteForm(false);}}/>
-        <SearchablePicker id="cost-po-line" label="Purchase order / component line" value={selectedLine?.key||""} placeholder="Type PO number or due date…" options={componentLines.map(line=>({id:line.key,label:line.poNumber+" · "+line.quantity+" pcs · "+(line.targetDelivery||"No delivery date")}))} onChange={key=>{setLineKey(key);setOperationId("");}}/>
-        <SearchablePicker id="cost-operation" label="Process operation" value={selectedOperation?.id||""} placeholder="Type operation name…" options={routeOperations.map(op=>({id:op.id,label:op.name+" · OP-"+op.sequence}))} onChange={setOperationId}/>
+        <SearchablePicker id="cost-company" label="Company" value={companyId} placeholder="Select company…" options={companies.map(c=>({id:c.id,label:c.name}))} onChange={id=>{setCompanyId(id);setPoId("");setLineKey("");setOperationId("");setShowQuoteForm(false);}}/>
+        <SearchablePicker id="cost-po" label="Purchase order" value={poId} placeholder="Select PO…" options={companyOrders.map(po=>({id:po.id,label:po.number+" · "+po.status}))} onChange={id=>{setPoId(id);setLineKey("");setOperationId("");setShowQuoteForm(false);}}/>
+        <SearchablePicker id="cost-po-line" label="PO component line" value={selectedLine?.key||""} placeholder="Select component line…" options={componentLines.map(line=>({id:line.key,label:(components.find(c=>c.id===line.componentId)?.partNumber||"Part missing")+" · "+(components.find(c=>c.id===line.componentId)?.name||"")+" · "+line.quantity+" "+(components.find(c=>c.id===line.componentId)?.salePriceUnit==="set"?"sets":"pieces")"}))} onChange={key=>{setLineKey(key);setOperationId("");}}/>
+        <SearchablePicker id="cost-operation" label="Process operation" value={selectedOperation?.id||""} placeholder="Select operation…" options={routeOperations.map(op=>({id:op.id,label:op.name+" · OP-"+op.sequence}))} onChange={setOperationId}/>
       </div>
       {!componentLines.length && <div className="module-safety-note"><FileText size={14}/><span>This component is not yet linked to a PO line. Create or edit the actual order in Purchase Orders; quotes will then be stored against that order line.</span><button className="button-quiet compact-button" onClick={() => onSelectModule("purchasing")}>Open purchase orders</button></div>}
-      <div className="linked-component-summary"><div><small>COMPONENT</small><strong>{selectedComponent?.partNumber} · {selectedComponent?.name}</strong><span>Revision {selectedComponent?.revision || "—"} · {selectedComponent?.material || "Material not entered"}</span></div><div><small>MATERIAL COST</small><strong>{money(materialCost)}</strong><span>{materialQty.toLocaleString("en-IN")} units × {money(materialRate)} · {materialCostSource}</span></div><div><small>PROCESS + TRANSPORT</small><strong>{money(operationPlanned)}</strong><span>Rates selected or entered per operation</span></div><div><small>PLANNED COST / ACCEPTED PART</small><strong>{money(costPerAccepted)}</strong><span>Uses the selected PO quantity and entered rejects</span></div></div>
-      <div className="linked-kpis linked-cost-kpis"><div className="route-kpi kpi-cost"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PLANNED COST</small><strong>{money(plannedTotal)}</strong><em>Material + planned process + transport + entered extras</em></span></div><div className="route-kpi kpi-quality"><span className="kpi-icon"><Check size={19}/></span><span><small>ACTUAL RATE COST</small><strong>{money(actualTotal)}</strong><em>Actual operation rates only where recorded</em></span></div><div className="route-kpi kpi-delivery"><span className="kpi-icon"><Package size={19}/></span><span><small>ORDER VALUE</small><strong>{money(revenue)}</strong><em>{selectedLine?.quantity || 0} pcs × {money(sellingRate)}</em></span></div><div className="route-kpi kpi-risk"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>ESTIMATED PROFIT / LOSS</small><strong>{money(profit)}</strong><em>Before GST/finance items not entered here</em></span></div></div>
+      <div className="linked-component-summary"><div><small>COMPONENT</small><strong>{selectedComponent?.partNumber} · {selectedComponent?.name}</strong><span>Revision {selectedComponent?.revision || "—"} · Drawing {selectedComponent?.drawingReference || "—"}</span></div><div><small>MATERIAL COST</small><strong>{money(materialCost)}</strong><span>{materialQty.toLocaleString("en-IN")} units × {money(materialRate)} · {materialCostSource}</span></div><div><small>PROCESS + TRANSPORT</small><strong>{money(operationPlanned)}</strong><span>Rates selected or entered per operation</span></div><div><small>PLANNED COST / ACCEPTED PART</small><strong>{money(costPerAccepted)}</strong><span>Uses the selected PO quantity and entered rejects</span></div></div>
+      <div className="linked-kpis linked-cost-kpis"><div className="route-kpi kpi-cost"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PLANNED COST</small><strong>{money(plannedTotal)}</strong><em>Material + planned process + transport + entered extras</em></span></div><div className="route-kpi kpi-quality"><span className="kpi-icon"><Check size={19}/></span><span><small>ACTUAL RATE COST</small><strong>{money(actualTotal)}</strong><em>Actual operation rates only where recorded</em></span></div><div className="route-kpi kpi-delivery"><span className="kpi-icon"><Package size={19}/></span><span><small>ORDER VALUE</small><strong>{money(revenue)}</strong><em>{selectedLine?.quantity || 0} {selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces"} × {money(sellingRate)}</em></span></div><div className="route-kpi kpi-risk"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>ESTIMATED PROFIT / LOSS</small><strong>{money(profit)}</strong><em>Before GST/finance items not entered here</em></span></div></div>
+      {independentPlannedCosts.length > 0 && <section className="surface-panel planned-cost-comparison">
+        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> INDEPENDENT PLANNED COST REGISTER</div><h3>Planned vs actual process cost</h3><p>Matched by component name / number only. Planned Cost records remain independent of the operational PO and process records.</p></div><span className="module-number">{independentPlannedCosts.length} PLANNED PROCESS RATES</span></div>
+        <div className="dashboard-job-summary">
+          <div><strong>{money(independentPlannedTotal)}</strong><span>Planned cost at selected PO quantity</span></div>
+          <div><strong>{money(actualProcessTotal)}</strong><span>Actual entered process + transport</span></div>
+          <div><strong>{money(independentVariance)}</strong><span>{independentVariance > 0 ? "Actual above planned" : independentVariance < 0 ? "Actual below planned" : "Actual equals planned"}</span></div>
+        </div>
+      </section>}
+
+      <section className="surface-panel costing-payment-summary">
+  <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PROCESS PAYMENT CONTROL</div><h3>Payment status for selected PO component</h3><p>Payment entries are stored per process operation in Process Plan.</p></div></div>
+  <div className="dashboard-job-summary">
+    <div><strong>{money(paidProcessTotal)}</strong><span>Paid / recorded payments</span></div>
+    <div><strong>{money(unpaidProcessBalance)}</strong><span>Remaining actual process balance</span></div>
+    <div><strong>{routeOperations.filter(op=>paymentTotalFor(op)<(op.quantity*(op.actualRatePerPart||0)+op.transportCost)).length}</strong><span>Operations with unpaid balance</span></div>
+  </div>
+  <button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Wallet size={14}/> Update operation payments</button>
+</section>
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTE-TO-OPERATION LINK</div><h3>Process costs for {selectedComponent?.partNumber}</h3><p>Each row references a specific operation ID and PO component line.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><ArrowRight size={14}/> Manage operations</button></div>
-        {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Transport</th><th>Planned process cost</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
+        {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Transport</th><th>Planned process cost</th><th>Payment ledger</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
           const quoteCount = quotations.filter(q => q.operationId === op.id && !q.deletedAt).length;
           const vendor = vendors.find(v => v.id === op.vendorId);
-          return <tr key={op.id}><td><div className="cost-op-cell"><ProcessIcon processName={op.name} fallback={<Workflow size={17}/>} /><span><strong>{op.name}</strong><small>{op.category || "Type not entered"} · OP-{op.sequence}</small></span></div></td><td>{vendor?.company || "Not assigned"}</td><td>{op.quantity.toLocaleString("en-IN")}</td><td>{money(op.ratePerPart)}</td><td>{(op.actualRatePerPart || 0) > 0 ? money(op.actualRatePerPart) : "Not entered"}</td><td>{money(op.transportCost)}</td><td>{money(op.quantity * op.ratePerPart + op.transportCost)}</td><td><button className="button-quiet compact-button" onClick={() => {openQuote(op.id);}}><Plus size={12}/> {quoteCount} · Add quote</button></td></tr>;
+          const paymentRows=paymentTransactions.filter(payment=>payment.operationId===op.id).sort((a,b)=>(a.paidAt||"").localeCompare(b.paidAt||""));
+          return <tr key={op.id}><td><div className="cost-op-cell"><ProcessIcon processName={op.name} fallback={<Workflow size={17}/>} /><span><strong>{op.name}</strong><small>{op.category || "Type not entered"} · OP-{op.sequence}</small></span></div></td><td>{vendor?.company || "Not assigned"}</td><td>{op.quantity.toLocaleString("en-IN")}</td><td>{money(op.ratePerPart)}</td><td>{(op.actualRatePerPart || 0) > 0 ? money(op.actualRatePerPart) : "Not entered"}</td><td>{money(op.transportCost)}</td><td>{money(op.quantity * op.ratePerPart + op.transportCost)}</td><td><div className="payment-ledger-cell">{paymentRows.length?paymentRows.map(payment=><small key={payment.id}>{money(payment.amount)} · {payment.paidAt?new Date(payment.paidAt).toLocaleDateString("en-IN"):"Date not set"}{payment.reference?" · "+payment.reference:""}</small>):<small>{op.paidAmount? "Legacy recorded total: "+money(op.paidAmount):"No payment recorded"}</small>}<strong>Recorded: {money(paymentRows.length?paymentRows.reduce((sum,payment)=>sum+payment.amount,0):op.paidAmount||0)}</strong></div></td><td><button className="button-quiet compact-button" onClick={() => {openQuote(op.id);}}><Plus size={12}/> {quoteCount} · Add quote</button></td></tr>;
         })}</tbody></table></div> : <div className="module-empty-state"><FileText size={25}/><h3>No process operations linked yet</h3><p>Add the actual operations in Process Map for this component and PO line before recording supplier quotations.</p><button className="button-primary" onClick={() => onSelectModule("process-map")}><Plus size={14}/> Add operations</button></div>}
       </section>
       {showQuoteForm && <section className="surface-panel module-record-form-panel linked-quote-form"><div className="panel-heading"><div><h3>New supplier quotation</h3><p>Quote source and status stay separate from actual accepted invoice / job cost.</p></div><button className="icon-control" onClick={() => setShowQuoteForm(false)} aria-label="Close quote form"><X size={15}/></button></div>

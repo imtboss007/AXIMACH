@@ -9,8 +9,75 @@
     <meta name="application-name" content="AXIMACH" />
     <title>AXIMACH — Manufacturing OS</title>
   </head>
-  <body>
+  <body style="margin:0;min-width:320px;background:#0b1626">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="aximach-boot-screen" role="status" style="position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:32px;box-sizing:border-box;background:#0b1626;color:#e8f2ff;font:14px/1.6 Segoe UI,Arial,sans-serif;text-align:center">
+      <div style="max-width:900px;width:100%">
+        <div id="aximach-boot-spinner" style="width:42px;height:42px;margin:0 auto 18px;border:3px solid rgba(152,196,240,.25);border-top-color:#69c6ed;border-radius:50%;animation:aximach-spin 1s linear infinite"></div>
+        <h1 id="aximach-boot-title" style="margin:0 0 8px;font-size:25px;letter-spacing:2px">AXIMACH</h1>
+        <p id="aximach-boot-message" style="margin:0;color:#9ab2ce">Starting Manufacturing OS…</p>
+        <pre id="aximach-boot-detail" style="display:none;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;margin:22px 0 0;padding:16px;background:#101f33;border:1px solid #36506b;border-radius:8px;color:#ffd5a6"></pre>
+      </div>
+    </div>
+    <style>
+      @keyframes aximach-spin{to{transform:rotate(360deg)}}
+      #aximach-boot-screen.aximach-boot-error{place-items:start center;overflow:auto;text-align:left}
+      #aximach-boot-screen.aximach-boot-error #aximach-boot-spinner{display:none}
+      #aximach-boot-screen.aximach-boot-error #aximach-boot-title{letter-spacing:0}
+    </style>
+    <script>
+      (() => {
+        const overlay = document.getElementById("aximach-boot-screen");
+        const message = document.getElementById("aximach-boot-message");
+        const title = document.getElementById("aximach-boot-title");
+        const detail = document.getElementById("aximach-boot-detail");
+        let finished = false;
+        const fail = (heading, info) => {
+          if (finished || !overlay) return;
+          finished = true;
+          overlay.classList.add("aximach-boot-error");
+          title.textContent = heading || "AXIMACH could not start";
+          message.textContent = "The application window opened, but the workspace did not load. Send a screenshot of this screen.";
+          detail.style.display = "block";
+          detail.textContent = info || "No error details were reported. Check the AXIMACH startup.log file.";
+        };
+        window.addEventListener("error", (event) => {
+          const target = event.target;
+          const resource = target && target !== window ? (target.src || target.href || target.tagName) : "";
+          fail("AXIMACH startup error", event.message || (resource ? "Failed to load: " + resource : "A startup script failed."));
+        }, true);
+        window.addEventListener("unhandledrejection", (event) => {
+          const reason = event.reason;
+          fail("AXIMACH startup error", reason && reason.stack ? reason.stack : String(reason || "Unexpected promise rejection"));
+        });
+        const startedAt = Date.now();
+        const monitor = window.setInterval(() => {
+          const root = document.getElementById("root");
+          const appShell = root && root.querySelector(".app-shell");
+          const appError = root && root.querySelector('[data-aximach-startup-error="true"]');
+          if (appShell) {
+            finished = true;
+            overlay.style.display = "none";
+            window.clearInterval(monitor);
+          } else if (appError) {
+            finished = true;
+            overlay.style.display = "none";
+            window.clearInterval(monitor);
+          } else if (Date.now() - startedAt > 10000) {
+            const resources = performance.getEntriesByType("resource")
+              .map(item => item.name)
+              .filter(name => name.includes(".js") || name.includes(".css"))
+              .slice(-20);
+            fail("AXIMACH workspace did not mount",
+              "Startup waited 10 seconds but .app-shell was not created.\n\nCurrent URL: " + location.href
+              + "\nDocument state: " + document.readyState
+              + "\nRoot element: " + (root ? "present" : "missing")
+              + "\nLoaded app assets:\n" + (resources.join("\n") || "No bundled JS/CSS resource was reported."));
+            window.clearInterval(monitor);
+          }
+        }, 250);
+      })();
+    </script>
+      <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
