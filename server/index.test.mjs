@@ -51,9 +51,17 @@ async function waitForHealth(child, baseUrl) {
 
 async function stopServer(child) {
   if (!child || child.exitCode !== null) return;
+  const gracefulExit = once(child, "exit");
   child.kill("SIGTERM");
-  await Promise.race([once(child, "exit"), new Promise(resolve => setTimeout(resolve, 3000))]);
-  if (child.exitCode === null) child.kill("SIGKILL");
+  const stopped = await Promise.race([
+    gracefulExit.then(() => true),
+    new Promise(resolve => setTimeout(() => resolve(false), 3000))
+  ]);
+  if (!stopped && child.exitCode === null) {
+    const forcedExit = once(child, "exit").catch(() => {});
+    child.kill("SIGKILL");
+    await Promise.race([forcedExit, new Promise(resolve => setTimeout(resolve, 1000))]);
+  }
 }
 
 test("HTTP server persists and merges follow-up assignments across device updates and restart", { timeout: 20000 }, async () => {
@@ -86,17 +94,18 @@ test("HTTP server persists and merges follow-up assignments across device update
       contactPhone: "9000000002", contactEmail: "", createdAt: "2026-11-04T10:01:00.000Z", updatedAt: "2026-11-04T10:01:00.000Z"
     };
 
-    const initialPut = await fetch(baseUrl + "/api/manufacturing-data", {
-      method: "PUT", headers, body: JSON.stringify({ data: {
-        companies: [{ id: "company-1", name: "Company A", updatedAt: "2026-11-04T10:00:00.000Z" }],
-        followUpAssignments: [firstAssignment]
-      } })
-    });
+    const [initialPut, deviceBPut] = await Promise.all([
+      fetch(baseUrl + "/api/manufacturing-data", {
+        method: "PUT", headers, body: JSON.stringify({ data: {
+          companies: [{ id: "company-1", name: "Company A", updatedAt: "2026-11-04T10:00:00.000Z" }],
+          followUpAssignments: [firstAssignment]
+        } })
+      }),
+      fetch(baseUrl + "/api/manufacturing-data", {
+        method: "PUT", headers, body: JSON.stringify({ data: { followUpAssignments: [secondAssignment] } })
+      })
+    ]);
     assert.equal(initialPut.status, 200);
-
-    const deviceBPut = await fetch(baseUrl + "/api/manufacturing-data", {
-      method: "PUT", headers, body: JSON.stringify({ data: { followUpAssignments: [secondAssignment] } })
-    });
     assert.equal(deviceBPut.status, 200);
 
     const staleDevicePut = await fetch(baseUrl + "/api/manufacturing-data", {
