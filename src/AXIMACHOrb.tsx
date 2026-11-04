@@ -41,9 +41,11 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const [studioOpen, setStudioOpen] = useState(false);
   const [paused, setPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(saved.current.reduceMotion === true);
+  const [zoomed, setZoomed] = useState(saved.current.zoomed === true);
+  const dragMoved = useRef(false);
   useEffect(() => {
-    try { window.localStorage.setItem("aximach.orb.preferences.v1", JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion})); } catch { /* Preferences are optional. */ }
-  }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion]);
+    try { window.localStorage.setItem("aximach.orb.preferences.v1", JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed})); } catch { /* Preferences are optional. */ }
+  }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed]);
   const rotateX = useMotionValue(-15);
   const rotateY = useMotionValue(22);
   const reducedMotion = useReducedMotion();
@@ -55,15 +57,24 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   });
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    dragMoved.current = false;
     drag.current = { x: event.clientX, y: event.clientY, rx: rotateX.get(), ry: rotateY.get() };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!drag.current) return;
+    if (Math.abs(event.clientX - drag.current.x) + Math.abs(event.clientY - drag.current.y) > 6) dragMoved.current = true;
     rotateY.set(drag.current.ry + (event.clientX - drag.current.x) * 0.72);
     rotateX.set(Math.max(-48, Math.min(48, drag.current.rx - (event.clientY - drag.current.y) * 0.55)));
   };
-  const endDrag = () => { drag.current = null; };
+  const endDrag = () => {
+    drag.current = null;
+    window.setTimeout(() => { dragMoved.current = false; }, 0);
+  };
+  const toggleZoom = () => {
+    if (dragMoved.current) return;
+    setZoomed(value => !value);
+  };
 
   return (
     <div className={"ax-orb-stage ax-orb-mode-" + visualMode}>
@@ -95,7 +106,13 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
           />
           <motion.div
             className="ax-orb-core"
-            style={{ rotateX, rotateY, transformPerspective: 950, scale: sphereSize }}
+            style={{ rotateX, rotateY, transformPerspective: 950, scale: sphereSize * (zoomed ? 1.2 : 1) }}
+            role="button"
+            tabIndex={0}
+            aria-label={zoomed ? "Zoom out of AXIMACH sphere" : "Zoom in to AXIMACH sphere"}
+            aria-pressed={zoomed}
+            onClick={toggleZoom}
+            onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setZoomed(value => !value); } }}
             animate={reducedMotion || reduceMotion || paused ? undefined : { y: [0, -5, 0] }}
             transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
           >
@@ -148,6 +165,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
       <div className="ax-orb-studio-actions">
         <button type="button" className="ax-orb-studio-toggle" aria-expanded={studioOpen} onClick={() => setStudioOpen(value => !value)}>✧ Visual Experience Studio <span>{studioOpen ? "Close" : "Customize"}</span></button>
         <button type="button" className="ax-orb-pause" onClick={() => setPaused(value => !value)}>{paused ? "Resume motion" : "Pause motion"}</button>
+        <button type="button" className="ax-orb-zoom" aria-pressed={zoomed} onClick={() => setZoomed(value => !value)}>{zoomed ? "− Zoom out" : "+ Zoom in"}</button>
       </div>
       {studioOpen && <div className="ax-orb-studio-panel">
         <label>Sphere mode<select value={visualMode} onChange={event=>setVisualMode(event.target.value as OrbVisualMode)}><option value="sphere">Classic sphere</option><option value="cube">Geometric cube</option><option value="vortex">Vortex</option><option value="molecular">Molecular network</option><option value="orbit">Orbiting structure</option><option value="mesh">Digital mesh</option></select></label>
@@ -155,7 +173,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         <label>Sphere size<input type="range" min=".82" max="1.12" step=".01" value={sphereSize} onChange={event=>setSphereSize(Number(event.target.value))}/><small>{Math.round(sphereSize*100)}%</small></label>
         <label>Orbit intensity<input type="range" min="0" max="1" step=".05" value={orbitIntensity} onChange={event=>setOrbitIntensity(Number(event.target.value))}/><small>{Math.round(orbitIntensity*100)}%</small></label>
         <label className="ax-orb-motion-setting"><input type="checkbox" checked={reduceMotion} onChange={event=>setReduceMotion(event.target.checked)}/> Reduce motion</label>
-        <button type="button" className="ax-orb-reset" onClick={()=>{setVisualMode("sphere");setSpeed("Normal");setSphereSize(1);setOrbitIntensity(1);setReduceMotion(false);setPaused(false);}}>Reset preferences</button>
+        <button type="button" className="ax-orb-reset" onClick={()=>{setVisualMode("sphere");setSpeed("Normal");setSphereSize(1);setOrbitIntensity(1);setReduceMotion(false);setPaused(false);setZoomed(false);}}>Reset preferences</button>
       </div>}
       <motion.div className="ax-orb-coordinate" animate={reducedMotion ? undefined : { opacity: [0.45, 1, 0.45] }} transition={{ duration: 4.5, repeat: Infinity }}>AX / 360° / LIVE DATA SURFACE</motion.div>
     </div>
