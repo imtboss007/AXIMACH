@@ -81,6 +81,10 @@ test("HTTP server persists and merges follow-up assignments across device update
 
     const unauthorized = await fetch(baseUrl + "/api/manufacturing-data");
     assert.equal(unauthorized.status, 401);
+    const wrongKey = await fetch(baseUrl + "/api/manufacturing-data", {
+      headers: { "x-aximach-key": "incorrect-key" }
+    });
+    assert.equal(wrongKey.status, 401);
 
     const headers = { "content-type": "application/json", "x-aximach-key": apiKey };
     const firstAssignment = {
