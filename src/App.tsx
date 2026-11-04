@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
@@ -9,18 +9,26 @@ import {
   Wallet, Workflow, Wrench, X, Zap
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import AXIMACHOrb from "./AXIMACHOrb";
-import IconStudio from "./IconStudio";
-import ManufacturingMasterWorkspace from "./ManufacturingMasterWorkspace";
-import DashboardWorkspace from "./DashboardWorkspace";
-import SpecializedDirectoryWorkspace from "./SpecializedDirectoryWorkspace";
-import { Contact360Workspace, VendorNetworkWorkspace } from "./RelationshipWorkspaces";
-import { ProductionPlanWorkspace, TransportDispatchWorkspace, QualityInspectionWorkspace } from "./OperationsWorkspaces";
-import { ReportsAnalyticsWorkspace, AIInsightsWorkspace, ExportCentreWorkspace, ImportCentreWorkspace } from "./IntelligenceWorkspaces";
-import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
-import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
-import InventoryWorkspace from "./InventoryWorkspace";
 import FollowUpAssignmentsLauncher from "./FollowUpAssignments";
+
+// Lazy module workspaces keep the initial dashboard bundle small on mobile.
+const AXIMACHOrb = lazy(() => import("./AXIMACHOrb"));
+const IconStudio = lazy(() => import("./IconStudio"));
+const ManufacturingMasterWorkspace = lazy(() => import("./ManufacturingMasterWorkspace"));
+const DashboardWorkspace = lazy(() => import("./DashboardWorkspace"));
+const SpecializedDirectoryWorkspace = lazy(() => import("./SpecializedDirectoryWorkspace"));
+const Contact360Workspace = lazy(() => import("./RelationshipWorkspaces").then(module => ({ default: module.Contact360Workspace })));
+const VendorNetworkWorkspace = lazy(() => import("./RelationshipWorkspaces").then(module => ({ default: module.VendorNetworkWorkspace })));
+const ProductionPlanWorkspace = lazy(() => import("./OperationsWorkspaces").then(module => ({ default: module.ProductionPlanWorkspace })));
+const TransportDispatchWorkspace = lazy(() => import("./OperationsWorkspaces").then(module => ({ default: module.TransportDispatchWorkspace })));
+const QualityInspectionWorkspace = lazy(() => import("./OperationsWorkspaces").then(module => ({ default: module.QualityInspectionWorkspace })));
+const ReportsAnalyticsWorkspace = lazy(() => import("./IntelligenceWorkspaces").then(module => ({ default: module.ReportsAnalyticsWorkspace })));
+const AIInsightsWorkspace = lazy(() => import("./IntelligenceWorkspaces").then(module => ({ default: module.AIInsightsWorkspace })));
+const ExportCentreWorkspace = lazy(() => import("./IntelligenceWorkspaces").then(module => ({ default: module.ExportCentreWorkspace })));
+const ImportCentreWorkspace = lazy(() => import("./IntelligenceWorkspaces").then(module => ({ default: module.ImportCentreWorkspace })));
+const LinkedProcessWorkspace = lazy(() => import("./LinkedProcessWorkspace"));
+const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
+const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
 function isAllowedAxMachServiceUrl(value: string) {
@@ -195,6 +203,7 @@ function App() {
       </div>
 
       <main className="page-content">
+        <Suspense fallback={<div className="workspace-loading-state" role="status"><span className="workspace-loading-spinner" /> Loading AXIMACH workspace…</div>}>
         {activeModuleId === "dashboard" ? (
           <DashboardWorkspace onSelectModule={selectModule} onOpenCommandCentre={() => selectModule("command-centre")} onOpenModules={openModuleExplorer} />
         ) : activeModuleId === "command-centre" ? (
@@ -318,7 +327,7 @@ function App() {
         </div>
       )}
 
-      <IconStudio open={iconStudioOpen} onClose={() => setIconStudioOpen(false)} />
+      <Suspense fallback={<div className="workspace-loading-state" role="status">Loading Icon Studio…</div>}><IconStudio open={iconStudioOpen} onClose={() => setIconStudioOpen(false)} /></Suspense>
 
       <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Master records · server sync status shown in each workspace</span></footer>
     </div>
