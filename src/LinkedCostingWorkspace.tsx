@@ -40,6 +40,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     if (!preferredCompanyId && companyId) { setCompanyId(""); setPoId(""); setLineKey(""); }
   }, [companies, companyId, preferredCompanyId]);
   const companyOrders = orders.filter(po => po.companyId === companyId);
+  const selectedCompany = companies.find(company => company.id === companyId);
   const paymentTransactionsForCompany = activeRows(data.paymentTransactions||[]);
   const companyRollupRows = companyOrders.flatMap(po => po.lines.filter(line=>!("deletedAt" in line && (line as any).deletedAt)).map(line=>{
     const component=components.find(item=>item.id===line.componentId);
