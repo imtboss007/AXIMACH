@@ -259,15 +259,18 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const buildExportSvg = () => {
     const branches=[...new Set(exportOperations.map(op=>op.branch||"Main route"))];
     const maxNodes=Math.max(1,...branches.map(branch=>exportOperations.filter(op=>(op.branch||"Main route")===branch).length));
-    const width=Math.max(900,90+maxNodes*270),height=Math.max(240,100+branches.length*190);
+    const detailsCount=Math.max(1,exportColumns.filter(field=>field.key!=="operation").length);
+    const cardHeight=78+detailsCount*17;
+    const laneHeight=cardHeight+40;
+    const width=Math.max(900,90+maxNodes*270),height=Math.max(240,100+branches.length*laneHeight);
     const svgText=(x:number,y:number,value:unknown,size=12,color="#dceefa",weight=500)=>"<text x=\""+x+"\" y=\""+y+"\" fill=\""+color+"\" font-family=\"Arial\" font-size=\""+size+"\" font-weight=\""+weight+"\">"+escapeSvg(value)+"</text>";
     const content=branches.map((branch,lane)=>{
-      const rows=exportOperations.filter(op=>(op.branch||"Main route")===branch),y=75+lane*190;
+      const rows=exportOperations.filter(op=>(op.branch||"Main route")===branch),y=75+lane*laneHeight;
       const cards=rows.map((op,index)=>{
-        const x=42+index*270,details=exportColumns.filter(field=>field.key!=="operation").slice(0,6);
+        const x=42+index*270,details=exportColumns.filter(field=>field.key!=="operation");
         const info=details.map((field,i)=>svgText(x+12,y+75+i*17,field.label+": "+exportValue(op,field.key),10,"#a9c5d7",400)).join("");
         const arrow=exportArrows&&index<rows.length-1?"<path d=\"M"+(x+222)+" "+(y+45)+"h36\" stroke=\"#62cde0\" stroke-width=\"2\" fill=\"none\" marker-end=\"url(#a)\"/>":"";
-        return arrow+"<rect x=\""+x+"\" y=\""+y+"\" width=\"220\" height=\"150\" rx=\"12\" fill=\"#102c43\" stroke=\"#3c8da9\"/>"+svgText(x+12,y+22,"OP-"+String(op.sequence).padStart(3,"0")+" · "+op.status,9,"#79b6c8",600)+svgText(x+12,y+48,op.name,14,"#effaff",700)+info;
+        return arrow+"<rect x=\""+x+"\" y=\""+y+"\" width=\"220\" height=\""+cardHeight+"\" rx=\"12\" fill=\"#102c43\" stroke=\"#3c8da9\"/>"+svgText(x+12,y+22,"OP-"+String(op.sequence).padStart(3,"0")+" · "+op.status,9,"#79b6c8",600)+svgText(x+12,y+48,op.name,14,"#effaff",700)+info;
       }).join("");
       return svgText(42,y-13,branch+" · "+rows.length+" STAGE(S)",10,"#7cb8ca",700)+cards;
     }).join("");
@@ -669,7 +672,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       <section className="surface-panel linked-route-canvas">
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></div>
         <div className="process-export-panel">
-          <div className="process-export-fields">{PROCESS_EXPORT_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={exportFields.includes(field.key)} onChange={()=>setExportFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div>
+          <div className="process-export-fields"><div className="process-export-field-actions"><button type="button" onClick={()=>setExportFields(PROCESS_EXPORT_FIELDS.map(field=>field.key))}>Select all fields</button><button type="button" onClick={()=>setExportFields([])}>Clear fields</button></div>{PROCESS_EXPORT_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={exportFields.includes(field.key)} onChange={()=>setExportFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div>
           <div className="process-export-options"><label><input type="checkbox" checked={exportArrows} onChange={event=>setExportArrows(event.target.checked)}/> Connection arrows</label><label>Scope<select value={exportScope} onChange={event=>setExportScope(event.target.value as "visible"|"selected-branch")}><option value="visible">Full visible map</option><option value="selected-branch" disabled={!activeOperation}>Selected branch</option></select></label></div>
           <div className="process-export-actions"><button type="button" className="button-primary compact-button" onClick={exportCsv}><FileDown size={14}/> CSV</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("svg")}>SVG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("png")}>PNG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportPowerPoint()}><FileText size={14}/> PowerPoint</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportExcel()}><FileDown size={14}/> Excel</button><button type="button" className="button-quiet compact-button" onClick={printExport}><Printer size={14}/> Diagram PDF</button><small>{exportOperations.length} operation(s) · {exportColumns.length} field(s)</small></div>
         </div>
