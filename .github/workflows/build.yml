@@ -31,7 +31,10 @@ jobs:
       - name: Check server syntax
         run: |
           node --check server/index.mjs
+          node --check server/manufacturing-data.mjs
           node --check server/whatsapp-web.mjs
+      - name: Test shared-data merge rules
+        run: npm run test:server
       - name: Build application
         run: npm run build
       - name: Verify packaged frontend entrypoint
