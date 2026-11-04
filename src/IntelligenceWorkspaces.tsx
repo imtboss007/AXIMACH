@@ -7,7 +7,9 @@ const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{max
 function downloadFile(name:string,content:string,mime="text/csv;charset=utf-8"){
  const blob=new Blob(["\uFEFF",content],{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);
 }
-function csvCell(value:unknown){const text=String(value??"");return /[",\r\n]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;}
+function csvCell(value:unknown){const text=value!==null&&typeof value==="object"?JSON.stringify(value):String(value??"");return /[",\r\n]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;}
+function parseStringArray(value:string):string[]{if(!value.trim())return[];try{const parsed=JSON.parse(value);if(Array.isArray(parsed))return parsed.map(item=>String(item??"")).filter(Boolean);}catch{/* accept legacy comma-separated cells */}return value.split(/[,;|]/).map(item=>item.trim()).filter(Boolean);}
+function parseObjectArray<T>(value:string):T[]{if(!value.trim())return[];try{const parsed=JSON.parse(value);return Array.isArray(parsed)?parsed as T[]:[];}catch{return[];}}
 function toCsv(rows:Record<string,unknown>[]){if(!rows.length)return "";const keys=[...new Set(rows.flatMap(row=>Object.keys(row)))];return [keys.map(csvCell).join(","),...rows.map(row=>keys.map(key=>csvCell(row[key])).join(","))].join("\r\n");}
 function rowsFor(moduleId:string,data:ManufacturingData):Record<string,unknown>[] {
  const companies=activeRows(data.companies),components=activeRows(data.components),pos=activeRows(data.purchaseOrders),vendors=activeRows(data.vendors),ops=activeRows(data.operations);
@@ -186,7 +188,7 @@ export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
       const parentExists=linkedType==="company"?current.companies.some(x=>x.id===linkedId):current.vendors.some(x=>x.id===linkedId);
       const duplicate=[...current.contactProfiles,...additions].some(x=>(id&&x.id===id)||(x.linkedType===linkedType&&x.linkedId===linkedId&&norm(x.name)===norm(name)&&norm(x.phone)===norm(phone)));
       if(!parentExists||!name||duplicate){skipped++;continue;}
-      additions.push({id:id||makeId("contact"),linkedType,linkedId,name,role:header(row,"role"),group:header(row,"group"),phone,whatsapp:header(row,"whatsapp"),additionalPhones:header(row,"additionalPhones","additional phones").split(/[,;|]/).map(x=>x.trim()).filter(Boolean),email:header(row,"email"),address:header(row,"address"),followUpDate:header(row,"followUpDate","follow up date"),history:header(row,"history"),createdAt:header(row,"createdAt")||stamp,updatedAt:header(row,"updatedAt")||stamp});
+      additions.push({id:id||makeId("contact"),linkedType,linkedId,name,role:header(row,"role"),group:header(row,"group"),phone,whatsapp:header(row,"whatsapp"),additionalPhones:parseStringArray(header(row,"additionalPhones","additional phones")),email:header(row,"email"),address:header(row,"address"),followUpDate:header(row,"followUpDate","follow up date"),history:header(row,"history"),createdAt:header(row,"createdAt")||stamp,updatedAt:header(row,"updatedAt")||stamp});
       inserted++;
      }
      return {...current,contactProfiles:[...current.contactProfiles,...additions]};
@@ -197,8 +199,8 @@ export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
       const id=header(row,"id"),processType=header(row,"processType","process type"),category=header(row,"category","process category");
       const duplicate=[...current.processDefinitions,...additions].some(x=>(id&&x.id===id)||(norm(x.processType)===norm(processType)&&norm(x.category)===norm(category)));
       if(!processType||!category||duplicate){skipped++;continue;}
-      const vendorIds=header(row,"vendorIds","vendor ids").split(/[,;|]/).map(x=>x.trim()).filter(id=>current.vendors.some(v=>v.id===id));
-      additions.push({id:id||makeId("process"),processType,category,subcategories:header(row,"subcategories","sub categories").split(/[,;|]/).map(x=>x.trim()).filter(Boolean),vendorIds,notes:header(row,"notes"),createdAt:header(row,"createdAt")||stamp,updatedAt:header(row,"updatedAt")||stamp});
+      const vendorIds=parseStringArray(header(row,"vendorIds","vendor ids")).filter(id=>current.vendors.some(v=>v.id===id));
+      additions.push({id:id||makeId("process"),processType,category,subcategories:parseStringArray(header(row,"subcategories","sub categories")),vendorIds,notes:header(row,"notes"),createdAt:header(row,"createdAt")||stamp,updatedAt:header(row,"updatedAt")||stamp});
       inserted++;
      }
      return {...current,processDefinitions:[...current.processDefinitions,...additions]};
@@ -214,7 +216,7 @@ export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
      }
      return {...current,plannedCosts:[...current.plannedCosts,...additions]};
     }
-   const additions:VendorRecord[]=[];for(const row of preview){const id=header(row,"id"),company=header(row,"company","vendor company"),contact=header(row,"contact","contact person"),phone=header(row,"phone","mobile");if(!company||!contact||[...current.vendors,...additions].some(x=>(id&&x.id===id)||(phone&&norm(x.phone)===norm(phone)))){skipped++;continue;}additions.push({id:id||makeId("vendor"),company,contact,role:header(row,"role"),phone,whatsappNumber:header(row,"whatsappNumber","whatsapp","whatsapp number"),email:header(row,"email"),address:header(row,"address"),processes:header(row,"processes","capabilities"),machines:header(row,"machines"),materials:header(row,"materials"),notes:header(row,"notes")||"Imported CSV",status:"Unverified contact — review",sourceContactId:header(row,"sourceContactId"),whatsappSyncedAt:header(row,"whatsappSyncedAt"),createdAt:header(row,"createdAt")||stamp,updatedAt:header(row,"updatedAt")||stamp});inserted++;}return {...current,vendors:[...current.vendors,...additions]};
+   const additions:VendorRecord[]=[];for(const row of preview){const id=header(row,"id"),company=header(row,"company","vendor company"),contact=header(row,"contact","contact person"),phone=header(row,"phone","mobile");if(!company||!contact||[...current.vendors,...additions].some(x=>(id&&x.id===id)||(phone&&norm(x.phone)===norm(phone)))){skipped++;continue;}additions.push({id:id||makeId("vendor"),company,contact,role:header(row,"role"),phone,whatsappNumber:header(row,"whatsappNumber","whatsapp","whatsapp number"),email:header(row,"email"),address:header(row,"address"),processes:header(row,"processes","capabilities"),machines:header(row,"machines"),materials:header(row,"materials"),notes:header(row,"notes")||"Imported CSV",status:header(row,"status")||"Unverified contact — review",sourceContactId:header(row,"sourceContactId"),whatsappSyncedAt:header(row,"whatsappSyncedAt"),vendorType:header(row,"vendorType"),additionalPhones:parseStringArray(header(row,"additionalPhones","additional phones")),transportRoutes:parseObjectArray(header(row,"transportRoutes","transport routes")),createdAt:header(row,"createdAt")||stamp,updatedAt:header(row,"updatedAt")||stamp});inserted++;}return {...current,vendors:[...current.vendors,...additions]};
   });
   setPreview([]);setSource("");onNotice("Import committed. Added "+inserted+" record(s); skipped "+skipped+" duplicate or incomplete row(s). Review imported records before operational use.");
  };
