@@ -622,10 +622,12 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         </div>
         {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
+            <label>Process category *{processDefinitions.length
+              ? <select value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value,name:"",subcategory:""})}><option value="">Select category</option>{processCategories.map(value=><option key={value}>{value}</option>)}{draft.category&&!processCategories.includes(draft.category)&&<option value={draft.category}>{draft.category} (saved record)</option>}</select>
+              : <input value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})} placeholder="Milling, grinding, turning…"/>}</label>
             <label>Process type *{processDefinitions.length
-              ? <select value={draft.name} onChange={e=>{const definition=processDefinitions.find(item=>item.processType===e.target.value);setDraft({...draft,name:e.target.value,category:definition?.category||"",subcategory:""});}}><option value="">Select process type</option>{processDefinitions.map(item=><option key={item.id} value={item.processType}>{item.processType}</option>)}</select>
-              : <input value={draft.name} onChange={e => setDraft({...draft,name:e.target.value})} placeholder="Add Process Directory definitions for a selector"/>}</label>
-            <label>Process category<input value={draft.category} onChange={e => setDraft({...draft,category:e.target.value})} placeholder="Machining, treatment, quality…"/></label>
+              ? <select value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value,subcategory:""})}><option value="">Select process type</option>{processTypeOptions.map(value=><option key={value}>{value}</option>)}{draft.name&&!processTypeOptions.includes(draft.name)&&<option value={draft.name}>{draft.name} (saved record)</option>}</select>
+              : <input value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} placeholder="Plano milling, horizontal milling…"/>}</label>
             <label>Process subcategory{(selectedProcessDefinition?.subcategories||[]).length
               ? <select value={draft.subcategory} onChange={e=>setDraft({...draft,subcategory:e.target.value})}><option value="">Select subcategory</option>{selectedProcessDefinition!.subcategories.map(value=><option key={value}>{value}</option>)}</select>
               : <input value={draft.subcategory} onChange={e=>setDraft({...draft,subcategory:e.target.value})} placeholder="Optional subcategory"/>}</label>
