@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from "react";
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, Download, FileDown, FileUp, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
-import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord, type ManufacturingData } from "./manufacturingData";
+import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord, type ContactProfileRecord, type ProcessDefinitionRecord, type PlannedCostEntry, type ManufacturingData } from "./manufacturingData";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
@@ -102,7 +102,7 @@ export function ExportCentreWorkspace({onBack,onNotice}:Props){
 }
 
 export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
- const {data,update}=useManufacturingData();const [type,setType]=useState<"companies"|"components"|"vendors"|"backup">("companies");
+ const {data,update}=useManufacturingData();const [type,setType]=useState<"companies"|"components"|"vendors"|"contact360"|"process-master"|"planned-cost"|"backup">("companies");
  const [fileName,setFileName]=useState("");const [source,setSource]=useState("");const [error,setError]=useState("");const [preview,setPreview]=useState<Record<string,string>[]>([]);
  const parsed=useMemo(()=>source&&type!=="backup"?parseCsv(source):{headers:[],rows:[]},[source,type]);
  const handleFile=async(event:ChangeEvent<HTMLInputElement>)=>{
@@ -137,7 +137,13 @@ export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
   if(!parsed.headers.length){setError("CSV header row is missing.");return;}
   const errors:string[]=[];
   result.forEach((row,i)=>{
-   const valid=type==="companies"?!!header(row,"name","company name"):type==="components"?!!header(row,"partNumber","component number","component no")&&!!header(row,"name","component name"):!!header(row,"company","vendor company")&&!!header(row,"contact","contact person");
+   const linkedType=header(row,"linkedType","linked type").toLowerCase();
+   const valid=type==="companies"?!!header(row,"name","company name")
+    :type==="components"?!!header(row,"partNumber","component number","component no")&&!!header(row,"name","component name")
+    :type==="vendors"?!!header(row,"company","vendor company")&&!!header(row,"contact","contact person")
+    :type==="contact360"?!!header(row,"name","contact name")&&!!header(row,"linkedId","linked id")&&(linkedType==="company"||linkedType==="vendor")
+    :type==="process-master"?!!header(row,"processType","process type")&&!!header(row,"category","process category")
+    :!!header(row,"componentName","component name")&&!!header(row,"processType","process type")&&Number.isFinite(Number(header(row,"plannedQty","planned quantity")))&&Number(header(row,"plannedQty","planned quantity"))>=0&&Number.isFinite(Number(header(row,"plannedRate","planned rate","rate")))&&Number(header(row,"plannedRate","planned rate","rate"))>=0;
    if(!valid)errors.push("Row "+row.__row+": required field missing.");
   });
   if(errors.length)setError(errors.slice(0,10).join(" "));
@@ -154,6 +160,41 @@ export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
    if(type==="components"){
     const additions:ComponentRecord[]=[];for(const row of preview){const number=header(row,"partNumber","component number","component no"),name=header(row,"name","component name");if(!number||!name||[...current.components,...additions].some(x=>norm(x.partNumber)===norm(number))){skipped++;continue;}const companyName=header(row,"company","company name");const company=current.companies.find(x=>norm(x.name)===norm(companyName));const unitPrice=Number(header(row,"price","unit price","sale price"))||0;additions.push({id:makeId("component"),companyId:company?.id,partNumber:number,name,revision:header(row,"revision"),drawingReference:header(row,"drawingReference","drawing reference"),notes:"Imported CSV",salePrice:unitPrice,salePriceUnit:(header(row,"price unit","unit").toLowerCase()==="set"?"set":"piece"),overhead:0,toolingCost:0,reworkCost:0,scrapCost:0,rejectedQty:0,gstRate:0,createdAt:stamp,updatedAt:stamp});inserted++;}return {...current,components:[...current.components,...additions]};
    }
+    if(type==="contact360"){
+     const additions:ContactProfileRecord[]=[];
+     for(const row of preview){
+      const id=header(row,"id"),linkedType=header(row,"linkedType","linked type").toLowerCase() as "company"|"vendor",linkedId=header(row,"linkedId","linked id"),name=header(row,"name","contact name"),phone=header(row,"phone");
+      const parentExists=linkedType==="company"?current.companies.some(x=>x.id===linkedId):current.vendors.some(x=>x.id===linkedId);
+      const duplicate=[...current.contactProfiles,...additions].some(x=>(id&&x.id===id)||(x.linkedType===linkedType&&x.linkedId===linkedId&&norm(x.name)===norm(name)&&norm(x.phone)===norm(phone)));
+      if(!parentExists||!name||duplicate){skipped++;continue;}
+      additions.push({id:id||makeId("contact"),linkedType,linkedId,name,role:header(row,"role"),group:header(row,"group"),phone,whatsapp:header(row,"whatsapp"),additionalPhones:header(row,"additionalPhones","additional phones").split(/[,;|]/).map(x=>x.trim()).filter(Boolean),email:header(row,"email"),address:header(row,"address"),followUpDate:header(row,"followUpDate","follow up date"),history:header(row,"history"),createdAt:header(row,"createdAt")||stamp,updatedAt:header(row,"updatedAt")||stamp});
+      inserted++;
+     }
+     return {...current,contactProfiles:[...current.contactProfiles,...additions]};
+    }
+    if(type==="process-master"){
+     const additions:ProcessDefinitionRecord[]=[];
+     for(const row of preview){
+      const id=header(row,"id"),processType=header(row,"processType","process type"),category=header(row,"category","process category");
+      const duplicate=[...current.processDefinitions,...additions].some(x=>(id&&x.id===id)||(norm(x.processType)===norm(processType)&&norm(x.category)===norm(category)));
+      if(!processType||!category||duplicate){skipped++;continue;}
+      const vendorIds=header(row,"vendorIds","vendor ids").split(/[,;|]/).map(x=>x.trim()).filter(id=>current.vendors.some(v=>v.id===id));
+      additions.push({id:id||makeId("process"),processType,category,subcategories:header(row,"subcategories","sub categories").split(/[,;|]/).map(x=>x.trim()).filter(Boolean),vendorIds,notes:header(row,"notes"),createdAt:header(row,"createdAt")||stamp,updatedAt:header(row,"updatedAt")||stamp});
+      inserted++;
+     }
+     return {...current,processDefinitions:[...current.processDefinitions,...additions]};
+    }
+    if(type==="planned-cost"){
+     const additions:PlannedCostEntry[]=[];
+     for(const row of preview){
+      const id=header(row,"id"),componentName=header(row,"componentName","component name"),componentNumber=header(row,"componentNumber","component number"),processType=header(row,"processType","process type"),processCategory=header(row,"processCategory","process category"),plannedQty=Number(header(row,"plannedQty","planned quantity")),plannedRate=Number(header(row,"plannedRate","planned rate","rate"));
+      const duplicate=[...current.plannedCosts,...additions].some(x=>(id&&x.id===id)||(norm(x.componentNumber)===norm(componentNumber)&&norm(x.componentName)===norm(componentName)&&norm(x.processType)===norm(processType)&&norm(x.processCategory)===norm(processCategory)));
+      if(!componentName||!processType||!Number.isFinite(plannedQty)||plannedQty<0||!Number.isFinite(plannedRate)||plannedRate<0||duplicate){skipped++;continue;}
+      additions.push({id:id||makeId("planned-cost"),companyName:header(row,"companyName","company name"),poNumber:header(row,"poNumber","po number"),componentName,componentNumber,processType,processCategory,processSubcategory:header(row,"processSubcategory","process subcategory"),plannedQty,unit:header(row,"unit").toLowerCase()==="set"?"set":"piece",plannedRate,notes:header(row,"notes"),createdAt:header(row,"createdAt")||stamp,updatedAt:header(row,"updatedAt")||stamp});
+      inserted++;
+     }
+     return {...current,plannedCosts:[...current.plannedCosts,...additions]};
+    }
    const additions:VendorRecord[]=[];for(const row of preview){const company=header(row,"company","vendor company"),contact=header(row,"contact","contact person"),phone=header(row,"phone","mobile");if(!company||!contact||[...current.vendors,...additions].some(x=>phone&&norm(x.phone)===norm(phone))){skipped++;continue;}additions.push({id:makeId("vendor"),company,contact,role:header(row,"role"),phone,whatsappNumber:header(row,"whatsapp","whatsapp number"),email:header(row,"email"),address:header(row,"address"),processes:header(row,"processes","capabilities"),machines:header(row,"machines"),materials:header(row,"materials"),notes:"Imported CSV",status:"Unverified contact — review",sourceContactId:"",whatsappSyncedAt:"",createdAt:stamp,updatedAt:stamp});inserted++;}return {...current,vendors:[...current.vendors,...additions]};
   });
   setPreview([]);setSource("");onNotice("Import committed. Added "+inserted+" record(s); skipped "+skipped+" duplicate or incomplete row(s). Review imported records before operational use.");
@@ -161,7 +202,7 @@ export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
  return <section className="workspace-page intelligence-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> VALIDATED DATA IMPORT</span></div>{notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> DATA EXCHANGE / IMPORT</div><h1>Import Centre<span>.</span></h1><p>Import CSV or native Excel .xlsx files, or merge an AXIMACH JSON backup. Preview and validate before committing.</p></div><FileUp size={26}/></div>
   <section className="surface-panel"><div className="module-record-form specialized-form">
-   <label>Import type<select value={type} onChange={e=>{setType(e.target.value as typeof type);setPreview([]);setError("");}}><option value="companies">Company Directory CSV</option><option value="components">Component Directory CSV</option><option value="vendors">Vendor Directory CSV</option><option value="backup">AXIMACH JSON backup</option></select></label>
+   <label>Import type<select value={type} onChange={e=>{setType(e.target.value as typeof type);setPreview([]);setError("");}}><option value="companies">Company Directory CSV</option><option value="components">Component Directory CSV</option><option value="vendors">Vendor Directory CSV</option><option value="contact360">Contact 360 CSV</option><option value="process-master">Process Directory CSV</option><option value="planned-cost">Component Planned Cost CSV</option><option value="backup">AXIMACH JSON backup</option></select></label>
    <label>File<input type="file" accept={type==="backup"?".json,application/json":".csv,text/csv,.txt,text/plain,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"} onChange={handleFile}/></label>
    {fileName&&<div className="module-form-wide">Selected: {fileName}</div>}
    <div className="module-form-actions"><button className="button-quiet" onClick={validate} disabled={!source}><Search size={14}/> Validate &amp; preview</button><button className="button-primary" onClick={commit} disabled={!preview.length}><Upload size={14}/> Commit import</button></div>
