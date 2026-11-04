@@ -154,6 +154,8 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
   });
  },[update]);
  const [search,setSearch]=useState("");
+ const [companyName,setCompanyName]=useState("");
+ const [poNumber,setPoNumber]=useState("");
  const [componentName,setComponentName]=useState("");
  const [componentNumber,setComponentNumber]=useState("");
  const [processType,setProcessType]=useState("");
@@ -164,9 +166,9 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
  const [plannedRate,setPlannedRate]=useState("");
  const [notes,setNotes]=useState("");
  const [extraProcesses,setExtraProcesses]=useState<Array<{id:string;processType:string;processCategory:string;processSubcategory:string;plannedQty:string;unit:"piece"|"set";plannedRate:string}>>([]);
- const filtered=useMemo(()=>rows.filter(row=>(row.componentName+" "+row.componentNumber+" "+row.processType+" "+row.processCategory+" "+(row.processSubcategory||"")+" "+row.notes).toLowerCase().includes(search.toLowerCase().trim())),[rows,search]);
+ const filtered=useMemo(()=>rows.filter(row=>(row.companyName||"")+" "+(row.poNumber||"")+" "+row.componentName+" "+row.componentNumber+" "+row.processType+" "+row.processCategory+" "+(row.processSubcategory||"")+" "+row.notes.toLowerCase().includes(search.toLowerCase().trim())),[rows,search]);
  const amount=(qty:string,rate:string)=>(Number(qty)||0)*(Number(rate)||0);
- const reset=()=>{setComponentName("");setComponentNumber("");setProcessType("");setProcessCategory("");setProcessSubcategory("");setPlannedQty("1");setUnit("piece");setPlannedRate("");setNotes("");setExtraProcesses([]);};
+ const reset=()=>{setCompanyName("");setPoNumber("");setComponentName("");setComponentNumber("");setProcessType("");setProcessCategory("");setProcessSubcategory("");setPlannedQty("1");setUnit("piece");setPlannedRate("");setNotes("");setExtraProcesses([]);};
  const setPrimaryProcess=(value:string)=>{const def=definitions.find(item=>item.processType===value);setProcessType(value);setProcessCategory(def?.category||"");setProcessSubcategory("");};
  const save=()=>{
   const all=[{processType,processCategory,processSubcategory,plannedQty,unit,plannedRate},...extraProcesses];
@@ -175,7 +177,7 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
   }
   const stamp=nowIso();
   const created:PlannedCostEntry[]=all.map(row=>({
-   id:makeId("planned-cost"),componentName:componentName.trim(),componentNumber:componentNumber.trim(),
+   id:makeId("planned-cost"),companyName:companyName.trim(),poNumber:poNumber.trim(),componentName:componentName.trim(),componentNumber:componentNumber.trim(),
    processType:row.processType.trim(),processCategory:row.processCategory.trim(),processSubcategory:row.processSubcategory.trim(),
    plannedQty:Number(row.plannedQty),unit:row.unit,plannedRate:Number(row.plannedRate),notes:notes.trim(),createdAt:stamp,updatedAt:stamp
   }));
@@ -187,9 +189,11 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
  return <section className="workspace-page specialized-directory">
   <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> INDEPENDENT COST DIRECTORY</span><span className="module-number">{rows.length} PLANNED COST RECORDS</span></div>
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> FINANCE / PLANNING REFERENCE</div><h1>Component Planned Cost<span>.</span></h1><p>Independent component and process planning. Add any number of process rows for one component; only Costing &amp; Payment reads these records for comparison.</p></div></div>
-  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search component, number, category or process…"/></label></div>
+  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, PO, component, number, category or process…"/></label></div>
   <section className="surface-panel"><div className="panel-heading"><div><h3>Add planned cost group</h3><p>Component and process reference only; no PO or Component Master link is created.</p></div></div>
    <div className="module-record-form specialized-form">
+    <label>Company reference<input value={companyName} onChange={e=>setCompanyName(e.target.value)} placeholder="Company name (manual reference only)"/></label>
+    <label>PO reference<input value={poNumber} onChange={e=>setPoNumber(e.target.value)} placeholder="PO number (manual reference only)"/></label>
     <label>Component name *<input value={componentName} onChange={e=>setComponentName(e.target.value)} placeholder="Component name"/></label>
     <label>Component number *<input value={componentNumber} onChange={e=>setComponentNumber(e.target.value)} placeholder="Component / part number"/></label>
     <label>Process type *{definitions.length?<select value={processType} onChange={e=>setPrimaryProcess(e.target.value)}><option value="">Select Process Directory entry…</option>{definitions.map(item=><option key={item.id} value={item.processType}>{item.processType} · {item.category}</option>)}</select>:<input value={processType} onChange={e=>setProcessType(e.target.value)} placeholder="Create a Process Directory entry first"/>}</label>
@@ -220,7 +224,7 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
    </div>
   </section>
   <section className="surface-panel"><div className="panel-heading"><div><h3>Planned cost register</h3><p>{filtered.length} of {rows.length} saved records</p></div></div>
-   {filtered.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Component</th><th>Component number</th><th>Process</th><th>Category</th><th>Subcategory</th><th>Quantity</th><th>Planned rate</th><th>Planned amount</th><th>Action</th></tr></thead><tbody>{filtered.map(row=><tr key={row.id}><td><strong>{row.componentName}</strong><small>{row.notes||"Independent planned cost"}</small></td><td>{row.componentNumber}</td><td>{row.processType}</td><td>{row.processCategory||"—"}</td><td>{row.processSubcategory||"—"}</td><td>{row.plannedQty.toLocaleString("en-IN")} {row.unit}</td><td>{money(row.plannedRate)}</td><td><strong>{money(row.plannedQty*row.plannedRate)}</strong></td><td><button className="button-quiet compact-button" onClick={()=>remove(row.id)}><Trash2 size={13}/> Delete</button></td></tr>)}</tbody></table></div>:<div className="module-empty-state"><CircleDollarSign size={24}/><h3>{search?"No matching planned costs":"No planned costs saved"}</h3><p>Create an independent planned rate for each component and process combination.</p></div>}
+   {filtered.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Company reference</th><th>PO reference</th><th>Component</th><th>Component number</th><th>Process</th><th>Category</th><th>Subcategory</th><th>Quantity</th><th>Planned rate</th><th>Planned amount</th><th>Action</th></tr></thead><tbody>{filtered.map(row=><tr key={row.id}><td>{row.companyName||"—"}</td><td>{row.poNumber||"—"}</td><td><strong>{row.componentName}</strong><small>{row.notes||"Independent planned cost"}</small></td><td>{row.componentNumber}</td><td>{row.processType}</td><td>{row.processCategory||"—"}</td><td>{row.processSubcategory||"—"}</td><td>{row.plannedQty.toLocaleString("en-IN")} {row.unit}</td><td>{money(row.plannedRate)}</td><td><strong>{money(row.plannedQty*row.plannedRate)}</strong></td><td><button className="button-quiet compact-button" onClick={()=>remove(row.id)}><Trash2 size={13}/> Delete</button></td></tr>)}</tbody></table></div>:<div className="module-empty-state"><CircleDollarSign size={24}/><h3>{search?"No matching planned costs":"No planned costs saved"}</h3><p>Create an independent planned rate for each component and process combination.</p></div>}
   </section>
   <div className="module-safety-note"><ShieldCheck size={15}/><span>This directory remains independent of Purchase Orders and Component Directory. Process selectors, categories and subcategories are sourced from Process Directory; this directory is read by Costing &amp; Payment.</span></div>
  </section>;
