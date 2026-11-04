@@ -166,7 +166,7 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
  const [plannedRate,setPlannedRate]=useState("");
  const [notes,setNotes]=useState("");
  const [extraProcesses,setExtraProcesses]=useState<Array<{id:string;processType:string;processCategory:string;processSubcategory:string;plannedQty:string;unit:"piece"|"set";plannedRate:string}>>([]);
- const filtered=useMemo(()=>rows.filter(row=>(row.companyName||"")+" "+(row.poNumber||"")+" "+row.componentName+" "+row.componentNumber+" "+row.processType+" "+row.processCategory+" "+(row.processSubcategory||"")+" "+row.notes.toLowerCase().includes(search.toLowerCase().trim())),[rows,search]);
+ const filtered=useMemo(()=>rows.filter(row=>((row.companyName||"")+" "+(row.poNumber||"")+" "+row.componentName+" "+row.componentNumber+" "+row.processType+" "+row.processCategory+" "+(row.processSubcategory||"")+" "+(row.notes||"")).toLowerCase().includes(search.toLowerCase().trim())),[rows,search]);
  const amount=(qty:string,rate:string)=>(Number(qty)||0)*(Number(rate)||0);
  const reset=()=>{setCompanyName("");setPoNumber("");setComponentName("");setComponentNumber("");setProcessType("");setProcessCategory("");setProcessSubcategory("");setPlannedQty("1");setUnit("piece");setPlannedRate("");setNotes("");setExtraProcesses([]);};
  const setPrimaryProcess=(value:string)=>{const def=definitions.find(item=>item.processType===value);setProcessType(value);setProcessCategory(def?.category||"");setProcessSubcategory("");};
