@@ -1215,3 +1215,19 @@
 .production-donut{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;position:relative;justify-self:center}
 .production-donut:after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--panel)}
 .production-donut b{position:relative;z-index:1;font-size:9px;color:var(--ink)}
+
+/* Process map: searchable multi-select controls and compact export field actions */
+.process-filter-quick-actions,.process-export-field-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.process-filter-quick-actions button,.process-export-field-actions button{border:1px solid var(--line-strong);border-radius:6px;background:var(--canvas);color:var(--muted);font-size:9px;padding:4px 8px;cursor:pointer}
+.process-filter-quick-actions button:hover,.process-export-field-actions button:hover{border-color:var(--blue);color:var(--blue)}
+.process-filter-search{width:100%;min-width:0;box-sizing:border-box;border:1px solid var(--line);border-radius:7px;background:var(--canvas);color:var(--ink);padding:7px 8px;font-size:10px}
+.process-export-field-actions{grid-column:1/-1;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.process-map-filter-grid>div{max-height:260px;overflow:auto;padding-right:3px}
+.process-map-filter-grid label{cursor:pointer}
+.process-map-filter-grid label:hover{color:var(--ink)}
+@media(max-width:700px){
+ .process-map-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .process-map-filter-grid>div{max-height:210px}
+ .process-filter-quick-actions button,.process-export-field-actions button{min-height:30px}
+ .process-map-filter-actions{align-items:flex-start;flex-direction:column}
+}
