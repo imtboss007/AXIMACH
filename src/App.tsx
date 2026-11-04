@@ -20,6 +20,7 @@ import { ReportsAnalyticsWorkspace, AIInsightsWorkspace, ExportCentreWorkspace, 
 import LinkedProcessWorkspace from "./LinkedProcessWorkspace";
 import LinkedCostingWorkspace from "./LinkedCostingWorkspace";
 import InventoryWorkspace from "./InventoryWorkspace";
+import FollowUpAssignmentsLauncher from "./FollowUpAssignments";
 import { activeRows, makeId, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 
 function isAllowedAxMachServiceUrl(value: string) {
@@ -244,6 +245,15 @@ function App() {
           <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         )}
       </main>
+
+      {activeModuleId !== "dashboard" && activeModuleId !== "command-centre" && (
+        <FollowUpAssignmentsLauncher
+          moduleId={activeModuleId}
+          moduleTitle={activeModuleId === "process-map" ? "Process Plan" : activeModule.title}
+          onNotice={setNotice}
+          onSelectModule={selectModule}
+        />
+      )}
 
       <nav className="command-rail" aria-label="AXIMACH navigation">
         <div className="rail-section-label">COMMAND CENTRES</div>
