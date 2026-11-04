@@ -84,8 +84,8 @@ function App() {
   const [notice, setNotice] = useState("");
   const [appearance, setAppearance] = useState<"light"|"dark"|"midnight"|"ocean">(() => { try { const saved=localStorage.getItem("aximach.ui.appearance"); return saved==="dark"||saved==="midnight"||saved==="ocean"?saved:"light"; } catch { return "light"; } });
   const [followUpSeed,setFollowUpSeed] = useState<{name:string;phone:string;company:string;vendorId:string;process:string;operationId:string}>({name:"",phone:"",company:"",vendorId:"",process:"",operationId:""});
-  const openVendorFollowUp = (vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string}, operationName="") => {
-    setFollowUpSeed({name:vendor.contact,phone:vendor.whatsappNumber||vendor.phone,company:vendor.company,vendorId:vendor.id,process:vendor.processes||"",operationId:operationName});
+  const openVendorFollowUp = (vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string}, operationId="", processName="") => {
+    setFollowUpSeed({name:vendor.contact,phone:vendor.whatsappNumber||vendor.phone,company:vendor.company,vendorId:vendor.id,process:processName||vendor.processes||"",operationId});
     selectModule("communications");
   };
   useEffect(() => { try { localStorage.setItem("aximach.ui.appearance",appearance); document.documentElement.dataset.theme=appearance; } catch { /* appearance remains active for this session */ } },[appearance]);
@@ -208,7 +208,7 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={() => setIconStudioOpen(true)} onScheduleVendor={(vendorId,operationName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationName);else selectModule("vendors");}} />
+          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={() => setIconStudioOpen(true)} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
