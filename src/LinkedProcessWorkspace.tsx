@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import PptxGenJS from "pptxgenjs";
-import ExcelJS from "exceljs";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
@@ -225,6 +223,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const exportExcel = async () => {
     if (!exportOperations.length || !exportColumns.length) { onNotice("Choose at least one field and ensure operations are visible."); return; }
     try {
+      const ExcelJS = (await import("exceljs")).default;
       const workbook = new ExcelJS.Workbook();
       workbook.creator = "AXIMACH";
       workbook.subject = "Selected PO component process map";
@@ -295,7 +294,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const exportPowerPoint = async () => {
     if(!exportOperations.length||!exportColumns.length){onNotice("Choose at least one field and ensure operations are visible.");return;}
     try {
-      const deck = new PptxGenJS();
+       const PptxGenJS = (await import("pptxgenjs")).default;
+       const deck = new PptxGenJS();
       deck.layout = "LAYOUT_WIDE";
       deck.author = "AXIMACH";
       deck.subject = "Selected AXIMACH Process Map";
