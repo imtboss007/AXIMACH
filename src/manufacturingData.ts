@@ -14,14 +14,16 @@ export type FactoryRecord = {
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ComponentRecord = {
-  id: string; partNumber: string; name: string; revision: string; material: string;
-  drawingReference: string; notes: string; salePrice: number; materialQty: number;
-  materialRate: number; benchmarkMaterialRate: number; stockQty: number;
+  id: string; partNumber: string; name: string; revision: string;
+  orderUnit: "Piece" | "Set"; quantityPerUnit: number;
+  drawingReference: string; notes: string; salePrice: number;
+  /** Legacy fields remain readable for existing saved data; they are no longer edited in Component Master. */
+  material?: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; stockQty?: number;
   overhead: number; toolingCost: number; reworkCost: number; scrapCost: number;
   rejectedQty: number; gstRate: number; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type PurchaseOrderLine = {
-  id: string; componentId: string; quantity: number; targetDelivery: string; unitPrice: number; notes: string;
+  id: string; componentId: string; quantity: number; targetDelivery: string; unitPrice?: number; notes: string;
   jobStatus?: "In progress" | "Finished"; jobFinishedAt?: string; updatedAt?: string; deletedAt?: string;
   materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number;
   overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number;
@@ -94,7 +96,11 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     companies: Array.isArray(value?.companies) ? value.companies : empty.companies,
     factories: Array.isArray(value?.factories) ? value.factories : empty.factories,
     purchaseOrders: Array.isArray(value?.purchaseOrders) ? value.purchaseOrders : empty.purchaseOrders,
-    components: Array.isArray(value?.components) ? value.components : empty.components,
+    components: Array.isArray(value?.components) ? value.components.map(component => ({
+      ...component,
+      orderUnit: component.orderUnit === "Set" ? "Set" as const : "Piece" as const,
+      quantityPerUnit: Number(component.quantityPerUnit) > 0 ? Number(component.quantityPerUnit) : 1
+    })) : empty.components,
     vendors: Array.isArray(value?.vendors) ? value.vendors : empty.vendors,
     operations: Array.isArray(value?.operations) ? value.operations : empty.operations,
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,

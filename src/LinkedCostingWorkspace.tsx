@@ -5,7 +5,7 @@ import SearchablePicker from "./SearchablePicker";
 import { ProcessIcon } from "./IconStudio";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
-type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; unitPrice: number; componentId: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
+type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; componentId: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const stamp = () => new Date().toISOString().slice(0,10);
 
@@ -44,7 +44,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
 
   const selectedComponent = components.find(c => c.id === componentId);
   const componentLines: ComponentLineRef[] = useMemo(() => orders.flatMap(po => po.lines.filter(line => line.componentId === selectedComponent?.id).map(line => ({
-    key: po.id + "::" + line.id, poId: po.id, poNumber: po.number, lineId: line.id, quantity: line.quantity, targetDelivery: line.targetDelivery || po.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId, materialQty: line.materialQty, materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost, reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
+    key: po.id + "::" + line.id, poId: po.id, poNumber: po.number, lineId: line.id, quantity: line.quantity, targetDelivery: line.targetDelivery || po.targetDelivery, componentId: line.componentId, materialQty: line.materialQty, materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost, reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
   }))), [orders, selectedComponent?.id]);
   const preferredLine = componentLines.find(line => quotations.some(q => !q.deletedAt && q.poLineId === line.lineId)) || componentLines[0];
   useEffect(() => {
@@ -72,12 +72,10 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const bomMaterialQtyPerPart = componentBomLines.reduce((sum,line) => sum + line.quantityPerPart * (1 + line.scrapPercent / 100), 0);
   const bomMaterialCostPerPart = componentBomLines.reduce((sum,line) => sum + line.quantityPerPart * (1 + line.scrapPercent / 100) * (data.materials.find(material => material.id === line.materialId)?.ratePerUnit || 0), 0);
   const bomWeightedMaterialRate = bomMaterialQtyPerPart > 0 ? bomMaterialCostPerPart / bomMaterialQtyPerPart : 0;
-  const masterMaterialQty = selectedComponent?.materialQty || 0;
-  const masterMaterialRate = selectedComponent?.materialRate || 0;
-  const materialQty = selectedLine?.materialQty ?? (masterMaterialQty > 0 ? masterMaterialQty : bomMaterialQtyPerPart * (selectedLine?.quantity || 0));
-  const materialRate = selectedLine?.materialRate ?? (masterMaterialRate > 0 ? masterMaterialRate : bomWeightedMaterialRate);
-  const materialCostSource = selectedLine?.materialQty !== undefined || selectedLine?.materialRate !== undefined ? "PO-line cost override" : masterMaterialQty > 0 && masterMaterialRate > 0 ? "Component master default" : bomMaterialQtyPerPart > 0 ? "Linked BOM estimate" : "No material rate / BOM entered";
-  const benchmarkMaterialRate = selectedLine?.benchmarkMaterialRate ?? selectedComponent?.benchmarkMaterialRate ?? 0;
+  const materialQty = selectedLine?.materialQty ?? bomMaterialQtyPerPart * (selectedLine?.quantity || 0);
+  const materialRate = selectedLine?.materialRate ?? bomWeightedMaterialRate;
+  const materialCostSource = selectedLine?.materialQty !== undefined || selectedLine?.materialRate !== undefined ? "PO-line cost override" : bomMaterialQtyPerPart > 0 ? "Linked BOM estimate" : "No material rate / BOM entered";
+  const benchmarkMaterialRate = selectedLine?.benchmarkMaterialRate ?? 0;
   const overhead = selectedLine?.overhead ?? selectedComponent?.overhead ?? 0;
   const toolingCost = selectedLine?.toolingCost ?? selectedComponent?.toolingCost ?? 0;
   const reworkCost = selectedLine?.reworkCost ?? selectedComponent?.reworkCost ?? 0;
@@ -92,7 +90,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const extraCharges = overhead + toolingCost + reworkCost + scrapCost;
   const plannedTotal = materialCost + operationPlanned + extraCharges;
   const actualTotal = materialCost + operationActual + extraCharges;
-  const sellingRate = selectedLine ? selectedLine.unitPrice : (selectedComponent?.salePrice || 0);
+  const sellingRate = selectedComponent?.salePrice || 0;
   const revenue = (selectedLine?.quantity || 0) * sellingRate;
   const gstEstimate = revenue * gstRate / 100;
   const finalOperation = routeOperations[routeOperations.length - 1];
@@ -139,19 +137,21 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     if (!selectedComponent) return;
     const amount = Math.max(0, value);
     const updatedAt = nowIso();
+    if (key === "salePrice") {
+      update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, salePrice: amount, updatedAt } : component) }));
+      return;
+    }
     if (selectedLine) {
-      const lineKeyName = key === "salePrice" ? "unitPrice" : key;
       update(current => ({
         ...current,
         purchaseOrders: current.purchaseOrders.map(po => po.id !== selectedLine.poId ? po : {
           ...po, updatedAt,
-          lines: po.lines.map(line => line.id === selectedLine.lineId ? { ...line, [lineKeyName]: amount } : line)
+          lines: po.lines.map(line => line.id === selectedLine.lineId ? { ...line, [key]: amount } : line)
         })
       }));
       return;
     }
-    const componentKey = key === "salePrice" ? "salePrice" : key;
-    update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, [componentKey]: amount, updatedAt } : component) }));
+    update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, [key]: amount, updatedAt } : component) }));
   };
 
   return <section className="workspace-page linked-costing-page">
@@ -165,7 +165,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
         <SearchablePicker id="cost-operation" label="Process operation" value={selectedOperation?.id||""} placeholder="Type operation name…" options={routeOperations.map(op=>({id:op.id,label:op.name+" · OP-"+op.sequence}))} onChange={setOperationId}/>
       </div>
       {!componentLines.length && <div className="module-safety-note"><FileText size={14}/><span>This component is not yet linked to a PO line. Create or edit the actual order in Purchase Orders; quotes will then be stored against that order line.</span><button className="button-quiet compact-button" onClick={() => onSelectModule("purchasing")}>Open purchase orders</button></div>}
-      <div className="linked-component-summary"><div><small>COMPONENT</small><strong>{selectedComponent?.partNumber} · {selectedComponent?.name}</strong><span>Revision {selectedComponent?.revision || "—"} · {selectedComponent?.material || "Material not entered"}</span></div><div><small>MATERIAL COST</small><strong>{money(materialCost)}</strong><span>{materialQty.toLocaleString("en-IN")} units × {money(materialRate)} · {materialCostSource}</span></div><div><small>PROCESS + TRANSPORT</small><strong>{money(operationPlanned)}</strong><span>Rates selected or entered per operation</span></div><div><small>PLANNED COST / ACCEPTED PART</small><strong>{money(costPerAccepted)}</strong><span>Uses the selected PO quantity and entered rejects</span></div></div>
+      <div className="linked-component-summary"><div><small>COMPONENT</small><strong>{selectedComponent?.partNumber} · {selectedComponent?.name}</strong><span>Revision {selectedComponent?.revision || "—"} · Qty per {selectedComponent?.orderUnit === "Set" ? "Set" : "Piece"}: {Number(selectedComponent?.quantityPerUnit) > 0 ? selectedComponent?.quantityPerUnit : 1}</span></div><div><small>MATERIAL COST</small><strong>{money(materialCost)}</strong><span>{materialQty.toLocaleString("en-IN")} units × {money(materialRate)} · {materialCostSource}</span></div><div><small>PROCESS + TRANSPORT</small><strong>{money(operationPlanned)}</strong><span>Rates selected or entered per operation</span></div><div><small>PLANNED COST / ACCEPTED PART</small><strong>{money(costPerAccepted)}</strong><span>Uses the selected PO quantity and entered rejects</span></div></div>
       <div className="linked-kpis linked-cost-kpis"><div className="route-kpi kpi-cost"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PLANNED COST</small><strong>{money(plannedTotal)}</strong><em>Material + planned process + transport + entered extras</em></span></div><div className="route-kpi kpi-quality"><span className="kpi-icon"><Check size={19}/></span><span><small>ACTUAL RATE COST</small><strong>{money(actualTotal)}</strong><em>Actual operation rates only where recorded</em></span></div><div className="route-kpi kpi-delivery"><span className="kpi-icon"><Package size={19}/></span><span><small>ORDER VALUE</small><strong>{money(revenue)}</strong><em>{selectedLine?.quantity || 0} pcs × {money(sellingRate)}</em></span></div><div className="route-kpi kpi-risk"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>ESTIMATED PROFIT / LOSS</small><strong>{money(profit)}</strong><em>Before GST/finance items not entered here</em></span></div></div>
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTE-TO-OPERATION LINK</div><h3>Process costs for {selectedComponent?.partNumber}</h3><p>Each row references a specific operation ID and PO component line.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><ArrowRight size={14}/> Manage operations</button></div>
         {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Transport</th><th>Planned process cost</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, Building2, CalendarClock, Check, CircleDollarSign, Edit3, Factory, FileText, Package, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowRight, Building2, CalendarClock, Check, CircleDollarSign, Edit3, Factory, FileDown, FileText, Package, Plus, Search, Trash2, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type FactoryRecord, type PurchaseOrderLine, type PurchaseOrderRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
@@ -14,15 +14,14 @@ type Props = {
 const blankCompany = (): Omit<CompanyRecord, "id" | "createdAt" | "updatedAt" | "deletedAt"> => ({ name: "", gstin: "", phone: "", email: "", notes: "" });
 const blankFactory = (): Omit<FactoryRecord, "id" | "createdAt" | "updatedAt" | "deletedAt"> => ({ companyId: "", name: "", address: "", contactPhone: "" });
 const blankComponent = (): Omit<ComponentRecord, "id" | "createdAt" | "updatedAt" | "deletedAt"> => ({
-  partNumber: "", name: "", revision: "", material: "", drawingReference: "", notes: "",
-  salePrice: 0, materialQty: 0, materialRate: 0, benchmarkMaterialRate: 0, stockQty: 0,
-  overhead: 0, toolingCost: 0, reworkCost: 0, scrapCost: 0, rejectedQty: 0, gstRate: 0
+  partNumber: "", name: "", revision: "", orderUnit: "Piece", quantityPerUnit: 1, drawingReference: "", notes: "",
+  salePrice: 0, overhead: 0, toolingCost: 0, reworkCost: 0, scrapCost: 0, rejectedQty: 0, gstRate: 0
 });
 const blankPO = (): Omit<PurchaseOrderRecord, "id" | "createdAt" | "updatedAt" | "deletedAt"> => ({
   number: "", companyId: "", factoryId: "", issueDate: new Date().toISOString().slice(0, 10),
   targetDelivery: "", status: "Open", notes: "", lines: []
 });
-const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quantity: 0, targetDelivery: "", unitPrice: 0, notes: "" });
+const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quantity: 0, targetDelivery: "", notes: "" });
 
 export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotice, notice, onSelectModule }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
@@ -49,7 +48,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
   const factoryName = (id: string) => factories.find(f => f.id === id)?.name || "Factory not found";
   const filteredCompanies = useMemo(() => companies.filter(c => (c.name + " " + c.gstin + " " + c.phone + " " + c.email).toLowerCase().includes(search.toLowerCase().trim())), [companies, search]);
   const filteredFactories = useMemo(() => factories.filter(f => (f.name + " " + f.address + " " + companyName(f.companyId)).toLowerCase().includes(search.toLowerCase().trim())), [factories, search, data.companies]);
-  const filteredComponents = useMemo(() => components.filter(c => (c.partNumber + " " + c.name + " " + c.material + " " + c.drawingReference + " " + c.revision).toLowerCase().includes(search.toLowerCase().trim())), [components, search]);
+  const filteredComponents = useMemo(() => components.filter(c => (c.partNumber + " " + c.name + " " + c.drawingReference + " " + c.revision).toLowerCase().includes(search.toLowerCase().trim())), [components, search]);
   const filteredOrders = useMemo(() => orders.filter(p => (p.number + " " + companyName(p.companyId) + " " + factoryName(p.factoryId) + " " + p.lines.map(l => componentName(l.componentId)).join(" ")).toLowerCase().includes(search.toLowerCase().trim())), [orders, search, data.companies, data.factories, data.components]);
 
   const resetForms = () => {
@@ -87,7 +86,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
     if (!poDraft.number.trim() || !poDraft.companyId || !poDraft.factoryId) { onNotice("Select a company and factory, and enter the purchase-order number."); return; }
     if (!poLines.length || poLines.some(line => !line.componentId || line.quantity <= 0)) { onNotice("Add at least one component line and set a component and positive quantity on every line."); return; }
     const stamp = nowIso(); const id = poEditingId || makeId("po");
-    const lines = poLines.map(line => ({ ...line, id: line.id || makeId("line"), targetDelivery: line.targetDelivery || poDraft.targetDelivery }));
+    const lines = poLines.map(line => { const clean = { ...line }; delete clean.unitPrice; return { ...clean, id: line.id || makeId("line"), targetDelivery: line.targetDelivery || poDraft.targetDelivery }; });
     update(current => ({ ...current, purchaseOrders: [...current.purchaseOrders.filter(x => x.id !== id), { ...poDraft, number: poDraft.number.trim(), id, lines, createdAt: current.purchaseOrders.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
     resetForms(); onNotice("Purchase order saved. Each PO line now points to a component record ID; the Process Map can load the selected line, quantity and delivery target automatically.");
   };
@@ -96,8 +95,16 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
   const editFactory = (row: FactoryRecord) => { resetForms(); setFactoryDraft({ companyId: row.companyId, name: row.name, address: row.address, contactPhone: row.contactPhone }); setFactoryEditingId(row.id); setShowForm(true); };
   const editComponent = (row: ComponentRecord) => {
     resetForms();
-    const { id, createdAt, updatedAt, deletedAt, ...draft } = row;
-    setComponentDraft(draft); setComponentEditingId(row.id); setShowForm(true);
+    setComponentDraft({
+      partNumber: row.partNumber || "", name: row.name || "", revision: row.revision || "",
+      orderUnit: row.orderUnit === "Set" ? "Set" : "Piece",
+      quantityPerUnit: Number(row.quantityPerUnit) > 0 ? Number(row.quantityPerUnit) : 1,
+      drawingReference: row.drawingReference || "", notes: row.notes || "",
+      salePrice: Number(row.salePrice) || 0, overhead: Number(row.overhead) || 0,
+      toolingCost: Number(row.toolingCost) || 0, reworkCost: Number(row.reworkCost) || 0,
+      scrapCost: Number(row.scrapCost) || 0, rejectedQty: Number(row.rejectedQty) || 0, gstRate: Number(row.gstRate) || 0
+    });
+    setComponentEditingId(row.id); setShowForm(true);
   };
   const editPO = (row: PurchaseOrderRecord) => {
     resetForms();
@@ -111,12 +118,39 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
     onNotice("Record archived. Linked historical records remain intact.");
   };
 
+  const downloadPurchaseOrders = (ordersToExport: PurchaseOrderRecord[]) => {
+    const headers = ["PO Number", "Company", "Factory", "Component Part Number", "Component Name", "Revision", "Order Quantity", "Order Unit", "Qty per Piece / Set", "Total Component Pieces", "PO Delivery Date", "Line Delivery Date", "Status", "PO Notes", "Line Notes"];
+    const csvValue = (value: unknown) => '"' + String(value ?? "").replace(/"/g, '""') + '"';
+    const rows = ordersToExport.flatMap(order => order.lines.filter(line => !line.deletedAt).map(line => {
+      const component = components.find(item => item.id === line.componentId);
+      const unit = component?.orderUnit === "Set" ? "Set" : "Piece";
+      const qtyPerUnit = Number(component?.quantityPerUnit) > 0 ? Number(component?.quantityPerUnit) : 1;
+      return [order.number, companyName(order.companyId), factoryName(order.factoryId),
+        component?.partNumber || "Missing component", component?.name || "", component?.revision || "",
+        line.quantity, unit, qtyPerUnit, line.quantity * qtyPerUnit, order.targetDelivery,
+        line.targetDelivery || order.targetDelivery, order.status, order.notes, line.notes];
+    }));
+    const csv = [headers, ...rows].map(row => row.map(csvValue).join(",")).join("\r\n");
+    const blob = new Blob([String.fromCharCode(0xfeff), csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = ordersToExport.length === 1
+      ? "aximach-po-" + (ordersToExport[0].number || "order").replace(/[^a-z0-9-_]+/gi, "-") + ".csv"
+      : "aximach-purchase-orders.csv";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    onNotice(rows.length + " PO component line(s) exported to CSV.");
+  };
+
   const header = moduleId === "companies" ? "Companies & factories" : moduleId === "purchasing" ? "Purchase orders & PO components" : "Component master";
   const description = moduleId === "companies"
     ? "Create each company once, then add its factories; records link by stable IDs."
     : moduleId === "purchasing"
       ? "Create each PO once and add multiple component lines; every line stores component ID, quantity and target delivery."
-      : "Create each part number once with revision, material and drawing reference; use the same record in every order, route and costing view.";
+      : "Create each part number once with revision, piece/set quantity basis and drawing reference; reuse the same component record in every order and route.";
 
   return <section className="workspace-page module-functional-page master-data-page">
     {notice && <div className="notice-banner"><Check size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
@@ -124,7 +158,10 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> MASTER RECORDS / LINKED DATA</div><h1>{header}<span>.</span></h1><p>{description}</p></div>
       <div className="workspace-title-actions">
         {moduleId === "components" && <button className="button-quiet" onClick={() => onSelectModule("costing")}><CircleDollarSign size={15}/> Component costing</button>}
-        {moduleId === "purchasing" && <button className="button-quiet" onClick={() => onSelectModule("process-map")}><ArrowRight size={15}/> Open Process Map</button>}
+        {moduleId === "purchasing" && <>
+          <button className="button-quiet" onClick={() => onSelectModule("process-map")}><ArrowRight size={15}/> Open Process Map</button>
+          <button className="button-quiet" disabled={!filteredOrders.length} onClick={() => downloadPurchaseOrders(filteredOrders)}><FileDown size={15}/> Download CSV</button>
+        </>}
         <button className="button-primary" onClick={beginAdd}><Plus size={15}/> {moduleId === "companies" ? tab === "companies" ? "Add Company" : "Add Factory" : moduleId === "purchasing" ? "Create Purchase Order" : "Add Component"}</button>
       </div>
     </div>
@@ -155,13 +192,10 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
         <label>Component / part number *<input value={componentDraft.partNumber} onChange={e => setComponentDraft({ ...componentDraft, partNumber: e.target.value })} placeholder="Customer or internal part number"/></label>
         <label>Component name *<input value={componentDraft.name} onChange={e => setComponentDraft({ ...componentDraft, name: e.target.value })} placeholder="Actual component name"/></label>
         <label>Drawing revision<input value={componentDraft.revision} onChange={e => setComponentDraft({ ...componentDraft, revision: e.target.value })} placeholder="e.g. Rev A"/></label>
-        <label>Material / grade<input value={componentDraft.material} onChange={e => setComponentDraft({ ...componentDraft, material: e.target.value })} placeholder="Actual material and grade"/></label>
+        <label>Unit type<select value={componentDraft.orderUnit} onChange={e => setComponentDraft({ ...componentDraft, orderUnit: e.target.value as "Piece" | "Set" })}><option value="Piece">Piece</option><option value="Set">Set</option></select></label>
+        <label>{componentDraft.orderUnit === "Set" ? "Pieces per set *" : "Quantity per piece *"}<input type="number" min="0.001" step="0.001" value={componentDraft.quantityPerUnit} onChange={e => setComponentDraft({ ...componentDraft, quantityPerUnit: Math.max(0.001, Number(e.target.value) || 1) })}/></label>
         <label>Drawing number / file reference<input value={componentDraft.drawingReference} onChange={e => setComponentDraft({ ...componentDraft, drawingReference: e.target.value })} placeholder="Drawing reference"/></label>
         <label>Selling rate per accepted part (₹)<input type="number" min="0" step="0.01" value={componentDraft.salePrice} onChange={e => setComponentDraft({ ...componentDraft, salePrice: Math.max(0, Number(e.target.value) || 0) })}/></label>
-        <label>Material quantity for batch<input type="number" min="0" step="0.001" value={componentDraft.materialQty} onChange={e => setComponentDraft({ ...componentDraft, materialQty: Math.max(0, Number(e.target.value) || 0) })}/></label>
-        <label>Material purchase rate (₹ / unit)<input type="number" min="0" step="0.01" value={componentDraft.materialRate} onChange={e => setComponentDraft({ ...componentDraft, materialRate: Math.max(0, Number(e.target.value) || 0) })}/></label>
-        <label>Benchmark material rate (optional)<input type="number" min="0" step="0.01" value={componentDraft.benchmarkMaterialRate} onChange={e => setComponentDraft({ ...componentDraft, benchmarkMaterialRate: Math.max(0, Number(e.target.value) || 0) })}/></label>
-        <label>Opening stock<input type="number" min="0" value={componentDraft.stockQty} onChange={e => setComponentDraft({ ...componentDraft, stockQty: Math.max(0, Number(e.target.value) || 0) })}/></label>
         <label className="module-form-wide">Notes<input value={componentDraft.notes} onChange={e => setComponentDraft({ ...componentDraft, notes: e.target.value })} placeholder="Optional engineering / purchase notes"/></label>
         <div className="module-form-actions"><button className="button-primary" onClick={saveComponent}><Check size={14}/> Save component</button><button className="button-quiet" onClick={resetForms}>Cancel</button></div>
       </div>}
@@ -176,9 +210,9 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
         <div className="module-form-wide"><div className="panel-heading"><div><h3>PO component lines</h3><p>Each row references a saved component master record and keeps its own quantity and delivery date.</p></div><button type="button" className="button-quiet compact-button" disabled={!components.length} onClick={() => setPoLines(prev => [...prev, { ...blankLine(), targetDelivery: poDraft.targetDelivery, id: makeId("line") }])}><Plus size={14}/> Add component line</button></div>
           {poLines.map((line, index) => <div className="module-record-form po-line-form" key={line.id}>
             <SearchablePicker id={"po-line-component-"+line.id} label="Component *" value={line.componentId} placeholder="Type part number…" options={components.map(c=>({id:c.id,label:c.partNumber+" · "+c.name+" · Rev "+(c.revision||"—")}))} onChange={componentId=>setPoLines(prev=>prev.map(row=>row.id===line.id?{...row,componentId}:row))}/>
-            <label>Quantity *<input type="number" min="1" value={line.quantity || ""} onChange={e => setPoLines(prev => prev.map(row => row.id === line.id ? { ...row, quantity: Math.max(0, Number(e.target.value) || 0) } : row))}/></label>
+            <label>Order quantity *<input type="number" min="1" value={line.quantity || ""} onChange={e => setPoLines(prev => prev.map(row => row.id === line.id ? { ...row, quantity: Math.max(0, Number(e.target.value) || 0) } : row))}/></label>
+            {(() => { const linked = components.find(item => item.id === line.componentId); if (!linked) return null; const unit = linked.orderUnit === "Set" ? "Set" : "Piece"; const qtyPerUnit = Number(linked.quantityPerUnit) > 0 ? Number(linked.quantityPerUnit) : 1; return <div className="module-safety-note module-form-wide"><strong>Linked component master:</strong> {linked.partNumber} · {unit === "Set" ? "Qty per Set" : "Qty per Piece"}: {qtyPerUnit.toLocaleString("en-IN")} · Total component pieces: {(line.quantity * qtyPerUnit).toLocaleString("en-IN")}</div>; })()}
             <label>Line delivery date<input type="date" value={line.targetDelivery} onChange={e => setPoLines(prev => prev.map(row => row.id === line.id ? { ...row, targetDelivery: e.target.value } : row))}/></label>
-            <label>Customer rate / part (₹)<input type="number" min="0" step="0.01" value={line.unitPrice || ""} onChange={e => setPoLines(prev => prev.map(row => row.id === line.id ? { ...row, unitPrice: Math.max(0, Number(e.target.value) || 0) } : row))}/></label>
             <label className="module-form-wide">Line notes<input value={line.notes} onChange={e => setPoLines(prev => prev.map(row => row.id === line.id ? { ...row, notes: e.target.value } : row))} placeholder="Optional"/></label>
             <button type="button" className="button-quiet compact-button" onClick={() => setPoLines(prev => prev.filter(row => row.id !== line.id))}><Trash2 size={13}/> Remove line {index + 1}</button>
           </div>)}
@@ -188,10 +222,10 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
       </div>}
     </section>}
     <div className="module-workbench-grid"><section className="surface-panel module-records-panel">
-      <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> ACTIVE MASTER DATA</div><h3>{header}</h3><p>Only records you or your imports have saved appear here.</p></div></div>
+      <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> ACTIVE MASTER DATA</div><h3>{header}</h3><p>{moduleId === "purchasing" ? "Open any order to review its saved component lines; download one PO or the filtered register as CSV." : "Only records you or your imports have saved appear here."}</p></div></div>
       {moduleId === "companies" && (tab === "companies" ? filteredCompanies.length ? <div className="module-record-list">{filteredCompanies.map(row => <article className="module-record-card" key={row.id}><div className="module-record-mark"><Building2 size={18}/></div><div className="module-record-copy"><strong>{row.name}</strong><span>{row.gstin || "GSTIN not entered"} · {row.phone || "Phone not entered"}</span><p>{row.email || "No email entered"} {row.notes ? "· " + row.notes : ""}</p><button className="inline-module-link" onClick={() => { setTab("factories"); setSelectedCompanyId(row.id); setFactoryDraft({ ...blankFactory(), companyId: row.id }); resetForms(); }}><Factory size={13}/> Manage factories for {row.name} <ArrowRight size={13}/></button></div><div className="module-record-card-actions"><button onClick={() => editCompany(row)}>Edit</button><button onClick={() => archive("companies", row.id)}>Archive</button></div></article>)}</div> : <div className="module-empty-state"><Building2 size={28}/><h3>No companies added</h3><p>No placeholder company is preloaded. Add your actual company once and reuse it across all purchase orders and routes.</p><button className="button-primary" onClick={beginAdd}><Plus size={14}/> Add your company</button></div> : filteredFactories.length ? <div className="module-record-list">{filteredFactories.map(row => <article className="module-record-card" key={row.id}><div className="module-record-mark"><Factory size={18}/></div><div className="module-record-copy"><strong>{row.name}</strong><span>{companyName(row.companyId)}</span><p>{row.address || "No address entered"} · {row.contactPhone || "No contact phone"}</p></div><div className="module-record-card-actions"><button onClick={() => editFactory(row)}>Edit</button><button onClick={() => archive("factories", row.id)}>Archive</button></div></article>)}</div> : <div className="module-empty-state"><Factory size={28}/><h3>No factories added</h3><p>Add a factory and link it to its parent company.</p><button className="button-primary" disabled={!companies.length} onClick={beginAdd}><Plus size={14}/> Add factory</button></div>)}
-      {moduleId === "components" && (filteredComponents.length ? <div className="module-record-list">{filteredComponents.map(row => <article className="module-record-card" key={row.id}><div className="module-record-mark"><Package size={18}/></div><div className="module-record-copy"><strong>{row.partNumber} · {row.name}</strong><span>Rev {row.revision || "—"} · {row.material || "Material not specified"}</span><p>{row.drawingReference || "No drawing reference"} · {data.purchaseOrders.filter(p => p.lines.some(l => l.componentId === row.id)).length} linked PO(s)</p></div><div className="module-record-card-actions"><button onClick={() => editComponent(row)}>Edit</button><button onClick={() => archive("components", row.id)}>Archive</button></div></article>)}</div> : <div className="module-empty-state"><Package size={28}/><h3>No components added</h3><p>Save each part number once. Quotations, operations and PO lines will refer back to this component record.</p><button className="button-primary" onClick={beginAdd}><Plus size={14}/> Add component</button></div>)}
-      {moduleId === "purchasing" && (filteredOrders.length ? <div className="module-record-list">{filteredOrders.map(row => <article className="module-record-card" key={row.id}><div className="module-record-mark"><FileText size={18}/></div><div className="module-record-copy"><strong>{row.number}</strong><span>{companyName(row.companyId)} · {factoryName(row.factoryId)}</span><p>{row.lines.length} component line(s) · {row.lines.reduce((n,l) => n + l.quantity, 0).toLocaleString("en-IN")} pcs · Due {row.targetDelivery || "not set"}</p><div className="related-row-stack">{row.lines.map(line => <small key={line.id}>{componentName(line.componentId)} · {line.quantity.toLocaleString("en-IN")} pcs · {line.targetDelivery || row.targetDelivery || "No line date"}</small>)}</div></div><div className="module-record-card-actions"><span className="record-state">{row.status}</span><button onClick={() => editPO(row)}>Edit</button><button onClick={() => archive("purchaseOrders", row.id)}>Archive</button></div></article>)}</div> : <div className="module-empty-state"><FileText size={28}/><h3>No purchase orders added</h3><p>Create a PO and add one or many component lines; the Process Map will take its quantity and dates from the selected line.</p><button className="button-primary" disabled={!companies.length || !factories.length || !components.length} onClick={beginAdd}><Plus size={14}/> Create purchase order</button></div>)}
+      {moduleId === "components" && (filteredComponents.length ? <div className="module-record-list">{filteredComponents.map(row => <article className="module-record-card" key={row.id}><div className="module-record-mark"><Package size={18}/></div><div className="module-record-copy"><strong>{row.partNumber} · {row.name}</strong><span>Rev {row.revision || "—"} · Qty per {row.orderUnit === "Set" ? "Set" : "Piece"}: {Number(row.quantityPerUnit) > 0 ? row.quantityPerUnit : 1}</span><p>{row.drawingReference || "No drawing reference"} · {data.purchaseOrders.filter(p => p.lines.some(l => l.componentId === row.id)).length} linked PO(s)</p></div><div className="module-record-card-actions"><button onClick={() => editComponent(row)}>Edit</button><button onClick={() => archive("components", row.id)}>Archive</button></div></article>)}</div> : <div className="module-empty-state"><Package size={28}/><h3>No components added</h3><p>Save each part number once. Quotations, operations and PO lines will refer back to this component record.</p><button className="button-primary" onClick={beginAdd}><Plus size={14}/> Add component</button></div>)}
+      {moduleId === "purchasing" && (filteredOrders.length ? <div className="module-record-list">{filteredOrders.map(row => <article className="module-record-card" key={row.id}><div className="module-record-mark"><FileText size={18}/></div><div className="module-record-copy"><strong>{row.number}</strong><span>{companyName(row.companyId)} · {factoryName(row.factoryId)}</span><p>{row.lines.length} component line(s) · {row.lines.reduce((n,l) => n + l.quantity, 0).toLocaleString("en-IN")} ordered units · Due {row.targetDelivery || "not set"}</p><div className="related-row-stack">{row.lines.map(line => { const linked = components.find(item => item.id === line.componentId); const unit = linked?.orderUnit === "Set" ? "Set" : "Piece"; const qtyPerUnit = Number(linked?.quantityPerUnit) > 0 ? Number(linked.quantityPerUnit) : 1; return <small key={line.id}>{componentName(line.componentId)} · {line.quantity.toLocaleString("en-IN")} {unit}(s) · Qty per {unit}: {qtyPerUnit.toLocaleString("en-IN")} · Total component pieces: {(line.quantity * qtyPerUnit).toLocaleString("en-IN")} · {line.targetDelivery || row.targetDelivery || "No line date"}</small>; })}</div></div><div className="module-record-card-actions"><span className="record-state">{row.status}</span><button onClick={() => editPO(row)}>Open</button><button onClick={() => downloadPurchaseOrders([row])}><FileDown size={12}/> Download</button><button onClick={() => archive("purchaseOrders", row.id)}>Archive</button></div></article>)}</div> : <div className="module-empty-state"><FileText size={28}/><h3>No purchase orders added</h3><p>Create a PO and add one or many component lines; the Process Map will take its quantity and dates from the selected line.</p><button className="button-primary" disabled={!companies.length || !factories.length || !components.length} onClick={beginAdd}><Plus size={14}/> Create purchase order</button></div>)}
     </section>
       <aside className="surface-panel module-connection-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> NEXT WORKFLOW</div><h3>Linked modules</h3><p>Use saved records to prevent duplicate typing.</p></div></div>
         {moduleId === "companies" ? <><button className="related-row" onClick={() => { setTab("factories"); beginAdd(); }}><Factory size={16}/><span><strong>Factories</strong><small>{factories.length} saved sites</small></span><ArrowRight size={14}/></button><button className="related-row" onClick={() => onSelectModule("purchasing")}><FileText size={16}/><span><strong>Purchase orders</strong><small>{orders.length} saved orders</small></span><ArrowRight size={14}/></button></> : moduleId === "components" ? <><button className="related-row" onClick={() => onSelectModule("purchasing")}><FileText size={16}/><span><strong>PO components</strong><small>{orders.reduce((n,p) => n + p.lines.length, 0)} saved lines</small></span><ArrowRight size={14}/></button><button className="related-row" onClick={() => onSelectModule("process-map")}><Factory size={16}/><span><strong>Process Map</strong><small>Operations linked by component + PO line</small></span><ArrowRight size={14}/></button><button className="related-row" onClick={() => onSelectModule("costing")}><CircleDollarSign size={16}/><span><strong>Costing & quotations</strong><small>Supplier rates per component and process</small></span><ArrowRight size={14}/></button></> : <><button className="related-row" onClick={() => onSelectModule("process-map")}><Factory size={16}/><span><strong>Process Map</strong><small>Load a PO component line</small></span><ArrowRight size={14}/></button><button className="related-row" onClick={() => onSelectModule("costing")}><CircleDollarSign size={16}/><span><strong>Costing & quotations</strong><small>Compare rates for the PO component</small></span><ArrowRight size={14}/></button></>}
