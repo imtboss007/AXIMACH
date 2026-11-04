@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import ExcelJS from "exceljs";
 import { ArrowRight, Check, CircleDollarSign, Layers3, Plus, Search, ShieldCheck, Trash2, Users, Edit3, FileDown, FileText, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type PlannedCostEntry, type ProcessDefinitionRecord } from "./manufacturingData";
 
@@ -76,6 +77,33 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
   const url=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}));
   const a=document.createElement("a");a.href=url;a.download="AXIMACH-Process-Directory.csv";a.click();URL.revokeObjectURL(url);
  };
+ const exportExcel=async()=>{
+  try{
+   const workbook=new ExcelJS.Workbook();
+   workbook.creator="AXIMACH";
+   workbook.created=new Date();
+   const sheet=workbook.addWorksheet("Process Directory");
+   sheet.columns=[
+    {header:"Process Type",key:"processType",width:28},
+    {header:"Category",key:"category",width:22},
+    {header:"Subcategories",key:"subcategories",width:48},
+    {header:"Vendors",key:"vendors",width:42},
+    {header:"Notes",key:"notes",width:48}
+   ];
+   sheet.addRows(filtered.map(row=>({
+    processType:row.processType,category:row.category,subcategories:row.subcategories.join("; "),
+    vendors:row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join("; "),notes:row.notes
+   })));
+   sheet.getRow(1).font={bold:true,color:{argb:"FFFFFFFF"}};
+   sheet.getRow(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF17324D"}};
+   sheet.views=[{state:"frozen",ySplit:1}];
+   const bytes=await workbook.xlsx.writeBuffer();
+   const blob=new Blob([bytes as BlobPart],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+   const url=URL.createObjectURL(blob);const a=document.createElement("a");
+   a.href=url;a.download="AXIMACH-Process-Directory.xlsx";a.click();URL.revokeObjectURL(url);
+   onNotice("Excel workbook exported with "+filtered.length+" process record(s).");
+  }catch(error){onNotice(error instanceof Error?"Excel export failed: "+error.message:"Excel export failed.");}
+ };
  const exportPdf=()=>{
   const win=window.open("","_blank");
   if(!win){onNotice("Allow pop-ups to print / save the process directory as PDF.");return;}
@@ -100,7 +128,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
    </div>
   </section>
   <section className="surface-panel">
-   <div className="panel-heading"><div><h3>Process definitions</h3><p>{filtered.length} of {rows.length} saved records</p></div><div className="module-form-actions"><button className="button-quiet compact-button" onClick={exportCsv}><FileDown size={13}/> Excel / CSV</button><button className="button-quiet compact-button" onClick={exportPdf}><FileText size={13}/> PDF</button></div></div>
+   <div className="panel-heading"><div><h3>Process definitions</h3><p>{filtered.length} of {rows.length} saved records</p></div><div className="module-form-actions"><button className="button-quiet compact-button" onClick={()=>void exportExcel()}><FileDown size={13}/> Excel .xlsx</button><button className="button-quiet compact-button" onClick={exportCsv}>CSV</button><button className="button-quiet compact-button" onClick={exportPdf}><FileText size={13}/> PDF</button></div></div>
    {filtered.length?<div className="specialized-record-list">{filtered.map(row=><article className="specialized-record" key={row.id}><span className="specialized-record-icon"><Layers3 size={18}/></span><div className="specialized-record-copy"><strong>{row.processType}</strong><span>{row.category}</span><p>{row.subcategories.length?row.subcategories.join(" · "):"No subcategories added"}</p><small>{row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company).filter(Boolean).join(", ")||"No vendor linked"}</small>{row.notes&&<small>{row.notes}</small>}</div><button className="button-quiet compact-button" onClick={()=>edit(row)}><Edit3 size={13}/> Edit</button><button className="button-quiet compact-button" onClick={()=>remove(row.id)}><Trash2 size={13}/> Delete</button></article>)}</div>:<div className="module-empty-state"><Layers3 size={24}/><h3>{search?"No matching process":"No process definitions yet"}</h3><p>Add the actual process types used in your manufacturing flow.</p></div>}
   </section>
   <div className="module-safety-note"><ShieldCheck size={15}/><span>Process Directory is an independent master. It supplies process selectors and vendor capabilities without duplicating operational process executions.</span></div>
