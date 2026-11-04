@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { readFile, writeFile, mkdir, rename, unlink } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { networkInterfaces } from "node:os";
 import { manufacturingCollections, mergeManufacturingData } from "./manufacturing-data.mjs";
 
@@ -55,7 +55,12 @@ async function body(req) {
   let raw = ""; for await (const chunk of req) { raw += chunk; if (raw.length > 8_500_000) throw new Error("Request too large"); }
   return raw ? JSON.parse(raw) : {};
 }
-function authorized(req) { return API_KEY && req.headers["x-aximach-key"] === API_KEY; }
+function authorized(req) {
+  if (!API_KEY) return false;
+  const provided = Buffer.from(String(req.headers["x-aximach-key"] || ""), "utf8");
+  const expected = Buffer.from(API_KEY, "utf8");
+  return provided.length === expected.length && timingSafeEqual(provided, expected);
+}
 function isLoopbackAddress(value) {
   const address = String(value || "").replace(/^::ffff:/, "");
   return address === "127.0.0.1" || address === "::1";
