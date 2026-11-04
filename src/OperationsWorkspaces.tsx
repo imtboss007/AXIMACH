@@ -39,7 +39,7 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:
   }
   const keys=new Set(selectedVisibleJobs.map(row=>row.po.id+":"+row.line.id));
   const stamp=nowIso();
-  update(current=>({...current,purchaseOrders:current.purchaseOrders.map(order=>({...order,updatedAt:stamp,lines:order.lines.map(line=>keys.has(order.id+":"+line.id)?{...line,jobStatus:finished?"Finished":"In Progress",jobFinishedAt:finished?stamp:undefined,updatedAt:stamp}:line)}))}));
+  update(current=>({...current,purchaseOrders:current.purchaseOrders.map(order=>({...order,updatedAt:stamp,lines:order.lines.map(line=>keys.has(order.id+":"+line.id)?{...line,jobStatus:finished?"Finished":"In progress",jobFinishedAt:finished?stamp:undefined,updatedAt:stamp}:line)}))}));
   onNotice((finished?"Finished ":"Reopened ")+selectedVisibleJobs.length+" selected PO component job(s). Operation history remains unchanged.");
   setSelectedJobKeys([]);
  };
