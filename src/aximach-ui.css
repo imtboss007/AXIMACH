@@ -1121,6 +1121,8 @@
 .process-map-filter-grid strong,.contact360-filter-grid strong{font:700 10px "DM Mono";letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
 .process-map-filter-grid label,.contact360-filter-grid label{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);min-width:0}
 .process-map-filter-grid input,.contact360-filter-grid input{accent-color:var(--blue)}
+.process-map-filter-numeric>label{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:0;color:var(--muted);font-size:11px}
+.process-map-filter-numeric>label input,.process-map-filter-numeric>label select{width:100%;min-width:0;box-sizing:border-box}
 .process-map-filter-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:10px;margin-top:12px;color:var(--muted);font-size:11px}
 .process-visual-style-picker{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--muted)}
 .process-visual-style-picker select{max-width:165px}
