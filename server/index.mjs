@@ -130,7 +130,7 @@ const server = createServer(async (req, res) => {
   applyCors(req, res);
   if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-max-age": "86400" }); return res.end(); }
   const url = new URL(req.url, "http://localhost");
-  if (url.pathname === "/health" && req.method === "GET") return json(res, 200, { ok: true, service: "AXIMACH scheduler", credentialsConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID), persistentStore: DB_PATH });
+  if (url.pathname === "/health" && req.method === "GET") return json(res, 200, { ok: true, service: "AXIMACH shared-data and scheduler server", credentialsConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID), storage: "local-file" });
   if (url.pathname === "/api/connection-info" && req.method === "GET") {
     if (!isLoopbackAddress(req.socket.remoteAddress)) return json(res, 403, { error: "Connection information is available only to the AXIMACH PC itself." });
     return json(res, 200, {
