@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import PptxGenJS from "pptxgenjs";
+import ExcelJS from "exceljs";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
@@ -221,6 +222,39 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     saveExportBlob(exportFileBase+".csv",new Blob(["\uFEFF"+rows.join("\r\n")],{type:"text/csv;charset=utf-8"}));
     onNotice("CSV export prepared from "+exportOperations.length+" saved operation record(s).");
   };
+  const exportExcel = async () => {
+    if (!exportOperations.length || !exportColumns.length) { onNotice("Choose at least one field and ensure operations are visible."); return; }
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "AXIMACH";
+      workbook.subject = "Selected PO component process map";
+      workbook.title = exportFileBase + " Process Map";
+      const sheet = workbook.addWorksheet("Process Map");
+      sheet.columns = exportColumns.map(field => ({ header: field.label, key: field.key, width: Math.min(34, Math.max(14, field.label.length + 5)) }));
+      sheet.addRows(exportOperations.map(op => Object.fromEntries(exportColumns.map(field => [field.key, exportValue(op, field.key)]))));
+      sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+      sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF17324D" } };
+      sheet.views = [{ state: "frozen", ySplit: 1 }];
+      if (exportColumns.length) sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: exportColumns.length } };
+      const route = workbook.addWorksheet("Route Structure");
+      route.columns = [
+        { header: "Sequence", key: "sequence", width: 12 }, { header: "Branch", key: "branch", width: 24 },
+        { header: "Parent operation ID", key: "parentId", width: 38 }, { header: "Operation ID", key: "id", width: 38 },
+        { header: "Process", key: "process", width: 28 }, { header: "Next arrow", key: "next", width: 18 }
+      ];
+      route.addRows(exportOperations.map((op, index) => ({
+        sequence: op.sequence, branch: op.branch || "Main route", parentId: op.parentId || "", id: op.id,
+        process: op.name, next: exportArrows && index < exportOperations.length - 1 ? "Next operation" : ""
+      })));
+      route.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+      route.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF17324D" } };
+      route.views = [{ state: "frozen", ySplit: 1 }];
+      const bytes = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([new Uint8Array(bytes).buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      saveExportBlob(exportFileBase + "-Process-Map.xlsx", blob);
+      onNotice("Excel workbook exported with selected fields, operation records and route structure.");
+    } catch (error) { onNotice(error instanceof Error ? "Excel export failed: " + error.message : "Excel export failed."); }
+  };
   const escapeSvg = (value:unknown)=>String(value??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
   const buildExportSvg = () => {
     const branches=[...new Set(exportOperations.map(op=>op.branch||"Main route"))];
@@ -276,6 +310,11 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       first.addText("Export scope: "+(exportScope==="selected-branch"?"Selected branch":"Filtered / visible map"),{x:0.58,y:2.78,w:11.6,h:0.35,fontSize:12,color:"FFFFFF",margin:0});
       first.addText("Fields selected: "+exportColumns.map(field=>field.label).join(" · "),{x:0.58,y:3.35,w:11.6,h:1.35,fontSize:11,color:"DFEAF3",breakLine:false,fit:"shrink",margin:0.04,valign:"top"});
       first.addText("Generated from saved AXIMACH operation records.",{x:0.58,y:6.85,w:11.5,h:0.25,fontSize:9,color:"A9C3D7",margin:0});
+      const mapSlide = deck.addSlide();
+      mapSlide.background = { color: "071A2B" };
+      mapSlide.addText("SELECTED ROUTE DIAGRAM", {x:0.45,y:0.25,w:12.2,h:0.35,fontFace:"Aptos Display",fontSize:17,bold:true,color:"FFFFFF",margin:0});
+      const svgBase64 = btoa(unescape(encodeURIComponent(buildExportSvg())));
+      mapSlide.addImage({data:"data:image/svg+xml;base64,"+svgBase64,x:0.35,y:0.72,w:12.6,h:6.5});
       const headers=exportColumns.map(field=>field.label);
       const rowsPerSlide=9;
       for(let offset=0;offset<exportOperations.length;offset+=rowsPerSlide){
@@ -294,7 +333,19 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       onNotice(error instanceof Error?"PowerPoint export failed: "+error.message:"PowerPoint export failed.");
     }
   };
-  const printExport = () => {if(!exportOperations.length||!exportColumns.length){onNotice("Choose at least one field and ensure operations are visible.");return;}window.print();};
+  const printExport = () => {
+    if (!exportOperations.length || !exportColumns.length) { onNotice("Choose at least one field and ensure operations are visible."); return; }
+    const win = window.open("", "_blank");
+    if (!win) { onNotice("Allow pop-ups to print / save the selected process map as PDF."); return; }
+    const esc = (value:unknown) => String(value ?? "").replace(/[&<>"]/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;" }[ch] || ch));
+    const svgUri = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(buildExportSvg());
+    const header = exportColumns.map(field => "<th>" + esc(field.label) + "</th>").join("");
+    const rows = exportOperations.map(op => "<tr>" + exportColumns.map(field => "<td>" + esc(exportValue(op, field.key)) + "</td>").join("") + "</tr>").join("");
+    win.document.open();
+    win.document.write("<!doctype html><html><head><title>AXIMACH Process Map</title><style>@page{size:landscape;margin:12mm}body{font:10px Arial;color:#17283b;margin:0}h1{font-size:20px;margin:0 0 6px}.meta{margin:0 0 14px;color:#52657a}.diagram{border:1px solid #ccd7e2;padding:8px;margin:0 0 14px;page-break-inside:avoid}.diagram img{display:block;width:100%;height:auto;max-height:65vh;object-fit:contain}table{border-collapse:collapse;width:100%;font-size:9px;page-break-inside:auto}thead{display:table-header-group}tr{page-break-inside:avoid}th,td{border:1px solid #c8d2de;padding:5px;text-align:left;vertical-align:top}th{background:#17324d;color:#fff}small{color:#586b7c}</style></head><body><h1>AXIMACH · PROCESS MAP</h1><p class=\"meta\">" + esc(selectedCompany?.name || "") + " · " + esc(selectedPO?.number || "") + " · " + esc(selectedComponent?.partNumber || "") + " · " + exportOperations.length + " operations · " + exportColumns.length + " selected fields</p><div class=\"diagram\"><img src=\"" + svgUri + "\" alt=\"Selected process route diagram\"/></div><table><thead><tr>" + header + "</tr></thead><tbody>" + rows + "</tbody></table><p><small>Generated from saved AXIMACH operation records. Selected scope, fields and arrow setting applied.</small></p><script>window.onload=function(){setTimeout(function(){window.print()},500)};<\/script></body></html>");
+    win.document.close();
+    win.focus();
+  };
 
 
   // Restore the first valid saved route automatically. A blank selector must
@@ -620,7 +671,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <div className="process-export-panel">
           <div className="process-export-fields">{PROCESS_EXPORT_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={exportFields.includes(field.key)} onChange={()=>setExportFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div>
           <div className="process-export-options"><label><input type="checkbox" checked={exportArrows} onChange={event=>setExportArrows(event.target.checked)}/> Connection arrows</label><label>Scope<select value={exportScope} onChange={event=>setExportScope(event.target.value as "visible"|"selected-branch")}><option value="visible">Full visible map</option><option value="selected-branch" disabled={!activeOperation}>Selected branch</option></select></label></div>
-          <div className="process-export-actions"><button type="button" className="button-primary compact-button" onClick={exportCsv}><FileDown size={14}/> CSV</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("svg")}>SVG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("png")}>PNG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportPowerPoint()}><FileText size={14}/> PowerPoint</button><button type="button" className="button-quiet compact-button" onClick={printExport}><Printer size={14}/> Print / Save PDF</button><small>{exportOperations.length} operation(s) · {exportColumns.length} field(s)</small></div>
+          <div className="process-export-actions"><button type="button" className="button-primary compact-button" onClick={exportCsv}><FileDown size={14}/> CSV</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("svg")}>SVG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("png")}>PNG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportPowerPoint()}><FileText size={14}/> PowerPoint</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportExcel()}><FileDown size={14}/> Excel</button><button type="button" className="button-quiet compact-button" onClick={printExport}><Printer size={14}/> Diagram PDF</button><small>{exportOperations.length} operation(s) · {exportColumns.length} field(s)</small></div>
         </div>
         {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
