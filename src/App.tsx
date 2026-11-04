@@ -82,13 +82,12 @@ function App() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
-  const [appearance, setAppearance] = useState<"light"|"dark"|"midnight"|"ocean">(() => { try { const saved=localStorage.getItem("aximach.ui.appearance");
+  const [appearance, setAppearance] = useState<"light"|"dark"|"midnight"|"ocean">(() => { try { const saved=localStorage.getItem("aximach.ui.appearance"); return saved==="dark"||saved==="midnight"||saved==="ocean"?saved:"light"; } catch { return "light"; } });
   const [followUpSeed,setFollowUpSeed] = useState<{name:string;phone:string;company:string;vendorId:string;process:string;operationId:string}>({name:"",phone:"",company:"",vendorId:"",process:"",operationId:""});
   const openVendorFollowUp = (vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string}, operationName="") => {
     setFollowUpSeed({name:vendor.contact,phone:vendor.whatsappNumber||vendor.phone,company:vendor.company,vendorId:vendor.id,process:vendor.processes||"",operationId:operationName});
     selectModule("communications");
   };
- return saved==="dark"||saved==="midnight"||saved==="ocean"?saved:"light"; } catch { return "light"; } });
   useEffect(() => { try { localStorage.setItem("aximach.ui.appearance",appearance); document.documentElement.dataset.theme=appearance; } catch { /* appearance remains active for this session */ } },[appearance]);
 
   const activeModule = modules.find((item) => item.id === activeModuleId) ?? modules[0];
