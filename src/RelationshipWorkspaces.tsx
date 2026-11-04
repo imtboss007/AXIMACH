@@ -115,21 +115,27 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
  const rows=vendors.map(v=>{
   const assigned=operations.filter(op=>op.vendorId===v.id||op.transportVendorId===v.id);
   const contactRows=contacts.filter(c=>c.linkedType==="vendor"&&c.linkedId===v.id);
+  const capabilityDefinitions=definitions.filter(definition=>(definition.vendorIds||[]).includes(v.id));
   const assignedProcesses=[...new Set(assigned.filter(op=>op.vendorId===v.id).map(op=>op.name))];
   const assignedPOs=[...new Set(assigned.map(op=>op.poId).filter(Boolean))];
-  return {vendor:v,assigned,contactRows,assignedProcesses,assignedPOs};
+  return {vendor:v,assigned,contactRows,capabilityDefinitions,assignedProcesses,assignedPOs};
  });
- const filtered=rows.filter(({vendor:v,assigned})=>{
+ const filtered=rows.filter(({vendor:v,assigned,capabilityDefinitions})=>{
   const linkedContacts=contacts.filter(c=>c.linkedType==="vendor"&&c.linkedId===v.id).map(c=>[c.name,c.role,c.phone,c.whatsapp,c.email,c.group].join(" ")).join(" ");
-  const fullText=(v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.email+" "+v.vendorType+" "+v.processes+" "+v.machines+" "+v.materials+" "+v.notes+" "+linkedContacts+" "+assigned.map(op=>op.name+" "+op.category+" "+op.status).join(" ")).toLowerCase();
+  const capabilityText=capabilityDefinitions.map(definition=>[definition.processType,definition.category,...(definition.subcategories||[])].join(" ")).join(" ");
+  const fullText=(v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.email+" "+v.vendorType+" "+v.processes+" "+capabilityText+" "+v.machines+" "+v.materials+" "+v.notes+" "+linkedContacts+" "+assigned.map(op=>op.name+" "+op.category+" "+op.subcategory+" "+op.status).join(" ")).toLowerCase();
   const operationCategory=assigned.map(op=>op.category).join(" ");
-  const operationTypes=assigned.map(op=>op.name+" "+op.subcategory).join(" ");
+  const operationTypes=assigned.map(op=>op.name).join(" ");
+  const operationSubcategories=assigned.map(op=>op.subcategory||"").join(" ");
+  const capabilityCategories=capabilityDefinitions.map(definition=>definition.category).join(" ");
+  const capabilityTypes=capabilityDefinitions.map(definition=>definition.processType).join(" ");
+  const capabilitySubcategories=capabilityDefinitions.flatMap(definition=>definition.subcategories||[]).join(" ");
   const execution=assigned.map(op=>op.executionType||"Outsourced").join(" ");
   return fullText.includes(search.toLowerCase().trim())
    &&(!vendorTypes.length||vendorTypes.includes(v.vendorType||""))
-   &&matchesAny(categories,v.processes+" "+operationCategory)
-   &&matchesAny(processTypes,v.processes+" "+operationTypes)
-   &&matchesAny(subcategories,operationTypes+" "+v.processes)
+   &&matchesAny(categories,capabilityCategories+" "+operationCategory)
+   &&matchesAny(processTypes,capabilityTypes+" "+v.processes+" "+operationTypes)
+   &&matchesAny(subcategories,capabilitySubcategories+" "+operationSubcategories)
    &&matchesAny(executionTypes,execution)
    &&(!onlyAssigned||assigned.length>0);
  });
@@ -150,7 +156,7 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
    {filtered.length?<div className="vendor-record-list">{filtered.map(({vendor:v,assigned,contactRows,assignedProcesses,assignedPOs})=><article className="vendor-record vendor-network-record" key={v.id}>
     <span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span>
     <span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.vendorType||"Vendor type not set"} · {v.contact} · {v.phone||"No phone"}</small>
-     <small>{v.processes||"No process capabilities"} · {v.machines||"Machines not recorded"} · {v.materials||"Materials not recorded"}</small>
+     <small>{[...new Set([...(v.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean),...capabilityDefinitions.map(definition=>definition.processType)])].join(", ")||"No process capabilities"} · {v.machines||"Machines not recorded"} · {v.materials||"Materials not recorded"}</small>
      <small>Linked people: {contactRows.map(c=>c.name+(c.phone?" · "+c.phone:"")).join(" | ")||"No additional contacts"}</small>
      <small>Assigned process: {assignedProcesses.join(", ")||"No process operation assigned"}</small>
      <small>{assigned.length} assigned operation(s) · {assignedPOs.length} PO(s)</small>
