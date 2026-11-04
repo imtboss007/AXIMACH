@@ -153,7 +153,7 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
    </div>
   </section>
   <section className="surface-panel"><div className="panel-heading"><div><h3>Vendors and production assignments</h3><p>{filtered.length} of {vendors.length} vendor records · {operations.length} saved operations scanned.</p></div></div>
-   {filtered.length?<div className="vendor-record-list">{filtered.map(({vendor:v,assigned,contactRows,assignedProcesses,assignedPOs})=><article className="vendor-record vendor-network-record" key={v.id}>
+   {filtered.length?<div className="vendor-record-list">{filtered.map(({vendor:v,assigned,contactRows,capabilityDefinitions,assignedProcesses,assignedPOs})=><article className="vendor-record vendor-network-record" key={v.id}>
     <span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span>
     <span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.vendorType||"Vendor type not set"} · {v.contact} · {v.phone||"No phone"}</small>
      <small>{[...new Set([...(v.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean),...capabilityDefinitions.map(definition=>definition.processType)])].join(", ")||"No process capabilities"} · {v.machines||"Machines not recorded"} · {v.materials||"Materials not recorded"}</small>
