@@ -1001,7 +1001,7 @@
 .process-universe-layouts button{min-height:30px;padding:0 10px;border:1px solid rgba(100,155,205,.28);border-radius:8px;background:rgba(17,40,70,.72);color:#8eaaca;font:700 8px 'DM Mono',monospace}
 .process-universe-layouts button:hover,.process-universe-layouts button.active{border-color:rgba(94,205,232,.7);color:#e3f7ff;background:rgba(37,111,151,.24)}
 .process-universe-3d.mode-route .process-orbit-panel{display:none}
-.process-universe-3d.mode-sphere .process-universe-viewport,.process-universe-3d.mode-vortex .process-universe-viewport,.process-universe-3d.mode-cube .process-universe-viewport,.process-universe-3d.mode-molecular .process-universe-viewport{display:none}
+.process-universe-3d.mode-sphere .process-universe-viewport,.process-universe-3d.mode-vortex .process-universe-viewport,.process-universe-3d.mode-cube .process-universe-viewport,.process-universe-3d.mode-molecular .process-universe-viewport,.process-universe-3d.mode-orbit .process-universe-viewport,.process-universe-3d.mode-digital-mesh .process-universe-viewport{display:none}
 .process-universe-3d.mode-vortex .process-orbit-core{border-radius:44% 56% 62% 38%/42% 54% 46% 58%;filter:hue-rotate(48deg) saturate(1.25)}
 .process-universe-3d.mode-vortex .process-orbit-ring{border-style:dashed;filter:hue-rotate(40deg)}
 .process-universe-3d.mode-vortex .process-orbit-rotator{filter:drop-shadow(0 0 18px rgba(161,105,239,.25))}
@@ -1279,3 +1279,16 @@
 .ax-orb-zoom[aria-pressed="true"]{border-color:rgba(101,197,239,.7);background:rgba(21,80,119,.9);color:#fff}
 .ax-orb-zoom:hover{border-color:rgba(101,197,239,.7);color:#fff}
 @media(prefers-reduced-motion:reduce){.ax-orb-core{transition:none!important}}
+
+/* Additional process-map geometries: orbital mechanics and an explicit mesh surface. */
+.process-universe-3d.mode-orbit .process-orbit-core{background:radial-gradient(circle at 30% 23%,rgba(255,255,255,.98),transparent 23%),radial-gradient(circle at 48% 53%,#6a9ce4 0%,#234b91 58%,#101f48 100%);box-shadow:inset -18px -19px 30px rgba(4,17,44,.45),inset 10px 8px 22px rgba(255,255,255,.38),0 0 40px rgba(76,138,226,.28)}
+.process-universe-3d.mode-orbit .process-orbit-ring-a{width:520px;height:350px;margin:-175px 0 0 -260px;transform:rotateX(69deg) rotateZ(12deg);border:2px solid rgba(87,147,238,.42)}
+.process-universe-3d.mode-orbit .process-orbit-ring-b{width:420px;height:420px;margin:-210px 0 0 -210px;transform:rotateY(66deg) rotateX(9deg);border:1px solid rgba(86,190,231,.52);border-style:solid}
+.process-universe-3d.mode-orbit .process-orbit-rotator{filter:drop-shadow(0 0 19px rgba(72,128,224,.25))}
+.process-universe-3d.mode-digital-mesh .process-orbit-core{background:radial-gradient(circle at 32% 24%,rgba(220,250,255,.35),transparent 24%),radial-gradient(circle at 50% 50%,#174f72,#08243c 72%);border-color:rgba(86,224,232,.72);box-shadow:inset 0 0 32px rgba(82,231,239,.28),0 0 35px rgba(40,196,209,.25)}
+.process-universe-3d.mode-digital-mesh .process-orbit-core-grid{opacity:.8;background-image:repeating-linear-gradient(0deg,transparent 0 12px,rgba(100,235,240,.38) 13px,transparent 14px),repeating-linear-gradient(90deg,transparent 0 12px,rgba(100,235,240,.32) 13px,transparent 14px);transform:rotate(-14deg) scale(1.38);mix-blend-mode:screen}
+.process-universe-3d.mode-digital-mesh .process-orbit-ring{border:1px solid rgba(84,220,230,.5);border-radius:50%;box-shadow:0 0 14px rgba(84,220,230,.12)}
+.process-universe-3d.mode-digital-mesh .process-orbit-ring-a{transform:rotateX(72deg) rotateZ(30deg) scaleY(.78)}
+.process-universe-3d.mode-digital-mesh .process-orbit-ring-b{transform:rotateY(68deg) rotateX(12deg);border-style:solid}
+.process-universe-3d.mode-digital-mesh .process-orbit-node{border-color:rgba(81,196,213,.7);border-top-color:#65e3e8;background:linear-gradient(145deg,#efffff,#dceff4);box-shadow:inset 1px 1px 0 #fff,0 5px 0 rgba(13,77,93,.18),0 9px 22px rgba(13,91,118,.22)}
+@media(prefers-reduced-motion:reduce){.process-universe-3d .process-orbit-rotator{transition:none!important}}
