@@ -4,7 +4,7 @@ import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, Clipboard
 
 type Props = { onSelectModule: (id: string) => void };
 
-type OrbVisualMode = "sphere" | "cube" | "vortex" | "molecular" | "orbit" | "mesh";
+type OrbVisualMode = "sphere" | "cube" | "vortex" | "molecular" | "orbit" | "mesh" | "holographic" | "radial" | "particle" | "industrial" | "kinetic" | "multi-core";
 type OrbSpeed = "Slow" | "Normal" | "Fast";
 function readOrbPreferences(): Record<string, unknown> {
   try { return JSON.parse(window.localStorage.getItem("aximach.orb.preferences.v1") || "{}") as Record<string, unknown>; }
@@ -34,7 +34,7 @@ const satellites = [
 
 export default function AXIMACHOrb({ onSelectModule }: Props) {
   const saved = useRef(readOrbPreferences());
-  const [visualMode, setVisualMode] = useState<OrbVisualMode>(() => ["sphere","cube","vortex","molecular","orbit","mesh"].includes(String(saved.current.mode)) ? saved.current.mode as OrbVisualMode : "sphere");
+  const [visualMode, setVisualMode] = useState<OrbVisualMode>(() => ["sphere","cube","vortex","molecular","orbit","mesh","holographic","radial","particle","industrial","kinetic","multi-core"].includes(String(saved.current.mode)) ? saved.current.mode as OrbVisualMode : "sphere");
   const [speed, setSpeed] = useState<OrbSpeed>(() => ["Slow","Normal","Fast"].includes(String(saved.current.speed)) ? saved.current.speed as OrbSpeed : "Normal");
   const [sphereSize, setSphereSize] = useState(() => Number.isFinite(Number(saved.current.sphereSize)) ? Math.max(.82,Math.min(1.12,Number(saved.current.sphereSize))) : 1);
   const [orbitIntensity, setOrbitIntensity] = useState(() => Number.isFinite(Number(saved.current.orbitIntensity)) ? Math.max(0,Math.min(1,Number(saved.current.orbitIntensity))) : 1);
@@ -184,7 +184,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         <button type="button" className="ax-orb-zoom" aria-pressed={zoomed} onClick={() => setZoomed(value => !value)}>{zoomed ? "− Zoom out" : "+ Zoom in"}</button>
       </div>
       {studioOpen && <div className="ax-orb-studio-panel">
-        <label>Sphere mode<select value={visualMode} onChange={event=>setVisualMode(event.target.value as OrbVisualMode)}><option value="sphere">Classic sphere</option><option value="cube">Geometric cube</option><option value="vortex">Vortex</option><option value="molecular">Molecular network</option><option value="orbit">Orbiting structure</option><option value="mesh">Digital mesh</option></select></label>
+        <label>Sphere mode<select value={visualMode} onChange={event=>setVisualMode(event.target.value as OrbVisualMode)}><option value="sphere">Classic sphere</option><option value="holographic">Holographic</option><option value="cube">Geometric cube</option><option value="vortex">Vortex</option><option value="molecular">Molecular network</option><option value="orbit">Orbiting planetary</option><option value="radial">Radial command</option><option value="mesh">Digital mesh</option><option value="particle">Particle field</option><option value="industrial">Industrial network topology</option><option value="kinetic">Abstract kinetic geometry</option><option value="multi-core">Multi-layer rotating core</option></select></label>
         <label>Rotation speed<select value={speed} onChange={event=>setSpeed(event.target.value as OrbSpeed)}><option>Slow</option><option>Normal</option><option>Fast</option></select></label>
         <label>Sphere size<input type="range" min=".82" max="1.12" step=".01" value={sphereSize} onChange={event=>setSphereSize(Number(event.target.value))}/><small>{Math.round(sphereSize*100)}%</small></label>
         <label>Orbit intensity<input type="range" min="0" max="1" step=".05" value={orbitIntensity} onChange={event=>setOrbitIntensity(Number(event.target.value))}/><small>{Math.round(orbitIntensity*100)}%</small></label>
