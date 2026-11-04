@@ -518,7 +518,6 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       <div className="linked-route-actions">
         <button className="button-primary compact-button" disabled={!selectedLine} onClick={() => startAdd()}><Plus size={14}/> Add operation</button>
         <button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => startAdd(false, true)}><Truck size={14}/> Add transport</button>
-        <button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => startAdd(false,true)}><Truck size={14}/> Add transport</button>
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAdd(true)}><GitBranch size={14}/> Add branch / rework</button>
         <button className="button-quiet compact-button" onClick={() => { setZoom(1); setSearch("");setStatusFilters([]);setExecutionFilters([]);setCategoryFilters([]);setToleranceFilters([]);setPaymentFilters([]);setSelectedOperationIds([]); }}><Search size={14}/> Clear filters</button>
         {onOpenIconStudio && <button className="button-quiet compact-button" onClick={onOpenIconStudio}><Boxes size={14}/> Customise process icons</button>}
