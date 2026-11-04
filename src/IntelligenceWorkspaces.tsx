@@ -105,7 +105,32 @@ export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
  const {data,update}=useManufacturingData();const [type,setType]=useState<"companies"|"components"|"vendors"|"backup">("companies");
  const [fileName,setFileName]=useState("");const [source,setSource]=useState("");const [error,setError]=useState("");const [preview,setPreview]=useState<Record<string,string>[]>([]);
  const parsed=useMemo(()=>source&&type!=="backup"?parseCsv(source):{headers:[],rows:[]},[source,type]);
- const handleFile=async(event:ChangeEvent<HTMLInputElement>)=>{const file=event.target.files?.[0];if(!file)return;setError("");setFileName(file.name);setSource(await file.text());setPreview([]);};
+ const handleFile=async(event:ChangeEvent<HTMLInputElement>)=>{
+  const file=event.target.files?.[0];if(!file)return;
+  setError("");setFileName(file.name);setSource("");setPreview([]);
+  const extension=file.name.toLowerCase().split(".").pop();
+  if(extension==="xlsx"){
+   try{
+    const imported=await import("exceljs");
+    const workbook=new imported.default.Workbook();
+    await workbook.xlsx.load(await file.arrayBuffer());
+    const sheet=workbook.worksheets[0];
+    if(!sheet)throw new Error("The workbook contains no worksheet.");
+    const rows:string[][]=[];
+    sheet.eachRow({includeEmpty:false},row=>{
+     const values:string[]=[];
+     for(let index=1;index<=sheet.columnCount;index++)values.push(row.getCell(index).text||"");
+     while(values.length&&values[values.length-1]==="")values.pop();
+     rows.push(values);
+    });
+    if(!rows.length)throw new Error("The first worksheet is empty.");
+    setSource(rows.map(row=>row.map(csvCell).join(",")).join("\\r\\n"));
+   }catch(e){setError(e instanceof Error?"Excel workbook could not be read: "+e.message:"Excel workbook could not be read.");}
+   return;
+  }
+  if(extension==="csv"||extension==="txt"||extension==="json"){setSource(await file.text());return;}
+  setError("Unsupported file. Choose CSV, TXT, XLSX or an AXIMACH JSON backup.");
+ };
  const validate=()=>{
   setError("");if(type==="backup"){try{const root=JSON.parse(source);const value=root.manufacturing||root;if(!value||!Array.isArray(value.companies)||!Array.isArray(value.purchaseOrders))throw new Error("This file is not an AXIMACH manufacturing JSON backup.");setPreview([{rows:String(Object.keys(value).length),companies:String(value.companies.length),purchaseOrders:String(value.purchaseOrders.length),moduleStores:String(Object.keys(root.moduleStores||{}).length)}]);}catch(e){setError(e instanceof Error?e.message:"Invalid JSON backup.");}return;}
   const result=parsed.rows.map((row,index)=>({...row,__row:String(index+2)}));
@@ -134,16 +159,16 @@ export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
   setPreview([]);setSource("");onNotice("Import committed. Added "+inserted+" record(s); skipped "+skipped+" duplicate or incomplete row(s). Review imported records before operational use.");
  };
  return <section className="workspace-page intelligence-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> VALIDATED DATA IMPORT</span></div>{notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
-  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> DATA EXCHANGE / IMPORT</div><h1>Import Centre<span>.</span></h1><p>Import CSV files exported from Excel or merge an AXIMACH JSON backup. Preview and validate before committing.</p></div><FileUp size={26}/></div>
+  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> DATA EXCHANGE / IMPORT</div><h1>Import Centre<span>.</span></h1><p>Import CSV or native Excel .xlsx files, or merge an AXIMACH JSON backup. Preview and validate before committing.</p></div><FileUp size={26}/></div>
   <section className="surface-panel"><div className="module-record-form specialized-form">
    <label>Import type<select value={type} onChange={e=>{setType(e.target.value as typeof type);setPreview([]);setError("");}}><option value="companies">Company Directory CSV</option><option value="components">Component Directory CSV</option><option value="vendors">Vendor Directory CSV</option><option value="backup">AXIMACH JSON backup</option></select></label>
-   <label>File<input type="file" accept={type==="backup"?".json,application/json":".csv,text/csv,.txt,text/plain"} onChange={handleFile}/></label>
+   <label>File<input type="file" accept={type==="backup"?".json,application/json":".csv,text/csv,.txt,text/plain,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"} onChange={handleFile}/></label>
    {fileName&&<div className="module-form-wide">Selected: {fileName}</div>}
    <div className="module-form-actions"><button className="button-quiet" onClick={validate} disabled={!source}><Search size={14}/> Validate &amp; preview</button><button className="button-primary" onClick={commit} disabled={!preview.length}><Upload size={14}/> Commit import</button></div>
   </div>{error&&<div className="notice-banner"><ShieldAlert size={15}/><span>{error}</span></div>}</section>
   {preview.length>0&&<section className="surface-panel"><div className="panel-heading"><div><h3>Import preview</h3><p>{preview.length} row(s) loaded. Duplicate checking is repeated when you commit.</p></div><span className="module-number">{preview.length} ROWS</span></div>
    <div className="costing-table-wrap"><table className="costing-table"><thead><tr>{Object.keys(preview[0]).slice(0,8).map(k=><th key={k}>{k}</th>)}</tr></thead><tbody>{preview.slice(0,20).map((row,i)=><tr key={i}>{Object.keys(preview[0]).slice(0,8).map(k=><td key={k}>{row[k]}</td>)}</tr>)}</tbody></table></div>
   </section>}
-  <div className="module-safety-note"><ShieldCheck size={15}/><span>Only CSV and AXIMACH JSON backups are parsed here. PDF and native .xlsx parsing are not enabled in this build; save Excel workbooks as CSV first. Imported vendor records are marked unverified. Existing records are preserved and duplicates are skipped.</span></div>
+  <div className="module-safety-note"><ShieldCheck size={15}/><span>CSV and first-worksheet XLSX files are converted to a row preview before import; AXIMACH JSON backups merge by record ID. PDF parsing is not enabled. Imported vendor records are marked unverified. Existing records are preserved and duplicates are skipped.</span></div>
  </section>;
 }
