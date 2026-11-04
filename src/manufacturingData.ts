@@ -14,9 +14,10 @@ export type FactoryRecord = {
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ComponentRecord = {
-  id: string; companyId?: string; partNumber: string; name: string; revision: string; material: string;
-  drawingReference: string; notes: string; salePrice: number; salePriceUnit?: "piece" | "set"; materialQty: number;
-  materialRate: number; benchmarkMaterialRate: number; stockQty: number;
+  id: string; companyId?: string; partNumber: string; name: string; revision: string; material?: string;
+  drawingReference: string; notes: string; salePrice: number; salePriceUnit?: "piece" | "set";
+  // Legacy values remain optional for old records/backups; they are no longer fields in Component Master.
+  materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; stockQty?: number;
   overhead: number; toolingCost: number; reworkCost: number; scrapCost: number;
   rejectedQty: number; gstRate: number; createdAt: string; updatedAt: string; deletedAt?: string;
 };
