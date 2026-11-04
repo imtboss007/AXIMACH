@@ -15,7 +15,9 @@ export type FactoryRecord = {
 };
 export type ComponentRecord = {
   id: string; partNumber: string; name: string; revision: string;
-  orderUnit: "Piece" | "Set"; quantityPerUnit: number;
+  salePriceUnit: "piece" | "set";
+  /** Previous in-app migration fields remain optional so saved records still load. */
+  orderUnit?: "Piece" | "Set"; quantityPerUnit?: number;
   drawingReference: string; notes: string; salePrice: number;
   /** Legacy fields remain readable for existing saved data; they are no longer edited in Component Master. */
   material?: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; stockQty?: number;
@@ -98,8 +100,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     purchaseOrders: Array.isArray(value?.purchaseOrders) ? value.purchaseOrders : empty.purchaseOrders,
     components: Array.isArray(value?.components) ? value.components.map(component => ({
       ...component,
-      orderUnit: component.orderUnit === "Set" ? "Set" as const : "Piece" as const,
-      quantityPerUnit: Number(component.quantityPerUnit) > 0 ? Number(component.quantityPerUnit) : 1
+      salePriceUnit: component.salePriceUnit === "set" ? "set" as const : component.salePriceUnit === "piece" ? "piece" as const : component.orderUnit === "Set" ? "set" as const : "piece" as const
     })) : empty.components,
     vendors: Array.isArray(value?.vendors) ? value.vendors : empty.vendors,
     operations: Array.isArray(value?.operations) ? value.operations : empty.operations,
