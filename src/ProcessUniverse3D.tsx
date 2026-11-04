@@ -24,7 +24,25 @@ export default function ProcessUniverse3D({ operations, selectedOperationId, sim
   const rotateY = useMotionValue(18);
   const reducedMotion = useReducedMotion();
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
-  useAnimationFrame((_time, delta) => { if (!drag.current && !reducedMotion) rotateY.set(rotateY.get() + delta * 0.0048); });
+  const mobileFrameDelta = useRef(0);
+  const [compactViewport, setCompactViewport] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 650px)").matches);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 650px)");
+    const updateCompact = () => setCompactViewport(query.matches);
+    query.addEventListener("change", updateCompact);
+    return () => query.removeEventListener("change", updateCompact);
+  }, []);
+  useAnimationFrame((_time, delta) => {
+    if (drag.current || reducedMotion || document.visibilityState === "hidden") return;
+    let frameDelta = delta;
+    if (compactViewport) {
+      mobileFrameDelta.current += delta;
+      if (mobileFrameDelta.current < 32) return;
+      frameDelta = mobileFrameDelta.current;
+      mobileFrameDelta.current = 0;
+    }
+    rotateY.set(rotateY.get() + frameDelta * 0.0048);
+  });
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     drag.current = { x: event.clientX, y: event.clientY, rx: rotateX.get(), ry: rotateY.get() };
     event.currentTarget.setPointerCapture(event.pointerId);
