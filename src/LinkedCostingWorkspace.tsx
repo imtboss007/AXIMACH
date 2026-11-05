@@ -131,8 +131,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const savedTransportLegTotal = includedTransportLegs.reduce((sum,leg) => sum + Math.max(0,Number(leg.fixedAmount)||0) * Math.max(0,Number(leg.tripCount)||0),0);
   const plannedProcessFromOperations = costedRouteOperations.reduce((sum,op) => sum + op.quantity * op.ratePerPart, 0);
   const actualProcessTotal = costedRouteOperations.reduce((sum,op) => sum + op.quantity * (op.actualRatePerPart || 0), 0);
-  const operationTransportTotal = routeOperations.reduce((sum,op) => sum + Math.max(0, Number(op.transportCost) || 0), 0) + savedTransportLegTotal;
-  const operationPlanned = plannedProcessFromOperations;
+  const operationTransportTotal = costedRouteOperations.reduce((sum,op) => sum + Math.max(0, Number(op.transportCost) || 0), 0) + savedTransportLegTotal;
   const operationActual = actualProcessTotal;
   const extraCharges = overhead + toolingCost + reworkCost + scrapCost;
   const sellingRate = selectedComponent?.salePrice ?? selectedLine?.unitPrice ?? 0;
