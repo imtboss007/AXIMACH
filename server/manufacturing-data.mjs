@@ -14,7 +14,9 @@ export const manufacturingCollections = Object.freeze([
   "plannedCosts",
   "paymentTransactions",
   "inspectionMeasurements",
-  "followUpAssignments"
+  "followUpAssignments",
+  "transportRoutes",
+  "transportLegs"
 ]);
 
 function mergeRows(existingRows, incomingRows) {
