@@ -127,7 +127,8 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const materialCost = materialQty * materialRate;
   const costedRouteOperations = routeOperations.filter(op => op.costIncluded !== false);
   const componentTransportLegs = activeRows(data.transportLegs || []).filter(leg => leg.poId === selectedLine?.poId && leg.poLineId === selectedLine?.lineId && leg.componentId === selectedComponent?.id);
-  const savedTransportLegTotal = componentTransportLegs.reduce((sum,leg) => sum + Math.max(0,Number(leg.fixedAmount)||0) * Math.max(0,Number(leg.tripCount)||0),0);
+  const includedTransportLegs = componentTransportLegs.filter(leg => !leg.anchorOperationId || routeOperations.find(op => op.id === leg.anchorOperationId)?.costIncluded !== false);
+  const savedTransportLegTotal = includedTransportLegs.reduce((sum,leg) => sum + Math.max(0,Number(leg.fixedAmount)||0) * Math.max(0,Number(leg.tripCount)||0),0);
   const plannedProcessFromOperations = costedRouteOperations.reduce((sum,op) => sum + op.quantity * op.ratePerPart, 0);
   const actualProcessTotal = costedRouteOperations.reduce((sum,op) => sum + op.quantity * (op.actualRatePerPart || 0), 0);
   const operationTransportTotal = routeOperations.reduce((sum,op) => sum + Math.max(0, Number(op.transportCost) || 0), 0) + savedTransportLegTotal;
