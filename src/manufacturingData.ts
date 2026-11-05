@@ -68,7 +68,7 @@ export type OperationRecord = {
   paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;
   executionType?: "Internal" | "Outsourced"; toleranceCategory?: "Standard" | "Precision" | "Close" | "Ultra Precision"; inspectionRequired?: boolean;
   transportFrom?: string; transportTo?: string; transportVehicleType?: string; transportRouteId?: string;
-  branch: string; parentId: string; createdAt: string; updatedAt: string; deletedAt?: string;
+  branch: string; parentId: string; relationType?: "subprocess"; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type QuotationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; operationId: string; vendorId: string;
