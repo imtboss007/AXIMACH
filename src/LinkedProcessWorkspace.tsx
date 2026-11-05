@@ -187,7 +187,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const transactions=paymentRowsFor(operation.id);
     return transactions.length?transactions.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0):Math.max(0,Number(operation.paidAmount)||0);
   };
-  const costedOperations = routeOperations.filter(op => (op.branch || "Main route") === "Main route" || op.relationType === "subprocess" || op.costIncluded === true);
+  const costedOperations = routeOperations.filter(op => op.costIncluded !== false);
   const totalProcessCost = costedOperations.reduce((sum, op) => sum + op.quantity * (op.actualRatePerPart || op.ratePerPart), 0);
   const legacyTransportCost = routeOperations.reduce((sum, op) => sum + Math.max(0, Number(op.transportCost) || 0), 0);
   const componentTransportCost = componentTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.fixedAmount) || 0) * Math.max(0, Number(leg.tripCount) || 0), 0);
@@ -886,7 +886,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <label className="editor-wide">Quality / inspection requirement<input value={draft.qualityNotes} onChange={e => setDraft({...draft,qualityNotes:e.target.value})} placeholder="Required checks, acceptance criteria, gauges…"/></label>
             <label className="editor-wide">Inspection result<input value={draft.inspectionResult} onChange={e => setDraft({...draft,inspectionResult:e.target.value})} placeholder="Not inspected, accepted, rejected, actual results…"/></label>
             <label className="editor-wide">Operation notes<input value={draft.notes} onChange={e => setDraft({...draft,notes:e.target.value})} placeholder="Setup, process constraints, delivery instructions"/></label>
-            {(draft.relationType === "alternate" || draft.relationType === "rework") && <label className="editor-wide"><input type="checkbox" checked={draft.costIncluded} onChange={e => setDraft({...draft,costIncluded:e.target.checked})}/> Include this alternate / rework branch in Process Cost</label>}
+            <label className="editor-wide"><input type="checkbox" checked={draft.costIncluded} onChange={e => setDraft({...draft,costIncluded:e.target.checked})}/> Include this operation in Process Cost (untick to exclude it from the active route total)</label>
             <div className="module-form-actions"><button className="button-primary" onClick={saveOperation}><Check size={14}/> {editingId ? "Save changes" : "Save operation"}</button><button className="button-quiet" onClick={() => setShowEditor(false)}>Cancel</button></div>
           </div>
         </section>}
