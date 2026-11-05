@@ -231,7 +231,7 @@ function App() {
         ) : activeModuleId === "process-master" || activeModuleId === "planned-cost" ? (
           <SpecializedDirectoryWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "transport-master" ? (
-          <TransportDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <TransportDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenContact360={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
         ) : activeModuleId === "reports" ? (
           <ReportsAnalyticsWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "ai-insights" ? (
