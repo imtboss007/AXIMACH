@@ -49,25 +49,36 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const companyRollupRows = companyOrders.flatMap(po => po.lines.filter(line=>!("deletedAt" in line && (line as any).deletedAt)).map(line=>{
     const component=components.find(item=>item.id===line.componentId);
     const linkedOperations=operations.filter(op=>op.poId===po.id&&op.poLineId===line.id&&op.componentId===line.componentId);
-    const revenue=line.quantity*(component?.salePrice ?? line.unitPrice ?? 0);
-    const processCost=linkedOperations.filter(op=>op.costIncluded!==false).reduce((sum,op)=>sum+op.quantity*(op.actualRatePerPart||0),0);
     const costedLinkedOperations=linkedOperations.filter(op=>op.costIncluded!==false);
+    const revenue=line.quantity*(component?.salePrice ?? line.unitPrice ?? 0);
+    const processCost=costedLinkedOperations.reduce((sum,op)=>sum+op.quantity*(op.actualRatePerPart||0),0);
     const legacyTransport=costedLinkedOperations.reduce((sum,op)=>sum+Math.max(0,Number(op.transportCost)||0),0);
     const routeTransport=(data.transportLegs||[]).filter(leg=>!leg.deletedAt&&leg.poId===po.id&&leg.poLineId===line.id&&leg.componentId===line.componentId&&(!leg.anchorOperationId||linkedOperations.find(op=>op.id===leg.anchorOperationId)?.costIncluded!==false)).reduce((sum,leg)=>sum+Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0),0);
     const transportCost=legacyTransport+routeTransport;
-    const plannedRows=activeRows(data.plannedCosts).filter(row=>row.componentNumber.trim().toLowerCase()===(component?.partNumber||"").trim().toLowerCase()||row.componentName.trim().toLowerCase()===(component?.name||"").trim().toLowerCase());
-    const plannedCost=plannedRows.length
-      ? plannedRows.reduce((sum,row)=>sum+row.plannedQty*row.plannedRate,0)
-      : linkedOperations.filter(op=>op.costIncluded!==false).reduce((sum,op)=>sum+op.quantity*op.ratePerPart,0);
+    const plannedRows=activeRows(data.plannedCosts).filter(row=>
+      (row.componentNumber.trim().toLowerCase()===(component?.partNumber||"").trim().toLowerCase()||row.componentName.trim().toLowerCase()===(component?.name||"").trim().toLowerCase()) &&
+      (!row.companyName || row.companyName.trim().toLowerCase()===((companies.find(item=>item.id===po.companyId)?.name)||"").trim().toLowerCase()) &&
+      (!row.poNumber || row.poNumber.trim().toLowerCase()===po.number.trim().toLowerCase())
+    );
+    const plannedProcess=costedLinkedOperations.reduce((sum,op)=>sum+op.quantity*Math.max(0,Number(op.ratePerPart)||0),0);
+    const plannedProcessCost=plannedRows.length?plannedRows.reduce((sum,row)=>sum+row.plannedQty*row.plannedRate,0):plannedProcess;
+    const bomLines=data.bomLines.filter(bom=>bom.componentId===line.componentId&&!bom.deletedAt);
+    const bomMaterialQtyPerPart=bomLines.reduce((sum,bom)=>sum+bom.quantityPerPart*(1+bom.scrapPercent/100),0);
+    const bomMaterialRate=bomMaterialQtyPerPart>0?bomLines.reduce((sum,bom)=>sum+bom.quantityPerPart*(1+bom.scrapPercent/100)*(data.materials.find(material=>material.id===bom.materialId)?.ratePerUnit||0),0)/bomMaterialQtyPerPart:0;
+    const materialQty=line.materialQty??((component?.materialQty||0)>0?(component?.materialQty||0)*line.quantity:bomMaterialQtyPerPart*line.quantity);
+    const materialRate=line.materialRate??((component?.materialRate||0)>0?(component?.materialRate||0):bomMaterialRate);
+    const materialCost=materialQty*materialRate;
+    const extras=(line.overhead??component?.overhead??0)+(line.toolingCost??component?.toolingCost??0)+(line.reworkCost??component?.reworkCost??0)+(line.scrapCost??component?.scrapCost??0);
+    const plannedCost=materialCost+plannedProcessCost+transportCost+extras;
+    const recordedCost=materialCost+processCost+transportCost+extras;
     const paid=costedLinkedOperations.reduce((sum,op)=>{
       const txns=paymentTransactionsForCompany.filter(txn=>txn.operationId===op.id);
       return sum+(txns.length?txns.reduce((sub,txn)=>sub+Math.max(0,Number(txn.amount)||0),0):Math.max(0,Number(op.paidAmount)||0));
     },0);
-    const recordedCost=processCost+transportCost;
     const unpaid=Math.max(0,recordedCost-paid);
-    const processVariance=processCost-plannedCost;
-    const vendorIds = [...new Set(costedLinkedOperations.map(op=>op.vendorId).filter(Boolean))];
-    return {po,line,component,linkedOperations,revenue,processCost,transportCost,plannedCost,paid,unpaid,recordedCost,processVariance,profitLoss:revenue-recordedCost,vendorIds};
+    const processVariance=processCost-plannedProcessCost;
+    const vendorIds=[...new Set(costedLinkedOperations.map(op=>op.vendorId).filter(Boolean))];
+    return {po,line,component,linkedOperations,revenue,processCost,transportCost,plannedCost,plannedProcessCost,materialCost,extras,paid,unpaid,recordedCost,processVariance,profitLoss:revenue-recordedCost,vendorIds};
   }));
   const rollupVendorOptions = [...new Set(companyRollupRows.flatMap(row=>row.vendorIds))].map(id=>({id,label:vendors.find(v=>v.id===id)?.company||"Archived vendor"}));
   const rollupComponentOptions = [...new Map(companyRollupRows.filter(row=>row.component).map(row=>[row.component!.id,{id:row.component!.id,label:(row.component!.partNumber||"")+" · "+row.component!.name}])).values()];
