@@ -55,7 +55,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const plannedCost=plannedRows.length
       ? plannedRows.reduce((sum,row)=>sum+row.plannedQty*row.plannedRate,0)
       : linkedOperations.filter(op=>op.costIncluded!==false).reduce((sum,op)=>sum+op.quantity*op.ratePerPart,0);
-    const paid=linkedOperations.reduce((sum,op)=>{
+    const paid=costedLinkedOperations.reduce((sum,op)=>{
       const txns=paymentTransactionsForCompany.filter(txn=>txn.operationId===op.id);
       return sum+(txns.length?txns.reduce((sub,txn)=>sub+Math.max(0,Number(txn.amount)||0),0):Math.max(0,Number(op.paidAmount)||0));
     },0);
@@ -260,7 +260,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   <button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Wallet size={14}/> Update operation payments</button>
 </section>
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTE-TO-OPERATION LINK</div><h3>Process costs for {selectedComponent?.partNumber}</h3><p>Each row references a specific operation ID and PO component line.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><ArrowRight size={14}/> Manage operations</button></div>
-        {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Transport</th><th>Planned process cost</th><th>Payment ledger</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
+        {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Legacy transport (separate)</th><th>Planned process cost (transport excluded)</th><th>Payment ledger</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
           const quoteCount = quotations.filter(q => q.operationId === op.id && !q.deletedAt).length;
           const vendor = vendors.find(v => v.id === op.vendorId);
           const paymentRows=paymentTransactions.filter(payment=>payment.operationId===op.id).sort((a,b)=>(a.paidAt||"").localeCompare(b.paidAt||""));
