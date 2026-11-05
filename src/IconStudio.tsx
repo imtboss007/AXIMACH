@@ -13,7 +13,7 @@ const iconKey = (item: Pick<IconMeta, "name" | "variant">) => `${item.variant}:$
 const families = [
   "General", "CNC Turning", "VMC / Milling", "Wire EDM", "Grinding", "Welding",
   "Heat Treatment", "Surface Finish", "Inspection / Quality", "Assembly",
-  "Transport / Dispatch", "Packaging", "Maintenance", "Material Handling"
+  "Transport / Dispatch", "Finished Job", "Packaging", "Maintenance", "Material Handling"
 ];
 
 const palettes = [
@@ -132,6 +132,7 @@ export function processFamilyForName(value: string) {
   if (/coat|plating|anod|paint|finish|polish/.test(name)) return "Surface Finish";
   if (/inspect|quality|metrology|cmm|measurement|testing/.test(name)) return "Inspection / Quality";
   if (/assembl|fitment|sub assembl/.test(name)) return "Assembly";
+  if (/finished job|job finished|job closeout|job close out/.test(name)) return "Finished Job";
   if (/transport|dispatch|shipping|logistic|delivery/.test(name)) return "Transport / Dispatch";
   if (/pack|packing/.test(name)) return "Packaging";
   if (/maint|repair|service/.test(name)) return "Maintenance";

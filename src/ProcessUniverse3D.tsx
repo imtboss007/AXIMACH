@@ -1,4 +1,4 @@
-import { useMemo, useRef, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import { motion, useAnimationFrame, useMotionValue, useReducedMotion } from "motion/react";
 import { Activity, ArrowRight, Boxes, ClipboardCheck, GitBranch, Truck, Workflow, Wrench } from "lucide-react";
 import type { OperationRecord } from "./manufacturingData";
@@ -16,7 +16,10 @@ function fallbackFor(name: string) {
   return <Workflow size={20} />;
 }
 
+type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular";
+
 export default function ProcessUniverse3D({ operations, selectedOperationId, simulationIndex, zoom, onSelectOperation }: Props) {
+  const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>("sphere");
   const rotateX = useMotionValue(-12);
   const rotateY = useMotionValue(18);
   const reducedMotion = useReducedMotion();
@@ -54,11 +57,14 @@ export default function ProcessUniverse3D({ operations, selectedOperationId, sim
   }, [operations]);
   const stageStyle: CSSProperties = { transform: `scale(${zoom}) rotateX(2deg)`, transformOrigin: "top left", width: `${100 / zoom}%` };
 
-  return <section className="process-universe-3d" aria-label="Interactive 3D process route graph">
+  return <section className={"process-universe-3d mode-" + layoutMode} aria-label="Interactive 3D process route graph">
     <header className="process-universe-head">
       <div><span className="process-universe-kicker"><span /> LIVE ROUTE / INTERACTIVE 3D</span><h3>Manufacturing process universe</h3><p>Drag the process sphere to rotate it. Select any saved process icon to open its real operation record; simulation highlights each step in sequence.</p></div>
       <div className="process-universe-count"><strong>{operations.length}</strong><span>OPERATIONS</span></div>
     </header>
+    <nav className="process-universe-layouts" aria-label="Process map visualisation modes">
+      {([{id:"sphere",label:"Sphere"},{id:"route",label:"Conventional route"},{id:"vortex",label:"Vortex"},{id:"cube",label:"Cube"},{id:"molecular",label:"Molecular"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}>{option.label}</button>)}
+    </nav>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>3D ORBIT · TOUCH / MOUSE DRAG</span></div>
       <div className="process-orbit-viewport">

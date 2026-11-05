@@ -48,7 +48,10 @@ export type OperationRecord = {
   quantity: number; completed: number; accepted: number; rejected: number;
   ratePerPart: number; actualRatePerPart: number; transportVendorId: string; transportPickup: string; transportDelivery: string;
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
-  branch: string; parentId: string; createdAt: string; updatedAt: string; deletedAt?: string;
+  branch: string; parentId: string;
+  dispatchStatus?: "Awaiting pickup" | "Collected" | "In transit" | "Delivered" | "Exception";
+  dispatchReference?: string; dispatchNotes?: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type QuotationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; operationId: string; vendorId: string;
@@ -71,12 +74,23 @@ export type InventoryTransactionRecord = {
   companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string; vendorId: string;
   reversalOfId: string; createdAt: string; createdBy: string;
 };
+export type InvoiceRecord = {
+  id: string; direction: "Payable" | "Receivable"; number: string;
+  counterpartyType: "vendor" | "company" | "other"; counterpartyId: string; counterpartyName: string; poId: string;
+  invoiceDate: string; dueDate: string; subtotalAmount: number; taxAmount: number; totalAmount: number;
+  status: "Draft" | "Approved" | "Disputed" | "Void"; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type PaymentRecord = {
+  id: string; invoiceId: string; paymentDate: string; amount: number; reference: string;
+  method: string; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type ManufacturingData = {
   updatedAt: string;
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
-  inventoryTransactions: InventoryTransactionRecord[];
+  inventoryTransactions: InventoryTransactionRecord[]; invoices: InvoiceRecord[]; payments: PaymentRecord[];
 };
 
 export const nowIso = () => new Date().toISOString();
@@ -88,7 +102,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: []
+  operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: [], invoices: [], payments: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -107,7 +121,9 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
-    inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions
+    inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
+    invoices: Array.isArray(value?.invoices) ? value.invoices : empty.invoices,
+    payments: Array.isArray(value?.payments) ? value.payments : empty.payments
   };
 }
 
@@ -174,7 +190,9 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     quotations: mergeRows(local.quotations, remote.quotations),
     materials: mergeRows(local.materials, remote.materials),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
-    inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions)
+    inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
+    invoices: mergeRows(local.invoices, remote.invoices),
+    payments: mergeRows(local.payments, remote.payments)
   };
 }
 

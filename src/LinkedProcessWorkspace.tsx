@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
+import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import { ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; onOpenIconStudio?: () => void };
+type ProcessExportField = "operation" | "description" | "vendor" | "transportVendor" | "quantity" | "status" | "plannedStart" | "plannedEnd" | "price" | "amount";
+const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
+  {key:"operation",label:"Operation"},{key:"description",label:"Description"},{key:"vendor",label:"Vendor"},
+  {key:"transportVendor",label:"Transport vendor"},{key:"quantity",label:"Quantity"},{key:"status",label:"Status"},
+  {key:"plannedStart",label:"Planned start"},{key:"plannedEnd",label:"Planned target"},
+  {key:"price",label:"Price / piece"},{key:"amount",label:"Process + transport amount"}
+];
 type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch">;
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
   name: "", category: "", machine: "", vendorId: "", status: "Queued", plannedStart: "", plannedEnd: line?.targetDelivery || "", actualStart: "", actualEnd: "",
@@ -39,6 +46,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [showEditor, setShowEditor] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
+  const [exportFields,setExportFields] = useState<ProcessExportField[]>(["operation","quantity","status","plannedStart","plannedEnd"]);
+  const [exportScope,setExportScope] = useState<"visible"|"selected-branch">("visible");
+  const [exportArrows,setExportArrows] = useState(true);
 
   const companyFactories = factories.filter(f => f.companyId === companyId);
   const companyOrders = purchaseOrders.filter(p => p.companyId === companyId && (!factoryId || p.factoryId === factoryId));
@@ -62,6 +72,73 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const durationDays = routeOperations.reduce((sum, op) => sum + daysBetween(op.plannedStart, op.plannedEnd), 0);
   const timelineStart = routeOperations.map(op => op.plannedStart).filter(Boolean).sort()[0] || "";
   const timelineEnd = routeOperations.map(op => op.plannedEnd).filter(Boolean).sort().at(-1) || finalDelivery;
+  const exportColumns = PROCESS_EXPORT_FIELDS.filter(field=>exportFields.includes(field.key));
+  const exportOperations = exportScope === "selected-branch" && activeOperation
+    ? visibleOperations.filter(op=>(op.branch || "Main route") === (activeOperation.branch || "Main route"))
+    : visibleOperations;
+  const exportValue = (op:OperationRecord,key:ProcessExportField):string|number => {
+    switch(key) {
+      case "operation": return op.name;
+      case "description": return op.notes || "";
+      case "vendor": return vendors.find(v=>v.id===op.vendorId)?.company || "";
+      case "transportVendor": return vendors.find(v=>v.id===op.transportVendorId)?.company || "";
+      case "quantity": return op.quantity;
+      case "status": return op.status;
+      case "plannedStart": return op.plannedStart || "";
+      case "plannedEnd": return op.plannedEnd || "";
+      case "price": return op.ratePerPart;
+      case "amount": return op.quantity*op.ratePerPart+op.transportCost;
+    }
+  };
+  const saveExportBlob = (filename:string,blob:Blob) => {
+    const url=URL.createObjectURL(blob),anchor=document.createElement("a");
+    anchor.href=url;anchor.download=filename;anchor.rel="noopener";document.body.appendChild(anchor);anchor.click();anchor.remove();
+    window.setTimeout(()=>URL.revokeObjectURL(url),60000);
+  };
+  const exportFileBase = ["AXIMACH",selectedComponent?.partNumber || "Component",selectedPO?.number || "Process-Map"].join("-").replace(/[^a-z0-9_-]+/gi,"-");
+  const exportCsv = () => {
+    if(!exportOperations.length || !exportColumns.length){onNotice("Choose at least one field and ensure operations are visible.");return;}
+    const cell=(value:unknown)=>'"'+String(value??"").replace(/"/g,'""')+'"';
+    const rows=[exportColumns.map(field=>cell(field.label)).join(","),...exportOperations.map(op=>exportColumns.map(field=>cell(exportValue(op,field.key))).join(","))];
+    saveExportBlob(exportFileBase+".csv",new Blob(["\uFEFF"+rows.join("\r\n")],{type:"text/csv;charset=utf-8"}));
+    onNotice("CSV export prepared from "+exportOperations.length+" saved operation record(s).");
+  };
+  const escapeSvg = (value:unknown)=>String(value??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+  const buildExportSvg = () => {
+    const branches=[...new Set(exportOperations.map(op=>op.branch||"Main route"))];
+    const maxNodes=Math.max(1,...branches.map(branch=>exportOperations.filter(op=>(op.branch||"Main route")===branch).length));
+    const width=Math.max(900,90+maxNodes*270),height=Math.max(240,100+branches.length*190);
+    const svgText=(x:number,y:number,value:unknown,size=12,color="#dceefa",weight=500)=>"<text x=\""+x+"\" y=\""+y+"\" fill=\""+color+"\" font-family=\"Arial\" font-size=\""+size+"\" font-weight=\""+weight+"\">"+escapeSvg(value)+"</text>";
+    const content=branches.map((branch,lane)=>{
+      const rows=exportOperations.filter(op=>(op.branch||"Main route")===branch),y=75+lane*190;
+      const cards=rows.map((op,index)=>{
+        const x=42+index*270,details=exportColumns.filter(field=>field.key!=="operation").slice(0,6);
+        const info=details.map((field,i)=>svgText(x+12,y+75+i*17,field.label+": "+exportValue(op,field.key),10,"#a9c5d7",400)).join("");
+        const arrow=exportArrows&&index<rows.length-1?"<path d=\"M"+(x+222)+" "+(y+45)+"h36\" stroke=\"#62cde0\" stroke-width=\"2\" fill=\"none\" marker-end=\"url(#a)\"/>":"";
+        return arrow+"<rect x=\""+x+"\" y=\""+y+"\" width=\"220\" height=\"150\" rx=\"12\" fill=\"#102c43\" stroke=\"#3c8da9\"/>"+svgText(x+12,y+22,"OP-"+String(op.sequence).padStart(3,"0")+" · "+op.status,9,"#79b6c8",600)+svgText(x+12,y+48,op.name,14,"#effaff",700)+info;
+      }).join("");
+      return svgText(42,y-13,branch+" · "+rows.length+" STAGE(S)",10,"#7cb8ca",700)+cards;
+    }).join("");
+    return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\""+width+"\" height=\""+height+"\" viewBox=\"0 0 "+width+" "+height+"\"><defs><marker id=\"a\" markerWidth=\"8\" markerHeight=\"8\" refX=\"7\" refY=\"4\" orient=\"auto\"><path d=\"M0 0L8 4L0 8Z\" fill=\"#62cde0\"/></marker></defs><rect width=\"100%\" height=\"100%\" fill=\"#071a2b\"/>"+svgText(42,35,(selectedComponent?.partNumber||"AXIMACH")+" · "+(selectedPO?.number||"PROCESS MAP"),19,"#fff",700)+content+"</svg>";
+  };
+  const exportVisual = async (format:"svg"|"png") => {
+    if(!exportOperations.length || !exportColumns.length){onNotice("Choose at least one field and ensure operations are visible.");return;}
+    const blob=new Blob([buildExportSvg()],{type:"image/svg+xml;charset=utf-8"});
+    if(format==="svg"){saveExportBlob(exportFileBase+".svg",blob);onNotice("SVG process map exported from saved records.");return;}
+    const url=URL.createObjectURL(blob);
+    try {
+      const img=new Image();
+      await new Promise<void>((resolve,reject)=>{img.onload=()=>resolve();img.onerror=()=>reject(new Error("Could not render process map PNG."));img.src=url;});
+      const canvas=document.createElement("canvas");canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+      const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Canvas rendering is unavailable.");
+      ctx.drawImage(img,0,0);
+      const png=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("PNG export failed.")),"image/png"));
+      saveExportBlob(exportFileBase+".png",png);onNotice("PNG process map exported from saved records.");
+    } catch(error){onNotice(error instanceof Error?error.message:"Could not export PNG.");}
+    finally{URL.revokeObjectURL(url);}
+  };
+  const printExport = () => {if(!exportOperations.length||!exportColumns.length){onNotice("Choose at least one field and ensure operations are visible.");return;}window.print();};
+
 
   // Restore the first valid saved route automatically. A blank selector must
   // never hide a real PO-line job, route graph, or job-finished control.
@@ -312,6 +389,11 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     <div className="linked-process-layout">
       <section className="surface-panel linked-route-canvas">
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></div>
+        <div className="process-export-panel">
+          <div className="process-export-fields">{PROCESS_EXPORT_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={exportFields.includes(field.key)} onChange={()=>setExportFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div>
+          <div className="process-export-options"><label><input type="checkbox" checked={exportArrows} onChange={event=>setExportArrows(event.target.checked)}/> Connection arrows</label><label>Scope<select value={exportScope} onChange={event=>setExportScope(event.target.value as "visible"|"selected-branch")}><option value="visible">Full visible map</option><option value="selected-branch" disabled={!activeOperation}>Selected branch</option></select></label></div>
+          <div className="process-export-actions"><button type="button" className="button-primary compact-button" onClick={exportCsv}><FileDown size={14}/> CSV</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("svg")}>SVG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("png")}>PNG</button><button type="button" className="button-quiet compact-button" onClick={printExport}><Printer size={14}/> Print / Save PDF</button><small>{exportOperations.length} operation(s) · {exportColumns.length} field(s)</small></div>
+        </div>
         {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
             <label>Operation name *<input value={draft.name} onChange={e => setDraft({...draft,name:e.target.value})} placeholder="CNC turning, VMC milling, heat treatment…"/></label>
@@ -373,6 +455,14 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     </div>
     <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> DETAILED OPERATION LIST</div><h3>Process list ({routeOperations.length} operations)</h3><p>Values remain component- and PO-line-specific.</p></div><span className="module-number">{routeOperations.length} ROWS</span></div>
       {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Seq</th><th>Operation</th><th>Type</th><th>Vendor</th><th>Machine / station</th><th>Planned start</th><th>Planned target</th><th>Days</th><th>Qty</th><th>Accepted</th><th>Status</th><th>Planned rate</th><th>Actual rate</th><th>Process + transport</th></tr></thead><tbody>{routeOperations.map(op => <tr key={op.id} className={activeOperation?.id === op.id ? "linked-table-selected" : ""} onClick={() => setSelectedOperationId(op.id)}><td>{op.sequence}</td><td><button className="inline-module-link" onClick={e=>{e.stopPropagation();setSelectedOperationId(op.id);}}>{op.name}</button></td><td>{op.category || "—"}</td><td>{vendors.find(v=>v.id===op.vendorId)?.company || "Unassigned"}</td><td>{op.machine || "—"}</td><td>{shortDate(op.plannedStart)}</td><td>{shortDate(op.plannedEnd)}</td><td>{daysBetween(op.plannedStart,op.plannedEnd) || "—"}</td><td>{op.quantity.toLocaleString("en-IN")}</td><td>{op.accepted.toLocaleString("en-IN")}</td><td><span className={"record-state state-" + op.status.toLowerCase().replace(/\s+/g,"-")}>{op.status}</span></td><td>{money(op.ratePerPart)}</td><td>{op.actualRatePerPart ? money(op.actualRatePerPart) : "Not entered"}</td><td>{money(op.quantity*op.ratePerPart+op.transportCost)}</td></tr>)}</tbody></table></div> : <div className="vendor-empty">No operation rows for the selected PO component.</div>}
+    </section>
+    <section className="process-export-print-only">
+      <h1>AXIMACH · PROCESS MAP</h1>
+      <p>{selectedComponent?.partNumber || "Component"} · {selectedComponent?.name || ""} · {selectedPO?.number || "No PO"} · {exportOperations.length} operation(s)</p>
+      <table><thead><tr>{exportColumns.map(field=><th key={field.key}>{field.label}</th>)}</tr></thead>
+        <tbody>{exportOperations.map(op=><tr key={op.id}>{exportColumns.map(field=><td key={field.key}>{String(exportValue(op,field.key) ?? "")}</td>)}</tr>)}</tbody>
+      </table>
+      <small>Generated from saved AXIMACH operation records. Current export scope and selected fields applied.</small>
     </section>
     <div className="module-safety-note"><ShieldCheck size={15}/><span>Each route is keyed by PO line and component ID; no example company, PO, part number, quote or vendor is preloaded. Server-wide cross-device sync requires the existing AXIMACH server to be deployed with persistent storage and configured in Communication & Follow-up.</span></div>
   </section>;

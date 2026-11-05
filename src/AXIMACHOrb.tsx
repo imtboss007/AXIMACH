@@ -1,8 +1,15 @@
-import { useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, useAnimationFrame, useMotionValue, useReducedMotion } from "motion/react";
 import { Activity, Boxes, Factory, ShieldCheck, Workflow } from "lucide-react";
 
 type Props = { onSelectModule: (id: string) => void };
+
+type OrbVisualMode = "sphere" | "cube" | "vortex" | "molecular" | "orbit" | "mesh";
+type OrbSpeed = "Slow" | "Normal" | "Fast";
+function readOrbPreferences(): Record<string, unknown> {
+  try { return JSON.parse(window.localStorage.getItem("aximach.orb.preferences.v1") || "{}") as Record<string, unknown>; }
+  catch { return {}; }
+}
 
 const satellites = [
   { id: "companies", label: "Factory", Icon: Factory, className: "factory" },
@@ -13,6 +20,17 @@ const satellites = [
 ];
 
 export default function AXIMACHOrb({ onSelectModule }: Props) {
+  const saved = useRef(readOrbPreferences());
+  const [visualMode, setVisualMode] = useState<OrbVisualMode>(() => ["sphere","cube","vortex","molecular","orbit","mesh"].includes(String(saved.current.mode)) ? saved.current.mode as OrbVisualMode : "sphere");
+  const [speed, setSpeed] = useState<OrbSpeed>(() => ["Slow","Normal","Fast"].includes(String(saved.current.speed)) ? saved.current.speed as OrbSpeed : "Normal");
+  const [sphereSize, setSphereSize] = useState(() => Number.isFinite(Number(saved.current.sphereSize)) ? Math.max(.82,Math.min(1.12,Number(saved.current.sphereSize))) : 1);
+  const [orbitIntensity, setOrbitIntensity] = useState(() => Number.isFinite(Number(saved.current.orbitIntensity)) ? Math.max(0,Math.min(1,Number(saved.current.orbitIntensity))) : 1);
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(saved.current.reduceMotion === true);
+  useEffect(() => {
+    try { window.localStorage.setItem("aximach.orb.preferences.v1", JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion})); } catch { /* Preferences are optional. */ }
+  }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion]);
   const rotateX = useMotionValue(-15);
   const rotateY = useMotionValue(22);
   const reducedMotion = useReducedMotion();
@@ -20,7 +38,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
 
   // The globe keeps rotating gently at rest; direct pointer/touch rotation takes precedence.
   useAnimationFrame((_time, delta) => {
-    if (!drag.current && !reducedMotion) rotateY.set(rotateY.get() + delta * 0.0065);
+    if (!drag.current && !reducedMotion && !reduceMotion && !paused) rotateY.set(rotateY.get() + delta * (speed === "Slow" ? 0.0028 : speed === "Fast" ? 0.011 : 0.0065));
   });
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -35,7 +53,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const endDrag = () => { drag.current = null; };
 
   return (
-    <div className="ax-orb-stage">
+    <div className={"ax-orb-stage ax-orb-mode-" + visualMode}>
       <div className="ax-orb-stage-grid" />
       <div className="ax-orb-status ax-orb-status-top"><span /> AXIMACH / CONNECTED OPERATIONS</div>
       <motion.div
@@ -52,20 +70,34 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         <div className="ax-orb-depth">
           <motion.div
             className="ax-orb-ring ax-orb-ring-one"
-            animate={reducedMotion ? undefined : { rotate: 360 }}
-            transition={{ duration: 32, repeat: Infinity, ease: "linear" }}
+            style={{ opacity: orbitIntensity }}
+            animate={reducedMotion || reduceMotion || paused ? undefined : { rotate: 360 }}
+            transition={{ duration: speed === "Fast" ? 20 : speed === "Slow" ? 55 : 32, repeat: Infinity, ease: "linear" }}
           />
           <motion.div
             className="ax-orb-ring ax-orb-ring-two"
-            animate={reducedMotion ? undefined : { rotate: -360 }}
-            transition={{ duration: 46, repeat: Infinity, ease: "linear" }}
+            style={{ opacity: orbitIntensity }}
+            animate={reducedMotion || reduceMotion || paused ? undefined : { rotate: -360 }}
+            transition={{ duration: speed === "Fast" ? 28 : speed === "Slow" ? 72 : 46, repeat: Infinity, ease: "linear" }}
           />
           <motion.div
             className="ax-orb-core"
-            style={{ rotateX, rotateY, transformPerspective: 950 }}
-            animate={reducedMotion ? undefined : { y: [0, -5, 0] }}
+            style={{ rotateX, rotateY, transformPerspective: 950, scale: sphereSize }}
+            animate={reducedMotion || reduceMotion || paused ? undefined : { y: [0, -5, 0] }}
             transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
           >
+            <span className="ax-orb-cube-geometry" aria-hidden="true">
+              <i className="ax-orb-cube-face ax-cube-front"/><i className="ax-orb-cube-face ax-cube-back"/>
+              <i className="ax-orb-cube-face ax-cube-right"/><i className="ax-orb-cube-face ax-cube-left"/>
+              <i className="ax-orb-cube-face ax-cube-top"/><i className="ax-orb-cube-face ax-cube-bottom"/>
+            </span>
+            <span className="ax-orb-vortex-geometry" aria-hidden="true" style={{ animationPlayState: reducedMotion || reduceMotion || paused ? "paused" : "running" }}><i/><i/><i/><i/></span>
+            <span className="ax-orb-molecular-geometry" aria-hidden="true">
+              <svg viewBox="0 0 200 200">
+                <g className="ax-network-links"><path d="M35 48L92 26L151 51L164 119L110 163L49 143L35 48M92 26L110 163M35 48L164 119M151 51L49 143M35 48L110 163M92 26L49 143"/></g>
+                <g className="ax-network-nodes"><circle cx="35" cy="48" r="7"/><circle cx="92" cy="26" r="8"/><circle cx="151" cy="51" r="6"/><circle cx="164" cy="119" r="8"/><circle cx="110" cy="163" r="7"/><circle cx="49" cy="143" r="6"/></g>
+              </svg>
+            </span>
             <span className="ax-orb-gloss" />
             <span className="ax-orb-latitude ax-orb-latitude-one" />
             <span className="ax-orb-latitude ax-orb-latitude-two" />
@@ -81,8 +113,9 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
           </motion.div>
           <motion.div
             className="ax-orb-orbit-line"
-            animate={reducedMotion ? undefined : { rotate: -360 }}
-            transition={{ duration: 58, repeat: Infinity, ease: "linear" }}
+            style={{ opacity: orbitIntensity }}
+            animate={reducedMotion || reduceMotion || paused ? undefined : { rotate: -360 }}
+            transition={{ duration: speed === "Fast" ? 34 : speed === "Slow" ? 90 : 58, repeat: Infinity, ease: "linear" }}
           />
           {satellites.map(({ id, label, Icon, className }, index) => (
             <motion.button
@@ -105,6 +138,18 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         </div>
       </motion.div>
       <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> DRAG THE SPHERE TO ROTATE <i /> SELECT AN ORBIT NODE TO OPEN A WORKSPACE</div>
+      <div className="ax-orb-studio-actions">
+        <button type="button" className="ax-orb-studio-toggle" aria-expanded={studioOpen} onClick={() => setStudioOpen(value => !value)}>✧ Visual Experience Studio <span>{studioOpen ? "Close" : "Customize"}</span></button>
+        <button type="button" className="ax-orb-pause" onClick={() => setPaused(value => !value)}>{paused ? "Resume motion" : "Pause motion"}</button>
+      </div>
+      {studioOpen && <div className="ax-orb-studio-panel">
+        <label>Sphere mode<select value={visualMode} onChange={event=>setVisualMode(event.target.value as OrbVisualMode)}><option value="sphere">Classic sphere</option><option value="cube">Geometric cube</option><option value="vortex">Vortex</option><option value="molecular">Molecular network</option><option value="orbit">Orbiting structure</option><option value="mesh">Digital mesh</option></select></label>
+        <label>Rotation speed<select value={speed} onChange={event=>setSpeed(event.target.value as OrbSpeed)}><option>Slow</option><option>Normal</option><option>Fast</option></select></label>
+        <label>Sphere size<input type="range" min=".82" max="1.12" step=".01" value={sphereSize} onChange={event=>setSphereSize(Number(event.target.value))}/><small>{Math.round(sphereSize*100)}%</small></label>
+        <label>Orbit intensity<input type="range" min="0" max="1" step=".05" value={orbitIntensity} onChange={event=>setOrbitIntensity(Number(event.target.value))}/><small>{Math.round(orbitIntensity*100)}%</small></label>
+        <label className="ax-orb-motion-setting"><input type="checkbox" checked={reduceMotion} onChange={event=>setReduceMotion(event.target.checked)}/> Reduce motion</label>
+        <button type="button" className="ax-orb-reset" onClick={()=>{setVisualMode("sphere");setSpeed("Normal");setSphereSize(1);setOrbitIntensity(1);setReduceMotion(false);setPaused(false);}}>Reset preferences</button>
+      </div>}
       <motion.div className="ax-orb-coordinate" animate={reducedMotion ? undefined : { opacity: [0.45, 1, 0.45] }} transition={{ duration: 4.5, repeat: Infinity }}>AX / 360° / LIVE DATA SURFACE</motion.div>
     </div>
   );
