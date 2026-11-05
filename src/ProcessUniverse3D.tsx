@@ -23,7 +23,8 @@ function fallbackFor(name: string) {
 
 type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh";
 
-export default function ProcessUniverse3D({ operations, selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess }: Props) {\n  const [expandedOperationId, setExpandedOperationId] = useState("");\n  const parentOperations = useMemo(() => operations.filter(operation => !operation.parentId || !operations.some(parent => parent.id === operation.parentId)), [operations]);\n  const subprocessesFor = (parentId: string) => operations.filter(operation => operation.parentId === parentId);
+export default function ProcessUniverse3D({ operations, selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess }: Props) {
+  const [expandedOperationId, setExpandedOperationId] = useState("");\n  const parentOperations = useMemo(() => operations.filter(operation => !operation.parentId || !operations.some(parent => parent.id === operation.parentId)), [operations]);\n  const subprocessesFor = (parentId: string) => operations.filter(operation => operation.parentId === parentId);
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>("sphere");
   const rotateX = useMotionValue(-12);
   const rotateY = useMotionValue(18);
@@ -112,16 +113,18 @@ export default function ProcessUniverse3D({ operations, selectedOperationId, sim
         <div className="process-universe-lane-label"><span className="process-universe-branch-icon">{lane.alternate ? <GitBranch size={15}/> : <Workflow size={15}/>}</span><span><strong>{lane.name}</strong><small>{lane.alternate ? "Alternate / rework branch" : "Primary manufacturing route"}</small></span><em>{lane.rows.length} STEP{lane.rows.length === 1 ? "" : "S"}</em></div>
         <div className="process-universe-node-track">{lane.rows.map((operation,index) => {
           const globalIndex = parentOperations.findIndex(item => item.id === operation.id);
-          const active = selectedOperationId === operation.id, current = simulationIndex === globalIndex, passed = simulationIndex > globalIndex;\n          const childOperations = subprocessesFor(operation.id);\n          const expanded = expandedOperationId === operation.id;
+          const active = selectedOperationId === operation.id, current = simulationIndex === globalIndex, passed = simulationIndex > globalIndex;
+          const childOperations = subprocessesFor(operation.id);\n          const expanded = expandedOperationId === operation.id;
           const state = operation.status.toLowerCase().replaceAll(" ","-");
           return <div className="process-universe-node-wrap" key={operation.id}>
-            <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} onClick={() => onSelectOperation(operation.id)} aria-pressed={active} title={"Open " + operation.name + " operation record"}>
+            <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={"Open " + operation.name + " operation record"}>
               <span className="process-universe-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><em>{operation.status}</em></span>
               <span className="process-universe-node-icon"><ProcessIcon processName={operation.name} fallback={fallbackFor(operation.name)} /></span>
               <strong>{operation.name}</strong>{childOperations.length > 0 && <small className="process-universe-node-category">{childOperations.length} sub-process(es) · {childOperations[0].vendorId ? "vendor linked" : "vendor assignment pending"}</small>}<small className="process-universe-node-category">{operation.category || operation.machine || "Manufacturing operation"}</small>
               <span className="process-universe-qty"><b>{operation.completed.toLocaleString("en-IN")}</b> / {operation.quantity.toLocaleString("en-IN")} pcs</span>
               {operation.machine && <span className="process-universe-machine">{operation.machine}</span>}
             </button>
+            {expanded && <div className="process-node-subprocess-dropdown"><strong>{operation.name} · Sub-processes</strong>{childOperations.map(child => <button type="button" key={child.id} onClick={() => onSelectOperation(child.id)}><span>{child.name}</span><small>{child.status} · {child.machine || "Machine not set"}</small></button>)}<button type="button" className="process-node-add-subprocess" onClick={() => onAddSubprocess?.(operation.id)}>＋ Add sub-process</button></div>}
             {index < lane.rows.length - 1 && <span className="process-universe-connector" aria-hidden="true"><ArrowRight size={17}/></span>}
           </div>;
         })}</div>
