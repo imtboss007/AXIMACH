@@ -189,8 +189,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   };
   const costedOperations = routeOperations.filter(op => op.costIncluded !== false);
   const totalProcessCost = costedOperations.reduce((sum, op) => sum + op.quantity * (op.actualRatePerPart || op.ratePerPart), 0);
-  const legacyTransportCost = routeOperations.reduce((sum, op) => sum + Math.max(0, Number(op.transportCost) || 0), 0);
-  const componentTransportCost = componentTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.fixedAmount) || 0) * Math.max(0, Number(leg.tripCount) || 0), 0);
+  const legacyTransportCost = costedOperations.reduce((sum, op) => sum + Math.max(0, Number(op.transportCost) || 0), 0);
+  const includedTransportLegs = componentTransportLegs.filter(leg => !leg.anchorOperationId || routeOperations.find(operation => operation.id === leg.anchorOperationId)?.costIncluded !== false);
+  const componentTransportCost = includedTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.fixedAmount) || 0) * Math.max(0, Number(leg.tripCount) || 0), 0);
   const totalTransportCost = legacyTransportCost + componentTransportCost;
   const componentTotalCost = totalProcessCost + totalTransportCost;
   const expectedQuantity = selectedLine?.quantity || 0;
@@ -505,6 +506,26 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     onNotice((kind === "alternate" ? "Alternate route" : "Rework branch") + " will connect from " + anchor.name + ". It is excluded from Process Cost until you include it in costing.");
   };
 
+  const startAddBranchStep = () => {
+    const anchor = activeOperation;
+    if (!anchor || !anchor.parentId || (anchor.relationType !== "alternate" && anchor.relationType !== "rework")) {
+      onNotice("Select an operation already inside an alternate or rework branch first."); return;
+    }
+    const base = blankOperation(selectedLine);
+    base.branch = anchor.branch;
+    base.category = anchor.category;
+    base.vendorId = anchor.vendorId;
+    base.executionType = anchor.executionType || "Outsourced";
+    base.parentId = anchor.parentId;
+    base.relationType = anchor.relationType;
+    base.costIncluded = false;
+    setDraft(base);
+    setSelectedOperationId(anchor.id);
+    setEditingId("");
+    setShowEditor(true);
+    onNotice("New step will be added to the same branch connected to its original process node.");
+  };
+
   const editActive = (operationId?: string) => {
     const targetOperation = operationId ? routeOperations.find(op=>op.id===operationId) : activeOperation;
     if (!targetOperation) return;
@@ -750,6 +771,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => openTransportEditor()}><Truck size={14}/> Add transport leg</button>
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("alternate")}><GitBranch size={14}/> Alternate route from selected</button>
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("rework")}><GitBranch size={14}/> Rework branch from selected</button>
+        {(activeOperation?.relationType === "alternate" || activeOperation?.relationType === "rework") && <button className="button-quiet compact-button" disabled={!selectedLine} onClick={startAddBranchStep}><Plus size={14}/> Add step to selected branch</button>}
         <button className="button-quiet compact-button" onClick={() => { setZoom(1); setSearch("");setStatusFilters([]);setExecutionFilters([]);setCategoryFilters([]);setToleranceFilters([]);setPaymentFilters([]);setVendorFilters([]);setDateFrom("");setDateTo("");setMinQuantity("");setMaxQuantity("");setMinPrice("");setMaxPrice("");setMinAmount("");setMaxAmount("");setSelectedOperationIds([]); }}><Search size={14}/> Clear filters</button>
         {onOpenIconStudio && <button className="button-quiet compact-button" onClick={onOpenIconStudio}><Boxes size={14}/> Customise process icons</button>}
       </div>
