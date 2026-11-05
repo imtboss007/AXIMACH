@@ -455,7 +455,10 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     setSelectedOperationId(parentId);
     setEditingId("");
     setShowEditor(true);
-    onNotice("Add a sub-process under " + parent.name + ". The parent vendor is preselected; you can keep or change it.");\n  };\n\n  const startAdd = (branch = false, transport = false) => {
+    onNotice("Add a sub-process under " + parent.name + ". The parent vendor is preselected; you can keep or change it.");
+  };
+
+  const startAdd = (branch = false, transport = false) => {
     if (!selectedPO || !selectedLine || !selectedComponent) {
       onNotice("Select a saved company, purchase order and PO component line first. AXIMACH will then link every operation to that line.");
       return;
