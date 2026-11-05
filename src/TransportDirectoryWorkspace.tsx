@@ -11,6 +11,9 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
   const routes = activeRows(data.transportRoutes || []);
   const vendors = activeRows(data.vendors);
   const [search, setSearch] = useState("");
+  const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
+  const [selectedDirections, setSelectedDirections] = useState<string[]>([]);
+  const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
   const [editingId, setEditingId] = useState("");
   const [vendorId, setVendorId] = useState("");
   const [fromLocation, setFromLocation] = useState("");
@@ -21,9 +24,17 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
   const [notes, setNotes] = useState("");
   const filtered = useMemo(() => routes.filter(route => {
     const vendor = vendors.find(row => row.id === route.vendorId);
-    return [route.fromLocation, route.toLocation, route.tripDirection, route.vehicleType, route.notes, vendor?.company || "", vendor?.contact || ""]
+    const textMatch = [route.fromLocation, route.toLocation, route.tripDirection, route.vehicleType, route.notes, vendor?.company || "", vendor?.contact || ""]
       .join(" ").toLowerCase().includes(search.trim().toLowerCase());
-  }), [routes, vendors, search]);
+    return textMatch &&
+      (!selectedVehicles.length || selectedVehicles.includes(route.vehicleType)) &&
+      (!selectedDirections.length || selectedDirections.includes(route.tripDirection)) &&
+      (!selectedVendors.length || selectedVendors.includes(route.vendorId));
+  }), [routes, vendors, search, selectedVehicles, selectedDirections, selectedVendors]);
+  const allFiltersSelected = !selectedVehicles.length && !selectedDirections.length && !selectedVendors.length;
+  const toggleFilter = (value: string, selected: string[], setter: (next: string[]) => void) =>
+    setter(selected.includes(value) ? selected.filter(item => item !== value) : [...selected, value]);
+  const clearFilters = () => { setSearch(""); setSelectedVehicles([]); setSelectedDirections([]); setSelectedVendors([]); };
   const reset = () => { setEditingId(""); setVendorId(""); setFromLocation(""); setToLocation(""); setTripDirection("One-way"); setVehicleType(VEHICLES[2]); setFixedAmount(""); setNotes(""); };
   const save = () => {
     if (!vendorId || !fromLocation.trim() || !toLocation.trim() || !vehicleType.trim()) { onNotice("Select a vendor and enter both route locations and a vehicle type."); return; }
@@ -59,6 +70,16 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
       <button className="button-quiet compact-button" onClick={() => onSelectModule("vendors")}><Users size={14}/> Vendor Directory</button>
       <button className="button-quiet compact-button" onClick={() => onSelectModule("contact360")}><Users size={14}/> Contact 360</button>
     </div>
+    <section className="surface-panel transport-filter-panel">
+      <div className="panel-heading"><div><h3>Filter transport routes</h3><p>Select All to show every saved route, or tick any combination of filters.</p></div><button type="button" className="button-quiet compact-button" onClick={clearFilters}>Clear filters</button></div>
+      <div className="transport-filter-groups">
+        <fieldset><legend>Route selection</legend><label><input type="checkbox" checked={allFiltersSelected} onChange={clearFilters}/> All routes</label></fieldset>
+        <fieldset><legend>Vehicle type</legend>{VEHICLES.map(value => <label key={value}><input type="checkbox" checked={selectedVehicles.includes(value)} onChange={() => toggleFilter(value, selectedVehicles, setSelectedVehicles)}/>{value}</label>)}</fieldset>
+        <fieldset><legend>Trip direction</legend>{["One-way", "Two-way"].map(value => <label key={value}><input type="checkbox" checked={selectedDirections.includes(value)} onChange={() => toggleFilter(value, selectedDirections, setSelectedDirections)}/>{value}</label>)}</fieldset>
+        <fieldset><legend>Transport vendor</legend>{vendors.map(vendor => <label key={vendor.id}><input type="checkbox" checked={selectedVendors.includes(vendor.id)} onChange={() => toggleFilter(vendor.id, selectedVendors, setSelectedVendors)}/>{vendor.company}</label>)}</fieldset>
+      </div>
+      <p className="transport-filter-result">Showing {filtered.length} of {routes.length} saved routes</p>
+    </section>
     <section className="surface-panel">
       <div className="panel-heading"><div><h3>{editingId ? "Edit fixed route rate" : "Add transport route"}</h3><p>Save one rate for each route, vehicle and trip direction. Select a different rate record for a one-way or round trip.</p></div><Truck size={19}/></div>
       <div className="module-form-grid">
