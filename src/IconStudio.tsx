@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { tablerIconCatalogue } from "./tablerIconCatalogue";
+import { MechanicalOperationIcon, mechanicalGlyphForOperation } from "./MechanicalOperationIcon";
 
 type IconMeta = { name: string; category?: string; tags?: string[]; version?: string; unicode?: string; variant: "outline" | "filled" };
 type IconAssignment = { iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string };
@@ -158,7 +159,7 @@ export function ProcessIcon({ processName, fallback }: { processName: string; fa
     };
   }, []);
   const assignment = assignments[`process:${normaliseWords(processName)}`] || assignments[family];
-  if (!assignment) return <span className="linked-node-icon linked-node-icon-3d"><span className="linked-node-icon-fallback">{fallback}</span></span>;
+  if (!assignment) return <span className="linked-node-icon linked-node-icon-3d">{mechanicalGlyphForOperation(processName) ? <MechanicalOperationIcon operation={processName} /> : <span className="linked-node-icon-fallback">{fallback}</span>}</span>;
   const palette = palettes.find((item) => item.name === assignment.palette) || palettes[0];
   return (
     <span className={`linked-node-icon linked-node-icon-3d ax-process-icon ax-icon-finish-${normaliseWords(assignment.finish).replaceAll(" ", "-")}`} style={{ "--ax-icon-accent": palette.color, "--ax-icon-depth": assignment.depth, "--ax-icon-tilt": assignment.tilt + "deg" } as CSSProperties} title={`Saved ${family} icon: ${assignment.iconName}`}>
