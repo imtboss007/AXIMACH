@@ -476,11 +476,30 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     }
     const base = blankOperation(selectedLine);
     if (transport) { base.name = "Transport / handover"; base.category = "Logistics"; base.branch = "Main route"; }
-    if (branch && activeOperation) { base.branch = "Alternate / rework"; base.name = "Alternate / rework operation"; }
+    if (branch && activeOperation) { base.branch = "Rework · OP-" + String(activeOperation.sequence).padStart(3,"0"); base.name = "Rework operation"; base.parentId = activeOperation.id; base.relationType = "rework"; base.costIncluded = false; }
     setDraft(base);
     setEditingId("");
     setShowEditor(true);
   };
+  const startAddBranch = (kind: "alternate" | "rework", anchorId?: string) => {
+    const anchor = routeOperations.find(operation => operation.id === (anchorId || activeOperation?.id));
+    if (!selectedPO || !selectedLine || !selectedComponent || !anchor) { onNotice("Select the exact process node where the alternate or rework branch must connect."); return; }
+    const base = blankOperation(selectedLine);
+    base.branch = (kind === "alternate" ? "Alternate route" : "Rework") + " · OP-" + String(anchor.sequence).padStart(3, "0") + " · " + anchor.name;
+    base.name = kind === "alternate" ? "Alternate route operation" : "Rework operation";
+    base.category = anchor.category;
+    base.vendorId = anchor.vendorId;
+    base.executionType = anchor.executionType || "Outsourced";
+    base.parentId = anchor.id;
+    base.relationType = kind;
+    base.costIncluded = false;
+    setDraft(base);
+    setSelectedOperationId(anchor.id);
+    setEditingId("");
+    setShowEditor(true);
+    onNotice((kind === "alternate" ? "Alternate route" : "Rework branch") + " will connect from " + anchor.name + ". It is excluded from Process Cost until you include it in costing.");
+  };
+
   const editActive = (operationId?: string) => {
     const targetOperation = operationId ? routeOperations.find(op=>op.id===operationId) : activeOperation;
     if (!targetOperation) return;
@@ -490,7 +509,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       status: targetOperation.status, plannedStart: targetOperation.plannedStart, plannedEnd: targetOperation.plannedEnd, actualStart: targetOperation.actualStart || "", actualEnd: targetOperation.actualEnd || "",
       quantity: targetOperation.quantity, completed: targetOperation.completed, accepted: targetOperation.accepted, rejected: targetOperation.rejected,
       ratePerPart: targetOperation.ratePerPart, processCostTotal: targetOperation.quantity * targetOperation.ratePerPart, actualRatePerPart: targetOperation.actualRatePerPart || 0, transportVendorId: targetOperation.transportVendorId || "", transportFrom:targetOperation.transportFrom||"",transportTo:targetOperation.transportTo||"",transportVehicleType:targetOperation.transportVehicleType||"",transportRouteId:targetOperation.transportRouteId||"", transportCost: targetOperation.transportCost, transportPickup: targetOperation.transportPickup,
-      transportDelivery: targetOperation.transportDelivery, qualityNotes: targetOperation.qualityNotes, inspectionResult: targetOperation.inspectionResult || "", notes: targetOperation.notes, branch: targetOperation.branch, paymentStatus:targetOperation.paymentStatus||"Unpaid", paidAmount:paymentTotalFor(targetOperation), paymentReference:targetOperation.paymentReference||"", subcategory:targetOperation.subcategory||""
+      transportDelivery: targetOperation.transportDelivery, qualityNotes: targetOperation.qualityNotes, inspectionResult: targetOperation.inspectionResult || "", notes: targetOperation.notes, branch: targetOperation.branch, parentId:targetOperation.parentId||"", relationType:targetOperation.relationType, costIncluded:targetOperation.costIncluded ?? (targetOperation.relationType !== "alternate" && targetOperation.relationType !== "rework"), paymentStatus:targetOperation.paymentStatus||"Unpaid", paidAmount:paymentTotalFor(targetOperation), paymentReference:targetOperation.paymentReference||"", subcategory:targetOperation.subcategory||""
     });
     setEditingId(targetOperation.id); setShowEditor(true);
   };
