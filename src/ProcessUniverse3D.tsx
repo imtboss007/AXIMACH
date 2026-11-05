@@ -10,7 +10,12 @@ function fallbackFor(name: string) {
   const value = name.toLowerCase();
   if (/transport|dispatch|ship|logistic|delivery/.test(value)) return <Truck size={20} />;
   if (/inspect|quality|measure|test|cmm/.test(value)) return <ClipboardCheck size={20} />;
-  if (/cnc|vmc|hmc|machining centre|machining center/.test(value)) return <Cpu size={20} />;\n  if (/turn|lathe|shaft/.test(value)) return <Disc3 size={20} />;\n  if (/mill|drill|boring|tapping/.test(value)) return <Cog size={20} />;\n  if (/wire edm|edm|spark erosion|laser/.test(value)) return <Zap size={20} />;\n  if (/weld|fabricat|cutting|shear/.test(value)) return <Scissors size={20} />;\n  if (/grind|honing|lapping|polish/.test(value)) return <Wrench size={20} />;
+  if (/cnc|vmc|hmc|machining centre|machining center/.test(value)) return <Cpu size={20} />;
+  if (/turn|lathe|shaft/.test(value)) return <Disc3 size={20} />;
+  if (/mill|drill|boring|tapping/.test(value)) return <Cog size={20} />;
+  if (/wire edm|edm|spark erosion|laser/.test(value)) return <Zap size={20} />;
+  if (/weld|fabricat|cutting|shear/.test(value)) return <Scissors size={20} />;
+  if (/grind|honing|lapping|polish/.test(value)) return <Wrench size={20} />;
   if (/material|stock|store|warehouse/.test(value)) return <Boxes size={20} />;
   if (/production|assembly|pack/.test(value)) return <Activity size={20} />;
   return <Workflow size={20} />;
