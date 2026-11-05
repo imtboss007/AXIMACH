@@ -52,7 +52,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
   const [exportFields,setExportFields] = useState<ProcessExportField[]>(["operation","quantity","status","plannedStart","plannedEnd"]);
-  const [exportScope,setExportScope] = useState<"visible"|"selected-branch">("visible");
+  const [exportScope,setExportScope] = useState<string>("all");
   const [exportArrows,setExportArrows] = useState(true);
   const [visualStyle,setVisualStyle] = useState<"sphere"|"vortex"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined">("sphere");
   const [ganttScale,setGanttScale] = useState<"day"|"week"|"month">("week");
@@ -139,6 +139,39 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   };
 
   const activeOperation = routeOperations.find(op => op.id === selectedOperationId) || routeOperations[0];
+  const selectedRouteOperations = routeOperations.filter(op => selectedOperationIds.includes(op.id));
+  const routeBranchNames = [...new Set(routeOperations.map(op => op.branch || "Main route"))]
+    .sort((a,b) => a === "Main route" ? -1 : b === "Main route" ? 1 : a.localeCompare(b));
+  const getRouteScopeOperations = (scope: string): OperationRecord[] => {
+    const branchName = (operation: OperationRecord) => operation.branch || "Main route";
+    if (scope === "all") return routeOperations;
+    if (scope === "main") return routeOperations.filter(op => branchName(op) === "Main route");
+    if (scope === "alternate") return routeOperations.filter(op => branchName(op) !== "Main route" && !/rework/i.test(branchName(op)));
+    if (scope === "rework") return routeOperations.filter(op => /rework/i.test(branchName(op)));
+    if (scope === "filtered") return visibleOperations;
+    if (scope === "selected-operations") return selectedRouteOperations;
+    if (scope === "selected-operation") return activeOperation ? [activeOperation] : [];
+    if (scope === "selected-branch") return activeOperation ? routeOperations.filter(op => branchName(op) === branchName(activeOperation)) : [];
+    if (scope.startsWith("branch:")) {
+      const branch = scope.slice("branch:".length);
+      return routeOperations.filter(op => branchName(op) === branch);
+    }
+    return routeOperations;
+  };
+  const routeScopeButtons = [
+    { key: "all", label: "All routes", count: routeOperations.length },
+    { key: "main", label: "Main route", count: routeOperations.filter(op => (op.branch || "Main route") === "Main route").length },
+    { key: "alternate", label: "Alternate routes", count: routeOperations.filter(op => (op.branch || "Main route") !== "Main route" && !/rework/i.test(op.branch || "")).length },
+    { key: "rework", label: "Rework routes", count: routeOperations.filter(op => /rework/i.test(op.branch || "")).length },
+    { key: "selected-branch", label: "Selected branch", count: activeOperation ? routeOperations.filter(op => (op.branch || "Main route") === (activeOperation.branch || "Main route")).length : 0 },
+    { key: "filtered", label: "Filtered results", count: visibleOperations.length },
+    { key: "selected-operations", label: "Selected operations", count: selectedRouteOperations.length },
+    { key: "selected-operation", label: "Selected operation", count: activeOperation ? 1 : 0 },
+    ...routeBranchNames.filter(name => name !== "Main route").map(name => ({
+      key: "branch:" + name, label: name, count: routeOperations.filter(op => (op.branch || "Main route") === name).length
+    }))
+  ];
+  const exportScopeLabel = routeScopeButtons.find(scope => scope.key === exportScope)?.label || "All routes";
   const paymentRowsFor = (operationId:string) => activeRows(data.paymentTransactions).filter(payment=>payment.operationId===operationId);
   const paymentTotalFor = (operation:OperationRecord) => {
     const transactions=paymentRowsFor(operation.id);
@@ -173,9 +206,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   });
 
   const exportColumns = PROCESS_EXPORT_FIELDS.filter(field=>exportFields.includes(field.key));
-  const exportOperations = exportScope === "selected-branch" && activeOperation
-    ? (selectedOperationIds.length ? selectedVisibleOperations : visibleOperations).filter(op=>(op.branch || "Main route") === (activeOperation.branch || "Main route"))
-    : selectedOperationIds.length ? selectedVisibleOperations : visibleOperations;
+  const exportOperations = getRouteScopeOperations(exportScope);
   const exportValue = (op:OperationRecord,key:ProcessExportField):string|number => {
     switch(key) {
       case "company": return selectedCompany?.name || "";
@@ -310,7 +341,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       first.addText((selectedComponent?.partNumber||"Component")+" · "+(selectedComponent?.name||"") , {x:0.58,y:1.35,w:8.6,h:0.35,fontSize:16,bold:true,color:"A9DDEA",margin:0});
       first.addText("Company: "+(selectedCompany?.name||"—")+"    PO: "+(selectedPO?.number||"—")+"    Operations: "+exportOperations.length, {x:0.58,y:1.92,w:11.8,h:0.35,fontSize:11,color:"DFEAF3",margin:0});
       first.addShape(deck.ShapeType.line,{x:0.58,y:2.48,w:11.9,h:0,line:{color:cyan,width:2}});
-      first.addText("Export scope: "+(exportScope==="selected-branch"?"Selected branch":"Filtered / visible map"),{x:0.58,y:2.78,w:11.6,h:0.35,fontSize:12,color:"FFFFFF",margin:0});
+      first.addText("Export scope: "+exportScopeLabel,{x:0.58,y:2.78,w:11.6,h:0.35,fontSize:12,color:"FFFFFF",margin:0});
       first.addText("Fields selected: "+exportColumns.map(field=>field.label).join(" · "),{x:0.58,y:3.35,w:11.6,h:1.35,fontSize:11,color:"DFEAF3",breakLine:false,fit:"shrink",margin:0.04,valign:"top"});
       first.addText("Generated from saved AXIMACH operation records.",{x:0.58,y:6.85,w:11.5,h:0.25,fontSize:9,color:"A9C3D7",margin:0});
       const mapSlide = deck.addSlide();
@@ -632,10 +663,26 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <button className="button-quiet compact-button" onClick={() => { setZoom(1); setSearch("");setStatusFilters([]);setExecutionFilters([]);setCategoryFilters([]);setToleranceFilters([]);setPaymentFilters([]);setVendorFilters([]);setDateFrom("");setDateTo("");setMinQuantity("");setMaxQuantity("");setMinPrice("");setMaxPrice("");setMinAmount("");setMaxAmount("");setSelectedOperationIds([]); }}><Search size={14}/> Clear filters</button>
         {onOpenIconStudio && <button className="button-quiet compact-button" onClick={onOpenIconStudio}><Boxes size={14}/> Customise process icons</button>}
       </div>
-      <div className="linked-route-actions linked-route-visual-controls">
-        <label className="process-visual-style-picker">Visual style<select value={visualStyle} onChange={e=>{const value=e.target.value as typeof visualStyle;setVisualStyle(value);setRouteView(["sphere","vortex","combined"].includes(value)?"3d":"list");setSimulationActive(false);}}>
-          <option value="sphere">1 · 3D Sphere</option><option value="vortex">2 · 3D Vortex</option><option value="linear">3 · Linear Flow</option><option value="horizontal">4 · Horizontal Flow</option><option value="vertical">5 · Vertical Flow</option><option value="timeline">6 · Timeline</option><option value="gantt">7 · Gantt View</option><option value="nodes">8 · Connected Nodes</option><option value="branch">9 · Branch / Rework</option><option value="combined">10 · Combined 3D</option>
-        </select></label>
+      <div className="linked-route-actions linked-route-visual-controls" style={{flexWrap:"wrap",alignItems:"center"}}>
+        <strong className="process-visual-style-label">VIEW</strong>
+        <div className="process-visual-style-buttons" aria-label="All Process Map viewing modes" style={{display:"flex",flexWrap:"wrap",gap:"7px",width:"100%"}}>
+          {([
+            {id:"sphere",label:"1 · 3D Sphere"},
+            {id:"vortex",label:"2 · 3D Vortex"},
+            {id:"linear",label:"3 · Linear Flow"},
+            {id:"horizontal",label:"4 · Horizontal Flow"},
+            {id:"vertical",label:"5 · Vertical Flow"},
+            {id:"timeline",label:"6 · Timeline"},
+            {id:"gantt",label:"7 · Gantt View"},
+            {id:"nodes",label:"8 · Connected Nodes"},
+            {id:"branch",label:"9 · Branch / Rework"},
+            {id:"combined",label:"10 · Combined 3D"}
+          ] as const).map(option=><button key={option.id} type="button" aria-pressed={visualStyle===option.id}
+            className={(visualStyle===option.id?"button-primary":"button-quiet")+" compact-button"}
+            onClick={()=>{setVisualStyle(option.id);setRouteView(["sphere","vortex","combined"].includes(option.id)?"3d":"list");setSimulationActive(false);setSimulationIndex(-1);}}>
+            {option.label}
+          </button>)}
+        </div>
         {!simulationActive
           ? <button className="button-primary compact-button" disabled={!visibleOperations.length} onClick={startRouteSimulation}><Activity size={14}/> Simulate route</button>
           : <button className="button-quiet compact-button" onClick={() => setSimulationActive(false)}><Activity size={14}/> Pause simulation</button>}
@@ -673,7 +720,18 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></div>
         <div className="process-export-panel">
           <div className="process-export-fields"><div className="process-export-field-actions"><button type="button" onClick={()=>setExportFields(PROCESS_EXPORT_FIELDS.map(field=>field.key))}>Select all fields</button><button type="button" onClick={()=>setExportFields([])}>Clear fields</button></div>{PROCESS_EXPORT_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={exportFields.includes(field.key)} onChange={()=>setExportFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div>
-          <div className="process-export-options"><label><input type="checkbox" checked={exportArrows} onChange={event=>setExportArrows(event.target.checked)}/> Connection arrows</label><label>Scope<select value={exportScope} onChange={event=>setExportScope(event.target.value as "visible"|"selected-branch")}><option value="visible">Full visible map</option><option value="selected-branch" disabled={!activeOperation}>Selected branch</option></select></label></div>
+          <div className="process-export-options" style={{display:"grid",gap:"10px"}}>
+            <label><input type="checkbox" checked={exportArrows} onChange={event=>setExportArrows(event.target.checked)}/> Connection arrows</label>
+            <div className="process-export-scope-buttons" aria-label="All route export scopes" style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"7px"}}>
+              <strong>ROUTE SCOPE</strong>
+              {routeScopeButtons.map(scope=><button key={scope.key} type="button" aria-pressed={exportScope===scope.key}
+                disabled={scope.count===0}
+                className={(exportScope===scope.key?"button-primary":"button-quiet")+" compact-button"}
+                onClick={()=>setExportScope(scope.key)}>
+                {scope.label} <small>({scope.count})</small>
+              </button>)}
+            </div>
+          </div>
           <div className="process-export-actions"><button type="button" className="button-primary compact-button" onClick={exportCsv}><FileDown size={14}/> CSV</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("svg")}>SVG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("png")}>PNG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportPowerPoint()}><FileText size={14}/> PowerPoint</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportExcel()}><FileDown size={14}/> Excel</button><button type="button" className="button-quiet compact-button" onClick={printExport}><Printer size={14}/> Diagram PDF</button><small>{exportOperations.length} operation(s) · {exportColumns.length} field(s)</small></div>
         </div>
         {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
