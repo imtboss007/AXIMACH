@@ -18,6 +18,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const operations = activeRows(data.operations);
   const quotations = activeRows(data.quotations);
   const [companyId, setCompanyId] = useState("");
+  const [rollupCompanyIds, setRollupCompanyIds] = useState<string[]>([]);
   const [rollupPoIds, setRollupPoIds] = useState<string[]>([]);
   const [rollupComponentIds, setRollupComponentIds] = useState<string[]>([]);
   const [rollupQuantities, setRollupQuantities] = useState<number[]>([]);
@@ -46,7 +47,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const companyOrders = orders.filter(po => po.companyId === companyId);
   const selectedCompany = companies.find(company => company.id === companyId);
   const paymentTransactionsForCompany = activeRows(data.paymentTransactions||[]);
-  const companyRollupRows = companyOrders.flatMap(po => po.lines.filter(line=>!("deletedAt" in line && (line as any).deletedAt)).map(line=>{
+  const companyRollupRows = orders.flatMap(po => po.lines.filter(line=>!("deletedAt" in line && (line as any).deletedAt)).map(line=>{
     const component=components.find(item=>item.id===line.componentId);
     const linkedOperations=operations.filter(op=>op.poId===po.id&&op.poLineId===line.id&&op.componentId===line.componentId);
     const costedLinkedOperations=linkedOperations.filter(op=>op.costIncluded!==false);
@@ -75,15 +76,18 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
       const txns=paymentTransactionsForCompany.filter(txn=>txn.operationId===op.id);
       return sum+(txns.length?txns.reduce((sub,txn)=>sub+Math.max(0,Number(txn.amount)||0),0):Math.max(0,Number(op.paidAmount)||0));
     },0);
-    const unpaid=Math.max(0,recordedCost-paid);
+    const unpaidProcess=Math.max(0,processCost-paid);
     const processVariance=processCost-plannedProcessCost;
     const vendorIds=[...new Set(costedLinkedOperations.map(op=>op.vendorId).filter(Boolean))];
-    return {po,line,component,linkedOperations,revenue,processCost,transportCost,plannedCost,plannedProcessCost,materialCost,extras,paid,unpaid,recordedCost,processVariance,profitLoss:revenue-recordedCost,vendorIds};
+    return {po,line,component,linkedOperations,revenue,processCost,transportCost,plannedCost,plannedProcessCost,materialCost,extras,paid,unpaidProcess,recordedCost,processVariance,profitLoss:revenue-recordedCost,vendorIds};
   }));
+  const rollupCompanyOptions = [...new Map(companyRollupRows.map(row=>[row.po.companyId,{id:row.po.companyId,label:companies.find(company=>company.id===row.po.companyId)?.name||"Archived company"}])).values()];
+  const rollupPOOptions = [...new Map(companyRollupRows.map(row=>[row.po.id,row.po])).values()];
   const rollupVendorOptions = [...new Set(companyRollupRows.flatMap(row=>row.vendorIds))].map(id=>({id,label:vendors.find(v=>v.id===id)?.company||"Archived vendor"}));
   const rollupComponentOptions = [...new Map(companyRollupRows.filter(row=>row.component).map(row=>[row.component!.id,{id:row.component!.id,label:(row.component!.partNumber||"")+" · "+row.component!.name}])).values()];
   const rollupQuantityOptions = [...new Set(companyRollupRows.map(row=>row.line.quantity))].sort((a,b)=>a-b);
   const visibleCompanyRollup = companyRollupRows.filter(row=>
+    (!rollupCompanyIds.length||rollupCompanyIds.includes(row.po.companyId)) &&
     (!rollupPoIds.length||rollupPoIds.includes(row.po.id)) &&
     (!rollupComponentIds.length||rollupComponentIds.includes(row.component?.id||"")) &&
     (!rollupQuantities.length||rollupQuantities.includes(row.line.quantity)) &&
@@ -91,12 +95,13 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   );
   const toggleRollupFilter = (value: string|number, selected: (string|number)[], setter: (next: any[])=>void) =>
     setter(selected.includes(value) ? selected.filter(item=>item!==value) : [...selected,value]);
-  const clearRollupFilters = () => { setRollupPoIds([]); setRollupComponentIds([]); setRollupQuantities([]); setRollupVendorIds([]); };
+  const clearRollupFilters = () => { setRollupCompanyIds([]); setRollupPoIds([]); setRollupComponentIds([]); setRollupQuantities([]); setRollupVendorIds([]); };
   const companyRollupTotals = visibleCompanyRollup.reduce((sum,row)=>({
-    revenue:sum.revenue+row.revenue,planned:sum.planned+row.plannedCost,process:sum.process+row.processCost,
-    transport:sum.transport+row.transportCost,recorded:sum.recorded+row.recordedCost,paid:sum.paid+row.paid,unpaid:sum.unpaid+row.unpaid,
-    processVariance:sum.processVariance+row.processVariance,profitLoss:sum.profitLoss+row.profitLoss
-  }),{revenue:0,planned:0,process:0,transport:0,recorded:0,paid:0,unpaid:0,processVariance:0,profitLoss:0});
+    revenue:sum.revenue+row.revenue,planned:sum.planned+row.plannedCost,plannedProcess:sum.plannedProcess+row.plannedProcessCost,
+    material:sum.material+row.materialCost,extras:sum.extras+row.extras,process:sum.process+row.processCost,
+    transport:sum.transport+row.transportCost,recorded:sum.recorded+row.recordedCost,paid:sum.paid+row.paid,
+    unpaidProcess:sum.unpaidProcess+row.unpaidProcess,processVariance:sum.processVariance+row.processVariance,profitLoss:sum.profitLoss+row.profitLoss
+  }),{revenue:0,planned:0,plannedProcess:0,material:0,extras:0,process:0,transport:0,recorded:0,paid:0,unpaidProcess:0,processVariance:0,profitLoss:0});
 
   useEffect(() => {
     if (!companyOrders.some(po => po.id === poId)) { setPoId(companyOrders[0]?.id || ""); setLineKey(""); setOperationId(""); }
@@ -245,7 +250,8 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
       <section className="surface-panel company-cost-rollup">
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMPANY-WIDE FINANCIAL ANALYSIS</div><h3>All purchase orders · component profit / loss</h3><p>Aggregates every PO and component for the selected company. Select one, several or all POs to narrow the analysis.</p></div><span className="module-number">{visibleCompanyRollup.length} COMPONENT LINES</span></div>
         <div className="process-table-bulkbar costing-rollup-filters">
-          <div><strong>Purchase orders</strong><label><input type="checkbox" checked={!rollupPoIds.length} onChange={()=>setRollupPoIds([])}/> All POs</label>{companyOrders.map(po=><label key={po.id}><input type="checkbox" checked={!rollupPoIds.length||rollupPoIds.includes(po.id)} onChange={e=>setRollupPoIds(current=>{const base=current.length?current:companyOrders.map(item=>item.id);const next=e.target.checked?[...new Set([...base,po.id])]:base.filter(id=>id!==po.id);return next.length===companyOrders.length?[]:next;})}/>{po.number}</label>)}</div>
+          <div><strong>Companies</strong><label><input type="checkbox" checked={!rollupCompanyIds.length} onChange={()=>setRollupCompanyIds([])}/> All companies</label>{rollupCompanyOptions.map(item=><label key={item.id}><input type="checkbox" checked={!rollupCompanyIds.length||rollupCompanyIds.includes(item.id)} onChange={e=>setRollupCompanyIds(current=>{const base=current.length?current:rollupCompanyOptions.map(option=>option.id);const next=e.target.checked?[...new Set([...base,item.id])]:base.filter(id=>id!==item.id);return next.length===rollupCompanyOptions.length?[]:next;})}/>{item.label}</label>)}</div>
+          <div><strong>Purchase orders</strong><label><input type="checkbox" checked={!rollupPoIds.length} onChange={()=>setRollupPoIds([])}/> All POs</label>{rollupPOOptions.map(po=><label key={po.id}><input type="checkbox" checked={!rollupPoIds.length||rollupPoIds.includes(po.id)} onChange={e=>setRollupPoIds(current=>{const base=current.length?current:rollupPOOptions.map(item=>item.id);const next=e.target.checked?[...new Set([...base,po.id])]:base.filter(id=>id!==po.id);return next.length===rollupPOOptions.length?[]:next;})}/>{po.number}</label>)}</div>
           <div><strong>Components</strong><label><input type="checkbox" checked={!rollupComponentIds.length} onChange={()=>setRollupComponentIds([])}/> All components</label>{rollupComponentOptions.map(item=><label key={item.id}><input type="checkbox" checked={!rollupComponentIds.length||rollupComponentIds.includes(item.id)} onChange={()=>toggleRollupFilter(item.id,rollupComponentIds,setRollupComponentIds)}/>{item.label}</label>)}</div>
           <div><strong>PO quantity</strong><label><input type="checkbox" checked={!rollupQuantities.length} onChange={()=>setRollupQuantities([])}/> All quantities</label>{rollupQuantityOptions.map(qty=><label key={qty}><input type="checkbox" checked={!rollupQuantities.length||rollupQuantities.includes(qty)} onChange={()=>toggleRollupFilter(qty,rollupQuantities,setRollupQuantities)}/>{qty.toLocaleString("en-IN")}</label>)}</div>
           <div><strong>Vendors</strong><label><input type="checkbox" checked={!rollupVendorIds.length} onChange={()=>setRollupVendorIds([])}/> All vendors</label>{rollupVendorOptions.map(item=><label key={item.id}><input type="checkbox" checked={!rollupVendorIds.length||rollupVendorIds.includes(item.id)} onChange={()=>toggleRollupFilter(item.id,rollupVendorIds,setRollupVendorIds)}/>{item.label}</label>)}</div>
@@ -253,16 +259,20 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
         </div>
         <div className="dashboard-job-summary company-rollup-totals">
           <div><strong>{money(companyRollupTotals.revenue)}</strong><span>Selected PO line value</span></div>
-          <div><strong>{money(companyRollupTotals.planned)}</strong><span>Planned process cost from the independent register (fallback: Process Plan)</span></div>
+          <div><strong>{money(companyRollupTotals.planned)}</strong><span>Planned total budget: material + planned process + saved transport + entered extras</span></div>
+          <div><strong>{money(companyRollupTotals.material)}</strong><span>Material budget / recorded material basis</span></div>
+          <div><strong>{money(companyRollupTotals.plannedProcess)}</strong><span>Planned process cost</span></div>
           <div><strong>{money(companyRollupTotals.process)}</strong><span>Actual process cost recorded</span></div>
-          <div><strong>{money(companyRollupTotals.transport)}</strong><span>Transport cost</span></div>
-          <div><strong>{money(companyRollupTotals.paid)}</strong><span>Process amounts paid</span></div>
-          <div><strong className={companyRollupTotals.profitLoss<0?"loss-value":"profit-value"}>{money(companyRollupTotals.profitLoss)}</strong><span>Contribution after recorded process + transport</span></div>
-          <div><strong className={companyRollupTotals.processVariance>0?"loss-value":"profit-value"}>{money(companyRollupTotals.processVariance)}</strong><span>Process cost over / under plan</span></div>
-          <div><strong>{money(companyRollupTotals.unpaid)}</strong><span>Recorded cost less payments entered (transport payment entries not yet itemised)</span></div>
+          <div><strong>{money(companyRollupTotals.transport)}</strong><span>Transport cost (separate)</span></div>
+          <div><strong>{money(companyRollupTotals.extras)}</strong><span>Entered overhead / tooling / rework / scrap</span></div>
+          <div><strong>{money(companyRollupTotals.recorded)}</strong><span>Total recorded cost</span></div>
+          <div><strong>{money(companyRollupTotals.paid)}</strong><span>Process payments entered</span></div>
+          <div><strong>{money(companyRollupTotals.unpaidProcess)}</strong><span>Unpaid process balance only</span></div>
+          <div><strong className={companyRollupTotals.profitLoss<0?"loss-value":"profit-value"}>{money(companyRollupTotals.profitLoss)}</strong><span>Contribution before unentered costs and taxes</span></div>
+          <div><strong className={companyRollupTotals.processVariance>0?"loss-value":"profit-value"}>{money(companyRollupTotals.processVariance)}</strong><span>Actual minus planned process cost</span></div>
         </div>
-        <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>PO</th><th>Component</th><th>Qty</th><th>PO value</th><th>Planned process</th><th>Actual process</th><th>Transport</th><th>Total recorded cost</th><th>Budget variance</th><th>Vendor(s)</th><th>Paid</th><th>Unpaid</th><th>Profit / loss status</th></tr></thead><tbody>{visibleCompanyRollup.map(row=><tr key={row.po.id+":"+row.line.id}><td><strong>{row.po.number}</strong><small>{row.po.issueDate||"No PO date"}</small></td><td><strong>{row.component?.name||"Missing component"}</strong><small>{row.component?.partNumber||"—"}</small></td><td>{row.line.quantity.toLocaleString("en-IN")}</td><td>{money(row.revenue)}</td><td>{money(row.plannedCost)}</td><td>{money(row.processCost)}</td><td>{money(row.transportCost)}</td><td><strong>{money(row.recordedCost)}</strong><small>Process + transport</small></td><td><strong className={row.recordedCost>row.plannedCost?"loss-value":"profit-value"}>{money(row.recordedCost-row.plannedCost)}</strong><small>Actual total − planned budget</small></td><td>{row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"Archived").join(", ")||"No vendor linked"}</td><td>{money(row.paid)}</td><td>{money(row.unpaid)}</td><td><strong className={row.recordedCost>row.revenue?"loss-value":row.revenue>0&&row.recordedCost>=row.revenue*poValueWarningPercent/100?"loss-value":"profit-value"}>{row.recordedCost>row.revenue?"LOSS":row.revenue>0&&row.recordedCost>=row.revenue*poValueWarningPercent/100?"IMPROVEMENT NEEDED":"PROFIT"}</strong><small>{money(row.profitLoss)} contribution</small></td></tr>)}</tbody></table></div>
-        <div className="module-safety-note"><ShieldCheck size={14}/><span>Contribution is calculated as PO line value minus saved actual process and transport costs. Material, overhead, tax, finance and other costs not entered in the records are excluded; this is not an audited net-profit figure.</span></div>
+        <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>PO</th><th>Component</th><th>Qty</th><th>PO value</th><th>Material</th><th>Planned process</th><th>Actual process</th><th>Transport</th><th>Other costs</th><th>Planned total budget</th><th>Total recorded cost</th><th>Budget variance</th><th>Vendor(s)</th><th>Process paid</th><th>Process unpaid</th><th>Profit / loss status</th></tr></thead><tbody>{visibleCompanyRollup.map(row=><tr key={row.po.id+":"+row.line.id}><td><strong>{row.po.number}</strong><small>{row.po.issueDate||"No PO date"}</small></td><td><strong>{row.component?.name||"Missing component"}</strong><small>{row.component?.partNumber||"—"}</small></td><td>{row.line.quantity.toLocaleString("en-IN")}</td><td>{money(row.revenue)}</td><td>{money(row.materialCost)}</td><td>{money(row.plannedProcessCost)}</td><td>{money(row.processCost)}</td><td>{money(row.transportCost)}</td><td>{money(row.extras)}</td><td>{money(row.plannedCost)}</td><td><strong>{money(row.recordedCost)}</strong><small>Material + process + transport + extras</small></td><td><strong className={row.recordedCost>row.plannedCost?"loss-value":"profit-value"}>{money(row.recordedCost-row.plannedCost)}</strong><small>Actual total − planned total budget</small></td><td>{row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"Archived").join(", ")||"No vendor linked"}</td><td>{money(row.paid)}</td><td>{money(row.unpaidProcess)}</td><td><strong className={row.recordedCost>row.revenue?"loss-value":row.revenue>0&&row.recordedCost>=row.revenue*poValueWarningPercent/100?"loss-value":"profit-value"}>{row.recordedCost>row.revenue?"LOSS":row.revenue>0&&row.recordedCost>=row.revenue*poValueWarningPercent/100?"IMPROVEMENT NEEDED":"PROFIT"}</strong><small>{money(row.profitLoss)} contribution</small></td></tr>)}</tbody></table></div>
+        <div className="module-safety-note"><ShieldCheck size={14}/><span>Contribution is PO line value minus recorded material, process, transport and entered extras. Taxes, finance, selling expenses and other unentered costs remain excluded; this is not audited net profit.</span></div>
       </section>
       <div className="linked-master-selectors linked-cost-selectors">
         <SearchablePicker id="cost-company" label="Company" value={companyId} placeholder="Select company…" options={companies.map(c=>({id:c.id,label:c.name}))} onChange={id=>{setCompanyId(id);setPoId("");setLineKey("");setOperationId("");setShowQuoteForm(false);}}/>
