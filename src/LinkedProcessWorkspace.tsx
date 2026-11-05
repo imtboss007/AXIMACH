@@ -578,6 +578,46 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const stamp = nowIso();
     update(current => ({ ...current, operations: current.operations.map(op => op.id === id ? { ...op, ...patch, updatedAt: stamp } : op) }));
   };
+  const openTransportEditor = (leg?: ComponentTransportLegRecord) => {
+    setEditingTransportLegId(leg?.id || "");
+    setTransportRouteId(leg?.routeId || transportRoutes[0]?.id || "");
+    setTransportTripCount(String(leg?.tripCount || 1));
+    setTransportAnchorOperationId(leg?.anchorOperationId || activeOperation?.id || "");
+    setTransportLegNotes(leg?.notes || "");
+    setShowTransportEditor(true);
+    setShowEditor(false);
+  };
+  const closeTransportEditor = () => { setShowTransportEditor(false); setEditingTransportLegId(""); };
+  const saveTransportLeg = () => {
+    if (!selectedPO || !selectedLine || !selectedComponent) { onNotice("Select a PO component line before adding transport."); return; }
+    if (!selectedTransportDirectoryRoute) { onNotice("Select a saved route from Transport Directory, or add one there first."); return; }
+    const tripCount = Number(transportTripCount);
+    if (!Number.isInteger(tripCount) || tripCount < 1) { onNotice("Enter a whole-number trip count of at least 1."); return; }
+    const stamp = nowIso();
+    const legId = editingTransportLegId || makeId("component-transport");
+    const old = componentTransportLegs.find(leg => leg.id === legId);
+    const record: ComponentTransportLegRecord = {
+      id: legId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
+      sequence: old?.sequence ?? (Math.max(0, ...componentTransportLegs.map(leg => leg.sequence)) + 1),
+      routeId: selectedTransportDirectoryRoute.id, vendorId: selectedTransportDirectoryRoute.vendorId,
+      fromLocation: selectedTransportDirectoryRoute.fromLocation, toLocation: selectedTransportDirectoryRoute.toLocation,
+      tripDirection: selectedTransportDirectoryRoute.tripDirection, vehicleType: selectedTransportDirectoryRoute.vehicleType,
+      fixedAmount: selectedTransportDirectoryRoute.fixedAmount, tripCount,
+      anchorOperationId: transportAnchorOperationId, notes: transportLegNotes.trim(),
+      createdAt: old?.createdAt || stamp, updatedAt: stamp
+    };
+    update(current => ({ ...current, transportLegs: [record, ...current.transportLegs.filter(leg => leg.id !== record.id)] }));
+    closeTransportEditor();
+    onNotice("Transport entry saved for " + selectedComponent.partNumber + ". " + tripCount + " trip(s) × " + money(record.fixedAmount) + " = " + money(record.fixedAmount * tripCount) + ". This is separate from Process Cost.");
+  };
+  const editTransportLeg = (leg: ComponentTransportLegRecord) => openTransportEditor(leg);
+  const archiveTransportLeg = (leg: ComponentTransportLegRecord) => {
+    if (!window.confirm("Remove this transport entry from the component total? Its saved record will be archived, not erased.")) return;
+    const stamp = nowIso();
+    update(current => ({ ...current, transportLegs: current.transportLegs.map(item => item.id === leg.id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item) }));
+    onNotice("Transport entry archived. Process operation history was not changed.");
+  };
+
   const moveOperation = (id: string, direction: -1 | 1) => {
     const index = routeOperations.findIndex(op => op.id === id);
     const current = routeOperations[index];
