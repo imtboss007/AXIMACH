@@ -444,7 +444,18 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   };
   const changeLine = (nextLineId: string) => { setPoLineId(nextLineId); setSelectedOperationId(""); setSearch(""); setShowEditor(false); };
 
-  const startAddSubprocess = (parentId: string) => {\n    const parent = routeOperations.find(operation => operation.id === parentId);\n    if (!parent) return;\n    const base = blankOperation(selectedLine);\n    base.category = parent.category;\n    base.vendorId = parent.vendorId;\n    base.executionType = parent.executionType || "Outsourced";\n    base.branch = parent.branch || "Main route";\n    setDraft({ ...base, parentId });\n    setSelectedOperationId(parentId);\n    setEditingId("");\n    setShowEditor(true);\n    onNotice("Add a sub-process under " + parent.name + ". The parent vendor is preselected; you can keep or change it.");\n  };\n\n  const startAdd = (branch = false, transport = false) => {
+  const startAddSubprocess = (parentId: string) => {
+    const parent = routeOperations.find(operation => operation.id === parentId);\n    if (!parent) return;
+    const base = blankOperation(selectedLine);
+    base.category = parent.category;
+    base.vendorId = parent.vendorId;
+    base.executionType = parent.executionType || "Outsourced";
+    base.branch = parent.branch || "Main route";
+    setDraft({ ...base, parentId });
+    setSelectedOperationId(parentId);
+    setEditingId("");
+    setShowEditor(true);
+    onNotice("Add a sub-process under " + parent.name + ". The parent vendor is preselected; you can keep or change it.");\n  };\n\n  const startAdd = (branch = false, transport = false) => {
     if (!selectedPO || !selectedLine || !selectedComponent) {
       onNotice("Select a saved company, purchase order and PO component line first. AXIMACH will then link every operation to that line.");
       return;
