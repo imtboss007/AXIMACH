@@ -248,8 +248,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if(!exportOperations.length || !exportColumns.length){onNotice("Choose at least one field and ensure operations are visible.");return;}
     const cell=(value:unknown)=>'"'+String(value??"").replace(/"/g,'""')+'"';
     const rows=[exportColumns.map(field=>cell(field.label)).join(","),...exportOperations.map(op=>exportColumns.map(field=>cell(exportValue(op,field.key))).join(","))];
-    saveExportBlob(exportFileBase+".csv",new Blob(["\uFEFF"+rows.join("\r
-")],{type:"text/csv;charset=utf-8"}));
+    saveExportBlob(exportFileBase+".csv",new Blob(["\uFEFF"+rows.join("\r\n")],{type:"text/csv;charset=utf-8"}));
     onNotice("CSV export prepared from "+exportOperations.length+" saved operation record(s).");
   };
   const exportExcel = async () => {
