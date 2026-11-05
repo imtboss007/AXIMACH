@@ -17,6 +17,7 @@ const IconStudio = lazy(() => import("./IconStudio"));
 const ManufacturingMasterWorkspace = lazy(() => import("./ManufacturingMasterWorkspace"));
 const DashboardWorkspace = lazy(() => import("./DashboardWorkspace"));
 const SpecializedDirectoryWorkspace = lazy(() => import("./SpecializedDirectoryWorkspace"));
+const TransportDirectoryWorkspace = lazy(() => import("./TransportDirectoryWorkspace"));
 const Contact360Workspace = lazy(() => import("./RelationshipWorkspaces").then(module => ({ default: module.Contact360Workspace })));
 const VendorNetworkWorkspace = lazy(() => import("./RelationshipWorkspaces").then(module => ({ default: module.VendorNetworkWorkspace })));
 const ProductionPlanWorkspace = lazy(() => import("./OperationsWorkspaces").then(module => ({ default: module.ProductionPlanWorkspace })));
@@ -61,6 +62,7 @@ const modules: ModuleItem[] = [
   { id: "components", title: "Component Directory", group: "Master Data", description: "Company-linked component names, numbers and piece or set prices.", icon: Box, action: "Open component directory" },
   { id: "purchasing", title: "Purchase Orders", group: "Commercial", description: "Company purchase orders, dates, due dates and multiple component quantities.", icon: Package, action: "Open purchase orders" },
   { id: "vendors", title: "Vendor Directory", group: "Supply Network", description: "Individual vendors with multiple process capabilities and contact details.", icon: Users, action: "Open vendor directory" },
+  { id: "transport-master", title: "Transport Directory", group: "Supply Network", description: "Fixed route rates by vendor, vehicle type and one-way or two-way trip.", icon: Truck, action: "Open transport directory" },
   { id: "contact360", title: "Contact 360", group: "Connections", description: "Interlinked company, vendor and contact records with communication history.", icon: Users, action: "Open Contact 360" },
   { id: "process-master", title: "Process Directory", group: "Manufacturing", description: "Process types, categories, subcategories and linked vendors.", icon: Layers3, action: "Open process directory" },
   { id: "planned-cost", title: "Component Planned Cost", group: "Finance", description: "Independent planned component and process costs for comparison in costing.", icon: CircleDollarSign, action: "Open planned costs" },
@@ -228,6 +230,8 @@ function App() {
           <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" || activeModuleId === "planned-cost" ? (
           <SpecializedDirectoryWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+        ) : activeModuleId === "transport-master" ? (
+          <TransportDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "reports" ? (
           <ReportsAnalyticsWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "ai-insights" ? (
