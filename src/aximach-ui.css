@@ -1324,3 +1324,16 @@
  .production-histogram-row>small{display:none}
  .process-gantt-view .process-gantt-axis,.process-gantt-view .process-gantt-row{min-width:620px}
 }
+
+/* Process node drill-down: selected process zooms forward and reveals its linked sub-process list. */
+.process-universe-node-wrap{position:relative;z-index:2;transition:transform .22s ease}
+.process-universe-node-wrap:has(.process-node-subprocess-dropdown){z-index:12;transform:scale(1.035);transform-origin:center}
+.process-universe-node.is-selected{outline:2px solid rgba(57,132,225,.28);outline-offset:3px;box-shadow:0 12px 30px rgba(32,91,157,.2)}
+.process-node-subprocess-dropdown{position:absolute;z-index:30;top:calc(100% + 8px);left:0;width:min(290px,78vw);max-height:260px;overflow:auto;padding:10px;border:1px solid #b9cce5;border-radius:12px;background:rgba(255,255,255,.98);box-shadow:0 16px 38px rgba(20,49,87,.24);display:flex;flex-direction:column;gap:6px}
+.process-node-subprocess-dropdown>strong{font-size:11px;color:#23466f;padding:2px 3px 6px}
+.process-node-subprocess-dropdown>button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;padding:8px 9px;border:1px solid #e0e9f4;border-radius:8px;background:#f7faff;color:#294766;text-align:left;cursor:pointer}
+.process-node-subprocess-dropdown>button span{font-size:11px;font-weight:700}
+.process-node-subprocess-dropdown>button small{font-size:9px;color:#71839c}
+.process-node-subprocess-dropdown>button.process-node-add-subprocess{align-items:center;background:#eaf3ff;border-color:#a9c8ef;color:#1d5da5;font-weight:700}
+.process-orbit-node.is-selected{transform:scale(1.12);z-index:8}
+@media(max-width:650px){.process-node-subprocess-dropdown{width:min(250px,76vw);max-height:220px}.process-universe-node-wrap:has(.process-node-subprocess-dropdown){transform:scale(1.01)}}
