@@ -445,7 +445,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const changeLine = (nextLineId: string) => { setPoLineId(nextLineId); setSelectedOperationId(""); setSearch(""); setShowEditor(false); };
 
   const startAddSubprocess = (parentId: string) => {
-    const parent = routeOperations.find(operation => operation.id === parentId);\n    if (!parent) return;
+    const parent = routeOperations.find(operation => operation.id === parentId);
+    if (!parent) return;
     const base = blankOperation(selectedLine);
     base.category = parent.category;
     base.vendorId = parent.vendorId;
