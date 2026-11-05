@@ -25,8 +25,8 @@ type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | 
 
 export default function ProcessUniverse3D({ operations, selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
-  const parentOperations = useMemo(() => operations.filter(operation => !operation.parentId || !operations.some(parent => parent.id === operation.parentId)), [operations]);
-  const subprocessesFor = (parentId: string) => operations.filter(operation => operation.parentId === parentId);
+  const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
+  const subprocessesFor = (parentId: string) => operations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>("sphere");
   const rotateX = useMotionValue(-12);
   const rotateY = useMotionValue(18);
