@@ -24,7 +24,9 @@ function fallbackFor(name: string) {
 type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh";
 
 export default function ProcessUniverse3D({ operations, selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess }: Props) {
-  const [expandedOperationId, setExpandedOperationId] = useState("");\n  const parentOperations = useMemo(() => operations.filter(operation => !operation.parentId || !operations.some(parent => parent.id === operation.parentId)), [operations]);\n  const subprocessesFor = (parentId: string) => operations.filter(operation => operation.parentId === parentId);
+  const [expandedOperationId, setExpandedOperationId] = useState("");
+  const parentOperations = useMemo(() => operations.filter(operation => !operation.parentId || !operations.some(parent => parent.id === operation.parentId)), [operations]);
+  const subprocessesFor = (parentId: string) => operations.filter(operation => operation.parentId === parentId);
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>("sphere");
   const rotateX = useMotionValue(-12);
   const rotateY = useMotionValue(18);
@@ -71,14 +73,14 @@ export default function ProcessUniverse3D({ operations, selectedOperationId, sim
 
   const lanes = useMemo(() => {
     const grouped = new Map<string, OperationRecord[]>();
-    for (const operation of operations) {
+    for (const operation of parentOperations) {
       const branch = operation.branch || "Main route";
       const rows = grouped.get(branch) || [];
       rows.push(operation);
       grouped.set(branch, rows);
     }
     return [...grouped.entries()].map(([name, rows]) => ({ name, rows: rows.slice().sort((a,b) => a.sequence-b.sequence), alternate: name !== "Main route" }));
-  }, [operations]);
+  }, [parentOperations]);
   const stageStyle: CSSProperties = { transform: `scale(${zoom}) rotateX(2deg)`, transformOrigin: "top left", width: `${100 / zoom}%` };
 
   return <section className={"process-universe-3d mode-" + layoutMode} aria-label="Interactive 3D process route graph">
@@ -114,7 +116,8 @@ export default function ProcessUniverse3D({ operations, selectedOperationId, sim
         <div className="process-universe-node-track">{lane.rows.map((operation,index) => {
           const globalIndex = parentOperations.findIndex(item => item.id === operation.id);
           const active = selectedOperationId === operation.id, current = simulationIndex === globalIndex, passed = simulationIndex > globalIndex;
-          const childOperations = subprocessesFor(operation.id);\n          const expanded = expandedOperationId === operation.id;
+          const childOperations = subprocessesFor(operation.id);
+          const expanded = expandedOperationId === operation.id;
           const state = operation.status.toLowerCase().replaceAll(" ","-");
           return <div className="process-universe-node-wrap" key={operation.id}>
             <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={"Open " + operation.name + " operation record"}>
