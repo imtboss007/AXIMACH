@@ -17,7 +17,7 @@ const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
   {key:"paidAmount",label:"Paid amount"},{key:"plannedStart",label:"Start date/time"},{key:"plannedEnd",label:"Due date/time"},
   {key:"price",label:"Price / piece or set"},{key:"transportCost",label:"Transport cost"},{key:"amount",label:"Process + transport amount"}
 ];
-type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean; processCostTotal:number; parentId?:string };
+type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean; processCostTotal:number; parentId?:string; relationType?:"subprocess" };
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
   name: "", category: "", machine: "", vendorId: "", status: "Planned", executionType:"Outsourced", toleranceCategory:"Standard", inspectionRequired:false, plannedStart: "", plannedEnd: line?.targetDelivery ? (line.targetDelivery.includes("T")?line.targetDelivery:line.targetDelivery+"T08:00") : "", actualStart: "", actualEnd: "",
   quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0, processCostTotal: 0, paymentStatus:"Unpaid", paidAmount:0, paymentReference:"", subcategory:"",
@@ -451,7 +451,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     base.vendorId = parent.vendorId;
     base.executionType = parent.executionType || "Outsourced";
     base.branch = parent.branch || "Main route";
-    setDraft({ ...base, parentId });
+    setDraft({ ...base, parentId, relationType:"subprocess" });
     setSelectedOperationId(parentId);
     setEditingId("");
     setShowEditor(true);
@@ -504,7 +504,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
         ...draft, paidAmount: nextPaidTotal, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
-        parentId: draft.parentId || old?.parentId || (draft.branch !== "Main route" ? activeOperation?.id || "" : "")
+        parentId: draft.parentId || old?.parentId || (draft.branch !== "Main route" ? activeOperation?.id || "" : ""), relationType: draft.relationType || old?.relationType
       };
       const existingPayments = current.paymentTransactions.filter(payment=>payment.operationId===operationId&&!payment.deletedAt);
       const ledgerTotal = existingPayments.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0);
