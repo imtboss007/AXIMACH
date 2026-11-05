@@ -187,7 +187,12 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const transactions=paymentRowsFor(operation.id);
     return transactions.length?transactions.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0):Math.max(0,Number(operation.paidAmount)||0);
   };
-  const totalProcessCost = routeOperations.reduce((sum, op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
+  const costedOperations = routeOperations.filter(op => (op.branch || "Main route") === "Main route" || op.relationType === "subprocess" || op.costIncluded === true);
+  const totalProcessCost = costedOperations.reduce((sum, op) => sum + op.quantity * (op.actualRatePerPart || op.ratePerPart), 0);
+  const legacyTransportCost = routeOperations.reduce((sum, op) => sum + Math.max(0, Number(op.transportCost) || 0), 0);
+  const componentTransportCost = componentTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.fixedAmount) || 0) * Math.max(0, Number(leg.tripCount) || 0), 0);
+  const totalTransportCost = legacyTransportCost + componentTransportCost;
+  const componentTotalCost = totalProcessCost + totalTransportCost;
   const expectedQuantity = selectedLine?.quantity || 0;
   const completedQuantity = routeOperations.length ? Math.min(...routeOperations.map(op => op.accepted || 0)) : 0;
   const finalRouteOperation = [...routeOperations].filter(op=>(op.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence).at(-1) || routeOperations[routeOperations.length-1];
