@@ -32,7 +32,21 @@ export type PurchaseOrderRecord = {
   targetDelivery: string; status: string; notes: string; lines: PurchaseOrderLine[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
-export type VendorTransportRoute = { id: string; fromLocation: string; toLocation: string; fixedCost: number; vehicleType: string; notes?: string };
+export type TransportTripDirection = "One-way" | "Two-way";
+export type TransportRouteRecord = {
+  id: string; vendorId: string; fromLocation: string; toLocation: string;
+  tripDirection: TransportTripDirection; vehicleType: string; fixedAmount: number;
+  currency: "INR"; active: boolean; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type ComponentTransportLegRecord = {
+  id: string; poId: string; poLineId: string; componentId: string; sequence: number;
+  routeId: string; vendorId: string; fromLocation: string; toLocation: string;
+  tripDirection: TransportTripDirection; vehicleType: string; fixedAmount: number;
+  tripCount: number; anchorOperationId: string; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type VendorTransportRoute = { id: string; fromLocation: string; toLocation: string; fixedCost: number; vehicleType: string; notes?: string; tripDirection?: TransportTripDirection };
 export type VendorRecord = {
   id: string; company: string; contact: string; role: string; phone: string; whatsappNumber: string;
   email: string; address: string; processes: string; machines: string; materials: string; notes: string;
@@ -68,7 +82,7 @@ export type OperationRecord = {
   paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;
   executionType?: "Internal" | "Outsourced"; toleranceCategory?: "Standard" | "Precision" | "Close" | "Ultra Precision"; inspectionRequired?: boolean;
   transportFrom?: string; transportTo?: string; transportVehicleType?: string; transportRouteId?: string;
-  branch: string; parentId: string; relationType?: "subprocess"; createdAt: string; updatedAt: string; deletedAt?: string;
+  branch: string; parentId: string; relationType?: "subprocess" | "alternate" | "rework"; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type QuotationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; operationId: string; vendorId: string;
@@ -108,6 +122,7 @@ export type ManufacturingData = {
   quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
   contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
+  transportRoutes: TransportRouteRecord[]; transportLegs: ComponentTransportLegRecord[];
   paymentTransactions: PaymentTransactionRecord[]; inspectionMeasurements: InspectionMeasurementRecord[];
   followUpAssignments: FollowUpAssignmentRecord[];
 };
@@ -122,7 +137,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
   operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: [],
-  contactProfiles: [], processDefinitions: [], plannedCosts: [], paymentTransactions: [], inspectionMeasurements: [],
+  contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
   followUpAssignments: []
 });
 
@@ -143,6 +158,8 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     contactProfiles: Array.isArray(value?.contactProfiles) ? value.contactProfiles : empty.contactProfiles,
     processDefinitions: Array.isArray(value?.processDefinitions) ? value.processDefinitions : empty.processDefinitions,
     plannedCosts: Array.isArray(value?.plannedCosts) ? value.plannedCosts : empty.plannedCosts,
+    transportRoutes: Array.isArray(value?.transportRoutes) ? value.transportRoutes : empty.transportRoutes,
+    transportLegs: Array.isArray(value?.transportLegs) ? value.transportLegs : empty.transportLegs,
     paymentTransactions: Array.isArray(value?.paymentTransactions) ? value.paymentTransactions : empty.paymentTransactions,
     inspectionMeasurements: Array.isArray(value?.inspectionMeasurements) ? value.inspectionMeasurements : empty.inspectionMeasurements,
     followUpAssignments: Array.isArray(value?.followUpAssignments) ? value.followUpAssignments : empty.followUpAssignments
@@ -242,6 +259,8 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     contactProfiles: mergeRows(local.contactProfiles, remote.contactProfiles),
     processDefinitions: mergeRows(local.processDefinitions, remote.processDefinitions),
     plannedCosts: mergeRows(local.plannedCosts, remote.plannedCosts),
+    transportRoutes: mergeRows(local.transportRoutes, remote.transportRoutes),
+    transportLegs: mergeRows(local.transportLegs, remote.transportLegs),
     paymentTransactions: mergeRows(local.paymentTransactions, remote.paymentTransactions),
     inspectionMeasurements: mergeRows(local.inspectionMeasurements, remote.inspectionMeasurements),
     followUpAssignments: mergeRows(local.followUpAssignments, remote.followUpAssignments)
