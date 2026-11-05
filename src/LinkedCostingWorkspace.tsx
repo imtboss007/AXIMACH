@@ -47,7 +47,8 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const linkedOperations=operations.filter(op=>op.poId===po.id&&op.poLineId===line.id&&op.componentId===line.componentId);
     const revenue=line.quantity*(component?.salePrice ?? line.unitPrice ?? 0);
     const processCost=linkedOperations.filter(op=>op.costIncluded!==false).reduce((sum,op)=>sum+op.quantity*(op.actualRatePerPart||0),0);
-    const legacyTransport=linkedOperations.reduce((sum,op)=>sum+Math.max(0,Number(op.transportCost)||0),0);
+    const costedLinkedOperations=linkedOperations.filter(op=>op.costIncluded!==false);
+    const legacyTransport=costedLinkedOperations.reduce((sum,op)=>sum+Math.max(0,Number(op.transportCost)||0),0);
     const routeTransport=(data.transportLegs||[]).filter(leg=>!leg.deletedAt&&leg.poId===po.id&&leg.poLineId===line.id&&leg.componentId===line.componentId).reduce((sum,leg)=>sum+Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0),0);
     const transportCost=legacyTransport+routeTransport;
     const plannedRows=activeRows(data.plannedCosts).filter(row=>row.componentNumber.trim().toLowerCase()===(component?.partNumber||"").trim().toLowerCase()||row.componentName.trim().toLowerCase()===(component?.name||"").trim().toLowerCase());
