@@ -192,8 +192,13 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   };
   const costedOperations = routeOperations.filter(op => op.costIncluded !== false);
   const totalProcessCost = costedOperations.reduce((sum, op) => sum + op.quantity * (op.actualRatePerPart || op.ratePerPart), 0);
-  const legacyTransportCost = costedOperations.reduce((sum, op) => sum + Math.max(0, Number(op.transportCost) || 0), 0);
   const includedTransportLegs = componentTransportLegs.filter(leg => !leg.anchorOperationId || routeOperations.find(operation => operation.id === leg.anchorOperationId)?.costIncluded !== false);
+  // Avoid charging the same saved route twice when an older operation field and a newer anchored leg match.
+  const duplicateLegacyTransportIds = new Set(includedTransportLegs.filter(leg=>leg.anchorOperationId).filter(leg=>{
+    const op=routeOperations.find(operation=>operation.id===leg.anchorOperationId);
+    return Boolean(op?.transportRouteId)&&op?.transportRouteId===leg.routeId&&Math.abs(Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0)-Math.max(0,Number(op?.transportCost)||0))<0.01;
+  }).map(leg=>leg.anchorOperationId));
+  const legacyTransportCost = costedOperations.reduce((sum, op) => sum + (duplicateLegacyTransportIds.has(op.id)?0:Math.max(0, Number(op.transportCost) || 0)), 0);
   const componentTransportCost = includedTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.fixedAmount) || 0) * Math.max(0, Number(leg.tripCount) || 0), 0);
   const totalTransportCost = legacyTransportCost + componentTransportCost;
   const componentTotalCost = totalProcessCost + totalTransportCost;
