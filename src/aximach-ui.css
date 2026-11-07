@@ -1494,8 +1494,36 @@
   inset:0;
   z-index:12;
   pointer-events:none;
-  transform:none;
-  transform-style:flat;
+  transform-style:preserve-3d;
+}
+.ax-orb-module-shell .ax-orb-satellite-3d {
+  backface-visibility:hidden;
+  transform-style:preserve-3d;
+  width:64px;
+  max-width:64px;
+  min-height:48px;
+  gap:3px;
+}
+.ax-orb-module-shell .ax-orb-satellite-3d>span {
+  width:29px;
+  height:29px;
+  border-radius:50%;
+  border-color:rgba(118,205,255,.8);
+  background:linear-gradient(145deg,rgba(240,251,255,.98),rgba(143,203,242,.94));
+  box-shadow:0 0 14px rgba(65,174,255,.32),inset 0 1px rgba(255,255,255,.95);
+}
+.ax-orb-module-shell .ax-orb-satellite-3d small {
+  max-width:64px;
+  padding:2px 3px;
+  border:1px solid rgba(132,197,235,.72);
+  border-radius:5px;
+  background:rgba(6,26,49,.9);
+  color:#e8f7ff;
+  font-size:6.5px;
+  line-height:1.08;
+  letter-spacing:0;
+  white-space:normal;
+  text-shadow:0 1px 3px #061a31;
 }
 .ax-orb-module-shell .ax-orb-satellite {
   position:absolute;
