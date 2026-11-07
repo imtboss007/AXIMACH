@@ -333,3 +333,38 @@ test("Component Master price unit migration preserves legacy set records", () =>
   assert.ok(data.includes('salePriceUnit: "piece" | "set"'));
   assert.ok(data.includes('component.salePriceUnit === "set" ? "set" as const : component.salePriceUnit === "piece" ? "piece" as const : component.orderUnit === "Set" ? "set" as const : "piece" as const'));
 });
+
+
+test("Process Directory maintains permanent sub-process IDs through in-place renames and Logo Studio assigns by ID", () => {
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  const map = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(data.includes("subcategoryIds?: string[]"));
+  assert.ok(directory.includes("const nextSubcategoryIds=nextSubcategories.map"));
+  assert.ok(directory.includes("old?.subcategoryIds?.[index]"));
+  assert.ok(studio.includes('"subcategory:" + targetSubcategoryId'));
+  assert.ok(studio.includes('assignments["subcategory:" + subcategoryId]'));
+  assert.ok(studio.includes('targetType === "subcategory"'));
+  assert.ok(map.includes('subcategory={operation.subcategory}'));
+});
+
+test("3D Process Map places unsaved Process Directory definitions on the interactive orbit", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("const catalogueOrbitNodes = useMemo"));
+  assert.ok(universe.includes("const showCatalogueOrbit = parentOperations.length === 0"));
+  assert.ok(universe.includes("onAddProcessDefinition?.(definition.id)"));
+  assert.ok(universe.includes('className="process-orbit-node status-planned process-orbit-node-catalog"'));
+  assert.ok(universe.includes("DIRECTORY STAGES"));
+});
+
+test("Mechanical icon inventory covers cutting tools, production machines, workholding and metrology", () => {
+  const mechanical = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  for (const glyph of ["cnc-machine", "vmc-machine", "lathe-machine", "edm-machine", "grinding-machine", "laser-cutter", "welding-station", "fixture-jig", "cmm-machine", "caliper"]) {
+    assert.ok(mechanical.includes('glyph:"' + glyph + '"'), "missing mechanical symbol: " + glyph);
+  }
+  assert.ok(mechanical.includes("export const MECHANICAL_ICON_INVENTORY"));
+  assert.ok(directory.includes("Mechanical Icon Inventory"));
+  assert.ok(directory.includes("MECHANICAL_ICON_INVENTORY.map"));
+});
