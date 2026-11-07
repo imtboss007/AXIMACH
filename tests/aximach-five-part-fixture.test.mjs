@@ -40,3 +40,11 @@ test("fixture includes Ultra Precision, Precision and Standard classifications",
   assert.ok(classes.has("Precision"));
   assert.ok(classes.has("Standard"));
 });
+
+test("additional planned-cost process rows cascade by category and stable definition ID", () => {
+  const workspace = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.match(workspace, /processDefinitionId:\s*next\?\.id/);
+  assert.match(workspace, /value=\{row\.processDefinitionId\}/);
+  assert.match(workspace, /definitions\.filter\(item=>!row\.processCategory\|\|item\.category===row\.processCategory\)/);
+  assert.match(workspace, /item=>item\.id===row\.processDefinitionId/);
+});
