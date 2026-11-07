@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ArrowUpRight, Building2, CalendarClock, Mail, MessageCircle, Phone, Plus, Search, ShieldCheck, Trash2, Users, Wrench } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ContactProfileRecord } from "./manufacturingData";
+import SearchableMultiSelect from "./SearchableMultiSelect";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
 type Contact360Props=Props & {initialVendorId?:string;onInitialVendorConsumed?:()=>void};
@@ -19,6 +20,9 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
  const [processFilters,setProcessFilters]=useState<string[]>([]);
  const [machineFilters,setMachineFilters]=useState<string[]>([]);
  const [materialFilters,setMaterialFilters]=useState<string[]>([]);
+ const [categoryFilters,setCategoryFilters]=useState<string[]>([]);
+ const [subcategoryFilters,setSubcategoryFilters]=useState<string[]>([]);
+ const [onlyWhatsApp,setOnlyWhatsApp]=useState(false);
  useEffect(()=>{const legacy=readContacts();if(!legacy.length)return;update(current=>{const byId=new Map(current.contactProfiles.map(row=>[row.id,row]));let changed=false;for(const row of legacy){const old=byId.get(row.id);if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){byId.set(row.id,{...row,group:row.group||""});changed=true;}}return changed?{...current,contactProfiles:[...byId.values()]}:current;});},[update]);
  useEffect(()=>{if(!initialVendorId)return;setEditingId("");setDraft({...blank(),linkedType:"vendor",linkedId:initialVendorId});setShowForm(true);onInitialVendorConsumed?.();},[initialVendorId]);
  const relatedLabel=(row:ContactRecord)=>row.linkedType==="company"?companies.find(x=>x.id===row.linkedId)?.name||"Company record missing":vendors.find(x=>x.id===row.linkedId)?.company||"Vendor record missing";
@@ -26,6 +30,7 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
   ...companies.filter(c=>c.contactPerson?.trim()).map(c=>({id:"company:"+c.id,name:c.contactPerson||"",role:"Company contact",group:"",phone:c.phone,whatsapp:c.phone,additionalPhones:[],email:c.email,address:c.address||"",followUpDate:"",history:"",relationship:c.name,source:"Company Directory",linkedType:"company",vendorType:"Company",processes:"",machines:"",materials:""})),
   ...vendors.map(v=>({id:"vendor:"+v.id,name:v.contact,role:v.role,group:"",phone:v.phone,whatsapp:v.whatsappNumber||v.phone,additionalPhones:v.additionalPhones||[],email:v.email,address:v.address,followUpDate:"",history:"",relationship:v.company,source:"Vendor Directory",linkedType:"vendor",vendorType:v.vendorType||"",processes:v.processes||"",machines:v.machines||"",materials:v.materials||""}))
  ];
+ const processDefinitions=activeRows(data.processDefinitions);
  const manual=activeRows(rows);
  const contactRows=[
   ...generated.map(row=>({...row,kind:"master" as const})),
@@ -33,7 +38,10 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
  ];
  const roleOptions=[...new Set(contactRows.map(row=>row.role).filter(Boolean))].sort();
  const vendorTypeOptions=[...new Set(vendors.map(v=>v.vendorType||"").filter(Boolean))].sort();
- const processOptions=[...new Set(vendors.flatMap(v=>v.processes.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)))].sort();
+ const processOptions=[...new Set([...processDefinitions.map(x=>x.processType),...vendors.flatMap(v=>v.processes.split(/[,;|]/).map(x=>x.trim()).filter(Boolean))])].sort();
+ const categoryOptions=[...new Set(processDefinitions.map(x=>x.category).filter(Boolean))].sort();
+ const selectedCapabilityDefinitions=processDefinitions.filter(x=>(!categoryFilters.length||categoryFilters.includes(x.category))&&(!processFilters.length||processFilters.includes(x.processType)));
+ const subcategoryOptions=[...new Set(selectedCapabilityDefinitions.flatMap(x=>x.subcategories||[]))].sort();
  const machineOptions=[...new Set(vendors.flatMap(v=>v.machines.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)))].sort();
  const materialOptions=[...new Set(vendors.flatMap(v=>v.materials.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)))].sort();
  const toggleMulti=(setter:React.Dispatch<React.SetStateAction<string[]>>,value:string)=>setter(current=>current.includes(value)?current.filter(x=>x!==value):[...current,value]);
@@ -44,10 +52,13 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
    &&(typeFilter==="All"||row.linkedType===typeFilter.toLowerCase())
    &&(!roleFilters.length||roleFilters.includes(row.role))
    &&(!vendorTypeFilters.length||vendorTypeFilters.includes(row.vendorType))
+   &&containsAny(categoryFilters,(row as any).processCategories||"")
    &&containsAny(processFilters,row.processes)
+   &&containsAny(subcategoryFilters,(row as any).processSubcategories||"")
    &&containsAny(machineFilters,row.machines)
-   &&containsAny(materialFilters,row.materials);
- }),[contactRows,search,typeFilter,roleFilters,vendorTypeFilters,processFilters,machineFilters,materialFilters]);
+   &&containsAny(materialFilters,row.materials)
+   &&(!onlyWhatsApp||Boolean(String(row.whatsapp||"").replace(/\\D/g,"").length>=8));
+ }),[contactRows,search,typeFilter,roleFilters,vendorTypeFilters,categoryFilters,processFilters,subcategoryFilters,machineFilters,materialFilters,onlyWhatsApp]);
  const beginNew=()=>{setEditingId("");setDraft(blank());setShowForm(true);};
  const edit=(row:ContactRecord)=>{setEditingId(row.id);setDraft({linkedType:row.linkedType,linkedId:row.linkedId,name:row.name,role:row.role,group:row.group||"",phone:row.phone,whatsapp:row.whatsapp,additionalPhones:row.additionalPhones||[],email:row.email,address:row.address,followUpDate:row.followUpDate,history:row.history});setShowForm(true);};
  const save=()=>{if(!draft.name.trim()||!draft.linkedId){onNotice("Enter the contact name and link it to a company or vendor.");return;}const stamp=nowIso();const old=rows.find(x=>x.id===editingId);const row:ContactRecord={...draft,id:editingId||makeId("contact"),createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};update(current=>({...current,contactProfiles:[row,...current.contactProfiles.filter(x=>x.id!==row.id)]}));setShowForm(false);setEditingId("");setDraft(blank());onNotice("Contact profile saved to shared AXIMACH contact data with its company/vendor relationship and follow-up history.");};
@@ -57,14 +68,17 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
   <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> CONTACT GRAPH</span></div>
   {notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> RELATIONSHIPS / CONTACT MASTER</div><h1>Contact 360<span>.</span></h1><p>Unified contact profiles across company and vendor masters, with communication history and follow-up dates.</p></div><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add contact</button></div>
-  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search contact name, company, phone, role, machine or capability…"/></label><label>Relationship<select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="All">All contacts</option><option value="vendor">Vendor contacts</option><option value="company">Company contacts</option></select></label><span className="module-number">{filtered.length} CONTACT PROFILES</span><button className="button-quiet compact-button" onClick={()=>{setSearch("");setTypeFilter("All");setRoleFilters([]);setVendorTypeFilters([]);setProcessFilters([]);setMachineFilters([]);setMaterialFilters([]);}}>Clear filters</button></div>
-  <section className="surface-panel contact360-filter-panel"><div className="panel-heading"><div><h3>Contact capability filters</h3><p>Select multiple values in each category. All selections can be cleared together.</p></div><button className="button-quiet compact-button" onClick={()=>{setRoleFilters(roleOptions);setVendorTypeFilters(vendorTypeOptions);setProcessFilters(processOptions);setMachineFilters(machineOptions);setMaterialFilters(materialOptions);}}>Select all</button></div>
-    <div className="contact360-filter-grid">
-      <div><strong>Role / designation</strong>{roleOptions.map(x=><label key={x}><input type="checkbox" checked={roleFilters.includes(x)} onChange={()=>toggleMulti(setRoleFilters,x)}/>{x}</label>)}</div>
-      <div><strong>Type of vendor</strong>{vendorTypeOptions.map(x=><label key={x}><input type="checkbox" checked={vendorTypeFilters.includes(x)} onChange={()=>toggleMulti(setVendorTypeFilters,x)}/>{x}</label>)}</div>
-      <div><strong>Process capabilities</strong>{processOptions.map(x=><label key={x}><input type="checkbox" checked={processFilters.includes(x)} onChange={()=>toggleMulti(setProcessFilters,x)}/>{x}</label>)}</div>
-      <div><strong>Machine capabilities</strong>{machineOptions.map(x=><label key={x}><input type="checkbox" checked={machineFilters.includes(x)} onChange={()=>toggleMulti(setMachineFilters,x)}/>{x}</label>)}</div>
-      <div><strong>Material capabilities</strong>{materialOptions.map(x=><label key={x}><input type="checkbox" checked={materialFilters.includes(x)} onChange={()=>toggleMulti(setMaterialFilters,x)}/>{x}</label>)}</div>
+  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search contact name, company, phone, role, machine or capability…"/></label><label>Relationship<select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="All">All contacts</option><option value="vendor">Vendor contacts</option><option value="company">Company contacts</option></select></label><span className="module-number">{filtered.length} CONTACT PROFILES</span><button className="button-quiet compact-button" onClick={()=>{setSearch("");setTypeFilter("All");setRoleFilters([]);setVendorTypeFilters([]);setCategoryFilters([]);setProcessFilters([]);setSubcategoryFilters([]);setMachineFilters([]);setMaterialFilters([]);setOnlyWhatsApp(false);}}>Clear filters</button></div>
+  <section className="surface-panel contact360-filter-panel"><div className="panel-heading"><div><h3>Contact capability filters</h3><p>Each column has its own search, multi-select, Select all and Clear controls.</p></div><button className="button-quiet compact-button" onClick={()=>{setRoleFilters([]);setVendorTypeFilters([]);setCategoryFilters([]);setProcessFilters([]);setSubcategoryFilters([]);setMachineFilters([]);setMaterialFilters([]);}}>Clear all filters</button></div>
+    <div className="contact360-filter-grid ax-search-filter-columns">
+      <label className="contact360-whatsapp-filter"><input type="checkbox" checked={onlyWhatsApp} onChange={e=>setOnlyWhatsApp(e.target.checked)}/> WhatsApp contacts only</label>
+      <SearchableMultiSelect id="contact-role" label="Role / designation" options={roleOptions.map(x=>({id:x,label:x}))} selected={roleFilters} onChange={setRoleFilters} emptyMeansAll/>
+      <SearchableMultiSelect id="contact-vendor-type" label="Vendor category" options={vendorTypeOptions.map(x=>({id:x,label:x}))} selected={vendorTypeFilters} onChange={setVendorTypeFilters} emptyMeansAll/>
+      <SearchableMultiSelect id="contact-process-category" label="Process category" options={categoryOptions.map(x=>({id:x,label:x}))} selected={categoryFilters} onChange={setCategoryFilters} emptyMeansAll/>
+      <SearchableMultiSelect id="contact-process-type" label="Process type" options={processOptions.map(x=>({id:x,label:x}))} selected={processFilters} onChange={setProcessFilters} emptyMeansAll/>
+      <SearchableMultiSelect id="contact-process-subcategory" label="Process subcategory" options={subcategoryOptions.map(x=>({id:x,label:x}))} selected={subcategoryFilters} onChange={setSubcategoryFilters} emptyMeansAll/>
+      <SearchableMultiSelect id="contact-machine" label="Machine capability" options={machineOptions.map(x=>({id:x,label:x}))} selected={machineFilters} onChange={setMachineFilters} emptyMeansAll/>
+      <SearchableMultiSelect id="contact-material" label="Material capability" options={materialOptions.map(x=>({id:x,label:x}))} selected={materialFilters} onChange={setMaterialFilters} emptyMeansAll/>
     </div>
   </section>
   {showForm&&<section className="surface-panel"><div className="panel-heading"><div><h3>{editingId?"Edit contact profile":"Add contact profile"}</h3><p>Every profile must be linked to an existing company or vendor.</p></div></div>
