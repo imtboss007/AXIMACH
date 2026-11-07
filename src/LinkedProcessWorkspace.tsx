@@ -91,16 +91,32 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [bulkStart,setBulkStart] = useState("");
   const [bulkEnd,setBulkEnd] = useState("");
   useEffect(() => {
-    if (!initialContext?.poId) return;
-    const targetPO = purchaseOrders.find(po => po.id === initialContext.poId);
-    if (!targetPO) return;
-    setCompanyId(targetPO.companyId);
-    setPoId(targetPO.id);
-    const targetLine = targetPO.lines.find(line => line.id === initialContext.poLineId)
-      || targetPO.lines.find(line => line.componentId === initialContext.componentId);
-    setPoLineId(targetLine?.id || "");
+    if (!initialContext) return;
+    const targetPO = (initialContext.poId
+      ? purchaseOrders.find(po => po.id === initialContext.poId)
+      : undefined)
+      || (initialContext.poLineId
+        ? purchaseOrders.find(po => po.lines.some(line => line.id === initialContext.poLineId))
+        : undefined)
+      || (initialContext.componentId
+        ? purchaseOrders.find(po => po.lines.some(line => line.componentId === initialContext.componentId))
+        : undefined);
+    if (targetPO) {
+      setCompanyId(targetPO.companyId);
+      setPoId(targetPO.id);
+      const targetLine = targetPO.lines.find(line => line.id === initialContext.poLineId)
+        || targetPO.lines.find(line => line.componentId === initialContext.componentId);
+      setPoLineId(targetLine?.id || "");
+    } else if (initialContext.companyId) {
+      setCompanyId(initialContext.companyId);
+      setPoId("");
+      setPoLineId("");
+    } else if (initialContext.componentId) {
+      setPoId("");
+      setPoLineId("");
+    }
     setSelectedOperationId("");
-  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.componentId]);
+  }, [initialContext?.companyId, initialContext?.poId, initialContext?.poLineId, initialContext?.componentId]);
 
 
   const companyOrders = purchaseOrders.filter(p => p.companyId === companyId);
