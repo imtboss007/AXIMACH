@@ -187,7 +187,8 @@ export function QualityInspectionWorkspace({onBack,onNotice,notice,initialContex
    if(nextCompleted>currentOperation.quantity){onNotice("Completed quantity cannot exceed the operation quantity.");return;}
    if(nextAccepted+nextRejected>nextCompleted){onNotice("Accepted plus rejected quantity cannot exceed completed quantity.");return;}
   }
-  update(current=>({...current,operations:current.operations.map(op=>op.id===id?{...op,[key]:value,updatedAt:nowIso()}:op)}));
+  const stamp=nowIso();
+  update(current=>({...current,operations:current.operations.map(op=>op.id===id?{...op,[key]:value,...(key==="status"&&value==="Complete"?{actualEnd:op.actualEnd||stamp.slice(0,10)}:{}),updatedAt:stamp}:op)}));
   onNotice("Inspection values saved to the linked process operation.");
  };
  const saveMeasurement=()=>{
