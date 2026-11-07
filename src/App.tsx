@@ -78,11 +78,32 @@ const modules: ModuleItem[] = [
   { id: "communications", title: "Follow-up Centre", group: "Connections", description: "Contact follow-ups, reminders, WhatsApp-related communication and history.", icon: MessageCircle, action: "Open follow-up centre" },
   { id: "reports", title: "Reports & Analytics", group: "Insights", description: "PO, component, process, vendor, production, delivery and financial reporting.", icon: BarChart3, action: "Open reports and analytics" },
   { id: "ai-insights", title: "AI Insights", group: "Insights", description: "Evidence-based insights from saved AXIMACH operational and financial data.", icon: Sparkles, action: "Open AI insights" },
-  { id: "export", title: "Export Centre", group: "Data", description: "Export full modules or individual component and process records to PDF or Excel.", icon: FileDown, action: "Open export centre" },
-  { id: "import", title: "Import Centre", group: "Data", description: "Import PDF or Excel records with validation and duplicate review.", icon: FileUp, action: "Open import centre" }
+  { id: "export", title: "Data Exchange Centre", group: "Data", description: "Import and export records, validate files, review duplicates and create full backups.", icon: FileDown, action: "Open data exchange centre" }
 ];
 
 const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) => item.group)))];
+
+function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNotice:(value:string)=>void;notice:string}) {
+  const [mode,setMode] = useState<"export"|"import">("export");
+  return (
+    <section className="workspace-page">
+      <div className="workspace-topline">
+        <button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button>
+        <span className="demo-pill"><i/> DATA EXCHANGE</span>
+      </div>
+      <div className="workspace-title-row">
+        <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA / IMPORT &amp; EXPORT</div><h1>Data Exchange Centre<span>.</span></h1><p>One workspace for validated imports, module exports and full AXIMACH backups.</p></div>
+      </div>
+      <div className="linked-route-actions" role="tablist" aria-label="Data exchange mode">
+        <button type="button" role="tab" aria-selected={mode==="export"} className={(mode==="export"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("export")}><FileDown size={14}/> Export records</button>
+        <button type="button" role="tab" aria-selected={mode==="import"} className={(mode==="import"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("import")}><FileUp size={14}/> Import and validate</button>
+      </div>
+      {mode==="export"
+        ? <ExportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={()=>{}} />
+        : <ImportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={()=>{}} />}
+    </section>
+  );
+}
 
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
@@ -194,7 +215,7 @@ function App() {
         <button className="command-search" onClick={() => { setCommandOpen(true); setModuleExplorerOpen(false); }} aria-label="Open command search">
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
-        <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>18</b></button>
+        <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>{modules.length}</b></button>
         <button className="deck-action" onClick={() => setIconStudioOpen(true)}><Sparkles size={16}/><span>Logo Studio</span></button>
         <label className="appearance-picker" title="Appearance"><Settings2 size={15}/><select aria-label="Appearance" value={appearance} onChange={e=>setAppearance(e.target.value as "light"|"dark"|"midnight"|"ocean")}><option value="light">Light</option><option value="dark">Dark</option><option value="midnight">Midnight</option><option value="ocean">Ocean</option></select></label>
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
@@ -241,9 +262,7 @@ function App() {
         ) : activeModuleId === "ai-insights" ? (
           <AIInsightsWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "export" ? (
-          <ExportCentreWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
-        ) : activeModuleId === "import" ? (
-          <ImportCentreWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <DataExchangeWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "production" ? (
           <ProductionPlanWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "dispatch" ? (
