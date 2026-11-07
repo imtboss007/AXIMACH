@@ -36,7 +36,9 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
  const [processType,setProcessType]=useState("");
  const [category,setCategory]=useState("");
  const [subcategories,setSubcategories]=useState("");
+ const [subcategoryDraft,setSubcategoryDraft]=useState("");
  const [vendorIds,setVendorIds]=useState<string[]>([]);
+ const [selectedProcessIds,setSelectedProcessIds]=useState<string[]>([]);
  const [notes,setNotes]=useState("");
  const filtered=useMemo(()=>rows.filter(row=>(row.processType+" "+row.category+" "+row.subcategories.join(" ")+" "+row.notes+" "+row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(" ")).toLowerCase().includes(search.toLowerCase().trim())),[rows,search,vendors]);
  const reset=()=>{setEditingId("");setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");setSubcategoryDraft("");};
