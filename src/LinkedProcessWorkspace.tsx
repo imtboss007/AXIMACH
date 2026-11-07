@@ -700,6 +700,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const activeIsBranch = Boolean(activeOperation && (activeOperation.branch || "Main route") !== "Main route");
     if (transportPlacement === "start" && activeIsBranch) { onNotice("Transport for an alternate or rework branch must be anchored to a process step in that branch. This keeps its cost excluded until the branch is used."); return; }
     if (!selectedTransportDirectoryRoute) { onNotice("Select a saved route from Transport Directory, or add one there first."); return; }
+    if (!vendors.some(vendor=>vendor.id===selectedTransportDirectoryRoute.vendorId)) { onNotice("The selected route vendor is missing or archived. Repair the vendor link in Transport Directory."); return; }
+    if (!Number.isFinite(Number(selectedTransportDirectoryRoute.fixedAmount)) || Number(selectedTransportDirectoryRoute.fixedAmount)<0) { onNotice("The selected Transport Directory route has an invalid fixed rate. Correct it in Transport Directory before assigning it."); return; }
     const existingLegForEdit = editingTransportLegId ? componentTransportLegs.find(leg=>leg.id===editingTransportLegId) : undefined;
     if(selectedTransportDirectoryRoute.active===false&&existingLegForEdit?.routeId!==selectedTransportDirectoryRoute.id){onNotice("This Transport Directory route is inactive. Activate it before assigning it to a new transport entry.");return;}
     const tripCount = Number(transportTripCount);
