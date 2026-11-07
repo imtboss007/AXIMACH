@@ -41,6 +41,14 @@ test("fixture includes Ultra Precision, Precision and Standard classifications",
   assert.ok(classes.has("Standard"));
 });
 
+test("Process Plan enforces whole-number operation and production quantities", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("operationQuantities.some(value=>!Number.isSafeInteger(Number(value))||Number(value)<0)"));
+  assert.ok(workspace.includes("draft.quantity<1"));
+  assert.ok(workspace.includes("draft.completed>draft.quantity"));
+  assert.ok(workspace.includes("draft.accepted + draft.rejected > draft.completed"));
+});
+
 test("Quality Inspection enforces whole-number quantity balance and operation quantity limits", () => {
   const workspace = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("!Number.isSafeInteger(quantity)||quantity<0"));
