@@ -163,28 +163,29 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             animate={reducedMotion || reduceMotion || paused ? undefined : { rotate: -360 }}
             transition={{ duration: speed === "Fast" ? 34 : speed === "Slow" ? 90 : 58, repeat: Infinity, ease: "linear" }}
           />
-          <motion.div className="ax-orb-module-shell" style={{ rotateX, rotateY, transformPerspective: 950 }}>
+
+        </motion.div>
+        <div className="ax-orb-module-shell" aria-label="18 clickable AXIMACH modules">
           {satellites.map(({ id, label, Icon }, index) => {
-            // Fibonacci-sphere coordinates place each workspace on the 3D surface.
-            const phi = Math.acos(1 - 2 * (index + 0.5) / satellites.length);
-            const theta = Math.PI * (1 + Math.sqrt(5)) * index;
-            const radius = compactViewport ? 116 : 146;
-            const x = Math.cos(theta) * Math.sin(phi) * radius;
-            const y = Math.cos(phi) * radius * 0.88;
-            const z = Math.sin(theta) * Math.sin(phi) * radius * 0.72;
-            return <motion.button key={id} className="ax-orb-satellite"
-              style={{ left: "50%", top: "50%", right: "auto", bottom: "auto", transform: "translate3d(" + x + "px," + y + "px," + z + "px) translate(-50%,-50%)" }}
+            // Keep all 18 controls in the viewer-facing plane so none disappear
+            // behind the rotating globe. The globe itself remains independently 3D.
+            const angle = (Math.PI * 2 * index) / satellites.length - Math.PI / 2;
+            const radiusX = compactViewport ? 145 : 184;
+            const radiusY = compactViewport ? 128 : 158;
+            const x = Math.cos(angle) * radiusX;
+            const y = Math.sin(angle) * radiusY;
+            return <motion.button key={id} type="button" className="ax-orb-satellite"
+              style={{ left: "50%", top: "50%", transform: "translate(" + x + "px," + y + "px) translate(-50%,-50%)" }}
               onPointerDown={event => event.stopPropagation()} onClick={() => onSelectModule(id)}
               aria-label={"Open " + label + " module"} title={"Open " + label}
               initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.12 + index * 0.035, type: "spring", stiffness: 130 }} whileHover={{ scale: 1.08, y: -2 }} whileTap={{ scale: 0.95 }}>
+              transition={{ delay: 0.08 + index * 0.025, type: "spring", stiffness: 130 }} whileHover={{ scale: 1.08, y: -2 }} whileTap={{ scale: 0.95 }}>
               <span><Icon size={16} strokeWidth={1.8}/></span><small>{label}</small>
             </motion.button>;
           })}
-          </motion.div>
-        </motion.div>
+        </div>
       </motion.div>
-      <div className="ax-orb-lower-shell" aria-label="Live record summary shell">
+      <div className="ax-orb-lower-shell" aria-label="Separate live record summary shell">
         <motion.div className="ax-orb-lower-rotator" animate={reducedMotion || reduceMotion || paused ? undefined : { rotateY: 360 }} transition={{ duration: speed === "Fast" ? 24 : speed === "Slow" ? 60 : 38, repeat: Infinity, ease: "linear" }}>
           {shellStats.map(({ id, label, value, Icon }, index) => <button type="button" key={label} className="ax-orb-lower-node"
             style={{ transform: "translate(-50%,-50%) rotateY(" + (index * 60) + "deg) translateZ(" + (compactViewport ? 94 : 132) + "px) rotateY(-" + (index * 60) + "deg)" }}
