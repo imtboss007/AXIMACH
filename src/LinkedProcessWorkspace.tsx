@@ -468,7 +468,6 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if (!parent) return;
     const base = blankOperation(selectedLine);
     base.category = parent.category;
-    base.processDefinitionId = parent.processDefinitionId || processDefinitions.find(item=>item.processType===parent.name&&item.category===parent.category)?.id || "";
     base.vendorId = parent.vendorId;
     base.executionType = parent.executionType || "Outsourced";
     base.branch = parent.branch || "Main route";
@@ -501,7 +500,6 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     base.branch = (kind === "alternate" ? "Alternate route" : "Rework") + " · OP-" + String(anchor.sequence).padStart(3, "0") + " · " + anchor.name;
     base.name = kind === "alternate" ? "Alternate route operation" : "Rework operation";
     base.category = anchor.category;
-    base.processDefinitionId = anchor.processDefinitionId || processDefinitions.find(item=>item.processType===anchor.name&&item.category===anchor.category)?.id || "";
     base.vendorId = anchor.vendorId;
     base.executionType = anchor.executionType || "Outsourced";
     base.parentId = anchor.id;
