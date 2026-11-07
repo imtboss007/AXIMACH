@@ -103,11 +103,12 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
       if(!vendorCostMap.has(vendorId))vendorCostMap.set(vendorId,{vendorId,processCost:0,plannedProcessCost:0,transportCost:0,paid:0});
       return vendorCostMap.get(vendorId)!;
     };
+    const duplicateLegacyTransportIds=new Set(costedLinkedOperations.filter(op=>includedTransportLegs.some(leg=>leg.anchorOperationId===op.id&&Boolean(op.transportRouteId)&&leg.routeId===op.transportRouteId&&Math.abs((Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0))-Math.max(0,Number(op.transportCost)||0))<0.01)).map(op=>op.id));
     costedLinkedOperations.forEach(op=>{
       const processVendor=vendorBucket(op.vendorId);
       if(processVendor){processVendor.processCost+=op.quantity*(op.actualRatePerPart||0);processVendor.plannedProcessCost+=op.quantity*Math.max(0,Number(op.ratePerPart)||0);processVendor.paid+=paymentForOperation(op);}
       const transportVendor=vendorBucket(op.transportVendorId||op.vendorId);
-      if(transportVendor)transportVendor.transportCost+=Math.max(0,Number(op.transportCost)||0);
+      if(transportVendor&&!duplicateLegacyTransportIds.has(op.id))transportVendor.transportCost+=Math.max(0,Number(op.transportCost)||0);
     });
     includedTransportLegs.forEach(leg=>{
       const transportVendor=vendorBucket(leg.vendorId);
