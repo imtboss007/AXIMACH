@@ -41,6 +41,12 @@ test("fixture includes Ultra Precision, Precision and Standard classifications",
   assert.ok(classes.has("Standard"));
 });
 
+test("Process Plan rejects stale process-definition IDs when the definition name or category changed", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('item.id === draft.processDefinitionId && item.processType === draft.name && item.category === draft.category'));
+  assert.ok(workspace.includes('processDefinitionId: selectedProcessDefinition?.id || undefined'));
+});
+
 test("Process Directory prevents duplicate process type within the same category", () => {
   const workspace = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("row.id!==editingId&&row.category.trim().toLowerCase()===category.trim().toLowerCase()&&row.processType.trim().toLowerCase()===processType.trim().toLowerCase()"));
