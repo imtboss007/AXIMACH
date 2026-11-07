@@ -58,11 +58,19 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const includedTransportLegs=(data.transportLegs||[]).filter(leg=>!leg.deletedAt&&leg.poId===po.id&&leg.poLineId===line.id&&leg.componentId===line.componentId&&(!leg.anchorOperationId||linkedOperations.find(op=>op.id===leg.anchorOperationId)?.costIncluded!==false));
     const routeTransport=includedTransportLegs.reduce((sum,leg)=>sum+Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0),0);
     const transportCost=legacyTransport+routeTransport;
-    const plannedRows=activeRows(data.plannedCosts).filter(row=>
-      (row.componentNumber.trim().toLowerCase()===(component?.partNumber||"").trim().toLowerCase()||row.componentName.trim().toLowerCase()===(component?.name||"").trim().toLowerCase()) &&
-      (!row.companyName || row.companyName.trim().toLowerCase()===((companies.find(item=>item.id===po.companyId)?.name)||"").trim().toLowerCase()) &&
-      (!row.poNumber || row.poNumber.trim().toLowerCase()===po.number.trim().toLowerCase())
-    );
+    const plannedRows=activeRows(data.plannedCosts).filter(row=>{
+      const componentMatches=row.componentId
+        ? row.componentId===line.componentId
+        : (row.componentNumber.trim().toLowerCase()===(component?.partNumber||"").trim().toLowerCase()
+          || row.componentName.trim().toLowerCase()===(component?.name||"").trim().toLowerCase());
+      const companyMatches=row.companyId
+        ? row.companyId===po.companyId
+        : (!row.companyName || row.companyName.trim().toLowerCase()===((companies.find(item=>item.id===po.companyId)?.name)||"").trim().toLowerCase());
+      const poMatches=row.poId
+        ? row.poId===po.id
+        : (!row.poNumber || row.poNumber.trim().toLowerCase()===po.number.trim().toLowerCase());
+      return componentMatches && companyMatches && poMatches;
+    });
     const plannedProcess=costedLinkedOperations.reduce((sum,op)=>sum+op.quantity*Math.max(0,Number(op.ratePerPart)||0),0);
     const plannedProcessCost=plannedRows.length?plannedRows.reduce((sum,row)=>sum+row.plannedQty*row.plannedRate,0):plannedProcess;
     const bomLines=data.bomLines.filter(bom=>bom.componentId===line.componentId&&!bom.deletedAt);

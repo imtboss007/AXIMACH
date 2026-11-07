@@ -514,7 +514,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                   {!presets.length && <span className="ax-icon-presets-empty">Save a process icon to create your first reusable style.</span>}
                 </div>
                 <div className="ax-icon-version-history"><div className="ax-icon-field-label"><span>Version history</span><small>{assignments[assignmentKey]?.revision ? "v" + assignments[assignmentKey].revision : "Not assigned"}</small></div>{(assignments[assignmentKey]?.history || []).slice().reverse().slice(0, 5).map((version, index) => <button type="button" key={version.updatedAt + ":" + index} onClick={() => restoreVersion(version)}>v{version.revision || "—"} · {version.iconName.replaceAll("-", " ")} <small>{new Date(version.updatedAt).toLocaleString("en-IN")}</small></button>)}</div>
-                <button className="ax-icon-save" onClick={saveAssignment} disabled={(targetType === "process" || targetType === "component") && !targetRecordId}><Sparkles size={16}/> Save & apply to {selectedTargetLabel || (targetType === "exact" ? specificProcess.trim() : family)}</button>
+                <button className="ax-icon-save" onClick={saveAssignment} disabled={((targetType === "process" || targetType === "component") && !targetRecordId) || (targetType === "exact" && !specificProcess.trim())}><Sparkles size={16}/> Save & apply to {selectedTargetLabel || (targetType === "exact" ? specificProcess.trim() : family)}</button>
                 {assignments[assignmentKey] && <button className="ax-icon-reset" onClick={() => removeAssignment(assignmentKey)}>Restore AXIMACH default icon</button>}
                 {notice && <div className="ax-icon-notice"><Check size={13}/>{notice}</div>}
               </aside>
