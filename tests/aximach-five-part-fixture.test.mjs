@@ -56,6 +56,12 @@ test("Quality Inspection enforces whole-number quantity balance and operation qu
   assert.ok(workspace.includes("nextAccepted+nextRejected>nextCompleted"));
 });
 
+test("Production Plan bulk finish checks incomplete operations against exact PO and PO-line pairs", () => {
+  const workspace = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("new Set(selectedVisibleJobs.map(row=>row.po.id+\":\"+row.line.id))"));
+  assert.ok(workspace.includes("selectedIds.has(op.poId+\":\"+op.poLineId)"));
+});
+
 test("Transport assignment rejects inactive directory routes in both creation workflows", () => {
   const production = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
   const processPlan = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
