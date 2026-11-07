@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { motion, useAnimationFrame, useMotionValue, useReducedMotion } from "motion/react";
 import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, Layers3, MessageCircle, Package, Sparkles, Truck, Users, Wallet } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
+import AXIMACHWebGLSphere from "./AXIMACHWebGLSphere";
 
 type Props = { onSelectModule: (id: string) => void };
 
@@ -142,6 +143,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             animate={reducedMotion || reduceMotion || paused ? undefined : { y: [0, -5, 0] }}
             transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
           >
+            <AXIMACHWebGLSphere paused={paused} reduceMotion={reduceMotion || reducedMotion} speed={speed} />
             <span className="ax-orb-gloss" />
             <span className="ax-orb-latitude ax-orb-latitude-one" />
             <span className="ax-orb-latitude ax-orb-latitude-two" />
