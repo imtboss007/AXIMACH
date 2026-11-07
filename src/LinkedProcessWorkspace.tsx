@@ -6,7 +6,8 @@ import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 
-type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string };\ntype Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; onOpenIconStudio?: () => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
+type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string };
+type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; onOpenIconStudio?: () => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
 type ProcessExportField = "company" | "po" | "component" | "componentNumber" | "operation" | "category" | "subcategory" | "execution" | "description" | "vendor" | "transportVendor" | "transportRoute" | "vehicle" | "quantity" | "quantityUnit" | "completed" | "rejected" | "status" | "tolerance" | "inspection" | "paymentStatus" | "paidAmount" | "plannedStart" | "plannedEnd" | "price" | "transportCost" | "amount";
 const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
   {key:"company",label:"Company"},{key:"po",label:"PO number"},{key:"component",label:"Component name"},{key:"componentNumber",label:"Component number"},
@@ -289,7 +290,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if(!exportOperations.length || !exportColumns.length){onNotice("Choose at least one field and ensure operations are visible.");return;}
     const cell=(value:unknown)=>'"'+String(value??"").replace(/"/g,'""')+'"';
     const rows=[exportColumns.map(field=>cell(field.label)).join(","),...exportOperations.map(op=>exportColumns.map(field=>cell(exportValue(op,field.key))).join(","))];
-    saveExportBlob(exportFileBase+".csv",new Blob(["\uFEFF"+rows.join("\r\n")],{type:"text/csv;charset=utf-8"}));
+    saveExportBlob(exportFileBase+".csv",new Blob(["\uFEFF"+rows.join("\r
+")],{type:"text/csv;charset=utf-8"}));
     onNotice("CSV export prepared from "+exportOperations.length+" saved operation record(s).");
   };
   const exportExcel = async () => {
