@@ -48,6 +48,11 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [selectedPoIds, setSelectedPoIds] = useState<string[]>([]);
   const [selectedComponentIds, setSelectedComponentIds] = useState<string[]>([]);
+  const [componentCompanyFilters, setComponentCompanyFilters] = useState<string[]>([]);
+  const [componentRevisionFilters, setComponentRevisionFilters] = useState<string[]>([]);
+  const [componentUnitFilters, setComponentUnitFilters] = useState<string[]>([]);
+  const [poCompanyFilters, setPoCompanyFilters] = useState<string[]>([]);
+  const [poStatusFilters, setPoStatusFilters] = useState<string[]>([]);
   const [openedPoId, setOpenedPoId] = useState("");
   const openedOrder = orders.find(order => order.id === openedPoId);
   useEffect(() => {
@@ -83,8 +88,13 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
     return (c.name + " " + c.gstin + " " + c.contactPerson + " " + c.phone + " " + c.email + " " + c.address + " " + people).toLowerCase().includes(search.toLowerCase().trim());
   }), [companies, search, data.contactProfiles]);
   const filteredFactories = useMemo(() => factories.filter(f => (f.name + " " + f.address + " " + companyName(f.companyId)).toLowerCase().includes(search.toLowerCase().trim())), [factories, search, data.companies]);
-  const filteredComponents = useMemo(() => components.filter(c => (c.partNumber + " " + c.name + " " + c.drawingReference + " " + c.revision).toLowerCase().includes(search.toLowerCase().trim())), [components, search]);
-  const filteredOrders = useMemo(() => orders.filter(p => (p.number + " " + companyName(p.companyId) + " " + p.lines.map(l => componentName(l.componentId)).join(" ")).toLowerCase().includes(search.toLowerCase().trim())), [orders, search, data.companies, data.factories, data.components]);
+  const filteredComponents = useMemo(() => components.filter(c => (c.partNumber + " " + c.name + " " + c.drawingReference + " " + c.revision).toLowerCase().includes(search.toLowerCase().trim())
+    &&(!componentCompanyFilters.length||componentCompanyFilters.includes(c.companyId||""))
+    &&(!componentRevisionFilters.length||componentRevisionFilters.includes(c.revision||"—"))
+    &&(!componentUnitFilters.length||componentUnitFilters.includes(c.salePriceUnit||"piece"))), [components, search, componentCompanyFilters, componentRevisionFilters, componentUnitFilters]);
+  const filteredOrders = useMemo(() => orders.filter(p => (p.number + " " + companyName(p.companyId) + " " + p.lines.map(l => componentName(l.componentId)).join(" ")).toLowerCase().includes(search.toLowerCase().trim())
+    &&(!poCompanyFilters.length||poCompanyFilters.includes(p.companyId||""))
+    &&(!poStatusFilters.length||poStatusFilters.includes(p.status))), [orders, search, data.companies, data.factories, data.components, poCompanyFilters, poStatusFilters]);
 
   const resetForms = () => {
     setShowForm(false); setCompanyEditingId(""); setFactoryEditingId(""); setComponentEditingId(""); setPoEditingId("");
@@ -217,6 +227,8 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
       <button className={tab === "factories" ? "costing-tab-active" : ""} onClick={() => { setTab("factories"); resetForms(); }}><Factory size={15}/> Factories ({factories.length})</button>
     </div>}
     <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder={"Search " + header.toLowerCase() + "…"}/></label><span className="module-number">{moduleId === "companies" ? tab === "companies" ? companies.length + " COMPANIES" : factories.length + " FACTORIES" : moduleId === "purchasing" ? orders.length + " ORDERS" : components.length + " COMPONENTS"}</span></div>
+    {moduleId === "components" && <section className="surface-panel master-column-filters"><div className="panel-heading"><div><h3>Component Master filters</h3><p>Searchable, multi-select filters for linked company, revision and sales unit.</p></div><button className="button-quiet compact-button" onClick={()=>{setSearch("");setComponentCompanyFilters([]);setComponentRevisionFilters([]);setComponentUnitFilters([]);}}>Clear filters</button></div><div className="contact360-filter-grid ax-search-filter-columns"><SearchableMultiSelect id="component-master-company-filter" label="Company" options={companies.map(row=>({id:row.id,label:row.name}))} selected={componentCompanyFilters} onChange={setComponentCompanyFilters} emptyMeansAll/><SearchableMultiSelect id="component-master-revision-filter" label="Revision" options={[...new Set(components.map(row=>row.revision||"—"))].sort().map(value=>({id:value,label:value}))} selected={componentRevisionFilters} onChange={setComponentRevisionFilters} emptyMeansAll/><SearchableMultiSelect id="component-master-unit-filter" label="Unit" options={["piece","set"].map(value=>({id:value,label:value==="piece"?"Per piece":"Per set"}))} selected={componentUnitFilters} onChange={setComponentUnitFilters} emptyMeansAll/></div></section>}
+    {moduleId === "purchasing" && <section className="surface-panel master-column-filters"><div className="panel-heading"><div><h3>Purchase Orders filters</h3><p>Filter by linked company and purchase-order status.</p></div><button className="button-quiet compact-button" onClick={()=>{setSearch("");setPoCompanyFilters([]);setPoStatusFilters([]);}}>Clear filters</button></div><div className="contact360-filter-grid ax-search-filter-columns"><SearchableMultiSelect id="purchase-order-company-filter" label="Company" options={companies.map(row=>({id:row.id,label:row.name}))} selected={poCompanyFilters} onChange={setPoCompanyFilters} emptyMeansAll/><SearchableMultiSelect id="purchase-order-status-filter" label="PO status" options={["Open","Confirmed","In Production","Complete","On Hold","Cancelled"].map(value=>({id:value,label:value}))} selected={poStatusFilters} onChange={setPoStatusFilters} emptyMeansAll/></div></section>}
     {moduleId === "components" && <div className="module-action-bar po-bulk-actions">
       <label><input type="checkbox" checked={filteredComponents.length>0&&filteredComponents.every(row=>selectedComponentIds.includes(row.id))} onChange={event=>setSelectedComponentIds(event.target.checked?[...new Set([...selectedComponentIds,...filteredComponents.map(row=>row.id)])]:selectedComponentIds.filter(id=>!filteredComponents.some(row=>row.id===id)))} /> Select all visible</label>
       <span className="module-number">{selectedComponentIds.filter(id=>components.some(row=>row.id===id)).length} SELECTED</span>
