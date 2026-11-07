@@ -487,6 +487,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     if (branch && activeOperation) { base.branch = "Rework · OP-" + String(activeOperation.sequence).padStart(3,"0"); base.name = "Rework operation"; base.parentId = activeOperation.id; base.relationType = "rework"; base.costIncluded = false; }
     setDraft(base);
     setEditingId("");
+    setSearch("");
+    setSimulationActive(false);
+    setSimulationIndex(0);
     setShowEditor(true);
   };
   const startAddBranch = (kind: "alternate" | "rework", anchorId?: string) => {
@@ -712,7 +715,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   return <section className="workspace-page linked-process-page">
     {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/> {syncStatus === "synced" ? "SHARED DATA CONNECTED" : syncStatus === "syncing" ? "SYNCING" : syncStatus === "error" ? "SYNC ERROR · LOCAL COPY KEPT" : "NO DEMO DATA · LOCAL UNTIL SERVER SYNC"}</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / LINKED PROCESS ROUTE</div><h1>Process Map<span>.</span></h1><p>Choose existing master records once; operation schedules, rates, vendor assignments, quality and quotations attach to the selected PO component line.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendors</button><button className="button-primary" onClick={() => startAdd()} disabled={!selectedLine}><Plus size={15}/> Add Operation</button></div></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / LINKED PROCESS ROUTE</div><h1>Process Map<span>.</span></h1><p>Choose existing master records once; operation schedules, rates, vendor assignments, quality and quotations attach to the selected PO component line.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendors</button><button className="button-primary" onClick={() => startAdd()} disabled={!selectedLine || !selectedComponent}><Plus size={15}/> Add Operation</button></div></div>
     <div className="linked-master-selectors">
       <SearchablePicker id="route-company" label="Company" value={companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name+(c.gstin?" · "+c.gstin:"")}))} onChange={changeSelection}/>
       <div className="route-master-picker"><SearchablePicker id="route-po" label="Purchase order" value={poId} placeholder="Type PO number…" options={companyOrders.map(po=>({id:po.id,label:po.number+" · "+po.status}))} onChange={changePO}/>{companyId&&!companyOrders.length&&<button type="button" onClick={()=>onSelectModule("purchasing")}>Add PO</button>}</div>
@@ -772,7 +775,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     </nav>
     <div className="linked-route-toolbar">
       <div className="linked-route-actions">
-        <button className="button-primary compact-button" disabled={!selectedLine} onClick={() => startAdd()}><Plus size={14}/> Add operation</button>
+        <button className="button-primary compact-button" disabled={!selectedLine || !selectedComponent} onClick={() => startAdd()}><Plus size={14}/> Add operation</button>
         <button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => openTransportEditor()}><Truck size={14}/> Add transport leg</button>
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("alternate")}><GitBranch size={14}/> Alternate route from selected</button>
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("rework")}><GitBranch size={14}/> Rework branch from selected</button>
@@ -927,7 +930,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
               return <div className="linked-node-wrap" key={op.id}><button className={"linked-operation-node status-" + op.status.toLowerCase().replaceAll(" ","-") + (alternate ? " linked-node-alternate" : "") + (selected ? " linked-node-selected" : "")} onClick={() => {setSelectedOperationId(op.id);setShowEditor(false);}}><ProcessIcon processName={op.name} fallback={op.name.toLowerCase().includes("transport") || op.name.toLowerCase().includes("dispatch") ? <Truck size={19}/> : op.name.toLowerCase().includes("inspect") || op.name.toLowerCase().includes("quality") ? <ClipboardCheck size={19}/> : op.name.toLowerCase().includes("grind") ? <Wrench size={19}/> : <Workflow size={19}/>} /><strong>{op.name}</strong><small>OP-{String(op.sequence).padStart(3,"0")}</small><span>{op.status}</span><small>{vendor?.company || "Vendor unassigned"}</small><small>{daysBetween(op.plannedStart,op.plannedEnd) || "—"} day(s)</small></button>{index < laneOperations.length - 1 && <span className="linked-node-arrow"><ArrowRight size={18}/></span>}</div>;
             })}</div>
           </section>;
-        })}{!visibleOperations.length && <div className="module-empty-state">No operations match this search.</div>}</div></div> : <div className="module-empty-state linked-no-operations"><Workflow size={28}/><h3>No operations saved for this component</h3><p>Add only the operations this part actually requires. There is no fixed stage limit and no sample CNC or heat-treatment data.</p><button className="button-primary" disabled={!selectedLine} onClick={() => startAdd()}><Plus size={14}/> Add first operation</button></div>}
+        })}{!visibleOperations.length && <div className="module-empty-state">No operations match this search.</div>}</div></div> : <div className="module-empty-state linked-no-operations"><Workflow size={28}/><h3>No operations saved for this component</h3><p>Add only the operations this part actually requires. There is no fixed stage limit and no sample CNC or heat-treatment data.</p><button className="button-primary" disabled={!selectedLine || !selectedComponent} onClick={() => startAdd()}><Plus size={14}/> Add first operation</button></div>}
         <div className="route-legend"><span><i className="legend-done"/> Complete</span><span><i className="legend-live"/> Running</span><span><i className="legend-queued"/> Queued</span><span><i className="legend-hold"/> Quality hold</span><span className="route-scroll-note">Select any operation to inspect its schedule, vendor, quality and cost.</span></div>
       </section>
       <section className="surface-panel process-operation-table-panel">
