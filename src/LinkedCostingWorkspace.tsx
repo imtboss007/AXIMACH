@@ -54,8 +54,11 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const costedLinkedOperations=linkedOperations.filter(op=>op.costIncluded!==false);
     const revenue=line.quantity*(Number(line.unitPrice)>0?line.unitPrice:(component?.salePrice||0));
     const processCost=costedLinkedOperations.reduce((sum,op)=>sum+op.quantity*(op.actualRatePerPart||0),0);
-    const legacyTransport=costedLinkedOperations.reduce((sum,op)=>sum+Math.max(0,Number(op.transportCost)||0),0);
     const includedTransportLegs=(data.transportLegs||[]).filter(leg=>!leg.deletedAt&&leg.poId===po.id&&leg.poLineId===line.id&&leg.componentId===line.componentId&&(!leg.anchorOperationId||linkedOperations.find(op=>op.id===leg.anchorOperationId)?.costIncluded!==false));
+    // A legacy operation transport entry and a new transport leg can represent the same saved route.
+    // Exclude the legacy amount only when route ID, anchor operation and total snapshot amount match exactly.
+    const isDuplicateLegacyTransport=(op:typeof costedLinkedOperations[number])=>includedTransportLegs.some(leg=>leg.anchorOperationId===op.id&&Boolean(op.transportRouteId)&&leg.routeId===op.transportRouteId&&Math.abs(Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0)-Math.max(0,Number(op.transportCost)||0)<0.01);
+    const legacyTransport=costedLinkedOperations.reduce((sum,op)=>sum+(isDuplicateLegacyTransport(op)?0:Math.max(0,Number(op.transportCost)||0)),0);
     const routeTransport=includedTransportLegs.reduce((sum,leg)=>sum+Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0),0);
     const transportCost=legacyTransport+routeTransport;
     const plannedRows=activeRows(data.plannedCosts).filter(row=>{
@@ -207,7 +210,11 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const savedTransportLegTotal = includedTransportLegs.reduce((sum,leg) => sum + Math.max(0,Number(leg.fixedAmount)||0) * Math.max(0,Number(leg.tripCount)||0),0);
   const plannedProcessFromOperations = costedRouteOperations.reduce((sum,op) => sum + op.quantity * op.ratePerPart, 0);
   const actualProcessTotal = costedRouteOperations.reduce((sum,op) => sum + op.quantity * (op.actualRatePerPart || 0), 0);
-  const operationTransportTotal = costedRouteOperations.reduce((sum,op) => sum + Math.max(0, Number(op.transportCost) || 0), 0) + savedTransportLegTotal;
+  const duplicateLegacyTransportIds = new Set(includedTransportLegs.filter(leg=>leg.anchorOperationId).filter(leg=>{
+    const op=routeOperations.find(item=>item.id===leg.anchorOperationId);
+    return Boolean(op?.transportRouteId)&&op?.transportRouteId===leg.routeId&&Math.abs(Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0)-Math.max(0,Number(op?.transportCost)||0))<0.01;
+  }).map(leg=>leg.anchorOperationId));
+  const operationTransportTotal = costedRouteOperations.reduce((sum,op) => sum + (duplicateLegacyTransportIds.has(op.id)?0:Math.max(0, Number(op.transportCost) || 0)), 0) + savedTransportLegTotal;
   const operationActual = actualProcessTotal;
   const extraCharges = overhead + toolingCost + reworkCost + scrapCost;
   const actualExtraCharges = (selectedLine?.overhead??0)+(selectedLine?.toolingCost??0)+(selectedLine?.reworkCost??0)+(selectedLine?.scrapCost??0);
