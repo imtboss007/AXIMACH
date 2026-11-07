@@ -57,6 +57,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [transportRouteId, setTransportRouteId] = useState("");
   const [transportTripCount, setTransportTripCount] = useState("1");
   const [transportAnchorOperationId, setTransportAnchorOperationId] = useState("");
+  const [transportPlacement, setTransportPlacement] = useState<"start"|"before"|"after">("after");
   const [transportLegNotes, setTransportLegNotes] = useState("");
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
@@ -610,6 +611,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     setTransportRouteId(leg?.routeId || transportRoutes[0]?.id || "");
     setTransportTripCount(String(leg?.tripCount || 1));
     setTransportAnchorOperationId(leg?.anchorOperationId || activeOperation?.id || "");
+    setTransportPlacement(leg?.placement || (leg?.anchorOperationId ? "after" : "start"));
     setTransportLegNotes(leg?.notes || "");
     setShowTransportEditor(true);
     setShowEditor(false);
@@ -617,6 +619,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const closeTransportEditor = () => { setShowTransportEditor(false); setEditingTransportLegId(""); };
   const saveTransportLeg = () => {
     if (!selectedPO || !selectedLine || !selectedComponent) { onNotice("Select a PO component line before adding transport."); return; }
+    if (transportPlacement !== "start" && !routeOperations.some(operation=>operation.id===transportAnchorOperationId)) { onNotice("Select the process operation to place this transport before or after."); return; }
     if (!selectedTransportDirectoryRoute) { onNotice("Select a saved route from Transport Directory, or add one there first."); return; }
     const tripCount = Number(transportTripCount);
     if (!Number.isInteger(tripCount) || tripCount < 1) { onNotice("Enter a whole-number trip count of at least 1."); return; }
@@ -630,7 +633,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       fromLocation: selectedTransportDirectoryRoute.fromLocation, toLocation: selectedTransportDirectoryRoute.toLocation,
       tripDirection: selectedTransportDirectoryRoute.tripDirection, vehicleType: selectedTransportDirectoryRoute.vehicleType,
       fixedAmount: selectedTransportDirectoryRoute.fixedAmount, tripCount,
-      anchorOperationId: transportAnchorOperationId, notes: transportLegNotes.trim(),
+      anchorOperationId: transportPlacement === "start" ? "" : transportAnchorOperationId, placement: transportPlacement,
+      notes: transportLegNotes.trim(),
       createdAt: old?.createdAt || stamp, updatedAt: stamp
     };
     update(current => ({ ...current, transportLegs: [record, ...current.transportLegs.filter(leg => leg.id !== record.id)] }));
@@ -808,20 +812,18 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     {showTransportEditor && <section className="route-editor-panel linked-operation-editor">
       <div className="route-editor-heading"><div><strong><Truck size={15}/> {editingTransportLegId ? "Edit component transport entry" : "Add component transport entry"}</strong><small>Transport is not a process operation. It is totalled separately for this PO component.</small></div><button className="icon-control" onClick={closeTransportEditor} aria-label="Close transport editor"><X size={14}/></button></div>
       <div className="route-editor-form">
-        <label className="editor-wide">Saved Transport Directory route *
-          <select value={transportRouteId} onChange={event => setTransportRouteId(event.target.value)}><option value="">Select saved route</option>{transportRoutes.map(route => { const vendor = vendors.find(item => item.id === route.vendorId); return <option key={route.id} value={route.id}>{route.fromLocation} → {route.toLocation} · {route.vehicleType} · {route.tripDirection} · {money(route.fixedAmount)} · {vendor?.company || "Vendor"}</option>; })}</select>
-        </label>
+        <SearchablePicker id="process-transport-directory-route" label="Saved Transport Directory route *" value={transportRouteId} placeholder="Search route, vendor, vehicle or direction…" options={transportRoutes.map(route=>({id:route.id,label:route.fromLocation+" → "+route.toLocation+" · "+route.vehicleType+" · "+route.tripDirection+" · "+vendors.find(item=>item.id===route.vendorId)?.company+" · "+money(route.fixedAmount)}))} onChange={setTransportRouteId}/>
         <label>Number of times / trips *<input type="number" min="1" step="1" value={transportTripCount} onChange={event => setTransportTripCount(event.target.value)}/></label>
-        <label>Connect transport after operation<select value={transportAnchorOperationId} onChange={event => setTransportAnchorOperationId(event.target.value)}><option value="">Component start / not tied to a process node</option>{routeOperations.map(operation => <option key={operation.id} value={operation.id}>OP-{String(operation.sequence).padStart(3,"0")} · {operation.name}</option>)}</select></label>
+        <SearchablePicker id="process-transport-placement" label="Place transport" value={transportPlacement} options={[{id:"start",label:"At component start"},{id:"before",label:"Before selected process"},{id:"after",label:"After selected process"}]} onChange={value=>setTransportPlacement(value as "start"|"before"|"after")}/>
+<SearchablePicker id="process-transport-anchor" label="Connect to process" value={transportAnchorOperationId} disabled={transportPlacement==="start"} placeholder="Search process operation…" options={routeOperations.map(operation=>({id:operation.id,label:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name}))} onChange={setTransportAnchorOperationId}/>
         <label className="editor-wide">Transport notes<input value={transportLegNotes} onChange={event => setTransportLegNotes(event.target.value)} placeholder="Purpose, pickup/delivery note or dispatch reference"/></label>
         {selectedTransportDirectoryRoute ? <div className="editor-wide linked-detail-grid"><div><small>TRANSPORTER</small><strong>{vendors.find(vendor => vendor.id === selectedTransportDirectoryRoute.vendorId)?.company || "Vendor record unavailable"}</strong></div><div><small>ROUTE / TRIP TYPE</small><strong>{selectedTransportDirectoryRoute.fromLocation} → {selectedTransportDirectoryRoute.toLocation}</strong><span>{selectedTransportDirectoryRoute.tripDirection} · {selectedTransportDirectoryRoute.vehicleType}</span></div><div><small>FIXED RATE × TRIPS</small><strong>{money(selectedTransportDirectoryRoute.fixedAmount)} × {Number(transportTripCount) || 0}</strong><span>Entry total: {money(selectedTransportDirectoryRoute.fixedAmount * (Number(transportTripCount) || 0))}</span></div></div> : <div className="editor-wide vendor-empty">No saved rate selected. <button type="button" className="inline-module-link" onClick={() => onSelectModule("transport-master")}>Open Transport Directory and add a route rate</button></div>}
         <div className="module-form-actions"><button className="button-primary" onClick={saveTransportLeg}><Check size={14}/> {editingTransportLegId ? "Update transport entry" : "Save transport entry"}</button><button className="button-quiet" onClick={closeTransportEditor}>Cancel</button></div>
       </div>
     </section>}
-    <section className="surface-panel linked-process-table component-transport-register">
-      <div className="panel-heading"><div><div className="eyebrow"><Truck size={12}/> COMPONENT TRANSPORT REGISTER</div><h3>Transport legs · {componentTransportLegs.length}</h3><p>One saved row per route usage. Trip count can be 1, 2, 3 or more for this particular component.</p></div><button className="button-primary compact-button" disabled={!selectedLine} onClick={() => openTransportEditor()}><Plus size={13}/> Add transport leg</button></div>
-      {componentTransportLegs.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Leg</th><th>Connected after</th><th>Route</th><th>Vehicle / direction</th><th>Vendor</th><th>Rate</th><th>Trips</th><th>Transport total</th><th>Actions</th></tr></thead><tbody>{componentTransportLegs.map(leg => { const anchor = routeOperations.find(operation => operation.id === leg.anchorOperationId); return <tr key={leg.id}><td>{leg.sequence}</td><td>{anchor ? "OP-" + String(anchor.sequence).padStart(3,"0") + " · " + anchor.name : "Component start"}</td><td>{leg.fromLocation} → {leg.toLocation}</td><td>{leg.vehicleType}<small>{leg.tripDirection}</small></td><td>{vendors.find(vendor => vendor.id === leg.vendorId)?.company || "Vendor archived"}</td><td>{money(leg.fixedAmount)}</td><td>{leg.tripCount}</td><td><strong>{money(leg.fixedAmount * leg.tripCount)}</strong></td><td><div className="process-row-actions"><button title="Edit transport entry" onClick={() => editTransportLeg(leg)}><Wrench size={12}/></button><button title="Archive transport entry" onClick={() => archiveTransportLeg(leg)}><X size={12}/></button></div></td></tr>; })}</tbody></table></div> : <div className="module-empty-state"><Truck size={24}/><h3>No transport entries for this component</h3><p>Add each route usage and trip count independently. Another component can have a different number of transport trips.</p></div>}
-      <div className="linked-cost-row"><span>Transport cost from saved route entries</span><strong>{money(componentTransportCost)}</strong></div>
+    <section className="surface-panel component-transport-map-strip">
+      <div className="panel-heading"><div><div className="eyebrow"><Truck size={12}/> ROUTE TRANSPORT NODES</div><h3>Transport legs · {componentTransportLegs.length}</h3><p>Transport is displayed as route nodes here; the master rates remain in Transport Directory and dispatch execution remains in Transport &amp; Dispatch.</p></div><div className="relationship-actions"><button className="button-quiet compact-button" onClick={()=>onSelectModule("transport-master")}>Transport Directory</button><button className="button-primary compact-button" disabled={!selectedLine||!transportRoutes.length} onClick={()=>openTransportEditor()}><Plus size={13}/> Add transport node</button></div></div>
+      {componentTransportLegs.length?<div className="component-transport-node-track"><div className="component-transport-node component-transport-start"><Truck size={15}/><strong>Component start</strong></div>{componentTransportLegs.map(leg=>{const anchor=routeOperations.find(op=>op.id===leg.anchorOperationId);const vendor=vendors.find(v=>v.id===leg.vendorId);return <div className="component-transport-node" key={leg.id}><Truck size={15}/><strong>{leg.placement==="before"?"Before":leg.placement==="after"?"After": "At start"} {anchor?"OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:""}</strong><span>{leg.fromLocation} → {leg.toLocation}</span><small>{vendor?.company||"Vendor"} · {leg.vehicleType} · {leg.tripDirection} · {leg.tripCount} trip(s) · {money(leg.fixedAmount*leg.tripCount)}</small><span className="component-transport-node-actions"><button type="button" onClick={()=>editTransportLeg(leg)}>Edit</button><button type="button" onClick={()=>archiveTransportLeg(leg)}>Archive</button></span></div>;})}<button className="component-transport-node component-transport-add" onClick={()=>onSelectModule("transport-dispatch")}><Truck size={15}/><strong>Dispatch status</strong><small>Open Transport &amp; Dispatch</small></button></div>:<div className="module-empty-state"><Truck size={22}/><p>No transport nodes added for this PO component. Add a route in Transport Directory, then add its usage here.</p></div>}
     </section>
     <section className="surface-panel process-map-filter-panel">
       <div className="process-map-filter-grid ax-search-filter-columns">
