@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, useAnimationFrame, useMotionValue, useReducedMotion } from "motion/react";
-import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, FileUp, Layers3, MessageCircle, Package, Sparkles, Truck, Users, Wallet } from "lucide-react";
+import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, Layers3, MessageCircle, Package, Sparkles, Truck, Users, Wallet } from "lucide-react";
+import { activeRows, useManufacturingData } from "./manufacturingData";
 
 type Props = { onSelectModule: (id: string) => void };
 
@@ -16,6 +17,7 @@ const satellites = [
   { id: "components", label: "Components", Icon: Box },
   { id: "purchasing", label: "Purchase Orders", Icon: Package },
   { id: "vendors", label: "Vendors", Icon: Users },
+  { id: "transport-master", label: "Transport", Icon: Truck },
   { id: "contact360", label: "Contact 360", Icon: Users },
   { id: "process-master", label: "Process Directory", Icon: Layers3 },
   { id: "planned-cost", label: "Planned Cost", Icon: CircleDollarSign },
@@ -28,12 +30,20 @@ const satellites = [
   { id: "communications", label: "Follow-ups", Icon: MessageCircle },
   { id: "reports", label: "Reports", Icon: BarChart3 },
   { id: "ai-insights", label: "AI Insights", Icon: Sparkles },
-  { id: "export", label: "Export", Icon: FileDown },
-  { id: "import", label: "Import", Icon: FileUp },
+  { id: "export", label: "Import / Export", Icon: FileDown },
 ];
 
 export default function AXIMACHOrb({ onSelectModule }: Props) {
   const saved = useRef(readOrbPreferences());
+  const { data } = useManufacturingData();
+  const shellStats = [
+    { id: "companies", label: "Companies", value: activeRows(data.companies).length, Icon: Building2 },
+    { id: "purchasing", label: "Purchase orders", value: activeRows(data.purchaseOrders).length, Icon: Package },
+    { id: "purchasing", label: "PO component lines", value: activeRows(data.purchaseOrders).reduce((total, po) => total + po.lines.filter(line => !line.deletedAt).length, 0), Icon: Boxes },
+    { id: "components", label: "Components", value: activeRows(data.components).length, Icon: Box },
+    { id: "vendors", label: "Vendors", value: activeRows(data.vendors).length, Icon: Users },
+    { id: "production", label: "Open operations", value: activeRows(data.operations).filter(operation => operation.status !== "Complete").length, Icon: Activity }
+  ];
   const [visualMode, setVisualMode] = useState<OrbVisualMode>(() => ["sphere","cube","vortex","molecular","orbit","mesh","holographic","radial","particle","industrial","kinetic","multi-core"].includes(String(saved.current.mode)) ? saved.current.mode as OrbVisualMode : "sphere");
   const [speed, setSpeed] = useState<OrbSpeed>(() => ["Slow","Normal","Fast"].includes(String(saved.current.speed)) ? saved.current.speed as OrbSpeed : "Normal");
   const [sphereSize, setSphereSize] = useState(() => Number.isFinite(Number(saved.current.sphereSize)) ? Math.max(.82,Math.min(1.12,Number(saved.current.sphereSize))) : 1);
@@ -151,32 +161,36 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             animate={reducedMotion || reduceMotion || paused ? undefined : { rotate: -360 }}
             transition={{ duration: speed === "Fast" ? 34 : speed === "Slow" ? 90 : 58, repeat: Infinity, ease: "linear" }}
           />
+          <motion.div className="ax-orb-module-shell" style={{ rotateX, rotateY, transformPerspective: 950 }}>
           {satellites.map(({ id, label, Icon }, index) => {
-            const angle = (index / satellites.length) * Math.PI * 2 - Math.PI / 2;
-            const left = 50 + Math.cos(angle) * 46;
-            const top = 50 + Math.sin(angle) * 43;
-            return (
-            <motion.button
-              key={id}
-              className="ax-orb-satellite"
-              style={{ left: `${left}%`, top: `${top}%`, right: "auto", bottom: "auto", transform: "translate(-50%, -50%)" }}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={() => onSelectModule(id)}
-              aria-label={`Open ${label} module`}
-              title={`Open ${label}`}
-              initial={{ opacity: 0, scale: 0.6 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.25 + index * 0.09, type: "spring", stiffness: 130 }}
-              whileHover={{ scale: 1.12, y: -3 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <span><Icon size={17} strokeWidth={1.8} /></span>
-              <small>{label}</small>
-            </motion.button>
-            );
+            // Fibonacci-sphere coordinates place each workspace on the 3D surface.
+            const phi = Math.acos(1 - 2 * (index + 0.5) / satellites.length);
+            const theta = Math.PI * (1 + Math.sqrt(5)) * index;
+            const radius = compactViewport ? 116 : 146;
+            const x = Math.cos(theta) * Math.sin(phi) * radius;
+            const y = Math.cos(phi) * radius * 0.88;
+            const z = Math.sin(theta) * Math.sin(phi) * radius * 0.72;
+            return <motion.button key={id} className="ax-orb-satellite"
+              style={{ left: "50%", top: "50%", right: "auto", bottom: "auto", transform: "translate3d(" + x + "px," + y + "px," + z + "px) translate(-50%,-50%)" }}
+              onPointerDown={event => event.stopPropagation()} onClick={() => onSelectModule(id)}
+              aria-label={"Open " + label + " module"} title={"Open " + label}
+              initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.12 + index * 0.035, type: "spring", stiffness: 130 }} whileHover={{ scale: 1.08, y: -2 }} whileTap={{ scale: 0.95 }}>
+              <span><Icon size={16} strokeWidth={1.8}/></span><small>{label}</small>
+            </motion.button>;
           })}
+          </motion.div>
         </div>
       </motion.div>
+      <div className="ax-orb-lower-shell" aria-label="Live record summary shell">
+        <motion.div className="ax-orb-lower-rotator" animate={reducedMotion || reduceMotion || paused ? undefined : { rotateY: 360 }} transition={{ duration: speed === "Fast" ? 24 : speed === "Slow" ? 60 : 38, repeat: Infinity, ease: "linear" }}>
+          {shellStats.map(({ id, label, value, Icon }, index) => <button type="button" key={label} className="ax-orb-lower-node"
+            style={{ transform: "translate(-50%,-50%) rotateY(" + (index * 60) + "deg) translateZ(132px) rotateY(-" + (index * 60) + "deg)" }}
+            onClick={() => onSelectModule(id)} title={"Open " + label}>
+            <Icon size={13}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small>
+          </button>)}
+        </motion.div>
+      </div>
       <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> DRAG THE SPHERE TO ROTATE <i /> SELECT AN ORBIT NODE TO OPEN A WORKSPACE</div>
       <div className="ax-orb-studio-actions">
         <button type="button" className="ax-orb-studio-toggle" aria-expanded={studioOpen} onClick={() => setStudioOpen(value => !value)}>✧ Visual Experience Studio <span>{studioOpen ? "Close" : "Customize"}</span></button>
