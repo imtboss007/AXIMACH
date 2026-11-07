@@ -165,7 +165,8 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const selectModule = (id: string) => {
+  const selectModule = (id: string, context: LinkedNavigationContext = {}) => {
+    setModuleContext(context);
     setActiveModuleId(id);
     setModuleExplorerOpen(false);
     setCommandOpen(false);
