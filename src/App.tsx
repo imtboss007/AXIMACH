@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import FollowUpAssignmentsLauncher from "./FollowUpAssignments";
+import SearchableMultiSelect from "./SearchableMultiSelect";
+import SearchablePicker from "./SearchablePicker";
 
 // Lazy module workspaces keep the initial dashboard bundle small on mobile.
 const AXIMACHOrb = lazy(() => import("./AXIMACHOrb"));
@@ -443,11 +445,24 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
   const [selectedId,setSelectedId]=useState("");
   const [editing,setEditing]=useState(false);
   const [draft,setDraft]=useState<VendorDraft>(emptyVendorDraft());
+  const [vendorTypeFilters,setVendorTypeFilters]=useState<string[]>([]);
+  const [capabilityCategoryFilters,setCapabilityCategoryFilters]=useState<string[]>([]);
+  const [capabilityProcessFilters,setCapabilityProcessFilters]=useState<string[]>([]);
   const selected=contacts.find(v=>v.id===selectedId)||contacts[0];
+  const processDefinitions=activeRows(data.processDefinitions);
+  const vendorTypeOptions=[...new Set(contacts.map(v=>v.vendorType||"").filter(Boolean))].sort();
+  const processCategoryOptions=[...new Set(processDefinitions.map(definition=>definition.category).filter(Boolean))].sort();
+  const processTypeOptions=[...new Set(processDefinitions.map(definition=>definition.processType).filter(Boolean))].sort();
   const filtered=contacts.filter(v=>{
-    const linkedText=linkedPeople.filter(person=>person.linkedId===v.id)
-      .map(person=>[person.name,person.role,person.group,person.phone,person.whatsapp,person.email,person.address,person.history].join(" ")).join(" ");
-    return (v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.whatsappNumber+" "+v.email+" "+v.address+" "+v.processes+" "+v.machines+" "+v.materials+" "+v.notes+" "+v.status+" "+linkedText).toLowerCase().includes(search.toLowerCase().trim());
+    const linkedText=linkedPeople.filter(person=>person.linkedId===v.id).map(person=>[person.name,person.role,person.group,person.phone,person.whatsapp,person.email,person.address,person.history].join(" ")).join(" ");
+    const definitions=processDefinitions.filter(definition=>(definition.vendorIds||[]).includes(v.id));
+    const searchable=(v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.whatsappNumber+" "+v.email+" "+v.address+" "+v.processes+" "+v.machines+" "+v.materials+" "+v.notes+" "+v.status+" "+linkedText).toLowerCase();
+    const categoryText=definitions.map(definition=>definition.category).join(" ").toLowerCase();
+    const processText=definitions.map(definition=>definition.processType).join(" ").toLowerCase()+" "+v.processes.toLowerCase();
+    return searchable.includes(search.toLowerCase().trim())
+      &&(!vendorTypeFilters.length||vendorTypeFilters.includes(v.vendorType||""))
+      &&(!capabilityCategoryFilters.length||capabilityCategoryFilters.some(value=>categoryText.includes(value.toLowerCase())))
+      &&(!capabilityProcessFilters.length||capabilityProcessFilters.some(value=>processText.includes(value.toLowerCase())));
   });
   const beginNew=()=>{setSelectedId("");setDraft(emptyVendorDraft());setEditing(true);};
   const beginEdit=(v:VendorRecord)=>{setSelectedId(v.id);setDraft({company:v.company,contact:v.contact,role:v.role,phone:v.phone,whatsappNumber:v.whatsappNumber,email:v.email,address:v.address,processes:[...new Set([...(v.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean),...data.processDefinitions.filter(definition=>(definition.vendorIds||[]).includes(v.id)).map(definition=>definition.processType)])].join(", "),machines:v.machines,materials:v.materials,notes:v.notes,status:v.status,vendorType:v.vendorType||"",transportRoutes:v.transportRoutes||[],additionalPhones:v.additionalPhones||[],sourceContactId:v.sourceContactId,whatsappSyncedAt:v.whatsappSyncedAt});setEditing(true);};
@@ -485,6 +500,14 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / CONTACT MASTER</div><h1>Vendor Directory<span>.</span></h1><p>Vendor companies, process capabilities and all linked contact persons, including their groups, phone numbers and follow-up details.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={()=>onSelectModule("communications")}><ScanLine size={15}/> WhatsApp sync & follow-up</button><button className="button-primary" onClick={beginNew}><Plus size={15}/> Add vendor</button></div></div>
     <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, contact person, group, phone, email or process…"/></label><span className="module-number">{contacts.length} CONTACTS · {contacts.filter(v => String(v.phone || v.whatsappNumber || "").replace(/\D/g, "").length >= 8).length} WITH NUMBERS</span></div>
     <div className="module-safety-note contact-sync-guidance"><ShieldCheck size={15}/><span>WhatsApp numbers are imported from Communications & WhatsApp. For PC ↔ mobile records to stay identical, both devices must use the same Shared AXIMACH data server URL and API key there. Without that shared server, records remain local to each device.</span><button className="button-quiet compact-button" onClick={()=>onSelectModule("communications")}><ScanLine size={13}/> Open sync settings</button></div>
+    <section className="surface-panel vendor-directory-filter-panel">
+      <div className="panel-heading"><div><h3>Vendor capability filters</h3><p>Search and select vendor category, Process Directory category and process type independently.</p></div><button className="button-quiet compact-button" onClick={()=>{setVendorTypeFilters([]);setCapabilityCategoryFilters([]);setCapabilityProcessFilters([]);setSearch("");}}>Clear all filters</button></div>
+      <div className="ax-search-filter-columns">
+        <SearchableMultiSelect id="vendor-filter-type" label="Vendor category" options={vendorTypeOptions.map(x=>({id:x,label:x}))} selected={vendorTypeFilters} onChange={setVendorTypeFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="vendor-filter-category" label="Process category" options={processCategoryOptions.map(x=>({id:x,label:x}))} selected={capabilityCategoryFilters} onChange={setCapabilityCategoryFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="vendor-filter-process" label="Process type" options={processTypeOptions.map(x=>({id:x,label:x}))} selected={capabilityProcessFilters} onChange={setCapabilityProcessFilters} emptyMeansAll/>
+      </div>
+    </section>
     <div className="vendor-workspace-grid">
       <section className="surface-panel vendor-list-panel"><div className="panel-heading"><div><h3>Vendor directory</h3><p>Shared master records · imported WhatsApp contacts remain unverified until reviewed</p></div></div>
         <div className="vendor-record-list">{filtered.map(v=><button key={v.id} className={"vendor-record "+(selected?.id===v.id?"vendor-record-active":"")} onClick={()=>{setSelectedId(v.id);setEditing(false);}}><span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.contact} · {v.whatsappNumber ? "WhatsApp +" + v.whatsappNumber : v.phone ? "Phone +" + v.phone : "Number missing"}</small><small>{v.processes||"Capabilities not recorded"} · {v.status}</small>{linkedPeople.filter(person=>person.linkedId===v.id).length>0&&<small>Other contacts: {linkedPeople.filter(person=>person.linkedId===v.id).map(person=>person.name+(person.group?" · "+person.group:"")).join(", ")}</small>}</span><ArrowRight size={14}/></button>)}{!filtered.length&&<div className="module-empty-state"><Users size={25}/><h3>{search?"No matching vendor":"No vendors added"}</h3><p>{search?"Try another search.":"No placeholder vendors are preloaded. Add actual suppliers here or scan the WhatsApp bridge QR to import available contacts."}</p>{!search&&<button className="button-primary" onClick={beginNew}><Plus size={14}/> Add first vendor</button>}</div>}</div>
@@ -493,7 +516,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
         {editing?<><div className="panel-heading"><div><h3>{selectedId?"Edit vendor master":"New vendor master"}</h3><p>Company and contact person are required; phone numbers are checked for duplicates.</p></div><button className="icon-control" onClick={()=>setEditing(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="vendor-form">
             <label>Vendor company *<input list="aximach-vendor-company-suggestions" value={draft.company} onChange={e=>setDraft({...draft,company:e.target.value})} placeholder="Type company name; reuse an existing company where applicable"/><datalist id="aximach-vendor-company-suggestions">{[...new Set([...contacts.map(v=>v.company),...activeRows(data.companies).map(company=>company.name)].filter(Boolean))].map(name=><option key={name} value={name}/>)}</datalist></label>
-            <label>Contact person *<input list="aximach-vendor-contact-suggestions" value={draft.contact} onChange={e=>fillContactFromSuggestion(e.target.value)} placeholder="Type first letters or full name to find a saved contact"/><datalist id="aximach-vendor-contact-suggestions">{contactSuggestions.map(person=><option key={person.label} value={person.label}/>)}</datalist><small className="field-hint">Selecting an existing Contact 360 / WhatsApp-synced person fills the available phone, WhatsApp, email and role details. One vendor company can have multiple linked people in Contact 360.</small></label>
+            <div className="editor-wide"><SearchablePicker id="vendor-contact-person" label="Contact person *" value={draft.contact} placeholder="Type name or WhatsApp contact…" options={contactSuggestions.map(person=>({id:person.label,label:person.label}))} onChange={value=>fillContactFromSuggestion(value)} allowCustom/><small className="field-hint">Selecting an existing Contact 360 / WhatsApp-synced person fills available phone, WhatsApp, email and role details.</small></div>
             <label>Role / department<input value={draft.role} onChange={e=>setDraft({...draft,role:e.target.value})} placeholder="Sales, production, accounts…"/></label>
             <label>Phone with country code<input value={draft.phone} onChange={e=>setDraft({...draft,phone:e.target.value})} placeholder="Country code + number"/></label>
             <label>WhatsApp number<input value={draft.whatsappNumber} onChange={e=>setDraft({...draft,whatsappNumber:e.target.value})} placeholder="Leave blank to use phone"/></label>
@@ -501,12 +524,11 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
             <label>Email<input type="email" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="name@company.com"/></label>
             <label className="editor-wide">Address<input value={draft.address} onChange={e=>setDraft({...draft,address:e.target.value})} placeholder="Vendor site / dispatch address"/></label>
             <div className="editor-wide vendor-process-capabilities"><strong>Process capabilities · Process Directory</strong>
-              {activeRows(data.processDefinitions).length ? <div className="vendor-process-checkboxes">{activeRows(data.processDefinitions).map(process=><label key={process.id}><input type="checkbox" checked={draft.processes.split(/[,;|]/).some(value=>value.trim().toLowerCase()===process.processType.toLowerCase())} onChange={()=>toggleProcessCapability(process.processType)}/><span><b>{process.processType}</b><small>{process.category} · {(process.subcategories||[]).join(", ")||"No subcategory"}</small></span></label>)}</div> : <p className="field-hint">Add process types and subcategories in Process Directory first. Capabilities selected there appear here.</p>}
-              <small>Selected: {draft.processes||"None"}</small>
-            </div>
-            <label>Machines / capacity<input value={draft.machines} onChange={e=>setDraft({...draft,machines:e.target.value})} placeholder="Machine models, travel, capacity…"/></label>
+              <SearchableMultiSelect id="vendor-capability-pick" label="Linked process types" options={processDefinitions.map(process=>({id:process.processType,label:process.category+" / "+process.processType+" · "+(process.subcategories||[]).join(", ")}))} selected={[...new Set(draft.processes.split(/[,;|]/).map(value=>value.trim()).filter(Boolean))]} onChange={values=>setDraft(current=>({...current,processes:values.join(", ")}))} placeholder="Search category, process or subcategory…"/>
+              <small>Selected process types are linked back to Process Directory and reflected in Vendor Network. Current selections: {draft.processes||"None"}.</small>
+            </div>            <label>Machines / capacity<input value={draft.machines} onChange={e=>setDraft({...draft,machines:e.target.value})} placeholder="Machine models, travel, capacity…"/></label>
             <label>Material capabilities<input value={draft.materials} onChange={e=>setDraft({...draft,materials:e.target.value})} placeholder="Steel grades, aluminium, plastics…"/></label>
-            <label>Type of vendor<select value={draft.vendorType||""} onChange={e=>setDraft({...draft,vendorType:e.target.value})}><option value="">Select vendor type</option>{["Raw material","Milling","Plano milling","Horizontal milling","Turning","Grinding","Heat treatment","Surface treatment","Wire EDM","Welding","Laser cutting","Fabrication","Transport","Tooling","Inspection","Other"].map(type=><option key={type}>{type}</option>)}</select></label>
+            <SearchablePicker id="vendor-type-edit" label="Type of vendor" value={draft.vendorType||""} options={["Raw material","Milling","Plano milling","Horizontal milling","Turning","Grinding","Heat treatment","Surface treatment","Wire EDM","Welding","Laser cutting","Fabrication","Transport","Tooling","Inspection","Other"].map(type=>({id:type,label:type}))} onChange={value=>setDraft(current=>({...current,vendorType:value}))} placeholder="Search vendor category…"/>
             {draft.vendorType==="Transport" && <div className="editor-wide vendor-transport-routes">
               <div className="panel-heading"><div><h4>Transport routes and fixed rates</h4><p>One transport vendor can serve many routes with an independent fixed amount for each route.</p></div><button className="button-quiet compact-button" onClick={()=>setDraft(current=>({...current,transportRoutes:[...(current.transportRoutes||[]),{id:makeId("transport-route"),fromLocation:"",toLocation:"",fixedCost:0,vehicleType:""}]}))}><Plus size={13}/> Add route</button></div>
               {(draft.transportRoutes||[]).map((route,index)=><div className="vendor-route-row" key={route.id}>
