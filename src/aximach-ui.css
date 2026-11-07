@@ -1439,3 +1439,17 @@
 .bom-issue-preview{margin:8px 0 12px}
 .bom-issue-preview .record-state{white-space:nowrap}
 .bom-production-issue-panel .module-form-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Shared process identity across planning, operations and vendor capability views */
+.process-selection-identity,.process-cell-identity,.process-inline-identity,.vendor-process-logo-chip{display:inline-flex;align-items:center;gap:7px}
+.process-selection-identity{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface)}
+.process-selection-identity>span:last-child{display:grid;gap:2px}
+.process-selection-identity small{color:var(--muted-foreground);font-size:11px}
+.process-cell-identity>span:last-child{display:grid;gap:3px}
+.process-cell-identity .linked-node-icon{width:28px;height:28px;min-width:28px}
+.process-inline-identity{gap:5px;font-size:11px}
+.process-inline-identity .linked-node-icon{width:22px;height:22px;min-width:22px}
+.vendor-process-logo-row{display:flex;flex-wrap:wrap;gap:5px;margin:5px 0}
+.vendor-process-logo-chip{padding:3px 6px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.vendor-process-logo-chip .linked-node-icon{width:22px;height:22px;min-width:22px}
+.vendor-process-logo-chip small{font-size:10px;white-space:nowrap}
