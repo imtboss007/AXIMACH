@@ -27,7 +27,7 @@ const blankPO = (): Omit<PurchaseOrderRecord, "id" | "createdAt" | "updatedAt" |
   number: "", companyId: "", factoryId: "", issueDate: new Date().toISOString().slice(0, 10),
   targetDelivery: "", status: "Open", notes: "", lines: []
 });
-const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quantity: 0, targetDelivery: "", unitPrice: 0, notes: "" });
+const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quantity: 0, targetDelivery: "", notes: "" });
 
 export default function ManufacturingMasterWorkspace({ moduleId, navigationContext, onBack, onNotice, notice, onSelectModule }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
@@ -141,7 +141,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     if (!poDraft.number.trim() || !poDraft.companyId) { onNotice("Select a company and enter the purchase-order number."); return; }
     if (!poLines.length || poLines.some(line => !line.componentId || line.quantity <= 0)) { onNotice("Add at least one component line and set a component and positive quantity on every line."); return; }
     const stamp = nowIso(); const id = poEditingId || makeId("po");
-    const lines = poLines.map(line => { const master = components.find(component => component.id === line.componentId); return { ...line, id: line.id || makeId("line"), unitPrice: master?.salePrice || 0, targetDelivery: line.targetDelivery || poDraft.targetDelivery }; });
+    const lines = poLines.map(line => { const clean = { ...line }; delete clean.unitPrice; return { ...clean, id: line.id || makeId("line"), targetDelivery: line.targetDelivery || poDraft.targetDelivery }; });
     update(current => ({ ...current, purchaseOrders: [...current.purchaseOrders.filter(x => x.id !== id), { ...poDraft, number: poDraft.number.trim(), id, lines, createdAt: current.purchaseOrders.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
     resetForms(); onNotice("Purchase order saved. Each PO line now points to a component record ID; the Process Map can load the selected line, quantity and delivery target automatically.");
   };
