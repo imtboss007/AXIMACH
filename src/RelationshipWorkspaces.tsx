@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, Building2, CalendarClock, Mail, MessageCircle
 import { activeRows, makeId, nowIso, useManufacturingData, type ContactProfileRecord } from "./manufacturingData";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import SearchablePicker from "./SearchablePicker";
+import { ProcessIcon } from "./IconStudio";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
 type Contact360Props=Props & {initialVendorId?:string;onInitialVendorConsumed?:()=>void};
@@ -185,7 +186,7 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
 <td><strong>{v.company}</strong><small>{v.contact} · {v.phone||"No phone"}</small><small>{contactRows.map(c=>c.name).join(", ")||"No additional contacts"}</small></td>
 <td>{v.vendorType||"Not set"}</td>
 <td>{[...new Set(capabilityDefinitions.map(definition=>definition.category))].join(", ")||"Not linked"}</td>
-<td>{[...new Set([...assignedProcesses,...capabilityDefinitions.map(definition=>definition.processType)])].join(", ")||"Not linked"}</td>
+<td><div className="vendor-network-process-identities">{capabilityDefinitions.length?capabilityDefinitions.map(definition=><span className="vendor-network-process-identity" key={definition.id}><ProcessIcon processId={definition.id} processName={definition.processType} category={definition.category} fallback={<Wrench size={13}/>} /><span>{definition.processType}</span></span>):assignedProcesses.join(", ")||"Not linked"}</div></td>
 <td>{[...new Set(capabilityDefinitions.flatMap(definition=>definition.subcategories||[]))].join(", ")||"Not set"}</td>
 <td>{[...new Set(assigned.map(op=>op.executionType||"Outsourced"))].join(", ")||"No execution yet"}</td>
 <td>{assigned.length} operation(s) · {assignedPOs.length} PO(s){assigned.length>0&&<small>{assigned.slice(0,6).map(op=>op.name+" · "+op.status).join(" | ")}</small>}</td>

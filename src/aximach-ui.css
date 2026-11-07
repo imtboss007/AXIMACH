@@ -1431,3 +1431,5 @@
 .component-record-identity-compact{gap:6px}
 .component-record-identity-compact .ax-component-icon{width:22px;height:22px}
 .job-row>.ax-component-icon{width:34px;height:34px;flex:0 0 auto}
+
+.vendor-network-process-identities{display:flex;flex-wrap:wrap;gap:6px}.vendor-network-process-identity{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border:1px solid var(--line);border-radius:7px;font-size:11px}.vendor-network-process-identity .linked-node-icon{width:21px;height:21px;min-width:21px}
