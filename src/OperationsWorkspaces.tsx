@@ -190,7 +190,7 @@ export function QualityInspectionWorkspace({onBack,onNotice,notice,initialContex
   onNotice("Inspection values saved to the linked process operation.");
  };
  const saveMeasurement=()=>{
-  const operation=ops.find(op=>op.id===(measurementOperationId||selectedMeasurementOperation?.id));
+  const operation=selectedMeasurementOperation;
   if(!operation){onNotice("Select a saved PO-linked operation before recording a measurement.");return;}
   const value=Number(measuredValue);
   const nominal=nominalValue.trim()===""?null:Number(nominalValue);
@@ -211,7 +211,7 @@ export function QualityInspectionWorkspace({onBack,onNotice,notice,initialContex
   <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search PO, component, operation or measurement…"/></label><span className="module-number">{filtered.length} OPERATIONS · {measurements.length} MEASUREMENTS</span></div>
   <section className="surface-panel"><div className="panel-heading"><div><h3>Record an inspection measurement</h3><p>Each saved reading is retained as a dated history entry; tolerance checks are evaluated against the entered limits.</p></div></div>
    {ops.length?<div className="module-record-form specialized-form">
-    <label className="module-form-wide">PO component / operation<select value={measurementOperationId||selectedMeasurementOperation?.id||""} onChange={e=>setMeasurementOperationId(e.target.value)}><option value="">Select operation</option>{contextOps.map(op=><option key={op.id} value={op.id}>{pos.find(po=>po.id===op.poId)?.number||"PO"} · {components.find(c=>c.id===op.componentId)?.partNumber||"Component"} · {op.name}</option>)}</select></label>
+    <label className="module-form-wide">PO component / operation<select value={selectedMeasurementOperation?.id||""} onChange={e=>setMeasurementOperationId(e.target.value)}><option value="">Select operation</option>{contextOps.map(op=><option key={op.id} value={op.id}>{pos.find(po=>po.id===op.poId)?.number||"PO"} · {components.find(c=>c.id===op.componentId)?.partNumber||"Component"} · {op.name}</option>)}</select></label>
     <label>Characteristic *<input value={characteristic} onChange={e=>setCharacteristic(e.target.value)} placeholder="Bore diameter, flatness, length…"/></label>
     <label>Unit<input value={unit} onChange={e=>setUnit(e.target.value)} placeholder="mm, µm, kg…"/></label>
     <label>Nominal value<input type="number" step="any" value={nominalValue} onChange={e=>setNominalValue(e.target.value)} placeholder="Optional"/></label>
