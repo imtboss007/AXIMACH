@@ -57,7 +57,13 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const bomIssuePoLineOptions = orders.flatMap(po => po.lines.filter(line => !line.deletedAt).map(line => {
     const component = components.find(c => c.id === line.componentId);
     const company = companies.find(c => c.id === po.companyId);
-    return { id: po.id + "::" + line.id, po, line, component, label: (company?.name || "Company") + " · " + po.number + " · " + (component?.partNumber || "Component") + " · " + line.quantity.toLocaleString("en-IN") + " pcs";
+    return {
+      id: po.id + "::" + line.id,
+      po,
+      line,
+      component,
+      label: (company?.name || "Company") + " · " + po.number + " · " + (component?.partNumber || "Component") + " · " + line.quantity.toLocaleString("en-IN") + " pcs"
+    };
   }));
   const bomIssueSelection = bomIssuePoLineOptions.find(row => row.id === bomIssuePoLineKey);
   const bomIssueOperations = bomIssueSelection ? operations.filter(op => op.poId === bomIssueSelection.po.id && op.poLineId === bomIssueSelection.line.id && !op.deletedAt) : [];
