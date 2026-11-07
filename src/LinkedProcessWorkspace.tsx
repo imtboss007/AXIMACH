@@ -190,6 +190,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const transactions=paymentRowsFor(operation.id);
     return transactions.length?transactions.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0):Math.max(0,Number(operation.paidAmount)||0);
   };
+  const activeBranchNames = new Set(routeOperations.filter(op => (op.branch || "Main route") !== "Main route" && op.costIncluded !== false).map(op => op.branch || "Main route"));
+  const activeRouteOperations = routeOperations.filter(op => (op.branch || "Main route") === "Main route" || activeBranchNames.has(op.branch || "Main route"));
   const costedOperations = routeOperations.filter(op => op.costIncluded !== false);
   const totalProcessCost = costedOperations.reduce((sum, op) => sum + op.quantity * (op.actualRatePerPart || op.ratePerPart), 0);
   const includedTransportLegs = componentTransportLegs.filter(leg => !leg.anchorOperationId || routeOperations.find(operation => operation.id === leg.anchorOperationId)?.costIncluded !== false);
@@ -203,26 +205,26 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const totalTransportCost = legacyTransportCost + componentTransportCost;
   const componentTotalCost = totalProcessCost + totalTransportCost;
   const expectedQuantity = selectedLine?.quantity || 0;
-  const completedQuantity = routeOperations.length ? Math.min(...routeOperations.map(op => op.accepted || 0)) : 0;
+  const completedQuantity = activeRouteOperations.length ? Math.min(...activeRouteOperations.map(op => op.accepted || 0)) : 0;
   const finalRouteOperation = [...routeOperations].filter(op=>(op.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence).at(-1) || routeOperations[routeOperations.length-1];
   const finalCompletedQty = Math.min(expectedQuantity,Math.max(0,finalRouteOperation?.accepted||finalRouteOperation?.completed||0));
   const pendingProductionQty = Math.max(0,expectedQuantity-finalCompletedQty);
-  const inProgressProductionQty = Math.min(pendingProductionQty,routeOperations.filter(op=>op.status==="Running").reduce((sum,op)=>sum+Math.max(0,op.quantity-op.completed),0));
+  const inProgressProductionQty = Math.min(pendingProductionQty,activeRouteOperations.filter(op=>op.status==="Running").reduce((sum,op)=>sum+Math.max(0,op.quantity-op.completed),0));
   const plannedProductionQty = expectedQuantity;
   const completionPercent = plannedProductionQty>0?Math.round(finalCompletedQty/plannedProductionQty*100):0;
-  const vendorAssignedPercent = routeOperations.length?Math.round(routeOperations.filter(op=>op.executionType==="Internal"||Boolean(op.vendorId)).length/routeOperations.length*100):0;
-  const lateOps = routeOperations.filter(op => op.plannedEnd && op.status !== "Complete" && op.plannedEnd.slice(0,10) < new Date().toISOString().slice(0, 10));
-  const delayedPercent = routeOperations.length?Math.round(lateOps.length/routeOperations.length*100):0;
+  const vendorAssignedPercent = activeRouteOperations.length?Math.round(activeRouteOperations.filter(op=>op.executionType==="Internal"||Boolean(op.vendorId)).length/activeRouteOperations.length*100):0;
+  const lateOps = activeRouteOperations.filter(op => op.plannedEnd && op.status !== "Complete" && op.plannedEnd.slice(0,10) < new Date().toISOString().slice(0, 10));
+  const delayedPercent = activeRouteOperations.length?Math.round(lateOps.length/activeRouteOperations.length*100):0;
   const duplicateLegacyTransportIdsForCount = new Set(componentTransportLegs.filter(leg=>leg.anchorOperationId).filter(leg=>{
     const op=routeOperations.find(operation=>operation.id===leg.anchorOperationId);
     return Boolean(op?.transportRouteId)&&op?.transportRouteId===leg.routeId&&Math.abs(Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0)-Math.max(0,Number(op?.transportCost)||0))<0.01;
   }).map(leg=>leg.anchorOperationId));
   const transportCount = componentTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.tripCount) || 0), 0) + routeOperations.filter(op => !duplicateLegacyTransportIdsForCount.has(op.id) && (op.transportCost > 0 || op.transportVendorId)).length;
   const totalAccepted = routeOperations.reduce((sum, op) => sum + op.accepted, 0);
-  const allDone = routeOperations.length > 0 && routeOperations.every(op => op.status === "Complete");
+  const allDone = activeRouteOperations.length > 0 && activeRouteOperations.every(op => op.status === "Complete");
   const finalDelivery = selectedLine?.targetDelivery || selectedPO?.targetDelivery || "";
   const routeCost = totalProcessCost;
-  const durationDays = routeOperations.reduce((sum, op) => sum + daysBetween(op.plannedStart, op.plannedEnd), 0);
+  const durationDays = activeRouteOperations.reduce((sum, op) => sum + daysBetween(op.plannedStart, op.plannedEnd), 0);
   const timelineStart = routeOperations.map(op => op.plannedStart).filter(Boolean).sort()[0] || "";
   const timelineEnd = routeOperations.map(op => op.plannedEnd).filter(Boolean).sort().at(-1) || finalDelivery;
   const ganttBaseDate = timelineStart || finalDelivery || new Date().toISOString().slice(0,10);
@@ -607,7 +609,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         ...order,
         lines: order.lines.map(line => {
           if (!touchedLines.has(order.id + "::" + line.id)) return line;
-          const lineOperations = nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id && !op.deletedAt);
+          const lineOperations = nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id && !op.deletedAt && ((op.branch || "Main route") === "Main route" || op.costIncluded !== false));
           if (!lineOperations.length || !lineOperations.every(op => op.status === "Complete")) return line;
           return { ...line, jobStatus: "Finished" as const, jobFinishedAt: stamp, updatedAt: stamp };
         })
