@@ -98,9 +98,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     setPoId(targetPO.id);
     const targetLine = targetPO.lines.find(line => line.id === initialContext.poLineId)
       || targetPO.lines.find(line => line.componentId === initialContext.componentId);
-    if (targetLine) setPoLineId(targetLine.id);
+    setPoLineId(targetLine?.id || "");
     setSelectedOperationId("");
-  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, purchaseOrders]);
+  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.componentId]);
 
 
   const companyOrders = purchaseOrders.filter(p => p.companyId === companyId);
