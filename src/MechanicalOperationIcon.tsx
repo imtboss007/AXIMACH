@@ -82,6 +82,35 @@ function GlyphShape({ glyph }: { glyph: ToolGlyph }): ReactNode {
   }
 }
 
+const componentRules: Array<[RegExp, ToolGlyph]> = [
+  [/shaft|spindle|axle|pinion shaft|drive shaft/, "turning-insert"],
+  [/gear|sprocket|rack|worm wheel|splined/, "hob"],
+  [/housing|body|casing|manifold|block|valve body/, "boring-bar"],
+  [/flange|disc|hub|rotor|brake rotor/, "face-mill"],
+  [/bush|bushing|sleeve|spacer|bearing|roller/, "reamer"],
+  [/bracket|clamp|support|mount|fixture|jig/, "press-tool"],
+  [/plate|panel|sheet|cover|guard|base plate/, "saw"],
+  [/coupling|pulley|sheave|collar|ring/, "grooving"],
+  [/bolt|screw|stud|nut|threaded/, "tap"],
+  [/impeller|fan|propeller|blade/, "end-mill"],
+  [/spring|wire form|formed wire/, "broach"],
+  [/weldment|fabricated|welded assembly/, "welding-torch"]
+];
+
+export function mechanicalGlyphForComponentName(componentName: string): ToolGlyph | null {
+  const value = componentName.toLowerCase().replace(/[_-]+/g, " ");
+  return componentRules.find(([pattern]) => pattern.test(value))?.[1]
+    || mechanicalGlyphForOperation(value);
+}
+
+export function MechanicalComponentIcon({ componentName, className = "" }: { componentName: string; className?: string }) {
+  const glyph = mechanicalGlyphForComponentName(componentName);
+  if (!glyph) return null;
+  return <span className={"ax-mechanical-tool-icon ax-mechanical-component-icon " + className} title={componentName + " component icon"} aria-label={componentName + " component icon"}>
+    <svg viewBox="0 0 24 24" width="24" height="24" role="img" aria-hidden="true"><GlyphShape glyph={glyph}/></svg>
+  </span>;
+}
+
 export function MechanicalOperationIcon({ operation, className = "" }: { operation: string; className?: string }) {
   const glyph = mechanicalGlyphForOperation(operation);
   if (!glyph) return null;
