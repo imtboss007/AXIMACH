@@ -215,7 +215,8 @@ test("Process Directory process-type options use category-scoped unique record k
 
 test("linked Process Map context survives async shared-data hydration and is not replaced by auto-restore", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.match(workspace, /initialContext\?\.vendorId, data\]\);/);
+  assert.match(workspace, /initialContext\?\.vendorId, data, companies\]\);/);
+  assert.ok(workspace.includes("appliedLinkedContext.current === contextKey"));
   assert.match(workspace, /if \(initialContext\?\.poId \|\| initialContext\?\.poLineId \|\| initialContext\?\.componentId \|\| initialContext\?\.operationId \|\| initialContext\?\.vendorId\) return;/);
 });
 
