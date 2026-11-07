@@ -49,7 +49,7 @@ export type ComponentTransportLegRecord = {
 export type VendorTransportRoute = { id: string; fromLocation: string; toLocation: string; fixedCost: number; vehicleType: string; notes?: string; tripDirection?: TransportTripDirection };
 export type VendorRecord = {
   id: string; company: string; contact: string; role: string; phone: string; whatsappNumber: string;
-  email: string; address: string; processes: string; machines: string; materials: string; notes: string;
+  email: string; address: string; processes: string; processDefinitionIds?: string[]; machines: string; materials: string; notes: string;
   status: string; sourceContactId: string; whatsappSyncedAt: string; vendorType?: string; transportRoutes?: VendorTransportRoute[]; additionalPhones?: string[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
