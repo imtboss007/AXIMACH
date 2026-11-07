@@ -8,7 +8,7 @@ type Contact360Props=Props & {initialVendorId?:string;onInitialVendorConsumed?:(
 type ContactRecord=ContactProfileRecord;
 type ContactDraft=Omit<ContactRecord,"id"|"createdAt"|"updatedAt">;
 const CONTACT_KEY="aximach.contact360.v1";
-const blank=():ContactDraft=>({linkedType:"company",linkedId:"",name:"",role:"",group:"",phone:"",whatsapp:"",additionalPhones:[],email:"",address:"",followUpDate:"",history:""});
+const blank=():ContactDraft=>({linkedType:"company",linkedId:"",name:"",role:"",group:"",phone:"",whatsapp:"",additionalPhones:[],email:"",address:"",followUpDate:"",history:"",processCategories:[],processTypes:[],processSubcategories:[],machineCapabilities:[],materialCapabilities:[]});
 function readContacts():ContactRecord[]{try{const value=JSON.parse(localStorage.getItem(CONTACT_KEY)||"[]");return Array.isArray(value)?value as ContactRecord[]:[];}catch{return[];}}
 
 export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initialVendorId,onInitialVendorConsumed}:Contact360Props){
@@ -49,22 +49,22 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
   const text=(row.name+" "+row.role+" "+(row.group||"")+" "+row.phone+" "+(row.additionalPhones||[]).join(" ")+" "+row.whatsapp+" "+row.email+" "+row.address+" "+row.relationship+" "+row.source+" "+row.vendorType+" "+row.processes+" "+row.machines+" "+row.materials).toLowerCase();
   const vendorId=row.linkedType==="vendor"?(row.linkedId||String(row.id).replace(/^vendor:/,"")):"";
   const capabilityRows=processDefinitions.filter(definition=>(definition.vendorIds||[]).includes(vendorId));
-  const rowCategories=capabilityRows.map(definition=>definition.category).join(" ").toLowerCase();
-  const rowSubcategories=capabilityRows.flatMap(definition=>definition.subcategories||[]).join(" ").toLowerCase();
+  const rowCategories=[...capabilityRows.map(definition=>definition.category),...(row.processCategories||[])].join(" ").toLowerCase();
+  const rowSubcategories=[...capabilityRows.flatMap(definition=>definition.subcategories||[]),...(row.processSubcategories||[])].join(" ").toLowerCase();
   const containsAny=(values:string[],source:string)=>!values.length||values.some(value=>source.toLowerCase().includes(value.toLowerCase()));
   return text.includes(search.toLowerCase().trim())
    &&(typeFilter==="All"||row.linkedType===typeFilter.toLowerCase())
    &&(!roleFilters.length||roleFilters.includes(row.role))
    &&(!vendorTypeFilters.length||vendorTypeFilters.includes(row.vendorType))
    &&containsAny(categoryFilters,rowCategories)
-   &&containsAny(processFilters,row.processes+" "+capabilityRows.map(definition=>definition.processType).join(" "))
+   &&containsAny(processFilters,row.processes+" "+capabilityRows.map(definition=>definition.processType).join(" ")+" "+(row.processTypes||[]).join(" "))
    &&containsAny(subcategoryFilters,rowSubcategories)
-   &&containsAny(machineFilters,row.machines)
-   &&containsAny(materialFilters,row.materials)
+   &&containsAny(machineFilters,row.machines+" "+(row.machineCapabilities||[]).join(" "))
+   &&containsAny(materialFilters,row.materials+" "+(row.materialCapabilities||[]).join(" "))
    &&(!onlyWhatsApp||Boolean(String(row.whatsapp||"").replace(/\D/g,"").length>=8));
  }),[contactRows,search,typeFilter,roleFilters,vendorTypeFilters,categoryFilters,processFilters,subcategoryFilters,machineFilters,materialFilters,onlyWhatsApp]);
  const beginNew=()=>{setEditingId("");setDraft(blank());setShowForm(true);};
- const edit=(row:ContactRecord)=>{setEditingId(row.id);setDraft({linkedType:row.linkedType,linkedId:row.linkedId,name:row.name,role:row.role,group:row.group||"",phone:row.phone,whatsapp:row.whatsapp,additionalPhones:row.additionalPhones||[],email:row.email,address:row.address,followUpDate:row.followUpDate,history:row.history});setShowForm(true);};
+ const edit=(row:ContactRecord)=>{setEditingId(row.id);setDraft({linkedType:row.linkedType,linkedId:row.linkedId,name:row.name,role:row.role,group:row.group||"",phone:row.phone,whatsapp:row.whatsapp,additionalPhones:row.additionalPhones||[],email:row.email,address:row.address,followUpDate:row.followUpDate,history:row.history,processCategories:row.processCategories||[],processTypes:row.processTypes||[],processSubcategories:row.processSubcategories||[],machineCapabilities:row.machineCapabilities||[],materialCapabilities:row.materialCapabilities||[]});setShowForm(true);};
  const save=()=>{if(!draft.name.trim()||!draft.linkedId){onNotice("Enter the contact name and link it to a company or vendor.");return;}const stamp=nowIso();const old=rows.find(x=>x.id===editingId);const row:ContactRecord={...draft,id:editingId||makeId("contact"),createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};update(current=>({...current,contactProfiles:[row,...current.contactProfiles.filter(x=>x.id!==row.id)]}));setShowForm(false);setEditingId("");setDraft(blank());onNotice("Contact profile saved to shared AXIMACH contact data with its company/vendor relationship and follow-up history.");};
  const remove=(id:string)=>{if(!window.confirm("Delete this Contact 360 profile? The linked company or vendor master will not be deleted."))return;const stamp=nowIso();update(current=>({...current,contactProfiles:current.contactProfiles.map(row=>row.id===id?{...row,deletedAt:stamp,updatedAt:stamp}:row)}));onNotice("Contact profile archived. Linked company/vendor master and historical record were retained.");};
  const options=draft.linkedType==="company"?companies.map(c=>({id:c.id,label:c.name})):vendors.map(v=>({id:v.id,label:v.company+" · "+v.contact}));
@@ -96,6 +96,15 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
     <label>WhatsApp<input value={draft.whatsapp} onChange={e=>setDraft({...draft,whatsapp:e.target.value})} placeholder="WhatsApp number"/></label>
     <label>Additional phone numbers<input value={(draft.additionalPhones||[]).join(", ")} onChange={e=>setDraft({...draft,additionalPhones:e.target.value.split(/[,;|]/).map(value=>value.trim()).filter(Boolean)})} placeholder="Alternate mobile / office numbers, comma-separated"/></label>
     <label>Email<input type="email" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="name@company.com"/></label>
+    <div className="module-form-wide contact-capability-assignment"><div className="panel-heading"><div><strong>Contact capability assignments</strong><p>Selections are stored on this contact and also combine with linked vendor capabilities.</p></div></div>
+     <div className="ax-search-filter-columns">
+      <SearchableMultiSelect id="contact-edit-process-category" label="Process category" options={categoryOptions.map(value=>({id:value,label:value}))} selected={draft.processCategories||[]} onChange={values=>{setDraft(current=>({...current,processCategories:values,processTypes:(current.processTypes||[]).filter(value=>processDefinitions.some(def=>def.processType===value&&values.includes(def.category))),processSubcategories:[]}));}}/>
+      <SearchableMultiSelect id="contact-edit-process-type" label="Process type" options={processDefinitions.filter(def=>!(draft.processCategories||[]).length||(draft.processCategories||[]).includes(def.category)).map(def=>({id:def.id,label:def.processType+" · "+def.category}))} selected={(draft.processTypes||[]).map(value=>processDefinitions.find(def=>def.processType===value)?.id||value)} onChange={ids=>setDraft(current=>({...current,processTypes:ids.map(id=>processDefinitions.find(def=>def.id===id)?.processType||id)}))}/>
+      <SearchableMultiSelect id="contact-edit-process-subcategory" label="Process subcategory" options={processDefinitions.filter(def=>(draft.processTypes||[]).includes(def.processType)).flatMap(def=>def.subcategories||[]).filter((value,index,array)=>array.indexOf(value)===index).map(value=>({id:value,label:value}))} selected={draft.processSubcategories||[]} onChange={values=>setDraft(current=>({...current,processSubcategories:values}))}/>
+      <SearchableMultiSelect id="contact-edit-machine" label="Machine capability" options={[...new Set(vendors.flatMap(v=>v.machines.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)))].sort().map(value=>({id:value,label:value}))} selected={draft.machineCapabilities||[]} onChange={values=>setDraft(current=>({...current,machineCapabilities:values}))}/>
+      <SearchableMultiSelect id="contact-edit-material" label="Material capability" options={[...new Set(vendors.flatMap(v=>v.materials.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)))].sort().map(value=>({id:value,label:value}))} selected={draft.materialCapabilities||[]} onChange={values=>setDraft(current=>({...current,materialCapabilities:values}))}/>
+     </div>
+    </div>
     <label>Next follow-up date<input type="date" value={draft.followUpDate} onChange={e=>setDraft({...draft,followUpDate:e.target.value})}/></label>
     <label className="module-form-wide">Address<input value={draft.address} onChange={e=>setDraft({...draft,address:e.target.value})} placeholder="Contact address"/></label>
     <label className="module-form-wide">Communication / follow-up history<textarea rows={3} value={draft.history} onChange={e=>setDraft({...draft,history:e.target.value})} placeholder="Record calls, meetings, messages and outcomes"/></label>
