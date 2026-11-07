@@ -66,7 +66,7 @@ export type FollowUpAssignmentRecord = {
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ProcessDefinitionRecord = {
-  id: string; processType: string; category: string; subcategories: string[]; vendorIds: string[];
+  id: string; processType: string; category: string; subcategories: string[]; subcategoryIds?: string[]; vendorIds: string[];
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type PlannedCostEntry = {
