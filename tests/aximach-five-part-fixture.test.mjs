@@ -49,6 +49,36 @@ test("Process Plan enforces whole-number operation and production quantities", (
   assert.ok(workspace.includes("draft.accepted + draft.rejected > draft.completed"));
 });
 
+test("Inventory ledger enforces transaction direction, source references and live linked records", () => {
+  const workspace = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('"Issue to production": "out"'));
+  assert.ok(workspace.includes('"Finished goods receipt": "in"'));
+  assert.ok(workspace.includes("const requiredDirection = fixedStockDirections[transactionType]"));
+  assert.ok(workspace.includes('if (!reference.trim())'));
+  assert.ok(workspace.includes("The selected operation does not belong to the chosen PO line"));
+  assert.ok(workspace.includes("op.id === bomIssueOperationId && op.poId === po.id && op.poLineId === line.id && !op.deletedAt"));
+});
+test("BOM and material masters reject invalid quantities, scrap limits and inactive links", () => {
+  const workspace = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("Number.isFinite(Number(materialDraft.ratePerUnit))"));
+  assert.ok(workspace.includes("!components.some(component => component.id === bomDraft.componentId)"));
+  assert.ok(workspace.includes("bomDraft.scrapPercent > 100"));
+});
+test("Costing validates quotation amounts, dates, active vendors and process capability links", () => {
+  const workspace = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("Number.isSafeInteger(qty)"));
+  assert.ok(workspace.includes("Number.isFinite(quoteTransport)"));
+  assert.ok(workspace.includes("validUntil < quotedAt"));
+  assert.ok(workspace.includes("operationDefinition?.vendorIds?.length"));
+  assert.ok(workspace.includes("quote.validUntil && quote.validUntil < stamp()"));
+});
+test("Completed operations record an actual end date in Process Plan and Quality Inspection", () => {
+  const processPlan = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const quality = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(processPlan.includes('actualEnd: draft.status === "Complete" ? (draft.actualEnd || stamp.slice(0,10)) : draft.actualEnd'));
+  assert.ok(quality.includes('actualEnd:op.actualEnd||stamp.slice(0,10)'));
+});
+
 test("Process Plan bulk update validates dates and vendor capabilities, and synchronizes completion", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("const scheduleConflict = selected.find(op =>"));
