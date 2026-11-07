@@ -187,7 +187,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
       <div className="ax-orb-lower-shell" aria-label="Live record summary shell">
         <motion.div className="ax-orb-lower-rotator" animate={reducedMotion || reduceMotion || paused ? undefined : { rotateY: 360 }} transition={{ duration: speed === "Fast" ? 24 : speed === "Slow" ? 60 : 38, repeat: Infinity, ease: "linear" }}>
           {shellStats.map(({ id, label, value, Icon }, index) => <button type="button" key={label} className="ax-orb-lower-node"
-            style={{ transform: "translate(-50%,-50%) rotateY(" + (index * 60) + "deg) translateZ(132px) rotateY(-" + (index * 60) + "deg)" }}
+            style={{ transform: "translate(-50%,-50%) rotateY(" + (index * 60) + "deg) translateZ(" + (compactViewport ? 94 : 132) + "px) rotateY(-" + (index * 60) + "deg)" }}
             onClick={() => onSelectModule(id)} title={"Open " + label}>
             <Icon size={13}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small>
           </button>)}
