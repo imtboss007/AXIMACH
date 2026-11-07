@@ -98,11 +98,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       || (initialContext.poLineId
         ? purchaseOrders.find(po => po.lines.some(line => line.id === initialContext.poLineId))
         : undefined)
-      || (initialContext.componentId
-        ? purchaseOrders.find(po => po.lines.some(line => line.componentId === initialContext.componentId))
-        : undefined)
       || (initialContext.operationId
         ? purchaseOrders.find(po => po.id === operations.find(op => op.id === initialContext.operationId)?.poId)
+        : undefined)
+      || (initialContext.vendorId
+        ? purchaseOrders.find(po => po.lines.some(line => operations.some(op => op.vendorId === initialContext.vendorId && op.poId === po.id && op.poLineId === line.id)))
+        : undefined)
+      || (initialContext.componentId
+        ? purchaseOrders.find(po => po.lines.some(line => line.componentId === initialContext.componentId))
         : undefined)
       || (initialContext.vendorId
         ? purchaseOrders.find(po => po.lines.some(line => operations.some(op => op.vendorId === initialContext.vendorId && op.poId === po.id && op.poLineId === line.id)))
@@ -112,8 +115,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       setPoId(targetPO.id);
       const targetOperation = (initialContext.operationId ? operations.find(op => op.id === initialContext.operationId && op.poId === targetPO.id) : undefined)
         || (initialContext.vendorId ? operations.find(op => op.vendorId === initialContext.vendorId && op.poId === targetPO.id) : undefined);
-      const targetLine = targetPO.lines.find(line => line.id === initialContext.poLineId)
-        || targetPO.lines.find(line => line.id === targetOperation?.poLineId)
+      const targetLine = targetPO.lines.find(line => line.id === targetOperation?.poLineId)
+        || targetPO.lines.find(line => line.id === initialContext.poLineId)
         || targetPO.lines.find(line => line.componentId === initialContext.componentId);
       setPoLineId(targetLine?.id || "");
       const linkedOperation = operations.find(op => op.id === initialContext.operationId
