@@ -10,7 +10,7 @@ test("server merge covers every manufacturing collection, including follow-up as
     "companies", "factories", "purchaseOrders", "components", "vendors", "operations",
     "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles",
     "processDefinitions", "plannedCosts", "paymentTransactions", "inspectionMeasurements",
-    "followUpAssignments"
+    "followUpAssignments", "transportRoutes", "transportLegs"
   ]);
 });
 
@@ -36,6 +36,19 @@ test("follow-up assignments sync by stable ID and preserve soft-delete tombstone
   assert.equal(merged.followUpAssignments.find(row => row.id === "link-1").deletedAt, newTime);
   assert.equal(merged.followUpAssignments.some(row => row.id === "link-keep"), true);
   assert.equal(merged.followUpAssignments.some(row => row.id === "link-new"), true);
+});
+
+test("transport routes and component transport legs sync as separate collections by stable ID", () => {
+  const route = { id: "route-1", vendorId: "vendor-1", fromLocation: "Factory", toLocation: "Plater", tripDirection: "One-way", vehicleType: "4-wheeler", fixedAmount: 850, updatedAt: newTime };
+  const leg = { id: "leg-1", poId: "po-1", poLineId: "line-1", componentId: "component-1", routeId: "route-1", fixedAmount: 850, tripCount: 2, updatedAt: newTime };
+  const merged = mergeManufacturingData(
+    { transportRoutes: [{ ...route, fixedAmount: 700, updatedAt: oldTime }], transportLegs: [] },
+    { transportRoutes: [route], transportLegs: [leg] }
+  );
+  assert.equal(merged.transportRoutes.length, 1);
+  assert.equal(merged.transportRoutes[0].fixedAmount, 850);
+  assert.equal(merged.transportLegs.length, 1);
+  assert.equal(merged.transportLegs[0].fixedAmount * merged.transportLegs[0].tripCount, 1700);
 });
 
 test("purchase-order merge keeps independently updated component lines", () => {

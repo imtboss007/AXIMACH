@@ -1,5 +1,6 @@
 import { Activity, ArrowRight, ArrowUpRight, Boxes, Building2, CalendarClock, CheckCircle2, CircleAlert, Command, Factory, Package, ShieldCheck, Users, Workflow, type LucideIcon } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
+import AXIMACHOrb from "./AXIMACHOrb";
 
 type Props = { onSelectModule:(id:string)=>void; onOpenCommandCentre:()=>void; onOpenModules:()=>void };
 
@@ -25,7 +26,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
         <p>Live overview of companies, purchase orders, components, production operations, quality holds and delivery risks. Metrics are derived only from saved AXIMACH records.</p>
         <div className="hero-actions"><button className="button-primary" onClick={onOpenCommandCentre}><Command size={16}/> Open 3D Command Centre <ArrowRight size={15}/></button><button className="button-quiet" onClick={onOpenModules}>View all 18 modules <ArrowRight size={15}/></button></div>
       </div>
-      <div className="dashboard-welcome-orbit" aria-hidden="true"><div className="dashboard-orbit-ring dashboard-orbit-ring-one"/><div className="dashboard-orbit-ring dashboard-orbit-ring-two"/><div className="dashboard-orbit-core"><span>AXI</span><strong>MACH</strong><small>LIVE OPERATIONS</small></div></div>
+      <div className="dashboard-welcome-orb"><AXIMACHOrb onSelectModule={onSelectModule}/></div>
     </section>
     <section className="metric-grid dashboard-metric-grid">
       <Kpi label="Companies" value={companies.length} detail="Company directory" icon={Building2}/>

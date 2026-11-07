@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
+import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 
@@ -15,13 +16,13 @@ const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
   {key:"completed",label:"Completed quantity"},{key:"rejected",label:"Rejected quantity"},{key:"status",label:"Status"},
   {key:"tolerance",label:"Tolerance"},{key:"inspection",label:"Inspection result"},{key:"paymentStatus",label:"Payment status"},
   {key:"paidAmount",label:"Paid amount"},{key:"plannedStart",label:"Start date/time"},{key:"plannedEnd",label:"Due date/time"},
-  {key:"price",label:"Price / piece or set"},{key:"transportCost",label:"Transport cost"},{key:"amount",label:"Process + transport amount"}
+  {key:"price",label:"Price / piece or set"},{key:"transportCost",label:"Legacy operation transport (separate)"},{key:"amount",label:"Process amount (transport excluded)"}
 ];
-type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean };
+type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean; processCostTotal:number; parentId?:string; relationType?:"subprocess"|"alternate"|"rework"; costIncluded:boolean };
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
   name: "", category: "", machine: "", vendorId: "", status: "Planned", executionType:"Outsourced", toleranceCategory:"Standard", inspectionRequired:false, plannedStart: "", plannedEnd: line?.targetDelivery ? (line.targetDelivery.includes("T")?line.targetDelivery:line.targetDelivery+"T08:00") : "", actualStart: "", actualEnd: "",
-  quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0, paymentStatus:"Unpaid", paidAmount:0, paymentReference:"", subcategory:"",
-  transportVendorId: "", transportFrom:"", transportTo:"", transportVehicleType:"", transportRouteId:"", transportCost: 0, transportPickup: "", transportDelivery: "", qualityNotes: "", inspectionResult: "", notes: "", branch: "Main route"
+  quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0, processCostTotal: 0, paymentStatus:"Unpaid", paidAmount:0, paymentReference:"", subcategory:"",
+  transportVendorId: "", transportFrom:"", transportTo:"", transportVehicleType:"", transportRouteId:"", transportCost: 0, transportPickup: "", transportDelivery: "", qualityNotes: "", inspectionResult: "", notes: "", branch: "Main route", costIncluded: true
 });
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const dateValue = (value: string) => new Date(value.includes("T") ? value : value + "T12:00:00");
@@ -37,6 +38,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
   const processDefinitions = activeRows(data.processDefinitions);
+  const transportRoutes = activeRows(data.transportRoutes || []);
+  const allTransportLegs = activeRows(data.transportLegs || []);
 
   const [companyId, setCompanyId] = useState("");
   const [poId, setPoId] = useState("");
@@ -49,6 +52,13 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [simulationActive, setSimulationActive] = useState(false);
   const [simulationIndex, setSimulationIndex] = useState(-1);
   const [showEditor, setShowEditor] = useState(false);
+  const [showTransportEditor, setShowTransportEditor] = useState(false);
+  const [editingTransportLegId, setEditingTransportLegId] = useState("");
+  const [transportRouteId, setTransportRouteId] = useState("");
+  const [transportTripCount, setTransportTripCount] = useState("1");
+  const [transportAnchorOperationId, setTransportAnchorOperationId] = useState("");
+  const [transportPlacement, setTransportPlacement] = useState<"start"|"before"|"after">("after");
+  const [transportLegNotes, setTransportLegNotes] = useState("");
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
   const [exportFields,setExportFields] = useState<ProcessExportField[]>(["operation","quantity","status","plannedStart","plannedEnd"]);
@@ -89,6 +99,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
   const selectedProcessDefinition = processDefinitions.find(item => item.processType === draft.name && item.category === draft.category);
   const routeOperations = operations.filter(op => op.poLineId === poLineId && op.poId === poId && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
+  const componentTransportLegs = allTransportLegs.filter(leg => leg.poLineId === poLineId && leg.poId === poId && leg.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
+  const selectedTransportDirectoryRoute = transportRoutes.find(route => route.id === transportRouteId);
   const processCategories = [...new Set(processDefinitions.map(item => item.category).filter(Boolean))].sort();
   const processTypeOptions = [...new Set(processDefinitions.filter(item => !draft.category || item.category === draft.category).map(item => item.processType).filter(Boolean))].sort();
   const processFilterTypes = [...new Set(processDefinitions.map(item => item.processType).filter(Boolean))].sort();
@@ -111,7 +123,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const dateMatch = (!dateFrom || Boolean(operationDate && operationDate >= dateFrom)) && (!dateTo || Boolean(operationDate && operationDate <= dateTo));
     const quantityMatch = (!minQuantity || op.quantity >= Number(minQuantity)) && (!maxQuantity || op.quantity <= Number(maxQuantity));
     const effectivePrice = op.actualRatePerPart || op.ratePerPart;
-    const effectiveAmount = op.quantity * effectivePrice + op.transportCost;
+    const effectiveAmount = op.quantity * effectivePrice;
     const priceMatch = (!minPrice || effectivePrice >= Number(minPrice)) && (!maxPrice || effectivePrice <= Number(maxPrice));
     const amountMatch = (!minAmount || effectiveAmount >= Number(minAmount)) && (!maxAmount || effectiveAmount <= Number(maxAmount));
     return text.includes(search.toLowerCase().trim()) && statusMatch && executionMatch && categoryMatch && toleranceMatch && paymentMatch && vendorMatch && processTypeMatch && subcategoryMatch && dateMatch && quantityMatch && priceMatch && amountMatch;
@@ -177,7 +189,13 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const transactions=paymentRowsFor(operation.id);
     return transactions.length?transactions.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0):Math.max(0,Number(operation.paidAmount)||0);
   };
-  const totalProcessCost = routeOperations.reduce((sum, op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
+  const costedOperations = routeOperations.filter(op => op.costIncluded !== false);
+  const totalProcessCost = costedOperations.reduce((sum, op) => sum + op.quantity * (op.actualRatePerPart || op.ratePerPart), 0);
+  const legacyTransportCost = costedOperations.reduce((sum, op) => sum + Math.max(0, Number(op.transportCost) || 0), 0);
+  const includedTransportLegs = componentTransportLegs.filter(leg => !leg.anchorOperationId || routeOperations.find(operation => operation.id === leg.anchorOperationId)?.costIncluded !== false);
+  const componentTransportCost = includedTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.fixedAmount) || 0) * Math.max(0, Number(leg.tripCount) || 0), 0);
+  const totalTransportCost = legacyTransportCost + componentTransportCost;
+  const componentTotalCost = totalProcessCost + totalTransportCost;
   const expectedQuantity = selectedLine?.quantity || 0;
   const completedQuantity = routeOperations.length ? Math.min(...routeOperations.map(op => op.accepted || 0)) : 0;
   const finalRouteOperation = [...routeOperations].filter(op=>(op.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence).at(-1) || routeOperations[routeOperations.length-1];
@@ -189,11 +207,11 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const vendorAssignedPercent = routeOperations.length?Math.round(routeOperations.filter(op=>op.executionType==="Internal"||Boolean(op.vendorId)).length/routeOperations.length*100):0;
   const lateOps = routeOperations.filter(op => op.plannedEnd && op.status !== "Complete" && op.plannedEnd.slice(0,10) < new Date().toISOString().slice(0, 10));
   const delayedPercent = routeOperations.length?Math.round(lateOps.length/routeOperations.length*100):0;
-  const transportCount = routeOperations.filter(op => op.transportCost > 0 || op.transportVendorId).length;
+  const transportCount = componentTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.tripCount) || 0), 0) + routeOperations.filter(op => op.transportCost > 0 || op.transportVendorId).length;
   const totalAccepted = routeOperations.reduce((sum, op) => sum + op.accepted, 0);
   const allDone = routeOperations.length > 0 && routeOperations.every(op => op.status === "Complete");
   const finalDelivery = selectedLine?.targetDelivery || selectedPO?.targetDelivery || "";
-  const routeCost = routeOperations.reduce((sum, op) => sum + op.quantity * op.ratePerPart + op.transportCost, 0);
+  const routeCost = totalProcessCost;
   const durationDays = routeOperations.reduce((sum, op) => sum + daysBetween(op.plannedStart, op.plannedEnd), 0);
   const timelineStart = routeOperations.map(op => op.plannedStart).filter(Boolean).sort()[0] || "";
   const timelineEnd = routeOperations.map(op => op.plannedEnd).filter(Boolean).sort().at(-1) || finalDelivery;
@@ -235,7 +253,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       case "plannedEnd": return op.plannedEnd || "";
       case "price": return op.actualRatePerPart || op.ratePerPart;
       case "transportCost": return op.transportCost;
-      case "amount": return op.quantity*(op.actualRatePerPart||op.ratePerPart)+op.transportCost;
+      case "amount": return op.quantity*(op.actualRatePerPart||op.ratePerPart);
     }
   };
   const saveExportBlob = (filename:string,blob:Blob) => {
@@ -444,6 +462,21 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   };
   const changeLine = (nextLineId: string) => { setPoLineId(nextLineId); setSelectedOperationId(""); setSearch(""); setShowEditor(false); };
 
+  const startAddSubprocess = (parentId: string) => {
+    const parent = routeOperations.find(operation => operation.id === parentId);
+    if (!parent) return;
+    const base = blankOperation(selectedLine);
+    base.category = parent.category;
+    base.vendorId = parent.vendorId;
+    base.executionType = parent.executionType || "Outsourced";
+    base.branch = parent.branch || "Main route";
+    setDraft({ ...base, parentId, relationType:"subprocess" });
+    setSelectedOperationId(parentId);
+    setEditingId("");
+    setShowEditor(true);
+    onNotice("Add a sub-process under " + parent.name + ". The parent vendor is preselected; you can keep or change it.");
+  };
+
   const startAdd = (branch = false, transport = false) => {
     if (!selectedPO || !selectedLine || !selectedComponent) {
       onNotice("Select a saved company, purchase order and PO component line first. AXIMACH will then link every operation to that line.");
@@ -451,11 +484,53 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     }
     const base = blankOperation(selectedLine);
     if (transport) { base.name = "Transport / handover"; base.category = "Logistics"; base.branch = "Main route"; }
-    if (branch && activeOperation) { base.branch = "Alternate / rework"; base.name = "Alternate / rework operation"; }
+    if (branch && activeOperation) { base.branch = "Rework · OP-" + String(activeOperation.sequence).padStart(3,"0"); base.name = "Rework operation"; base.parentId = activeOperation.id; base.relationType = "rework"; base.costIncluded = false; }
     setDraft(base);
     setEditingId("");
+    setSearch("");
+    setSimulationActive(false);
+    setSimulationIndex(0);
     setShowEditor(true);
   };
+  const startAddBranch = (kind: "alternate" | "rework", anchorId?: string) => {
+    const anchor = routeOperations.find(operation => operation.id === (anchorId || activeOperation?.id));
+    if (!selectedPO || !selectedLine || !selectedComponent || !anchor) { onNotice("Select the exact process node where the alternate or rework branch must connect."); return; }
+    const base = blankOperation(selectedLine);
+    base.branch = (kind === "alternate" ? "Alternate route" : "Rework") + " · OP-" + String(anchor.sequence).padStart(3, "0") + " · " + anchor.name;
+    base.name = kind === "alternate" ? "Alternate route operation" : "Rework operation";
+    base.category = anchor.category;
+    base.vendorId = anchor.vendorId;
+    base.executionType = anchor.executionType || "Outsourced";
+    base.parentId = anchor.id;
+    base.relationType = kind;
+    base.costIncluded = false;
+    setDraft(base);
+    setSelectedOperationId(anchor.id);
+    setEditingId("");
+    setShowEditor(true);
+    onNotice((kind === "alternate" ? "Alternate route" : "Rework branch") + " will connect from " + anchor.name + ". It is excluded from Process Cost until you include it in costing.");
+  };
+
+  const startAddBranchStep = () => {
+    const anchor = activeOperation;
+    if (!anchor || !anchor.parentId || (anchor.relationType !== "alternate" && anchor.relationType !== "rework")) {
+      onNotice("Select an operation already inside an alternate or rework branch first."); return;
+    }
+    const base = blankOperation(selectedLine);
+    base.branch = anchor.branch;
+    base.category = anchor.category;
+    base.vendorId = anchor.vendorId;
+    base.executionType = anchor.executionType || "Outsourced";
+    base.parentId = anchor.parentId;
+    base.relationType = anchor.relationType;
+    base.costIncluded = false;
+    setDraft(base);
+    setSelectedOperationId(anchor.id);
+    setEditingId("");
+    setShowEditor(true);
+    onNotice("New step will be added to the same branch connected to its original process node.");
+  };
+
   const editActive = (operationId?: string) => {
     const targetOperation = operationId ? routeOperations.find(op=>op.id===operationId) : activeOperation;
     if (!targetOperation) return;
@@ -464,8 +539,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       name: targetOperation.name, category: targetOperation.category, machine: targetOperation.machine, vendorId: targetOperation.vendorId, executionType:targetOperation.executionType||"Outsourced", toleranceCategory:targetOperation.toleranceCategory||"Standard", inspectionRequired:Boolean(targetOperation.inspectionRequired),
       status: targetOperation.status, plannedStart: targetOperation.plannedStart, plannedEnd: targetOperation.plannedEnd, actualStart: targetOperation.actualStart || "", actualEnd: targetOperation.actualEnd || "",
       quantity: targetOperation.quantity, completed: targetOperation.completed, accepted: targetOperation.accepted, rejected: targetOperation.rejected,
-      ratePerPart: targetOperation.ratePerPart, actualRatePerPart: targetOperation.actualRatePerPart || 0, transportVendorId: targetOperation.transportVendorId || "", transportFrom:targetOperation.transportFrom||"",transportTo:targetOperation.transportTo||"",transportVehicleType:targetOperation.transportVehicleType||"",transportRouteId:targetOperation.transportRouteId||"", transportCost: targetOperation.transportCost, transportPickup: targetOperation.transportPickup,
-      transportDelivery: targetOperation.transportDelivery, qualityNotes: targetOperation.qualityNotes, inspectionResult: targetOperation.inspectionResult || "", notes: targetOperation.notes, branch: targetOperation.branch, paymentStatus:targetOperation.paymentStatus||"Unpaid", paidAmount:paymentTotalFor(targetOperation), paymentReference:targetOperation.paymentReference||"", subcategory:targetOperation.subcategory||""
+      ratePerPart: targetOperation.ratePerPart, processCostTotal: targetOperation.quantity * targetOperation.ratePerPart, actualRatePerPart: targetOperation.actualRatePerPart || 0, transportVendorId: targetOperation.transportVendorId || "", transportFrom:targetOperation.transportFrom||"",transportTo:targetOperation.transportTo||"",transportVehicleType:targetOperation.transportVehicleType||"",transportRouteId:targetOperation.transportRouteId||"", transportCost: targetOperation.transportCost, transportPickup: targetOperation.transportPickup,
+      transportDelivery: targetOperation.transportDelivery, qualityNotes: targetOperation.qualityNotes, inspectionResult: targetOperation.inspectionResult || "", notes: targetOperation.notes, branch: targetOperation.branch, parentId:targetOperation.parentId||"", relationType:targetOperation.relationType, costIncluded:targetOperation.costIncluded ?? (targetOperation.relationType !== "alternate" && targetOperation.relationType !== "rework"), paymentStatus:targetOperation.paymentStatus||"Unpaid", paidAmount:paymentTotalFor(targetOperation), paymentReference:targetOperation.paymentReference||"", subcategory:targetOperation.subcategory||""
     });
     setEditingId(targetOperation.id); setShowEditor(true);
   };
@@ -490,7 +565,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
         ...draft, paidAmount: nextPaidTotal, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
-        parentId: old?.parentId || (draft.branch !== "Main route" ? activeOperation?.id || "" : "")
+        parentId: draft.parentId || old?.parentId || (draft.branch !== "Main route" ? activeOperation?.id || "" : ""), relationType: draft.relationType || old?.relationType
       };
       const existingPayments = current.paymentTransactions.filter(payment=>payment.operationId===operationId&&!payment.deletedAt);
       const ledgerTotal = existingPayments.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0);
@@ -534,6 +609,49 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const stamp = nowIso();
     update(current => ({ ...current, operations: current.operations.map(op => op.id === id ? { ...op, ...patch, updatedAt: stamp } : op) }));
   };
+  const openTransportEditor = (leg?: ComponentTransportLegRecord) => {
+    setEditingTransportLegId(leg?.id || "");
+    setTransportRouteId(leg?.routeId || transportRoutes[0]?.id || "");
+    setTransportTripCount(String(leg?.tripCount || 1));
+    setTransportAnchorOperationId(leg?.anchorOperationId || activeOperation?.id || "");
+    setTransportPlacement(leg?.placement || (leg?.anchorOperationId ? "after" : "start"));
+    setTransportLegNotes(leg?.notes || "");
+    setShowTransportEditor(true);
+    setShowEditor(false);
+  };
+  const closeTransportEditor = () => { setShowTransportEditor(false); setEditingTransportLegId(""); };
+  const saveTransportLeg = () => {
+    if (!selectedPO || !selectedLine || !selectedComponent) { onNotice("Select a PO component line before adding transport."); return; }
+    if (transportPlacement !== "start" && !routeOperations.some(operation=>operation.id===transportAnchorOperationId)) { onNotice("Select the process operation to place this transport before or after."); return; }
+    if (!selectedTransportDirectoryRoute) { onNotice("Select a saved route from Transport Directory, or add one there first."); return; }
+    const tripCount = Number(transportTripCount);
+    if (!Number.isInteger(tripCount) || tripCount < 1) { onNotice("Enter a whole-number trip count of at least 1."); return; }
+    const stamp = nowIso();
+    const legId = editingTransportLegId || makeId("component-transport");
+    const old = componentTransportLegs.find(leg => leg.id === legId);
+    const record: ComponentTransportLegRecord = {
+      id: legId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
+      sequence: old?.sequence ?? (Math.max(0, ...componentTransportLegs.map(leg => leg.sequence)) + 1),
+      routeId: selectedTransportDirectoryRoute.id, vendorId: selectedTransportDirectoryRoute.vendorId,
+      fromLocation: selectedTransportDirectoryRoute.fromLocation, toLocation: selectedTransportDirectoryRoute.toLocation,
+      tripDirection: selectedTransportDirectoryRoute.tripDirection, vehicleType: selectedTransportDirectoryRoute.vehicleType,
+      fixedAmount: selectedTransportDirectoryRoute.fixedAmount, tripCount,
+      anchorOperationId: transportPlacement === "start" ? "" : transportAnchorOperationId, placement: transportPlacement,
+      notes: transportLegNotes.trim(),
+      createdAt: old?.createdAt || stamp, updatedAt: stamp
+    };
+    update(current => ({ ...current, transportLegs: [record, ...current.transportLegs.filter(leg => leg.id !== record.id)] }));
+    closeTransportEditor();
+    onNotice("Transport entry saved for " + selectedComponent.partNumber + ". " + tripCount + " trip(s) × " + money(record.fixedAmount) + " = " + money(record.fixedAmount * tripCount) + ". This is separate from Process Cost.");
+  };
+  const editTransportLeg = (leg: ComponentTransportLegRecord) => openTransportEditor(leg);
+  const archiveTransportLeg = (leg: ComponentTransportLegRecord) => {
+    if (!window.confirm("Remove this transport entry from the component total? Its saved record will be archived, not erased.")) return;
+    const stamp = nowIso();
+    update(current => ({ ...current, transportLegs: current.transportLegs.map(item => item.id === leg.id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item) }));
+    onNotice("Transport entry archived. Process operation history was not changed.");
+  };
+
   const moveOperation = (id: string, direction: -1 | 1) => {
     const index = routeOperations.findIndex(op => op.id === id);
     const current = routeOperations[index];
@@ -597,7 +715,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   return <section className="workspace-page linked-process-page">
     {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/> {syncStatus === "synced" ? "SHARED DATA CONNECTED" : syncStatus === "syncing" ? "SYNCING" : syncStatus === "error" ? "SYNC ERROR · LOCAL COPY KEPT" : "NO DEMO DATA · LOCAL UNTIL SERVER SYNC"}</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / LINKED PROCESS ROUTE</div><h1>Process Map<span>.</span></h1><p>Choose existing master records once; operation schedules, rates, vendor assignments, quality and quotations attach to the selected PO component line.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendors</button><button className="button-primary" onClick={() => startAdd()} disabled={!selectedLine}><Plus size={15}/> Add Operation</button></div></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / LINKED PROCESS ROUTE</div><h1>Process Map<span>.</span></h1><p>Choose existing master records once; operation schedules, rates, vendor assignments, quality and quotations attach to the selected PO component line.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendors</button><button className="button-primary" onClick={() => startAdd()} disabled={!selectedLine || !selectedComponent}><Plus size={15}/> Add Operation</button></div></div>
     <div className="linked-master-selectors">
       <SearchablePicker id="route-company" label="Company" value={companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name+(c.gstin?" · "+c.gstin:"")}))} onChange={changeSelection}/>
       <div className="route-master-picker"><SearchablePicker id="route-po" label="Purchase order" value={poId} placeholder="Type PO number…" options={companyOrders.map(po=>({id:po.id,label:po.number+" · "+po.status}))} onChange={changePO}/>{companyId&&!companyOrders.length&&<button type="button" onClick={()=>onSelectModule("purchasing")}>Add PO</button>}</div>
@@ -625,8 +743,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <button className="route-kpi kpi-delivery" onClick={() => document.getElementById("linked-timeline")?.scrollIntoView({behavior:"smooth",block:"nearest"})}><span className="kpi-icon"><CalendarClock size={19}/></span><span><small>DELIVERY FORECAST</small><strong>{deliveryState}</strong><em>{finalDelivery ? "Target " + shortDate(finalDelivery) : "Enter PO line delivery date"}</em></span></button>
         <button className={"route-kpi kpi-risk " + (lateOps.length ? "linked-kpi-alert" : "")} onClick={() => setSearch("Quality hold")}><span className="kpi-icon"><ShieldAlert size={19}/></span><span><small>BOTTLENECK / LATE OPERATIONS</small><strong>{lateOps.length}</strong><em>{lateOps.length ? "Late or overdue target dates" : "No overdue targets recorded"}</em></span></button>
         <button className="route-kpi kpi-wip"><span className="kpi-icon"><Boxes size={19}/></span><span><small>WORK IN PROGRESS</small><strong>{routeOperations.filter(op => op.status === "Running").reduce((sum,op) => sum + Math.max(0,op.quantity-op.completed),0).toLocaleString("en-IN")} {quantityUnit}</strong><em>{routeOperations.filter(op => op.status === "Running").length} operations running</em></span></button>
-        <button className="route-kpi kpi-cost" onClick={() => onSelectModule("costing")}><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>ENTERED PROCESS + TRANSPORT COST</small><strong>{money(routeCost)}</strong><em>Rates from this component route only</em></span></button>
-        <button className="route-kpi kpi-transport"><span className="kpi-icon"><Truck size={19}/></span><span><small>TRANSPORT ACTIVITIES</small><strong>{transportCount}</strong><em>Operations with transport cost/vendor</em></span></button>
+        <button className="route-kpi kpi-cost" onClick={() => onSelectModule("costing")}><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PROCESS COST</small><strong>{money(routeCost)}</strong><em>Transport is totalled separately below</em></span></button>
+        <button className="route-kpi kpi-transport"><span className="kpi-icon"><Truck size={19}/></span><span><small>TRANSPORT TRIPS</small><strong>{transportCount}</strong><em>{money(totalTransportCost)} total transport cost</em></span></button>
         <button className="route-kpi kpi-quality"><span className="kpi-icon"><ClipboardCheck size={19}/></span><span><small>ACCEPTED / ORDER QTY</small><strong>{totalAccepted.toLocaleString("en-IN")} {quantityUnit}</strong><em>Sum of accepted quantities entered per operation</em></span></button>
       </div>
       <section className="surface-panel process-production-summary">
@@ -657,9 +775,11 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     </nav>
     <div className="linked-route-toolbar">
       <div className="linked-route-actions">
-        <button className="button-primary compact-button" disabled={!selectedLine} onClick={() => startAdd()}><Plus size={14}/> Add operation</button>
-        <button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => startAdd(false, true)}><Truck size={14}/> Add transport</button>
-        <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAdd(true)}><GitBranch size={14}/> Add branch / rework</button>
+        <button className="button-primary compact-button" disabled={!selectedLine || !selectedComponent} onClick={() => startAdd()}><Plus size={14}/> Add operation</button>
+        <button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => openTransportEditor()}><Truck size={14}/> Add transport leg</button>
+        <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("alternate")}><GitBranch size={14}/> Alternate route from selected</button>
+        <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("rework")}><GitBranch size={14}/> Rework branch from selected</button>
+        {(activeOperation?.relationType === "alternate" || activeOperation?.relationType === "rework") && <button className="button-quiet compact-button" disabled={!selectedLine} onClick={startAddBranchStep}><Plus size={14}/> Add step to selected branch</button>}
         <button className="button-quiet compact-button" onClick={() => { setZoom(1); setSearch("");setStatusFilters([]);setExecutionFilters([]);setCategoryFilters([]);setToleranceFilters([]);setPaymentFilters([]);setVendorFilters([]);setDateFrom("");setDateTo("");setMinQuantity("");setMaxQuantity("");setMinPrice("");setMaxPrice("");setMinAmount("");setMaxAmount("");setSelectedOperationIds([]); }}><Search size={14}/> Clear filters</button>
         {onOpenIconStudio && <button className="button-quiet compact-button" onClick={onOpenIconStudio}><Boxes size={14}/> Customise process icons</button>}
       </div>
@@ -692,16 +812,32 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         <span className="zoom-readout">{Math.round(zoom * 100)}%</span>
       </div>
     </div>
+    {showTransportEditor && <section className="route-editor-panel linked-operation-editor">
+      <div className="route-editor-heading"><div><strong><Truck size={15}/> {editingTransportLegId ? "Edit component transport entry" : "Add component transport entry"}</strong><small>Transport is not a process operation. It is totalled separately for this PO component.</small></div><button className="icon-control" onClick={closeTransportEditor} aria-label="Close transport editor"><X size={14}/></button></div>
+      <div className="route-editor-form">
+        <SearchablePicker id="process-transport-directory-route" label="Saved Transport Directory route *" value={transportRouteId} placeholder="Search route, vendor, vehicle or direction…" options={transportRoutes.map(route=>({id:route.id,label:route.fromLocation+" → "+route.toLocation+" · "+route.vehicleType+" · "+route.tripDirection+" · "+vendors.find(item=>item.id===route.vendorId)?.company+" · "+money(route.fixedAmount)}))} onChange={setTransportRouteId}/>
+        <label>Number of times / trips *<input type="number" min="1" step="1" value={transportTripCount} onChange={event => setTransportTripCount(event.target.value)}/></label>
+        <SearchablePicker id="process-transport-placement" label="Place transport" value={transportPlacement} options={[{id:"start",label:"At component start"},{id:"before",label:"Before selected process"},{id:"after",label:"After selected process"}]} onChange={value=>setTransportPlacement(value as "start"|"before"|"after")}/>
+<SearchablePicker id="process-transport-anchor" label="Connect to process" value={transportAnchorOperationId} disabled={transportPlacement==="start"} placeholder="Search process operation…" options={routeOperations.map(operation=>({id:operation.id,label:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name}))} onChange={setTransportAnchorOperationId}/>
+        <label className="editor-wide">Transport notes<input value={transportLegNotes} onChange={event => setTransportLegNotes(event.target.value)} placeholder="Purpose, pickup/delivery note or dispatch reference"/></label>
+        {selectedTransportDirectoryRoute ? <div className="editor-wide linked-detail-grid"><div><small>TRANSPORTER</small><strong>{vendors.find(vendor => vendor.id === selectedTransportDirectoryRoute.vendorId)?.company || "Vendor record unavailable"}</strong></div><div><small>ROUTE / TRIP TYPE</small><strong>{selectedTransportDirectoryRoute.fromLocation} → {selectedTransportDirectoryRoute.toLocation}</strong><span>{selectedTransportDirectoryRoute.tripDirection} · {selectedTransportDirectoryRoute.vehicleType}</span></div><div><small>FIXED RATE × TRIPS</small><strong>{money(selectedTransportDirectoryRoute.fixedAmount)} × {Number(transportTripCount) || 0}</strong><span>Entry total: {money(selectedTransportDirectoryRoute.fixedAmount * (Number(transportTripCount) || 0))}</span></div></div> : <div className="editor-wide vendor-empty">No saved rate selected. <button type="button" className="inline-module-link" onClick={() => onSelectModule("transport-master")}>Open Transport Directory and add a route rate</button></div>}
+        <div className="module-form-actions"><button className="button-primary" onClick={saveTransportLeg}><Check size={14}/> {editingTransportLegId ? "Update transport entry" : "Save transport entry"}</button><button className="button-quiet" onClick={closeTransportEditor}>Cancel</button></div>
+      </div>
+    </section>}
+    <section className="surface-panel component-transport-map-strip">
+      <div className="panel-heading"><div><div className="eyebrow"><Truck size={12}/> ROUTE TRANSPORT NODES</div><h3>Transport legs · {componentTransportLegs.length}</h3><p>Transport is displayed as route nodes here; the master rates remain in Transport Directory and dispatch execution remains in Transport &amp; Dispatch.</p></div><div className="relationship-actions"><button className="button-quiet compact-button" onClick={()=>onSelectModule("transport-master")}>Transport Directory</button><button className="button-primary compact-button" disabled={!selectedLine||!transportRoutes.length} onClick={()=>openTransportEditor()}><Plus size={13}/> Add transport node</button></div></div>
+      {componentTransportLegs.length?<div className="component-transport-node-track"><div className="component-transport-node component-transport-start"><Truck size={15}/><strong>Component start</strong></div>{componentTransportLegs.map(leg=>{const anchor=routeOperations.find(op=>op.id===leg.anchorOperationId);const vendor=vendors.find(v=>v.id===leg.vendorId);return <div className="component-transport-node" key={leg.id}><Truck size={15}/><strong>{leg.placement==="before"?"Before":leg.placement==="after"?"After": "At start"} {anchor?"OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:""}</strong><span>{leg.fromLocation} → {leg.toLocation}</span><small>{vendor?.company||"Vendor"} · {leg.vehicleType} · {leg.tripDirection} · {leg.tripCount} trip(s) · {money(leg.fixedAmount*leg.tripCount)}</small><span className="component-transport-node-actions"><button type="button" onClick={()=>editTransportLeg(leg)}>Edit</button><button type="button" onClick={()=>archiveTransportLeg(leg)}>Archive</button></span></div>;})}<button className="component-transport-node component-transport-add" onClick={()=>onSelectModule("transport-dispatch")}><Truck size={15}/><strong>Dispatch status</strong><small>Open Transport &amp; Dispatch</small></button></div>:<div className="module-empty-state"><Truck size={22}/><p>No transport nodes added for this PO component. Add a route in Transport Directory, then add its usage here.</p></div>}
+    </section>
     <section className="surface-panel process-map-filter-panel">
-      <div className="process-map-filter-grid">
-        <div><strong>Process status</strong><div className="process-filter-quick-actions"><button type="button" onClick={()=>setStatusFilters(["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"])}>All</button><button type="button" onClick={()=>setStatusFilters([])}>Clear</button></div>{["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"].map(value=><label key={value}><input type="checkbox" checked={statusFilters.includes(value)} onChange={()=>toggleFilter(setStatusFilters,value)}/>{value}</label>)}</div>
-        <div><strong>Execution</strong><div className="process-filter-quick-actions"><button type="button" onClick={()=>setExecutionFilters(["Internal","Outsourced"])}>All</button><button type="button" onClick={()=>setExecutionFilters([])}>Clear</button></div>{["Internal","Outsourced"].map(value=><label key={value}><input type="checkbox" checked={executionFilters.includes(value)} onChange={()=>toggleFilter(setExecutionFilters,value)}/>{value}</label>)}</div>
-        <div><strong>Process category</strong><input className="process-filter-search" value={categorySearch} onChange={e=>setCategorySearch(e.target.value)} placeholder="Search categories…"/><div className="process-filter-quick-actions"><button type="button" onClick={()=>setCategoryFilters(processCategories)}>All</button><button type="button" onClick={()=>setCategoryFilters([])}>Clear</button></div>{processCategories.filter(value=>value.toLowerCase().includes(categorySearch.toLowerCase().trim())).map(value=><label key={value}><input type="checkbox" checked={categoryFilters.includes(value)} onChange={()=>toggleFilter(setCategoryFilters,value)}/>{value}</label>)}</div>
-        <div><strong>Process type</strong><div className="process-filter-quick-actions"><button type="button" onClick={()=>setProcessTypeFilters(processFilterTypes)}>All</button><button type="button" onClick={()=>setProcessTypeFilters([])}>Clear</button></div>{processFilterTypes.map(value=><label key={value}><input type="checkbox" checked={processTypeFilters.includes(value)} onChange={()=>toggleFilter(setProcessTypeFilters,value)}/>{value}</label>)}</div>
-        <div><strong>Subcategory</strong><div className="process-filter-quick-actions"><button type="button" onClick={()=>setSubcategoryFilters(processSubcategories)}>All</button><button type="button" onClick={()=>setSubcategoryFilters([])}>Clear</button></div>{processSubcategories.map(value=><label key={value}><input type="checkbox" checked={subcategoryFilters.includes(value)} onChange={()=>toggleFilter(setSubcategoryFilters,value)}/>{value}</label>)}</div>
-        <div><strong>Tolerance</strong><div className="process-filter-quick-actions"><button type="button" onClick={()=>setToleranceFilters(["Standard","Precision","Close","Ultra Precision"])}>All</button><button type="button" onClick={()=>setToleranceFilters([])}>Clear</button></div>{["Standard","Precision","Close","Ultra Precision"].map(value=><label key={value}><input type="checkbox" checked={toleranceFilters.includes(value)} onChange={()=>toggleFilter(setToleranceFilters,value)}/>{value}</label>)}</div>
-        <div><strong>Payment</strong><div className="process-filter-quick-actions"><button type="button" onClick={()=>setPaymentFilters(["Paid","Unpaid"])}>All</button><button type="button" onClick={()=>setPaymentFilters([])}>Clear</button></div>{["Paid","Unpaid"].map(value=><label key={value}><input type="checkbox" checked={paymentFilters.includes(value)} onChange={()=>toggleFilter(setPaymentFilters,value)}/>{value}</label>)}</div>
-        <div><strong>Vendor</strong><div className="process-filter-quick-actions"><button type="button" onClick={()=>setVendorFilters(vendors.map(v=>v.id))}>All</button><button type="button" onClick={()=>setVendorFilters([])}>Clear</button></div>{vendors.map(v=><label key={v.id}><input type="checkbox" checked={vendorFilters.includes(v.id)} onChange={()=>toggleFilter(setVendorFilters,v.id)}/>{v.company} · {v.contact}</label>)}</div>
+      <div className="process-map-filter-grid ax-search-filter-columns">
+        <SearchableMultiSelect id="process-filter-status" label="Process status" options={["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"].map(value=>({id:value,label:value}))} selected={statusFilters} onChange={setStatusFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="process-filter-execution" label="Execution" options={["Internal","Outsourced"].map(value=>({id:value,label:value}))} selected={executionFilters} onChange={setExecutionFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="process-filter-category" label="Process category" options={processCategories.map(value=>({id:value,label:value}))} selected={categoryFilters} onChange={setCategoryFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="process-filter-type" label="Process type" options={processFilterTypes.map(value=>({id:value,label:value}))} selected={processTypeFilters} onChange={setProcessTypeFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="process-filter-subcategory" label="Subcategory" options={processSubcategories.map(value=>({id:value,label:value}))} selected={subcategoryFilters} onChange={setSubcategoryFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="process-filter-tolerance" label="Tolerance" options={["Standard","Precision","Close","Ultra Precision"].map(value=>({id:value,label:value}))} selected={toleranceFilters} onChange={setToleranceFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="process-filter-payment" label="Payment status" options={["Paid","Unpaid"].map(value=>({id:value,label:value}))} selected={paymentFilters} onChange={setPaymentFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="process-filter-vendor" label="Vendor" options={vendors.map(v=>({id:v.id,label:v.company+" · "+v.contact+" · "+(v.phone||"No phone")}))} selected={vendorFilters} onChange={setVendorFilters} emptyMeansAll/>
       </div>
       <div className="process-map-filter-grid process-map-filter-numeric">
         <label>Due from<input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></label>
@@ -736,16 +872,10 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
         </div>
         {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
-            <label>Process category *{processDefinitions.length
-              ? <select value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value,name:"",subcategory:""})}><option value="">Select category</option>{processCategories.map(value=><option key={value}>{value}</option>)}{draft.category&&!processCategories.includes(draft.category)&&<option value={draft.category}>{draft.category} (saved record)</option>}</select>
-              : <input value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})} placeholder="Milling, grinding, turning…"/>}</label>
-            <label>Process type *{processDefinitions.length
-              ? <select value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value,subcategory:""})}><option value="">Select process type</option>{processTypeOptions.map(value=><option key={value}>{value}</option>)}{draft.name&&!processTypeOptions.includes(draft.name)&&<option value={draft.name}>{draft.name} (saved record)</option>}</select>
-              : <input value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} placeholder="Plano milling, horizontal milling…"/>}</label>
-            <label>Process subcategory{(selectedProcessDefinition?.subcategories||[]).length
-              ? <select value={draft.subcategory} onChange={e=>setDraft({...draft,subcategory:e.target.value})}><option value="">Select subcategory</option>{selectedProcessDefinition!.subcategories.map(value=><option key={value}>{value}</option>)}</select>
-              : <input value={draft.subcategory} onChange={e=>setDraft({...draft,subcategory:e.target.value})} placeholder="Optional subcategory"/>}</label>
-            <label>Execution type<select value={draft.executionType} onChange={e=>setDraft({...draft,executionType:e.target.value as "Internal"|"Outsourced",vendorId:e.target.value==="Internal"?"":draft.vendorId})}><option value="Internal">Internal</option><option value="Outsourced">Outsourced</option></select></label>
+            <SearchablePicker id="operation-category" label="Process category *" value={draft.category} placeholder="Search process category…" options={processCategories.map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,category:value,name:"",subcategory:""})} allowCustom/>
+            <SearchablePicker id="operation-process-type" label="Process type *" value={draft.name} placeholder="Search process type…" options={processDefinitions.filter(item=>!draft.category||item.category===draft.category).map(item=>({id:item.processType,label:item.processType}))} onChange={value=>setDraft({...draft,name:value,subcategory:""})} allowCustom/>
+            <SearchablePicker id="operation-subcategory" label="Process subcategory" value={draft.subcategory} placeholder="Search subcategory…" options={(selectedProcessDefinition?.subcategories||[]).map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,subcategory:value})} allowCustom/>
+            <SearchablePicker id="operation-execution-type" label="Execution type" value={draft.executionType} options={["Internal","Outsourced"].map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,executionType:value as "Internal"|"Outsourced",vendorId:value==="Internal"?"":draft.vendorId})}/>
             <label>Machine / station<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value})} placeholder="Machine / work centre"/></label>
             <SearchablePicker id="operation-vendor-picker" label="Vendor" value={draft.vendorId} placeholder="Type vendor name or phone…" options={processVendorOptions.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{!vendors.length && <small className="field-hint">Scan/import contacts or add a vendor in Vendors first.</small>}
             <label>Start date &amp; time<input type="datetime-local" value={dateTimeInput(draft.plannedStart)} onChange={e => setDraft({...draft,plannedStart:e.target.value})}/></label>
@@ -757,32 +887,33 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
             <label>Completed quantity<input type="number" min="0" value={draft.completed || ""} onChange={e => setDraft({...draft,completed:Math.max(0,Number(e.target.value)||0)})}/></label>
             <label>Accepted quantity<input type="number" min="0" value={draft.accepted || ""} onChange={e => setDraft({...draft,accepted:Math.max(0,Number(e.target.value)||0)})}/></label>
             <label>Rejected quantity<input type="number" min="0" value={draft.rejected || ""} onChange={e => setDraft({...draft,rejected:Math.max(0,Number(e.target.value)||0)})}/></label>
-            <label>Quoted / planned rate per part (₹)<input type="number" min="0" step="0.01" value={draft.ratePerPart || ""} onChange={e => setDraft({...draft,ratePerPart:Math.max(0,Number(e.target.value)||0)})}/></label>
+            <label>Total planned process cost (₹)<input type="number" min="0" step="0.01" value={draft.processCostTotal || ""} onChange={e => { const total=Math.max(0,Number(e.target.value)||0); setDraft({...draft,processCostTotal:total,ratePerPart:draft.quantity>0?total/draft.quantity:0}); }}/><small className="field-hint">Enter the total PO-line process cost. AXIMACH calculates the per-piece rate using the operation quantity.</small></label><label>Quoted / planned rate per part (₹)<input type="number" min="0" step="0.01" value={draft.ratePerPart || ""} onChange={e => { const rate=Math.max(0,Number(e.target.value)||0); setDraft({...draft,ratePerPart:rate,processCostTotal:draft.quantity*rate}); }}/></label>
             <label>Actual rate per part (₹)<input type="number" min="0" step="0.01" value={draft.actualRatePerPart || ""} onChange={e => setDraft({...draft,actualRatePerPart:Math.max(0,Number(e.target.value)||0)})}/></label>
-            <label>Payment status<select value={draft.paymentStatus} onChange={e=>setDraft({...draft,paymentStatus:e.target.value as "Paid"|"Unpaid"})}><option value="Unpaid">Unpaid</option><option value="Paid">Paid</option></select></label>
+            <SearchablePicker id="operation-payment-status" label="Payment status" value={draft.paymentStatus} options={["Unpaid","Paid"].map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,paymentStatus:value as "Paid"|"Unpaid"})}/>
             <label>Total amount paid (₹)<input type="number" min="0" step="0.01" value={draft.paidAmount || ""} onChange={e=>setDraft({...draft,paidAmount:Math.max(0,Number(e.target.value)||0)})}/><small className="field-hint">Increasing this total appends only the additional amount as a dated payment-ledger transaction.</small></label>
             <label>Payment reference<input value={draft.paymentReference} onChange={e=>setDraft({...draft,paymentReference:e.target.value})} placeholder="Voucher / UTR / receipt number"/></label>
             <label>Planned process cost (₹)<input readOnly value={money(draft.quantity * draft.ratePerPart)}/></label>
-            <label>Status<select value={draft.status} onChange={e => setDraft({...draft,status:e.target.value as LifecycleStatus})}><option>Planned</option><option>Queued</option><option>Running</option><option>Complete</option><option>Quality hold</option><option>Rejected</option><option>Delayed</option></select></label>
+            <SearchablePicker id="operation-status" label="Status" value={draft.status} options={["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"].map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,status:value as LifecycleStatus})}/>
             <label>Route type<input value={draft.branch} onChange={e => setDraft({...draft,branch:e.target.value})} placeholder="Main route / Alternate / Rework"/></label>
-            <SearchablePicker id="operation-transport-vendor-picker" label="Transport vendor" value={draft.transportVendorId} placeholder="Type transporter name or phone…" options={vendors.filter(v=>v.vendorType==="Transport").map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")}))} onChange={transportVendorId=>setDraft({...draft,transportVendorId,transportRouteId:"",transportFrom:"",transportTo:"",transportVehicleType:"",transportCost:0})}/>
-            <label>Transport route<select value={draft.transportRouteId} onChange={e=>{const route=selectedTransportRoutes.find(item=>item.id===e.target.value);setDraft({...draft,transportRouteId:e.target.value,transportFrom:route?.fromLocation||"",transportTo:route?.toLocation||"",transportVehicleType:route?.vehicleType||"",transportCost:route?.fixedCost||0});}}><option value="">Select saved route…</option>{selectedTransportRoutes.map(route=><option key={route.id} value={route.id}>{route.fromLocation} → {route.toLocation} · ₹{route.fixedCost.toLocaleString("en-IN")} · {route.vehicleType||"Vehicle not set"}</option>)}</select></label>
+            <SearchablePicker id="operation-transport-vendor-picker" label="Legacy operation transport vendor (older records)" value={draft.transportVendorId} placeholder="Type transporter name or phone…" options={vendors.filter(v=>v.vendorType==="Transport").map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")}))} onChange={transportVendorId=>setDraft({...draft,transportVendorId,transportRouteId:"",transportFrom:"",transportTo:"",transportVehicleType:"",transportCost:0})}/>
+            <label>Legacy saved route (older vendor-linked records)<select value={draft.transportRouteId} onChange={e=>{const route=selectedTransportRoutes.find(item=>item.id===e.target.value);setDraft({...draft,transportRouteId:e.target.value,transportFrom:route?.fromLocation||"",transportTo:route?.toLocation||"",transportVehicleType:route?.vehicleType||"",transportCost:route?.fixedCost||0});}}><option value="">Select saved route…</option>{selectedTransportRoutes.map(route=><option key={route.id} value={route.id}>{route.fromLocation} → {route.toLocation} · ₹{route.fixedCost.toLocaleString("en-IN")} · {route.vehicleType||"Vehicle not set"}</option>)}</select></label>
             <label>From location<input readOnly value={draft.transportFrom||""}/></label>
             <label>To location<input readOnly value={draft.transportTo||""}/></label>
             <label>Vehicle type<input readOnly value={draft.transportVehicleType||""}/></label>
             <label>Transport pickup date &amp; time<input type="datetime-local" value={dateTimeInput(draft.transportPickup)} onChange={e => setDraft({...draft,transportPickup:e.target.value})}/></label>
             <label>Transport delivery date &amp; time<input type="datetime-local" value={dateTimeInput(draft.transportDelivery)} onChange={e => setDraft({...draft,transportDelivery:e.target.value})}/></label>
-            <label>Transport cost (₹)<input type="number" min="0" step="0.01" value={draft.transportCost || ""} onChange={e => setDraft({...draft,transportCost:Math.max(0,Number(e.target.value)||0)})}/><small className="field-hint">Auto-filled from the selected Transport Directory route. Manual edit is allowed for an exceptional charge.</small></label>
-            <label>Tolerance category<select value={draft.toleranceCategory} onChange={e=>setDraft({...draft,toleranceCategory:e.target.value as DraftOperation["toleranceCategory"]})}><option>Standard</option><option>Precision</option><option>Close</option><option>Ultra Precision</option></select></label>
+            <label>Legacy operation-level transport (₹)<input type="number" min="0" step="0.01" value={draft.transportCost || ""} onChange={e => setDraft({...draft,transportCost:Math.max(0,Number(e.target.value)||0)})}/><small className="field-hint">Compatibility field for older operation records. New transport must be added with the separate Add transport leg action and is counted in the component Transport Cost bucket.</small></label>
+            <SearchablePicker id="operation-tolerance" label="Tolerance category" value={draft.toleranceCategory} options={["Standard","Precision","Close","Ultra Precision"].map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,toleranceCategory:value as DraftOperation["toleranceCategory"]})}/>
             <label className="editor-wide"><input type="checkbox" checked={draft.inspectionRequired} onChange={e=>setDraft({...draft,inspectionRequired:e.target.checked})}/> Quality / inspection required</label>
             <label className="editor-wide">Quality / inspection requirement<input value={draft.qualityNotes} onChange={e => setDraft({...draft,qualityNotes:e.target.value})} placeholder="Required checks, acceptance criteria, gauges…"/></label>
             <label className="editor-wide">Inspection result<input value={draft.inspectionResult} onChange={e => setDraft({...draft,inspectionResult:e.target.value})} placeholder="Not inspected, accepted, rejected, actual results…"/></label>
             <label className="editor-wide">Operation notes<input value={draft.notes} onChange={e => setDraft({...draft,notes:e.target.value})} placeholder="Setup, process constraints, delivery instructions"/></label>
+            <label className="editor-wide"><input type="checkbox" checked={draft.costIncluded} onChange={e => setDraft({...draft,costIncluded:e.target.checked})}/> Include this operation in Process Cost (untick to exclude it from the active route total)</label>
             <div className="module-form-actions"><button className="button-primary" onClick={saveOperation}><Check size={14}/> {editingId ? "Save changes" : "Save operation"}</button><button className="button-quiet" onClick={() => setShowEditor(false)}>Cancel</button></div>
           </div>
         </section>}
         {["sphere","vortex","combined"].includes(visualStyle) && routeOperations.length
-          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D operations={visibleOperations} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} /></div>
+          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D operations={visibleOperations} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} onAddSubprocess={startAddSubprocess} /></div>
           : visualStyle==="gantt" && routeOperations.length ? <div className="process-gantt-view">
               <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {routeOperations.length} operations</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
               {visibleOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));return <div className="process-gantt-row" key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small>{shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%"}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
@@ -799,7 +930,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
               return <div className="linked-node-wrap" key={op.id}><button className={"linked-operation-node status-" + op.status.toLowerCase().replaceAll(" ","-") + (alternate ? " linked-node-alternate" : "") + (selected ? " linked-node-selected" : "")} onClick={() => {setSelectedOperationId(op.id);setShowEditor(false);}}><ProcessIcon processName={op.name} fallback={op.name.toLowerCase().includes("transport") || op.name.toLowerCase().includes("dispatch") ? <Truck size={19}/> : op.name.toLowerCase().includes("inspect") || op.name.toLowerCase().includes("quality") ? <ClipboardCheck size={19}/> : op.name.toLowerCase().includes("grind") ? <Wrench size={19}/> : <Workflow size={19}/>} /><strong>{op.name}</strong><small>OP-{String(op.sequence).padStart(3,"0")}</small><span>{op.status}</span><small>{vendor?.company || "Vendor unassigned"}</small><small>{daysBetween(op.plannedStart,op.plannedEnd) || "—"} day(s)</small></button>{index < laneOperations.length - 1 && <span className="linked-node-arrow"><ArrowRight size={18}/></span>}</div>;
             })}</div>
           </section>;
-        })}{!visibleOperations.length && <div className="module-empty-state">No operations match this search.</div>}</div></div> : <div className="module-empty-state linked-no-operations"><Workflow size={28}/><h3>No operations saved for this component</h3><p>Add only the operations this part actually requires. There is no fixed stage limit and no sample CNC or heat-treatment data.</p><button className="button-primary" disabled={!selectedLine} onClick={() => startAdd()}><Plus size={14}/> Add first operation</button></div>}
+        })}{!visibleOperations.length && <div className="module-empty-state">No operations match this search.</div>}</div></div> : <div className="module-empty-state linked-no-operations"><Workflow size={28}/><h3>No operations saved for this component</h3><p>Add only the operations this part actually requires. There is no fixed stage limit and no sample CNC or heat-treatment data.</p><button className="button-primary" disabled={!selectedLine || !selectedComponent} onClick={() => startAdd()}><Plus size={14}/> Add first operation</button></div>}
         <div className="route-legend"><span><i className="legend-done"/> Complete</span><span><i className="legend-live"/> Running</span><span><i className="legend-queued"/> Queued</span><span><i className="legend-hold"/> Quality hold</span><span className="route-scroll-note">Select any operation to inspect its schedule, vendor, quality and cost.</span></div>
       </section>
       <section className="surface-panel process-operation-table-panel">
@@ -815,7 +946,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
           <button className="button-quiet compact-button" disabled={!selectedVisibleOperations.length} onClick={finishSelectedOperations}><Check size={13}/> Finish selected</button>
           <button className="button-quiet compact-button" disabled={!exportOperations.length} onClick={exportCsv}><FileDown size={13}/> Export selected/visible CSV</button>
         </div>
-        <div className="costing-table-wrap process-operation-table-wrap"><table className="costing-table process-operation-table"><thead><tr><th>SL / Select</th><th>Process</th><th>Category</th><th>Execution</th><th>Vendor</th><th>Start</th><th>Due</th><th>Qty</th><th>Price / {quantityUnit}</th><th>Total cost</th><th>Status</th><th>Tolerance</th><th>Remarks</th><th>Actions</th></tr></thead><tbody>{visibleOperations.map((op,index)=>{const vendor=vendors.find(v=>v.id===op.vendorId);const appliedRate=op.actualRatePerPart||op.ratePerPart;const amount=op.quantity*appliedRate+op.transportCost;return <tr key={op.id} className={"process-operation-row status-row-"+op.status.toLowerCase().replaceAll(" ","-")}><td><label><input type="checkbox" checked={selectedOperationIds.includes(op.id)} onChange={()=>toggleOperationSelection(op.id)}/> {index+1}</label></td><td><button className="process-row-open" onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}>{op.name}</button><small>OP-{String(op.sequence).padStart(3,"0")} · {op.subcategory||"No subcategory"}</small></td><td>{op.category||"—"}</td><td>{op.executionType||"Outsourced"}</td><td>{vendor?.company||"Unassigned"}</td><td>{shortDate(op.plannedStart)}</td><td>{shortDate(op.plannedEnd)}</td><td>{op.quantity.toLocaleString("en-IN")} {quantityUnit}</td><td>{money(appliedRate)}<small>{op.actualRatePerPart>0?"Actual rate":"Planned rate"}</small></td><td>{money(amount)}</td><td><span className={"record-state status-tag status-"+op.status.toLowerCase().replaceAll(" ","-")}>{op.status}</span></td><td>{op.toleranceCategory||"Standard"}</td><td>{op.notes||"—"}</td><td><div className="process-row-actions"><button title="Move up" disabled={routeOperations.findIndex(x=>x.id===op.id)===0} onClick={()=>moveOperation(op.id,-1)}><ArrowUp size={12}/></button><button title="Move down" disabled={routeOperations.findIndex(x=>x.id===op.id)===routeOperations.length-1} onClick={()=>moveOperation(op.id,1)}><ArrowDown size={12}/></button><button title="Edit" onClick={()=>editActive(op.id)}><Wrench size={12}/></button><button title="Add next / rework" onClick={()=>{setSelectedOperationId(op.id);startAdd(true);}}><GitBranch size={12}/></button></div></td></tr>;})}</tbody></table></div>
+        <div className="costing-table-wrap process-operation-table-wrap"><table className="costing-table process-operation-table"><thead><tr><th>SL / Select</th><th>Process</th><th>Category</th><th>Execution</th><th>Vendor</th><th>Start</th><th>Due</th><th>Qty</th><th>Price / {quantityUnit}</th><th>Process cost (transport excluded)</th><th>Status</th><th>Tolerance</th><th>Remarks</th><th>Actions</th></tr></thead><tbody>{visibleOperations.map((op,index)=>{const vendor=vendors.find(v=>v.id===op.vendorId);const appliedRate=op.actualRatePerPart||op.ratePerPart;const amount=op.quantity*appliedRate;return <tr key={op.id} className={"process-operation-row status-row-"+op.status.toLowerCase().replaceAll(" ","-")}><td><label><input type="checkbox" checked={selectedOperationIds.includes(op.id)} onChange={()=>toggleOperationSelection(op.id)}/> {index+1}</label></td><td><button className="process-row-open" onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}>{op.name}</button><small>OP-{String(op.sequence).padStart(3,"0")} · {op.subcategory||"No subcategory"}</small></td><td>{op.category||"—"}</td><td>{op.executionType||"Outsourced"}</td><td>{vendor?.company||"Unassigned"}</td><td>{shortDate(op.plannedStart)}</td><td>{shortDate(op.plannedEnd)}</td><td>{op.quantity.toLocaleString("en-IN")} {quantityUnit}</td><td>{money(appliedRate)}<small>{op.actualRatePerPart>0?"Actual rate":"Planned rate"}</small></td><td>{money(amount)}</td><td><span className={"record-state status-tag status-"+op.status.toLowerCase().replaceAll(" ","-")}>{op.status}</span></td><td>{op.toleranceCategory||"Standard"}</td><td>{op.notes||"—"}</td><td><div className="process-row-actions"><button title="Move up" disabled={routeOperations.findIndex(x=>x.id===op.id)===0} onClick={()=>moveOperation(op.id,-1)}><ArrowUp size={12}/></button><button title="Move down" disabled={routeOperations.findIndex(x=>x.id===op.id)===routeOperations.length-1} onClick={()=>moveOperation(op.id,1)}><ArrowDown size={12}/></button><button title="Edit" onClick={()=>editActive(op.id)}><Wrench size={12}/></button><button title="Create rework branch from this operation" onClick={()=>startAddBranch("rework",op.id)}><GitBranch size={12}/></button></div></td></tr>;})}</tbody></table></div>
         {!visibleOperations.length&&<div className="module-empty-state"><Workflow size={24}/><h3>{routeOperations.length?"No operations match the current filters":"No process operations yet"}</h3><p>Clear filters or add an operation to the selected PO component line.</p><button className="button-primary" onClick={clearAllFilters}>Reset filters</button></div>}
       </section>
       <div className="process-map-support-grids">
@@ -828,18 +959,18 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
       </div>
       <aside className="surface-panel linked-operation-side">
         {activeOperation ? <><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> SELECTED OPERATION</div><h3>{activeOperation.name}</h3><p>{activeOperation.category || "Process type not specified"} · OP-{String(activeOperation.sequence).padStart(3,"0")}</p></div><button className="icon-control" aria-label="Edit selected operation" onClick={() => editActive()}><Wrench size={14}/></button></div>
-          <div className="linked-detail-grid"><div><small>VENDOR</small><strong>{selectedVendor?.company || "Not assigned"}</strong><span>{selectedVendor?.phone || "No vendor number linked"}</span></div><div><small>MACHINE / STATION</small><strong>{activeOperation.machine || "Not entered"}</strong></div><div><small>PLANNED SCHEDULE</small><strong>{shortDate(activeOperation.plannedStart)} – {shortDate(activeOperation.plannedEnd)}</strong><span>{daysBetween(activeOperation.plannedStart,activeOperation.plannedEnd) || "—"} calendar day(s)</span></div><div><small>ACTUAL SCHEDULE</small><strong>{shortDate(activeOperation.actualStart)} – {shortDate(activeOperation.actualEnd)}</strong></div><div><small>QUANTITY</small><strong>{activeOperation.quantity.toLocaleString("en-IN")} {quantityUnit}</strong><span>{activeOperation.completed.toLocaleString("en-IN")} completed</span></div><div><small>ACCEPTED / REJECTED</small><strong>{activeOperation.accepted.toLocaleString("en-IN")} / {activeOperation.rejected.toLocaleString("en-IN")}</strong></div><div><small>QUOTED / PLANNED RATE</small><strong>{money(activeOperation.ratePerPart)}</strong></div><div><small>ACTUAL RATE / PART</small><strong>{activeOperation.actualRatePerPart ? money(activeOperation.actualRatePerPart) : "Not entered"}</strong></div><div><small>PROCESS + TRANSPORT COST</small><strong>{money(activeOperation.quantity * (activeOperation.actualRatePerPart||activeOperation.ratePerPart) + activeOperation.transportCost)}</strong><span>{activeOperation.actualRatePerPart>0?"Actual process rate + transport":"Planned process rate + transport"}</span></div><div><small>TRANSPORT</small><strong>{vendors.find(v=>v.id===activeOperation.transportVendorId)?.company || "No transporter assigned"}</strong><span>{activeOperation.transportPickup || activeOperation.transportDelivery ? shortDate(activeOperation.transportPickup) + " → " + shortDate(activeOperation.transportDelivery) : "Not scheduled"} · {money(activeOperation.transportCost)}</span></div><div><small>PROCESS PAYMENT</small><strong>{activeOperation.paymentStatus || "Unpaid"}</strong><span>{money(activeOperation.paidAmount || 0)} paid · {activeOperation.paymentReference || "No payment reference"}</span></div><div><small>STATUS</small><strong>{activeOperation.status}</strong></div><div className="linked-detail-wide"><small>QUALITY / INSPECTION REQUIREMENT</small><strong>{activeOperation.qualityNotes || "No quality notes recorded"}</strong></div><div className="linked-detail-wide"><small>INSPECTION RESULT</small><strong>{activeOperation.inspectionResult || "Not entered"}</strong></div><div className="linked-detail-wide"><small>NOTES</small><strong>{activeOperation.notes || "No operation notes entered"}</strong></div></div>
+          <div className="linked-detail-grid"><div><small>VENDOR</small><strong>{selectedVendor?.company || "Not assigned"}</strong><span>{selectedVendor?.phone || "No vendor number linked"}</span></div><div><small>MACHINE / STATION</small><strong>{activeOperation.machine || "Not entered"}</strong></div><div><small>PLANNED SCHEDULE</small><strong>{shortDate(activeOperation.plannedStart)} – {shortDate(activeOperation.plannedEnd)}</strong><span>{daysBetween(activeOperation.plannedStart,activeOperation.plannedEnd) || "—"} calendar day(s)</span></div><div><small>ACTUAL SCHEDULE</small><strong>{shortDate(activeOperation.actualStart)} – {shortDate(activeOperation.actualEnd)}</strong></div><div><small>QUANTITY</small><strong>{activeOperation.quantity.toLocaleString("en-IN")} {quantityUnit}</strong><span>{activeOperation.completed.toLocaleString("en-IN")} completed</span></div><div><small>ACCEPTED / REJECTED</small><strong>{activeOperation.accepted.toLocaleString("en-IN")} / {activeOperation.rejected.toLocaleString("en-IN")}</strong></div><div><small>QUOTED / PLANNED RATE</small><strong>{money(activeOperation.ratePerPart)}</strong></div><div><small>ACTUAL RATE / PART</small><strong>{activeOperation.actualRatePerPart ? money(activeOperation.actualRatePerPart) : "Not entered"}</strong></div><div><small>PROCESS COST</small><strong>{money(activeOperation.quantity * (activeOperation.actualRatePerPart||activeOperation.ratePerPart))}</strong><span>{activeOperation.actualRatePerPart>0?"Actual process rate only":"Planned process rate only"}</span></div><div><small>TRANSPORT</small><strong>{vendors.find(v=>v.id===activeOperation.transportVendorId)?.company || "No transporter assigned"}</strong><span>{activeOperation.transportPickup || activeOperation.transportDelivery ? shortDate(activeOperation.transportPickup) + " → " + shortDate(activeOperation.transportDelivery) : "Not scheduled"} · {money(activeOperation.transportCost)}</span></div><div><small>PROCESS PAYMENT</small><strong>{activeOperation.paymentStatus || "Unpaid"}</strong><span>{money(activeOperation.paidAmount || 0)} paid · {activeOperation.paymentReference || "No payment reference"}</span></div><div><small>STATUS</small><strong>{activeOperation.status}</strong></div><div className="linked-detail-wide"><small>QUALITY / INSPECTION REQUIREMENT</small><strong>{activeOperation.qualityNotes || "No quality notes recorded"}</strong></div><div className="linked-detail-wide"><small>INSPECTION RESULT</small><strong>{activeOperation.inspectionResult || "Not entered"}</strong></div><div className="linked-detail-wide"><small>NOTES</small><strong>{activeOperation.notes || "No operation notes entered"}</strong></div></div>
           <div className="linked-side-actions"><button className="button-primary" onClick={() => editActive()}><Wrench size={14}/> Edit operation</button><button className="button-quiet" disabled={routeOperations.findIndex(op=>op.id===activeOperation.id)<=0} onClick={()=>moveOperation(activeOperation.id,-1)}><ArrowUp size={14}/> Move earlier</button><button className="button-quiet" disabled={routeOperations.findIndex(op=>op.id===activeOperation.id)>=routeOperations.length-1} onClick={()=>moveOperation(activeOperation.id,1)}><ArrowDown size={14}/> Move later</button><button className="button-quiet" onClick={() => onSelectModule("costing")}><CircleDollarSign size={14}/> Quotes / costing</button><button className="button-quiet" onClick={() => onSelectModule("quality")}><ClipboardCheck size={14}/> Quality inspection</button>{activeOperation.vendorId&&onScheduleVendor&&<button className="button-quiet" onClick={()=>onScheduleVendor(activeOperation.vendorId,activeOperation.id,activeOperation.name)}><CalendarClock size={14}/> Vendor follow-up</button>}<button className="button-quiet" onClick={() => archiveOperation(activeOperation)}><X size={14}/> Archive</button></div>
           <div className="linked-quote-preview"><div className="panel-heading"><div><h3>Vendor quotations</h3><p>{selectedOperationQuotations.length} quote(s) linked to this operation</p></div></div>{selectedOperationQuotations.length ? selectedOperationQuotations.map(q => <div key={q.id} className="linked-quote-mini"><strong>{vendors.find(v=>v.id===q.vendorId)?.company || "Vendor archived"}</strong><span>{money(q.ratePerPart)}/part · {q.leadDays} lead day(s)</span><small>{q.quoteReference || "No quote reference"} · {q.status}</small></div>) : <div className="vendor-empty">No quotations recorded for this operation yet. Add a quote from Costing.</div>}</div>
         </> : <div className="module-empty-state"><Workflow size={28}/><h3>Select an operation</h3><p>Operation details, schedule, vendor link, quantities, quality and cost will appear here.</p></div>}
       </aside>
     </div>
     <div className="linked-bottom-grid">
-      <section className="surface-panel linked-cost-card"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COST BREAKDOWN</div><h3>Entered route costs</h3><p>Only rates you entered or selected from quotations are counted.</p></div><CircleDollarSign size={18}/></div><div className="linked-cost-row"><span>Process cost</span><strong>{money(routeOperations.reduce((sum,op)=>sum+op.quantity*op.ratePerPart,0))}</strong></div><div className="linked-cost-row"><span>Transport cost</span><strong>{money(routeOperations.reduce((sum,op)=>sum+op.transportCost,0))}</strong></div><div className="linked-cost-row linked-cost-total"><span>Total entered</span><strong>{money(totalProcessCost)}</strong></div><button className="button-quiet" onClick={() => onSelectModule("costing")}><CircleDollarSign size={14}/> Open detailed costing</button></section>
+      <section className="surface-panel linked-cost-card"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COST BREAKDOWN</div><h3>Entered route costs</h3><p>Only rates you entered or selected from quotations are counted.</p></div><CircleDollarSign size={18}/></div><div className="linked-cost-row"><span>Process cost</span><strong>{money(totalProcessCost)}</strong></div><div className="linked-cost-row"><span>Transport cost</span><strong>{money(totalTransportCost)}</strong></div><div className="linked-cost-row linked-cost-total"><span>Process + transport total</span><strong>{money(componentTotalCost)}</strong></div><button className="button-quiet" onClick={() => onSelectModule("costing")}><CircleDollarSign size={14}/> Open detailed costing</button></section>
       <section className="surface-panel linked-timeline-card" id="linked-timeline"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> TIMELINE & DELIVERY</div><h3>Planned progress</h3><p>Schedule is based on saved operation dates, not estimated samples.</p></div><CalendarClock size={18}/></div><div className="linked-timeline-facts"><div><small>FIRST PLANNED START</small><strong>{shortDate(timelineStart)}</strong></div><div><small>LAST OPERATION TARGET</small><strong>{shortDate(timelineEnd)}</strong></div><div><small>SUM OF OPERATION DAYS</small><strong>{durationDays || "—"} days</strong></div><div><small>PO DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div></div><div className={"linked-delivery-state " + (lateOps.length ? "linked-delivery-late" : "")}><span>{lateOps.length ? <ShieldAlert size={16}/> : <Activity size={16}/>}</span><div><strong>{lateOps.length ? "Delay risk detected" : allDone ? "All saved operations complete" : "Delivery forecast awaits schedule data"}</strong><small>{lateOps.length ? lateOps.length + " operation(s) are past their planned target date." : "ETA can be assessed once operation schedules and dependencies are entered."}</small></div></div></section>
     </div>
     <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> DETAILED OPERATION LIST</div><h3>Process list ({routeOperations.length} operations)</h3><p>Values remain component- and PO-line-specific.</p></div><span className="module-number">{routeOperations.length} ROWS</span></div>
-      {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Seq</th><th>Operation</th><th>Type</th><th>Vendor</th><th>Machine / station</th><th>Planned start</th><th>Planned target</th><th>Days</th><th>Qty</th><th>Accepted</th><th>Status</th><th>Payment</th><th>Planned rate</th><th>Actual rate</th><th>Process + transport</th></tr></thead><tbody>{routeOperations.map(op => <tr key={op.id} className={activeOperation?.id === op.id ? "linked-table-selected" : ""} onClick={() => setSelectedOperationId(op.id)}><td>{op.sequence}</td><td><button className="inline-module-link" onClick={e=>{e.stopPropagation();setSelectedOperationId(op.id);}}>{op.name}</button></td><td>{op.category || "—"}</td><td>{vendors.find(v=>v.id===op.vendorId)?.company || "Unassigned"}</td><td>{op.machine || "—"}</td><td>{shortDate(op.plannedStart)}</td><td>{shortDate(op.plannedEnd)}</td><td>{daysBetween(op.plannedStart,op.plannedEnd) || "—"}</td><td>{op.quantity.toLocaleString("en-IN")}</td><td>{op.accepted.toLocaleString("en-IN")}</td><td><span className={"record-state state-" + op.status.toLowerCase().replace(/\s+/g,"-")}>{op.status}</span></td><td>{op.paymentStatus || "Unpaid"}</td><td>{money(op.ratePerPart)}</td><td>{op.actualRatePerPart ? money(op.actualRatePerPart) : "Not entered"}</td><td>{money(op.quantity*op.ratePerPart+op.transportCost)}</td></tr>)}</tbody></table></div> : <div className="vendor-empty">No operation rows for the selected PO component.</div>}
+      {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Seq</th><th>Operation</th><th>Type</th><th>Vendor</th><th>Machine / station</th><th>Planned start</th><th>Planned target</th><th>Days</th><th>Qty</th><th>Accepted</th><th>Status</th><th>Payment</th><th>Planned rate</th><th>Actual rate</th><th>Process + transport</th></tr></thead><tbody>{routeOperations.map(op => <tr key={op.id} className={activeOperation?.id === op.id ? "linked-table-selected" : ""} onClick={() => setSelectedOperationId(op.id)}><td>{op.sequence}</td><td><button className="inline-module-link" onClick={e=>{e.stopPropagation();setSelectedOperationId(op.id);}}>{op.name}</button></td><td>{op.category || "—"}</td><td>{vendors.find(v=>v.id===op.vendorId)?.company || "Unassigned"}</td><td>{op.machine || "—"}</td><td>{shortDate(op.plannedStart)}</td><td>{shortDate(op.plannedEnd)}</td><td>{daysBetween(op.plannedStart,op.plannedEnd) || "—"}</td><td>{op.quantity.toLocaleString("en-IN")}</td><td>{op.accepted.toLocaleString("en-IN")}</td><td><span className={"record-state state-" + op.status.toLowerCase().replace(/\s+/g,"-")}>{op.status}</span></td><td>{op.paymentStatus || "Unpaid"}</td><td>{money(op.ratePerPart)}</td><td>{op.actualRatePerPart ? money(op.actualRatePerPart) : "Not entered"}</td><td>{money(op.quantity*op.ratePerPart)}</td></tr>)}</tbody></table></div> : <div className="vendor-empty">No operation rows for the selected PO component.</div>}
     </section>
     <section className="process-export-print-only">
       <h1>AXIMACH · PROCESS MAP</h1>

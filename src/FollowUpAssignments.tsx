@@ -28,6 +28,7 @@ export default function FollowUpAssignmentsLauncher({ moduleId, moduleTitle, onN
   const materials = activeRows(data.materials);
   const bomLines = activeRows(data.bomLines);
   const quotations = activeRows(data.quotations);
+  const transportRoutes = activeRows(data.transportRoutes || []);
 
   const allRecordOptions = useMemo<RecordOption[]>(() => [
     ...companies.map(row => ({ id: row.id, label: row.name, detail: "Company" })),
@@ -40,8 +41,9 @@ export default function FollowUpAssignmentsLauncher({ moduleId, moduleTitle, onN
     ...materials.map(row => ({ id: row.id, label: row.code + " · " + row.name, detail: "Material" })),
     ...bomLines.map(row => ({ id: row.id, label: (components.find(c => c.id === row.componentId)?.partNumber || "Component") + " · " + (materials.find(m => m.id === row.materialId)?.name || "BOM material"), detail: "BOM line" })),
     ...operations.map(row => ({ id: row.id, label: row.name + " · " + (purchaseOrders.find(po => po.id === row.poId)?.number || "PO") + " · " + (components.find(c => c.id === row.componentId)?.partNumber || "Component"), detail: "Process operation" })),
-    ...quotations.map(row => ({ id: row.id, label: row.quoteReference || "Quotation " + row.id.slice(0, 8), detail: "Process quotation" }))
-  ], [companies, components, purchaseOrders, vendors, profiles, definitions, plannedCosts, materials, bomLines, operations, quotations]);
+    ...quotations.map(row => ({ id: row.id, label: row.quoteReference || "Quotation " + row.id.slice(0, 8), detail: "Process quotation" })),
+    ...transportRoutes.map(row => ({ id: row.id, label: row.fromLocation + " → " + row.toLocation + " · " + row.vehicleType + " · " + row.tripDirection, detail: "Transport route" }))
+  ], [companies, components, purchaseOrders, vendors, profiles, definitions, plannedCosts, materials, bomLines, operations, quotations, transportRoutes]);
 
   const recordOptions = useMemo<RecordOption[]>(() => {
     switch (moduleId) {
@@ -52,6 +54,7 @@ export default function FollowUpAssignmentsLauncher({ moduleId, moduleTitle, onN
       case "vendor-capability": return allRecordOptions.filter(row => row.detail === "Vendor");
       case "contact360": return allRecordOptions.filter(row => row.detail === "Company contact" || row.detail === "Vendor contact");
       case "process-master": return allRecordOptions.filter(row => row.detail === "Process definition");
+      case "transport-master": return allRecordOptions.filter(row => row.detail === "Transport route");
       case "planned-cost": return allRecordOptions.filter(row => row.detail === "Planned cost");
       case "inventory": return allRecordOptions.filter(row => row.detail === "Material" || row.detail === "BOM line");
       case "production":
