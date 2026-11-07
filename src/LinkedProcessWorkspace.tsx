@@ -88,7 +88,18 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [bulkStatus,setBulkStatus] = useState("");
   const [bulkVendorId,setBulkVendorId] = useState("");
   const [bulkStart,setBulkStart] = useState("");
-  const [bulkEnd,setBulkEnd] = useState("");\n  useEffect(() => {\n    if (!initialContext?.poId) return;\n    const targetPO = purchaseOrders.find(po => po.id === initialContext.poId);\n    if (!targetPO) return;\n    setCompanyId(targetPO.companyId);\n    setPoId(targetPO.id);\n    const targetLine = targetPO.lines.find(line => line.id === initialContext.poLineId)\n      || targetPO.lines.find(line => line.componentId === initialContext.componentId);\n    if (targetLine) setPoLineId(targetLine.id);\n    setSelectedOperationId("");\n  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, purchaseOrders]);
+  const [bulkEnd,setBulkEnd] = useState("");
+  useEffect(() => {
+    if (!initialContext?.poId) return;
+    const targetPO = purchaseOrders.find(po => po.id === initialContext.poId);
+    if (!targetPO) return;
+    setCompanyId(targetPO.companyId);
+    setPoId(targetPO.id);
+    const targetLine = targetPO.lines.find(line => line.id === initialContext.poLineId)
+      || targetPO.lines.find(line => line.componentId === initialContext.componentId);
+    if (targetLine) setPoLineId(targetLine.id);
+    setSelectedOperationId("");
+  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, purchaseOrders]);\n  useEffect(() => {\n    if (!initialContext?.poId) return;\n    const targetPO = purchaseOrders.find(po => po.id === initialContext.poId);\n    if (!targetPO) return;\n    setCompanyId(targetPO.companyId);\n    setPoId(targetPO.id);\n    const targetLine = targetPO.lines.find(line => line.id === initialContext.poLineId)\n      || targetPO.lines.find(line => line.componentId === initialContext.componentId);\n    if (targetLine) setPoLineId(targetLine.id);\n    setSelectedOperationId("");\n  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, purchaseOrders]);
 
 
   const companyOrders = purchaseOrders.filter(p => p.companyId === companyId);
