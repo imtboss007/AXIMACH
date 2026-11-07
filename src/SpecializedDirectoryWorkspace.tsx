@@ -68,11 +68,11 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
   update(current=>({...current,processDefinitions:current.processDefinitions.map(row=>row.id===id?{...row,deletedAt:stamp,updatedAt:stamp}:row)}));
   onNotice("Process directory record archived. Historical operations remain unchanged.");
  };
- const exportCsv=()=>{
+ const exportCsv=(exportRows:ProcessEntry[]=filtered)=>{
   const quote=(value:unknown)=>'"'+String(value??"").replace(/"/g,'""')+'"';
   const csv=[
    ["Process Type","Category","Subcategories","Vendors","Notes"].map(quote).join(","),
-   ...filtered.map(row=>[
+   ...exportRows.map(row=>[
     row.processType,row.category,row.subcategories.join("; "),
     row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join("; "),row.notes
    ].map(quote).join(","))
@@ -80,7 +80,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
   const url=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}));
   const a=document.createElement("a");a.href=url;a.download="AXIMACH-Process-Directory.csv";a.click();URL.revokeObjectURL(url);
  };
- const exportExcel=async()=>{
+ const exportExcel=async(exportRows:ProcessEntry[]=filtered)=>{
   try{
    const workbook=new ExcelJS.Workbook();
    workbook.creator="AXIMACH";
@@ -93,7 +93,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
     {header:"Vendors",key:"vendors",width:42},
     {header:"Notes",key:"notes",width:48}
    ];
-   sheet.addRows(filtered.map(row=>({
+   sheet.addRows(exportRows.map(row=>({
     processType:row.processType,category:row.category,subcategories:row.subcategories.join("; "),
     vendors:row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join("; "),notes:row.notes
    })));
@@ -107,11 +107,11 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
    onNotice("Excel workbook exported with "+exportRows.length+" process record(s).");
   }catch(error){onNotice(error instanceof Error?"Excel export failed: "+error.message:"Excel export failed.");}
  };
- const exportPdf=()=>{
+ const exportPdf=(exportRows:ProcessEntry[]=filtered)=>{
   const win=window.open("","_blank");
   if(!win){onNotice("Allow pop-ups to print / save the process directory as PDF.");return;}
   const esc=(value:unknown)=>String(value??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]!));
-  const html=filtered.map(row=>"<tr><td>"+esc(row.processType)+"</td><td>"+esc(row.category)+"</td><td>"+esc(row.subcategories.join(" · "))+"</td><td>"+esc(row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(", "))+"</td></tr>").join("");
+  const html=exportRows.map(row=>"<tr><td>"+esc(row.processType)+"</td><td>"+esc(row.category)+"</td><td>"+esc(row.subcategories.join(" · "))+"</td><td>"+esc(row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(", "))+"</td></tr>").join("");
   win.document.write("<!doctype html><html><head><title>AXIMACH Process Directory</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:8px;text-align:left}th{background:#eef2f6}</style></head><body><h1>AXIMACH · Process Directory</h1><table><thead><tr><th>Process type</th><th>Category</th><th>Subcategories</th><th>Vendors</th></tr></thead><tbody>"+html+"</tbody></table></body></html>");
   win.document.close();win.focus();win.print();
  };
