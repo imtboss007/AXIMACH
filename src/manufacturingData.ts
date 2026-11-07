@@ -15,7 +15,8 @@ export type FactoryRecord = {
 };
 export type ComponentRecord = {
   id: string; companyId?: string; partNumber: string; name: string; revision: string; material?: string;
-  drawingReference: string; notes: string; salePrice: number; salePriceUnit?: "piece" | "set";
+  drawingReference: string; notes: string; salePrice: number; salePriceUnit: "piece" | "set";
+  orderUnit?: "Piece" | "Set"; quantityPerUnit?: number;
   // Legacy values remain optional for old records/backups; they are no longer fields in Component Master.
   materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; stockQty?: number;
   overhead: number; toolingCost: number; reworkCost: number; scrapCost: number;
@@ -151,7 +152,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     purchaseOrders: Array.isArray(value?.purchaseOrders) ? value.purchaseOrders : empty.purchaseOrders,
     components: Array.isArray(value?.components) ? value.components.map(component => ({
       ...component,
-      salePriceUnit: component.salePriceUnit === "set" ? "set" as const : "piece" as const
+      salePriceUnit: component.salePriceUnit === "set" ? "set" as const : component.salePriceUnit === "piece" ? "piece" as const : component.orderUnit === "Set" ? "set" as const : "piece" as const
     })) : empty.components,
     vendors: Array.isArray(value?.vendors) ? value.vendors : empty.vendors,
     operations: Array.isArray(value?.operations) ? value.operations : empty.operations,
