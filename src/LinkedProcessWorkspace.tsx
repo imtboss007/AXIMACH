@@ -610,6 +610,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (draft.executionType === "Outsourced" && !draft.vendorId && draft.category !== "Logistics") { onNotice("Select a vendor for an outsourced operation, or change execution to Internal."); return; }
     if (draft.executionType === "Outsourced" && selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)) { onNotice("The selected vendor is not assigned to this Process Directory definition. Choose an assigned vendor or update the Process Directory vendor links."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
+    const operationQuantities=[draft.quantity,draft.completed,draft.accepted,draft.rejected];
+    if(operationQuantities.some(value=>!Number.isSafeInteger(Number(value))||Number(value)<0)||draft.quantity<1){onNotice("Operation, completed, accepted and rejected quantities must be whole numbers; operation quantity must be at least 1.");return;}
+    if(draft.completed>draft.quantity){onNotice("Completed quantity cannot exceed the operation quantity.");return;}
     if (draft.accepted + draft.rejected > draft.completed) { onNotice("Accepted plus rejected quantity cannot exceed completed quantity."); return; }
     if (draft.paymentStatus === "Paid" && !(Number(draft.paidAmount) > 0)) { onNotice("Enter the actual amount paid before marking this operation Paid."); return; }
     const previousOperation = operations.find(op=>op.id===editingId);
