@@ -43,7 +43,7 @@ export type ComponentTransportLegRecord = {
   id: string; poId: string; poLineId: string; componentId: string; sequence: number;
   routeId: string; vendorId: string; fromLocation: string; toLocation: string;
   tripDirection: TransportTripDirection; vehicleType: string; fixedAmount: number;
-  tripCount: number; anchorOperationId: string; notes: string;
+  tripCount: number; anchorOperationId: string; pickupAt?: string; deliveryAt?: string; notes: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type VendorTransportRoute = { id: string; fromLocation: string; toLocation: string; fixedCost: number; vehicleType: string; notes?: string; tripDirection?: TransportTripDirection };
