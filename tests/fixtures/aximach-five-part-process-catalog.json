@@ -1,0 +1,202 @@
+{
+  "fixtureName": "AXIMACH five-part linked workflow acceptance set",
+  "purpose": "Isolated acceptance-test data only. Do not preload into a user's live manufacturing workspace.",
+  "synthetic": true,
+  "parts": [
+    {
+      "partNumber": "AX-1001",
+      "name": "Precision spindle sleeve",
+      "revision": "A",
+      "material": "EN24 / 42CrMo4",
+      "precisionClass": "Ultra Precision",
+      "processes": [
+        {
+          "category": "Turning",
+          "processType": "CNC finish turning",
+          "subProcess": "OD/ID finish turning",
+          "toleranceClass": "Ultra Precision"
+        },
+        {
+          "category": "Heat Treatment",
+          "processType": "Vacuum hardening",
+          "subProcess": "Hardening and tempering",
+          "toleranceClass": "Precision"
+        },
+        {
+          "category": "Grinding",
+          "processType": "Cylindrical grinding",
+          "subProcess": "OD finish grinding",
+          "toleranceClass": "Ultra Precision"
+        },
+        {
+          "category": "Grinding",
+          "processType": "Internal grinding",
+          "subProcess": "Bore finishing",
+          "toleranceClass": "Ultra Precision"
+        },
+        {
+          "category": "Metrology",
+          "processType": "Precision inspection",
+          "subProcess": "Roundness, runout and bore measurement",
+          "toleranceClass": "Ultra Precision"
+        }
+      ]
+    },
+    {
+      "partNumber": "AX-1002",
+      "name": "Standard motor mounting bracket",
+      "revision": "B",
+      "material": "IS 2062 / mild steel",
+      "precisionClass": "Standard",
+      "processes": [
+        {
+          "category": "Laser Cutting",
+          "processType": "Fiber laser cutting",
+          "subProcess": "Profile cutting",
+          "toleranceClass": "Standard"
+        },
+        {
+          "category": "Forming",
+          "processType": "Press brake bending",
+          "subProcess": "Two-flange forming",
+          "toleranceClass": "Standard"
+        },
+        {
+          "category": "Welding",
+          "processType": "MIG welding",
+          "subProcess": "Bracket seam welding",
+          "toleranceClass": "Standard"
+        },
+        {
+          "category": "Finishing",
+          "processType": "Powder coating",
+          "subProcess": "Surface preparation and coating",
+          "toleranceClass": "Standard"
+        },
+        {
+          "category": "Quality",
+          "processType": "Final inspection",
+          "subProcess": "Hole pattern and visual check",
+          "toleranceClass": "Standard"
+        }
+      ]
+    },
+    {
+      "partNumber": "AX-1003",
+      "name": "Ground transmission gear shaft",
+      "revision": "A",
+      "material": "20MnCr5",
+      "precisionClass": "Precision",
+      "processes": [
+        {
+          "category": "Turning",
+          "processType": "CNC shaft turning",
+          "subProcess": "Bearing seats and shoulders",
+          "toleranceClass": "Precision"
+        },
+        {
+          "category": "Gear Cutting",
+          "processType": "Gear hobbing",
+          "subProcess": "Spur gear tooth generation",
+          "toleranceClass": "Precision"
+        },
+        {
+          "category": "Heat Treatment",
+          "processType": "Carburising",
+          "subProcess": "Case hardening",
+          "toleranceClass": "Precision"
+        },
+        {
+          "category": "Grinding",
+          "processType": "Cylindrical grinding",
+          "subProcess": "Bearing journal finish grind",
+          "toleranceClass": "Precision"
+        },
+        {
+          "category": "Metrology",
+          "processType": "Gear inspection",
+          "subProcess": "Tooth profile and runout verification",
+          "toleranceClass": "Precision"
+        }
+      ]
+    },
+    {
+      "partNumber": "AX-1004",
+      "name": "Hydraulic manifold block",
+      "revision": "C",
+      "material": "Aluminium 6082-T6",
+      "precisionClass": "Precision",
+      "processes": [
+        {
+          "category": "VMC Machining",
+          "processType": "CNC face milling",
+          "subProcess": "Datum face machining",
+          "toleranceClass": "Precision"
+        },
+        {
+          "category": "VMC Machining",
+          "processType": "Deep-hole drilling",
+          "subProcess": "Cross-port drilling",
+          "toleranceClass": "Precision"
+        },
+        {
+          "category": "VMC Machining",
+          "processType": "CNC tapping",
+          "subProcess": "Threaded port finishing",
+          "toleranceClass": "Precision"
+        },
+        {
+          "category": "Deburring",
+          "processType": "Precision deburring",
+          "subProcess": "Port edge and intersection deburring",
+          "toleranceClass": "Precision"
+        },
+        {
+          "category": "Quality",
+          "processType": "Pressure and dimensional inspection",
+          "subProcess": "Bore, thread and leak verification",
+          "toleranceClass": "Precision"
+        }
+      ]
+    },
+    {
+      "partNumber": "AX-1005",
+      "name": "Standard fixture base plate",
+      "revision": "A",
+      "material": "EN8",
+      "precisionClass": "Standard",
+      "processes": [
+        {
+          "category": "Sawing",
+          "processType": "Band saw cutting",
+          "subProcess": "Raw blank preparation",
+          "toleranceClass": "Standard"
+        },
+        {
+          "category": "VMC Machining",
+          "processType": "Face milling",
+          "subProcess": "Top and bottom face machining",
+          "toleranceClass": "Standard"
+        },
+        {
+          "category": "VMC Machining",
+          "processType": "Drilling and tapping",
+          "subProcess": "Mounting hole pattern",
+          "toleranceClass": "Standard"
+        },
+        {
+          "category": "Grinding",
+          "processType": "Surface grinding",
+          "subProcess": "Reference face finish",
+          "toleranceClass": "Precision"
+        },
+        {
+          "category": "Quality",
+          "processType": "Final inspection",
+          "subProcess": "Flatness and hole-location check",
+          "toleranceClass": "Standard"
+        }
+      ]
+    }
+  ]
+}
