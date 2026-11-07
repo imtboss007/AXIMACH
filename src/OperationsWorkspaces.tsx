@@ -1,14 +1,16 @@
 import { useMemo, useState } from "react";
 import { Activity, ArrowRight, CalendarClock, Check, ClipboardCheck, FileDown, Package, Plus, RotateCcw, Search, ShieldCheck, Truck, Workflow, Wrench } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type LifecycleStatus, type OperationRecord, type InspectionMeasurementRecord } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type InspectionMeasurementRecord } from "./manufacturingData";
+import SearchablePicker from "./SearchablePicker";
+import SearchableMultiSelect from "./SearchableMultiSelect";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
-const transportDraft=()=>({vendorId:"",routeId:"",from:"",to:"",vehicleType:"",pickup:"",delivery:"",cost:"0",notes:""});
+const transportDraft=()=>({vendorId:"",routeId:"",from:"",to:"",vehicleType:"",tripDirection:"One-way" as "One-way"|"Two-way",tripCount:"1",anchorOperationId:"",pickup:"",delivery:"",cost:"0",notes:""});
 
 export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:Props){
  const {data,update,syncStatus}=useManufacturingData();
- const companies=activeRows(data.companies),pos=activeRows(data.purchaseOrders),components=activeRows(data.components),vendors=activeRows(data.vendors),ops=activeRows(data.operations);
+ const companies=activeRows(data.companies),pos=activeRows(data.purchaseOrders),components=activeRows(data.components),vendors=activeRows(data.vendors),ops=activeRows(data.operations),transportRoutes=activeRows(data.transportRoutes||[]),transportLegs=activeRows(data.transportLegs||[]);
  const [search,setSearch]=useState("");const [transportLine,setTransportLine]=useState<{poId:string;lineId:string}|null>(null);const [draft,setDraft]=useState(transportDraft());
  const [companyFilters,setCompanyFilters]=useState<string[]>([]);
  const [poFilters,setPoFilters]=useState<string[]>([]);
@@ -51,24 +53,25 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:
  };
  const openTransport=(poId:string,lineId:string)=>{setTransportLine({poId,lineId});setDraft(transportDraft());};
  const saveTransport=()=>{
-  if(!transportLine)return;const po=pos.find(x=>x.id===transportLine.poId);const line=po?.lines.find(x=>x.id===transportLine.lineId);if(!po||!line)return;
-  const component=components.find(x=>x.id===line.componentId);if(!component){onNotice("The selected PO line has no matching Component Directory record.");return;}
-  const vendor=vendors.find(x=>x.id===draft.vendorId);if(!vendor){onNotice("Select a transport vendor.");return;}
-  const cost=Number(draft.cost);if(!Number.isFinite(cost)||cost<0){onNotice("Enter a valid transport cost.");return;}
+  if(!transportLine)return;
+  const po=pos.find(x=>x.id===transportLine.poId),line=po?.lines.find(x=>x.id===transportLine.lineId);
+  if(!po||!line){onNotice("The selected PO component line is no longer available.");return;}
+  const component=components.find(x=>x.id===line.componentId);
+  if(!component){onNotice("The selected PO line has no matching Component Directory record.");return;}
+  const route=transportRoutes.find(x=>x.id===draft.routeId);
+  if(!route){onNotice("Select a saved route from Transport Directory first.");return;}
+  const vendor=vendors.find(x=>x.id===route.vendorId);
+  if(!vendor){onNotice("The selected route vendor is missing or archived. Repair the route in Transport Directory.");return;}
+  const amount=Number(draft.cost),tripCount=Number(draft.tripCount);
+  if(!Number.isFinite(amount)||amount<0||amount!==route.fixedAmount){onNotice("Transport charge must match the saved fixed rate in Transport Directory. Update the route there if required.");return;}
+  if(!Number.isInteger(tripCount)||tripCount<1){onNotice("Enter a whole-number trip count of at least 1.");return;}
   if(draft.pickup&&draft.delivery&&draft.delivery<draft.pickup){onNotice("Delivery date cannot be before pickup date.");return;}
-  const stamp=nowIso();const existing=ops.filter(x=>x.poId===po.id&&x.poLineId===line.id);
-  const record:OperationRecord={
-   id:makeId("operation"),poId:po.id,poLineId:line.id,componentId:component.id,sequence:Math.max(0,...existing.map(x=>x.sequence))+10,
-   name:"Transport / dispatch",category:"Logistics",machine:"",vendorId:"",status:"Queued" as LifecycleStatus,
-   plannedStart:draft.pickup,plannedEnd:draft.delivery,actualStart:"",actualEnd:"",
-   quantity:line.quantity,completed:0,accepted:0,rejected:0,ratePerPart:0,actualRatePerPart:0,
-   transportVendorId:vendor.id,transportRouteId:draft.routeId,transportFrom:draft.from,transportTo:draft.to,transportVehicleType:draft.vehicleType,transportPickup:draft.pickup,transportDelivery:draft.delivery,transportCost:cost,
-   qualityNotes:"",inspectionResult:"",notes:draft.notes,branch:"Main route",parentId:"",
-   paymentStatus:"Unpaid",paidAmount:0,paymentReference:"",subcategory:"Transport",
-   createdAt:stamp,updatedAt:stamp
-  };
-  update(current=>({...current,operations:[...current.operations,record]}));
-  setTransportLine(null);setDraft(transportDraft());onNotice("Transport entry saved against the selected PO component line. It is now visible in Process Plan and Transport & Dispatch.");
+  if(draft.anchorOperationId&&!ops.some(op=>op.id===draft.anchorOperationId&&op.poId===po.id&&op.poLineId===line.id)){onNotice("The selected process anchor does not belong to this PO component line.");return;}
+  const stamp=nowIso(),existing=transportLegs.filter(leg=>leg.poId===po.id&&leg.poLineId===line.id);
+  const record:ComponentTransportLegRecord={id:makeId("transport-leg"),poId:po.id,poLineId:line.id,componentId:component.id,sequence:Math.max(0,...existing.map(x=>x.sequence))+10,routeId:route.id,vendorId:route.vendorId,fromLocation:route.fromLocation,toLocation:route.toLocation,tripDirection:route.tripDirection,vehicleType:route.vehicleType,fixedAmount:route.fixedAmount,tripCount,anchorOperationId:draft.anchorOperationId,pickupAt:draft.pickup,deliveryAt:draft.delivery,notes:draft.notes,createdAt:stamp,updatedAt:stamp};
+  update(current=>({...current,transportLegs:[...(current.transportLegs||[]),record]}));
+  setTransportLine(null);setDraft(transportDraft());
+  onNotice("Transport leg saved from the independent Transport Directory master. It is linked to the PO component and optional process anchor; process operations and process-cost totals were not changed.");
  };
  return <section className="workspace-page operations-workspace">
   <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/>{syncStatus==="synced"?"SHARED DATA SYNCED":syncStatus==="error"?"SYNC ERROR · LOCAL COPY KEPT":"PO-LINKED PRODUCTION"}</span></div>
@@ -84,12 +87,14 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:
    </div>
   </section>
   <div className="process-table-bulkbar production-plan-bulkbar"><label><input type="checkbox" checked={filtered.length>0&&filtered.every(row=>selectedJobKeys.includes(row.po.id+":"+row.line.id))} onChange={e=>selectVisibleJobs(e.target.checked)}/> Select all visible jobs</label><span>{selectedVisibleJobs.length} selected</span><button className="button-primary compact-button" disabled={!selectedVisibleJobs.length} onClick={()=>finishSelectedJobs(true)}>Finish selected jobs</button><button className="button-quiet compact-button" disabled={!selectedVisibleJobs.length} onClick={()=>finishSelectedJobs(false)}>Reopen selected jobs</button><button className="button-quiet compact-button" disabled={!selectedJobKeys.length} onClick={()=>setSelectedJobKeys([])}>Clear selection</button></div>
-  {transportLine&&<section className="surface-panel"><div className="panel-heading"><div><h3>Add transport to PO component</h3><p>This creates a logistics operation linked to the selected PO component line.</p></div></div>
+  {transportLine&&<section className="surface-panel"><div className="panel-heading"><div><h3>Add transport to PO component</h3><p>This creates a transport leg from the Transport Directory master, linked to the PO component line and optional process anchor.</p></div></div>
    <div className="module-record-form specialized-form">
-    <label>Transport vendor *<select value={draft.vendorId} onChange={e=>setDraft({...draft,vendorId:e.target.value,routeId:"",from:"",to:"",vehicleType:"",cost:"0"})}><option value="">Select transport vendor</option>{vendors.filter(v=>v.vendorType==="Transport").map(v=><option key={v.id} value={v.id}>{v.company} · {v.contact}</option>)}</select></label>
-    <label>Saved route<select value={draft.routeId} onChange={e=>{const route=vendors.find(v=>v.id===draft.vendorId)?.transportRoutes?.find(r=>r.id===e.target.value);setDraft({...draft,routeId:e.target.value,from:route?.fromLocation||"",to:route?.toLocation||"",vehicleType:route?.vehicleType||"",cost:String(route?.fixedCost||0)});}}><option value="">Select route</option>{(vendors.find(v=>v.id===draft.vendorId)?.transportRoutes||[]).map(route=><option key={route.id} value={route.id}>{route.fromLocation} → {route.toLocation} · ₹{route.fixedCost.toLocaleString("en-IN")}</option>)}</select></label>
+    <SearchablePicker id="production-transport-vendor" label="Transport vendor *" value={draft.vendorId} placeholder="Type vendor or contact…" options={vendors.filter(v=>transportRoutes.some(route=>route.vendorId===v.id)).map(v=>({id:v.id,label:v.company+" · "+v.contact}))} onChange={value=>setDraft({...draft,vendorId:value,routeId:"",from:"",to:"",vehicleType:"",cost:"0"})}/>
+    <SearchablePicker id="production-transport-route" label="Saved route *" value={draft.routeId} placeholder="Search route, vehicle or direction…" options={transportRoutes.filter(route=>route.vendorId===draft.vendorId).map(route=>({id:route.id,label:route.fromLocation+" → "+route.toLocation+" · "+route.vehicleType+" · "+route.tripDirection+" · ₹"+route.fixedAmount.toLocaleString("en-IN")}))} onChange={value=>{const route=transportRoutes.find(row=>row.id===value);setDraft({...draft,routeId:value,from:route?.fromLocation||"",to:route?.toLocation||"",vehicleType:route?.vehicleType||"",tripDirection:route?.tripDirection||"One-way",cost:String(route?.fixedAmount||0)});}}/>
     <label>From location<input readOnly value={draft.from}/></label><label>To location<input readOnly value={draft.to}/></label><label>Vehicle type<input readOnly value={draft.vehicleType}/></label>
-    <label>Transport cost (₹)<input type="number" min="0" step="0.01" value={draft.cost} onChange={e=>setDraft({...draft,cost:e.target.value})}/></label>
+    <label>Trip direction<input readOnly value={draft.tripDirection}/></label><label>Trip count<input type="number" min="1" step="1" value={draft.tripCount} onChange={e=>setDraft({...draft,tripCount:e.target.value})}/></label>
+    <SearchablePicker id="production-transport-anchor" label="Place after process (optional)" value={draft.anchorOperationId} placeholder="Unanchored transport / select process…" options={ops.filter(op=>op.poId===transportLine?.poId&&op.poLineId===transportLine?.lineId).sort((a,b)=>a.sequence-b.sequence).map(op=>({id:op.id,label:"OP-"+String(op.sequence).padStart(3,"0")+" · "+op.name+" · "+op.status}))} onChange={value=>setDraft({...draft,anchorOperationId:value})}/>
+    <label>Transport fixed rate (₹)<input readOnly value={draft.cost}/></label>
     <label>Pickup date &amp; time<input type="datetime-local" value={draft.pickup} onChange={e=>setDraft({...draft,pickup:e.target.value})}/></label>
     <label>Delivery date &amp; time<input type="datetime-local" min={draft.pickup||undefined} value={draft.delivery} onChange={e=>setDraft({...draft,delivery:e.target.value})}/></label>
     <label className="module-form-wide">Transport notes<input value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} placeholder="Pickup location, consignment reference, handover notes…"/></label>
