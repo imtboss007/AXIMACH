@@ -333,6 +333,102 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
     setNotice("Restored an earlier icon version for " + (selectedTargetLabel || specificProcess || family) + ".");
   };
 
+  const handleAssetImport = (file?: File) => {
+    if (!file) return;
+    if (file.type === "image/png") {
+      const reader = new FileReader();
+      reader.onload = () => { setCustomAsset(String(reader.result || "")); setNotice("PNG loaded into the logo preview. Save & apply to bind it to the selected master record."); };
+      reader.onerror = () => setNotice("Could not read the PNG file.");
+      reader.readAsDataURL(file);
+      return;
+    }
+    if (file.type !== "image/svg+xml" && !file.name.toLowerCase().endsWith(".svg")) {
+      setNotice("Only SVG and PNG logo files are supported.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = new DOMParser().parseFromString(String(reader.result || ""), "image/svg+xml");
+        if (parsed.querySelector("parsererror") || parsed.documentElement.tagName.toLowerCase() !== "svg") throw new Error("The file is not a valid SVG.");
+        parsed.querySelectorAll("script,foreignObject,iframe,object,embed").forEach(node => node.remove());
+        parsed.querySelectorAll("*").forEach(node => [...node.attributes].forEach(attribute => {
+          const name = attribute.name.toLowerCase();
+          const value = attribute.value.trim().toLowerCase();
+          const externalLink = (name === "href" || name.endsWith(":href")) && value && !value.startsWith("#") && !value.startsWith("data:image/");
+          if (name.startsWith("on") || name === "src" || externalLink || (name === "style" && value.includes("url("))) node.removeAttribute(attribute.name);
+        }));
+        const safeSvg = new XMLSerializer().serializeToString(parsed.documentElement);
+        setCustomAsset("data:image/svg+xml;charset=utf-8," + encodeURIComponent(safeSvg));
+        setNotice("SVG sanitised and loaded. Save & apply to attach the imported logo to the selected stable ID.");
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "SVG import failed.");
+      }
+    };
+    reader.onerror = () => setNotice("Could not read the SVG file.");
+    reader.readAsText(file);
+  };
+
+  const downloadLogo = (filename: string, blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url; anchor.download = filename; document.body.appendChild(anchor);
+    anchor.click(); anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+  };
+
+  const exportLogo = async (format: "svg" | "png") => {
+    const stem = (selectedTargetLabel || specificProcess || family || "AXIMACH-logo").replace(/[^a-z0-9_-]+/gi, "-");
+    const tile = document.querySelector<HTMLElement>(".ax-icon-preview-tile");
+    if (format === "svg") {
+      let graphic = "";
+      if (customAsset) {
+        const safeData = customAsset.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+        graphic = '<image href="' + safeData + '" x="16" y="16" width="96" height="96" preserveAspectRatio="xMidYMid meet"/>';
+      } else {
+        const glyphNode = tile?.querySelector<HTMLElement>("i");
+        const pseudo = glyphNode ? window.getComputedStyle(glyphNode, "::before") : null;
+        let glyph = pseudo?.content || "";
+        glyph = glyph.replace(/^["']|["']$/g, "").replace(/\\([0-9a-f]{1,6})\\s?/gi, (_match, code) => String.fromCodePoint(parseInt(code, 16)));
+        const font = (pseudo?.fontFamily || "tabler-icons").replace(/["&<>]/g, "");
+        const escaped = glyph.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        if (glyph) graphic = '<text x="64" y="86" text-anchor="middle" font-family="' + font + '" font-size="76" fill="' + activePalette.color + '">' + escaped + '</text>';
+      }
+      if (!graphic) { setNotice("The selected icon could not be resolved for SVG export."); return; }
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">' + graphic + '</svg>';
+      downloadLogo(stem + ".svg", new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+      setNotice("SVG logo exported.");
+      return;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = 256; canvas.height = 256;
+    const context = canvas.getContext("2d");
+    if (!context) { setNotice("PNG export is not available in this browser."); return; }
+    if (customAsset) {
+      const image = new Image();
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Imported logo could not be rendered as PNG."));
+        image.src = customAsset;
+      });
+      context.drawImage(image, 24, 24, 208, 208);
+    } else {
+      const glyphNode = tile?.querySelector<HTMLElement>("i");
+      const pseudo = glyphNode ? window.getComputedStyle(glyphNode, "::before") : null;
+      let glyph = pseudo?.content || "";
+      glyph = glyph.replace(/^["']|["']$/g, "").replace(/\\([0-9a-f]{1,6})\\s?/gi, (_match, code) => String.fromCodePoint(parseInt(code, 16)));
+      if (!glyph) { setNotice("The selected icon could not be resolved for PNG export."); return; }
+      context.fillStyle = activePalette.color;
+      context.textAlign = "center"; context.textBaseline = "middle";
+      context.font = "156px " + (pseudo?.fontFamily || "tabler-icons");
+      context.fillText(glyph, 128, 128);
+    }
+    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
+    if (!blob) { setNotice("PNG logo export failed."); return; }
+    downloadLogo(stem + ".png", blob);
+    setNotice("PNG logo exported.");
+  };
+
   const removeAssignment = (targetFamily: string) => {
     const next = { ...assignments };
     delete next[targetFamily];
@@ -397,6 +493,9 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                 <div className="ax-icon-palette">{palettes.map((item) => <button key={item.name} title={item.name} aria-label={item.name} className={paletteName === item.name ? "active" : ""} style={{ background: item.color }} onClick={() => setPaletteName(item.name)}/>)}</div>
                 <label className="ax-icon-slider"><span>Bevel depth <b>{depth}/4</b></span><input type="range" min="1" max="4" step="1" value={depth} onChange={(event) => setDepth(Number(event.target.value))}/></label>
                 <label className="ax-icon-slider"><span>3D tilt <b>{tilt}°</b></span><input type="range" min="-18" max="18" step="9" value={tilt} onChange={(event) => setTilt(Number(event.target.value))}/></label>
+                <div className="ax-icon-field-label"><span>Custom logo file</span><small>SVG / PNG import and export</small></div>
+                <label className="ax-icon-import-control">Import SVG or PNG<input type="file" accept="image/svg+xml,image/png,.svg,.png" onChange={event => { handleAssetImport(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>
+                <div className="ax-icon-export-actions"><button type="button" onClick={() => void exportLogo("svg")}>Export SVG</button><button type="button" onClick={() => void exportLogo("png")}>Export PNG</button></div>
                 <div className="ax-icon-field-label"><span>Saved style presets</span><small>{presets.length} saved</small></div>
                 <div className="ax-icon-presets-list">
                   {presets.slice(0, 6).map((preset, index) => (

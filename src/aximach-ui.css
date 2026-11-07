@@ -1389,3 +1389,15 @@
 .mechanical-icon-card>div{display:flex;flex-direction:column;gap:4px;min-width:0}
 .mechanical-icon-card strong{font-size:11px;color:var(--text,#29415f)}
 .mechanical-icon-card small{font-size:9px;line-height:1.45;color:var(--muted,#7588a0)}
+
+/* Stable-ID custom mechanical logo studio additions */
+.ax-icon-custom-asset { display:block; width:72%; height:72%; object-fit:contain; filter:drop-shadow(0 8px 10px rgba(0,0,0,.18)); }
+.ax-component-icon { flex:0 0 auto; width:42px; height:42px; display:inline-flex; align-items:center; justify-content:center; }
+.ax-icon-import-control { display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--muted-foreground); }
+.ax-icon-import-control input { min-width:0; max-width:100%; font-size:12px; }
+.ax-icon-export-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.ax-icon-export-actions button, .ax-icon-version-history button { border:1px solid var(--line); border-radius:9px; padding:7px 10px; color:var(--foreground); background:var(--surface); font-size:11px; cursor:pointer; }
+.ax-icon-version-history { display:grid; gap:6px; margin:8px 0 12px; }
+.ax-icon-version-history button { display:flex; justify-content:space-between; align-items:center; gap:8px; text-align:left; }
+.ax-icon-version-history button small { color:var(--muted-foreground); font-size:10px; }
+.ax-icon-version-history button:hover, .ax-icon-export-actions button:hover { border-color:var(--accent); }
