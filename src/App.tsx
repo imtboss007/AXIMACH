@@ -105,9 +105,12 @@ function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNoti
   );
 }
 
+type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string };
+
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
+  const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>({});
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -246,9 +249,9 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={() => setIconStudioOpen(true)} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
+          <LinkedProcessWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={() => setIconStudioOpen(true)} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
-          <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <ManufacturingMasterWorkspace navigationContext={moduleContext} moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
           <InventoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
