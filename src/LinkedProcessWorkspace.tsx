@@ -182,18 +182,62 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const selectVisibleOperations = (checked: boolean) => setSelectedOperationIds(current => checked ? [...new Set([...current, ...visibleOperations.map(op => op.id)])] : current.filter(id => !visibleOperations.some(op => op.id === id)));
   const selectedVisibleOperations = visibleOperations.filter(op => selectedOperationIds.includes(op.id));
   const applyBulkUpdate = () => {
-    const ids = new Set(selectedVisibleOperations.map(op => op.id));
+    const selected = selectedVisibleOperations;
+    const ids = new Set(selected.map(op => op.id));
     if (!ids.size) { onNotice("Select one or more visible process operations first."); return; }
+    if (bulkVendorId && !vendors.some(vendor => vendor.id === bulkVendorId)) {
+      onNotice("The selected bulk vendor is missing or archived. Choose an active Vendor Directory record."); return;
+    }
+    if (bulkVendorId) {
+      const incompatible = selected.find(op => {
+        if ((op.executionType || "Outsourced") !== "Outsourced") return false;
+        const definition = processDefinitions.find(item => item.id === op.processDefinitionId)
+          || processDefinitions.find(item => item.processType === op.name && item.category === op.category);
+        return Boolean(definition?.vendorIds?.length && !definition.vendorIds.includes(bulkVendorId));
+      });
+      if (incompatible) { onNotice("The bulk vendor is not assigned to process definition " + incompatible.name + ". No records were changed."); return; }
+    }
+    const scheduleConflict = selected.find(op => {
+      const nextStart = bulkStart || op.plannedStart;
+      const nextEnd = bulkEnd || op.plannedEnd;
+      return Boolean(nextStart && nextEnd && nextEnd < nextStart);
+    });
+    if (scheduleConflict) { onNotice("Bulk dates would put the due date before the planned start for " + scheduleConflict.name + ". No records were changed."); return; }
     const stamp = nowIso();
-    update(current => ({ ...current, operations: current.operations.map(op => !ids.has(op.id) ? op : {
-      ...op,
-      ...(bulkStatus ? { status: bulkStatus as LifecycleStatus } : {}),
-      ...(bulkVendorId ? { vendorId: bulkVendorId } : {}),
-      ...(bulkStart ? { plannedStart: bulkStart } : {}),
-      ...(bulkEnd ? { plannedEnd: bulkEnd } : {}),
-      updatedAt: stamp
-    }) }));
-    onNotice("Bulk update applied to " + ids.size + " selected operation(s).");
+    update(current => {
+      const nextOperations = current.operations.map(op => !ids.has(op.id) ? op : ({
+        ...op,
+        ...(bulkStatus ? { status: bulkStatus as LifecycleStatus } : {}),
+        ...(bulkStatus === "Complete" ? { completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp } : {}),
+        ...(bulkVendorId ? { vendorId: bulkVendorId } : {}),
+        ...(bulkStart ? { plannedStart: bulkStart } : {}),
+        ...(bulkEnd ? { plannedEnd: bulkEnd } : {}),
+        updatedAt: stamp
+      }));
+      if (!bulkStatus) return { ...current, operations: nextOperations };
+      const touchedLines = new Set(selected.map(op => op.poId + "::" + op.poLineId));
+      const reopenedLines = new Set(selected
+        .filter(op => bulkStatus !== "Complete" && ((op.branch || "Main route") === "Main route" || op.costIncluded !== false))
+        .map(op => op.poId + "::" + op.poLineId));
+      const nextPurchaseOrders = current.purchaseOrders.map(order => ({
+        ...order,
+        lines: order.lines.map(line => {
+          const key = order.id + "::" + line.id;
+          if (!touchedLines.has(key)) return line;
+          const lineOperations = nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id && !op.deletedAt
+            && ((op.branch || "Main route") === "Main route" || op.costIncluded !== false));
+          if (lineOperations.length && lineOperations.every(op => op.status === "Complete")) {
+            return { ...line, jobStatus: "Finished" as const, jobFinishedAt: stamp, updatedAt: stamp };
+          }
+          if (reopenedLines.has(key) && line.jobStatus === "Finished") {
+            return { ...line, jobStatus: "In progress" as const, jobFinishedAt: undefined, updatedAt: stamp };
+          }
+          return line;
+        })
+      }));
+      return { ...current, operations: nextOperations, purchaseOrders: nextPurchaseOrders };
+    });
+    onNotice("Bulk update applied to " + ids.size + " selected operation(s)." + (bulkStatus === "Complete" ? " Completed quantities and actual end dates were recorded; eligible PO jobs were finished only when their saved route operations were all Complete." : bulkStatus ? " Affected finished PO jobs were reopened where an active route operation is no longer Complete." : ""));
     setBulkStatus(""); setBulkVendorId(""); setBulkStart(""); setBulkEnd("");
   };
 
@@ -608,11 +652,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (!selectedPO || !selectedLine || !selectedComponent) { onNotice("Select a PO component line first."); return; }
     if (!draft.name.trim()) { onNotice("Enter the operation name."); return; }
     if (draft.executionType === "Outsourced" && !draft.vendorId && draft.category !== "Logistics") { onNotice("Select a vendor for an outsourced operation, or change execution to Internal."); return; }
+    if (draft.vendorId && !vendors.some(vendor => vendor.id === draft.vendorId)) { onNotice("The selected vendor is missing or archived. Choose an active Vendor Directory record."); return; }
     if (draft.executionType === "Outsourced" && selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)) { onNotice("The selected vendor is not assigned to this Process Directory definition. Choose an assigned vendor or update the Process Directory vendor links."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
+    if (draft.actualStart && draft.actualEnd && draft.actualEnd < draft.actualStart) { onNotice("Actual end date cannot be before actual start date."); return; }
     const operationQuantities=[draft.quantity,draft.completed,draft.accepted,draft.rejected];
     if(operationQuantities.some(value=>!Number.isSafeInteger(Number(value))||Number(value)<0)||draft.quantity<1){onNotice("Operation, completed, accepted and rejected quantities must be whole numbers; operation quantity must be at least 1.");return;}
     if(draft.completed>draft.quantity){onNotice("Completed quantity cannot exceed the operation quantity.");return;}
+    if (draft.status === "Complete" && draft.completed !== draft.quantity) { onNotice("A process cannot be marked Complete until its completed quantity equals the operation quantity. Record the completed quantity first."); return; }
     if (draft.accepted + draft.rejected > draft.completed) { onNotice("Accepted plus rejected quantity cannot exceed completed quantity."); return; }
     if (draft.paymentStatus === "Paid" && !(Number(draft.paidAmount) > 0)) { onNotice("Enter the actual amount paid before marking this operation Paid."); return; }
     const previousOperation = operations.find(op=>op.id===editingId);
