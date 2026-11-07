@@ -100,13 +100,21 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         : undefined)
       || (initialContext.componentId
         ? purchaseOrders.find(po => po.lines.some(line => line.componentId === initialContext.componentId))
+        : undefined)
+      || (initialContext.operationId
+        ? purchaseOrders.find(po => po.id === operations.find(op => op.id === initialContext.operationId)?.poId)
         : undefined);
     if (targetPO) {
       setCompanyId(targetPO.companyId);
       setPoId(targetPO.id);
+      const targetOperation = operations.find(op => op.id === initialContext.operationId && op.poId === targetPO.id);
       const targetLine = targetPO.lines.find(line => line.id === initialContext.poLineId)
+        || targetPO.lines.find(line => line.id === targetOperation?.poLineId)
         || targetPO.lines.find(line => line.componentId === initialContext.componentId);
       setPoLineId(targetLine?.id || "");
+      const linkedOperation = operations.find(op => op.id === initialContext.operationId
+        && op.poId === targetPO.id && op.poLineId === targetLine?.id);
+      setSelectedOperationId(linkedOperation?.id || "");
     } else if (initialContext.companyId) {
       setCompanyId(initialContext.companyId);
       setPoId("");
@@ -116,7 +124,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       setPoLineId("");
     }
     setSelectedOperationId("");
-  }, [initialContext?.companyId, initialContext?.poId, initialContext?.poLineId, initialContext?.componentId]);
+  }, [initialContext?.companyId, initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, initialContext?.operationId]);
 
 
   const companyOrders = purchaseOrders.filter(p => p.companyId === companyId);
