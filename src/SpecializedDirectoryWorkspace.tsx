@@ -38,7 +38,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
   update(current=>({...current,processDefinitions:current.processDefinitions.map(row=>{
    if(!row.subcategories.length)return row;
    const ids=row.subcategories.map((_,index)=>row.subcategoryIds?.[index]||row.id+"-subprocess-"+String(index+1).padStart(3,"0"));
-   return ids.every((id,index)=>id===row.subcategoryIds?.[index])?row:{...row,subcategoryIds:ids};
+   return ids.length===row.subcategoryIds?.length&&ids.every((id,index)=>id===row.subcategoryIds?.[index])?row:{...row,subcategoryIds:ids};
   })}));
  },[data.processDefinitions,update]);
  const [search,setSearch]=useState("");
