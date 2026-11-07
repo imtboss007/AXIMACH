@@ -104,7 +104,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
    const blob=new Blob([new Uint8Array(bytes).buffer as ArrayBuffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
    const url=URL.createObjectURL(blob);const a=document.createElement("a");
    a.href=url;a.download="AXIMACH-Process-Directory.xlsx";a.click();URL.revokeObjectURL(url);
-   onNotice("Excel workbook exported with "+filtered.length+" process record(s).");
+   onNotice("Excel workbook exported with "+exportRows.length+" process record(s).");
   }catch(error){onNotice(error instanceof Error?"Excel export failed: "+error.message:"Excel export failed.");}
  };
  const exportPdf=()=>{
