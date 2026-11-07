@@ -6,9 +6,20 @@ export type ToolGlyph =
   | "ball-mill" | "slot-mill" | "chamfer" | "turning-insert" | "grooving"
   | "threading-insert" | "parting" | "knurl" | "broach" | "hob" | "saw"
   | "grinding-wheel" | "honing" | "lapping" | "welding-torch" | "laser-head" | "component-block"
-  | "edm-wire" | "press-tool" | "inspection";
+  | "edm-wire" | "press-tool" | "inspection" | "cnc-machine" | "vmc-machine" | "lathe-machine"
+  | "edm-machine" | "grinding-machine" | "laser-cutter" | "welding-station" | "fixture-jig"
+  | "cmm-machine" | "caliper";
 
 const rules: Array<[RegExp, ToolGlyph]> = [
+  [/cnc machining centre|cnc machining center|cnc machine|machining centre|machining center/, "cnc-machine"],
+  [/vmc machine|vertical machining centre|vertical machining center/, "vmc-machine"],
+  [/lathe machine|cnc lathe|turning centre|turning center/, "lathe-machine"],
+  [/wire edm machine|edm machine|spark erosion machine/, "edm-machine"],
+  [/grinding machine|cylindrical grinder|surface grinder/, "grinding-machine"],
+  [/laser cutting machine|laser cutter|laser cutting system/, "laser-cutter"],
+  [/welding station|welding cell|welding machine/, "welding-station"],
+  [/cmm machine|coordinate measuring machine/, "cmm-machine"],
+  [/vernier|caliper|micrometer|height gauge/, "caliper"],
   [/gun drill|deep hole drill|gundrill/, "gun-drill"],
   [/spot drill|spot drilling|centre drill|center drill|centre drilling|centering/, "spot-drill"],
   [/drill|drilling|peck drilling|step drilling|core drilling/, "twist-drill"],
@@ -77,6 +88,16 @@ export const MECHANICAL_ICON_INVENTORY: Array<{ glyph: ToolGlyph; label: string;
   {glyph:"edm-wire",label:"Wire EDM",application:"Wire cut EDM and spark erosion"},
   {glyph:"press-tool",label:"Press tool",application:"Punching, blanking, stamping, piercing and shearing"},
   {glyph:"inspection",label:"Inspection / metrology",application:"CMM, measurement, testing and quality"},
+  {glyph:"cnc-machine",label:"CNC machining centre",application:"CNC production centres, enclosed machining cells and multi-axis machining"},
+  {glyph:"vmc-machine",label:"VMC machine",application:"Vertical machining centres, spindle stations and milling work centres"},
+  {glyph:"lathe-machine",label:"CNC lathe / turning centre",application:"CNC turning machines, chucking lathes and turning cells"},
+  {glyph:"edm-machine",label:"EDM machine",application:"Wire EDM, sinker EDM and spark-erosion machine stations"},
+  {glyph:"grinding-machine",label:"Grinding machine",application:"Surface, cylindrical, internal and centreless grinding machines"},
+  {glyph:"laser-cutter",label:"Laser cutting machine",application:"Laser cutting tables, sheet-metal cutting and laser processing cells"},
+  {glyph:"welding-station",label:"Welding station",application:"MIG, TIG, arc welding and robotic welding cells"},
+  {glyph:"fixture-jig",label:"Fixture / jig / workholding",application:"Jigs, fixtures, clamps, datum locators and production workholding"},
+  {glyph:"cmm-machine",label:"CMM / inspection machine",application:"Bridge CMMs, probing systems and coordinate metrology"},
+  {glyph:"caliper",label:"Caliper / dimensional gauge",application:"Vernier calipers, micrometers, height gauges and dimensional checks"},
   {glyph:"component-block",label:"Generic component",application:"Mechanical component fallback symbol"}
 ];
 
@@ -120,10 +141,21 @@ function GlyphShape({ glyph }: { glyph: ToolGlyph }): ReactNode {
     case "press-tool": return <><path {...common} d="M4 3h16v5H4zM10 8h4v6h-4zM3 18h18M6 14h12v4H6zM12 1v2" /></>;
     case "inspection": return <><circle {...common} cx="10" cy="10" r="6"/><path {...common} d="M14.5 14.5L21 21M10 7v6M7 10h6" /></>;
     case "component-block": return <><path {...common} d="M4 7l8-4 8 4v10l-8 4-8-4zM4 7l8 4 8-4M12 11v10M8 5l8 4" /></>;
+    case "cnc-machine": return <><path {...common} d="M3 4h18v16H3zM7 7h10v9H7zM12 2v5M9 16v2M15 16v2M5 20v2M19 20v2M18 7h2M18 10h2M18 13h2" /><circle {...common} cx="12" cy="11" r="2" /></>;
+    case "vmc-machine": return <><path {...common} d="M4 3h16v18H4zM8 6h8v8H8zM12 2v5M10 14h4v3h-4zM6 21v1M18 21v1" /><path {...common} d="M12 7v4M9 18h6" /></>;
+    case "lathe-machine": return <><path {...common} d="M3 17h18v4H3zM5 7h5v10H5zM10 10h9v5h-9zM19 8v9M3 21v1M21 21v1" /><circle {...common} cx="7.5" cy="12" r="2" /></>;
+    case "edm-machine": return <><path {...common} d="M4 3h16v18H4zM7 6h10v8H7zM12 2v4M12 6v8M9 17h6M7 21v1M17 21v1" /><path {...common} d="M10 9l4 2-4 2" /></>;
+    case "grinding-machine": return <><path {...common} d="M3 18h18v3H3zM5 8h5v10H5zM14 7h7v7h-7zM10 12h4M3 21v1M21 21v1" /><circle {...common} cx="17.5" cy="10.5" r="2.5" /></>;
+    case "laser-cutter": return <><path {...common} d="M3 5h18v14H3zM7 8h10v7H7zM12 2v6M10 15l2 3 2-3M12 18v3M5 21h14" /></>;
+    case "welding-station": return <><path {...common} d="M4 18h16M6 18v3M18 18v3M8 3l7 7-3 3-7-7zM12 13l-2 5M15 10l4 4" /><path {...common} d="M17 4l1-2M20 7l2-1M18 9l2 1" /></>;
+    case "fixture-jig": return <><path {...common} d="M3 17h18v4H3zM5 17V8h4v9M15 17V8h4v9M7 8V5h10v3M9 12h6M3 21v1M21 21v1" /><circle {...common} cx="12" cy="13" r="1.5" /></>;
+    case "cmm-machine": return <><path {...common} d="M3 3h18v3H3zM5 6v15M19 6v15M5 21h14M12 6v7M10 13h4M12 13l3 4M15 17l-1 2" /><circle {...common} cx="15" cy="19" r="1" /></>;
+    case "caliper": return <><path {...common} d="M3 5h18M5 5v14M5 9h4M9 5v5M18 5v8M18 13h-5M13 13v6M5 19h8M18 5v-2" /><path {...common} d="M9 10h9" /></>;
   }
 }
 
 const componentRules: Array<[RegExp, ToolGlyph]> = [
+  [/fixture|jig|workholding|tooling plate|clamping fixture/, "fixture-jig"],
   [/shaft|spindle|axle|pinion shaft|drive shaft/, "turning-insert"],
   [/gear|sprocket|rack|worm wheel|splined/, "hob"],
   [/housing|body|casing|manifold|block|valve body/, "boring-bar"],
