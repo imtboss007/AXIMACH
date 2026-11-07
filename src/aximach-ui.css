@@ -957,6 +957,15 @@
 .process-orbit-node.status-complete{border-top-color:#39b78a}.process-orbit-node.status-running{border-top-color:#438df3}.process-orbit-node.status-quality-hold{border-top-color:#dc6974}
 .process-orbit-node-top{width:100%;display:flex;align-items:center;justify-content:space-between;gap:4px}.process-orbit-node-top small{color:#8a9db9;font:7px 'DM Mono'}.process-orbit-node-top i{width:6px;height:6px;border-radius:50%;background:#b5c3d6}.process-orbit-node.status-complete .process-orbit-node-top i{background:#39b78a}.process-orbit-node.status-running .process-orbit-node-top i{background:#438df3;box-shadow:0 0 0 3px #438df322}
 .process-orbit-node .linked-node-icon{width:34px;height:34px;min-width:34px;min-height:34px}.process-orbit-node strong{display:block;max-width:100%;font-size:9px;line-height:1.2;overflow-wrap:anywhere}.process-orbit-node-qty{font:7px 'DM Mono';color:#8497b2}
+.process-orbit-node-catalog{border-top-color:#5b9cdf;background:linear-gradient(145deg,#fff 0%,#e8f4ff 100%);cursor:pointer}
+.process-orbit-node-catalog .process-orbit-node-top i{background:#6e9bcc}
+.process-orbit-node-catalog .process-orbit-node-action{display:inline-flex;align-items:center;justify-content:center;margin-top:2px;padding:3px 6px;border-radius:20px;background:#dcecff;color:#245d9d;font:700 7px 'DM Mono';letter-spacing:.02em}
+.process-orbit-node-catalog:hover{border-color:#367dc9;box-shadow:0 0 0 4px rgba(72,133,226,.16),0 8px 0 rgba(57,91,147,.13),0 15px 26px rgba(39,76,137,.26)}
+.process-subcategory-logo-list{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 2px}
+.process-subcategory-logo-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid var(--line,#dbe4f0);border-radius:999px;background:var(--surface,#fff);font-size:9px;line-height:1.2}
+.process-subcategory-logo-chip .linked-node-icon{width:20px;min-width:20px;height:20px;min-height:20px}
+.process-subcategory-logo-chip .linked-node-icon svg{width:13px;height:13px}
+
 .process-orbit-node.simulation-current{z-index:5;border-color:#1e78e9;box-shadow:0 0 0 5px rgba(50,132,239,.2),0 0 24px rgba(39,126,238,.38),0 7px 0 rgba(57,91,147,.13);animation:process-orbit-pulse 1.2s ease-in-out infinite}.process-orbit-node.simulation-passed{border-top-color:#39b78a;filter:saturate(.88)}
 @keyframes process-orbit-pulse{50%{box-shadow:0 0 0 9px rgba(50,132,239,.06),0 0 30px rgba(39,126,238,.48),0 7px 0 rgba(57,91,147,.13)}}
 .process-orbit-help{justify-content:center;gap:18px;color:#8094b3;font-size:7px}.process-orbit-help span:first-child{color:#3c78c7}.process-universe-3d{background:linear-gradient(145deg,#fff,#f5f8fe)}
