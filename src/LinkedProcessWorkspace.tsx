@@ -622,6 +622,15 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     const stamp = nowIso();
     update(current => ({ ...current, operations: current.operations.map(op => op.id === id ? { ...op, ...patch, updatedAt: stamp } : op) }));
   };
+  const setBranchCostIncluded = (branch: string, include: boolean) => {
+    const branchIds = new Set(routeOperations.filter(op => (op.branch || "Main route") === branch).map(op => op.id));
+    if (!branchIds.size) return;
+    const stamp = nowIso();
+    update(current => ({ ...current, operations: current.operations.map(op => branchIds.has(op.id) ? { ...op, costIncluded: include, updatedAt: stamp } : op) }));
+    onNotice(include
+      ? branch + " activated: its process costs and transport legs anchored to its steps are now included in costing."
+      : branch + " excluded: its process costs and anchored transport legs are removed from active costing.");
+  };
   const openTransportEditor = (leg?: ComponentTransportLegRecord) => {
     setEditingTransportLegId(leg?.id || "");
     setTransportRouteId(leg?.routeId || transportRoutes[0]?.id || "");
@@ -938,7 +947,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
           const alternate = branch !== "Main route";
           const branchParents = [...new Set(laneOperations.map(op => op.parentId ? routeOperations.find(parent => parent.id === op.parentId)?.name : "").filter(Boolean))];
           return <section className={"linked-route-lane " + (alternate ? "linked-route-lane-alternate" : "")} key={branch}>
-            <div className="linked-route-lane-heading"><strong>{branch}</strong><small>{laneOperations.length} operation(s) · {alternate ? "alternate / rework route" : "primary route"}{branchParents.length ? " · branches from " + branchParents.join(", ") : ""}</small></div>
+            <div className="linked-route-lane-heading"><strong>{branch}</strong><small>{laneOperations.length} operation(s) · {alternate ? "alternate / rework route" : "primary route"}{branchParents.length ? " · branches from " + branchParents.join(", ") : ""}</small>{alternate && <button type="button" className="button-quiet compact-button" onClick={() => setBranchCostIncluded(branch, !laneOperations.some(op => op.costIncluded !== false))}>{laneOperations.some(op => op.costIncluded !== false) ? "Exclude this route from costing" : "Use this route · include costs"}</button>}</div>
             <div className="linked-node-track">{laneOperations.map((op,index) => {
               const vendor = vendors.find(v => v.id === op.vendorId);
               const selected = op.id === activeOperation?.id;
