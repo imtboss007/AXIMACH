@@ -228,6 +228,7 @@ test("new PO lines do not copy Component Master selling prices into editable lin
   assert.ok(master.includes("delete clean.unitPrice"));
   assert.ok(data.includes("unitPrice?: number"));
   assert.ok(costing.includes("const sellingRate = selectedComponent?.salePrice ?? 0"));
+  assert.ok(!costing.includes("unitPrice"), "Costing must not read or write retired PO-line selling prices");
   assert.ok(costing.includes("if (key === \"salePrice\")"));
   assert.ok(costing.includes("components: current.components.map(component => component.id === selectedComponent.id ? { ...component, salePrice: amount, updatedAt } : component)"));
 });
