@@ -278,7 +278,7 @@ function App() {
         ) : activeModuleId === "vendor-capability" ? (
           <VendorNetworkWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
-          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onScheduleVendor={openVendorFollowUp} onAddContactForVendor={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
+          <VendorWorkspace initialSearch={vendorSearchJump} initialVendorId={moduleContext.vendorId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onScheduleVendor={openVendorFollowUp} onAddContactForVendor={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
         ) : activeModuleId === "communications" ? (
           <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} initialRecipient={followUpSeed} />
         ) : (
@@ -462,12 +462,12 @@ const emptyVendorDraft = (): VendorDraft => ({
   processes:"",machines:"",materials:"",notes:"",status:"Unverified contact — review",vendorType:"",transportRoutes:[],additionalPhones:[],
   sourceContactId:"",whatsappSyncedAt:""
 });
-function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelectModule, onScheduleVendor, onAddContactForVendor }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; onSelectModule:(id:string)=>void; onScheduleVendor:(vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string})=>void; onAddContactForVendor:(vendorId:string)=>void }) {
+function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", initialVendorId = "", onSelectModule, onScheduleVendor, onAddContactForVendor }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; initialVendorId?:string; onSelectModule:(id:string,context?:LinkedNavigationContext)=>void; onScheduleVendor:(vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string})=>void; onAddContactForVendor:(vendorId:string)=>void }) {
   const { data, update, syncStatus } = useManufacturingData();
   const contacts = activeRows(data.vendors);
   const linkedPeople = activeRows(data.contactProfiles || []).filter(person => person.linkedType === "vendor");
   const [search,setSearch]=useState(initialSearch);
-  const [selectedId,setSelectedId]=useState("");
+  const [selectedId,setSelectedId]=useState(initialVendorId);
   const [editing,setEditing]=useState(false);
   const [draft,setDraft]=useState<VendorDraft>(emptyVendorDraft());
   const [vendorTypeFilters,setVendorTypeFilters]=useState<string[]>([]);
