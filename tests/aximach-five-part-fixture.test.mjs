@@ -168,3 +168,64 @@ test("additional planned-cost process rows cascade by category and stable defini
   assert.match(workspace, /definitions\.filter\(item=>!row\.processCategory\|\|item\.category===row\.processCategory\)/);
   assert.match(workspace, /item=>item\.id===row\.processDefinitionId/);
 });
+
+
+test("dashboard command globe exposes 18 unique, distinguishable module shortcuts", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  const satelliteBlock = orb.match(/const satellites = \[([\\s\\S]*?)\\n\\];/);
+  assert.ok(satelliteBlock, "command globe satellite registry exists");
+  const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
+  const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
+  assert.equal(ids.length, 18);
+  assert.equal(new Set(ids).size, 18, "module shortcut IDs must be unique");
+  assert.equal(labels.length, 18);
+  assert.equal(new Set(labels).size, 18, "module shortcut labels must be distinguishable");
+  assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
+});
+
+test("3D command centre lower shell shows all six requested live record categories", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  for (const label of ["Companies", "Purchase orders", "PO component lines", "Components", "Vendors", "Open operations"]) {
+    assert.ok(orb.includes('label: "' + label + '"'), "missing lower-shell metric: " + label);
+  }
+  assert.ok(orb.includes("activeRows(data.companies).length"));
+  assert.ok(orb.includes("activeRows(data.purchaseOrders).length"));
+  assert.ok(orb.includes("activeRows(data.components).length"));
+  assert.ok(orb.includes("activeRows(data.vendors).length"));
+  assert.ok(orb.includes("activeRows(data.operations).filter"));
+  assert.ok(orb.includes("ax-orb-lower-rotator"));
+});
+
+test("dashboard renders recent operations, exceptions, master records and production status from saved data", () => {
+  const dashboard = readFileSync(new URL("../src/DashboardWorkspace.tsx", import.meta.url), "utf8");
+  for (const label of ["Recent operations", "Recorded exceptions", "Master records", "Production status"]) {
+    assert.ok(dashboard.includes(label), "missing dashboard section: " + label);
+  }
+  assert.ok(dashboard.includes("useManufacturingData()"));
+  assert.ok(dashboard.includes("updatedAt"));
+  assert.ok(dashboard.includes("overdue.length"));
+  assert.ok(dashboard.includes("pendingJobs.length"));
+});
+
+test("Component Master supplies component-linked identity and PDF/Excel export for selected and all records", () => {
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  const icons = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  assert.ok(master.includes("<ComponentIcon componentId={row.id}"));
+  assert.ok(master.includes("exportComponentsPdf"));
+  assert.ok(master.includes("exportComponentsExcel"));
+  assert.ok(master.includes("Selected PDF"));
+  assert.ok(master.includes("Selected Excel"));
+  assert.ok(master.includes("All PDF"));
+  assert.ok(master.includes("All Excel"));
+  assert.ok(icons.includes('assignments["component:" + componentId]'));
+  assert.ok(icons.includes("MechanicalComponentIcon componentName={componentName}"));
+});
+
+test("AXIMACH globe uses a WebGL fragment shader to render a shaded spherical surface", () => {
+  const sphere = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
+  assert.ok(sphere.includes('canvas.getContext("webgl"'));
+  assert.ok(sphere.includes("gl_FragColor"));
+  assert.ok(sphere.includes("vec3 ro = vec3(0.0, 0.0, 2.35)"));
+  assert.ok(sphere.includes("float h = b*b - (dot(ro,ro) - 1.0)"));
+  assert.ok(sphere.includes("gl.drawArrays(gl.TRIANGLES, 0, 6)"));
+});
