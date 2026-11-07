@@ -251,3 +251,16 @@ test("PC-hosted shared data exposes a protected LAN endpoint and Android permits
   assert.ok(followUp.includes("PC → Android private Wi-Fi connection"));
   assert.ok(followUp.includes("Use one shared server URL and API key on both devices"));
 });
+
+
+test("custom Process Directory category and process values are committed when the user taps Add Process", () => {
+  const picker = readFileSync(new URL("../src/SearchablePicker.tsx", import.meta.url), "utf8");
+  const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(picker.includes("const typedValue = query.trim()"));
+  assert.ok(picker.includes("if (allowCustom && typedValue)"));
+  assert.ok(picker.includes("onChange(exact?.id || typedValue)"));
+  assert.ok(directory.includes('allowCustom/>'));
+  assert.ok(directory.includes('onClick={save}'));
+  assert.ok(directory.includes('setCategory(value)'));
+  assert.ok(directory.includes('setProcessType(value)'));
+});
