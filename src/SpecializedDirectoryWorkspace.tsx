@@ -40,8 +40,14 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
  const [subcategoryDraft,setSubcategoryDraft]=useState("");
  const [vendorIds,setVendorIds]=useState<string[]>([]);
  const [selectedProcessIds,setSelectedProcessIds]=useState<string[]>([]);
+ const [selectedCategoryFilters,setSelectedCategoryFilters]=useState<string[]>([]);
+ const [selectedTypeFilters,setSelectedTypeFilters]=useState<string[]>([]);
+ const [selectedVendorFilters,setSelectedVendorFilters]=useState<string[]>([]);
  const [notes,setNotes]=useState("");
- const filtered=useMemo(()=>rows.filter(row=>(row.processType+" "+row.category+" "+row.subcategories.join(" ")+" "+row.notes+" "+row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(" ")).toLowerCase().includes(search.toLowerCase().trim())),[rows,search,vendors]);
+ const filtered=useMemo(()=>rows.filter(row=>(row.processType+" "+row.category+" "+row.subcategories.join(" ")+" "+row.notes+" "+row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(" ")).toLowerCase().includes(search.toLowerCase().trim())
+  &&(!selectedCategoryFilters.length||selectedCategoryFilters.includes(row.category))
+  &&(!selectedTypeFilters.length||selectedTypeFilters.includes(row.processType))
+  &&(!selectedVendorFilters.length||row.vendorIds.some(id=>selectedVendorFilters.includes(id)))),[rows,search,vendors,selectedCategoryFilters,selectedTypeFilters,selectedVendorFilters]);
  const reset=()=>{setEditingId("");setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");setSubcategoryDraft("");};
  const save=()=>{
   if(!processType.trim()||!category.trim()){onNotice("Enter the process type and category.");return;}
@@ -121,7 +127,8 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
  return <section className="workspace-page specialized-directory">
   <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> AXIMACH</button><span className="demo-pill"><i/> INDEPENDENT PROCESS MASTER</span></div>
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> MANUFACTURING / MASTER DATA</div><h1>Process Directory<span>.</span></h1><p>Define process categories, process types and up to 100 subcategories; link multiple vendors to each process.</p></div><span className="module-number">{rows.length} PROCESS RECORDS</span></div>
-  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search process, category, subcategory or vendor…"/></label></div>
+  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search process, category, subcategory or vendor…"/></label><button type="button" className="button-quiet compact-button" onClick={()=>{setSearch("");setSelectedCategoryFilters([]);setSelectedTypeFilters([]);setSelectedVendorFilters([]);}}>Clear filters</button></div>
+  <section className="surface-panel process-directory-filter-panel"><div className="panel-heading"><div><h3>Process Directory filters</h3><p>Filter by category, process type and linked vendor; each field supports partial search and multi-selection.</p></div></div><div className="contact360-filter-grid ax-search-filter-columns"><SearchableMultiSelect id="process-directory-category-filter" label="Category" options={[...new Set(rows.map(row=>row.category))].sort().map(value=>({id:value,label:value}))} selected={selectedCategoryFilters} onChange={setSelectedCategoryFilters} emptyMeansAll/><SearchableMultiSelect id="process-directory-type-filter" label="Process type" options={[...new Set(rows.map(row=>row.processType))].sort().map(value=>({id:value,label:value}))} selected={selectedTypeFilters} onChange={setSelectedTypeFilters} emptyMeansAll/><SearchableMultiSelect id="process-directory-vendor-filter" label="Linked vendor" options={vendors.map(v=>({id:v.id,label:v.company+" · "+v.contact}))} selected={selectedVendorFilters} onChange={setSelectedVendorFilters} emptyMeansAll/></div></section>
   <section className="surface-panel">
    <div className="panel-heading"><div><h3>{editingId?"Edit process definition":"Add process definition"}</h3><p>One process type may contain up to 100 subcategories and multiple vendor assignments.</p></div></div>
    <div className="module-record-form specialized-form">
