@@ -1433,3 +1433,9 @@
 .job-row>.ax-component-icon{width:34px;height:34px;flex:0 0 auto}
 
 .vendor-network-process-identities{display:flex;flex-wrap:wrap;gap:6px}.vendor-network-process-identity{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border:1px solid var(--line);border-radius:7px;font-size:11px}.vendor-network-process-identity .linked-node-icon{width:21px;height:21px;min-width:21px}
+
+/* BOM-to-production stock issue panel */
+.bom-production-issue-panel .panel-heading{align-items:flex-start}
+.bom-issue-preview{margin:8px 0 12px}
+.bom-issue-preview .record-state{white-space:nowrap}
+.bom-production-issue-panel .module-form-actions{display:flex;gap:8px;flex-wrap:wrap}

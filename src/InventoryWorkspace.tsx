@@ -7,6 +7,7 @@ type Props = { onBack: () => void; onNotice: (value: string) => void; notice: st
 type Tab = "materials" | "bom" | "stock";
 type MaterialDraft = Omit<MaterialRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type BomDraft = Omit<BomLineRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
+type BomIssuePreviewRow = { material: MaterialRecord; bomLineIds: string[]; required: number; issued: number; pending: number; available: number; shortage: number };
 const emptyMaterial = (): MaterialDraft => ({ code: "", name: "", grade: "", unit: "kg", specification: "", preferredVendorId: "", ratePerUnit: 0, notes: "" });
 const emptyBom = (): BomDraft => ({ componentId: "", materialId: "", revision: "", quantityPerPart: 0, scrapPercent: 0, notes: "" });
 const stockKinds: StockTransactionKind[] = ["Opening balance", "Receipt", "Issue to production", "WIP transfer", "Return", "Rejected", "Scrap", "Finished goods receipt", "Dispatch", "Adjustment"];
@@ -33,6 +34,8 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const [bomDraft, setBomDraft] = useState<BomDraft>(emptyBom());
   const [itemType, setItemType] = useState<"material" | "component">("material");
   const [itemId, setItemId] = useState("");
+  const [bomIssuePoLineKey, setBomIssuePoLineKey] = useState("");
+  const [bomIssueOperationId, setBomIssueOperationId] = useState("");
   const [transactionType, setTransactionType] = useState<StockTransactionKind>("Receipt");
   const [direction, setDirection] = useState<"in" | "out">("in");
   const [quantity, setQuantity] = useState("");
@@ -51,6 +54,33 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     return { id: po.id + "::" + line.id, po, line, label: po.number + " · " + (component?.partNumber || "Component") + " · " + line.quantity.toLocaleString("en-IN") + " pcs" };
   }));
   const selectedPoLine = poLineOptions.find(row => row.id === poLineKey);
+  const bomIssuePoLineOptions = orders.flatMap(po => po.lines.filter(line => !line.deletedAt).map(line => {
+    const component = components.find(c => c.id === line.componentId);
+    const company = companies.find(c => c.id === po.companyId);
+    return { id: po.id + "::" + line.id, po, line, component, label: (company?.name || "Company") + " · " + po.number + " · " + (component?.partNumber || "Component") + " · " + line.quantity.toLocaleString("en-IN") + " pcs";
+  }));
+  const bomIssueSelection = bomIssuePoLineOptions.find(row => row.id === bomIssuePoLineKey);
+  const bomIssueOperations = bomIssueSelection ? operations.filter(op => op.poId === bomIssueSelection.po.id && op.poLineId === bomIssueSelection.line.id && !op.deletedAt) : [];
+  const bomIssuePreview = useMemo<BomIssuePreviewRow[]>(() => {
+    if (!bomIssueSelection?.component) return [];
+    const eligibleBom = bomLines.filter(row => row.componentId === bomIssueSelection.component!.id && (!row.revision || row.revision === bomIssueSelection.component!.revision));
+    const totals = new Map<string, { required: number; bomLineIds: string[] }>();
+    for (const row of eligibleBom) {
+      const prior = totals.get(row.materialId) || { required: 0, bomLineIds: [] };
+      prior.required += row.quantityPerPart * (1 + row.scrapPercent / 100) * bomIssueSelection.line.quantity;
+      prior.bomLineIds.push(row.id);
+      totals.set(row.materialId, prior);
+    }
+    return [...totals.entries()].map(([materialId, total]) => {
+      const material = materials.find(row => row.id === materialId);
+      if (!material) return null;
+      const issued = data.inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === materialId && row.poId === bomIssueSelection.po.id && row.poLineId === bomIssueSelection.line.id)
+        .reduce((sum, row) => sum + (row.transactionType === "Issue to production" && row.direction === "out" ? row.quantity : row.transactionType === "Return" && row.direction === "in" ? -row.quantity : 0), 0);
+      const pending = Math.max(0, total.required - Math.max(0, issued));
+      const available = stockBalance("material", materialId);
+      return { material, bomLineIds: total.bomLineIds, required: total.required, issued: Math.max(0, issued), pending, available, shortage: Math.max(0, pending - available) };
+    }).filter((row): row is BomIssuePreviewRow => Boolean(row));
+  }, [bomIssuePoLineKey, bomIssueSelection, bomLines, materials, data.inventoryTransactions]);
   const operationOptions = operations.filter(op => !op.deletedAt && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)));
   const itemOptions = itemType === "material" ? materials.map(m => ({ id: m.id, label: m.code + " · " + m.name + " · " + m.grade })) : components.map(c => ({ id: c.id, label: c.partNumber + " · " + c.name + " · Rev " + (c.revision || "—") }));
   const selectedItem = itemType === "material" ? materials.find(m => m.id === itemId) : components.find(c => c.id === itemId);
@@ -116,6 +146,55 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     onNotice("BOM line archived; its record remains available for historical review.");
   };
   const resetTransaction = () => { setItemId(""); setQuantity(""); setOccurredAt(dateToday()); setReference(""); setNotes(""); setPoLineKey(""); setOperationId(""); setVendorId(""); };
+  const issueBomMaterialsToProduction = () => {
+    if (!bomIssueSelection?.component) { onNotice("Select the actual PO component line first."); return; }
+    const pendingRows = bomIssuePreview.filter(row => row.pending > 0);
+    if (!pendingRows.length) { onNotice("There are no remaining BOM material requirements to issue for this PO component line."); return; }
+    const shortages = pendingRows.filter(row => row.shortage > 0);
+    if (shortages.length) {
+      onNotice("No material was issued. Insufficient stock: " + shortages.map(row => row.material.code + " needs " + row.pending.toLocaleString("en-IN") + " " + row.material.unit + ", available " + row.available.toLocaleString("en-IN") + " " + row.material.unit).join("; ") + ". Receive/adjust stock first.");
+      return;
+    }
+    const issueTotal = pendingRows.reduce((sum, row) => sum + row.pending, 0);
+    if (!window.confirm("Issue all remaining BOM material requirements for " + bomIssueSelection.po.number + " / " + bomIssueSelection.component.partNumber + "?\n" + pendingRows.length + " material line(s), total " + issueTotal.toLocaleString("en-IN") + " material units. This creates append-only stock transactions and will not issue any partial line if stock is short.")) return;
+    let result: { posted: number; shortage: string[] } = { posted: 0, shortage: [] };
+    update(current => {
+      const po = current.purchaseOrders.find(row => row.id === bomIssueSelection.po.id);
+      const line = po?.lines.find(row => row.id === bomIssueSelection.line.id && !row.deletedAt);
+      const component = current.components.find(row => row.id === line?.componentId);
+      if (!po || !line || !component) { result = { posted: 0, shortage: ["The PO component line or Component Master record changed; refresh and select it again."] }; return current; }
+      const eligibleBom = current.bomLines.filter(row => row.componentId === component.id && !row.deletedAt && (!row.revision || row.revision === component.revision));
+      const totals = new Map<string, { required: number; bomLineIds: string[] }>();
+      for (const bom of eligibleBom) {
+        const prior = totals.get(bom.materialId) || { required: 0, bomLineIds: [] };
+        prior.required += bom.quantityPerPart * (1 + bom.scrapPercent / 100) * line.quantity;
+        prior.bomLineIds.push(bom.id);
+        totals.set(bom.materialId, prior);
+      }
+      const plan = [...totals.entries()].map(([materialId, total]) => {
+        const material = current.materials.find(row => row.id === materialId && !row.deletedAt);
+        const issued = current.inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === materialId && row.poId === po.id && row.poLineId === line.id)
+          .reduce((sum, row) => sum + (row.transactionType === "Issue to production" && row.direction === "out" ? row.quantity : row.transactionType === "Return" && row.direction === "in" ? -row.quantity : 0), 0);
+        const available = current.inventoryTransactions.reduce((sum, row) => row.itemType === "material" && row.itemId === materialId ? sum + (row.direction === "in" ? row.quantity : -row.quantity) : sum, 0);
+        return { material, materialId, bomLineIds: total.bomLineIds, pending: Math.max(0, total.required - Math.max(0, issued)), available };
+      }).filter(row => row.pending > 0);
+      const missing = plan.filter(row => !row.material);
+      if (missing.length) { result = { posted: 0, shortage: missing.map(row => "Missing material " + row.materialId) }; return current; }
+      const short = plan.filter(row => row.available + 1e-9 < row.pending);
+      if (short.length) { result = { posted: 0, shortage: short.map(row => row.material!.code + " needs " + row.pending.toLocaleString("en-IN") + " " + row.material!.unit + ", available " + row.available.toLocaleString("en-IN") + " " + row.material!.unit) }; return current; }
+      const stamp = nowIso();
+      const reference = "BOM ISSUE · " + po.number + " · " + component.partNumber;
+      const transactions: InventoryTransactionRecord[] = plan.map(row => ({
+        id: makeId("stock"), itemType: "material", itemId: row.materialId, transactionType: "Issue to production", direction: "out", quantity: row.pending,
+        occurredAt: dateToday(), reference, notes: "Automated BOM issue. PO line quantity: " + line.quantity + "; component revision: " + (component.revision || "—") + "; BOM line IDs: " + row.bomLineIds.join(", ") + ". Remaining requirement after prior issues/returns.",
+        companyId: po.companyId, factoryId: po.factoryId, poId: po.id, poLineId: line.id, operationId: bomIssueOperationId || "", vendorId: "", reversalOfId: "", createdAt: stamp, createdBy: "AXIMACH BOM issue workflow"
+      }));
+      result = { posted: transactions.length, shortage: [] };
+      return { ...current, inventoryTransactions: [...current.inventoryTransactions, ...transactions] };
+    });
+    if (result.shortage.length) onNotice("No material was issued. " + result.shortage.join("; ") + ".");
+    else onNotice(result.posted + " BOM material issue transaction(s) posted to the stock ledger for " + bomIssueSelection.po.number + " / " + bomIssueSelection.component.partNumber + ". Quantities were based on PO quantity, BOM per-part quantity, scrap allowance, previous issues and returns.");
+  };
   const postTransaction = () => {
     if (!itemId || !selectedItem) { onNotice("Select the material or component that physically moved."); return; }
     const q = Number(quantity);
@@ -182,6 +261,13 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       {visibleBom.length?<section className="surface-panel module-records-panel"><div className="panel-heading"><div><h3>Component BOM and estimated material requirement</h3><p>Estimate uses the material rate you entered; no external market price is fetched.</p></div></div><div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Component</th><th>Revision</th><th>Material</th><th>Qty / part</th><th>Scrap %</th><th>Effective qty / part</th><th>Material rate</th><th>Estimated cost / part</th><th>Posted stock</th><th>Actions</th></tr></thead><tbody>{visibleBom.map(row=>{const component=components.find(c=>c.id===row.componentId);const material=materials.find(m=>m.id===row.materialId);const qty=row.quantityPerPart*(1+row.scrapPercent/100);return <tr key={row.id}><td>{component?.partNumber||"Archived component"} · {component?.name||""}</td><td>{row.revision||"—"}</td><td>{material?.code||"Archived material"} · {material?.name||""} ({material?.grade||"—"})</td><td>{row.quantityPerPart.toLocaleString("en-IN")}</td><td>{row.scrapPercent}%</td><td>{qty.toLocaleString("en-IN")}</td><td>{money(material?.ratePerUnit||0)}/{material?.unit||"unit"}</td><td>{money(qty*(material?.ratePerUnit||0))}</td><td>{material?stockBalance("material",material.id).toLocaleString("en-IN")+" "+material.unit:"—"}</td><td><button className="button-quiet compact-button" onClick={()=>editBom(row)}>Edit</button> <button className="button-quiet compact-button" onClick={()=>archiveBom(row)}><Trash2 size={12}/> Archive</button></td></tr>})}</tbody></table></div></section>:<div className="module-empty-state"><Boxes size={26}/><h3>No BOM lines added</h3><p>Link the actual component and material master records to calculate an estimated raw-material requirement and rate per accepted part.</p><button className="button-primary" disabled={!components.length||!materials.length} onClick={()=>{setBomDraft(emptyBom());setBomEditingId("");setBomFormOpen(true);}}><Plus size={14}/> Add BOM line</button></div>}
     </>}
     {tab==="stock" && <>
+      <section className="surface-panel bom-production-issue-panel"><div className="panel-heading"><div><h3>Issue BOM materials to production</h3><p>Calculate remaining material needs from the selected PO component quantity and its matching BOM revision. The workflow checks all stock balances before posting; it will not partially issue a short kit.</p></div><span className="record-state">BOM → STOCK → PRODUCTION</span></div><div className="module-record-form">
+        <SearchablePicker id="bom-issue-po-line" label="PO component line *" value={bomIssuePoLineKey} placeholder="Search company, PO, part number…" options={bomIssuePoLineOptions.map(row=>({id:row.id,label:row.label}))} onChange={value=>{setBomIssuePoLineKey(value);setBomIssueOperationId("");}}/>
+        <SearchablePicker id="bom-issue-operation" label="Production operation (optional)" value={bomIssueOperationId} placeholder="Search operation for traceability…" options={bomIssueOperations.map(row=>({id:row.id,label:"OP-"+String(row.sequence).padStart(3,"0")+" · "+row.name+" · "+row.status}))} onChange={setBomIssueOperationId}/>
+        {bomIssueSelection?.component&&<div className="module-safety-note module-form-wide"><Boxes size={14}/><span>Component: <strong>{bomIssueSelection.component.partNumber} · {bomIssueSelection.component.name}</strong> · PO quantity: <strong>{bomIssueSelection.line.quantity.toLocaleString("en-IN")}</strong> · BOM revision: <strong>{bomIssueSelection.component.revision||"Default / unrevisioned"}</strong></span></div>}
+        {bomIssuePoLineKey&&<div className="module-form-wide">{bomIssuePreview.length?<div className="costing-table-wrap bom-issue-preview"><table className="costing-table"><thead><tr><th>Material</th><th>Required (BOM × PO qty)</th><th>Already issued net</th><th>Remaining to issue</th><th>Available stock</th><th>Shortage</th></tr></thead><tbody>{bomIssuePreview.map(row=><tr key={row.material.id}><td><strong>{row.material.code} · {row.material.name}</strong><small>{row.material.grade||"—"} · {row.material.unit}</small></td><td>{row.required.toLocaleString("en-IN",{maximumFractionDigits:4})}</td><td>{row.issued.toLocaleString("en-IN",{maximumFractionDigits:4})}</td><td><strong>{row.pending.toLocaleString("en-IN",{maximumFractionDigits:4})}</strong></td><td>{row.available.toLocaleString("en-IN",{maximumFractionDigits:4})}</td><td>{row.shortage>0?<span className="record-state state-pending">{row.shortage.toLocaleString("en-IN",{maximumFractionDigits:4})}</span>:<span className="record-state state-complete">0</span>}</td></tr>)}</tbody></table></div>:<div className="module-empty-state"><Boxes size={20}/><h3>No matching active BOM lines</h3><p>Add BOM rows for this exact component revision before issuing materials.</p><button className="button-quiet compact-button" onClick={()=>setTab("bom")}>Open BOM lines</button></div>}</div>
+        <div className="module-form-actions"><button className="button-primary" disabled={!bomIssuePoLineKey||!bomIssuePreview.length||bomIssuePreview.every(row=>row.pending<=0)||bomIssuePreview.some(row=>row.shortage>0)} onClick={issueBomMaterialsToProduction}><Check size={14}/> Issue all available BOM requirements</button><button className="button-quiet" onClick={()=>{setBomIssuePoLineKey("");setBomIssueOperationId("");}}>Clear issue selection</button></div>
+      </div></section>
       <section className="surface-panel module-record-form-panel"><div className="panel-heading"><div><h3>Post a stock movement</h3><p>Each posted row is an append-only record; corrections should be posted as a new adjustment/reversal instead of editing history.</p></div><span className="record-state">LEDGER</span></div><div className="module-record-form">
         <label>Item type<select value={itemType} onChange={e=>{setItemType(e.target.value as "material"|"component");setItemId("");}}><option value="material">Raw material</option><option value="component">Component / WIP / finished goods</option></select></label>
         <SearchablePicker id="stock-item" label={itemType==="material"?"Material *":"Component *"} value={itemId} placeholder="Type material/part number…" options={itemOptions} onChange={setItemId}/>
