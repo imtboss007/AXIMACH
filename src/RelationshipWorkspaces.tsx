@@ -39,7 +39,7 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
  ];
  const roleOptions=[...new Set(contactRows.map(row=>row.role).filter(Boolean))].sort();
  const vendorTypeOptions=[...new Set(vendors.map(v=>v.vendorType||"").filter(Boolean))].sort();
- const processOptions=[...new Set([...processDefinitions.map(x=>x.processType),...vendors.flatMap(v=>v.processes.split(/[,;|]/).map(x=>x.trim()).filter(Boolean))])].sort();
+ const processOptions=[...new Set([...processDefinitions.map(x=>x.processType),...contactRows.flatMap(row=>row.processTypes||[]),...vendors.flatMap(v=>v.processes.split(/[,;|]/).map(x=>x.trim()).filter(Boolean))])].sort();
  const categoryOptions=[...new Set([...processDefinitions.map(x=>x.category),...contactRows.flatMap(row=>row.processCategories||[])].filter(Boolean))].sort();
  const selectedCapabilityDefinitions=processDefinitions.filter(x=>(!categoryFilters.length||categoryFilters.includes(x.category))&&(!processFilters.length||processFilters.includes(x.processType)));
  const subcategoryOptions=[...new Set([...selectedCapabilityDefinitions.flatMap(x=>x.subcategories||[]),...contactRows.flatMap(row=>row.processSubcategories||[])])].sort();
