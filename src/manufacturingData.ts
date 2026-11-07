@@ -74,7 +74,7 @@ export type PlannedCostEntry = {
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type OperationRecord = {
-  id: string; poId: string; poLineId: string; componentId: string; sequence: number; name: string;
+  id: string; poId: string; poLineId: string; componentId: string; processDefinitionId?: string; sequence: number; name: string;
   category: string; machine: string; vendorId: string; status: LifecycleStatus;
   plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string;
   quantity: number; completed: number; accepted: number; rejected: number;
