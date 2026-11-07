@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, CalendarClock, Check, ClipboardCheck, FileDown, Package, Plus, RotateCcw, Search, ShieldCheck, Truck, Workflow, Wrench } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type InspectionMeasurementRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
@@ -6,11 +6,11 @@ import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon } from "./IconStudio";
 
 type LinkedNavigationContext={companyId?:string;poId?:string;poLineId?:string;componentId?:string;operationId?:string;vendorId?:string;routeId?:string};
-type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string,context?:LinkedNavigationContext)=>void};
+type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string,context?:LinkedNavigationContext)=>void;initialContext?:LinkedNavigationContext};
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 const transportDraft=()=>({vendorId:"",routeId:"",from:"",to:"",vehicleType:"",tripDirection:"One-way" as "One-way"|"Two-way",tripCount:"1",anchorOperationId:"",placement:"after" as "start"|"before"|"after",pickup:"",delivery:"",cost:"0",notes:""});
 
-export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:Props){
+export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule,initialContext}:Props){
  const {data,update,syncStatus}=useManufacturingData();
  const companies=activeRows(data.companies),pos=activeRows(data.purchaseOrders),components=activeRows(data.components),vendors=activeRows(data.vendors),ops=activeRows(data.operations),transportRoutes=activeRows(data.transportRoutes||[]),transportLegs=activeRows(data.transportLegs||[]);
  const [search,setSearch]=useState("");const [transportLine,setTransportLine]=useState<{poId:string;lineId:string}|null>(null);const [draft,setDraft]=useState(transportDraft());
@@ -21,6 +21,18 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:
  const [selectedJobKeys,setSelectedJobKeys]=useState<string[]>([]);
  const toggleSet=(setter:(next:string[]|((previous:string[])=>string[]))=>void,value:string)=>setter(previous=>previous.includes(value)?previous.filter(item=>item!==value):[...previous,value]);
  const clearFilters=()=>{setSearch("");setCompanyFilters([]);setPoFilters([]);setComponentFilters([]);setJobStatusFilters([]);};
+ useEffect(()=>{
+  const contextOperation=initialContext?.operationId?ops.find(op=>op.id===initialContext.operationId):undefined;
+  const contextPoId=initialContext?.poId||contextOperation?.poId||"";
+  const contextPo=pos.find(po=>po.id===contextPoId);
+  const contextLineId=initialContext?.poLineId||contextOperation?.poLineId||"";
+  const contextComponentId=initialContext?.componentId||contextOperation?.componentId||contextPo?.lines.find(line=>line.id===contextLineId)?.componentId||"";
+  setSearch("");
+  setCompanyFilters(initialContext?.companyId?[initialContext.companyId]:(contextPo?[contextPo.companyId]:[]));
+  setPoFilters(contextPoId?[contextPoId]:[]);
+  setComponentFilters(contextComponentId?[contextComponentId]:[]);
+  setJobStatusFilters([]);
+ },[initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.componentId,initialContext?.operationId]);
 
  const rows=useMemo(()=>pos.flatMap(po=>po.lines.filter(line=>!line.deletedAt).map(line=>({po,line,company:companies.find(c=>c.id===po.companyId),component:components.find(c=>c.id===line.componentId),operations:ops.filter(op=>op.poId===po.id&&op.poLineId===line.id),transportLegs:transportLegs.filter(leg=>leg.poId===po.id&&leg.poLineId===line.id)}))),[pos,companies,components,ops,transportLegs]);
  const filtered=rows.filter(row=>{
@@ -109,7 +121,7 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule}:
   <section className="surface-panel"><div className="panel-heading"><div><h3>Production jobs</h3><p>{rows.filter(x=>x.line.jobStatus!=="Finished").length} in progress · {rows.filter(x=>x.line.jobStatus==="Finished").length} finished</p></div></div>
    {filtered.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Select</th><th>Company</th><th>PO</th><th>Component</th><th>Quantity</th><th>Due date</th><th>Processes</th><th>Transport</th><th>Job status</th><th>Actions</th></tr></thead><tbody>{filtered.map(({po,line,company,component,operations,transportLegs:jobTransportLegs})=>{
     const finished=line.jobStatus==="Finished";const transport=[...operations.filter(op=>op.transportVendorId||op.category==="Logistics"),...jobTransportLegs];
-    return <tr key={po.id+":"+line.id}><td><input type="checkbox" aria-label={"Select "+po.number+" "+(component?.partNumber||"component")} checked={selectedJobKeys.includes(po.id+":"+line.id)} onChange={()=>toggleSet(setSelectedJobKeys,po.id+":"+line.id)}/></td><td>{company?.name||"Company missing"}</td><td><strong>{po.number}</strong><small>{po.issueDate||"PO date not entered"}</small></td><td><span className="component-record-identity"><ComponentIcon componentId={component?.id} componentName={(component?.name||"Component")+" "+(component?.partNumber||"")}/><span><strong>{component?.partNumber||"Part missing"}</strong><small>{component?.name||"Component record missing"}</small></span></span></td><td>{line.quantity.toLocaleString("en-IN")} {component?.salePriceUnit==="set"?"sets":"pieces"}</td><td>{line.targetDelivery||po.targetDelivery||"—"}</td><td>{operations.filter(op=>op.category!=="Logistics").length}</td><td>{transport.length} entries</td><td><span className={"record-state "+(finished?"state-selected":"state-open")}>{finished?"Job Finished":"In Progress"}</span></td><td><div className="production-job-actions"><button className="button-quiet compact-button" onClick={()=>openTransport(po.id,line.id)}><Truck size={12}/> Add transport</button><button className={finished?"button-quiet compact-button":"button-primary compact-button"} onClick={()=>setJob(po.id,line.id,!finished)}>{finished?<RotateCcw size={12}/>:<Check size={12}/>} {finished?"Reopen":"Finish"}</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("process-map",{companyId:po.companyId,poId:po.id,poLineId:line.id,componentId:line.componentId})}><Workflow size={12}/> Process Plan</button></div></td></tr>;
+    return <tr key={po.id+":"+line.id}><td><input type="checkbox" aria-label={"Select "+po.number+" "+(component?.partNumber||"component")} checked={selectedJobKeys.includes(po.id+":"+line.id)} onChange={()=>toggleSet(setSelectedJobKeys,po.id+":"+line.id)}/></td><td>{company?.name||"Company missing"}</td><td><strong>{po.number}</strong><small>{po.issueDate||"PO date not entered"}</small></td><td><span className="component-record-identity"><ComponentIcon componentId={component?.id} componentName={(component?.name||"Component")+" "+(component?.partNumber||"")}/><span><strong>{component?.partNumber||"Part missing"}</strong><small>{component?.name||"Component record missing"}</small></span></span></td><td>{line.quantity.toLocaleString("en-IN")} {component?.salePriceUnit==="set"?"sets":"pieces"}</td><td>{line.targetDelivery||po.targetDelivery||"—"}</td><td>{operations.filter(op=>op.category!=="Logistics").length}</td><td>{transport.length} entries</td><td><span className={"record-state "+(finished?"state-selected":"state-open")}>{finished?"Job Finished":"In Progress"}</span></td><td><div className="production-job-actions"><button className="button-quiet compact-button" onClick={()=>openTransport(po.id,line.id)}><Truck size={12}/> Add transport</button><button className={finished?"button-quiet compact-button":"button-primary compact-button"} onClick={()=>setJob(po.id,line.id,!finished)}>{finished?<RotateCcw size={12}/>:<Check size={12}/>} {finished?"Reopen":"Finish"}</button><button className="button-quiet compact-button" onClick={()=>{const targetOperation=operations.find(op=>op.id===initialContext?.operationId&&op.poId===po.id&&op.poLineId===line.id)||operations[0];onSelectModule("process-map",{companyId:po.companyId,poId:po.id,poLineId:line.id,componentId:line.componentId,operationId:targetOperation?.id,vendorId:targetOperation?.vendorId});}}><Workflow size={12}/> Process Plan</button></div></td></tr>;
    })}</tbody></table></div>:<div className="module-empty-state"><Package size={25}/><h3>{search?"No matching jobs":"No PO component jobs yet"}</h3><p>Create a Company, Component and Purchase Order first. Production jobs are generated from saved PO component lines.</p><button className="button-primary" onClick={()=>onSelectModule("purchasing")}><Plus size={14}/> Open Purchase Orders</button></div>}
   </section>
   <div className="module-safety-note"><ShieldCheck size={15}/><span>Transport is stored as a dedicated transport leg linked to the PO component and optional process anchor. It is kept separate from process operations and process costing.</span></div>
@@ -142,11 +154,13 @@ export function TransportDispatchWorkspace({onBack,onNotice,notice,onSelectModul
  </section>;
 }
 
-export function QualityInspectionWorkspace({onBack,onNotice,notice,initialContext}:Props & {initialContext?:LinkedNavigationContext}){
+export function QualityInspectionWorkspace({onBack,onNotice,notice,initialContext}:Props){
  const {data,update}=useManufacturingData();const ops=activeRows(data.operations);const vendors=activeRows(data.vendors),components=activeRows(data.components),pos=activeRows(data.purchaseOrders);
  const measurements=activeRows(data.inspectionMeasurements||[]);
  const [search,setSearch]=useState("");
  const [measurementOperationId,setMeasurementOperationId]=useState(initialContext?.operationId||"");
+ useEffect(()=>{setMeasurementOperationId(initialContext?.operationId||"");setSearch("");},[initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.componentId,initialContext?.operationId,initialContext?.vendorId]);
+ const contextOps=ops.filter(op=>(!initialContext?.companyId||pos.find(po=>po.id===op.poId)?.companyId===initialContext.companyId)&&(!initialContext?.poId||op.poId===initialContext.poId)&&(!initialContext?.poLineId||op.poLineId===initialContext.poLineId)&&(!initialContext?.componentId||op.componentId===initialContext.componentId)&&(!initialContext?.operationId||op.id===initialContext.operationId)&&(!initialContext?.vendorId||op.vendorId===initialContext.vendorId));
  const [characteristic,setCharacteristic]=useState("");
  const [nominalValue,setNominalValue]=useState("");
  const [lowerLimit,setLowerLimit]=useState("");
@@ -154,7 +168,7 @@ export function QualityInspectionWorkspace({onBack,onNotice,notice,initialContex
  const [measuredValue,setMeasuredValue]=useState("");
  const [unit,setUnit]=useState("mm");
  const [measurementNotes,setMeasurementNotes]=useState("");
- const filtered=ops.filter(op=>{
+ const filtered=contextOps.filter(op=>{
   const historyText=measurements.filter(item=>item.operationId===op.id).map(item=>[item.characteristic,item.result,item.notes].join(" ")).join(" ");
   return (op.name+" "+op.category+" "+op.status+" "+op.inspectionResult+" "+op.qualityNotes+" "+historyText+" "+(components.find(c=>c.id===op.componentId)?.partNumber||"")+" "+(pos.find(po=>po.id===op.poId)?.number||"")).toLowerCase().includes(search.toLowerCase().trim());
  });
@@ -181,7 +195,7 @@ export function QualityInspectionWorkspace({onBack,onNotice,notice,initialContex
   onNotice("Measurement saved as an immutable inspection-history record linked to the original PO component and process operation. Result: "+result+".");
  };
  return <section className="workspace-page operations-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> OPERATION-LINKED INSPECTION</span></div>{notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
-  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUALITY / INSPECTION REGISTER</div><h1>Quality Inspection<span>.</span></h1><p>Inspection measurements, tolerance results, accepted/rejected quantities and inspection history stay linked to the same PO component and process operation.</p></div></div>
+  <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUALITY / INSPECTION REGISTER</div><h1>Quality Inspection<span>.</span></h1><p>Inspection measurements, tolerance results, accepted/rejected quantities and inspection history stay linked to the same PO component and process operation.</p></div>{selectedMeasurementOperation&&<button className="button-quiet" onClick={()=>onSelectModule("process-map",{companyId:pos.find(po=>po.id===selectedMeasurementOperation.poId)?.companyId,poId:selectedMeasurementOperation.poId,poLineId:selectedMeasurementOperation.poLineId,componentId:selectedMeasurementOperation.componentId,operationId:selectedMeasurementOperation.id,vendorId:selectedMeasurementOperation.vendorId})}><Workflow size={14}/> Open exact Process Plan operation</button>}</div>
   <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search PO, component, operation or measurement…"/></label><span className="module-number">{filtered.length} OPERATIONS · {measurements.length} MEASUREMENTS</span></div>
   <section className="surface-panel"><div className="panel-heading"><div><h3>Record an inspection measurement</h3><p>Each saved reading is retained as a dated history entry; tolerance checks are evaluated against the entered limits.</p></div></div>
    {ops.length?<div className="module-record-form specialized-form">
