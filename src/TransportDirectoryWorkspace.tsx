@@ -52,6 +52,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
   const reset = () => { setEditingId(""); setVendorId(""); setFromLocation(""); setToLocation(""); setTripDirection("One-way"); setVehicleType(VEHICLES[2]); setFixedAmount(""); setNotes(""); };
   const save = () => {
     if (!vendorId || !fromLocation.trim() || !toLocation.trim() || !vehicleType.trim()) { onNotice("Select a vendor and enter both route locations and a vehicle type."); return; }
+    if (!vendors.some(vendor => vendor.id === vendorId)) { onNotice("The selected transport vendor is missing or archived. Choose an active Vendor Directory record."); return; }
     const amount = Number(fixedAmount);
     if (!Number.isFinite(amount) || amount < 0) { onNotice("Enter a valid fixed transport amount in rupees."); return; }
     const stamp = nowIso();
