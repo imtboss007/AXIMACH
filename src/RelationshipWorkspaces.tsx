@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ArrowUpRight, Building2, CalendarClock, Mail, MessageCircle, Phone, Plus, Search, ShieldCheck, Trash2, Users, Wrench } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ContactProfileRecord } from "./manufacturingData";
 import SearchableMultiSelect from "./SearchableMultiSelect";
+import SearchablePicker from "./SearchablePicker";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
 type Contact360Props=Props & {initialVendorId?:string;onInitialVendorConsumed?:()=>void};
@@ -27,23 +28,23 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
  useEffect(()=>{if(!initialVendorId)return;setEditingId("");setDraft({...blank(),linkedType:"vendor",linkedId:initialVendorId});setShowForm(true);onInitialVendorConsumed?.();},[initialVendorId]);
  const relatedLabel=(row:ContactRecord)=>row.linkedType==="company"?companies.find(x=>x.id===row.linkedId)?.name||"Company record missing":vendors.find(x=>x.id===row.linkedId)?.company||"Vendor record missing";
  const generated=[
-  ...companies.filter(c=>c.contactPerson?.trim()).map(c=>({id:"company:"+c.id,linkedId:c.id,name:c.contactPerson||"",role:"Company contact",group:"",phone:c.phone,whatsapp:c.phone,additionalPhones:[],email:c.email,address:c.address||"",followUpDate:"",history:"",relationship:c.name,source:"Company Directory",linkedType:"company",vendorType:"Company",processes:"",machines:"",materials:""})),
-  ...vendors.map(v=>({id:"vendor:"+v.id,linkedId:v.id,name:v.contact,role:v.role,group:"",phone:v.phone,whatsapp:v.whatsappNumber||v.phone,additionalPhones:v.additionalPhones||[],email:v.email,address:v.address,followUpDate:"",history:"",relationship:v.company,source:"Vendor Directory",linkedType:"vendor",vendorType:v.vendorType||"",processes:v.processes||"",machines:v.machines||"",materials:v.materials||""}))
+  ...companies.filter(c=>c.contactPerson?.trim()).map(c=>({id:"company:"+c.id,linkedId:c.id,name:c.contactPerson||"",role:"Company contact",group:"",phone:c.phone,whatsapp:c.phone,additionalPhones:[],email:c.email,address:c.address||"",followUpDate:"",history:"",relationship:c.name,source:"Company Directory",linkedType:"company",vendorType:"Company",processes:"",machines:"",materials:"",processCategories:[],processTypes:[],processSubcategories:[],machineCapabilities:[],materialCapabilities:[]})),
+  ...vendors.map(v=>({id:"vendor:"+v.id,linkedId:v.id,name:v.contact,role:v.role,group:"",phone:v.phone,whatsapp:v.whatsappNumber||v.phone,additionalPhones:v.additionalPhones||[],email:v.email,address:v.address,followUpDate:"",history:"",relationship:v.company,source:"Vendor Directory",linkedType:"vendor",vendorType:v.vendorType||"",processes:v.processes||"",machines:v.machines||"",materials:v.materials||"",processCategories:[],processTypes:[],processSubcategories:[],machineCapabilities:[],materialCapabilities:[]}))
  ];
  const processDefinitions=activeRows(data.processDefinitions);
  const manual=activeRows(rows);
  const contactRows=[
   ...generated.map(row=>({...row,kind:"master" as const})),
-  ...manual.map(row=>{const vendor=row.linkedType==="vendor"?vendors.find(v=>v.id===row.linkedId):undefined;return {...row,kind:"manual" as const,relationship:row.linkedType==="company"?companies.find(c=>c.id===row.linkedId)?.name||"Company":vendor?.company||"Vendor",source:"Contact 360",vendorType:vendor?.vendorType||"",processes:vendor?.processes||"",machines:vendor?.machines||"",materials:vendor?.materials||""};})
+  ...manual.map(row=>{const vendor=row.linkedType==="vendor"?vendors.find(v=>v.id===row.linkedId):undefined;return {...row,kind:"manual" as const,relationship:row.linkedType==="company"?companies.find(c=>c.id===row.linkedId)?.name||"Company":vendor?.company||"Vendor",source:"Contact 360",vendorType:vendor?.vendorType||"",processes:vendor?.processes||"",machines:vendor?.machines||"",materials:vendor?.materials||"",processCategories:row.processCategories||[],processTypes:row.processTypes||[],processSubcategories:row.processSubcategories||[],machineCapabilities:row.machineCapabilities||[],materialCapabilities:row.materialCapabilities||[]};})
  ];
  const roleOptions=[...new Set(contactRows.map(row=>row.role).filter(Boolean))].sort();
  const vendorTypeOptions=[...new Set(vendors.map(v=>v.vendorType||"").filter(Boolean))].sort();
  const processOptions=[...new Set([...processDefinitions.map(x=>x.processType),...vendors.flatMap(v=>v.processes.split(/[,;|]/).map(x=>x.trim()).filter(Boolean))])].sort();
- const categoryOptions=[...new Set(processDefinitions.map(x=>x.category).filter(Boolean))].sort();
+ const categoryOptions=[...new Set([...processDefinitions.map(x=>x.category),...contactRows.flatMap(row=>row.processCategories||[])].filter(Boolean))].sort();
  const selectedCapabilityDefinitions=processDefinitions.filter(x=>(!categoryFilters.length||categoryFilters.includes(x.category))&&(!processFilters.length||processFilters.includes(x.processType)));
- const subcategoryOptions=[...new Set(selectedCapabilityDefinitions.flatMap(x=>x.subcategories||[]))].sort();
- const machineOptions=[...new Set(vendors.flatMap(v=>v.machines.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)))].sort();
- const materialOptions=[...new Set(vendors.flatMap(v=>v.materials.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)))].sort();
+ const subcategoryOptions=[...new Set([...selectedCapabilityDefinitions.flatMap(x=>x.subcategories||[]),...contactRows.flatMap(row=>row.processSubcategories||[])])].sort();
+ const machineOptions=[...new Set([...vendors.flatMap(v=>v.machines.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)),...contactRows.flatMap(row=>row.machineCapabilities||[])])].sort();
+ const materialOptions=[...new Set([...vendors.flatMap(v=>v.materials.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)),...contactRows.flatMap(row=>row.materialCapabilities||[])])].sort();
 
  const filtered=useMemo(()=>contactRows.filter(row=>{
   const text=(row.name+" "+row.role+" "+(row.group||"")+" "+row.phone+" "+(row.additionalPhones||[]).join(" ")+" "+row.whatsapp+" "+row.email+" "+row.address+" "+row.relationship+" "+row.source+" "+row.vendorType+" "+row.processes+" "+row.machines+" "+row.materials).toLowerCase();
@@ -88,7 +89,7 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
   {showForm&&<section className="surface-panel"><div className="panel-heading"><div><h3>{editingId?"Edit contact profile":"Add contact profile"}</h3><p>Every profile must be linked to an existing company or vendor.</p></div></div>
    <div className="module-record-form specialized-form">
     <label>Relationship type<select value={draft.linkedType} onChange={e=>setDraft({...draft,linkedType:e.target.value as "company"|"vendor",linkedId:""})}><option value="company">Company</option><option value="vendor">Vendor</option></select></label>
-    <label>Linked company / vendor *<select value={draft.linkedId} onChange={e=>setDraft({...draft,linkedId:e.target.value})}><option value="">Select related record</option>{options.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+    <SearchablePicker id="contact-linked-record" label="Linked company / vendor *" value={draft.linkedId} placeholder="Search company or vendor…" options={options} onChange={value=>setDraft({...draft,linkedId:value})}/>
     <label>Contact person *<input value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} placeholder="Full name"/></label>
     <label>Role / designation<input value={draft.role} onChange={e=>setDraft({...draft,role:e.target.value})} placeholder="Purchase, production, accounts…"/></label>
     <label>Contact group<input value={draft.group||""} onChange={e=>setDraft({...draft,group:e.target.value})} placeholder="Purchase, production, accounts, management…"/></label>
