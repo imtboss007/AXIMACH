@@ -199,10 +199,14 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const gstEstimate = revenue * gstRate / 100;
   const finalOperation = routeOperations[routeOperations.length - 1];
   const acceptedQty = selectedLine ? (finalOperation && finalOperation.completed > 0 ? finalOperation.accepted : Math.max(0, selectedLine.quantity - rejectedQty)) : 0;
-  const independentPlannedCosts = selectedComponent ? activeRows(data.plannedCosts).filter(row =>
-    row.componentNumber.trim().toLowerCase() === selectedComponent.partNumber.trim().toLowerCase()
-    || row.componentName.trim().toLowerCase() === selectedComponent.name.trim().toLowerCase()
-  ) : [];
+  const independentPlannedCosts = selectedComponent ? activeRows(data.plannedCosts).filter(row => {
+    const componentMatches = row.componentId
+      ? row.componentId === selectedComponent.id
+      : row.componentNumber.trim().toLowerCase() === selectedComponent.partNumber.trim().toLowerCase()
+        || row.componentName.trim().toLowerCase() === selectedComponent.name.trim().toLowerCase();
+    const poMatches = !row.poId || row.poId === selectedLine?.poId;
+    return componentMatches && poMatches;
+  }) : [];
   const independentPlannedTotal = independentPlannedCosts.reduce((sum,row) =>
     sum + row.plannedQty * row.plannedRate, 0
   );
