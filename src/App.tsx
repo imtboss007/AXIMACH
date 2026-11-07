@@ -272,7 +272,7 @@ function App() {
         ) : activeModuleId === "dispatch" ? (
           <TransportDispatchWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "quality" ? (
-          <QualityInspectionWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <QualityInspectionWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "contact360" ? (
           <Contact360Workspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} initialVendorId={contactVendorSeed} onInitialVendorConsumed={()=>setContactVendorSeed("")} />
         ) : activeModuleId === "vendor-capability" ? (
