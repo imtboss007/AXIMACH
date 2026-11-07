@@ -49,6 +49,13 @@ test("Process Plan enforces whole-number operation and production quantities", (
   assert.ok(workspace.includes("draft.accepted + draft.rejected > draft.completed"));
 });
 
+test("Quality measurement save uses only the currently filtered selected operation", () => {
+  const workspace = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const operation=selectedMeasurementOperation;"));
+  assert.ok(workspace.includes("value={selectedMeasurementOperation?.id||\"\"}"));
+  assert.ok(!workspace.includes("ops.find(op=>op.id===(measurementOperationId||selectedMeasurementOperation?.id))"));
+});
+
 test("Quality Inspection enforces whole-number quantity balance and operation quantity limits", () => {
   const workspace = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("!Number.isSafeInteger(quantity)||quantity<0"));
