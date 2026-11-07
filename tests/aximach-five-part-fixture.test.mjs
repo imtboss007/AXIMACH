@@ -41,6 +41,13 @@ test("fixture includes Ultra Precision, Precision and Standard classifications",
   assert.ok(classes.has("Standard"));
 });
 
+test("Quality Inspection enforces whole-number quantity balance and operation quantity limits", () => {
+  const workspace = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("!Number.isSafeInteger(quantity)||quantity<0"));
+  assert.ok(workspace.includes("nextCompleted>currentOperation.quantity"));
+  assert.ok(workspace.includes("nextAccepted+nextRejected>nextCompleted"));
+});
+
 test("Process Plan enforces Process Directory vendor assignments", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)'));
