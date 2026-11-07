@@ -204,6 +204,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             </motion.button>;
           })}
         </motion.div>
+        </motion.div>
       </motion.div>
       <div className="ax-orb-lower-shell" aria-label="Separate live record summary shell">
         <motion.div className="ax-orb-lower-rotator" animate={reducedMotion || reduceMotion || paused ? undefined : { rotateY: 360 }} transition={{ duration: speed === "Fast" ? 24 : speed === "Slow" ? 60 : 38, repeat: Infinity, ease: "linear" }}>
