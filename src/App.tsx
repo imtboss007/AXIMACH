@@ -372,7 +372,7 @@ function CommandCentre(props: {
   onSelectModule: (id: string) => void; onOpenModules: () => void;
 }) {
   const { aiPrompt, aiResponse, notice, onAiPromptChange, onRunCommand, onNotice, onSelectModule, onOpenModules } = props;
-  const actualData = readManufacturingData();
+  const { data: actualData } = useManufacturingData();
   return (
     <>
       {notice && <div className="notice-banner"><ShieldCheck size={16} /><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
