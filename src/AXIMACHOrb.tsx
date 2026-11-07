@@ -164,26 +164,46 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             transition={{ duration: speed === "Fast" ? 34 : speed === "Slow" ? 90 : 58, repeat: Infinity, ease: "linear" }}
           />
 
-        </motion.div>
-        <div className="ax-orb-module-shell" aria-label="18 clickable AXIMACH modules">
+        <motion.div
+          className="ax-orb-module-shell"
+          style={{ rotateX, rotateY, transformPerspective: 950, transformStyle: "preserve-3d" }}
+          aria-label="18 clickable AXIMACH modules"
+        >
           {satellites.map(({ id, label, Icon }, index) => {
-            // Keep all 18 controls in the viewer-facing plane so none disappear
-            // behind the rotating globe. The globe itself remains independently 3D.
-            const angle = (Math.PI * 2 * index) / satellites.length - Math.PI / 2;
-            const radiusX = compactViewport ? 145 : 184;
-            const radiusY = compactViewport ? 128 : 158;
-            const x = Math.cos(angle) * radiusX;
-            const y = Math.sin(angle) * radiusY;
-            return <motion.button key={id} type="button" className="ax-orb-satellite"
-              style={{ left: "50%", top: "50%", transform: "translate(" + x + "px," + y + "px) translate(-50%,-50%)" }}
+            // Distribute every shortcut on the front hemisphere of the same 3D
+            // sphere. The shell inherits the globe's drag and spin transforms;
+            // nodes therefore travel around the surface instead of floating in
+            // a fixed 2D ellipse.
+            const rings = [
+              { count: 4, radial: 0.30, phase: -Math.PI / 4 },
+              { count: 6, radial: 0.60, phase: -Math.PI / 2 },
+              { count: 8, radial: 0.88, phase: -Math.PI / 8 }
+            ];
+            let ringStart = 0;
+            let ring = rings[0];
+            for (const candidate of rings) {
+              if (index < ringStart + candidate.count) { ring = candidate; break; }
+              ringStart += candidate.count;
+            }
+            const ringIndex = index - ringStart;
+            const angle = ring.phase + (Math.PI * 2 * ringIndex) / ring.count;
+            const radialX = Math.cos(angle) * ring.radial;
+            const radialY = Math.sin(angle) * ring.radial;
+            const radialZ = Math.sqrt(Math.max(0.08, 1 - radialX * radialX - radialY * radialY));
+            const radius = compactViewport ? 104 : 124;
+            const x = radialX * radius;
+            const y = radialY * radius;
+            const z = radialZ * radius;
+            return <motion.button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"
+              style={{ left: "50%", top: "50%", transform: "translate3d(" + x + "px," + y + "px," + z + "px) translate(-50%,-50%)" }}
               onPointerDown={event => event.stopPropagation()} onClick={() => onSelectModule(id)}
               aria-label={"Open " + label + " module"} title={"Open " + label}
               initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.08 + index * 0.025, type: "spring", stiffness: 130 }} whileHover={{ scale: 1.08, y: -2 }} whileTap={{ scale: 0.95 }}>
-              <span><Icon size={16} strokeWidth={1.8}/></span><small>{label}</small>
+              transition={{ delay: 0.08 + index * 0.025, type: "spring", stiffness: 130 }} whileHover={{ filter: "brightness(1.15)" }} whileTap={{ scale: 0.94 }}>
+              <span><Icon size={15} strokeWidth={1.8}/></span><small>{label}</small>
             </motion.button>;
           })}
-        </div>
+        </motion.div>
       </motion.div>
       <div className="ax-orb-lower-shell" aria-label="Separate live record summary shell">
         <motion.div className="ax-orb-lower-rotator" animate={reducedMotion || reduceMotion || paused ? undefined : { rotateY: 360 }} transition={{ duration: speed === "Fast" ? 24 : speed === "Slow" ? 60 : 38, repeat: Infinity, ease: "linear" }}>
