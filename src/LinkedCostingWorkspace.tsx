@@ -197,9 +197,15 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   const preferredOperation = routeOperations.find(op => quotations.some(q => !q.deletedAt && q.operationId === op.id)) || routeOperations[0];
   useEffect(() => {
     const currentOperation = routeOperations.find(op => op.id === operationId);
-    const nextOperation = currentOperation || preferredOperation;
+    const contextOperation = routeOperations.find(op => op.id === initialContext?.operationId);
+    const nextOperation = currentOperation || contextOperation || preferredOperation;
     if ((nextOperation?.id || "") !== operationId) setOperationId(nextOperation?.id || "");
-  }, [routeOperations, operationId, preferredOperation?.id]);
+  }, [routeOperations, operationId, preferredOperation?.id, initialContext?.operationId]);
+  useEffect(() => {
+    if (initialContext?.vendorId && vendors.some(vendor => vendor.id === initialContext.vendorId)) {
+      setVendorId(initialContext.vendorId);
+    }
+  }, [initialContext?.vendorId, vendors]);
   const selectedOperation = routeOperations.find(op => op.id === operationId) || preferredOperation;
   // Show saved quotes for every process in the selected component/PO line.
   // Filtering by the currently selected operation hid quotations saved against
