@@ -4,7 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type TransportRouteRe
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 
-type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; onOpenContact360?: (vendorId: string) => void };
+type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: { vendorId?: string }) => void; onOpenContact360?: (vendorId: string) => void };
 const VEHICLES = ["2-wheeler", "3-wheeler", "4-wheeler", "Heavy-duty 4-wheeler"];
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
