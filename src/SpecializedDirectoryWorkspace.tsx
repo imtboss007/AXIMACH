@@ -39,7 +39,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
  const [vendorIds,setVendorIds]=useState<string[]>([]);
  const [notes,setNotes]=useState("");
  const filtered=useMemo(()=>rows.filter(row=>(row.processType+" "+row.category+" "+row.subcategories.join(" ")+" "+row.notes+" "+row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(" ")).toLowerCase().includes(search.toLowerCase().trim())),[rows,search,vendors]);
- const reset=()=>{setEditingId("");setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");};
+ const reset=()=>{setEditingId("");setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");setSubcategoryDraft("");};
  const save=()=>{
   if(!processType.trim()||!category.trim()){onNotice("Enter the process type and category.");return;}
   const stamp=nowIso();
@@ -48,7 +48,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
    id:editingId||makeId("process"),
    processType:processType.trim(),
    category:category.trim(),
-   subcategories:subcategories.split(",").map(x=>x.trim()).filter(Boolean).slice(0,100),
+   subcategories:[...new Set(subcategories.split(",").map(x=>x.trim()).filter(Boolean))].slice(0,100),
    vendorIds,
    notes:notes.trim(),
    createdAt:old?.createdAt||stamp,
@@ -124,7 +124,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
    <div className="module-record-form specialized-form">
     <SearchablePicker id="process-category" label="Process category *" value={category} placeholder="Search or add a category…" options={[...new Set(rows.map(row=>row.category))].sort().map(value=>({id:value,label:value}))} onChange={value=>{setCategory(value);const related=rows.filter(row=>row.category===value);if(!related.some(row=>row.processType===processType))setProcessType("");setSubcategories("");}} allowCustom/>
     <SearchablePicker id="process-type" label="Process type *" value={processType} placeholder="Search or add a process type…" options={rows.filter(row=>!category||row.category===category).map(row=>({id:row.processType,label:row.processType+" · "+row.category}))} onChange={value=>{const linked=rows.find(row=>row.processType===value&&(row.category===category||!category));setProcessType(value);if(linked){setCategory(linked.category);setSubcategories(linked.subcategories.join(", "));}}} allowCustom/>
-    <label className="module-form-wide">Process subcategories (comma-separated; up to 100) <input value={subcategories} onChange={e=>setSubcategories(e.target.value)} placeholder="Rough turning, finish turning, threading, groove cut-off…"/></label>
+    <div className="module-form-wide process-subcategory-editor"><SearchableMultiSelect id="process-subcategories" label="Existing subcategories" options={[...new Set(rows.filter(row=>(!category||row.category===category)&&(!processType||row.processType===processType)).flatMap(row=>row.subcategories))].sort().map(value=>({id:value,label:value}))} selected={subcategories.split(",").map(value=>value.trim()).filter(Boolean)} onChange={values=>setSubcategories(values.join(", "))} placeholder="Search subcategory…"/><label>Add subcategory <input value={subcategoryDraft} onChange={event=>setSubcategoryDraft(event.target.value)} placeholder="Type new subcategory…"/></label><button type="button" className="button-quiet compact-button" onClick={()=>{const value=subcategoryDraft.trim();const current=subcategories.split(",").map(x=>x.trim()).filter(Boolean);if(value&&!current.includes(value)&&current.length<100)setSubcategories([...current,value].join(", "));setSubcategoryDraft("");}}>＋ Add subcategory</button><small>Up to 100 separate subcategory entries per process type.</small></div>
     <div className="module-form-wide process-vendor-selection"><SearchableMultiSelect id="process-vendor-links" label="Linked vendors" options={vendors.map(v=>({id:v.id,label:v.company+" · "+v.contact}))} selected={vendorIds} onChange={setVendorIds} placeholder="Search vendor company or contact…"/><small>One process can link to multiple vendors; one vendor can link to multiple processes.</small></div>
     <label className="module-form-wide">Notes<input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Process scope or requirements"/></label>
     <div className="module-form-actions"><button className="button-primary" onClick={save}><Check size={14}/>{editingId?"Save changes":"Add process"}</button>{editingId&&<button className="button-quiet" onClick={reset}>Cancel edit</button>}</div>
