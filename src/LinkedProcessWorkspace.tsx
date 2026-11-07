@@ -6,7 +6,7 @@ import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 
-type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; onOpenIconStudio?: () => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
+type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string };\ntype Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; onOpenIconStudio?: () => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
 type ProcessExportField = "company" | "po" | "component" | "componentNumber" | "operation" | "category" | "subcategory" | "execution" | "description" | "vendor" | "transportVendor" | "transportRoute" | "vehicle" | "quantity" | "quantityUnit" | "completed" | "rejected" | "status" | "tolerance" | "inspection" | "paymentStatus" | "paidAmount" | "plannedStart" | "plannedEnd" | "price" | "transportCost" | "amount";
 const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
   {key:"company",label:"Company"},{key:"po",label:"PO number"},{key:"component",label:"Component name"},{key:"componentNumber",label:"Component number"},
@@ -30,7 +30,7 @@ const dateTimeInput = (value?: string) => value ? (value.includes("T") ? value.s
 const shortDate = (value?: string) => value ? dateValue(value).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", ...(value.includes("T") ? {hour:"2-digit",minute:"2-digit"} : {}) }) : "Not set";
 const daysBetween = (start?: string, end?: string) => start && end ? Math.max(1, Math.round((dateValue(end).getTime() - dateValue(start).getTime()) / 86400000) + 1) : 0;
 
-export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSelectModule, onOpenIconStudio, onScheduleVendor }: Props) {
+export default function LinkedProcessWorkspace({ initialContext, onBack, onNotice, notice, onSelectModule, onOpenIconStudio, onScheduleVendor }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const companies = activeRows(data.companies);
   const purchaseOrders = activeRows(data.purchaseOrders);
@@ -88,7 +88,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const [bulkStatus,setBulkStatus] = useState("");
   const [bulkVendorId,setBulkVendorId] = useState("");
   const [bulkStart,setBulkStart] = useState("");
-  const [bulkEnd,setBulkEnd] = useState("");
+  const [bulkEnd,setBulkEnd] = useState("");\n  useEffect(() => {\n    if (!initialContext?.poId) return;\n    const targetPO = purchaseOrders.find(po => po.id === initialContext.poId);\n    if (!targetPO) return;\n    setCompanyId(targetPO.companyId);\n    setPoId(targetPO.id);\n    const targetLine = targetPO.lines.find(line => line.id === initialContext.poLineId)\n      || targetPO.lines.find(line => line.componentId === initialContext.componentId);\n    if (targetLine) setPoLineId(targetLine.id);\n    setSelectedOperationId("");\n  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, purchaseOrders]);
 
 
   const companyOrders = purchaseOrders.filter(p => p.companyId === companyId);
