@@ -73,6 +73,21 @@ export default function ProcessUniverse3D({ operations, processDefinitions = [],
     return { operation, index, transform };
   }), [parentOperations]);
 
+  // When a PO line has no saved operations yet, put the real Process Directory
+  // definitions onto the interactive 3D orbit. These are catalogue actions,
+  // not fabricated production operations; selecting one opens the PO-line
+  // operation editor and only Save creates a production record.
+  const catalogueOrbitNodes = useMemo(() => processDefinitions.map((definition, index) => {
+    const count = Math.max(processDefinitions.length, 1);
+    const y = 1 - 2 * ((index + 0.5) / count);
+    const latitude = Math.asin(Math.max(-1, Math.min(1, y))) * 180 / Math.PI;
+    const longitude = index * (Math.PI * (3 - Math.sqrt(5))) * 180 / Math.PI;
+    const transform = `translate(-50%,-50%) rotateY(${longitude}deg) rotateX(${latitude}deg) translateZ(var(--process-orbit-radius,205px)) rotateX(${-latitude}deg) rotateY(${-longitude}deg)`;
+    return { definition, index, transform };
+  }), [processDefinitions]);
+  const showCatalogueOrbit = parentOperations.length === 0 && catalogueOrbitNodes.length > 0;
+  const orbitCount = parentOperations.length || (showCatalogueOrbit ? catalogueOrbitNodes.length : 0);
+
   const lanes = useMemo(() => {
     const grouped = new Map<string, OperationRecord[]>();
     for (const operation of parentOperations) {
@@ -88,7 +103,7 @@ export default function ProcessUniverse3D({ operations, processDefinitions = [],
   return <section className={"process-universe-3d mode-" + layoutMode} aria-label="Interactive 3D process route graph">
     <header className="process-universe-head">
       <div><span className="process-universe-kicker"><span /> LIVE ROUTE / INTERACTIVE 3D</span><h3>Manufacturing process universe</h3><p>Drag the process sphere to rotate it. Select any saved process icon to open its real operation record; simulation highlights each step in sequence.</p></div>
-      <div className="process-universe-count"><strong>{parentOperations.length}</strong><span>MAIN PROCESSES</span></div>
+      <div className="process-universe-count"><strong>{orbitCount}</strong><span>{parentOperations.length ? "MAIN PROCESSES" : "AVAILABLE STAGES"}</span></div>
     </header>
     <nav className="process-universe-layouts" aria-label="Process map visualisation modes">
       {([{id:"sphere",label:"Sphere"},{id:"route",label:"Conventional route"},{id:"vortex",label:"Vortex"},{id:"cube",label:"Cube"},{id:"molecular",label:"Molecular"},{id:"orbit",label:"Orbit"},{id:"digital-mesh",label:"Digital mesh"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}>{option.label}</button>)}
@@ -98,7 +113,7 @@ export default function ProcessUniverse3D({ operations, processDefinitions = [],
       <div className="process-orbit-viewport">
         <motion.div className="process-orbit-rotator" onPointerDown={event => { if ((event.target as HTMLElement).closest(".process-orbit-node")) return; startDrag(event); }} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} style={{ rotateX, rotateY, touchAction: "none" }}>
           <div className="process-orbit-ring process-orbit-ring-a" /><div className="process-orbit-ring process-orbit-ring-b" />
-          <div className="process-orbit-core"><span className="process-orbit-core-gloss" /><span className="process-orbit-core-grid" /><div><small>AXIMACH / ROUTE CORE</small><strong>{parentOperations.length.toString().padStart(2,"0")}</strong><b>PROCESS STEPS</b><em>LIVE RECORDS</em></div><i className="process-orbit-dot process-orbit-dot-a" /><i className="process-orbit-dot process-orbit-dot-b" /><i className="process-orbit-dot process-orbit-dot-c" /></div>
+          <div className="process-orbit-core"><span className="process-orbit-core-gloss" /><span className="process-orbit-core-grid" /><div><small>AXIMACH / ROUTE CORE</small><strong>{orbitCount.toString().padStart(2,"0")}</strong><b>{parentOperations.length ? "PROCESS STEPS" : "DIRECTORY STAGES"}</b><em>{parentOperations.length ? "SAVED ROUTE" : "CATALOGUE ONLY"}</em></div><i className="process-orbit-dot process-orbit-dot-a" /><i className="process-orbit-dot process-orbit-dot-b" /><i className="process-orbit-dot process-orbit-dot-c" /></div>
           {orbitNodes.map(({ operation, index, transform }) => {
             const active = selectedOperationId === operation.id, current = simulationIndex === index, passed = simulationIndex > index;
             const state = operation.status.toLowerCase().replaceAll(" ","-");
@@ -108,9 +123,25 @@ export default function ProcessUniverse3D({ operations, processDefinitions = [],
               <strong>{operation.name}</strong>{subprocessesFor(operation.id).length > 0 && <small className="process-orbit-node-qty">{subprocessesFor(operation.id).length} SUB-PROCESS(ES)</small>}<small className="process-orbit-node-qty">{operation.completed.toLocaleString("en-IN")} / {operation.quantity.toLocaleString("en-IN")} pcs</small>
             </button>;
           })}
+          {showCatalogueOrbit && catalogueOrbitNodes.map(({ definition, index, transform }) => (
+            <button key={definition.id} type="button" className="process-orbit-node status-planned process-orbit-node-catalog"
+              style={{ transform }}
+              onPointerDown={event => event.stopPropagation()}
+              onClick={() => onAddProcessDefinition?.(definition.id)}
+              disabled={!onAddProcessDefinition}
+              aria-label={"Add " + definition.processType + " from Process Directory to selected PO line"}
+              title={definition.category + " · " + definition.processType + " · Add to selected PO line"}>
+              <span className="process-orbit-node-top"><small>LIB-{String(index + 1).padStart(2,"0")}</small><i /></span>
+              <ProcessIcon processId={definition.id} processName={definition.processType} category={definition.category} fallback={fallbackFor(definition.processType)} />
+              <strong>{definition.processType}</strong>
+              <small className="process-orbit-node-qty">{definition.category}</small>
+              <small className="process-orbit-node-qty">{(definition.subcategories || []).length} SUB-PROCESS OPTION(S)</small>
+              <em className="process-orbit-node-action">＋ ADD TO PO LINE</em>
+            </button>
+          ))}
         </motion.div>
       </div>
-      <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>SELECT A PROCESS NODE TO OPEN ITS RECORD</span><span>SIMULATION IS VISUAL ONLY</span></div>
+      <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>{showCatalogueOrbit ? "SELECT A DIRECTORY NODE TO CREATE A PO-LINE OPERATION" : "SELECT A PROCESS NODE TO OPEN ITS RECORD"}</span><span>SIMULATION IS VISUAL ONLY</span></div>
     </div>
     <div className="process-universe-viewport"><div className="process-universe-stage" style={stageStyle}>
       {lanes.map(lane => <section className={"process-universe-lane" + (lane.alternate ? " is-branch" : "")} key={lane.name}>
