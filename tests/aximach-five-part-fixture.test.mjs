@@ -183,6 +183,20 @@ test("dashboard command globe exposes 18 unique, distinguishable module shortcut
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
+test("all 18 sphere module buttons stay viewer-facing and the lower data shell is separate", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  const depthClose = orb.indexOf("</motion.div>\\n        <div className=\"ax-orb-module-shell\"");
+  const lowerShell = orb.indexOf('<div className="ax-orb-lower-shell"');
+  assert.ok(depthClose >= 0, "module controls must sit outside the rotating 3D depth layer");
+  assert.ok(lowerShell > depthClose, "lower data shell must follow the sphere and module layer");
+  assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
+  assert.ok(orb.includes("const angle = (Math.PI * 2 * index) / satellites.length"));
+  assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.match(css, /\\.ax-orb-lower-shell \\{[\\s\\S]*?position:relative;[\\s\\S]*?bottom:auto;/);
+  assert.match(css, /\\.ax-orb-module-shell \\{[\\s\\S]*?pointer-events:none;/);
+});
+
 test("3D command centre lower shell shows all six requested live record categories", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   for (const label of ["Companies", "Purchase orders", "PO component lines", "Components", "Vendors", "Open operations"]) {
