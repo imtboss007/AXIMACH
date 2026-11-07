@@ -54,7 +54,7 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
     const component=components.find(item=>item.id===line.componentId);
     const linkedOperations=operations.filter(op=>op.poId===po.id&&op.poLineId===line.id&&op.componentId===line.componentId);
     const costedLinkedOperations=linkedOperations.filter(op=>op.costIncluded!==false);
-    const revenue=line.quantity*(Number(line.unitPrice)>0?line.unitPrice:(component?.salePrice||0));
+    const revenue=line.quantity*(component?.salePrice||0);
     const processCost=costedLinkedOperations.reduce((sum,op)=>sum+op.quantity*(op.actualRatePerPart||0),0);
     const includedTransportLegs=(data.transportLegs||[]).filter(leg=>!leg.deletedAt&&leg.poId===po.id&&leg.poLineId===line.id&&leg.componentId===line.componentId&&(!leg.anchorOperationId||linkedOperations.find(op=>op.id===leg.anchorOperationId)?.costIncluded!==false));
     // A legacy operation transport entry and a new transport leg can represent the same saved route.
