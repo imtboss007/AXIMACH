@@ -5,7 +5,8 @@ import SearchableMultiSelect from "./SearchableMultiSelect";
 import SearchablePicker from "./SearchablePicker";
 import { ProcessIcon } from "./IconStudio";
 
-type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
+type LinkedNavigationContext={companyId?:string;poId?:string;poLineId?:string;componentId?:string;operationId?:string;vendorId?:string};
+type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string,context?:LinkedNavigationContext)=>void};
 type Contact360Props=Props & {initialVendorId?:string;onInitialVendorConsumed?:()=>void};
 type ContactRecord=ContactProfileRecord;
 type ContactDraft=Omit<ContactRecord,"id"|"createdAt"|"updatedAt">;
@@ -190,7 +191,7 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
 <td>{[...new Set(capabilityDefinitions.flatMap(definition=>definition.subcategories||[]))].join(", ")||"Not set"}</td>
 <td>{[...new Set(assigned.map(op=>op.executionType||"Outsourced"))].join(", ")||"No execution yet"}</td>
 <td>{assigned.length} operation(s) · {assignedPOs.length} PO(s){assigned.length>0&&<small>{assigned.slice(0,6).map(op=>op.name+" · "+op.status).join(" | ")}</small>}</td>
-<td><div className="vendor-network-actions"><button className="button-quiet compact-button" onClick={()=>onSelectModule("vendors")}>Vendor</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("process-map")}>Process Plan</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("contact360")}>Contact 360</button></div></td>
+<td><div className="vendor-network-actions"><button className="button-quiet compact-button" onClick={()=>onSelectModule("vendors",{vendorId:v.id})}>Vendor</button><button className="button-quiet compact-button" onClick={()=>{const op=assigned[0];onSelectModule("process-map",{companyId:op?.companyId,poId:op?.poId,poLineId:op?.poLineId,componentId:op?.componentId,operationId:op?.id,vendorId:v.id});}}>Process Plan</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("contact360")}>Contact 360</button></div></td>
 </tr>)}</tbody></table></div>:<div className="module-empty-state"><Wrench size={24}/><h3>No matching vendors</h3><p>Change the capability filters or add capabilities to Vendor Directory from Process Directory.</p><button className="button-primary" onClick={()=>onSelectModule("vendors")}><Plus size={14}/> Open Vendor Directory</button></div>}
 </section>
 <div className="module-safety-note"><ShieldCheck size={15}/><span>Capability data is sourced from Vendor Directory and Process Directory. Assignment counts and statuses are derived from existing PO-linked Process Plan operations; they are not manually duplicated here.</span></div>
