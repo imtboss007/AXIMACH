@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, Edit3, MapPin, Plus, Search, ShieldCheck, Truck, Users, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type TransportRouteRecord } from "./manufacturingData";
+import SearchablePicker from "./SearchablePicker";
+import SearchableMultiSelect from "./SearchableMultiSelect";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void; onOpenContact360?: (vendorId: string) => void };
 const VEHICLES = ["2-wheeler", "3-wheeler", "4-wheeler", "Heavy-duty 4-wheeler"];
@@ -31,7 +33,6 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
       (!selectedDirections.length || selectedDirections.includes(route.tripDirection)) &&
       (!selectedVendors.length || selectedVendors.includes(route.vendorId));
   }), [routes, vendors, search, selectedVehicles, selectedDirections, selectedVendors]);
-  const allFiltersSelected = !selectedVehicles.length && !selectedDirections.length && !selectedVendors.length;
   const toggleFilter = (value: string, selected: string[], setter: (next: string[]) => void) =>
     setter(selected.includes(value) ? selected.filter(item => item !== value) : [...selected, value]);
   const clearFilters = () => { setSearch(""); setSelectedVehicles([]); setSelectedDirections([]); setSelectedVendors([]); };
@@ -72,18 +73,18 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
     </div>
     <section className="surface-panel transport-filter-panel">
       <div className="panel-heading"><div><h3>Filter transport routes</h3><p>Select All to show every saved route, or tick any combination of filters.</p></div><button type="button" className="button-quiet compact-button" onClick={clearFilters}>Clear filters</button></div>
-      <div className="transport-filter-groups">
-        <fieldset><legend>Route selection</legend><label><input type="checkbox" checked={allFiltersSelected} onChange={clearFilters}/> All routes</label></fieldset>
-        <fieldset><legend>Vehicle type</legend>{VEHICLES.map(value => <label key={value}><input type="checkbox" checked={selectedVehicles.includes(value)} onChange={() => toggleFilter(value, selectedVehicles, setSelectedVehicles)}/>{value}</label>)}</fieldset>
-        <fieldset><legend>Trip direction</legend>{["One-way", "Two-way"].map(value => <label key={value}><input type="checkbox" checked={selectedDirections.includes(value)} onChange={() => toggleFilter(value, selectedDirections, setSelectedDirections)}/>{value}</label>)}</fieldset>
-        <fieldset><legend>Transport vendor</legend>{vendors.map(vendor => <label key={vendor.id}><input type="checkbox" checked={selectedVendors.includes(vendor.id)} onChange={() => toggleFilter(vendor.id, selectedVendors, setSelectedVendors)}/>{vendor.company}</label>)}</fieldset>
+      <div className="transport-filter-groups ax-search-filter-columns">
+        <button type="button" className="button-quiet compact-button" onClick={clearFilters}>All routes</button>
+        <SearchableMultiSelect id="transport-filter-vehicle" label="Vehicle type" options={VEHICLES.map(value=>({id:value,label:value}))} selected={selectedVehicles} onChange={setSelectedVehicles} emptyMeansAll/>
+        <SearchableMultiSelect id="transport-filter-direction" label="Trip direction" options={["One-way","Two-way"].map(value=>({id:value,label:value}))} selected={selectedDirections} onChange={setSelectedDirections} emptyMeansAll/>
+        <SearchableMultiSelect id="transport-filter-vendor" label="Transport vendor" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+(vendor.contact||"Contact not set")}))} selected={selectedVendors} onChange={setSelectedVendors} emptyMeansAll/>
       </div>
       <p className="transport-filter-result">Showing {filtered.length} of {routes.length} saved routes</p>
     </section>
     <section className="surface-panel">
       <div className="panel-heading"><div><h3>{editingId ? "Edit fixed route rate" : "Add transport route"}</h3><p>Save one rate for each route, vehicle and trip direction. Select a different rate record for a one-way or round trip.</p></div><Truck size={19}/></div>
       <div className="module-form-grid">
-        <label>Transport vendor *<select value={vendorId} onChange={event => setVendorId(event.target.value)}><option value="">Select existing vendor</option>{vendors.map(vendor => <option key={vendor.id} value={vendor.id}>{vendor.company} · {vendor.contact || "Contact not set"}{vendor.vendorType === "Transport" ? "" : " · Vendor"}</option>)}</select></label>
+        <SearchablePicker id="transport-route-vendor" label="Transport vendor *" value={vendorId} placeholder="Type vendor name or contact…" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+(vendor.contact||"Contact not set")}))} onChange={setVendorId}/>
         <label>From location *<input value={fromLocation} onChange={event => setFromLocation(event.target.value)} placeholder="Pickup location"/></label>
         <label>To location *<input value={toLocation} onChange={event => setToLocation(event.target.value)} placeholder="Delivery location"/></label>
         <label>Trip direction *<select value={tripDirection} onChange={event => setTripDirection(event.target.value as "One-way" | "Two-way")}><option>One-way</option><option>Two-way</option></select></label>
