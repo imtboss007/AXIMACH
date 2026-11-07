@@ -226,7 +226,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, onBack, onNotic
       <button className="button-quiet compact-button" onClick={()=>void exportComponentsExcel(components)}>All Excel</button>
       <button className="button-danger compact-button" disabled={!selectedComponentIds.length} onClick={()=>deleteComponents(selectedComponentIds)}><Trash2 size={13}/> Delete selected</button>
       <button className="button-quiet compact-button" disabled={!selectedComponentIds.length} onClick={()=>setSelectedComponentIds([])}>Clear selection</button>
-    </div> 
+    </div>}
     {moduleId === "purchasing" && <div className="module-action-bar po-bulk-actions">
       <label><input type="checkbox" checked={filteredOrders.length>0 && filteredOrders.every(order=>selectedPoIds.includes(order.id))} onChange={event=>setSelectedPoIds(event.target.checked?[...new Set([...selectedPoIds,...filteredOrders.map(order=>order.id)])]:selectedPoIds.filter(id=>!filteredOrders.some(order=>order.id===id)))} /> Select all visible</label>
       <span className="module-number">{selectedPoIds.filter(id=>orders.some(order=>order.id===id)).length} SELECTED</span>
