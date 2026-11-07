@@ -17,7 +17,16 @@ export default function SearchablePicker({ id, label, value, options, onChange, 
   }, [options, query, maxResults]);
   useEffect(() => { if (!open) setQuery(""); }, [value, open]);
   const select = (option: SearchableOption) => { onChange(option.id); setQuery(""); setOpen(false); };
-  const handleBlur = (event: FocusEvent<HTMLDivElement>) => { if (event.currentTarget.contains(event.relatedTarget as Node | null)) return; setOpen(false); setQuery(""); };
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    const typedValue = query.trim();
+    if (allowCustom && typedValue) {
+      const exact = options.find(option => option.label.trim().toLocaleLowerCase() === typedValue.toLocaleLowerCase());
+      onChange(exact?.id || typedValue);
+    }
+    setOpen(false);
+    setQuery("");
+  };
   return <div className="searchable-picker" onBlur={handleBlur}>
     <label htmlFor={id}>{label}</label>
     <div className="searchable-picker-control">
