@@ -194,8 +194,19 @@ test("all 18 sphere module buttons stay viewer-facing and the lower data shell i
   assert.ok(orb.includes("const angle = (Math.PI * 2 * index) / satellites.length"));
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
-  assert.match(css, /\\.ax-orb-lower-shell \\{[\\s\\S]*?position:relative;[\\s\\S]*?bottom:auto;/);
-  assert.match(css, /\\.ax-orb-module-shell \\{[\\s\\S]*?pointer-events:none;/);
+  assert.match(css, /\.ax-orb-lower-shell \{[\s\S]*?position:relative;[\s\S]*?bottom:auto;/);
+  assert.match(css, /\.ax-orb-module-shell \{[\s\S]*?pointer-events:none;/);
+});
+
+test("Process Map shows clickable Process Directory stage nodes before production operations are saved", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.match(workspace, /processDefinitions\.length > 0/);
+  assert.match(workspace, /onAddProcessDefinition=\{startAddDefinition\}/);
+  assert.match(universe, /process-directory-map-catalog/);
+  assert.match(universe, /onAddProcessDefinition\?\.\(definition\.id\)/);
+  assert.match(universe, /not yet saved as production operations/);
+  assert.match(workspace, /Save it to create the real operation for this PO component line/);
 });
 
 test("3D command centre lower shell shows all six requested live record categories", () => {
