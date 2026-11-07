@@ -49,8 +49,8 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule,i
  const finishSelectedJobs=(finished:boolean)=>{
   if(!selectedVisibleJobs.length){onNotice("Select one or more PO component jobs first.");return;}
   if(finished){
-    const selectedIds=new Set(selectedVisibleJobs.map(row=>row.line.id));
-    const incomplete=ops.filter(op=>selectedIds.has(op.poLineId)&&op.status!=="Complete");
+    const selectedIds=new Set(selectedVisibleJobs.map(row=>row.po.id+":"+row.line.id));
+    const incomplete=ops.filter(op=>selectedIds.has(op.poId+":"+op.poLineId)&&op.status!=="Complete");
     if(incomplete.length&&!window.confirm(incomplete.length+" operation(s) on the selected jobs are not Complete. Finish the selected PO jobs anyway?"))return;
   }
   const keys=new Set(selectedVisibleJobs.map(row=>row.po.id+":"+row.line.id));
