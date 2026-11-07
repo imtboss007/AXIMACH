@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type ToolGlyph =
+export type ToolGlyph =
   | "twist-drill" | "spot-drill" | "gun-drill" | "reamer" | "tap" | "thread-mill"
   | "boring-bar" | "counterbore" | "countersink" | "end-mill" | "face-mill"
   | "ball-mill" | "slot-mill" | "chamfer" | "turning-insert" | "grooving"
@@ -44,6 +44,46 @@ const rules: Array<[RegExp, ToolGlyph]> = [
 export function mechanicalGlyphForOperation(operation: string): ToolGlyph | null {
   const value = operation.toLowerCase().replace(/[_-]+/g, " ");
   return rules.find(([pattern]) => pattern.test(value))?.[1] || null;
+}
+
+export const MECHANICAL_ICON_INVENTORY: Array<{ glyph: ToolGlyph; label: string; application: string }> = [
+  {glyph:"twist-drill",label:"Twist drill",application:"Drilling, peck drilling, step drilling, core drilling"},
+  {glyph:"spot-drill",label:"Spot / centre drill",application:"Spotting, centre drilling and hole location"},
+  {glyph:"gun-drill",label:"Gun drill",application:"Deep-hole drilling"},
+  {glyph:"reamer",label:"Reamer",application:"Precision sizing and reaming"},
+  {glyph:"tap",label:"Tap",application:"Internal thread cutting and tapping"},
+  {glyph:"thread-mill",label:"Thread mill",application:"Internal and external thread milling"},
+  {glyph:"boring-bar",label:"Boring bar",application:"Boring, line boring and back boring"},
+  {glyph:"counterbore",label:"Counterbore",application:"Counterbore and spotface"},
+  {glyph:"countersink",label:"Countersink",application:"Countersinking and deburring"},
+  {glyph:"end-mill",label:"End mill",application:"Profile, pocket, contour and helical milling"},
+  {glyph:"face-mill",label:"Face mill",application:"Facing, slab and surface milling"},
+  {glyph:"ball-mill",label:"Ball-nose mill",application:"3D contour and radius machining"},
+  {glyph:"slot-mill",label:"Slot mill",application:"Slot, keyway and groove milling"},
+  {glyph:"chamfer",label:"Chamfer tool",application:"Chamfering and beveling"},
+  {glyph:"turning-insert",label:"Turning insert",application:"CNC turning, facing and profiling"},
+  {glyph:"grooving",label:"Grooving tool",application:"Grooves, recesses and undercuts"},
+  {glyph:"threading-insert",label:"Threading insert",application:"External and internal thread turning"},
+  {glyph:"parting",label:"Parting tool",application:"Parting-off and cut-off operations"},
+  {glyph:"knurl",label:"Knurling tool",application:"Knurling and grip patterns"},
+  {glyph:"broach",label:"Broach",application:"Broaching and internal keyways"},
+  {glyph:"hob",label:"Gear hob",application:"Gear hobbing, splines and sprockets"},
+  {glyph:"saw",label:"Saw / slitting blade",application:"Band sawing, slitting and cut-off"},
+  {glyph:"grinding-wheel",label:"Grinding wheel",application:"Surface, cylindrical and tool grinding"},
+  {glyph:"honing",label:"Honing tool",application:"Bore finishing and cross-hatch finishing"},
+  {glyph:"lapping",label:"Lapping plate",application:"Lapping and superfinishing"},
+  {glyph:"welding-torch",label:"Welding torch",application:"Welding, brazing and soldering"},
+  {glyph:"laser-head",label:"Laser head",application:"Laser cutting and laser processing"},
+  {glyph:"edm-wire",label:"Wire EDM",application:"Wire cut EDM and spark erosion"},
+  {glyph:"press-tool",label:"Press tool",application:"Punching, blanking, stamping, piercing and shearing"},
+  {glyph:"inspection",label:"Inspection / metrology",application:"CMM, measurement, testing and quality"},
+  {glyph:"component-block",label:"Generic component",application:"Mechanical component fallback symbol"}
+];
+
+export function MechanicalIconGlyph({ glyph, label, className = "" }: { glyph: ToolGlyph; label?: string; className?: string }) {
+  return <span className={"ax-mechanical-tool-icon " + className} title={label || glyph} aria-label={label || glyph}>
+    <svg viewBox="0 0 24 24" width="24" height="24" role="img" aria-hidden="true"><GlyphShape glyph={glyph}/></svg>
+  </span>;
 }
 
 function GlyphShape({ glyph }: { glyph: ToolGlyph }): ReactNode {
