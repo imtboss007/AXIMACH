@@ -87,8 +87,8 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
         <SearchablePicker id="transport-route-vendor" label="Transport vendor *" value={vendorId} placeholder="Type vendor name or contact…" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+(vendor.contact||"Contact not set")}))} onChange={setVendorId}/>
         <label>From location *<input value={fromLocation} onChange={event => setFromLocation(event.target.value)} placeholder="Pickup location"/></label>
         <label>To location *<input value={toLocation} onChange={event => setToLocation(event.target.value)} placeholder="Delivery location"/></label>
-        <label>Trip direction *<select value={tripDirection} onChange={event => setTripDirection(event.target.value as "One-way" | "Two-way")}><option>One-way</option><option>Two-way</option></select></label>
-        <label>Vehicle type *<select value={vehicleType} onChange={event => setVehicleType(event.target.value)}>{VEHICLES.map(value => <option key={value}>{value}</option>)}{!VEHICLES.includes(vehicleType) && <option>{vehicleType}</option>}</select></label>
+        <SearchablePicker id="transport-route-direction" label="Trip direction *" value={tripDirection} options={["One-way","Two-way"].map(value=>({id:value,label:value}))} onChange={value=>setTripDirection(value as "One-way"|"Two-way")}/>
+        <SearchablePicker id="transport-route-vehicle" label="Vehicle type *" value={vehicleType} placeholder="Search vehicle class…" options={VEHICLES.map(value=>({id:value,label:value}))} onChange={setVehicleType}/>
         <label>Fixed amount (₹) *<input inputMode="decimal" type="number" min="0" step="0.01" value={fixedAmount} onChange={event => setFixedAmount(event.target.value)} placeholder="Enter agreed route rate"/></label>
         <label className="editor-wide">Notes<input value={notes} onChange={event => setNotes(event.target.value)} placeholder="Validity, loading terms, waiting charges or agreement reference"/></label>
       </div>
