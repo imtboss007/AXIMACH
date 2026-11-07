@@ -4,7 +4,8 @@ import { Activity, ArrowRight, Boxes, ClipboardCheck, Cog, Cpu, Disc3, GitBranch
 import type { OperationRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
 
-type Props = { operations: OperationRecord[]; selectedOperationId: string; simulationIndex: number; zoom: number; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void };
+type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; vendorIds?: string[] };
+type Props = { operations: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; selectedOperationId: string; simulationIndex: number; zoom: number; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
 function fallbackFor(name: string) {
   const value = name.toLowerCase();
@@ -23,7 +24,7 @@ function fallbackFor(name: string) {
 
 type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh";
 
-export default function ProcessUniverse3D({ operations, selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess }: Props) {
+export default function ProcessUniverse3D({ operations, processDefinitions = [], selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
   const subprocessesFor = (parentId: string) => operations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
@@ -135,7 +136,14 @@ export default function ProcessUniverse3D({ operations, selectedOperationId, sim
         })}</div>
         {lane.alternate && <div className="process-universe-branch-note">Branch retained with its parent operation and rework history.</div>}
       </section>)}
-      {operations.length === 0 && <div className="process-universe-empty">No saved operations are available for this PO line.</div>}
+      {operations.length === 0 && processDefinitions.length > 0 && <section className="process-directory-map-catalog" aria-label="Available Process Directory stages">
+        <div className="process-directory-map-heading"><span>PROCESS DIRECTORY</span><strong>{processDefinitions.length} AVAILABLE STAGES</strong><small>Library definitions only · not yet saved as production operations</small></div>
+        <div className="process-directory-map-nodes">{processDefinitions.map(definition => <button type="button" className="process-directory-map-node" key={definition.id} onClick={() => onAddProcessDefinition?.(definition.id)} disabled={!onAddProcessDefinition}>
+          <ProcessIcon processId={definition.id} processName={definition.processType} category={definition.category} fallback={fallbackFor(definition.processType)} />
+          <strong>{definition.processType}</strong><span>{definition.category}</span><small>{(definition.subcategories || []).length} sub-process option(s)</small><em>＋ Add to selected PO line</em>
+        </button>)}</div>
+      </section>}
+      {operations.length === 0 && processDefinitions.length === 0 && <div className="process-universe-empty">No saved operations or Process Directory definitions are available.</div>}
       <div className="process-universe-floor" aria-hidden="true"/>
     </div></div>
     <footer className="process-universe-legend"><span><i className="legend-done"/> Complete</span><span><i className="legend-live"/> Running</span><span><i className="legend-queued"/> Queued</span><span><i className="legend-hold"/> Quality hold</span><span className="process-universe-safe">Simulation is visual only. It never changes job, operation or quantity records.</span></footer>
