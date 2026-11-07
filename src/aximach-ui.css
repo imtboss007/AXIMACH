@@ -1424,3 +1424,10 @@
 .component-form-identity small,.po-selected-component-logo small{color:var(--muted-foreground);font-size:11px}
 .po-selected-component-logo{margin-top:6px}
 .po-selected-component-logo .ax-component-icon{width:30px;height:30px}
+
+.component-record-identity{display:inline-flex;align-items:center;gap:8px;vertical-align:middle}
+.component-record-identity>span:last-child{display:grid;gap:2px}
+.component-record-identity .ax-component-icon{width:30px;height:30px}
+.component-record-identity-compact{gap:6px}
+.component-record-identity-compact .ax-component-icon{width:22px;height:22px}
+.job-row>.ax-component-icon{width:34px;height:34px;flex:0 0 auto}
