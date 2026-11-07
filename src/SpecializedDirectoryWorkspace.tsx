@@ -51,6 +51,8 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
  const reset=()=>{setEditingId("");setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");setSubcategoryDraft("");};
  const save=()=>{
   if(!processType.trim()||!category.trim()){onNotice("Enter the process type and category.");return;}
+  const duplicate=rows.find(row=>row.id!==editingId&&row.category.trim().toLowerCase()===category.trim().toLowerCase()&&row.processType.trim().toLowerCase()===processType.trim().toLowerCase());
+  if(duplicate){onNotice("This process type already exists in the selected category. Edit the existing definition or choose a different process type.");return;}
   const stamp=nowIso();
   const old=rows.find(row=>row.id===editingId);
   const row:ProcessEntry={
