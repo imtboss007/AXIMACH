@@ -56,6 +56,7 @@ export type VendorRecord = {
 export type ContactProfileRecord = {
   id: string; linkedType: "company" | "vendor"; linkedId: string; name: string; role: string; group?: string;
   phone: string; whatsapp: string; additionalPhones?: string[]; email: string; address: string; followUpDate: string; history: string;
+  processCategories?: string[]; processTypes?: string[]; processSubcategories?: string[]; machineCapabilities?: string[]; materialCapabilities?: string[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type FollowUpAssignmentRecord = {
