@@ -134,7 +134,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     } else {
       setSelectedOperationId("");
     }
-  }, [initialContext?.companyId, initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, initialContext?.operationId, initialContext?.vendorId]);
+  }, [initialContext?.companyId, initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, initialContext?.operationId, initialContext?.vendorId, data]);
 
 
   const companyOrders = purchaseOrders.filter(p => p.companyId === companyId);
@@ -505,6 +505,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   // Restore the first valid saved route automatically. A blank selector must
   // never hide a real PO-line job, route graph, or job-finished control.
   useEffect(() => {
+    // Keep an explicitly linked PO, component, operation or vendor selection
+    // authoritative. The generic restore must not replace it with the first PO.
+    if (initialContext?.poId || initialContext?.poLineId || initialContext?.componentId || initialContext?.operationId || initialContext?.vendorId) return;
     if (!companies.length) {
       if (companyId) { setCompanyId(""); setPoId(""); setPoLineId(""); }
       return;
@@ -521,7 +524,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const line = validLines.find(item => item.id === poLineId) || validLines[0];
     const nextLineId = line?.id || "";
     if (nextLineId !== poLineId) setPoLineId(nextLineId);
-  }, [companies, purchaseOrders, companyId, poId, poLineId]);
+  }, [companies, purchaseOrders, companyId, poId, poLineId, initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, initialContext?.operationId, initialContext?.vendorId]);
 
   useEffect(() => {
     const current = routeOperations.find(operation => operation.id === selectedOperationId);
