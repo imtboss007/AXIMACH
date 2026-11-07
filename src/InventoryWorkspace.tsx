@@ -11,6 +11,7 @@ type BomIssuePreviewRow = { material: MaterialRecord; bomLineIds: string[]; requ
 const emptyMaterial = (): MaterialDraft => ({ code: "", name: "", grade: "", unit: "kg", specification: "", preferredVendorId: "", ratePerUnit: 0, notes: "" });
 const emptyBom = (): BomDraft => ({ componentId: "", materialId: "", revision: "", quantityPerPart: 0, scrapPercent: 0, notes: "" });
 const stockKinds: StockTransactionKind[] = ["Opening balance", "Receipt", "Issue to production", "WIP transfer", "Return", "Rejected", "Scrap", "Finished goods receipt", "Dispatch", "Adjustment"];
+const fixedStockDirections: Partial<Record<StockTransactionKind, "in" | "out">> = { "Opening balance": "in", "Receipt": "in", "Issue to production": "out", "Return": "in", "Scrap": "out", "Finished goods receipt": "in", "Dispatch": "out" };
 const money = (v: number) => "₹" + (Number(v) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const dateToday = () => new Date().toISOString().slice(0, 10);
 
@@ -118,6 +119,8 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   };
   const saveMaterial = () => {
     if (!materialDraft.code.trim() || !materialDraft.name.trim() || !materialDraft.unit.trim()) { onNotice("Material code, name and unit are required."); return; }
+    if (!Number.isFinite(Number(materialDraft.ratePerUnit)) || Number(materialDraft.ratePerUnit) < 0) { onNotice("Material rate must be a finite non-negative number."); return; }
+    if (materialDraft.preferredVendorId && !vendors.some(vendor => vendor.id === materialDraft.preferredVendorId)) { onNotice("Preferred vendor is missing or archived. Choose an active Vendor Directory record."); return; }
     const duplicate = materials.find(m => m.id !== materialEditingId && m.code.trim().toLowerCase() === materialDraft.code.trim().toLowerCase());
     if (duplicate) { onNotice("That material code already exists. Edit the existing material to avoid duplicate IDs."); return; }
     const stamp = nowIso(); const id = materialEditingId || makeId("material");
@@ -128,7 +131,9 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     resetMaterial(); onNotice("Material master saved. BOM lines use its stable material ID and inventory is calculated from posted stock transactions.");
   };
   const saveBom = () => {
-    if (!bomDraft.componentId || !bomDraft.materialId || bomDraft.quantityPerPart <= 0) { onNotice("Select a component, material and positive quantity per part for this BOM line."); return; }
+    if (!bomDraft.componentId || !components.some(component => component.id === bomDraft.componentId) || !bomDraft.materialId || !materials.some(material => material.id === bomDraft.materialId)) { onNotice("Select active Component Master and Material Master records for this BOM line."); return; }
+    if (!Number.isFinite(Number(bomDraft.quantityPerPart)) || bomDraft.quantityPerPart <= 0) { onNotice("BOM quantity per part must be a finite positive number."); return; }
+    if (!Number.isFinite(Number(bomDraft.scrapPercent)) || bomDraft.scrapPercent < 0 || bomDraft.scrapPercent > 100) { onNotice("BOM scrap allowance must be between 0 and 100 percent."); return; }
     const duplicate = bomLines.find(row => row.id !== bomEditingId && row.componentId === bomDraft.componentId && row.materialId === bomDraft.materialId && row.revision === bomDraft.revision);
     if (duplicate) { onNotice("This component/material/revision BOM line already exists; edit it instead of creating a duplicate."); return; }
     const stamp = nowIso(); const id = bomEditingId || makeId("bom");
@@ -154,6 +159,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const resetTransaction = () => { setItemId(""); setQuantity(""); setOccurredAt(dateToday()); setReference(""); setNotes(""); setPoLineKey(""); setOperationId(""); setVendorId(""); };
   const issueBomMaterialsToProduction = () => {
     if (!bomIssueSelection?.component) { onNotice("Select the actual PO component line first."); return; }
+    if (bomIssueOperationId && !bomIssueOperations.some(op => op.id === bomIssueOperationId)) { onNotice("The selected operation no longer belongs to this PO component line. Re-select the operation before issuing."); return; }
     const pendingRows = bomIssuePreview.filter(row => row.pending > 0);
     if (!pendingRows.length) { onNotice("There are no remaining BOM material requirements to issue for this PO component line."); return; }
     const shortages = pendingRows.filter(row => row.shortage > 0);
@@ -169,6 +175,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       const line = po?.lines.find(row => row.id === bomIssueSelection.line.id && !row.deletedAt);
       const component = current.components.find(row => row.id === line?.componentId);
       if (!po || !line || !component) { result = { posted: 0, shortage: ["The PO component line or Component Master record changed; refresh and select it again."] }; return current; }
+      if (bomIssueOperationId && !current.operations.some(op => op.id === bomIssueOperationId && op.poId === po.id && op.poLineId === line.id && !op.deletedAt)) { result = { posted: 0, shortage: ["The selected process operation is no longer active on this PO component line. No material was issued."] }; return current; }
       const eligibleBom = current.bomLines.filter(row => row.componentId === component.id && !row.deletedAt && (!row.revision || row.revision === component.revision));
       const totals = new Map<string, { required: number; bomLineIds: string[] }>();
       for (const bom of eligibleBom) {
@@ -204,8 +211,14 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const postTransaction = () => {
     if (!itemId || !selectedItem) { onNotice("Select the material or component that physically moved."); return; }
     const q = Number(quantity);
-    if (!Number.isFinite(q) || q <= 0) { onNotice("Enter a positive quantity for the stock movement."); return; }
+    if (!Number.isFinite(q) || q <= 0) { onNotice("Enter a positive finite quantity for the stock movement."); return; }
     if (!occurredAt) { onNotice("Enter the date of the physical stock movement."); return; }
+    if (!reference.trim()) { onNotice("Enter a source reference, challan, issue slip, adjustment note or other movement reference."); return; }
+    const requiredDirection = fixedStockDirections[transactionType];
+    if (requiredDirection && direction !== requiredDirection) { onNotice(transactionType + " must be posted as stock " + requiredDirection + "."); return; }
+    if (factoryId && !factories.some(factory => factory.id === factoryId && (!companyId || factory.companyId === companyId))) { onNotice("The selected factory is no longer active under the selected company."); return; }
+    if (vendorId && !vendors.some(vendor => vendor.id === vendorId)) { onNotice("The selected stock vendor is missing or archived."); return; }
+    if (operationId && !operations.some(op => op.id === operationId && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)))) { onNotice("The selected operation does not belong to the chosen PO line or is no longer active."); return; }
     if (selectedPoLine && selectedPoLine.line.componentId && itemType === "component" && selectedPoLine.line.componentId !== itemId) { onNotice("The selected component stock item does not match the chosen PO line. Choose the matching part number."); return; }
     const currentBalance = stockBalance(itemType, itemId);
     const nextBalance = currentBalance + (direction === "in" ? q : -q);
@@ -277,8 +290,8 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       <section className="surface-panel module-record-form-panel"><div className="panel-heading"><div><h3>Post a stock movement</h3><p>Each posted row is an append-only record; corrections should be posted as a new adjustment/reversal instead of editing history.</p></div><span className="record-state">LEDGER</span></div><div className="module-record-form">
         <label>Item type<select value={itemType} onChange={e=>{setItemType(e.target.value as "material"|"component");setItemId("");}}><option value="material">Raw material</option><option value="component">Component / WIP / finished goods</option></select></label>
         <SearchablePicker id="stock-item" label={itemType==="material"?"Material *":"Component *"} value={itemId} placeholder="Type material/part number…" options={itemOptions} onChange={setItemId}/>
-        <label>Transaction type<select value={transactionType} onChange={e=>setTransactionType(e.target.value as StockTransactionKind)}>{stockKinds.map(k=><option key={k}>{k}</option>)}</select></label>
-        <label>Movement direction<select value={direction} onChange={e=>setDirection(e.target.value as "in"|"out")}><option value="in">Stock in (+)</option><option value="out">Stock out (−)</option></select></label>
+        <label>Transaction type<select value={transactionType} onChange={e=>{const next=e.target.value as StockTransactionKind;setTransactionType(next);const required=fixedStockDirections[next];if(required)setDirection(required);}}>{stockKinds.map(k=><option key={k}>{k}</option>)}</select></label>
+        <label>Movement direction<select value={direction} disabled={Boolean(fixedStockDirections[transactionType])} onChange={e=>setDirection(e.target.value as "in"|"out")}><option value="in">Stock in (+)</option><option value="out">Stock out (−)</option></select></label>
         <label>Quantity *<input type="number" min="0.000001" step="0.000001" value={quantity} onChange={e=>setQuantity(e.target.value)} placeholder="Actual moved quantity"/></label>
         <label>Movement date *<input type="date" value={occurredAt} onChange={e=>setOccurredAt(e.target.value)}/></label>
         <SearchablePicker id="stock-company" label="Company" value={companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name}))} onChange={id=>{setCompanyId(id);setFactoryId("");setPoLineKey("");setOperationId("");}}/>
