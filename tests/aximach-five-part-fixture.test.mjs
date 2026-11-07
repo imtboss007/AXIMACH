@@ -195,7 +195,8 @@ test("all 18 module shortcuts are mounted on the rotating 3D sphere and the live
   assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the sphere");
   assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
-  assert.ok(orb.includes('style={{ rotateX, rotateY, transformPerspective: 950, transformStyle: "preserve-3d" }}'));
+  assert.ok(orb.includes('style={{ rotateX, rotateY, transformPerspective: 950, transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}'));
+  assert.ok(orb.includes('animate={reducedMotion || reduceMotion || paused ? undefined : { y: [0, -5, 0] }}'));
   assert.ok(orb.includes('transform: "translate3d(" + x + "px," + y + "px," + z + "px)'));
   assert.ok(orb.includes("Math.sqrt(Math.max(0.08, 1 - radialX * radialX - radialY * radialY))"));
   assert.ok(orb.includes('{ count: 4, radial: 0.40'));
