@@ -49,6 +49,33 @@ test("Process Plan enforces whole-number operation and production quantities", (
   assert.ok(workspace.includes("draft.accepted + draft.rejected > draft.completed"));
 });
 
+test("Process Plan bulk update validates dates and vendor capabilities, and synchronizes completion", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const scheduleConflict = selected.find(op =>"));
+  assert.ok(workspace.includes("definition?.vendorIds?.length && !definition.vendorIds.includes(bulkVendorId)"));
+  assert.ok(workspace.includes('bulkStatus === "Complete" ? { completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp }'));
+  assert.ok(workspace.includes('jobStatus: "In progress" as const, jobFinishedAt: undefined'));
+});
+test("Process Plan rejects archived vendors, reversed actual dates and incomplete Complete status", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("draft.vendorId && !vendors.some(vendor => vendor.id === draft.vendorId)"));
+  assert.ok(workspace.includes("draft.actualEnd < draft.actualStart"));
+  assert.ok(workspace.includes('draft.status === "Complete" && draft.completed !== draft.quantity'));
+});
+test("Quality Inspection limits the measurement selector to search-visible operations and validates nominal tolerance", () => {
+  const workspace = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("{filtered.map(op=><option key={op.id} value={op.id}>"));
+  assert.ok(workspace.includes("nominal<lower"));
+  assert.ok(workspace.includes("nominal>upper"));
+  assert.ok(workspace.includes('key==="status"&&value==="Complete"&&currentOperation.completed!==currentOperation.quantity'));
+});
+test("Production Plan hides inactive transport routes and Transport Directory rejects archived vendors", () => {
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const transport = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(operations.includes("route.vendorId===draft.vendorId&&route.active!==false"));
+  assert.ok(transport.includes("!vendors.some(vendor => vendor.id === vendorId)"));
+});
+
 test("Quality measurement save uses only the currently filtered selected operation", () => {
   const workspace = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("const operation=selectedMeasurementOperation;"));
