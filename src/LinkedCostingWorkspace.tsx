@@ -57,7 +57,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const includedTransportLegs=(data.transportLegs||[]).filter(leg=>!leg.deletedAt&&leg.poId===po.id&&leg.poLineId===line.id&&leg.componentId===line.componentId&&(!leg.anchorOperationId||linkedOperations.find(op=>op.id===leg.anchorOperationId)?.costIncluded!==false));
     // A legacy operation transport entry and a new transport leg can represent the same saved route.
     // Exclude the legacy amount only when route ID, anchor operation and total snapshot amount match exactly.
-    const isDuplicateLegacyTransport=(op:typeof costedLinkedOperations[number])=>includedTransportLegs.some(leg=>leg.anchorOperationId===op.id&&Boolean(op.transportRouteId)&&leg.routeId===op.transportRouteId&&Math.abs(Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0)-Math.max(0,Number(op.transportCost)||0))<0.01;
+    const isDuplicateLegacyTransport=(op:typeof costedLinkedOperations[number])=>includedTransportLegs.some(leg=>leg.anchorOperationId===op.id&&Boolean(op.transportRouteId)&&leg.routeId===op.transportRouteId&&Math.abs((Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0))-Math.max(0,Number(op.transportCost)||0))<0.01);
     const legacyTransport=costedLinkedOperations.reduce((sum,op)=>sum+(isDuplicateLegacyTransport(op)?0:Math.max(0,Number(op.transportCost)||0)),0);
     const routeTransport=includedTransportLegs.reduce((sum,leg)=>sum+Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0),0);
     const transportCost=legacyTransport+routeTransport;
