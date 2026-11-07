@@ -1380,3 +1380,12 @@
 .dashboard-welcome-orb .ax-orb-drag-zone{height:320px}
 @media(max-width:860px){.dashboard-welcome-orb{width:100%;min-width:0;flex-basis:100%;margin:0}.dashboard-welcome-orb .ax-orb-stage{min-height:325px}}
 @media(max-width:620px){.dashboard-welcome-orb{display:block;width:100%;margin:0}.dashboard-welcome-orb .ax-orb-stage{min-height:270px}.dashboard-welcome-orb .ax-orb-drag-zone{height:250px}.ax-orb-lower-shell{bottom:7px;width:225px}.ax-orb-lower-node{min-width:76px;padding:4px 5px}.ax-orb-module-shell .ax-orb-satellite>span{width:28px;height:28px}.ax-orb-module-shell .ax-orb-satellite small{font-size:6px}}
+
+
+.mechanical-icon-inventory{margin-top:18px}
+.mechanical-icon-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.mechanical-icon-card{display:flex;align-items:center;gap:12px;min-width:0;padding:10px;border:1px solid var(--line,#dbe4f0);border-radius:9px;background:var(--surface,#fff)}
+.mechanical-icon-card>.ax-mechanical-tool-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border:1px solid rgba(75,131,190,.22);border-radius:10px;background:rgba(72,135,201,.07);color:#2c6da9}
+.mechanical-icon-card>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.mechanical-icon-card strong{font-size:11px;color:var(--text,#29415f)}
+.mechanical-icon-card small{font-size:9px;line-height:1.45;color:var(--muted,#7588a0)}
