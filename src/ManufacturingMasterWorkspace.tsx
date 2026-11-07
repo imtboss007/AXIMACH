@@ -63,7 +63,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
       setOpenedPoId("");
     }
     if (moduleId === "purchasing" && navigationContext?.poId) setOpenedPoId(navigationContext.poId);
-  }, [moduleId, navigationContext?.companyId, navigationContext?.poId]);\n  useEffect(() => {\n    if (moduleId === "purchasing" && navigationContext?.companyId) {\n      setPoCompanyFilters([navigationContext.companyId]);\n      setSearch("");\n      setOpenedPoId("");\n    }\n    if (moduleId === "purchasing" && navigationContext?.poId) setOpenedPoId(navigationContext.poId);\n  }, [moduleId, navigationContext?.companyId, navigationContext?.poId]);
+  }, [moduleId, navigationContext?.companyId, navigationContext?.poId]);
   const openedOrder = orders.find(order => order.id === openedPoId);
   useEffect(() => {
     if (openedPoId) document.getElementById("po-open-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
