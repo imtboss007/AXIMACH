@@ -172,7 +172,7 @@ test("additional planned-cost process rows cascade by category and stable defini
 
 test("dashboard command globe exposes 18 unique, distinguishable module shortcuts", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  const satelliteBlock = orb.match(/const satellites = \[([\\s\\S]*?)\\n\\];/);
+  const satelliteBlock = orb.match(/const satellites = \[([\s\S]*?)\n\];/);
   assert.ok(satelliteBlock, "command globe satellite registry exists");
   const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
