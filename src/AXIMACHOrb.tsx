@@ -117,7 +117,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 85, damping: 18, delay: 0.12 }}
       >
-        <div className="ax-orb-depth">
+        <motion.div className="ax-orb-depth" style={{transformStyle:"preserve-3d",transformPerspective:950}} animate={reducedMotion || reduceMotion || paused ? undefined : {rotateY:360}} transition={{duration:speed==="Fast"?32:speed==="Slow"?90:58,repeat:Infinity,ease:"linear"}}>
           <motion.div
             className="ax-orb-ring ax-orb-ring-one"
             style={{ opacity: orbitIntensity }}
@@ -180,7 +180,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             </motion.button>;
           })}
           </motion.div>
-        </div>
+        </motion.div>
       </motion.div>
       <div className="ax-orb-lower-shell" aria-label="Live record summary shell">
         <motion.div className="ax-orb-lower-rotator" animate={reducedMotion || reduceMotion || paused ? undefined : { rotateY: 360 }} transition={{ duration: speed === "Fast" ? 24 : speed === "Slow" ? 60 : 38, repeat: Infinity, ease: "linear" }}>
