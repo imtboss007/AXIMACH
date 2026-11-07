@@ -5,7 +5,7 @@ type ToolGlyph =
   | "boring-bar" | "counterbore" | "countersink" | "end-mill" | "face-mill"
   | "ball-mill" | "slot-mill" | "chamfer" | "turning-insert" | "grooving"
   | "threading-insert" | "parting" | "knurl" | "broach" | "hob" | "saw"
-  | "grinding-wheel" | "honing" | "lapping" | "welding-torch" | "laser-head"
+  | "grinding-wheel" | "honing" | "lapping" | "welding-torch" | "laser-head" | "component-block"
   | "edm-wire" | "press-tool" | "inspection";
 
 const rules: Array<[RegExp, ToolGlyph]> = [
@@ -79,6 +79,7 @@ function GlyphShape({ glyph }: { glyph: ToolGlyph }): ReactNode {
     case "edm-wire": return <><path {...common} d="M7 2v5M17 2v5M7 7h10M7 7v10M17 7v10M7 17h10M12 17v5M9 11l6 2" /></>;
     case "press-tool": return <><path {...common} d="M4 3h16v5H4zM10 8h4v6h-4zM3 18h18M6 14h12v4H6zM12 1v2" /></>;
     case "inspection": return <><circle {...common} cx="10" cy="10" r="6"/><path {...common} d="M14.5 14.5L21 21M10 7v6M7 10h6" /></>;
+    case "component-block": return <><path {...common} d="M4 7l8-4 8 4v10l-8 4-8-4zM4 7l8 4 8-4M12 11v10M8 5l8 4" /></>;
   }
 }
 
@@ -100,7 +101,7 @@ const componentRules: Array<[RegExp, ToolGlyph]> = [
 export function mechanicalGlyphForComponentName(componentName: string): ToolGlyph | null {
   const value = componentName.toLowerCase().replace(/[_-]+/g, " ");
   return componentRules.find(([pattern]) => pattern.test(value))?.[1]
-    || mechanicalGlyphForOperation(value);
+    || mechanicalGlyphForOperation(value) || "component-block";
 }
 
 export function MechanicalComponentIcon({ componentName, className = "" }: { componentName: string; className?: string }) {
