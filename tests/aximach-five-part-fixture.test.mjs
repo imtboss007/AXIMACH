@@ -41,6 +41,12 @@ test("fixture includes Ultra Precision, Precision and Standard classifications",
   assert.ok(classes.has("Standard"));
 });
 
+test("Process Directory prevents duplicate process type within the same category", () => {
+  const workspace = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("row.id!==editingId&&row.category.trim().toLowerCase()===category.trim().toLowerCase()&&row.processType.trim().toLowerCase()===processType.trim().toLowerCase()"));
+  assert.ok(workspace.includes("This process type already exists in the selected category"));
+});
+
 test("additional planned-cost process rows cascade by category and stable definition ID", () => {
   const workspace = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
   assert.match(workspace, /processDefinitionId:\s*next\?\.id/);
