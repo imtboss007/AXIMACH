@@ -175,9 +175,9 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             // nodes therefore travel around the surface instead of floating in
             // a fixed 2D ellipse.
             const rings = [
-              { count: 4, radial: 0.30, phase: -Math.PI / 4 },
-              { count: 6, radial: 0.60, phase: -Math.PI / 2 },
-              { count: 8, radial: 0.88, phase: -Math.PI / 8 }
+              { count: 4, radial: 0.40, phase: -Math.PI / 4 },
+              { count: 6, radial: 0.65, phase: -Math.PI / 2 },
+              { count: 8, radial: 0.90, phase: -Math.PI / 8 }
             ];
             let ringStart = 0;
             let ring = rings[0];
