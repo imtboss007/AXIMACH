@@ -675,7 +675,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
         processDefinitionId: selectedProcessDefinition?.id || undefined,
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
-        ...draft, paidAmount: nextPaidTotal, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
+        ...draft, actualEnd: draft.status === "Complete" ? (draft.actualEnd || stamp.slice(0,10)) : draft.actualEnd, paidAmount: nextPaidTotal, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
         parentId: draft.parentId || old?.parentId || (draft.branch !== "Main route" ? activeOperation?.id || "" : ""), relationType: draft.relationType || old?.relationType
       };
