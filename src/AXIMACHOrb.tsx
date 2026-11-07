@@ -166,7 +166,9 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
 
         <motion.div
           className="ax-orb-module-shell"
-          style={{ rotateX, rotateY, transformPerspective: 950, transformStyle: "preserve-3d" }}
+          style={{ rotateX, rotateY, transformPerspective: 950, transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}
+          animate={reducedMotion || reduceMotion || paused ? undefined : { y: [0, -5, 0] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
           aria-label="18 clickable AXIMACH modules"
         >
           {satellites.map(({ id, label, Icon }, index) => {
