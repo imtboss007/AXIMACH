@@ -229,3 +229,24 @@ test("AXIMACH globe uses a WebGL fragment shader to render a shaded spherical su
   assert.ok(sphere.includes("float h = b*b - (dot(ro,ro) - 1.0)"));
   assert.ok(sphere.includes("gl.drawArrays(gl.TRIANGLES, 0, 6)"));
 });
+
+
+test("PC-hosted shared data exposes a protected LAN endpoint and Android permits the configured private-LAN transport", () => {
+  const server = readFileSync(new URL("../server/index.mjs", import.meta.url), "utf8");
+  const client = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  const electron = readFileSync(new URL("../electron/main.cjs", import.meta.url), "utf8");
+  const capacitor = JSON.parse(readFileSync(new URL("../capacitor.config.json", import.meta.url), "utf8"));
+  const followUp = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.ok(server.includes('server.listen(PORT, "0.0.0.0"'));
+  assert.ok(server.includes('url.pathname === "/api/connection-info"'));
+  assert.ok(server.includes('req.headers["x-aximach-key"]'));
+  assert.ok(server.includes('url.pathname === "/api/manufacturing-data" && req.method === "PUT"'));
+  assert.ok(electron.includes('PORT: "8787"'));
+  assert.ok(electron.includes('AXIMACH_DATA_FILE: path.join(serverDir, "aximach.json")'));
+  assert.equal(capacitor.android.allowMixedContent, true);
+  assert.ok(client.includes('window.localStorage.getItem("aximach.scheduler.url")'));
+  assert.ok(client.includes('window.localStorage.getItem("aximach.scheduler.key")'));
+  assert.ok(client.includes('window.setInterval(() => { void syncOnce(); }, 2500)'));
+  assert.ok(followUp.includes("PC → Android private Wi-Fi connection"));
+  assert.ok(followUp.includes("Use one shared server URL and API key on both devices"));
+});
