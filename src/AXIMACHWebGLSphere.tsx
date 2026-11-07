@@ -55,7 +55,7 @@ void main() {
   lit += vec3(0.10, 0.48, 0.95) * fresnel * 0.8;
   float spec = pow(max(dot(reflect(-lightDir, normal), normalize(ro-hit)), 0.0), 28.0);
   lit += vec3(0.65, 0.84, 1.0) * spec * 0.48;
-  float alpha = smoothstep(0.49, 0.475, radius);
+  float alpha = 1.0 - smoothstep(0.475, 0.49, radius);
   gl_FragColor = vec4(lit, alpha);
 }`;
 
@@ -91,6 +91,8 @@ export default function AXIMACHWebGLSphere({ paused = false, reduceMotion = fals
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return;
     gl.useProgram(program);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
