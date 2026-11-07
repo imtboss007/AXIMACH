@@ -5,12 +5,13 @@ import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 
-type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
+type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string };
+type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void };
 type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; unitPrice: number; componentId: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const stamp = () => new Date().toISOString().slice(0,10);
 
-export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSelectModule }: Props) {
+export default function LinkedCostingWorkspace({ initialContext, onBack, onNotice, notice, onSelectModule }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const companies = activeRows(data.companies);
   const components = activeRows(data.components);
@@ -152,8 +153,20 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   })));
 
   useEffect(() => {
-    if (!companyOrders.some(po => po.id === poId)) { setPoId(companyOrders[0]?.id || ""); setLineKey(""); setOperationId(""); }
-  }, [companyOrders, poId]);
+    if (initialContext?.companyId && companies.some(company => company.id === initialContext.companyId)) {
+      setCompanyId(initialContext.companyId);
+    }
+    if (initialContext?.poId && orders.some(po => po.id === initialContext.poId)) {
+      const targetPO = orders.find(po => po.id === initialContext.poId)!;
+      setCompanyId(targetPO.companyId);
+      setPoId(targetPO.id);
+    } else if (!companyOrders.some(po => po.id === poId)) {
+      setPoId(companyOrders[0]?.id || "");
+      setLineKey("");
+      setOperationId("");
+    }
+  }, [initialContext?.companyId, initialContext?.poId, companies, orders, companyOrders, poId]);
+
   const selectedPO = companyOrders.find(po => po.id === poId);
   const componentLines: ComponentLineRef[] = useMemo(() => (selectedPO?.lines || []).filter(line => !("deletedAt" in line && (line as any).deletedAt)).map(line => ({
     key: selectedPO!.id + "::" + line.id, poId: selectedPO!.id, poNumber: selectedPO!.number, lineId: line.id, quantity: line.quantity,
@@ -167,6 +180,12 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const nextLine = currentLine || preferredLine;
     if ((nextLine?.key || "") !== lineKey) setLineKey(nextLine?.key || "");
   }, [componentLines, lineKey, preferredLine?.key]);
+  useEffect(() => {
+    if (!initialContext?.poLineId && !initialContext?.componentId) return;
+    const targetLine = componentLines.find(line => line.lineId === initialContext.poLineId)
+      || componentLines.find(line => line.componentId === initialContext.componentId);
+    if (targetLine && targetLine.key !== lineKey) setLineKey(targetLine.key);
+  }, [initialContext?.poLineId, initialContext?.componentId, componentLines, lineKey]);
   const selectedLine = componentLines.find(line => line.key === lineKey) || preferredLine;
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
   const routeOperations = operations.filter(op => op.componentId === selectedComponent?.id && (!selectedLine || (op.poId === selectedLine.poId && op.poLineId === selectedLine.lineId)));
