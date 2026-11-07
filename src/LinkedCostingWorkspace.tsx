@@ -7,7 +7,7 @@ import { ComponentIcon, ProcessIcon } from "./IconStudio";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void };
-type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; unitPrice: number; componentId: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
+type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; componentId: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const stamp = () => new Date().toISOString().slice(0,10);
 
@@ -171,7 +171,7 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   const selectedPO = companyOrders.find(po => po.id === poId);
   const componentLines: ComponentLineRef[] = useMemo(() => (selectedPO?.lines || []).filter(line => !("deletedAt" in line && (line as any).deletedAt)).map(line => ({
     key: selectedPO!.id + "::" + line.id, poId: selectedPO!.id, poNumber: selectedPO!.number, lineId: line.id, quantity: line.quantity,
-    targetDelivery: line.targetDelivery || selectedPO!.targetDelivery, unitPrice: line.unitPrice, componentId: line.componentId, materialQty: line.materialQty,
+    targetDelivery: line.targetDelivery || selectedPO!.targetDelivery, componentId: line.componentId, materialQty: line.materialQty,
     materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost,
     reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
   })), [selectedPO]);
@@ -245,7 +245,7 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   const operationActual = actualProcessTotal;
   const extraCharges = overhead + toolingCost + reworkCost + scrapCost;
   const actualExtraCharges = (selectedLine?.overhead??0)+(selectedLine?.toolingCost??0)+(selectedLine?.reworkCost??0)+(selectedLine?.scrapCost??0);
-  const sellingRate = selectedComponent?.salePrice ?? selectedLine?.unitPrice ?? 0;
+  const sellingRate = selectedComponent?.salePrice ?? 0;
   const revenue = (selectedLine?.quantity || 0) * sellingRate;
   const gstEstimate = revenue * gstRate / 100;
   const finalOperation = routeOperations[routeOperations.length - 1];
@@ -329,19 +329,21 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
     if (!selectedComponent) return;
     const amount = Math.max(0, value);
     const updatedAt = nowIso();
+    if (key === "salePrice") {
+      update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, salePrice: amount, updatedAt } : component) }));
+      return;
+    }
     if (selectedLine) {
-      const lineKeyName = key === "salePrice" ? "unitPrice" : key;
       update(current => ({
         ...current,
         purchaseOrders: current.purchaseOrders.map(po => po.id !== selectedLine.poId ? po : {
           ...po, updatedAt,
-          lines: po.lines.map(line => line.id === selectedLine.lineId ? { ...line, [lineKeyName]: amount } : line)
+          lines: po.lines.map(line => line.id === selectedLine.lineId ? { ...line, [key]: amount } : line)
         })
       }));
       return;
     }
-    const componentKey = key === "salePrice" ? "salePrice" : key;
-    update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, [componentKey]: amount, updatedAt } : component) }));
+    update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, [key]: amount, updatedAt } : component }));
   };
 
   return <section className="workspace-page linked-costing-page">
