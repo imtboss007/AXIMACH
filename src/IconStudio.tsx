@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { tablerIconCatalogue } from "./tablerIconCatalogue";
-import { MechanicalOperationIcon, mechanicalGlyphForOperation } from "./MechanicalOperationIcon";
+import { MechanicalComponentIcon, MechanicalOperationIcon, mechanicalGlyphForOperation } from "./MechanicalOperationIcon";
+import { activeRows, useManufacturingData } from "./manufacturingData";
+import SearchablePicker from "./SearchablePicker";
 
 type IconMeta = { name: string; category?: string; tags?: string[]; version?: string; unicode?: string; variant: "outline" | "filled" };
-type IconAssignment = { iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string };
+type IconAssignment = { iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string; customAsset?: string; revision?: number; history?: Array<{ iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string; customAsset?: string; revision?: number }> };
 type Assignments = Record<string, IconAssignment>;
 
 const ICONS: IconMeta[] = tablerIconCatalogue.map((item) => ({ name: item.name, category: item.variant, tags: item.name.split("-"), variant: item.variant }));
@@ -146,9 +148,8 @@ function iconSearchText(item: IconMeta) {
 
 function iconClass(name: string, variant: "outline" | "filled" = "outline") { return `ti ti-${name}${variant === "filled" ? " ti-filled" : ""}`; }
 
-export function ProcessIcon({ processName, fallback }: { processName: string; fallback: ReactNode }) {
+function useIconAssignments() {
   const [assignments, setAssignments] = useState<Assignments>(() => readAssignments());
-  const family = processFamilyForName(processName);
   useEffect(() => {
     const refresh = () => setAssignments(readAssignments());
     window.addEventListener("storage", refresh);
@@ -158,17 +159,45 @@ export function ProcessIcon({ processName, fallback }: { processName: string; fa
       window.removeEventListener("aximach-icon-assignments-updated", refresh);
     };
   }, []);
-  const assignment = assignments[`process:${normaliseWords(processName)}`] || assignments[family];
-  if (!assignment) return <span className="linked-node-icon linked-node-icon-3d">{mechanicalGlyphForOperation(processName) ? <MechanicalOperationIcon operation={processName} /> : <span className="linked-node-icon-fallback">{fallback}</span>}</span>;
+  return assignments;
+}
+
+function assignedIcon(assignment: IconAssignment, title: string, className: string) {
   const palette = palettes.find((item) => item.name === assignment.palette) || palettes[0];
-  return (
-    <span className={`linked-node-icon linked-node-icon-3d ax-process-icon ax-icon-finish-${normaliseWords(assignment.finish).replaceAll(" ", "-")}`} style={{ "--ax-icon-accent": palette.color, "--ax-icon-depth": assignment.depth, "--ax-icon-tilt": assignment.tilt + "deg" } as CSSProperties} title={`Saved ${family} icon: ${assignment.iconName}`}>
-      <i className={iconClass(assignment.iconName, assignment.iconVariant)} aria-hidden="true" />
-    </span>
+  return <span className={className + " ax-icon-finish-" + normaliseWords(assignment.finish).replaceAll(" ", "-")} style={{ "--ax-icon-accent": palette.color, "--ax-icon-depth": assignment.depth, "--ax-icon-tilt": assignment.tilt + "deg" } as CSSProperties} title={title}>
+    {assignment.customAsset ? <img className="ax-icon-custom-asset" src={assignment.customAsset} alt="" /> : <i className={iconClass(assignment.iconName, assignment.iconVariant)} aria-hidden="true" />}
+  </span>;
+}
+
+export function ProcessIcon({ processName, fallback, processId, category }: { processName: string; fallback: ReactNode; processId?: string; category?: string }) {
+  const { data } = useManufacturingData();
+  const assignments = useIconAssignments();
+  const family = processFamilyForName(processName);
+  const definition = activeRows(data.processDefinitions).find(row =>
+    (!category || normaliseWords(row.category) === normaliseWords(category)) &&
+    normaliseWords(row.processType) === normaliseWords(processName)
   );
+  const stableId = processId || definition?.id;
+  const assignment = (stableId ? assignments["process:" + stableId] : undefined)
+    || assignments["process:" + normaliseWords(processName)] || assignments[family];
+  if (!assignment) return <span className="linked-node-icon linked-node-icon-3d">{mechanicalGlyphForOperation(processName) ? <MechanicalOperationIcon operation={processName} /> : <span className="linked-node-icon-fallback">{fallback}</span>}</span>;
+  return assignedIcon(assignment, "Saved process identity: " + processName, "linked-node-icon linked-node-icon-3d ax-process-icon");
+}
+
+export function ComponentIcon({ componentId, componentName, className = "" }: { componentId?: string; componentName: string; className?: string }) {
+  const assignments = useIconAssignments();
+  const assignment = componentId ? assignments["component:" + componentId] : undefined;
+  if (!assignment) return <MechanicalComponentIcon componentName={componentName} className={className} />;
+  return assignedIcon(assignment, "Saved component identity: " + componentName, "ax-component-icon linked-node-icon-3d " + className);
 }
 
 export default function IconStudio({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { data } = useManufacturingData();
+  const processDefinitions = activeRows(data.processDefinitions);
+  const components = activeRows(data.components);
+  const [targetType, setTargetType] = useState<"process" | "component" | "family" | "exact">("process");
+  const [targetRecordId, setTargetRecordId] = useState("");
+  const [customAsset, setCustomAsset] = useState("");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"all" | "favourites" | "assigned">("all");
   const [family, setFamily] = useState("CNC Turning");
@@ -253,8 +282,18 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const activePalette = palettes.find((item) => item.name === paletteName) || palettes[0];
   const variantStyle = { "--ax-icon-accent": activePalette.color, "--ax-icon-depth": depth, "--ax-icon-tilt": tilt + "deg" } as CSSProperties;
   const variantClass = `ax-icon-finish-${normaliseWords(finish).replaceAll(" ", "-")}`;
-  const specificKey = specificProcess.trim() ? `process:${normaliseWords(specificProcess)}` : "";
-  const assignmentKey = specificKey || family;
+  const targetOptions = targetType === "component"
+    ? components.map(item => ({ id: item.id, label: item.partNumber + " · " + item.name }))
+    : processDefinitions.map(item => ({ id: item.id, label: item.category + " · " + item.processType + (item.subcategories.length ? " · " + item.subcategories.slice(0, 3).join(", ") : "") }));
+  const selectedTarget = targetType === "component" ? components.find(item => item.id === targetRecordId) : processDefinitions.find(item => item.id === targetRecordId);
+  const selectedTargetLabel = targetType === "component" && selectedTarget && "partNumber" in selectedTarget
+    ? selectedTarget.partNumber + " · " + selectedTarget.name
+    : selectedTarget && "processType" in selectedTarget ? selectedTarget.category + " · " + selectedTarget.processType : "";
+  const specificKey = specificProcess.trim() ? "process:" + normaliseWords(specificProcess) : "";
+  const assignmentKey = targetType === "component" && targetRecordId ? "component:" + targetRecordId
+    : targetType === "process" && targetRecordId ? "process:" + targetRecordId
+    : targetType === "exact" ? specificKey || "process:" + normaliseWords(specificProcess) : family;
+  useEffect(() => { setCustomAsset(assignments[assignmentKey]?.customAsset || ""); }, [assignmentKey, assignments]);
 
   const toggleFavourite = (name: string) => {
     const next = favourites.includes(name) ? favourites.filter((item) => item !== name) : [...favourites, name];
@@ -267,16 +306,132 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const saveAssignment = () => {
     const selectedMeta = ICONS.find((item) => iconKey(item) === selectedIcon);
     if (!selectedMeta) return;
-    const assignment: IconAssignment = { iconName: selectedMeta.name, iconVariant: selectedMeta.variant, palette: paletteName, finish, depth, tilt, updatedAt: new Date().toISOString() };
+    const stamp = new Date().toISOString();
+    const previous = assignments[assignmentKey];
+    const history = [...(previous?.history || []), ...(previous ? [{ iconName: previous.iconName, iconVariant: previous.iconVariant, palette: previous.palette, finish: previous.finish, depth: previous.depth, tilt: previous.tilt, updatedAt: previous.updatedAt, customAsset: previous.customAsset, revision: previous.revision }] : [])].slice(-12);
+    const assignment: IconAssignment = { iconName: selectedMeta.name, iconVariant: selectedMeta.variant, palette: paletteName, finish, depth, tilt, customAsset: customAsset || undefined, revision: (previous?.revision || 0) + 1, history, updatedAt: stamp };
     const next = { ...assignments, [assignmentKey]: assignment };
     setAssignments(next);
-    const nextPresets = [assignment, ...presets.filter((preset) => preset.iconName !== assignment.iconName || preset.iconVariant !== assignment.iconVariant || preset.palette !== assignment.palette || preset.finish !== assignment.finish)].slice(0, 120);
+    const preset: IconAssignment = { iconName: assignment.iconName, iconVariant: assignment.iconVariant, palette: assignment.palette, finish: assignment.finish, depth: assignment.depth, tilt: assignment.tilt, updatedAt: assignment.updatedAt };
+    const nextPresets = [preset, ...presets.filter((item) => item.iconName !== preset.iconName || item.iconVariant !== preset.iconVariant || item.palette !== preset.palette || item.finish !== preset.finish)].slice(0, 120);
     setPresets(nextPresets);
     const bundle = { assignments: next, favourites, presets: nextPresets, updatedAt: new Date().toISOString() };
     writePreferenceBundle(bundle);
     void persistShared(bundle).then(setSyncStatus);
-    setNotice(`Saved ${selectedMeta.name} (${selectedMeta.variant}) for ${specificKey ? specificProcess.trim() : family}. Matching process nodes now use this 3D icon.`);
+    setNotice("Saved " + selectedMeta.name + " (" + selectedMeta.variant + ") for " + (selectedTargetLabel || (specificKey ? specificProcess.trim() : family)) + ". All views resolve this assignment through the same stable record ID.");
   };
+  const restoreVersion = (version: NonNullable<IconAssignment["history"]>[number]) => {
+    const current = assignments[assignmentKey];
+    if (!current) return;
+    const stamp = new Date().toISOString();
+    const snapshot = { iconName: current.iconName, iconVariant: current.iconVariant, palette: current.palette, finish: current.finish, depth: current.depth, tilt: current.tilt, customAsset: current.customAsset, revision: current.revision, updatedAt: current.updatedAt };
+    const restored: IconAssignment = { ...version, revision: (current.revision || 0) + 1, history: [...(current.history || []), snapshot].slice(-12), updatedAt: stamp };
+    const next = { ...assignments, [assignmentKey]: restored };
+    setAssignments(next);
+    const bundle = { ...readPreferenceBundle(), assignments: next, updatedAt: stamp };
+    writePreferenceBundle(bundle); setPaletteName(restored.palette); setFinish(restored.finish); setDepth(restored.depth); setTilt(restored.tilt); setCustomAsset(restored.customAsset || "");
+    void persistShared(bundle).then(setSyncStatus);
+    setNotice("Restored an earlier icon version for " + (selectedTargetLabel || specificProcess || family) + ".");
+  };
+
+  const handleAssetImport = (file?: File) => {
+    if (!file) return;
+    if (file.type === "image/png") {
+      if (file.size > 1024 * 1024) { setNotice("PNG logo file must be 1 MB or smaller so connected devices can sync it reliably."); return; }
+      const reader = new FileReader();
+      reader.onload = () => { setCustomAsset(String(reader.result || "")); setNotice("PNG loaded into the logo preview. Save & apply to bind it to the selected master record."); };
+      reader.onerror = () => setNotice("Could not read the PNG file.");
+      reader.readAsDataURL(file);
+      return;
+    }
+    if (file.type !== "image/svg+xml" && !file.name.toLowerCase().endsWith(".svg")) {
+      setNotice("Only SVG and PNG logo files are supported.");
+      return;
+    }
+    if (file.size > 256 * 1024) { setNotice("SVG logo file must be 256 KB or smaller."); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = new DOMParser().parseFromString(String(reader.result || ""), "image/svg+xml");
+        if (parsed.querySelector("parsererror") || parsed.documentElement.tagName.toLowerCase() !== "svg") throw new Error("The file is not a valid SVG.");
+        parsed.querySelectorAll("script,style,link,foreignObject,iframe,object,embed").forEach(node => node.remove());
+        parsed.querySelectorAll("*").forEach(node => [...node.attributes].forEach(attribute => {
+          const name = attribute.name.toLowerCase();
+          const value = attribute.value.trim().toLowerCase();
+          const externalLink = (name === "href" || name.endsWith(":href")) && value && !value.startsWith("#") && !value.startsWith("data:image/");
+          if (name.startsWith("on") || name === "src" || externalLink || (name === "style" && value.includes("url("))) node.removeAttribute(attribute.name);
+        }));
+        const safeSvg = new XMLSerializer().serializeToString(parsed.documentElement);
+        setCustomAsset("data:image/svg+xml;charset=utf-8," + encodeURIComponent(safeSvg));
+        setNotice("SVG sanitised and loaded. Save & apply to attach the imported logo to the selected stable ID.");
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "SVG import failed.");
+      }
+    };
+    reader.onerror = () => setNotice("Could not read the SVG file.");
+    reader.readAsText(file);
+  };
+
+  const downloadLogo = (filename: string, blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url; anchor.download = filename; document.body.appendChild(anchor);
+    anchor.click(); anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+  };
+
+  const exportLogo = async (format: "svg" | "png") => {
+    const stem = (selectedTargetLabel || specificProcess || family || "AXIMACH-logo").replace(/[^a-z0-9_-]+/gi, "-");
+    const tile = document.querySelector<HTMLElement>(".ax-icon-preview-tile");
+    if (format === "svg") {
+      let graphic = "";
+      if (customAsset) {
+        const safeData = customAsset.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+        graphic = '<image href="' + safeData + '" x="16" y="16" width="96" height="96" preserveAspectRatio="xMidYMid meet"/>';
+      } else {
+        const glyphNode = tile?.querySelector<HTMLElement>("i");
+        const pseudo = glyphNode ? window.getComputedStyle(glyphNode, "::before") : null;
+        let glyph = pseudo?.content || "";
+        glyph = glyph.replace(/^["']|["']$/g, "").replace(/\\([0-9a-f]{1,6})\s?/gi, (_match, code) => String.fromCodePoint(parseInt(code, 16)));
+        const font = (pseudo?.fontFamily || "tabler-icons").replace(/["&<>]/g, "");
+        const escaped = glyph.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        if (glyph) graphic = '<text x="64" y="86" text-anchor="middle" font-family="' + font + '" font-size="76" fill="' + activePalette.color + '">' + escaped + '</text>';
+      }
+      if (!graphic) { setNotice("The selected icon could not be resolved for SVG export."); return; }
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">' + graphic + '</svg>';
+      downloadLogo(stem + ".svg", new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+      setNotice("SVG logo exported.");
+      return;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = 256; canvas.height = 256;
+    const context = canvas.getContext("2d");
+    if (!context) { setNotice("PNG export is not available in this browser."); return; }
+    if (customAsset) {
+      const image = new Image();
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Imported logo could not be rendered as PNG."));
+        image.src = customAsset;
+      });
+      context.drawImage(image, 24, 24, 208, 208);
+    } else {
+      const glyphNode = tile?.querySelector<HTMLElement>("i");
+      const pseudo = glyphNode ? window.getComputedStyle(glyphNode, "::before") : null;
+      let glyph = pseudo?.content || "";
+      glyph = glyph.replace(/^["']|["']$/g, "").replace(/\\([0-9a-f]{1,6})\s?/gi, (_match, code) => String.fromCodePoint(parseInt(code, 16)));
+      if (!glyph) { setNotice("The selected icon could not be resolved for PNG export."); return; }
+      context.fillStyle = activePalette.color;
+      context.textAlign = "center"; context.textBaseline = "middle";
+      context.font = "156px " + (pseudo?.fontFamily || "tabler-icons");
+      context.fillText(glyph, 128, 128);
+    }
+    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
+    if (!blob) { setNotice("PNG logo export failed."); return; }
+    downloadLogo(stem + ".png", blob);
+    setNotice("PNG logo exported.");
+  };
+
   const removeAssignment = (targetFamily: string) => {
     const next = { ...assignments };
     delete next[targetFamily];
@@ -294,13 +449,13 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
         <motion.div className="ax-icon-studio-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
           <motion.section className="ax-icon-studio" role="dialog" aria-modal="true" aria-labelledby="ax-icon-studio-title" initial={{ opacity: 0, y: 28, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 18, scale: 0.98 }} transition={{ type: "spring", stiffness: 100, damping: 20 }}>
             <header className="ax-icon-studio-header">
-              <div className="ax-icon-studio-brand"><span><Layers3 size={20}/></span><div><div className="eyebrow">AXIMACH / VISUAL SYSTEM</div><h2 id="ax-icon-studio-title">3D Icon Studio</h2><p>Search, customise, assign and save manufacturing process icons.</p></div></div>
+              <div className="ax-icon-studio-brand"><span><Layers3 size={20}/></span><div><div className="eyebrow">AXIMACH / VISUAL SYSTEM</div><h2 id="ax-icon-studio-title">3D Icon Studio</h2><p>Build, import, customise and globally assign process and component logos by permanent master ID.</p></div></div>
               <button className="ax-icon-studio-close" onClick={onClose} aria-label="Close icon studio"><X size={18}/></button>
             </header>
             <div className="ax-icon-studio-stats">
               <div><strong>{ICONS.length.toLocaleString("en-IN")}</strong><span>Tabler glyphs indexed</span></div>
               <div><strong>{(ICONS.length * STYLE_VARIANTS_PER_ICON).toLocaleString("en-IN")}+</strong><span>3D style combinations</span></div>
-              <div><strong>{Object.keys(assignments).length}</strong><span>Process families assigned</span></div>
+              <div><strong>{Object.keys(assignments).length}</strong><span>Logo assignments</span></div>
               <div><strong>{presets.length.toLocaleString("en-IN")}</strong><span>Saved style presets</span></div>
             </div>
             <div className="ax-icon-studio-body">
@@ -328,17 +483,25 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
               <aside className="ax-icon-customiser">
                 <div className="ax-icon-preview-label"><span>LIVE PREVIEW</span><small>DRAG / STYLE / SAVE</small></div>
                 <motion.div className={`ax-icon-preview-tile ${variantClass}`} style={variantStyle} animate={{ rotateX: tilt * -0.45, rotateY: tilt, y: [0, -3, 0] }} transition={{ rotateX: { duration: 0.35 }, rotateY: { duration: 0.35 }, y: { duration: 4, repeat: Infinity, ease: "easeInOut" } }}>
-                  <span className="ax-icon-preview-gloss"/><i className={iconClass(selected?.name || "settings", selected?.variant)} aria-hidden="true"/>
+                  <span className="ax-icon-preview-gloss"/>{customAsset ? <img className="ax-icon-custom-asset" src={customAsset} alt="Imported logo preview"/> : <i className={iconClass(selected?.name || "settings", selected?.variant)} aria-hidden="true"/>}
                 </motion.div>
                 <div className="ax-icon-selected-name"><strong>{selected?.name.replaceAll("-", " ") || selectedIcon}</strong><span>{selected?.category || "Tabler outline glyph"}</span></div>
-                <label className="ax-icon-field">Default process family<select value={family} onChange={(event) => setFamily(event.target.value)}>{families.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={13}/></label>
-                <label className="ax-icon-field">Optional exact operation override<input value={specificProcess} onChange={(event) => setSpecificProcess(event.target.value)} placeholder="e.g. CNC Turning - Shaft OP10"/></label>
+                <label className="ax-icon-field">Logo target<select value={targetType} onChange={event => { setTargetType(event.target.value as typeof targetType); setTargetRecordId(""); setSpecificProcess(""); }}><option value="process">Process Directory record</option><option value="component">Component Master record</option><option value="family">Process family default</option><option value="exact">Exact process / operation name</option></select><ChevronDown size={13}/></label>
+                {(targetType === "process" || targetType === "component") && <SearchablePicker id="icon-studio-stable-target" label={targetType === "process" ? "Process definition *" : "Component master *"} value={targetRecordId} placeholder={targetType === "process" ? "Search category, process or subcategory…" : "Search part number or component name…"} options={targetOptions} onChange={setTargetRecordId}/>}
+                {targetType === "family" && <label className="ax-icon-field">Default process family<select value={family} onChange={(event) => setFamily(event.target.value)}>{families.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={13}/></label>}
+                {targetType === "exact" && <label className="ax-icon-field">Exact process / operation<input value={specificProcess} onChange={(event) => setSpecificProcess(event.target.value)} placeholder="e.g. CNC Turning - Shaft OP10"/></label>}
                 <div className="ax-icon-field-label"><span>Surface finish</span><small>{finish}</small></div>
                 <div className="ax-icon-finish-options">{finishes.map((item) => <button key={item} className={finish === item ? "active" : ""} onClick={() => setFinish(item)}>{item}</button>)}</div>
                 <div className="ax-icon-field-label"><span>Material / colour</span><small>{paletteName}</small></div>
                 <div className="ax-icon-palette">{palettes.map((item) => <button key={item.name} title={item.name} aria-label={item.name} className={paletteName === item.name ? "active" : ""} style={{ background: item.color }} onClick={() => setPaletteName(item.name)}/>)}</div>
                 <label className="ax-icon-slider"><span>Bevel depth <b>{depth}/4</b></span><input type="range" min="1" max="4" step="1" value={depth} onChange={(event) => setDepth(Number(event.target.value))}/></label>
                 <label className="ax-icon-slider"><span>3D tilt <b>{tilt}°</b></span><input type="range" min="-18" max="18" step="9" value={tilt} onChange={(event) => setTilt(Number(event.target.value))}/></label>
+                <div className="ax-icon-field-label"><span>Custom logo file</span><small>SVG / PNG import and export</small></div>
+                <label className="ax-icon-import-control">Import SVG or PNG<input type="file" accept="image/svg+xml,image/png,.svg,.png" onChange={event => { handleAssetImport(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>
+                <div className="ax-icon-export-actions"><button type="button" onClick={() => void exportLogo("svg")}>Export SVG</button><button type="button" onClick={() => void exportLogo("png")}>Export PNG</button></div>
+                <div className="ax-icon-field-label"><span>Custom logo file</span><small>SVG / PNG import and export</small></div>
+                <label className="ax-icon-import-control">Import SVG or PNG<input type="file" accept="image/svg+xml,image/png,.svg,.png" onChange={event => { handleAssetImport(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>
+                <div className="ax-icon-export-actions"><button type="button" onClick={() => void exportLogo("svg")}>Export SVG</button><button type="button" onClick={() => void exportLogo("png")}>Export PNG</button></div>
                 <div className="ax-icon-field-label"><span>Saved style presets</span><small>{presets.length} saved</small></div>
                 <div className="ax-icon-presets-list">
                   {presets.slice(0, 6).map((preset, index) => (
@@ -350,7 +513,8 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                   ))}
                   {!presets.length && <span className="ax-icon-presets-empty">Save a process icon to create your first reusable style.</span>}
                 </div>
-                <button className="ax-icon-save" onClick={saveAssignment}><Sparkles size={16}/> Save & apply to {specificProcess.trim() || family}</button>
+                <div className="ax-icon-version-history"><div className="ax-icon-field-label"><span>Version history</span><small>{assignments[assignmentKey]?.revision ? "v" + assignments[assignmentKey].revision : "Not assigned"}</small></div>{(assignments[assignmentKey]?.history || []).slice().reverse().slice(0, 5).map((version, index) => <button type="button" key={version.updatedAt + ":" + index} onClick={() => restoreVersion(version)}>v{version.revision || "—"} · {version.iconName.replaceAll("-", " ")} <small>{new Date(version.updatedAt).toLocaleString("en-IN")}</small></button>)}</div>
+                <button className="ax-icon-save" onClick={saveAssignment} disabled={((targetType === "process" || targetType === "component") && !targetRecordId) || (targetType === "exact" && !specificProcess.trim())}><Sparkles size={16}/> Save & apply to {selectedTargetLabel || (targetType === "exact" ? specificProcess.trim() : family)}</button>
                 {assignments[assignmentKey] && <button className="ax-icon-reset" onClick={() => removeAssignment(assignmentKey)}>Restore AXIMACH default icon</button>}
                 {notice && <div className="ax-icon-notice"><Check size={13}/>{notice}</div>}
               </aside>

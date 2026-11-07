@@ -9,6 +9,7 @@ import {
   Wallet, Workflow, Wrench, X, Zap
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { ProcessIcon } from "./IconStudio";
 import FollowUpAssignmentsLauncher from "./FollowUpAssignments";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import SearchablePicker from "./SearchablePicker";
@@ -77,15 +78,39 @@ const modules: ModuleItem[] = [
   { id: "communications", title: "Follow-up Centre", group: "Connections", description: "Contact follow-ups, reminders, WhatsApp-related communication and history.", icon: MessageCircle, action: "Open follow-up centre" },
   { id: "reports", title: "Reports & Analytics", group: "Insights", description: "PO, component, process, vendor, production, delivery and financial reporting.", icon: BarChart3, action: "Open reports and analytics" },
   { id: "ai-insights", title: "AI Insights", group: "Insights", description: "Evidence-based insights from saved AXIMACH operational and financial data.", icon: Sparkles, action: "Open AI insights" },
-  { id: "export", title: "Export Centre", group: "Data", description: "Export full modules or individual component and process records to PDF or Excel.", icon: FileDown, action: "Open export centre" },
-  { id: "import", title: "Import Centre", group: "Data", description: "Import PDF or Excel records with validation and duplicate review.", icon: FileUp, action: "Open import centre" }
+  { id: "export", title: "Data Exchange Centre", group: "Data", description: "Import and export records, validate files, review duplicates and create full backups.", icon: FileDown, action: "Open data exchange centre" }
 ];
 
 const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) => item.group)))];
 
+function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNotice:(value:string)=>void;notice:string}) {
+  const [mode,setMode] = useState<"export"|"import">("export");
+  return (
+    <section className="workspace-page">
+      <div className="workspace-topline">
+        <button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button>
+        <span className="demo-pill"><i/> DATA EXCHANGE</span>
+      </div>
+      <div className="workspace-title-row">
+        <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA / IMPORT &amp; EXPORT</div><h1>Data Exchange Centre<span>.</span></h1><p>One workspace for validated imports, module exports and full AXIMACH backups.</p></div>
+      </div>
+      <div className="linked-route-actions" role="tablist" aria-label="Data exchange mode">
+        <button type="button" role="tab" aria-selected={mode==="export"} className={(mode==="export"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("export")}><FileDown size={14}/> Export records</button>
+        <button type="button" role="tab" aria-selected={mode==="import"} className={(mode==="import"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("import")}><FileUp size={14}/> Import and validate</button>
+      </div>
+      {mode==="export"
+        ? <ExportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={()=>{}} />
+        : <ImportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={()=>{}} />}
+    </section>
+  );
+}
+
+type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
+
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
+  const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>({});
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -140,7 +165,8 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const selectModule = (id: string) => {
+  const selectModule = (id: string, context: LinkedNavigationContext = {}) => {
+    setModuleContext(context);
     setActiveModuleId(id);
     setModuleExplorerOpen(false);
     setCommandOpen(false);
@@ -193,7 +219,8 @@ function App() {
         <button className="command-search" onClick={() => { setCommandOpen(true); setModuleExplorerOpen(false); }} aria-label="Open command search">
           <Search size={17} /><span>Search modules, jobs, vendors…</span><kbd>⌘ K</kbd>
         </button>
-        <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>18</b></button>
+        <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>{modules.length}</b></button>
+        <button className="deck-action" onClick={() => setIconStudioOpen(true)}><Sparkles size={16}/><span>Logo Studio</span></button>
         <label className="appearance-picker" title="Appearance"><Settings2 size={15}/><select aria-label="Appearance" value={appearance} onChange={e=>setAppearance(e.target.value as "light"|"dark"|"midnight"|"ocean")}><option value="light">Light</option><option value="dark">Dark</option><option value="midnight">Midnight</option><option value="ocean">Ocean</option></select></label>
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
@@ -223,13 +250,13 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={() => setIconStudioOpen(true)} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
+          <LinkedProcessWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={() => setIconStudioOpen(true)} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
-          <ManufacturingMasterWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <ManufacturingMasterWorkspace navigationContext={moduleContext} moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
           <InventoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
-          <LinkedCostingWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <LinkedCostingWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" || activeModuleId === "planned-cost" ? (
           <SpecializedDirectoryWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "transport-master" ? (
@@ -239,21 +266,19 @@ function App() {
         ) : activeModuleId === "ai-insights" ? (
           <AIInsightsWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "export" ? (
-          <ExportCentreWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
-        ) : activeModuleId === "import" ? (
-          <ImportCentreWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <DataExchangeWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "production" ? (
           <ProductionPlanWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "dispatch" ? (
           <TransportDispatchWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "quality" ? (
-          <QualityInspectionWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <QualityInspectionWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "contact360" ? (
           <Contact360Workspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} initialVendorId={contactVendorSeed} onInitialVendorConsumed={()=>setContactVendorSeed("")} />
         ) : activeModuleId === "vendor-capability" ? (
           <VendorNetworkWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
-          <VendorWorkspace initialSearch={vendorSearchJump} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onScheduleVendor={openVendorFollowUp} onAddContactForVendor={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
+          <VendorWorkspace initialSearch={vendorSearchJump} initialVendorId={moduleContext.vendorId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onScheduleVendor={openVendorFollowUp} onAddContactForVendor={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
         ) : activeModuleId === "communications" ? (
           <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} initialRecipient={followUpSeed} />
         ) : (
@@ -437,12 +462,12 @@ const emptyVendorDraft = (): VendorDraft => ({
   processes:"",machines:"",materials:"",notes:"",status:"Unverified contact — review",vendorType:"",transportRoutes:[],additionalPhones:[],
   sourceContactId:"",whatsappSyncedAt:""
 });
-function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelectModule, onScheduleVendor, onAddContactForVendor }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; onSelectModule:(id:string)=>void; onScheduleVendor:(vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string})=>void; onAddContactForVendor:(vendorId:string)=>void }) {
+function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", initialVendorId = "", onSelectModule, onScheduleVendor, onAddContactForVendor }: { onBack:()=>void; onNotice:(value:string)=>void; notice:string; initialSearch?:string; initialVendorId?:string; onSelectModule:(id:string,context?:LinkedNavigationContext)=>void; onScheduleVendor:(vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string})=>void; onAddContactForVendor:(vendorId:string)=>void }) {
   const { data, update, syncStatus } = useManufacturingData();
   const contacts = activeRows(data.vendors);
   const linkedPeople = activeRows(data.contactProfiles || []).filter(person => person.linkedType === "vendor");
   const [search,setSearch]=useState(initialSearch);
-  const [selectedId,setSelectedId]=useState("");
+  const [selectedId,setSelectedId]=useState(initialVendorId);
   const [editing,setEditing]=useState(false);
   const [draft,setDraft]=useState<VendorDraft>(emptyVendorDraft());
   const [vendorTypeFilters,setVendorTypeFilters]=useState<string[]>([]);
@@ -510,7 +535,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
     </section>
     <div className="vendor-workspace-grid">
       <section className="surface-panel vendor-list-panel"><div className="panel-heading"><div><h3>Vendor directory</h3><p>Shared master records · imported WhatsApp contacts remain unverified until reviewed</p></div></div>
-        <div className="vendor-record-list">{filtered.map(v=><button key={v.id} className={"vendor-record "+(selected?.id===v.id?"vendor-record-active":"")} onClick={()=>{setSelectedId(v.id);setEditing(false);}}><span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.contact} · {v.whatsappNumber ? "WhatsApp +" + v.whatsappNumber : v.phone ? "Phone +" + v.phone : "Number missing"}</small><small>{v.processes||"Capabilities not recorded"} · {v.status}</small>{linkedPeople.filter(person=>person.linkedId===v.id).length>0&&<small>Other contacts: {linkedPeople.filter(person=>person.linkedId===v.id).map(person=>person.name+(person.group?" · "+person.group:"")).join(", ")}</small>}</span><ArrowRight size={14}/></button>)}{!filtered.length&&<div className="module-empty-state"><Users size={25}/><h3>{search?"No matching vendor":"No vendors added"}</h3><p>{search?"Try another search.":"No placeholder vendors are preloaded. Add actual suppliers here or scan the WhatsApp bridge QR to import available contacts."}</p>{!search&&<button className="button-primary" onClick={beginNew}><Plus size={14}/> Add first vendor</button>}</div>}</div>
+        <div className="vendor-record-list">{filtered.map(v=><button key={v.id} className={"vendor-record "+(selected?.id===v.id?"vendor-record-active":"")} onClick={()=>{setSelectedId(v.id);setEditing(false);}}><span className="vendor-avatar">{v.company.slice(0,1).toUpperCase()}</span><span className="vendor-record-copy"><strong>{v.company}</strong><small>{v.contact} · {v.whatsappNumber ? "WhatsApp +" + v.whatsappNumber : v.phone ? "Phone +" + v.phone : "Number missing"}</small><small>{v.processes||"Capabilities not recorded"} · {v.status}</small><span className="vendor-process-logo-row">{processDefinitions.filter(definition=>(definition.vendorIds||[]).includes(v.id)).slice(0,5).map(definition=><span className="vendor-process-logo-chip" key={definition.id}><ProcessIcon processId={definition.id} processName={definition.processType} category={definition.category} fallback={<Wrench size={12}/>} /><small>{definition.processType}</small></span>)}</span>{linkedPeople.filter(person=>person.linkedId===v.id).length>0&&<small>Other contacts: {linkedPeople.filter(person=>person.linkedId===v.id).map(person=>person.name+(person.group?" · "+person.group:"")).join(", ")}</small>}</span><ArrowRight size={14}/></button>)}{!filtered.length&&<div className="module-empty-state"><Users size={25}/><h3>{search?"No matching vendor":"No vendors added"}</h3><p>{search?"Try another search.":"No placeholder vendors are preloaded. Add actual suppliers here or scan the WhatsApp bridge QR to import available contacts."}</p>{!search&&<button className="button-primary" onClick={beginNew}><Plus size={14}/> Add first vendor</button>}</div>}</div>
       </section>
       <section className="surface-panel vendor-detail-panel">
         {editing?<><div className="panel-heading"><div><h3>{selectedId?"Edit vendor master":"New vendor master"}</h3><p>Company and contact person are required; phone numbers are checked for duplicates.</p></div><button className="icon-control" onClick={()=>setEditing(false)} aria-label="Close editor"><X size={14}/></button></div>
@@ -525,7 +550,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
             <label className="editor-wide">Address<input value={draft.address} onChange={e=>setDraft({...draft,address:e.target.value})} placeholder="Vendor site / dispatch address"/></label>
             <div className="editor-wide vendor-process-capabilities"><strong>Process capabilities · Process Directory</strong>
               <SearchableMultiSelect id="vendor-capability-pick" label="Linked process types" options={processDefinitions.map(process=>({id:process.id,label:process.category+" / "+process.processType+" · "+(process.subcategories||[]).join(", ")}))} selected={draft.processDefinitionIds||[]} onChange={values=>setDraft(current=>({...current,processDefinitionIds:values,processes:[...new Set(values.map(id=>processDefinitions.find(process=>process.id===id)?.processType).filter(Boolean) as string[])].join(", ")}))} placeholder="Search category, process or subcategory…"/>
-              <small>Selected process types are linked back to Process Directory and reflected in Vendor Network. Current selections: {draft.processes||"None"}.</small>
+              <div className="vendor-process-logo-row">{processDefinitions.filter(definition=>(draft.processDefinitionIds||[]).includes(definition.id)).map(definition=><span className="vendor-process-logo-chip" key={definition.id}><ProcessIcon processId={definition.id} processName={definition.processType} category={definition.category} fallback={<Wrench size={12}/>} /><small>{definition.processType}</small></span>)}</div><small>Selected process types are linked back to Process Directory and reflected in Vendor Network. Current selections: {draft.processes||"None"}.</small>
             </div>            <label>Machines / capacity<input value={draft.machines} onChange={e=>setDraft({...draft,machines:e.target.value})} placeholder="Machine models, travel, capacity…"/></label>
             <label>Material capabilities<input value={draft.materials} onChange={e=>setDraft({...draft,materials:e.target.value})} placeholder="Steel grades, aluminium, plastics…"/></label>
             <SearchablePicker id="vendor-type-edit" label="Type of vendor" value={draft.vendorType||""} options={["Raw material","Milling","Plano milling","Horizontal milling","Turning","Grinding","Heat treatment","Surface treatment","Wire EDM","Welding","Laser cutting","Fabrication","Transport","Tooling","Inspection","Other"].map(type=>({id:type,label:type}))} onChange={value=>setDraft(current=>({...current,vendorType:value}))} placeholder="Search vendor category…"/>
@@ -536,7 +561,7 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", onSelec
             <div className="vendor-form-actions"><button className="button-primary" onClick={saveContact}><Check size={14}/> Save vendor master</button><button className="button-quiet" onClick={()=>setEditing(false)}>Cancel</button></div>
           </div>
         </>:selected?<><div className="vendor-detail-title"><span className="vendor-avatar vendor-avatar-large">{selected.company.slice(0,1).toUpperCase()}</span><div><h3>{selected.company}</h3><p>{selected.contact} · {selected.role||"Role not set"}</p><span className="record-state">{selected.status}</span></div><button className="button-quiet" onClick={()=>beginEdit(selected)}>Edit</button></div>
-          <div className="vendor-contact-grid"><div><small>PHONE</small><strong>{selected.phone||"Not added"}</strong></div><div><small>WHATSAPP</small><strong>{selected.whatsappNumber||selected.phone||"Not linked"}</strong></div><div><small>EMAIL</small><strong>{selected.email||"Not added"}</strong></div><div><small>ADDRESS</small><strong>{selected.address||"Not added"}</strong></div><div><small>VENDOR TYPE</small><strong>{selected.vendorType||"Not specified"}</strong></div>{selected.vendorType==="Transport"&&<div className="editor-wide"><small>TRANSPORT ROUTES</small><button className="button-quiet compact-button" onClick={()=>onSelectModule("transport-master")}><Truck size={13}/> Open Transport Directory route master</button></div>}<div><small>PROCESS CAPABILITIES</small><strong>{selected.processes||"Not recorded"}</strong></div><div><small>MACHINES / CAPACITY</small><strong>{selected.machines||"Not recorded"}</strong></div><div><small>MATERIAL CAPABILITIES</small><strong>{selected.materials||"Not recorded"}</strong></div><div><small>WHATSAPP SYNC</small><strong>{selected.whatsappSyncedAt?new Date(selected.whatsappSyncedAt).toLocaleString():"Not synced"}</strong></div><div className="editor-wide"><small>NOTES</small><strong>{selected.notes||"No notes entered"}</strong></div></div>
+          <div className="vendor-contact-grid"><div><small>PHONE</small><strong>{selected.phone||"Not added"}</strong></div><div><small>WHATSAPP</small><strong>{selected.whatsappNumber||selected.phone||"Not linked"}</strong></div><div><small>EMAIL</small><strong>{selected.email||"Not added"}</strong></div><div><small>ADDRESS</small><strong>{selected.address||"Not added"}</strong></div><div><small>VENDOR TYPE</small><strong>{selected.vendorType||"Not specified"}</strong></div>{selected.vendorType==="Transport"&&<div className="editor-wide"><small>TRANSPORT ROUTES</small><button className="button-quiet compact-button" onClick={()=>onSelectModule("transport-master")}><Truck size={13}/> Open Transport Directory route master</button></div>}<div className="editor-wide"><small>PROCESS CAPABILITIES</small><div className="vendor-process-logo-row">{processDefinitions.filter(definition=>(definition.vendorIds||[]).includes(selected.id)).map(definition=><span className="vendor-process-logo-chip" key={definition.id}><ProcessIcon processId={definition.id} processName={definition.processType} category={definition.category} fallback={<Wrench size={12}/>} /><small>{definition.processType}</small></span>)}</div><strong>{selected.processes||"Not recorded"}</strong></div><div><small>MACHINES / CAPACITY</small><strong>{selected.machines||"Not recorded"}</strong></div><div><small>MATERIAL CAPABILITIES</small><strong>{selected.materials||"Not recorded"}</strong></div><div><small>WHATSAPP SYNC</small><strong>{selected.whatsappSyncedAt?new Date(selected.whatsappSyncedAt).toLocaleString():"Not synced"}</strong></div><div className="editor-wide"><small>NOTES</small><strong>{selected.notes||"No notes entered"}</strong></div></div>
           <section className="vendor-linked-people"><div className="panel-heading"><div><h4>Other contact persons</h4><p>{linkedPeople.filter(person=>person.linkedId===selected.id).length} linked people</p></div><div className="relationship-actions"><button className="button-primary compact-button" onClick={()=>onAddContactForVendor(selected.id)}><Plus size={12}/> Add person</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("contact360")}>Manage in Contact 360</button></div></div>{linkedPeople.filter(person=>person.linkedId===selected.id).map(person=><div className="vendor-linked-person" key={person.id}><strong>{person.name}</strong><span>{person.role||"Role not entered"} · {person.group||"No group"}</span><small>{person.phone||person.whatsapp||"No number"} · {person.email||"No email"}</small></div>)}{!linkedPeople.some(person=>person.linkedId===selected.id)&&<p className="field-hint">Add more people in Contact 360 and link them to this vendor company. Numbers remain attached to the individual contact.</p>}</section>
           <div className="vendor-actions"><button className="button-primary" onClick={()=>{const phone=(selected.whatsappNumber||selected.phone).replace(/\D/g,"");if(!phone){onNotice("Add a phone / WhatsApp number first.");return;}window.open("https://wa.me/"+phone,"_blank","noopener,noreferrer");}}><MessageCircle size={15}/> Open WhatsApp</button><button className="button-quiet" onClick={()=>onSelectModule("costing")}><CircleDollarSign size={15}/> Quotes & costing</button><button className="button-quiet" onClick={()=>onSelectModule("process-map")}><Workflow size={15}/> Assign to operation</button><button className="button-quiet" onClick={()=>onScheduleVendor(selected)}><CalendarClock size={15}/> Schedule follow-up</button><button className="button-quiet" onClick={()=>archive(selected)}><X size={14}/> Archive vendor</button></div>
           <div className="module-safety-note"><ShieldCheck size={14}/><span>Operation assignments and quotations reference the vendor ID. QR-imported contacts stay unverified until you review them.</span></div>

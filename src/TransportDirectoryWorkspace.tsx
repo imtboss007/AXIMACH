@@ -16,6 +16,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [selectedDirections, setSelectedDirections] = useState<string[]>([]);
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
+  const [selectedRouteIds, setSelectedRouteIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState("");
   const [vendorId, setVendorId] = useState("");
   const [fromLocation, setFromLocation] = useState("");
@@ -36,6 +37,18 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
   const toggleFilter = (value: string, selected: string[], setter: (next: string[]) => void) =>
     setter(selected.includes(value) ? selected.filter(item => item !== value) : [...selected, value]);
   const clearFilters = () => { setSearch(""); setSelectedVehicles([]); setSelectedDirections([]); setSelectedVendors([]); };
+  const selectVisibleRoutes = (checked: boolean) => setSelectedRouteIds(current =>
+    checked ? [...new Set([...current, ...filtered.map(route => route.id)])] : current.filter(id => !filtered.some(route => route.id === id))
+  );
+  const archiveSelectedRoutes = () => {
+    const ids = new Set(selectedRouteIds.filter(id => routes.some(route => route.id === id)));
+    if (!ids.size) { onNotice("Select one or more transport routes first."); return; }
+    if (!window.confirm("Archive " + ids.size + " selected transport route(s)? Existing component transport entries and saved rate snapshots remain unchanged.")) return;
+    const stamp = nowIso();
+    update(current => ({ ...current, transportRoutes: current.transportRoutes.map(route => ids.has(route.id) ? { ...route, active: false, deletedAt: stamp, updatedAt: stamp } : route) }));
+    setSelectedRouteIds([]);
+    onNotice(ids.size + " transport route(s) archived. Existing dispatch and component transport history was retained.");
+  };
   const reset = () => { setEditingId(""); setVendorId(""); setFromLocation(""); setToLocation(""); setTripDirection("One-way"); setVehicleType(VEHICLES[2]); setFixedAmount(""); setNotes(""); };
   const save = () => {
     if (!vendorId || !fromLocation.trim() || !toLocation.trim() || !vehicleType.trim()) { onNotice("Select a vendor and enter both route locations and a vehicle type."); return; }
@@ -73,6 +86,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
     </div>
     <section className="surface-panel transport-filter-panel">
       <div className="panel-heading"><div><h3>Filter transport routes</h3><p>Select All to show every saved route, or tick any combination of filters.</p></div><button type="button" className="button-quiet compact-button" onClick={clearFilters}>Clear filters</button></div>
+      <div className="module-action-bar po-bulk-actions"><label><input type="checkbox" checked={filtered.length > 0 && filtered.every(route => selectedRouteIds.includes(route.id))} onChange={event => selectVisibleRoutes(event.target.checked)}/> Select all visible routes</label><span className="module-number">{selectedRouteIds.filter(id => routes.some(route => route.id === id)).length} SELECTED</span><button type="button" className="button-danger compact-button" disabled={!selectedRouteIds.length} onClick={archiveSelectedRoutes}>Archive selected</button><button type="button" className="button-quiet compact-button" disabled={!selectedRouteIds.length} onClick={() => setSelectedRouteIds([])}>Clear selection</button></div>
       <div className="transport-filter-groups ax-search-filter-columns">
         <button type="button" className="button-quiet compact-button" onClick={clearFilters}>All routes</button>
         <SearchableMultiSelect id="transport-filter-vehicle" label="Vehicle type" options={VEHICLES.map(value=>({id:value,label:value}))} selected={selectedVehicles} onChange={setSelectedVehicles} emptyMeansAll/>
@@ -96,7 +110,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
     </section>
     <section className="surface-panel">
       <div className="panel-heading"><div><div className="eyebrow">SAVED RATE REGISTER</div><h3>Transport routes ({filtered.length})</h3><p>Component transport usage copies the selected rate into a cost snapshot; later master-price changes do not rewrite earlier component costs.</p></div></div>
-      {filtered.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>From → To</th><th>Vehicle</th><th>Trip type</th><th>Fixed rate</th><th>Vendor</th><th>Contact</th><th>Actions</th></tr></thead><tbody>{filtered.map(route => { const vendor = vendors.find(row => row.id === route.vendorId); return <tr key={route.id}><td><strong>{route.fromLocation} → {route.toLocation}</strong>{route.notes && <small>{route.notes}</small>}</td><td>{route.vehicleType}</td><td>{route.tripDirection}</td><td><strong>{money(route.fixedAmount)}</strong></td><td>{vendor?.company || "Vendor archived"}</td><td>{vendor?.contact || "—"}<small>{vendor?.phone || vendor?.whatsappNumber || ""}</small></td><td><div className="process-row-actions"><button title="Edit route" onClick={() => edit(route)}><Edit3 size={13}/></button><button title="Archive route" onClick={() => archive(route)}><X size={13}/></button><button title="Open linked vendor in Contact 360" onClick={() => onOpenContact360 ? onOpenContact360(route.vendorId) : onSelectModule("contact360")}><Users size={13}/></button></div></td></tr>; })}</tbody></table></div> : <div className="module-empty-state"><MapPin size={24}/><h3>{search ? "No matching routes" : "No transport routes yet"}</h3><p>Add a route and agreed amount. No vendor, route or rate is fabricated.</p></div>}
+      {filtered.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Select</th><th>From → To</th><th>Vehicle</th><th>Trip type</th><th>Fixed rate</th><th>Vendor</th><th>Contact</th><th>Actions</th></tr></thead><tbody>{filtered.map(route => { const vendor = vendors.find(row => row.id === route.vendorId); return <tr key={route.id}><td><input type="checkbox" aria-label={"Select route " + route.fromLocation + " to " + route.toLocation} checked={selectedRouteIds.includes(route.id)} onChange={() => setSelectedRouteIds(current => current.includes(route.id) ? current.filter(id => id !== route.id) : [...current, route.id])}/></td><td><strong>{route.fromLocation} → {route.toLocation}</strong>{route.notes && <small>{route.notes}</small>}</td><td>{route.vehicleType}</td><td>{route.tripDirection}</td><td><strong>{money(route.fixedAmount)}</strong></td><td>{vendor?.company || "Vendor archived"}</td><td>{vendor?.contact || "—"}<small>{vendor?.phone || vendor?.whatsappNumber || ""}</small></td><td><div className="process-row-actions"><button title="Edit route" onClick={() => edit(route)}><Edit3 size={13}/></button><button title="Archive route" onClick={() => archive(route)}><X size={13}/></button><button title="Open linked vendor in Contact 360" onClick={() => onSelectModule("vendors",{vendorId:route.vendorId})}><Users size={13}/></button></div></td></tr>; })}</tbody></table></div> : <div className="module-empty-state"><MapPin size={24}/><h3>{search ? "No matching routes" : "No transport routes yet"}</h3><p>Add a route and agreed amount. No vendor, route or rate is fabricated.</p></div>}
     </section>
     <div className="module-safety-note"><ShieldCheck size={15}/><span>Transport rates are shared through the existing AXIMACH manufacturing data store. Vendor identity is referenced by vendor ID; this directory does not create duplicate vendors or overwrite Vendor Directory details.</span></div>
   </section>;

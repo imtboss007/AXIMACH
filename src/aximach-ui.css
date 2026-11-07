@@ -1,6 +1,22 @@
 /* AXIMACH visual system — selected patterns inspired by shadcn/ui, Magic UI,
    Motion, Motion Primitives and Cult UI. Built on the existing AXIMACH CSS tokens. */
 
+/* Stable-ID custom mechanical logo studio additions */
+.ax-icon-custom-asset { display:block; width:72%; height:72%; object-fit:contain; filter:drop-shadow(0 8px 10px rgba(0,0,0,.18)); }
+.ax-component-icon { flex:0 0 auto; width:42px; height:42px; display:inline-flex; align-items:center; justify-content:center; }
+.ax-icon-import-control { display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--muted-foreground); }
+.ax-icon-import-control input { min-width:0; max-width:100%; font-size:12px; }
+.ax-icon-export-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.ax-icon-export-actions button, .ax-icon-version-history button { border:1px solid var(--line); border-radius:9px; padding:7px 10px; color:var(--foreground); background:var(--surface); font-size:11px; cursor:pointer; }
+.ax-icon-version-history { display:grid; gap:6px; margin:8px 0 12px; }
+.ax-icon-version-history button { display:flex; justify-content:space-between; align-items:center; gap:8px; text-align:left; }
+.ax-icon-version-history button small { color:var(--muted-foreground); font-size:10px; }
+.ax-icon-version-history button:hover, .ax-icon-export-actions button:hover { border-color:var(--accent); }
+.po-component-line-label { display:inline-flex; align-items:center; gap:7px; }
+.po-component-line-label .ax-component-icon { width:26px; height:26px; }
+.linked-component-identity { display:flex; align-items:center; gap:12px; }
+.linked-component-identity > span:last-child { display:grid; gap:3px; }
+
 /* Interactive manufacturing sphere */
 .axim-hero-graphic { min-width: 0; }
 .ax-orb-stage {
@@ -1389,3 +1405,67 @@
 .mechanical-icon-card>div{display:flex;flex-direction:column;gap:4px;min-width:0}
 .mechanical-icon-card strong{font-size:11px;color:var(--text,#29415f)}
 .mechanical-icon-card small{font-size:9px;line-height:1.45;color:var(--muted,#7588a0)}
+
+/* Stable-ID custom mechanical logo studio additions */
+.ax-icon-custom-asset { display:block; width:72%; height:72%; object-fit:contain; filter:drop-shadow(0 8px 10px rgba(0,0,0,.18)); }
+.ax-component-icon { flex:0 0 auto; width:42px; height:42px; display:inline-flex; align-items:center; justify-content:center; }
+.ax-icon-import-control { display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--muted-foreground); }
+.ax-icon-import-control input { min-width:0; max-width:100%; font-size:12px; }
+.ax-icon-export-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.ax-icon-export-actions button, .ax-icon-version-history button { border:1px solid var(--line); border-radius:9px; padding:7px 10px; color:var(--foreground); background:var(--surface); font-size:11px; cursor:pointer; }
+.ax-icon-version-history { display:grid; gap:6px; margin:8px 0 12px; }
+.ax-icon-version-history button { display:flex; justify-content:space-between; align-items:center; gap:8px; text-align:left; }
+.ax-icon-version-history button small { color:var(--muted-foreground); font-size:10px; }
+.ax-icon-version-history button:hover, .ax-icon-export-actions button:hover { border-color:var(--accent); }
+
+.component-form-identity,.po-selected-component-logo{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.component-form-identity .ax-component-icon,.po-selected-component-logo .ax-component-icon{width:38px;height:38px}
+.component-form-identity>span,.po-selected-component-logo>span{display:grid;gap:3px}
+.component-form-identity small,.po-selected-component-logo small{color:var(--muted-foreground);font-size:11px}
+.po-selected-component-logo{margin-top:6px}
+.po-selected-component-logo .ax-component-icon{width:30px;height:30px}
+
+.component-record-identity{display:inline-flex;align-items:center;gap:8px;vertical-align:middle}
+.component-record-identity>span:last-child{display:grid;gap:2px}
+.component-record-identity .ax-component-icon{width:30px;height:30px}
+.component-record-identity-compact{gap:6px}
+.component-record-identity-compact .ax-component-icon{width:22px;height:22px}
+.job-row>.ax-component-icon{width:34px;height:34px;flex:0 0 auto}
+
+.vendor-network-process-identities{display:flex;flex-wrap:wrap;gap:6px}.vendor-network-process-identity{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border:1px solid var(--line);border-radius:7px;font-size:11px}.vendor-network-process-identity .linked-node-icon{width:21px;height:21px;min-width:21px}
+
+/* BOM-to-production stock issue panel */
+.bom-production-issue-panel .panel-heading{align-items:flex-start}
+.bom-issue-preview{margin:8px 0 12px}
+.bom-issue-preview .record-state{white-space:nowrap}
+.bom-production-issue-panel .module-form-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Shared process identity across planning, operations and vendor capability views */
+.process-selection-identity,.process-cell-identity,.process-inline-identity,.vendor-process-logo-chip{display:inline-flex;align-items:center;gap:7px}
+.process-selection-identity{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface)}
+.process-selection-identity>span:last-child{display:grid;gap:2px}
+.process-selection-identity small{color:var(--muted-foreground);font-size:11px}
+.process-cell-identity>span:last-child{display:grid;gap:3px}
+.process-cell-identity .linked-node-icon{width:28px;height:28px;min-width:28px}
+.process-inline-identity{gap:5px;font-size:11px}
+.process-inline-identity .linked-node-icon{width:22px;height:22px;min-width:22px}
+.vendor-process-logo-row{display:flex;flex-wrap:wrap;gap:5px;margin:5px 0}
+.vendor-process-logo-chip{padding:3px 6px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.vendor-process-logo-chip .linked-node-icon{width:22px;height:22px;min-width:22px}
+.vendor-process-logo-chip small{font-size:10px;white-space:nowrap}
+
+
+/* WebGL-rendered AXIMACH globe: real fragment-shader sphere surface with a
+   transparent canvas so the existing 18 interactive module nodes remain usable. */
+.ax-orb-webgl-sphere {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+.ax-orb-core-label { z-index: 3; }
+.ax-orb-gloss { z-index: 2; }
