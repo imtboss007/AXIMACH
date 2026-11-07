@@ -531,7 +531,9 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     base.category = anchor.category;
     base.vendorId = anchor.vendorId;
     base.executionType = anchor.executionType || "Outsourced";
-    base.parentId = anchor.parentId;
+    // Keep each added branch step linked to the immediately preceding step,
+    // while retaining the same branch label and relation type for lane grouping.
+    base.parentId = anchor.id;
     base.relationType = anchor.relationType;
     base.costIncluded = false;
     setDraft(base);
@@ -625,7 +627,7 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
     setTransportRouteId(leg?.routeId || transportRoutes[0]?.id || "");
     setTransportTripCount(String(leg?.tripCount || 1));
     setTransportAnchorOperationId(leg?.anchorOperationId || activeOperation?.id || "");
-    setTransportPlacement(leg?.placement || (leg?.anchorOperationId ? "after" : "start"));
+    setTransportPlacement(leg?.placement || (activeOperation && (activeOperation.branch || "Main route") !== "Main route" ? "after" : leg?.anchorOperationId ? "after" : "start"));
     setTransportLegNotes(leg?.notes || "");
     setShowTransportEditor(true);
     setShowEditor(false);
@@ -634,6 +636,8 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const saveTransportLeg = () => {
     if (!selectedPO || !selectedLine || !selectedComponent) { onNotice("Select a PO component line before adding transport."); return; }
     if (transportPlacement !== "start" && !routeOperations.some(operation=>operation.id===transportAnchorOperationId)) { onNotice("Select the process operation to place this transport before or after."); return; }
+    const activeIsBranch = Boolean(activeOperation && (activeOperation.branch || "Main route") !== "Main route");
+    if (transportPlacement === "start" && activeIsBranch) { onNotice("Transport for an alternate or rework branch must be anchored to a process step in that branch. This keeps its cost excluded until the branch is used."); return; }
     if (!selectedTransportDirectoryRoute) { onNotice("Select a saved route from Transport Directory, or add one there first."); return; }
     const tripCount = Number(transportTripCount);
     if (!Number.isInteger(tripCount) || tripCount < 1) { onNotice("Enter a whole-number trip count of at least 1."); return; }
