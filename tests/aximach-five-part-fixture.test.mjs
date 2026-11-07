@@ -194,6 +194,7 @@ test("3D command centre lower shell shows all six requested live record categori
   assert.ok(orb.includes("activeRows(data.vendors).length"));
   assert.ok(orb.includes("activeRows(data.operations).filter"));
   assert.ok(orb.includes("ax-orb-lower-rotator"));
+  assert.ok(orb.includes("compactViewport ? 94 : 132"), "lower-shell orbit radius must shrink on mobile");
 });
 
 test("dashboard renders recent operations, exceptions, master records and production status from saved data", () => {
