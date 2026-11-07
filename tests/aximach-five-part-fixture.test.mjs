@@ -198,9 +198,9 @@ test("all 18 module shortcuts are mounted on the rotating 3D sphere and the live
   assert.ok(orb.includes('style={{ rotateX, rotateY, transformPerspective: 950, transformStyle: "preserve-3d" }}'));
   assert.ok(orb.includes('transform: "translate3d(" + x + "px," + y + "px," + z + "px)'));
   assert.ok(orb.includes("Math.sqrt(Math.max(0.08, 1 - radialX * radialX - radialY * radialY))"));
-  assert.ok(orb.includes('{ count: 4, radial: 0.30'));
-  assert.ok(orb.includes('{ count: 6, radial: 0.60'));
-  assert.ok(orb.includes('{ count: 8, radial: 0.88'));
+  assert.ok(orb.includes('{ count: 4, radial: 0.40'));
+  assert.ok(orb.includes('{ count: 6, radial: 0.65'));
+  assert.ok(orb.includes('{ count: 8, radial: 0.90'));
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   assert.match(css, /\.ax-orb-module-shell \{[\s\S]*?pointer-events:none;[\s\S]*?transform-style:preserve-3d;/);
   assert.match(css, /\.ax-orb-lower-shell \{[\s\S]*?position:relative;[\s\S]*?bottom:auto;/);
@@ -322,4 +322,11 @@ test("custom Process Directory category and process values are committed when th
   assert.ok(directory.includes('onClick={save}'));
   assert.ok(directory.includes('setCategory(value)'));
   assert.ok(directory.includes('setProcessType(value)'));
+});
+
+
+test("Component Master price unit migration preserves legacy set records", () => {
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  assert.ok(data.includes('salePriceUnit: "piece" | "set"'));
+  assert.ok(data.includes('component.salePriceUnit === "set" ? "set" as const : component.salePriceUnit === "piece" ? "piece" as const : component.orderUnit === "Set" ? "set" as const : "piece" as const'));
 });
