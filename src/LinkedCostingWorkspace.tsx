@@ -343,7 +343,7 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
       }));
       return;
     }
-    update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, [key]: amount, updatedAt } : component }));
+    update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, [key]: amount, updatedAt } : component) }));
   };
 
   return <section className="workspace-page linked-costing-page">
