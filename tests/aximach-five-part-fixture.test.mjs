@@ -183,19 +183,52 @@ test("dashboard command globe exposes 18 unique, distinguishable module shortcut
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
-test("all 18 sphere module buttons stay viewer-facing and the lower data shell is separate", () => {
+test("all 18 module shortcuts are mounted on the rotating 3D sphere and the live-data shell remains separate", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  const moduleShell = orb.indexOf('<div className="ax-orb-module-shell"');
-  const depthClose = orb.lastIndexOf("</motion.div>", moduleShell);
+  const depthOpen = orb.indexOf('<motion.div className="ax-orb-depth"');
+  const moduleShell = orb.indexOf('className="ax-orb-module-shell"');
+  const moduleClose = orb.indexOf("</motion.div>", moduleShell);
+  const depthClose = orb.indexOf("</motion.div>", moduleClose + 1);
   const lowerShell = orb.indexOf('<div className="ax-orb-lower-shell"');
-  assert.ok(moduleShell > depthClose && depthClose >= 0, "module controls must sit outside the rotating 3D depth layer");
-  assert.ok(lowerShell > moduleShell, "lower data shell must follow the sphere and module layer");
+  assert.ok(depthOpen >= 0 && depthOpen < moduleShell && moduleShell < moduleClose && moduleClose < depthClose,
+    "module controls must be children of the rotating 3D depth layer");
+  assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the sphere");
   assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
-  assert.ok(orb.includes("const angle = (Math.PI * 2 * index) / satellites.length"));
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
+  assert.ok(orb.includes('style={{ rotateX, rotateY, transformPerspective: 950, transformStyle: "preserve-3d" }}'));
+  assert.ok(orb.includes('transform: "translate3d(" + x + "px," + y + "px," + z + "px)'));
+  assert.ok(orb.includes("Math.sqrt(Math.max(0.08, 1 - radialX * radialX - radialY * radialY))"));
+  assert.ok(orb.includes('{ count: 4, radial: 0.30'));
+  assert.ok(orb.includes('{ count: 6, radial: 0.60'));
+  assert.ok(orb.includes('{ count: 8, radial: 0.88'));
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.match(css, /\.ax-orb-module-shell \{[\s\S]*?pointer-events:none;[\s\S]*?transform-style:preserve-3d;/);
   assert.match(css, /\.ax-orb-lower-shell \{[\s\S]*?position:relative;[\s\S]*?bottom:auto;/);
-  assert.match(css, /\.ax-orb-module-shell \{[\s\S]*?pointer-events:none;/);
+});
+
+test("Process Directory process-type options use category-scoped unique record keys", () => {
+  const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(directory.includes('id:row.category+"::"+row.processType'));
+  assert.ok(directory.includes('row.category+"::"+row.processType===value'));
+  assert.ok(directory.includes('value={rows.some(row=>row.category===category&&row.processType===processType)?category+"::"+processType:processType}'));
+});
+
+test("linked Process Map context survives async shared-data hydration and is not replaced by auto-restore", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.match(workspace, /initialContext\?\.vendorId, data\]\);/);
+  assert.match(workspace, /if \(initialContext\?\.poId \|\| initialContext\?\.poLineId \|\| initialContext\?\.componentId \|\| initialContext\?\.operationId \|\| initialContext\?\.vendorId\) return;/);
+});
+
+test("new PO lines do not copy Component Master selling prices into editable line prices", () => {
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(master.includes('const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quantity: 0, targetDelivery: "", notes: "" })'));
+  assert.ok(master.includes("delete clean.unitPrice"));
+  assert.ok(data.includes("unitPrice?: number"));
+  assert.ok(costing.includes("const sellingRate = selectedComponent?.salePrice ?? 0"));
+  assert.ok(costing.includes("if (key === \"salePrice\")"));
+  assert.ok(costing.includes("components: current.components.map(component => component.id === selectedComponent.id ? { ...component, salePrice: amount, updatedAt } : component)"));
 });
 
 test("Process Map shows clickable Process Directory stage nodes before production operations are saved", () => {
