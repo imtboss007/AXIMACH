@@ -119,7 +119,7 @@ export default function ProcessUniverse3D({ operations, processDefinitions = [],
             const state = operation.status.toLowerCase().replaceAll(" ","-");
             return <button key={operation.id} type="button" className={"process-orbit-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{ transform }} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={operation.name + " · " + operation.status}>
               <span className="process-orbit-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><i /></span>
-              <ProcessIcon processName={operation.name} fallback={fallbackFor(operation.name)} />
+              <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} />
               <strong>{operation.name}</strong>{subprocessesFor(operation.id).length > 0 && <small className="process-orbit-node-qty">{subprocessesFor(operation.id).length} SUB-PROCESS(ES)</small>}<small className="process-orbit-node-qty">{operation.completed.toLocaleString("en-IN")} / {operation.quantity.toLocaleString("en-IN")} pcs</small>
             </button>;
           })}
@@ -156,7 +156,7 @@ export default function ProcessUniverse3D({ operations, processDefinitions = [],
           return <div className="process-universe-node-wrap" key={operation.id}>
             <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={"Open " + operation.name + " operation record"}>
               <span className="process-universe-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><em>{operation.status}</em></span>
-              <span className="process-universe-node-icon"><ProcessIcon processName={operation.name} fallback={fallbackFor(operation.name)} /></span>
+              <span className="process-universe-node-icon"><ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} /></span>
               <strong>{operation.name}</strong>{childOperations.length > 0 && <small className="process-universe-node-category">{childOperations.length} sub-process(es) · {childOperations[0].vendorId ? "vendor linked" : "vendor assignment pending"}</small>}<small className="process-universe-node-category">{operation.category || operation.machine || "Manufacturing operation"}</small>
               <span className="process-universe-qty"><b>{operation.completed.toLocaleString("en-IN")}</b> / {operation.quantity.toLocaleString("en-IN")} pcs</span>
               {operation.machine && <span className="process-universe-machine">{operation.machine}</span>}
