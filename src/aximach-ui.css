@@ -1469,3 +1469,102 @@
 }
 .ax-orb-core-label { z-index: 3; }
 .ax-orb-gloss { z-index: 2; }
+
+
+/* Corrected command-sphere composition: visible front-plane module controls,
+   followed by a physically separate lower data shell in normal document flow. */
+.ax-orb-stage {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  min-height:0;
+  gap:0;
+}
+.ax-orb-drag-zone {
+  width:min(100%,430px);
+  height:380px;
+  flex:0 0 380px;
+  margin:12px auto 0;
+  overflow:visible;
+}
+.ax-orb-depth { position:absolute; inset:0; width:100%; height:100%; }
+.ax-orb-module-shell {
+  position:absolute;
+  inset:0;
+  z-index:12;
+  pointer-events:none;
+  transform:none;
+  transform-style:flat;
+}
+.ax-orb-module-shell .ax-orb-satellite {
+  position:absolute;
+  z-index:12;
+  pointer-events:auto;
+  backface-visibility:visible;
+  min-width:0;
+  max-width:78px;
+  white-space:normal;
+}
+.ax-orb-module-shell .ax-orb-satellite>span {
+  width:34px;
+  height:34px;
+  border-radius:11px;
+}
+.ax-orb-module-shell .ax-orb-satellite small {
+  display:block;
+  max-width:78px;
+  padding:3px 4px;
+  border:1px solid rgba(215,228,246,.96);
+  border-radius:5px;
+  background:rgba(255,255,255,.96);
+  color:#49698f;
+  font-size:7px;
+  line-height:1.12;
+  text-align:center;
+  white-space:normal;
+}
+.ax-orb-lower-shell {
+  position:relative;
+  left:auto;
+  bottom:auto;
+  z-index:8;
+  transform:none;
+  width:min(100%,390px);
+  height:100px;
+  flex:0 0 100px;
+  margin:2px auto 8px;
+  perspective:700px;
+  pointer-events:none;
+}
+.ax-orb-lower-rotator { position:relative; width:100%; height:100%; transform-style:preserve-3d; }
+.ax-orb-lower-node { pointer-events:auto; }
+.ax-orb-status-bottom {
+  position:relative;
+  left:auto;
+  bottom:auto;
+  transform:none;
+  margin:0 auto 8px;
+  justify-content:center;
+  text-align:center;
+  white-space:normal;
+}
+.dashboard-welcome-orb .ax-orb-stage { min-height:0; }
+.dashboard-welcome-orb .ax-orb-drag-zone { height:380px; flex-basis:380px; }
+@media(max-width:860px) {
+  .dashboard-welcome-orb .ax-orb-stage { min-height:0; }
+  .dashboard-welcome-orb .ax-orb-drag-zone { height:380px; flex-basis:380px; }
+}
+@media(max-width:620px) {
+  .ax-orb-stage { min-height:0; }
+  .ax-orb-drag-zone { width:min(100%,360px); height:350px; flex-basis:350px; margin:8px auto 0; }
+  .ax-orb-depth { max-width:360px; }
+  .ax-orb-module-shell .ax-orb-satellite { max-width:58px; }
+  .ax-orb-module-shell .ax-orb-satellite>span { width:28px; height:28px; border-radius:9px; }
+  .ax-orb-module-shell .ax-orb-satellite>span svg { width:13px; height:13px; }
+  .ax-orb-module-shell .ax-orb-satellite small { max-width:58px; font-size:6px; padding:2px 3px; }
+  .ax-orb-lower-shell { width:min(100%,330px); height:88px; flex-basis:88px; margin:0 auto 7px; }
+  .ax-orb-lower-node { min-width:76px; padding:4px 5px; }
+  .dashboard-welcome-orb .ax-orb-stage { min-height:0; }
+  .dashboard-welcome-orb .ax-orb-drag-zone { height:350px; flex-basis:350px; }
+}
