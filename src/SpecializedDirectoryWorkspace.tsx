@@ -143,6 +143,9 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
  const {data,update}=useManufacturingData();
  const rows=activeRows(data.plannedCosts);
  const definitions=activeRows(data.processDefinitions);
+ const companies=activeRows(data.companies);
+ const purchaseOrders=activeRows(data.purchaseOrders);
+ const components=activeRows(data.components);
  useEffect(()=>{
   const legacy=readRows<PlannedCostEntry>("aximach.componentPlannedCost.v1");
   if(!legacy.length)return;
@@ -157,8 +160,11 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
   });
  },[update]);
  const [search,setSearch]=useState("");
+ const [companyId,setCompanyId]=useState("");
  const [companyName,setCompanyName]=useState("");
+ const [poId,setPoId]=useState("");
  const [poNumber,setPoNumber]=useState("");
+ const [componentId,setComponentId]=useState("");
  const [componentName,setComponentName]=useState("");
  const [componentNumber,setComponentNumber]=useState("");
  const [processType,setProcessType]=useState("");
@@ -171,7 +177,12 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
  const [extraProcesses,setExtraProcesses]=useState<Array<{id:string;processType:string;processCategory:string;processSubcategory:string;plannedQty:string;unit:"piece"|"set";plannedRate:string}>>([]);
  const filtered=useMemo(()=>rows.filter(row=>((row.companyName||"")+" "+(row.poNumber||"")+" "+row.componentName+" "+row.componentNumber+" "+row.processType+" "+row.processCategory+" "+(row.processSubcategory||"")+" "+(row.notes||"")).toLowerCase().includes(search.toLowerCase().trim())),[rows,search]);
  const amount=(qty:string,rate:string)=>(Number(qty)||0)*(Number(rate)||0);
- const reset=()=>{setCompanyName("");setPoNumber("");setComponentName("");setComponentNumber("");setProcessType("");setProcessCategory("");setProcessSubcategory("");setPlannedQty("1");setUnit("piece");setPlannedRate("");setNotes("");setExtraProcesses([]);};
+ const eligiblePOs=purchaseOrders.filter(po=>!companyId||po.companyId===companyId);
+ const selectedPO=purchaseOrders.find(po=>po.id===poId);
+ const eligibleComponents=selectedPO?components.filter(component=>selectedPO.lines.some(line=>line.componentId===component.id)):components;
+ const processCategories=[...new Set(definitions.map(item=>item.category))].sort();
+ const eligibleProcessTypes=definitions.filter(item=>!processCategory||item.category===processCategory);
+ const reset=()=>{setCompanyId("");setCompanyName("");setPoId("");setPoNumber("");setComponentId("");setComponentName("");setComponentNumber("");setProcessType("");setProcessCategory("");setProcessSubcategory("");setPlannedQty("1");setUnit("piece");setPlannedRate("");setNotes("");setExtraProcesses([]);};
  const setPrimaryProcess=(value:string)=>{const def=definitions.find(item=>item.processType===value);setProcessType(value);setProcessCategory(def?.category||"");setProcessSubcategory("");};
  const save=()=>{
   const all=[{processType,processCategory,processSubcategory,plannedQty,unit,plannedRate},...extraProcesses];
@@ -180,7 +191,7 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
   }
   const stamp=nowIso();
   const created:PlannedCostEntry[]=all.map(row=>({
-   id:makeId("planned-cost"),companyName:companyName.trim(),poNumber:poNumber.trim(),componentName:componentName.trim(),componentNumber:componentNumber.trim(),
+   id:makeId("planned-cost"),companyId,poId,componentId,companyName:companyName.trim(),poNumber:poNumber.trim(),componentName:componentName.trim(),componentNumber:componentNumber.trim(),
    processType:row.processType.trim(),processCategory:row.processCategory.trim(),processSubcategory:row.processSubcategory.trim(),
    plannedQty:Number(row.plannedQty),unit:row.unit,plannedRate:Number(row.plannedRate),notes:notes.trim(),createdAt:stamp,updatedAt:stamp
   }));
@@ -195,13 +206,12 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
   <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, PO, component, number, category or process…"/></label></div>
   <section className="surface-panel"><div className="panel-heading"><div><h3>Add planned cost group</h3><p>Component and process reference only; no PO or Component Master link is created.</p></div></div>
    <div className="module-record-form specialized-form">
-    <label>Company reference<input value={companyName} onChange={e=>setCompanyName(e.target.value)} placeholder="Company name (manual reference only)"/></label>
-    <label>PO reference<input value={poNumber} onChange={e=>setPoNumber(e.target.value)} placeholder="PO number (manual reference only)"/></label>
-    <label>Component name *<input value={componentName} onChange={e=>setComponentName(e.target.value)} placeholder="Component name"/></label>
-    <label>Component number *<input value={componentNumber} onChange={e=>setComponentNumber(e.target.value)} placeholder="Component / part number"/></label>
-    <label>Process type *{definitions.length?<select value={processType} onChange={e=>setPrimaryProcess(e.target.value)}><option value="">Select Process Directory entry…</option>{definitions.map(item=><option key={item.id} value={item.processType}>{item.processType} · {item.category}</option>)}</select>:<input value={processType} onChange={e=>setProcessType(e.target.value)} placeholder="Create a Process Directory entry first"/>}</label>
-    <label>Process category<input readOnly={definitions.length>0} value={processCategory} onChange={e=>setProcessCategory(e.target.value)} placeholder="Linked from Process Directory"/></label>
-    <label>Process subcategory<select value={processSubcategory} onChange={e=>setProcessSubcategory(e.target.value)}><option value="">Select subcategory</option>{(definitions.find(item=>item.processType===processType)?.subcategories||[]).map(value=><option key={value}>{value}</option>)}</select></label>
+    <SearchablePicker id="planned-company" label="Company" value={companyId} placeholder="Search company name…" options={companies.map(item=>({id:item.id,label:item.name+" · "+(item.gstin||"GSTIN not set")}))} onChange={value=>{const item=companies.find(row=>row.id===value);setCompanyId(value);setCompanyName(item?.name||"");setPoId("");setPoNumber("");setComponentId("");setComponentName("");setComponentNumber("");}}/>
+    <SearchablePicker id="planned-po" label="Purchase order" value={poId} placeholder="Search PO number…" options={eligiblePOs.map(item=>({id:item.id,label:item.number+" · "+(companies.find(row=>row.id===item.companyId)?.name||"Company")}))} onChange={value=>{const item=purchaseOrders.find(row=>row.id===value);const company=companies.find(row=>row.id===item?.companyId);setPoId(value);setPoNumber(item?.number||"");if(item&&company){setCompanyId(company.id);setCompanyName(company.name);}setComponentId("");setComponentName("");setComponentNumber("");}}/>
+    <div className="module-form-wide planned-component-select"><div className="panel-heading"><div><strong>Component</strong><p>Selected from Component Master by stable record ID.</p></div>{componentName&&<MechanicalComponentIcon componentName={componentName+" "+componentNumber}/>}</div><SearchablePicker id="planned-component" label="Component *" value={componentId} placeholder="Search part number or component name…" options={eligibleComponents.map(item=>({id:item.id,label:item.partNumber+" · "+item.name}))} onChange={value=>{const item=components.find(row=>row.id===value);setComponentId(value);setComponentName(item?.name||"");setComponentNumber(item?.partNumber||"");if(item){const company=companies.find(row=>row.id===item.companyId);if(company){setCompanyId(company.id);setCompanyName(company.name);}}}}/></div>
+    <SearchablePicker id="planned-process-category" label="Process category *" value={processCategory} placeholder="Search Process Directory category…" options={processCategories.map(value=>({id:value,label:value}))} onChange={value=>{setProcessCategory(value);setProcessType("");setProcessSubcategory("");}}/>
+    <SearchablePicker id="planned-process-type" label="Process type *" value={processType} placeholder="Search process type…" options={eligibleProcessTypes.map(item=>({id:item.processType,label:item.processType}))} onChange={setPrimaryProcess}/>
+    <SearchablePicker id="planned-process-subcategory" label="Process subcategory" value={processSubcategory} placeholder="Search subcategory…" options={(definitions.find(item=>item.processType===processType&&item.category===processCategory)?.subcategories||[]).map(value=>({id:value,label:value}))} onChange={setProcessSubcategory}/>
     <label>Planned quantity *<input type="number" min="0.001" step="any" value={plannedQty} onChange={e=>setPlannedQty(e.target.value)}/></label>
     <label>Unit<select value={unit} onChange={e=>setUnit(e.target.value as "piece"|"set")}><option value="piece">Per piece</option><option value="set">Per set</option></select></label>
     <label>Planned rate (₹) *<input type="number" min="0" step="0.01" value={plannedRate} onChange={e=>setPlannedRate(e.target.value)} placeholder="Rate per piece / set"/></label>
