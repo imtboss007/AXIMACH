@@ -213,7 +213,11 @@ export default function LinkedProcessWorkspace({ onBack, onNotice, notice, onSel
   const vendorAssignedPercent = routeOperations.length?Math.round(routeOperations.filter(op=>op.executionType==="Internal"||Boolean(op.vendorId)).length/routeOperations.length*100):0;
   const lateOps = routeOperations.filter(op => op.plannedEnd && op.status !== "Complete" && op.plannedEnd.slice(0,10) < new Date().toISOString().slice(0, 10));
   const delayedPercent = routeOperations.length?Math.round(lateOps.length/routeOperations.length*100):0;
-  const transportCount = componentTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.tripCount) || 0), 0) + routeOperations.filter(op => op.transportCost > 0 || op.transportVendorId).length;
+  const duplicateLegacyTransportIdsForCount = new Set(componentTransportLegs.filter(leg=>leg.anchorOperationId).filter(leg=>{
+    const op=routeOperations.find(operation=>operation.id===leg.anchorOperationId);
+    return Boolean(op?.transportRouteId)&&op?.transportRouteId===leg.routeId&&Math.abs(Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0)-Math.max(0,Number(op?.transportCost)||0))<0.01;
+  }).map(leg=>leg.anchorOperationId));
+  const transportCount = componentTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.tripCount) || 0), 0) + routeOperations.filter(op => !duplicateLegacyTransportIdsForCount.has(op.id) && (op.transportCost > 0 || op.transportVendorId)).length;
   const totalAccepted = routeOperations.reduce((sum, op) => sum + op.accepted, 0);
   const allDone = routeOperations.length > 0 && routeOperations.every(op => op.status === "Complete");
   const finalDelivery = selectedLine?.targetDelivery || selectedPO?.targetDelivery || "";
