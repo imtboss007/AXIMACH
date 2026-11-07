@@ -579,6 +579,27 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     onNotice("Add a sub-process under " + parent.name + ". The parent vendor is preselected; you can keep or change it.");
   };
 
+  const startAddDefinition = (definitionId: string) => {
+    const definition = processDefinitions.find(item => item.id === definitionId);
+    if (!definition || !selectedPO || !selectedLine || !selectedComponent) {
+      onNotice("Select a saved PO component line before adding a Process Directory stage.");
+      return;
+    }
+    const base = blankOperation(selectedLine);
+    base.processDefinitionId = definition.id;
+    base.name = definition.processType;
+    base.category = definition.category;
+    base.vendorId = definition.vendorIds?.[0] || "";
+    base.subcategory = "";
+    setDraft(base);
+    setEditingId("");
+    setSearch("");
+    setSimulationActive(false);
+    setSimulationIndex(0);
+    setShowEditor(true);
+    onNotice(definition.processType + " is selected from Process Directory. Save it to create the real operation for this PO component line.");
+  };
+
   const startAdd = (branch = false, transport = false) => {
     if (!selectedPO || !selectedLine || !selectedComponent) {
       onNotice("Select a saved company, purchase order and PO component line first. AXIMACH will then link every operation to that line.");
@@ -1039,8 +1060,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             <div className="module-form-actions"><button className="button-primary" onClick={saveOperation}><Check size={14}/> {editingId ? "Save changes" : "Save operation"}</button><button className="button-quiet" onClick={() => setShowEditor(false)}>Cancel</button></div>
           </div>
         </section>}
-        {["sphere","vortex","combined"].includes(visualStyle) && routeOperations.length
-          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D operations={visibleOperations} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} onAddSubprocess={startAddSubprocess} /></div>
+        {["sphere","vortex","combined"].includes(visualStyle) && (routeOperations.length > 0 || processDefinitions.length > 0)
+          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D operations={visibleOperations} processDefinitions={processDefinitions} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} onAddSubprocess={startAddSubprocess} onAddProcessDefinition={startAddDefinition} /></div>
           : visualStyle==="gantt" && routeOperations.length ? <div className="process-gantt-view">
               <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {routeOperations.length} operations</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
               {visibleOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));return <div className="process-gantt-row" key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small>{shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%"}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
