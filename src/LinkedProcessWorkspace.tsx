@@ -119,11 +119,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       setCompanyId(initialContext.companyId);
       setPoId("");
       setPoLineId("");
+      setSelectedOperationId("");
     } else if (initialContext.componentId) {
       setPoId("");
       setPoLineId("");
+      setSelectedOperationId("");
+    } else {
+      setSelectedOperationId("");
     }
-    setSelectedOperationId("");
   }, [initialContext?.companyId, initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, initialContext?.operationId]);
 
 
