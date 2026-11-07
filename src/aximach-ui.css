@@ -1568,3 +1568,40 @@
   .dashboard-welcome-orb .ax-orb-stage { min-height:0; }
   .dashboard-welcome-orb .ax-orb-drag-zone { height:350px; flex-basis:350px; }
 }
+
+
+/* Process Map: selectable Process Directory library stages before job operations exist. */
+.process-directory-map-catalog {
+  position:relative;
+  z-index:2;
+  margin:18px auto 22px;
+  width:min(100%,1100px);
+  padding:18px;
+  border:1px solid rgba(105,185,220,.28);
+  border-radius:18px;
+  background:linear-gradient(145deg,rgba(8,30,51,.94),rgba(13,48,72,.88));
+  box-shadow:0 18px 42px rgba(2,12,24,.22),inset 0 1px rgba(255,255,255,.07);
+}
+.process-directory-map-heading { display:grid; gap:5px; margin-bottom:14px; text-align:center; }
+.process-directory-map-heading>span { color:#75d7e9; font-size:10px; font-weight:800; letter-spacing:.18em; }
+.process-directory-map-heading>strong { color:#f1f8ff; font-size:16px; letter-spacing:.04em; }
+.process-directory-map-heading>small { color:#a9c1d4; font-size:11px; }
+.process-directory-map-nodes { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:10px; }
+.process-directory-map-node {
+  display:flex; min-width:0; min-height:142px; flex-direction:column; align-items:center; justify-content:center; gap:7px;
+  padding:13px 10px; border:1px solid rgba(113,197,224,.35); border-radius:13px;
+  color:#e9f6ff; background:linear-gradient(155deg,rgba(26,72,99,.92),rgba(10,35,58,.96));
+  cursor:pointer; text-align:center; transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.process-directory-map-node:hover:not(:disabled) { transform:translateY(-3px); border-color:#70d8ed; box-shadow:0 10px 24px rgba(0,0,0,.2); }
+.process-directory-map-node:disabled { cursor:not-allowed; opacity:.55; }
+.process-directory-map-node>svg,.process-directory-map-node>.ax-process-icon { width:28px; height:28px; color:#7cdef0; }
+.process-directory-map-node>strong { font-size:12px; line-height:1.25; }
+.process-directory-map-node>span { color:#a9c6d9; font-size:10px; }
+.process-directory-map-node>small { color:#8ca9bd; font-size:9px; }
+.process-directory-map-node>em { margin-top:3px; color:#8de5ef; font-size:9px; font-style:normal; font-weight:800; letter-spacing:.04em; }
+@media(max-width:620px) {
+  .process-directory-map-catalog { margin:10px 0 14px; padding:12px; }
+  .process-directory-map-nodes { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .process-directory-map-node { min-height:124px; padding:10px 7px; }
+}
