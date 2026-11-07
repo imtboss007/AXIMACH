@@ -312,7 +312,8 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
     const assignment: IconAssignment = { iconName: selectedMeta.name, iconVariant: selectedMeta.variant, palette: paletteName, finish, depth, tilt, customAsset: customAsset || undefined, revision: (previous?.revision || 0) + 1, history, updatedAt: stamp };
     const next = { ...assignments, [assignmentKey]: assignment };
     setAssignments(next);
-    const nextPresets = [assignment, ...presets.filter((preset) => preset.iconName !== assignment.iconName || preset.iconVariant !== assignment.iconVariant || preset.palette !== assignment.palette || preset.finish !== assignment.finish)].slice(0, 120);
+    const preset: IconAssignment = { iconName: assignment.iconName, iconVariant: assignment.iconVariant, palette: assignment.palette, finish: assignment.finish, depth: assignment.depth, tilt: assignment.tilt, updatedAt: assignment.updatedAt };
+    const nextPresets = [preset, ...presets.filter((item) => item.iconName !== preset.iconName || item.iconVariant !== preset.iconVariant || item.palette !== preset.palette || item.finish !== preset.finish)].slice(0, 120);
     setPresets(nextPresets);
     const bundle = { assignments: next, favourites, presets: nextPresets, updatedAt: new Date().toISOString() };
     writePreferenceBundle(bundle);
@@ -336,6 +337,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const handleAssetImport = (file?: File) => {
     if (!file) return;
     if (file.type === "image/png") {
+      if (file.size > 1024 * 1024) { setNotice("PNG logo file must be 1 MB or smaller so connected devices can sync it reliably."); return; }
       const reader = new FileReader();
       reader.onload = () => { setCustomAsset(String(reader.result || "")); setNotice("PNG loaded into the logo preview. Save & apply to bind it to the selected master record."); };
       reader.onerror = () => setNotice("Could not read the PNG file.");
@@ -346,12 +348,13 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
       setNotice("Only SVG and PNG logo files are supported.");
       return;
     }
+    if (file.size > 256 * 1024) { setNotice("SVG logo file must be 256 KB or smaller."); return; }
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const parsed = new DOMParser().parseFromString(String(reader.result || ""), "image/svg+xml");
         if (parsed.querySelector("parsererror") || parsed.documentElement.tagName.toLowerCase() !== "svg") throw new Error("The file is not a valid SVG.");
-        parsed.querySelectorAll("script,foreignObject,iframe,object,embed").forEach(node => node.remove());
+        parsed.querySelectorAll("script,style,link,foreignObject,iframe,object,embed").forEach(node => node.remove());
         parsed.querySelectorAll("*").forEach(node => [...node.attributes].forEach(attribute => {
           const name = attribute.name.toLowerCase();
           const value = attribute.value.trim().toLowerCase();
@@ -389,7 +392,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
         const glyphNode = tile?.querySelector<HTMLElement>("i");
         const pseudo = glyphNode ? window.getComputedStyle(glyphNode, "::before") : null;
         let glyph = pseudo?.content || "";
-        glyph = glyph.replace(/^["']|["']$/g, "").replace(/\\([0-9a-f]{1,6})\\s?/gi, (_match, code) => String.fromCodePoint(parseInt(code, 16)));
+        glyph = glyph.replace(/^["']|["']$/g, "").replace(/\\([0-9a-f]{1,6})\s?/gi, (_match, code) => String.fromCodePoint(parseInt(code, 16)));
         const font = (pseudo?.fontFamily || "tabler-icons").replace(/["&<>]/g, "");
         const escaped = glyph.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         if (glyph) graphic = '<text x="64" y="86" text-anchor="middle" font-family="' + font + '" font-size="76" fill="' + activePalette.color + '">' + escaped + '</text>';
@@ -416,7 +419,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
       const glyphNode = tile?.querySelector<HTMLElement>("i");
       const pseudo = glyphNode ? window.getComputedStyle(glyphNode, "::before") : null;
       let glyph = pseudo?.content || "";
-      glyph = glyph.replace(/^["']|["']$/g, "").replace(/\\([0-9a-f]{1,6})\\s?/gi, (_match, code) => String.fromCodePoint(parseInt(code, 16)));
+      glyph = glyph.replace(/^["']|["']$/g, "").replace(/\\([0-9a-f]{1,6})\s?/gi, (_match, code) => String.fromCodePoint(parseInt(code, 16)));
       if (!glyph) { setNotice("The selected icon could not be resolved for PNG export."); return; }
       context.fillStyle = activePalette.color;
       context.textAlign = "center"; context.textBaseline = "middle";
@@ -446,13 +449,13 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
         <motion.div className="ax-icon-studio-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
           <motion.section className="ax-icon-studio" role="dialog" aria-modal="true" aria-labelledby="ax-icon-studio-title" initial={{ opacity: 0, y: 28, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 18, scale: 0.98 }} transition={{ type: "spring", stiffness: 100, damping: 20 }}>
             <header className="ax-icon-studio-header">
-              <div className="ax-icon-studio-brand"><span><Layers3 size={20}/></span><div><div className="eyebrow">AXIMACH / VISUAL SYSTEM</div><h2 id="ax-icon-studio-title">3D Icon Studio</h2><p>Search, customise, assign and save manufacturing process icons.</p></div></div>
+              <div className="ax-icon-studio-brand"><span><Layers3 size={20}/></span><div><div className="eyebrow">AXIMACH / VISUAL SYSTEM</div><h2 id="ax-icon-studio-title">3D Icon Studio</h2><p>Build, import, customise and globally assign process and component logos by permanent master ID.</p></div></div>
               <button className="ax-icon-studio-close" onClick={onClose} aria-label="Close icon studio"><X size={18}/></button>
             </header>
             <div className="ax-icon-studio-stats">
               <div><strong>{ICONS.length.toLocaleString("en-IN")}</strong><span>Tabler glyphs indexed</span></div>
               <div><strong>{(ICONS.length * STYLE_VARIANTS_PER_ICON).toLocaleString("en-IN")}+</strong><span>3D style combinations</span></div>
-              <div><strong>{Object.keys(assignments).length}</strong><span>Process families assigned</span></div>
+              <div><strong>{Object.keys(assignments).length}</strong><span>Logo assignments</span></div>
               <div><strong>{presets.length.toLocaleString("en-IN")}</strong><span>Saved style presets</span></div>
             </div>
             <div className="ax-icon-studio-body">
@@ -493,6 +496,9 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                 <div className="ax-icon-palette">{palettes.map((item) => <button key={item.name} title={item.name} aria-label={item.name} className={paletteName === item.name ? "active" : ""} style={{ background: item.color }} onClick={() => setPaletteName(item.name)}/>)}</div>
                 <label className="ax-icon-slider"><span>Bevel depth <b>{depth}/4</b></span><input type="range" min="1" max="4" step="1" value={depth} onChange={(event) => setDepth(Number(event.target.value))}/></label>
                 <label className="ax-icon-slider"><span>3D tilt <b>{tilt}°</b></span><input type="range" min="-18" max="18" step="9" value={tilt} onChange={(event) => setTilt(Number(event.target.value))}/></label>
+                <div className="ax-icon-field-label"><span>Custom logo file</span><small>SVG / PNG import and export</small></div>
+                <label className="ax-icon-import-control">Import SVG or PNG<input type="file" accept="image/svg+xml,image/png,.svg,.png" onChange={event => { handleAssetImport(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>
+                <div className="ax-icon-export-actions"><button type="button" onClick={() => void exportLogo("svg")}>Export SVG</button><button type="button" onClick={() => void exportLogo("png")}>Export PNG</button></div>
                 <div className="ax-icon-field-label"><span>Custom logo file</span><small>SVG / PNG import and export</small></div>
                 <label className="ax-icon-import-control">Import SVG or PNG<input type="file" accept="image/svg+xml,image/png,.svg,.png" onChange={event => { handleAssetImport(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>
                 <div className="ax-icon-export-actions"><button type="button" onClick={() => void exportLogo("svg")}>Export SVG</button><button type="button" onClick={() => void exportLogo("png")}>Export PNG</button></div>
