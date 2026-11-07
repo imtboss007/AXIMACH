@@ -180,7 +180,9 @@ export function ProcessIcon({ processName, fallback, processId, category, subcat
   );
   const stableId = processId || definition?.id;
   const subcategoryIndex = subcategory ? (definition?.subcategories.findIndex(item => normaliseWords(item) === normaliseWords(subcategory)) ?? -1) : -1;
-  const subcategoryId = subcategoryIndex >= 0 ? definition?.subcategoryIds?.[subcategoryIndex] : undefined;
+  const subcategoryId = subcategoryIndex >= 0
+    ? definition?.subcategoryIds?.[subcategoryIndex] || definition?.id + "-subprocess-" + String(subcategoryIndex+1).padStart(3,"0")
+    : undefined;
   const assignment = (subcategoryId ? assignments["subcategory:" + subcategoryId] : undefined)
     || (stableId ? assignments["process:" + stableId] : undefined)
     || assignments["process:" + normaliseWords(processName)] || assignments[family];
