@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
@@ -90,8 +90,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [bulkVendorId,setBulkVendorId] = useState("");
   const [bulkStart,setBulkStart] = useState("");
   const [bulkEnd,setBulkEnd] = useState("");
+  const appliedLinkedContext = useRef("");
   useEffect(() => {
-    if (!initialContext) return;
+    if (!initialContext) { appliedLinkedContext.current = ""; return; }
+    const contextKey = JSON.stringify({ companyId: initialContext.companyId, poId: initialContext.poId, poLineId: initialContext.poLineId, componentId: initialContext.componentId, operationId: initialContext.operationId, vendorId: initialContext.vendorId });
+    if (appliedLinkedContext.current === contextKey) return;
     const targetPO = (initialContext.poId
       ? purchaseOrders.find(po => po.id === initialContext.poId)
       : undefined)
@@ -122,19 +125,18 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const linkedOperation = operations.find(op => op.id === initialContext.operationId
         && op.poId === targetPO.id && op.poLineId === targetLine?.id);
       setSelectedOperationId(linkedOperation?.id || "");
-    } else if (initialContext.companyId) {
+      appliedLinkedContext.current = contextKey;
+    } else if (initialContext.companyId && companies.some(company => company.id === initialContext.companyId)) {
       setCompanyId(initialContext.companyId);
       setPoId("");
       setPoLineId("");
       setSelectedOperationId("");
-    } else if (initialContext.componentId) {
-      setPoId("");
-      setPoLineId("");
+      appliedLinkedContext.current = contextKey;
+    } else if (!initialContext.poId && !initialContext.poLineId && !initialContext.componentId && !initialContext.operationId && !initialContext.vendorId) {
       setSelectedOperationId("");
-    } else {
-      setSelectedOperationId("");
+      appliedLinkedContext.current = contextKey;
     }
-  }, [initialContext?.companyId, initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, initialContext?.operationId, initialContext?.vendorId, data]);
+  }, [initialContext?.companyId, initialContext?.poId, initialContext?.poLineId, initialContext?.componentId, initialContext?.operationId, initialContext?.vendorId, data, companies]);
 
 
   const companyOrders = purchaseOrders.filter(p => p.companyId === companyId);
