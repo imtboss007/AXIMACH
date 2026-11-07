@@ -175,6 +175,11 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
   });
  },[update]);
  const [search,setSearch]=useState("");
+ const [companyFilters,setCompanyFilters]=useState<string[]>([]);
+ const [poFilters,setPoFilters]=useState<string[]>([]);
+ const [componentFilters,setComponentFilters]=useState<string[]>([]);
+ const [categoryFilters,setCategoryFilters]=useState<string[]>([]);
+ const [processFilters,setProcessFilters]=useState<string[]>([]);
  const [companyId,setCompanyId]=useState("");
  const [companyName,setCompanyName]=useState("");
  const [poId,setPoId]=useState("");
@@ -190,7 +195,13 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
  const [plannedRate,setPlannedRate]=useState("");
  const [notes,setNotes]=useState("");
  const [extraProcesses,setExtraProcesses]=useState<Array<{id:string;processType:string;processCategory:string;processSubcategory:string;plannedQty:string;unit:"piece"|"set";plannedRate:string}>>([]);
- const filtered=useMemo(()=>rows.filter(row=>((row.companyName||"")+" "+(row.poNumber||"")+" "+row.componentName+" "+row.componentNumber+" "+row.processType+" "+row.processCategory+" "+(row.processSubcategory||"")+" "+(row.notes||"")).toLowerCase().includes(search.toLowerCase().trim())),[rows,search]);
+ const filtered=useMemo(()=>rows.filter(row=>{
+  const companyMatch=!companyFilters.length||companyFilters.includes(row.companyId||companies.find(item=>item.name.trim().toLowerCase()===(row.companyName||"").trim().toLowerCase())?.id||"");
+  const poMatch=!poFilters.length||poFilters.includes(row.poId||purchaseOrders.find(item=>item.number.trim().toLowerCase()===(row.poNumber||"").trim().toLowerCase())?.id||"");
+  const componentMatch=!componentFilters.length||componentFilters.includes(row.componentId||components.find(item=>item.partNumber.trim().toLowerCase()===row.componentNumber.trim().toLowerCase()||item.name.trim().toLowerCase()===row.componentName.trim().toLowerCase())?.id||"");
+  return ((row.companyName||"")+" "+(row.poNumber||"")+" "+row.componentName+" "+row.componentNumber+" "+row.processType+" "+row.processCategory+" "+(row.processSubcategory||"")+" "+(row.notes||"")).toLowerCase().includes(search.toLowerCase().trim())
+   &&companyMatch&&poMatch&&(!categoryFilters.length||categoryFilters.includes(row.processCategory))&&(!processFilters.length||processFilters.includes(row.processType))&&componentMatch;
+ }),[rows,search,companyFilters,poFilters,componentFilters,categoryFilters,processFilters,companies,purchaseOrders,components]);
  const amount=(qty:string,rate:string)=>(Number(qty)||0)*(Number(rate)||0);
  const eligiblePOs=purchaseOrders.filter(po=>!companyId||po.companyId===companyId);
  const selectedPO=purchaseOrders.find(po=>po.id===poId);
@@ -219,7 +230,8 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
  return <section className="workspace-page specialized-directory">
   <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> LINKED COST DIRECTORY</span><span className="module-number">{rows.length} PLANNED COST RECORDS</span></div>
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> FINANCE / PLANNING REFERENCE</div><h1>Component Planned Cost<span>.</span></h1><p>Linked component and process planning. Company, PO, component and Process Directory references are stored by stable record ID and read by Costing &amp; Payment.</p></div></div>
-  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, PO, component, number, category or process…"/></label></div>
+  <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search company, PO, component, number, category or process…"/></label><button type="button" className="button-quiet compact-button" onClick={()=>{setSearch("");setCompanyFilters([]);setPoFilters([]);setComponentFilters([]);setCategoryFilters([]);setProcessFilters([]);}}>Clear filters</button></div>
+  <section className="surface-panel planned-cost-filter-panel"><div className="panel-heading"><div><h3>Planned cost filters</h3><p>Search and multi-select linked master records and planned process categories.</p></div><button className="button-quiet compact-button" onClick={()=>{setCompanyFilters([]);setPoFilters([]);setComponentFilters([]);setCategoryFilters([]);setProcessFilters([]);}}>Clear selections</button></div><div className="contact360-filter-grid ax-search-filter-columns"><SearchableMultiSelect id="planned-cost-company-filter" label="Company" options={companies.map(item=>({id:item.id,label:item.name}))} selected={companyFilters} onChange={setCompanyFilters} emptyMeansAll/><SearchableMultiSelect id="planned-cost-po-filter" label="Purchase order" options={purchaseOrders.map(item=>({id:item.id,label:item.number+" · "+(companies.find(company=>company.id===item.companyId)?.name||"Company")}))} selected={poFilters} onChange={setPoFilters} emptyMeansAll/><SearchableMultiSelect id="planned-cost-component-filter" label="Component" options={components.map(item=>({id:item.id,label:item.partNumber+" · "+item.name}))} selected={componentFilters} onChange={setComponentFilters} emptyMeansAll/><SearchableMultiSelect id="planned-cost-category-filter" label="Process category" options={processCategories.map(value=>({id:value,label:value}))} selected={categoryFilters} onChange={setCategoryFilters} emptyMeansAll/><SearchableMultiSelect id="planned-cost-process-filter" label="Process type" options={[...new Set(definitions.map(item=>item.processType))].sort().map(value=>({id:value,label:value}))} selected={processFilters} onChange={setProcessFilters} emptyMeansAll/></div></section>
   <section className="surface-panel"><div className="panel-heading"><div><h3>Add planned cost group</h3><p>Choose the actual master records. Planned-cost lines retain stable company, PO, component and process-definition IDs.</p></div></div>
    <div className="module-record-form specialized-form">
     <SearchablePicker id="planned-company" label="Company" value={companyId} placeholder="Search company name…" options={companies.map(item=>({id:item.id,label:item.name+" · "+(item.gstin||"GSTIN not set")}))} onChange={value=>{const item=companies.find(row=>row.id===value);setCompanyId(value);setCompanyName(item?.name||"");setPoId("");setPoNumber("");setComponentId("");setComponentName("");setComponentNumber("");}}/>
