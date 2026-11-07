@@ -56,6 +56,15 @@ test("Quality Inspection enforces whole-number quantity balance and operation qu
   assert.ok(workspace.includes("nextAccepted+nextRejected>nextCompleted"));
 });
 
+test("Transport assignment rejects inactive directory routes in both creation workflows", () => {
+  const production = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const processPlan = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(production.includes("if(route.active===false)"));
+  assert.ok(production.includes("route.active!==false"));
+  assert.ok(processPlan.includes("selectedTransportDirectoryRoute.active===false"));
+  assert.ok(processPlan.includes("route.active!==false"));
+});
+
 test("Process Plan enforces Process Directory vendor assignments", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)'));
