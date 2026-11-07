@@ -143,7 +143,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             animate={reducedMotion || reduceMotion || paused ? undefined : { y: [0, -5, 0] }}
             transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
           >
-            <AXIMACHWebGLSphere paused={paused} reduceMotion={reduceMotion || reducedMotion} speed={speed} />
+            <AXIMACHWebGLSphere paused={paused} reduceMotion={reduceMotion || reducedMotion === true} speed={speed} />
             <span className="ax-orb-gloss" />
             <span className="ax-orb-latitude ax-orb-latitude-one" />
             <span className="ax-orb-latitude ax-orb-latitude-two" />
