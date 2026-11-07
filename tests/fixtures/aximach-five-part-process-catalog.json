@@ -17,6 +17,12 @@
           "toleranceClass": "Ultra Precision"
         },
         {
+          "category": "Turning",
+          "processType": "CNC finish turning",
+          "subProcess": "Precision shoulder and face finishing",
+          "toleranceClass": "Ultra Precision"
+        },
+        {
           "category": "Heat Treatment",
           "processType": "Vacuum hardening",
           "subProcess": "Hardening and tempering",
@@ -131,6 +137,12 @@
           "category": "VMC Machining",
           "processType": "CNC face milling",
           "subProcess": "Datum face machining",
+          "toleranceClass": "Precision"
+        },
+        {
+          "category": "VMC Machining",
+          "processType": "CNC face milling",
+          "subProcess": "Pocket and port-face finishing",
           "toleranceClass": "Precision"
         },
         {
