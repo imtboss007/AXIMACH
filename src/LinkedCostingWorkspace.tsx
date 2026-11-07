@@ -88,6 +88,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     };
     const paid=costedLinkedOperations.reduce((sum,op)=>sum+paymentForOperation(op),0);
     const unpaidProcess=Math.max(0,processCost-paid);
+    const processOverpayment=Math.max(0,paid-processCost);
     const processVariance=processCost-plannedProcessCost;
     const vendorCostMap=new Map<string,{vendorId:string;processCost:number;plannedProcessCost:number;transportCost:number;paid:number}>();
     const vendorBucket=(vendorId:string)=>{
@@ -108,8 +109,12 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     const vendorBreakdown=[...vendorCostMap.values()].map(item=>({...item,recordedDirectCost:item.processCost+item.transportCost,unpaidProcess:Math.max(0,item.processCost-item.paid)}));
     const vendorIds=vendorBreakdown.map(item=>item.vendorId);
     const budgetEntered=plannedRows.length>0||plannedProcessCost>0||materialCost>0||transportCost>0||extras>0;
-    const actualCostEntered=costedLinkedOperations.some(op=>Number(op.actualRatePerPart)>0)||materialCost>0||transportCost>0||extras>0;
-    return {po,line,component,linkedOperations,revenue,processCost,transportCost,plannedCost,plannedProcessCost,materialCost,extras,paid,unpaidProcess,recordedCost,processVariance,profitLoss:revenue-recordedCost,vendorIds,vendorBreakdown,budgetEntered,actualCostEntered};
+    // Component-master and BOM material rates are planning estimates, not evidence of actual material spend.
+    // Only a complete PO-line override is counted as an explicitly entered material cost.
+    const materialCostExplicitlyEntered=line.materialQty!==undefined&&line.materialRate!==undefined;
+    const lineExtrasExplicitlyEntered=[line.overhead,line.toolingCost,line.reworkCost,line.scrapCost].some(value=>value!==undefined);
+    const actualCostEntered=costedLinkedOperations.some(op=>Number(op.actualRatePerPart)>0)||materialCostExplicitlyEntered||transportCost>0||lineExtrasExplicitlyEntered;
+    return {po,line,component,linkedOperations,revenue,processCost,transportCost,plannedCost,plannedProcessCost,materialCost,extras,paid,unpaidProcess,processOverpayment,recordedCost,processVariance,profitLoss:revenue-recordedCost,vendorIds,vendorBreakdown,budgetEntered,actualCostEntered};
   }));
   const rollupCompanyOptions = [...new Map(companyRollupRows.map(row=>[row.po.companyId,{id:row.po.companyId,label:companies.find(company=>company.id===row.po.companyId)?.name||"Archived company"}])).values()];
   const rollupPOOptions = [...new Map(companyRollupRows.map(row=>[row.po.id,row.po])).values()];
@@ -130,9 +135,9 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
     revenue:sum.revenue+row.revenue,planned:sum.planned+row.plannedCost,plannedProcess:sum.plannedProcess+row.plannedProcessCost,
     material:sum.material+row.materialCost,extras:sum.extras+row.extras,process:sum.process+row.processCost,
     transport:sum.transport+row.transportCost,recorded:sum.recorded+row.recordedCost,paid:sum.paid+row.paid,
-    unpaidProcess:sum.unpaidProcess+row.unpaidProcess,processVariance:sum.processVariance+row.processVariance,profitLoss:sum.profitLoss+row.profitLoss,
+    unpaidProcess:sum.unpaidProcess+row.unpaidProcess,processOverpayment:sum.processOverpayment+row.processOverpayment,processVariance:sum.processVariance+row.processVariance,profitLoss:sum.profitLoss+row.profitLoss,
     budgetsMissing:sum.budgetsMissing+(row.budgetEntered?0:1),actualCostsMissing:sum.actualCostsMissing+(row.actualCostEntered?0:1)
-  }),{revenue:0,planned:0,plannedProcess:0,material:0,extras:0,process:0,transport:0,recorded:0,paid:0,unpaidProcess:0,processVariance:0,profitLoss:0,budgetsMissing:0,actualCostsMissing:0});
+  }),{revenue:0,planned:0,plannedProcess:0,material:0,extras:0,process:0,transport:0,recorded:0,paid:0,unpaidProcess:0,processOverpayment:0,processVariance:0,profitLoss:0,budgetsMissing:0,actualCostsMissing:0});
   const vendorRollupRows = visibleCompanyRollup.flatMap(row=>row.vendorBreakdown.map(item=>({
     ...item,companyName:companies.find(company=>company.id===row.po.companyId)?.name||"Archived company",
     poNumber:row.po.number,componentName:row.component?.name||"Missing component",
@@ -224,6 +229,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   const independentVariance = actualProcessTotal - independentPlannedTotal;
   const paidProcessTotal = costedRouteOperations.reduce((sum,op) => sum + paymentTotalFor(op), 0);
   const unpaidProcessBalance = Math.max(0, operationActual - paidProcessTotal);
+  const processOverpaymentBalance = Math.max(0, paidProcessTotal - operationActual);
   const profit = revenue - actualTotal;
   const estimatedProfit = revenue - plannedTotal;
   const costPerAccepted = acceptedQty ? plannedTotal / acceptedQty : 0;
@@ -308,6 +314,7 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
           <div><strong>{money(companyRollupTotals.recorded)}</strong><span>Total recorded cost; {companyRollupTotals.actualCostsMissing} line(s) have incomplete actual cost entries</span></div>
           <div><strong>{money(companyRollupTotals.paid)}</strong><span>Process payments entered</span></div>
           <div><strong>{money(companyRollupTotals.unpaidProcess)}</strong><span>Unpaid process balance only</span></div>
+          <div><strong>{money(companyRollupTotals.processOverpayment)}</strong><span>Process payments above recorded process cost; verify allocation</span></div>
           <div><strong className={companyRollupTotals.profitLoss<0?"loss-value":"profit-value"}>{money(companyRollupTotals.profitLoss)}</strong><span>Contribution before unentered costs and taxes</span></div>
           <div><strong className={companyRollupTotals.processVariance>0?"loss-value":"profit-value"}>{money(companyRollupTotals.processVariance)}</strong><span>Actual minus planned process cost</span></div>
         </div>
@@ -338,7 +345,8 @@ export default function LinkedCostingWorkspace({ onBack, onNotice, notice, onSel
   <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PROCESS PAYMENT CONTROL</div><h3>Payment status for selected PO component</h3><p>Payment entries are stored per process operation in Process Plan.</p></div></div>
   <div className="dashboard-job-summary">
     <div><strong>{money(paidProcessTotal)}</strong><span>Paid / recorded payments</span></div>
-    <div><strong>{money(unpaidProcessBalance)}</strong><span>Remaining actual process balance</span></div>
+    <div><strong>{money(unpaidProcessBalance)}</strong><span>Remaining recorded process balance</span></div>
+    <div><strong>{money(processOverpaymentBalance)}</strong><span>Payments above recorded process cost — verify</span></div>
     <div><strong>{costedRouteOperations.filter(op=>paymentTotalFor(op)<(op.quantity*(op.actualRatePerPart||0))).length}</strong><span>Operations with unpaid process balance</span></div>
   </div>
   <button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Wallet size={14}/> Update operation payments</button>
