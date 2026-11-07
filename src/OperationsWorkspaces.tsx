@@ -155,7 +155,7 @@ export function TransportDispatchWorkspace({onBack,onNotice,notice,onSelectModul
  </section>;
 }
 
-export function QualityInspectionWorkspace({onBack,onNotice,notice,initialContext}:Props){
+export function QualityInspectionWorkspace({onBack,onNotice,notice,onSelectModule,initialContext}:Props){
  const {data,update}=useManufacturingData();const ops=activeRows(data.operations);const vendors=activeRows(data.vendors),components=activeRows(data.components),pos=activeRows(data.purchaseOrders);
  const measurements=activeRows(data.inspectionMeasurements||[]);
  const [search,setSearch]=useState("");
