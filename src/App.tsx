@@ -268,7 +268,7 @@ function App() {
         ) : activeModuleId === "export" ? (
           <DataExchangeWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "production" ? (
-          <ProductionPlanWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <ProductionPlanWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "dispatch" ? (
           <TransportDispatchWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "quality" ? (
