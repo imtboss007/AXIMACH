@@ -18,6 +18,7 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   const orders = activeRows(data.purchaseOrders);
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
+  const processDefinitions = activeRows(data.processDefinitions || []);
   const quotations = activeRows(data.quotations);
   const [companyId, setCompanyId] = useState("");
   const [rollupCompanyIds, setRollupCompanyIds] = useState<string[]>([]);
@@ -282,20 +283,36 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   };
   const saveQuote = () => {
     if (!selectedComponent || !selectedLine || !selectedOperation || !vendorId) { onNotice("Choose a component, PO line, process operation and vendor."); return; }
+    if (!vendors.some(vendor => vendor.id === vendorId)) { onNotice("The quotation vendor is missing or archived. Choose an active Vendor Directory record."); return; }
+    if (selectedOperation.poId !== selectedLine.poId || selectedOperation.poLineId !== selectedLine.lineId || selectedOperation.componentId !== selectedComponent.id) { onNotice("The selected operation does not belong to the current PO component line. Refresh the operation selection."); return; }
+    const operationDefinition = processDefinitions.find(definition => definition.id === selectedOperation.processDefinitionId)
+      || processDefinitions.find(definition => definition.processType === selectedOperation.name && definition.category === selectedOperation.category);
+    if (operationDefinition?.vendorIds?.length && !operationDefinition.vendorIds.includes(vendorId)) { onNotice("This vendor is not assigned to the selected operation's Process Directory definition."); return; }
     const rate = Number(ratePerPart);
     const qty = Number(quantity);
-    if (!Number.isFinite(rate) || rate < 0 || !Number.isFinite(qty) || qty <= 0) { onNotice("Enter a valid quoted rate and positive quantity."); return; }
+    const quoteTransport = Number(transportCost);
+    const quoteLeadDays = Number(leadDays);
+    if (!Number.isFinite(rate) || rate < 0 || !Number.isSafeInteger(qty) || qty <= 0 || !Number.isFinite(quoteTransport) || quoteTransport < 0 || !Number.isSafeInteger(quoteLeadDays) || quoteLeadDays < 0) { onNotice("Enter a finite non-negative rate and transport cost, a positive whole-number quantity, and whole-number lead days."); return; }
+    if (quotedAt && validUntil && validUntil < quotedAt) { onNotice("Quote expiry date cannot be before the quotation date."); return; }
     const stampNow = nowIso(); const id = makeId("quote");
     const quote: QuotationRecord = {
       id, poId: selectedLine.poId, poLineId: selectedLine.lineId, componentId: selectedComponent.id, operationId: selectedOperation.id, vendorId,
       quoteReference: quoteReference.trim(), quotedAt: quotedAt || stamp(), validUntil, quantity: qty, ratePerPart: rate,
-      transportCost: Math.max(0, Number(transportCost) || 0), leadDays: Math.max(0, Number(leadDays) || 0),
+      transportCost: quoteTransport, leadDays: quoteLeadDays,
       status: "Received", notes: quoteNotes.trim(), createdAt: stampNow, updatedAt: stampNow
     };
     update(current => ({ ...current, quotations: [...current.quotations, quote] }));
     setShowQuoteForm(false); onNotice("Quotation saved with component ID, PO-line ID, operation ID and vendor ID. It is recorded as a received quote, not an actual purchase/invoice.");
   };
   const selectQuote = (quote: QuotationRecord) => {
+    if (!quotations.some(item => item.id === quote.id && !item.deletedAt)) { onNotice("This quotation is no longer active. Refresh the quote register."); return; }
+    if (quote.status === "Rejected" || quote.status === "Expired" || (quote.validUntil && quote.validUntil < stamp())) { onNotice("This quotation is rejected or expired and cannot be selected."); return; }
+    if (!vendors.some(vendor => vendor.id === quote.vendorId)) { onNotice("The quotation vendor is missing or archived. Select a quote from an active Vendor Directory record."); return; }
+    const operation = operations.find(op => op.id === quote.operationId && op.poId === quote.poId && op.poLineId === quote.poLineId && op.componentId === quote.componentId);
+    if (!operation) { onNotice("The operation linked to this quote is no longer active on its original PO component line."); return; }
+    const definition = processDefinitions.find(item => item.id === operation.processDefinitionId)
+      || processDefinitions.find(item => item.processType === operation.name && item.category === operation.category);
+    if (definition?.vendorIds?.length && !definition.vendorIds.includes(quote.vendorId)) { onNotice("This quote's vendor is no longer assigned to the operation's Process Directory definition."); return; }
     const selectedStamp = nowIso();
     update(current => ({
       ...current,
