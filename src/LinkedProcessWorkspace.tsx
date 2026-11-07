@@ -143,7 +143,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const poLines = selectedPO ? selectedPO.lines.filter(line => !("deletedAt" in line && (line as PurchaseOrderLine & {deletedAt?: string}).deletedAt)) : [];
   const selectedLine = poLines.find(line => line.id === poLineId);
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
-  const selectedProcessDefinition = processDefinitions.find(item => item.id === draft.processDefinitionId)
+  const selectedProcessDefinition = processDefinitions.find(item => item.id === draft.processDefinitionId && item.processType === draft.name && item.category === draft.category)
     || processDefinitions.find(item => item.processType === draft.name && item.category === draft.category);
   const routeOperations = operations.filter(op => op.poLineId === poLineId && op.poId === poId && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const componentTransportLegs = allTransportLegs.filter(leg => leg.poLineId === poLineId && leg.poId === poId && leg.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
@@ -622,7 +622,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const old = current.operations.find(op => op.id === operationId);
       const next: OperationRecord = {
         id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
-        processDefinitionId: draft.processDefinitionId || selectedProcessDefinition?.id || old?.processDefinitionId || undefined,
+        processDefinitionId: selectedProcessDefinition?.id || undefined,
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
         ...draft, paidAmount: nextPaidTotal, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
