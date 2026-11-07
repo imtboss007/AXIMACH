@@ -685,7 +685,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   };
   const openTransportEditor = (leg?: ComponentTransportLegRecord) => {
     setEditingTransportLegId(leg?.id || "");
-    setTransportRouteId(leg?.routeId || transportRoutes[0]?.id || "");
+    setTransportRouteId(leg?.routeId || transportRoutes.find(route=>route.active!==false)?.id || "");
     setTransportTripCount(String(leg?.tripCount || 1));
     setTransportAnchorOperationId(leg?.anchorOperationId || activeOperation?.id || "");
     setTransportPlacement(leg?.placement || (activeOperation && (activeOperation.branch || "Main route") !== "Main route" ? "after" : leg?.anchorOperationId ? "after" : "start"));
@@ -700,6 +700,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const activeIsBranch = Boolean(activeOperation && (activeOperation.branch || "Main route") !== "Main route");
     if (transportPlacement === "start" && activeIsBranch) { onNotice("Transport for an alternate or rework branch must be anchored to a process step in that branch. This keeps its cost excluded until the branch is used."); return; }
     if (!selectedTransportDirectoryRoute) { onNotice("Select a saved route from Transport Directory, or add one there first."); return; }
+    const existingLegForEdit = editingTransportLegId ? componentTransportLegs.find(leg=>leg.id===editingTransportLegId) : undefined;
+    if(selectedTransportDirectoryRoute.active===false&&existingLegForEdit?.routeId!==selectedTransportDirectoryRoute.id){onNotice("This Transport Directory route is inactive. Activate it before assigning it to a new transport entry.");return;}
     const tripCount = Number(transportTripCount);
     if (!Number.isInteger(tripCount) || tripCount < 1) { onNotice("Enter a whole-number trip count of at least 1."); return; }
     const stamp = nowIso();
@@ -891,7 +893,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     {showTransportEditor && <section className="route-editor-panel linked-operation-editor">
       <div className="route-editor-heading"><div><strong><Truck size={15}/> {editingTransportLegId ? "Edit component transport entry" : "Add component transport entry"}</strong><small>Transport is not a process operation. It is totalled separately for this PO component.</small></div><button className="icon-control" onClick={closeTransportEditor} aria-label="Close transport editor"><X size={14}/></button></div>
       <div className="route-editor-form">
-        <SearchablePicker id="process-transport-directory-route" label="Saved Transport Directory route *" value={transportRouteId} placeholder="Search route, vendor, vehicle or direction…" options={transportRoutes.map(route=>({id:route.id,label:route.fromLocation+" → "+route.toLocation+" · "+route.vehicleType+" · "+route.tripDirection+" · "+vendors.find(item=>item.id===route.vendorId)?.company+" · "+money(route.fixedAmount)}))} onChange={setTransportRouteId}/>
+        <SearchablePicker id="process-transport-directory-route" label="Saved Transport Directory route *" value={transportRouteId} placeholder="Search route, vendor, vehicle or direction…" options={transportRoutes.filter(route=>route.active!==false||(editingTransportLegId&&route.id===componentTransportLegs.find(leg=>leg.id===editingTransportLegId)?.routeId)).map(route=>({id:route.id,label:route.fromLocation+" → "+route.toLocation+" · "+route.vehicleType+" · "+route.tripDirection+" · "+vendors.find(item=>item.id===route.vendorId)?.company+" · "+money(route.fixedAmount)}))} onChange={setTransportRouteId}/>
         <label>Number of times / trips *<input type="number" min="1" step="1" value={transportTripCount} onChange={event => setTransportTripCount(event.target.value)}/></label>
         <SearchablePicker id="process-transport-placement" label="Place transport" value={transportPlacement} options={[{id:"start",label:"At component start"},{id:"before",label:"Before selected process"},{id:"after",label:"After selected process"}]} onChange={value=>setTransportPlacement(value as "start"|"before"|"after")}/>
 <SearchablePicker id="process-transport-anchor" label="Connect to process" value={transportAnchorOperationId} disabled={transportPlacement==="start"} placeholder="Search process operation…" options={routeOperations.map(operation=>({id:operation.id,label:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name}))} onChange={setTransportAnchorOperationId}/>
