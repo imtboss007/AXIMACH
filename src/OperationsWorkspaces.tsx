@@ -174,6 +174,17 @@ export function QualityInspectionWorkspace({onBack,onNotice,notice,initialContex
  });
  const selectedMeasurementOperation=filtered.find(op=>op.id===measurementOperationId)||filtered[0];
  const patch=(id:string,key:"completed"|"accepted"|"rejected"|"inspectionResult"|"qualityNotes"|"status",value:string|number)=>{
+  const currentOperation=ops.find(op=>op.id===id);
+  if(!currentOperation){onNotice("The selected process operation is no longer available.");return;}
+  if(key==="completed"||key==="accepted"||key==="rejected"){
+   const quantity=Number(value);
+   if(!Number.isSafeInteger(quantity)||quantity<0){onNotice("Completed, accepted and rejected quantities must be non-negative whole numbers.");return;}
+   const nextCompleted=key==="completed"?quantity:currentOperation.completed;
+   const nextAccepted=key==="accepted"?quantity:currentOperation.accepted;
+   const nextRejected=key==="rejected"?quantity:currentOperation.rejected;
+   if(nextCompleted>currentOperation.quantity){onNotice("Completed quantity cannot exceed the operation quantity.");return;}
+   if(nextAccepted+nextRejected>nextCompleted){onNotice("Accepted plus rejected quantity cannot exceed completed quantity.");return;}
+  }
   update(current=>({...current,operations:current.operations.map(op=>op.id===id?{...op,[key]:value,updatedAt:nowIso()}:op)}));
   onNotice("Inspection values saved to the linked process operation.");
  };
