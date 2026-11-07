@@ -169,16 +169,20 @@ function assignedIcon(assignment: IconAssignment, title: string, className: stri
   </span>;
 }
 
-export function ProcessIcon({ processName, fallback, processId, category }: { processName: string; fallback: ReactNode; processId?: string; category?: string }) {
+export function ProcessIcon({ processName, fallback, processId, category, subcategory }: { processName: string; fallback: ReactNode; processId?: string; category?: string; subcategory?: string }) {
   const { data } = useManufacturingData();
   const assignments = useIconAssignments();
   const family = processFamilyForName(processName);
   const definition = activeRows(data.processDefinitions).find(row =>
+    (processId ? row.id === processId : true) &&
     (!category || normaliseWords(row.category) === normaliseWords(category)) &&
     normaliseWords(row.processType) === normaliseWords(processName)
   );
   const stableId = processId || definition?.id;
-  const assignment = (stableId ? assignments["process:" + stableId] : undefined)
+  const subcategoryIndex = subcategory ? (definition?.subcategories.findIndex(item => normaliseWords(item) === normaliseWords(subcategory)) ?? -1) : -1;
+  const subcategoryId = subcategoryIndex >= 0 ? definition?.subcategoryIds?.[subcategoryIndex] : undefined;
+  const assignment = (subcategoryId ? assignments["subcategory:" + subcategoryId] : undefined)
+    || (stableId ? assignments["process:" + stableId] : undefined)
     || assignments["process:" + normaliseWords(processName)] || assignments[family];
   if (!assignment) return <span className="linked-node-icon linked-node-icon-3d">{mechanicalGlyphForOperation(processName) ? <MechanicalOperationIcon operation={processName} /> : <span className="linked-node-icon-fallback">{fallback}</span>}</span>;
   return assignedIcon(assignment, "Saved process identity: " + processName, "linked-node-icon linked-node-icon-3d ax-process-icon");
@@ -195,8 +199,9 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const { data } = useManufacturingData();
   const processDefinitions = activeRows(data.processDefinitions);
   const components = activeRows(data.components);
-  const [targetType, setTargetType] = useState<"process" | "component" | "family" | "exact">("process");
+  const [targetType, setTargetType] = useState<"process" | "component" | "subcategory" | "family" | "exact">("process");
   const [targetRecordId, setTargetRecordId] = useState("");
+  const [targetSubcategoryId, setTargetSubcategoryId] = useState("");
   const [customAsset, setCustomAsset] = useState("");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"all" | "favourites" | "assigned">("all");
@@ -284,13 +289,26 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const variantClass = `ax-icon-finish-${normaliseWords(finish).replaceAll(" ", "-")}`;
   const targetOptions = targetType === "component"
     ? components.map(item => ({ id: item.id, label: item.partNumber + " · " + item.name }))
-    : processDefinitions.map(item => ({ id: item.id, label: item.category + " · " + item.processType + (item.subcategories.length ? " · " + item.subcategories.slice(0, 3).join(", ") : "") }));
+    : targetType === "subcategory"
+      ? processDefinitions.flatMap(item => item.subcategories.map((subcategory,index) => ({
+          id: item.subcategoryIds?.[index] || item.id + "-subprocess-" + String(index+1).padStart(3,"0"),
+          label: item.category + " · " + item.processType + " · " + subcategory
+        })))
+      : processDefinitions.map(item => ({ id: item.id, label: item.category + " · " + item.processType + (item.subcategories.length ? " · " + item.subcategories.slice(0, 3).join(", ") : "") }));
   const selectedTarget = targetType === "component" ? components.find(item => item.id === targetRecordId) : processDefinitions.find(item => item.id === targetRecordId);
-  const selectedTargetLabel = targetType === "component" && selectedTarget && "partNumber" in selectedTarget
-    ? selectedTarget.partNumber + " · " + selectedTarget.name
-    : selectedTarget && "processType" in selectedTarget ? selectedTarget.category + " · " + selectedTarget.processType : "";
+  const selectedSubcategoryTarget = targetType === "subcategory"
+    ? processDefinitions.flatMap(item => item.subcategories.map((subcategory,index) => ({
+        id: item.subcategoryIds?.[index] || item.id + "-subprocess-" + String(index+1).padStart(3,"0"),
+        label: item.category + " · " + item.processType + " · " + subcategory
+      }))).find(item => item.id === targetSubcategoryId)
+    : undefined;
+  const selectedTargetLabel = targetType === "subcategory" ? selectedSubcategoryTarget?.label || ""
+    : targetType === "component" && selectedTarget && "partNumber" in selectedTarget
+      ? selectedTarget.partNumber + " · " + selectedTarget.name
+      : selectedTarget && "processType" in selectedTarget ? selectedTarget.category + " · " + selectedTarget.processType : "";
   const specificKey = specificProcess.trim() ? "process:" + normaliseWords(specificProcess) : "";
   const assignmentKey = targetType === "component" && targetRecordId ? "component:" + targetRecordId
+    : targetType === "subcategory" && targetSubcategoryId ? "subcategory:" + targetSubcategoryId
     : targetType === "process" && targetRecordId ? "process:" + targetRecordId
     : targetType === "exact" ? specificKey || "process:" + normaliseWords(specificProcess) : family;
   useEffect(() => { setCustomAsset(assignments[assignmentKey]?.customAsset || ""); }, [assignmentKey, assignments]);
@@ -486,8 +504,8 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                   <span className="ax-icon-preview-gloss"/>{customAsset ? <img className="ax-icon-custom-asset" src={customAsset} alt="Imported logo preview"/> : <i className={iconClass(selected?.name || "settings", selected?.variant)} aria-hidden="true"/>}
                 </motion.div>
                 <div className="ax-icon-selected-name"><strong>{selected?.name.replaceAll("-", " ") || selectedIcon}</strong><span>{selected?.category || "Tabler outline glyph"}</span></div>
-                <label className="ax-icon-field">Logo target<select value={targetType} onChange={event => { setTargetType(event.target.value as typeof targetType); setTargetRecordId(""); setSpecificProcess(""); }}><option value="process">Process Directory record</option><option value="component">Component Master record</option><option value="family">Process family default</option><option value="exact">Exact process / operation name</option></select><ChevronDown size={13}/></label>
-                {(targetType === "process" || targetType === "component") && <SearchablePicker id="icon-studio-stable-target" label={targetType === "process" ? "Process definition *" : "Component master *"} value={targetRecordId} placeholder={targetType === "process" ? "Search category, process or subcategory…" : "Search part number or component name…"} options={targetOptions} onChange={setTargetRecordId}/>}
+                                <label className="ax-icon-field">Logo target<select value={targetType} onChange={event => { setTargetType(event.target.value as typeof targetType); setTargetRecordId(""); setTargetSubcategoryId(""); setSpecificProcess(""); }}><option value="process">Process Directory record</option><option value="subcategory">Process sub-category record</option><option value="component">Component Master record</option><option value="family">Process family default</option><option value="exact">Exact process / operation name</option></select><ChevronDown size={13}/></label>
+                {(targetType === "process" || targetType === "component" || targetType === "subcategory") && <SearchablePicker id="icon-studio-stable-target" label={targetType === "process" ? "Process definition *" : targetType === "subcategory" ? "Process sub-category *" : "Component master *"} value={targetType === "subcategory" ? targetSubcategoryId : targetRecordId} placeholder={targetType === "process" ? "Search category, process or subcategory…" : targetType === "subcategory" ? "Search process and sub-category…" : "Search part number or component name…"} options={targetOptions} onChange={targetType === "subcategory" ? setTargetSubcategoryId : setTargetRecordId}/>}
                 {targetType === "family" && <label className="ax-icon-field">Default process family<select value={family} onChange={(event) => setFamily(event.target.value)}>{families.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={13}/></label>}
                 {targetType === "exact" && <label className="ax-icon-field">Exact process / operation<input value={specificProcess} onChange={(event) => setSpecificProcess(event.target.value)} placeholder="e.g. CNC Turning - Shaft OP10"/></label>}
                 <div className="ax-icon-field-label"><span>Surface finish</span><small>{finish}</small></div>
@@ -496,9 +514,6 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                 <div className="ax-icon-palette">{palettes.map((item) => <button key={item.name} title={item.name} aria-label={item.name} className={paletteName === item.name ? "active" : ""} style={{ background: item.color }} onClick={() => setPaletteName(item.name)}/>)}</div>
                 <label className="ax-icon-slider"><span>Bevel depth <b>{depth}/4</b></span><input type="range" min="1" max="4" step="1" value={depth} onChange={(event) => setDepth(Number(event.target.value))}/></label>
                 <label className="ax-icon-slider"><span>3D tilt <b>{tilt}°</b></span><input type="range" min="-18" max="18" step="9" value={tilt} onChange={(event) => setTilt(Number(event.target.value))}/></label>
-                <div className="ax-icon-field-label"><span>Custom logo file</span><small>SVG / PNG import and export</small></div>
-                <label className="ax-icon-import-control">Import SVG or PNG<input type="file" accept="image/svg+xml,image/png,.svg,.png" onChange={event => { handleAssetImport(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>
-                <div className="ax-icon-export-actions"><button type="button" onClick={() => void exportLogo("svg")}>Export SVG</button><button type="button" onClick={() => void exportLogo("png")}>Export PNG</button></div>
                 <div className="ax-icon-field-label"><span>Custom logo file</span><small>SVG / PNG import and export</small></div>
                 <label className="ax-icon-import-control">Import SVG or PNG<input type="file" accept="image/svg+xml,image/png,.svg,.png" onChange={event => { handleAssetImport(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label>
                 <div className="ax-icon-export-actions"><button type="button" onClick={() => void exportLogo("svg")}>Export SVG</button><button type="button" onClick={() => void exportLogo("png")}>Export PNG</button></div>
@@ -514,7 +529,7 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
                   {!presets.length && <span className="ax-icon-presets-empty">Save a process icon to create your first reusable style.</span>}
                 </div>
                 <div className="ax-icon-version-history"><div className="ax-icon-field-label"><span>Version history</span><small>{assignments[assignmentKey]?.revision ? "v" + assignments[assignmentKey].revision : "Not assigned"}</small></div>{(assignments[assignmentKey]?.history || []).slice().reverse().slice(0, 5).map((version, index) => <button type="button" key={version.updatedAt + ":" + index} onClick={() => restoreVersion(version)}>v{version.revision || "—"} · {version.iconName.replaceAll("-", " ")} <small>{new Date(version.updatedAt).toLocaleString("en-IN")}</small></button>)}</div>
-                <button className="ax-icon-save" onClick={saveAssignment} disabled={((targetType === "process" || targetType === "component") && !targetRecordId) || (targetType === "exact" && !specificProcess.trim())}><Sparkles size={16}/> Save & apply to {selectedTargetLabel || (targetType === "exact" ? specificProcess.trim() : family)}</button>
+                <button className="ax-icon-save" onClick={saveAssignment} disabled={((targetType === "process" || targetType === "component") && !targetRecordId) || (targetType === "subcategory" && !targetSubcategoryId) || (targetType === "exact" && !specificProcess.trim())}><Sparkles size={16}/> Save & apply to {selectedTargetLabel || (targetType === "exact" ? specificProcess.trim() : family)}</button>
                 {assignments[assignmentKey] && <button className="ax-icon-reset" onClick={() => removeAssignment(assignmentKey)}>Restore AXIMACH default icon</button>}
                 {notice && <div className="ax-icon-notice"><Check size={13}/>{notice}</div>}
               </aside>
