@@ -211,6 +211,16 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
                 {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} pcs</small>}
                 {fieldVisible("price") && <small>Price / part · ₹{(operation.actualRatePerPart || operation.ratePerPart).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
                 {fieldVisible("amount") && <small>Process amount · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                 {fieldVisible("status") && <small>Status · {operation.status}</small>}
+                 {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
+                 {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
+                 {fieldVisible("payment") && <small>Payment · {operation.paymentStatus || "Unpaid"}</small>}
+                 {fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>}
+                {fieldVisible("status") && <small>Status · {operation.status}</small>}
+                {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
+                {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
+                {fieldVisible("payment") && <small>Payment · {operation.paymentStatus || "Unpaid"}</small>}
+                {fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>}
               </div>
               {subprocessesFor(operation.id).length > 0 && <small className="process-orbit-node-qty">{subprocessesFor(operation.id).length} SUB-PROCESS(ES)</small>}
             </button>;
