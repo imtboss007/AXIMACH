@@ -50,7 +50,6 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const [sphereSize, setSphereSize] = useState(() => Number.isFinite(Number(saved.current.sphereSize)) ? Math.max(.82,Math.min(1.12,Number(saved.current.sphereSize))) : 1);
   const [orbitIntensity, setOrbitIntensity] = useState(() => Number.isFinite(Number(saved.current.orbitIntensity)) ? Math.max(0,Math.min(1,Number(saved.current.orbitIntensity))) : 1);
   const [studioOpen, setStudioOpen] = useState(false);
-  const paused = false;
   const reducedMotion = useReducedMotion();
   const [reduceMotion, setReduceMotion] = useState(saved.current.reduceMotion === true);
   const [zoomed, setZoomed] = useState(saved.current.zoomed === true);
