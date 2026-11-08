@@ -368,3 +368,29 @@ test("Mechanical icon inventory covers cutting tools, production machines, workh
   assert.ok(directory.includes("Mechanical Icon Inventory"));
   assert.ok(directory.includes("MECHANICAL_ICON_INVENTORY.map"));
 });
+
+test("Component Master exposes column-wise searchable filters for company, part number, name, revision, drawing and unit", () => {
+  const workspace = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  for (const key of ["componentCompanyFilters", "componentNumberFilters", "componentNameFilters", "componentRevisionFilters", "componentDrawingFilters", "componentUnitFilters"]) {
+    assert.ok(workspace.includes(key), "missing Component Master filter: " + key);
+  }
+  assert.ok(workspace.includes("componentNumberFilters.includes(c.partNumber)"));
+  assert.ok(workspace.includes("componentNameFilters.includes(c.name)"));
+  assert.ok(workspace.includes("componentDrawingFilters.includes(c.drawingReference||\"—\")"));
+  assert.ok(workspace.includes('id="component-master-number-filter"'));
+  assert.ok(workspace.includes('id="component-master-name-filter"'));
+  assert.ok(workspace.includes('id="component-master-drawing-filter"'));
+});
+
+test("Purchase Orders exposes column-wise searchable filters and guarded delete-all controls", () => {
+  const workspace = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  for (const key of ["poCompanyFilters", "poNumberFilters", "poIssueDateFilters", "poDeliveryFilters", "poComponentFilters", "poStatusFilters"]) {
+    assert.ok(workspace.includes(key), "missing Purchase Orders filter: " + key);
+  }
+  assert.ok(workspace.includes("poNumberFilters.includes(p.number)"));
+  assert.ok(workspace.includes("poIssueDateFilters.includes(p.issueDate||\"—\")"));
+  assert.ok(workspace.includes("poDeliveryFilters.includes(p.targetDelivery||\"—\")"));
+  assert.ok(workspace.includes("p.lines.some(line=>poComponentFilters.includes(line.componentId))"));
+  assert.ok(workspace.includes("Delete all Purchase Orders"));
+  assert.ok(workspace.includes("Delete all components"));
+});
