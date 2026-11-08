@@ -484,6 +484,9 @@ test("Process Plan Add operation dropdown exposes working operation and route ac
 test("Process Plan route scope drives displayed visuals and every export format", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
+  assert.ok(workspace.includes('if (scope === "all") return routeOperations;'), "All routes must include every saved operation even when filters are active");
+  assert.ok(workspace.includes('if (scope === "filtered") return source;'), "Filtered results must be the explicit filtered-only scope");
+  assert.ok(workspace.includes('{ key: "all", label: "All routes", count: routeOperations.length }'), "All routes count must reflect the complete saved route graph");
   assert.ok(workspace.includes("operations={exportOperations} allOperations={routeOperations}"));
   assert.ok(workspace.includes("exportOperations.map(op=>"));
   assert.ok(workspace.includes("exportBranches.map(branch =>"));

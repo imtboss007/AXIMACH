@@ -302,7 +302,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const getRouteScopeOperations = (scope: string): OperationRecord[] => {
     const source = visibleOperations;
     const branchName = (operation: OperationRecord) => operation.branch || "Main route";
-    if (scope === "all") return source;
+    // "All routes" is the complete saved graph; active filters apply only to filtered scopes.\n    if (scope === "all") return routeOperations;
     if (scope === "main") return source.filter(op => branchName(op) === "Main route");
     if (scope === "alternate") return source.filter(op => op.relationType === "alternate" || (branchName(op) !== "Main route" && !/rework/i.test(branchName(op))));
     if (scope === "rework") return source.filter(op => op.relationType === "rework" || /rework/i.test(branchName(op)));
@@ -317,7 +317,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     return source;
   };
   const routeScopeButtons = [
-    { key: "all", label: "All routes", count: visibleOperations.length },
+    { key: "all", label: "All routes", count: routeOperations.length },
     { key: "main", label: "Main route", count: visibleOperations.filter(op => (op.branch || "Main route") === "Main route").length },
     { key: "alternate", label: "Alternate routes", count: visibleOperations.filter(op => op.relationType === "alternate" || ((op.branch || "Main route") !== "Main route" && !/rework/i.test(op.branch || ""))).length },
     { key: "rework", label: "Rework routes", count: visibleOperations.filter(op => op.relationType === "rework" || /rework/i.test(op.branch || "")).length },
