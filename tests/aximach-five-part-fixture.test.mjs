@@ -1402,3 +1402,13 @@ test("Component Planned Cost subcategory filter is linked to the saved planned-c
   assert.ok(planned.includes("subcategoryFilters.includes(row.processSubcategory||\"\")"));
   assert.ok(planned.includes("setSubcategoryFilters([])"));
 });
+
+
+test("Add Operation menu remains clickable and explains the required PO component selection", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const button = workspace.slice(workspace.indexOf('aria-label="Add operation ▾"')-180, workspace.indexOf('aria-label="Add operation ▾"')+340);
+  assert.ok(button.includes("onClick={toggleAddMenu}"));
+  assert.ok(!button.includes("disabled={"));
+  assert.ok(workspace.includes('"Select a PO component line first"'));
+  assert.ok(workspace.includes("saving an operation requires a valid PO component line"));
+});
