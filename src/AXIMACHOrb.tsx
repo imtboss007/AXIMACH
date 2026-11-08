@@ -4,12 +4,12 @@ import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, Clipboard
 import { activeRows, useManufacturingData } from "./manufacturingData";
 import AXIMACHWebGLSphere from "./AXIMACHWebGLSphere";
 
-type Props = { onSelectModule: (id: string) => void };
+type Props = { onSelectModule: (id: string) => void; surface: "dashboard" | "command-centre" };
 
 type OrbVisualMode = "sphere" | "cube" | "vortex" | "molecular" | "orbit" | "mesh" | "holographic" | "radial" | "particle" | "industrial" | "kinetic" | "multi-core";
 type OrbSpeed = "Slow" | "Normal" | "Fast";
-function readOrbPreferences(): Record<string, unknown> {
-  try { return JSON.parse(window.localStorage.getItem("aximach.orb.preferences.v1") || "{}") as Record<string, unknown>; }
+function readOrbPreferences(storageKey: string): Record<string, unknown> {
+  try { return JSON.parse(window.localStorage.getItem(storageKey) || "{}") as Record<string, unknown>; }
   catch { return {}; }
 }
 
@@ -34,8 +34,9 @@ const satellites = [
   { id: "export", label: "Import / Export", Icon: FileDown },
 ];
 
-export default function AXIMACHOrb({ onSelectModule }: Props) {
-  const saved = useRef(readOrbPreferences());
+export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
+  const preferenceKey = surface === "command-centre" ? "aximach.command-centre.orb.preferences.v1" : "aximach.orb.preferences.v1";
+  const saved = useRef(readOrbPreferences(preferenceKey));
   const { data } = useManufacturingData();
   const shellStats = [
     { id: "companies", label: "Companies", value: activeRows(data.companies).length, Icon: Building2 },
@@ -65,8 +66,8 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
     return () => query.removeEventListener("change", updateCompact);
   }, []);
   useEffect(() => {
-    try { window.localStorage.setItem("aximach.orb.preferences.v1", JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,autoRotate,autoRotateRecords})); } catch { /* Preferences are optional. */ }
-  }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,autoRotate,autoRotateRecords]);
+    try { window.localStorage.setItem(preferenceKey, JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,autoRotate,autoRotateRecords})); } catch { /* Preferences are optional. */ }
+  }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,autoRotate,autoRotateRecords,preferenceKey]);
   // The 18 module shell and the separate live-record shell rotate gently by default.
   // Dragging either shell temporarily takes control; reduced-motion users can pause it.
   const rotateX = useMotionValue(-15);
