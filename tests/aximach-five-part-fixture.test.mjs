@@ -1211,3 +1211,20 @@ test("Contact 360 resolves legacy process names only when one Process Directory 
   assert.ok(workspace.includes("if(matches.length===1)resolved.push(matches[0].id)"));
   assert.ok(workspace.includes("const direct=processDefinitions.filter(definition=>definition.id===value)"));
 });
+
+
+test("Vendor Network process filters use stable Process Directory IDs and keep legacy vendor text separate", () => {
+  const workspace = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  const start = workspace.indexOf("export function VendorNetworkWorkspace");
+  const network = workspace.slice(start);
+  assert.ok(network.includes('id:"directory:"+definition.id'));
+  assert.ok(network.includes('id:"text:"+name.trim().toLowerCase()'));
+  assert.ok(network.includes('label:"Vendor / legacy text · "+name'));
+  assert.ok(network.includes('value==="directory:"+definition.id'));
+  assert.ok(network.includes("const capabilityDefinitionIds=capabilityDefinitions.map(definition=>definition.id)"));
+  assert.ok(network.includes("const assignedDefinitionIds=assigned.map(operation=>resolveOperationDefinition(operation)?.id||"").filter(Boolean)"));
+  assert.ok(network.includes('value.startsWith("directory:")'));
+  assert.ok(network.includes('value.startsWith("text:")&&legacyProcessNamesForVendor.includes(value.slice(5))'));
+  assert.ok(network.includes('id="network-process-type" label="Process type" options={processOptions}'));
+  assert.ok(!network.includes('matchesAny(processTypes,capabilityTypes+" "+v.processes+" "+operationTypes)'));
+});

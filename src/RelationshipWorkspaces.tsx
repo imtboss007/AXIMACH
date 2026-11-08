@@ -165,8 +165,19 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
  const [onlyAssigned,setOnlyAssigned]=useState(false);
  const vendorTypeOptions=[...new Set(vendors.map(v=>v.vendorType||"").filter(Boolean))].sort();
  const categoryOptions=[...new Set(definitions.map(p=>p.category).filter(Boolean))].sort();
- const processOptions=[...new Set(definitions.map(p=>p.processType).filter(Boolean))].sort();
- const selectedDefinitions=definitions.filter(p=>(!categories.length||categories.includes(p.category))&&(!processTypes.length||processTypes.includes(p.processType)));
+ const legacyProcessNames=[...new Set([
+  ...vendors.flatMap(v=>String(v.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean)),
+  ...operations.filter(operation=>{
+   if(definitions.some(definition=>definition.id===operation.processDefinitionId))return false;
+   const matches=definitions.filter(definition=>definition.processType.trim().toLowerCase()===operation.name.trim().toLowerCase()&&definition.category.trim().toLowerCase()===operation.category.trim().toLowerCase());
+   return matches.length!==1;
+  }).map(operation=>operation.name)
+ ])].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+ const processOptions=[
+  ...definitions.map(definition=>({id:"directory:"+definition.id,label:definition.category+" · "+definition.processType})),
+  ...legacyProcessNames.map(name=>({id:"text:"+name.trim().toLowerCase(),label:"Vendor / legacy text · "+name}))
+ ];
+ const selectedDefinitions=definitions.filter(definition=>(!categories.length||categories.includes(definition.category))&&(!processTypes.length||processTypes.some(value=>value==="directory:"+definition.id)));
  const subcategoryOptions=selectedDefinitions.flatMap(definition=>(definition.subcategories||[]).map((name,index)=>({
   id:definition.subcategoryIds?.[index]||definition.id+"-subprocess-"+String(index+1).padStart(3,"0"),
   label:definition.category+" · "+definition.processType+" · "+name
@@ -178,6 +189,12 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
   return definition.subcategoryIds?.[index]||definition.id+"-subprocess-"+String(index+1).padStart(3,"0");
  };
  const matchesAny=(selected:string[],source:string)=>!selected.length||selected.some(value=>source.toLowerCase().split(/[,;|]/).map(x=>x.trim()).includes(value.toLowerCase()));
+ const resolveOperationDefinition=(operation:typeof operations[number])=>{
+  const direct=definitions.find(definition=>definition.id===operation.processDefinitionId);
+  if(direct)return direct;
+  const matches=definitions.filter(definition=>definition.processType.trim().toLowerCase()===operation.name.trim().toLowerCase()&&definition.category.trim().toLowerCase()===operation.category.trim().toLowerCase());
+  return matches.length===1?matches[0]:undefined;
+ };
 
  const clearFilters=()=>{setSearch("");setVendorTypes([]);setCategories([]);setProcessTypes([]);setSubcategories([]);setExecutionTypes([]);setOnlyAssigned(false);};
  const rows=vendors.map(v=>{
@@ -194,6 +211,9 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
   const fullText=(v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.email+" "+v.vendorType+" "+v.processes+" "+capabilityText+" "+v.machines+" "+v.materials+" "+v.notes+" "+linkedContacts+" "+assigned.map(op=>op.name+" "+op.category+" "+op.subcategory+" "+op.status).join(" ")).toLowerCase();
   const operationCategory=assigned.map(op=>op.category).join(" ");
   const operationTypes=assigned.map(op=>op.name).join(" ");
+  const capabilityDefinitionIds=capabilityDefinitions.map(definition=>definition.id);
+  const assignedDefinitionIds=assigned.map(operation=>resolveOperationDefinition(operation)?.id||"").filter(Boolean);
+  const legacyProcessNamesForVendor=[...String(v.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean),...assigned.filter(operation=>!resolveOperationDefinition(operation)).map(operation=>operation.name)].map(value=>value.toLowerCase());
   const operationSubcategories=assigned.map(op=>op.subcategory||"").join(" ");
   const capabilityCategories=capabilityDefinitions.map(definition=>definition.category).join(" ");
   const capabilityTypes=capabilityDefinitions.map(definition=>definition.processType).join(" ");
@@ -206,10 +226,13 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
   }).filter(Boolean);
   const execution=assigned.map(op=>op.executionType||"Outsourced").join(" ");
   const subcategoryMatch=!subcategories.length||subcategories.some(id=>capabilitySubcategoryIds.includes(id)||operationSubcategoryIds.includes(id));
+  const processMatch=!processTypes.length||processTypes.some(value=>value.startsWith("directory:")
+   ? capabilityDefinitionIds.includes(value.slice(10))||assignedDefinitionIds.includes(value.slice(10))
+   : value.startsWith("text:")&&legacyProcessNamesForVendor.includes(value.slice(5)));
   return fullText.includes(search.toLowerCase().trim())
    &&(!vendorTypes.length||vendorTypes.includes(v.vendorType||""))
    &&matchesAny(categories,capabilityCategories+" "+operationCategory)
-   &&matchesAny(processTypes,capabilityTypes+" "+v.processes+" "+operationTypes)
+   &&processMatch
    &&subcategoryMatch
    &&matchesAny(executionTypes,execution)
    &&(!onlyAssigned||assigned.length>0);
@@ -222,7 +245,7 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
  <div className="contact360-filter-grid ax-search-filter-columns">
   <SearchableMultiSelect id="network-vendor-type" label="Vendor category" options={vendorTypeOptions.map(x=>({id:x,label:x}))} selected={vendorTypes} onChange={setVendorTypes} emptyMeansAll/>
   <SearchableMultiSelect id="network-process-category" label="Process category" options={categoryOptions.map(x=>({id:x,label:x}))} selected={categories} onChange={setCategories} emptyMeansAll/>
-  <SearchableMultiSelect id="network-process-type" label="Process type" options={processOptions.map(x=>({id:x,label:x}))} selected={processTypes} onChange={setProcessTypes} emptyMeansAll/>
+  <SearchableMultiSelect id="network-process-type" label="Process type" options={processOptions} selected={processTypes} onChange={setProcessTypes} emptyMeansAll/>
   <SearchableMultiSelect id="network-subcategory" label="Subcategory" options={subcategoryOptions} selected={subcategories} onChange={setSubcategories} emptyMeansAll/>
   <SearchableMultiSelect id="network-execution" label="Execution" options={["Internal","Outsourced"].map(x=>({id:x,label:x}))} selected={executionTypes} onChange={setExecutionTypes} emptyMeansAll/>
  </div>
