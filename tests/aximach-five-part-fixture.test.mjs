@@ -1193,6 +1193,7 @@ test("Contact 360 saves Process Directory references by stable IDs and keeps man
   const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
   assert.ok(data.includes("processDefinitionIds?: string[]; processSubcategoryIds?: string[];"));
   assert.ok(workspace.includes('id:"directory:"+definition.id'));
+  assert.ok(workspace.includes('materials:v.materials||"",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[]'));
   assert.ok(workspace.includes("processDefinitionIds:contactProcessDefinitionIds(row)"));
   assert.ok(workspace.includes('selected={draft.processDefinitionIds||[]}'));
   assert.ok(workspace.includes('selected={draft.processSubcategoryIds||[]}'));
