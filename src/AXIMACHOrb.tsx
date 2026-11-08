@@ -65,15 +65,25 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   }, []);
   useEffect(() => {
     try { window.localStorage.setItem("aximach.orb.preferences.v1", JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,autoRotate})); } catch { /* Preferences are optional. */ }
-  }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed]);
-  // Both spheres are stationary until the user drags them. No idle auto-rotation.
+  }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,autoRotate]);
+  // The 18 module shell and the separate live-record shell rotate gently by default.
+  // Dragging either shell temporarily takes control; reduced-motion users can pause it.
   const rotateX = useMotionValue(-15);
   const rotateY = useMotionValue(22);
   const lowerRotateX = useMotionValue(-8);
   const lowerRotateY = useMotionValue(12);
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
   const lowerDrag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
-  const dragSensitivity = speed === "Slow" ? 0.45 : speed === "Fast" ? 0.95 : 0.72;\n  useEffect(() => {\n    if (!autoRotate || reduceMotion || reducedMotion) return;\n    const step = speed === "Slow" ? 0.12 : speed === "Fast" ? 0.34 : 0.22;\n    const timer = window.setInterval(() => {\n      if (!drag.current) rotateY.set(rotateY.get() + step);\n      if (!lowerDrag.current) lowerRotateY.set(lowerRotateY.get() + step * 0.72);\n    }, 32);\n    return () => window.clearInterval(timer);\n  }, [autoRotate, reduceMotion, reducedMotion, speed, rotateY, lowerRotateY]);
+  const dragSensitivity = speed === "Slow" ? 0.45 : speed === "Fast" ? 0.95 : 0.72;
+  useEffect(() => {
+    if (!autoRotate || reduceMotion || reducedMotion) return;
+    const step = speed === "Slow" ? 0.12 : speed === "Fast" ? 0.34 : 0.22;
+    const timer = window.setInterval(() => {
+      if (!drag.current) rotateY.set(rotateY.get() + step);
+      if (!lowerDrag.current) lowerRotateY.set(lowerRotateY.get() + step * 0.72);
+    }, 32);
+    return () => window.clearInterval(timer);
+  }, [autoRotate, reduceMotion, reducedMotion, speed, rotateY, lowerRotateY]);
 
   const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
     dragMoved.current = false;
@@ -201,7 +211,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
           </button>)}
         </motion.div>
       </div>
-      <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> AUTO-ROTATING · DRAG TO TAKE CONTROL <i /> SELECT AN ORBIT NODE TO OPEN A WORKSPACE</div>
+      <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> {autoRotate && !reduceMotion && !reducedMotion ? "AUTO-ROTATING" : "ROTATION PAUSED"} · DRAG TO TAKE CONTROL <i /> SELECT AN ORBIT NODE TO OPEN A WORKSPACE</div>
       <div className="ax-orb-studio-actions">
         <button type="button" className="ax-orb-studio-toggle" aria-expanded={studioOpen} onClick={() => setStudioOpen(value => !value)}>✧ Visual Experience Studio <span>{studioOpen ? "Close" : "Customize"}</span></button>
         <button type="button" className="ax-orb-pause" aria-pressed={!autoRotate} onClick={() => setAutoRotate(value => !value)}>{autoRotate ? "Ⅱ Pause rotation" : "▶ Resume rotation"}</button>
