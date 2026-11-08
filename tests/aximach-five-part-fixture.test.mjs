@@ -1271,3 +1271,14 @@ test("Process Map permits saving a planned outsourced operation before vendor as
   assert.ok(!saveHandler.includes('draft.executionType === "Outsourced" && !draft.vendorId'), "Vendor assignment must not block saving a planned outsourced process");
   assert.ok(saveHandler.includes("operations: [...current.operations.filter(op => op.id !== next.id), next]"));
 });
+
+
+test("Process Map explains missing company, PO or component prerequisites when Add Operation is unavailable", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('className="process-add-prerequisite-note" role="status"'));
+  assert.ok(workspace.includes("Select a saved company, purchase order and active PO component line above"));
+  assert.ok(workspace.includes('onSelectModule("companies")'));
+  assert.ok(workspace.includes('onSelectModule("purchasing")'));
+  assert.ok(workspace.includes('onSelectModule("components")'));
+  assert.ok(workspace.includes('selectedLine && !selectedComponent'));
+});
