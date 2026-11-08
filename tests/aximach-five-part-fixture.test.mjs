@@ -575,13 +575,20 @@ test("Five fixture parts create independent multi-process routes linked by stabl
   assert.ok(workspace.includes("id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id"));
 });
 
-test("Dashboard spheres only rotate on direct drag and dashboard navigation buttons select the correct views", () => {
+test("Dashboard spheres auto-rotate by default, support pause and manual drag, and navigate to the correct workspaces", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
   const process = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   assert.ok(!orb.includes("useAnimationFrame"));
   assert.ok(!orb.includes("rotateY:360"));
   assert.ok(!orb.includes("rotate:360"));
+  assert.ok(orb.includes("const [autoRotate, setAutoRotate]"));
+  assert.ok(orb.includes("window.setInterval"));
+  assert.ok(orb.includes("if (!autoRotate || reduceMotion || reducedMotion) return"));
+  assert.ok(orb.includes("if (!drag.current) rotateY.set"));
+  assert.ok(orb.includes("[autoRotate, reduceMotion, reducedMotion, speed, rotateY, lowerRotateY]"));
+  assert.ok(orb.includes("Pause rotation"));
+  assert.ok(orb.includes("Resume rotation"));
   assert.ok(orb.includes("const startDrag ="));
   assert.ok(orb.includes('className="ax-orb-depth" style={{rotateX,rotateY'));
   assert.ok(orb.includes("const dragSensitivity = speed ==="));
@@ -646,7 +653,9 @@ test("AXIMACH command sphere module buttons can be dragged without losing click 
   assert.ok(orb.includes("onPointerMove={moveDrag}"));
   assert.ok(orb.includes("onPointerUp={endDrag}"));
   assert.ok(orb.includes("if (!dragMoved.current) onSelectModule(id)"));
-  assert.ok(orb.includes("Both spheres are stationary until the user drags them. No idle auto-rotation."));
+  assert.ok(orb.includes("rotate gently by default"));
+  assert.ok(orb.includes("AUTO-ROTATING"));
+  assert.ok(!orb.includes("Both spheres are stationary until the user drags them. No idle auto-rotation."));
   assert.ok(orb.includes("onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag}"));
   assert.ok(orb.includes("if (!lowerDragMoved.current) onSelectModule(id)"));
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
@@ -668,6 +677,37 @@ test("Process Directory stores a colour per process type and route exports share
   }
 });
 
+
+test("Process Plan sub-processes inherit their Process Directory definition and persist stable subcategory IDs", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  assert.ok(workspace.includes("base.processDefinitionId = parent.processDefinitionId"));
+  assert.ok(workspace.includes("base.name = parent.name"));
+  assert.ok(workspace.includes("value={draft.processSubcategoryId}"));
+  assert.ok(workspace.includes("options={processSubcategoryOptions}"));
+  assert.ok(workspace.includes("subcategoryFilters.includes(operationSubcategoryId)"));
+  assert.ok(workspace.includes("processSubcategoryId: draft.processSubcategoryId"));
+  assert.ok(directory.includes("processSubcategoryId:stableSubcategoryId"));
+  assert.ok(directory.includes("value={processSubcategoryId}"));
+  assert.ok(directory.includes("value={row.processSubcategoryId}"));
+  assert.ok(data.includes("subcategoryIds?: string[]"));
+  assert.ok(data.includes("processSubcategoryId?: string;"));
+});
+
+test("Process route scope keeps original parent arrows visible and each 3D view opens its matching layout", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const resolveBranchOrigin ="));
+  assert.ok(workspace.includes("while (parent && (parent.branch || \"Main route\") === branch"));
+  assert.ok(workspace.includes("const branchOrigin=resolveBranchOrigin(branch,lane)"));
+  assert.ok(workspace.includes("const branchOrigin=resolveBranchOrigin(branch,laneOperations)"));
+  assert.ok(workspace.includes('initialLayout={visualStyle==="vortex"?"vortex":visualStyle==="combined"?"digital-mesh":"sphere"}'));
+  assert.ok(universe.includes('initialLayout = "sphere"'));
+  assert.ok(universe.includes("useState<ProcessLayoutMode>(initialLayout)"));
+  assert.ok(universe.includes("while (ancestor && (ancestor.branch || \"Main route\") === name"));
+  assert.ok(universe.includes("[parentOperations, lookupOperations]"));
+});
 
 test("mechanical icon inventory covers process stages beyond cutting and machining", () => {
   const source = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
