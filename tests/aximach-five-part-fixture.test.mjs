@@ -905,3 +905,16 @@ test("mobile and desktop command sphere orbit controls sit outside the core radi
   assert.ok(css.includes(".process-map-visible-fields"));
   assert.ok(css.includes("@media(max-width:620px){.ax-orb-module-shell .ax-orb-satellite-3d"));
 });
+
+test("Process Map route scopes intersect active filters before diagram and export selection", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const scopeStart = workspace.indexOf("const getRouteScopeOperations =");
+  const scopeEnd = workspace.indexOf("const exportScopeLabel =", scopeStart);
+  const scope = workspace.slice(scopeStart, scopeEnd);
+  assert.ok(scope.includes("const source = visibleOperations"));
+  assert.ok(scope.includes('if (scope === "all") return source'));
+  assert.ok(scope.includes('if (scope === "main") return source.filter'));
+  assert.ok(scope.includes('if (scope === "rework") return source.filter'));
+  assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
+  assert.ok(workspace.includes("operations={exportOperations}"));
+});
