@@ -601,6 +601,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     base.category = definition.category;
     base.vendorId = definition.vendorIds?.[0] || "";
     base.subcategory = "";
+    base.processColor = definition.displayColor || DEFAULT_PROCESS_COLOR;
+    setShowAddMenu(false);
     setDraft(base);
     setEditingId("");
     setSearch("");
@@ -611,6 +613,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   };
 
   const startAdd = (branch = false, transport = false) => {
+    setShowAddMenu(false);
     if (!selectedPO || !selectedLine || !selectedComponent) {
       onNotice("Select a saved company, purchase order and PO component line first. AXIMACH will then link every operation to that line.");
       return;
@@ -626,6 +629,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     setShowEditor(true);
   };
   const startAddBranch = (kind: "alternate" | "rework", anchorId?: string) => {
+    setShowAddMenu(false);
     const anchor = routeOperations.find(operation => operation.id === (anchorId || activeOperation?.id));
     if (!selectedPO || !selectedLine || !selectedComponent || !anchor) { onNotice("Select the exact process node where the alternate or rework branch must connect."); return; }
     const base = blankOperation(selectedLine);
@@ -645,6 +649,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   };
 
   const startAddBranchStep = () => {
+    setShowAddMenu(false);
     const anchor = activeOperation;
     if (!anchor || !anchor.parentId || (anchor.relationType !== "alternate" && anchor.relationType !== "rework")) {
       onNotice("Select an operation already inside an alternate or rework branch first."); return;
@@ -675,7 +680,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       status: targetOperation.status, plannedStart: targetOperation.plannedStart, plannedEnd: targetOperation.plannedEnd, actualStart: targetOperation.actualStart || "", actualEnd: targetOperation.actualEnd || "",
       quantity: targetOperation.quantity, completed: targetOperation.completed, accepted: targetOperation.accepted, rejected: targetOperation.rejected,
       ratePerPart: targetOperation.ratePerPart, processCostTotal: targetOperation.quantity * targetOperation.ratePerPart, actualRatePerPart: targetOperation.actualRatePerPart || 0, transportVendorId: targetOperation.transportVendorId || "", transportFrom:targetOperation.transportFrom||"",transportTo:targetOperation.transportTo||"",transportVehicleType:targetOperation.transportVehicleType||"",transportRouteId:targetOperation.transportRouteId||"", transportCost: targetOperation.transportCost, transportPickup: targetOperation.transportPickup,
-      transportDelivery: targetOperation.transportDelivery, qualityNotes: targetOperation.qualityNotes, inspectionResult: targetOperation.inspectionResult || "", notes: targetOperation.notes, branch: targetOperation.branch, parentId:targetOperation.parentId||"", relationType:targetOperation.relationType, costIncluded:targetOperation.costIncluded ?? (targetOperation.relationType !== "alternate" && targetOperation.relationType !== "rework"), paymentStatus:targetOperation.paymentStatus||"Unpaid", paidAmount:paymentTotalFor(targetOperation), paymentReference:targetOperation.paymentReference||"", subcategory:targetOperation.subcategory||""
+      transportDelivery: targetOperation.transportDelivery, qualityNotes: targetOperation.qualityNotes, inspectionResult: targetOperation.inspectionResult || "", notes: targetOperation.notes, branch: targetOperation.branch, parentId:targetOperation.parentId||"", relationType:targetOperation.relationType, costIncluded:targetOperation.costIncluded ?? (targetOperation.relationType !== "alternate" && targetOperation.relationType !== "rework"), paymentStatus:targetOperation.paymentStatus||"Unpaid", paidAmount:paymentTotalFor(targetOperation), paymentReference:targetOperation.paymentReference||"", subcategory:targetOperation.subcategory||"", processColor:targetOperation.processColor || processDefinitions.find(item=>item.id===targetOperation.processDefinitionId)?.displayColor || DEFAULT_PROCESS_COLOR
     });
     setEditingId(targetOperation.id); setShowEditor(true);
   };
@@ -720,12 +725,48 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const recordedTotal=ledgerTotal+legacyTotal;
       const paymentDelta=Math.max(0,nextPaidTotal-recordedTotal);
       if(paymentDelta>0) paymentRecords.push({id:makeId("payment"),operationId,poId:selectedPO.id,poLineId:selectedLine.id,componentId:selectedComponent.id,amount:paymentDelta,paidAt:stamp,reference:draft.paymentReference.trim(),notes:"Additional payment recorded from Process Plan.",createdAt:stamp,updatedAt:stamp});
-      return { ...current, operations: [...current.operations.filter(op => op.id !== next.id), next], paymentTransactions: paymentRecords };
+      const nextProcessDefinitions = selectedProcessDefinition
+        ? current.processDefinitions.map(definition => definition.id === selectedProcessDefinition.id
+            ? { ...definition, displayColor: draft.processColor || definition.displayColor || DEFAULT_PROCESS_COLOR, updatedAt: stamp }
+            : definition)
+        : current.processDefinitions;
+      return { ...current, operations: [...current.operations.filter(op => op.id !== next.id), next], processDefinitions: nextProcessDefinitions, paymentTransactions: paymentRecords };
     });
     setSelectedOperationId(operationId);
     setShowEditor(false); setEditingId("");
     onNotice(editingId ? "Operation updated and linked to its PO line/component ID." : "Operation saved against the selected PO line. Cost and dates remain separate for this component.");
   };
+  const deleteOperation = (target: OperationRecord) => {
+    const descendants = new Set<string>();
+    let frontier = [target.id];
+    while (frontier.length) {
+      const nextFrontier: string[] = [];
+      for (const parentId of frontier) {
+        for (const child of routeOperations) {
+          if (child.parentId === parentId && !descendants.has(child.id)) {
+            descendants.add(child.id);
+            nextFrontier.push(child.id);
+          }
+        }
+      }
+      frontier = nextFrontier;
+    }
+    const ids = new Set([target.id, ...descendants]);
+    const count = ids.size;
+    if (!window.confirm("Delete process " + target.name + "? This will archive " + count + " process record(s), including linked sub-process / branch descendants. Quotations are archived; payment, inspection and production history are retained for audit.")) return;
+    const stamp = nowIso();
+    update(current => ({
+      ...current,
+      operations: current.operations.map(item => ids.has(item.id) ? { ...item, deletedAt: stamp, updatedAt: stamp } : item),
+      quotations: current.quotations.map(quote => ids.has(quote.operationId) && !quote.deletedAt ? { ...quote, deletedAt: stamp, updatedAt: stamp } : quote)
+    }));
+    setSelectedOperationId("");
+    setSelectedOperationIds(current => current.filter(id => !ids.has(id)));
+    setShowEditor(false);
+    setEditingId("");
+    onNotice("Deleted " + count + " process record(s). Related quotation history was archived; payment and inspection history was retained.");
+  };
+
   const finishSelectedOperations = () => {
     const ids = new Set(selectedVisibleOperations.map(op => op.id));
     if (!ids.size) { onNotice("Select one or more visible operations to finish."); return; }
