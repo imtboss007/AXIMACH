@@ -942,7 +942,7 @@ test("Process Plan process-type filters use stable Process Directory definition 
 
 test("Icon Studio catalogue is restricted to mechanical and transport identities", () => {
   const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
-  assert.ok(studio.includes("const isMechanicalStudioIcon = (name: string) => MECHANICAL_ICON_NAME_PATTERN.test(name)"));
+  assert.ok(studio.includes("MECHANICAL_ICON_NAME_PATTERN.test(name.includes(\":\") ? name.slice(name.lastIndexOf(\":\") + 1) : name)"));
   for (const unwanted of ["building-warehouse", "|box|", "|package|", "|container|", "|ship|"]) assert.ok(!studio.includes(unwanted));
   assert.ok(studio.includes("truck-delivery"));
   assert.ok(studio.includes("automatic-gearbox"));
@@ -964,4 +964,24 @@ test("Process Universe field visibility is applied to both orbit and connected r
     assert.equal((universe.match(new RegExp('fieldVisible\\("' + field + '"\\)', "g")) || []).length, 2, field + " must be rendered in both layouts");
   }
   assert.ok(universe.includes('fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>'));
+});
+
+
+test("saved mechanical icon assignments with outline/filled prefixes resolve correctly", () => {
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  assert.ok(studio.includes('name.slice(name.lastIndexOf(":") + 1)'));
+  assert.ok(studio.includes("MECHANICAL_ICON_NAME_PATTERN.test"));
+  assert.ok(studio.includes("isMechanicalStudioIcon(assignment.iconName)"));
+});
+
+test("selected-operation and selected-branch route scopes require an explicit selection", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const explicitlySelectedOperation = routeOperations.find(op => op.id === selectedOperationId)"));
+  assert.ok(workspace.includes("if (scope === \\"selected-operation\\") return explicitlySelectedOperation"));
+  assert.ok(workspace.includes("if (scope === \\"selected-branch\\") return explicitlySelectedOperation"));
+});
+
+test("Process Universe payment visibility uses the Process Plan export field ID", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.equal(universe.split('fieldVisible("paymentStatus")').length - 1, 2);
 });
