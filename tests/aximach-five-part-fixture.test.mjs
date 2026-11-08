@@ -886,3 +886,13 @@ test("Main Dashboard and 3D Command Centre center the 18-module orb on mobile", 
   assert.ok(appStyles.includes(".hero-command {"));
   assert.ok(appStyles.includes("grid-template-columns:minmax(0,1fr)"));
 });
+
+
+test("Process Universe receives shared visibility controls, vendor labels and diagram arrow state from Process Plan", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("visibleFields={visibleProcessFields}"));
+  assert.ok(workspace.includes("showArrows={exportArrows}"));
+  assert.ok(workspace.includes("setVisibleProcessFields"));
+  for (const field of ["status", "execution", "tolerance", "payment", "machine"]) assert.ok(universe.includes(`fieldVisible("${field}")`));
+});
