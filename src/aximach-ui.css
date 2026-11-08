@@ -1760,3 +1760,58 @@
   .process-universe-branch-link { gap: 6px; padding: 8px; }
   .process-universe-node-subcategory { font-size: 7px; }
 }
+
+/* 3D route connectors live in the same transform space as the process nodes. */
+.process-orbit-core { z-index: 2; }
+.process-orbit-connector {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  display: block;
+  height: 3px;
+  border-radius: 99px;
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+  background: currentColor;
+  opacity: .94;
+  box-shadow: 0 0 7px currentColor, 0 0 2px rgba(255,255,255,.9);
+  pointer-events: none;
+}
+.process-orbit-connector::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-left: 8px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transform: translateY(-50%);
+  filter: drop-shadow(0 0 3px currentColor);
+}
+.process-orbit-connector.is-alternate { color: #4b95eb; }
+.process-orbit-connector.is-rework { color: #e38b45; }
+.process-orbit-parent-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255,255,255,.96);
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px color-mix(in srgb,currentColor 22%,transparent), 0 0 14px currentColor;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+.process-orbit-parent-anchor span { width: 3px; height: 3px; border-radius: 50%; background: #fff; }
+.process-orbit-node { z-index: 4; }
+@media(max-width:650px) {
+  .process-orbit-connector { height: 2.5px; }
+  .process-orbit-connector::after { border-left-width: 7px; border-top-width: 4px; border-bottom-width: 4px; }
+}
