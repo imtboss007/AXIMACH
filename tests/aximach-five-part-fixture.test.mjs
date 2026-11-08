@@ -1305,3 +1305,13 @@ test("New Process Map process types are saved into Process Directory with stable
   assert.ok(workspace.includes("processDefinitionId: processDefinition?.id || undefined"));
   assert.ok(workspace.includes(": [...current.processDefinitions, processDefinition]"));
 });
+
+
+test("Process Map validates category and process type before saving an operation", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const start = workspace.indexOf("const saveOperation =");
+  const end = workspace.indexOf("const deleteOperation =", start);
+  const handler = workspace.slice(start, end);
+  assert.ok(handler.includes('if (!draft.category.trim()) { onNotice("Select or enter a process category.")'));
+  assert.ok(handler.includes('if (!draft.name.trim()) { onNotice("Select or enter a process type.")'));
+});
