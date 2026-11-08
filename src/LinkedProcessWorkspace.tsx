@@ -596,6 +596,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const changeLine = (nextLineId: string) => { setPoLineId(nextLineId); setSelectedOperationId(""); setSearch(""); setShowEditor(false); };
 
   const startAddSubprocess = (parentId: string) => {
+    setShowAddMenu(false);
     const parent = routeOperations.find(operation => operation.id === parentId);
     if (!parent) return;
     const base = blankOperation(selectedLine);
@@ -654,6 +655,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const anchor = routeOperations.find(operation => operation.id === (anchorId || activeOperation?.id));
     if (!selectedPO || !selectedLine || !selectedComponent || !anchor) { onNotice("Select the exact process node where the alternate or rework branch must connect."); return; }
     const base = blankOperation(selectedLine);
+    base.processDefinitionId = anchor.processDefinitionId || "";
+    base.processColor = processDefinitions.find(definition=>definition.id===anchor.processDefinitionId)?.displayColor || anchor.processColor || DEFAULT_PROCESS_COLOR;
     base.branch = (kind === "alternate" ? "Alternate route" : "Rework") + " · OP-" + String(anchor.sequence).padStart(3, "0") + " · " + anchor.name;
     base.name = kind === "alternate" ? "Alternate route operation" : "Rework operation";
     base.category = anchor.category;
@@ -1167,14 +1170,15 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
               </div>}
               <div className="process-route-flow-track">{lane.map((operation,index)=>{
                 const processColor=processAccent(operation);
-                const nodeColor=operation.relationType==="rework"?REWORK_ROUTE_COLOR:operation.relationType==="alternate"?ALTERNATE_ROUTE_COLOR:processColor;
+                const nodeColor=processColor;
+                const routeArrowColor=rework?REWORK_ROUTE_COLOR:branchRoot||branch!=="Main route"?ALTERNATE_ROUTE_COLOR:processColor;
                 return <div className="process-route-flow-step" key={operation.id}>
                   <button type="button" className={activeOperation?.id===operation.id?"is-selected":""} style={{borderColor:nodeColor}} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} title={"Select "+operation.name+" · OP-"+operation.sequence}>
                     <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={<Workflow size={16}/>}/>
                     <strong>{operation.name}</strong><small>OP-{String(operation.sequence).padStart(3,"0")}</small>
                     <em style={{background:nodeColor}}>{operation.category||"Process"}</em>
                   </button>
-                  {index<lane.length-1&&<span className="process-route-flow-arrow" style={{color:nodeColor}}><ArrowRight size={20}/></span>}
+                  {index<lane.length-1&&<span className="process-route-flow-arrow" style={{color:routeArrowColor}}><ArrowRight size={20}/></span>}
                 </div>;
               })}</div>
             </div>;
@@ -1184,7 +1188,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} onAddSubprocess={startAddSubprocess} onAddProcessDefinition={startAddDefinition} /></div>
           : visualStyle==="gantt" && exportOperations.length ? <div className="process-gantt-view">
               <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {exportOperations.length} operations in {exportScopeLabel}</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
-              {exportOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));const branch=op.branch||"Main route";const color=branchAccent(op);return <div className={"process-gantt-row "+(branch==="Main route"?"":"is-branch")} key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small>{branch} · {shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%",backgroundColor:color}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
+              {exportOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));const branch=op.branch||"Main route";const color=processAccent(op);const routeColor=branchAccent(op);return <div className={"process-gantt-row "+(branch==="Main route"?"":"is-branch")} key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small><i style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:routeColor,marginRight:5}}/>{branch} · {shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%",backgroundColor:color}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
             </div>
           : exportOperations.length ? <div className={"linked-node-scroll process-visual-"+visualStyle+" " + (visualStyle==="vertical" ? "linked-node-vertical" : "")}><div className="linked-route-lanes" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{exportBranches.map(branch => {
           const laneOperations = exportOperations.filter(op => (op.branch || "Main route") === branch).slice().sort((a,b)=>a.sequence-b.sequence);
