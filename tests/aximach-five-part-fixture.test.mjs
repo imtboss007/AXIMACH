@@ -589,15 +589,17 @@ test("static WebGL globe redraws only when resized and does not burn frames whil
   assert.ok(!sphere.includes("cancelAnimationFrame"));
 });
 
-test("WebGL globe texture itself has no independent auto-rotation", () => {
+test("WebGL globe surface follows manual drag orientation without independent auto-rotation", () => {
   const shader = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
-  assert.ok(shader.includes("vec3 q = hit;"), "sphere texture must remain fixed relative to its draggable parent");
+  assert.ok(shader.includes("vec3 q = hit;"));
+  assert.ok(shader.includes("uniform vec2 globeRotation"));
+  assert.ok(shader.includes("rotateY * rotateX * normalize(q)"));
+  assert.ok(shader.includes('rotationX.on("change", applyRotation)'));
+  assert.ok(shader.includes('rotationY.on("change", applyRotation)'));
   assert.ok(!shader.includes("uniform float time"));
-  assert.ok(!shader.includes("uniform float motionOn"));
-  assert.ok(!shader.includes("float angle ="));
   assert.ok(!shader.includes("elapsed +="));
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  assert.ok(orb.includes("<AXIMACHWebGLSphere />"));
+  assert.ok(orb.includes("<AXIMACHWebGLSphere rotationX={rotateX} rotationY={rotateY} />"));
   assert.ok(!orb.includes("paused={"));
 });
 
