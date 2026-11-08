@@ -91,7 +91,8 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
       : null;
     if (interactiveTarget) return;
     drag.current = { x: event.clientX, y: event.clientY, rx: rotateX.get(), ry: rotateY.get() };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    const captureTarget = event.target instanceof HTMLElement ? event.target : event.currentTarget;
+    captureTarget.setPointerCapture(event.pointerId);
   };
   const moveDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (!drag.current) return;
