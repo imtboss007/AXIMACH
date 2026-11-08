@@ -19,7 +19,7 @@ const mechanicalGlyphForStudioName = (name: string): ToolGlyph | undefined => {
 const isMechanicalStudioIcon = (name: string) => Boolean(mechanicalGlyphForStudioName(name)) || MECHANICAL_ICON_NAME_PATTERN.test(iconBaseName(name));
 const tablerMechanicalIcons: IconMeta[] = tablerIconCatalogue.filter((item) => isMechanicalStudioIcon(item.name)).map((item) => ({ name: item.name, category: item.variant, tags: item.name.split("-"), variant: item.variant }));
 const engineeredMechanicalIcons: IconMeta[] = MECHANICAL_ICON_INVENTORY.map(item=>({name:"mechanical:"+item.glyph,category:"Mechanical tool",tags:[item.label,item.application,"industrial manufacturing"],variant:"outline",glyph:item.glyph,label:item.label}));
-const ICONS: IconMeta[] = [...tablerMechanicalIcons,...engineeredMechanicalIcons];
+const ICONS: IconMeta[] = engineeredMechanicalIcons;
 const iconKey = (item: Pick<IconMeta, "name" | "variant">) => `${item.variant}:${item.name}`;
 
 const families = [
@@ -221,7 +221,7 @@ export default function IconStudio({ open, onClose, initialTarget }: { open: boo
   const [tab, setTab] = useState<"all" | "favourites" | "assigned">("all");
   const [family, setFamily] = useState("CNC Turning");
   const [specificProcess, setSpecificProcess] = useState("");
-  const [selectedIcon, setSelectedIcon] = useState("outline:tools");
+  const [selectedIcon, setSelectedIcon] = useState(() => iconKey(ICONS[0]));
   const [paletteName, setPaletteName] = useState(palettes[0].name);
   const [finish, setFinish] = useState(finishes[0]);
   const [depth, setDepth] = useState(3);
@@ -492,14 +492,14 @@ export default function IconStudio({ open, onClose, initialTarget }: { open: boo
               <button className="ax-icon-studio-close" onClick={onClose} aria-label="Close icon studio"><X size={18}/></button>
             </header>
             <div className="ax-icon-studio-stats">
-              <div><strong>{ICONS.length.toLocaleString("en-IN")}</strong><span>Tabler glyphs indexed</span></div>
+              <div><strong>{ICONS.length.toLocaleString("en-IN")}</strong><span>Mechanical &amp; transport logos</span></div>
               <div><strong>{(ICONS.length * STYLE_VARIANTS_PER_ICON).toLocaleString("en-IN")}+</strong><span>3D style combinations</span></div>
               <div><strong>{Object.keys(assignments).length}</strong><span>Logo assignments</span></div>
               <div><strong>{presets.length.toLocaleString("en-IN")}</strong><span>Saved style presets</span></div>
             </div>
             <div className="ax-icon-studio-body">
               <section className="ax-icon-browser">
-                <div className="ax-icon-search"><Search size={17}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search 6,257 outline and filled glyphs: lathe, milling, gear, inspection…" autoFocus/><span>{filtered.length.toLocaleString("en-IN")}</span></div>
+                <div className="ax-icon-search"><Search size={17}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search mechanical process, machine, tool or transport logo…" autoFocus/><span>{filtered.length.toLocaleString("en-IN")}</span></div>
                 <div className="ax-icon-tabs" role="tablist" aria-label="Icon catalogue views">
                   <button className={tab === "all" ? "active" : ""} onClick={() => setTab("all")}><Layers3 size={14}/> All icons</button>
                   <button className={tab === "favourites" ? "active" : ""} onClick={() => setTab("favourites")}><Heart size={14}/> Saved favourites <b>{favourites.length}</b></button>
