@@ -999,3 +999,30 @@ test("CI skips Electron binary download for frontend and Android jobs only", () 
   const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
   assert.ok(!windows.includes("ELECTRON_SKIP_BINARY_DOWNLOAD"));
 });
+
+test("Dashboard module and live-record spheres rotate and pause independently", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes("autoRotateRecords"));
+  assert.ok(orb.includes("setAutoRotateRecords"));
+  assert.ok(orb.includes("autoRotateRecords && !lowerDrag.current"));
+  assert.ok(orb.includes("ax-orb-record-pause"));
+});
+
+test("Logo Studio lists and renders the authored mechanical tool and transport glyph inventory", () => {
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  const mechanical = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  assert.ok(studio.includes("MECHANICAL_ICON_INVENTORY.map"));
+  assert.ok(studio.includes('name:"mechanical:"+item.glyph'));
+  assert.ok(studio.includes("MechanicalIconGlyph glyph={item.glyph}"));
+  assert.ok(studio.includes("mechanicalGlyphForStudioName(assignment.iconName)"));
+  assert.ok(mechanical.includes('{glyph:"transport-truck",label:"Transport / dispatch"'));
+});
+
+test("Process Universe shows selectable transport cost and combined cost values from Process Plan", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("operationTransportAmounts={Object.fromEntries(exportOperations.map"));
+  assert.ok(workspace.includes("quantityUnit={quantityUnit}"));
+  assert.ok(universe.includes('fieldVisible("transportLegCost")'));
+  assert.ok(universe.includes('fieldVisible("combinedAmount")'));
+});
