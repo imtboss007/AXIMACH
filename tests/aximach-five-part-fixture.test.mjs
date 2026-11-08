@@ -942,7 +942,7 @@ test("Process Plan process-type filters use stable Process Directory definition 
 
 test("Icon Studio catalogue is restricted to mechanical and transport identities", () => {
   const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
-  assert.ok(studio.includes("MECHANICAL_ICON_NAME_PATTERN.test(name.includes(\":\") ? name.slice(name.lastIndexOf(\":\") + 1) : name)"));
+  assert.ok(studio.includes("MECHANICAL_ICON_NAME_PATTERN.test(iconBaseName(name))"));
   for (const unwanted of ["building-warehouse", "|box|", "|package|", "|container|", "|ship|"]) assert.ok(!studio.includes(unwanted));
   assert.ok(studio.includes("truck-delivery"));
   assert.ok(studio.includes("automatic-gearbox"));
