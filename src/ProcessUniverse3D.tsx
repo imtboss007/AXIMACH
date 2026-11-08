@@ -271,7 +271,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
                 {fieldVisible("status") && <small>Status · {operation.status}</small>}
                 {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
                 {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
-                {fieldVisible("payment") && <small>Payment · {operation.paymentStatus || "Unpaid"}</small>}
+                {fieldVisible("paymentStatus") && <small>Payment · {operation.paymentStatus || "Unpaid"}</small>}
                 {fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>}
               </div>
               {childOperations.length > 0 && <small className="process-universe-node-category">{childOperations.length} linked sub-process(es)</small>}
