@@ -104,7 +104,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
             const active = selectedOperationId === operation.id, current = simulationIndex === index, passed = simulationIndex > index;
             const state = operation.status.toLowerCase().replaceAll(" ","-");
             const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
-            const accent = operation.processColor || processDefinition?.displayColor || "#6fa9e5";
+            const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
             return <button key={operation.id} type="button" className={"process-orbit-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{ transform, "--process-accent":accent } as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={operation.name + " · " + operation.status}>
               <span className="process-orbit-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><i /></span>
               <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} />
@@ -132,7 +132,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
       <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>{showCatalogueOrbit ? "SELECT A DIRECTORY NODE TO CREATE A PO-LINE OPERATION" : "SELECT A PROCESS NODE TO OPEN ITS RECORD"}</span><span>SIMULATION IS VISUAL ONLY</span></div>
     </div>
     <div className="process-universe-viewport"><div className="process-universe-stage" style={stageStyle}>
-      {lanes.map(lane => <section className={"process-universe-lane" + (lane.alternate ? " is-branch" : "")} key={lane.name}>
+      {lanes.map(lane => <section className={"process-universe-lane" + (lane.alternate ? " is-branch " + (lane.branchRelation==="rework"?"is-rework":"is-alternate") : "")} key={lane.name}>
         <div className="process-universe-lane-label"><span className="process-universe-branch-icon">{lane.alternate ? <GitBranch size={15}/> : <Workflow size={15}/>}</span><span><strong>{lane.name}</strong><small>{lane.alternate ? (lane.branchRelation==="rework"?"Rework branch":"Alternate route") + (lane.parent ? " · connected from OP-" + String(lane.parent.sequence).padStart(3,"0") + " " + lane.parent.name : "") : "Primary manufacturing route"}</small></span><em>{lane.rows.length} STEP{lane.rows.length === 1 ? "" : "S"}</em></div>
         {lane.alternate && lane.branchRoot && <div className={"process-universe-branch-link " + (lane.branchRelation==="rework"?"is-rework":"is-alternate")}><span>OP-{String(lane.parent?.sequence||0).padStart(3,"0")} · {lane.parent?.name||"Parent operation"}</span><ArrowRight size={16}/><strong>{lane.rows[0]?.name||lane.name}</strong><small>{lane.branchRelation==="rework"?"REWORK BRANCH":"ALTERNATE ROUTE"}</small></div>}
         <div className="process-universe-node-track">{lane.rows.map((operation,index) => {
@@ -143,7 +143,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
           const expanded = expandedOperationId === operation.id;
           const state = operation.status.toLowerCase().replaceAll(" ","-");
           const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
-          const accent = operation.processColor || processDefinition?.displayColor || "#6fa9e5";
+          const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
           return <div className="process-universe-node-wrap" key={operation.id}>
             <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{"--process-accent":accent} as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={"Open " + operation.name + " operation record"}>
               <span className="process-universe-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><em>{operation.status}</em></span>
