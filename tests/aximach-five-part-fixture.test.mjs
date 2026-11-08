@@ -928,3 +928,12 @@ test("secondary Process Plan workspaces are user-expandable while route filters 
   assert.ok(workspace.includes('<details open className="surface-panel process-route-scope-panel">'));
   assert.ok(workspace.includes('<details open className="surface-panel linked-route-canvas">'));
 });
+
+
+test("Process Plan process-type filters use stable Process Directory definition IDs", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const processFilterTypes = processDefinitions.map(definition => ({ id: definition.id"));
+  assert.ok(workspace.includes("const stableProcessDefinitionId = op.processDefinitionId || operationDefinition?.id || \"\""));
+  assert.ok(workspace.includes("processTypeFilters.includes(stableProcessDefinitionId)"));
+  assert.ok(workspace.includes("options={processFilterTypes} selected={processTypeFilters}"));
+});
