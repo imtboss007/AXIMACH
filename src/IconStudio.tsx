@@ -196,7 +196,7 @@ export function ProcessIcon({ processName, fallback, processId, category, subcat
     || (stableId ? assignments["process:" + stableId] : undefined)
     || assignments["process:" + normaliseWords(processName)] || assignments[family];
   if (!assignment || !isMechanicalStudioIcon(assignment.iconName)) {
-    const knownMechanicalGlyph = mechanicalGlyphForOperation(processName);
+    const knownMechanicalGlyph = mechanicalGlyphForOperation([processName, category, subcategory].filter(Boolean).join(" "));
     return <span className="linked-node-icon linked-node-icon-3d">{knownMechanicalGlyph ? <MechanicalOperationIcon operation={processName} /> : (fallback || <Workflow size={16} />)}</span>;
   }
   return assignedIcon(assignment, "Saved process identity: " + processName, "linked-node-icon linked-node-icon-3d ax-process-icon");
