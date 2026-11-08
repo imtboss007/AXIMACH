@@ -1098,3 +1098,20 @@ test("Android Gradle wrapper uses primary and fallback distribution mirrors", ()
   assert.ok(android.includes("mirrors.huaweicloud.com/gradle/gradle-8.11.1-all.zip"));
   assert.ok(android.includes("mirrors.aliyun.com/gradle/distributions/v8.11.1/gradle-8.11.1-all.zip"));
 });
+
+test("Upcoming delivery rows open their exact saved PO component line and clear stale route filters", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("className=\"process-upcoming-delivery-row\""));
+  assert.ok(workspace.includes("setCompanyId(item.po.companyId);setPoId(item.po.id);setPoLineId(item.line.id)"));
+  assert.ok(workspace.includes("operation.poId===item.po.id&&operation.poLineId===item.line.id&&operation.componentId===item.line.componentId"));
+  assert.ok(workspace.includes('setExportScope("all");setSearch("");setCategorySearch("")'));
+  assert.ok(workspace.includes('onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openLine();}}}'));
+});
+
+test("Component-start transport remains visible inside Process List before a process operation exists", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("!firstMainRouteOperation && unanchoredTransportCost>0"));
+  assert.ok(workspace.includes("Component-start transport cost"));
+  assert.ok(workspace.includes("Saved transport leg is not assigned to a process operation."));
+  assert.ok(workspace.includes("{money(unanchoredTransportCost)}"));
+});
