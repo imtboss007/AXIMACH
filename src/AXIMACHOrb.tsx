@@ -72,10 +72,12 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
   }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,autoRotate,autoRotateRecords,preferenceKey]);
   // Both shells stay still while idle. Dragging is the default rotation control;
   // optional auto-rotation is available only when the operator explicitly enables it.
-  const rotateX = useMotionValue(-15);
-  const rotateY = useMotionValue(22);
-  const lowerRotateX = useMotionValue(-8);
-  const lowerRotateY = useMotionValue(12);
+  // A front-facing starting angle prevents the full 3D shell appearing edge-on
+  // in the narrower phone viewport. Users can still drag both shells freely.
+  const rotateX = useMotionValue(compactViewport ? -7 : -15);
+  const rotateY = useMotionValue(compactViewport ? 0 : 22);
+  const lowerRotateX = useMotionValue(compactViewport ? -5 : -8);
+  const lowerRotateY = useMotionValue(compactViewport ? 0 : 12);
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
   const lowerDrag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
   const dragSensitivity = speed === "Slow" ? 0.45 : speed === "Fast" ? 0.95 : 0.72;
