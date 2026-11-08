@@ -702,6 +702,9 @@ test("Process route scope keeps original parent arrows visible and each 3D view 
   assert.ok(workspace.includes("while (parent && (parent.branch || \"Main route\") === branch"));
   assert.ok(workspace.includes("const branchOrigin=resolveBranchOrigin(branch,lane)"));
   assert.ok(workspace.includes("const branchOrigin=resolveBranchOrigin(branch,laneOperations)"));
+  for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
+    assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
+  }
   assert.ok(workspace.includes('initialLayout={visualStyle==="vortex"?"vortex":visualStyle==="combined"?"digital-mesh":"sphere"}'));
   assert.ok(universe.includes('initialLayout = "sphere"'));
   assert.ok(universe.includes("useState<ProcessLayoutMode>(initialLayout)"));
