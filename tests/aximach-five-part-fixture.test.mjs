@@ -1047,6 +1047,11 @@ test("Logo Studio lists and renders the authored mechanical tool and transport g
   assert.ok(studio.includes("MechanicalIconGlyph glyph={item.glyph}"));
   assert.ok(studio.includes("mechanicalGlyphForStudioName(assignment.iconName)"));
   assert.ok(mechanical.includes('{glyph:"transport-truck",label:"Transport / dispatch"'));
+  assert.ok(studio.includes("const ICONS: IconMeta[] = engineeredMechanicalIcons;"));
+  assert.ok(studio.includes("useState(() => iconKey(ICONS[0]))"));
+  assert.ok(studio.includes("Mechanical &amp; transport logos"));
+  assert.ok(studio.includes("Search mechanical process, machine, tool or transport logo"));
+  assert.ok(!studio.includes("tablerIconCatalogue"));
 });
 
 test("Process Universe shows selectable transport cost and combined cost values from Process Plan", () => {
