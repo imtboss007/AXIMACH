@@ -592,10 +592,18 @@ test("Process Directory stores a colour per process type and route exports share
 
 test("five synthetic component names resolve to the intended mechanical logo families", () => {
   const iconSource = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
-  const rulesBlock = iconSource.match(/const componentRules: Array<\\[RegExp, ToolGlyph\\]> = \\[([\\s\\S]*?)\\n\\];/);
-  assert.ok(rulesBlock, "component logo rules must remain discoverable");
-  const rules = [...rulesBlock[1].matchAll(/\\[\\/((?:\\\\.|[^\\/])*)\\/([a-z]*)?,\\s*"([^"]+)"\\]/g)]
-    .map(match => ({ pattern: new RegExp(match[1], match[2] || ""), glyph: match[3] }));
+  const rulesStart = iconSource.indexOf("const componentRules:");
+  const rulesEnd = iconSource.indexOf("\\n];", rulesStart);
+  assert.ok(rulesStart >= 0 && rulesEnd > rulesStart, "component logo rules must remain discoverable");
+  const rules = iconSource.slice(rulesStart, rulesEnd).split("\\n").flatMap(line => {
+    const value = line.trim();
+    if (!value.startsWith("[/")) return [];
+    const patternStart = 2;
+    const patternEnd = value.indexOf("/", patternStart);
+    const glyphStart = value.indexOf('"', patternEnd) + 1;
+    const glyphEnd = value.indexOf('"', glyphStart);
+    return [{ pattern: new RegExp(value.slice(patternStart, patternEnd)), glyph: value.slice(glyphStart, glyphEnd) }];
+  });
   const glyphFor = name => {
     const value = name.toLowerCase().replace(/[_-]+/g, " ");
     return rules.find(rule => rule.pattern.test(value))?.glyph || "component-block";
