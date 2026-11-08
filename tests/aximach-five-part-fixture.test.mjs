@@ -1186,3 +1186,26 @@ test("Clear filters resets every active Process Plan filter through the visible 
   assert.ok(buttonStart >= 0 && buttonEnd > buttonStart);
   assert.ok(workspace.slice(buttonStart, buttonEnd).includes("onClick={clearAllFilters}"));
 });
+
+
+test("Contact 360 saves Process Directory references by stable IDs and keeps manual tags separate", () => {
+  const workspace = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  assert.ok(data.includes("processDefinitionIds?: string[]; processSubcategoryIds?: string[];"));
+  assert.ok(workspace.includes('id:"directory:"+definition.id'));
+  assert.ok(workspace.includes("processDefinitionIds:contactProcessDefinitionIds(row)"));
+  assert.ok(workspace.includes('selected={draft.processDefinitionIds||[]}'));
+  assert.ok(workspace.includes('selected={draft.processSubcategoryIds||[]}'));
+  assert.ok(workspace.includes("id:stableContactSubcategoryId(definition,index)"));
+  assert.ok(workspace.includes("contactSubcategoryIds.includes(id)"));
+  assert.ok(workspace.includes('Manual contact capability tags (separate from Process Directory)'));
+  assert.ok(workspace.includes('id:"contact:"+name.trim().toLowerCase()'));
+  assert.ok(!workspace.includes('selected={draft.processSubcategories||[]} onChange={values=>setDraft(current=>({...current,processSubcategories:values}))}'));
+});
+
+test("Contact 360 resolves legacy process names only when one Process Directory definition matches", () => {
+  const workspace = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("if(Array.isArray(row.processDefinitionIds))return [...new Set(row.processDefinitionIds)]"));
+  assert.ok(workspace.includes("if(matches.length===1)resolved.push(matches[0].id)"));
+  assert.ok(workspace.includes("const direct=processDefinitions.filter(definition=>definition.id===value)"));
+});
