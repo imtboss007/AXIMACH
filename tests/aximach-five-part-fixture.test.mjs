@@ -896,3 +896,12 @@ test("Process Universe receives shared visibility controls, vendor labels and di
   assert.ok(workspace.includes("setVisibleProcessFields"));
   for (const field of ["status", "execution", "tolerance", "payment", "machine"]) assert.ok(universe.includes(`fieldVisible("${field}")`));
 });
+
+
+test("mobile and desktop command sphere orbit controls sit outside the core radius", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(orb.includes("const radius = compactViewport ? 116 : 132"));
+  assert.ok(css.includes(".process-map-visible-fields"));
+  assert.ok(css.includes("@media(max-width:620px){.ax-orb-module-shell .ax-orb-satellite-3d"));
+});
