@@ -4,7 +4,7 @@ import { ArrowRight, Check, CircleDollarSign, Layers3, Plus, Search, ShieldCheck
 import { activeRows, makeId, nowIso, useManufacturingData, type PlannedCostEntry, type ProcessDefinitionRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
-import { MechanicalIconGlyph, MECHANICAL_ICON_INVENTORY } from "./MechanicalOperationIcon";
+import { MechanicalIconGlyph, MECHANICAL_ICON_INVENTORY, mechanicalOperationSvgForName } from "./MechanicalOperationIcon";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 
 type Props={moduleId:"process-master"|"planned-cost";onBack:()=>void;onNotice:(value:string)=>void;notice:string;onOpenIconStudio?:(processDefinitionId?:string)=>void};
@@ -12,6 +12,22 @@ type ProcessEntry=ProcessDefinitionRecord;
 const PROCESS_KEY="aximach.processDirectory.v1";
 function readRows<T>(key:string):T[]{try{const value=JSON.parse(localStorage.getItem(key)||"[]");return Array.isArray(value)?value as T[]:[];}catch{return[];}}
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+
+function processLogoSource(process: Pick<ProcessEntry, "id" | "processType">): string {
+ try {
+  const assignments=JSON.parse(window.localStorage.getItem("aximach.icon-assignments.v1")||"{}") as Record<string,{customAsset?:string}>;
+  const saved=assignments["process:"+process.id]?.customAsset;
+  if(saved&&saved.startsWith("data:image/"))return saved;
+ } catch { /* Use the deterministic process glyph if local preferences cannot be read. */ }
+ return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(mechanicalOperationSvgForName(process.processType));
+}
+async function processLogoPngBase64(process: Pick<ProcessEntry, "id" | "processType">): Promise<string> {
+ const image=new Image(),source=processLogoSource(process);
+ await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(new Error("Could not render process logo: "+process.processType));image.src=source;});
+ const canvas=document.createElement("canvas");canvas.width=96;canvas.height=96;
+ const context=canvas.getContext("2d");if(!context)throw new Error("Canvas export is unavailable for process logos.");
+ context.drawImage(image,4,4,88,88);return canvas.toDataURL("image/png").split(",")[1];
+}
 
 function ProcessDirectory({onNotice,onBack,onOpenIconStudio}:Pick<Props,"onNotice"|"onBack"|"onOpenIconStudio">){
  const {data,update}=useManufacturingData();
@@ -119,6 +135,7 @@ function ProcessDirectory({onNotice,onBack,onOpenIconStudio}:Pick<Props,"onNotic
    workbook.created=new Date();
    const sheet=workbook.addWorksheet("Process Directory");
    sheet.columns=[
+    {header:"Logo",key:"logo",width:10},
     {header:"Process Type",key:"processType",width:28},
     {header:"Category",key:"category",width:22},
     {header:"Subcategories",key:"subcategories",width:48},
@@ -129,6 +146,12 @@ function ProcessDirectory({onNotice,onBack,onOpenIconStudio}:Pick<Props,"onNotic
     processType:row.processType,category:row.category,subcategories:row.subcategories.join("; "),
     vendors:row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join("; "),notes:row.notes
    })));
+   for(let index=0;index<exportRows.length;index++){
+    const row=exportRows[index];
+    const imageId=workbook.addImage({base64:await processLogoPngBase64(row),extension:"png"});
+    sheet.addImage(imageId,{tl:{col:0,row:index+1},ext:{width:30,height:30}});
+    sheet.getRow(index+2).height=28;
+   }
    sheet.getRow(1).font={bold:true,color:{argb:"FFFFFFFF"}};
    sheet.getRow(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF17324D"}};
    sheet.views=[{state:"frozen",ySplit:1}];
@@ -143,8 +166,8 @@ function ProcessDirectory({onNotice,onBack,onOpenIconStudio}:Pick<Props,"onNotic
   const win=window.open("","_blank");
   if(!win){onNotice("Allow pop-ups to print / save the process directory as PDF.");return;}
   const esc=(value:unknown)=>String(value??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]!));
-  const html=exportRows.map(row=>"<tr><td>"+esc(row.processType)+"</td><td>"+esc(row.category)+"</td><td>"+esc(row.subcategories.join(" · "))+"</td><td>"+esc(row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(", "))+"</td></tr>").join("");
-  win.document.write("<!doctype html><html><head><title>AXIMACH Process Directory</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:8px;text-align:left}th{background:#eef2f6}</style></head><body><h1>AXIMACH · Process Directory</h1><table><thead><tr><th>Process type</th><th>Category</th><th>Subcategories</th><th>Vendors</th></tr></thead><tbody>"+html+"</tbody></table></body></html>");
+  const html=exportRows.map(row=>"<tr><td><img src='"+esc(processLogoSource(row))+"' width='32' height='32' alt='process logo'/></td><td>"+esc(row.processType)+"</td><td>"+esc(row.category)+"</td><td>"+esc(row.subcategories.join(" · "))+"</td><td>"+esc(row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(", "))+"</td></tr>").join("");
+  win.document.write("<!doctype html><html><head><title>AXIMACH Process Directory</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:8px;text-align:left;vertical-align:middle}th{background:#eef2f6}img{display:block;object-fit:contain}</style></head><body><h1>AXIMACH · Process Directory</h1><table><thead><tr><th>Logo</th><th>Process type</th><th>Category</th><th>Subcategories</th><th>Vendors</th></tr></thead><tbody>"+html+"</tbody></table></body></html>");
   win.document.close();win.focus();win.print();
  };
  return <section className="workspace-page specialized-directory">
