@@ -1222,7 +1222,9 @@ test("Vendor Network process filters use stable Process Directory IDs and keep l
   assert.ok(network.includes('label:"Vendor / legacy text · "+name'));
   assert.ok(network.includes('value==="directory:"+definition.id'));
   assert.ok(network.includes("const capabilityDefinitionIds=capabilityDefinitions.map(definition=>definition.id)"));
-  assert.ok(network.includes("const assignedDefinitionIds=assigned.map(operation=>resolveOperationDefinition(operation)?.id||"").filter(Boolean)"));
+  assert.ok(network.includes("const processAssignedOperations=assigned.filter(operation=>operation.vendorId===v.id)"));
+  assert.ok(network.includes("const assignedDefinitionIds=processAssignedOperations.map(operation=>resolveOperationDefinition(operation)?.id||"").filter(Boolean)"));
+  assert.ok(network.includes("const operationSubcategoryIds=processAssignedOperations.map(operation=>{"));
   assert.ok(network.includes('value.startsWith("directory:")'));
   assert.ok(network.includes('value.startsWith("text:")&&legacyProcessNamesForVendor.includes(value.slice(5))'));
   assert.ok(network.includes('id="network-process-type" label="Process type" options={processOptions}'));

@@ -209,17 +209,14 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
   const linkedContacts=contacts.filter(c=>c.linkedType==="vendor"&&c.linkedId===v.id).map(c=>[c.name,c.role,c.phone,c.whatsapp,c.email,c.group].join(" ")).join(" ");
   const capabilityText=capabilityDefinitions.map(definition=>[definition.processType,definition.category,...(definition.subcategories||[])].join(" ")).join(" ");
   const fullText=(v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.email+" "+v.vendorType+" "+v.processes+" "+capabilityText+" "+v.machines+" "+v.materials+" "+v.notes+" "+linkedContacts+" "+assigned.map(op=>op.name+" "+op.category+" "+op.subcategory+" "+op.status).join(" ")).toLowerCase();
-  const operationCategory=assigned.map(op=>op.category).join(" ");
-  const operationTypes=assigned.map(op=>op.name).join(" ");
+  const processAssignedOperations=assigned.filter(operation=>operation.vendorId===v.id);
+  const operationCategory=processAssignedOperations.map(op=>op.category).join(" ");
   const capabilityDefinitionIds=capabilityDefinitions.map(definition=>definition.id);
-  const assignedDefinitionIds=assigned.map(operation=>resolveOperationDefinition(operation)?.id||"").filter(Boolean);
-  const legacyProcessNamesForVendor=[...String(v.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean),...assigned.filter(operation=>!resolveOperationDefinition(operation)).map(operation=>operation.name)].map(value=>value.toLowerCase());
-  const operationSubcategories=assigned.map(op=>op.subcategory||"").join(" ");
+  const assignedDefinitionIds=processAssignedOperations.map(operation=>resolveOperationDefinition(operation)?.id||"").filter(Boolean);
+  const legacyProcessNamesForVendor=[...String(v.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean),...processAssignedOperations.filter(operation=>!resolveOperationDefinition(operation)).map(operation=>operation.name)].map(value=>value.toLowerCase());
   const capabilityCategories=capabilityDefinitions.map(definition=>definition.category).join(" ");
-  const capabilityTypes=capabilityDefinitions.map(definition=>definition.processType).join(" ");
-  const capabilitySubcategories=capabilityDefinitions.flatMap(definition=>definition.subcategories||[]).join(" ");
   const capabilitySubcategoryIds=capabilityDefinitions.flatMap(definition=>definition.subcategories.map(name=>stableSubcategoryIdsFor(definition,name)));
-  const operationSubcategoryIds=assigned.map(operation=>{
+  const operationSubcategoryIds=processAssignedOperations.map(operation=>{
    const definition=definitions.find(item=>item.id===operation.processDefinitionId)
     || definitions.find(item=>item.processType===operation.name&&item.category===operation.category);
    return definition?stableSubcategoryIdsFor(definition,operation.subcategory||"",operation.processSubcategoryId):operation.processSubcategoryId||"";
