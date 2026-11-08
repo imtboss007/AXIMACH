@@ -695,6 +695,16 @@ test("Process Plan sub-processes inherit their Process Directory definition and 
   assert.ok(data.includes("processSubcategoryId?: string;"));
 });
 
+test("Vendor Network resolves capability and assigned-operation subcategories through stable Process Directory IDs", () => {
+  const workspace = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("definition.subcategoryIds?.[index]"));
+  assert.ok(workspace.includes("const stableSubcategoryIdsFor="));
+  assert.ok(workspace.includes("capabilitySubcategoryIds=capabilityDefinitions.flatMap"));
+  assert.ok(workspace.includes("operation.processSubcategoryId"));
+  assert.ok(workspace.includes("subcategories.some(id=>capabilitySubcategoryIds.includes(id)||operationSubcategoryIds.includes(id))"));
+  assert.ok(workspace.includes('id="network-subcategory" label="Subcategory" options={subcategoryOptions}'));
+});
+
 test("Process route scope keeps original parent arrows visible and each 3D view opens its matching layout", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
