@@ -437,31 +437,36 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const cardHeight=78+detailsCount*17;
     const laneHeight=cardHeight+58;
     const width=Math.max(900,90+maxNodes*270),height=Math.max(240,115+branches.length*laneHeight);
+    const safeColor=(value:string)=>/^#[0-9a-f]{6}$/i.test(value)?value:"#6fa9e5";
+    const processColorFor=(operation:OperationRecord)=>safeColor(processDefinitions.find(item=>item.id===operation.processDefinitionId)?.displayColor||operation.processColor||"#6fa9e5");
+    const branchColorFor=(branch:string,root?:OperationRecord)=>root?.relationType==="rework"||/rework/i.test(branch)?"#e38b45":root||branch!=="Main route"?"#4b95eb":"#5a8fc4";
+    const markerId=(color:string)=>"arrow-"+color.slice(1).toLowerCase();
+    const arrowColors=new Set<string>(["#4b95eb","#e38b45"]);
+    for(const operation of exportOperations) arrowColors.add(operation.relationType==="rework"?"#e38b45":operation.relationType==="alternate"?"#4b95eb":processColorFor(operation));
+    const markerDefinitions=[...arrowColors].map(color=>"<marker id=\""+markerId(color)+"\" markerWidth=\"9\" markerHeight=\"9\" refX=\"7\" refY=\"4.5\" orient=\"auto\"><path d=\"M0 0L9 4.5L0 9Z\" fill=\""+color+"\"/></marker>").join("");
     const svgText=(x:number,y:number,value:unknown,size=12,color="#dceefa",weight=500)=>"<text x=\""+x+"\" y=\""+y+"\" fill=\""+color+"\" font-family=\"Arial\" font-size=\""+size+"\" font-weight=\""+weight+"\">"+escapeSvg(value)+"</text>";
     const content=branches.map((branch,lane)=>{
       const rows=exportOperations.filter(op=>(op.branch||"Main route")===branch).slice().sort((a,b)=>a.sequence-b.sequence),y=85+lane*laneHeight;
       const branchRoot=rows.find(operation=>operation.parentId&&(operation.relationType==="alternate"||operation.relationType==="rework")&&routeOperations.find(parent=>parent.id===operation.parentId)?.branch!==branch);
       const parent=branchRoot?routeOperations.find(operation=>operation.id===branchRoot.parentId):undefined;
-      const isRework=branchRoot?.relationType==="rework"||/rework/i.test(branch);
-      const branchColor=isRework?"#e38b45":branchRoot||branch!=="Main route"?"#4b95eb":"#5a8fc4";
+      const branchColor=branchColorFor(branch,branchRoot);
       const header=svgText(42,y-20,branch+" · "+rows.length+" STAGE(S)",11,branchColor,700);
       const branchArrow=branchRoot&&parent
         ? svgText(50,y+2,"CONNECTED FROM OP-"+String(parent.sequence).padStart(3,"0")+" · "+parent.name,10,branchColor,600)
-          +"<path d=\"M320 "+(y-2)+" h42\" stroke=\""+branchColor+"\" stroke-width=\"2.6\" fill=\"none\" marker-end=\"url(#a)\"/>"
-          +svgText(375,y+2,(isRework?"REWORK":"ALTERNATE")+" ROUTE",9,branchColor,700)
+          +"<path d=\"M320 "+(y-2)+" h42 m-8 -7 l8 7 -8 7\" stroke=\""+branchColor+"\" stroke-width=\"2.6\" fill=\"none\"/>"
+          +svgText(375,y+2,(branchRoot.relationType==="rework"?"REWORK":"ALTERNATE")+" ROUTE",9,branchColor,700)
         : "";
       const cards=rows.map((op,index)=>{
         const x=42+index*270,details=exportColumns.filter(field=>field.key!=="operation");
-        const processDefinition=processDefinitions.find(item=>item.id===op.processDefinitionId);
-        const processColor=processDefinition?.displayColor||op.processColor||"#6fa9e5";
+        const processColor=processColorFor(op);
         const arrowColor=op.relationType==="rework"?"#e38b45":op.relationType==="alternate"?"#4b95eb":processColor;
         const info=details.map((field,i)=>svgText(x+12,y+75+i*17,field.label+": "+exportValue(op,field.key),10,"#a9c5d7",400)).join("");
-        const arrow=exportArrows&&index<rows.length-1?"<path d=\"M"+(x+222)+" "+(y+45)+"h36\" stroke=\""+arrowColor+"\" stroke-width=\"2.8\" fill=\"none\" marker-end=\"url(#a)\"/>":"";
+        const arrow=exportArrows&&index<rows.length-1?"<path d=\"M"+(x+222)+" "+(y+45)+"h28 m-8 -7 l8 7 -8 7\" stroke=\""+arrowColor+"\" stroke-width=\"2.8\" fill=\"none\"/>":"";
         return arrow+"<rect x=\""+x+"\" y=\""+y+"\" width=\"220\" height=\""+cardHeight+"\" rx=\"12\" fill=\"#102c43\" stroke=\""+processColor+"\" stroke-width=\"2\"/>"+svgText(x+12,y+22,"OP-"+String(op.sequence).padStart(3,"0")+" · "+op.status,9,processColor,700)+svgText(x+12,y+48,op.name,14,"#effaff",700)+info;
       }).join("");
       return header+branchArrow+cards;
     }).join("");
-    return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\""+width+"\" height=\""+height+"\" viewBox=\"0 0 "+width+" "+height+"\"><defs><marker id=\"a\" markerWidth=\"8\" markerHeight=\"8\" refX=\"7\" refY=\"4\" orient=\"auto\"><path d=\"M0 0L8 4L0 8Z\" fill=\"#b8d3eb\"/></marker></defs><rect width=\"100%\" height=\"100%\" fill=\"#071a2b\"/>"+svgText(42,35,(selectedComponent?.partNumber||"AXIMACH")+" · "+(selectedPO?.number||"PROCESS MAP"),19,"#fff",700)+content+"</svg>";
+    return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\""+width+"\" height=\""+height+"\" viewBox=\"0 0 "+width+" "+height+"\"><defs>"+markerDefinitions+"</defs><rect width=\"100%\" height=\"100%\" fill=\"#071a2b\"/>"+svgText(42,35,(selectedComponent?.partNumber||"AXIMACH")+" · "+(selectedPO?.number||"PROCESS MAP"),19,"#fff",700)+content+"</svg>";
   };
   const exportVisual = async (format:"svg"|"png") => {
     if(!exportOperations.length || !exportColumns.length){onNotice("Choose at least one field and ensure operations are visible.");return;}
