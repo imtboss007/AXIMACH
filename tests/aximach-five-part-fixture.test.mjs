@@ -1355,3 +1355,15 @@ test("Process Operations table and bulk controls use the same selected route sco
   assert.ok(workspace.includes("Selected route scope · {exportOperations.length} of {routeOperations.length} operation(s)."));
   assert.ok(!workspace.includes("tbody>{visibleOperations.map((op,index)=>"));
 });
+
+
+test("Process Universe node offers real alternate and rework creation from the selected parent", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("onAddAlternateRoute?: (parentId: string) => void"));
+  assert.ok(universe.includes("onAddReworkRoute?: (parentId: string) => void"));
+  assert.ok(universe.includes("onAddAlternateRoute(expandedOrbitOperation.id)"));
+  assert.ok(universe.includes("onAddReworkRoute(expandedOrbitOperation.id)"));
+  assert.ok(workspace.includes('onAddAlternateRoute={parentId=>startAddBranch("alternate",parentId)}'));
+  assert.ok(workspace.includes('onAddReworkRoute={parentId=>startAddBranch("rework",parentId)}'));
+});
