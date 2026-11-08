@@ -5,7 +5,7 @@ import type { OperationRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
-type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
+type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
 function fallbackFor(name: string) {
   const value = name.toLowerCase();
@@ -251,10 +251,12 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
           {fieldVisible("machine") && <div><small>MACHINE / STATION</small><strong>{expandedOrbitOperation.machine || "Not set"}</strong></div>}
           {fieldVisible("description") && <div className="process-orbit-selected-wide"><small>OPERATION DETAILS</small><strong>{expandedOrbitOperation.notes || expandedOrbitOperation.qualityNotes || "Not set"}</strong></div>}
         </div>
-        {(expandedOrbitSubprocesses.length > 0 || expandedOrbitBranches.length > 0 || onAddSubprocess) && <div className="process-orbit-selected-links">
+        {(expandedOrbitSubprocesses.length > 0 || expandedOrbitBranches.length > 0 || onAddSubprocess || onAddAlternateRoute || onAddReworkRoute) && <div className="process-orbit-selected-links">
           {expandedOrbitSubprocesses.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(""); }}>Sub-process · {child.name} · {child.status}</button>)}
           {expandedOrbitBranches.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(child.id); }}>{child.relationType === "rework" ? "Rework" : "Alternate"} · {child.name} · {child.status}</button>)}
           {onAddSubprocess && <button type="button" className="process-orbit-add-subprocess" onClick={() => onAddSubprocess(expandedOrbitOperation.id)}>＋ Add sub-process</button>}
+          {onAddAlternateRoute && <button type="button" className="process-orbit-add-alternate" onClick={() => onAddAlternateRoute(expandedOrbitOperation.id)}>＋ Create alternate route</button>}
+          {onAddReworkRoute && <button type="button" className="process-orbit-add-rework" onClick={() => onAddReworkRoute(expandedOrbitOperation.id)}>＋ Create rework route</button>}
         </div>}
       </section>}
     </div>
@@ -312,7 +314,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
                   </div>
                   {childOperations.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(""); }}><span>{child.name}</span><small>Sub-process · {child.status} · {child.machine || "Machine not set"}</small></button>)}
                   {linkedBranches.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(child.id); }}><span>{child.name}</span><small>{child.relationType === "rework" ? "Rework branch" : "Alternate route"} · {child.status}</small></button>)}
-                  <button type="button" className="process-node-add-subprocess" onClick={() => onAddSubprocess?.(operation.id)}>＋ Add sub-process</button>
+                  <button type="button" className="process-node-add-subprocess" onClick={() => onAddSubprocess?.(operation.id)}>＋ Add sub-process</button>{onAddAlternateRoute && <button type="button" className="process-node-add-alternate" onClick={() => onAddAlternateRoute(operation.id)}>＋ Create alternate route</button>}{onAddReworkRoute && <button type="button" className="process-node-add-rework" onClick={() => onAddReworkRoute(operation.id)}>＋ Create rework route</button>}
                 </div>}
                 {showArrows && index < lane.rows.length - 1 && <span className="process-universe-connector" style={{color:lane.branchRelation==="rework"?"#e38b45":lane.branchRelation==="alternate"?"#4b95eb":accent}} aria-hidden="true"><ArrowRight size={17}/></span>}
               </div>;
