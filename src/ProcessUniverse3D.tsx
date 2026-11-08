@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
-import { motion, useAnimationFrame, useMotionValue, useReducedMotion } from "motion/react";
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
+import { motion, useMotionValue } from "motion/react";
 import { Activity, ArrowRight, Boxes, ClipboardCheck, Cog, Cpu, Disc3, GitBranch, Scissors, Zap, Truck, Workflow, Wrench } from "lucide-react";
 import type { OperationRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
 
-type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; vendorIds?: string[] };
-type Props = { operations: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; selectedOperationId: string; simulationIndex: number; zoom: number; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
+type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; vendorIds?: string[]; displayColor?: string };
+type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; selectedOperationId: string; simulationIndex: number; zoom: number; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
 function fallbackFor(name: string) {
   const value = name.toLowerCase();
@@ -24,35 +24,16 @@ function fallbackFor(name: string) {
 
 type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh";
 
-export default function ProcessUniverse3D({ operations, processDefinitions = [], selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
+export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
-  const subprocessesFor = (parentId: string) => operations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
-  const branchesFor = (parentId: string) => operations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
+  const lookupOperations = allOperations || operations;
+  const subprocessesFor = (parentId: string) => lookupOperations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
+  const branchesFor = (parentId: string) => lookupOperations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>("sphere");
   const rotateX = useMotionValue(-12);
   const rotateY = useMotionValue(18);
-  const reducedMotion = useReducedMotion();
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
-  const mobileFrameDelta = useRef(0);
-  const [compactViewport, setCompactViewport] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 650px)").matches);
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 650px)");
-    const updateCompact = () => setCompactViewport(query.matches);
-    query.addEventListener("change", updateCompact);
-    return () => query.removeEventListener("change", updateCompact);
-  }, []);
-  useAnimationFrame((_time, delta) => {
-    if (drag.current || reducedMotion || document.visibilityState === "hidden") return;
-    let frameDelta = delta;
-    if (compactViewport) {
-      mobileFrameDelta.current += delta;
-      if (mobileFrameDelta.current < 32) return;
-      frameDelta = mobileFrameDelta.current;
-      mobileFrameDelta.current = 0;
-    }
-    rotateY.set(rotateY.get() + frameDelta * 0.0048);
-  });
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     drag.current = { x: event.clientX, y: event.clientY, rx: rotateX.get(), ry: rotateY.get() };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -96,7 +77,12 @@ export default function ProcessUniverse3D({ operations, processDefinitions = [],
       rows.push(operation);
       grouped.set(branch, rows);
     }
-    return [...grouped.entries()].map(([name, rows]) => ({ name, rows: rows.slice().sort((a,b) => a.sequence-b.sequence), alternate: name !== "Main route", parentLabels: [...new Set(rows.filter(row => row.parentId && (row.relationType === "alternate" || row.relationType === "rework")).map(row => { const parent = operations.find(item => item.id === row.parentId); return parent ? "OP-" + String(parent.sequence).padStart(3, "0") + " · " + parent.name : ""; }).filter(Boolean))] }));
+    return [...grouped.entries()].map(([name, rows]) => {
+      const ordered = rows.slice().sort((a,b) => a.sequence-b.sequence);
+      const branchRoot = ordered.find(row => row.parentId && (row.relationType === "alternate" || row.relationType === "rework") && lookupOperations.find(item=>item.id===row.parentId)?.branch !== name);
+      const parent = branchRoot ? lookupOperations.find(item=>item.id===branchRoot.parentId) : undefined;
+      return { name, rows: ordered, alternate: name !== "Main route", branchRoot, parent, branchRelation: branchRoot?.relationType };
+    });
   }, [parentOperations]);
   const stageStyle: CSSProperties = { transform: `scale(${zoom}) rotateX(2deg)`, transformOrigin: "top left", width: `${100 / zoom}%` };
 
@@ -117,7 +103,9 @@ export default function ProcessUniverse3D({ operations, processDefinitions = [],
           {orbitNodes.map(({ operation, index, transform }) => {
             const active = selectedOperationId === operation.id, current = simulationIndex === index, passed = simulationIndex > index;
             const state = operation.status.toLowerCase().replaceAll(" ","-");
-            return <button key={operation.id} type="button" className={"process-orbit-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{ transform }} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={operation.name + " · " + operation.status}>
+            const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
+            const accent = operation.processColor || processDefinition?.displayColor || "#6fa9e5";
+            return <button key={operation.id} type="button" className={"process-orbit-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{ transform, "--process-accent":accent } as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={operation.name + " · " + operation.status}>
               <span className="process-orbit-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><i /></span>
               <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} />
               <strong>{operation.name}</strong>{subprocessesFor(operation.id).length > 0 && <small className="process-orbit-node-qty">{subprocessesFor(operation.id).length} SUB-PROCESS(ES)</small>}<small className="process-orbit-node-qty">{operation.completed.toLocaleString("en-IN")} / {operation.quantity.toLocaleString("en-IN")} pcs</small>
@@ -146,6 +134,7 @@ export default function ProcessUniverse3D({ operations, processDefinitions = [],
     <div className="process-universe-viewport"><div className="process-universe-stage" style={stageStyle}>
       {lanes.map(lane => <section className={"process-universe-lane" + (lane.alternate ? " is-branch" : "")} key={lane.name}>
         <div className="process-universe-lane-label"><span className="process-universe-branch-icon">{lane.alternate ? <GitBranch size={15}/> : <Workflow size={15}/>}</span><span><strong>{lane.name}</strong><small>{lane.alternate ? "Alternate / rework branch" + (lane.parentLabels.length ? " · connected from " + lane.parentLabels.join(", ") : "") : "Primary manufacturing route"}</small></span><em>{lane.rows.length} STEP{lane.rows.length === 1 ? "" : "S"}</em></div>
+        {lane.alternate && lane.branchRoot && <div className={"process-universe-branch-link " + (lane.branchRelation==="rework"?"is-rework":"is-alternate")}><span>OP-{String(lane.parent?.sequence||0).padStart(3,"0")} · {lane.parent?.name||"Parent operation"}</span><ArrowRight size={16}/><strong>{lane.rows[0]?.name||lane.name}</strong><small>{lane.branchRelation==="rework"?"REWORK BRANCH":"ALTERNATE ROUTE"}</small></div>}
         <div className="process-universe-node-track">{lane.rows.map((operation,index) => {
           const globalIndex = parentOperations.findIndex(item => item.id === operation.id);
           const active = selectedOperationId === operation.id, current = simulationIndex === globalIndex, passed = simulationIndex > globalIndex;
@@ -153,8 +142,10 @@ export default function ProcessUniverse3D({ operations, processDefinitions = [],
           const linkedBranches = branchesFor(operation.id);
           const expanded = expandedOperationId === operation.id;
           const state = operation.status.toLowerCase().replaceAll(" ","-");
+          const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
+          const accent = operation.processColor || processDefinition?.displayColor || "#6fa9e5";
           return <div className="process-universe-node-wrap" key={operation.id}>
-            <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={"Open " + operation.name + " operation record"}>
+            <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{"--process-accent":accent} as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={"Open " + operation.name + " operation record"}>
               <span className="process-universe-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><em>{operation.status}</em></span>
               <span className="process-universe-node-icon"><ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} /></span>
               <strong>{operation.name}</strong>{childOperations.length > 0 && <small className="process-universe-node-category">{childOperations.length} sub-process(es) · {childOperations[0].vendorId ? "vendor linked" : "vendor assignment pending"}</small>}<small className="process-universe-node-category">{operation.category || operation.machine || "Manufacturing operation"}</small>
@@ -162,7 +153,7 @@ export default function ProcessUniverse3D({ operations, processDefinitions = [],
               {operation.machine && <span className="process-universe-machine">{operation.machine}</span>}
             </button>
             {expanded && <div className="process-node-subprocess-dropdown"><strong>{operation.name} · Linked steps</strong>{childOperations.map(child => <button type="button" key={child.id} onClick={() => onSelectOperation(child.id)}><span>{child.name}</span><small>Sub-process · {child.status} · {child.machine || "Machine not set"}</small></button>)}{linkedBranches.map(child => <button type="button" key={child.id} onClick={() => onSelectOperation(child.id)}><span>{child.name}</span><small>{child.relationType === "rework" ? "Rework branch" : "Alternate route"} · {child.status}</small></button>)}<button type="button" className="process-node-add-subprocess" onClick={() => onAddSubprocess?.(operation.id)}>＋ Add sub-process</button></div>}
-            {index < lane.rows.length - 1 && <span className="process-universe-connector" aria-hidden="true"><ArrowRight size={17}/></span>}
+            {index < lane.rows.length - 1 && <span className="process-universe-connector" style={{color:accent}} aria-hidden="true"><ArrowRight size={17}/></span>}
           </div>;
         })}</div>
         {lane.alternate && <div className="process-universe-branch-note">Branch retained with its parent operation and rework history.</div>}
