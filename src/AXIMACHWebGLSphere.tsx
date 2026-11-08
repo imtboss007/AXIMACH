@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { MotionValue } from "motion/react";
 
 const vertexShader = `
 attribute vec2 position;
@@ -12,6 +13,7 @@ const fragmentShader = `
 precision highp float;
 varying vec2 uv;
 uniform vec2 resolution;
+uniform vec2 globeRotation;
 const float PI = 3.141592653589793;
 
 void main() {
@@ -29,7 +31,13 @@ void main() {
   // The texture remains fixed relative to the sphere. User drag rotates the
   // complete globe assembly; there is no independent shader-level auto-spin.
   vec3 q = hit;
-  vec3 normal = normalize(q);
+  float cx = cos(globeRotation.x), sx = sin(globeRotation.x);
+  float cy = cos(globeRotation.y), sy = sin(globeRotation.y);
+  mat3 rotateX = mat3(1.0,0.0,0.0, 0.0,cx,sx, 0.0,-sx,cx);
+  mat3 rotateY = mat3(cy,0.0,-sy, 0.0,1.0,0.0, sy,0.0,cy);
+  // Rotate the surface coordinates, not the canvas plane: the silhouette
+  // stays spherical while the latitude/longitude texture follows user drag.
+  vec3 normal = normalize(rotateY * rotateX * normalize(q));
   float lat = asin(clamp(normal.y, -1.0, 1.0));
   float lon = atan(normal.z, normal.x);
 
@@ -67,7 +75,7 @@ function compile(gl: WebGLRenderingContext, type: number, source: string) {
   return shader;
 }
 
-export default function AXIMACHWebGLSphere() {
+export default function AXIMACHWebGLSphere({ rotationX, rotationY }: { rotationX: MotionValue<number>; rotationY: MotionValue<number> }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -93,6 +101,7 @@ export default function AXIMACHWebGLSphere() {
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     const resolution = gl.getUniformLocation(program, "resolution");
+    const globeRotation = gl.getUniformLocation(program, "globeRotation");
     let disposed = false;
     const draw = () => {
       if (disposed) return;
@@ -100,6 +109,13 @@ export default function AXIMACHWebGLSphere() {
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     };
+    const applyRotation = () => {
+      if (disposed) return;
+      gl.uniform2f(globeRotation, rotationX.get() * Math.PI / 180, rotationY.get() * Math.PI / 180);
+      draw();
+    };
+    const stopRotateX = rotationX.on("change", applyRotation);
+    const stopRotateY = rotationY.on("change", applyRotation);
     const resize = () => {
       if (disposed) return;
       const rect = canvas.getBoundingClientRect();
@@ -111,7 +127,7 @@ export default function AXIMACHWebGLSphere() {
       }
       gl.viewport(0, 0, width, height);
       gl.uniform2f(resolution, width, height);
-      draw();
+      applyRotation();
     };
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
     observer?.observe(canvas);
@@ -119,6 +135,8 @@ export default function AXIMACHWebGLSphere() {
     return () => {
       disposed = true;
       observer?.disconnect();
+      stopRotateX();
+      stopRotateY();
       gl.deleteBuffer(buffer);
       gl.deleteProgram(program);
       gl.deleteShader(vs);
