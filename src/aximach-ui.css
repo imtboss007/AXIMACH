@@ -1730,3 +1730,10 @@
   .process-route-flow-arrow svg { width:16px; height:16px; }
   .process-route-parent-link,.linked-route-parent-arrow { margin-left:0; }
 }
+
+.process-universe-lane.is-branch.is-alternate .process-universe-connector { color:#4b95eb; }
+.process-universe-lane.is-branch.is-rework .process-universe-connector { color:#e38b45; }
+.process-universe-branch-link { position:relative; z-index:2; }
+.linked-node-arrow { display:inline-flex; align-items:center; }
+.process-row-delete { color:#f2a0a3 !important; border-color:rgba(218,103,112,.38) !important; }
+.process-row-delete:hover:not(:disabled) { color:#fff !important; background:rgba(181,58,69,.22) !important; border-color:#dc737c !important; }
