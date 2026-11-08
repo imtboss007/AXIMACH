@@ -135,7 +135,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
           />
           <motion.div
             className="ax-orb-core"
-            style={{ rotateX, rotateY, transformPerspective: 950, scale: sphereSize * (zoomed ? 1.2 : 1) }}
+            style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}
             role="button"
             tabIndex={0}
             aria-label={zoomed ? "Zoom out of AXIMACH sphere" : "Zoom in to AXIMACH sphere"}
