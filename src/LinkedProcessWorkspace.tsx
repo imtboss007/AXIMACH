@@ -184,7 +184,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   });
   const visibleBranches = [...new Set(visibleOperations.map(op => op.branch || "Main route"))];
   const toggleFilter = (setter: (next: string[] | ((previous: string[]) => string[])) => void, value: string) => setter(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value]);
-  const clearAllFilters = () => { setSearch(""); setStatusFilters([]); setExecutionFilters([]); setCategoryFilters([]); setToleranceFilters([]); setPaymentFilters([]); setVendorFilters([]); setProcessTypeFilters([]); setSubcategoryFilters([]); setCategorySearch(""); setDateFrom(""); setDateTo(""); setMinQuantity(""); setMaxQuantity(""); setMinPrice(""); setMaxPrice(""); setMinAmount(""); setMaxAmount(""); setSelectedOperationIds([]); };
+  const clearAllFilters = () => { setExportScope("all"); setSearch(""); setStatusFilters([]); setExecutionFilters([]); setCategoryFilters([]); setToleranceFilters([]); setPaymentFilters([]); setVendorFilters([]); setProcessTypeFilters([]); setSubcategoryFilters([]); setCategorySearch(""); setDateFrom(""); setDateTo(""); setMinQuantity(""); setMaxQuantity(""); setMinPrice(""); setMaxPrice(""); setMinAmount(""); setMaxAmount(""); setSelectedOperationIds([]); };
   const toggleOperationSelection = (id: string) => setSelectedOperationIds(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
   const selectVisibleOperations = (checked: boolean) => setSelectedOperationIds(current => checked ? [...new Set([...current, ...visibleOperations.map(op => op.id)])] : current.filter(id => !visibleOperations.some(op => op.id === id)));
   const selectedVisibleOperations = visibleOperations.filter(op => selectedOperationIds.includes(op.id));
@@ -658,7 +658,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     base.processDefinitionId = anchor.processDefinitionId || "";
     base.processColor = processDefinitions.find(definition=>definition.id===anchor.processDefinitionId)?.displayColor || anchor.processColor || DEFAULT_PROCESS_COLOR;
     base.branch = (kind === "alternate" ? "Alternate route" : "Rework") + " · OP-" + String(anchor.sequence).padStart(3, "0") + " · " + anchor.name;
-    base.name = kind === "alternate" ? "Alternate route operation" : "Rework operation";
+    base.name = anchor.name;
     base.category = anchor.category;
     base.vendorId = anchor.vendorId;
     base.executionType = anchor.executionType || "Outsourced";
@@ -1018,7 +1018,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("alternate")}><GitBranch size={14}/> Alternate route from selected</button>
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("rework")}><GitBranch size={14}/> Rework branch from selected</button>
         {(activeOperation?.relationType === "alternate" || activeOperation?.relationType === "rework") && <button className="button-quiet compact-button" disabled={!selectedLine} onClick={startAddBranchStep}><Plus size={14}/> Add step to selected branch</button>}
-        <button className="button-quiet compact-button" onClick={() => { setZoom(1); setSearch("");setStatusFilters([]);setExecutionFilters([]);setCategoryFilters([]);setToleranceFilters([]);setPaymentFilters([]);setVendorFilters([]);setDateFrom("");setDateTo("");setMinQuantity("");setMaxQuantity("");setMinPrice("");setMaxPrice("");setMinAmount("");setMaxAmount("");setSelectedOperationIds([]); }}><Search size={14}/> Clear filters</button>
+        <button className="button-quiet compact-button" onClick={() => { setExportScope("all"); setZoom(1); setSearch("");setStatusFilters([]);setExecutionFilters([]);setCategoryFilters([]);setToleranceFilters([]);setPaymentFilters([]);setVendorFilters([]);setDateFrom("");setDateTo("");setMinQuantity("");setMaxQuantity("");setMinPrice("");setMaxPrice("");setMinAmount("");setMaxAmount("");setSelectedOperationIds([]); }}><Search size={14}/> Clear filters</button>
         {onOpenIconStudio && <button className="button-quiet compact-button" onClick={()=>onOpenIconStudio(activeOperation?.processDefinitionId || processDefinitions.find(item=>item.processType===activeOperation?.name&&item.category===activeOperation?.category)?.id)}><Boxes size={14}/> Add / change process logo</button>}
       </div>
       <div className="linked-route-actions linked-route-visual-controls" style={{flexWrap:"wrap",alignItems:"center"}}>
