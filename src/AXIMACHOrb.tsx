@@ -230,7 +230,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         <label>Sphere size<input type="range" min=".82" max="1.12" step=".01" value={sphereSize} onChange={event=>setSphereSize(Number(event.target.value))}/><small>{Math.round(sphereSize*100)}%</small></label>
         <label>Orbit intensity<input type="range" min="0" max="1" step=".05" value={orbitIntensity} onChange={event=>setOrbitIntensity(Number(event.target.value))}/><small>{Math.round(orbitIntensity*100)}%</small></label>
         <label className="ax-orb-motion-setting"><input type="checkbox" checked={reduceMotion} onChange={event=>setReduceMotion(event.target.checked)}/> Reduce motion</label>
-        <button type="button" className="ax-orb-reset" onClick={()=>{setVisualMode("sphere");setSpeed("Normal");setSphereSize(1);setOrbitIntensity(1);setReduceMotion(false);setPaused(false);setZoomed(false);}}>Reset preferences</button>
+        <button type="button" className="ax-orb-reset" onClick={()=>{setVisualMode("sphere");setSpeed("Normal");setSphereSize(1);setOrbitIntensity(1);setReduceMotion(false);setZoomed(false);}}>Reset preferences</button>
       </div>}
       <motion.div className="ax-orb-coordinate" animate={reducedMotion ? undefined : { opacity: [0.45, 1, 0.45] }} transition={{ duration: 4.5, repeat: Infinity }}>AX / 360° / LIVE DATA SURFACE</motion.div>
     </div>
