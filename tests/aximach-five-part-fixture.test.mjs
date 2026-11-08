@@ -1041,3 +1041,9 @@ test("Dashboard and Command Centre keep independent persisted sphere preferences
   assert.ok(app.includes('<AXIMACHOrb surface="command-centre"'));
   assert.ok(dashboard.includes('<AXIMACHOrb surface="dashboard"'));
 });
+
+test("Selecting an already active process row or Process Universe node reopens the selected-operation panel", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("if(selectedOperationPanelRef.current)selectedOperationPanelRef.current.open=true"));
+  assert.ok(workspace.includes("onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); if(selectedOperationPanelRef.current)selectedOperationPanelRef.current.open=true; }}"));
+});
