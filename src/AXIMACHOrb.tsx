@@ -180,7 +180,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             const angle = index * goldenAngle;
             const unitX = Math.cos(angle) * ringRadius;
             const unitZ = Math.sin(angle) * ringRadius;
-            const radius = compactViewport ? 96 : 112;
+            const radius = compactViewport ? 116 : 132;
             const x = unitX * radius;
             const y = unitY * radius;
             const z = unitZ * radius;
