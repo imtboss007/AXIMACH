@@ -196,6 +196,8 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
   assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
+  assert.ok(orb.includes('className="ax-orb-core"'));
+  assert.ok(orb.includes('style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}'));
   assert.ok(orb.includes('style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}'));
   assert.ok(orb.includes("const startDrag ="));
   assert.ok(orb.includes("const startLowerDrag ="));
