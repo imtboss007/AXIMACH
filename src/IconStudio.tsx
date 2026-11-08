@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Search, SlidersHorizontal, Sparkles, Workflow, X } from "lucide-react";
 import { tablerIconCatalogue } from "./tablerIconCatalogue";
 import { MechanicalComponentIcon, MechanicalOperationIcon, mechanicalGlyphForOperation } from "./MechanicalOperationIcon";
 import { activeRows, useManufacturingData } from "./manufacturingData";
@@ -171,7 +171,7 @@ function assignedIcon(assignment: IconAssignment, title: string, className: stri
   </span>;
 }
 
-export function ProcessIcon({ processName, processId, category, subcategory }: { processName: string; fallback: ReactNode; processId?: string; category?: string; subcategory?: string }) {
+export function ProcessIcon({ processName, fallback, processId, category, subcategory }: { processName: string; fallback: ReactNode; processId?: string; category?: string; subcategory?: string }) {
   const { data } = useManufacturingData();
   const assignments = useIconAssignments();
   const family = processFamilyForName(processName);
@@ -188,7 +188,10 @@ export function ProcessIcon({ processName, processId, category, subcategory }: {
   const assignment = (subcategoryId ? assignments["subcategory:" + subcategoryId] : undefined)
     || (stableId ? assignments["process:" + stableId] : undefined)
     || assignments["process:" + normaliseWords(processName)] || assignments[family];
-  if (!assignment || !isMechanicalStudioIcon(assignment.iconName)) return <span className="linked-node-icon linked-node-icon-3d"><MechanicalOperationIcon operation={processName} /></span>;
+  if (!assignment || !isMechanicalStudioIcon(assignment.iconName)) {
+    const knownMechanicalGlyph = mechanicalGlyphForOperation(processName);
+    return <span className="linked-node-icon linked-node-icon-3d">{knownMechanicalGlyph ? <MechanicalOperationIcon operation={processName} /> : (fallback || <Workflow size={16} />)}</span>;
+  }
   return assignedIcon(assignment, "Saved process identity: " + processName, "linked-node-icon linked-node-icon-3d ax-process-icon");
 }
 
