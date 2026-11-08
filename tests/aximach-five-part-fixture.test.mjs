@@ -1368,6 +1368,7 @@ test("Process Universe node offers real alternate and rework creation from the s
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(universe.includes("onAddAlternateRoute?: (parentId: string) => void"));
   assert.ok(universe.includes("onAddReworkRoute?: (parentId: string) => void"));
+  assert.ok(universe.includes("onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props)"));
   assert.ok(universe.includes("onAddAlternateRoute(expandedOrbitOperation.id)"));
   assert.ok(universe.includes("onAddReworkRoute(expandedOrbitOperation.id)"));
   assert.ok(workspace.includes('onAddAlternateRoute={parentId=>startAddBranch("alternate",parentId)}'));
