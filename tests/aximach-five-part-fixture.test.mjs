@@ -514,6 +514,17 @@ test("Alternate and rework routes use different arrow colours while process type
   assert.ok(css.includes(".process-universe-branch-link.is-rework"));
 });
 
+test("Process Plan resolves stable Process Directory IDs before legacy labels in filters and editor validation", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const resolveProcessDefinition ="));
+  assert.ok(workspace.includes("const stableDefinition = definitionId ? definitions.find(definition => definition.id === definitionId) : undefined;"));
+  assert.ok(workspace.includes("return matches.length === 1 ? matches[0] : undefined;"), "legacy name fallback must not guess between ambiguous definitions");
+  assert.ok(workspace.includes("const selectedProcessDefinition = resolveProcessDefinition(processDefinitions, draft.processDefinitionId, draft.name, draft.category);"));
+  assert.ok(workspace.includes("const operationDefinition = resolveProcessDefinition(processDefinitions, op.processDefinitionId, op.name, op.category);"));
+  assert.ok(workspace.includes("const effectiveCategory = operationDefinition?.category || op.category;"));
+  assert.ok(workspace.includes("categoryFilters.includes(effectiveCategory)"), "category filtering must follow the stable Process Directory definition when legacy operation text is stale");
+});
+
 test("Process Directory PDF and Excel exports include per-process logo artwork", () => {
   const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
   const glyphs = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");

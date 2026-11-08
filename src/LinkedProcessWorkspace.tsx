@@ -28,6 +28,18 @@ const processSubcategoryIdFor = (definition: ProcessDefinitionRecord | undefined
   if (!definition || index < 0) return "";
   return definition.subcategoryIds?.[index] || `${definition.id}-subprocess-${String(index + 1).padStart(3, "0")}`;
 };
+const resolveProcessDefinition = (
+  definitions: ProcessDefinitionRecord[],
+  definitionId?: string,
+  processType?: string,
+  category?: string
+) => {
+  const stableDefinition = definitionId ? definitions.find(definition => definition.id === definitionId) : undefined;
+  if (stableDefinition) return stableDefinition;
+  if (!processType) return undefined;
+  const matches = definitions.filter(definition => definition.processType === processType && (!category || definition.category === category));
+  return matches.length === 1 ? matches[0] : undefined;
+};
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
   processDefinitionId: "", name: "", category: "", machine: "", vendorId: "", status: "Planned", executionType:"Outsourced", toleranceCategory:"Standard", inspectionRequired:false, plannedStart: "", plannedEnd: line?.targetDelivery ? (line.targetDelivery.includes("T")?line.targetDelivery:line.targetDelivery+"T08:00") : "", actualStart: "", actualEnd: "",
   quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0, processCostTotal: 0, paymentStatus:"Unpaid", paidAmount:0, paymentReference:"", subcategory:"", processSubcategoryId:"",
@@ -157,8 +169,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const poLines = selectedPO ? selectedPO.lines.filter(line => !("deletedAt" in line && (line as PurchaseOrderLine & {deletedAt?: string}).deletedAt)) : [];
   const selectedLine = poLines.find(line => line.id === poLineId);
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
-  const selectedProcessDefinition = processDefinitions.find(item => item.id === draft.processDefinitionId && item.processType === draft.name && item.category === draft.category)
-    || processDefinitions.find(item => item.processType === draft.name && item.category === draft.category);
+  const selectedProcessDefinition = resolveProcessDefinition(processDefinitions, draft.processDefinitionId, draft.name, draft.category);
   const routeOperations = operations.filter(op => op.poLineId === poLineId && op.poId === poId && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const componentTransportLegs = allTransportLegs.filter(leg => leg.poLineId === poLineId && leg.poId === poId && leg.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const selectedTransportDirectoryRoute = transportRoutes.find(route => route.id === transportRouteId);
@@ -179,13 +190,13 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const text = [op.name,op.category,op.subcategory,op.machine,op.executionType,op.status,op.branch,op.plannedStart,op.plannedEnd,op.actualStart,op.actualEnd,op.quantity,op.completed,op.accepted,op.rejected,op.ratePerPart,op.actualRatePerPart,op.transportCost,op.paymentStatus,op.paidAmount,op.toleranceCategory,op.inspectionResult,op.qualityNotes,op.notes,op.transportFrom,op.transportTo,op.transportVehicleType,vendors.find(v => v.id === op.vendorId)?.company,vendors.find(v => v.id === op.transportVendorId)?.company].join(" ").toLowerCase();
     const statusMatch = !statusFilters.length || statusFilters.includes(op.status);
     const executionMatch = !executionFilters.length || executionFilters.includes(op.executionType || "Outsourced");
-    const categoryMatch = !categoryFilters.length || categoryFilters.includes(op.category);
+    const operationDefinition = resolveProcessDefinition(processDefinitions, op.processDefinitionId, op.name, op.category);
+    const effectiveCategory = operationDefinition?.category || op.category;
+    const categoryMatch = !categoryFilters.length || categoryFilters.includes(effectiveCategory);
     const toleranceMatch = !toleranceFilters.length || toleranceFilters.includes(op.toleranceCategory || "Standard");
     const paymentMatch = !paymentFilters.length || paymentFilters.includes(op.paymentStatus || "Unpaid");
     const vendorMatch = !vendorFilters.length || vendorFilters.includes(op.vendorId);
-    const operationDefinition = processDefinitions.find(item => item.id === op.processDefinitionId)
-      || processDefinitions.find(item => item.processType === op.name && item.category === op.category);
-    const stableProcessDefinitionId = op.processDefinitionId || operationDefinition?.id || "";
+    const stableProcessDefinitionId = operationDefinition?.id || op.processDefinitionId || "";
     const processTypeMatch = !processTypeFilters.length || processTypeFilters.includes(stableProcessDefinitionId);
     const operationSubcategoryId = op.processSubcategoryId || processSubcategoryIdFor(operationDefinition, op.subcategory || "");
     const subcategoryMatch = !subcategoryFilters.length || subcategoryFilters.includes(operationSubcategoryId);
@@ -220,8 +231,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (bulkVendorId) {
       const incompatible = selected.find(op => {
         if ((op.executionType || "Outsourced") !== "Outsourced") return false;
-        const definition = processDefinitions.find(item => item.id === op.processDefinitionId)
-          || processDefinitions.find(item => item.processType === op.name && item.category === op.category);
+        const definition = resolveProcessDefinition(processDefinitions, op.processDefinitionId, op.name, op.category);
         return Boolean(definition?.vendorIds?.length && !definition.vendorIds.includes(bulkVendorId));
       });
       if (incompatible) { onNotice("The bulk vendor is not assigned to process definition " + incompatible.name + ". No records were changed."); return; }
