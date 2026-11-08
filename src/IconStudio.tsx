@@ -2,18 +2,24 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Search, SlidersHorizontal, Sparkles, Workflow, X } from "lucide-react";
 import { tablerIconCatalogue } from "./tablerIconCatalogue";
-import { MechanicalComponentIcon, MechanicalOperationIcon, mechanicalGlyphForOperation } from "./MechanicalOperationIcon";
+import { MechanicalComponentIcon, MechanicalOperationIcon, MechanicalIconGlyph, MECHANICAL_ICON_INVENTORY, mechanicalGlyphForOperation, type ToolGlyph } from "./MechanicalOperationIcon";
 import { activeRows, useManufacturingData } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
-type IconMeta = { name: string; category?: string; tags?: string[]; version?: string; unicode?: string; variant: "outline" | "filled" };
+type IconMeta = { name: string; category?: string; tags?: string[]; version?: string; unicode?: string; variant: "outline" | "filled"; glyph?: ToolGlyph; label?: string };
 type IconAssignment = { iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string; customAsset?: string; revision?: number; history?: Array<{ iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string; customAsset?: string; revision?: number }> };
 type Assignments = Record<string, IconAssignment>;
 
 const MECHANICAL_ICON_NAME_PATTERN = /^(?:tool|tools|truck|truck-delivery|truck-loading|truck-return|forklift|car-crane|engine|crane|tractor|wheel|building-factory|building-factory-2|automatic-gearbox|manual-gearbox|hammer|hammer-drill|robot|ruler|ruler-2|ruler-3|ruler-measure|ruler-measure-2|pencil-ruler|steering-wheel|firetruck|rv-truck)$/;
 const iconBaseName = (name: string) => name.includes(":") ? name.slice(name.lastIndexOf(":") + 1) : name;
-const isMechanicalStudioIcon = (name: string) => MECHANICAL_ICON_NAME_PATTERN.test(iconBaseName(name));
-const ICONS: IconMeta[] = tablerIconCatalogue.filter((item) => isMechanicalStudioIcon(item.name)).map((item) => ({ name: item.name, category: item.variant, tags: item.name.split("-"), variant: item.variant }));
+const mechanicalGlyphForStudioName = (name: string): ToolGlyph | undefined => {
+  const unprefixed = /^(outline|filled):/.test(name) ? name.slice(name.indexOf(":")+1) : name;
+  return unprefixed.startsWith("mechanical:") ? MECHANICAL_ICON_INVENTORY.find(item=>item.glyph===unprefixed.slice("mechanical:".length))?.glyph : undefined;
+};
+const isMechanicalStudioIcon = (name: string) => Boolean(mechanicalGlyphForStudioName(name)) || MECHANICAL_ICON_NAME_PATTERN.test(iconBaseName(name));
+const tablerMechanicalIcons: IconMeta[] = tablerIconCatalogue.filter((item) => isMechanicalStudioIcon(item.name)).map((item) => ({ name: item.name, category: item.variant, tags: item.name.split("-"), variant: item.variant }));
+const engineeredMechanicalIcons: IconMeta[] = MECHANICAL_ICON_INVENTORY.map(item=>({name:"mechanical:"+item.glyph,category:"Mechanical tool",tags:[item.label,item.application,"industrial manufacturing"],variant:"outline",glyph:item.glyph,label:item.label}));
+const ICONS: IconMeta[] = [...tablerMechanicalIcons,...engineeredMechanicalIcons];
 const iconKey = (item: Pick<IconMeta, "name" | "variant">) => `${item.variant}:${item.name}`;
 
 const families = [
@@ -168,7 +174,7 @@ function useIconAssignments() {
 function assignedIcon(assignment: IconAssignment, title: string, className: string) {
   const palette = palettes.find((item) => item.name === assignment.palette) || palettes[0];
   return <span className={className + " ax-icon-finish-" + normaliseWords(assignment.finish).replaceAll(" ", "-")} style={{ "--ax-icon-accent": palette.color, "--ax-icon-depth": assignment.depth, "--ax-icon-tilt": assignment.tilt + "deg" } as CSSProperties} title={title}>
-    {assignment.customAsset ? <img className="ax-icon-custom-asset" src={assignment.customAsset} alt="" /> : <i className={iconClass(assignment.iconName, assignment.iconVariant)} aria-hidden="true" />}
+    {assignment.customAsset ? <img className="ax-icon-custom-asset" src={assignment.customAsset} alt="" /> : mechanicalGlyphForStudioName(assignment.iconName) ? <MechanicalIconGlyph glyph={mechanicalGlyphForStudioName(assignment.iconName)!} label={title}/> : <i className={iconClass(assignment.iconName, assignment.iconVariant)} aria-hidden="true" />}
   </span>;
 }
 
@@ -503,8 +509,8 @@ export default function IconStudio({ open, onClose, initialTarget }: { open: boo
                   {visible.map((item) => (
                     <div className={`ax-icon-option ${selectedIcon === iconKey(item) ? "selected" : ""}`} key={iconKey(item)}>
                       <button className="ax-icon-option-main" onClick={() => setSelectedIcon(iconKey(item))} aria-label={`Select ${item.name} ${item.variant}`} title={item.name}>
-                        <span className="ax-icon-option-glyph"><i className={iconClass(item.name, item.variant)} aria-hidden="true"/></span>
-                        <span>{item.name.replaceAll("-", " ")}</span>
+                        <span className="ax-icon-option-glyph">{item.glyph ? <MechanicalIconGlyph glyph={item.glyph} label={item.label}/> : <i className={iconClass(item.name, item.variant)} aria-hidden="true"/>}</span>
+                        <span>{item.label || item.name.replaceAll("-", " ")}</span>
                       </button>
                       <button className={`ax-icon-favourite ${favourites.includes(iconKey(item)) ? "is-favourite" : ""}`} onClick={() => toggleFavourite(iconKey(item))} aria-label={favourites.includes(iconKey(item)) ? "Remove favourite" : "Save favourite"}><Heart size={12} fill={favourites.includes(iconKey(item)) ? "currentColor" : "none"}/></button>
                     </div>
@@ -516,9 +522,9 @@ export default function IconStudio({ open, onClose, initialTarget }: { open: boo
               <aside className="ax-icon-customiser">
                 <div className="ax-icon-preview-label"><span>LIVE PREVIEW</span><small>DRAG / STYLE / SAVE</small></div>
                 <motion.div className={`ax-icon-preview-tile ${variantClass}`} style={variantStyle} animate={{ rotateX: tilt * -0.45, rotateY: tilt, y: [0, -3, 0] }} transition={{ rotateX: { duration: 0.35 }, rotateY: { duration: 0.35 }, y: { duration: 4, repeat: Infinity, ease: "easeInOut" } }}>
-                  <span className="ax-icon-preview-gloss"/>{customAsset ? <img className="ax-icon-custom-asset" src={customAsset} alt="Imported logo preview"/> : <i className={iconClass(selected?.name || "settings", selected?.variant)} aria-hidden="true"/>}
+                  <span className="ax-icon-preview-gloss"/>{customAsset ? <img className="ax-icon-custom-asset" src={customAsset} alt="Imported logo preview"/> : selected?.glyph ? <MechanicalIconGlyph glyph={selected.glyph} label={selected.label}/> : <i className={iconClass(selected?.name || "settings", selected?.variant)} aria-hidden="true"/>}
                 </motion.div>
-                <div className="ax-icon-selected-name"><strong>{selected?.name.replaceAll("-", " ") || selectedIcon}</strong><span>{selected?.category || "Tabler outline glyph"}</span></div>
+                <div className="ax-icon-selected-name"><strong>{selected?.label || selected?.name.replaceAll("-", " ") || selectedIcon}</strong><span>{selected?.category || "Tabler outline glyph"}</span></div>
                                 <label className="ax-icon-field">Logo target<select value={targetType} onChange={event => { setTargetType(event.target.value as typeof targetType); setTargetRecordId(""); setTargetSubcategoryId(""); setSpecificProcess(""); }}><option value="process">Process Directory record</option><option value="subcategory">Process sub-category record</option><option value="component">Component Master record</option><option value="family">Process family default</option><option value="exact">Exact process / operation name</option></select><ChevronDown size={13}/></label>
                 {(targetType === "process" || targetType === "component" || targetType === "subcategory") && <SearchablePicker id="icon-studio-stable-target" label={targetType === "process" ? "Process definition *" : targetType === "subcategory" ? "Process sub-category *" : "Component master *"} value={targetType === "subcategory" ? targetSubcategoryId : targetRecordId} placeholder={targetType === "process" ? "Search category, process or subcategory…" : targetType === "subcategory" ? "Search process and sub-category…" : "Search part number or component name…"} options={targetOptions} onChange={targetType === "subcategory" ? setTargetSubcategoryId : setTargetRecordId}/>}
                 {targetType === "family" && <label className="ax-icon-field">Default process family<select value={family} onChange={(event) => setFamily(event.target.value)}>{families.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={13}/></label>}
