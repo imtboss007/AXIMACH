@@ -1939,3 +1939,6 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .process-universe-node.is-expanded{z-index:14;border-color:#3984dc;box-shadow:0 0 0 3px rgba(72,133,225,.16),0 12px 24px rgba(39,76,137,.2)}
 .process-universe-node-wrap:has(.process-node-subprocess-dropdown){z-index:15}
 @media(max-width:650px){.process-orbit-selected-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.process-orbit-selected-heading>button{width:100%}.process-universe-lane-toggle{gap:7px}.process-universe-lane-label{gap:6px}}
+
+
+.process-add-prerequisite-note{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:13px 15px;margin:12px 0;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft,var(--surface));color:var(--text)}.process-add-prerequisite-note strong{font-size:13px}.process-add-prerequisite-note span{flex:1 1 260px;color:var(--muted);font-size:12px;line-height:1.5}.process-add-prerequisite-note>div{display:flex;flex-wrap:wrap;gap:7px}
