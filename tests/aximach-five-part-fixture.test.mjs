@@ -1066,3 +1066,13 @@ test("Process Directory milling definitions resolve to machining tools using typ
   assert.ok(icons.includes('{glyph:"end-mill",label:"End mill"'));
   assert.ok(icons.includes('{glyph:"transport-truck",label:"Transport / dispatch"'));
 });
+
+test("Windows packaging retries Electron downloads through a configured mirror", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
+  const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
+  assert.ok(windows.includes("ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/"));
+  assert.ok(windows.includes("for ($attempt = 1; $attempt -le 3; $attempt++)"))
+  assert.ok(windows.includes("if ($LASTEXITCODE -eq 0) { exit 0 }"));
+  const android = workflow.slice(workflow.indexOf("android-apk:"));
+  assert.ok(android.includes("for attempt in 1 2 3; do"));
+});
