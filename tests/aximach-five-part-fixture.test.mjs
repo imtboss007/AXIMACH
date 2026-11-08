@@ -955,11 +955,14 @@ test("Icon Studio catalogue is restricted to mechanical and transport identities
 });
 
 
-test("unknown process names use the supplied neutral fallback instead of a false mechanical tool logo", () => {
+test("process glyph lookup uses the full Process Directory definition and renders that exact mechanical glyph", () => {
   const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  const mechanical = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
   assert.ok(studio.includes("{ processName, fallback, processId, category, subcategory }"));
-  assert.ok(studio.includes('const knownMechanicalGlyph = mechanicalGlyphForOperation([processName, category, subcategory].filter(Boolean).join(" "))'));
+  assert.ok(studio.includes("mechanicalGlyphForOperation([processName, category, subcategory].filter(Boolean).join"));
+  assert.ok(studio.includes("MechanicalIconGlyph glyph={knownMechanicalGlyph}"));
   assert.ok(studio.includes("(fallback || <Workflow size={16} />)"));
+  assert.ok(mechanical.includes('/\\bmilling\\b|mill operation|milling operation/, "end-mill"'));
 });
 
 
