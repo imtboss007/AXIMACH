@@ -39,7 +39,7 @@ The machine-readable process/category/sub-process fixture is in [tests/fixtures/
 ## Command globe and logo export acceptance additions
 
 - The main dashboard and 3D Command Centre share the same manually draggable globe component; the lower live-record shell is a separate rotator. Neither sphere should auto-rotate while idle.
-- The 18 module controls use Fibonacci-sphere coordinates distributed across the full spherical surface. Rear-facing controls are hidden by back-face culling until the operator rotates them into view.
+- The 18 module controls use Fibonacci-sphere coordinates distributed across the full spherical surface. Rear-facing controls are hidden by back-face culling until the operator rotates them into view. The WebGL globe surface texture receives the same drag orientation as a shader uniform, so the spherical silhouette stays round instead of rotating as a flat canvas plane.
 - The lower shell carries six live record categories: companies, purchase orders, PO component lines, components, vendors and open operations.
 - Component Master and Purchase Order PDF/Excel exports include the component logo. A saved imported SVG/PNG logo is preferred when present; otherwise the deterministic name-based mechanical symbol is used.
 - Process Directory keeps a process-type colour and provides a stable-ID Logo Studio action for each process definition. Sub-process logo assignments use stable subcategory IDs.
