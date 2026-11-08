@@ -469,7 +469,7 @@ test("Alternate and rework routes use different arrow colours while process type
 });
 
 test("Every process row can open Logo Studio for its own Process Directory record", () => {
-  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const workspace = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
   const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('title="Assign process logo"'));
@@ -562,7 +562,10 @@ test("Process Map exposes mobile route scope, process delete, logo assignment an
 
 test("AXIMACH command sphere module buttons can be dragged without losing click navigation", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  assert.ok(orb.includes("onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}"));
+  assert.ok(orb.includes("className=\"ax-orb-drag-zone\""));
+  assert.ok(orb.includes("onPointerDown={startDrag}"));
+  assert.ok(orb.includes("onPointerMove={moveDrag}"));
+  assert.ok(orb.includes("onPointerUp={endDrag}"));
   assert.ok(orb.includes("if (!dragMoved.current) onSelectModule(id)"));
   assert.ok(orb.includes("Both spheres are stationary until the user drags them. No idle auto-rotation."));
   assert.ok(orb.includes("onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag}"));
