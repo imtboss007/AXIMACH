@@ -555,6 +555,16 @@ test("Dashboard spheres only rotate on direct drag and dashboard navigation butt
   assert.ok(app.includes('activeModuleId === "command-centre"'));
 });
 
+test("static WebGL globe redraws only when resized and does not burn frames while idle", () => {
+  const sphere = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
+  assert.ok(sphere.includes("const draw = () =>"));
+  assert.ok(sphere.includes("const observer = typeof ResizeObserver"));
+  assert.ok(sphere.includes("observer?.observe(canvas)"));
+  assert.ok(sphere.includes("gl.uniform2f(resolution, width, height)"));
+  assert.ok(!sphere.includes("requestAnimationFrame"));
+  assert.ok(!sphere.includes("cancelAnimationFrame"));
+});
+
 test("WebGL globe texture itself has no independent auto-rotation", () => {
   const shader = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
   assert.ok(shader.includes("vec3 q = hit;"), "sphere texture must remain fixed relative to its draggable parent");
