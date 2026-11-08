@@ -5,6 +5,33 @@ import { activeRows, makeId, nowIso, useManufacturingData, type CompanyRecord, t
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon } from "./IconStudio";
+import { mechanicalComponentSvgForName } from "./MechanicalOperationIcon";
+
+function componentLogoSource(component: Pick<ComponentRecord, "id" | "name" | "partNumber">): string {
+  try {
+    const assignments = JSON.parse(window.localStorage.getItem("aximach.icon-assignments.v1") || "{}") as Record<string, { customAsset?: string }>;
+    const savedAsset = assignments["component:" + component.id]?.customAsset;
+    if (savedAsset && savedAsset.startsWith("data:image/")) return savedAsset;
+  } catch { /* Use the deterministic mechanical fallback when local logo preferences are unavailable. */ }
+  const svg = mechanicalComponentSvgForName(component.name + " " + component.partNumber);
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+
+async function componentLogoPngBase64(component: Pick<ComponentRecord, "id" | "name" | "partNumber">): Promise<string> {
+  const image = new Image();
+  const source = componentLogoSource(component);
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("Could not render the saved component logo for export: " + component.partNumber));
+    image.src = source;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = 96; canvas.height = 96;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas export is unavailable for component logos.");
+  context.drawImage(image, 4, 4, 88, 88);
+  return canvas.toDataURL("image/png").split(",")[1];
+}
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string };
 type Props = {
@@ -82,9 +109,10 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     const body = rows.map(order => {
       const lines = order.lines.map(line => {
         const part = components.find(component => component.id === line.componentId);
-        return "<tr><td>"+escapeHtml(part?.partNumber)+"</td><td>"+escapeHtml(part?.name)+"</td><td>"+escapeHtml(quantityLabel(line.quantity,line.componentId))+"</td><td>₹"+escapeHtml((part?.salePrice || 0).toLocaleString("en-IN"))+" / "+escapeHtml(part?.salePriceUnit || "piece")+"</td><td>"+escapeHtml(line.targetDelivery || order.targetDelivery)+"</td></tr>";
+        const logo = part ? componentLogoSource(part) : componentLogoSource({ id: "", name: "Missing component", partNumber: "" });
+        return "<tr><td><img src='"+escapeHtml(logo)+"' width='32' height='32' alt='component logo'/></td><td>"+escapeHtml(part?.partNumber)+"</td><td>"+escapeHtml(part?.name)+"</td><td>"+escapeHtml(quantityLabel(line.quantity,line.componentId))+"</td><td>₹"+escapeHtml((part?.salePrice || 0).toLocaleString("en-IN"))+" / "+escapeHtml(part?.salePriceUnit || "piece")+"</td><td>"+escapeHtml(line.targetDelivery || order.targetDelivery)+"</td></tr>";
       }).join("");
-      return "<section class='po-sheet'><header><h1>AXIMACH · PURCHASE ORDER</h1><h2>"+escapeHtml(order.number)+"</h2></header><p><b>Company:</b> "+escapeHtml(companyName(order.companyId))+"</p><p><b>PO date:</b> "+escapeHtml(order.issueDate)+" &nbsp; <b>Due:</b> "+escapeHtml(order.targetDelivery)+" &nbsp; <b>Status:</b> "+escapeHtml(order.status)+"</p><table><thead><tr><th>Component No.</th><th>Component Name</th><th>Quantity (piece / set)</th><th>Master Price / Unit</th><th>Delivery</th></tr></thead><tbody>"+lines+"</tbody></table><p>"+escapeHtml(order.notes)+"</p><footer>Generated from AXIMACH Component Master and Purchase Order records.</footer></section>";
+      return "<section class='po-sheet'><header><h1>AXIMACH · PURCHASE ORDER</h1><h2>"+escapeHtml(order.number)+"</h2></header><p><b>Company:</b> "+escapeHtml(companyName(order.companyId))+"</p><p><b>PO date:</b> "+escapeHtml(order.issueDate)+" &nbsp; <b>Due:</b> "+escapeHtml(order.targetDelivery)+" &nbsp; <b>Status:</b> "+escapeHtml(order.status)+"</p><table><thead><tr><th>Logo</th><th>Component No.</th><th>Component Name</th><th>Quantity (piece / set)</th><th>Master Price / Unit</th><th>Delivery</th></tr></thead><tbody>"+lines+"</tbody></table><p>"+escapeHtml(order.notes)+"</p><footer>Generated from AXIMACH Component Master and Purchase Order records.</footer></section>";
     }).join("");
     const popup = window.open("", "_blank");
     if (!popup) { onNotice("Allow pop-ups to print / save the selected purchase orders as PDF."); return; }
@@ -205,20 +233,33 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const exportComponentsExcel = async (rows:ComponentRecord[],fileName="AXIMACH-Components.xlsx") => {
     if(!rows.length){onNotice("No component records selected for export.");return;}
     const workbook=new ExcelJS.Workbook();workbook.creator="AXIMACH";const sheet=workbook.addWorksheet("Components");
-    sheet.columns=[{header:"Company",key:"company",width:28},{header:"Component Number",key:"partNumber",width:24},{header:"Component Name",key:"name",width:36},{header:"Revision",key:"revision",width:14},{header:"Drawing Reference",key:"drawing",width:28},{header:"Price",key:"price",width:16},{header:"Price Unit",key:"unit",width:14},{header:"Notes",key:"notes",width:40}];
+    sheet.columns=[{header:"Logo",key:"logo",width:10},{header:"Company",key:"company",width:28},{header:"Component Number",key:"partNumber",width:24},{header:"Component Name",key:"name",width:36},{header:"Revision",key:"revision",width:14},{header:"Drawing Reference",key:"drawing",width:28},{header:"Price",key:"price",width:16},{header:"Price Unit",key:"unit",width:14},{header:"Notes",key:"notes",width:40}];
     sheet.addRows(rows.map(row=>({company:companyName(row.companyId||""),partNumber:row.partNumber,name:row.name,revision:row.revision,drawing:row.drawingReference,price:row.salePrice,unit:row.salePriceUnit,notes:row.notes})));
+    for(let index=0;index<rows.length;index++){
+      const row=rows[index];
+      const imageId=workbook.addImage({base64:await componentLogoPngBase64(row),extension:"png"});
+      sheet.addImage(imageId,{tl:{col:0,row:index+1},ext:{width:30,height:30}});
+      sheet.getRow(index+2).height=28;
+    }
     sheet.getRow(1).font={bold:true,color:{argb:"FFFFFFFF"}};sheet.getRow(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF17324D"}};sheet.views=[{state:"frozen",ySplit:1}];
     const bytes=await workbook.xlsx.writeBuffer();const blob=new Blob([new Uint8Array(bytes).buffer as ArrayBuffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fileName;a.click();URL.revokeObjectURL(url);onNotice("Exported "+rows.length+" component record(s) to Excel.");
   };
   const exportComponentsPdf = (rows:ComponentRecord[]) => {
     if(!rows.length){onNotice("No component records selected for PDF.");return;}const esc=(v:unknown)=>String(v??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]!));
-    const body=rows.map(row=>"<tr><td>"+esc(row.partNumber)+"</td><td>"+esc(row.name)+"</td><td>"+esc(row.revision)+"</td><td>"+esc(companyName(row.companyId||""))+"</td><td>"+esc(row.drawingReference)+"</td><td>"+esc("₹"+row.salePrice.toLocaleString("en-IN")+" / "+row.salePriceUnit)+"</td></tr>").join("");
-    const win=window.open("","_blank");if(!win){onNotice("Allow pop-ups to save the component register as PDF.");return;}win.document.write("<!doctype html><html><head><title>AXIMACH Components</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:8px;text-align:left}th{background:#eef2f6}</style></head><body><h1>AXIMACH · Component Master</h1><table><thead><tr><th>Part no.</th><th>Component</th><th>Revision</th><th>Company</th><th>Drawing ref</th><th>Master price</th></tr></thead><tbody>"+body+"</tbody></table></body></html>");win.document.close();win.focus();win.print();
+    const body=rows.map(row=>"<tr><td><img src='"+esc(componentLogoSource(row))+"' width='32' height='32' alt='component logo'/></td><td>"+esc(row.partNumber)+"</td><td>"+esc(row.name)+"</td><td>"+esc(row.revision)+"</td><td>"+esc(companyName(row.companyId||""))+"</td><td>"+esc(row.drawingReference)+"</td><td>"+esc("₹"+row.salePrice.toLocaleString("en-IN")+" / "+row.salePriceUnit)+"</td></tr>").join("");
+    const win=window.open("","_blank");if(!win){onNotice("Allow pop-ups to save the component register as PDF.");return;}win.document.write("<!doctype html><html><head><title>AXIMACH Components</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:8px;text-align:left;vertical-align:middle}th{background:#eef2f6}img{display:block;object-fit:contain}</style></head><body><h1>AXIMACH · Component Master</h1><table><thead><tr><th>Logo</th><th>Part no.</th><th>Component</th><th>Revision</th><th>Company</th><th>Drawing ref</th><th>Master price</th></tr></thead><tbody>"+body+"</tbody></table></body></html>");win.document.close();win.focus();win.print();
   };
   const exportPurchaseOrdersExcel = async (rows:PurchaseOrderRecord[]) => {
     if(!rows.length){onNotice("No purchase orders selected for export.");return;}const workbook=new ExcelJS.Workbook();workbook.creator="AXIMACH";const sheet=workbook.addWorksheet("Purchase Orders");
-    sheet.columns=[{header:"PO Number",key:"number",width:20},{header:"Company",key:"company",width:28},{header:"PO Date",key:"date",width:16},{header:"Target Delivery",key:"delivery",width:18},{header:"Status",key:"status",width:16},{header:"Component Number",key:"partNumber",width:22},{header:"Component Name",key:"component",width:34},{header:"Quantity",key:"quantity",width:14},{header:"Unit Price",key:"price",width:16},{header:"Line Delivery",key:"lineDelivery",width:18}];
-    for(const po of rows)for(const line of po.lines){const component=components.find(row=>row.id===line.componentId);sheet.addRow({number:po.number,company:companyName(po.companyId),date:po.issueDate,delivery:po.targetDelivery,status:po.status,partNumber:component?.partNumber||"",component:component?.name||"",quantity:line.quantity,price:component?.salePrice||0,lineDelivery:line.targetDelivery});}
+    sheet.columns=[{header:"Logo",key:"logo",width:10},{header:"PO Number",key:"number",width:20},{header:"Company",key:"company",width:28},{header:"PO Date",key:"date",width:16},{header:"Target Delivery",key:"delivery",width:18},{header:"Status",key:"status",width:16},{header:"Component Number",key:"partNumber",width:22},{header:"Component Name",key:"component",width:34},{header:"Quantity",key:"quantity",width:14},{header:"Unit Price",key:"price",width:16},{header:"Line Delivery",key:"lineDelivery",width:18}];
+    let exportRow=0;
+    for(const po of rows)for(const line of po.lines){
+      const component=components.find(row=>row.id===line.componentId);
+      sheet.addRow({number:po.number,company:companyName(po.companyId),date:po.issueDate,delivery:po.targetDelivery,status:po.status,partNumber:component?.partNumber||"",component:component?.name||"",quantity:line.quantity,price:component?.salePrice||0,lineDelivery:line.targetDelivery});
+      if(component){const imageId=workbook.addImage({base64:await componentLogoPngBase64(component),extension:"png"});sheet.addImage(imageId,{tl:{col:0,row:exportRow+1},ext:{width:30,height:30}});}
+      sheet.getRow(exportRow+2).height=28;
+      exportRow++;
+    }
     sheet.getRow(1).font={bold:true,color:{argb:"FFFFFFFF"}};sheet.getRow(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF17324D"}};sheet.views=[{state:"frozen",ySplit:1}];
     const bytes=await workbook.xlsx.writeBuffer();const blob=new Blob([new Uint8Array(bytes).buffer as ArrayBuffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="AXIMACH-Purchase-Orders.xlsx";a.click();URL.revokeObjectURL(url);onNotice("Exported "+rows.length+" purchase order(s) to Excel.");
   };
