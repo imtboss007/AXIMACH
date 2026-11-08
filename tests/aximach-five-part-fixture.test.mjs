@@ -1054,3 +1054,12 @@ test("Route simulation advances the selected operation through the currently sel
   assert.ok(workspace.includes("if (stepOperation) setSelectedOperationId(stepOperation.id)"));
   assert.ok(workspace.includes("[simulationActive, simulationIndex, simulationOperations]"));
 });
+
+test("Process Directory milling definitions resolve to machining tools using type, category and subcategory context", () => {
+  const icons = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  assert.ok(icons.includes('/\\bmilling\\b|mill operation|milling operation/, "end-mill"'));
+  assert.ok(studio.includes("mechanicalGlyphForOperation([processName, category, subcategory].filter(Boolean).join(\" \"))"));
+  assert.ok(icons.includes('{glyph:"end-mill",label:"End mill"'));
+  assert.ok(icons.includes('{glyph:"transport-truck",label:"Transport / dispatch"'));
+});
