@@ -152,6 +152,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
   const selectedProcessDefinition = processDefinitions.find(item => item.id === draft.processDefinitionId && item.processType === draft.name && item.category === draft.category)
     || processDefinitions.find(item => item.processType === draft.name && item.category === draft.category);
+  const subcategoryIdFor = (definitionId: string | undefined, processType: string, category: string, subcategory: string | undefined) => {
+    const definition = processDefinitions.find(item=>item.id===definitionId) || processDefinitions.find(item=>item.processType===processType&&item.category===category);
+    const index = definition?.subcategories.findIndex(item=>item===subcategory) ?? -1;
+    return index>=0 ? definition?.subcategoryIds?.[index] || definition?.id+"-subprocess-"+String(index+1).padStart(3,"0") : "";
+  };
   const routeOperations = operations.filter(op => op.poLineId === poLineId && op.poId === poId && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const componentTransportLegs = allTransportLegs.filter(leg => leg.poLineId === poLineId && leg.poId === poId && leg.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const selectedTransportDirectoryRoute = transportRoutes.find(route => route.id === transportRouteId);
@@ -626,7 +631,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     base.name = parent.name;
     base.category = parent.category;
     base.subcategory = parent.subcategory || "";
-    base.subcategoryId = parent.subcategoryId || "";
+    base.subcategoryId = parent.subcategoryId || subcategoryIdFor(base.processDefinitionId,parent.name,parent.category,parent.subcategory);
     base.processColor = parent.processColor || processDefinitions.find(item=>item.id===base.processDefinitionId)?.displayColor || DEFAULT_PROCESS_COLOR;
     base.vendorId = parent.vendorId;
     base.executionType = parent.executionType || "Outsourced";
@@ -689,7 +694,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     base.name = anchor.name;
     base.category = anchor.category;
     base.subcategory = anchor.subcategory || "";
-    base.subcategoryId = anchor.subcategoryId || "";
+    base.subcategoryId = anchor.subcategoryId || subcategoryIdFor(base.processDefinitionId,anchor.name,anchor.category,anchor.subcategory);
     base.vendorId = anchor.vendorId;
     base.executionType = anchor.executionType || "Outsourced";
     base.parentId = anchor.id;
