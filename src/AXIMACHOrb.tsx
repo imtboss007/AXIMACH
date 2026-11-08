@@ -124,6 +124,20 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 85, damping: 18, delay: 0.12 }}
       >
+        <motion.div
+          className="ax-orb-core"
+          style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}
+          role="button"
+          tabIndex={0}
+          aria-label={zoomed ? "Zoom out of AXIMACH sphere" : "Zoom in to AXIMACH sphere"}
+          aria-pressed={zoomed}
+          onClick={toggleZoom}
+          onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setZoomed(value => !value); } }}
+        >
+          <AXIMACHWebGLSphere rotationX={rotateX} rotationY={rotateY} />
+          <span className="ax-orb-gloss" />
+          <span className="ax-orb-core-label"><b>AXI</b><strong>MACH</strong><small>MANUFACTURING INTELLIGENCE</small></span>
+        </motion.div>
         <motion.div className="ax-orb-depth" style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}>
           <motion.div
             className="ax-orb-ring ax-orb-ring-one"
@@ -133,30 +147,6 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             className="ax-orb-ring ax-orb-ring-two"
             style={{ opacity: orbitIntensity }}
           />
-          <motion.div
-            className="ax-orb-core"
-            style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}
-            role="button"
-            tabIndex={0}
-            aria-label={zoomed ? "Zoom out of AXIMACH sphere" : "Zoom in to AXIMACH sphere"}
-            aria-pressed={zoomed}
-            onClick={toggleZoom}
-            onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setZoomed(value => !value); } }}
-          >
-            <AXIMACHWebGLSphere />
-            <span className="ax-orb-gloss" />
-            <span className="ax-orb-latitude ax-orb-latitude-one" />
-            <span className="ax-orb-latitude ax-orb-latitude-two" />
-            <span className="ax-orb-latitude ax-orb-latitude-three" />
-            <span className="ax-orb-longitude ax-orb-longitude-one" />
-            <span className="ax-orb-longitude ax-orb-longitude-two" />
-            <span className="ax-orb-longitude ax-orb-longitude-three" />
-            <span className="ax-orb-equator" />
-            <span className="ax-orb-core-label"><b>AXI</b><strong>MACH</strong><small>MANUFACTURING INTELLIGENCE</small></span>
-            <span className="ax-orb-node-dot ax-orb-node-dot-a" />
-            <span className="ax-orb-node-dot ax-orb-node-dot-b" />
-            <span className="ax-orb-node-dot ax-orb-node-dot-c" />
-          </motion.div>
           <motion.div
             className="ax-orb-orbit-line"
             style={{ opacity: orbitIntensity }}
