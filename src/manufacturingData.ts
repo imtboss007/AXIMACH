@@ -3,10 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 export const MANUFACTURING_DATA_KEY = "aximach.manufacturingData.v1";
 
 export type DataStatus = "local" | "syncing" | "synced" | "error";
-export type LifecycleStatus = "Queued" | "Running" | "Complete" | "Quality hold";
+export type LifecycleStatus = "Planned" | "Queued" | "Running" | "Complete" | "Quality hold" | "Rejected" | "Delayed";
 
 export type CompanyRecord = {
-  id: string; name: string; gstin: string; phone: string; email: string;
+  id: string; name: string; gstin: string; contactPerson?: string; phone: string; email: string; address?: string;
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type FactoryRecord = {
@@ -14,13 +14,11 @@ export type FactoryRecord = {
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ComponentRecord = {
-  id: string; partNumber: string; name: string; revision: string;
-  salePriceUnit: "piece" | "set";
-  /** Previous in-app migration fields remain optional so saved records still load. */
+  id: string; companyId?: string; partNumber: string; name: string; revision: string; material?: string;
+  drawingReference: string; notes: string; salePrice: number; salePriceUnit: "piece" | "set";
   orderUnit?: "Piece" | "Set"; quantityPerUnit?: number;
-  drawingReference: string; notes: string; salePrice: number;
-  /** Legacy fields remain readable for existing saved data; they are no longer edited in Component Master. */
-  material?: string; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; stockQty?: number;
+  // Legacy values remain optional for old records/backups; they are no longer fields in Component Master.
+  materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; stockQty?: number;
   overhead: number; toolingCost: number; reworkCost: number; scrapCost: number;
   rejectedQty: number; gstRate: number; createdAt: string; updatedAt: string; deletedAt?: string;
 };
@@ -35,26 +33,78 @@ export type PurchaseOrderRecord = {
   targetDelivery: string; status: string; notes: string; lines: PurchaseOrderLine[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type TransportTripDirection = "One-way" | "Two-way";
+export type TransportRouteRecord = {
+  id: string; vendorId: string; fromLocation: string; toLocation: string;
+  tripDirection: TransportTripDirection; vehicleType: string; fixedAmount: number;
+  currency: "INR"; active: boolean; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type ComponentTransportLegRecord = {
+  id: string; poId: string; poLineId: string; componentId: string; sequence: number;
+  routeId: string; vendorId: string; fromLocation: string; toLocation: string;
+  tripDirection: TransportTripDirection; vehicleType: string; fixedAmount: number;
+  tripCount: number; anchorOperationId: string; placement?: "start" | "before" | "after"; pickupAt?: string; deliveryAt?: string; status?: LifecycleStatus; completedTrips?: number; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type VendorTransportRoute = { id: string; fromLocation: string; toLocation: string; fixedCost: number; vehicleType: string; notes?: string; tripDirection?: TransportTripDirection };
 export type VendorRecord = {
   id: string; company: string; contact: string; role: string; phone: string; whatsappNumber: string;
-  email: string; address: string; processes: string; machines: string; materials: string; notes: string;
-  status: string; sourceContactId: string; whatsappSyncedAt: string;
+  email: string; address: string; processes: string; processDefinitionIds?: string[]; machines: string; materials: string; notes: string;
+  status: string; sourceContactId: string; whatsappSyncedAt: string; vendorType?: string; transportRoutes?: VendorTransportRoute[]; additionalPhones?: string[];
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type ContactProfileRecord = {
+  id: string; linkedType: "company" | "vendor"; linkedId: string; name: string; role: string; group?: string;
+  phone: string; whatsapp: string; additionalPhones?: string[]; email: string; address: string; followUpDate: string; history: string;
+  processCategories?: string[]; processTypes?: string[]; processSubcategories?: string[]; machineCapabilities?: string[]; materialCapabilities?: string[];
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type FollowUpAssignmentRecord = {
+  id: string; moduleId: string; recordId: string; recordLabel: string;
+  contactId: string; contactName: string; contactPhone: string; contactEmail: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type ProcessDefinitionRecord = {
+  id: string; processType: string; category: string; subcategories: string[]; subcategoryIds?: string[]; vendorIds: string[];
+  /** User-selected identity colour applied consistently to every operation from this process type. */
+  displayColor?: string;
+  notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type PlannedCostEntry = {
+  id: string; companyId?: string; poId?: string; componentId?: string; processDefinitionId?: string; companyName?: string; poNumber?: string; componentName: string; componentNumber: string; processType: string; processCategory: string; processSubcategory?: string;
+  plannedQty: number; unit: "piece" | "set"; plannedRate: number; notes: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type OperationRecord = {
-  id: string; poId: string; poLineId: string; componentId: string; sequence: number; name: string;
+  id: string; poId: string; poLineId: string; componentId: string; processDefinitionId?: string; sequence: number; name: string;
   category: string; machine: string; vendorId: string; status: LifecycleStatus;
   plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string;
   quantity: number; completed: number; accepted: number; rejected: number;
   ratePerPart: number; actualRatePerPart: number; transportVendorId: string; transportPickup: string; transportDelivery: string;
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
-  branch: string; parentId: string; createdAt: string; updatedAt: string; deletedAt?: string;
+  paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;
+  executionType?: "Internal" | "Outsourced"; toleranceCategory?: "Standard" | "Precision" | "Close" | "Ultra Precision"; inspectionRequired?: boolean;
+  transportFrom?: string; transportTo?: string; transportVehicleType?: string; transportRouteId?: string;
+  /** Snapshot of the Process Directory identity colour used by this saved operation. */
+  processColor?: string;
+  branch: string; parentId: string; relationType?: "subprocess" | "alternate" | "rework"; costIncluded?: boolean; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type QuotationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; operationId: string; vendorId: string;
   quoteReference: string; quotedAt: string; validUntil: string; quantity: number; ratePerPart: number;
   transportCost: number; leadDays: number; status: "Received" | "Selected" | "Rejected" | "Expired";
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type PaymentTransactionRecord = {
+  id: string; operationId: string; poId: string; poLineId: string; componentId: string;
+  amount: number; paidAt: string; reference: string; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type InspectionMeasurementRecord = {
+  id: string; operationId: string; poId: string; poLineId: string; componentId: string;
+  characteristic: string; nominalValue: number | null; lowerLimit: number | null; upperLimit: number | null;
+  measuredValue: number; unit: string; result: "Pass" | "Fail" | "Not assessed"; notes: string;
+  inspectedAt: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type MaterialRecord = {
   id: string; code: string; name: string; grade: string; unit: string; specification: string;
@@ -77,6 +127,10 @@ export type ManufacturingData = {
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
+  contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
+  transportRoutes: TransportRouteRecord[]; transportLegs: ComponentTransportLegRecord[];
+  paymentTransactions: PaymentTransactionRecord[]; inspectionMeasurements: InspectionMeasurementRecord[];
+  followUpAssignments: FollowUpAssignmentRecord[];
 };
 
 export const nowIso = () => new Date().toISOString();
@@ -88,7 +142,9 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: []
+  operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: [],
+  contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
+  followUpAssignments: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -107,14 +163,48 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
-    inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions
+    inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
+    contactProfiles: Array.isArray(value?.contactProfiles) ? value.contactProfiles : empty.contactProfiles,
+    processDefinitions: Array.isArray(value?.processDefinitions) ? value.processDefinitions : empty.processDefinitions,
+    plannedCosts: Array.isArray(value?.plannedCosts) ? value.plannedCosts : empty.plannedCosts,
+    transportRoutes: Array.isArray(value?.transportRoutes) ? value.transportRoutes : empty.transportRoutes,
+    transportLegs: Array.isArray(value?.transportLegs) ? value.transportLegs : empty.transportLegs,
+    paymentTransactions: Array.isArray(value?.paymentTransactions) ? value.paymentTransactions : empty.paymentTransactions,
+    inspectionMeasurements: Array.isArray(value?.inspectionMeasurements) ? value.inspectionMeasurements : empty.inspectionMeasurements,
+    followUpAssignments: Array.isArray(value?.followUpAssignments) ? value.followUpAssignments : empty.followUpAssignments
   };
 }
 
 export function readManufacturingData(): ManufacturingData {
   if (typeof window === "undefined") return emptyManufacturingData();
-  try { return normaliseData(JSON.parse(window.localStorage.getItem(MANUFACTURING_DATA_KEY) || "null")); }
-  catch { return emptyManufacturingData(); }
+  let data: ManufacturingData;
+  try { data = normaliseData(JSON.parse(window.localStorage.getItem(MANUFACTURING_DATA_KEY) || "null")); }
+  catch { data = emptyManufacturingData(); }
+
+  // Read legacy directory stores into the canonical model without deleting or
+  // rewriting the source keys. Existing record IDs and newer shared edits win.
+  const mergeLegacy = <T extends { id: string; updatedAt?: string }>(current: T[], storageKey: string): T[] => {
+    try {
+      const value: unknown = JSON.parse(window.localStorage.getItem(storageKey) || "[]");
+      if (!Array.isArray(value)) return current;
+      const rows = new Map(current.filter(row => row?.id).map(row => [row.id, row]));
+      for (const incoming of value as T[]) {
+        if (!incoming?.id) continue;
+        const old = rows.get(incoming.id);
+        const incomingTime = Date.parse(incoming.updatedAt || "") || 0;
+        const oldTime = Date.parse(old?.updatedAt || "") || 0;
+        if (!old || incomingTime > oldTime) rows.set(incoming.id, incoming);
+      }
+      return [...rows.values()];
+    } catch { return current; }
+  };
+
+  return {
+    ...data,
+    contactProfiles: mergeLegacy(data.contactProfiles, "aximach.contact360.v1"),
+    processDefinitions: mergeLegacy(data.processDefinitions, "aximach.processDirectory.v1"),
+    plannedCosts: mergeLegacy(data.plannedCosts, "aximach.componentPlannedCost.v1")
+  };
 }
 function writeLocal(data: ManufacturingData, broadcast = true) {
   if (typeof window === "undefined") return;
@@ -174,7 +264,15 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     quotations: mergeRows(local.quotations, remote.quotations),
     materials: mergeRows(local.materials, remote.materials),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
-    inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions)
+    inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
+    contactProfiles: mergeRows(local.contactProfiles, remote.contactProfiles),
+    processDefinitions: mergeRows(local.processDefinitions, remote.processDefinitions),
+    plannedCosts: mergeRows(local.plannedCosts, remote.plannedCosts),
+    transportRoutes: mergeRows(local.transportRoutes, remote.transportRoutes),
+    transportLegs: mergeRows(local.transportLegs, remote.transportLegs),
+    paymentTransactions: mergeRows(local.paymentTransactions, remote.paymentTransactions),
+    inspectionMeasurements: mergeRows(local.inspectionMeasurements, remote.inspectionMeasurements),
+    followUpAssignments: mergeRows(local.followUpAssignments, remote.followUpAssignments)
   };
 }
 

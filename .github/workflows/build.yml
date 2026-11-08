@@ -2,7 +2,7 @@ name: AXIMACH build and packages
 
 on:
   push:
-    branches: [main, "feat/**", "fix/**"]
+    branches: [main, "feat/**", "fix/**", "feature/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: aximach-build-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   frontend:
@@ -31,9 +31,24 @@ jobs:
       - name: Check server syntax
         run: |
           node --check server/index.mjs
+          node --check server/manufacturing-data.mjs
           node --check server/whatsapp-web.mjs
+      - name: Test shared-data merge rules
+        run: npm run test:server
       - name: Build application
         run: npm run build
+      - name: Verify packaged frontend entrypoint
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const html = fs.readFileSync("dist/index.html", "utf8");
+          const assets = fs.existsSync("dist/assets") ? fs.readdirSync("dist/assets") : [];
+          const hasModuleEntrypoint = /<script[^>]+type=["']module["'][^>]+src=/i.test(html);
+          if (!hasModuleEntrypoint || !assets.some(name => name.endsWith(".js"))) {
+            throw new Error("AXIMACH build is missing its module entrypoint or bundled JavaScript assets.");
+          }
+          console.log("Verified AXIMACH module entrypoint and JavaScript bundle:", assets.filter(name => name.endsWith(".js")));
+          NODE
       - name: Upload frontend build
         uses: actions/upload-artifact@v4
         with:
@@ -43,7 +58,6 @@ jobs:
           retention-days: 7
 
   windows-installer:
-    if: github.event_name != 'pull_request'
     name: Build Windows installer
     runs-on: windows-latest
     timeout-minutes: 30
@@ -56,8 +70,35 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Check Electron main-process syntax
+        run: node --check electron/main.cjs
       - name: Package Windows installer
         run: npm run package:windows
+      - name: Install and launch-test packaged Windows app
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installer = Get-ChildItem "release" -Filter "*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "Windows installer was not produced." }
+          $installDir = Join-Path $env:RUNNER_TEMP "AXIMACHSmoke"
+          Start-Process -FilePath $installer.FullName -ArgumentList @("/S", "/D=$installDir") -Wait
+          $appExe = Join-Path $installDir "AXIMACH Manufacturing OS.exe"
+          if (-not (Test-Path $appExe)) {
+            $candidate = Get-ChildItem $installDir -Filter "*.exe" -Recurse | Select-Object -First 1
+            if (-not $candidate) { throw "Installed AXIMACH executable was not found in $installDir." }
+            $appExe = $candidate.FullName
+          }
+          $env:AXIMACH_SMOKE_TEST = "1"
+          $env:AXIMACH_SMOKE_LOG = Join-Path $env:RUNNER_TEMP "AXIMACH-startup.log"
+          $app = Start-Process -FilePath $appExe -PassThru
+          if (-not $app.WaitForExit(25000)) {
+            Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
+            if (Test-Path $env:AXIMACH_SMOKE_LOG) { Get-Content $env:AXIMACH_SMOKE_LOG }
+            throw "AXIMACH did not complete its renderer watchdog within 25 seconds."
+          }
+          if (Test-Path $env:AXIMACH_SMOKE_LOG) { Get-Content $env:AXIMACH_SMOKE_LOG }
+          if ($app.ExitCode -ne 0) { throw "AXIMACH renderer smoke test failed with exit code $($app.ExitCode)." }
+          Write-Host "PASS: installed AXIMACH app launched and its React workspace mounted."
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
@@ -67,7 +108,6 @@ jobs:
           retention-days: 14
 
   android-apk:
-    if: github.event_name != 'pull_request'
     name: Build Android APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
