@@ -211,7 +211,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
                 {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} pcs</small>}
                 {fieldVisible("price") && <small>Price / part · ₹{(operation.actualRatePerPart || operation.ratePerPart).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
                 {fieldVisible("amount") && <small>Process amount · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
-                                 {fieldVisible("status") && <small>Status · {operation.status}</small>}
+                {fieldVisible("status") && <small>Status · {operation.status}</small>}
                 {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
                 {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
                 {fieldVisible("payment") && <small>Payment · {operation.paymentStatus || "Unpaid"}</small>}
@@ -259,7 +259,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
               <span className="process-universe-node-icon"><ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} /></span>
               <strong>{operation.name}</strong>
               <div className="process-universe-node-details">
-                {fieldVisible("category") && <small>{operation.category || "Category not set"}</small>}
+                {fieldVisible("category") && <small>Category · {operation.category || "Not set"}</small>}
                 {fieldVisible("subcategory") && operation.subcategory && <small>Subcategory · {operation.subcategory}</small>}
                 {fieldVisible("vendor") && <small>Vendor · {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "Not assigned"}</small>}
                 {fieldVisible("plannedStart") && <small>Start · {dateLabel(operation.plannedStart)}</small>}
@@ -267,12 +267,12 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
                 {fieldVisible("quantity") && <small>Quantity · {operation.quantity.toLocaleString("en-IN")} pcs</small>}
                 {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} pcs</small>}
                 {fieldVisible("price") && <small>Price / part · ₹{(operation.actualRatePerPart || operation.ratePerPart).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
-                {fieldVisible("amount") && <small>Process amount · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart)).toLocaleString("en-IN", { maximumFractionDigits: 2 }
+                {fieldVisible("amount") && <small>Process amount · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
                 {fieldVisible("status") && <small>Status · {operation.status}</small>}
                 {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
                 {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
                 {fieldVisible("payment") && <small>Payment · {operation.paymentStatus || "Unpaid"}</small>}
-                {fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>})}</small>}
+                {fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>}
               </div>
               {childOperations.length > 0 && <small className="process-universe-node-category">{childOperations.length} linked sub-process(es)</small>}
               {fieldVisible("machine") && operation.machine && <span className="process-universe-machine">{operation.machine}</span>}
