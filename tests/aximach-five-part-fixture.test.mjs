@@ -1055,6 +1055,8 @@ test("Logo Studio lists and renders the authored mechanical tool and transport g
   assert.ok(studio.includes("MechanicalIconGlyph glyph={item.glyph}"));
   assert.ok(studio.includes("mechanicalGlyphForStudioName(assignment.iconName)"));
   assert.ok(mechanical.includes('{glyph:"transport-truck",label:"Transport / dispatch"'));
+  assert.ok(mechanical.includes('[/\\bvmc\\b|vertical machining centre|vertical machining center/, "vmc-machine"]'));
+  assert.ok(mechanical.includes('[/\\bhmc\\b|horizontal machining centre|horizontal machining center/, "cnc-machine"]'));
   assert.ok(studio.includes("const ICONS: IconMeta[] = engineeredMechanicalIcons;"));
   assert.ok(studio.includes("useState(() => iconKey(ICONS[0]))"));
   assert.ok(studio.includes("Mechanical &amp; transport logos"));
