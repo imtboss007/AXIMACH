@@ -418,7 +418,7 @@ test("Process Plan Add operation dropdown exposes working operation and route ac
   ]) assert.ok(workspace.includes(option), "missing Add Operation menu option: " + option);
   assert.ok(workspace.includes("setShowAddMenu(value=>!value)"));
   assert.ok(workspace.includes("onClick={()=>startAddDefinition(addMenuDefinitionId)}"));
-  assert.ok(workspace.includes("onClick={()=>startAddSubprocess(activeOperation.id)}"));
+  assert.ok(workspace.includes("onClick={()=>activeOperation&&startAddSubprocess(activeOperation.id)}"));
   assert.ok(workspace.includes("onClick={()=>startAddBranch(\"alternate\")}"));
   assert.ok(workspace.includes("onClick={()=>startAddBranch(\"rework\")}"));
 });
