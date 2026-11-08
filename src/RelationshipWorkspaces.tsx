@@ -44,7 +44,14 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
  const processOptions=[...new Set([...processDefinitions.map(x=>x.processType),...contactRows.flatMap(row=>row.processTypes||[]),...vendors.flatMap(v=>v.processes.split(/[,;|]/).map(x=>x.trim()).filter(Boolean))])].sort();
  const categoryOptions=[...new Set([...processDefinitions.map(x=>x.category),...contactRows.flatMap(row=>row.processCategories||[])].filter(Boolean))].sort();
  const selectedCapabilityDefinitions=processDefinitions.filter(x=>(!categoryFilters.length||categoryFilters.includes(x.category))&&(!processFilters.length||processFilters.includes(x.processType)));
- const subcategoryOptions=[...new Set([...selectedCapabilityDefinitions.flatMap(x=>x.subcategories||[]),...contactRows.flatMap(row=>row.processSubcategories||[])])].sort();
+ const processSubcategoryFilterOptions=selectedCapabilityDefinitions.flatMap(definition=>(definition.subcategories||[]).map((name,index)=>({
+  id:definition.subcategoryIds?.[index]||definition.id+"-subprocess-"+String(index+1).padStart(3,"0"),
+  label:definition.category+" · "+definition.processType+" · "+name
+ })));
+ const customContactSubcategoryFilterOptions=[...new Set(contactRows.flatMap(row=>row.processSubcategories||[]))].map(name=>({
+  id:"contact:"+name.trim().toLowerCase(),label:"Contact capability · "+name
+ }));
+ const subcategoryOptions=[...new Map([...processSubcategoryFilterOptions,...customContactSubcategoryFilterOptions].map(option=>[option.id,option])).values()].sort((a,b)=>a.label.localeCompare(b.label));
  const machineOptions=[...new Set([...vendors.flatMap(v=>v.machines.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)),...contactRows.flatMap(row=>row.machineCapabilities||[])])].sort();
  const materialOptions=[...new Set([...vendors.flatMap(v=>v.materials.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)),...contactRows.flatMap(row=>row.materialCapabilities||[])])].sort();
 
@@ -53,7 +60,9 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
   const vendorId=row.linkedType==="vendor"?(row.linkedId||String(row.id).replace(/^vendor:/,"")):"";
   const capabilityRows=processDefinitions.filter(definition=>(definition.vendorIds||[]).includes(vendorId));
   const rowCategories=[...capabilityRows.map(definition=>definition.category),...(row.processCategories||[])].join(" ").toLowerCase();
-  const rowSubcategories=[...capabilityRows.flatMap(definition=>definition.subcategories||[]),...(row.processSubcategories||[])].join(" ").toLowerCase();
+  const capabilitySubcategoryIds=capabilityRows.flatMap(definition=>(definition.subcategories||[]).map((_,index)=>definition.subcategoryIds?.[index]||definition.id+"-subprocess-"+String(index+1).padStart(3,"0")));
+  const customContactSubcategoryIds=(row.processSubcategories||[]).map(name=>"contact:"+name.trim().toLowerCase());
+  const subcategoryMatch=!subcategoryFilters.length||subcategoryFilters.some(id=>capabilitySubcategoryIds.includes(id)||customContactSubcategoryIds.includes(id));
   const containsAny=(values:string[],source:string)=>!values.length||values.some(value=>source.toLowerCase().includes(value.toLowerCase()));
   return text.includes(search.toLowerCase().trim())
    &&(typeFilter==="All"||row.linkedType===typeFilter.toLowerCase())
@@ -61,7 +70,7 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
    &&(!vendorTypeFilters.length||vendorTypeFilters.includes(row.vendorType))
    &&containsAny(categoryFilters,rowCategories)
    &&containsAny(processFilters,row.processes+" "+capabilityRows.map(definition=>definition.processType).join(" ")+" "+(row.processTypes||[]).join(" "))
-   &&containsAny(subcategoryFilters,rowSubcategories)
+   &&subcategoryMatch
    &&containsAny(machineFilters,row.machines+" "+(row.machineCapabilities||[]).join(" "))
    &&containsAny(materialFilters,row.materials+" "+(row.materialCapabilities||[]).join(" "))
    &&(!onlyWhatsApp||Boolean(String(row.whatsapp||"").replace(/\D/g,"").length>=8));
@@ -83,7 +92,7 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
       <SearchableMultiSelect id="contact-vendor-type" label="Vendor category" options={vendorTypeOptions.map(x=>({id:x,label:x}))} selected={vendorTypeFilters} onChange={setVendorTypeFilters} emptyMeansAll/>
       <SearchableMultiSelect id="contact-process-category" label="Process category" options={categoryOptions.map(x=>({id:x,label:x}))} selected={categoryFilters} onChange={setCategoryFilters} emptyMeansAll/>
       <SearchableMultiSelect id="contact-process-type" label="Process type" options={processOptions.map(x=>({id:x,label:x}))} selected={processFilters} onChange={setProcessFilters} emptyMeansAll/>
-      <SearchableMultiSelect id="contact-process-subcategory" label="Process subcategory" options={subcategoryOptions.map(x=>({id:x,label:x}))} selected={subcategoryFilters} onChange={setSubcategoryFilters} emptyMeansAll/>
+      <SearchableMultiSelect id="contact-process-subcategory" label="Process subcategory" options={subcategoryOptions} selected={subcategoryFilters} onChange={setSubcategoryFilters} emptyMeansAll/>
       <SearchableMultiSelect id="contact-machine" label="Machine capability" options={machineOptions.map(x=>({id:x,label:x}))} selected={machineFilters} onChange={setMachineFilters} emptyMeansAll/>
       <SearchableMultiSelect id="contact-material" label="Material capability" options={materialOptions.map(x=>({id:x,label:x}))} selected={materialFilters} onChange={setMaterialFilters} emptyMeansAll/>
     </div>
