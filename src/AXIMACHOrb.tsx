@@ -188,7 +188,6 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             const pitch = -Math.asin(unitY) * 180 / Math.PI;
             return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"
               style={{ left: "50%", top: "50%", transform: "translate3d(" + x + "px," + y + "px," + z + "px) translate(-50%,-50%) rotateY(" + yaw + "deg) rotateX(" + pitch + "deg)" }}
-              onPointerDown={event => event.stopPropagation()}
               onClick={() => { if (!dragMoved.current) onSelectModule(id); }}
               aria-label={"Open " + label + " module"} title={"Open " + label}>
               <span><Icon size={15} strokeWidth={1.8}/></span><small>{label}</small>

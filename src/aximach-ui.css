@@ -1877,3 +1877,13 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 @media print {
   details.surface-panel:not([open]) > :not(summary) { display:block !important; }
 }
+
+
+/* Keep the actual dashboard 18-module sphere centered and visible on narrow phones. */
+@media(max-width:620px) {
+  .dashboard-welcome { flex-direction:column; align-items:stretch; gap:4px; }
+  .dashboard-welcome-orb { display:block; flex:0 0 auto; width:100%; min-width:0; max-width:100%; margin:0 auto; }
+  .dashboard-welcome-orb .ax-orb-stage { min-height:360px; }
+  .dashboard-welcome-orb .ax-orb-drag-zone { width:min(100%,360px); height:350px; flex-basis:350px; margin-left:auto; margin-right:auto; }
+  .dashboard-welcome-orb .ax-orb-depth { max-width:360px; }
+}

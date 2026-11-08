@@ -793,7 +793,8 @@ test("Main dashboard sphere uses native 3D module hit targets with stable transf
   assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
   assert.ok(orb.includes('return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"'));
   assert.ok(orb.includes('translate3d(" + x + "px," + y + "px," + z + "px)'));
-  assert.ok(orb.includes("onPointerDown={event => event.stopPropagation()}"));
+  assert.ok(orb.includes("onPointerDown={startDrag}"));
+  assert.ok(orb.includes("onPointerMove={moveDrag}"));
   assert.ok(!orb.includes("return <motion.button key={id}"));
 });
 
@@ -874,4 +875,14 @@ test("Process Plan panels expose independent native expand/collapse sections", (
   }
   assert.equal((workspace.match(/<details open/g) || []).length, (workspace.match(/<\/details>/g) || []).length);
   assert.ok(workspace.includes("<summary className=\"panel-heading\">"));
+});
+
+
+test("Main Dashboard and 3D Command Centre center the 18-module orb on mobile", () => {
+  const dashboardStyles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  const appStyles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.ok(dashboardStyles.includes(".dashboard-welcome-orb .ax-orb-drag-zone"));
+  assert.ok(appStyles.includes("@media(max-width:760px)"));
+  assert.ok(appStyles.includes(".hero-command {"));
+  assert.ok(appStyles.includes("grid-template-columns:minmax(0,1fr)"));
 });
