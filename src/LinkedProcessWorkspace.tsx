@@ -8,13 +8,13 @@ import ProcessUniverse3D from "./ProcessUniverse3D";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
-type ProcessExportField = "company" | "po" | "component" | "componentNumber" | "operation" | "category" | "subcategory" | "execution" | "description" | "vendor" | "transportVendor" | "transportRoute" | "vehicle" | "quantity" | "quantityUnit" | "completed" | "rejected" | "status" | "tolerance" | "inspection" | "paymentStatus" | "paidAmount" | "plannedStart" | "plannedEnd" | "price" | "transportCost" | "amount";
+type ProcessExportField = "company" | "po" | "component" | "componentNumber" | "operation" | "category" | "subcategory" | "execution" | "machine" | "description" | "vendor" | "transportVendor" | "transportRoute" | "vehicle" | "quantity" | "quantityUnit" | "completed" | "rejected" | "status" | "tolerance" | "inspection" | "paymentStatus" | "paidAmount" | "plannedStart" | "plannedEnd" | "price" | "transportCost" | "amount";
 const DEFAULT_PROCESS_COLOR = "#6fa9e5";
 const ALTERNATE_ROUTE_COLOR = "#4b95eb";
 const REWORK_ROUTE_COLOR = "#e38b45";
 const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
   {key:"company",label:"Company"},{key:"po",label:"PO number"},{key:"component",label:"Component name"},{key:"componentNumber",label:"Component number"},
-  {key:"operation",label:"Process"},{key:"category",label:"Category"},{key:"subcategory",label:"Subcategory"},{key:"execution",label:"Execution type"},
+  {key:"operation",label:"Process"},{key:"category",label:"Category"},{key:"subcategory",label:"Subcategory"},{key:"execution",label:"Execution type"},{key:"machine",label:"Machine / station"},
   {key:"description",label:"Operation notes"},{key:"vendor",label:"Vendor"},{key:"transportVendor",label:"Transport vendor"},
   {key:"transportRoute",label:"Transport route"},{key:"vehicle",label:"Vehicle type"},{key:"quantity",label:"Planned quantity"},{key:"quantityUnit",label:"Quantity unit"},
   {key:"completed",label:"Completed quantity"},{key:"rejected",label:"Rejected quantity"},{key:"status",label:"Status"},
@@ -64,6 +64,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [addMenuDefinitionId, setAddMenuDefinitionId] = useState("");
   const [showTransportEditor, setShowTransportEditor] = useState(false);
+  const [showTransportMenu, setShowTransportMenu] = useState(false);
   const [editingTransportLegId, setEditingTransportLegId] = useState("");
   const [transportRouteId, setTransportRouteId] = useState("");
   const [transportTripCount, setTransportTripCount] = useState("1");
@@ -75,7 +76,6 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [exportFields,setExportFields] = useState<ProcessExportField[]>(["operation","quantity","status","plannedStart","plannedEnd"]);
   const [exportScope,setExportScope] = useState<string>("all");
   const [exportArrows,setExportArrows] = useState(true);
-  const [visibleProcessFields,setVisibleProcessFields] = useState<string[]>(["category","subcategory","vendor","plannedStart","plannedEnd","quantity","status","price","amount"]);
   const [visualStyle,setVisualStyle] = useState<"sphere"|"vortex"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined">("sphere");
   const [ganttScale,setGanttScale] = useState<"day"|"week"|"month">("week");
   const [histogramStyle,setHistogramStyle] = useState<"bar"|"stacked"|"donut">("bar");
@@ -372,6 +372,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
 
   const exportColumns = PROCESS_EXPORT_FIELDS.filter(field=>exportFields.includes(field.key));
   const exportOperations = getRouteScopeOperations(exportScope);
+  const simulationOperations = exportOperations.filter(operation => operation.relationType !== "subprocess");
   const exportBranches = [...new Set(exportOperations.map(op=>op.branch||"Main route"))]
     .sort((a,b)=>a==="Main route"?-1:b==="Main route"?1:a.localeCompare(b));
   const processAccent = (operation:OperationRecord) => processDefinitions.find(item=>item.id===operation.processDefinitionId)?.displayColor || operation.processColor || DEFAULT_PROCESS_COLOR;
@@ -386,6 +387,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       case "category": return op.category || "";
       case "subcategory": return op.subcategory || "";
       case "execution": return op.executionType || "Outsourced";
+      case "machine": return op.machine || "";
       case "description": return op.notes || op.qualityNotes || "";
       case "vendor": return vendors.find(v=>v.id===op.vendorId)?.company || "";
       case "transportVendor": return vendors.find(v=>v.id===op.transportVendorId)?.company || "";
@@ -622,7 +624,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   }, [simulationActive, simulationIndex, visibleOperations.length]);
 
   const startRouteSimulation = () => {
-    if (!visibleOperations.length) { onNotice("Add at least one real operation before previewing the route."); return; }
+    if (!simulationOperations.length) { onNotice("No saved operations in this route scope. Add a real operation from Process Directory before simulating."); return; }
     setVisualStyle("sphere");
     setRouteView("3d");
     setSimulationIndex(0);
@@ -1079,7 +1081,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             <small>Each option creates a saved operation only after you complete and save its form.</small>
           </div>}
         </div>
-        <button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => openTransportEditor()}><Truck size={14}/> Add transport leg</button>
+        <div className="transport-leg-menu-anchor"><button type="button" className="button-quiet compact-button" disabled={!selectedLine} aria-haspopup="menu" aria-expanded={showTransportMenu} onClick={()=>setShowTransportMenu(value=>!value)}><Truck size={14}/> Add transport leg ▾</button>{showTransportMenu && <div className="process-add-menu" role="menu" aria-label="Transport leg options"><strong>Transport leg actions</strong><button type="button" role="menuitem" onClick={()=>{setShowTransportMenu(false);openTransportEditor();}}>Add leg from saved Transport Directory route</button><button type="button" role="menuitem" onClick={()=>{setShowTransportMenu(false);onSelectModule("transport-master");}}>Open Transport Directory</button><button type="button" role="menuitem" onClick={()=>{setShowTransportMenu(false);onSelectModule("transport-dispatch");}}>Open Transport &amp; Dispatch</button></div>}</div>
         {selectedOperationId && activeOperation && <button className="button-danger compact-button" onClick={()=>deleteOperation(activeOperation)}><Trash2 size={14}/> Delete selected process</button>}
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("alternate")}><GitBranch size={14}/> Alternate route from selected</button>
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("rework")}><GitBranch size={14}/> Rework branch from selected</button>
@@ -1108,7 +1110,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           </button>)}
         </div>
         {!simulationActive
-          ? <button className="button-primary compact-button" disabled={!visibleOperations.length} onClick={startRouteSimulation}><Activity size={14}/> Simulate route</button>
+          ? <button className="button-primary compact-button" onClick={startRouteSimulation}><Activity size={14}/> Simulate route</button>
           : <button className="button-quiet compact-button" onClick={() => setSimulationActive(false)}><Activity size={14}/> Pause simulation</button>}
         <button className="button-quiet compact-button" disabled={simulationIndex < 0} onClick={() => { setSimulationActive(false); setSimulationIndex(-1); }}><Check size={14}/> Reset</button>
         <label className="linked-search"><Search size={14}/><input value={search} onChange={e => { setSearch(e.target.value); setSimulationActive(false); setSimulationIndex(-1); }} placeholder="Search process, category, vendor, date, status…"/></label>
@@ -1160,7 +1162,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     <details open className="surface-panel process-route-scope-panel">
       <summary className="panel-heading"><div><div className="eyebrow">PROCESS MAP / ROUTE SCOPE</div><h3>Choose the route to display and export</h3><p>The same scope controls route arrows, process nodes and every download format for this PO component.</p></div><span className="module-number">{exportOperations.length} / {routeOperations.length} OPERATIONS</span></summary>
       <div className="process-route-scope-buttons">
-        {routeScopeButtons.map(scope=><button key={scope.key} type="button" aria-pressed={exportScope===scope.key} disabled={scope.count===0}
+        {routeScopeButtons.map(scope=><button key={scope.key} type="button" aria-pressed={exportScope===scope.key}
           className={(exportScope===scope.key?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setExportScope(scope.key)}>
           {scope.label} <small>({scope.count})</small>
         </button>)}
@@ -1254,7 +1256,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           })}
         </section>}
         {["sphere","vortex","combined"].includes(visualStyle) && (exportOperations.length > 0 || (routeOperations.length===0 && processDefinitions.length > 0))
-          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D key={visualStyle} initialLayout={visualStyle==="vortex"?"vortex":visualStyle==="combined"?"digital-mesh":"sphere"} operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} vendors={vendors} visibleFields={visibleProcessFields} showArrows={exportArrows} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} onAddSubprocess={startAddSubprocess} onAddProcessDefinition={startAddDefinition} /></div>
+          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D key={visualStyle} initialLayout={visualStyle==="vortex"?"vortex":visualStyle==="combined"?"digital-mesh":"sphere"} operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} vendors={vendors} visibleFields={exportFields} showArrows={exportArrows} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} onAddSubprocess={startAddSubprocess} onAddProcessDefinition={startAddDefinition} /></div>
           : visualStyle==="gantt" && exportOperations.length ? <div className="process-gantt-view">
               <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {exportOperations.length} operations in {exportScopeLabel}</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
               {exportOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));const branch=op.branch||"Main route";const color=processAccent(op);const routeColor=branchAccent(op);return <div className={"process-gantt-row "+(branch==="Main route"?"":"is-branch")} key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small><i style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:routeColor,marginRight:5}}/>{branch} · {shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%",backgroundColor:color}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
