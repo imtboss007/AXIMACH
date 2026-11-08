@@ -1195,6 +1195,7 @@ test("Contact 360 saves Process Directory references by stable IDs and keeps man
   assert.ok(workspace.includes('id:"directory:"+definition.id'));
   assert.ok(workspace.includes('materials:v.materials||"",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[]'));
   assert.ok(workspace.includes("processDefinitionIds:contactProcessDefinitionIds(row)"));
+  assert.ok(workspace.includes("processDefinitionIds:row.processDefinitionIds,processSubcategoryIds:row.processSubcategoryIds||[]"));
   assert.ok(workspace.includes('selected={draft.processDefinitionIds||[]}'));
   assert.ok(workspace.includes('selected={draft.processSubcategoryIds||[]}'));
   assert.ok(workspace.includes("id:stableContactSubcategoryId(definition,index)"));
