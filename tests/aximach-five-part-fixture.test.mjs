@@ -1294,6 +1294,8 @@ test("AXIMACH sphere core supports drag while clickable module buttons retain no
   assert.ok(guard >= 0 && capture > guard, "real child controls must be ignored before drag pointer capture");
   assert.ok(start.includes('event.target.closest("button, a, input, select, textarea")'));
   assert.ok(!start.includes("[role='button']"), "the sphere core's role=button must not block pointer dragging");
+  assert.ok(start.includes("const captureTarget = event.target instanceof HTMLElement ? event.target : event.currentTarget;"));
+  assert.ok(start.includes("captureTarget.setPointerCapture(event.pointerId)"), "capture the actual hit element so a core click still reaches its zoom handler");
   assert.ok(orb.includes('className="ax-orb-core"'));
   assert.ok(orb.includes('onClick={() => { if (!dragMoved.current) toggleZoom(); }}'));
   assert.ok(orb.includes('onClick={() => { if (!dragMoved.current) onSelectModule(id); }}'));
