@@ -156,8 +156,9 @@ function GlyphShape({ glyph }: { glyph: ToolGlyph }): ReactNode {
 
 const componentRules: Array<[RegExp, ToolGlyph]> = [
   [/fixture|jig|workholding|tooling plate|clamping fixture/, "fixture-jig"],
-  [/shaft|spindle|axle|pinion shaft|drive shaft/, "turning-insert"],
+  // Prefer the gear-specific identity when a component name contains both "gear" and "shaft".
   [/gear|sprocket|rack|worm wheel|splined/, "hob"],
+  [/shaft|spindle|axle|pinion shaft|drive shaft/, "turning-insert"],
   [/housing|body|casing|manifold|block|valve body/, "boring-bar"],
   [/flange|disc|hub|rotor|brake rotor/, "face-mill"],
   [/bush|bushing|sleeve|spacer|bearing|roller/, "reamer"],
