@@ -394,3 +394,12 @@ test("Purchase Orders exposes column-wise searchable filters and guarded delete-
   assert.ok(workspace.includes("Delete all Purchase Orders"));
   assert.ok(workspace.includes("Delete all components"));
 });
+
+test("Production Plan renders saved transport legs with route, anchor, vendor and trip details", () => {
+  const production = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(production.includes("jobTransportLegs.map(leg=>"));
+  assert.ok(production.includes('leg.placement==="start"?"At component start":leg.placement==="before"?"Before":"After"'));
+  assert.ok(production.includes("leg.fromLocation} → {leg.toLocation}"));
+  assert.ok(production.includes("leg.tripCount} trip(s)"));
+  assert.ok(production.includes("leg.status||\"Queued\""));
+});
