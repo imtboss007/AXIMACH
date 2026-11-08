@@ -947,3 +947,11 @@ test("Icon Studio catalogue is restricted to mechanical and transport identities
   assert.ok(studio.includes("automatic-gearbox"));
   assert.ok(studio.includes("ruler-measure"));
 });
+
+
+test("unknown process names use the supplied neutral fallback instead of a false mechanical tool logo", () => {
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  assert.ok(studio.includes("{ processName, fallback, processId, category, subcategory }"));
+  assert.ok(studio.includes("const knownMechanicalGlyph = mechanicalGlyphForOperation(processName)"));
+  assert.ok(studio.includes("(fallback || <Workflow size={16} />)"));
+});
