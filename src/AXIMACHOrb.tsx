@@ -180,20 +180,19 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             const angle = index * goldenAngle;
             const unitX = Math.cos(angle) * ringRadius;
             const unitZ = Math.sin(angle) * ringRadius;
-            const radius = compactViewport ? 86 : 106;
+            const radius = compactViewport ? 96 : 112;
             const x = unitX * radius;
             const y = unitY * radius;
             const z = unitZ * radius;
             const yaw = Math.atan2(unitX, unitZ) * 180 / Math.PI;
             const pitch = -Math.asin(unitY) * 180 / Math.PI;
-            return <motion.button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"
+            return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"
               style={{ left: "50%", top: "50%", transform: "translate3d(" + x + "px," + y + "px," + z + "px) translate(-50%,-50%) rotateY(" + yaw + "deg) rotateX(" + pitch + "deg)" }}
+              onPointerDown={event => event.stopPropagation()}
               onClick={() => { if (!dragMoved.current) onSelectModule(id); }}
-              aria-label={"Open " + label + " module"} title={"Open " + label}
-              initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.08 + index * 0.025, type: "spring", stiffness: 130 }} whileHover={{ filter: "brightness(1.15)" }} whileTap={{ scale: 0.94 }}>
+              aria-label={"Open " + label + " module"} title={"Open " + label}>
               <span><Icon size={15} strokeWidth={1.8}/></span><small>{label}</small>
-            </motion.button>;
+            </button>;
           })}
         </motion.div>
         </motion.div>

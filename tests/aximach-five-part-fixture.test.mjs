@@ -786,3 +786,36 @@ test("five synthetic component names resolve to the intended mechanical logo fam
   }
   assert.ok(iconSource.indexOf("gear|sprocket|rack|worm wheel|splined") < iconSource.indexOf("shaft|spindle|axle|pinion shaft|drive shaft"), "gear identity must take priority over the generic shaft rule");
 });
+
+
+test("Main dashboard sphere uses native 3D module hit targets with stable transforms", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"'));
+  assert.ok(orb.includes('translate3d(" + x + "px," + y + "px," + z + "px)'));
+  assert.ok(orb.includes("onPointerDown={event => event.stopPropagation()}"));
+  assert.ok(!orb.includes("return <motion.button key={id}"));
+});
+
+test("Process Universe supports field visibility, vendor identity and arrow visibility without auto-animation", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("visibleFields?: string[]"));
+  assert.ok(universe.includes("vendors?: Array<{ id: string; company: string }>"));
+  assert.ok(universe.includes("showArrows?: boolean"));
+  assert.ok(universe.includes('fieldVisible("plannedEnd")'));
+  assert.ok(universe.includes('fieldVisible("vendor")'));
+  assert.ok(universe.includes('fieldVisible("price")'));
+  assert.ok(universe.includes('fieldVisible("amount")'));
+  assert.ok(universe.includes("{showArrows && index < lane.rows.length - 1"));
+  assert.ok(universe.includes('useEffect(() => setLayoutMode(initialLayout), [initialLayout])'));
+});
+
+test("Logo Studio limits selectable and persisted symbols to mechanical and transport families", () => {
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  const mechanical = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  assert.ok(studio.includes("MECHANICAL_ICON_NAME_PATTERN"));
+  assert.ok(studio.includes("tablerIconCatalogue.filter((item) => isMechanicalStudioIcon(item.name))"));
+  assert.ok(studio.includes('useState("outline:tools")'));
+  assert.ok(studio.includes("!isMechanicalStudioIcon(assignment.iconName)"));
+  assert.ok(mechanical.includes('mechanicalGlyphForOperation(operation) || "component-block"'));
+});

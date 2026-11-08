@@ -224,8 +224,7 @@ export function mechanicalOperationSvgForName(operationName: string): string {
 }
 
 export function MechanicalOperationIcon({ operation, className = "" }: { operation: string; className?: string }) {
-  const glyph = mechanicalGlyphForOperation(operation);
-  if (!glyph) return null;
+  const glyph = mechanicalGlyphForOperation(operation) || "component-block";
   return <span className={"ax-mechanical-tool-icon " + className} title={operation + " tool symbol"} aria-label={operation + " tool symbol"}>
     <svg viewBox="0 0 24 24" width="24" height="24" role="img" aria-hidden="true"><GlyphShape glyph={glyph}/></svg>
   </span>;

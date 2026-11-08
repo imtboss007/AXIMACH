@@ -10,13 +10,15 @@ type IconMeta = { name: string; category?: string; tags?: string[]; version?: st
 type IconAssignment = { iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string; customAsset?: string; revision?: number; history?: Array<{ iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string; customAsset?: string; revision?: number }> };
 type Assignments = Record<string, IconAssignment>;
 
-const ICONS: IconMeta[] = tablerIconCatalogue.map((item) => ({ name: item.name, category: item.variant, tags: item.name.split("-"), variant: item.variant }));
+const MECHANICAL_ICON_NAME_PATTERN = /^(?:tool|tools|truck|truck-delivery|truck-loading|truck-return|forklift|car-crane|engine|crane|tractor|wheel|building-factory|building-factory-2|building-warehouse|automatic-gearbox|manual-gearbox|hammer|hammer-drill|robot|ruler|ruler-2|ruler-3|ruler-measure|ruler-measure-2|pencil-ruler|box|package|package-export|package-import|packages|container|ship|steering-wheel|firetruck|rv-truck)$/;
+const isMechanicalStudioIcon = (name: string) => MECHANICAL_ICON_NAME_PATTERN.test(name);
+const ICONS: IconMeta[] = tablerIconCatalogue.filter((item) => isMechanicalStudioIcon(item.name)).map((item) => ({ name: item.name, category: item.variant, tags: item.name.split("-"), variant: item.variant }));
 const iconKey = (item: Pick<IconMeta, "name" | "variant">) => `${item.variant}:${item.name}`;
 
 const families = [
-  "General", "CNC Turning", "VMC / Milling", "Wire EDM", "Grinding", "Welding",
+  "CNC Turning", "VMC / Milling", "Wire EDM", "Grinding", "Welding",
   "Heat Treatment", "Surface Finish", "Inspection / Quality", "Assembly",
-  "Transport / Dispatch", "Packaging", "Maintenance", "Material Handling"
+  "Transport / Dispatch", "Material Handling"
 ];
 
 const palettes = [
@@ -169,7 +171,7 @@ function assignedIcon(assignment: IconAssignment, title: string, className: stri
   </span>;
 }
 
-export function ProcessIcon({ processName, fallback, processId, category, subcategory }: { processName: string; fallback: ReactNode; processId?: string; category?: string; subcategory?: string }) {
+export function ProcessIcon({ processName, processId, category, subcategory }: { processName: string; fallback: ReactNode; processId?: string; category?: string; subcategory?: string }) {
   const { data } = useManufacturingData();
   const assignments = useIconAssignments();
   const family = processFamilyForName(processName);
@@ -186,14 +188,14 @@ export function ProcessIcon({ processName, fallback, processId, category, subcat
   const assignment = (subcategoryId ? assignments["subcategory:" + subcategoryId] : undefined)
     || (stableId ? assignments["process:" + stableId] : undefined)
     || assignments["process:" + normaliseWords(processName)] || assignments[family];
-  if (!assignment) return <span className="linked-node-icon linked-node-icon-3d">{mechanicalGlyphForOperation(processName) ? <MechanicalOperationIcon operation={processName} /> : <span className="linked-node-icon-fallback">{fallback}</span>}</span>;
+  if (!assignment || !isMechanicalStudioIcon(assignment.iconName)) return <span className="linked-node-icon linked-node-icon-3d"><MechanicalOperationIcon operation={processName} /></span>;
   return assignedIcon(assignment, "Saved process identity: " + processName, "linked-node-icon linked-node-icon-3d ax-process-icon");
 }
 
 export function ComponentIcon({ componentId, componentName, className = "" }: { componentId?: string; componentName: string; className?: string }) {
   const assignments = useIconAssignments();
   const assignment = componentId ? assignments["component:" + componentId] : undefined;
-  if (!assignment) return <MechanicalComponentIcon componentName={componentName} className={className} />;
+  if (!assignment || !isMechanicalStudioIcon(assignment.iconName)) return <MechanicalComponentIcon componentName={componentName} className={className} />;
   return assignedIcon(assignment, "Saved component identity: " + componentName, "ax-component-icon linked-node-icon-3d " + className);
 }
 
@@ -209,7 +211,7 @@ export default function IconStudio({ open, onClose, initialTarget }: { open: boo
   const [tab, setTab] = useState<"all" | "favourites" | "assigned">("all");
   const [family, setFamily] = useState("CNC Turning");
   const [specificProcess, setSpecificProcess] = useState("");
-  const [selectedIcon, setSelectedIcon] = useState("outline:settings");
+  const [selectedIcon, setSelectedIcon] = useState("outline:tools");
   const [paletteName, setPaletteName] = useState(palettes[0].name);
   const [finish, setFinish] = useState(finishes[0]);
   const [depth, setDepth] = useState(3);
