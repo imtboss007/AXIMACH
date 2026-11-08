@@ -53,8 +53,10 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
   const [studioOpen, setStudioOpen] = useState(false);
   const reducedMotion = useReducedMotion();
   const [reduceMotion, setReduceMotion] = useState(saved.current.reduceMotion === true);
-  const [autoRotate, setAutoRotate] = useState(saved.current.autoRotate !== false);
-  const [autoRotateRecords, setAutoRotateRecords] = useState(saved.current.autoRotateRecords !== false);
+  // New and upgraded installs default to manual-only rotation. Once the operator
+  // explicitly changes either control, their choice is persisted independently.
+  const [autoRotate, setAutoRotate] = useState(saved.current.manualRotationPreferenceSet === true && saved.current.autoRotate === true);
+  const [autoRotateRecords, setAutoRotateRecords] = useState(saved.current.manualRotationPreferenceSet === true && saved.current.autoRotateRecords === true);
   const [zoomed, setZoomed] = useState(saved.current.zoomed === true);
   const dragMoved = useRef(false);
   const lowerDragMoved = useRef(false);
@@ -66,10 +68,10 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
     return () => query.removeEventListener("change", updateCompact);
   }, []);
   useEffect(() => {
-    try { window.localStorage.setItem(preferenceKey, JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,autoRotate,autoRotateRecords})); } catch { /* Preferences are optional. */ }
+    try { window.localStorage.setItem(preferenceKey, JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,autoRotate,autoRotateRecords,manualRotationPreferenceSet:true})); } catch { /* Preferences are optional. */ }
   }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,autoRotate,autoRotateRecords,preferenceKey]);
-  // The 18 module shell and the separate live-record shell rotate gently by default.
-  // Dragging either shell temporarily takes control; reduced-motion users can pause it.
+  // Both shells stay still while idle. Dragging is the default rotation control;
+  // optional auto-rotation is available only when the operator explicitly enables it.
   const rotateX = useMotionValue(-15);
   const rotateY = useMotionValue(22);
   const lowerRotateX = useMotionValue(-8);
