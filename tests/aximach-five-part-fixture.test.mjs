@@ -1282,3 +1282,15 @@ test("Process Map explains missing company, PO or component prerequisites when A
   assert.ok(workspace.includes('onSelectModule("components")'));
   assert.ok(workspace.includes('selectedLine && !selectedComponent'));
 });
+
+
+test("Process Map operation editor accepts a new process type as well as Process Directory definitions", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const pickerStart = workspace.indexOf('<SearchablePicker id="operation-process-type"');
+  const pickerEnd = workspace.indexOf("/>", pickerStart);
+  const picker = workspace.slice(pickerStart, pickerEnd);
+  assert.ok(picker.includes("Search or enter a new process type"));
+  assert.ok(picker.includes("name:definition?.processType||value"));
+  assert.ok(picker.includes("processDefinitionId:definition?.id||\"\""));
+  assert.ok(picker.includes("allowCustom"));
+});
