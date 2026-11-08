@@ -655,6 +655,18 @@ test("Process Directory stores a colour per process type and route exports share
 });
 
 
+test("mechanical icon inventory covers process stages beyond cutting and machining", () => {
+  const source = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  for (const glyph of ["heat-treatment-furnace","powder-coating-gun","assembly-tool","transport-truck","material-stock"]) {
+    assert.ok(source.includes('"' + glyph + '"'), "missing mechanical process logo family: " + glyph);
+  }
+  for (const pattern of ["heat treatment","powder coating","assembly","transport","raw material"]) {
+    assert.ok(source.toLowerCase().includes(pattern), "missing process-name matching rule: " + pattern);
+  }
+  assert.ok(source.includes('label:"Heat-treatment furnace"'));
+  assert.ok(source.includes('label:"Coating / finishing gun"'));
+});
+
 test("five synthetic component names resolve to the intended mechanical logo families", () => {
   const iconSource = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
   const rulesStart = iconSource.indexOf("const componentRules:");
