@@ -138,7 +138,16 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
  const categoryOptions=[...new Set(definitions.map(p=>p.category).filter(Boolean))].sort();
  const processOptions=[...new Set(definitions.map(p=>p.processType).filter(Boolean))].sort();
  const selectedDefinitions=definitions.filter(p=>(!categories.length||categories.includes(p.category))&&(!processTypes.length||processTypes.includes(p.processType)));
- const subcategoryOptions=[...new Set(selectedDefinitions.flatMap(p=>p.subcategories||[]))].sort();
+ const subcategoryOptions=selectedDefinitions.flatMap(definition=>(definition.subcategories||[]).map((name,index)=>({
+  id:definition.subcategoryIds?.[index]||definition.id+"-subprocess-"+String(index+1).padStart(3,"0"),
+  label:definition.category+" · "+definition.processType+" · "+name
+ }))).sort((a,b)=>a.label.localeCompare(b.label));
+ const stableSubcategoryIdsFor=(definition:typeof definitions[number],name:string,storedId?:string)=>{
+  if(storedId)return storedId;
+  const index=definition.subcategories.indexOf(name);
+  if(index<0)return "";
+  return definition.subcategoryIds?.[index]||definition.id+"-subprocess-"+String(index+1).padStart(3,"0");
+ };
  const matchesAny=(selected:string[],source:string)=>!selected.length||selected.some(value=>source.toLowerCase().split(/[,;|]/).map(x=>x.trim()).includes(value.toLowerCase()));
 
  const clearFilters=()=>{setSearch("");setVendorTypes([]);setCategories([]);setProcessTypes([]);setSubcategories([]);setExecutionTypes([]);setOnlyAssigned(false);};
@@ -160,12 +169,19 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
   const capabilityCategories=capabilityDefinitions.map(definition=>definition.category).join(" ");
   const capabilityTypes=capabilityDefinitions.map(definition=>definition.processType).join(" ");
   const capabilitySubcategories=capabilityDefinitions.flatMap(definition=>definition.subcategories||[]).join(" ");
+  const capabilitySubcategoryIds=capabilityDefinitions.flatMap(definition=>definition.subcategories.map(name=>stableSubcategoryIdsFor(definition,name)));
+  const operationSubcategoryIds=assigned.map(operation=>{
+   const definition=definitions.find(item=>item.id===operation.processDefinitionId)
+    || definitions.find(item=>item.processType===operation.name&&item.category===operation.category);
+   return definition?stableSubcategoryIdsFor(definition,operation.subcategory||"",operation.processSubcategoryId):operation.processSubcategoryId||"";
+  }).filter(Boolean);
   const execution=assigned.map(op=>op.executionType||"Outsourced").join(" ");
+  const subcategoryMatch=!subcategories.length||subcategories.some(id=>capabilitySubcategoryIds.includes(id)||operationSubcategoryIds.includes(id));
   return fullText.includes(search.toLowerCase().trim())
    &&(!vendorTypes.length||vendorTypes.includes(v.vendorType||""))
    &&matchesAny(categories,capabilityCategories+" "+operationCategory)
    &&matchesAny(processTypes,capabilityTypes+" "+v.processes+" "+operationTypes)
-   &&matchesAny(subcategories,capabilitySubcategories+" "+operationSubcategories)
+   &&subcategoryMatch
    &&matchesAny(executionTypes,execution)
    &&(!onlyAssigned||assigned.length>0);
  });
@@ -178,7 +194,7 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
   <SearchableMultiSelect id="network-vendor-type" label="Vendor category" options={vendorTypeOptions.map(x=>({id:x,label:x}))} selected={vendorTypes} onChange={setVendorTypes} emptyMeansAll/>
   <SearchableMultiSelect id="network-process-category" label="Process category" options={categoryOptions.map(x=>({id:x,label:x}))} selected={categories} onChange={setCategories} emptyMeansAll/>
   <SearchableMultiSelect id="network-process-type" label="Process type" options={processOptions.map(x=>({id:x,label:x}))} selected={processTypes} onChange={setProcessTypes} emptyMeansAll/>
-  <SearchableMultiSelect id="network-subcategory" label="Subcategory" options={subcategoryOptions.map(x=>({id:x,label:x}))} selected={subcategories} onChange={setSubcategories} emptyMeansAll/>
+  <SearchableMultiSelect id="network-subcategory" label="Subcategory" options={subcategoryOptions} selected={subcategories} onChange={setSubcategories} emptyMeansAll/>
   <SearchableMultiSelect id="network-execution" label="Execution" options={["Internal","Outsourced"].map(x=>({id:x,label:x}))} selected={executionTypes} onChange={setExecutionTypes} emptyMeansAll/>
  </div>
 </section>
