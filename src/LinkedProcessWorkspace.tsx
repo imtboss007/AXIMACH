@@ -216,6 +216,56 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     return text.includes(search.toLowerCase().trim()) && statusMatch && executionMatch && categoryMatch && toleranceMatch && paymentMatch && vendorMatch && processTypeMatch && subcategoryMatch && dateMatch && quantityMatch && priceMatch && amountMatch;
   });
 
+  const explicitlySelectedOperation = routeOperations.find(op => op.id === selectedOperationId);
+  const activeOperation = explicitlySelectedOperation || routeOperations[0];
+  const selectedRouteOperations = visibleOperations.filter(op => selectedOperationIds.includes(op.id));
+  const resolveBranchOrigin = (branch: string, candidates: OperationRecord[]) => {
+    for (const candidate of candidates) {
+      if (candidate.relationType !== "alternate" && candidate.relationType !== "rework") continue;
+      let branchRoot = candidate;
+      let parent = routeOperations.find(item => item.id === branchRoot.parentId);
+      let guard = 0;
+      while (parent && (parent.branch || "Main route") === branch && parent.parentId && guard++ < routeOperations.length) {
+        branchRoot = parent;
+        parent = routeOperations.find(item => item.id === branchRoot.parentId);
+      }
+      if (parent && (parent.branch || "Main route") !== branch) return { branchRoot, parent };
+    }
+    return undefined;
+  };
+  const routeBranchNames = [...new Set(visibleOperations.map(op => op.branch || "Main route"))]
+    .sort((a,b) => a === "Main route" ? -1 : b === "Main route" ? 1 : a.localeCompare(b));
+  const getRouteScopeOperations = (scope: string): OperationRecord[] => {
+    const source = visibleOperations;
+    const branchName = (operation: OperationRecord) => operation.branch || "Main route";
+    // "All routes" is the complete saved graph; active filters apply only to filtered scopes.\n    if (scope === "all") return routeOperations;
+    if (scope === "main") return source.filter(op => branchName(op) === "Main route");
+    if (scope === "alternate") return source.filter(op => op.relationType === "alternate" || (branchName(op) !== "Main route" && !/rework/i.test(branchName(op))));
+    if (scope === "rework") return source.filter(op => op.relationType === "rework" || /rework/i.test(branchName(op)));
+    if (scope === "filtered") return source;
+    if (scope === "selected-operations") return selectedRouteOperations;
+    if (scope === "selected-operation") return explicitlySelectedOperation ? source.filter(op => op.id === explicitlySelectedOperation.id) : [];
+    if (scope === "selected-branch") return explicitlySelectedOperation ? source.filter(op => branchName(op) === branchName(explicitlySelectedOperation)) : [];
+    if (scope.startsWith("branch:")) {
+      const branch = scope.slice("branch:".length);
+      return source.filter(op => branchName(op) === branch);
+    }
+    return source;
+  };
+  const exportOperations = getRouteScopeOperations(exportScope);
+  const routeScopeButtons = [
+    { key: "all", label: "All routes", count: routeOperations.length },
+    { key: "main", label: "Main route", count: visibleOperations.filter(op => (op.branch || "Main route") === "Main route").length },
+    { key: "alternate", label: "Alternate routes", count: visibleOperations.filter(op => op.relationType === "alternate" || ((op.branch || "Main route") !== "Main route" && !/rework/i.test(op.branch || ""))).length },
+    { key: "rework", label: "Rework routes", count: visibleOperations.filter(op => op.relationType === "rework" || /rework/i.test(op.branch || "")).length },
+    { key: "selected-branch", label: "Selected branch", count: explicitlySelectedOperation ? visibleOperations.filter(op => (op.branch || "Main route") === (explicitlySelectedOperation.branch || "Main route")).length : 0 },
+    { key: "filtered", label: "Filtered results", count: visibleOperations.length },
+    { key: "selected-operations", label: "Selected operations", count: selectedRouteOperations.length },
+    { key: "selected-operation", label: "Selected operation", count: explicitlySelectedOperation && visibleOperations.some(op => op.id === explicitlySelectedOperation.id) ? 1 : 0 },
+    ...routeBranchNames.filter(name => name !== "Main route").map(name => ({
+      key: "branch:" + name, label: name, count: visibleOperations.filter(op => (op.branch || "Main route") === name).length
+    }))
+  ];  const exportScopeLabel = routeScopeButtons.find(scope => scope.key === exportScope)?.label || "All routes";
   const toggleFilter = (setter: (next: string[] | ((previous: string[]) => string[])) => void, value: string) => setter(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value]);
   const clearAllFilters = () => { setExportScope("all"); setZoom(1); setSearch(""); setStatusFilters([]); setExecutionFilters([]); setCategoryFilters([]); setToleranceFilters([]); setPaymentFilters([]); setVendorFilters([]); setProcessTypeFilters([]); setSubcategoryFilters([]); setCategorySearch(""); setDateFrom(""); setDateTo(""); setMinQuantity(""); setMaxQuantity(""); setMinPrice(""); setMaxPrice(""); setMinAmount(""); setMaxAmount(""); setSelectedOperationIds([]); };
   const toggleOperationSelection = (id: string) => setSelectedOperationIds(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
@@ -281,55 +331,6 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     setBulkStatus(""); setBulkVendorId(""); setBulkStart(""); setBulkEnd("");
   };
 
-  const explicitlySelectedOperation = routeOperations.find(op => op.id === selectedOperationId);
-  const activeOperation = explicitlySelectedOperation || routeOperations[0];
-  const selectedRouteOperations = visibleOperations.filter(op => selectedOperationIds.includes(op.id));
-  const resolveBranchOrigin = (branch: string, candidates: OperationRecord[]) => {
-    for (const candidate of candidates) {
-      if (candidate.relationType !== "alternate" && candidate.relationType !== "rework") continue;
-      let branchRoot = candidate;
-      let parent = routeOperations.find(item => item.id === branchRoot.parentId);
-      let guard = 0;
-      while (parent && (parent.branch || "Main route") === branch && parent.parentId && guard++ < routeOperations.length) {
-        branchRoot = parent;
-        parent = routeOperations.find(item => item.id === branchRoot.parentId);
-      }
-      if (parent && (parent.branch || "Main route") !== branch) return { branchRoot, parent };
-    }
-    return undefined;
-  };
-  const routeBranchNames = [...new Set(visibleOperations.map(op => op.branch || "Main route"))]
-    .sort((a,b) => a === "Main route" ? -1 : b === "Main route" ? 1 : a.localeCompare(b));
-  const getRouteScopeOperations = (scope: string): OperationRecord[] => {
-    const source = visibleOperations;
-    const branchName = (operation: OperationRecord) => operation.branch || "Main route";
-    // "All routes" is the complete saved graph; active filters apply only to filtered scopes.\n    if (scope === "all") return routeOperations;
-    if (scope === "main") return source.filter(op => branchName(op) === "Main route");
-    if (scope === "alternate") return source.filter(op => op.relationType === "alternate" || (branchName(op) !== "Main route" && !/rework/i.test(branchName(op))));
-    if (scope === "rework") return source.filter(op => op.relationType === "rework" || /rework/i.test(branchName(op)));
-    if (scope === "filtered") return source;
-    if (scope === "selected-operations") return selectedRouteOperations;
-    if (scope === "selected-operation") return explicitlySelectedOperation ? source.filter(op => op.id === explicitlySelectedOperation.id) : [];
-    if (scope === "selected-branch") return explicitlySelectedOperation ? source.filter(op => branchName(op) === branchName(explicitlySelectedOperation)) : [];
-    if (scope.startsWith("branch:")) {
-      const branch = scope.slice("branch:".length);
-      return source.filter(op => branchName(op) === branch);
-    }
-    return source;
-  };
-  const routeScopeButtons = [
-    { key: "all", label: "All routes", count: routeOperations.length },
-    { key: "main", label: "Main route", count: visibleOperations.filter(op => (op.branch || "Main route") === "Main route").length },
-    { key: "alternate", label: "Alternate routes", count: visibleOperations.filter(op => op.relationType === "alternate" || ((op.branch || "Main route") !== "Main route" && !/rework/i.test(op.branch || ""))).length },
-    { key: "rework", label: "Rework routes", count: visibleOperations.filter(op => op.relationType === "rework" || /rework/i.test(op.branch || "")).length },
-    { key: "selected-branch", label: "Selected branch", count: explicitlySelectedOperation ? visibleOperations.filter(op => (op.branch || "Main route") === (explicitlySelectedOperation.branch || "Main route")).length : 0 },
-    { key: "filtered", label: "Filtered results", count: visibleOperations.length },
-    { key: "selected-operations", label: "Selected operations", count: selectedRouteOperations.length },
-    { key: "selected-operation", label: "Selected operation", count: explicitlySelectedOperation && visibleOperations.some(op => op.id === explicitlySelectedOperation.id) ? 1 : 0 },
-    ...routeBranchNames.filter(name => name !== "Main route").map(name => ({
-      key: "branch:" + name, label: name, count: visibleOperations.filter(op => (op.branch || "Main route") === name).length
-    }))
-  ];  const exportScopeLabel = routeScopeButtons.find(scope => scope.key === exportScope)?.label || "All routes";
   const openAddMenu = () => {
     setAddMenuDefinitionId(processDefinitions[0]?.id || "");
     setShowAddMenu(true);
@@ -397,7 +398,6 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   });
 
   const exportColumns = PROCESS_EXPORT_FIELDS.filter(field=>exportFields.includes(field.key));
-  const exportOperations = getRouteScopeOperations(exportScope);
   const simulationOperations = exportOperations.filter(operation => operation.relationType !== "subprocess");
   const exportBranches = [...new Set(exportOperations.map(op=>op.branch||"Main route"))]
     .sort((a,b)=>a==="Main route"?-1:b==="Main route"?1:a.localeCompare(b));
