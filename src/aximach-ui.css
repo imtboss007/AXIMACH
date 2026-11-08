@@ -797,7 +797,7 @@
 }
 .process-universe-connector::before {
   content: ""; position: absolute; left: 0; right: 0; top: 50%;
-  border-top: 2px dashed #9db8df; animation: processUniverseFlow 1.4s linear infinite;
+  border-top: 2px dashed currentColor; animation: processUniverseFlow 1.4s linear infinite;
 }
 .process-universe-connector svg {
   position: relative; z-index: 1; width: 17px; height: 17px; padding: 2px;
@@ -1740,3 +1740,23 @@
 .linked-node-arrow { display:inline-flex; align-items:center; }
 .process-row-delete { color:#f2a0a3 !important; border-color:rgba(218,103,112,.38) !important; }
 .process-row-delete:hover:not(:disabled) { color:#fff !important; background:rgba(181,58,69,.22) !important; border-color:#dc737c !important; }
+
+/* Explicit visual distinction for main, alternate and rework path connectors. */
+.process-universe-lane.is-branch.is-alternate { border-left-color: #4b95eb; }
+.process-universe-lane.is-branch.is-rework { border-left-color: #e38b45; }
+.process-universe-branch-link { min-height: 40px; }
+.process-universe-branch-link::before,
+.process-universe-branch-link::after {
+  content: ""; position: absolute; left: 22px; width: 0; border-left: 2px dashed currentColor; opacity: .9;
+}
+.process-universe-branch-link::before { top: -12px; height: 12px; }
+.process-universe-branch-link::after { bottom: -14px; height: 14px; }
+.process-universe-branch-link svg { flex: 0 0 auto; padding: 3px; border-radius: 50%; background: color-mix(in srgb,currentColor 12%,transparent); }
+.process-universe-node-subcategory { display: inline-flex; max-width: 100%; padding: 3px 6px; border: 1px solid rgba(75,149,235,.26); border-radius: 6px; color: #4c85c1; background: rgba(75,149,235,.07); font-size: 8px; overflow-wrap: anywhere; }
+.process-route-flow-subcategory { display: block; max-width: 100%; color: #8eabd0; font-size: 8px; line-height: 1.2; overflow-wrap: anywhere; }
+.process-visual-style-buttons button { min-height: 38px; touch-action: manipulation; }
+@media(max-width:650px) {
+  .process-visual-style-buttons button { min-height: 42px; flex: 1 1 calc(50% - 7px); }
+  .process-universe-branch-link { gap: 6px; padding: 8px; }
+  .process-universe-node-subcategory { font-size: 7px; }
+}
