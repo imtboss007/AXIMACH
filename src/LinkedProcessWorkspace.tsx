@@ -1021,7 +1021,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     <div className="linked-route-toolbar">
       <div className="linked-route-actions">
         <div className="process-add-menu-anchor">
-          <button className="button-primary compact-button" disabled={!selectedLine || !selectedComponent} aria-expanded={showAddMenu} onClick={toggleAddMenu}><Plus size={14}/> Add operation ▾</button>
+          <button type="button" className="button-primary compact-button" disabled={!selectedLine || !selectedComponent} aria-haspopup="menu" aria-expanded={showAddMenu} onClick={toggleAddMenu}><Plus size={14}/> Add operation <span aria-hidden="true">⌄</span></button>
           {showAddMenu && <div className="process-add-menu" role="menu" aria-label="Add process options">
             <strong>Add to selected PO component</strong>
             <button type="button" role="menuitem" onClick={()=>startAdd()}><Plus size={13}/> Blank process operation</button>
@@ -1037,6 +1037,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           </div>}
         </div>
         <button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => openTransportEditor()}><Truck size={14}/> Add transport leg</button>
+        {activeOperation && <button className="button-danger compact-button" onClick={()=>deleteOperation(activeOperation)}><Trash2 size={14}/> Delete selected process</button>}
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("alternate")}><GitBranch size={14}/> Alternate route from selected</button>
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("rework")}><GitBranch size={14}/> Rework branch from selected</button>
         {(activeOperation?.relationType === "alternate" || activeOperation?.relationType === "rework") && <button className="button-quiet compact-button" disabled={!selectedLine} onClick={startAddBranchStep}><Plus size={14}/> Add step to selected branch</button>}
