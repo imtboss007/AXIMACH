@@ -113,6 +113,7 @@ function App() {
   const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>({});
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
+  const [iconStudioTarget,setIconStudioTarget] = useState<{targetType:"process";targetRecordId:string}|null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("All domains");
@@ -250,7 +251,7 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={() => setIconStudioOpen(true)} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
+          <LinkedProcessWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace navigationContext={moduleContext} moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "inventory" ? (
@@ -359,7 +360,7 @@ function App() {
         </div>
       )}
 
-      <Suspense fallback={<div className="workspace-loading-state" role="status">Loading Icon Studio…</div>}><IconStudio open={iconStudioOpen} onClose={() => setIconStudioOpen(false)} /></Suspense>
+      <Suspense fallback={<div className="workspace-loading-state" role="status">Loading Icon Studio…</div>}><IconStudio open={iconStudioOpen} initialTarget={iconStudioTarget} onClose={() => {setIconStudioOpen(false);setIconStudioTarget(null);}} /></Suspense>
 
       <footer className="global-footer"><span>AXIMACH <b>PRECISION · FLOW · INTELLIGENCE</b></span><span>Master records · server sync status shown in each workspace</span></footer>
     </div>
