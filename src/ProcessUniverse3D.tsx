@@ -27,6 +27,7 @@ type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | 
 export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
+  const displayOperations = parentOperations.length ? parentOperations : operations;
   const lookupOperations = allOperations || operations;
   const subprocessesFor = (parentId: string) => lookupOperations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
   const branchesFor = (parentId: string) => lookupOperations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
@@ -45,14 +46,14 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
   };
   const endDrag = () => { drag.current = null; };
 
-  const orbitNodes = useMemo(() => parentOperations.map((operation, index) => {
-    const count = Math.max(parentOperations.length, 1);
+  const orbitNodes = useMemo(() => displayOperations.map((operation, index) => {
+    const count = Math.max(displayOperations.length, 1);
     const y = 1 - 2 * ((index + 0.5) / count);
     const latitude = Math.asin(Math.max(-1, Math.min(1, y))) * 180 / Math.PI;
     const longitude = index * (Math.PI * (3 - Math.sqrt(5))) * 180 / Math.PI;
     const transform = `translate(-50%,-50%) rotateY(${longitude}deg) rotateX(${latitude}deg) translateZ(var(--process-orbit-radius,205px)) rotateX(${-latitude}deg) rotateY(${-longitude}deg)`;
     return { operation, index, transform };
-  }), [parentOperations]);
+  }), [displayOperations]);
 
   // When a PO line has no saved operations yet, put the real Process Directory
   // definitions onto the interactive 3D orbit. These are catalogue actions,
@@ -66,8 +67,8 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
     const transform = `translate(-50%,-50%) rotateY(${longitude}deg) rotateX(${latitude}deg) translateZ(var(--process-orbit-radius,205px)) rotateX(${-latitude}deg) rotateY(${-longitude}deg)`;
     return { definition, index, transform };
   }), [processDefinitions]);
-  const showCatalogueOrbit = parentOperations.length === 0 && catalogueOrbitNodes.length > 0;
-  const orbitCount = parentOperations.length || (showCatalogueOrbit ? catalogueOrbitNodes.length : 0);
+  const showCatalogueOrbit = operations.length === 0 && catalogueOrbitNodes.length > 0;
+  const orbitCount = displayOperations.length || (showCatalogueOrbit ? catalogueOrbitNodes.length : 0);
 
   const lanes = useMemo(() => {
     const grouped = new Map<string, OperationRecord[]>();
@@ -89,7 +90,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
   return <section className={"process-universe-3d mode-" + layoutMode} aria-label="Interactive 3D process route graph">
     <header className="process-universe-head">
       <div><span className="process-universe-kicker"><span /> LIVE ROUTE / INTERACTIVE 3D</span><h3>Manufacturing process universe</h3><p>Drag the process sphere to rotate it. Select any saved process icon to open its real operation record; simulation highlights each step in sequence.</p></div>
-      <div className="process-universe-count"><strong>{orbitCount}</strong><span>{parentOperations.length ? "MAIN PROCESSES" : "AVAILABLE STAGES"}</span></div>
+      <div className="process-universe-count"><strong>{orbitCount}</strong><span>{displayOperations.length ? "SAVED PROCESS STEPS" : "AVAILABLE STAGES"}</span></div>
     </header>
     <nav className="process-universe-layouts" aria-label="Process map visualisation modes">
       {([{id:"sphere",label:"Sphere"},{id:"route",label:"Conventional route"},{id:"vortex",label:"Vortex"},{id:"cube",label:"Cube"},{id:"molecular",label:"Molecular"},{id:"orbit",label:"Orbit"},{id:"digital-mesh",label:"Digital mesh"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}>{option.label}</button>)}
@@ -99,7 +100,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
       <div className="process-orbit-viewport">
         <motion.div className="process-orbit-rotator" onPointerDown={event => { if ((event.target as HTMLElement).closest(".process-orbit-node")) return; startDrag(event); }} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} style={{ rotateX, rotateY, touchAction: "none" }}>
           <div className="process-orbit-ring process-orbit-ring-a" /><div className="process-orbit-ring process-orbit-ring-b" />
-          <div className="process-orbit-core"><span className="process-orbit-core-gloss" /><span className="process-orbit-core-grid" /><div><small>AXIMACH / ROUTE CORE</small><strong>{orbitCount.toString().padStart(2,"0")}</strong><b>{parentOperations.length ? "PROCESS STEPS" : "DIRECTORY STAGES"}</b><em>{parentOperations.length ? "SAVED ROUTE" : "CATALOGUE ONLY"}</em></div><i className="process-orbit-dot process-orbit-dot-a" /><i className="process-orbit-dot process-orbit-dot-b" /><i className="process-orbit-dot process-orbit-dot-c" /></div>
+          <div className="process-orbit-core"><span className="process-orbit-core-gloss" /><span className="process-orbit-core-grid" /><div><small>AXIMACH / ROUTE CORE</small><strong>{orbitCount.toString().padStart(2,"0")}</strong><b>{displayOperations.length ? "PROCESS STEPS" : "DIRECTORY STAGES"}</b><em>{displayOperations.length ? "SAVED ROUTE" : "CATALOGUE ONLY"}</em></div><i className="process-orbit-dot process-orbit-dot-a" /><i className="process-orbit-dot process-orbit-dot-b" /><i className="process-orbit-dot process-orbit-dot-c" /></div>
           {orbitNodes.map(({ operation, index, transform }) => {
             const active = selectedOperationId === operation.id, current = simulationIndex === index, passed = simulationIndex > index;
             const state = operation.status.toLowerCase().replaceAll(" ","-");
@@ -136,7 +137,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
         <div className="process-universe-lane-label"><span className="process-universe-branch-icon">{lane.alternate ? <GitBranch size={15}/> : <Workflow size={15}/>}</span><span><strong>{lane.name}</strong><small>{lane.alternate ? (lane.branchRelation==="rework"?"Rework branch":"Alternate route") + (lane.parent ? " · connected from OP-" + String(lane.parent.sequence).padStart(3,"0") + " " + lane.parent.name : "") : "Primary manufacturing route"}</small></span><em>{lane.rows.length} STEP{lane.rows.length === 1 ? "" : "S"}</em></div>
         {lane.alternate && lane.branchRoot && <div className={"process-universe-branch-link " + (lane.branchRelation==="rework"?"is-rework":"is-alternate")}><span>OP-{String(lane.parent?.sequence||0).padStart(3,"0")} · {lane.parent?.name||"Parent operation"}</span><ArrowRight size={16}/><strong>{lane.rows[0]?.name||lane.name}</strong><small>{lane.branchRelation==="rework"?"REWORK BRANCH":"ALTERNATE ROUTE"}</small></div>}
         <div className="process-universe-node-track">{lane.rows.map((operation,index) => {
-          const globalIndex = parentOperations.findIndex(item => item.id === operation.id);
+          const globalIndex = displayOperations.findIndex(item => item.id === operation.id);
           const active = selectedOperationId === operation.id, current = simulationIndex === globalIndex, passed = simulationIndex > globalIndex;
           const childOperations = subprocessesFor(operation.id);
           const linkedBranches = branchesFor(operation.id);
