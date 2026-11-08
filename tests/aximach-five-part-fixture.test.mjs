@@ -218,7 +218,7 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(orb.includes("const ringRadius = Math.sqrt(Math.max(0, 1 - unitY * unitY))"));
   assert.ok(orb.includes("const yaw = Math.atan2(unitX, unitZ) * 180 / Math.PI"));
   assert.ok(orb.includes("const pitch = -Math.asin(unitY) * 180 / Math.PI"));
-  assert.ok(orb.includes("compactViewport ? 86 : 106"));
+  assert.ok(orb.includes("compactViewport ? 116 : 132"));
   assert.ok(orb.includes('rotateY(" + yaw + "deg) rotateX(" + pitch + "deg)'));
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   assert.match(css, /\.ax-orb-module-shell \{[\s\S]*?pointer-events:none;[\s\S]*?transform-style:preserve-3d;/);
@@ -891,7 +891,7 @@ test("Main Dashboard and 3D Command Centre center the 18-module orb on mobile", 
 test("Process Universe receives shared visibility controls, vendor labels and diagram arrow state from Process Plan", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
-  assert.ok(workspace.includes("visibleFields={visibleProcessFields}"));
+  assert.ok(workspace.includes("visibleFields={exportFields} showArrows={exportArrows}"));
   assert.ok(workspace.includes("showArrows={exportArrows}"));
   assert.ok(workspace.includes("setVisibleProcessFields"));
   for (const field of ["status", "execution", "tolerance", "payment", "machine"]) assert.ok(universe.includes(`fieldVisible("${field}")`));
@@ -922,9 +922,9 @@ test("Process Map route scopes intersect active filters before diagram and expor
 
 test("secondary Process Plan workspaces are user-expandable while route filters and graph stay open", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(workspace.includes('<details className="surface-panel component-transport-map-strip">'));
-  assert.ok(workspace.includes('<details className="surface-panel process-operation-table-panel">'));
-  assert.ok(workspace.includes('<details className="surface-panel linked-cost-card">'));
+  assert.ok(workspace.includes('<details open className="surface-panel component-transport-map-strip">'));
+  assert.ok(workspace.includes('<details open className="surface-panel process-operation-table-panel">'));
+  assert.ok(workspace.includes('<details open className="surface-panel linked-cost-card">'));
   assert.ok(workspace.includes('<details open className="surface-panel process-route-scope-panel">'));
   assert.ok(workspace.includes('<details open className="surface-panel linked-route-canvas">'));
 });
@@ -962,5 +962,5 @@ test("Process Universe field visibility is applied to both orbit and connected r
   for (const field of ["status", "execution", "tolerance", "payment", "machine"]) {
     assert.equal((universe.match(new RegExp('fieldVisible\\("' + field + '"\\)', "g")) || []).length, 2, field + " must be rendered in both layouts");
   }
-  assert.ok(universe.includes('fieldVisible("machine") && operation.machine && <span className="process-universe-machine">'));
+  assert.ok(universe.includes('fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>'));
 });
