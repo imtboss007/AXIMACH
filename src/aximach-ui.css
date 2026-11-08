@@ -1907,3 +1907,12 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .linked-process-page details[open]>summary.panel-heading::after{content:"−"}
 .linked-process-page details>summary.panel-heading>*{min-width:0}
 @media(max-width:680px){.linked-process-page details>summary.panel-heading{align-items:flex-start;gap:8px}.linked-process-page details>summary.panel-heading p{max-width:calc(100vw - 90px)}}
+
+.process-upcoming-delivery-row{cursor:pointer}
+.process-upcoming-delivery-row:hover{background:var(--surface-hover,rgba(76,145,225,.08))}
+.process-upcoming-delivery-row:focus-visible{outline:2px solid var(--accent,#4b95eb);outline-offset:-2px}
+.process-list-component-transport-summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px;margin-top:10px;border:1px solid var(--line,rgba(120,150,190,.24));border-radius:10px;background:var(--surface-muted,rgba(105,135,175,.08))}
+.process-list-component-transport-summary>div{display:grid;gap:3px}
+.process-list-component-transport-summary small{color:var(--muted,#8090a6)}
+.process-list-component-transport-summary>strong:last-child{white-space:nowrap}
+@media(max-width:640px){.process-list-component-transport-summary{align-items:flex-start;flex-direction:column;gap:6px}}
