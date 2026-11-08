@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
@@ -22,10 +22,15 @@ const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
   {key:"paidAmount",label:"Paid amount"},{key:"plannedStart",label:"Start date/time"},{key:"plannedEnd",label:"Due date/time"},
   {key:"price",label:"Price / piece or set"},{key:"transportCost",label:"Legacy operation transport (separate)"},{key:"amount",label:"Process amount (transport excluded)"}
 ];
-type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean; processCostTotal:number; parentId?:string; relationType?:"subprocess"|"alternate"|"rework"; costIncluded:boolean; processDefinitionId?: string; processColor?: string };
+type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean; processCostTotal:number; parentId?:string; relationType?:"subprocess"|"alternate"|"rework"; costIncluded:boolean; processDefinitionId?: string; processSubcategoryId:string; processColor?: string };
+const processSubcategoryIdFor = (definition: ProcessDefinitionRecord | undefined, subcategory: string) => {
+  const index = definition?.subcategories.indexOf(subcategory) ?? -1;
+  if (!definition || index < 0) return "";
+  return definition.subcategoryIds?.[index] || `${definition.id}-subprocess-${String(index + 1).padStart(3, "0")}`;
+};
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
   processDefinitionId: "", name: "", category: "", machine: "", vendorId: "", status: "Planned", executionType:"Outsourced", toleranceCategory:"Standard", inspectionRequired:false, plannedStart: "", plannedEnd: line?.targetDelivery ? (line.targetDelivery.includes("T")?line.targetDelivery:line.targetDelivery+"T08:00") : "", actualStart: "", actualEnd: "",
-  quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0, processCostTotal: 0, paymentStatus:"Unpaid", paidAmount:0, paymentReference:"", subcategory:"",
+  quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0, processCostTotal: 0, paymentStatus:"Unpaid", paidAmount:0, paymentReference:"", subcategory:"", processSubcategoryId:"",
   transportVendorId: "", transportFrom:"", transportTo:"", transportVehicleType:"", transportRouteId:"", transportCost: 0, transportPickup: "", transportDelivery: "", qualityNotes: "", inspectionResult: "", notes: "", branch: "Main route", costIncluded: true, processColor: DEFAULT_PROCESS_COLOR
 });
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
@@ -158,7 +163,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const processCategories = [...new Set(processDefinitions.map(item => item.category).filter(Boolean))].sort();
   const processTypeOptions = [...new Set(processDefinitions.filter(item => !draft.category || item.category === draft.category).map(item => item.processType).filter(Boolean))].sort();
   const processFilterTypes = [...new Set(processDefinitions.map(item => item.processType).filter(Boolean))].sort();
-  const processSubcategories = [...new Set(processDefinitions.flatMap(item => item.subcategories || []).filter(Boolean))].sort();
+  const processSubcategoryOptions = processDefinitions.flatMap(definition =>
+    (definition.subcategories || []).map((value, index) => ({
+      id: definition.subcategoryIds?.[index] || `${definition.id}-subprocess-${String(index + 1).padStart(3, "0")}`,
+      label: definition.category + " · " + definition.processType + " · " + value
+    }))
+  );
   const quantityUnit = selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces";
   const processVendorOptions = selectedProcessDefinition?.vendorIds?.length ? vendors.filter(vendor => selectedProcessDefinition.vendorIds.includes(vendor.id)) : vendors;
   const selectedTransportVendor = vendors.find(vendor => vendor.id === draft.transportVendorId);
@@ -172,7 +182,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const paymentMatch = !paymentFilters.length || paymentFilters.includes(op.paymentStatus || "Unpaid");
     const vendorMatch = !vendorFilters.length || vendorFilters.includes(op.vendorId);
     const processTypeMatch = !processTypeFilters.length || processTypeFilters.includes(op.name);
-    const subcategoryMatch = !subcategoryFilters.length || subcategoryFilters.includes(op.subcategory || "");
+    const operationDefinition = processDefinitions.find(item => item.id === op.processDefinitionId)
+      || processDefinitions.find(item => item.processType === op.name && item.category === op.category);
+    const operationSubcategoryId = op.processSubcategoryId || processSubcategoryIdFor(operationDefinition, op.subcategory || "");
+    const subcategoryMatch = !subcategoryFilters.length || subcategoryFilters.includes(operationSubcategoryId);
     const operationDate = (op.plannedEnd || op.plannedStart || "").slice(0,10);
     const dateMatch = (!dateFrom || Boolean(operationDate && operationDate >= dateFrom)) && (!dateTo || Boolean(operationDate && operationDate <= dateTo));
     const quantityMatch = (!minQuantity || op.quantity >= Number(minQuantity)) && (!maxQuantity || op.quantity <= Number(maxQuantity));
@@ -250,6 +263,20 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
 
   const activeOperation = routeOperations.find(op => op.id === selectedOperationId) || routeOperations[0];
   const selectedRouteOperations = routeOperations.filter(op => selectedOperationIds.includes(op.id));
+  const resolveBranchOrigin = (branch: string, candidates: OperationRecord[]) => {
+    for (const candidate of candidates) {
+      if (candidate.relationType !== "alternate" && candidate.relationType !== "rework") continue;
+      let branchRoot = candidate;
+      let parent = routeOperations.find(item => item.id === branchRoot.parentId);
+      let guard = 0;
+      while (parent && (parent.branch || "Main route") === branch && parent.parentId && guard++ < routeOperations.length) {
+        branchRoot = parent;
+        parent = routeOperations.find(item => item.id === branchRoot.parentId);
+      }
+      if (parent && (parent.branch || "Main route") !== branch) return { branchRoot, parent };
+    }
+    return undefined;
+  };
   const routeBranchNames = [...new Set(routeOperations.map(op => op.branch || "Main route"))]
     .sort((a,b) => a === "Main route" ? -1 : b === "Main route" ? 1 : a.localeCompare(b));
   const getRouteScopeOperations = (scope: string): OperationRecord[] => {
@@ -622,7 +649,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const parent = routeOperations.find(operation => operation.id === parentId);
     if (!parent) return;
     const base = blankOperation(selectedLine);
+    base.processDefinitionId = parent.processDefinitionId || processDefinitions.find(item => item.processType === parent.name && item.category === parent.category)?.id || "";
+    base.name = parent.name;
     base.category = parent.category;
+    base.processColor = parent.processColor || processDefinitions.find(item => item.id === base.processDefinitionId)?.displayColor || DEFAULT_PROCESS_COLOR;
+    base.subcategory = "";
+    base.processSubcategoryId = "";
     base.vendorId = parent.vendorId;
     base.executionType = parent.executionType || "Outsourced";
     base.branch = parent.branch || "Main route";
@@ -686,6 +718,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     base.executionType = anchor.executionType || "Outsourced";
     base.parentId = anchor.id;
     base.relationType = kind;
+    base.subcategory = "";
+    base.processSubcategoryId = "";
     base.costIncluded = false;
     setDraft(base);
     setSelectedOperationId(anchor.id);
@@ -701,8 +735,13 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       onNotice("Select an operation already inside an alternate or rework branch first."); return;
     }
     const base = blankOperation(selectedLine);
+    base.processDefinitionId = anchor.processDefinitionId || processDefinitions.find(item => item.processType === anchor.name && item.category === anchor.category)?.id || "";
+    base.name = anchor.name;
+    base.processColor = anchor.processColor || processDefinitions.find(item => item.id === base.processDefinitionId)?.displayColor || DEFAULT_PROCESS_COLOR;
     base.branch = anchor.branch;
     base.category = anchor.category;
+    base.subcategory = "";
+    base.processSubcategoryId = "";
     base.vendorId = anchor.vendorId;
     base.executionType = anchor.executionType || "Outsourced";
     // Keep each added branch step linked to the immediately preceding step,
@@ -726,7 +765,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       status: targetOperation.status, plannedStart: targetOperation.plannedStart, plannedEnd: targetOperation.plannedEnd, actualStart: targetOperation.actualStart || "", actualEnd: targetOperation.actualEnd || "",
       quantity: targetOperation.quantity, completed: targetOperation.completed, accepted: targetOperation.accepted, rejected: targetOperation.rejected,
       ratePerPart: targetOperation.ratePerPart, processCostTotal: targetOperation.quantity * targetOperation.ratePerPart, actualRatePerPart: targetOperation.actualRatePerPart || 0, transportVendorId: targetOperation.transportVendorId || "", transportFrom:targetOperation.transportFrom||"",transportTo:targetOperation.transportTo||"",transportVehicleType:targetOperation.transportVehicleType||"",transportRouteId:targetOperation.transportRouteId||"", transportCost: targetOperation.transportCost, transportPickup: targetOperation.transportPickup,
-      transportDelivery: targetOperation.transportDelivery, qualityNotes: targetOperation.qualityNotes, inspectionResult: targetOperation.inspectionResult || "", notes: targetOperation.notes, branch: targetOperation.branch, parentId:targetOperation.parentId||"", relationType:targetOperation.relationType, costIncluded:targetOperation.costIncluded ?? (targetOperation.relationType !== "alternate" && targetOperation.relationType !== "rework"), paymentStatus:targetOperation.paymentStatus||"Unpaid", paidAmount:paymentTotalFor(targetOperation), paymentReference:targetOperation.paymentReference||"", subcategory:targetOperation.subcategory||"", processColor:targetOperation.processColor || processDefinitions.find(item=>item.id===targetOperation.processDefinitionId)?.displayColor || DEFAULT_PROCESS_COLOR
+      transportDelivery: targetOperation.transportDelivery, qualityNotes: targetOperation.qualityNotes, inspectionResult: targetOperation.inspectionResult || "", notes: targetOperation.notes, branch: targetOperation.branch, parentId:targetOperation.parentId||"", relationType:targetOperation.relationType, costIncluded:targetOperation.costIncluded ?? (targetOperation.relationType !== "alternate" && targetOperation.relationType !== "rework"), paymentStatus:targetOperation.paymentStatus||"Unpaid", paidAmount:paymentTotalFor(targetOperation), paymentReference:targetOperation.paymentReference||"", subcategory:targetOperation.subcategory||"", processSubcategoryId:targetOperation.processSubcategoryId || processSubcategoryIdFor(processDefinitions.find(item=>item.id===targetOperation.processDefinitionId),targetOperation.subcategory||""), processColor:targetOperation.processColor || processDefinitions.find(item=>item.id===targetOperation.processDefinitionId)?.displayColor || DEFAULT_PROCESS_COLOR
     });
     setEditingId(targetOperation.id); setShowEditor(true);
   };
@@ -756,6 +795,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const next: OperationRecord = {
         id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
         processDefinitionId: selectedProcessDefinition?.id || undefined,
+        processSubcategoryId: draft.processSubcategoryId || processSubcategoryIdFor(selectedProcessDefinition, draft.subcategory) || undefined,
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
         ...draft, actualEnd: draft.status === "Complete" ? (draft.actualEnd || stamp.slice(0,10)) : draft.actualEnd, paidAmount: nextPaidTotal, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
@@ -1096,7 +1136,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         <SearchableMultiSelect id="process-filter-execution" label="Execution" options={["Internal","Outsourced"].map(value=>({id:value,label:value}))} selected={executionFilters} onChange={setExecutionFilters} emptyMeansAll/>
         <SearchableMultiSelect id="process-filter-category" label="Process category" options={processCategories.map(value=>({id:value,label:value}))} selected={categoryFilters} onChange={setCategoryFilters} emptyMeansAll/>
         <SearchableMultiSelect id="process-filter-type" label="Process type" options={processFilterTypes.map(value=>({id:value,label:value}))} selected={processTypeFilters} onChange={setProcessTypeFilters} emptyMeansAll/>
-        <SearchableMultiSelect id="process-filter-subcategory" label="Subcategory" options={processSubcategories.map(value=>({id:value,label:value}))} selected={subcategoryFilters} onChange={setSubcategoryFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="process-filter-subcategory" label="Subcategory" options={processSubcategoryOptions} selected={subcategoryFilters} onChange={setSubcategoryFilters} emptyMeansAll/>
         <SearchableMultiSelect id="process-filter-tolerance" label="Tolerance" options={["Standard","Precision","Close","Ultra Precision"].map(value=>({id:value,label:value}))} selected={toleranceFilters} onChange={setToleranceFilters} emptyMeansAll/>
         <SearchableMultiSelect id="process-filter-payment" label="Payment status" options={["Paid","Unpaid"].map(value=>({id:value,label:value}))} selected={paymentFilters} onChange={setPaymentFilters} emptyMeansAll/>
         <SearchableMultiSelect id="process-filter-vendor" label="Vendor" options={vendors.map(v=>({id:v.id,label:v.company+" · "+v.contact+" · "+(v.phone||"No phone")}))} selected={vendorFilters} onChange={setVendorFilters} emptyMeansAll/>
@@ -1138,7 +1178,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           <div className="route-editor-form">
             <SearchablePicker id="operation-category" label="Process category *" value={draft.category} placeholder="Search process category…" options={processCategories.map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,category:value,name:"",processDefinitionId:"",subcategory:"",vendorId:""})} allowCustom/>
             <SearchablePicker id="operation-process-type" label="Process type *" value={draft.processDefinitionId || selectedProcessDefinition?.id || ""} placeholder="Search Process Directory definition…" options={processDefinitions.filter(item=>!draft.category||item.category===draft.category).map(item=>({id:item.id,label:item.processType+" · "+item.category}))} onChange={value=>{const definition=processDefinitions.find(item=>item.id===value);const vendorStillAssigned=!definition?.vendorIds?.length||definition.vendorIds.includes(draft.vendorId);setDraft({...draft,processDefinitionId:value,name:definition?.processType||"",category:definition?.category||draft.category,subcategory:"",vendorId:vendorStillAssigned?draft.vendorId:"",processColor:definition?.displayColor||draft.processColor||DEFAULT_PROCESS_COLOR});}}/>
-            <SearchablePicker id="operation-subcategory" label="Process subcategory" value={draft.subcategory} placeholder="Search subcategory…" options={(selectedProcessDefinition?.subcategories||[]).map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,subcategory:value})} allowCustom/>
+            <SearchablePicker id="operation-subcategory" label="Process subcategory" value={draft.processSubcategoryId} placeholder="Select a subcategory linked to this Process Directory definition…" options={(selectedProcessDefinition?.subcategories||[]).map((value,index)=>({id:selectedProcessDefinition.subcategoryIds?.[index] || `${selectedProcessDefinition.id}-subprocess-${String(index+1).padStart(3,"0")}`,label:value}))} onChange={value=>{const index=selectedProcessDefinition?.subcategories.findIndex((_,i)=>(selectedProcessDefinition.subcategoryIds?.[i] || `${selectedProcessDefinition.id}-subprocess-${String(i+1).padStart(3,"0")}`)===value) ?? -1;setDraft({...draft,processSubcategoryId:value,subcategory:selectedProcessDefinition?.subcategories[index]||""});}}/>
             <label className="process-color-field">Process type colour<input type="color" value={draft.processColor||selectedProcessDefinition?.displayColor||DEFAULT_PROCESS_COLOR} onChange={event=>setDraft({...draft,processColor:event.target.value})}/><small>Saved to this Process Directory process type and shared by its operations.</small></label>
             <SearchablePicker id="operation-execution-type" label="Execution type" value={draft.executionType} options={["Internal","Outsourced"].map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,executionType:value as "Internal"|"Outsourced",vendorId:value==="Internal"?"":draft.vendorId})}/>
             <label>Machine / station<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value})} placeholder="Machine / work centre"/></label>
@@ -1181,8 +1221,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           <div className="process-route-flow-heading"><strong>ROUTE FLOW · {exportScopeLabel}</strong><span>{exportOperations.length} selected process record(s) · arrows remain inside their own route</span></div>
           {exportBranches.map(branch=>{
             const lane=exportOperations.filter(operation=>(operation.branch||"Main route")===branch).slice().sort((a,b)=>a.sequence-b.sequence);
-            const branchRoot=lane.find(operation=>operation.parentId&&(operation.relationType==="alternate"||operation.relationType==="rework")&&routeOperations.find(parent=>parent.id===operation.parentId)?.branch!==branch);
-            const parent=branchRoot?routeOperations.find(operation=>operation.id===branchRoot.parentId):undefined;
+            const branchOrigin=resolveBranchOrigin(branch,lane);
+            const branchRoot=branchOrigin?.branchRoot;
+            const parent=branchOrigin?.parent;
             const rework=branchRoot?.relationType==="rework"||/rework/i.test(branch);
             const routeColor=rework?REWORK_ROUTE_COLOR:branchRoot||branch!=="Main route"?ALTERNATE_ROUTE_COLOR:"#5a8fc4";
             return <div className={"process-route-flow-lane "+(rework?"is-rework":branchRoot||branch!=="Main route"?"is-alternate":"is-main")} key={branch}>
@@ -1209,7 +1250,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           })}
         </section>}
         {["sphere","vortex","combined"].includes(visualStyle) && (exportOperations.length > 0 || (routeOperations.length===0 && processDefinitions.length > 0))
-          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} onAddSubprocess={startAddSubprocess} onAddProcessDefinition={startAddDefinition} /></div>
+          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D key={visualStyle} initialLayout={visualStyle==="vortex"?"vortex":visualStyle==="combined"?"digital-mesh":"sphere"} operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} onAddSubprocess={startAddSubprocess} onAddProcessDefinition={startAddDefinition} /></div>
           : visualStyle==="gantt" && exportOperations.length ? <div className="process-gantt-view">
               <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {exportOperations.length} operations in {exportScopeLabel}</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
               {exportOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));const branch=op.branch||"Main route";const color=processAccent(op);const routeColor=branchAccent(op);return <div className={"process-gantt-row "+(branch==="Main route"?"":"is-branch")} key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small><i style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:routeColor,marginRight:5}}/>{branch} · {shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%",backgroundColor:color}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
@@ -1217,8 +1258,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           : exportOperations.length ? <div className={"linked-node-scroll process-visual-"+visualStyle+" " + (visualStyle==="vertical" ? "linked-node-vertical" : "")}><div className="linked-route-lanes" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{exportBranches.map(branch => {
           const laneOperations = exportOperations.filter(op => (op.branch || "Main route") === branch).slice().sort((a,b)=>a.sequence-b.sequence);
           const alternate = branch !== "Main route";
-          const branchRoot=laneOperations.find(operation=>operation.parentId&&(operation.relationType==="alternate"||operation.relationType==="rework")&&routeOperations.find(parent=>parent.id===operation.parentId)?.branch!==branch);
-          const parent=branchRoot?routeOperations.find(operation=>operation.id===branchRoot.parentId):undefined;
+          const branchOrigin=resolveBranchOrigin(branch,laneOperations);
+          const branchRoot=branchOrigin?.branchRoot;
+          const parent=branchOrigin?.parent;
           const rework=branchRoot?.relationType==="rework"||/rework/i.test(branch);
           const routeColor=rework?REWORK_ROUTE_COLOR:alternate?ALTERNATE_ROUTE_COLOR:"#5a8fc4";
           return <section className={"linked-route-lane " + (alternate ? "linked-route-lane-alternate " : "")+(rework?"route-rework":"route-alternate")} style={{borderLeftColor:routeColor}} key={branch}>
