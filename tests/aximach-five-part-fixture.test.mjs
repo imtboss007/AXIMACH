@@ -302,6 +302,17 @@ test("Component Master supplies component-linked identity and PDF/Excel export f
   assert.ok(icons.includes("MechanicalComponentIcon componentName={componentName}"));
 });
 
+test("Component Master opens Logo Studio for each stable component ID and exposes mechanical logo inventory", () => {
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  assert.ok(master.includes('onOpenIconStudio?.(row.id)'));
+  assert.ok(master.includes("Mechanical logo inventory"));
+  assert.ok(master.includes("MECHANICAL_ICON_INVENTORY.length"));
+  assert.ok(app.includes('targetType:"component",targetRecordId:componentId'));
+  assert.ok(studio.includes('targetType: "process" | "component" | "subcategory"'));
+});
+
 test("component logos are rendered as standalone SVGs and embedded in Component Master and PO exports", () => {
   const glyphs = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
   const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
