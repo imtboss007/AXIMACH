@@ -409,15 +409,23 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const route = workbook.addWorksheet("Route Structure");
       route.columns = [
         { header: "Sequence", key: "sequence", width: 12 }, { header: "Branch", key: "branch", width: 24 },
-        { header: "Parent operation ID", key: "parentId", width: 38 }, { header: "Operation ID", key: "id", width: 38 },
-        { header: "Process", key: "process", width: 28 }, { header: "Next arrow", key: "next", width: 18 }
+        { header: "Relation", key: "relation", width: 15 }, { header: "Parent operation ID", key: "parentId", width: 38 },
+        { header: "Parent process", key: "parentProcess", width: 28 }, { header: "Operation ID", key: "id", width: 38 },
+        { header: "Process", key: "process", width: 28 }, { header: "Next process", key: "nextProcess", width: 28 },
+        { header: "Next operation ID", key: "nextId", width: 38 }, { header: "Next arrow", key: "next", width: 30 }
       ];
       route.addRows(exportOperations.map(op => {
         const branch = op.branch || "Main route";
-        const nextInSameRoute = exportOperations.some(candidate => (candidate.branch || "Main route") === branch && candidate.sequence > op.sequence);
+        const nextInSameRoute = exportOperations
+          .filter(candidate => (candidate.branch || "Main route") === branch && candidate.sequence > op.sequence)
+          .sort((a,b)=>a.sequence-b.sequence)[0];
+        const parent = op.parentId ? routeOperations.find(candidate=>candidate.id===op.parentId) : undefined;
         return {
-          sequence: op.sequence, branch, parentId: op.parentId || "", id: op.id,
-          process: op.name, relation: op.relationType || "main", next: exportArrows && nextInSameRoute ? "Next operation in same route" : ""
+          sequence: op.sequence, branch, relation: op.relationType || "main",
+          parentId: op.parentId || "", parentProcess: parent?.name || "",
+          id: op.id, process: op.name,
+          nextProcess: nextInSameRoute?.name || "", nextId: nextInSameRoute?.id || "",
+          next: exportArrows && nextInSameRoute ? "→ " + nextInSameRoute.name : ""
         };
       }));
       route.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
