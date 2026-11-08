@@ -522,7 +522,7 @@ test("Every process row can open Logo Studio for its own Process Directory recor
   assert.ok(workspace.includes("onOpenIconStudio?.(row.id)"));
   assert.ok(app.includes("onOpenIconStudio={(processDefinitionId)=>"));
   assert.ok(app.includes("initialTarget={iconStudioTarget}"));
-  assert.ok(studio.includes('initialTarget?: { targetType: "process"; targetRecordId: string } | null'));
+  assert.ok(studio.includes('initialTarget?: { targetType: "process" | "component" | "subcategory"; targetRecordId: string } | null'));
   assert.ok(studio.includes("setTargetRecordId(initialTarget.targetRecordId)"));
 });
 
