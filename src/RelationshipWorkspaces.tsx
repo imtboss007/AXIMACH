@@ -74,7 +74,8 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
   const capabilityRows=processDefinitions.filter(definition=>(definition.vendorIds||[]).includes(vendorId));
   const contactDefinitionIds=contactProcessDefinitionIds(row);
   const linkedDefinitionIds=[...new Set([...capabilityRows.map(definition=>definition.id),...contactDefinitionIds])];
-  const rowCategories=[...capabilityRows.map(definition=>definition.category),...(row.processCategories||[])].join(" ").toLowerCase();
+  const contactDefinitionCategories=contactDefinitionIds.map(id=>processDefinitions.find(definition=>definition.id===id)?.category||"");
+  const rowCategories=[...capabilityRows.map(definition=>definition.category),...contactDefinitionCategories,...(row.processCategories||[])].join(" ").toLowerCase();
   const capabilitySubcategoryIds=capabilityRows.flatMap(definition=>(definition.subcategories||[]).map((_,index)=>stableContactSubcategoryId(definition,index)));
   const contactSubcategoryIds=row.processSubcategoryIds||[];
   const customContactSubcategoryIds=(row.processSubcategories||[]).map(name=>"contact:"+name.trim().toLowerCase());
