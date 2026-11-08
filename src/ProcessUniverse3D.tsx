@@ -4,8 +4,9 @@ import { Activity, ArrowRight, Boxes, ClipboardCheck, Cog, Cpu, Disc3, GitBranch
 import type { OperationRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
 
-type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; vendorIds?: string[]; displayColor?: string };
-type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; selectedOperationId: string; simulationIndex: number; zoom: number; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
+type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
+type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh";
+type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
 function fallbackFor(name: string) {
   const value = name.toLowerCase();
@@ -24,14 +25,14 @@ function fallbackFor(name: string) {
 
 type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh";
 
-export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
+export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
   const displayOperations = parentOperations.length ? parentOperations : operations;
   const lookupOperations = allOperations || operations;
   const subprocessesFor = (parentId: string) => lookupOperations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
   const branchesFor = (parentId: string) => lookupOperations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
-  const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>("sphere");
+  const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>(initialLayout);
   const rotateX = useMotionValue(-12);
   const rotateY = useMotionValue(18);
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
@@ -80,11 +81,31 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
     }
     return [...grouped.entries()].map(([name, rows]) => {
       const ordered = rows.slice().sort((a,b) => a.sequence-b.sequence);
-      const branchRoot = ordered.find(row => row.parentId && (row.relationType === "alternate" || row.relationType === "rework") && lookupOperations.find(item=>item.id===row.parentId)?.branch !== name);
-      const parent = branchRoot ? lookupOperations.find(item=>item.id===branchRoot.parentId) : undefined;
+      let branchRoot: OperationRecord | undefined;
+      let parent: OperationRecord | undefined;
+      if (name !== "Main route") {
+        for (const candidate of ordered) {
+          if (candidate.relationType !== "alternate" && candidate.relationType !== "rework") continue;
+          let current = candidate;
+          let ancestor = lookupOperations.find(item => item.id === current.parentId);
+          let guard = 0;
+          // Walk through later branch steps until we reach the original operation
+          // outside this branch. This still works when the active route scope only
+          // contains one selected branch step rather than the branch root.
+          while (ancestor && (ancestor.branch || "Main route") === name && ancestor.parentId && guard++ < lookupOperations.length) {
+            current = ancestor;
+            ancestor = lookupOperations.find(item => item.id === current.parentId);
+          }
+          if (ancestor && (ancestor.branch || "Main route") !== name) {
+            branchRoot = current;
+            parent = ancestor;
+            break;
+          }
+        }
+      }
       return { name, rows: ordered, alternate: name !== "Main route", branchRoot, parent, branchRelation: branchRoot?.relationType };
     });
-  }, [parentOperations]);
+  }, [parentOperations, lookupOperations]);
   const stageStyle: CSSProperties = { transform: `scale(${zoom}) rotateX(2deg)`, transformOrigin: "top left", width: `${100 / zoom}%` };
 
   return <section className={"process-universe-3d mode-" + layoutMode} aria-label="Interactive 3D process route graph">
