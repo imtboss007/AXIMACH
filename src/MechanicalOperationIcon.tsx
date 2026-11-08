@@ -40,6 +40,7 @@ const rules: Array<[RegExp, ToolGlyph]> = [
   [/slot mill|slotting mill|keyway milling/, "slot-mill"],
   [/chamfer|deburr bevel/, "chamfer"],
   [/end mill|end milling|pocket milling|profile milling|contour milling|helical milling/, "end-mill"],
+  [/\bmilling\b|mill operation|milling operation/, "end-mill"],
   [/turn|facing|cnc lathe|profile turning/, "turning-insert"],
   [/groov|undercut/, "grooving"],
   [/threading|thread turning|external thread/, "threading-insert"],
