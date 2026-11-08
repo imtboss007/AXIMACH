@@ -1031,6 +1031,12 @@ test("Dashboard module and live-record spheres rotate and pause independently", 
   assert.ok(orb.includes("setAutoRotateRecords"));
   assert.ok(orb.includes("autoRotateRecords && !lowerDrag.current"));
   assert.ok(orb.includes("ax-orb-record-pause"));
+  assert.ok(orb.includes("saved.current.manualRotationPreferenceSet === true && saved.current.autoRotate === true"));
+  assert.ok(orb.includes("saved.current.manualRotationPreferenceSet === true && saved.current.autoRotateRecords === true"));
+  assert.ok(orb.includes("manualRotationPreferenceSet:true"));
+  const sphere = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
+  assert.ok(sphere.includes("float h = b*b - (dot(ro,ro) - 1.0)"));
+  assert.ok(sphere.includes("The globe remains spherical and never auto-rotates while idle."));
 });
 
 test("Logo Studio lists and renders the authored mechanical tool and transport glyph inventory", () => {
