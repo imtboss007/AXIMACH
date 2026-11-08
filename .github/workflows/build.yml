@@ -65,6 +65,7 @@ jobs:
     timeout-minutes: 30
     env:
       ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+      ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -162,6 +163,16 @@ jobs:
           PY
       - name: Sync Android project
         run: npx cap sync android
+      - name: Use direct Gradle distribution host
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          wrapper = Path("android/gradle/wrapper/gradle-wrapper.properties")
+          value = wrapper.read_text(encoding="utf-8")
+          if "services.gradle.org" not in value:
+              raise SystemExit("Expected Gradle wrapper distribution URL was not found.")
+          wrapper.write_text(value.replace("services.gradle.org", "downloads.gradle.org"), encoding="utf-8")
+          PY
       - name: Build debug APK
         run: |
           cd android
