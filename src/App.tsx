@@ -259,7 +259,7 @@ function App() {
         ) : activeModuleId === "costing" ? (
           <LinkedCostingWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" || activeModuleId === "planned-cost" ? (
-          <SpecializedDirectoryWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <SpecializedDirectoryWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} />
         ) : activeModuleId === "transport-master" ? (
           <TransportDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenContact360={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
         ) : activeModuleId === "reports" ? (
