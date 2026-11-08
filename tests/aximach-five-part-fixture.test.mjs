@@ -209,12 +209,16 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(!orb.includes("rotateY:360"));
   assert.ok(!orb.includes("rotate:360"));
   assert.ok(orb.includes('transform: "translate3d(" + x + "px," + y + "px," + z + "px)'));
-  assert.ok(orb.includes("Math.sqrt(Math.max(0.08, 1 - radialX * radialX - radialY * radialY))"));
-  assert.ok(orb.includes('{ count: 4, radial: 0.40'));
-  assert.ok(orb.includes('{ count: 6, radial: 0.65'));
-  assert.ok(orb.includes('{ count: 8, radial: 0.90'));
+  assert.ok(orb.includes("const goldenAngle = Math.PI * (3 - Math.sqrt(5))"));
+  assert.ok(orb.includes("const unitY = 1 - 2 * ((index + 0.5) / satellites.length)"));
+  assert.ok(orb.includes("const ringRadius = Math.sqrt(Math.max(0, 1 - unitY * unitY))"));
+  assert.ok(orb.includes("const yaw = Math.atan2(unitX, unitZ) * 180 / Math.PI"));
+  assert.ok(orb.includes("const pitch = -Math.asin(unitY) * 180 / Math.PI"));
+  assert.ok(orb.includes("compactViewport ? 86 : 106"));
+  assert.ok(orb.includes('rotateY(" + yaw + "deg) rotateX(" + pitch + "deg)'));
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   assert.match(css, /\.ax-orb-module-shell \{[\s\S]*?pointer-events:none;[\s\S]*?transform-style:preserve-3d;/);
+  assert.match(css, /\.ax-orb-module-shell \.ax-orb-satellite \{[\s\S]*?backface-visibility:hidden;/);
   assert.match(css, /\.ax-orb-lower-shell \{[\s\S]*?position:relative;[\s\S]*?bottom:auto;/);
 });
 
