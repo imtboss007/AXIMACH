@@ -416,7 +416,8 @@ test("Process Plan Add operation dropdown exposes working operation and route ac
     "Create rework branch from selected",
     "Add step inside selected branch"
   ]) assert.ok(workspace.includes(option), "missing Add Operation menu option: " + option);
-  assert.ok(workspace.includes("setShowAddMenu(value=>!value)"));
+  assert.ok(workspace.includes("const toggleAddMenu = () =>"));
+  assert.ok(workspace.includes("const openAddMenu = () =>"));
   assert.ok(workspace.includes("onClick={()=>startAddDefinition(addMenuDefinitionId)}"));
   assert.ok(workspace.includes("onClick={()=>activeOperation&&startAddSubprocess(activeOperation.id)}"));
   assert.ok(workspace.includes("onClick={()=>startAddBranch(\"alternate\")}"));
@@ -508,6 +509,8 @@ test("Dashboard spheres only rotate on direct drag and dashboard navigation butt
   assert.ok(!orb.includes("rotateY:360"));
   assert.ok(!orb.includes("rotate:360"));
   assert.ok(orb.includes("const startDrag ="));
+  assert.ok(orb.includes('className="ax-orb-depth" style={{rotateX,rotateY'));
+  assert.ok(orb.includes("const dragSensitivity = speed ==="));
   assert.ok(orb.includes("const startLowerDrag ="));
   assert.ok(orb.includes("onPointerDown={startLowerDrag}"));
   assert.ok(orb.includes("onPointerDown={event=>{event.stopPropagation();startLowerDrag(event);}}"));
