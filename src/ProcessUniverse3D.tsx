@@ -5,7 +5,7 @@ import type { OperationRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
-type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
+type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
 function fallbackFor(name: string) {
   const value = name.toLowerCase();
@@ -24,7 +24,7 @@ function fallbackFor(name: string) {
 
 type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh";
 
-export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
+export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const fieldVisible = (field: string) => visibleFields.includes(field);
   const dateLabel = (value?: string) => value ? value.slice(0, 10) : "Not set";
@@ -207,10 +207,12 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
                 {fieldVisible("vendor") && <small>Vendor · {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "Not assigned"}</small>}
                 {fieldVisible("plannedStart") && <small>Start · {dateLabel(operation.plannedStart)}</small>}
                 {fieldVisible("plannedEnd") && <small>Delivery · {dateLabel(operation.plannedEnd)}</small>}
-                {fieldVisible("quantity") && <small>Quantity · {operation.quantity.toLocaleString("en-IN")} pcs</small>}
-                {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} pcs</small>}
+                {fieldVisible("quantity") && <small>Quantity · {operation.quantity.toLocaleString("en-IN")} {quantityUnit}</small>}
+                {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} {quantityUnit}</small>}
                 {fieldVisible("price") && <small>Price / part · ₹{(operation.actualRatePerPart || operation.ratePerPart).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
                 {fieldVisible("amount") && <small>Process amount · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                {fieldVisible("transportLegCost") && <small>Transport amount · ₹{(operationTransportAmounts[operation.id] || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                {fieldVisible("combinedAmount") && <small>Process + transport · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart) + (operationTransportAmounts[operation.id] || 0)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
                 {fieldVisible("status") && <small>Status · {operation.status}</small>}
                 {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
                 {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
@@ -264,10 +266,12 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
                 {fieldVisible("vendor") && <small>Vendor · {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "Not assigned"}</small>}
                 {fieldVisible("plannedStart") && <small>Start · {dateLabel(operation.plannedStart)}</small>}
                 {fieldVisible("plannedEnd") && <small>Delivery · {dateLabel(operation.plannedEnd)}</small>}
-                {fieldVisible("quantity") && <small>Quantity · {operation.quantity.toLocaleString("en-IN")} pcs</small>}
-                {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} pcs</small>}
+                {fieldVisible("quantity") && <small>Quantity · {operation.quantity.toLocaleString("en-IN")} {quantityUnit}</small>}
+                {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} {quantityUnit}</small>}
                 {fieldVisible("price") && <small>Price / part · ₹{(operation.actualRatePerPart || operation.ratePerPart).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
                 {fieldVisible("amount") && <small>Process amount · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                {fieldVisible("transportLegCost") && <small>Transport amount · ₹{(operationTransportAmounts[operation.id] || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                {fieldVisible("combinedAmount") && <small>Process + transport · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart) + (operationTransportAmounts[operation.id] || 0)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
                 {fieldVisible("status") && <small>Status · {operation.status}</small>}
                 {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
                 {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
