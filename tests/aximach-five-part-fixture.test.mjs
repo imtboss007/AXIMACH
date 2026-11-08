@@ -860,3 +860,18 @@ test("All non-3D Process Plan views expose the same Process Directory definition
     assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
   }
 });
+
+
+test("Process Plan panels expose independent native expand/collapse sections", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const panels = [
+    "component-transport-map-strip","process-map-filter-panel","process-route-scope-panel",
+    "linked-route-canvas","process-operation-table-panel","linked-operation-side",
+    "linked-cost-card","linked-timeline-card","linked-process-table"
+  ];
+  for (const panel of panels) {
+    assert.ok(workspace.includes('<details open className="surface-panel ' + panel + '"'), "missing open/close panel " + panel);
+  }
+  assert.equal((workspace.match(/<details open/g) || []).length, (workspace.match(/<\/details>/g) || []).length);
+  assert.ok(workspace.includes("<summary className=\"panel-heading\">"));
+});

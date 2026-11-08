@@ -1846,3 +1846,34 @@
 .process-view-directory-catalog-grid>button em { color:#8de5ef; font-size:9px; font-style:normal; font-weight:800; }
 @media(max-width:700px) { .linked-route-actions,.linked-route-visual-controls { align-items:stretch; } .transport-leg-menu-anchor,.transport-leg-menu-anchor>button { width:100%; } .transport-leg-menu-anchor>button { justify-content:center; } .process-view-directory-catalog-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .process-map-filter-grid,.process-map-filter-numeric { grid-template-columns:repeat(2,minmax(0,1fr)); } .process-universe-viewport { width:100%; } }
 @media(max-width:420px) { .process-view-directory-catalog-grid,.process-map-filter-grid,.process-map-filter-numeric { grid-template-columns:minmax(0,1fr); } .panel-collapse-toggle { min-height:30px; padding:5px 8px; } }
+
+
+/* Native expand/collapse headers used by the Process Plan data panels. */
+details.surface-panel { display:block; min-width:0; }
+details.surface-panel > summary.panel-heading {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  cursor:pointer;
+  list-style:none;
+  user-select:none;
+}
+details.surface-panel > summary.panel-heading::-webkit-details-marker { display:none; }
+details.surface-panel > summary.panel-heading::marker { content:""; }
+details.surface-panel > summary.panel-heading:focus-visible {
+  outline:2px solid #6ed9f1;
+  outline-offset:3px;
+  border-radius:8px;
+}
+details.surface-panel[open] > summary.panel-heading { margin-bottom:12px; }
+details.surface-panel:not([open]) > summary.panel-heading { margin-bottom:0; }
+details.surface-panel > summary.panel-heading > button,
+details.surface-panel > summary.panel-heading .relationship-actions { flex-shrink:0; }
+@media(max-width:700px) {
+  details.surface-panel > summary.panel-heading { align-items:flex-start; flex-wrap:wrap; }
+  details.surface-panel > summary.panel-heading .relationship-actions { width:100%; justify-content:flex-start; }
+}
+@media print {
+  details.surface-panel:not([open]) > :not(summary) { display:block !important; }
+}
