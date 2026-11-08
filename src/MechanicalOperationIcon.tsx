@@ -98,7 +98,6 @@ export const MECHANICAL_ICON_INVENTORY: Array<{ glyph: ToolGlyph; label: string;
   {glyph:"powder-coating-gun",label:"Coating / finishing gun",application:"Powder coating, painting and surface finishing"},
   {glyph:"assembly-tool",label:"Assembly tool",application:"Mechanical assembly, fastening and press-fit operations"},
   {glyph:"transport-truck",label:"Transport / dispatch",application:"Vendor collection, route movement, logistics and delivery"},
-  {glyph:"material-stock",label:"Material stock",application:"Bar stock, sheet blanks and raw-material preparation"},
   {glyph:"cnc-machine",label:"CNC machining centre",application:"CNC production centres, enclosed machining cells and multi-axis machining"},
   {glyph:"vmc-machine",label:"VMC machine",application:"Vertical machining centres, spindle stations and milling work centres"},
   {glyph:"lathe-machine",label:"CNC lathe / turning centre",application:"CNC turning machines, chucking lathes and turning cells"},
@@ -108,8 +107,7 @@ export const MECHANICAL_ICON_INVENTORY: Array<{ glyph: ToolGlyph; label: string;
   {glyph:"welding-station",label:"Welding station",application:"MIG, TIG, arc welding and robotic welding cells"},
   {glyph:"fixture-jig",label:"Fixture / jig / workholding",application:"Jigs, fixtures, clamps, datum locators and production workholding"},
   {glyph:"cmm-machine",label:"CMM / inspection machine",application:"Bridge CMMs, probing systems and coordinate metrology"},
-  {glyph:"caliper",label:"Caliper / dimensional gauge",application:"Vernier calipers, micrometers, height gauges and dimensional checks"},
-  {glyph:"component-block",label:"Generic component",application:"Mechanical component fallback symbol"}
+  {glyph:"caliper",label:"Caliper / dimensional gauge",application:"Vernier calipers, micrometers, height gauges and dimensional checks"}
 ];
 
 export function MechanicalIconGlyph({ glyph, label, className = "" }: { glyph: ToolGlyph; label?: string; className?: string }) {
