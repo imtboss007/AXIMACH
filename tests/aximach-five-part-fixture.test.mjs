@@ -1372,3 +1372,16 @@ test("Process Universe node offers real alternate and rework creation from the s
   assert.ok(css.includes("background:#eaf4ff;color:#155fa4"));
   assert.ok(css.includes("background:#fff3e8;color:#a95c20"));
 });
+
+
+test("Costing rollup has linked searchable process and payment filters with one clear-all action", () => {
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  for (const id of ["costing-filter-process-category", "costing-filter-process-type", "costing-filter-process-subcategory", "costing-filter-execution", "costing-filter-payment"]) {
+    assert.ok(costing.includes('id="'+id+'"'), "missing costing filter: "+id);
+  }
+  assert.ok(costing.includes("row.linkedOperations.some(op=>rollupCategoryFilters.includes"));
+  assert.ok(costing.includes("row.linkedOperations.some(op=>rollupProcessFilters.includes(op.name))"));
+  assert.ok(costing.includes("row.linkedOperations.some(op=>rollupPaymentFilters.includes(op.paymentStatus||\"Unpaid\"))"));
+  assert.ok(costing.includes("setRollupCategoryFilters([])"));
+  assert.ok(costing.includes("setRollupPaymentFilters([])"));
+});
