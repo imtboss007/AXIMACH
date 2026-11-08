@@ -102,7 +102,11 @@ test("Quality Inspection limits the measurement selector to search-visible opera
 test("Production Plan hides inactive transport routes and Transport Directory rejects archived vendors", () => {
   const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
   const transport = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(operations.includes("route.vendorId===draft.vendorId&&route.active!==false"));
+  assert.ok(!operations.includes("const openTransport=(poId:string,lineId:string)"));
+  assert.ok(!operations.includes("route.vendorId===draft.vendorId&&route.active!==false"));
+  assert.ok(!operations.includes("<th>Transport</th>"));
+  assert.ok(operations.includes('onSelectModule("transport-master")'));
+  assert.ok(operations.includes("Attach a route before or after a process from Process Map"));
   assert.ok(transport.includes("!vendors.some(vendor => vendor.id === vendorId)"));
 });
 
@@ -1326,4 +1330,16 @@ test("Process Map validates category and process type before saving an operation
   const handler = workspace.slice(start, end);
   assert.ok(handler.includes('if (!draft.category.trim()) { onNotice("Select or enter a process category.")'));
   assert.ok(handler.includes('if (!draft.name.trim()) { onNotice("Select or enter a process type.")'));
+});
+
+
+test("Production Plan no longer owns the component transport registry or inline transport editor", () => {
+  const workspace = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const production = workspace.slice(workspace.indexOf("export function ProductionPlanWorkspace"), workspace.indexOf("export function TransportDispatchWorkspace"));
+  assert.ok(!production.includes("transportLine"));
+  assert.ok(!production.includes("saveTransport"));
+  assert.ok(!production.includes("jobTransportLegs"));
+  assert.ok(!production.includes("<th>Transport</th>"));
+  assert.ok(production.includes('onSelectModule("transport-master")'));
+  assert.ok(production.includes('onSelectModule("process-map"'));
 });
