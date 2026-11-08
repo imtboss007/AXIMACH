@@ -933,7 +933,8 @@ test("Process Map route scopes intersect active filters before diagram and expor
   const scopeEnd = workspace.indexOf("const exportScopeLabel =", scopeStart);
   const scope = workspace.slice(scopeStart, scopeEnd);
   assert.ok(scope.includes("const source = visibleOperations"));
-  assert.ok(scope.includes('if (scope === "all") return source'));
+  assert.ok(scope.includes('if (scope === "all") return routeOperations'), "All routes must retain the complete saved route graph");
+  assert.ok(scope.includes('if (scope === "filtered") return source'), "Filtered results must remain filter-scoped");
   assert.ok(scope.includes('if (scope === "main") return source.filter'));
   assert.ok(scope.includes('if (scope === "rework") return source.filter'));
   assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
@@ -1258,4 +1259,15 @@ test("AXIMACH sphere drag does not capture pointer input from clickable module c
   assert.ok(guard >= 0 && capture > guard, "interactive controls must be ignored before drag pointer capture");
   assert.ok(start.includes('event.target.closest("button, a, input, select, textarea, [role=\'button\']")'));
   assert.ok(orb.includes('onClick={() => { if (!dragMoved.current) onSelectModule(id); }}'));
+});
+
+
+test("Process Map permits saving a planned outsourced operation before vendor assignment", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const saveStart = workspace.indexOf("const saveOperation =");
+  const saveEnd = workspace.indexOf("const deleteOperation =", saveStart);
+  const saveHandler = workspace.slice(saveStart, saveEnd);
+  assert.ok(saveHandler.includes("if (draft.vendorId && !vendors.some"), "A supplied vendor must still resolve to an active vendor record");
+  assert.ok(!saveHandler.includes('draft.executionType === "Outsourced" && !draft.vendorId'), "Vendor assignment must not block saving a planned outsourced process");
+  assert.ok(saveHandler.includes("operations: [...current.operations.filter(op => op.id !== next.id), next]"));
 });
