@@ -604,23 +604,23 @@ test("Five fixture parts create independent multi-process routes linked by stabl
   assert.ok(workspace.includes("id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id"));
 });
 
-test("Dashboard spheres auto-rotate by default, support pause and manual drag, and navigate to the correct workspaces", () => {
+test("Dashboard spheres are manual-drag only, lock independently, and navigate to the correct workspaces", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
   const process = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   assert.ok(!orb.includes("useAnimationFrame"));
   assert.ok(!orb.includes("rotateY:360"));
   assert.ok(!orb.includes("rotate:360"));
-  assert.ok(orb.includes("const [autoRotate, setAutoRotate]"));
-  assert.ok(orb.includes("window.setInterval"));
-  assert.ok(orb.includes("if ((!autoRotate && !autoRotateRecords) || reduceMotion || reducedMotion) return"));
-  assert.ok(orb.includes("if (autoRotate && !drag.current) rotateY.set"));
-  assert.ok(orb.includes("if (autoRotateRecords && !lowerDrag.current) lowerRotateY.set"));
-  assert.ok(orb.includes("[autoRotate, autoRotateRecords, reduceMotion, reducedMotion, speed, rotateY, lowerRotateY]"));
-  assert.ok(orb.includes("Pause modules"));
-  assert.ok(orb.includes("Resume modules"));
-  assert.ok(orb.includes("Pause records"));
-  assert.ok(orb.includes("Resume records"));
+  assert.ok(!orb.includes("window.setInterval"));
+  assert.ok(orb.includes("const [moduleRotationEnabled, setModuleRotationEnabled]"));
+  assert.ok(orb.includes("const [recordRotationEnabled, setRecordRotationEnabled]"));
+  assert.ok(orb.includes("if (!moduleRotationEnabled) return"));
+  assert.ok(orb.includes("if (!recordRotationEnabled) return"));
+  assert.ok(orb.includes("Lock modules"));
+  assert.ok(orb.includes("Enable module drag"));
+  assert.ok(orb.includes("Lock records"));
+  assert.ok(orb.includes("Enable record drag"));
+  assert.ok(orb.includes("NO IDLE ROTATION"));
   assert.ok(orb.includes("const startDrag ="));
   assert.ok(orb.includes('className="ax-orb-depth" style={{rotateX,rotateY'));
   assert.ok(orb.includes("const dragSensitivity = speed ==="));
@@ -685,10 +685,10 @@ test("AXIMACH command sphere module buttons can be dragged without losing click 
   assert.ok(orb.includes("onPointerMove={moveDrag}"));
   assert.ok(orb.includes("onPointerUp={endDrag}"));
   assert.ok(orb.includes("if (!dragMoved.current) onSelectModule(id)"));
-  assert.ok(orb.includes("Both shells stay still while idle. Dragging is the default rotation control;"));
-  assert.ok(orb.includes("saved.current.manualRotationPreferenceSet === true && saved.current.autoRotate === true"));
-  assert.ok(orb.includes("saved.current.manualRotationPreferenceSet === true && saved.current.autoRotateRecords === true"));
-  assert.ok(orb.includes("manualRotationPreferenceSet:true"));
+  assert.ok(orb.includes("Both shells stay still while idle. Only a direct pointer/touch drag changes"));
+  assert.ok(orb.includes("saved.current.moduleRotationEnabled !== false"));
+  assert.ok(orb.includes("saved.current.recordRotationEnabled !== false"));
+  assert.ok(!orb.includes("window.setInterval"));
   assert.ok(!orb.includes("rotate gently by default"));
   assert.ok(orb.includes("onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag}"));
   assert.ok(orb.includes("if (!lowerDragMoved.current) onSelectModule(id)"));
@@ -1046,15 +1046,15 @@ test("CI skips Electron binary download for frontend and Android jobs only", () 
   assert.ok(!windows.includes("ELECTRON_SKIP_BINARY_DOWNLOAD"));
 });
 
-test("Dashboard module and live-record spheres rotate and pause independently", () => {
+test("Dashboard module and live-record spheres are independently draggable and never auto-rotate", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  assert.ok(orb.includes("autoRotateRecords"));
-  assert.ok(orb.includes("setAutoRotateRecords"));
-  assert.ok(orb.includes("autoRotateRecords && !lowerDrag.current"));
-  assert.ok(orb.includes("ax-orb-record-pause"));
-  assert.ok(orb.includes("saved.current.manualRotationPreferenceSet === true && saved.current.autoRotate === true"));
-  assert.ok(orb.includes("saved.current.manualRotationPreferenceSet === true && saved.current.autoRotateRecords === true"));
-  assert.ok(orb.includes("manualRotationPreferenceSet:true"));
+  assert.ok(orb.includes("moduleRotationEnabled"));
+  assert.ok(orb.includes("recordRotationEnabled"));
+  assert.ok(orb.includes("setModuleRotationEnabled"));
+  assert.ok(orb.includes("setRecordRotationEnabled"));
+  assert.ok(orb.includes("saved.current.moduleRotationEnabled !== false"));
+  assert.ok(orb.includes("saved.current.recordRotationEnabled !== false"));
+  assert.ok(!orb.includes("window.setInterval"));
   const sphere = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
   assert.ok(sphere.includes("float h = b*b - (dot(ro,ro) - 1.0)"));
   assert.ok(sphere.includes("The globe remains spherical and never auto-rotates while idle."));
