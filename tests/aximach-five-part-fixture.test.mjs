@@ -130,13 +130,17 @@ test("Production Plan bulk finish checks incomplete operations against exact PO 
   assert.ok(workspace.includes("selectedIds.has(op.poId+\":\"+op.poLineId)"));
 });
 
-test("Transport assignment rejects inactive directory routes in both creation workflows", () => {
-  const production = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+test("Transport route ownership stays in Transport Directory and Process Plan rejects inactive saved routes", () => {
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const production = operations.slice(operations.indexOf("export function ProductionPlanWorkspace"), operations.indexOf("export function TransportDispatchWorkspace"));
   const processPlan = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(production.includes("if(route.active===false)"));
-  assert.ok(production.includes("route.active!==false"));
+  assert.ok(!production.includes("transportLine"));
+  assert.ok(!production.includes("openTransport("));
+  assert.ok(!production.includes("jobTransportLegs"));
+  assert.ok(production.includes('onSelectModule("transport-master")'));
   assert.ok(processPlan.includes("selectedTransportDirectoryRoute.active===false"));
   assert.ok(processPlan.includes("route.active!==false"));
+  assert.ok(processPlan.includes("componentTransportLegs"));
 });
 
 test("Process Plan transport assignment rejects missing vendors and invalid master rates", () => {
@@ -458,13 +462,18 @@ test("Purchase Orders exposes column-wise searchable filters and guarded delete-
   assert.ok(workspace.includes("Delete all components"));
 });
 
-test("Production Plan renders saved transport legs with route, anchor, vendor and trip details", () => {
-  const production = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
-  assert.ok(production.includes("jobTransportLegs.map(leg=>"));
-  assert.ok(production.includes('leg.placement==="start"?"At component start":leg.placement==="before"?"Before":"After"'));
-  assert.ok(production.includes("leg.fromLocation} → {leg.toLocation}"));
-  assert.ok(production.includes("leg.tripCount} trip(s)"));
-  assert.ok(production.includes("leg.status||\"Queued\""));
+test("Production Plan routes transport entry through Process Plan and keeps transport legs separate", () => {
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const production = operations.slice(operations.indexOf("export function ProductionPlanWorkspace"), operations.indexOf("export function TransportDispatchWorkspace"));
+  const processPlan = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(!production.includes("jobTransportLegs"));
+  assert.ok(!production.includes("<th>Transport</th>"));
+  assert.ok(production.includes("Attach a route before or after a process from Process Map"));
+  assert.ok(production.includes('onSelectModule("process-map"'));
+  assert.ok(processPlan.includes("const componentTransportLegs = allTransportLegs.filter"));
+  assert.ok(processPlan.includes("const operationTransportAmount = (operation: OperationRecord)"));
+  assert.ok(processPlan.includes("Add component transport entry"));
+  assert.ok(processPlan.includes("anchorOperationId: transportPlacement === \"start\" ? \"\" : transportAnchorOperationId"));
 });
 
 test("Process Plan Add operation dropdown exposes working operation and route actions", () => {
@@ -676,9 +685,11 @@ test("AXIMACH command sphere module buttons can be dragged without losing click 
   assert.ok(orb.includes("onPointerMove={moveDrag}"));
   assert.ok(orb.includes("onPointerUp={endDrag}"));
   assert.ok(orb.includes("if (!dragMoved.current) onSelectModule(id)"));
-  assert.ok(orb.includes("rotate gently by default"));
-  assert.ok(orb.includes("AUTO-ROTATING"));
-  assert.ok(!orb.includes("Both spheres are stationary until the user drags them. No idle auto-rotation."));
+  assert.ok(orb.includes("Both shells stay still while idle. Dragging is the default rotation control;"));
+  assert.ok(orb.includes("saved.current.manualRotationPreferenceSet === true && saved.current.autoRotate === true"));
+  assert.ok(orb.includes("saved.current.manualRotationPreferenceSet === true && saved.current.autoRotateRecords === true"));
+  assert.ok(orb.includes("manualRotationPreferenceSet:true"));
+  assert.ok(!orb.includes("rotate gently by default"));
   assert.ok(orb.includes("onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag}"));
   assert.ok(orb.includes("if (!lowerDragMoved.current) onSelectModule(id)"));
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
@@ -838,8 +849,10 @@ test("Logo Studio limits selectable and persisted symbols to mechanical and tran
   const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
   const mechanical = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
   assert.ok(studio.includes("MECHANICAL_ICON_NAME_PATTERN"));
-  assert.ok(studio.includes("tablerIconCatalogue.filter((item) => isMechanicalStudioIcon(item.name))"));
-  assert.ok(studio.includes('useState("outline:tools")'));
+  assert.ok(studio.includes("const ICONS: IconMeta[] = engineeredMechanicalIcons;"));
+  assert.ok(!studio.includes("tablerIconCatalogue"));
+  assert.ok(studio.includes("useState(() => iconKey(ICONS[0]))"));
+  assert.ok(studio.includes("Mechanical &amp; transport logos"));
   assert.ok(studio.includes("!isMechanicalStudioIcon(assignment.iconName)"));
   assert.ok(mechanical.includes('mechanicalGlyphForOperation(operation) || "component-block"'));
 });
@@ -1406,9 +1419,12 @@ test("Component Planned Cost subcategory filter is linked to the saved planned-c
 
 test("Add Operation menu remains clickable and explains the required PO component selection", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  const button = workspace.slice(workspace.indexOf('aria-label="Add operation ▾"')-180, workspace.indexOf('aria-label="Add operation ▾"')+340);
+  const buttonIndex = workspace.indexOf('aria-label="Add operation ▾"');
+  const buttonStart = workspace.lastIndexOf("<button", buttonIndex);
+  const buttonEnd = workspace.indexOf(">", buttonIndex);
+  const button = workspace.slice(buttonStart, buttonEnd + 1);
   assert.ok(button.includes("onClick={toggleAddMenu}"));
-  assert.ok(!button.includes("disabled={"));
+  assert.ok(!button.includes("disabled="));
   assert.ok(workspace.includes('"Select a PO component line first"'));
   assert.ok(workspace.includes("saving an operation requires a valid PO component line"));
 });
