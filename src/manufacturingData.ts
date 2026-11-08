@@ -67,6 +67,8 @@ export type FollowUpAssignmentRecord = {
 };
 export type ProcessDefinitionRecord = {
   id: string; processType: string; category: string; subcategories: string[]; subcategoryIds?: string[]; vendorIds: string[];
+  /** User-selected identity colour applied consistently to every operation from this process type. */
+  displayColor?: string;
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type PlannedCostEntry = {
@@ -84,6 +86,8 @@ export type OperationRecord = {
   paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;
   executionType?: "Internal" | "Outsourced"; toleranceCategory?: "Standard" | "Precision" | "Close" | "Ultra Precision"; inspectionRequired?: boolean;
   transportFrom?: string; transportTo?: string; transportVehicleType?: string; transportRouteId?: string;
+  /** Snapshot of the Process Directory identity colour used by this saved operation. */
+  processColor?: string;
   branch: string; parentId: string; relationType?: "subprocess" | "alternate" | "rework"; costIncluded?: boolean; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type QuotationRecord = {
