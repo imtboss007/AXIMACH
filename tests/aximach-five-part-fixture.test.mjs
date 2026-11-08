@@ -1092,8 +1092,9 @@ test("Windows installer uses mirrors for Electron and electron-builder binaries"
   assert.ok(windows.includes("ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/"));
 });
 
-test("Android Gradle wrapper uses the direct downloads host before build", () => {
+test("Android Gradle wrapper uses primary and fallback distribution mirrors", () => {
   const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
-  assert.ok(workflow.includes("Use direct Gradle distribution host"));
-  assert.ok(workflow.includes("value.replace(\"services.gradle.org\", \"downloads.gradle.org\")"));
+  const android = workflow.slice(workflow.indexOf("android-apk:"));
+  assert.ok(android.includes("mirrors.huaweicloud.com/gradle/gradle-8.11.1-all.zip"));
+  assert.ok(android.includes("mirrors.aliyun.com/gradle/distributions/v8.11.1/gradle-8.11.1-all.zip"));
 });
