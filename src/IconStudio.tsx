@@ -197,7 +197,7 @@ export function ComponentIcon({ componentId, componentName, className = "" }: { 
   return assignedIcon(assignment, "Saved component identity: " + componentName, "ax-component-icon linked-node-icon-3d " + className);
 }
 
-export default function IconStudio({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function IconStudio({ open, onClose, initialTarget }: { open: boolean; onClose: () => void; initialTarget?: { targetType: "process"; targetRecordId: string } | null }) {
   const { data } = useManufacturingData();
   const processDefinitions = activeRows(data.processDefinitions);
   const components = activeRows(data.components);
@@ -222,6 +222,13 @@ export default function IconStudio({ open, onClose }: { open: boolean; onClose: 
   const [syncStatus, setSyncStatus] = useState<"local" | "syncing" | "synced" | "error">("local");
 
   useEffect(() => { setPage(0); }, [search, tab]);
+  useEffect(() => {
+    if (!open || !initialTarget) return;
+    setTargetType(initialTarget.targetType);
+    setTargetRecordId(initialTarget.targetRecordId);
+    setTargetSubcategoryId("");
+    setSpecificProcess("");
+  }, [open, initialTarget?.targetType, initialTarget?.targetRecordId]);
   useEffect(() => {
     let cancelled = false;
     let busy = false;
