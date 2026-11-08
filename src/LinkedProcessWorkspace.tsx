@@ -403,10 +403,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         { header: "Parent operation ID", key: "parentId", width: 38 }, { header: "Operation ID", key: "id", width: 38 },
         { header: "Process", key: "process", width: 28 }, { header: "Next arrow", key: "next", width: 18 }
       ];
-      route.addRows(exportOperations.map((op, index) => ({
-        sequence: op.sequence, branch: op.branch || "Main route", parentId: op.parentId || "", id: op.id,
-        process: op.name, next: exportArrows && index < exportOperations.length - 1 ? "Next operation" : ""
-      })));
+      route.addRows(exportOperations.map(op => {
+        const branch = op.branch || "Main route";
+        const nextInSameRoute = exportOperations.some(candidate => (candidate.branch || "Main route") === branch && candidate.sequence > op.sequence);
+        return {
+          sequence: op.sequence, branch, parentId: op.parentId || "", id: op.id,
+          process: op.name, relation: op.relationType || "main", next: exportArrows && nextInSameRoute ? "Next operation in same route" : ""
+        };
+      }));
       route.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
       route.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF17324D" } };
       route.views = [{ state: "frozen", ySplit: 1 }];
@@ -418,24 +422,37 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   };
   const escapeSvg = (value:unknown)=>String(value??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
   const buildExportSvg = () => {
-    const branches=[...new Set(exportOperations.map(op=>op.branch||"Main route"))];
+    const branches=exportBranches;
     const maxNodes=Math.max(1,...branches.map(branch=>exportOperations.filter(op=>(op.branch||"Main route")===branch).length));
     const detailsCount=Math.max(1,exportColumns.filter(field=>field.key!=="operation").length);
     const cardHeight=78+detailsCount*17;
-    const laneHeight=cardHeight+40;
-    const width=Math.max(900,90+maxNodes*270),height=Math.max(240,100+branches.length*laneHeight);
+    const laneHeight=cardHeight+58;
+    const width=Math.max(900,90+maxNodes*270),height=Math.max(240,115+branches.length*laneHeight);
     const svgText=(x:number,y:number,value:unknown,size=12,color="#dceefa",weight=500)=>"<text x=\""+x+"\" y=\""+y+"\" fill=\""+color+"\" font-family=\"Arial\" font-size=\""+size+"\" font-weight=\""+weight+"\">"+escapeSvg(value)+"</text>";
     const content=branches.map((branch,lane)=>{
-      const rows=exportOperations.filter(op=>(op.branch||"Main route")===branch),y=75+lane*laneHeight;
+      const rows=exportOperations.filter(op=>(op.branch||"Main route")===branch).slice().sort((a,b)=>a.sequence-b.sequence),y=85+lane*laneHeight;
+      const branchRoot=rows.find(operation=>operation.parentId&&(operation.relationType==="alternate"||operation.relationType==="rework")&&routeOperations.find(parent=>parent.id===operation.parentId)?.branch!==branch);
+      const parent=branchRoot?routeOperations.find(operation=>operation.id===branchRoot.parentId):undefined;
+      const isRework=branchRoot?.relationType==="rework"||/rework/i.test(branch);
+      const branchColor=isRework?"#e38b45":branchRoot||branch!=="Main route"?"#4b95eb":"#5a8fc4";
+      const header=svgText(42,y-20,branch+" · "+rows.length+" STAGE(S)",11,branchColor,700);
+      const branchArrow=branchRoot&&parent
+        ? svgText(50,y+2,"CONNECTED FROM OP-"+String(parent.sequence).padStart(3,"0")+" · "+parent.name,10,branchColor,600)
+          +"<path d=\"M320 "+(y-2)+" h42\" stroke=\""+branchColor+"\" stroke-width=\"2.6\" fill=\"none\" marker-end=\"url(#a)\"/>"
+          +svgText(375,y+2,(isRework?"REWORK":"ALTERNATE")+" ROUTE",9,branchColor,700)
+        : "";
       const cards=rows.map((op,index)=>{
         const x=42+index*270,details=exportColumns.filter(field=>field.key!=="operation");
+        const processDefinition=processDefinitions.find(item=>item.id===op.processDefinitionId);
+        const processColor=processDefinition?.displayColor||op.processColor||"#6fa9e5";
+        const arrowColor=op.relationType==="rework"?"#e38b45":op.relationType==="alternate"?"#4b95eb":processColor;
         const info=details.map((field,i)=>svgText(x+12,y+75+i*17,field.label+": "+exportValue(op,field.key),10,"#a9c5d7",400)).join("");
-        const arrow=exportArrows&&index<rows.length-1?"<path d=\"M"+(x+222)+" "+(y+45)+"h36\" stroke=\"#62cde0\" stroke-width=\"2\" fill=\"none\" marker-end=\"url(#a)\"/>":"";
-        return arrow+"<rect x=\""+x+"\" y=\""+y+"\" width=\"220\" height=\""+cardHeight+"\" rx=\"12\" fill=\"#102c43\" stroke=\"#3c8da9\"/>"+svgText(x+12,y+22,"OP-"+String(op.sequence).padStart(3,"0")+" · "+op.status,9,"#79b6c8",600)+svgText(x+12,y+48,op.name,14,"#effaff",700)+info;
+        const arrow=exportArrows&&index<rows.length-1?"<path d=\"M"+(x+222)+" "+(y+45)+"h36\" stroke=\""+arrowColor+"\" stroke-width=\"2.8\" fill=\"none\" marker-end=\"url(#a)\"/>":"";
+        return arrow+"<rect x=\""+x+"\" y=\""+y+"\" width=\"220\" height=\""+cardHeight+"\" rx=\"12\" fill=\"#102c43\" stroke=\""+processColor+"\" stroke-width=\"2\"/>"+svgText(x+12,y+22,"OP-"+String(op.sequence).padStart(3,"0")+" · "+op.status,9,processColor,700)+svgText(x+12,y+48,op.name,14,"#effaff",700)+info;
       }).join("");
-      return svgText(42,y-13,branch+" · "+rows.length+" STAGE(S)",10,"#7cb8ca",700)+cards;
+      return header+branchArrow+cards;
     }).join("");
-    return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\""+width+"\" height=\""+height+"\" viewBox=\"0 0 "+width+" "+height+"\"><defs><marker id=\"a\" markerWidth=\"8\" markerHeight=\"8\" refX=\"7\" refY=\"4\" orient=\"auto\"><path d=\"M0 0L8 4L0 8Z\" fill=\"#62cde0\"/></marker></defs><rect width=\"100%\" height=\"100%\" fill=\"#071a2b\"/>"+svgText(42,35,(selectedComponent?.partNumber||"AXIMACH")+" · "+(selectedPO?.number||"PROCESS MAP"),19,"#fff",700)+content+"</svg>";
+    return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\""+width+"\" height=\""+height+"\" viewBox=\"0 0 "+width+" "+height+"\"><defs><marker id=\"a\" markerWidth=\"8\" markerHeight=\"8\" refX=\"7\" refY=\"4\" orient=\"auto\"><path d=\"M0 0L8 4L0 8Z\" fill=\"#b8d3eb\"/></marker></defs><rect width=\"100%\" height=\"100%\" fill=\"#071a2b\"/>"+svgText(42,35,(selectedComponent?.partNumber||"AXIMACH")+" · "+(selectedPO?.number||"PROCESS MAP"),19,"#fff",700)+content+"</svg>";
   };
   const exportVisual = async (format:"svg"|"png") => {
     if(!exportOperations.length || !exportColumns.length){onNotice("Choose at least one field and ensure operations are visible.");return;}
