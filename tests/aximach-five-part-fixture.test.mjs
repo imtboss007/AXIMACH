@@ -960,7 +960,7 @@ test("unknown process names use the supplied neutral fallback instead of a false
 
 test("Process Universe field visibility is applied to both orbit and connected route nodes", () => {
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
-  for (const field of ["status", "execution", "tolerance", "payment", "machine"]) {
+  for (const field of ["status", "execution", "tolerance", "paymentStatus", "machine"]) {
     assert.equal((universe.match(new RegExp('fieldVisible\\("' + field + '"\\)', "g")) || []).length, 2, field + " must be rendered in both layouts");
   }
   assert.ok(universe.includes('fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>'));
