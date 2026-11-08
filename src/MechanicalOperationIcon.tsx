@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 export type ToolGlyph =
   | "twist-drill" | "spot-drill" | "gun-drill" | "reamer" | "tap" | "thread-mill"
@@ -183,6 +184,17 @@ export function MechanicalComponentIcon({ componentName, className = "" }: { com
   return <span className={"ax-mechanical-tool-icon ax-mechanical-component-icon " + className} title={componentName + " component icon"} aria-label={componentName + " component icon"}>
     <svg viewBox="0 0 24 24" width="24" height="24" role="img" aria-hidden="true"><GlyphShape glyph={glyph}/></svg>
   </span>;
+}
+
+export function mechanicalComponentSvgForName(componentName: string): string {
+  const glyph = mechanicalGlyphForComponentName(componentName) || "component-block";
+  return renderToStaticMarkup(
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="96" height="96">
+      <g fill="none" stroke="#2d6da9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <GlyphShape glyph={glyph}/>
+      </g>
+    </svg>
+  );
 }
 
 export function MechanicalOperationIcon({ operation, className = "" }: { operation: string; className?: string }) {
