@@ -24,7 +24,7 @@ function fallbackFor(name: string) {
 
 type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh";
 
-export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
+export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", onSelectOperation, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);
   const fieldVisible = (field: string) => visibleFields.includes(field);
