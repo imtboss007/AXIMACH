@@ -1498,6 +1498,8 @@
   overflow:visible;
 }
 .ax-orb-depth { position:absolute; inset:0; width:100%; height:100%; }
+.ax-orb-core { z-index:1; }
+.ax-orb-depth { z-index:2; }
 .ax-orb-module-shell {
   position:absolute;
   inset:0;
