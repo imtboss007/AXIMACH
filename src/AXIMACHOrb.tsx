@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { motion, useAnimationFrame, useMotionValue, useReducedMotion } from "motion/react";
+import { motion, useMotionValue } from "motion/react";
 import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, Layers3, MessageCircle, Package, Sparkles, Truck, Users, Wallet } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
 import AXIMACHWebGLSphere from "./AXIMACHWebGLSphere";
@@ -54,7 +54,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const [reduceMotion, setReduceMotion] = useState(saved.current.reduceMotion === true);
   const [zoomed, setZoomed] = useState(saved.current.zoomed === true);
   const dragMoved = useRef(false);
-  const mobileFrameDelta = useRef(0);
+  const lowerDragMoved = useRef(false);
   const [compactViewport, setCompactViewport] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 650px)").matches);
   useEffect(() => {
     const query = window.matchMedia("(max-width: 650px)");
@@ -65,23 +65,13 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   useEffect(() => {
     try { window.localStorage.setItem("aximach.orb.preferences.v1", JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed})); } catch { /* Preferences are optional. */ }
   }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed]);
+  // Both spheres are stationary until the user drags them. No idle auto-rotation.
   const rotateX = useMotionValue(-15);
   const rotateY = useMotionValue(22);
-  const reducedMotion = useReducedMotion();
+  const lowerRotateX = useMotionValue(-8);
+  const lowerRotateY = useMotionValue(12);
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
-
-  // The globe keeps rotating gently at rest; direct pointer/touch rotation takes precedence.
-  useAnimationFrame((_time, delta) => {
-    if (drag.current || reducedMotion || reduceMotion || paused || document.visibilityState === "hidden") return;
-    let frameDelta = delta;
-    if (compactViewport) {
-      mobileFrameDelta.current += delta;
-      if (mobileFrameDelta.current < 32) return;
-      frameDelta = mobileFrameDelta.current;
-      mobileFrameDelta.current = 0;
-    }
-    rotateY.set(rotateY.get() + frameDelta * (speed === "Slow" ? 0.0028 : speed === "Fast" ? 0.011 : 0.0065));
-  });
+  const lowerDrag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     dragMoved.current = false;
@@ -102,6 +92,21 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
     if (dragMoved.current) return;
     setZoomed(value => !value);
   };
+  const startLowerDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    lowerDragMoved.current = false;
+    lowerDrag.current = { x: event.clientX, y: event.clientY, rx: lowerRotateX.get(), ry: lowerRotateY.get() };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const moveLowerDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!lowerDrag.current) return;
+    if (Math.abs(event.clientX-lowerDrag.current.x)+Math.abs(event.clientY-lowerDrag.current.y)>6) lowerDragMoved.current = true;
+    lowerRotateY.set(lowerDrag.current.ry+(event.clientX-lowerDrag.current.x)*0.72);
+    lowerRotateX.set(Math.max(-42,Math.min(42,lowerDrag.current.rx-(event.clientY-lowerDrag.current.y)*0.52)));
+  };
+  const endLowerDrag = () => {
+    lowerDrag.current = null;
+    window.setTimeout(()=>{lowerDragMoved.current=false;},0);
+  };
 
   return (
     <div className={"ax-orb-stage ax-orb-mode-" + visualMode}>
@@ -118,18 +123,14 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 85, damping: 18, delay: 0.12 }}
       >
-        <motion.div className="ax-orb-depth" style={{transformStyle:"preserve-3d",transformPerspective:950}} animate={reducedMotion || reduceMotion || paused ? undefined : {rotateY:360}} transition={{duration:speed==="Fast"?32:speed==="Slow"?90:58,repeat:Infinity,ease:"linear"}}>
+        <motion.div className="ax-orb-depth" style={{transformStyle:"preserve-3d",transformPerspective:950}}>
           <motion.div
             className="ax-orb-ring ax-orb-ring-one"
             style={{ opacity: orbitIntensity }}
-            animate={reducedMotion || reduceMotion || paused ? undefined : { rotate: 360 }}
-            transition={{ duration: speed === "Fast" ? 20 : speed === "Slow" ? 55 : 32, repeat: Infinity, ease: "linear" }}
           />
           <motion.div
             className="ax-orb-ring ax-orb-ring-two"
             style={{ opacity: orbitIntensity }}
-            animate={reducedMotion || reduceMotion || paused ? undefined : { rotate: -360 }}
-            transition={{ duration: speed === "Fast" ? 28 : speed === "Slow" ? 72 : 46, repeat: Infinity, ease: "linear" }}
           />
           <motion.div
             className="ax-orb-core"
@@ -140,8 +141,6 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             aria-pressed={zoomed}
             onClick={toggleZoom}
             onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setZoomed(value => !value); } }}
-            animate={reducedMotion || reduceMotion || paused ? undefined : { y: [0, -5, 0] }}
-            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
           >
             <AXIMACHWebGLSphere paused={paused} reduceMotion={reduceMotion || reducedMotion === true} speed={speed} />
             <span className="ax-orb-gloss" />
@@ -160,15 +159,11 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
           <motion.div
             className="ax-orb-orbit-line"
             style={{ opacity: orbitIntensity }}
-            animate={reducedMotion || reduceMotion || paused ? undefined : { rotate: -360 }}
-            transition={{ duration: speed === "Fast" ? 34 : speed === "Slow" ? 90 : 58, repeat: Infinity, ease: "linear" }}
           />
 
         <motion.div
           className="ax-orb-module-shell"
           style={{ rotateX, rotateY, transformPerspective: 950, transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}
-          animate={reducedMotion || reduceMotion || paused ? undefined : { y: [0, -5, 0] }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
           aria-label="18 clickable AXIMACH modules"
         >
           {satellites.map(({ id, label, Icon }, index) => {
@@ -208,24 +203,24 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         </motion.div>
         </motion.div>
       </motion.div>
-      <div className="ax-orb-lower-shell" aria-label="Separate live record summary shell">
-        <motion.div className="ax-orb-lower-rotator" animate={reducedMotion || reduceMotion || paused ? undefined : { rotateY: 360 }} transition={{ duration: speed === "Fast" ? 24 : speed === "Slow" ? 60 : 38, repeat: Infinity, ease: "linear" }}>
+      <div className="ax-orb-lower-shell" aria-label="Separate live record summary shell" onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag} onPointerUp={endLowerDrag} onPointerCancel={endLowerDrag} style={{touchAction:"none"}}>
+        <motion.div className="ax-orb-lower-rotator" style={{rotateX:lowerRotateX,rotateY:lowerRotateY,transformStyle:"preserve-3d"}}>
           {shellStats.map(({ id, label, value, Icon }, index) => <button type="button" key={label} className="ax-orb-lower-node"
             style={{ transform: "translate(-50%,-50%) rotateY(" + (index * 60) + "deg) translateZ(" + (compactViewport ? 94 : 132) + "px) rotateY(-" + (index * 60) + "deg)" }}
-            onClick={() => onSelectModule(id)} title={"Open " + label}>
+            onClick={() => { if (!lowerDragMoved.current) onSelectModule(id); }} title={"Open " + label}>
             <Icon size={13}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small>
           </button>)}
         </motion.div>
       </div>
-      <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> DRAG THE SPHERE TO ROTATE <i /> SELECT AN ORBIT NODE TO OPEN A WORKSPACE</div>
+      <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> DRAG EITHER SPHERE TO ROTATE · NO AUTO-ROTATION <i /> SELECT AN ORBIT NODE TO OPEN A WORKSPACE</div>
       <div className="ax-orb-studio-actions">
         <button type="button" className="ax-orb-studio-toggle" aria-expanded={studioOpen} onClick={() => setStudioOpen(value => !value)}>✧ Visual Experience Studio <span>{studioOpen ? "Close" : "Customize"}</span></button>
-        <button type="button" className="ax-orb-pause" onClick={() => setPaused(value => !value)}>{paused ? "Resume motion" : "Pause motion"}</button>
+        <span className="ax-orb-pause" aria-live="polite">Manual rotation only</span>
         <button type="button" className="ax-orb-zoom" aria-pressed={zoomed} onClick={() => setZoomed(value => !value)}>{zoomed ? "− Zoom out" : "+ Zoom in"}</button>
       </div>
       {studioOpen && <div className="ax-orb-studio-panel">
         <label>Sphere mode<select value={visualMode} onChange={event=>setVisualMode(event.target.value as OrbVisualMode)}><option value="sphere">Classic sphere</option><option value="holographic">Holographic</option><option value="cube">Geometric cube</option><option value="vortex">Vortex</option><option value="molecular">Molecular network</option><option value="orbit">Orbiting planetary</option><option value="radial">Radial command</option><option value="mesh">Digital mesh</option><option value="particle">Particle field</option><option value="industrial">Industrial network topology</option><option value="kinetic">Abstract kinetic geometry</option><option value="multi-core">Multi-layer rotating core</option></select></label>
-        <label>Rotation speed<select value={speed} onChange={event=>setSpeed(event.target.value as OrbSpeed)}><option>Slow</option><option>Normal</option><option>Fast</option></select></label>
+        <label>Drag sensitivity<select value={speed} onChange={event=>setSpeed(event.target.value as OrbSpeed)}><option>Slow</option><option>Normal</option><option>Fast</option></select></label>
         <label>Sphere size<input type="range" min=".82" max="1.12" step=".01" value={sphereSize} onChange={event=>setSphereSize(Number(event.target.value))}/><small>{Math.round(sphereSize*100)}%</small></label>
         <label>Orbit intensity<input type="range" min="0" max="1" step=".05" value={orbitIntensity} onChange={event=>setOrbitIntensity(Number(event.target.value))}/><small>{Math.round(orbitIntensity*100)}%</small></label>
         <label className="ax-orb-motion-setting"><input type="checkbox" checked={reduceMotion} onChange={event=>setReduceMotion(event.target.checked)}/> Reduce motion</label>
