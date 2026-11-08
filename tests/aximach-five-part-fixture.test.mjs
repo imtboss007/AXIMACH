@@ -563,3 +563,18 @@ test("AXIMACH command sphere module buttons can be dragged without losing click 
   assert.ok(orb.includes("if (!dragMoved.current) onSelectModule(id)"));
   assert.ok(orb.includes("Both spheres are stationary until the user drags them. No idle auto-rotation."));
 });
+
+test("Process Directory stores a colour per process type and route exports share the selected scope", () => {
+  const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(directory.includes("displayColor:processColor"));
+  assert.ok(directory.includes('setProcessColor(row.displayColor||"#4b95eb")'));
+  assert.ok(directory.includes('type="color" value={processColor}'));
+  assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
+  for (const exportName of ["exportCsv", "exportExcel", "exportVisual", "exportPowerPoint", "printExport"]) {
+    const start = workspace.indexOf("const " + exportName);
+    assert.ok(start >= 0, "missing route export handler " + exportName);
+    const body = workspace.slice(start, start + 6000);
+    assert.ok(body.includes("exportOperations"), exportName + " must use the selected route scope");
+  }
+});
