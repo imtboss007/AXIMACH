@@ -1021,7 +1021,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     <div className="linked-route-toolbar">
       <div className="linked-route-actions">
         <div className="process-add-menu-anchor">
-          <button type="button" className="button-primary compact-button" disabled={!selectedLine || !selectedComponent} aria-haspopup="menu" aria-expanded={showAddMenu} onClick={toggleAddMenu}><Plus size={14}/> Add operation <span aria-hidden="true">⌄</span></button>
+          <button type="button" className="button-primary compact-button" disabled={!selectedLine || !selectedComponent} aria-haspopup="menu" aria-expanded={showAddMenu} onClick={toggleAddMenu}><Plus size={14}/> Add Operation <span aria-hidden="true">▾</span></button>
           {showAddMenu && <div className="process-add-menu" role="menu" aria-label="Add process options">
             <strong>Add to selected PO component</strong>
             <button type="button" role="menuitem" onClick={()=>startAdd()}><Plus size={13}/> Blank process operation</button>
