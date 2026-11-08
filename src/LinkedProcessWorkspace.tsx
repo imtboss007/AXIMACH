@@ -640,6 +640,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     return () => window.clearTimeout(timer);
   }, [simulationActive, simulationIndex, simulationOperations.length]);
 
+  useEffect(() => {
+    if (!simulationActive || simulationIndex < 0) return;
+    const stepOperation = simulationOperations[simulationIndex];
+    if (stepOperation) setSelectedOperationId(stepOperation.id);
+  }, [simulationActive, simulationIndex, simulationOperations]);
+
   const startRouteSimulation = () => {
     if (!simulationOperations.length) { onNotice("No saved operations in this route scope. Add a real operation from Process Directory before simulating."); return; }
     setVisualStyle("sphere");
