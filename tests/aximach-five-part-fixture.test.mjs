@@ -201,7 +201,9 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(orb.includes('style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}'));
   assert.ok(orb.includes("const startDrag ="));
   assert.ok(orb.includes("const startLowerDrag ="));
-  assert.ok(orb.includes('onClick={() => onSelectModule(id)}'));
+  assert.ok(orb.includes('onClick={() => { if (!dragMoved.current) onSelectModule(id); }}'));
+  assert.ok(orb.includes("onPointerDown={startDrag}"));
+  assert.ok(!orb.includes("onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onClick"));
   assert.ok(orb.includes('onClick={() => { if (!lowerDragMoved.current) onSelectModule(id); }}'));
   assert.ok(!orb.includes("useAnimationFrame"));
   assert.ok(!orb.includes("rotateY:360"));
@@ -472,6 +474,7 @@ test("Every process row can open Logo Studio for its own Process Directory recor
   const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('title="Assign process logo"'));
   assert.ok(workspace.includes("Add / change process logo"));
+  assert.ok(workspace.includes("onOpenIconStudio?.(row.id)"));
   assert.ok(app.includes("onOpenIconStudio={(processDefinitionId)=>"));
   assert.ok(app.includes("initialTarget={iconStudioTarget}"));
   assert.ok(studio.includes('initialTarget?: { targetType: "process"; targetRecordId: string } | null'));
