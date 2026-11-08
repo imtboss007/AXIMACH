@@ -10,7 +10,7 @@ type IconMeta = { name: string; category?: string; tags?: string[]; version?: st
 type IconAssignment = { iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string; customAsset?: string; revision?: number; history?: Array<{ iconName: string; iconVariant?: "outline" | "filled"; palette: string; finish: string; depth: number; tilt: number; updatedAt: string; customAsset?: string; revision?: number }> };
 type Assignments = Record<string, IconAssignment>;
 
-const MECHANICAL_ICON_NAME_PATTERN = /^(?:tool|tools|truck|truck-delivery|truck-loading|truck-return|forklift|car-crane|engine|crane|tractor|wheel|building-factory|building-factory-2|building-warehouse|automatic-gearbox|manual-gearbox|hammer|hammer-drill|robot|ruler|ruler-2|ruler-3|ruler-measure|ruler-measure-2|pencil-ruler|box|package|package-export|package-import|packages|container|ship|steering-wheel|firetruck|rv-truck)$/;
+const MECHANICAL_ICON_NAME_PATTERN = /^(?:tool|tools|truck|truck-delivery|truck-loading|truck-return|forklift|car-crane|engine|crane|tractor|wheel|building-factory|building-factory-2|automatic-gearbox|manual-gearbox|hammer|hammer-drill|robot|ruler|ruler-2|ruler-3|ruler-measure|ruler-measure-2|pencil-ruler|steering-wheel|firetruck|rv-truck)$/;
 const isMechanicalStudioIcon = (name: string) => MECHANICAL_ICON_NAME_PATTERN.test(name);
 const ICONS: IconMeta[] = tablerIconCatalogue.filter((item) => isMechanicalStudioIcon(item.name)).map((item) => ({ name: item.name, category: item.variant, tags: item.name.split("-"), variant: item.variant }));
 const iconKey = (item: Pick<IconMeta, "name" | "variant">) => `${item.variant}:${item.name}`;
