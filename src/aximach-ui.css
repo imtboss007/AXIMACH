@@ -1740,3 +1740,54 @@
 .linked-node-arrow { display:inline-flex; align-items:center; }
 .process-row-delete { color:#f2a0a3 !important; border-color:rgba(218,103,112,.38) !important; }
 .process-row-delete:hover:not(:disabled) { color:#fff !important; background:rgba(181,58,69,.22) !important; border-color:#dc737c !important; }
+
+/* Route connectors are lines with arrowheads, not free-floating icons. */
+.process-route-flow-arrow::before,
+.linked-node-arrow::before,
+.process-universe-connector::before {
+  content:"";
+  display:block;
+  flex:0 0 20px;
+  width:20px;
+  height:2px;
+  border-radius:2px;
+  background:currentColor;
+  opacity:.95;
+}
+.process-route-flow-arrow,
+.linked-node-arrow,
+.process-universe-connector { gap:0; }
+.process-route-parent-link::before,
+.linked-route-parent-arrow::before,
+.process-universe-branch-link::before {
+  content:"";
+  display:block;
+  flex:0 0 22px;
+  width:22px;
+  height:2px;
+  border-radius:2px;
+  background:currentColor;
+  opacity:.9;
+}
+.process-route-flow-lane.is-alternate .process-route-flow-lane-title,
+.process-route-flow-lane.is-rework .process-route-flow-lane-title { position:relative; }
+.process-route-flow-lane.is-alternate .process-route-flow-lane-title::after,
+.process-route-flow-lane.is-rework .process-route-flow-lane-title::after {
+  content:"";
+  display:block;
+  width:34px;
+  height:2px;
+  margin-left:8px;
+  border-top:2px dashed currentColor;
+  opacity:.85;
+}
+.process-route-flow-lane.is-alternate .process-route-flow-lane-title { color:#80bbff; }
+.process-route-flow-lane.is-rework .process-route-flow-lane-title { color:#ffc18a; }
+@media(max-width:620px) {
+  .process-route-flow-arrow::before,
+  .linked-node-arrow::before,
+  .process-universe-connector::before { flex-basis:12px; width:12px; }
+  .process-route-parent-link::before,
+  .linked-route-parent-arrow::before,
+  .process-universe-branch-link::before { flex-basis:12px; width:12px; }
+}

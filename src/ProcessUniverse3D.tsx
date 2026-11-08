@@ -29,8 +29,9 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
   const displayOperations = parentOperations.length ? parentOperations : operations;
   const lookupOperations = allOperations || operations;
-  const subprocessesFor = (parentId: string) => lookupOperations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
-  const branchesFor = (parentId: string) => lookupOperations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
+  // Child nodes obey the active route scope; lookupOperations is reserved for resolving a branch parent outside that scope.
+  const subprocessesFor = (parentId: string) => operations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
+  const branchesFor = (parentId: string) => operations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>("sphere");
   const rotateX = useMotionValue(-12);
   const rotateY = useMotionValue(18);
