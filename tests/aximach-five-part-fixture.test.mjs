@@ -714,6 +714,19 @@ test("Vendor Network resolves capability and assigned-operation subcategories th
   assert.ok(workspace.includes('id="network-subcategory" label="Subcategory" options={subcategoryOptions}'));
 });
 
+test("3D process orbit renders route arrows and preserves hidden parent origins for scoped branches", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(universe.includes("const orbitConnections = useMemo"));
+  assert.ok(universe.includes("orbitConnections.edges.map"));
+  assert.ok(universe.includes("orbitConnections.anchors.map"));
+  assert.ok(universe.includes('className={"process-orbit-connector is-"+edge.relation}'));
+  assert.ok(universe.includes('className={"process-orbit-parent-anchor is-"+anchor.relation}'));
+  assert.ok(styles.includes(".process-orbit-connector.is-alternate { color: #4b95eb; }"));
+  assert.ok(styles.includes(".process-orbit-connector.is-rework { color: #e38b45; }"));
+  assert.ok(styles.includes(".process-orbit-connector::after"));
+});
+
 test("Process route scope keeps original parent arrows visible and each 3D view opens its matching layout", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
