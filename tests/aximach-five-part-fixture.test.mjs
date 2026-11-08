@@ -1067,6 +1067,15 @@ test("Process Directory milling definitions resolve to machining tools using typ
   assert.ok(icons.includes('{glyph:"transport-truck",label:"Transport / dispatch"'));
 });
 
+test("Android packaging rewrites the generated Gradle wrapper to verified distribution mirrors and retries", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
+  const android = workflow.slice(workflow.indexOf("android-apk:"));
+  assert.ok(android.includes("mirrors.huaweicloud.com/gradle/gradle-8.11.1-all.zip"));
+  assert.ok(android.includes("mirrors.aliyun.com/gradle/distributions/v8.11.1/gradle-8.11.1-all.zip"));
+  assert.ok(android.includes("for attempt in 1 2 3; do"));
+  assert.ok(android.includes("Expected Gradle 8.11.1 wrapper URL was not found"));
+});
+
 test("Windows packaging retries Electron downloads through a configured mirror", () => {
   const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
   const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
