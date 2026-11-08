@@ -1294,3 +1294,14 @@ test("Process Map operation editor accepts a new process type as well as Process
   assert.ok(picker.includes("processDefinitionId:definition?.id||\"\""));
   assert.ok(picker.includes("allowCustom"));
 });
+
+
+test("New Process Map process types are saved into Process Directory with stable IDs", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('const proposedProcessDefinitionId = makeId("process-definition")'));
+  assert.ok(workspace.includes("const resolvedDefinition = selectedProcessDefinition || resolveProcessDefinition"));
+  assert.ok(workspace.includes("id: proposedProcessDefinitionId, processType: draft.name.trim(), category: draft.category.trim()"));
+  assert.ok(workspace.includes("subcategories: [], subcategoryIds: [], vendorIds: []"));
+  assert.ok(workspace.includes("processDefinitionId: processDefinition?.id || undefined"));
+  assert.ok(workspace.includes(": [...current.processDefinitions, processDefinition]"));
+});
