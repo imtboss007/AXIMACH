@@ -87,7 +87,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
     // Capturing their pointer on the surrounding drag surface can retarget
     // pointerup/click and make module buttons appear unselectable.
     const interactiveTarget = event.target instanceof Element
-      ? event.target.closest("button, a, input, select, textarea, [role='button']")
+      ? event.target.closest("button, a, input, select, textarea")
       : null;
     if (interactiveTarget) return;
     drag.current = { x: event.clientX, y: event.clientY, rx: rotateX.get(), ry: rotateY.get() };
