@@ -182,7 +182,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const amountMatch = (!minAmount || effectiveAmount >= Number(minAmount)) && (!maxAmount || effectiveAmount <= Number(maxAmount));
     return text.includes(search.toLowerCase().trim()) && statusMatch && executionMatch && categoryMatch && toleranceMatch && paymentMatch && vendorMatch && processTypeMatch && subcategoryMatch && dateMatch && quantityMatch && priceMatch && amountMatch;
   });
-  const visibleBranches = [...new Set(visibleOperations.map(op => op.branch || "Main route"))];
+
   const toggleFilter = (setter: (next: string[] | ((previous: string[]) => string[])) => void, value: string) => setter(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value]);
   const clearAllFilters = () => { setExportScope("all"); setSearch(""); setStatusFilters([]); setExecutionFilters([]); setCategoryFilters([]); setToleranceFilters([]); setPaymentFilters([]); setVendorFilters([]); setProcessTypeFilters([]); setSubcategoryFilters([]); setCategorySearch(""); setDateFrom(""); setDateTo(""); setMinQuantity(""); setMaxQuantity(""); setMinPrice(""); setMaxPrice(""); setMinAmount(""); setMaxAmount(""); setSelectedOperationIds([]); };
   const toggleOperationSelection = (id: string) => setSelectedOperationIds(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
@@ -271,8 +271,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const routeScopeButtons = [
     { key: "all", label: "All routes", count: routeOperations.length },
     { key: "main", label: "Main route", count: routeOperations.filter(op => (op.branch || "Main route") === "Main route").length },
-    { key: "alternate", label: "Alternate routes", count: routeOperations.filter(op => (op.branch || "Main route") !== "Main route" && !/rework/i.test(op.branch || "")).length },
-    { key: "rework", label: "Rework routes", count: routeOperations.filter(op => /rework/i.test(op.branch || "")).length },
+    { key: "alternate", label: "Alternate routes", count: routeOperations.filter(op => op.relationType === "alternate" || ((op.branch || "Main route") !== "Main route" && !/rework/i.test(op.branch || ""))).length },
+    { key: "rework", label: "Rework routes", count: routeOperations.filter(op => op.relationType === "rework" || /rework/i.test(op.branch || "")).length },
     { key: "selected-branch", label: "Selected branch", count: activeOperation ? routeOperations.filter(op => (op.branch || "Main route") === (activeOperation.branch || "Main route")).length : 0 },
     { key: "filtered", label: "Filtered results", count: visibleOperations.length },
     { key: "selected-operations", label: "Selected operations", count: selectedRouteOperations.length },
@@ -282,6 +282,15 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     }))
   ];
   const exportScopeLabel = routeScopeButtons.find(scope => scope.key === exportScope)?.label || "All routes";
+  const openAddMenu = () => {
+    setAddMenuDefinitionId(processDefinitions[0]?.id || "");
+    setShowAddMenu(true);
+    document.querySelector(".process-add-menu-anchor")?.scrollIntoView({behavior:"smooth",block:"center"});
+  };
+  const toggleAddMenu = () => {
+    if (showAddMenu) setShowAddMenu(false);
+    else openAddMenu();
+  };
   const paymentRowsFor = (operationId:string) => activeRows(data.paymentTransactions).filter(payment=>payment.operationId===operationId);
   const paymentTotalFor = (operation:OperationRecord) => {
     const transactions=paymentRowsFor(operation.id);
@@ -999,7 +1008,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     <div className="linked-route-toolbar">
       <div className="linked-route-actions">
         <div className="process-add-menu-anchor">
-          <button className="button-primary compact-button" disabled={!selectedLine || !selectedComponent} aria-expanded={showAddMenu} onClick={() => {setShowAddMenu(value=>!value);setAddMenuDefinitionId(processDefinitions[0]?.id||"");}}><Plus size={14}/> Add operation ▾</button>
+          <button className="button-primary compact-button" disabled={!selectedLine || !selectedComponent} aria-expanded={showAddMenu} onClick={toggleAddMenu}><Plus size={14}/> Add operation ▾</button>
           {showAddMenu && <div className="process-add-menu" role="menu" aria-label="Add process options">
             <strong>Add to selected PO component</strong>
             <button type="button" role="menuitem" onClick={()=>startAdd()}><Plus size={13}/> Blank process operation</button>
@@ -1197,7 +1206,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           const parent=branchRoot?routeOperations.find(operation=>operation.id===branchRoot.parentId):undefined;
           const rework=branchRoot?.relationType==="rework"||/rework/i.test(branch);
           const routeColor=rework?REWORK_ROUTE_COLOR:alternate?ALTERNATE_ROUTE_COLOR:"#5a8fc4";
-          return <section className={"linked-route-lane " + (alternate ? "linked-route-lane-alternate " : "")+(rework?"route-rework":"route-alternate")} key={branch}>
+          return <section className={"linked-route-lane " + (alternate ? "linked-route-lane-alternate " : "")+(rework?"route-rework":"route-alternate")} style={{borderLeftColor:routeColor}} key={branch}>
             <div className="linked-route-lane-heading"><strong>{branch}</strong><small>{laneOperations.length} operation(s) · {rework?"rework route":alternate?"alternate route":"primary route"}{parent ? " · branches from "+parent.name : ""}</small>{alternate && <button type="button" className="button-quiet compact-button" onClick={() => setBranchCostIncluded(branch, !laneOperations.some(op => op.costIncluded !== false))}>{laneOperations.some(op => op.costIncluded !== false) ? "Exclude this route from costing" : "Use this route · include costs"}</button>}</div>
             {branchRoot&&<div className={"linked-route-parent-arrow "+(rework?"is-rework":"is-alternate")}><span>OP-{String(parent?.sequence||0).padStart(3,"0")} · {parent?.name||"Parent process"}</span><ArrowRight size={17}/><strong>{branchRoot.name}</strong></div>}
             <div className="linked-node-track">{laneOperations.map((op,index) => {
@@ -1208,11 +1217,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
               return <div className="linked-node-wrap" key={op.id}><button style={{borderColor:accent}} className={"linked-operation-node status-" + op.status.toLowerCase().replaceAll(" ","-") + (alternate ? " linked-node-alternate" : "") + (selected ? " linked-node-selected" : "")} onClick={() => {setSelectedOperationId(op.id);setShowEditor(false);}}><ProcessIcon processId={op.processDefinitionId} processName={op.name} category={op.category} subcategory={op.subcategory} fallback={op.name.toLowerCase().includes("transport") || op.name.toLowerCase().includes("dispatch") ? <Truck size={19}/> : op.name.toLowerCase().includes("inspect") || op.name.toLowerCase().includes("quality") ? <ClipboardCheck size={19}/> : op.name.toLowerCase().includes("grind") ? <Wrench size={19}/> : <Workflow size={19}/>} /><strong>{op.name}</strong><small>OP-{String(op.sequence).padStart(3,"0")}</small><span>{op.status}</span><small>{vendor?.company || "Vendor unassigned"}</small><small>{daysBetween(op.plannedStart,op.plannedEnd) || "—"} day(s)</small></button>{index < laneOperations.length - 1 && <span className="linked-node-arrow" style={{color:arrowAccent}}><ArrowRight size={18}/></span>}</div>;
             })}</div>
           </section>;
-        })}</div></div> : routeOperations.length ? <div className="module-empty-state"><Workflow size={24}/><h3>No process records in the selected route scope</h3><p>Choose another route scope or reset the filters.</p></div> : <div className="module-empty-state linked-no-operations"><Workflow size={28}/><h3>No operations saved for this component</h3><p>Add only the operations this part actually requires. There is no fixed stage limit and no sample CNC or heat-treatment data.</p><button className="button-primary" disabled={!selectedLine || !selectedComponent} onClick={() => startAdd()}><Plus size={14}/> Add first operation</button></div>}
+        })}</div></div> : routeOperations.length ? <div className="module-empty-state"><Workflow size={24}/><h3>No process records in the selected route scope</h3><p>Choose another route scope or reset the filters.</p></div> : <div className="module-empty-state linked-no-operations"><Workflow size={28}/><h3>No operations saved for this component</h3><p>Add only the operations this part actually requires. There is no fixed stage limit and no sample CNC or heat-treatment data.</p><button className="button-primary" disabled={!selectedLine || !selectedComponent} onClick={openAddMenu}><Plus size={14}/> Add first operation ▾</button></div>}
         <div className="route-legend"><span><i className="legend-done"/> Complete</span><span><i className="legend-live"/> Running</span><span><i className="legend-queued"/> Queued</span><span><i className="legend-hold"/> Quality hold</span><span className="route-scroll-note">Select any operation to inspect its schedule, vendor, quality and cost.</span></div>
       </section>
       <section className="surface-panel process-operation-table-panel">
-        <div className="panel-heading"><div><div className="eyebrow">PROCESS EXECUTION REGISTER</div><h3>Process operations</h3><p>Searchable PO/component route table · {visibleOperations.length} visible from {routeOperations.length} operation(s).</p></div><button className="button-primary compact-button" disabled={!selectedLine} onClick={()=>startAdd()}><Plus size={13}/> Add process</button></div>
+        <div className="panel-heading"><div><div className="eyebrow">PROCESS EXECUTION REGISTER</div><h3>Process operations</h3><p>Searchable PO/component route table · {visibleOperations.length} visible from {routeOperations.length} operation(s).</p></div><button className="button-primary compact-button" disabled={!selectedLine} onClick={openAddMenu}><Plus size={13}/> Add process ▾</button></div>
         <div className="process-table-bulkbar">
           <label><input type="checkbox" checked={visibleOperations.length>0&&visibleOperations.every(op=>selectedOperationIds.includes(op.id))} onChange={e=>selectVisibleOperations(e.target.checked)}/> Select all visible</label>
           <select value={bulkStatus} onChange={e=>setBulkStatus(e.target.value)}><option value="">Bulk status…</option>{["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"].map(value=><option key={value}>{value}</option>)}</select>
