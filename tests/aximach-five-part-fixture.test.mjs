@@ -593,9 +593,9 @@ test("Process Directory stores a colour per process type and route exports share
 test("five synthetic component names resolve to the intended mechanical logo families", () => {
   const iconSource = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
   const rulesStart = iconSource.indexOf("const componentRules:");
-  const rulesEnd = iconSource.indexOf("\\n];", rulesStart);
+  const rulesEnd = iconSource.indexOf("\n];", rulesStart);
   assert.ok(rulesStart >= 0 && rulesEnd > rulesStart, "component logo rules must remain discoverable");
-  const rules = iconSource.slice(rulesStart, rulesEnd).split("\\n").flatMap(line => {
+  const rules = iconSource.slice(rulesStart, rulesEnd).split("\n").flatMap(line => {
     const value = line.trim();
     if (!value.startsWith("[/")) return [];
     const patternStart = 2;
