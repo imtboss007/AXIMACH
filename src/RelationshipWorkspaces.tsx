@@ -77,7 +77,7 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
   const contactDefinitionCategories=contactDefinitionIds.map(id=>processDefinitions.find(definition=>definition.id===id)?.category||"");
   const rowCategories=[...capabilityRows.map(definition=>definition.category),...contactDefinitionCategories,...(row.processCategories||[])].join(" ").toLowerCase();
   const capabilitySubcategoryIds=capabilityRows.flatMap(definition=>(definition.subcategories||[]).map((_,index)=>stableContactSubcategoryId(definition,index)));
-  const contactSubcategoryIds=row.processSubcategoryIds||[];
+  const contactSubcategoryIds:string[]=row.processSubcategoryIds||[];
   const customContactSubcategoryIds=(row.processSubcategories||[]).map(name=>"contact:"+name.trim().toLowerCase());
   const subcategoryMatch=!subcategoryFilters.length||subcategoryFilters.some(id=>capabilitySubcategoryIds.includes(id)||contactSubcategoryIds.includes(id)||customContactSubcategoryIds.includes(id));
   const legacyProcessNames=[...(row.processTypes||[]),...String(row.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean)].map(value=>value.toLowerCase());
