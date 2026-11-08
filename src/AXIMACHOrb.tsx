@@ -89,6 +89,13 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
 
   const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
     dragMoved.current = false;
+    // Interactive descendants must receive their own press/click sequence.
+    // Capturing their pointer on the surrounding drag surface can retarget
+    // pointerup/click and make module buttons appear unselectable.
+    const interactiveTarget = event.target instanceof Element
+      ? event.target.closest("button, a, input, select, textarea, [role='button']")
+      : null;
+    if (interactiveTarget) return;
     drag.current = { x: event.clientX, y: event.clientY, rx: rotateX.get(), ry: rotateY.get() };
     event.currentTarget.setPointerCapture(event.pointerId);
   };

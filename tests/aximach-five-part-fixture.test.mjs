@@ -1233,3 +1233,14 @@ test("Vendor Network process filters use stable Process Directory IDs and keep l
   assert.ok(network.includes('id="network-process-type" label="Process type" options={processOptions}'));
   assert.ok(!network.includes('matchesAny(processTypes,capabilityTypes+" "+v.processes+" "+operationTypes)'));
 });
+
+
+test("AXIMACH sphere drag does not capture pointer input from clickable module controls", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  const start = orb.slice(orb.indexOf("const startDrag"), orb.indexOf("const moveDrag"));
+  const guard = start.indexOf("if (interactiveTarget) return;");
+  const capture = start.indexOf("setPointerCapture(event.pointerId)");
+  assert.ok(guard >= 0 && capture > guard, "interactive controls must be ignored before drag pointer capture");
+  assert.ok(start.includes('event.target.closest("button, a, input, select, textarea, [role=\'button\']")'));
+  assert.ok(orb.includes('onClick={() => { if (!dragMoved.current) onSelectModule(id); }}'));
+});
