@@ -53,11 +53,12 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
  const [selectedTypeFilters,setSelectedTypeFilters]=useState<string[]>([]);
  const [selectedVendorFilters,setSelectedVendorFilters]=useState<string[]>([]);
  const [notes,setNotes]=useState("");
+ const [processColor,setProcessColor]=useState("#4b95eb");
  const filtered=useMemo(()=>rows.filter(row=>(row.processType+" "+row.category+" "+row.subcategories.join(" ")+" "+row.notes+" "+row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(" ")).toLowerCase().includes(search.toLowerCase().trim())
   &&(!selectedCategoryFilters.length||selectedCategoryFilters.includes(row.category))
   &&(!selectedTypeFilters.length||selectedTypeFilters.includes(row.processType))
   &&(!selectedVendorFilters.length||row.vendorIds.some(id=>selectedVendorFilters.includes(id)))),[rows,search,vendors,selectedCategoryFilters,selectedTypeFilters,selectedVendorFilters]);
- const reset=()=>{setEditingId("");setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");setSubcategoryDraft("");};
+ const reset=()=>{setEditingId("");setProcessType("");setCategory("");setSubcategories("");setVendorIds([]);setNotes("");setSubcategoryDraft("");setProcessColor("#4b95eb");};
  const save=()=>{
   if(!processType.trim()||!category.trim()){onNotice("Enter the process type and category.");return;}
   const duplicate=rows.find(row=>row.id!==editingId&&row.category.trim().toLowerCase()===category.trim().toLowerCase()&&row.processType.trim().toLowerCase()===processType.trim().toLowerCase());
@@ -80,6 +81,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
    subcategories:nextSubcategories,
    subcategoryIds:nextSubcategoryIds,
    vendorIds,
+   displayColor:processColor,
    notes:notes.trim(),
    createdAt:old?.createdAt||stamp,
    updatedAt:stamp
@@ -90,7 +92,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
  };
  const edit=(row:ProcessEntry)=>{
   setEditingId(row.id);setProcessType(row.processType);setCategory(row.category);
-  setSubcategories(row.subcategories.join(", "));setVendorIds(row.vendorIds);setNotes(row.notes);
+  setSubcategories(row.subcategories.join(", "));setVendorIds(row.vendorIds);setNotes(row.notes);setProcessColor(row.displayColor||"#4b95eb");
  };
  const remove=(id:string)=>{
   if(!window.confirm("Delete this process directory record? Existing production operation history will not be changed."))return;
@@ -157,6 +159,7 @@ function ProcessDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
     <SearchablePicker id="process-type" label="Process type *" value={rows.some(row=>row.category===category&&row.processType===processType)?category+"::"+processType:processType} placeholder="Search or add a process type…" options={rows.filter(row=>!category||row.category===category).map(row=>({id:row.category+"::"+row.processType,label:row.processType+" · "+row.category}))} onChange={value=>{const linked=rows.find(row=>row.category+"::"+row.processType===value)||rows.find(row=>row.processType===value&&(row.category===category||!category));if(linked){setProcessType(linked.processType);setCategory(linked.category);setSubcategories(linked.subcategories.join(", "));}else{setProcessType(value);}}} allowCustom/>
     <div className="module-form-wide process-subcategory-editor"><SearchableMultiSelect id="process-subcategories" label="Existing subcategories" options={[...new Set(rows.filter(row=>(!category||row.category===category)&&(!processType||row.processType===processType)).flatMap(row=>row.subcategories))].sort().map(value=>({id:value,label:value}))} selected={subcategories.split(",").map(value=>value.trim()).filter(Boolean)} onChange={values=>setSubcategories(values.join(", "))} placeholder="Search subcategory…"/><label>Add subcategory <input value={subcategoryDraft} onChange={event=>setSubcategoryDraft(event.target.value)} placeholder="Type new subcategory…"/></label><button type="button" className="button-quiet compact-button" onClick={()=>{const value=subcategoryDraft.trim();const current=subcategories.split(",").map(x=>x.trim()).filter(Boolean);if(value&&!current.includes(value)&&current.length<100)setSubcategories([...current,value].join(", "));setSubcategoryDraft("");}}>＋ Add subcategory</button><small>Up to 100 separate subcategory entries per process type.</small></div>
     <div className="module-form-wide process-vendor-selection"><SearchableMultiSelect id="process-vendor-links" label="Linked vendors" options={vendors.map(v=>({id:v.id,label:v.company+" · "+v.contact}))} selected={vendorIds} onChange={setVendorIds} placeholder="Search vendor company or contact…"/><small>One process can link to multiple vendors; one vendor can link to multiple processes.</small></div>
+    <label className="process-color-field module-form-wide">Process type colour<input type="color" value={processColor} onChange={event=>setProcessColor(event.target.value)}/><small>This colour is saved on the Process Directory definition and reused by every operation and route arrow for this process type.</small></label>
     <label className="module-form-wide">Notes<input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Process scope or requirements"/></label>
     <div className="module-form-actions"><button className="button-primary" onClick={save}><Check size={14}/>{editingId?"Save changes":"Add process"}</button>{editingId&&<button className="button-quiet" onClick={reset}>Cancel edit</button>}</div>
    </div>
