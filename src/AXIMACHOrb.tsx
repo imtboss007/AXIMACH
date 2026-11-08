@@ -72,6 +72,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const lowerRotateY = useMotionValue(12);
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
   const lowerDrag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
+  const dragSensitivity = speed === "Slow" ? 0.45 : speed === "Fast" ? 0.95 : 0.72;
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     dragMoved.current = false;
@@ -81,8 +82,8 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!drag.current) return;
     if (Math.abs(event.clientX - drag.current.x) + Math.abs(event.clientY - drag.current.y) > 6) dragMoved.current = true;
-    rotateY.set(drag.current.ry + (event.clientX - drag.current.x) * 0.72);
-    rotateX.set(Math.max(-48, Math.min(48, drag.current.rx - (event.clientY - drag.current.y) * 0.55)));
+    rotateY.set(drag.current.ry + (event.clientX - drag.current.x) * dragSensitivity);
+    rotateX.set(Math.max(-48, Math.min(48, drag.current.rx - (event.clientY - drag.current.y) * dragSensitivity * 0.76)));
   };
   const endDrag = () => {
     drag.current = null;
@@ -92,16 +93,16 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
     if (dragMoved.current) return;
     setZoomed(value => !value);
   };
-  const startLowerDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const startLowerDrag = (event: ReactPointerEvent<HTMLElement>) => {
     lowerDragMoved.current = false;
     lowerDrag.current = { x: event.clientX, y: event.clientY, rx: lowerRotateX.get(), ry: lowerRotateY.get() };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
-  const moveLowerDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const moveLowerDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (!lowerDrag.current) return;
     if (Math.abs(event.clientX-lowerDrag.current.x)+Math.abs(event.clientY-lowerDrag.current.y)>6) lowerDragMoved.current = true;
-    lowerRotateY.set(lowerDrag.current.ry+(event.clientX-lowerDrag.current.x)*0.72);
-    lowerRotateX.set(Math.max(-42,Math.min(42,lowerDrag.current.rx-(event.clientY-lowerDrag.current.y)*0.52)));
+    lowerRotateY.set(lowerDrag.current.ry+(event.clientX-lowerDrag.current.x)*dragSensitivity);
+    lowerRotateX.set(Math.max(-42,Math.min(42,lowerDrag.current.rx-(event.clientY-lowerDrag.current.y)*dragSensitivity*0.72)));
   };
   const endLowerDrag = () => {
     lowerDrag.current = null;
@@ -207,6 +208,10 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         <motion.div className="ax-orb-lower-rotator" style={{rotateX:lowerRotateX,rotateY:lowerRotateY,transformStyle:"preserve-3d"}}>
           {shellStats.map(({ id, label, value, Icon }, index) => <button type="button" key={label} className="ax-orb-lower-node"
             style={{ transform: "translate(-50%,-50%) rotateY(" + (index * 60) + "deg) translateZ(" + (compactViewport ? 94 : 132) + "px) rotateY(-" + (index * 60) + "deg)" }}
+            onPointerDown={event=>{event.stopPropagation();startLowerDrag(event);}}
+            onPointerMove={event=>{event.stopPropagation();moveLowerDrag(event);}}
+            onPointerUp={event=>{event.stopPropagation();endLowerDrag();}}
+            onPointerCancel={event=>{event.stopPropagation();endLowerDrag();}}
             onClick={() => { if (!lowerDragMoved.current) onSelectModule(id); }} title={"Open " + label}>
             <Icon size={13}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small>
           </button>)}
