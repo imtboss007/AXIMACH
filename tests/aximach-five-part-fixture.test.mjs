@@ -695,6 +695,15 @@ test("Process Plan sub-processes inherit their Process Directory definition and 
   assert.ok(data.includes("processSubcategoryId?: string;"));
 });
 
+test("Contact 360 resolves vendor capability subcategories by stable Process Directory IDs", () => {
+  const workspace = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("processSubcategoryFilterOptions=selectedCapabilityDefinitions.flatMap"));
+  assert.ok(workspace.includes("definition.subcategoryIds?.[index]"));
+  assert.ok(workspace.includes("customContactSubcategoryFilterOptions"));
+  assert.ok(workspace.includes("capabilitySubcategoryIds.includes(id)"));
+  assert.ok(workspace.includes('id="contact-process-subcategory" label="Process subcategory" options={subcategoryOptions}'));
+});
+
 test("Vendor Network resolves capability and assigned-operation subcategories through stable Process Directory IDs", () => {
   const workspace = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("definition.subcategoryIds?.[index]"));
