@@ -291,6 +291,25 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
                 </button>
                 {expanded && <div id={"process-universe-node-details-"+operation.id} className="process-node-subprocess-dropdown">
                   <strong>{operation.name} · Linked steps</strong>
+                  <div className="process-universe-node-details">
+                    {fieldVisible("category") && <small>Category · {operation.category || "Not set"}</small>}
+                    {fieldVisible("subcategory") && operation.subcategory && <small>Subcategory · {operation.subcategory}</small>}
+                    {fieldVisible("vendor") && <small>Vendor · {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "Not assigned"}</small>}
+                    {fieldVisible("plannedStart") && <small>Start · {dateLabel(operation.plannedStart)}</small>}
+                    {fieldVisible("plannedEnd") && <small>Delivery · {dateLabel(operation.plannedEnd)}</small>}
+                    {fieldVisible("quantity") && <small>Quantity · {operation.quantity.toLocaleString("en-IN")} {quantityUnit}</small>}
+                    {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} {quantityUnit}</small>}
+                    {fieldVisible("price") && <small>Price / part · ₹{(operation.actualRatePerPart || operation.ratePerPart).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                    {fieldVisible("amount") && <small>Process amount · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                    {fieldVisible("transportLegCost") && <small>Transport amount · ₹{(operationTransportAmounts[operation.id] || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                    {fieldVisible("combinedAmount") && <small>Process + transport · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart) + (operationTransportAmounts[operation.id] || 0)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                    {fieldVisible("status") && <small>Status · {operation.status}</small>}
+                    {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
+                    {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
+                    {fieldVisible("paymentStatus") && <small>Payment · {operation.paymentStatus || "Unpaid"}</small>}
+                    {fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>}
+                    {fieldVisible("description") && <small>Operation details · {operation.notes || operation.qualityNotes || "Not set"}</small>}
+                  </div>
                   {childOperations.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(""); }}><span>{child.name}</span><small>Sub-process · {child.status} · {child.machine || "Machine not set"}</small></button>)}
                   {linkedBranches.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(child.id); }}><span>{child.name}</span><small>{child.relationType === "rework" ? "Rework branch" : "Alternate route"} · {child.status}</small></button>)}
                   <button type="button" className="process-node-add-subprocess" onClick={() => onAddSubprocess?.(operation.id)}>＋ Add sub-process</button>
