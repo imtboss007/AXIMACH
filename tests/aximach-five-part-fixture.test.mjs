@@ -183,7 +183,7 @@ test("dashboard command globe exposes 18 unique, distinguishable module shortcut
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
-test("all 18 module shortcuts are mounted on the rotating 3D sphere and the live-data shell remains separate", () => {
+test("all 18 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const depthOpen = orb.indexOf('<motion.div className="ax-orb-depth"');
   const moduleShell = orb.indexOf('className="ax-orb-module-shell"');
@@ -191,12 +191,19 @@ test("all 18 module shortcuts are mounted on the rotating 3D sphere and the live
   const depthClose = orb.indexOf("</motion.div>", moduleClose + 1);
   const lowerShell = orb.indexOf('<div className="ax-orb-lower-shell"');
   assert.ok(depthOpen >= 0 && depthOpen < moduleShell && moduleShell < moduleClose && moduleClose < depthClose,
-    "module controls must be children of the rotating 3D depth layer");
-  assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the sphere");
+    "module controls must be children of the same draggable 3D globe");
+  assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the globe");
   assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
-  assert.ok(orb.includes('style={{ rotateX, rotateY, transformPerspective: 950, transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}'));
-  assert.ok(orb.includes('animate={reducedMotion || reduceMotion || paused ? undefined : { y: [0, -5, 0] }}'));
+  assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
+  assert.ok(orb.includes('style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}'));
+  assert.ok(orb.includes("const startDrag ="));
+  assert.ok(orb.includes("const startLowerDrag ="));
+  assert.ok(orb.includes('onClick={() => onSelectModule(id)}'));
+  assert.ok(orb.includes('onClick={() => { if (!lowerDragMoved.current) onSelectModule(id); }}'));
+  assert.ok(!orb.includes("useAnimationFrame"));
+  assert.ok(!orb.includes("rotateY:360"));
+  assert.ok(!orb.includes("rotate:360"));
   assert.ok(orb.includes('transform: "translate3d(" + x + "px," + y + "px," + z + "px)'));
   assert.ok(orb.includes("Math.sqrt(Math.max(0.08, 1 - radialX * radialX - radialY * radialY))"));
   assert.ok(orb.includes('{ count: 4, radial: 0.40'));
@@ -352,7 +359,7 @@ test("Process Directory maintains permanent sub-process IDs through in-place ren
 test("3D Process Map places unsaved Process Directory definitions on the interactive orbit", () => {
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   assert.ok(universe.includes("const catalogueOrbitNodes = useMemo"));
-  assert.ok(universe.includes("const showCatalogueOrbit = parentOperations.length === 0"));
+  assert.ok(universe.includes("const showCatalogueOrbit = operations.length === 0"));
   assert.ok(universe.includes("onAddProcessDefinition?.(definition.id)"));
   assert.ok(universe.includes('className="process-orbit-node status-planned process-orbit-node-catalog"'));
   assert.ok(universe.includes("DIRECTORY STAGES"));
