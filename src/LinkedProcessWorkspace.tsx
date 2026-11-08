@@ -1241,7 +1241,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                   <button type="button" className={activeOperation?.id===operation.id?"is-selected":""} style={{borderColor:nodeColor}} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} title={"Select "+operation.name+" · OP-"+operation.sequence}>
                     <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={<Workflow size={16}/>}/>
                     <strong>{operation.name}</strong><small>OP-{String(operation.sequence).padStart(3,"0")}</small>
-                    <em style={{background:nodeColor}}>{operation.category||"Process"}</em>
+                    <em style={{background:nodeColor}}>{operation.category||"Process"}</em>{operation.subcategory&&<small className="process-route-flow-subcategory">SUB · {operation.subcategory}</small>}
                   </button>
                   {index<lane.length-1&&<span className="process-route-flow-arrow" style={{color:routeArrowColor}}><ArrowRight size={20}/></span>}
                 </div>;
