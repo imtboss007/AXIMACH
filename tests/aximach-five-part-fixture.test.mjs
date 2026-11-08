@@ -1031,3 +1031,13 @@ test("Process Universe shows selectable transport cost and combined cost values 
   assert.ok(universe.includes('fieldVisible("transportLegCost")'));
   assert.ok(universe.includes('fieldVisible("combinedAmount")'));
 });
+
+test("Dashboard and Command Centre keep independent persisted sphere preferences", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const dashboard = readFileSync(new URL("../src/DashboardWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes('surface === "command-centre" ? "aximach.command-centre.orb.preferences.v1" : "aximach.orb.preferences.v1"'));
+  assert.ok(orb.includes("window.localStorage.setItem(preferenceKey"));
+  assert.ok(app.includes('<AXIMACHOrb surface="command-centre"'));
+  assert.ok(dashboard.includes('<AXIMACHOrb surface="dashboard"'));
+});
