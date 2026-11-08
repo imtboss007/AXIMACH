@@ -74,12 +74,12 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const lowerDrag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
   const dragSensitivity = speed === "Slow" ? 0.45 : speed === "Fast" ? 0.95 : 0.72;
 
-  const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
     dragMoved.current = false;
     drag.current = { x: event.clientX, y: event.clientY, rx: rotateX.get(), ry: rotateY.get() };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
-  const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const moveDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (!drag.current) return;
     if (Math.abs(event.clientX - drag.current.x) + Math.abs(event.clientY - drag.current.y) > 6) dragMoved.current = true;
     rotateY.set(drag.current.ry + (event.clientX - drag.current.x) * dragSensitivity);
@@ -194,7 +194,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             const z = radialZ * radius;
             return <motion.button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"
               style={{ left: "50%", top: "50%", transform: "translate3d(" + x + "px," + y + "px," + z + "px) translate(-50%,-50%)" }}
-              onPointerDown={event => event.stopPropagation()} onClick={() => onSelectModule(id)}
+              onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onClick={() => { if (!dragMoved.current) onSelectModule(id); }}
               aria-label={"Open " + label + " module"} title={"Open " + label}
               initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.08 + index * 0.025, type: "spring", stiffness: 130 }} whileHover={{ filter: "brightness(1.15)" }} whileTap={{ scale: 0.94 }}>
