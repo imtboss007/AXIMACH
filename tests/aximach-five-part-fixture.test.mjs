@@ -918,3 +918,13 @@ test("Process Map route scopes intersect active filters before diagram and expor
   assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
   assert.ok(workspace.includes("operations={exportOperations}"));
 });
+
+
+test("secondary Process Plan workspaces are user-expandable while route filters and graph stay open", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('<details className="surface-panel component-transport-map-strip">'));
+  assert.ok(workspace.includes('<details className="surface-panel process-operation-table-panel">'));
+  assert.ok(workspace.includes('<details className="surface-panel linked-cost-card">'));
+  assert.ok(workspace.includes('<details open className="surface-panel process-route-scope-panel">'));
+  assert.ok(workspace.includes('<details open className="surface-panel linked-route-canvas">'));
+});
