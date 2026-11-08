@@ -144,7 +144,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             onClick={toggleZoom}
             onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setZoomed(value => !value); } }}
           >
-            <AXIMACHWebGLSphere paused={paused} reduceMotion={reduceMotion || reducedMotion === true} speed={speed} />
+            <AXIMACHWebGLSphere />
             <span className="ax-orb-gloss" />
             <span className="ax-orb-latitude ax-orb-latitude-one" />
             <span className="ax-orb-latitude ax-orb-latitude-two" />
