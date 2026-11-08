@@ -163,7 +163,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const selectedTransportDirectoryRoute = transportRoutes.find(route => route.id === transportRouteId);
   const processCategories = [...new Set(processDefinitions.map(item => item.category).filter(Boolean))].sort();
   const processTypeOptions = [...new Set(processDefinitions.filter(item => !draft.category || item.category === draft.category).map(item => item.processType).filter(Boolean))].sort();
-  const processFilterTypes = [...new Set(processDefinitions.map(item => item.processType).filter(Boolean))].sort();
+  const processFilterTypes = processDefinitions.map(definition => ({ id: definition.id, label: definition.category + " · " + definition.processType }));
   const processSubcategoryOptions = processDefinitions.flatMap(definition =>
     (definition.subcategories || []).map((value, index) => ({
       id: definition.subcategoryIds?.[index] || `${definition.id}-subprocess-${String(index + 1).padStart(3, "0")}`,
@@ -182,9 +182,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const toleranceMatch = !toleranceFilters.length || toleranceFilters.includes(op.toleranceCategory || "Standard");
     const paymentMatch = !paymentFilters.length || paymentFilters.includes(op.paymentStatus || "Unpaid");
     const vendorMatch = !vendorFilters.length || vendorFilters.includes(op.vendorId);
-    const processTypeMatch = !processTypeFilters.length || processTypeFilters.includes(op.name);
     const operationDefinition = processDefinitions.find(item => item.id === op.processDefinitionId)
       || processDefinitions.find(item => item.processType === op.name && item.category === op.category);
+    const stableProcessDefinitionId = op.processDefinitionId || operationDefinition?.id || "";
+    const processTypeMatch = !processTypeFilters.length || processTypeFilters.includes(stableProcessDefinitionId);
     const operationSubcategoryId = op.processSubcategoryId || processSubcategoryIdFor(operationDefinition, op.subcategory || "");
     const subcategoryMatch = !subcategoryFilters.length || subcategoryFilters.includes(operationSubcategoryId);
     const operationDate = (op.plannedEnd || op.plannedStart || "").slice(0,10);
@@ -1138,7 +1139,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         <SearchableMultiSelect id="process-filter-status" label="Process status" options={["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"].map(value=>({id:value,label:value}))} selected={statusFilters} onChange={setStatusFilters} emptyMeansAll/>
         <SearchableMultiSelect id="process-filter-execution" label="Execution" options={["Internal","Outsourced"].map(value=>({id:value,label:value}))} selected={executionFilters} onChange={setExecutionFilters} emptyMeansAll/>
         <SearchableMultiSelect id="process-filter-category" label="Process category" options={processCategories.map(value=>({id:value,label:value}))} selected={categoryFilters} onChange={setCategoryFilters} emptyMeansAll/>
-        <SearchableMultiSelect id="process-filter-type" label="Process type" options={processFilterTypes.map(value=>({id:value,label:value}))} selected={processTypeFilters} onChange={setProcessTypeFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="process-filter-type" label="Process type" options={processFilterTypes} selected={processTypeFilters} onChange={setProcessTypeFilters} emptyMeansAll/>
         <SearchableMultiSelect id="process-filter-subcategory" label="Subcategory" options={processSubcategoryOptions} selected={subcategoryFilters} onChange={setSubcategoryFilters} emptyMeansAll/>
         <SearchableMultiSelect id="process-filter-tolerance" label="Tolerance" options={["Standard","Precision","Close","Ultra Precision"].map(value=>({id:value,label:value}))} selected={toleranceFilters} onChange={setToleranceFilters} emptyMeansAll/>
         <SearchableMultiSelect id="process-filter-payment" label="Payment status" options={["Paid","Unpaid"].map(value=>({id:value,label:value}))} selected={paymentFilters} onChange={setPaymentFilters} emptyMeansAll/>
