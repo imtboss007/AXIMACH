@@ -189,6 +189,9 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   const moduleShell = orb.indexOf('className="ax-orb-module-shell"');
   const moduleClose = orb.indexOf("</motion.div>", moduleShell);
   const depthClose = orb.indexOf("</motion.div>", moduleClose + 1);
+  const core = orb.indexOf('className="ax-orb-core"');
+  assert.ok(core >= 0 && core < depthOpen, "the spherical WebGL globe must remain a sphere rather than rotate as a flat canvas plane");
+  assert.ok(orb.includes('<AXIMACHWebGLSphere rotationX={rotateX} rotationY={rotateY} />'), "manual drag orientation must rotate the WebGL surface texture");
   const lowerShell = orb.indexOf('<div className="ax-orb-lower-shell"');
   assert.ok(depthOpen >= 0 && depthOpen < moduleShell && moduleShell < moduleClose && moduleClose < depthClose,
     "module controls must be children of the same draggable 3D globe");
@@ -565,6 +568,15 @@ test("Dashboard spheres only rotate on direct drag and dashboard navigation butt
   assert.ok(app.includes('onClick={() => selectModule("command-centre")}'));
   assert.ok(app.includes('activeModuleId === "dashboard"'));
   assert.ok(app.includes('activeModuleId === "command-centre"'));
+});
+
+test("WebGL sphere rotates its surface coordinates with the same manual globe orientation", () => {
+  const sphere = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
+  assert.ok(sphere.includes("uniform vec2 globeRotation"));
+  assert.ok(sphere.includes("rotateY * rotateX * normalize(q)"));
+  assert.ok(sphere.includes('rotationX.on("change", applyRotation)'));
+  assert.ok(sphere.includes('rotationY.on("change", applyRotation)'));
+  assert.ok(sphere.includes("gl.uniform2f(globeRotation"));
 });
 
 test("static WebGL globe redraws only when resized and does not burn frames while idle", () => {
