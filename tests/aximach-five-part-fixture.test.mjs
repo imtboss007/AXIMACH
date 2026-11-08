@@ -977,11 +977,18 @@ test("saved mechanical icon assignments with outline/filled prefixes resolve cor
 test("selected-operation and selected-branch route scopes require an explicit selection", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("const explicitlySelectedOperation = routeOperations.find(op => op.id === selectedOperationId)"));
-  assert.ok(workspace.includes("if (scope === \\"selected-operation\\") return explicitlySelectedOperation"));
-  assert.ok(workspace.includes("if (scope === \\"selected-branch\\") return explicitlySelectedOperation"));
+  assert.ok(workspace.includes('if (scope === \"selected-operation\") return explicitlySelectedOperation'));
+  assert.ok(workspace.includes('if (scope === \"selected-branch\") return explicitlySelectedOperation'));
 });
 
 test("Process Universe payment visibility uses the Process Plan export field ID", () => {
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   assert.equal(universe.split('fieldVisible("paymentStatus")').length - 1, 2);
+});
+
+test("Icon Studio strips saved outline/filled prefixes before rendering Tabler class names", () => {
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  assert.ok(studio.includes("const iconBaseName = (name: string) =>"));
+  assert.ok(studio.includes("const resolvedVariant = name.startsWith(\"filled:\") ? \"filled\""));
+  assert.ok(studio.includes("ti ti-" + "${baseName}"));
 });
