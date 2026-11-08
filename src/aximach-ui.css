@@ -1930,6 +1930,10 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .process-orbit-selected-links{display:flex;gap:7px;flex-wrap:wrap}
 .process-orbit-selected-links>button{min-height:30px;padding:6px 9px;border:1px solid #cbdcf0;border-radius:7px;background:#f1f7ff;color:#315c8d;font-size:9px;font-weight:600;text-align:left;cursor:pointer}
 .process-orbit-selected-links>button.process-orbit-add-subprocess{border-color:#9ec6e8;background:#eaf5ff;color:#155b97}
+.process-orbit-selected-links>button.process-orbit-add-alternate{border-color:#7bb8ee;background:#eaf4ff;color:#155fa4}
+.process-orbit-selected-links>button.process-orbit-add-rework{border-color:#e3a16e;background:#fff3e8;color:#a95c20}
+.process-node-subprocess-dropdown>button.process-node-add-alternate{align-items:center;background:#eaf4ff;border-color:#8bbfe9;color:#155fa4;font-weight:700}
+.process-node-subprocess-dropdown>button.process-node-add-rework{align-items:center;background:#fff3e8;border-color:#e3a16e;color:#a95c20;font-weight:700}
 .process-orbit-node.is-expanded{z-index:12;border-color:#3984dc;box-shadow:0 0 0 4px rgba(72,133,226,.17),0 12px 24px rgba(39,76,137,.22)}
 .process-universe-lane-toggle{display:flex;align-items:center;gap:9px;flex:1;min-width:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
 .process-universe-lane-toggle>span:nth-child(2){display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
