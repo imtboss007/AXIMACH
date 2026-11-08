@@ -153,7 +153,8 @@ test("Process Plan rejects stale process-definition IDs when the definition name
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('stableDefinition.processType === processType') && workspace.includes('stableDefinition.category === category'));
   assert.ok(workspace.includes('return matches.length === 1 ? matches[0] : undefined'));
-  assert.ok(workspace.includes('processDefinitionId: selectedProcessDefinition?.id || undefined'));
+  assert.ok(workspace.includes('processDefinitionId: processDefinition?.id || undefined'));
+  assert.ok(workspace.includes("const resolvedDefinition = selectedProcessDefinition || resolveProcessDefinition"));
 });
 
 test("Process Directory prevents duplicate process type within the same category", () => {
