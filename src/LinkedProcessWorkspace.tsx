@@ -256,8 +256,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const branchName = (operation: OperationRecord) => operation.branch || "Main route";
     if (scope === "all") return routeOperations;
     if (scope === "main") return routeOperations.filter(op => branchName(op) === "Main route");
-    if (scope === "alternate") return routeOperations.filter(op => branchName(op) !== "Main route" && !/rework/i.test(branchName(op)));
-    if (scope === "rework") return routeOperations.filter(op => /rework/i.test(branchName(op)));
+    if (scope === "alternate") return routeOperations.filter(op => op.relationType === "alternate" || (branchName(op) !== "Main route" && !/rework/i.test(branchName(op))));
+    if (scope === "rework") return routeOperations.filter(op => op.relationType === "rework" || /rework/i.test(branchName(op)));
     if (scope === "filtered") return visibleOperations;
     if (scope === "selected-operations") return selectedRouteOperations;
     if (scope === "selected-operation") return activeOperation ? [activeOperation] : [];
@@ -334,6 +334,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
 
   const exportColumns = PROCESS_EXPORT_FIELDS.filter(field=>exportFields.includes(field.key));
   const exportOperations = getRouteScopeOperations(exportScope);
+  const exportBranches = [...new Set(exportOperations.map(op=>op.branch||"Main route"))]
+    .sort((a,b)=>a==="Main route"?-1:b==="Main route"?1:a.localeCompare(b));
+  const processAccent = (operation:OperationRecord) => processDefinitions.find(item=>item.id===operation.processDefinitionId)?.displayColor || operation.processColor || DEFAULT_PROCESS_COLOR;
+  const branchAccent = (operation:OperationRecord) => operation.relationType==="rework" ? REWORK_ROUTE_COLOR : operation.relationType==="alternate" ? ALTERNATE_ROUTE_COLOR : processAccent(operation);
   const exportValue = (op:OperationRecord,key:ProcessExportField):string|number => {
     switch(key) {
       case "company": return selectedCompany?.name || "";
@@ -1065,6 +1069,16 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       </div>
       <div className="process-map-filter-actions"><span>{visibleOperations.length} visible / {routeOperations.length} operations · {selectedOperationIds.length} selected</span><button className="button-quiet compact-button" onClick={clearAllFilters}>Reset all filters</button></div>
     </section>
+    <section className="surface-panel process-route-scope-panel">
+      <div className="panel-heading"><div><div className="eyebrow">PROCESS MAP / ROUTE SCOPE</div><h3>Choose the route to display and export</h3><p>The same scope controls route arrows, process nodes and every download format for this PO component.</p></div><span className="module-number">{exportOperations.length} / {routeOperations.length} OPERATIONS</span></div>
+      <div className="process-route-scope-buttons">
+        {routeScopeButtons.map(scope=><button key={scope.key} type="button" aria-pressed={exportScope===scope.key} disabled={scope.count===0}
+          className={(exportScope===scope.key?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setExportScope(scope.key)}>
+          {scope.label} <small>({scope.count})</small>
+        </button>)}
+      </div>
+      {!exportOperations.length && <div className="module-empty-state"><Workflow size={22}/><strong>No processes in this route scope</strong><p>Choose another scope, clear filters, or select saved process operations.</p><button className="button-quiet compact-button" onClick={()=>setExportScope("all")}>Show all routes</button></div>}
+    </section>
     <div className="linked-process-layout">
       <section className="surface-panel linked-route-canvas">
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></div>
@@ -1072,15 +1086,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           <div className="process-export-fields"><div className="process-export-field-actions"><button type="button" onClick={()=>setExportFields(PROCESS_EXPORT_FIELDS.map(field=>field.key))}>Select all fields</button><button type="button" onClick={()=>setExportFields([])}>Clear fields</button></div>{PROCESS_EXPORT_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={exportFields.includes(field.key)} onChange={()=>setExportFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div>
           <div className="process-export-options" style={{display:"grid",gap:"10px"}}>
             <label><input type="checkbox" checked={exportArrows} onChange={event=>setExportArrows(event.target.checked)}/> Connection arrows</label>
-            <div className="process-export-scope-buttons" aria-label="All route export scopes" style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"7px"}}>
-              <strong>ROUTE SCOPE</strong>
-              {routeScopeButtons.map(scope=><button key={scope.key} type="button" aria-pressed={exportScope===scope.key}
-                disabled={scope.count===0}
-                className={(exportScope===scope.key?"button-primary":"button-quiet")+" compact-button"}
-                onClick={()=>setExportScope(scope.key)}>
-                {scope.label} <small>({scope.count})</small>
-              </button>)}
-            </div>
+
           </div>
           <div className="process-export-actions"><button type="button" className="button-primary compact-button" onClick={exportCsv}><FileDown size={14}/> CSV</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("svg")}>SVG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("png")}>PNG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportPowerPoint()}><FileText size={14}/> PowerPoint</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportExcel()}><FileDown size={14}/> Excel</button><button type="button" className="button-quiet compact-button" onClick={printExport}><Printer size={14}/> Diagram PDF</button><small>{exportOperations.length} operation(s) · {exportColumns.length} field(s)</small></div>
         </div>
