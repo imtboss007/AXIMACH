@@ -955,3 +955,12 @@ test("unknown process names use the supplied neutral fallback instead of a false
   assert.ok(studio.includes("const knownMechanicalGlyph = mechanicalGlyphForOperation(processName)"));
   assert.ok(studio.includes("(fallback || <Workflow size={16} />)"));
 });
+
+
+test("Process Universe field visibility is applied to both orbit and connected route nodes", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  for (const field of ["status", "execution", "tolerance", "payment", "machine"]) {
+    assert.equal((universe.match(new RegExp('fieldVisible\\\\("' + field + '"\\\\)', "g")) || []).length, 2, field + " must be rendered in both layouts");
+  }
+  assert.ok(universe.includes('fieldVisible("machine") && operation.machine && <span className="process-universe-machine">'));
+});
