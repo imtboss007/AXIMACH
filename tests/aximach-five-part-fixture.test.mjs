@@ -486,6 +486,18 @@ test("Alternate and rework routes use different arrow colours while process type
   assert.ok(css.includes(".process-universe-branch-link.is-rework"));
 });
 
+test("Process Directory PDF and Excel exports include per-process logo artwork", () => {
+  const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const glyphs = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  assert.ok(glyphs.includes("export function mechanicalOperationSvgForName(operationName: string): string"));
+  assert.ok(directory.includes("function processLogoSource("));
+  assert.ok(directory.includes("async function processLogoPngBase64("));
+  assert.ok(directory.includes('header:"Logo",key:"logo"'));
+  assert.ok(directory.includes("sheet.addImage(imageId"));
+  assert.ok(directory.includes("processLogoSource(row)"));
+  assert.ok(directory.includes("<th>Logo</th>"));
+});
+
 test("Every process row can open Logo Studio for its own Process Directory record", () => {
   const workspace = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
