@@ -711,3 +711,42 @@ test("five synthetic component names resolve to the intended mechanical logo fam
   }
   assert.ok(iconSource.indexOf("gear|sprocket|rack|worm wheel|splined") < iconSource.indexOf("shaft|spindle|axle|pinion shaft|drive shaft"), "gear identity must take priority over the generic shaft rule");
 });
+
+test("AXIMACH 18-module sphere auto-rotates by default and module taps do not become drag gestures", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes("useAnimationFrame"));
+  assert.ok(orb.includes("saved.current.autoRotate !== false"));
+  assert.ok(orb.includes("setAutoRotate(value => !value)"));
+  assert.ok(orb.includes("onPointerDown={event => event.stopPropagation()}"));
+  assert.ok(orb.includes("AUTO-ROTATING · TAP A MODULE TO OPEN"));
+  assert.equal((orb.match(/label: "/g) || []).filter(label => label).length >= 18, true);
+});
+
+test("Process Plan carries Process Directory identity and stable subcategory IDs into child and route records", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  const planned = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const contacts = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(data.includes("subcategoryId?: string"));
+  assert.ok(data.includes("processSubcategoryId?: string"));
+  assert.ok(data.includes("processDefinitionIds?: string[]"));
+  assert.ok(workspace.includes("base.processDefinitionId = parent.processDefinitionId"));
+  assert.ok(workspace.includes("base.subcategoryId = parent.subcategoryId ||"));
+  assert.ok(workspace.includes("base.subcategoryId = anchor.subcategoryId ||"));
+  assert.ok(workspace.includes("subcategoryId:targetSubcategoryId"));
+  assert.ok(planned.includes("processSubcategoryId:row.processSubcategoryId||undefined"));
+  assert.ok(contacts.includes("processDefinitionIds:selectedDefinitionIds"));
+  assert.ok(contacts.includes("processSubcategoryIds:ids"));
+});
+
+test("Process route scope controls clear every filter and constrain child nodes to the active route", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(workspace.includes("onClick={clearAllFilters}"));
+  assert.ok(workspace.includes('disabled={scope.count===0 && scope.key!=="all"}'));
+  assert.ok(universe.includes("operations.filter(operation => operation.relationType === \"subprocess\""));
+  assert.ok(universe.includes("operations.filter(operation => (operation.relationType === \"alternate\""));
+  assert.ok(css.includes(".process-route-flow-arrow::before"));
+  assert.ok(css.includes(".process-route-flow-lane.is-rework"));
+});
