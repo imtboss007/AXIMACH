@@ -50,7 +50,7 @@ The machine-readable process/category/sub-process fixture is in [tests/fixtures/
 ## Automated interaction-contract coverage and manual device acceptance
 
 - Regression tests assert that the 10 Process Plan view buttons select the matching visual renderer, with 3D Sphere, Vortex and Combined 3D opening the corresponding 3D layout.
-- Alternate and rework branch origin resolution walks the complete parent chain, so a selected-branch or selected-operation route scope still displays the original parent connection. Main-route connectors use process colour, alternate connectors use blue and rework connectors use orange.
+- Alternate and rework branch origin resolution walks the complete parent chain, so a selected-branch or selected-operation route scope still displays the original parent connection. Main-route connectors use process colour, alternate connectors use blue and rework connectors use orange. The same arrow connectors render directly in the 3D process orbit, including a parent-origin marker when the parent is outside the current scope.
 - Route-scope regression checks cover the selected diagram data and all five export handlers. Physical end-to-end checks must still be completed on a configured PC and Android device.
 
 ## Manual device acceptance still required
