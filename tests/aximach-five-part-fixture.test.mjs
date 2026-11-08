@@ -146,7 +146,7 @@ test("Process Plan enforces Process Directory vendor assignments", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)'));
   assert.ok(workspace.includes('vendorStillAssigned=!definition?.vendorIds?.length||definition.vendorIds.includes(draft.vendorId)'));
-  assert.ok(workspace.includes('subcategory:"",subcategoryId:"",vendorId:""'));
+  assert.ok(workspace.includes('subcategory:"",subcategoryId:"",vendorId:vendorStillAssigned?draft.vendorId:""'));
 });
 
 test("Process Plan rejects stale process-definition IDs when the definition name or category changed", () => {
