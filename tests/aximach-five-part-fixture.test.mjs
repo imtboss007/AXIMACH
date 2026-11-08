@@ -819,3 +819,44 @@ test("Logo Studio limits selectable and persisted symbols to mechanical and tran
   assert.ok(studio.includes("!isMechanicalStudioIcon(assignment.iconName)"));
   assert.ok(mechanical.includes('mechanicalGlyphForOperation(operation) || "component-block"'));
 });
+
+
+test("Process Plan route scopes stay selectable, and simulation follows the selected scope", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(!workspace.includes("disabled={scope.count===0}"));
+  assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
+  assert.ok(workspace.includes("const simulationOperations = exportOperations.filter(operation => operation.relationType !== \"subprocess\")"));
+  assert.ok(workspace.includes("simulationOperations.length - 1"));
+  assert.ok(workspace.includes("No saved operations in this route scope"));
+});
+
+test("Transport leg action is a dropdown, and process and transport costs remain separate", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("transport-leg-menu-anchor"));
+  assert.ok(workspace.includes("Open Transport Directory"));
+  assert.ok(workspace.includes('case "transportLegCost"'));
+  assert.ok(workspace.includes('case "combinedAmount"'));
+  assert.ok(workspace.includes("<th>Transport amount</th>"));
+  assert.ok(workspace.includes("operationTransportAmount"));
+});
+
+test("Process Plan shares field and arrow controls with Process Universe", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("visibleFields={exportFields} showArrows={exportArrows}"));
+  assert.ok(universe.includes('fieldVisible("plannedEnd")'));
+  assert.ok(universe.includes('fieldVisible("vendor")'));
+  assert.ok(universe.includes('fieldVisible("price")'));
+  assert.ok(universe.includes('fieldVisible("amount")'));
+  assert.ok(universe.includes("{showArrows && index < lane.rows.length - 1"));
+});
+
+test("All non-3D Process Plan views expose the same Process Directory definitions without inventing operations", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("process-view-directory-catalog-grid"));
+  assert.ok(workspace.includes("AVAILABLE PROCESS DEFINITIONS"));
+  assert.ok(workspace.includes("These are engineering definitions, not saved production steps"));
+  for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
+    assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
+  }
+});
