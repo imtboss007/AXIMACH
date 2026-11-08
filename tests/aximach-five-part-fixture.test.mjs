@@ -440,6 +440,10 @@ test("Process Plan route scope drives displayed visuals and every export format"
   assert.ok(workspace.includes('aria-label="Selected route arrow diagram"'));
   assert.ok(workspace.includes("route.addRows(exportOperations.map(op =>"));
   assert.ok(workspace.includes("nextInSameRoute"));
+  for (const field of ['header: "Relation"', 'header: "Parent process"', 'header: "Next process"', 'header: "Next operation ID"']) {
+    assert.ok(workspace.includes(field), "missing branch-aware Excel route field: " + field);
+  }
+  assert.ok(workspace.includes('next: exportArrows && nextInSameRoute ? "→ " + nextInSameRoute.name : ""'));
   assert.ok(workspace.includes('const rows=exportOperations.filter(op=>(op.branch||"Main route")===branch)'));
   assert.ok(workspace.includes("const buildExportSvg = () =>"));
   assert.ok(workspace.includes("Choose the route to display and export"));
