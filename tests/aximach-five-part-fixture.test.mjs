@@ -1131,3 +1131,36 @@ test("Small-phone sphere container stays within viewport width", () => {
   assert.ok(styles.includes(".ax-orb-drag-zone { width: min(100%,360px); max-width: 100%; margin-inline: auto; }"));
   assert.ok(!styles.includes(".ax-orb-drag-zone { width: 110%; margin-left: -5%; }"));
 });
+
+
+test("Process Universe sphere nodes reveal a real linked detail panel and can collapse it", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(universe.includes('aria-controls="process-orbit-selected-details"'));
+  assert.ok(universe.includes('aria-expanded={expanded}'));
+  assert.ok(universe.includes('id="process-orbit-selected-details"'));
+  assert.ok(universe.includes('{layoutMode !== "route" && expandedOrbitOperation && <section'));
+  assert.ok(universe.includes('onClick={() => setExpandedOperationId("")}'));
+  assert.ok(universe.includes("const expandedOrbitOperation = displayOperations.find(operation => operation.id === expandedOperationId);"));
+  assert.ok(styles.includes(".process-orbit-selected-details{"));
+});
+
+test("Process Universe route sections can independently expand and collapse", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(universe.includes("const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);"));
+  assert.ok(universe.includes("const collapsed = collapsedLaneNames.includes(lane.name);"));
+  assert.ok(universe.includes('className="process-universe-lane-toggle"'));
+  assert.ok(universe.includes("aria-expanded={!collapsed}"));
+  assert.ok(universe.includes('className="process-universe-lane-content" hidden={collapsed}'));
+  assert.ok(universe.includes('onClick={() => setCollapsedLaneNames(current => current.includes(lane.name)'));
+  assert.ok(styles.includes(".process-universe-lane-content[hidden]{display:none!important}"));
+});
+
+test("Process Universe route nodes expose expandable linked subprocess and alternate/rework controls", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes('aria-controls={"process-universe-node-details-"+operation.id}'));
+  assert.ok(universe.includes('id={"process-universe-node-details-"+operation.id} className="process-node-subprocess-dropdown"'));
+  assert.ok(universe.includes("childOperations.map(child =>"));
+  assert.ok(universe.includes("linkedBranches.map(child =>"));
+});

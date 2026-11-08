@@ -1914,3 +1914,28 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .process-list-component-transport-summary small{color:var(--muted,#8090a6)}
 .process-list-component-transport-summary>strong:last-child{white-space:nowrap}
 @media(max-width:640px){.process-list-component-transport-summary{align-items:flex-start;flex-direction:column;gap:6px}}
+
+
+/* Process Universe drill-down and lane disclosure controls. */
+.process-orbit-selected-details{display:grid;gap:10px;margin:12px 0 7px;padding:12px;border:1px solid #c9d9ee;border-radius:11px;background:rgba(255,255,255,.96);color:#35557f;box-shadow:0 7px 18px rgba(39,76,137,.08)}
+.process-orbit-selected-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.process-orbit-selected-heading>div{display:grid;gap:3px;min-width:0}
+.process-orbit-selected-heading small,.process-orbit-selected-grid small{color:#7890ae;font:700 8px 'DM Mono',monospace;letter-spacing:.06em}
+.process-orbit-selected-heading strong{color:#244b79;font-size:13px;overflow-wrap:anywhere}
+.process-orbit-selected-heading>button{min-height:30px;padding:5px 9px;border:1px solid #c8d9ed;border-radius:7px;background:#f2f7ff;color:#315c8d;font-size:9px;font-weight:700;cursor:pointer}
+.process-orbit-selected-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.process-orbit-selected-grid>div{display:grid;gap:3px;min-width:0;padding:7px 8px;border:1px solid #e1eaf5;border-radius:7px;background:#f8fbff}
+.process-orbit-selected-grid strong{color:#3d5878;font-size:10px;overflow-wrap:anywhere}
+.process-orbit-selected-grid .process-orbit-selected-wide{grid-column:1/-1}
+.process-orbit-selected-links{display:flex;gap:7px;flex-wrap:wrap}
+.process-orbit-selected-links>button{min-height:30px;padding:6px 9px;border:1px solid #cbdcf0;border-radius:7px;background:#f1f7ff;color:#315c8d;font-size:9px;font-weight:600;text-align:left;cursor:pointer}
+.process-orbit-selected-links>button.process-orbit-add-subprocess{border-color:#9ec6e8;background:#eaf5ff;color:#155b97}
+.process-orbit-node.is-expanded{z-index:12;border-color:#3984dc;box-shadow:0 0 0 4px rgba(72,133,226,.17),0 12px 24px rgba(39,76,137,.22)}
+.process-universe-lane-toggle{display:flex;align-items:center;gap:9px;flex:1;min-width:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.process-universe-lane-toggle>span:nth-child(2){display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.process-universe-lane-disclosure{display:grid;place-items:center;flex:0 0 22px;width:22px;height:22px;border:1px solid #d7e4f7;border-radius:6px;background:#fff;color:#3977ce;font-size:15px;font-weight:700}
+.process-universe-lane-toggle:focus-visible{outline:2px solid #438df3;outline-offset:4px;border-radius:5px}
+.process-universe-lane-content[hidden]{display:none!important}
+.process-universe-node.is-expanded{z-index:14;border-color:#3984dc;box-shadow:0 0 0 3px rgba(72,133,225,.16),0 12px 24px rgba(39,76,137,.2)}
+.process-universe-node-wrap:has(.process-node-subprocess-dropdown){z-index:15}
+@media(max-width:650px){.process-orbit-selected-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.process-orbit-selected-heading>button{width:100%}.process-universe-lane-toggle{gap:7px}.process-universe-lane-label{gap:6px}}

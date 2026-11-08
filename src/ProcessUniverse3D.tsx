@@ -26,6 +26,7 @@ type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | 
 
 export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
+  const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);
   const fieldVisible = (field: string) => visibleFields.includes(field);
   const dateLabel = (value?: string) => value ? value.slice(0, 10) : "Not set";
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
@@ -33,6 +34,9 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
   const lookupOperations = allOperations || operations;
   const subprocessesFor = (parentId: string) => lookupOperations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
   const branchesFor = (parentId: string) => lookupOperations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
+  const expandedOrbitOperation = displayOperations.find(operation => operation.id === expandedOperationId);
+  const expandedOrbitSubprocesses = expandedOrbitOperation ? subprocessesFor(expandedOrbitOperation.id) : [];
+  const expandedOrbitBranches = expandedOrbitOperation ? branchesFor(expandedOrbitOperation.id) : [];
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>(initialLayout);
   useEffect(() => setLayoutMode(initialLayout), [initialLayout]);
   const rotateX = useMotionValue(-12);
@@ -194,32 +198,17 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
           <div className="process-orbit-core"><span className="process-orbit-core-gloss" /><span className="process-orbit-core-grid" /><div><small>AXIMACH / ROUTE CORE</small><strong>{orbitCount.toString().padStart(2,"0")}</strong><b>{displayOperations.length ? "PROCESS STEPS" : "DIRECTORY STAGES"}</b><em>{displayOperations.length ? "SAVED ROUTE" : "CATALOGUE ONLY"}</em></div><i className="process-orbit-dot process-orbit-dot-a" /><i className="process-orbit-dot process-orbit-dot-b" /><i className="process-orbit-dot process-orbit-dot-c" /></div>
           {orbitNodes.map(({ operation, index, transform }) => {
             const active = selectedOperationId === operation.id, current = simulationIndex === index, passed = simulationIndex > index;
+            const expanded = expandedOperationId === operation.id;
             const state = operation.status.toLowerCase().replaceAll(" ","-");
             const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
             const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
-            return <button key={operation.id} type="button" className={"process-orbit-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{ transform, "--process-accent":accent } as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={operation.name + " · " + operation.status}>
+            return <button key={operation.id} type="button" className={"process-orbit-node status-" + state + (active ? " is-selected" : "") + (expanded ? " is-expanded" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{ transform, "--process-accent":accent } as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} aria-expanded={expanded} aria-controls="process-orbit-selected-details" title={operation.name + " · " + operation.status}>
               <span className="process-orbit-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><i /></span>
               <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} />
               <strong>{operation.name}</strong>
-              <div className="process-orbit-node-details">
-                {fieldVisible("category") && <small>Category · {operation.category || "Not set"}</small>}
-                {fieldVisible("subcategory") && operation.subcategory && <small>Subcategory · {operation.subcategory}</small>}
-                {fieldVisible("vendor") && <small>Vendor · {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "Not assigned"}</small>}
-                {fieldVisible("plannedStart") && <small>Start · {dateLabel(operation.plannedStart)}</small>}
-                {fieldVisible("plannedEnd") && <small>Delivery · {dateLabel(operation.plannedEnd)}</small>}
-                {fieldVisible("quantity") && <small>Quantity · {operation.quantity.toLocaleString("en-IN")} {quantityUnit}</small>}
-                {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} {quantityUnit}</small>}
-                {fieldVisible("price") && <small>Price / part · ₹{(operation.actualRatePerPart || operation.ratePerPart).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
-                {fieldVisible("amount") && <small>Process amount · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
-                {fieldVisible("transportLegCost") && <small>Transport amount · ₹{(operationTransportAmounts[operation.id] || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
-                {fieldVisible("combinedAmount") && <small>Process + transport · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart) + (operationTransportAmounts[operation.id] || 0)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
-                {fieldVisible("status") && <small>Status · {operation.status}</small>}
-                {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
-                {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
-                {fieldVisible("paymentStatus") && <small>Payment · {operation.paymentStatus || "Unpaid"}</small>}
-                {fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>}
-              </div>
               {subprocessesFor(operation.id).length > 0 && <small className="process-orbit-node-qty">{subprocessesFor(operation.id).length} SUB-PROCESS(ES)</small>}
+              {branchesFor(operation.id).length > 0 && <small className="process-orbit-node-qty">{branchesFor(operation.id).length} ALTERNATE / REWORK STEP(S)</small>}
+              <small className="process-orbit-node-qty">{expanded ? "− COLLAPSE DETAILS" : "+ EXPAND DETAILS"}</small>
             </button>;
           })}
           {showCatalogueOrbit && catalogueOrbitNodes.map(({ definition, index, transform }) => (
@@ -241,51 +230,78 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
         </motion.div>
       </div>
       <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>{showCatalogueOrbit ? "SELECT A DIRECTORY NODE TO CREATE A PO-LINE OPERATION" : "SELECT A PROCESS NODE TO OPEN ITS RECORD"}</span><span>SIMULATION IS VISUAL ONLY</span></div>
+      {layoutMode !== "route" && expandedOrbitOperation && <section className="process-orbit-selected-details" id="process-orbit-selected-details" aria-label={"Expanded details for " + expandedOrbitOperation.name}>
+        <div className="process-orbit-selected-heading"><div><small>SELECTED PROCESS / OP-{String(expandedOrbitOperation.sequence).padStart(3,"0")}</small><strong>{expandedOrbitOperation.name}</strong></div><button type="button" onClick={() => setExpandedOperationId("")}>Collapse details −</button></div>
+        <div className="process-orbit-selected-grid">
+          {fieldVisible("category") && <div><small>CATEGORY</small><strong>{expandedOrbitOperation.category || "Not set"}</strong></div>}
+          {fieldVisible("subcategory") && <div><small>SUBCATEGORY</small><strong>{expandedOrbitOperation.subcategory || "Not set"}</strong></div>}
+          {fieldVisible("vendor") && <div><small>VENDOR</small><strong>{vendors.find(vendor => vendor.id === expandedOrbitOperation.vendorId)?.company || "Not assigned"}</strong></div>}
+          {fieldVisible("plannedStart") && <div><small>START</small><strong>{dateLabel(expandedOrbitOperation.plannedStart)}</strong></div>}
+          {fieldVisible("plannedEnd") && <div><small>DELIVERY</small><strong>{dateLabel(expandedOrbitOperation.plannedEnd)}</strong></div>}
+          {fieldVisible("quantity") && <div><small>QUANTITY</small><strong>{expandedOrbitOperation.quantity.toLocaleString("en-IN")} {quantityUnit}</strong></div>}
+          {fieldVisible("completed") && <div><small>COMPLETED</small><strong>{expandedOrbitOperation.completed.toLocaleString("en-IN")} {quantityUnit}</strong></div>}
+          {fieldVisible("price") && <div><small>PRICE / PART</small><strong>₹{(expandedOrbitOperation.actualRatePerPart || expandedOrbitOperation.ratePerPart).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
+          {fieldVisible("amount") && <div><small>PROCESS AMOUNT</small><strong>₹{(expandedOrbitOperation.quantity * (expandedOrbitOperation.actualRatePerPart || expandedOrbitOperation.ratePerPart)).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
+          {fieldVisible("transportLegCost") && <div><small>TRANSPORT AMOUNT</small><strong>₹{(operationTransportAmounts[expandedOrbitOperation.id] || 0).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
+          {fieldVisible("combinedAmount") && <div><small>PROCESS + TRANSPORT</small><strong>₹{(expandedOrbitOperation.quantity * (expandedOrbitOperation.actualRatePerPart || expandedOrbitOperation.ratePerPart) + (operationTransportAmounts[expandedOrbitOperation.id] || 0)).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
+          {fieldVisible("status") && <div><small>STATUS</small><strong>{expandedOrbitOperation.status}</strong></div>}
+          {fieldVisible("execution") && <div><small>EXECUTION</small><strong>{expandedOrbitOperation.executionType || "Outsourced"}</strong></div>}
+          {fieldVisible("tolerance") && <div><small>TOLERANCE</small><strong>{expandedOrbitOperation.toleranceCategory || "Standard"}</strong></div>}
+          {fieldVisible("paymentStatus") && <div><small>PAYMENT</small><strong>{expandedOrbitOperation.paymentStatus || "Unpaid"}</strong></div>}
+          {fieldVisible("machine") && <div><small>MACHINE / STATION</small><strong>{expandedOrbitOperation.machine || "Not set"}</strong></div>}
+          {fieldVisible("description") && <div className="process-orbit-selected-wide"><small>OPERATION DETAILS</small><strong>{expandedOrbitOperation.notes || expandedOrbitOperation.qualityNotes || "Not set"}</strong></div>}
+        </div>
+        {(expandedOrbitSubprocesses.length > 0 || expandedOrbitBranches.length > 0 || onAddSubprocess) && <div className="process-orbit-selected-links">
+          {expandedOrbitSubprocesses.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(""); }}>Sub-process · {child.name} · {child.status}</button>)}
+          {expandedOrbitBranches.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(child.id); }}>{child.relationType === "rework" ? "Rework" : "Alternate"} · {child.name} · {child.status}</button>)}
+          {onAddSubprocess && <button type="button" className="process-orbit-add-subprocess" onClick={() => onAddSubprocess(expandedOrbitOperation.id)}>＋ Add sub-process</button>}
+        </div>}
+      </section>}
     </div>
     <div className="process-universe-viewport"><div className="process-universe-stage" style={stageStyle}>
-      {lanes.map(lane => <section className={"process-universe-lane" + (lane.alternate ? " is-branch " + (lane.branchRelation==="rework"?"is-rework":"is-alternate") : "")} key={lane.name}>
-        <div className="process-universe-lane-label"><span className="process-universe-branch-icon">{lane.alternate ? <GitBranch size={15}/> : <Workflow size={15}/>}</span><span><strong>{lane.name}</strong><small>{lane.alternate ? (lane.branchRelation==="rework"?"Rework branch":"Alternate route") + (lane.parent ? " · connected from OP-" + String(lane.parent.sequence).padStart(3,"0") + " " + lane.parent.name : "") : "Primary manufacturing route"}</small></span><em>{lane.rows.length} STEP{lane.rows.length === 1 ? "" : "S"}</em></div>
-        {lane.alternate && lane.branchRoot && <div className={"process-universe-branch-link " + (lane.branchRelation==="rework"?"is-rework":"is-alternate")} data-parent-id={lane.parent?.id||""} data-branch-root-id={lane.branchRoot?.id||""} aria-label={(lane.branchRelation==="rework"?"Rework":"Alternate")+" branch connection from "+(lane.parent?.name||"parent process")+" to "+(lane.branchRoot?.name||lane.name)}><span>OP-{String(lane.parent?.sequence||0).padStart(3,"0")} · {lane.parent?.name||"Parent operation"}</span>{showArrows && <ArrowRight size={16} style={{color:lane.branchRelation==="rework"?"#e38b45":"#4b95eb"}}/>}<strong>{lane.branchRoot?.name||lane.name}</strong><small>{lane.branchRelation==="rework"?"REWORK BRANCH":"ALTERNATE ROUTE"}</small></div>}
-        <div className="process-universe-node-track">{lane.rows.map((operation,index) => {
-          const globalIndex = displayOperations.findIndex(item => item.id === operation.id);
-          const active = selectedOperationId === operation.id, current = simulationIndex === globalIndex, passed = simulationIndex > globalIndex;
-          const childOperations = subprocessesFor(operation.id);
-          const linkedBranches = branchesFor(operation.id);
-          const expanded = expandedOperationId === operation.id;
-          const state = operation.status.toLowerCase().replaceAll(" ","-");
-          const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
-          const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
-          return <div className="process-universe-node-wrap" key={operation.id}>
-            <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{"--process-accent":accent} as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={"Open " + operation.name + " operation record"}>
-              <span className="process-universe-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><em>{operation.status}</em></span>
-              <span className="process-universe-node-icon"><ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} /></span>
-              <strong>{operation.name}</strong>
-              <div className="process-universe-node-details">
-                {fieldVisible("category") && <small>Category · {operation.category || "Not set"}</small>}
-                {fieldVisible("subcategory") && operation.subcategory && <small>Subcategory · {operation.subcategory}</small>}
-                {fieldVisible("vendor") && <small>Vendor · {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "Not assigned"}</small>}
-                {fieldVisible("plannedStart") && <small>Start · {dateLabel(operation.plannedStart)}</small>}
-                {fieldVisible("plannedEnd") && <small>Delivery · {dateLabel(operation.plannedEnd)}</small>}
-                {fieldVisible("quantity") && <small>Quantity · {operation.quantity.toLocaleString("en-IN")} {quantityUnit}</small>}
-                {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} {quantityUnit}</small>}
-                {fieldVisible("price") && <small>Price / part · ₹{(operation.actualRatePerPart || operation.ratePerPart).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
-                {fieldVisible("amount") && <small>Process amount · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
-                {fieldVisible("transportLegCost") && <small>Transport amount · ₹{(operationTransportAmounts[operation.id] || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
-                {fieldVisible("combinedAmount") && <small>Process + transport · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart) + (operationTransportAmounts[operation.id] || 0)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
-                {fieldVisible("status") && <small>Status · {operation.status}</small>}
-                {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
-                {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
-                {fieldVisible("paymentStatus") && <small>Payment · {operation.paymentStatus || "Unpaid"}</small>}
-                {fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>}
-              </div>
-              {childOperations.length > 0 && <small className="process-universe-node-category">{childOperations.length} linked sub-process(es)</small>}
+      {lanes.map((lane,laneIndex) => {
+        const collapsed = collapsedLaneNames.includes(lane.name);
+        const lanePanelId = "process-universe-lane-" + laneIndex;
+        return <section className={"process-universe-lane" + (lane.alternate ? " is-branch " + (lane.branchRelation==="rework"?"is-rework":"is-alternate") : "")} key={lane.name}>
+          <div className="process-universe-lane-label">
+            <button type="button" className="process-universe-lane-toggle" aria-expanded={!collapsed} aria-controls={lanePanelId} onClick={() => setCollapsedLaneNames(current => current.includes(lane.name) ? current.filter(name => name !== lane.name) : [...current,lane.name])}>
+              <span className="process-universe-branch-icon">{lane.alternate ? <GitBranch size={15}/> : <Workflow size={15}/>}</span>
+              <span><strong>{lane.name}</strong><small>{lane.alternate ? (lane.branchRelation==="rework"?"Rework branch":"Alternate route") + (lane.parent ? " · connected from OP-" + String(lane.parent.sequence).padStart(3,"0") + " " + lane.parent.name : "") : "Primary manufacturing route"}</small></span>
+              <span className="process-universe-lane-disclosure" aria-hidden="true">{collapsed ? "+" : "−"}</span>
             </button>
-            {expanded && <div className="process-node-subprocess-dropdown"><strong>{operation.name} · Linked steps</strong>{childOperations.map(child => <button type="button" key={child.id} onClick={() => onSelectOperation(child.id)}><span>{child.name}</span><small>Sub-process · {child.status} · {child.machine || "Machine not set"}</small></button>)}{linkedBranches.map(child => <button type="button" key={child.id} onClick={() => onSelectOperation(child.id)}><span>{child.name}</span><small>{child.relationType === "rework" ? "Rework branch" : "Alternate route"} · {child.status}</small></button>)}<button type="button" className="process-node-add-subprocess" onClick={() => onAddSubprocess?.(operation.id)}>＋ Add sub-process</button></div>}
-            {showArrows && index < lane.rows.length - 1 && <span className="process-universe-connector" style={{color:lane.branchRelation==="rework"?"#e38b45":lane.branchRelation==="alternate"?"#4b95eb":accent}} aria-hidden="true"><ArrowRight size={17}/></span>}
-          </div>;
-        })}</div>
-        {lane.alternate && <div className="process-universe-branch-note">Branch retained with its parent operation and rework history.</div>}
-      </section>)}
+            <em>{lane.rows.length} STEP{lane.rows.length === 1 ? "" : "S"}</em>
+          </div>
+          <div id={lanePanelId} className="process-universe-lane-content" hidden={collapsed}>
+            {lane.alternate && lane.branchRoot && <div className={"process-universe-branch-link " + (lane.branchRelation==="rework"?"is-rework":"is-alternate")} data-parent-id={lane.parent?.id||""} data-branch-root-id={lane.branchRoot?.id||""} aria-label={(lane.branchRelation==="rework"?"Rework":"Alternate")+" branch connection from "+(lane.parent?.name||"parent process")+" to "+(lane.branchRoot?.name||lane.name)}><span>OP-{String(lane.parent?.sequence||0).padStart(3,"0")} · {lane.parent?.name||"Parent operation"}</span>{showArrows && <ArrowRight size={16} style={{color:lane.branchRelation==="rework"?"#e38b45":"#4b95eb"}}/>}<strong>{lane.branchRoot?.name||lane.name}</strong><small>{lane.branchRelation==="rework"?"REWORK BRANCH":"ALTERNATE ROUTE"}</small></div>}
+            <div className="process-universe-node-track">{lane.rows.map((operation,index) => {
+              const globalIndex = displayOperations.findIndex(item => item.id === operation.id);
+              const active = selectedOperationId === operation.id, current = simulationIndex === globalIndex, passed = simulationIndex > globalIndex;
+              const childOperations = subprocessesFor(operation.id);
+              const linkedBranches = branchesFor(operation.id);
+              const expanded = expandedOperationId === operation.id;
+              const state = operation.status.toLowerCase().replaceAll(" ","-");
+              const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
+              const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
+              return <div className="process-universe-node-wrap" key={operation.id}>
+                <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (expanded ? " is-expanded" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{"--process-accent":accent} as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} aria-expanded={expanded} aria-controls={"process-universe-node-details-"+operation.id} title={"Open " + operation.name + " operation record"}>
+                  <span className="process-universe-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><em>{operation.status}</em></span>
+                  <span className="process-universe-node-icon"><ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} /></span>
+                  <strong>{operation.name}</strong>
+                  <div className="process-universe-node-details"><small>{childOperations.length} linked sub-process(es) · {linkedBranches.length} alternate / rework step(s)</small><small>{expanded ? "− COLLAPSE DETAILS" : "+ EXPAND DETAILS"}</small></div>
+                </button>
+                {expanded && <div id={"process-universe-node-details-"+operation.id} className="process-node-subprocess-dropdown">
+                  <strong>{operation.name} · Linked steps</strong>
+                  {childOperations.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(""); }}><span>{child.name}</span><small>Sub-process · {child.status} · {child.machine || "Machine not set"}</small></button>)}
+                  {linkedBranches.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(child.id); }}><span>{child.name}</span><small>{child.relationType === "rework" ? "Rework branch" : "Alternate route"} · {child.status}</small></button>)}
+                  <button type="button" className="process-node-add-subprocess" onClick={() => onAddSubprocess?.(operation.id)}>＋ Add sub-process</button>
+                </div>}
+                {showArrows && index < lane.rows.length - 1 && <span className="process-universe-connector" style={{color:lane.branchRelation==="rework"?"#e38b45":lane.branchRelation==="alternate"?"#4b95eb":accent}} aria-hidden="true"><ArrowRight size={17}/></span>}
+              </div>;
+            })}</div>
+            {lane.alternate && <div className="process-universe-branch-note">Branch retained with its parent operation and rework history.</div>}
+          </div>
+        </section>;
+      })}
       {operations.length === 0 && processDefinitions.length > 0 && <section className="process-directory-map-catalog" aria-label="Available Process Directory stages">
         <div className="process-directory-map-heading"><span>PROCESS DIRECTORY</span><strong>{processDefinitions.length} AVAILABLE STAGES</strong><small>Library definitions only · not yet saved as production operations</small></div>
         <div className="process-directory-map-nodes">{processDefinitions.map(definition => <button type="button" className="process-directory-map-node" key={definition.id} onClick={() => onAddProcessDefinition?.(definition.id)} disabled={!onAddProcessDefinition}>
