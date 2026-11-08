@@ -46,14 +46,32 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
   };
   const endDrag = () => { drag.current = null; };
 
+  // Coordinate all saved route nodes against the full PO-line route. A scoped
+  // view therefore keeps stable globe positions and can still draw an origin
+  // connection to a parent that is not part of the selected route scope.
+  const coordinateOperations = useMemo(() => {
+    const source = lookupOperations.length ? lookupOperations : displayOperations;
+    return source.filter(operation => operation.relationType !== "subprocess").slice().sort((a,b) => a.sequence-b.sequence);
+  }, [lookupOperations, displayOperations]);
+  const orbitPointFor = (operation: OperationRecord) => {
+    const index = coordinateOperations.findIndex(item => item.id === operation.id);
+    if (index < 0) return { x: 0, y: 0, z: 0 };
+    const count = Math.max(coordinateOperations.length, 1);
+    const unitY = 1 - 2 * ((index + 0.5) / count);
+    const ringRadius = Math.sqrt(Math.max(0, 1 - unitY * unitY));
+    const angle = index * (Math.PI * (3 - Math.sqrt(5)));
+    const radius = 205;
+    return { x: Math.sin(angle) * ringRadius * radius, y: -unitY * radius, z: Math.cos(angle) * ringRadius * radius };
+  };
   const orbitNodes = useMemo(() => displayOperations.map((operation, index) => {
-    const count = Math.max(displayOperations.length, 1);
-    const y = 1 - 2 * ((index + 0.5) / count);
+    const globalIndex = coordinateOperations.findIndex(item => item.id === operation.id);
+    const count = Math.max(coordinateOperations.length, 1);
+    const y = 1 - 2 * ((globalIndex < 0 ? index : globalIndex) + 0.5) / count;
     const latitude = Math.asin(Math.max(-1, Math.min(1, y))) * 180 / Math.PI;
-    const longitude = index * (Math.PI * (3 - Math.sqrt(5))) * 180 / Math.PI;
+    const longitude = (globalIndex < 0 ? index : globalIndex) * (Math.PI * (3 - Math.sqrt(5))) * 180 / Math.PI;
     const transform = `translate(-50%,-50%) rotateY(${longitude}deg) rotateX(${latitude}deg) translateZ(var(--process-orbit-radius,205px)) rotateX(${-latitude}deg) rotateY(${-longitude}deg)`;
-    return { operation, index, transform };
-  }), [displayOperations]);
+    return { operation, index, transform, point: orbitPointFor(operation) };
+  }), [displayOperations, coordinateOperations]);
 
   // When a PO line has no saved operations yet, put the real Process Directory
   // definitions onto the interactive 3D orbit. These are catalogue actions,
@@ -105,6 +123,39 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
       return { name, rows: ordered, alternate: name !== "Main route", branchRoot, parent, branchRelation: branchRoot?.relationType };
     });
   }, [parentOperations, lookupOperations]);
+  const orbitConnections = useMemo(() => {
+    const visibleIds = new Set(displayOperations.map(operation => operation.id));
+    const edges: Array<{id:string;from:OperationRecord;to:OperationRecord;relation:"main"|"alternate"|"rework";color:string}> = [];
+    const byBranch = new Map<string, OperationRecord[]>();
+    for (const operation of coordinateOperations) {
+      const branch = operation.branch || "Main route";
+      const rows = byBranch.get(branch) || [];
+      rows.push(operation);
+      byBranch.set(branch, rows);
+    }
+    const accentFor = (operation:OperationRecord) => processDefinitions.find(definition=>definition.id===operation.processDefinitionId)?.displayColor || operation.processColor || "#6fa9e5";
+    for (const [branch, rows] of byBranch) {
+      const ordered = rows.slice().sort((a,b)=>a.sequence-b.sequence);
+      const lane = lanes.find(item=>item.name===branch);
+      const relation = branch==="Main route" ? "main" : lane?.branchRelation==="rework" ? "rework" : "alternate";
+      const color = relation==="rework" ? "#e38b45" : relation==="alternate" ? "#4b95eb" : undefined;
+      for (let index=0; index<ordered.length-1; index++) {
+        const from=ordered[index], to=ordered[index+1];
+        if (!visibleIds.has(from.id) && !visibleIds.has(to.id)) continue;
+        edges.push({id:from.id+"->"+to.id,from,to,relation,color:color||accentFor(to)});
+      }
+      if (branch!=="Main route" && lane?.branchRoot && lane.parent && displayOperations.some(operation=>(operation.branch||"Main route")===branch)) {
+        const from=lane.parent, to=lane.branchRoot;
+        edges.push({id:from.id+"->"+to.id,from,to,relation:relation==="rework"?"rework":"alternate",color:relation==="rework"?"#e38b45":"#4b95eb"});
+      }
+    }
+    const anchors = new Map<string,{operation:OperationRecord;relation:"main"|"alternate"|"rework";color:string}>();
+    for (const edge of edges) {
+      if (!visibleIds.has(edge.from.id)) anchors.set(edge.from.id,{operation:edge.from,relation:edge.relation,color:edge.color});
+      if (!visibleIds.has(edge.to.id)) anchors.set(edge.to.id,{operation:edge.to,relation:edge.relation,color:edge.color});
+    }
+    return { edges, anchors:[...anchors.values()] };
+  }, [coordinateOperations, displayOperations, lanes, processDefinitions]);
   const stageStyle: CSSProperties = { transform: `scale(${zoom}) rotateX(2deg)`, transformOrigin: "top left", width: `${100 / zoom}%` };
 
   return <section className={"process-universe-3d mode-" + layoutMode} aria-label="Interactive 3D process route graph">
@@ -119,7 +170,24 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>3D ORBIT · TOUCH / MOUSE DRAG</span></div>
       <div className="process-orbit-viewport">
         <motion.div className="process-orbit-rotator" onPointerDown={event => { if ((event.target as HTMLElement).closest(".process-orbit-node")) return; startDrag(event); }} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} style={{ rotateX, rotateY, touchAction: "none" }}>
-          <div className="process-orbit-ring process-orbit-ring-a" /><div className="process-orbit-ring process-orbit-ring-b" />
+          <div className="process-orbit-ring process-orbit-ring-a" /><div className="process-orbit-ring process-orbit-ring-b" />{orbitConnections.edges.map(edge=>{
+            const from=orbitPointFor(edge.from), to=orbitPointFor(edge.to);
+            const dx=to.x-from.x, dy=to.y-from.y, dz=to.z-from.z;
+            const length=Math.sqrt(dx*dx+dy*dy+dz*dz);
+            if(length<1)return null;
+            const axisY=-dz/length, axisZ=dy/length;
+            const axisMagnitude=Math.hypot(axisY,axisZ);
+            const rotateAxisY=axisMagnitude<0.0001?1:axisY/axisMagnitude;
+            const rotateAxisZ=axisMagnitude<0.0001?0:axisZ/axisMagnitude;
+            const angle=Math.acos(Math.max(-1,Math.min(1,dx/length)))*180/Math.PI;
+            const midX=(from.x+to.x)/2,midY=(from.y+to.y)/2,midZ=(from.z+to.z)/2;
+            return <div key={edge.id} className={"process-orbit-connector is-"+edge.relation} style={{width:length,color:edge.color,transform:`translate3d(${midX}px,${midY}px,${midZ}px) rotate3d(0,${rotateAxisY},${rotateAxisZ},${angle}deg) translate(-50%,-50%)`}} title={edge.from.name+" → "+edge.to.name} aria-hidden="true"/>;
+          })}
+          {orbitConnections.anchors.map(anchor=>{
+            const point=orbitPointFor(anchor.operation);
+            return <div key={"anchor-"+anchor.operation.id} className={"process-orbit-parent-anchor is-"+anchor.relation} style={{color:anchor.color,transform:`translate3d(${point.x}px,${point.y}px,${point.z}px) translate(-50%,-50%)`}} title={"Connected parent: "+anchor.operation.name+" · OP-"+anchor.operation.sequence} aria-hidden="true"><span/></div>;
+          })}
+          
           <div className="process-orbit-core"><span className="process-orbit-core-gloss" /><span className="process-orbit-core-grid" /><div><small>AXIMACH / ROUTE CORE</small><strong>{orbitCount.toString().padStart(2,"0")}</strong><b>{displayOperations.length ? "PROCESS STEPS" : "DIRECTORY STAGES"}</b><em>{displayOperations.length ? "SAVED ROUTE" : "CATALOGUE ONLY"}</em></div><i className="process-orbit-dot process-orbit-dot-a" /><i className="process-orbit-dot process-orbit-dot-b" /><i className="process-orbit-dot process-orbit-dot-c" /></div>
           {orbitNodes.map(({ operation, index, transform }) => {
             const active = selectedOperationId === operation.id, current = simulationIndex === index, passed = simulationIndex > index;
