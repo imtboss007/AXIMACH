@@ -168,32 +168,25 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
           aria-label="18 clickable AXIMACH modules"
         >
           {satellites.map(({ id, label, Icon }, index) => {
-            // Distribute every shortcut on the front hemisphere of the same 3D
-            // sphere. The shell inherits the globe's drag and spin transforms;
-            // nodes therefore travel around the surface instead of floating in
-            // a fixed 2D ellipse.
-            const rings = [
-              { count: 4, radial: 0.40, phase: -Math.PI / 4 },
-              { count: 6, radial: 0.65, phase: -Math.PI / 2 },
-              { count: 8, radial: 0.90, phase: -Math.PI / 8 }
-            ];
-            let ringStart = 0;
-            let ring = rings[0];
-            for (const candidate of rings) {
-              if (index < ringStart + candidate.count) { ring = candidate; break; }
-              ringStart += candidate.count;
-            }
-            const ringIndex = index - ringStart;
-            const angle = ring.phase + (Math.PI * 2 * ringIndex) / ring.count;
-            const radialX = Math.cos(angle) * ring.radial;
-            const radialY = Math.sin(angle) * ring.radial;
-            const radialZ = Math.sqrt(Math.max(0.08, 1 - radialX * radialX - radialY * radialY));
-            const radius = compactViewport ? 104 : 124;
-            const x = radialX * radius;
-            const y = radialY * radius;
-            const z = radialZ * radius;
+            // Fibonacci-sphere placement distributes all 18 module controls
+            // over the complete spherical surface, not only a front-facing
+            // ellipse. Each control's local face points out from the sphere;
+            // backface-visibility hides nodes on the far side until the user
+            // manually rotates them into view.
+            const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+            const unitY = 1 - 2 * ((index + 0.5) / satellites.length);
+            const ringRadius = Math.sqrt(Math.max(0, 1 - unitY * unitY));
+            const angle = index * goldenAngle;
+            const unitX = Math.cos(angle) * ringRadius;
+            const unitZ = Math.sin(angle) * ringRadius;
+            const radius = compactViewport ? 86 : 106;
+            const x = unitX * radius;
+            const y = unitY * radius;
+            const z = unitZ * radius;
+            const yaw = Math.atan2(unitX, unitZ) * 180 / Math.PI;
+            const pitch = -Math.asin(unitY) * 180 / Math.PI;
             return <motion.button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"
-              style={{ left: "50%", top: "50%", transform: "translate3d(" + x + "px," + y + "px," + z + "px) translate(-50%,-50%)" }}
+              style={{ left: "50%", top: "50%", transform: "translate3d(" + x + "px," + y + "px," + z + "px) translate(-50%,-50%) rotateY(" + yaw + "deg) rotateX(" + pitch + "deg)" }}
               onClick={() => { if (!dragMoved.current) onSelectModule(id); }}
               aria-label={"Open " + label + " module"} title={"Open " + label}
               initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}
