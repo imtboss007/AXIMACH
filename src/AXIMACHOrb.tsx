@@ -194,7 +194,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             const z = radialZ * radius;
             return <motion.button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"
               style={{ left: "50%", top: "50%", transform: "translate3d(" + x + "px," + y + "px," + z + "px) translate(-50%,-50%)" }}
-              onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onClick={() => { if (!dragMoved.current) onSelectModule(id); }}
+              onClick={() => { if (!dragMoved.current) onSelectModule(id); }}
               aria-label={"Open " + label + " module"} title={"Open " + label}
               initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.08 + index * 0.025, type: "spring", stiffness: 130 }} whileHover={{ filter: "brightness(1.15)" }} whileTap={{ scale: 0.94 }}>
