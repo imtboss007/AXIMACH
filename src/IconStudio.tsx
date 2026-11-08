@@ -11,7 +11,8 @@ type IconAssignment = { iconName: string; iconVariant?: "outline" | "filled"; pa
 type Assignments = Record<string, IconAssignment>;
 
 const MECHANICAL_ICON_NAME_PATTERN = /^(?:tool|tools|truck|truck-delivery|truck-loading|truck-return|forklift|car-crane|engine|crane|tractor|wheel|building-factory|building-factory-2|automatic-gearbox|manual-gearbox|hammer|hammer-drill|robot|ruler|ruler-2|ruler-3|ruler-measure|ruler-measure-2|pencil-ruler|steering-wheel|firetruck|rv-truck)$/;
-const isMechanicalStudioIcon = (name: string) => MECHANICAL_ICON_NAME_PATTERN.test(name.includes(":") ? name.slice(name.lastIndexOf(":") + 1) : name);
+const iconBaseName = (name: string) => name.includes(":") ? name.slice(name.lastIndexOf(":") + 1) : name;
+const isMechanicalStudioIcon = (name: string) => MECHANICAL_ICON_NAME_PATTERN.test(iconBaseName(name));
 const ICONS: IconMeta[] = tablerIconCatalogue.filter((item) => isMechanicalStudioIcon(item.name)).map((item) => ({ name: item.name, category: item.variant, tags: item.name.split("-"), variant: item.variant }));
 const iconKey = (item: Pick<IconMeta, "name" | "variant">) => `${item.variant}:${item.name}`;
 
@@ -148,7 +149,7 @@ function iconSearchText(item: IconMeta) {
   return [item.name, item.category || "", ...(Array.isArray(item.tags) ? item.tags : [])].join(" ").toLowerCase();
 }
 
-function iconClass(name: string, variant: "outline" | "filled" = "outline") { return `ti ti-${name}${variant === "filled" ? " ti-filled" : ""}`; }
+function iconClass(name: string, variant: "outline" | "filled" = "outline") { const baseName = iconBaseName(name); const resolvedVariant = name.startsWith("filled:") ? "filled" : name.startsWith("outline:") ? "outline" : variant; return `ti ti-${baseName}${resolvedVariant === "filled" ? " ti-filled" : ""}`; }
 
 function useIconAssignments() {
   const [assignments, setAssignments] = useState<Assignments>(() => readAssignments());
