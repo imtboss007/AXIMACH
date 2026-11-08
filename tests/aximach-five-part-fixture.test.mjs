@@ -1115,3 +1115,19 @@ test("Component-start transport remains visible inside Process List before a pro
   assert.ok(workspace.includes("Saved transport leg is not assigned to a process operation."));
   assert.ok(workspace.includes("{money(unanchoredTransportCost)}"));
 });
+
+test("Process Universe connectors and simulation highlight do not run autonomous animation", () => {
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  const connector = styles.slice(styles.indexOf(".process-universe-connector::before"), styles.indexOf(".process-universe-connector::before") + 320);
+  const current = styles.slice(styles.indexOf(".process-universe-node.simulation-current"), styles.indexOf(".process-universe-node.simulation-current") + 420);
+  assert.ok(!connector.includes("animation:"));
+  assert.ok(!current.includes("animation:"));
+  assert.ok(!styles.includes("@keyframes processUniverseFlow"));
+  assert.ok(!styles.includes("@keyframes processUniversePulse"));
+});
+
+test("Small-phone sphere container stays within viewport width", () => {
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(styles.includes(".ax-orb-drag-zone { width: min(100%,360px); max-width: 100%; margin-inline: auto; }"));
+  assert.ok(!styles.includes(".ax-orb-drag-zone { width: 110%; margin-left: -5%; }"));
+});
