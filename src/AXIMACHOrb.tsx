@@ -125,7 +125,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 85, damping: 18, delay: 0.12 }}
       >
-        <motion.div className="ax-orb-depth" style={{transformStyle:"preserve-3d",transformPerspective:950}}>
+        <motion.div className="ax-orb-depth" style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}>
           <motion.div
             className="ax-orb-ring ax-orb-ring-one"
             style={{ opacity: orbitIntensity }}
@@ -165,7 +165,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
 
         <motion.div
           className="ax-orb-module-shell"
-          style={{ rotateX, rotateY, transformPerspective: 950, transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}
+          style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}
           aria-label="18 clickable AXIMACH modules"
         >
           {satellites.map(({ id, label, Icon }, index) => {
