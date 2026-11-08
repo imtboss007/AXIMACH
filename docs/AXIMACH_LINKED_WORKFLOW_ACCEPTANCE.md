@@ -42,6 +42,8 @@ The machine-readable process/category/sub-process fixture is in [tests/fixtures/
 - The 18 module controls use Fibonacci-sphere coordinates distributed across the full spherical surface. Rear-facing controls are hidden by back-face culling until the operator rotates them into view. The WebGL globe surface texture receives the same drag orientation as a shader uniform, so the spherical silhouette stays round instead of rotating as a flat canvas plane.
 - The lower shell carries six live record categories: companies, purchase orders, PO component lines, components, vendors and open operations.
 - Component Master and Purchase Order PDF/Excel exports include the component logo. A saved imported SVG/PNG logo is preferred when present; otherwise the deterministic name-based mechanical symbol is used.
+- Every saved Component Master row opens Logo Studio with its own stable component ID preselected. The Component Master also exposes the 46-symbol mechanical inventory; Process Directory exposes the same inventory and per-process Logo Studio actions.
+- Process Directory PDF/Excel exports include the saved process logo asset where available, with a process-name-based mechanical glyph fallback.
 - Process Directory keeps a process-type colour and provides a stable-ID Logo Studio action for each process definition. Sub-process logo assignments use stable subcategory IDs.
 - Example company/vendor/PO data remain an isolated acceptance fixture. The application must not seed Company XYZ or PO-1 into live records.
 
