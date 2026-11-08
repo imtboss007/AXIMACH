@@ -1343,3 +1343,15 @@ test("Production Plan no longer owns the component transport registry or inline 
   assert.ok(production.includes('onSelectModule("transport-master")'));
   assert.ok(production.includes('onSelectModule("process-map"'));
 });
+
+
+test("Process Operations table and bulk controls use the same selected route scope as the graph and exports", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
+  assert.ok(workspace.includes("const selectedVisibleOperations = exportOperations.filter(op => selectedOperationIds.includes(op.id))"));
+  assert.ok(workspace.includes("...exportOperations.map(op => op.id)"));
+  assert.ok(workspace.includes("checked={exportOperations.length>0&&exportOperations.every(op=>selectedOperationIds.includes(op.id))}"));
+  assert.ok(workspace.includes("tbody>{exportOperations.map((op,index)=>"));
+  assert.ok(workspace.includes("Selected route scope · {exportOperations.length} of {routeOperations.length} operation(s)."));
+  assert.ok(!workspace.includes("tbody>{visibleOperations.map((op,index)=>"));
+});
