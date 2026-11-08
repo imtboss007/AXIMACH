@@ -545,3 +545,21 @@ test("WebGL globe texture itself has no independent auto-rotation", () => {
   assert.ok(orb.includes("<AXIMACHWebGLSphere />"));
   assert.ok(!orb.includes("paused={"));
 });
+
+test("Process Map exposes mobile route scope, process delete, logo assignment and branch-specific arrows", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('id="process-map-route-scope-mobile"'));
+  assert.ok(workspace.includes("Delete selected process"));
+  assert.ok(workspace.includes("Add process logo"));
+  assert.ok(workspace.includes("REWORK_ROUTE_COLOR:ALTERNATE_ROUTE_COLOR"));
+  assert.ok(universe.includes('lane.branchRelation==="rework"?"#e38b45":"#4b95eb"'));
+  assert.ok(universe.includes('lane.branchRelation==="alternate"?"#4b95eb":accent'));
+});
+
+test("AXIMACH command sphere module buttons can be dragged without losing click navigation", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes("onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}"));
+  assert.ok(orb.includes("if (!dragMoved.current) onSelectModule(id)"));
+  assert.ok(orb.includes("Both spheres are stationary until the user drags them. No idle auto-rotation."));
+});
