@@ -263,7 +263,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   };
 
   const activeOperation = routeOperations.find(op => op.id === selectedOperationId) || routeOperations[0];
-  const selectedRouteOperations = routeOperations.filter(op => selectedOperationIds.includes(op.id));
+  const selectedRouteOperations = visibleOperations.filter(op => selectedOperationIds.includes(op.id));
   const resolveBranchOrigin = (branch: string, candidates: OperationRecord[]) => {
     for (const candidate of candidates) {
       if (candidate.relationType !== "alternate" && candidate.relationType !== "rework") continue;
@@ -278,38 +278,38 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     }
     return undefined;
   };
-  const routeBranchNames = [...new Set(routeOperations.map(op => op.branch || "Main route"))]
+  const routeBranchNames = [...new Set(visibleOperations.map(op => op.branch || "Main route"))]
     .sort((a,b) => a === "Main route" ? -1 : b === "Main route" ? 1 : a.localeCompare(b));
   const getRouteScopeOperations = (scope: string): OperationRecord[] => {
+    const source = visibleOperations;
     const branchName = (operation: OperationRecord) => operation.branch || "Main route";
-    if (scope === "all") return routeOperations;
-    if (scope === "main") return routeOperations.filter(op => branchName(op) === "Main route");
-    if (scope === "alternate") return routeOperations.filter(op => op.relationType === "alternate" || (branchName(op) !== "Main route" && !/rework/i.test(branchName(op))));
-    if (scope === "rework") return routeOperations.filter(op => op.relationType === "rework" || /rework/i.test(branchName(op)));
-    if (scope === "filtered") return visibleOperations;
+    if (scope === "all") return source;
+    if (scope === "main") return source.filter(op => branchName(op) === "Main route");
+    if (scope === "alternate") return source.filter(op => op.relationType === "alternate" || (branchName(op) !== "Main route" && !/rework/i.test(branchName(op))));
+    if (scope === "rework") return source.filter(op => op.relationType === "rework" || /rework/i.test(branchName(op)));
+    if (scope === "filtered") return source;
     if (scope === "selected-operations") return selectedRouteOperations;
-    if (scope === "selected-operation") return activeOperation ? [activeOperation] : [];
-    if (scope === "selected-branch") return activeOperation ? routeOperations.filter(op => branchName(op) === branchName(activeOperation)) : [];
+    if (scope === "selected-operation") return activeOperation ? source.filter(op => op.id === activeOperation.id) : [];
+    if (scope === "selected-branch") return activeOperation ? source.filter(op => branchName(op) === branchName(activeOperation)) : [];
     if (scope.startsWith("branch:")) {
       const branch = scope.slice("branch:".length);
-      return routeOperations.filter(op => branchName(op) === branch);
+      return source.filter(op => branchName(op) === branch);
     }
-    return routeOperations;
+    return source;
   };
   const routeScopeButtons = [
-    { key: "all", label: "All routes", count: routeOperations.length },
-    { key: "main", label: "Main route", count: routeOperations.filter(op => (op.branch || "Main route") === "Main route").length },
-    { key: "alternate", label: "Alternate routes", count: routeOperations.filter(op => op.relationType === "alternate" || ((op.branch || "Main route") !== "Main route" && !/rework/i.test(op.branch || ""))).length },
-    { key: "rework", label: "Rework routes", count: routeOperations.filter(op => op.relationType === "rework" || /rework/i.test(op.branch || "")).length },
-    { key: "selected-branch", label: "Selected branch", count: activeOperation ? routeOperations.filter(op => (op.branch || "Main route") === (activeOperation.branch || "Main route")).length : 0 },
+    { key: "all", label: "All routes", count: visibleOperations.length },
+    { key: "main", label: "Main route", count: visibleOperations.filter(op => (op.branch || "Main route") === "Main route").length },
+    { key: "alternate", label: "Alternate routes", count: visibleOperations.filter(op => op.relationType === "alternate" || ((op.branch || "Main route") !== "Main route" && !/rework/i.test(op.branch || ""))).length },
+    { key: "rework", label: "Rework routes", count: visibleOperations.filter(op => op.relationType === "rework" || /rework/i.test(op.branch || "")).length },
+    { key: "selected-branch", label: "Selected branch", count: activeOperation ? visibleOperations.filter(op => (op.branch || "Main route") === (activeOperation.branch || "Main route")).length : 0 },
     { key: "filtered", label: "Filtered results", count: visibleOperations.length },
     { key: "selected-operations", label: "Selected operations", count: selectedRouteOperations.length },
-    { key: "selected-operation", label: "Selected operation", count: activeOperation ? 1 : 0 },
+    { key: "selected-operation", label: "Selected operation", count: activeOperation && visibleOperations.some(op => op.id === activeOperation.id) ? 1 : 0 },
     ...routeBranchNames.filter(name => name !== "Main route").map(name => ({
-      key: "branch:" + name, label: name, count: routeOperations.filter(op => (op.branch || "Main route") === name).length
+      key: "branch:" + name, label: name, count: visibleOperations.filter(op => (op.branch || "Main route") === name).length
     }))
-  ];
-  const exportScopeLabel = routeScopeButtons.find(scope => scope.key === exportScope)?.label || "All routes";
+  ];  const exportScopeLabel = routeScopeButtons.find(scope => scope.key === exportScope)?.label || "All routes";
   const openAddMenu = () => {
     setAddMenuDefinitionId(processDefinitions[0]?.id || "");
     setShowAddMenu(true);
