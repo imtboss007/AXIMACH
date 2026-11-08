@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Layers3, Search, SlidersHorizontal, Sparkles, Workflow, X } from "lucide-react";
-import { tablerIconCatalogue } from "./tablerIconCatalogue";
 import { MechanicalComponentIcon, MechanicalOperationIcon, MechanicalIconGlyph, MECHANICAL_ICON_INVENTORY, mechanicalGlyphForOperation, type ToolGlyph } from "./MechanicalOperationIcon";
 import { activeRows, useManufacturingData } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
@@ -17,7 +16,6 @@ const mechanicalGlyphForStudioName = (name: string): ToolGlyph | undefined => {
   return unprefixed.startsWith("mechanical:") ? MECHANICAL_ICON_INVENTORY.find(item=>item.glyph===unprefixed.slice("mechanical:".length))?.glyph : undefined;
 };
 const isMechanicalStudioIcon = (name: string) => Boolean(mechanicalGlyphForStudioName(name)) || MECHANICAL_ICON_NAME_PATTERN.test(iconBaseName(name));
-const tablerMechanicalIcons: IconMeta[] = tablerIconCatalogue.filter((item) => isMechanicalStudioIcon(item.name)).map((item) => ({ name: item.name, category: item.variant, tags: item.name.split("-"), variant: item.variant }));
 const engineeredMechanicalIcons: IconMeta[] = MECHANICAL_ICON_INVENTORY.map(item=>({name:"mechanical:"+item.glyph,category:"Mechanical tool",tags:[item.label,item.application,"industrial manufacturing"],variant:"outline",glyph:item.glyph,label:item.label}));
 const ICONS: IconMeta[] = engineeredMechanicalIcons;
 const iconKey = (item: Pick<IconMeta, "name" | "variant">) => `${item.variant}:${item.name}`;
