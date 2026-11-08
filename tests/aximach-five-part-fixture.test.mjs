@@ -202,6 +202,7 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(orb.includes('className="ax-orb-core"'));
   assert.ok(orb.includes('style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}'));
   assert.ok(orb.includes('style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}'));
+  assert.ok(orb.includes("onClick={() => { if (!dragMoved.current) toggleZoom(); }}"), "dragging on the globe core must not trigger click-to-zoom");
   assert.ok(orb.includes("const startDrag ="));
   assert.ok(orb.includes("const startLowerDrag ="));
   assert.ok(orb.includes('onClick={() => { if (!dragMoved.current) onSelectModule(id); }}'));
