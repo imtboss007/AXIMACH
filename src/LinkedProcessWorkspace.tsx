@@ -1037,7 +1037,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           </div>}
         </div>
         <button className="button-quiet compact-button" disabled={!selectedLine} onClick={() => openTransportEditor()}><Truck size={14}/> Add transport leg</button>
-        {activeOperation && <button className="button-danger compact-button" onClick={()=>deleteOperation(activeOperation)}><Trash2 size={14}/> Delete selected process</button>}
+        {selectedOperationId && activeOperation && <button className="button-danger compact-button" onClick={()=>deleteOperation(activeOperation)}><Trash2 size={14}/> Delete selected process</button>}
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("alternate")}><GitBranch size={14}/> Alternate route from selected</button>
         <button className="button-quiet compact-button" disabled={!selectedLine || !activeOperation} onClick={() => startAddBranch("rework")}><GitBranch size={14}/> Rework branch from selected</button>
         {(activeOperation?.relationType === "alternate" || activeOperation?.relationType === "rework") && <button className="button-quiet compact-button" disabled={!selectedLine} onClick={startAddBranchStep}><Plus size={14}/> Add step to selected branch</button>}
