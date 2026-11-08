@@ -910,6 +910,10 @@ test("Main Dashboard and 3D Command Centre center the 18-module orb on mobile", 
   assert.ok(appStyles.includes("@media(max-width:760px)"));
   assert.ok(appStyles.includes(".hero-command {"));
   assert.ok(appStyles.includes("grid-template-columns:minmax(0,1fr)"));
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes("useMotionValue(compactViewport ? -7 : -15)"));
+  assert.ok(orb.includes("useMotionValue(compactViewport ? 0 : 22)"));
+  assert.ok(orb.includes("useMotionValue(compactViewport ? -5 : -8)"));
 });
 
 
