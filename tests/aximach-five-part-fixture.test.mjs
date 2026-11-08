@@ -893,7 +893,8 @@ test("Process Universe receives shared visibility controls, vendor labels and di
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("visibleFields={exportFields} showArrows={exportArrows}"));
   assert.ok(workspace.includes("showArrows={exportArrows}"));
-  assert.ok(workspace.includes("setVisibleProcessFields"));
+  assert.ok(workspace.includes("PROCESS_EXPORT_FIELDS.map(field=>"));
+  assert.ok(workspace.includes("visibleFields={exportFields} showArrows={exportArrows}"));
   for (const field of ["status", "execution", "tolerance", "payment", "machine"]) assert.ok(universe.includes(`fieldVisible("${field}")`));
 });
 
