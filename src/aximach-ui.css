@@ -1538,7 +1538,7 @@
   position:absolute;
   z-index:12;
   pointer-events:auto;
-  backface-visibility:visible;
+  backface-visibility:hidden;
   min-width:0;
   max-width:78px;
   white-space:normal;
