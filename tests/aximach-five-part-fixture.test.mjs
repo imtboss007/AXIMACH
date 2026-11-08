@@ -299,6 +299,20 @@ test("Component Master supplies component-linked identity and PDF/Excel export f
   assert.ok(icons.includes("MechanicalComponentIcon componentName={componentName}"));
 });
 
+test("component logos are rendered as standalone SVGs and embedded in Component Master and PO exports", () => {
+  const glyphs = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(glyphs.includes("export function mechanicalComponentSvgForName(componentName: string): string"));
+  assert.ok(glyphs.includes('xmlns="http://www.w3.org/2000/svg"'));
+  assert.ok(master.includes('import { mechanicalComponentSvgForName } from "./MechanicalOperationIcon"'));
+  assert.ok(master.includes('assignments["component:" + component.id]?.customAsset'));
+  assert.ok(master.includes("async function componentLogoPngBase64"));
+  assert.ok(master.includes("sheet.addImage(imageId"));
+  assert.ok(master.includes("<th>Logo</th>"));
+  assert.ok(master.includes('header:"Logo",key:"logo"'));
+  assert.ok(master.includes("componentLogoSource(row)"));
+});
+
 test("AXIMACH globe uses a WebGL fragment shader to render a shaded spherical surface", () => {
   const sphere = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
   assert.ok(sphere.includes('canvas.getContext("webgl"'));
