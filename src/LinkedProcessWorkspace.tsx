@@ -35,7 +35,7 @@ const resolveProcessDefinition = (
   category?: string
 ) => {
   const stableDefinition = definitionId ? definitions.find(definition => definition.id === definitionId) : undefined;
-  if (stableDefinition) return stableDefinition;
+  if (stableDefinition && (!processType || stableDefinition.processType === processType) && (!category || stableDefinition.category === category)) return stableDefinition;
   if (!processType) return undefined;
   const matches = definitions.filter(definition => definition.processType === processType && (!category || definition.category === category));
   return matches.length === 1 ? matches[0] : undefined;

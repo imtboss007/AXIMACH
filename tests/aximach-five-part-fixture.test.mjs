@@ -151,7 +151,8 @@ test("Process Plan enforces Process Directory vendor assignments", () => {
 
 test("Process Plan rejects stale process-definition IDs when the definition name or category changed", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(workspace.includes('item.id === draft.processDefinitionId && item.processType === draft.name && item.category === draft.category'));
+  assert.ok(workspace.includes('stableDefinition.processType === processType') && workspace.includes('stableDefinition.category === category'));
+  assert.ok(workspace.includes('return matches.length === 1 ? matches[0] : undefined'));
   assert.ok(workspace.includes('processDefinitionId: selectedProcessDefinition?.id || undefined'));
 });
 
@@ -953,7 +954,7 @@ test("secondary Process Plan workspaces are user-expandable while route filters 
 test("Process Plan process-type filters use stable Process Directory definition IDs", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("const processFilterTypes = processDefinitions.map(definition => ({ id: definition.id"));
-  assert.ok(workspace.includes("const stableProcessDefinitionId = op.processDefinitionId || operationDefinition?.id || \"\""));
+  assert.ok(workspace.includes('const stableProcessDefinitionId = operationDefinition?.id || op.processDefinitionId || ""'));
   assert.ok(workspace.includes("processTypeFilters.includes(stableProcessDefinitionId)"));
   assert.ok(workspace.includes("options={processFilterTypes} selected={processTypeFilters}"));
 });
