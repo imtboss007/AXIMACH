@@ -403,3 +403,117 @@ test("Production Plan renders saved transport legs with route, anchor, vendor an
   assert.ok(production.includes("leg.tripCount} trip(s)"));
   assert.ok(production.includes("leg.status||\"Queued\""));
 });
+
+test("Process Plan Add operation dropdown exposes working operation and route actions", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  for (const option of [
+    "Add operation ▾",
+    "Blank process operation",
+    "Process Directory stage",
+    "Add selected stage",
+    "Add sub-process under selected",
+    "Create alternate route from selected",
+    "Create rework branch from selected",
+    "Add step inside selected branch"
+  ]) assert.ok(workspace.includes(option), "missing Add Operation menu option: " + option);
+  assert.ok(workspace.includes("setShowAddMenu(value=>!value)"));
+  assert.ok(workspace.includes("onClick={()=>startAddDefinition(addMenuDefinitionId)}"));
+  assert.ok(workspace.includes("onClick={()=>startAddSubprocess(activeOperation.id)}"));
+  assert.ok(workspace.includes("onClick={()=>startAddBranch(\"alternate\")}"));
+  assert.ok(workspace.includes("onClick={()=>startAddBranch(\"rework\")}"));
+});
+
+test("Process Plan route scope drives displayed visuals and every export format", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
+  assert.ok(workspace.includes("operations={exportOperations} allOperations={routeOperations}"));
+  assert.ok(workspace.includes("exportOperations.map(op=>"));
+  assert.ok(workspace.includes("exportBranches.map(branch =>"));
+  assert.ok(workspace.includes('aria-label="Selected route arrow diagram"'));
+  assert.ok(workspace.includes("route.addRows(exportOperations.map(op =>"));
+  assert.ok(workspace.includes("nextInSameRoute"));
+  assert.ok(workspace.includes('const rows=exportOperations.filter(op=>(op.branch||"Main route")===branch)'));
+  assert.ok(workspace.includes("const buildExportSvg = () =>"));
+  assert.ok(workspace.includes("Choose the route to display and export"));
+});
+
+test("Alternate and rework routes use different arrow colours while process types retain their own identity colour", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(workspace.includes('const ALTERNATE_ROUTE_COLOR = "#4b95eb"'));
+  assert.ok(workspace.includes('const REWORK_ROUTE_COLOR = "#e38b45"'));
+  assert.ok(workspace.includes("const routeArrowColor=rework?REWORK_ROUTE_COLOR:branchRoot||branch!==\"Main route\"?ALTERNATE_ROUTE_COLOR:processColor"));
+  assert.ok(workspace.includes("const processColor=processAccent(operation)"));
+  assert.ok(workspace.includes("displayColor: draft.processColor"));
+  assert.ok(universe.includes("processDefinition?.displayColor || operation.processColor"));
+  assert.ok(css.includes(".process-universe-lane.is-branch.is-alternate .process-universe-connector"));
+  assert.ok(css.includes(".process-universe-lane.is-branch.is-rework .process-universe-connector"));
+  assert.ok(css.includes(".process-universe-branch-link.is-rework"));
+});
+
+test("Every process row can open Logo Studio for its own Process Directory record", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('title="Assign process logo"'));
+  assert.ok(workspace.includes("Add / change process logo"));
+  assert.ok(app.includes("onOpenIconStudio={(processDefinitionId)=>"));
+  assert.ok(app.includes("initialTarget={iconStudioTarget}"));
+  assert.ok(studio.includes('initialTarget?: { targetType: "process"; targetRecordId: string } | null'));
+  assert.ok(studio.includes("setTargetRecordId(initialTarget.targetRecordId)"));
+});
+
+test("Delete process archives the selected node and all descendants without destroying payment or inspection history", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const deleteOperation = (target: OperationRecord) =>"));
+  assert.ok(workspace.includes("while (frontier.length)"));
+  assert.ok(workspace.includes("child.parentId === parentId"));
+  assert.ok(workspace.includes("quotations: current.quotations.map(quote => ids.has(quote.operationId)"));
+  assert.ok(workspace.includes("payment, inspection and production history are retained for audit"));
+  assert.ok(workspace.includes('title="Delete process"'));
+  assert.ok(workspace.includes("Delete process</button>"));
+});
+
+test("Five fixture parts create independent multi-process routes linked by stable PO, line and component IDs", () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-five-part-process-catalog.json", import.meta.url), "utf8"));
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.equal(fixture.parts.length, 5);
+  const linked = fixture.parts.flatMap(part => {
+    const componentId = "component:" + part.partNumber;
+    const poId = "po:" + part.partNumber;
+    const poLineId = "line:" + part.partNumber;
+    return part.processes.map((process, index) => ({
+      id: "operation:" + part.partNumber + ":" + index,
+      componentId, poId, poLineId, sequence: (index + 1) * 10,
+      name: process.processType, category: process.category, subcategory: process.subProcess
+    }));
+  });
+  for (const part of fixture.parts) {
+    const route = linked.filter(row => row.componentId === "component:" + part.partNumber);
+    assert.equal(route.length, part.processes.length);
+    assert.ok(route.length >= 4);
+    assert.ok(route.every(row => row.poId === "po:" + part.partNumber && row.poLineId === "line:" + part.partNumber));
+    assert.equal(new Set(route.map(row => row.id)).size, route.length);
+  }
+  assert.equal(new Set(linked.map(row => row.componentId)).size, 5);
+  assert.ok(workspace.includes("id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id"));
+});
+
+test("Dashboard spheres only rotate on direct drag and dashboard navigation buttons select the correct views", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const process = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(!orb.includes("useAnimationFrame"));
+  assert.ok(!orb.includes("rotateY:360"));
+  assert.ok(!orb.includes("rotate:360"));
+  assert.ok(orb.includes("const startDrag ="));
+  assert.ok(orb.includes("const startLowerDrag ="));
+  assert.ok(orb.includes("onPointerDown={startLowerDrag}"));
+  assert.ok(orb.includes("onPointerDown={event=>{event.stopPropagation();startLowerDrag(event);}}"));
+  assert.ok(!process.includes("useAnimationFrame"));
+  assert.ok(app.includes('onClick={() => selectModule("dashboard")}'));
+  assert.ok(app.includes('onClick={() => selectModule("command-centre")}'));
+  assert.ok(app.includes('activeModuleId === "dashboard"'));
+  assert.ok(app.includes('activeModuleId === "command-centre"'));
+});
