@@ -53,10 +53,15 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
  ];
  const roleOptions=[...new Set(contactRows.map(row=>row.role).filter(Boolean))].sort();
  const vendorTypeOptions=[...new Set(vendors.map(v=>v.vendorType||"").filter(Boolean))].sort();
- const legacyProcessTextOptions=[...new Set([...contactRows.flatMap(row=>row.processTypes||[]),...vendors.flatMap(v=>v.processes.split(/[,;|]/).map(x=>x.trim()).filter(Boolean))])].filter(value=>value&&!processDefinitions.some(definition=>definition.id===value)).sort((a,b)=>a.localeCompare(b));
+ const legacyContactProcessNames=contactRows.flatMap(row=>{
+  const linkedNames=processDefinitions.filter(definition=>contactProcessDefinitionIds(row).includes(definition.id)).map(definition=>definition.processType.trim().toLowerCase());
+  return (row.processTypes||[]).filter(value=>!linkedNames.includes(value.trim().toLowerCase()));
+ });
+ const legacyProcessTextValues=[...legacyContactProcessNames,...vendors.flatMap(v=>String(v.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean))];
+ const legacyProcessTextOptions=[...new Set(legacyProcessTextValues.map(value=>value.trim().toLowerCase()).filter(Boolean))].map(normalized=>legacyProcessTextValues.find(value=>value.trim().toLowerCase()===normalized)?.trim()||normalized).sort((a,b)=>a.localeCompare(b));
  const processOptions=[...processDefinitions.map(definition=>({id:"directory:"+definition.id,label:definition.category+" · "+definition.processType})),...legacyProcessTextOptions.map(value=>({id:"text:"+value.trim().toLowerCase(),label:"Legacy / contact text · "+value}))];
  const categoryOptions=[...new Set([...processDefinitions.map(x=>x.category),...contactRows.flatMap(row=>row.processCategories||[])].filter(Boolean))].sort();
- const selectedCapabilityDefinitions=processDefinitions.filter(definition=>(!categoryFilters.length||categoryFilters.includes(definition.category))&&(!processFilters.length||processFilters.some(value=>value==="directory:"+definition.id||(value.startsWith("text:")&&value.slice(5)===definition.processType.trim().toLowerCase()))));
+ const selectedCapabilityDefinitions=processDefinitions.filter(definition=>(!categoryFilters.length||categoryFilters.includes(definition.category))&&(!processFilters.length||processFilters.includes("directory:"+definition.id)));
  const processSubcategoryFilterOptions=selectedCapabilityDefinitions.flatMap(definition=>(definition.subcategories||[]).map((name,index)=>({
   id:stableContactSubcategoryId(definition,index),
   label:definition.category+" · "+definition.processType+" · "+name
@@ -80,7 +85,8 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
   const contactSubcategoryIds:string[]=row.processSubcategoryIds||[];
   const customContactSubcategoryIds=(row.processSubcategories||[]).map(name=>"contact:"+name.trim().toLowerCase());
   const subcategoryMatch=!subcategoryFilters.length||subcategoryFilters.some(id=>capabilitySubcategoryIds.includes(id)||contactSubcategoryIds.includes(id)||customContactSubcategoryIds.includes(id));
-  const legacyProcessNames=[...(row.processTypes||[]),...String(row.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean)].map(value=>value.toLowerCase());
+  const contactDefinitionNames=processDefinitions.filter(definition=>contactDefinitionIds.includes(definition.id)).map(definition=>definition.processType.trim().toLowerCase());
+  const legacyProcessNames=[...(row.processTypes||[]).filter(value=>!contactDefinitionNames.includes(value.trim().toLowerCase())),...String(row.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean)].map(value=>value.toLowerCase());
   const processMatch=!processFilters.length||processFilters.some(value=>value.startsWith("directory:")?linkedDefinitionIds.includes(value.slice(10)):value.startsWith("text:")&&legacyProcessNames.includes(value.slice(5)));
   const containsAny=(values:string[],source:string)=>!values.length||values.some(value=>source.toLowerCase().includes(value.toLowerCase()));
   return text.includes(search.toLowerCase().trim())

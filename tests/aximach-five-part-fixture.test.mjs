@@ -1200,6 +1200,9 @@ test("Contact 360 saves Process Directory references by stable IDs and keeps man
   assert.ok(workspace.includes('selected={draft.processSubcategoryIds||[]}'));
   assert.ok(workspace.includes("id:stableContactSubcategoryId(definition,index)"));
   assert.ok(workspace.includes("contactSubcategoryIds.includes(id)"));
+  assert.ok(workspace.includes('!processFilters.length||processFilters.includes("directory:"+definition.id)'));
+  assert.ok(workspace.includes("const linkedNames=processDefinitions.filter(definition=>contactProcessDefinitionIds(row).includes(definition.id)"));
+  assert.ok(workspace.includes("const legacyProcessNames=[...(row.processTypes||[]).filter(value=>!contactDefinitionNames.includes(value.trim().toLowerCase()))"));
   assert.ok(workspace.includes('Manual contact capability tags (separate from Process Directory)'));
   assert.ok(workspace.includes('id:"contact:"+name.trim().toLowerCase()'));
   assert.ok(!workspace.includes('selected={draft.processSubcategories||[]} onChange={values=>setDraft(current=>({...current,processSubcategories:values}))}'));
