@@ -1433,3 +1433,28 @@ test("Add Operation menu remains clickable and explains the required PO componen
   assert.ok(workspace.includes('"Select a PO component line first"'));
   assert.ok(workspace.includes("saving an operation requires a valid PO component line"));
 });
+
+
+test("390px mobile layout keeps the spherical command centre and Process Map controls responsive", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const appCss = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  const uiCss = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  const process = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(html.includes('name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"'));
+  assert.ok(appCss.includes("@media(max-width:820px)"));
+  assert.ok(appCss.includes(".command-rail {"));
+  assert.ok(appCss.includes("overflow-x: auto"));
+  assert.ok(appCss.includes(".hero-command { grid-template-columns:minmax(0,1fr)"));
+  assert.ok(appCss.includes(".hero-graphic .ax-orb-drag-zone { width:min(100%,360px)"));
+  assert.ok(appCss.includes(".linked-process-page .linked-master-selectors,.linked-costing-page .linked-cost-selectors{grid-template-columns:minmax(0,1fr)}"));
+  assert.ok(uiCss.includes("@media (max-width: 600px)"));
+  assert.ok(uiCss.includes(".ax-orb-satellite small { font-size: 7px"));
+  assert.ok(uiCss.includes(".process-route-scope-buttons { display:flex; flex-wrap:wrap"));
+  assert.ok(uiCss.includes(".process-table-bulkbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap"));
+  assert.ok(uiCss.includes(".process-export-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap"));
+  assert.ok(uiCss.includes("@media(max-width:700px){.process-map-filter-grid{grid-template-columns:repeat(2,minmax(115px,1fr))"));
+  assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 38px"));
+  assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 42px"));
+  assert.ok(process.includes('<details open className="surface-panel process-route-scope-panel">'));
+  assert.ok(process.includes('<details open className="surface-panel linked-route-canvas">'));
+});
