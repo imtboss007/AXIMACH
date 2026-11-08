@@ -28,8 +28,8 @@ void main() {
   if (h < 0.0) { gl_FragColor = vec4(0.0); return; }
   float t = -b - sqrt(h);
   vec3 hit = ro + rd * t;
-  // The texture remains fixed relative to the sphere. User drag rotates the
-  // complete globe assembly; there is no independent shader-level auto-spin.
+  // User drag changes the surface-coordinate orientation through globeRotation.
+  // The globe remains spherical and never auto-rotates while idle.
   vec3 q = hit;
   float cx = cos(globeRotation.x), sx = sin(globeRotation.x);
   float cy = cos(globeRotation.y), sy = sin(globeRotation.y);
