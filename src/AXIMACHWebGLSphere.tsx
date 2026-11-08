@@ -1,7 +1,5 @@
 import { useEffect, useRef } from "react";
 
-type Props = { paused?: boolean; reduceMotion?: boolean; speed?: "Slow" | "Normal" | "Fast" };
-
 const vertexShader = `
 attribute vec2 position;
 varying vec2 uv;
@@ -14,8 +12,6 @@ const fragmentShader = `
 precision highp float;
 varying vec2 uv;
 uniform vec2 resolution;
-uniform float time;
-uniform float motionOn;
 const float PI = 3.141592653589793;
 
 void main() {
@@ -30,9 +26,9 @@ void main() {
   if (h < 0.0) { gl_FragColor = vec4(0.0); return; }
   float t = -b - sqrt(h);
   vec3 hit = ro + rd * t;
-  float angle = time * motionOn;
-  float ca = cos(angle), sa = sin(angle);
-  vec3 q = vec3(ca*hit.x-sa*hit.z, hit.y, sa*hit.x+ca*hit.z);
+  // The texture remains fixed relative to the sphere. User drag rotates the
+  // complete globe assembly; there is no independent shader-level auto-spin.
+  vec3 q = hit;
   vec3 normal = normalize(q);
   float lat = asin(clamp(normal.y, -1.0, 1.0));
   float lon = atan(normal.z, normal.x);
@@ -71,11 +67,8 @@ function compile(gl: WebGLRenderingContext, type: number, source: string) {
   return shader;
 }
 
-export default function AXIMACHWebGLSphere({ paused = false, reduceMotion = false, speed = "Normal" }: Props) {
+export default function AXIMACHWebGLSphere() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef({ paused, reduceMotion, speed });
-  useEffect(() => { stateRef.current = { paused, reduceMotion, speed }; }, [paused, reduceMotion, speed]);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -100,11 +93,7 @@ export default function AXIMACHWebGLSphere({ paused = false, reduceMotion = fals
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     const resolution = gl.getUniformLocation(program, "resolution");
-    const time = gl.getUniformLocation(program, "time");
-    const motionOn = gl.getUniformLocation(program, "motionOn");
     let frame = 0;
-    let elapsed = 0;
-    let previous = 0;
     let disposed = false;
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -122,18 +111,8 @@ export default function AXIMACHWebGLSphere({ paused = false, reduceMotion = fals
     resize();
     const draw = (now: number) => {
       if (disposed) return;
-      if (!previous) previous = now;
-      const delta = Math.min(48, now - previous);
-      previous = now;
-      const current = stateRef.current;
-      if (!current.paused && !current.reduceMotion && document.visibilityState !== "hidden") {
-        const multiplier = current.speed === "Fast" ? 1.8 : current.speed === "Slow" ? 0.45 : 1;
-        elapsed += delta * 0.00018 * multiplier;
-      }
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.uniform1f(time, elapsed);
-      gl.uniform1f(motionOn, 1.0);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       frame = window.requestAnimationFrame(draw);
     };
