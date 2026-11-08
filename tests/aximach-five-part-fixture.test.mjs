@@ -562,6 +562,10 @@ test("AXIMACH command sphere module buttons can be dragged without losing click 
   assert.ok(orb.includes("onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}"));
   assert.ok(orb.includes("if (!dragMoved.current) onSelectModule(id)"));
   assert.ok(orb.includes("Both spheres are stationary until the user drags them. No idle auto-rotation."));
+  assert.ok(orb.includes("onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag}"));
+  assert.ok(orb.includes("if (!lowerDragMoved.current) onSelectModule(id)"));
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("{selectedOperationId && activeOperation && <button className=\"button-danger compact-button\""));
 });
 
 test("Process Directory stores a colour per process type and route exports share the selected scope", () => {
