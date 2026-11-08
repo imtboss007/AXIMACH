@@ -275,7 +275,6 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
                 {fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>}
               </div>
               {childOperations.length > 0 && <small className="process-universe-node-category">{childOperations.length} linked sub-process(es)</small>}
-              {fieldVisible("machine") && operation.machine && <span className="process-universe-machine">{operation.machine}</span>}
             </button>
             {expanded && <div className="process-node-subprocess-dropdown"><strong>{operation.name} · Linked steps</strong>{childOperations.map(child => <button type="button" key={child.id} onClick={() => onSelectOperation(child.id)}><span>{child.name}</span><small>Sub-process · {child.status} · {child.machine || "Machine not set"}</small></button>)}{linkedBranches.map(child => <button type="button" key={child.id} onClick={() => onSelectOperation(child.id)}><span>{child.name}</span><small>{child.relationType === "rework" ? "Rework branch" : "Alternate route"} · {child.status}</small></button>)}<button type="button" className="process-node-add-subprocess" onClick={() => onAddSubprocess?.(operation.id)}>＋ Add sub-process</button></div>}
             {showArrows && index < lane.rows.length - 1 && <span className="process-universe-connector" style={{color:lane.branchRelation==="rework"?"#e38b45":lane.branchRelation==="alternate"?"#4b95eb":accent}} aria-hidden="true"><ArrowRight size={17}/></span>}
