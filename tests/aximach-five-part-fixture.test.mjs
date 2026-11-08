@@ -527,3 +527,15 @@ test("Dashboard spheres only rotate on direct drag and dashboard navigation butt
   assert.ok(app.includes('activeModuleId === "dashboard"'));
   assert.ok(app.includes('activeModuleId === "command-centre"'));
 });
+
+test("WebGL globe texture itself has no independent auto-rotation", () => {
+  const shader = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
+  assert.ok(shader.includes("vec3 q = hit;"), "sphere texture must remain fixed relative to its draggable parent");
+  assert.ok(!shader.includes("uniform float time"));
+  assert.ok(!shader.includes("uniform float motionOn"));
+  assert.ok(!shader.includes("float angle ="));
+  assert.ok(!shader.includes("elapsed +="));
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes("<AXIMACHWebGLSphere />"));
+  assert.ok(!orb.includes("paused={"));
+});
