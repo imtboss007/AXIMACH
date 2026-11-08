@@ -303,6 +303,19 @@ test("Component Master supplies component-linked identity and PDF/Excel export f
   assert.ok(icons.includes("MechanicalComponentIcon componentName={componentName}"));
 });
 
+test("shared searchable pickers support exact, partial and numeric searches plus select-all and clear", () => {
+  const picker = readFileSync(new URL("../src/SearchablePicker.tsx", import.meta.url), "utf8");
+  const multi = readFileSync(new URL("../src/SearchableMultiSelect.tsx", import.meta.url), "utf8");
+  assert.ok(picker.includes("option.label.toLocaleLowerCase().includes(needle)"));
+  assert.ok(picker.includes("startsWith(needle)"));
+  assert.ok(picker.includes("exact or partial match"));
+  assert.ok(multi.includes("option.label.toLocaleLowerCase().includes(needle)"));
+  assert.ok(multi.includes('onChange(options.map(option => option.id))'));
+  assert.ok(multi.includes("onChange([])"));
+  assert.ok(multi.includes("Select all"));
+  assert.ok(multi.includes("Clear"));
+});
+
 test("Component Master opens Logo Studio for each stable component ID and exposes mechanical logo inventory", () => {
   const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
