@@ -1385,3 +1385,13 @@ test("Costing rollup has linked searchable process and payment filters with one 
   assert.ok(costing.includes("setRollupCategoryFilters([])"));
   assert.ok(costing.includes("setRollupPaymentFilters([])"));
 });
+
+
+test("Component Planned Cost subcategory filter is linked to the saved planned-cost records and clears with the other filters", () => {
+  const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const planned = directory.slice(directory.indexOf("function PlannedCostDirectory"), directory.indexOf("export default function SpecializedDirectoryWorkspace"));
+  assert.ok(planned.includes('id="planned-cost-subcategory-filter"'));
+  assert.ok(planned.includes("selected={subcategoryFilters} onChange={setSubcategoryFilters}"));
+  assert.ok(planned.includes("subcategoryFilters.includes(row.processSubcategory||\"\")"));
+  assert.ok(planned.includes("setSubcategoryFilters([])"));
+});
