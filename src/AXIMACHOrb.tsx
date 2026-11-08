@@ -75,9 +75,10 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const lowerDrag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
   const dragSensitivity = speed === "Slow" ? 0.45 : speed === "Fast" ? 0.95 : 0.72;
   useAnimationFrame((_time, delta) => {
-    if (!autoRotate || reduceMotion || reducedMotion || drag.current || !Number.isFinite(delta)) return;
+    if (!autoRotate || reduceMotion || reducedMotion || !Number.isFinite(delta)) return;
     const degreesPerSecond = speed === "Slow" ? 5 : speed === "Fast" ? 16 : 10;
-    rotateY.set(rotateY.get() + degreesPerSecond * delta / 1000);
+    if (!drag.current) rotateY.set(rotateY.get() + degreesPerSecond * delta / 1000);
+    if (!lowerDrag.current) lowerRotateY.set(lowerRotateY.get() - degreesPerSecond * 0.72 * delta / 1000);
   });
 
   const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
