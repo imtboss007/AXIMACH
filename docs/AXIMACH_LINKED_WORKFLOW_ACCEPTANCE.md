@@ -35,3 +35,16 @@ The machine-readable process/category/sub-process fixture is in [tests/fixtures/
 - Transport legs, operation costs, payment records, inspection history and PO job completion remain separate records with explicit links.
 - No fixture row is inserted into production automatically.
 - Test on the same configured shared-data server for PC and Android; CI builds alone do not prove physical-device round-trip sync.
+
+## Command globe and logo export acceptance additions
+
+- The main dashboard and 3D Command Centre share the same manually draggable globe component; the lower live-record shell is a separate rotator. Neither sphere should auto-rotate while idle.
+- The 18 module controls use Fibonacci-sphere coordinates distributed across the full spherical surface. Rear-facing controls are hidden by back-face culling until the operator rotates them into view.
+- The lower shell carries six live record categories: companies, purchase orders, PO component lines, components, vendors and open operations.
+- Component Master and Purchase Order PDF/Excel exports include the component logo. A saved imported SVG/PNG logo is preferred when present; otherwise the deterministic name-based mechanical symbol is used.
+- Process Directory keeps a process-type colour and provides a stable-ID Logo Studio action for each process definition. Sub-process logo assignments use stable subcategory IDs.
+- Example company/vendor/PO data remain an isolated acceptance fixture. The application must not seed Company XYZ or PO-1 into live records.
+
+## Manual device acceptance still required
+
+Automated tests and CI verify source contracts, type-checking, web packaging, Windows installation/launch and Android APK generation. They do not certify touch hit-targets, visual depth sorting, real-device WebGL fallback, print-to-PDF rendering, Excel image rendering, or PC-to-Android round-trip sync. Those checks must be completed in the deployed browser/PC and Android app before release approval.
