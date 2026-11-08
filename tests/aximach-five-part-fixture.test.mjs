@@ -146,7 +146,7 @@ test("Process Plan enforces Process Directory vendor assignments", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)'));
   assert.ok(workspace.includes('vendorStillAssigned=!definition?.vendorIds?.length||definition.vendorIds.includes(draft.vendorId)'));
-  assert.ok(workspace.includes('subcategory:"",vendorId:""'));
+  assert.ok(workspace.includes('subcategory:"",subcategoryId:"",vendorId:""'));
 });
 
 test("Process Plan rejects stale process-definition IDs when the definition name or category changed", () => {
@@ -183,7 +183,7 @@ test("dashboard command globe exposes 18 unique, distinguishable module shortcut
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
-test("all 18 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
+test("all 18 module shortcuts rotate with the auto-rotating draggable globe and the lower live-data sphere remains separate", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const depthOpen = orb.indexOf('<motion.div className="ax-orb-depth"');
   const moduleShell = orb.indexOf('className="ax-orb-module-shell"');
@@ -205,11 +205,14 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(orb.includes("onClick={() => { if (!dragMoved.current) toggleZoom(); }}"), "dragging on the globe core must not trigger click-to-zoom");
   assert.ok(orb.includes("const startDrag ="));
   assert.ok(orb.includes("const startLowerDrag ="));
-  assert.ok(orb.includes('onClick={() => { if (!dragMoved.current) onSelectModule(id); }}'));
+  assert.ok(orb.includes('onClick={event => { event.stopPropagation(); if (!dragMoved.current) onSelectModule(id); }}'));
+  assert.ok(orb.includes("onPointerDown={event => event.stopPropagation()}"));
   assert.ok(orb.includes("onPointerDown={startDrag}"));
   assert.ok(!orb.includes("onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onClick"));
   assert.ok(orb.includes('onClick={() => { if (!lowerDragMoved.current) onSelectModule(id); }}'));
-  assert.ok(!orb.includes("useAnimationFrame"));
+  assert.ok(orb.includes("useAnimationFrame"));
+  assert.ok(orb.includes("saved.current.autoRotate !== false"));
+  assert.ok(orb.includes("setAutoRotate(value => !value)"));
   assert.ok(!orb.includes("rotateY:360"));
   assert.ok(!orb.includes("rotate:360"));
   assert.ok(orb.includes('transform: "translate3d(" + x + "px," + y + "px," + z + "px)'));
@@ -575,11 +578,14 @@ test("Five fixture parts create independent multi-process routes linked by stabl
   assert.ok(workspace.includes("id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id"));
 });
 
-test("Dashboard spheres only rotate on direct drag and dashboard navigation buttons select the correct views", () => {
+test("Dashboard spheres auto-rotate by default, can be paused and dashboard navigation selects the correct views", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
   const process = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
-  assert.ok(!orb.includes("useAnimationFrame"));
+  assert.ok(orb.includes("useAnimationFrame"));
+  assert.ok(orb.includes("autoRotate && !reduceMotion && !reducedMotion"));
+  assert.ok(orb.includes("Pause rotation"));
+  assert.ok(orb.includes("Resume rotation"));
   assert.ok(!orb.includes("rotateY:360"));
   assert.ok(!orb.includes("rotate:360"));
   assert.ok(orb.includes("const startDrag ="));
@@ -639,14 +645,16 @@ test("Process Map exposes mobile route scope, process delete, logo assignment an
   assert.ok(universe.includes('lane.branchRelation==="alternate"?"#4b95eb":accent'));
 });
 
-test("AXIMACH command sphere module buttons can be dragged without losing click navigation", () => {
+test("AXIMACH command sphere module buttons can be selected while auto-rotation and drag are enabled", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   assert.ok(orb.includes("className=\"ax-orb-drag-zone\""));
   assert.ok(orb.includes("onPointerDown={startDrag}"));
   assert.ok(orb.includes("onPointerMove={moveDrag}"));
   assert.ok(orb.includes("onPointerUp={endDrag}"));
   assert.ok(orb.includes("if (!dragMoved.current) onSelectModule(id)"));
-  assert.ok(orb.includes("Both spheres are stationary until the user drags them. No idle auto-rotation."));
+  assert.ok(orb.includes("AUTO-ROTATING · TAP A MODULE TO OPEN"));
+  assert.ok(orb.includes("PAUSED · DRAG TO ROTATE · TAP A MODULE TO OPEN"));
+  assert.ok(orb.includes("onClick={event => { event.stopPropagation(); if (!dragMoved.current) onSelectModule(id); }}"));
   assert.ok(orb.includes("onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag}"));
   assert.ok(orb.includes("if (!lowerDragMoved.current) onSelectModule(id)"));
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
