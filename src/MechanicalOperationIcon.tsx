@@ -7,12 +7,17 @@ export type ToolGlyph =
   | "ball-mill" | "slot-mill" | "chamfer" | "turning-insert" | "grooving"
   | "threading-insert" | "parting" | "knurl" | "broach" | "hob" | "saw"
   | "grinding-wheel" | "honing" | "lapping" | "welding-torch" | "laser-head" | "component-block"
-  | "edm-wire" | "press-tool" | "inspection" | "cnc-machine" | "vmc-machine" | "lathe-machine"
+  | "edm-wire" | "press-tool" | "inspection" | "heat-treatment-furnace" | "powder-coating-gun" | "assembly-tool" | "transport-truck" | "material-stock" | "cnc-machine" | "vmc-machine" | "lathe-machine"
   | "edm-machine" | "grinding-machine" | "laser-cutter" | "welding-station" | "fixture-jig"
   | "cmm-machine" | "caliper";
 
 const rules: Array<[RegExp, ToolGlyph]> = [
   [/cnc machining centre|cnc machining center|cnc machine|machining centre|machining center/, "cnc-machine"],
+  [/heat treat|heat treatment|hardening|tempering|anneal|carburis|vacuum harden|furnace/, "heat-treatment-furnace"],
+  [/powder coat|powder coating|paint|coating|plating|surface treatment|anodiz/, "powder-coating-gun"],
+  [/assembly|fitment|press fit|fastening|bolt assembly/, "assembly-tool"],
+  [/transport|dispatch|shipping|logistics|delivery/, "transport-truck"],
+  [/raw material|stock bar|sheet blank|material stock|bar stock/, "material-stock"],
   [/vmc machine|vertical machining centre|vertical machining center/, "vmc-machine"],
   [/lathe machine|cnc lathe|turning centre|turning center/, "lathe-machine"],
   [/wire edm machine|edm machine|spark erosion machine/, "edm-machine"],
@@ -89,6 +94,11 @@ export const MECHANICAL_ICON_INVENTORY: Array<{ glyph: ToolGlyph; label: string;
   {glyph:"edm-wire",label:"Wire EDM",application:"Wire cut EDM and spark erosion"},
   {glyph:"press-tool",label:"Press tool",application:"Punching, blanking, stamping, piercing and shearing"},
   {glyph:"inspection",label:"Inspection / metrology",application:"CMM, measurement, testing and quality"},
+  {glyph:"heat-treatment-furnace",label:"Heat-treatment furnace",application:"Hardening, tempering, annealing, carburising and vacuum heat treatment"},
+  {glyph:"powder-coating-gun",label:"Coating / finishing gun",application:"Powder coating, painting and surface finishing"},
+  {glyph:"assembly-tool",label:"Assembly tool",application:"Mechanical assembly, fastening and press-fit operations"},
+  {glyph:"transport-truck",label:"Transport / dispatch",application:"Vendor collection, route movement, logistics and delivery"},
+  {glyph:"material-stock",label:"Material stock",application:"Bar stock, sheet blanks and raw-material preparation"},
   {glyph:"cnc-machine",label:"CNC machining centre",application:"CNC production centres, enclosed machining cells and multi-axis machining"},
   {glyph:"vmc-machine",label:"VMC machine",application:"Vertical machining centres, spindle stations and milling work centres"},
   {glyph:"lathe-machine",label:"CNC lathe / turning centre",application:"CNC turning machines, chucking lathes and turning cells"},
@@ -141,6 +151,11 @@ function GlyphShape({ glyph }: { glyph: ToolGlyph }): ReactNode {
     case "edm-wire": return <><path {...common} d="M7 2v5M17 2v5M7 7h10M7 7v10M17 7v10M7 17h10M12 17v5M9 11l6 2" /></>;
     case "press-tool": return <><path {...common} d="M4 3h16v5H4zM10 8h4v6h-4zM3 18h18M6 14h12v4H6zM12 1v2" /></>;
     case "inspection": return <><circle {...common} cx="10" cy="10" r="6"/><path {...common} d="M14.5 14.5L21 21M10 7v6M7 10h6" /></>;
+    case "heat-treatment-furnace": return <><path {...common} d="M5 21V8h14v13M8 8V4h8v4M8 13h8M8 17h8M12 2v2" /><path {...common} d="M10 15c-1-2 1-3 2-5 1 2 3 3 2 5a2 2 0 0 1-4 0z" /></>;
+    case "powder-coating-gun": return <><path {...common} d="M3 7h10l3 3-3 3H9l-2 3H4l2-5H3zM16 10h3l2-2M19 10l2 2M7 16l-2 5M11 16l-1 5" /></>;
+    case "assembly-tool": return <><path {...common} d="M14 4a5 5 0 0 0-6 6L3 15l6 6 5-5a5 5 0 0 0 6-6l-3 3-4-4zM4 4l4 4M16 16l4 4" /></>;
+    case "transport-truck": return <><path {...common} d="M2 6h12v11H2zM14 10h5l3 4v3h-8zM5 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" /></>;
+    case "material-stock": return <><path {...common} d="M3 6l9-4 9 4-9 4zM3 6v12l9 4 9-4V6M12 10v12M6 8l12-4M6 13l12-4" /></>;
     case "component-block": return <><path {...common} d="M4 7l8-4 8 4v10l-8 4-8-4zM4 7l8 4 8-4M12 11v10M8 5l8 4" /></>;
     case "cnc-machine": return <><path {...common} d="M3 4h18v16H3zM7 7h10v9H7zM12 2v5M9 16v2M15 16v2M5 20v2M19 20v2M18 7h2M18 10h2M18 13h2" /><circle {...common} cx="12" cy="11" r="2" /></>;
     case "vmc-machine": return <><path {...common} d="M4 3h16v18H4zM8 6h8v8H8zM12 2v5M10 14h4v3h-4zM6 21v1M18 21v1" /><path {...common} d="M12 7v4M9 18h6" /></>;
