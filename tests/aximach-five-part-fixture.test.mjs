@@ -588,3 +588,27 @@ test("Process Directory stores a colour per process type and route exports share
     assert.ok(body.includes("exportOperations"), exportName + " must use the selected route scope");
   }
 });
+
+
+test("five synthetic component names resolve to the intended mechanical logo families", () => {
+  const iconSource = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  const rulesBlock = iconSource.match(/const componentRules: Array<\\[RegExp, ToolGlyph\\]> = \\[([\\s\\S]*?)\\n\\];/);
+  assert.ok(rulesBlock, "component logo rules must remain discoverable");
+  const rules = [...rulesBlock[1].matchAll(/\\[\\/((?:\\\\.|[^\\/])*)\\/([a-z]*)?,\\s*"([^"]+)"\\]/g)]
+    .map(match => ({ pattern: new RegExp(match[1], match[2] || ""), glyph: match[3] }));
+  const glyphFor = name => {
+    const value = name.toLowerCase().replace(/[_-]+/g, " ");
+    return rules.find(rule => rule.pattern.test(value))?.glyph || "component-block";
+  };
+  const expected = new Map([
+    ["AX-1001", "turning-insert"],
+    ["AX-1002", "press-tool"],
+    ["AX-1003", "hob"],
+    ["AX-1004", "boring-bar"],
+    ["AX-1005", "fixture-jig"]
+  ]);
+  for (const part of fixture.parts) {
+    assert.equal(glyphFor(part.name + " " + part.partNumber), expected.get(part.partNumber), part.partNumber + " mechanical logo family");
+  }
+  assert.ok(iconSource.indexOf('[/gear|sprocket|rack|worm wheel|splined/, "hob"]') < iconSource.indexOf('[/shaft|spindle|axle|pinion shaft|drive shaft/, "turning-insert"]'), "gear identity must take priority over the generic shaft rule");
+});
