@@ -874,9 +874,10 @@ test("Process Plan panels expose independent native expand/collapse sections", (
     "linked-cost-card","linked-timeline-card","linked-process-table"
   ];
   for (const panel of panels) {
-    assert.ok(workspace.includes('<details open className="surface-panel ' + panel + '"'), "missing open/close panel " + panel);
+    const expected = panel === "linked-operation-side" ? '<details open ref={selectedOperationPanelRef} className="surface-panel linked-operation-side">' : '<details open className="surface-panel ' + panel + '"';
+    assert.ok(workspace.includes(expected), "missing open/close panel " + panel);
   }
-  assert.equal((workspace.match(/<details open/g) || []).length, (workspace.match(/<\/details>/g) || []).length);
+  assert.equal((workspace.match(/<details\b/g) || []).length, (workspace.match(/<\/details>/g) || []).length);
   assert.ok(workspace.includes("<summary className=\"panel-heading\">"));
 });
 
