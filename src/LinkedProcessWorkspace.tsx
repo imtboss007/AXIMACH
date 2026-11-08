@@ -809,7 +809,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   };
   const saveOperation = () => {
     if (!selectedPO || !selectedLine || !selectedComponent) { onNotice("Select a PO component line first."); return; }
-    if (!draft.name.trim()) { onNotice("Enter the operation name."); return; }
+    if (!draft.category.trim()) { onNotice("Select or enter a process category."); return; }
+    if (!draft.name.trim()) { onNotice("Select or enter a process type."); return; }
     if (draft.vendorId && !vendors.some(vendor => vendor.id === draft.vendorId)) { onNotice("The selected vendor is missing or archived. Choose an active Vendor Directory record."); return; }
     if (draft.executionType === "Outsourced" && selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)) { onNotice("The selected vendor is not assigned to this Process Directory definition. Choose an assigned vendor or update the Process Directory vendor links."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
