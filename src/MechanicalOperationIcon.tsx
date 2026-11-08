@@ -197,6 +197,17 @@ export function mechanicalComponentSvgForName(componentName: string): string {
   );
 }
 
+export function mechanicalOperationSvgForName(operationName: string): string {
+  const glyph = mechanicalGlyphForOperation(operationName) || "component-block";
+  return renderToStaticMarkup(
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="96" height="96" style={{ color: "#2d6da9" }}>
+      <g fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <GlyphShape glyph={glyph}/>
+      </g>
+    </svg>
+  );
+}
+
 export function MechanicalOperationIcon({ operation, className = "" }: { operation: string; className?: string }) {
   const glyph = mechanicalGlyphForOperation(operation);
   if (!glyph) return null;
