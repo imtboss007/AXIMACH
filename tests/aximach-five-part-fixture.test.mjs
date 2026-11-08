@@ -1047,3 +1047,10 @@ test("Selecting an already active process row or Process Universe node reopens t
   assert.ok(workspace.includes("if(selectedOperationPanelRef.current)selectedOperationPanelRef.current.open=true"));
   assert.ok(workspace.includes("onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); if(selectedOperationPanelRef.current)selectedOperationPanelRef.current.open=true; }}"));
 });
+
+test("Route simulation advances the selected operation through the currently selected route scope", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const stepOperation = simulationOperations[simulationIndex]"));
+  assert.ok(workspace.includes("if (stepOperation) setSelectedOperationId(stepOperation.id)"));
+  assert.ok(workspace.includes("[simulationActive, simulationIndex, simulationOperations]"));
+});
