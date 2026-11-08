@@ -93,33 +93,31 @@ export default function AXIMACHWebGLSphere() {
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     const resolution = gl.getUniformLocation(program, "resolution");
-    let frame = 0;
     let disposed = false;
+    const draw = () => {
+      if (disposed) return;
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    };
     const resize = () => {
+      if (disposed) return;
       const rect = canvas.getBoundingClientRect();
       const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
       const width = Math.max(1, Math.round(rect.width * ratio));
       const height = Math.max(1, Math.round(rect.height * ratio));
       if (canvas.width !== width || canvas.height !== height) {
         canvas.width = width; canvas.height = height;
-        gl.viewport(0, 0, width, height);
-        gl.uniform2f(resolution, width, height);
       }
+      gl.viewport(0, 0, width, height);
+      gl.uniform2f(resolution, width, height);
+      draw();
     };
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
     observer?.observe(canvas);
     resize();
-    const draw = (now: number) => {
-      if (disposed) return;
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-      frame = window.requestAnimationFrame(draw);
-    };
-    frame = window.requestAnimationFrame(draw);
     return () => {
       disposed = true;
-      window.cancelAnimationFrame(frame);
       observer?.disconnect();
       gl.deleteBuffer(buffer);
       gl.deleteProgram(program);
