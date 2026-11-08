@@ -38,7 +38,7 @@ The machine-readable process/category/sub-process fixture is in [tests/fixtures/
 
 ## Command globe and logo export acceptance additions
 
-- The main dashboard and 3D Command Centre share the same globe component. The 18-module shell and separate lower live-record shell rotate gently by default, pause/resume independently of direct touch or mouse drag, and respect reduced-motion settings.
+- The main dashboard and 3D Command Centre share the same full WebGL sphere component. The 18-module shell and separate lower live-record shell are manual-drag only: neither has an idle animation, timer or automatic rotation. Each shell has an independent drag lock/unlock control, and each workspace surface retains its own saved interaction preferences.
 - The 18 module controls use Fibonacci-sphere coordinates distributed across the full spherical surface. Rear-facing controls are hidden by back-face culling until the operator rotates them into view. The WebGL globe surface texture receives the same drag orientation as a shader uniform, so the spherical silhouette stays round instead of rotating as a flat canvas plane.
 - The lower shell carries six live record categories: companies, purchase orders, PO component lines, components, vendors and open operations.
 - Component Master and Purchase Order PDF/Excel exports include the component logo. A saved imported SVG/PNG logo is preferred when present; otherwise the deterministic name-based mechanical symbol is used.
@@ -49,7 +49,7 @@ The machine-readable process/category/sub-process fixture is in [tests/fixtures/
 
 ## Automated interaction-contract coverage and manual device acceptance
 
-- Regression tests assert that the 10 Process Plan view buttons select the matching visual renderer, with 3D Sphere, Vortex and Combined 3D opening the corresponding 3D layout.
+- Regression tests assert that the 10 Process Plan view buttons select the matching visual renderer, with 3D Sphere, Vortex and Combined 3D opening the corresponding 3D layout. Dashboard and Command Centre sphere tests also assert no idle auto-rotation timer, direct drag on the WebGL sphere core, independent lower-shell drag control, and clickable module navigation.
 - Alternate and rework branch origin resolution walks the complete parent chain, so a selected-branch or selected-operation route scope still displays the original parent connection. Main-route connectors use process colour, alternate connectors use blue and rework connectors use orange. The same arrow connectors render directly in the 3D process orbit, including a parent-origin marker when the parent is outside the current scope.
 - Route-scope regression checks cover the selected diagram data and all five export handlers. Physical end-to-end checks must still be completed on a configured PC and Android device.
 
