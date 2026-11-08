@@ -826,14 +826,29 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (nextPaidTotal + 0.000001 < previousPaidTotal) { onNotice("Recorded payment totals cannot be reduced. Keep the previous total and add a separate correction record through the finance ledger."); return; }
     const stamp = nowIso();
     const operationId = editingId || makeId("operation");
+    const proposedProcessDefinitionId = makeId("process-definition");
     update(current => {
       const currentRoute = current.operations.filter(op => op.poLineId === selectedLine.id && op.poId === selectedPO.id && op.componentId === selectedComponent.id && !op.deletedAt);
       const old = current.operations.find(op => op.id === operationId);
+      const currentDefinitions = activeRows(current.processDefinitions);
+      const resolvedDefinition = selectedProcessDefinition || resolveProcessDefinition(currentDefinitions, draft.processDefinitionId, draft.name.trim(), draft.category.trim());
+      const processDefinition: ProcessDefinitionRecord | undefined = resolvedDefinition || (draft.name.trim() && draft.category.trim() ? {
+        id: proposedProcessDefinitionId, processType: draft.name.trim(), category: draft.category.trim(),
+        subcategories: [], subcategoryIds: [], vendorIds: [], displayColor: draft.processColor || DEFAULT_PROCESS_COLOR,
+        notes: "Created from Process Map operation editor.", createdAt: stamp, updatedAt: stamp
+      } : undefined);
+      const nextProcessDefinitions = processDefinition
+        ? resolvedDefinition
+          ? current.processDefinitions.map(definition => definition.id === processDefinition.id
+              ? { ...definition, displayColor: draft.processColor || definition.displayColor || DEFAULT_PROCESS_COLOR, updatedAt: stamp }
+              : definition)
+          : [...current.processDefinitions, processDefinition]
+        : current.processDefinitions;
       const next: OperationRecord = {
         id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
-        ...draft, processDefinitionId: selectedProcessDefinition?.id || undefined,
-        processSubcategoryId: draft.processSubcategoryId || processSubcategoryIdFor(selectedProcessDefinition, draft.subcategory) || undefined,
+        ...draft, processDefinitionId: processDefinition?.id || undefined,
+        processSubcategoryId: draft.processSubcategoryId || processSubcategoryIdFor(processDefinition, draft.subcategory) || undefined,
         actualEnd: draft.status === "Complete" ? (draft.actualEnd || stamp.slice(0,10)) : draft.actualEnd, paidAmount: nextPaidTotal, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
         parentId: draft.parentId || old?.parentId || (draft.branch !== "Main route" ? activeOperation?.id || "" : ""), relationType: draft.relationType || old?.relationType
@@ -848,11 +863,6 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const recordedTotal=ledgerTotal+legacyTotal;
       const paymentDelta=Math.max(0,nextPaidTotal-recordedTotal);
       if(paymentDelta>0) paymentRecords.push({id:makeId("payment"),operationId,poId:selectedPO.id,poLineId:selectedLine.id,componentId:selectedComponent.id,amount:paymentDelta,paidAt:stamp,reference:draft.paymentReference.trim(),notes:"Additional payment recorded from Process Plan.",createdAt:stamp,updatedAt:stamp});
-      const nextProcessDefinitions = selectedProcessDefinition
-        ? current.processDefinitions.map(definition => definition.id === selectedProcessDefinition.id
-            ? { ...definition, displayColor: draft.processColor || definition.displayColor || DEFAULT_PROCESS_COLOR, updatedAt: stamp }
-            : definition)
-        : current.processDefinitions;
       return { ...current, operations: [...current.operations.filter(op => op.id !== next.id), next], processDefinitions: nextProcessDefinitions, paymentTransactions: paymentRecords };
     });
     setSelectedOperationId(operationId);
