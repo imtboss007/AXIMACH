@@ -1366,4 +1366,9 @@ test("Process Universe node offers real alternate and rework creation from the s
   assert.ok(universe.includes("onAddReworkRoute(expandedOrbitOperation.id)"));
   assert.ok(workspace.includes('onAddAlternateRoute={parentId=>startAddBranch("alternate",parentId)}'));
   assert.ok(workspace.includes('onAddReworkRoute={parentId=>startAddBranch("rework",parentId)}'));
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(css.includes(".process-orbit-selected-links>button.process-orbit-add-alternate"));
+  assert.ok(css.includes(".process-orbit-selected-links>button.process-orbit-add-rework"));
+  assert.ok(css.includes("background:#eaf4ff;color:#155fa4"));
+  assert.ok(css.includes("background:#fff3e8;color:#a95c20"));
 });
