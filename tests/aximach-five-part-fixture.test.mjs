@@ -1164,3 +1164,25 @@ test("Process Universe route nodes expose expandable linked subprocess and alter
   assert.ok(universe.includes("childOperations.map(child =>"));
   assert.ok(universe.includes("linkedBranches.map(child =>"));
 });
+
+
+test("Clear filters resets every active Process Plan filter through the visible control", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const handlerStart = workspace.indexOf("const clearAllFilters =");
+  const handlerEnd = workspace.indexOf("const toggleOperationSelection", handlerStart);
+  const handler = workspace.slice(handlerStart, handlerEnd);
+  for (const reset of [
+    'setExportScope("all")', "setZoom(1)", 'setSearch("")',
+    "setStatusFilters([])", "setExecutionFilters([])", "setCategoryFilters([])",
+    "setToleranceFilters([])", "setPaymentFilters([])", "setVendorFilters([])",
+    "setProcessTypeFilters([])", "setSubcategoryFilters([])", 'setCategorySearch("")',
+    'setDateFrom("")', 'setDateTo("")', 'setMinQuantity("")', 'setMaxQuantity("")',
+    'setMinPrice("")', 'setMaxPrice("")', 'setMinAmount("")', 'setMaxAmount("")',
+    "setSelectedOperationIds([])"
+  ]) assert.ok(handler.includes(reset), "Clear-all handler must reset " + reset);
+  const labelIndex = workspace.indexOf("Clear filters");
+  const buttonStart = workspace.lastIndexOf("<button", labelIndex);
+  const buttonEnd = workspace.indexOf("</button>", labelIndex);
+  assert.ok(buttonStart >= 0 && buttonEnd > buttonStart);
+  assert.ok(workspace.slice(buttonStart, buttonEnd).includes("onClick={clearAllFilters}"));
+});
