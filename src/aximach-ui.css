@@ -1898,3 +1898,12 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 @media(max-width:420px){.process-map-visible-fields{grid-template-columns:minmax(0,1fr)}}
 /* Keep the 18 module controls outside the core silhouette on narrow touch screens. */
 @media(max-width:620px){.ax-orb-module-shell .ax-orb-satellite-3d{width:48px;max-width:48px}.ax-orb-module-shell .ax-orb-satellite-3d small{max-width:48px;font-size:6px}.ax-orb-drag-zone{width:min(100%,390px)}}
+
+
+/* Expandable Process Plan panels: only primary working surfaces start expanded. */
+.linked-process-page details>summary.panel-heading{cursor:pointer;list-style:none;position:relative;padding-right:26px}
+.linked-process-page details>summary.panel-heading::-webkit-details-marker{display:none}
+.linked-process-page details>summary.panel-heading::after{content:"＋";position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:20px;height:20px;border:1px solid rgba(108,160,203,.35);border-radius:6px;color:#8fb9df;font:700 12px sans-serif}
+.linked-process-page details[open]>summary.panel-heading::after{content:"−"}
+.linked-process-page details>summary.panel-heading>*{min-width:0}
+@media(max-width:680px){.linked-process-page details>summary.panel-heading{align-items:flex-start;gap:8px}.linked-process-page details>summary.panel-heading p{max-width:calc(100vw - 90px)}}
