@@ -131,7 +131,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
           tabIndex={0}
           aria-label={zoomed ? "Zoom out of AXIMACH sphere" : "Zoom in to AXIMACH sphere"}
           aria-pressed={zoomed}
-          onClick={toggleZoom}
+          onClick={() => { if (!dragMoved.current) toggleZoom(); }}
           onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setZoomed(value => !value); } }}
         >
           <AXIMACHWebGLSphere rotationX={rotateX} rotationY={rotateY} />
