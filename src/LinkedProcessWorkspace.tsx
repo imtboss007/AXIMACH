@@ -1115,9 +1115,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     <div className="linked-route-toolbar">
       <div className="linked-route-actions">
         <div className="process-add-menu-anchor">
-          <button type="button" className="button-primary compact-button" disabled={!selectedLine || !selectedComponent} aria-label="Add operation ▾" aria-haspopup="menu" aria-expanded={showAddMenu} onClick={toggleAddMenu}><Plus size={14}/> Add Operation <span aria-hidden="true">▾</span></button>
+          <button type="button" className="button-primary compact-button" aria-label="Add operation ▾" aria-haspopup="menu" aria-expanded={showAddMenu} onClick={toggleAddMenu}><Plus size={14}/> Add Operation <span aria-hidden="true">▾</span></button>
           {showAddMenu && <div className="process-add-menu" role="menu" aria-label="Add process options">
-            <strong>Add to selected PO component</strong>
+            <strong>{selectedLine && selectedComponent ? "Add to selected PO component" : "Select a PO component line first"}</strong>{(!selectedLine || !selectedComponent) && <small>Choose Company → Purchase Order → Component above. The menu stays available, but saving an operation requires a valid PO component line.</small>}
             <button type="button" role="menuitem" onClick={()=>startAdd()}><Plus size={13}/> Blank process operation</button>
             <div className="process-add-menu-library">
               <SearchablePicker id="add-operation-process-definition" label="Process Directory stage" value={addMenuDefinitionId} placeholder="Search category / process type…" options={processDefinitions.map(item=>({id:item.id,label:item.category+" · "+item.processType}))} onChange={setAddMenuDefinitionId}/>
