@@ -1085,3 +1085,15 @@ test("Windows packaging retries Electron downloads through a configured mirror",
   const android = workflow.slice(workflow.indexOf("android-apk:"));
   assert.ok(android.includes("for attempt in 1 2 3; do"));
 });
+
+test("Windows installer uses mirrors for Electron and electron-builder binaries", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
+  const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
+  assert.ok(windows.includes("ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/"));
+});
+
+test("Android Gradle wrapper uses the direct downloads host before build", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
+  assert.ok(workflow.includes("Use direct Gradle distribution host"));
+  assert.ok(workflow.includes("value.replace(\"services.gradle.org\", \"downloads.gradle.org\")"));
+});
