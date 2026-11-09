@@ -2120,3 +2120,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .process-orbit-material-dates{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 13px;padding-top:6px;border-top:1px solid #edf2f8;font-size:8px;color:#7188a4}
 .process-orbit-material-dates strong{color:#315f91}
 @media(max-width:700px){.process-orbit-material-route{grid-template-columns:1fr}.process-orbit-material-flow{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);gap:4px}.process-orbit-material-flow strong{font-size:9px}.process-orbit-material-flow em{font-size:8px}}
+
+
+/* Gantt makes missing and partial schedule data explicit instead of inventing dates. */
+.ax-full3d-gantt-status{position:absolute;left:10px;top:10px;z-index:5;max-width:calc(100% - 20px);padding:6px 9px;border:1px solid rgba(149,117,49,.3);border-radius:7px;background:rgba(255,249,230,.94);color:#785a18;font:700 8px/1.3 'DM Mono',monospace;letter-spacing:.04em;pointer-events:none}

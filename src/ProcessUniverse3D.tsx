@@ -11,7 +11,8 @@ type MaterialRouteNode = {
   id:string; partLabel:string; materialLabel:string; quantity:number; weightKg:number;
   supplier:string; transporter:string; from:string; to:string; vehicle:string;
   materialGivenAt:string; materialDueAt:string; materialReceivedAt:string;
-  pickupAt:string; deliveryAt:string; status:string; materialCost:number; cuttingCost:number; transportCost:number;
+  pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb";
+  materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number;
 };
 type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; routeLabels?: Record<string,string>; materialRoutes?: MaterialRouteNode[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onSelectOperation: (id: string) => void; onEditOperation?: (id: string) => void; onChangeProcessColor?: (id: string, color: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
@@ -126,8 +127,9 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const expandedDetailsRef = useRef<HTMLElement | null>(null);
   const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);
-  const fieldVisible = (field: string) => visibleFields.includes(field);
-  const dateLabel = (value?: string) => { if (!value) return "Not scheduled"; const parsed = new Date(value); return Number.isFinite(parsed.getTime()) ? parsed.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : value; };
+  // Export checkboxes must not hide fields from a selected operation's detail record.
+  const fieldVisible = (_field: string) => true;
+  const dateLabel = (value?: string) => { if (!value) return "Not scheduled"; const parsed = new Date(value); return Number.isFinite(parsed.getTime()) ? parsed.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", ...(value.includes("T") ? { hour: "2-digit", minute: "2-digit" } : {}) }) : value; };
   const moneyLabel = (value: number) => "₹" + Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
   const displayOperations = parentOperations.length ? parentOperations : operations;
@@ -283,13 +285,13 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
       {materialRoutes.length>0 && <section className="process-orbit-material-routes" aria-label="Material procurement and inbound transport routes">
         <div className="process-orbit-material-routes-head"><strong>MATERIAL PROCUREMENT &amp; INBOUND TRANSPORT</strong><span>{materialRoutes.length} saved material movement(s) · material, cutting and transport costs separate</span></div>
         {materialRoutes.map(route=><article className="process-orbit-material-route" key={route.id}>
-          <div className="process-orbit-material-ident"><small>{route.partLabel}</small><strong>{route.materialLabel}</strong><span>Qty {route.quantity.toLocaleString("en-IN")} · {route.weightKg.toFixed(3)} kg</span></div>
+          <div className="process-orbit-material-ident"><small>{route.partLabel}</small><strong>{route.materialLabel}</strong><span>Qty {route.quantity.toLocaleString("en-IN")} · {route.weightKg.toFixed(3)} kg · ₹{route.materialRate.toLocaleString("en-IN",{maximumFractionDigits:2})}/{route.priceUnit}</span></div>
           <div className="process-orbit-material-flow">
             <span><small>SUPPLIER</small><strong>{route.supplier}</strong><em>{route.from}</em></span><b aria-hidden="true">→</b>
             <span><small>TRANSPORTER</small><strong>{route.transporter}</strong><em>{route.vehicle}</em></span><b aria-hidden="true">→</b>
             <span><small>DELIVERY</small><strong>{route.to}</strong><em>{route.status}</em></span>
           </div>
-          <div className="process-orbit-material-dates"><span>Given: {route.materialGivenAt||"—"}</span><span>Due: {route.materialDueAt||"—"}</span><span>Received: {route.materialReceivedAt||"—"}</span><span>Pickup: {route.pickupAt||"—"}</span><span>Transport delivery: {route.deliveryAt||"—"}</span><strong>Material ₹{route.materialCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong><strong>Cutting ₹{route.cuttingCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong><strong>Transport ₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>
+          <div className="process-orbit-material-dates"><span>Given: {route.materialGivenAt||"—"}</span><span>Due: {route.materialDueAt||"—"}</span><span>Received: {route.materialReceivedAt||"—"}</span><span>Pickup: {route.pickupAt||"—"}</span><span>Transport delivery: {route.deliveryAt||"—"}</span><span>Material rate: ₹{route.materialRate.toLocaleString("en-IN",{maximumFractionDigits:2})} / {route.priceUnit}</span><span>Cutting: {route.cuttingType||"No cutting"} · ₹{route.cuttingRate.toLocaleString("en-IN",{maximumFractionDigits:2})} / {route.cuttingBasis||"—"}</span><strong>Material ₹{route.materialCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong><strong>Cutting ₹{route.cuttingCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong><strong>Transport ₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>
         </article>)}
       </section>}
       {layoutMode === "gantt" && <div className="process-gantt-toolbar process-gantt-3d-toolbar"><label>Time scale<select value={ganttScale} onChange={event => onGanttScaleChange?.(event.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>3D SCHEDULE · {displayOperations.length} PROCESS STEPS · DRAG TO ROTATE</span></div>}
@@ -373,8 +375,11 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
                     {fieldVisible("vendor") && <small>Vendor · {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "Not assigned"}</small>}
                     {fieldVisible("plannedStart") && <small>Start · {dateLabel(operation.plannedStart)}</small>}
                     {fieldVisible("plannedEnd") && <small>Delivery · {dateLabel(operation.plannedEnd)}</small>}
+                    {fieldVisible("actualStart") && <small>Actual start · {dateLabel(operation.actualStart)}</small>}
+                    {fieldVisible("actualEnd") && <small>Actual completion · {dateLabel(operation.actualEnd)}</small>}
                     {fieldVisible("quantity") && <small>Quantity · {operation.quantity.toLocaleString("en-IN")} {quantityUnit}</small>}
                     {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} {quantityUnit}</small>}
+                    {fieldVisible("accepted") && <small>Accepted / rejected · {operation.accepted.toLocaleString("en-IN")} / {operation.rejected.toLocaleString("en-IN")} {quantityUnit}</small>}
                     {fieldVisible("price") && <small>Price / part · ₹{(operation.actualRatePerPart || operation.ratePerPart).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
                     {fieldVisible("amount") && <small>Process amount · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
                     {fieldVisible("transportLegCost") && <small>Transport amount · ₹{(operationTransportAmounts[operation.id] || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
@@ -383,7 +388,12 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
                     {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
                     {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
                     {fieldVisible("paymentStatus") && <small>Payment · {operation.paymentStatus || "Unpaid"}</small>}
+                    {fieldVisible("paidAmount") && <small>Paid amount · ₹{(operation.paidAmount || 0).toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
                     {fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>}
+                    {fieldVisible("transportVendor") && <small>Transport vendor · {vendors.find(vendor=>vendor.id===operation.transportVendorId)?.company || "Not assigned"}</small>}
+                    {fieldVisible("transportPickup") && <small>Transport pickup · {dateLabel(operation.transportPickup)}</small>}
+                    {fieldVisible("transportDelivery") && <small>Transport delivery · {dateLabel(operation.transportDelivery)}</small>}
+                    {fieldVisible("inspection") && <small>Inspection result · {operation.inspectionResult || "Not recorded"}</small>}
                     {fieldVisible("description") && <small>Operation details · {operation.notes || operation.qualityNotes || "Not set"}</small>}
                   </div>
                   {childOperations.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(""); }}><span>{child.name}</span><small>Sub-process · {child.status} · {child.machine || "Machine not set"}</small></button>)}

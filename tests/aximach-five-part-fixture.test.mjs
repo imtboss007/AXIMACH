@@ -1733,3 +1733,35 @@ test("Editing or extending a part route retains its source PO line and payment a
   assert.ok(processMap.includes("const selectedLineOperations = operations.filter(op=>op.poId===poId && op.poLineId===poLineId"));
   assert.ok(processMap.includes("const sameRoute=routeOperations.filter(op=>op.poLineId===current.poLineId"));
 });
+
+
+test("Process Map drill-down always shows saved fields independently of export field selection", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("const fieldVisible = (_field: string) => true;"));
+  for (const field of ["VENDOR", "plannedStart", "plannedEnd", "actualStart", "actualEnd", "accepted", "rejected", "paidAmount", "transportVendor", "inspection"]) assert.ok(universe.includes(field), "missing detail field " + field);
+});
+
+test("Process Map material allocations stay within the selected PO line", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes('entry.poId === selectedPO?.id && (!entry.poLineId || entry.poLineId === selectedLine?.id)'));
+  assert.ok(processMap.includes('entry.poId===poId && entry.componentId===selectedLine?.componentId && (!entry.poLineId || entry.poLineId===poLineId)'));
+});
+
+test("Process Map exposes material rate and cutting cost separately in route views", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes("money(entry.materialRate)} / {entry.priceUnit}"));
+  assert.ok(processMap.includes("money(entry.cuttingCost)} cutting"));
+  assert.ok(universe.includes("route.materialRate"));
+  assert.ok(universe.includes("route.cuttingType"));
+  assert.ok(universe.includes("route.cuttingCost"));
+});
+
+test("3D Gantt does not fabricate schedule dates for operations without date-time values", () => {
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  assert.ok(scene.includes("const hasEvents=events.length>0"));
+  assert.ok(scene.includes("domain.hasEvents?1.34:"));
+  assert.ok(scene.includes("if(!domain.hasEvents)return[]"));
+  assert.ok(scene.includes("NO SCHEDULE DATES"));
+  assert.ok(!scene.includes("events.length?Math.min(...events):Date.now()"));
+});
