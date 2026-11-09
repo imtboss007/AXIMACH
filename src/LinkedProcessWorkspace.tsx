@@ -973,14 +973,19 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (!Number.isFinite(Number(selectedTransportDirectoryRoute.fixedAmount)) || Number(selectedTransportDirectoryRoute.fixedAmount)<0) { onNotice("The selected Transport Directory route has an invalid fixed rate. Correct it in Transport Directory before assigning it."); return; }
     const existingLegForEdit = editingTransportLegId ? componentTransportLegs.find(leg=>leg.id===editingTransportLegId) : undefined;
     if(selectedTransportDirectoryRoute.active===false&&existingLegForEdit?.routeId!==selectedTransportDirectoryRoute.id){onNotice("This Transport Directory route is inactive. Activate it before assigning it to a new transport entry.");return;}
+    const anchoredOperation = transportPlacement==="start" ? undefined : routeOperations.find(operation=>operation.id===transportAnchorOperationId);
+    if(transportPlacement!=="start"&&!anchoredOperation){onNotice("The selected process step is no longer available. Refresh the Process Map and select the step again.");return;}
+    if(transportPlacement==="start" && activeOperation && (activeOperation.branch||"Main route")!=="Main route"){onNotice("Start-of-component transport must be placed on the component route, not a branch-only operation.");return;}
+    const recordPoLineId = transportPlacement==="start" ? (existingLegForEdit?.poLineId || selectedLine.id) : (anchoredOperation?.poLineId || selectedLine.id);
     const tripCount = Number(transportTripCount);
     if (!Number.isInteger(tripCount) || tripCount < 1) { onNotice("Enter a whole-number trip count of at least 1."); return; }
     const stamp = nowIso();
     const legId = editingTransportLegId || makeId("component-transport");
     const old = componentTransportLegs.find(leg => leg.id === legId);
+    const sequenceInLine = componentTransportLegs.filter(leg=>leg.poLineId===recordPoLineId);
     const record: ComponentTransportLegRecord = {
-      id: legId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
-      sequence: old?.sequence ?? (Math.max(0, ...componentTransportLegs.map(leg => leg.sequence)) + 1),
+      id: legId, poId: selectedPO.id, poLineId: recordPoLineId, componentId: selectedComponent.id,
+      sequence: old?.sequence ?? (Math.max(0, ...sequenceInLine.map(leg => leg.sequence)) + 1),
       routeId: selectedTransportDirectoryRoute.id, vendorId: selectedTransportDirectoryRoute.vendorId,
       fromLocation: selectedTransportDirectoryRoute.fromLocation, toLocation: selectedTransportDirectoryRoute.toLocation,
       tripDirection: selectedTransportDirectoryRoute.tripDirection, vehicleType: selectedTransportDirectoryRoute.vehicleType,
