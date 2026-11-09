@@ -125,6 +125,8 @@ export type ComponentPartRecord = {
 export type MaterialCostEntryRecord = {
   id: string; scope: "process-map" | "planned-cost"; companyId?: string; poId?: string; poLineId?: string; componentId: string;
   partId?: string; partNumber: string; partName: string; materialId: string; materialName: string; materialGrade: string; densityKgM3: number;
+  /** Optional route insertion point: blank means procurement before the first manufacturing operation. */
+  anchorOperationId?: string;
   shapeType: string; dimensions: Record<string, number>; dimensionUnits: Record<string, string>; quantity: number;
   weightPerPieceKg: number; totalWeightKg: number; priceUnit: "kg" | "lb"; materialRate: number; materialCost: number;
   cuttingType: string; cuttingBasis: string; cuttingRate: number; cutsPerPiece: number; cuttingHours: number; cuttingCost: number; wastagePercent: number;
