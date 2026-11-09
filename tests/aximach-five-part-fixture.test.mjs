@@ -1568,3 +1568,28 @@ test("every Process Plan view uses the interactive 3D universe and volumetric We
   assert.ok(core.includes("raymarch"));
   assert.ok(core.includes("gl.drawArrays(gl.TRIANGLES"));
 });
+
+
+test("3D process arrows visibly identify source and destination operations", () => {
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(scene.includes("const projectedEdges=useMemo"));
+  assert.ok(scene.includes("{edge.from} → {edge.to}"));
+  assert.ok(scene.includes("arrowHeadMesh(tip,q,.095)"));
+  assert.ok(styles.includes(".ax-full3d-route-arrow::after"));
+  assert.ok(styles.includes(".ax-full3d-route-arrow.rework"));
+});
+
+test("expanded process record provides edit and linked custom colour controls with protected lifecycle colours", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes('onEditOperation?.(expandedOrbitOperation.id)'));
+  assert.ok(universe.includes('onChangeProcessColor?.(expandedOrbitOperation.id,event.target.value)'));
+  assert.ok(universe.includes('disabled={expandedOrbitOperation.status==="Complete"||expandedOrbitOperation.relationType==="rework"||expandedOrbitOperation.relationType==="alternate"}'));
+  assert.ok(workspace.includes("onEditOperation={id=>editActive(id)}"));
+  assert.ok(workspace.includes("onChangeProcessColor={(id,color)=>updateOperation(id,{processColor:color})}"));
+  assert.ok(scene.includes('if(operation.relationType==="rework")return [.9,.43,.12]'));
+  assert.ok(scene.includes('if(operation.status==="Complete")return [.12,.64,.4]'));
+  assert.ok(scene.includes("return hexRgb(operation.processColor)"));
+});
