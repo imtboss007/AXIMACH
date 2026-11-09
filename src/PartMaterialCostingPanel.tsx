@@ -4,7 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type ComponentPartRec
 import SearchablePicker from "./SearchablePicker";
 
 type Scope = "process-map" | "planned-cost";
-type Props = { scope: Scope; companyId?: string; poId?: string; poLineId?: string; componentId: string; componentName?: string; componentNumber?: string; onNotice?: (value: string) => void };
+type Props = { scope: Scope; companyId?: string; poId?: string; poLineId?: string; componentId: string; componentName?: string; componentNumber?: string; initialPartId?: string; onNotice?: (value: string) => void };
 type DimensionKey = "length" | "width" | "thickness" | "diameter" | "outerDiameter" | "innerDiameter" | "wallThickness" | "outerWidth" | "outerHeight" | "height" | "legA" | "legB" | "flangeWidth" | "flangeThickness" | "webThickness" | "acrossFlats" | "crossSectionArea";
 type Shape = { id: string; label: string; fields: Array<{ key: DimensionKey; label: string; unit?: string }> };
 const SHAPES: Shape[] = [
@@ -76,15 +76,14 @@ function suggestedDensity(name:string,grade:string) {
     || MATERIAL_SEEDS.find(item=>item.name.toLowerCase()===name.toLowerCase());
   return row?.density||0;
 }
-export default function PartMaterialCostingPanel({scope,companyId="",poId="",poLineId="",componentId,componentName="",componentNumber="",onNotice}:Props) {
+export default function PartMaterialCostingPanel({scope,companyId="",poId="",poLineId="",componentId,componentName="",componentNumber="",initialPartId="",onNotice}:Props) {
   const {data,update}=useManufacturingData();
   const materials=activeRows(data.materials);
   useEffect(()=>{
-    const existing=new Set(materials.map(item=>(item.name+"::"+item.grade).toLowerCase()));
-    const additions=MATERIAL_SEEDS.filter(item=>!existing.has((item.name+"::"+item.grade).toLowerCase())).map(item=>({
+    const additions=MATERIAL_SEEDS.map(item=>({
       id:"material-seed-"+item.grade.toLowerCase().replace(/[^a-z0-9]+/g,"-"),code:item.grade.toUpperCase().replace(/[^A-Z0-9]+/g,"-"),name:item.name,grade:item.grade,unit:"kg",specification:"Typical reference density; verify against material certificate and supplier data.",preferredVendorId:"",ratePerUnit:0,notes:"Reference density only; editable for actual grade / certificate.",materialType:item.type,densityKgM3:item.density,densityUnit:"kg/m3" as const,priceUnit:"kg" as const,createdAt:nowIso(),updatedAt:nowIso()
     }));
-    if(additions.length)update(current=>({...current,materials:[...additions,...current.materials]}));
+    update(current=>{const keys=new Set(current.materials.map(item=>(item.name+"::"+item.grade).toLowerCase()));const missing=additions.filter(item=>!keys.has((item.name+"::"+item.grade).toLowerCase()));return missing.length?{...current,materials:[...missing,...current.materials]}:current;});
   // Seed once when the shared material catalogue is first opened.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
@@ -92,9 +91,9 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const parts=activeRows(data.componentParts||[]).filter(part=>part.componentId===componentId);
   const entries=activeRows(data.materialCostEntries||[]).filter(entry=>entry.scope===scope&&entry.componentId===componentId&&(!poId||entry.poId===poId)&&(!poLineId||entry.poLineId===poLineId));
   const [expanded,setExpanded]=useState(false);
-  const [target,setTarget]=useState<"component"|"part">("component");
+  const [target,setTarget]=useState<"component"|"part">(initialPartId?"part":"component");
   const [newPartMode,setNewPartMode]=useState(false);
-  const [partId,setPartId]=useState("");
+  const [partId,setPartId]=useState(initialPartId);
   const [partName,setPartName]=useState("");
   const [partNumber,setPartNumber]=useState("");
   const [shape,setShape]=useState("plate");
@@ -122,6 +121,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const [cuttingHours,setCuttingHours]=useState("0");
   const [wastagePercent,setWastagePercent]=useState("0");
   const [notes,setNotes]=useState("");
+  useEffect(()=>{if(initialPartId){const part=parts.find(item=>item.id===initialPartId);if(part){setTarget("part");selectPart(initialPartId);}}},[initialPartId,parts.length]);
   const chosenMaterial=materials.find(item=>item.id===materialId);
   const chosenShape=SHAPES.find(item=>item.id===shape)||SHAPES[0];
   const volumeMm3=shapeVolumeMm3(shape,dimensions,dimensionUnits);
@@ -136,7 +136,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const cuttingCost=!cuttingType?0:cuttingBasis==="Per piece"?cutRate*qty:cuttingBasis==="Per cut"?cutRate*qty*Math.max(1,Number(cutsPerPiece)||1):cuttingBasis==="Per kg"?cutRate*totalWeightKg:cuttingBasis==="Per metre"?cutRate*lengthM*qty:cuttingBasis==="Per hour"?cutRate*Math.max(0,Number(cuttingHours)||0):cutRate;
   const totalCost=materialCost+cuttingCost;
   const reset=()=>{setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");setShape("plate");setDimensions({});setDimensionUnits({});setMaterialId("");setNewMaterialOpen(false);setNewMaterialName("");setNewMaterialGrade("");setNewMaterialCode("");setNewDensity("");setMaterialRate("");setPriceUnit("kg");setQuantity("1");setVendorId("");setGivenDate("");setDeliveryDate("");setActualDeliveryDate("");setCuttingType("");setCustomCuttingType("");setCuttingBasis("Per piece");setCuttingRate("");setCutsPerPiece("1");setCuttingHours("0");setWastagePercent("0");setNotes("");};
-  const selectPart=(id:string)=>{const part=parts.find(item=>item.id===id);setNewPartMode(false);setPartId(id);setPartName(part?.name||"");setPartNumber(part?.partNumber||"");setShape(part?.shapeType||"plate");setDimensions(Object.fromEntries(Object.entries(part?.dimensions||{}).map(([key,value])=>[key,String(value)])));setDimensionUnits(part?.dimensionUnits||{});setMaterialId(part?.materialId||"");const savedMaterial=materials.find(item=>item.id===part?.materialId);if(savedMaterial)setMaterialRate(String(savedMaterial.ratePerUnit||""));};
+  const selectPart=(id:string)=>{const part=parts.find(item=>item.id===id);setNewPartMode(false);setPartId(id);setPartName(part?.name||"");setPartNumber(part?.partNumber||"");setShape(part?.shapeType||"plate");setDimensions(Object.fromEntries(Object.entries(part?.dimensions||{}).map(([key,value])=>[key,String(value)])));setDimensionUnits(part?.dimensionUnits||{});setMaterialId(part?.materialId||"");const savedMaterial=materials.find(item=>item.id===part?.materialId);if(savedMaterial){setMaterialRate(String(savedMaterial.ratePerUnit||""));setPriceUnit(savedMaterial.priceUnit||"kg");setVendorId(part?.vendorIds?.[0]||savedMaterial.preferredVendorId||"");}};
   const save=()=>{
     const material=chosenMaterial;
     const materialName=newMaterialOpen?newMaterialName.trim():material?.name||"";
@@ -177,9 +177,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     const stamp=nowIso();
     update(current=>({...current,materialCostEntries:(current.materialCostEntries||[]).map(row=>row.id===entry.id?{...row,deletedAt:stamp,updatedAt:stamp}:row)}));
   };
-  const partOptions=[{id:"__component__",label:"Component-level (no part breakdown)"},...parts.map(part=>({id:part.id,label:(part.partNumber?part.partNumber+" · ":"")+part.name}))];
   const partValue=target==="component"?"__component__":newPartMode?"__new__":partId;
-  const currentVendor=vendors.find(row=>row.id===vendorId);
   const shapeOptions=SHAPES.map(item=>({id:item.id,label:item.label}));
   const materialOptions=materials.map(item=>({id:item.id,label:item.code+" · "+item.name+" · "+item.grade+(item.densityKgM3?" · "+Number(item.densityKgM3).toLocaleString("en-IN")+" kg/m³":" · density required")}));
   const densityDisplay=newMaterialOpen?Math.max(0,Number(newDensity)||0)*(densityUnit==="g/cm3"?1000:1):densityKgM3(chosenMaterial);
@@ -187,7 +185,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     <section className="surface-panel ax-material-cost-panel">
       <div className="panel-heading"><div><h3>Material, part & cutting cost</h3><p>Shared Material Directory · independent {scope==="process-map"?"Process Map material cost":"Component Planned Cost material budget"} record</p></div><span className="module-number">{parts.length} SAVED PARTS</span></div>
       <div className="module-record-form">
-        <label>Allocation level<select value={partValue} onChange={event=>{if(event.target.value==="__component__"){setTarget("component");setPartId("");setPartName("");setPartNumber("");}else{setTarget("part");selectPart(event.target.value);}}}><option value="__component__">Component only — no parts</option>{parts.map(part=><option key={part.id} value={part.id}>{part.partNumber?part.partNumber+" · ":""}{part.name}</option>)}<option value="__new__">＋ Add a new part under this component</option></select></label>
+        <label>Allocation level<select value={partValue} onChange={event=>{if(event.target.value==="__component__"){setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");}else if(event.target.value==="__new__"){setTarget("part");setNewPartMode(true);setPartId("");setPartName("");setPartNumber("");setShape("plate");setDimensions({});setDimensionUnits({});setMaterialId("");}else{setTarget("part");selectPart(event.target.value);}}}><option value="__component__">Component only — no parts</option>{parts.map(part=><option key={part.id} value={part.id}>{part.partNumber?part.partNumber+" · ":""}{part.name}</option>)}<option value="__new__">＋ Add a new part under this component</option></select></label>
         {partValue==="__new__"&&<div className="module-form-wide"><strong>New part details</strong></div>}
         {target==="part"&&<><label>Part number<input value={partNumber} onChange={e=>setPartNumber(e.target.value)} placeholder="Part number / drawing number"/></label><label>Part name *<input value={partName} onChange={e=>setPartName(e.target.value)} placeholder="Rib, bracket, staple, plate…"/></label></>}
         <SearchablePicker id={"material-shape-"+scope+"-"+componentId} label="Shape type *" value={shape} placeholder="Search shape / profile…" options={shapeOptions} onChange={setShape}/>
