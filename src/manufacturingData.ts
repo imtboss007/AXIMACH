@@ -122,7 +122,7 @@ export type InventoryTransactionRecord = {
   id: string; itemType: "material" | "component"; itemId: string; transactionType: StockTransactionKind;
   direction: "in" | "out"; quantity: number; occurredAt: string; reference: string; notes: string;
   companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string; vendorId: string;
-  reversalOfId: string; createdAt: string; createdBy: string;
+  reversalOfId: string; createdAt: string; createdBy: string; updatedAt?: string; deletedAt?: string;
 };
 export type ManufacturingData = {
   updatedAt: string;
