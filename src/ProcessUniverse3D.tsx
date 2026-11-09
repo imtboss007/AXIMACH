@@ -112,7 +112,6 @@ function getLayoutPoint(index: number, operation: OperationRecord | undefined, m
     const orbitRadius = 72 + orbitRing * 58;
     return { x: Math.cos(orbitAngle) * orbitRadius, y: branchOffset * 54 + (orbitRing % 2 ? 42 : -42), z: Math.sin(orbitAngle) * orbitRadius };
   }
-  if (mode === "linear" || mode === "route" || mode === "pipeline") return { x: center*118, y: Math.sin(index*0.82)*42, z: Math.cos(index*0.67)*72 };
   if (mode === "timeline" || mode === "gantt") {
     const dates = source.map(item => Date.parse(item.plannedStart || item.actualStart || "")).filter(Number.isFinite);
     const minimum = dates.length ? Math.min(...dates) : 0;
