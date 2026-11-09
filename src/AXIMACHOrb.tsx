@@ -53,8 +53,9 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
   const [studioOpen, setStudioOpen] = useState(false);
   const reducedMotion = useReducedMotion();
   const [reduceMotion, setReduceMotion] = useState(saved.current.reduceMotion === true);
-  // Rotation is always operator-driven. These controls only enable or lock
-  // pointer/touch dragging; neither shell spins while idle.
+  const [autoRotate, setAutoRotate] = useState(saved.current.autoRotate !== false);
+  // Both shells auto-rotate while idle. Manual pointer/touch drag takes over
+  // immediately and the frame loop resumes after the pointer is released.
   const [moduleRotationEnabled, setModuleRotationEnabled] = useState(saved.current.moduleRotationEnabled !== false);
   const [recordRotationEnabled, setRecordRotationEnabled] = useState(saved.current.recordRotationEnabled !== false);
   const [zoomed, setZoomed] = useState(saved.current.zoomed === true);
@@ -68,8 +69,8 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
     return () => query.removeEventListener("change", updateCompact);
   }, []);
   useEffect(() => {
-    try { window.localStorage.setItem(preferenceKey, JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,moduleRotationEnabled,recordRotationEnabled})); } catch { /* Preferences are optional. */ }
-  }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed,moduleRotationEnabled,recordRotationEnabled,preferenceKey]);
+    try { window.localStorage.setItem(preferenceKey, JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,autoRotate,zoomed,moduleRotationEnabled,recordRotationEnabled})); } catch { /* Preferences are optional. */ }
+  }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,autoRotate,zoomed,moduleRotationEnabled,recordRotationEnabled,preferenceKey]);
   // Both shells stay still while idle. Only a direct pointer/touch drag changes
   // their orientation. A front-facing starting angle keeps the full 3D shell
   // legible on narrow phone viewports.
@@ -80,6 +81,23 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
   const lowerDrag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
   const dragSensitivity = speed === "Slow" ? 0.45 : speed === "Fast" ? 0.95 : 0.72;
+  useEffect(() => {
+    if (!autoRotate || reduceMotion || reducedMotion) return;
+    let frame = 0;
+    let previousTime = 0;
+    const degreesPerSecond = speed === "Slow" ? 3.5 : speed === "Fast" ? 11 : 7;
+    const tick = (time: number) => {
+      if (previousTime > 0) {
+        const delta = Math.min(50, time - previousTime) / 1000;
+        if (!drag.current) rotateY.set(rotateY.get() + delta * degreesPerSecond);
+        if (!lowerDrag.current) lowerRotateY.set(lowerRotateY.get() + delta * degreesPerSecond * 0.72);
+      }
+      previousTime = time;
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [autoRotate, reduceMotion, reducedMotion, speed, rotateY, lowerRotateY]);
   const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
     dragMoved.current = false;
     if (!moduleRotationEnabled) return;
@@ -214,8 +232,9 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
           </button>)}
         </motion.div>
       </div>
-      <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> MODULE SHELL · {moduleRotationEnabled ? "DRAG ENABLED" : "LOCKED"} <i/> RECORD SHELL · {recordRotationEnabled ? "DRAG ENABLED" : "LOCKED"} · NO IDLE ROTATION</div>
+      <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> AUTO ROTATION · {autoRotate && !reduceMotion && !reducedMotion ? "ON" : "PAUSED"} <i/> MODULE SHELL · {moduleRotationEnabled ? "DRAG ENABLED" : "LOCKED"} <i/> RECORD SHELL · {recordRotationEnabled ? "DRAG ENABLED" : "LOCKED"}</div>
       <div className="ax-orb-studio-actions">
+        <button type="button" className="ax-orb-pause" aria-pressed={!autoRotate} onClick={() => setAutoRotate(value => !value)}>{autoRotate ? "Ⅱ Pause auto-rotation" : "▶ Resume auto-rotation"}</button>
         <button type="button" className="ax-orb-studio-toggle" aria-expanded={studioOpen} onClick={() => setStudioOpen(value => !value)}>✧ Visual Experience Studio <span>{studioOpen ? "Close" : "Customize"}</span></button>
         <button type="button" className="ax-orb-pause" aria-pressed={!moduleRotationEnabled} onClick={() => setModuleRotationEnabled(value => !value)}>{moduleRotationEnabled ? "Ⅱ Lock modules" : "▶ Enable module drag"}</button>
         <button type="button" className="ax-orb-pause ax-orb-record-pause" aria-pressed={!recordRotationEnabled} onClick={() => setRecordRotationEnabled(value => !value)}>{recordRotationEnabled ? "Ⅱ Lock records" : "▶ Enable record drag"}</button>
@@ -227,7 +246,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
         <label>Sphere size<input type="range" min=".82" max="1.12" step=".01" value={sphereSize} onChange={event=>setSphereSize(Number(event.target.value))}/><small>{Math.round(sphereSize*100)}%</small></label>
         <label>Orbit intensity<input type="range" min="0" max="1" step=".05" value={orbitIntensity} onChange={event=>setOrbitIntensity(Number(event.target.value))}/><small>{Math.round(orbitIntensity*100)}%</small></label>
         <label className="ax-orb-motion-setting"><input type="checkbox" checked={reduceMotion} onChange={event=>setReduceMotion(event.target.checked)}/> Reduce motion</label>
-        <button type="button" className="ax-orb-reset" onClick={()=>{setVisualMode("sphere");setSpeed("Normal");setSphereSize(1);setOrbitIntensity(1);setReduceMotion(false);setModuleRotationEnabled(true);setRecordRotationEnabled(true);setZoomed(false);}}>Reset preferences</button>
+        <button type="button" className="ax-orb-reset" onClick={()=>{setVisualMode("sphere");setSpeed("Normal");setSphereSize(1);setOrbitIntensity(1);setReduceMotion(false);setAutoRotate(true);setModuleRotationEnabled(true);setRecordRotationEnabled(true);setZoomed(false);}}>Reset preferences</button>
       </div>}
       <motion.div className="ax-orb-coordinate" animate={reducedMotion || reduceMotion ? undefined : { opacity: [0.45, 1, 0.45] }} transition={{ duration: 4.5, repeat: Infinity }}>AX / 360° / LIVE DATA SURFACE</motion.div>
     </div>
