@@ -5,6 +5,7 @@ import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
+import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -56,6 +57,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const companies = activeRows(data.companies);
   const purchaseOrders = activeRows(data.purchaseOrders);
   const components = activeRows(data.components);
+  const componentParts = activeRows(data.componentParts || []);
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
   const processDefinitions = activeRows(data.processDefinitions);
@@ -169,6 +171,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const poLines = selectedPO ? selectedPO.lines.filter(line => !("deletedAt" in line && (line as PurchaseOrderLine & {deletedAt?: string}).deletedAt)) : [];
   const selectedLine = poLines.find(line => line.id === poLineId);
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
+  const selectedPart = componentParts.find(part => part.id === selectedLine?.partId);
   const selectedProcessDefinition = resolveProcessDefinition(processDefinitions, draft.processDefinitionId, draft.name, draft.category);
   const routeOperations = operations.filter(op => op.poLineId === poLineId && op.poId === poId && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const componentTransportLegs = allTransportLegs.filter(leg => leg.poLineId === poLineId && leg.poId === poId && leg.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
@@ -1056,12 +1059,13 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     <div className="linked-master-selectors">
       <SearchablePicker id="route-company" label="Company" value={companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name+(c.gstin?" · "+c.gstin:"")}))} onChange={changeSelection}/>
       <div className="route-master-picker"><SearchablePicker id="route-po" label="Purchase order" value={poId} placeholder="Type PO number…" options={companyOrders.map(po=>({id:po.id,label:po.number+" · "+po.status}))} onChange={changePO}/>{companyId&&!companyOrders.length&&<button type="button" onClick={()=>onSelectModule("purchasing")}>Add PO</button>}</div>
-      <div className="route-master-picker"><SearchablePicker id="route-component-line" label="PO component line" value={poLineId} placeholder="Type part number or name…" options={poLines.map(line=>{const component=components.find(item=>item.id===line.componentId);return {id:line.id,label:(component?component.partNumber+" · "+component.name:"Missing component")+" · "+line.quantity.toLocaleString("en-IN")+" "+(component?.salePriceUnit==="set"?"sets":"pieces")};})} onChange={changeLine}/>{poId&&!poLines.length&&<button type="button" onClick={()=>onSelectModule("purchasing")}>Add PO lines</button>}</div>
+      <div className="route-master-picker"><SearchablePicker id="route-component-line" label="PO component line" value={poLineId} placeholder="Type part number or name…" options={poLines.map(line=>{const component=components.find(item=>item.id===line.componentId);const part=componentParts.find(item=>item.id===line.partId);return {id:line.id,label:(component?component.partNumber+" · "+component.name:"Missing component")+(part?" · "+(part.partNumber?part.partNumber+" · ":"")+part.name:" · Component-level")+" · "+line.quantity.toLocaleString("en-IN")+" "+(component?.salePriceUnit==="set"?"sets":"pieces")};})} onChange={changeLine}/>{poId&&!poLines.length&&<button type="button" onClick={()=>onSelectModule("purchasing")}>Add PO lines</button>}</div>
     </div>
     {!selectedLine && <div className="process-add-prerequisite-note" role="status"><strong>Process creation is waiting for a PO component line.</strong><span>Select a saved company, purchase order and active PO component line above. Then Add Operation becomes available and the new process is linked to that component route.</span><div><button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("companies")}>Add company</button><button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("purchasing")}>Create / select PO</button><button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("components")}>Add component</button></div></div>}
     {selectedLine && !selectedComponent && <div className="process-add-prerequisite-note" role="alert"><strong>This PO line has no active Component Master record.</strong><span>Restore or create the matching component record before adding production operations, so the route remains linked to a valid component ID.</span><button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("components")}>Open Component Master</button></div>}
     {selectedLine ? <>
       {selectedComponent && <div className="linked-component-summary"><div className="linked-component-identity"><ComponentIcon componentId={selectedComponent.id} componentName={selectedComponent.name+" "+selectedComponent.partNumber}/><span><small>SELECTED COMPONENT</small><strong>{selectedComponent.partNumber} · {selectedComponent.name}</strong><span>Revision {selectedComponent.revision || "—"} · Component Master price ₹{(selectedComponent.salePrice || 0).toLocaleString("en-IN")} / {selectedComponent.salePriceUnit === "set" ? "set" : "piece"} · PO {selectedPO?.number}</span></span></div><div><small>ORDER QUANTITY</small><strong>{expectedQuantity.toLocaleString("en-IN")} {quantityUnit}</strong></div><div><small>LINE DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div><div><small>DRAWING / REFERENCE</small><strong>{selectedComponent.drawingReference || "Not entered"}</strong></div><button className="button-quiet compact-button" onClick={() => onSelectModule("components")}>Edit component master</button></div>}
+      {selectedComponent && selectedLine && <PartMaterialCostingPanel key={selectedLine.id} scope="process-map" companyId={selectedPO?.companyId} poId={selectedPO?.id} poLineId={selectedLine.id} componentId={selectedComponent.id} componentName={selectedComponent.name} componentNumber={selectedComponent.partNumber} initialPartId={selectedPart?.id || ""} onNotice={onNotice} />}
       <div className={"job-completion-panel " + (selectedLine.jobStatus === "Finished" ? "job-completion-finished" : "")}>
         <div className="job-completion-copy">
           <span className="job-completion-icon"><Check size={19}/></span>
