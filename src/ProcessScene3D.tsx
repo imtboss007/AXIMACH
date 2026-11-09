@@ -180,7 +180,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],autoRotate=
   const all:LabelCandidate[]=[...ops.map(item=>({id:item.id,kind:item.kind,screen:item.screen})),...(materialScreen?[{id:"__material__",kind:"material" as const,screen:materialScreen}]:[])];
   const relaxed=relaxLabels(all,w,h);
   return {operations:relaxed.filter(item=>item.kind==="operation").map(item=>({op:ops.find(candidate=>candidate.id===item.id)!.op,screen:item.screen})),material:relaxed.find(item=>item.kind==="material")?.screen||null,center:centerScreen};
- },[points,size,angle,materialRoutes.length]);
+ },[points,size,angle,materialRoutes.length,mode]);
  const projected=projectedLayout.operations;
  const projectedMaterial=projectedLayout.material;
  const projectedCore=projectedLayout.center;
