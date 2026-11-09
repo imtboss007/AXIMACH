@@ -604,7 +604,7 @@ test("Five fixture parts create independent multi-process routes linked by stabl
   assert.ok(workspace.includes("id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id"));
 });
 
-test("Dashboard spheres are manual-drag only, lock independently, and navigate to the correct workspaces", () => {
+test("Dashboard spheres auto-rotate by default, preserve separate drag locks, and navigate to the correct workspaces", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
   const process = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
@@ -620,7 +620,11 @@ test("Dashboard spheres are manual-drag only, lock independently, and navigate t
   assert.ok(orb.includes("Enable module drag"));
   assert.ok(orb.includes("Lock records"));
   assert.ok(orb.includes("Enable record drag"));
-  assert.ok(orb.includes("NO IDLE ROTATION"));
+  assert.ok(orb.includes("requestAnimationFrame"));
+  assert.ok(orb.includes("cancelAnimationFrame"));
+  assert.ok(orb.includes("autoRotate"));
+  assert.ok(orb.includes("Pause auto-rotation"));
+  assert.ok(orb.includes("Resume auto-rotation"));
   assert.ok(orb.includes("const startDrag ="));
   assert.ok(orb.includes('className="ax-orb-depth" style={{rotateX,rotateY'));
   assert.ok(orb.includes("const dragSensitivity = speed ==="));
@@ -643,7 +647,7 @@ test("WebGL sphere rotates its surface coordinates with the same manual globe or
   assert.ok(sphere.includes("gl.uniform2f(globeRotation"));
 });
 
-test("static WebGL globe redraws only when resized and does not burn frames while idle", () => {
+test("WebGL globe redraws on parent motion updates without an independent animation loop", () => {
   const sphere = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
   assert.ok(sphere.includes("const draw = () =>"));
   assert.ok(sphere.includes("const observer = typeof ResizeObserver"));
@@ -653,7 +657,7 @@ test("static WebGL globe redraws only when resized and does not burn frames whil
   assert.ok(!sphere.includes("cancelAnimationFrame"));
 });
 
-test("WebGL globe surface follows manual drag orientation without independent auto-rotation", () => {
+test("WebGL globe surface follows the parent rotation for drag and idle auto-rotation", () => {
   const shader = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
   assert.ok(shader.includes("vec3 q = hit;"));
   assert.ok(shader.includes("uniform vec2 globeRotation"));
@@ -685,7 +689,7 @@ test("AXIMACH command sphere module buttons can be dragged without losing click 
   assert.ok(orb.includes("onPointerMove={moveDrag}"));
   assert.ok(orb.includes("onPointerUp={endDrag}"));
   assert.ok(orb.includes("if (!dragMoved.current) onSelectModule(id)"));
-  assert.ok(orb.includes("Both shells stay still while idle. Only a direct pointer/touch drag changes"));
+  assert.ok(orb.includes("Both shells auto-rotate while idle. Manual pointer/touch drag takes over"));
   assert.ok(orb.includes("saved.current.moduleRotationEnabled !== false"));
   assert.ok(orb.includes("saved.current.recordRotationEnabled !== false"));
   assert.ok(!orb.includes("window.setInterval"));
@@ -771,7 +775,7 @@ test("Process route scope keeps original parent arrows visible and each 3D view 
   for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
     assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
   }
-  assert.ok(workspace.includes('initialLayout={visualStyle==="vortex"?"vortex":visualStyle==="combined"?"digital-mesh":"sphere"}'));
+  assert.ok(workspace.includes("initialLayout={visualStyle}"));
   assert.ok(universe.includes('initialLayout = "sphere"'));
   assert.ok(universe.includes("useState<ProcessLayoutMode>(initialLayout)"));
   assert.ok(universe.includes("while (ancestor && (ancestor.branch || \"Main route\") === name"));
