@@ -286,6 +286,8 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     operations: mergeRows(local.operations, remote.operations),
     quotations: mergeRows(local.quotations, remote.quotations),
     materials: mergeRows(local.materials, remote.materials),
+    componentParts: mergeRows(local.componentParts, remote.componentParts),
+    materialCostEntries: mergeRows(local.materialCostEntries, remote.materialCostEntries),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
     inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
     contactProfiles: mergeRows(local.contactProfiles, remote.contactProfiles),
