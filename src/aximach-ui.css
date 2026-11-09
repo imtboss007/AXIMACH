@@ -2012,6 +2012,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .ax-full3d-label strong{font:700 10px 'Space Grotesk',sans-serif;line-height:1.2;max-width:100%;overflow-wrap:anywhere}
 .ax-full3d-label em{font:8px 'DM Mono',monospace;color:#7186a2;font-style:normal}
 .ax-full3d-label.selected{border:2px solid #087fbb;box-shadow:0 0 0 3px rgba(25,157,213,.18),0 9px 22px rgba(31,69,119,.24)}
+.ax-full3d-catalogue-label{border-style:dashed;border-color:#4785c7;background:linear-gradient(145deg,rgba(239,247,255,.98),rgba(203,225,250,.96))}.ax-full3d-catalogue-label em{color:#2c6daa}
 .ax-full3d-controls{position:absolute;left:10px;right:10px;bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;pointer-events:none}
 .ax-full3d-controls button{pointer-events:auto;border:1px solid #a8c3e6;border-radius:9px;padding:8px 11px;background:#fff;color:#254d7d;font-size:10px;font-weight:700;box-shadow:0 3px 9px rgba(20,60,110,.12)}
 .ax-full3d-controls span{font:8px 'DM Mono',monospace;letter-spacing:.5px;color:#637d9e;background:rgba(255,255,255,.78);padding:6px 8px;border-radius:7px}
