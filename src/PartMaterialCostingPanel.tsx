@@ -186,7 +186,10 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     const stamp=nowIso();
     let materialRecord=material;
     if(newMaterialOpen){
-      materialRecord={id:makeId("material"),code:newMaterialCode.trim()||makeId("MAT").toUpperCase(),name:materialName,grade:materialGrade,unit:"kg",specification:"Density-based material costing master",preferredVendorId:vendorId,ratePerUnit:rate,notes:"Created from "+scope+" material procurement",densityKgM3:density,densityUnit:"kg/m3",materialType:newMaterialType.trim()||materialName,priceUnit,createdAt:stamp,updatedAt:stamp};
+      const savedGrade=materials.find(row=>row.grade.trim().toLowerCase()===materialGrade.toLowerCase() && (row.materialType||row.name).trim().toLowerCase()===(newMaterialType.trim()||materialName).toLowerCase());
+      materialRecord=savedGrade
+        ? {...savedGrade,ratePerUnit:rate,priceUnit,preferredVendorId:vendorId||savedGrade.preferredVendorId,densityKgM3:density,densityUnit:"kg/m3",updatedAt:stamp}
+        : {id:makeId("material"),code:newMaterialCode.trim()||makeId("MAT").toUpperCase(),name:materialName,grade:materialGrade,unit:"kg",specification:"Density-based material costing master",preferredVendorId:vendorId,ratePerUnit:rate,notes:"Created from "+scope+" material procurement",densityKgM3:density,densityUnit:"kg/m3",materialType:newMaterialType.trim()||materialName,priceUnit,createdAt:stamp,updatedAt:stamp};
     }
     const nextMaterials=materialRecord?[materialRecord,...data.materials.filter(row=>row.id!==materialRecord!.id)]:data.materials;
     const part:ComponentPartRecord|undefined=target==="part"?{
