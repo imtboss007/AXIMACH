@@ -148,7 +148,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],mode,select
  }
  const pointById=new Map(geometryPoints.map(({op,p})=>[op.id,p]));
  const routeEdges=edges.length?edges:points.slice(0,-1).map((item,i)=>({from:item.op,to:points[i+1].op,relation:"main",color:"#4b95eb"}));
- routeEdges.forEach((edge,edgeIndex)=>{
+ let flowIndex=0;routeEdges.forEach(edge=>{const edgeIndex=flowIndex++;
   let p=pointById.get(edge.from.id),q=pointById.get(edge.to.id);
   if(mode==="gantt"){const fromIndex=geometryRows.findIndex(op=>op.id===edge.from.id),toIndex=geometryRows.findIndex(op=>op.id===edge.to.id);if(fromIndex>=0&&toIndex>=0){p=ganttSegment(fromIndex,geometryRows,ganttScale).end;q=ganttSegment(toIndex,geometryRows,ganttScale).start;}}
   if(!p||!q)return;
