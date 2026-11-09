@@ -34,6 +34,7 @@ const LinkedProcessWorkspace = lazy(() => import("./LinkedProcessWorkspace"));
 const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
 const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
 import { activeRows, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
+import { AXIMACH_DEMO_ID_PREFIX, archiveAxMachTwoCompanyDemo, createAxMachTwoCompanyDemo } from "./aximachDemoData";
 
 function isAllowedAxMachServiceUrl(value: string) {
   try {
@@ -85,6 +86,43 @@ const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) =>
 
 function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNotice:(value:string)=>void;notice:string}) {
   const [mode,setMode] = useState<"export"|"import">("export");
+  const { data, update, syncStatus } = useManufacturingData();
+  const [demoBusy,setDemoBusy] = useState(false);
+  const demoRows = Object.values(data).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX));
+  const activeDemoCount = demoRows.filter(row => !row.deletedAt).length;
+  const demoLoaded = activeDemoCount > 0;
+  const demoCounts = { companies:data.companies.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, factories:data.factories.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, vendors:data.vendors.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, components:data.components.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, orders:data.purchaseOrders.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, operations:data.operations.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length };
+  const importDemo = () => {
+    if (demoLoaded) { onNotice("Demo Factory is already imported. Delete the existing demo dataset before importing it again."); return; }
+    if (!window.confirm("Import the isolated AXIMACH Demo Factory? All records are synthetic and clearly marked DEMO. Live factory records will be preserved.")) return;
+    setDemoBusy(true);
+    try {
+      const sample = createAxMachTwoCompanyDemo();
+      update(current => {
+        const mergeById = <T extends {id:string}>(live:T[], incoming:T[]) => { const map=new Map(live.map(row=>[row.id,row])); incoming.forEach(row=>map.set(row.id,row)); return [...map.values()]; };
+        return { ...current, updatedAt:sample.updatedAt,
+          companies:mergeById(current.companies,sample.companies), factories:mergeById(current.factories,sample.factories),
+          purchaseOrders:mergeById(current.purchaseOrders,sample.purchaseOrders), components:mergeById(current.components,sample.components),
+          vendors:mergeById(current.vendors,sample.vendors), operations:mergeById(current.operations,sample.operations),
+          quotations:mergeById(current.quotations,sample.quotations), materials:mergeById(current.materials,sample.materials),
+          componentParts:mergeById(current.componentParts,sample.componentParts), materialCostEntries:mergeById(current.materialCostEntries,sample.materialCostEntries),
+          bomLines:mergeById(current.bomLines,sample.bomLines), inventoryTransactions:mergeById(current.inventoryTransactions,sample.inventoryTransactions),
+          contactProfiles:mergeById(current.contactProfiles,sample.contactProfiles), processDefinitions:mergeById(current.processDefinitions,sample.processDefinitions),
+          plannedCosts:mergeById(current.plannedCosts,sample.plannedCosts), transportRoutes:mergeById(current.transportRoutes,sample.transportRoutes),
+          transportLegs:mergeById(current.transportLegs,sample.transportLegs), paymentTransactions:mergeById(current.paymentTransactions,sample.paymentTransactions),
+          inspectionMeasurements:mergeById(current.inspectionMeasurements,sample.inspectionMeasurements), followUpAssignments:mergeById(current.followUpAssignments,sample.followUpAssignments)
+        };
+      });
+      onNotice("Demo Factory imported. Synthetic records are isolated with DEMO IDs; actual factory records were preserved.");
+    } catch (error) { onNotice(error instanceof Error ? error.message : "Demo import failed."); }
+    finally { setDemoBusy(false); }
+  };
+  const deleteDemo = () => {
+    if (!demoLoaded) { onNotice("No active Demo Factory records to delete."); return; }
+    if (!window.confirm("Delete the imported Demo Factory? Only records with the reserved DEMO- ID prefix will be archived. Actual factory records will not be changed.")) return;
+    update(current => archiveAxMachTwoCompanyDemo(current));
+    onNotice("Demo Factory records archived. Actual factory records were preserved; the demo can be imported again.");
+  };
   return (
     <section className="workspace-page">
       <div className="workspace-topline">
@@ -94,6 +132,21 @@ function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNoti
       <div className="workspace-title-row">
         <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA / IMPORT &amp; EXPORT</div><h1>Data Exchange Centre<span>.</span></h1><p>One workspace for validated imports, module exports and full AXIMACH backups.</p></div>
       </div>
+      <section className="workspace-card" aria-label="Demo Factory data centre" style={{marginBottom:20,border:"1px solid var(--line, #d9e0e8)"}}>
+        <div className="workspace-title-row" style={{alignItems:"center"}}>
+          <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA CENTRE / SANDBOX</div><h2 style={{margin:"4px 0"}}>Demo Factory</h2><p>Import a complete synthetic manufacturing workspace for testing. It remains identifiable by DEMO IDs and can be archived independently.</p></div>
+          <span className="demo-pill"><i/> {demoLoaded?"DEMO LOADED":"ISOLATED SANDBOX"}</span>
+        </div>
+        <div className="metric-grid" style={{margin:"14px 0"}}>
+          <div className="metric-card"><small>Companies</small><strong>{demoCounts.companies}</strong></div><div className="metric-card"><small>Factories</small><strong>{demoCounts.factories}</strong></div><div className="metric-card"><small>Demo vendors</small><strong>{demoCounts.vendors}</strong></div><div className="metric-card"><small>Components</small><strong>{demoCounts.components}</strong></div><div className="metric-card"><small>Purchase orders</small><strong>{demoCounts.orders}</strong></div><div className="metric-card"><small>Operations</small><strong>{demoCounts.operations}</strong></div>
+        </div>
+        <div className="linked-route-actions">
+          <button type="button" className="button-primary compact-button" disabled={demoBusy||demoLoaded} onClick={importDemo}><Package size={14}/> {demoBusy?"Importing…":"Import Demo Factory"}</button>
+          <button type="button" className="button-quiet compact-button" disabled={demoBusy||!demoLoaded} onClick={deleteDemo}><RotateCcw size={14}/> Delete Demo Data</button>
+          <span className="muted-copy">Sync: {syncStatus} · Live records are retained</span>
+        </div>
+        <p className="muted-copy" style={{marginTop:10}}>Demo records are fictional test data, not real supplier offers, payments, inspections or production results. Delete archives only DEMO-prefixed records.</p>
+      </section>
       <div className="linked-route-actions" role="tablist" aria-label="Data exchange mode">
         <button type="button" role="tab" aria-selected={mode==="export"} className={(mode==="export"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("export")}><FileDown size={14}/> Export records</button>
         <button type="button" role="tab" aria-selected={mode==="import"} className={(mode==="import"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("import")}><FileUp size={14}/> Import and validate</button>
