@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
-import { motion, useMotionValue } from "motion/react";
+import { motion, useMotionValue, useReducedMotion } from "motion/react";
 import { Activity, ArrowRight, Boxes, ClipboardCheck, Cog, Cpu, Disc3, GitBranch, Scissors, Zap, Truck, Workflow, Wrench } from "lucide-react";
 import type { OperationRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
+import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
 type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
@@ -22,7 +23,69 @@ function fallbackFor(name: string) {
   return <Workflow size={20} />;
 }
 
-type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh";
+type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "gantt" | "nodes" | "branch" | "combined";
+type Point3D = { x: number; y: number; z: number };
+
+function getLayoutPoint(index: number, operation: OperationRecord | undefined, mode: ProcessLayoutMode, count: number, source: OperationRecord[]): Point3D {
+  const total = Math.max(1, count);
+  const branchNames = [...new Set(source.map(item => item.branch || "Main route"))];
+  const branchName = operation?.branch || "Main route";
+  const branchIndex = Math.max(0, branchNames.indexOf(branchName));
+  const branchCount = Math.max(1, branchNames.length);
+  const branchRows = source.filter(item => (item.branch || "Main route") === branchName).slice().sort((a,b) => a.sequence-b.sequence);
+  const localIndex = operation ? Math.max(0, branchRows.findIndex(item => item.id === operation.id)) : index;
+  const localCount = Math.max(1, branchRows.length || total);
+  const center = (index - (total - 1) / 2);
+  const branchOffset = branchIndex - (branchCount - 1) / 2;
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const unitY = 1 - 2 * ((index + 0.5) / total);
+  const ringRadius = Math.sqrt(Math.max(0, 1 - unitY * unitY));
+  const angle = index * golden;
+  const sphere: Point3D = { x: Math.cos(angle) * ringRadius * 188, y: -unitY * 188, z: Math.sin(angle) * ringRadius * 188 };
+  if (mode === "vortex") {
+    const spin = index * 0.92;
+    const radius = 108 + (index % 4) * 17;
+    return { x: Math.cos(spin) * radius, y: center * 34, z: Math.sin(spin) * radius };
+  }
+  if (mode === "cube") {
+    const side = Math.ceil(Math.cbrt(total));
+    const x = index % side, y = Math.floor(index / side) % side, z = Math.floor(index / (side * side));
+    const half = (side - 1) / 2;
+    return { x: (x-half)*112, y: (half-y)*112, z: (z-half)*112 };
+  }
+  if (mode === "molecular" || mode === "nodes") {
+    return { x: sphere.x * 0.88 + Math.sin(index*1.7)*18, y: sphere.y * 0.88 + Math.cos(index*1.2)*16, z: sphere.z * 0.88 + Math.sin(index*0.8)*22 };
+  }
+  if (mode === "orbit" || mode === "horizontal" || mode === "vertical") {
+    if (mode === "horizontal") return { x: center * 116, y: branchOffset * 104 + Math.sin(index*0.7)*18, z: branchOffset * 58 + Math.cos(index*0.8)*34 };
+    if (mode === "vertical") return { x: Math.cos(index*golden)*74, y: -center*112, z: Math.sin(index*golden)*74 };
+    return { x: sphere.x * 0.9, y: sphere.y * 0.9, z: sphere.z * 0.9 };
+  }
+  if (mode === "linear" || mode === "route") return { x: center*118, y: Math.sin(index*0.82)*42, z: Math.cos(index*0.67)*72 };
+  if (mode === "timeline" || mode === "gantt") {
+    const dates = source.map(item => Date.parse(item.plannedStart || item.actualStart || "")).filter(Number.isFinite);
+    const minimum = dates.length ? Math.min(...dates) : 0;
+    const maximum = dates.length ? Math.max(...dates) : 0;
+    const timestamp = operation ? Date.parse(operation.plannedStart || operation.actualStart || "") : Number.NaN;
+    const ratio = Number.isFinite(timestamp) && maximum > minimum ? (timestamp-minimum)/(maximum-minimum) : (index+0.5)/total;
+    const span = mode === "gantt" ? 215 : 190;
+    return { x: (ratio-0.5)*span*2, y: branchOffset*106 + (mode === "timeline" ? Math.sin(index*0.76)*22 : 0), z: branchOffset*82 + Math.cos(index*0.55)*28 };
+  }
+  if (mode === "branch") return { x: (localIndex-(localCount-1)/2)*102, y: branchOffset*74 + Math.sin(localIndex*0.7)*20, z: branchOffset*112 + Math.cos(localIndex*0.6)*26 };
+  if (mode === "combined") {
+    const spiral = index*0.82;
+    const radius = 112 + (index%5)*19;
+    return { x: Math.cos(spiral)*radius, y: sphere.y*0.56, z: Math.sin(spiral)*radius };
+  }
+  return sphere;
+}
+
+function transformStyle3d(point: Point3D) {
+  const radius = Math.max(1, Math.hypot(point.x, point.y, point.z));
+  const yaw = Math.atan2(point.x, point.z) * 180 / Math.PI;
+  const pitch = -Math.asin(Math.max(-1, Math.min(1, point.y / radius))) * 180 / Math.PI;
+  return `translate(-50%,-50%) translate3d(${point.x}px,${point.y}px,${point.z}px) rotateY(${yaw}deg) rotateX(${pitch}deg)`;
+}
 
 export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", onSelectOperation, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
@@ -38,6 +101,8 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
   const expandedOrbitSubprocesses = expandedOrbitOperation ? subprocessesFor(expandedOrbitOperation.id) : [];
   const expandedOrbitBranches = expandedOrbitOperation ? branchesFor(expandedOrbitOperation.id) : [];
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>(initialLayout);
+  const [autoRotateEnabled, setAutoRotateEnabled] = useState(true);
+  const prefersReducedMotion = useReducedMotion();
   useEffect(() => setLayoutMode(initialLayout), [initialLayout]);
   const rotateX = useMotionValue(-12);
   const rotateY = useMotionValue(18);
@@ -52,6 +117,18 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
     rotateX.set(Math.max(-55, Math.min(55, drag.current.rx - (event.clientY - drag.current.y) * 0.52)));
   };
   const endDrag = () => { drag.current = null; };
+  useEffect(() => {
+    if (!autoRotateEnabled || prefersReducedMotion) return;
+    let frame = 0;
+    let previousTime = 0;
+    const tick = (time: number) => {
+      if (previousTime > 0 && !drag.current) rotateY.set(rotateY.get() + Math.min(50, time - previousTime) * 0.0065);
+      previousTime = time;
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [autoRotateEnabled, prefersReducedMotion, rotateY]);
 
   // Coordinate all saved route nodes against the full PO-line route. A scoped
   // view therefore keeps stable globe positions and can still draw an origin
@@ -63,22 +140,13 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
   const orbitPointFor = (operation: OperationRecord) => {
     const index = coordinateOperations.findIndex(item => item.id === operation.id);
     if (index < 0) return { x: 0, y: 0, z: 0 };
-    const count = Math.max(coordinateOperations.length, 1);
-    const unitY = 1 - 2 * ((index + 0.5) / count);
-    const ringRadius = Math.sqrt(Math.max(0, 1 - unitY * unitY));
-    const angle = index * (Math.PI * (3 - Math.sqrt(5)));
-    const radius = 205;
-    return { x: Math.sin(angle) * ringRadius * radius, y: -unitY * radius, z: Math.cos(angle) * ringRadius * radius };
+    return getLayoutPoint(index, operation, layoutMode, coordinateOperations.length, coordinateOperations);
   };
   const orbitNodes = useMemo(() => displayOperations.map((operation, index) => {
     const globalIndex = coordinateOperations.findIndex(item => item.id === operation.id);
-    const count = Math.max(coordinateOperations.length, 1);
-    const y = 1 - 2 * ((globalIndex < 0 ? index : globalIndex) + 0.5) / count;
-    const latitude = Math.asin(Math.max(-1, Math.min(1, y))) * 180 / Math.PI;
-    const longitude = (globalIndex < 0 ? index : globalIndex) * (Math.PI * (3 - Math.sqrt(5))) * 180 / Math.PI;
-    const transform = `translate(-50%,-50%) rotateY(${longitude}deg) rotateX(${latitude}deg) translateZ(var(--process-orbit-radius,205px)) rotateX(${-latitude}deg) rotateY(${-longitude}deg)`;
-    return { operation, index, transform, point: orbitPointFor(operation) };
-  }), [displayOperations, coordinateOperations]);
+    const point = getLayoutPoint(globalIndex < 0 ? index : globalIndex, operation, layoutMode, coordinateOperations.length, coordinateOperations);
+    return { operation, index, transform: transformStyle3d(point), point };
+  }), [displayOperations, coordinateOperations, layoutMode]);
 
   // When a PO line has no saved operations yet, put the real Process Directory
   // definitions onto the interactive 3D orbit. These are catalogue actions,
@@ -86,12 +154,10 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
   // operation editor and only Save creates a production record.
   const catalogueOrbitNodes = useMemo(() => processDefinitions.map((definition, index) => {
     const count = Math.max(processDefinitions.length, 1);
-    const y = 1 - 2 * ((index + 0.5) / count);
-    const latitude = Math.asin(Math.max(-1, Math.min(1, y))) * 180 / Math.PI;
-    const longitude = index * (Math.PI * (3 - Math.sqrt(5))) * 180 / Math.PI;
-    const transform = `translate(-50%,-50%) rotateY(${longitude}deg) rotateX(${latitude}deg) translateZ(var(--process-orbit-radius,205px)) rotateX(${-latitude}deg) rotateY(${-longitude}deg)`;
+    const point = getLayoutPoint(index, undefined, layoutMode, count, coordinateOperations);
+    const transform = transformStyle3d(point);
     return { definition, index, transform };
-  }), [processDefinitions]);
+  }), [processDefinitions, layoutMode, coordinateOperations]);
   const showCatalogueOrbit = operations.length === 0 && catalogueOrbitNodes.length > 0;
   const orbitCount = displayOperations.length || (showCatalogueOrbit ? catalogueOrbitNodes.length : 0);
 
@@ -162,19 +228,19 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
       if (!visibleIds.has(edge.to.id)) anchors.set(edge.to.id,{operation:edge.to,relation:edge.relation,color:edge.color});
     }
     return { edges, anchors:[...anchors.values()] };
-  }, [coordinateOperations, displayOperations, lanes, processDefinitions]);
+  }, [coordinateOperations, displayOperations, lanes, processDefinitions, layoutMode]);
   const stageStyle: CSSProperties = { transform: `scale(${zoom}) rotateX(2deg)`, transformOrigin: "top left", width: `${100 / zoom}%` };
 
   return <section className={"process-universe-3d mode-" + layoutMode} aria-label="Interactive 3D process route graph">
     <header className="process-universe-head">
       <div><span className="process-universe-kicker"><span /> LIVE ROUTE / INTERACTIVE 3D</span><h3>Manufacturing process universe</h3><p>Drag the process sphere to rotate it. Select any saved process icon to open its real operation record; simulation highlights each step in sequence.</p></div>
-      <div className="process-universe-count"><strong>{orbitCount}</strong><span>{displayOperations.length ? "SAVED PROCESS STEPS" : "AVAILABLE STAGES"}</span></div>
+      <div className="process-universe-count"><strong>{orbitCount}</strong><span>{displayOperations.length ? "SAVED PROCESS STEPS" : "AVAILABLE STAGES"}</span><button type="button" className="process-orbit-auto-toggle" aria-pressed={autoRotateEnabled} disabled={!!prefersReducedMotion} onClick={() => setAutoRotateEnabled(value => !value)}>{prefersReducedMotion ? "Reduced motion" : autoRotateEnabled ? "Pause rotation" : "Resume rotation"}</button></div>
     </header>
     <nav className="process-universe-layouts" aria-label="Process map visualisation modes">
-      {([{id:"sphere",label:"Sphere"},{id:"route",label:"Conventional route"},{id:"vortex",label:"Vortex"},{id:"cube",label:"Cube"},{id:"molecular",label:"Molecular"},{id:"orbit",label:"Orbit"},{id:"digital-mesh",label:"Digital mesh"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}>{option.label}</button>)}
+      {([{id:"sphere",label:"Sphere"},{id:"vortex",label:"Vortex"},{id:"linear",label:"Linear"},{id:"horizontal",label:"Horizontal"},{id:"vertical",label:"Vertical"},{id:"timeline",label:"Timeline"},{id:"gantt",label:"Gantt"},{id:"nodes",label:"Nodes"},{id:"branch",label:"Branch"},{id:"combined",label:"Combined"},{id:"cube",label:"Cube"},{id:"molecular",label:"Molecular"},{id:"orbit",label:"Orbit"},{id:"digital-mesh",label:"Digital mesh"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}>{option.label}</button>)}
     </nav>
     <div className="process-orbit-panel">
-      <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>3D ORBIT · TOUCH / MOUSE DRAG</span></div>
+      <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
       <div className="process-orbit-viewport">
         <motion.div className="process-orbit-rotator" onPointerDown={event => { if ((event.target as HTMLElement).closest(".process-orbit-node")) return; startDrag(event); }} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} style={{ rotateX, rotateY, touchAction: "none" }}>
           <div className="process-orbit-ring process-orbit-ring-a" /><div className="process-orbit-ring process-orbit-ring-b" />{showArrows && orbitConnections.edges.map(edge=>{
@@ -195,7 +261,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
             return <div key={"anchor-"+anchor.operation.id} className={"process-orbit-parent-anchor is-"+anchor.relation} style={{color:anchor.color,transform:`translate3d(${point.x}px,${point.y}px,${point.z}px) translate(-50%,-50%)`}} title={"Connected parent: "+anchor.operation.name+" · OP-"+anchor.operation.sequence} aria-hidden="true"><span/></div>;
           })}
           
-          <div className="process-orbit-core"><span className="process-orbit-core-gloss" /><span className="process-orbit-core-grid" /><div><small>AXIMACH / ROUTE CORE</small><strong>{orbitCount.toString().padStart(2,"0")}</strong><b>{displayOperations.length ? "PROCESS STEPS" : "DIRECTORY STAGES"}</b><em>{displayOperations.length ? "SAVED ROUTE" : "CATALOGUE ONLY"}</em></div><i className="process-orbit-dot process-orbit-dot-a" /><i className="process-orbit-dot process-orbit-dot-b" /><i className="process-orbit-dot process-orbit-dot-c" /></div>
+          <div className="process-orbit-core process-orbit-core-webgl"><ProcessUniverseWebGLCore mode={layoutMode} rotationX={rotateX} rotationY={rotateY} /><span className="process-orbit-core-gloss" /><div className="process-orbit-core-content"><small>AXIMACH / ROUTE CORE</small><strong>{orbitCount.toString().padStart(2,"0")}</strong><b>{displayOperations.length ? "PROCESS STEPS" : "DIRECTORY STAGES"}</b><em>{displayOperations.length ? "SAVED ROUTE" : "CATALOGUE ONLY"}</em></div><i className="process-orbit-dot process-orbit-dot-a" /><i className="process-orbit-dot process-orbit-dot-b" /><i className="process-orbit-dot process-orbit-dot-c" /></div>
           {orbitNodes.map(({ operation, index, transform }) => {
             const active = selectedOperationId === operation.id, current = simulationIndex === index, passed = simulationIndex > index;
             const expanded = expandedOperationId === operation.id;
