@@ -507,7 +507,7 @@ test("Process Plan route scope drives displayed visuals and every export format"
   assert.ok(workspace.includes('{ key: "all", label: "All routes", count: routeOperations.length }'), "All routes count must reflect the complete saved route graph");
   assert.ok(workspace.includes("operations={exportOperations} allOperations={routeOperations}"));
   assert.ok(workspace.includes("exportOperations.map(op=>"));
-  assert.ok(workspace.includes("exportBranches.map(branch =>"));
+  assert.ok(workspace.includes("exportBranches.map(routeGroup=>"));
   assert.ok(workspace.includes('aria-label="Selected route arrow diagram"'));
   assert.ok(workspace.includes("route.addRows(exportOperations.map(op =>"));
   assert.ok(workspace.includes("nextInSameRoute"));
@@ -775,7 +775,7 @@ test("Process route scope keeps original parent arrows visible and each 3D view 
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("const resolveBranchOrigin ="));
-  assert.ok(workspace.includes("while (parent && (parent.branch || \"Main route\") === branch"));
+  assert.ok(workspace.includes("while (parent && parent.poLineId===poLineId && (parent.branch || \"Main route\") === branch"));
   assert.ok(workspace.includes("const branchOrigin=resolveBranchOrigin(branch,lane)"));
   assert.ok(workspace.includes("const branchOrigin=resolveBranchOrigin(branch,laneOperations)"));
   for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
