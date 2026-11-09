@@ -178,6 +178,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   // Process Map is component-wide: each PO line / part keeps an independent route,
   // even when its branch is also named "Main route".
   const routeOperations = operations.filter(op => op.poId === poId && op.componentId === selectedLine?.componentId).sort((a,b) => a.poLineId.localeCompare(b.poLineId) || a.sequence - b.sequence);
+  const selectedLineOperations = operations.filter(op=>op.poId===poId && op.poLineId===poLineId && op.componentId===selectedLine?.componentId).sort((a,b)=>a.sequence-b.sequence);
   const componentTransportLegs = allTransportLegs.filter(leg => leg.poId === poId && leg.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const routeLabels = Object.fromEntries(poLines.filter(line=>line.componentId===selectedLine?.componentId).map(line=>{
     const part=componentParts.find(item=>item.id===line.partId);
@@ -259,7 +260,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (scope === "filtered") return source;
     if (scope === "selected-operations") return selectedRouteOperations;
     if (scope === "selected-operation") return explicitlySelectedOperation ? source.filter(op => op.id === explicitlySelectedOperation.id) : [];
-    if (scope === "selected-branch") return explicitlySelectedOperation ? source.filter(op => branchName(op) === branchName(explicitlySelectedOperation)) : [];
+    if (scope === "selected-branch") return explicitlySelectedOperation ? source.filter(op => op.poLineId===explicitlySelectedOperation.poLineId && branchName(op) === branchName(explicitlySelectedOperation)) : [];
     if (scope.startsWith("branch:")) {
       const branch = scope.slice("branch:".length);
       return source.filter(op => branchName(op) === branch);
@@ -490,7 +491,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       route.addRows(exportOperations.map(op => {
         const branch = op.branch || "Main route";
         const nextInSameRoute = exportOperations
-          .filter(candidate => (candidate.branch || "Main route") === branch && candidate.sequence > op.sequence)
+          .filter(candidate => candidate.poLineId===op.poLineId && (candidate.branch || "Main route") === branch && candidate.sequence > op.sequence)
           .sort((a,b)=>a.sequence-b.sequence)[0];
         const parent = op.parentId ? routeOperations.find(candidate=>candidate.id===op.parentId) : undefined;
         return {
@@ -942,8 +943,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const stamp = nowIso();
     update(current => ({ ...current, operations: current.operations.map(op => op.id === id ? { ...op, ...patch, updatedAt: stamp } : op) }));
   };
-  const setBranchCostIncluded = (branch: string, include: boolean) => {
-    const branchIds = new Set(routeOperations.filter(op => (op.branch || "Main route") === branch).map(op => op.id));
+  const setBranchCostIncluded = (branch: string, include: boolean, poLineId?:string) => {
+    const branchIds = new Set(routeOperations.filter(op => (op.branch || "Main route") === branch && (!poLineId || op.poLineId===poLineId)).map(op => op.id));
     if (!branchIds.size) return;
     const stamp = nowIso();
     update(current => ({ ...current, operations: current.operations.map(op => branchIds.has(op.id) ? { ...op, costIncluded: include, updatedAt: stamp } : op) }));
@@ -1001,10 +1002,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   };
 
   const moveOperation = (id: string, direction: -1 | 1) => {
-    const index = routeOperations.findIndex(op => op.id === id);
-    const current = routeOperations[index];
-    const neighbor = routeOperations[index + direction];
-    if (!current || !neighbor) return;
+    const current = routeOperations.find(op=>op.id===id);
+    if(!current)return;
+    const sameRoute=routeOperations.filter(op=>op.poLineId===current.poLineId&&(op.branch||"Main route")===(current.branch||"Main route")).sort((a,b)=>a.sequence-b.sequence);
+    const index=sameRoute.findIndex(op=>op.id===id);
+    const neighbor=sameRoute[index+direction];
+    if (!neighbor) return;
     const stamp = nowIso();
     update(data => ({ ...data, operations: data.operations.map(op =>
       op.id === current.id ? { ...op, sequence: neighbor.sequence, updatedAt: stamp } :
@@ -1022,7 +1025,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
 
   const finishJob = () => {
     if (!selectedPO || !selectedLine) return;
-    const unfinishedCount = routeOperations.filter(operation => operation.status !== "Complete").length;
+    const unfinishedCount = selectedLineOperations.filter(operation => operation.status !== "Complete").length;
     const confirmation = unfinishedCount
       ? unfinishedCount + " route operation(s) are not marked Complete. Mark the PO job Finished anyway? This only changes the PO-line job status; every operation status and quantity will remain unchanged."
       : "Mark this PO component line as Job Finished? This is a separate final job status and will not change the operation records.";
@@ -1346,7 +1349,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           const rework=branchRoot?.relationType==="rework"||/rework/i.test(branch);
           const routeColor=rework?REWORK_ROUTE_COLOR:alternate?ALTERNATE_ROUTE_COLOR:"#5a8fc4";
           return <section className={"linked-route-lane " + (alternate ? "linked-route-lane-alternate " : "")+(rework?"route-rework":"route-alternate")} style={{borderLeftColor:routeColor}} key={routeGroup}>
-            <div className="linked-route-lane-heading"><strong>{partLabel ? partLabel+" · " : ""}{branch}</strong><small>{laneOperations.length} operation(s) · {rework?"rework route":alternate?"alternate route":"primary route"}{parent ? " · branches from "+parent.name : ""}</small>{alternate && <button type="button" className="button-quiet compact-button" onClick={() => setBranchCostIncluded(branch, !laneOperations.some(op => op.costIncluded !== false))}>{laneOperations.some(op => op.costIncluded !== false) ? "Exclude this route from costing" : "Use this route · include costs"}</button>}</div>
+            <div className="linked-route-lane-heading"><strong>{partLabel ? partLabel+" · " : ""}{branch}</strong><small>{laneOperations.length} operation(s) · {rework?"rework route":alternate?"alternate route":"primary route"}{parent ? " · branches from "+parent.name : ""}</small>{alternate && <button type="button" className="button-quiet compact-button" onClick={() => setBranchCostIncluded(branch, !laneOperations.some(op => op.costIncluded !== false), laneOperations[0]?.poLineId)}>{laneOperations.some(op => op.costIncluded !== false) ? "Exclude this route from costing" : "Use this route · include costs"}</button>}</div>
             {branchRoot&&<div className={"linked-route-parent-arrow "+(rework?"is-rework":"is-alternate")}><span>OP-{String(parent?.sequence||0).padStart(3,"0")} · {parent?.name||"Parent process"}</span><ArrowRight size={17}/><strong>{branchRoot.name}</strong></div>}
             <div className="linked-node-track">{laneOperations.map((op,index) => {
               const vendor = vendors.find(v => v.id === op.vendorId);
