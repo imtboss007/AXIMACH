@@ -24,6 +24,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const factories = activeRows(data.factories);
   const orders = activeRows(data.purchaseOrders);
   const vendors = activeRows(data.vendors);
+  const inventoryTransactions = activeRows(data.inventoryTransactions);
   const operations = activeRows(data.operations);
   const [tab, setTab] = useState<Tab>("materials");
   const [search, setSearch] = useState("");
@@ -81,27 +82,27 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     return [...totals.entries()].map(([materialId, total]) => {
       const material = materials.find(row => row.id === materialId);
       if (!material) return null;
-      const issued = data.inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === materialId && row.poId === bomIssueSelection.po.id && row.poLineId === bomIssueSelection.line.id)
+      const issued = inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === materialId && row.poId === bomIssueSelection.po.id && row.poLineId === bomIssueSelection.line.id)
         .reduce((sum, row) => sum + (row.transactionType === "Issue to production" && row.direction === "out" ? row.quantity : row.transactionType === "Return" && row.direction === "in" ? -row.quantity : 0), 0);
       const pending = Math.max(0, total.required - Math.max(0, issued));
       const available = stockBalance("material", materialId);
       return { material, bomLineIds: total.bomLineIds, required: total.required, issued: Math.max(0, issued), pending, available, shortage: Math.max(0, pending - available) };
     }).filter((row): row is BomIssuePreviewRow => Boolean(row));
-  }, [bomIssuePoLineKey, bomIssueSelection, bomLines, materials, data.inventoryTransactions]);
+  }, [bomIssuePoLineKey, bomIssueSelection, bomLines, materials, inventoryTransactions]);
   const operationOptions = operations.filter(op => !op.deletedAt && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)));
   const itemOptions = itemType === "material" ? materials.map(m => ({ id: m.id, label: m.code + " · " + m.name + " · " + m.grade })) : components.map(c => ({ id: c.id, label: c.partNumber + " · " + c.name + " · Rev " + (c.revision || "—") }));
   const selectedItem = itemType === "material" ? materials.find(m => m.id === itemId) : components.find(c => c.id === itemId);
-  const stockBalance = (type: "material" | "component", id: string) => data.inventoryTransactions.reduce((total, row) => row.itemType === type && row.itemId === id ? total + (row.direction === "in" ? row.quantity : -row.quantity) : total, 0);
+  const stockBalance = (type: "material" | "component", id: string) => inventoryTransactions.reduce((total, row) => row.itemType === type && row.itemId === id ? total + (row.direction === "in" ? row.quantity : -row.quantity) : total, 0);
   const visibleMaterials = useMemo(() => materials.filter(m => (m.code + " " + m.name + " " + m.grade + " " + m.specification + " " + m.notes).toLowerCase().includes(search.toLowerCase().trim())), [materials, search]);
   const visibleBom = useMemo(() => bomLines.filter(row => {
     const component = components.find(c => c.id === row.componentId);
     const material = materials.find(m => m.id === row.materialId);
     return (component?.partNumber + " " + component?.name + " " + material?.code + " " + material?.name + " " + row.revision + " " + row.notes).toLowerCase().includes(search.toLowerCase().trim());
   }), [bomLines, components, materials, search]);
-  const visibleTransactions = useMemo(() => data.inventoryTransactions.filter(row => {
+  const visibleTransactions = useMemo(() => inventoryTransactions.filter(row => {
     const item = row.itemType === "material" ? materials.find(m => m.id === row.itemId) : components.find(c => c.id === row.itemId);
     return (item?.name + " " + ("code" in (item || {}) ? (item as MaterialRecord).code : (item as any)?.partNumber) + " " + row.transactionType + " " + row.reference + " " + row.notes + " " + row.occurredAt + " " + row.quantity).toLowerCase().includes(search.toLowerCase().trim());
-  }).slice().sort((a,b) => b.occurredAt.localeCompare(a.occurredAt) || b.createdAt.localeCompare(a.createdAt)), [data.inventoryTransactions, materials, components, search]);
+  }).slice().sort((a,b) => b.occurredAt.localeCompare(a.occurredAt) || b.createdAt.localeCompare(a.createdAt)), [inventoryTransactions, materials, components, search]);
   const bomCost = (componentId: string) => bomLines.filter(row => row.componentId === componentId).reduce((total, row) => {
     const material = materials.find(m => m.id === row.materialId);
     return total + row.quantityPerPart * (1 + row.scrapPercent / 100) * (material?.ratePerUnit || 0);
@@ -243,9 +244,9 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     <div className="costing-tabs">
       <button className={tab==="materials"?"costing-tab-active":""} onClick={()=>{setTab("materials");setSearch("");}}><Package size={15}/> Material master ({materials.length})</button>
       <button className={tab==="bom"?"costing-tab-active":""} onClick={()=>{setTab("bom");setSearch("");}}><Boxes size={15}/> BOM lines ({bomLines.length})</button>
-      <button className={tab==="stock"?"costing-tab-active":""} onClick={()=>{setTab("stock");setSearch("");}}><Warehouse size={15}/> Stock ledger ({data.inventoryTransactions.length})</button>
+      <button className={tab==="stock"?"costing-tab-active":""} onClick={()=>{setTab("stock");setSearch("");}}><Warehouse size={15}/> Stock ledger ({inventoryTransactions.length})</button>
     </div>
-    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={tab==="materials"?"Search material code, grade, spec…":tab==="bom"?"Search component, material, revision…":"Search item, movement, reference…"} /></label><span className="module-number">{tab==="materials"?materials.length+" MATERIALS":tab==="bom"?bomLines.length+" BOM LINES":data.inventoryTransactions.length+" POSTED MOVEMENTS"}</span></div>
+    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={tab==="materials"?"Search material code, grade, spec…":tab==="bom"?"Search component, material, revision…":"Search item, movement, reference…"} /></label><span className="module-number">{tab==="materials"?materials.length+" MATERIALS":tab==="bom"?bomLines.length+" BOM LINES":inventoryTransactions.length+" POSTED MOVEMENTS"}</span></div>
     {tab==="materials" && <>
       <div className="workspace-title-actions"><button className="button-primary" onClick={()=>{setMaterialDraft(emptyMaterial());setMaterialEditingId("");setMaterialFormOpen(true);}}><Plus size={14}/> Add material</button><button className="button-quiet" onClick={()=>onSelectModule("vendors")}><Users size={14}/> Vendor master</button></div>
       {materialFormOpen && <section className="surface-panel module-record-form-panel"><div className="panel-heading"><div><h3>{materialEditingId?"Edit material":"New material master"}</h3><p>Actual material/grade and quoted or purchase rate only; no default stock figures.</p></div><button className="icon-control" onClick={resetMaterial} aria-label="Close material form"><X size={15}/></button></div>
