@@ -105,7 +105,8 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const vendors=activeRows(data.vendors);
   const parts=activeRows(data.componentParts||[]).filter(part=>part.componentId===componentId);
   const relatedPoLines=activeRows(data.purchaseOrders||[]).filter(po=>!poId||po.id===poId).flatMap(po=>po.lines.filter(line=>!line.deletedAt&&line.componentId===componentId).map(line=>({po, line, part:parts.find(part=>part.id===line.partId)})));
-  const entries=activeRows(data.materialCostEntries||[]).filter(entry=>entry.scope===scope&&entry.componentId===componentId&&(!poId||entry.poId===poId)&&(!poLineId||entry.poLineId===poLineId));
+  // Show every saved part/material allocation for this component and PO, not only the currently selected PO line.
+  const entries=activeRows(data.materialCostEntries||[]).filter(entry=>entry.scope===scope&&entry.componentId===componentId&&(!poId||entry.poId===poId));
   const [expanded,setExpanded]=useState(false);
   const [target,setTarget]=useState<"component"|"part">(initialPartId?"part":"component");
   const [newPartMode,setNewPartMode]=useState(false);
