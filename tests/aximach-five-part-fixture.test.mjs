@@ -418,11 +418,14 @@ test("Process Directory maintains permanent sub-process IDs through in-place ren
 
 test("3D Process Map places unsaved Process Directory definitions on the interactive orbit", () => {
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
   assert.ok(universe.includes("const catalogueOrbitNodes = useMemo"));
   assert.ok(universe.includes("const showCatalogueOrbit = operations.length === 0"));
-  assert.ok(universe.includes("onAddProcessDefinition?.(definition.id)"));
-  assert.ok(universe.includes('className="process-orbit-node status-planned process-orbit-node-catalog"'));
-  assert.ok(universe.includes("DIRECTORY STAGES"));
+  assert.ok(universe.includes("catalogue={showCatalogueOrbit ? processDefinitions : undefined}"));
+  assert.ok(universe.includes("onAddCatalogue={onAddProcessDefinition}"));
+  assert.ok(scene.includes("cataloguePoints.forEach"));
+  assert.ok(scene.includes("projectedCatalogue.map"));
+  assert.ok(scene.includes("onAddCatalogue?.(definition.id)"));
 });
 
 test("Mechanical icon inventory covers cutting tools, production machines, workholding and metrology", () => {
@@ -754,15 +757,15 @@ test("Vendor Network resolves capability and assigned-operation subcategories th
 
 test("3D process orbit renders route arrows and preserves hidden parent origins for scoped branches", () => {
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
-  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
   assert.ok(universe.includes("const orbitConnections = useMemo"));
-  assert.ok(universe.includes("orbitConnections.edges.map"));
-  assert.ok(universe.includes("orbitConnections.anchors.map"));
-  assert.ok(universe.includes('className={"process-orbit-connector is-"+edge.relation}'));
-  assert.ok(universe.includes('className={"process-orbit-parent-anchor is-"+anchor.relation}'));
-  assert.ok(styles.includes(".process-orbit-connector.is-alternate { color: #4b95eb; }"));
-  assert.ok(styles.includes(".process-orbit-connector.is-rework { color: #e38b45; }"));
-  assert.ok(styles.includes(".process-orbit-connector::after"));
+  assert.ok(universe.includes("edges={orbitConnections.edges}"));
+  assert.ok(universe.includes("coordinateOperations={coordinateOperations}"));
+  assert.ok(universe.includes("anchors={orbitConnections.anchors}"));
+  assert.ok(scene.includes("const pointById=new Map(geometryPoints.map"));
+  assert.ok(scene.includes("routeEdges.forEach"));
+  assert.ok(scene.includes("arrowHeadMesh(tip,q,.075)"));
+  assert.ok(scene.includes("anchorPoints.forEach"));
 });
 
 test("Process route scope keeps original parent arrows visible and each 3D view opens its matching layout", () => {
@@ -1190,11 +1193,12 @@ test("Small-phone sphere container stays within viewport width", () => {
 
 test("Process Universe sphere nodes reveal a real linked detail panel and can collapse it", () => {
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
-  assert.ok(universe.includes('aria-controls="process-orbit-selected-details"'));
-  assert.ok(universe.includes('aria-expanded={expanded}'));
+  assert.ok(scene.includes('aria-controls="process-orbit-selected-details"'));
+  assert.ok(scene.includes("aria-expanded={selectedOperationId===op.id}"));
   assert.ok(universe.includes('id="process-orbit-selected-details"'));
-  assert.ok(universe.includes('{layoutMode !== "route" && expandedOrbitOperation && <section'));
+  assert.ok(universe.includes("{expandedOrbitOperation && <section"));
   assert.ok(universe.includes('onClick={() => setExpandedOperationId("")}'));
   assert.ok(universe.includes("const expandedOrbitOperation = displayOperations.find(operation => operation.id === expandedOperationId);"));
   assert.ok(styles.includes(".process-orbit-selected-details{"));
