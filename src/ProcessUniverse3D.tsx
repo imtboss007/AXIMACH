@@ -7,7 +7,7 @@ import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
-type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onSelectOperation: (id: string) => void; onEditOperation?: (id: string) => void; onChangeProcessColor?: (id: string, color: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
+type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; routeLabels?: Record<string,string>; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onSelectOperation: (id: string) => void; onEditOperation?: (id: string) => void; onChangeProcessColor?: (id: string, color: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
 function fallbackFor(name: string) {
   const value = name.toLowerCase();
@@ -29,11 +29,12 @@ type Point3D = { x: number; y: number; z: number };
 
 function getLayoutPoint(index: number, operation: OperationRecord | undefined, mode: ProcessLayoutMode, count: number, source: OperationRecord[]): Point3D {
   const total = Math.max(1, count);
-  const branchNames = [...new Set(source.map(item => item.branch || "Main route"))];
-  const branchName = operation?.branch || "Main route";
+  const routeKey = (item:OperationRecord) => (item.poLineId || item.componentId) + "::" + (item.branch || "Main route");
+  const branchNames = [...new Set(source.map(routeKey))];
+  const branchName = operation ? routeKey(operation) : "Main route";
   const branchIndex = Math.max(0, branchNames.indexOf(branchName));
   const branchCount = Math.max(1, branchNames.length);
-  const branchRows = source.filter(item => (item.branch || "Main route") === branchName).slice().sort((a,b) => a.sequence-b.sequence);
+  const branchRows = source.filter(item => routeKey(item) === branchName).slice().sort((a,b) => a.sequence-b.sequence);
   const localIndex = operation ? Math.max(0, branchRows.findIndex(item => item.id === operation.id)) : index;
   const localCount = Math.max(1, branchRows.length || total);
   const center = (index - (total - 1) / 2);
@@ -114,7 +115,7 @@ function transformStyle3d(point: Point3D) {
   return `translate(-50%,-50%) translate3d(${point.x}px,${point.y}px,${point.z}px) rotateY(${yaw}deg) rotateX(${pitch}deg)`;
 }
 
-export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", ganttScale = "week", onGanttScaleChange, onSelectOperation, onEditOperation, onChangeProcessColor, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
+export default function ProcessUniverse3D({ operations, allOperations, routeLabels = {}, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", ganttScale = "week", onGanttScaleChange, onSelectOperation, onEditOperation, onChangeProcessColor, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);
   const fieldVisible = (field: string) => visibleFields.includes(field);
@@ -189,16 +190,19 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
   const showCatalogueOrbit = operations.length === 0 && catalogueOrbitNodes.length > 0;
   const orbitCount = displayOperations.length || (showCatalogueOrbit ? catalogueOrbitNodes.length : 0);
 
+  const routeGroupKey = (operation:OperationRecord) => (operation.poLineId || operation.componentId) + "::" + (operation.branch || "Main route");
   const lanes = useMemo(() => {
     const grouped = new Map<string, OperationRecord[]>();
     for (const operation of parentOperations) {
-      const branch = operation.branch || "Main route";
-      const rows = grouped.get(branch) || [];
+      const key = routeGroupKey(operation);
+      const rows = grouped.get(key) || [];
       rows.push(operation);
-      grouped.set(branch, rows);
+      grouped.set(key, rows);
     }
-    return [...grouped.entries()].map(([name, rows]) => {
+    return [...grouped.entries()].map(([key, rows]) => {
       const ordered = rows.slice().sort((a,b) => a.sequence-b.sequence);
+      const name = ordered[0]?.branch || "Main route";
+      const poLineId = ordered[0]?.poLineId || "";
       let branchRoot: OperationRecord | undefined;
       let parent: OperationRecord | undefined;
       if (name !== "Main route") {
@@ -207,37 +211,32 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
           let current = candidate;
           let ancestor = lookupOperations.find(item => item.id === current.parentId);
           let guard = 0;
-          // Walk through later branch steps until we reach the original operation
-          // outside this branch. This still works when the active route scope only
-          // contains one selected branch step rather than the branch root.
-          while (ancestor && (ancestor.branch || "Main route") === name && ancestor.parentId && guard++ < lookupOperations.length) {
+          while (ancestor && routeGroupKey(ancestor) === key && ancestor.parentId && guard++ < lookupOperations.length) {
             current = ancestor;
             ancestor = lookupOperations.find(item => item.id === current.parentId);
           }
-          if (ancestor && (ancestor.branch || "Main route") !== name) {
-            branchRoot = current;
-            parent = ancestor;
-            break;
-          }
+          if (ancestor && routeGroupKey(ancestor) !== key) { branchRoot = current; parent = ancestor; break; }
         }
       }
-      return { name, rows: ordered, alternate: name !== "Main route", branchRoot, parent, branchRelation: branchRoot?.relationType };
+      const label = routeLabels[poLineId] ? routeLabels[poLineId] + " · " + name : name;
+      return { key, poLineId, name, label, rows: ordered, alternate: name !== "Main route", branchRoot, parent, branchRelation: branchRoot?.relationType };
     });
-  }, [parentOperations, lookupOperations]);
+  }, [parentOperations, lookupOperations, routeLabels]);
   const orbitConnections = useMemo(() => {
     const visibleIds = new Set(displayOperations.map(operation => operation.id));
     const edges: Array<{id:string;from:OperationRecord;to:OperationRecord;relation:"main"|"alternate"|"rework";color:string}> = [];
     const byBranch = new Map<string, OperationRecord[]>();
     for (const operation of coordinateOperations) {
-      const branch = operation.branch || "Main route";
-      const rows = byBranch.get(branch) || [];
+      const groupKey = routeGroupKey(operation);
+      const rows = byBranch.get(groupKey) || [];
       rows.push(operation);
-      byBranch.set(branch, rows);
+      byBranch.set(groupKey, rows);
     }
     const accentFor = (operation:OperationRecord) => processDefinitions.find(definition=>definition.id===operation.processDefinitionId)?.displayColor || operation.processColor || "#6fa9e5";
-    for (const [branch, rows] of byBranch) {
+    for (const [groupKey, rows] of byBranch) {
       const ordered = rows.slice().sort((a,b)=>a.sequence-b.sequence);
-      const lane = lanes.find(item=>item.name===branch);
+      const lane = lanes.find(item=>item.key===groupKey);
+      const branch = ordered[0]?.branch || "Main route";
       const relation = branch==="Main route" ? "main" : lane?.branchRelation==="rework" ? "rework" : "alternate";
       const color = relation==="rework" ? "#e38b45" : relation==="alternate" ? "#4b95eb" : undefined;
       for (let index=0; index<ordered.length-1; index++) {
@@ -245,7 +244,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
         if (!visibleIds.has(from.id) && !visibleIds.has(to.id)) continue;
         edges.push({id:from.id+"->"+to.id,from,to,relation,color:color||accentFor(to)});
       }
-      if (branch!=="Main route" && lane?.branchRoot && lane.parent && displayOperations.some(operation=>(operation.branch||"Main route")===branch)) {
+      if (branch!=="Main route" && lane?.branchRoot && lane.parent && displayOperations.some(operation=>routeGroupKey(operation)===groupKey)) {
         const from=lane.parent, to=lane.branchRoot;
         edges.push({id:from.id+"->"+to.id,from,to,relation:relation==="rework"?"rework":"alternate",color:relation==="rework"?"#e38b45":"#4b95eb"});
       }
@@ -270,12 +269,14 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
       {layoutMode === "gantt" && <div className="process-gantt-toolbar process-gantt-3d-toolbar"><label>Time scale<select value={ganttScale} onChange={event => onGanttScaleChange?.(event.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>3D SCHEDULE · {displayOperations.length} PROCESS STEPS · DRAG TO ROTATE</span></div>}
-      {/* Branch-aware route connectors: orbitConnections.edges.map is rendered by the WebGL scene in shared camera space. */}\n      <ProcessScene3D operations={displayOperations} mode={layoutMode} selectedOperationId={selectedOperationId} expandedOperationId={expandedOperationId} onSelectOperation={onSelectOperation} onExpandOperation={(id)=>setExpandedOperationId(current=>current===id?"":id)} edges={orbitConnections.edges} coordinateOperations={coordinateOperations} anchors={orbitConnections.anchors} catalogue={showCatalogueOrbit ? processDefinitions : undefined} onAddCatalogue={onAddProcessDefinition} showArrows={showArrows} vendors={vendors} quantityUnit={quantityUnit} ganttScale={ganttScale} />
+      {/* Branch-aware route connectors: orbitConnections.edges.map is rendered by the WebGL scene in shared camera space. */}
+      <ProcessScene3D operations={displayOperations} mode={layoutMode} selectedOperationId={selectedOperationId} expandedOperationId={expandedOperationId} onSelectOperation={onSelectOperation} onExpandOperation={(id)=>setExpandedOperationId(id)} edges={orbitConnections.edges} coordinateOperations={coordinateOperations} anchors={orbitConnections.anchors} catalogue={showCatalogueOrbit ? processDefinitions : undefined} onAddCatalogue={onAddProcessDefinition} showArrows={showArrows} vendors={vendors} quantityUnit={quantityUnit} ganttScale={ganttScale} />
       
       <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>{showCatalogueOrbit ? "SELECT A DIRECTORY NODE TO CREATE A PO-LINE OPERATION" : "SELECT A PROCESS NODE TO OPEN ITS RECORD"}</span><span>SIMULATION IS VISUAL ONLY</span></div>
       {expandedOrbitOperation && <section className="process-orbit-selected-details" id="process-orbit-selected-details" aria-label={"Expanded details for " + expandedOrbitOperation.name}>
         <div className="process-orbit-selected-heading"><div><small>SELECTED PROCESS / OP-{String(expandedOrbitOperation.sequence).padStart(3,"0")}</small><strong>{expandedOrbitOperation.name}</strong></div><div className="process-orbit-detail-actions"><label className="process-orbit-color-control">PROCESS COLOUR <input type="color" aria-label="Process colour" value={expandedOrbitOperation.relationType==="rework"?"#e66e20":expandedOrbitOperation.status==="Complete"?"#20a36b":expandedOrbitOperation.relationType==="alternate"?"#287bd0":expandedOrbitOperation.processColor||"#477fbd"} disabled={expandedOrbitOperation.status==="Complete"||expandedOrbitOperation.relationType==="rework"||expandedOrbitOperation.relationType==="alternate"} onChange={event=>onChangeProcessColor?.(expandedOrbitOperation.id,event.target.value)}/></label><button type="button" onClick={()=>onEditOperation?.(expandedOrbitOperation.id)} disabled={!onEditOperation}>Edit process ✎</button><button type="button" onClick={() => setExpandedOperationId("")}>Collapse details −</button></div></div>
         <div className="process-orbit-selected-grid">
+          <div><small>PART / PO LINE</small><strong>{routeLabels[expandedOrbitOperation.poLineId] || expandedOrbitOperation.poLineId || "Not assigned"}</strong></div>
           <div><small>CATEGORY</small><strong>{expandedOrbitOperation.category || "Not set"}</strong></div>
           <div><small>PROCESS / SUBCATEGORY</small><strong>{expandedOrbitOperation.name}{expandedOrbitOperation.subcategory ? " · " + expandedOrbitOperation.subcategory : ""}</strong></div>
           <div><small>VENDOR</small><strong>{vendors.find(vendor => vendor.id === expandedOrbitOperation.vendorId)?.company || "Vendor not assigned"}</strong></div>
@@ -311,13 +312,13 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
     </div>
     <div className="process-universe-viewport"><div className="process-universe-stage" style={stageStyle}>
       {lanes.map((lane,laneIndex) => {
-        const collapsed = collapsedLaneNames.includes(lane.name);
+        const collapsed = collapsedLaneNames.includes(lane.key);
         const lanePanelId = "process-universe-lane-" + laneIndex;
-        return <section className={"process-universe-lane" + (lane.alternate ? " is-branch " + (lane.branchRelation==="rework"?"is-rework":"is-alternate") : "")} key={lane.name}>
+        return <section className={"process-universe-lane" + (lane.alternate ? " is-branch " + (lane.branchRelation==="rework"?"is-rework":"is-alternate") : "")} key={lane.key}>
           <div className="process-universe-lane-label">
             <button type="button" className="process-universe-lane-toggle" aria-expanded={!collapsed} aria-controls={lanePanelId} onClick={() => setCollapsedLaneNames(current => current.includes(lane.name) ? current.filter(name => name !== lane.name) : [...current,lane.name])}>
               <span className="process-universe-branch-icon">{lane.alternate ? <GitBranch size={15}/> : <Workflow size={15}/>}</span>
-              <span><strong>{lane.name}</strong><small>{lane.alternate ? (lane.branchRelation==="rework"?"Rework branch":"Alternate route") + (lane.parent ? " · connected from OP-" + String(lane.parent.sequence).padStart(3,"0") + " " + lane.parent.name : "") : "Primary manufacturing route"}</small></span>
+              <span><strong>{lane.label}</strong><small>{lane.alternate ? (lane.branchRelation==="rework"?"Rework branch":"Alternate route") + (lane.parent ? " · connected from OP-" + String(lane.parent.sequence).padStart(3,"0") + " " + lane.parent.name : "") : "Primary manufacturing route"}</small></span>
               <span className="process-universe-lane-disclosure" aria-hidden="true">{collapsed ? "+" : "−"}</span>
             </button>
             <em>{lane.rows.length} STEP{lane.rows.length === 1 ? "" : "S"}</em>
