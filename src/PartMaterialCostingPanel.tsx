@@ -13,7 +13,7 @@ const SHAPES: Shape[] = [
   { id: "round-bar", label: "Round bar / rod", fields: [{key:"length",label:"Length"},{key:"diameter",label:"Diameter"}] },
   { id: "square-bar", label: "Square bar", fields: [{key:"length",label:"Length"},{key:"width",label:"Side width"}] },
   { id: "hex-bar", label: "Hexagonal bar", fields: [{key:"length",label:"Length"},{key:"acrossFlats",label:"Across flats"}] },
-  { id: "round-tube", label: "Round tube / pipe", fields: [{key:"length",label:"Length"},{key:"outerDiameter",label:"Outer diameter"},{key:"wallThickness",label:"Wall thickness"}] },
+  { id: "round-tube", label: "Round tube / pipe", fields: [{key:"length",label:"Length"},{key:"outerDiameter",label:"Outer diameter / OD"},{key:"innerDiameter",label:"Inner diameter / ID"}] },
   { id: "square-tube", label: "Square tube / hollow section", fields: [{key:"length",label:"Length"},{key:"outerWidth",label:"Outer side"},{key:"wallThickness",label:"Wall thickness"}] },
   { id: "rectangular-tube", label: "Rectangular tube / RHS", fields: [{key:"length",label:"Length"},{key:"outerWidth",label:"Outer width"},{key:"outerHeight",label:"Outer height"},{key:"wallThickness",label:"Wall thickness"}] },
   { id: "angle", label: "Angle / L-section", fields: [{key:"length",label:"Length"},{key:"legA",label:"Leg A"},{key:"legB",label:"Leg B"},{key:"thickness",label:"Thickness"}] },
@@ -74,7 +74,7 @@ function shapeVolumeMm3(shape:string,dims:Record<string,string>,units:Record<str
   if(shape==="round-bar") return Math.PI*Math.pow(d("diameter"),2)*L/4;
   if(shape==="square-bar") return L*Math.pow(W,2);
   if(shape==="hex-bar") return L*3*Math.sqrt(3)*Math.pow(d("acrossFlats"),2)/8;
-  if(shape==="round-tube") { const od=d("outerDiameter"), id=Math.max(0,od-2*wall); return Math.PI*(od*od-id*id)*L/4; }
+  if(shape==="round-tube") { const od=d("outerDiameter"), enteredId=d("innerDiameter"), id=enteredId>0?enteredId:Math.max(0,od-2*wall); return id<od?Math.PI*(od*od-id*id)*L/4:0; }
   if(shape==="square-tube") return L*Math.max(0,A*A-Math.pow(Math.max(0,A-2*wall),2));
   if(shape==="rectangular-tube") return L*Math.max(0,A*B-Math.max(0,A-2*wall)*Math.max(0,B-2*wall));
   if(shape==="angle") return L*Math.max(0,d("legA")*T+d("legB")*T-T*T);
