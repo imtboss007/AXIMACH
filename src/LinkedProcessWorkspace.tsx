@@ -845,8 +845,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const operationId = editingId || makeId("operation");
     const proposedProcessDefinitionId = makeId("process-definition");
     update(current => {
-      const currentRoute = current.operations.filter(op => op.poLineId === selectedLine.id && op.poId === selectedPO.id && op.componentId === selectedComponent.id && !op.deletedAt);
       const old = current.operations.find(op => op.id === operationId);
+      const parentOperation = draft.parentId ? current.operations.find(op=>op.id===draft.parentId && !op.deletedAt) : undefined;
+      const effectivePoId = old?.poId || parentOperation?.poId || selectedPO.id;
+      const effectivePoLineId = old?.poLineId || parentOperation?.poLineId || selectedLine.id;
+      const effectiveComponentId = old?.componentId || parentOperation?.componentId || selectedComponent.id;
+      const currentRoute = current.operations.filter(op => op.poLineId === effectivePoLineId && op.poId === effectivePoId && op.componentId === effectiveComponentId && (op.branch||"Main route")===(draft.branch||"Main route") && !op.deletedAt);
       const currentDefinitions = activeRows(current.processDefinitions);
       const resolvedDefinition = selectedProcessDefinition || resolveProcessDefinition(currentDefinitions, draft.processDefinitionId, draft.name.trim(), draft.category.trim());
       const processDefinition: ProcessDefinitionRecord | undefined = resolvedDefinition || (draft.name.trim() && draft.category.trim() ? {
@@ -862,7 +866,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           : [...current.processDefinitions, processDefinition]
         : current.processDefinitions;
       const next: OperationRecord = {
-        id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id,
+        id: operationId, poId: effectivePoId, poLineId: effectivePoLineId, componentId: effectiveComponentId,
         sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
         ...draft, processDefinitionId: processDefinition?.id || undefined,
         processSubcategoryId: draft.processSubcategoryId || processSubcategoryIdFor(processDefinition, draft.subcategory) || undefined,
@@ -875,11 +879,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const legacyTotal = existingPayments.length?0:Math.max(0,Number(old?.paidAmount)||0);
       const paymentRecords = [...current.paymentTransactions];
       if (!existingPayments.length && legacyTotal>0) {
-        paymentRecords.push({id:makeId("payment"),operationId,poId:selectedPO.id,poLineId:selectedLine.id,componentId:selectedComponent.id,amount:legacyTotal,paidAt:old?.updatedAt||stamp,reference:old?.paymentReference||"",notes:"Opening balance carried forward from the earlier operation payment total.",createdAt:stamp,updatedAt:stamp});
+        paymentRecords.push({id:makeId("payment"),operationId,poId:effectivePoId,poLineId:effectivePoLineId,componentId:effectiveComponentId,amount:legacyTotal,paidAt:old?.updatedAt||stamp,reference:old?.paymentReference||"",notes:"Opening balance carried forward from the earlier operation payment total.",createdAt:stamp,updatedAt:stamp});
       }
       const recordedTotal=ledgerTotal+legacyTotal;
       const paymentDelta=Math.max(0,nextPaidTotal-recordedTotal);
-      if(paymentDelta>0) paymentRecords.push({id:makeId("payment"),operationId,poId:selectedPO.id,poLineId:selectedLine.id,componentId:selectedComponent.id,amount:paymentDelta,paidAt:stamp,reference:draft.paymentReference.trim(),notes:"Additional payment recorded from Process Plan.",createdAt:stamp,updatedAt:stamp});
+      if(paymentDelta>0) paymentRecords.push({id:makeId("payment"),operationId,poId:effectivePoId,poLineId:effectivePoLineId,componentId:effectiveComponentId,amount:paymentDelta,paidAt:stamp,reference:draft.paymentReference.trim(),notes:"Additional payment recorded from Process Plan.",createdAt:stamp,updatedAt:stamp});
       return { ...current, operations: [...current.operations.filter(op => op.id !== next.id), next], processDefinitions: nextProcessDefinitions, paymentTransactions: paymentRecords };
     });
     setSelectedOperationId(operationId);
