@@ -8,7 +8,7 @@ import ProcessScene3D from "./ProcessScene3D";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
 type MaterialRouteNode = {
-  id:string; partLabel:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number;
+  id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number;
   supplier:string; transporter:string; from:string; to:string; vehicle:string;
   materialGivenAt:string; materialDueAt:string; materialReceivedAt:string;
   pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb";
@@ -142,7 +142,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
   const expandedDetailsRef = useRef<HTMLElement | null>(null);
   const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);
   // Export checkboxes must not hide fields from a selected operation's detail record.
-  const fieldVisible = (_field: string) => true;
+  const fieldVisible = (field: string) => visibleFields.includes(field);
   const dateLabel = (value?: string) => { if (!value) return "Not scheduled"; const parsed = new Date(value); return Number.isFinite(parsed.getTime()) ? parsed.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", ...(value.includes("T") ? { hour: "2-digit", minute: "2-digit" } : {}) }) : value; };
   const moneyLabel = (value: number) => "₹" + Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
@@ -310,7 +310,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
       </section>}
       {layoutMode === "gantt" && <div className="process-gantt-toolbar process-gantt-3d-toolbar"><label>Time scale<select value={ganttScale} onChange={event => onGanttScaleChange?.(event.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>3D SCHEDULE · {displayOperations.length} PROCESS STEPS · DRAG TO ROTATE</span></div>}
       {/* Branch-aware route connectors: orbitConnections.edges.map is rendered by the WebGL scene in shared camera space. */}
-      <ProcessScene3D operations={displayOperations} materialRoutes={materialRoutes} autoRotate={autoRotateEnabled && !prefersReducedMotion} mode={layoutMode} selectedOperationId={selectedOperationId} expandedOperationId={expandedOperationId} onSelectOperation={onSelectOperation} onExpandOperation={(id)=>setExpandedOperationId(id)} onArrowSelect={(id)=>{onSelectOperation(id);setExpandedOperationId(id);}} edges={orbitConnections.edges} coordinateOperations={coordinateOperations} anchors={orbitConnections.anchors} catalogue={showCatalogueOrbit ? processDefinitions : undefined} onAddCatalogue={onAddProcessDefinition} showArrows={showArrows} vendors={vendors} quantityUnit={quantityUnit} ganttScale={ganttScale} />
+      <ProcessScene3D operations={displayOperations} materialRoutes={materialRoutes} visibleFields={visibleFields} autoRotate={autoRotateEnabled && !prefersReducedMotion} mode={layoutMode} selectedOperationId={selectedOperationId} expandedOperationId={expandedOperationId} onSelectOperation={onSelectOperation} onExpandOperation={(id)=>setExpandedOperationId(id)} onArrowSelect={(id)=>{onSelectOperation(id);setExpandedOperationId(id);}} edges={orbitConnections.edges} coordinateOperations={coordinateOperations} anchors={orbitConnections.anchors} catalogue={showCatalogueOrbit ? processDefinitions : undefined} onAddCatalogue={onAddProcessDefinition} showArrows={showArrows} vendors={vendors} quantityUnit={quantityUnit} ganttScale={ganttScale} />
       
       <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>{showCatalogueOrbit ? "SELECT A DIRECTORY NODE TO CREATE A PO-LINE OPERATION" : "SELECT A PROCESS NODE TO OPEN ITS RECORD"}</span><span>SIMULATION IS VISUAL ONLY</span></div>
       {expandedOrbitOperation && <section ref={expandedDetailsRef} className="process-orbit-selected-details" id="process-orbit-selected-details" aria-label={"Expanded details for " + expandedOrbitOperation.name}>
