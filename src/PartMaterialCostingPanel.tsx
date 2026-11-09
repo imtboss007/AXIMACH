@@ -89,10 +89,12 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   },[]);
   const vendors=activeRows(data.vendors);
   const parts=activeRows(data.componentParts||[]).filter(part=>part.componentId===componentId);
+  const relatedPoLines=activeRows(data.purchaseOrders||[]).filter(po=>!poId||po.id===poId).flatMap(po=>po.lines.filter(line=>!line.deletedAt&&line.componentId===componentId).map(line=>({po, line, part:parts.find(part=>part.id===line.partId)})));
   const entries=activeRows(data.materialCostEntries||[]).filter(entry=>entry.scope===scope&&entry.componentId===componentId&&(!poId||entry.poId===poId)&&(!poLineId||entry.poLineId===poLineId));
   const [expanded,setExpanded]=useState(false);
   const [target,setTarget]=useState<"component"|"part">(initialPartId?"part":"component");
   const [newPartMode,setNewPartMode]=useState(false);
+  const [selectedPoLineId,setSelectedPoLineId]=useState(poLineId);
   const [partId,setPartId]=useState(initialPartId);
   const [partName,setPartName]=useState("");
   const [partNumber,setPartNumber]=useState("");
@@ -137,6 +139,8 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const totalCost=materialCost+cuttingCost;
   const reset=()=>{setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");setShape("plate");setDimensions({});setDimensionUnits({});setMaterialId("");setNewMaterialOpen(false);setNewMaterialName("");setNewMaterialGrade("");setNewMaterialCode("");setNewDensity("");setMaterialRate("");setPriceUnit("kg");setQuantity("1");setVendorId("");setGivenDate("");setDeliveryDate("");setActualDeliveryDate("");setCuttingType("");setCustomCuttingType("");setCuttingBasis("Per piece");setCuttingRate("");setCutsPerPiece("1");setCuttingHours("0");setWastagePercent("0");setNotes("");};
   const selectPart=(id:string)=>{const part=parts.find(item=>item.id===id);setNewPartMode(false);setPartId(id);setPartName(part?.name||"");setPartNumber(part?.partNumber||"");setShape(part?.shapeType||"plate");setDimensions(Object.fromEntries(Object.entries(part?.dimensions||{}).map(([key,value])=>[key,String(value)])));setDimensionUnits(part?.dimensionUnits||{});setMaterialId(part?.materialId||"");const savedMaterial=materials.find(item=>item.id===part?.materialId);if(savedMaterial){setMaterialRate(String(savedMaterial.ratePerUnit||""));setPriceUnit(savedMaterial.priceUnit||"kg");setVendorId(part?.vendorIds?.[0]||savedMaterial.preferredVendorId||"");}};
+  const effectivePoLineId=scope==="process-map"?poLineId:selectedPoLineId;
+  const effectivePoLine=relatedPoLines.find(item=>item.line.id===effectivePoLineId);
   const save=()=>{
     const material=chosenMaterial;
     const materialName=newMaterialOpen?newMaterialName.trim():material?.name||"";
@@ -144,6 +148,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     const density= newMaterialOpen ? Math.max(0,Number(newDensity)||0)*(densityUnit==="g/cm3"?1000:1) : densityKgM3(material);
     if(!componentId){onNotice?.("Select a component before saving material costing.");return;}
     if(target==="part"&&!partName.trim()){onNotice?.("Enter a part name or select an existing part.");return;}
+    if(effectivePoLineId&&!relatedPoLines.some(item=>item.line.id===effectivePoLineId)){onNotice?.("The selected PO line does not belong to this component.");return;}
     if(!newMaterialOpen&&!material){onNotice?.("Select a material grade from Material Directory or add a new grade.");return;}
     if(newMaterialOpen&&(!materialName||!materialGrade||density<=0)){onNotice?.("Enter material name, grade and a positive density value.");return;}
     if(!Number.isFinite(qty)||qty<=0){onNotice?.("Enter a valid part quantity.");return;}
@@ -159,7 +164,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
       id:partId||makeId("component-part"),companyId,componentId,partNumber:partNumber.trim(),name:partName.trim(),revision:"",drawingReference:"",shapeType:shape,dimensions:Object.fromEntries(Object.entries(dimensions).map(([key,value])=>[key,Number(value)||0])),dimensionUnits,vendorIds:[...new Set([...(parts.find(row=>row.id===partId)?.vendorIds||[]),...(vendorId?[vendorId]:[])])],materialId:materialRecord?.id||"",notes:notes.trim(),createdAt:parts.find(row=>row.id===partId)?.createdAt||stamp,updatedAt:stamp
     }:undefined;
     const entry:MaterialCostEntryRecord={
-      id:makeId("material-cost"),scope,companyId,poId,poLineId,componentId,partId:part?.id||partId||"",partNumber:part?.partNumber||"",partName:part?.name||(componentName||componentNumber||"Component-level"),materialId:materialRecord?.id||"",materialName,materialGrade,densityKgM3:density,
+      id:makeId("material-cost"),scope,companyId,poId:effectivePoLine?.po.id||poId,poLineId:effectivePoLineId,componentId,partId:part?.id||effectivePoLine?.line.partId||partId||"",partNumber:part?.partNumber||"",partName:part?.name||(componentName||componentNumber||"Component-level"),materialId:materialRecord?.id||"",materialName,materialGrade,densityKgM3:density,
       shapeType:shape,dimensions:Object.fromEntries(Object.entries(dimensions).map(([key,value])=>[key,Number(value)||0])),dimensionUnits:{...dimensionUnits},quantity:qty,weightPerPieceKg:perPieceKg,totalWeightKg:totalWeightKg,priceUnit,materialRate:rate,materialCost,
       cuttingType:cuttingType==="Other"?customCuttingType.trim()||"Other":cuttingType,cuttingBasis,cuttingRate:cutRate,cutsPerPiece:Number(cutsPerPiece)||1,cuttingHours:Number(cuttingHours)||0,cuttingCost,wastagePercent:wastage,
       vendorId,givenDate,deliveryDate,actualDeliveryDate,poReference:"",notes:notes.trim(),currency:"INR",createdAt:stamp,updatedAt:stamp
@@ -188,6 +193,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
         <label>Allocation level<select value={partValue} onChange={event=>{if(event.target.value==="__component__"){setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");}else if(event.target.value==="__new__"){setTarget("part");setNewPartMode(true);setPartId("");setPartName("");setPartNumber("");setShape("plate");setDimensions({});setDimensionUnits({});setMaterialId("");}else{setTarget("part");selectPart(event.target.value);}}}><option value="__component__">Component only — no parts</option>{parts.map(part=><option key={part.id} value={part.id}>{part.partNumber?part.partNumber+" · ":""}{part.name}</option>)}<option value="__new__">＋ Add a new part under this component</option></select></label>
         {partValue==="__new__"&&<div className="module-form-wide"><strong>New part details</strong></div>}
         {target==="part"&&<><label>Part number<input value={partNumber} onChange={e=>setPartNumber(e.target.value)} placeholder="Part number / drawing number"/></label><label>Part name *<input value={partName} onChange={e=>setPartName(e.target.value)} placeholder="Rib, bracket, staple, plate…"/></label></>}
+        {scope==="planned-cost"&&<SearchablePicker id={"planned-material-po-line-"+componentId} label="PO line allocation (optional)" value={selectedPoLineId} placeholder="Optional: assign this material cost to a PO line…" options={relatedPoLines.map(item=>({id:item.line.id,label:item.po.number+" · "+(item.part?(item.part.partNumber?item.part.partNumber+" · ":"")+item.part.name:"Component-level")+" · Qty "+item.line.quantity}))} onChange={id=>{setSelectedPoLineId(id);const selected=relatedPoLines.find(item=>item.line.id===id);if(selected?.line.partId){setTarget("part");selectPart(selected.line.partId);}else if(id){setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");}}}/>}
         <SearchablePicker id={"material-shape-"+scope+"-"+componentId} label="Shape type *" value={shape} placeholder="Search shape / profile…" options={shapeOptions} onChange={setShape}/>
         <div className="module-form-wide ax-material-dimensions"><strong>Dimensions — choose a unit for each dimension</strong><div className="module-record-form">{chosenShape.fields.map(field=><div className="ax-material-dimension" key={field.key}><label>{field.label}{field.unit?" ("+field.unit+")":" *"}<input type="number" min="0" step="any" value={dimensions[field.key]||""} onChange={e=>setDimensions(current=>({...current,[field.key]:e.target.value}))}/></label>{!field.unit&&<select aria-label={field.label+" unit"} value={dimensionUnits[field.key]||"mm"} onChange={e=>setDimensionUnits(current=>({...current,[field.key]:e.target.value}))}>{UNITS.map(unit=><option key={unit}>{unit}</option>)}</select>}</div>)}</div></div>
         <div className="module-form-wide ax-material-picker"><SearchablePicker id={"material-grade-"+scope+"-"+componentId} label="Material / grade *" value={materialId} placeholder="Search material name, grade or code…" options={materialOptions} onChange={id=>{setMaterialId(id);setNewMaterialOpen(false);const item=materials.find(row=>row.id===id);if(item)setMaterialRate(String(item.ratePerUnit||""));}}/><button type="button" className="button-quiet compact-button" onClick={()=>{setNewMaterialOpen(value=>!value);setMaterialId("");}}><Plus size={13}/> Add material / grade</button></div>
