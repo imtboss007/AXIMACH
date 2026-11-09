@@ -1358,6 +1358,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
               pickupAt:shortDate(entry.transportPickupAt),
               deliveryAt:shortDate(entry.transportDeliveryAt),
               status:entry.transportStatus || "Planned",
+              materialCost:entry.materialCost || 0,
+              cuttingCost:entry.cuttingCost || 0,
               transportCost:entry.transportCost || 0
             };
           })} visibleFields={exportFields} showArrows={exportArrows} quantityUnit={quantityUnit} ganttScale={ganttScale} onGanttScaleChange={setGanttScale} operationTransportAmounts={Object.fromEntries(exportOperations.map(operation=>[operation.id,operationTransportAmount(operation)]))} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); if(selectedOperationPanelRef.current)selectedOperationPanelRef.current.open=true; }} onEditOperation={id=>editActive(id)} onChangeProcessColor={(id,color)=>updateOperation(id,{processColor:color})} onAddSubprocess={startAddSubprocess} onAddAlternateRoute={parentId=>startAddBranch("alternate",parentId)} onAddReworkRoute={parentId=>startAddBranch("rework",parentId)} onAddProcessDefinition={startAddDefinition} /></div>
