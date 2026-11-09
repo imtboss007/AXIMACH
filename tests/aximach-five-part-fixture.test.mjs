@@ -1643,3 +1643,19 @@ test("component part and independent material cost records are included in share
   assert.ok(server.includes('"componentParts"') && server.includes('"materialCostEntries"'));
   assert.ok(serverTests.includes("component parts and material cost streams sync independently"));
 });
+
+
+test("client-side shared data merge keeps saved parts and both cost scopes by record ID", () => {
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  assert.ok(data.includes("componentParts: mergeRows(local.componentParts, remote.componentParts)"));
+  assert.ok(data.includes("materialCostEntries: mergeRows(local.materialCostEntries, remote.materialCostEntries)"));
+  assert.ok(data.includes("componentParts: Array.isArray(value?.componentParts)"));
+  assert.ok(data.includes("materialCostEntries: Array.isArray(value?.materialCostEntries)"));
+});
+
+test("purchase-order deletion retains stand-alone material budgets but removes entries attached to that PO", () => {
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(master.includes("(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))"));
+  assert.ok(master.includes("componentParts:(current.componentParts||[]).filter(row=>!targetIds.has(row.componentId))"));
+  assert.ok(master.includes("materialCostEntries:(current.materialCostEntries||[]).filter(row=>!targetIds.has(row.componentId))"));
+});
