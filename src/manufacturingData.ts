@@ -24,6 +24,8 @@ export type ComponentRecord = {
 };
 export type PurchaseOrderLine = {
   id: string; componentId: string; quantity: number; targetDelivery: string; unitPrice?: number; notes: string;
+  /** A PO line can be component-level or assigned to one saved part; mixed POs use separate lines. */
+  allocationLevel?: "component" | "part"; partId?: string;
   jobStatus?: "In progress" | "Finished"; jobFinishedAt?: string; updatedAt?: string; deletedAt?: string;
   materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number;
   overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number;
@@ -111,7 +113,23 @@ export type InspectionMeasurementRecord = {
 };
 export type MaterialRecord = {
   id: string; code: string; name: string; grade: string; unit: string; specification: string;
-  preferredVendorId: string; ratePerUnit: number; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+  preferredVendorId: string; ratePerUnit: number; notes: string;
+  materialType?: string; densityKgM3?: number; densityUnit?: "kg/m3" | "g/cm3"; priceUnit?: "kg" | "lb";
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type ComponentPartRecord = {
+  id: string; companyId?: string; componentId: string; partNumber: string; name: string; revision: string; drawingReference: string;
+  shapeType: string; dimensions: Record<string, number>; dimensionUnits: Record<string, string>; materialId: string;
+  vendorIds: string[]; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type MaterialCostEntryRecord = {
+  id: string; scope: "process-map" | "planned-cost"; companyId?: string; poId?: string; poLineId?: string; componentId: string;
+  partId?: string; partNumber: string; partName: string; materialId: string; materialName: string; materialGrade: string; densityKgM3: number;
+  shapeType: string; dimensions: Record<string, number>; dimensionUnits: Record<string, string>; quantity: number;
+  weightPerPieceKg: number; totalWeightKg: number; priceUnit: "kg" | "lb"; materialRate: number; materialCost: number;
+  cuttingType: string; cuttingBasis: string; cuttingRate: number; cutsPerPiece: number; cuttingHours: number; cuttingCost: number; wastagePercent: number;
+  vendorId: string; givenDate: string; deliveryDate: string; actualDeliveryDate: string; poReference: string; notes: string; currency: "INR";
+  createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type BomLineRecord = {
   id: string; componentId: string; materialId: string; revision: string; quantityPerPart: number;
@@ -128,7 +146,7 @@ export type ManufacturingData = {
   updatedAt: string;
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
-  quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
+  quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
   contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
   transportRoutes: TransportRouteRecord[]; transportLegs: ComponentTransportLegRecord[];
@@ -145,7 +163,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: [],
+  operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
   followUpAssignments: []
 });
@@ -165,6 +183,8 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     operations: Array.isArray(value?.operations) ? value.operations : empty.operations,
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
+    componentParts: Array.isArray(value?.componentParts) ? value.componentParts : empty.componentParts,
+    materialCostEntries: Array.isArray(value?.materialCostEntries) ? value.materialCostEntries : empty.materialCostEntries,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
     inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
     contactProfiles: Array.isArray(value?.contactProfiles) ? value.contactProfiles : empty.contactProfiles,
