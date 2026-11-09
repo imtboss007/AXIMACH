@@ -242,8 +242,8 @@ export default function ProcessScene3D({operations,materialRoutes=[],visibleFiel
    const mat=materialPosition.get(item.route.id),trans=transportPosition.get(item.route.id);
    const from=item.fromOperation?positions.get(item.fromOperation.id):undefined;
    const to=item.toOperation?positions.get(item.toOperation.id):undefined;
-   if(from&&mat)add("material-in-"+item.route.id,item.fromOperation!.id,"__material__"+item.route.id,item.fromOperation!.name,"Material · "+item.route.materialLabel,from,mat,"material");
-   if(mat&&trans)add("material-transport-"+item.route.id,"__material__"+item.route.id,"__transport__"+item.route.id,"Material · "+item.route.materialLabel,"Transport · "+item.route.transporter,mat,trans,"material");
+   if(from&&mat)add("material-in-"+item.route.id,item.fromOperation!.id,"",item.fromOperation!.name,"Material · "+item.route.materialLabel,from,mat,"material");
+   if(mat&&trans)add("material-transport-"+item.route.id,"","","Material · "+item.route.materialLabel,"Transport · "+item.route.transporter,mat,trans,"material");
    if(trans&&to)add("transport-process-"+item.route.id,"__transport__"+item.route.id,item.toOperation!.id,"Transport · "+item.route.transporter,item.toOperation!.name,trans,to,"material");
   });
   return result;
@@ -281,7 +281,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],visibleFiel
      {visibleFields.includes("materialTransportCost")&&<small>Transport ₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
    </div>;})}
    {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
-     <small>{operationCode(op)} · {op.status}</small><strong>{op.name}</strong>
+     <small>{operationCode(op)}{visibleFields.includes("status")?" · "+op.status:""}</small><strong>{op.name}</strong>
      {visibleFields.includes("category")&&<small>CATEGORY · {op.category||"Not set"}</small>}
      {visibleFields.includes("subcategory")&&<small>SUB-PROCESS · {op.subcategory||"Not set"}</small>}
      {visibleFields.includes("quantity")&&<em>Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>}
