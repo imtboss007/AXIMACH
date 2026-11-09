@@ -1672,22 +1672,51 @@ test("Process Map keeps route lines visible independently of arrowhead visibilit
 
 test("Selecting a collapsed Process Map node opens its full operation detail record", () => {
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
-  assert.ok(universe.includes("onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(operation.id); }}"));
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("onExpandOperation={(id)=>setExpandedOperationId(id)}"));
+  assert.ok(scene.includes("onExpandOperation?.(op.id)"));
+  assert.ok(scene.includes('aria-controls="process-orbit-selected-details"'));
   assert.ok(universe.includes('id="process-orbit-selected-details"'));
   for (const field of ["PLANNED START · DATE &amp; TIME", "PLANNED DELIVERY · DATE &amp; TIME", "PLANNED QUANTITY", "PRICE / PART", "MACHINE / STATION", "TRANSPORT VENDOR"]) {
     assert.ok(universe.includes(field), "operation details missing " + field);
   }
 });
 
-test("Material allocations save their supplier-linked inbound transport and expose it in the Process Map", () => {
+test("Material allocations save supplier-linked inbound transport and appear in the Process Map", () => {
   const materialPanel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
   const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const schema = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
   assert.ok(materialPanel.includes("transportVendorId,transportFrom:transportFrom.trim(),transportTo:transportTo.trim()"));
   assert.ok(materialPanel.includes("transportCost:Math.max(0,Number(transportCost)||0)"));
   assert.ok(materialPanel.includes("Material inbound transport"));
   assert.ok(materialPanel.includes("Material transport route"));
-  assert.ok(processMap.includes("processMapMaterialEntries"));
-  assert.ok(processMap.includes("process-material-route-panel"));
-  assert.ok(processMap.includes("INBOUND TRANSPORT"));
-  assert.ok(processMap.includes("ALLOCATED TO"));
+  assert.ok(materialPanel.includes("if(!vendorId)"));
+  assert.ok(schema.includes("transportVendorId?: string; transportFrom?: string; transportTo?: string;"));
+  assert.ok(processMap.includes("const materialRouteEntries ="));
+  assert.ok(processMap.includes("materialRoutes={materialRouteEntries.map(entry=>"));
+  assert.ok(universe.includes("MATERIAL PROCUREMENT &amp; INBOUND TRANSPORT"));
+  assert.ok(universe.includes("route.materialLabel"));
+  assert.ok(universe.includes("route.transporter"));
+  assert.ok(processMap.includes("materialInboundTransportCost"));
+});
+
+
+test("Every PO part keeps its own main, alternate and rework process route group", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes('const routeGroupKey = (operation:OperationRecord) => (operation.poLineId || operation.componentId) + "::" + (operation.branch || "Main route")'));
+  assert.ok(universe.includes("const byBranch = new Map<string, OperationRecord[]>()"));
+  assert.ok(processMap.includes('op.poId === poId && op.componentId === selectedLine?.componentId'));
+  assert.ok(processMap.includes('op.poLineId===current.poLineId'));
+  assert.ok(processMap.includes('setBranchCostIncluded(branch, !laneOperations.some(op => op.costIncluded !== false), laneOperations[0]?.poLineId)'));
+});
+
+test("Material transport is separately costed from raw material and cutting", () => {
+  const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(panel.includes("transportCost:Math.max(0,Number(transportCost)||0)"));
+  assert.ok(panel.includes("money(entry.transportCost||0)"));
+  assert.ok(panel.includes("money(entry.materialCost+entry.cuttingCost+(entry.transportCost||0))"));
+  assert.ok(processMap.includes("materialInboundTransportCost"));
 });
