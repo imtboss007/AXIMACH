@@ -4,7 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type ComponentPartRec
 import SearchablePicker from "./SearchablePicker";
 
 type Scope = "process-map" | "planned-cost";
-type Props = { scope: Scope; companyId?: string; poId?: string; poLineId?: string; componentId: string; componentName?: string; componentNumber?: string; initialPartId?: string; processOptions?: OperationRecord[]; onNotice?: (value: string) => void };
+type Props = { scope: Scope; companyId?: string; poId?: string; poLineId?: string; componentId: string; componentName?: string; componentNumber?: string; initialPartId?: string; processOptions?: OperationRecord[]; onNotice?: (value: string) => void; requirePoLine?: boolean; startExpanded?: boolean };
 type DimensionKey = "length" | "width" | "thickness" | "diameter" | "outerDiameter" | "innerDiameter" | "wallThickness" | "outerWidth" | "outerHeight" | "height" | "legA" | "legB" | "flangeWidth" | "flangeThickness" | "webThickness" | "acrossFlats" | "crossSectionArea";
 type Shape = { id: string; label: string; fields: Array<{ key: DimensionKey; label: string; unit?: string }> };
 const SHAPES: Shape[] = [
@@ -91,7 +91,7 @@ function densityKgM3(material?:MaterialRecord) {
   return density;
 }
 
-export default function PartMaterialCostingPanel({scope,companyId="",poId="",poLineId="",componentId,componentName="",componentNumber="",initialPartId="",processOptions=[],onNotice}:Props) {
+export default function PartMaterialCostingPanel({scope,companyId="",poId="",poLineId="",componentId,componentName="",componentNumber="",initialPartId="",processOptions=[],onNotice,requirePoLine=false,startExpanded=false}:Props) {
   const {data,update}=useManufacturingData();
   const materials=activeRows(data.materials);
   useEffect(()=>{
@@ -107,7 +107,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const relatedPoLines=activeRows(data.purchaseOrders||[]).filter(po=>!poId||po.id===poId).flatMap(po=>po.lines.filter(line=>!line.deletedAt&&line.componentId===componentId).map(line=>({po, line, part:parts.find(part=>part.id===line.partId)})));
   // Show every saved part/material allocation for this component and PO, not only the currently selected PO line.
   const entries=activeRows(data.materialCostEntries||[]).filter(entry=>entry.scope===scope&&entry.componentId===componentId&&(!poId||entry.poId===poId));
-  const [expanded,setExpanded]=useState(false);
+  const [expanded,setExpanded]=useState(startExpanded);
   const [target,setTarget]=useState<"component"|"part">(initialPartId?"part":"component");
   const [newPartMode,setNewPartMode]=useState(false);
   const [selectedPoLineId,setSelectedPoLineId]=useState(poLineId);
@@ -166,6 +166,13 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const totalCost=materialCost+cuttingCost;
   const reset=()=>{setEditingEntryId("");setAnchorOperationId("");setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");setShape("plate");setDimensions({});setDimensionUnits({});setMaterialId("");setNewMaterialOpen(false);setNewMaterialName("");setNewMaterialType("");setNewMaterialGrade("");setNewMaterialCode("");setNewDensity("");setMaterialRate("");setPriceUnit("kg");setQuantity("1");setVendorId("");setGivenDate("");setDeliveryDate("");setActualDeliveryDate("");setTransportVendorId("");setTransportFrom("");setTransportTo("");setTransportVehicleType("");setTransportCost("");setTransportPickupAt("");setTransportDeliveryAt("");setTransportStatus("Planned");setCuttingType("");setCustomCuttingType("");setCuttingBasis("Per piece");setCuttingRate("");setCutsPerPiece("1");setCuttingHours("0");setWastagePercent("0");setNotes("");};
   const selectPart=(id:string)=>{const part=parts.find(item=>item.id===id);setNewPartMode(false);setPartId(id);setPartName(part?.name||"");setPartNumber(part?.partNumber||"");setShape(part?.shapeType||"plate");setDimensions(Object.fromEntries(Object.entries(part?.dimensions||{}).map(([key,value])=>[key,String(value)])));setDimensionUnits(part?.dimensionUnits||{});setMaterialId(part?.materialId||"");const savedMaterial=materials.find(item=>item.id===part?.materialId);if(savedMaterial){setMaterialRate(String(savedMaterial.ratePerUnit||""));setPriceUnit(savedMaterial.priceUnit||"kg");setVendorId(part?.vendorIds?.[0]||savedMaterial.preferredVendorId||"");}};
+  useEffect(()=>{
+    if(requirePoLine&&!selectedPoLineId&&relatedPoLines.length===1){
+      const onlyLine=relatedPoLines[0];
+      setSelectedPoLineId(onlyLine.line.id);
+      if(onlyLine.line.partId)selectPart(onlyLine.line.partId);
+    }
+  },[requirePoLine,selectedPoLineId,relatedPoLines.length]);
   const editEntry=(entry:MaterialCostEntryRecord)=>{
     const part=parts.find(item=>item.id===entry.partId);
     setExpanded(true);setEditingEntryId(entry.id);setNewMaterialOpen(false);setNewMaterialName("");setNewMaterialType("");setNewMaterialGrade("");setNewMaterialCode("");setNewDensity("");
@@ -183,6 +190,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     const materialGrade=newMaterialOpen?newMaterialGrade.trim():material?.grade||"";
     const density= newMaterialOpen ? Math.max(0,Number(newDensity)||0)*(densityUnit==="g/cm3"?1000:1) : densityKgM3(material);
     if(!componentId){onNotice?.("Select a component before saving material costing.");return;}
+    if(requirePoLine&&!effectivePoLineId){onNotice?.("Select the exact PO component line before saving this Material Directory allocation.");return;}
     if(!vendorId){onNotice?.("Link this material entry to its supplier/vendor before saving.");return;}
     if(target==="part"&&!partName.trim()){onNotice?.("Enter a part name or select an existing part.");return;}
     if(effectivePoLineId&&!relatedPoLines.some(item=>item.line.id===effectivePoLineId)){onNotice?.("The selected PO line does not belong to this component.");return;}
@@ -202,8 +210,13 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
         : {id:makeId("material"),code:newMaterialCode.trim()||makeId("MAT").toUpperCase(),name:materialName,grade:materialGrade,unit:"kg",specification:"Typical room-temperature reference density in kg/m³. Reference tables: https://mlc.org.uk/guides/metal-density-chart and https://calibr.pro/tables/density-of-materials-chart/. Confirm the exact grade and supplier certificate.",preferredVendorId:vendorId,ratePerUnit:rate,notes:"Created from "+scope+" material procurement; density reference is typical only, supplier certificate takes priority.",densityKgM3:density,densityUnit:"kg/m3",materialType:newMaterialType.trim()||materialName,priceUnit,createdAt:stamp,updatedAt:stamp};
     }
     const nextMaterials=materialRecord?[materialRecord,...data.materials.filter(row=>row.id!==materialRecord!.id)]:data.materials;
+    const existingPart=parts.find(row=>row.id===partId);
     const part:ComponentPartRecord|undefined=target==="part"?{
-      id:partId||makeId("component-part"),companyId,componentId,partNumber:partNumber.trim(),name:partName.trim(),revision:"",drawingReference:"",shapeType:shape,dimensions:Object.fromEntries(Object.entries(dimensions).map(([key,value])=>[key,Number(value)||0])),dimensionUnits,vendorIds:[...new Set([...(parts.find(row=>row.id===partId)?.vendorIds||[]),...(vendorId?[vendorId]:[])])],materialId:materialRecord?.id||"",notes:notes.trim(),createdAt:parts.find(row=>row.id===partId)?.createdAt||stamp,updatedAt:stamp
+      id:existingPart?.id||partId||makeId("component-part"),companyId,componentId,partNumber:partNumber.trim(),name:partName.trim(),revision:existingPart?.revision||"",drawingReference:existingPart?.drawingReference||"",
+      shapeType:existingPart?.shapeType||shape,
+      dimensions:existingPart&&Object.keys(existingPart.dimensions||{}).length?existingPart.dimensions:Object.fromEntries(Object.entries(dimensions).map(([key,value])=>[key,Number(value)||0])),
+      dimensionUnits:existingPart&&Object.keys(existingPart.dimensionUnits||{}).length?existingPart.dimensionUnits:dimensionUnits,
+      vendorIds:[...new Set([...(existingPart?.vendorIds||[]),...(vendorId?[vendorId]:[])])],materialId:existingPart?.materialId||materialRecord?.id||"",notes:existingPart?.notes||notes.trim(),createdAt:existingPart?.createdAt||stamp,updatedAt:stamp
     }:undefined;
     const entry:MaterialCostEntryRecord={
       id:editingEntryId||makeId("material-cost"),scope,companyId,poId:effectivePoLine?.po.id||poId,poLineId:effectivePoLineId,componentId,anchorOperationId:anchorOperationId||undefined,partId:part?.id||effectivePoLine?.line.partId||partId||"",partNumber:part?.partNumber||"",partName:part?.name||(componentName||componentNumber||"Component-level"),materialId:materialRecord?.id||"",materialName,materialGrade,densityKgM3:density,
@@ -237,7 +250,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
         {partValue==="__new__"&&<div className="module-form-wide"><strong>New part details</strong></div>}
         {target==="part"&&<><label>Part number<input value={partNumber} onChange={e=>setPartNumber(e.target.value)} placeholder="Part number / drawing number"/></label><label>Part name *<input value={partName} onChange={e=>setPartName(e.target.value)} placeholder="Rib, bracket, staple, plate…"/></label></>}
         <label className="module-form-wide">Procurement timing<select value={anchorOperationId} onChange={e=>setAnchorOperationId(e.target.value)}><option value="">Before first manufacturing process · Route start</option>{processOptions.slice().sort((a,b)=>a.sequence-b.sequence).map(operation=><option key={operation.id} value={operation.id}>After OP-{String(operation.sequence).padStart(3,"0")} · {operation.name}{operation.branch&&operation.branch!=="Main route"?" · "+operation.branch:""}</option>)}</select><small>Use this when the material is purchased later in the route. It stays linked to the selected process step.</small></label>
-        <SearchablePicker id={"material-po-line-"+scope+"-"+componentId} label="PO line allocation (optional)" value={selectedPoLineId} placeholder="Component-level or choose a part PO line…" options={[{id:"__component__",label:"Component-level — no part allocation"},...relatedPoLines.map(item=>({id:item.line.id,label:item.po.number+" · "+(item.part?(item.part.partNumber?item.part.partNumber+" · ":"")+item.part.name:"Component-level")+" · Qty "+item.line.quantity}))]} onChange={id=>{if(id==="__component__"){setSelectedPoLineId("");setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");return;}setSelectedPoLineId(id);const selected=relatedPoLines.find(item=>item.line.id===id);if(selected?.line.partId){setTarget("part");selectPart(selected.line.partId);}else if(id){setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");}}}/>
+        <SearchablePicker id={"material-po-line-"+scope+"-"+componentId} label={requirePoLine?"PO line allocation *":"PO line allocation (optional)"} value={selectedPoLineId} placeholder={requirePoLine?"Select exact PO component line / part…":"Component-level or choose a part PO line…"} options={[...(requirePoLine?[]:[{id:"__component__",label:"Component-level — no part allocation"}]),...relatedPoLines.map(item=>({id:item.line.id,label:item.po.number+" · "+(item.part?(item.part.partNumber?item.part.partNumber+" · ":"")+item.part.name:"Component-level / add part")+" · Qty "+item.line.quantity}))]} onChange={id=>{if(id==="__component__"){setSelectedPoLineId("");setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");return;}setSelectedPoLineId(id);const selected=relatedPoLines.find(item=>item.line.id===id);if(selected?.line.partId){setTarget("part");selectPart(selected.line.partId);}else if(id){setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");}}}/>
         <SearchablePicker id={"material-shape-"+scope+"-"+componentId} label="Shape type *" value={shape} placeholder="Search shape / profile…" options={shapeOptions} onChange={setShape}/>
         <div className="module-form-wide ax-material-dimensions"><strong>Dimensions — choose a unit for each dimension</strong><div className="module-record-form">{chosenShape.fields.map(field=><div className="ax-material-dimension" key={field.key}><label>{field.label}{field.unit?" ("+field.unit+")":" *"}<input type="number" min="0" step="any" value={dimensions[field.key]||""} onChange={e=>setDimensions(current=>({...current,[field.key]:e.target.value}))}/></label>{!field.unit&&<select aria-label={field.label+" unit"} value={dimensionUnits[field.key]||"mm"} onChange={e=>setDimensionUnits(current=>({...current,[field.key]:e.target.value}))}>{UNITS.map(unit=><option key={unit}>{unit}</option>)}</select>}</div>)}</div></div>
         <div className="module-form-wide ax-material-picker"><SearchablePicker id={"material-grade-"+scope+"-"+componentId} label="Material / grade *" value={materialId} placeholder="Search material name, grade or code…" options={materialOptions} onChange={id=>{setMaterialId(id);setNewMaterialOpen(false);const item=materials.find(row=>row.id===id);if(item){setMaterialRate(String(item.ratePerUnit||""));setPriceUnit(item.priceUnit||"kg");if(item.preferredVendorId)setVendorId(item.preferredVendorId);}}}/><button type="button" className="button-quiet compact-button" onClick={()=>{setNewMaterialOpen(value=>!value);setMaterialId("");}}><Plus size={13}/> Add material / grade</button></div>
