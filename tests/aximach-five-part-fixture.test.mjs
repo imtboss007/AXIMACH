@@ -764,7 +764,10 @@ test("3D process orbit renders route arrows and preserves hidden parent origins 
   assert.ok(universe.includes("anchors={orbitConnections.anchors}"));
   assert.ok(scene.includes("const pointById=new Map(geometryPoints.map"));
   assert.ok(scene.includes("routeEdges.forEach"));
-  assert.ok(scene.includes("arrowHeadMesh(tip,q,.075)"));
+  assert.ok(scene.includes("arrowHeadMesh(tip,q,.095)"));
+  assert.ok(scene.includes("const a0p={x:a.x+r0.x*r,y:a.y+r0.y*r,z:a.z+r0.z*r}"));
+  assert.ok(scene.includes("const b0p={x:b.x+r0.x*r,y:b.y+r0.y*r,z:b.z+r0.z*r}"), "route cylinders must connect both source and target points");
+  assert.ok(scene.includes("SPHERE_GUIDE_MESH"), "Sphere mode must render a full 3D globe guide");
   assert.ok(scene.includes("anchorPoints.forEach"));
 });
 
@@ -1014,7 +1017,7 @@ test("process glyph lookup uses the full Process Directory definition and render
 test("Process Universe field visibility is applied to both orbit and connected route nodes", () => {
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   for (const field of ["status", "execution", "tolerance", "paymentStatus", "machine"]) {
-    assert.equal((universe.match(new RegExp('fieldVisible\\("' + field + '"\\)', "g")) || []).length, 2, field + " must be rendered in both layouts");
+    assert.equal((universe.match(new RegExp('fieldVisible\\("' + field + '"\\)', "g")) || []).length, 1, field + " remains in the compact route-node view; expanded records always show the full data");
   }
   assert.ok(universe.includes('fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>'));
 });
@@ -1036,7 +1039,7 @@ test("selected-operation and selected-branch route scopes require an explicit se
 
 test("Process Universe payment visibility uses the Process Plan export field ID", () => {
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
-  assert.equal(universe.split('fieldVisible("paymentStatus")').length - 1, 2);
+  assert.equal(universe.split('fieldVisible("paymentStatus")').length - 1, 1);
 });
 
 test("Icon Studio strips saved outline/filled prefixes before rendering Tabler class names", () => {
@@ -1196,13 +1199,47 @@ test("Process Universe sphere nodes reveal a real linked detail panel and can co
   const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   assert.ok(scene.includes('aria-controls="process-orbit-selected-details"'));
-  assert.ok(scene.includes("aria-expanded={selectedOperationId===op.id}"));
+  assert.ok(scene.includes("aria-expanded={expandedOperationId===op.id}"));
   assert.ok(universe.includes('id="process-orbit-selected-details"'));
   assert.ok(universe.includes("{expandedOrbitOperation && <section"));
   assert.ok(universe.includes('onClick={() => setExpandedOperationId("")}'));
-  assert.ok(universe.includes("const expandedOrbitOperation = displayOperations.find(operation => operation.id === expandedOperationId);"));
+  assert.ok(universe.includes("const expandedOrbitOperation = lookupOperations.find(operation => operation.id === expandedOperationId) || displayOperations.find(operation => operation.id === expandedOperationId);"));
   assert.ok(styles.includes(".process-orbit-selected-details{"));
 });
+
+
+test("Expanded Process Universe records always show full schedule, vendor, quantity, rate, costing and production details", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const start = universe.indexOf('<div className="process-orbit-selected-grid">');
+  const details = universe.slice(start, universe.indexOf('{(expandedOrbitSubprocesses', start));
+  for (const field of ["PLANNED START · DATE &amp; TIME","PLANNED DELIVERY · DATE &amp; TIME","VENDOR","PLANNED QUANTITY","PRICE / PART","PROCESS AMOUNT","PAYMENT STATUS","TRANSPORT VENDOR","INSPECTION RESULT"]) {
+    assert.ok(details.includes(field), "expanded process details must include "+field);
+  }
+  assert.ok(!details.includes("fieldVisible("), "CSV export field selection must not hide operational record fields");
+  assert.ok(universe.includes("lookupOperations.find(operation => operation.id === expandedOperationId)"), "subprocess records must also be expandable");
+});
+
+test("Sphere view is a full 3D globe with visible route cylinders and distinct alternate/rework node identifiers", () => {
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  assert.ok(scene.includes("const SPHERE_GUIDE_MESH = sphereWireMesh(1.025)"));
+  assert.ok(scene.includes("draw(SPHERE_GUIDE_MESH"));
+  assert.ok(scene.includes("function operationCode(operation:OperationRecord)"));
+  assert.ok(scene.includes('"ALT"'));
+  assert.ok(scene.includes('"REWORK"'));
+  assert.ok(scene.includes("draw(lineMesh(p,q,.026),rgb)"));
+});
+
+test("3D Gantt view uses saved planned/actual date ranges as volumetric duration bars and preserves time scale controls", () => {
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(scene.includes("function ganttSegment(index:number,rows:OperationRecord[])"));
+  assert.ok(scene.includes("draw(lineMesh(segment.start,segment.end,.071),rgb)"));
+  assert.ok(universe.includes('layoutMode === "gantt"'));
+  assert.ok(universe.includes('value={ganttScale}'));
+  assert.ok(workspace.includes("ganttScale={ganttScale} onGanttScaleChange={setGanttScale}"));
+});
+
 
 test("Process Universe route sections can independently expand and collapse", () => {
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
