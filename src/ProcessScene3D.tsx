@@ -108,8 +108,8 @@ function operationCode(operation:OperationRecord):string{
 type ProjectedPoint={x:number;y:number;z:number};
 type LabelCandidate={id:string;screen:ProjectedPoint;kind:"operation"|"material"|"transport"};
 function relaxLabels(items:LabelCandidate[],width:number,height:number){
- const cardWidth=width<600?Math.min(116,width*.31):Math.min(168,width*.36);
- const cardHeight=width<600?96:132;
+ const cardWidth=width<600?Math.min(166,width*.44):Math.min(220,width*.36);
+ const cardHeight=width<600?188:190;
  const placed=items.map((item,index)=>({...item,screen:{...item.screen},index}));
  const minX=cardWidth/2+7,maxX=Math.max(cardWidth/2+7,width-cardWidth/2-7);
  const minY=cardHeight/2+24,maxY=Math.max(cardHeight/2+24,height-cardHeight/2-48);
@@ -290,13 +290,13 @@ export default function ProcessScene3D({operations,materialRoutes=[],visibleFiel
    {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
      <small>{operationCode(op)}{visibleFields.includes("status")?" · "+op.status:""}</small><strong>{op.name}</strong>
      <small>CATEGORY · {op.category||"Not set"}</small>
-     {visibleFields.includes("subcategory")&&<small>SUB-PROCESS · {op.subcategory||"Not set"}</small>}
-     {visibleFields.includes("quantity")&&<em>Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>}
-     {visibleFields.includes("plannedStart")&&<small className="ax-full3d-node-meta">Given / start · {nodeDateTime(op.plannedStart)}</small>}
-     {visibleFields.includes("plannedEnd")&&<small className="ax-full3d-node-meta">Delivery / due · {nodeDateTime(op.plannedEnd)}</small>}
-     {visibleFields.includes("vendor")&&<small className="ax-full3d-node-meta">Vendor · {vendors.find(vendor=>vendor.id===op.vendorId)?.company||"Vendor not assigned"}</small>}
+     <small>SUB-PROCESS · {op.subcategory||"Not set"}</small>
+     <em>Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>
+     <small className="ax-full3d-node-meta">Given / start · {nodeDateTime(op.plannedStart)}</small>
+     <small className="ax-full3d-node-meta">Delivery / due · {nodeDateTime(op.plannedEnd)}</small>
+     <small className="ax-full3d-node-meta">Vendor · {vendors.find(vendor=>vendor.id===op.vendorId)?.company||"Vendor not assigned"}</small>
      {visibleFields.includes("price")&&<small className="ax-full3d-node-meta">Rate · ₹{(op.actualRatePerPart>0?op.actualRatePerPart:op.ratePerPart).toLocaleString("en-IN",{maximumFractionDigits:2})}/{quantityUnit==="sets"?"set":"piece"}</small>}
-     {visibleFields.includes("amount")&&<small className="ax-full3d-node-meta">Linked amount · ₹{(op.quantity*(op.actualRatePerPart>0?op.actualRatePerPart:op.ratePerPart)).toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
+     <small className="ax-full3d-node-meta">Linked amount · ₹{(op.quantity*(op.actualRatePerPart>0?op.actualRatePerPart:op.ratePerPart)).toLocaleString("en-IN",{maximumFractionDigits:2})}</small>
    </button>)}
    {projectedCatalogue.map(({definition,screen},index)=>screen&&<button key={definition.id} type="button" className="ax-full3d-label ax-full3d-catalogue-label" style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>onAddCatalogue?.(definition.id)} disabled={!onAddCatalogue} aria-label={"Add "+definition.processType+" to this PO line"}><small>LIB-{String(index+1).padStart(2,"0")}</small><strong>{definition.processType}</strong><em>{definition.category} · ADD STAGE</em></button>)}
   </div>
