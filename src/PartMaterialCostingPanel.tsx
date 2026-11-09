@@ -193,7 +193,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
       materialCostEntries:[entry,...(current.materialCostEntries||[]).filter(row=>row.id!==entry.id)]
     }));
     reset();
-    onNotice?.((scope==="process-map"?"Process Map":"Component Planned Cost")+" material entry saved: "+money(materialCost)+" material + "+money(cuttingCost)+" cutting = "+money(totalCost)+".");
+    onNotice?.((scope==="process-map"?"Process Map":"Component Planned Cost")+" material entry saved: "+money(materialCost)+" material + "+money(cuttingCost)+" cutting + "+money(Math.max(0,Number(transportCost)||0))+" transport.");
   };
   const archive=(entry:MaterialCostEntryRecord)=>{
     const stamp=nowIso();
@@ -222,9 +222,9 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
         <div className="module-form-wide ax-material-calculation"><div><span>Volume / piece</span><strong>{(volumeMm3/1_000_000_000).toFixed(6)} m³</strong></div><div><span>Weight / piece</span><strong>{perPieceKg.toFixed(3)} kg</strong></div><div><span>Total weight</span><strong>{totalWeightKg.toFixed(3)} kg · {(totalWeightKg*kgToLb).toFixed(3)} lb</strong></div><div><span>Material cost</span><strong>{money(materialCost)}</strong></div></div>
         <div className="module-form-wide ax-cutting-cost-box"><div className="panel-heading"><div><h4><Scissors size={15}/> Cutting charge — separate from material</h4><p>Choose a cutting method and its own pricing basis. No cutting fee is assumed when left blank.</p></div></div><div className="module-record-form"><label>Cutting type<select value={cuttingType} onChange={e=>setCuttingType(e.target.value)}><option value="">No cutting charge</option>{CUT_TYPES.map(type=><option key={type}>{type}</option>)}</select></label>{cuttingType==="Other"&&<label>Other cutting type<input value={customCuttingType} onChange={e=>setCustomCuttingType(e.target.value)}/></label>}<label>Charge basis<select value={cuttingBasis} onChange={e=>setCuttingBasis(e.target.value)}>{CUT_BASES.map(basis=><option key={basis}>{basis}</option>)}</select></label><label>Cut rate (₹)<input type="number" min="0" step="any" value={cuttingRate} onChange={e=>setCuttingRate(e.target.value)} placeholder="e.g. 59"/></label>{cuttingBasis==="Per cut"&&<label>Cuts per piece<input type="number" min="1" step="1" value={cutsPerPiece} onChange={e=>setCutsPerPiece(e.target.value)}/></label>}{cuttingBasis==="Per hour"&&<label>Hours<input type="number" min="0" step="any" value={cuttingHours} onChange={e=>setCuttingHours(e.target.value)}/></label>}<div className="module-form-wide ax-material-calculation"><div><span>Cutting cost</span><strong>{money(cuttingCost)}</strong></div><div><span>Material + cutting total</span><strong>{money(totalCost)}</strong></div></div></div></div>
         <SearchablePicker id={"material-vendor-"+scope+"-"+componentId} label="Vendor for this part / material" value={vendorId} placeholder="Search supplier…" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+vendor.contact}))} onChange={setVendorId}/>
-        <label>Given date<input type="date" value={givenDate} onChange={e=>setGivenDate(e.target.value)}/></label>
-        <label>Expected delivery date<input type="date" value={deliveryDate} onChange={e=>setDeliveryDate(e.target.value)}/></label>
-        <label>Actual delivery date<input type="date" value={actualDeliveryDate} onChange={e=>setActualDeliveryDate(e.target.value)}/></label>
+        <label>Material given date/time<input type="datetime-local" value={givenDate} onChange={e=>setGivenDate(e.target.value)}/></label>
+        <label>Expected material delivery date/time<input type="datetime-local" value={deliveryDate} onChange={e=>setDeliveryDate(e.target.value)}/></label>
+        <label>Actual material receipt date/time<input type="datetime-local" value={actualDeliveryDate} onChange={e=>setActualDeliveryDate(e.target.value)}/></label>
         <div className="module-form-wide ax-material-transport">
           <div className="panel-heading"><div><h4><Truck size={15}/> Material inbound transport</h4><p>Assign transport directly to this material entry. Transport cost remains separate from material and cutting cost.</p></div></div>
           <div className="module-record-form">
@@ -233,8 +233,8 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
             <label>Delivery location<input value={transportTo} onChange={e=>setTransportTo(e.target.value)} placeholder="Factory / destination"/></label>
             <label>Vehicle type<input value={transportVehicleType} onChange={e=>setTransportVehicleType(e.target.value)} placeholder="Truck, tempo, trailer…"/></label>
             <label>Transport cost (₹)<input type="number" min="0" step="any" value={transportCost} onChange={e=>setTransportCost(e.target.value)} placeholder="Separate transport charge"/></label>
-            <label>Pickup date<input type="date" value={transportPickupAt} onChange={e=>setTransportPickupAt(e.target.value)}/></label>
-            <label>Transport delivery date<input type="date" value={transportDeliveryAt} onChange={e=>setTransportDeliveryAt(e.target.value)}/></label>
+            <label>Pickup date/time<input type="datetime-local" value={transportPickupAt} onChange={e=>setTransportPickupAt(e.target.value)}/></label>
+            <label>Transport delivery date/time<input type="datetime-local" value={transportDeliveryAt} onChange={e=>setTransportDeliveryAt(e.target.value)}/></label>
             <label>Transport status<select value={transportStatus} onChange={e=>setTransportStatus(e.target.value as "Planned"|"Queued"|"Running"|"Complete"|"Delayed")}><option>Planned</option><option>Queued</option><option>Running</option><option>Complete</option><option>Delayed</option></select></label>
           </div>
         </div>
