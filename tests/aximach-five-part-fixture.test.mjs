@@ -784,7 +784,7 @@ test("Process route scope keeps original parent arrows visible and each 3D view 
   assert.ok(workspace.includes("initialLayout={visualStyle}"));
   assert.ok(universe.includes('initialLayout = "sphere"'));
   assert.ok(universe.includes("useState<ProcessLayoutMode>(initialLayout)"));
-  assert.ok(universe.includes("while (ancestor && (ancestor.branch || \"Main route\") === name"));
+  assert.ok(universe.includes("while (ancestor && routeGroupKey(ancestor) === key"));
   assert.ok(universe.includes("[parentOperations, lookupOperations]"));
 });
 
@@ -1233,7 +1233,7 @@ test("3D Gantt view uses saved planned/actual date ranges as volumetric duration
   const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(scene.includes("function ganttSegment(index:number,rows:OperationRecord[])"));
+  assert.ok(scene.includes('function ganttSegment(index:number,rows:OperationRecord[],scale:"day"|"week"|"month"="week")'));
   assert.ok(scene.includes("draw(lineMesh(segment.start,segment.end,.071),rgb)"));
   assert.ok(universe.includes('layoutMode === "gantt"'));
   assert.ok(universe.includes('value={ganttScale}'));
@@ -1245,7 +1245,7 @@ test("Process Universe route sections can independently expand and collapse", ()
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   assert.ok(universe.includes("const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);"));
-  assert.ok(universe.includes("const collapsed = collapsedLaneNames.includes(lane.name);"));
+  assert.ok(universe.includes("const collapsed = collapsedLaneNames.includes(lane.key);"));
   assert.ok(universe.includes('className="process-universe-lane-toggle"'));
   assert.ok(universe.includes("aria-expanded={!collapsed}"));
   assert.ok(universe.includes('className="process-universe-lane-content" hidden={collapsed}'));
