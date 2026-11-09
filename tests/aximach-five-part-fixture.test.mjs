@@ -1783,3 +1783,13 @@ test("3D Gantt does not fabricate schedule dates for operations without date-tim
   assert.ok(scene.includes("NO SCHEDULE DATES"));
   assert.ok(!scene.includes("events.length?Math.min(...events):Date.now()"));
 });
+
+test("Process Map route cards always display process category and cannot clear it", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('setCardVisibleFields(["category"])'));
+  assert.ok(workspace.includes('checked={field.key==="category"||cardVisibleFields.includes(field.key)}'));
+  assert.ok(workspace.includes('disabled={field.key==="category"}'));
+  assert.ok(scene.includes('<small>CATEGORY · {op.category||"Not set"}</small>'));
+  assert.ok(!scene.includes('{visibleFields.includes("category")&&<small>CATEGORY'));
+});
