@@ -2223,3 +2223,29 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .ax-full3d-material-allocation strong{font:700 8px/1.25 "Space Grotesk",sans-serif;color:#073c59;overflow-wrap:anywhere}
 .ax-full3d-material-allocation small{font:6.5px/1.35 "DM Mono",monospace;color:#075d79;overflow-wrap:anywhere}
 @media(max-width:600px){.ax-full3d-material-label{max-height:220px;overflow:visible}.ax-full3d-material-allocation-list{max-height:135px}.ax-full3d-material-allocation strong{font-size:7px}.ax-full3d-material-allocation small{font-size:5.5px}}
+
+
+/* Process Map allocation cards: preserve every part/material/transport path in the 3D universe. */
+.process-card-display-fields{margin:0 0 12px;padding:12px 13px;border:1px solid rgba(72,148,207,.28);border-radius:12px;background:linear-gradient(135deg,rgba(8,37,65,.045),rgba(31,137,194,.075))}
+.process-card-display-fields .process-export-field-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:9px}
+.process-card-display-fields .process-export-field-actions strong{margin-right:auto;color:var(--text,#20364f);font-size:10px;letter-spacing:.07em}
+.process-card-display-fields .process-export-field-actions button{border:0;background:transparent;color:#1475a9;font-size:10px;font-weight:800;cursor:pointer}
+.process-card-display-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:7px 12px;max-height:210px;overflow:auto;padding:2px 3px 4px}
+.process-card-display-grid label{display:flex;align-items:center;gap:7px;min-width:0;color:var(--text,#20364f);font-size:10px;line-height:1.25}
+.process-card-display-grid input{flex:0 0 auto;accent-color:#087fbb}
+.ax-full3d-label-layer{z-index:12!important;pointer-events:none!important}
+.ax-full3d-label-layer .ax-full3d-route-arrow{z-index:13!important;pointer-events:auto!important}
+.ax-full3d-label-layer .ax-full3d-label{z-index:14!important;pointer-events:auto!important}
+.ax-full3d-route-arrow.material::before{background:linear-gradient(90deg,#057aa8,#31e7ff,#087dcb);box-shadow:0 0 9px rgba(46,224,255,.95),0 0 20px rgba(15,178,239,.55)}
+.ax-full3d-route-arrow.material::after{border-left-color:#5cf0ff}
+.ax-full3d-material-label{width:min(190px,38vw);min-height:118px;max-height:192px;overflow:auto;border:1.5px solid #25d9ef;background:linear-gradient(145deg,rgba(230,253,255,.99),rgba(188,237,250,.98));box-shadow:0 0 0 3px rgba(23,201,239,.16),0 0 24px rgba(18,207,245,.35),0 10px 28px rgba(0,9,25,.48)}
+.ax-full3d-material-label small:first-child{color:#087c9c;font-size:7px}
+.ax-full3d-material-label strong{color:#073c59;font-size:10px}
+.ax-full3d-material-label em{color:#087997;font-size:8px}
+.ax-full3d-transport-label{width:min(174px,36vw);min-height:94px;max-height:160px;overflow:auto;border:1.5px solid #559fff;background:linear-gradient(145deg,rgba(238,246,255,.99),rgba(194,219,250,.98));box-shadow:0 0 0 3px rgba(77,150,245,.14),0 0 22px rgba(70,145,245,.28),0 10px 28px rgba(0,9,25,.45)}
+.ax-full3d-transport-label small:first-child{color:#235eae}
+@media(max-width:600px){
+ .process-card-display-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:185px;gap:7px}
+ .ax-full3d-material-label{width:min(140px,36vw);min-height:105px;max-height:164px;padding:6px}
+ .ax-full3d-transport-label{width:min(128px,33vw);min-height:82px;max-height:132px;padding:6px}
+}
