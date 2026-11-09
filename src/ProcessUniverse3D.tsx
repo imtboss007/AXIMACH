@@ -53,13 +53,39 @@ function getLayoutPoint(index: number, operation: OperationRecord | undefined, m
     const half = (side - 1) / 2;
     return { x: (x-half)*112, y: (half-y)*112, z: (z-half)*112 };
   }
-  if (mode === "molecular" || mode === "nodes") {
-    return { x: sphere.x * 0.88 + Math.sin(index*1.7)*18, y: sphere.y * 0.88 + Math.cos(index*1.2)*16, z: sphere.z * 0.88 + Math.sin(index*0.8)*22 };
+  if (mode === "digital-mesh") {
+    // Ordered serpentine lattice: each successive operation sits beside the
+    // previous one, so the 3D arrows read as a route rather than crossing chords.
+    const columns = Math.max(2, Math.ceil(Math.sqrt(total)));
+    const row = Math.floor(index / columns);
+    const slot = index % columns;
+    const column = row % 2 === 0 ? slot : columns - 1 - slot;
+    const rows = Math.ceil(total / columns);
+    return { x: (column - (columns - 1) / 2) * 92, y: ((rows - 1) / 2 - row) * 78, z: branchOffset * 76 + Math.sin(index * 0.42) * 12 };
+  }
+  if (mode === "nodes") {
+    // A readable 3D hierarchy: route steps occupy staggered depth planes.
+    const columns = Math.max(2, Math.ceil(Math.sqrt(localCount)));
+    const row = Math.floor(localIndex / columns);
+    const column = localIndex % columns;
+    return { x: (column - (columns - 1) / 2) * 112, y: branchOffset * 104 + ((Math.ceil(localCount / columns) - 1) / 2 - row) * 94, z: (row % 2 ? 1 : -1) * 58 + branchOffset * 36 };
+  }
+  if (mode === "molecular") {
+    // Molecular clusters: each branch is a nucleus with linked process satellites.
+    const clusterAngle = branchIndex * (Math.PI * 2 / branchCount);
+    const satelliteAngle = localIndex * golden;
+    const radius = 82 + (localIndex % 3) * 28;
+    return { x: Math.cos(clusterAngle) * 72 + Math.cos(satelliteAngle) * radius, y: branchOffset * 54 + Math.sin(localIndex * 0.9) * 54, z: Math.sin(clusterAngle) * 72 + Math.sin(satelliteAngle) * radius };
   }
   if (mode === "orbit" || mode === "horizontal" || mode === "vertical") {
     if (mode === "horizontal") return { x: center * 116, y: branchOffset * 104 + Math.sin(index*0.7)*18, z: branchOffset * 58 + Math.cos(index*0.8)*34 };
     if (mode === "vertical") return { x: Math.cos(index*golden)*74, y: -center*112, z: Math.sin(index*golden)*74 };
-    return { x: sphere.x * 0.9, y: sphere.y * 0.9, z: sphere.z * 0.9 };
+    const orbitRing = Math.floor(Math.sqrt(index));
+    const orbitPosition = index - orbitRing * orbitRing;
+    const orbitCount = Math.max(1, 2 * orbitRing + 1);
+    const orbitAngle = orbitPosition / orbitCount * Math.PI * 2;
+    const orbitRadius = 72 + orbitRing * 58;
+    return { x: Math.cos(orbitAngle) * orbitRadius, y: branchOffset * 54 + (orbitRing % 2 ? 42 : -42), z: Math.sin(orbitAngle) * orbitRadius };
   }
   if (mode === "linear" || mode === "route") return { x: center*118, y: Math.sin(index*0.82)*42, z: Math.cos(index*0.67)*72 };
   if (mode === "timeline" || mode === "gantt") {
