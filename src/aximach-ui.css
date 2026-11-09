@@ -1961,3 +1961,14 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .process-orbit-auto-toggle:disabled{opacity:.58;cursor:not-allowed}
 .process-universe-head .process-universe-count{display:flex;flex-direction:column;align-items:center;gap:5px}
 @media(max-width:600px){.process-orbit-auto-toggle{font-size:7px;padding:4px 6px}.process-orbit-core-content small{font-size:6px!important}}
+
+/* The 3D universe replaces the legacy 2D route-lane canvas for every selected Process Plan view. */
+.process-universe-3d.mode-linear .process-universe-viewport,
+.process-universe-3d.mode-horizontal .process-universe-viewport,
+.process-universe-3d.mode-vertical .process-universe-viewport,
+.process-universe-3d.mode-timeline .process-universe-viewport,
+.process-universe-3d.mode-gantt .process-universe-viewport,
+.process-universe-3d.mode-nodes .process-universe-viewport,
+.process-universe-3d.mode-branch .process-universe-viewport,
+.process-universe-3d.mode-combined .process-universe-viewport{display:none!important}
+.process-orbit-core-webgl{background:radial-gradient(circle at 31% 22%,rgba(255,255,255,.94),transparent 24%),radial-gradient(circle at 52% 55%,#4e8fe9 0%,#1f5ba9 54%,#12386e 100%)}
