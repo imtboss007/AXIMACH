@@ -257,11 +257,12 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   };
   const exportPurchaseOrdersExcel = async (rows:PurchaseOrderRecord[]) => {
     if(!rows.length){onNotice("No purchase orders selected for export.");return;}const workbook=new ExcelJS.Workbook();workbook.creator="AXIMACH";const sheet=workbook.addWorksheet("Purchase Orders");
-    sheet.columns=[{header:"Logo",key:"logo",width:10},{header:"PO Number",key:"number",width:20},{header:"Company",key:"company",width:28},{header:"PO Date",key:"date",width:16},{header:"Target Delivery",key:"delivery",width:18},{header:"Status",key:"status",width:16},{header:"Component Number",key:"partNumber",width:22},{header:"Component Name",key:"component",width:34},{header:"Quantity",key:"quantity",width:14},{header:"Unit Price",key:"price",width:16},{header:"Line Delivery",key:"lineDelivery",width:18}];
+    sheet.columns=[{header:"Logo",key:"logo",width:10},{header:"PO Number",key:"number",width:20},{header:"Company",key:"company",width:28},{header:"PO Date",key:"date",width:16},{header:"Target Delivery",key:"delivery",width:18},{header:"Status",key:"status",width:16},{header:"Component Number",key:"partNumber",width:22},{header:"Component Name",key:"component",width:34},{header:"Part / Allocation",key:"part",width:34},{header:"Quantity",key:"quantity",width:14},{header:"Unit Price",key:"price",width:16},{header:"Line Delivery",key:"lineDelivery",width:18}];
     let exportRow=0;
     for(const po of rows)for(const line of po.lines){
       const component=components.find(row=>row.id===line.componentId);
-      sheet.addRow({number:po.number,company:companyName(po.companyId),date:po.issueDate,delivery:po.targetDelivery,status:po.status,partNumber:component?.partNumber||"",component:component?.name||"",quantity:line.quantity,price:component?.salePrice||0,lineDelivery:line.targetDelivery});
+      const componentPart=componentParts.find(row=>row.id===(line.partId||""));
+      sheet.addRow({number:po.number,company:companyName(po.companyId),date:po.issueDate,delivery:po.targetDelivery,status:po.status,partNumber:component?.partNumber||"",component:component?.name||"",part:line.partId?((componentPart?.partNumber||"")+" · "+(componentPart?.name||"")):"Component-level",quantity:line.quantity,price:component?.salePrice||0,lineDelivery:line.targetDelivery});
       if(component){const imageId=workbook.addImage({base64:await componentLogoPngBase64(component),extension:"png"});sheet.addImage(imageId,{tl:{col:0,row:exportRow+1},ext:{width:30,height:30}});}
       sheet.getRow(exportRow+2).height=28;
       exportRow++;
