@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronDown, Plus, Scissors, Trash2, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentPartRecord, type MaterialCostEntryRecord, type MaterialRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
@@ -79,11 +79,12 @@ function suggestedDensity(name:string,grade:string) {
 export default function PartMaterialCostingPanel({scope,companyId="",poId="",poLineId="",componentId,componentName="",componentNumber="",onNotice}:Props) {
   const {data,update}=useManufacturingData();
   const materials=activeRows(data.materials);
+  useEffect(()=>{\n    const existing=new Set(materials.map(item=>(item.name+"::"+item.grade).toLowerCase()));\n    const additions=MATERIAL_SEEDS.filter(item=>!existing.has((item.name+"::"+item.grade).toLowerCase())).map(item=>({\n      id:"material-seed-"+item.grade.toLowerCase().replace(/[^a-z0-9]+/g,"-"),code:item.grade.toUpperCase().replace(/[^A-Z0-9]+/g,"-"),name:item.name,grade:item.grade,unit:"kg",specification:"Typical reference density; verify against material certificate and supplier data.",preferredVendorId:"",ratePerUnit:0,notes:"Reference density only; editable for actual grade / certificate.",materialType:item.type,densityKgM3:item.density,densityUnit:"kg/m3" as const,priceUnit:"kg" as const,createdAt:nowIso(),updatedAt:nowIso()\n    }));\n    if(additions.length)update(current=>({...current,materials:[...additions,...current.materials]}));\n  // Seed once when the shared material catalogue is first opened.\n  // eslint-disable-next-line react-hooks/exhaustive-deps\n  },[]);
   const vendors=activeRows(data.vendors);
   const parts=activeRows(data.componentParts||[]).filter(part=>part.componentId===componentId);
   const entries=activeRows(data.materialCostEntries||[]).filter(entry=>entry.scope===scope&&entry.componentId===componentId&&(!poId||entry.poId===poId)&&(!poLineId||entry.poLineId===poLineId));
   const [expanded,setExpanded]=useState(false);
-  const [target,setTarget]=useState<"component"|"part">("component");
+  const [target,setTarget]=useState<"component"|"part">("component");\n  const [newPartMode,setNewPartMode]=useState(false);
   const [partId,setPartId]=useState("");
   const [partName,setPartName]=useState("");
   const [partNumber,setPartNumber]=useState("");
@@ -123,10 +124,10 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const materialCost=priceUnit==="kg"?totalWeightKg*rate:totalWeightKg*kgToLb*rate;
   const lengthM=dimMm("length",dimensions,dimensionUnits)/1000;
   const cutRate=Math.max(0,Number(cuttingRate)||0);
-  const cuttingCost=cuttingBasis==="Per piece"?cutRate*qty:cuttingBasis==="Per cut"?cutRate*qty*Math.max(1,Number(cutsPerPiece)||1):cuttingBasis==="Per kg"?cutRate*totalWeightKg:cuttingBasis==="Per metre"?cutRate*lengthM*qty:cuttingBasis==="Per hour"?cutRate*Math.max(0,Number(cuttingHours)||0):cutRate;
+  const cuttingCost=!cuttingType?0:cuttingBasis==="Per piece"?cutRate*qty:cuttingBasis==="Per cut"?cutRate*qty*Math.max(1,Number(cutsPerPiece)||1):cuttingBasis==="Per kg"?cutRate*totalWeightKg:cuttingBasis==="Per metre"?cutRate*lengthM*qty:cuttingBasis==="Per hour"?cutRate*Math.max(0,Number(cuttingHours)||0):cutRate;
   const totalCost=materialCost+cuttingCost;
-  const reset=()=>{setTarget("component");setPartId("");setPartName("");setPartNumber("");setShape("plate");setDimensions({});setDimensionUnits({});setMaterialId("");setNewMaterialOpen(false);setNewMaterialName("");setNewMaterialGrade("");setNewMaterialCode("");setNewDensity("");setMaterialRate("");setPriceUnit("kg");setQuantity("1");setVendorId("");setGivenDate("");setDeliveryDate("");setActualDeliveryDate("");setCuttingType("");setCustomCuttingType("");setCuttingBasis("Per piece");setCuttingRate("");setCutsPerPiece("1");setCuttingHours("0");setWastagePercent("0");setNotes("");};
-  const selectPart=(id:string)=>{const part=parts.find(item=>item.id===id);setPartId(id);setPartName(part?.name||"");setPartNumber(part?.partNumber||"");setShape(part?.shapeType||"plate");setDimensions(part?.dimensions||{});setDimensionUnits(part?.dimensionUnits||{});setMaterialId(part?.materialId||"");};
+  const reset=()=>{setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");setShape("plate");setDimensions({});setDimensionUnits({});setMaterialId("");setNewMaterialOpen(false);setNewMaterialName("");setNewMaterialGrade("");setNewMaterialCode("");setNewDensity("");setMaterialRate("");setPriceUnit("kg");setQuantity("1");setVendorId("");setGivenDate("");setDeliveryDate("");setActualDeliveryDate("");setCuttingType("");setCustomCuttingType("");setCuttingBasis("Per piece");setCuttingRate("");setCutsPerPiece("1");setCuttingHours("0");setWastagePercent("0");setNotes("");};
+  const selectPart=(id:string)=>{const part=parts.find(item=>item.id===id);setNewPartMode(false);setPartId(id);setPartName(part?.name||"");setPartNumber(part?.partNumber||"");setShape(part?.shapeType||"plate");setDimensions(Object.fromEntries(Object.entries(part?.dimensions||{}).map(([key,value])=>[key,String(value)])));setDimensionUnits(part?.dimensionUnits||{});setMaterialId(part?.materialId||"");const savedMaterial=materials.find(item=>item.id===part?.materialId);if(savedMaterial)setMaterialRate(String(savedMaterial.ratePerUnit||""));};
   const save=()=>{
     const material=chosenMaterial;
     const materialName=newMaterialOpen?newMaterialName.trim():material?.name||"";
@@ -146,7 +147,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     }
     const nextMaterials=materialRecord?[materialRecord,...data.materials.filter(row=>row.id!==materialRecord!.id)]:data.materials;
     const part:ComponentPartRecord|undefined=target==="part"?{
-      id:partId||makeId("component-part"),companyId,componentId,partNumber:partNumber.trim(),name:partName.trim(),revision:"",drawingReference:"",shapeType:shape,dimensions:Object.fromEntries(Object.entries(dimensions).map(([key,value])=>[key,Number(value)||0])),dimensionUnits,vendorIds:vendorId?[vendorId]:[],materialId:materialRecord?.id||"",notes:notes.trim(),createdAt:parts.find(row=>row.id===partId)?.createdAt||stamp,updatedAt:stamp
+      id:partId||makeId("component-part"),companyId,componentId,partNumber:partNumber.trim(),name:partName.trim(),revision:"",drawingReference:"",shapeType:shape,dimensions:Object.fromEntries(Object.entries(dimensions).map(([key,value])=>[key,Number(value)||0])),dimensionUnits,vendorIds:[...new Set([...(parts.find(row=>row.id===partId)?.vendorIds||[]),...(vendorId?[vendorId]:[])])],materialId:materialRecord?.id||"",notes:notes.trim(),createdAt:parts.find(row=>row.id===partId)?.createdAt||stamp,updatedAt:stamp
     }:undefined;
     const entry:MaterialCostEntryRecord={
       id:makeId("material-cost"),scope,companyId,poId,poLineId,componentId,partId:part?.id||partId||"",partNumber:part?.partNumber||"",partName:part?.name||(componentName||componentNumber||"Component-level"),materialId:materialRecord?.id||"",materialName,materialGrade,densityKgM3:density,
@@ -168,7 +169,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     update(current=>({...current,materialCostEntries:(current.materialCostEntries||[]).map(row=>row.id===entry.id?{...row,deletedAt:stamp,updatedAt:stamp}:row)}));
   };
   const partOptions=[{id:"__component__",label:"Component-level (no part breakdown)"},...parts.map(part=>({id:part.id,label:(part.partNumber?part.partNumber+" · ":"")+part.name}))];
-  const partValue=target==="component"?"__component__":partId;
+  const partValue=target==="component"?"__component__":newPartMode?"__new__":partId;
   const currentVendor=vendors.find(row=>row.id===vendorId);
   const shapeOptions=SHAPES.map(item=>({id:item.id,label:item.label}));
   const materialOptions=materials.map(item=>({id:item.id,label:item.code+" · "+item.name+" · "+item.grade+(item.densityKgM3?" · "+Number(item.densityKgM3).toLocaleString("en-IN")+" kg/m³":" · density required")}));
