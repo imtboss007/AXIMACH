@@ -1816,7 +1816,7 @@ test("3D route arrows stay enabled and narrow-screen process metadata is not hid
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
-  assert.ok(workspace.includes('showArrows={true}'));
+  assert.ok(workspace.includes('showArrows={exportArrows}'));
   assert.ok(workspace.includes('checked={exportArrows} disabled /> Connection arrows'));
   assert.ok(scene.includes('if(mat&&trans)add("material-transport-"'));
   assert.ok(scene.includes('if(trans&&to)add("transport-process-"'));
