@@ -7,7 +7,7 @@ import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
-type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
+type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
 function fallbackFor(name: string) {
   const value = name.toLowerCase();
@@ -114,17 +114,18 @@ function transformStyle3d(point: Point3D) {
   return `translate(-50%,-50%) translate3d(${point.x}px,${point.y}px,${point.z}px) rotateY(${yaw}deg) rotateX(${pitch}deg)`;
 }
 
-export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", onSelectOperation, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
+export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", ganttScale = "week", onGanttScaleChange, onSelectOperation, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);
   const fieldVisible = (field: string) => visibleFields.includes(field);
-  const dateLabel = (value?: string) => value ? value.slice(0, 10) : "Not set";
+  const dateLabel = (value?: string) => { if (!value) return "Not scheduled"; const parsed = new Date(value); return Number.isFinite(parsed.getTime()) ? parsed.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : value; };
+  const moneyLabel = (value: number) => "₹" + Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
   const displayOperations = parentOperations.length ? parentOperations : operations;
   const lookupOperations = allOperations || operations;
   const subprocessesFor = (parentId: string) => lookupOperations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
   const branchesFor = (parentId: string) => lookupOperations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
-  const expandedOrbitOperation = displayOperations.find(operation => operation.id === expandedOperationId);
+  const expandedOrbitOperation = lookupOperations.find(operation => operation.id === expandedOperationId) || displayOperations.find(operation => operation.id === expandedOperationId);
   const expandedOrbitSubprocesses = expandedOrbitOperation ? subprocessesFor(expandedOrbitOperation.id) : [];
   const expandedOrbitBranches = expandedOrbitOperation ? branchesFor(expandedOrbitOperation.id) : [];
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>(initialLayout);
@@ -268,29 +269,36 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
     </nav>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
-      {/* Branch-aware route connectors: orbitConnections.edges.map is rendered by the WebGL scene in shared camera space. */}\n      <ProcessScene3D operations={displayOperations} mode={layoutMode} selectedOperationId={selectedOperationId} onSelectOperation={onSelectOperation} onExpandOperation={(id)=>setExpandedOperationId(current=>current===id?"":id)} edges={orbitConnections.edges} coordinateOperations={coordinateOperations} anchors={orbitConnections.anchors} catalogue={showCatalogueOrbit ? processDefinitions : undefined} onAddCatalogue={onAddProcessDefinition} />
+      {layoutMode === "gantt" && <div className="process-gantt-toolbar process-gantt-3d-toolbar"><label>Time scale<select value={ganttScale} onChange={event => onGanttScaleChange?.(event.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>3D SCHEDULE · {displayOperations.length} PROCESS STEPS · DRAG TO ROTATE</span></div>}
+      {/* Branch-aware route connectors: orbitConnections.edges.map is rendered by the WebGL scene in shared camera space. */}\n      <ProcessScene3D operations={displayOperations} mode={layoutMode} selectedOperationId={selectedOperationId} expandedOperationId={expandedOperationId} onSelectOperation={onSelectOperation} onExpandOperation={(id)=>setExpandedOperationId(current=>current===id?"":id)} edges={orbitConnections.edges} coordinateOperations={coordinateOperations} anchors={orbitConnections.anchors} catalogue={showCatalogueOrbit ? processDefinitions : undefined} onAddCatalogue={onAddProcessDefinition} showArrows={showArrows} vendors={vendors} quantityUnit={quantityUnit} ganttScale={ganttScale} />
       
       <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>{showCatalogueOrbit ? "SELECT A DIRECTORY NODE TO CREATE A PO-LINE OPERATION" : "SELECT A PROCESS NODE TO OPEN ITS RECORD"}</span><span>SIMULATION IS VISUAL ONLY</span></div>
       {expandedOrbitOperation && <section className="process-orbit-selected-details" id="process-orbit-selected-details" aria-label={"Expanded details for " + expandedOrbitOperation.name}>
         <div className="process-orbit-selected-heading"><div><small>SELECTED PROCESS / OP-{String(expandedOrbitOperation.sequence).padStart(3,"0")}</small><strong>{expandedOrbitOperation.name}</strong></div><button type="button" onClick={() => setExpandedOperationId("")}>Collapse details −</button></div>
         <div className="process-orbit-selected-grid">
-          {fieldVisible("category") && <div><small>CATEGORY</small><strong>{expandedOrbitOperation.category || "Not set"}</strong></div>}
-          {fieldVisible("subcategory") && <div><small>SUBCATEGORY</small><strong>{expandedOrbitOperation.subcategory || "Not set"}</strong></div>}
-          {fieldVisible("vendor") && <div><small>VENDOR</small><strong>{vendors.find(vendor => vendor.id === expandedOrbitOperation.vendorId)?.company || "Not assigned"}</strong></div>}
-          {fieldVisible("plannedStart") && <div><small>START</small><strong>{dateLabel(expandedOrbitOperation.plannedStart)}</strong></div>}
-          {fieldVisible("plannedEnd") && <div><small>DELIVERY</small><strong>{dateLabel(expandedOrbitOperation.plannedEnd)}</strong></div>}
-          {fieldVisible("quantity") && <div><small>QUANTITY</small><strong>{expandedOrbitOperation.quantity.toLocaleString("en-IN")} {quantityUnit}</strong></div>}
-          {fieldVisible("completed") && <div><small>COMPLETED</small><strong>{expandedOrbitOperation.completed.toLocaleString("en-IN")} {quantityUnit}</strong></div>}
-          {fieldVisible("price") && <div><small>PRICE / PART</small><strong>₹{(expandedOrbitOperation.actualRatePerPart || expandedOrbitOperation.ratePerPart).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
-          {fieldVisible("amount") && <div><small>PROCESS AMOUNT</small><strong>₹{(expandedOrbitOperation.quantity * (expandedOrbitOperation.actualRatePerPart || expandedOrbitOperation.ratePerPart)).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
-          {fieldVisible("transportLegCost") && <div><small>TRANSPORT AMOUNT</small><strong>₹{(operationTransportAmounts[expandedOrbitOperation.id] || 0).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
-          {fieldVisible("combinedAmount") && <div><small>PROCESS + TRANSPORT</small><strong>₹{(expandedOrbitOperation.quantity * (expandedOrbitOperation.actualRatePerPart || expandedOrbitOperation.ratePerPart) + (operationTransportAmounts[expandedOrbitOperation.id] || 0)).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
-          {fieldVisible("status") && <div><small>STATUS</small><strong>{expandedOrbitOperation.status}</strong></div>}
-          {fieldVisible("execution") && <div><small>EXECUTION</small><strong>{expandedOrbitOperation.executionType || "Outsourced"}</strong></div>}
-          {fieldVisible("tolerance") && <div><small>TOLERANCE</small><strong>{expandedOrbitOperation.toleranceCategory || "Standard"}</strong></div>}
-          {fieldVisible("paymentStatus") && <div><small>PAYMENT</small><strong>{expandedOrbitOperation.paymentStatus || "Unpaid"}</strong></div>}
-          {fieldVisible("machine") && <div><small>MACHINE / STATION</small><strong>{expandedOrbitOperation.machine || "Not set"}</strong></div>}
-          {fieldVisible("description") && <div className="process-orbit-selected-wide"><small>OPERATION DETAILS</small><strong>{expandedOrbitOperation.notes || expandedOrbitOperation.qualityNotes || "Not set"}</strong></div>}
+          <div><small>CATEGORY</small><strong>{expandedOrbitOperation.category || "Not set"}</strong></div>
+          <div><small>PROCESS / SUBCATEGORY</small><strong>{expandedOrbitOperation.name}{expandedOrbitOperation.subcategory ? " · " + expandedOrbitOperation.subcategory : ""}</strong></div>
+          <div><small>VENDOR</small><strong>{vendors.find(vendor => vendor.id === expandedOrbitOperation.vendorId)?.company || "Vendor not assigned"}</strong></div>
+          <div><small>PLANNED START · DATE &amp; TIME</small><strong>{dateLabel(expandedOrbitOperation.plannedStart)}</strong></div>
+          <div><small>PLANNED DELIVERY · DATE &amp; TIME</small><strong>{dateLabel(expandedOrbitOperation.plannedEnd)}</strong></div>
+          <div><small>ACTUAL START · DATE &amp; TIME</small><strong>{dateLabel(expandedOrbitOperation.actualStart)}</strong></div>
+          <div><small>ACTUAL COMPLETION · DATE &amp; TIME</small><strong>{dateLabel(expandedOrbitOperation.actualEnd)}</strong></div>
+          <div><small>PLANNED QUANTITY</small><strong>{expandedOrbitOperation.quantity.toLocaleString("en-IN")} {quantityUnit}</strong></div>
+          <div><small>COMPLETED / ACCEPTED / REJECTED</small><strong>{expandedOrbitOperation.completed.toLocaleString("en-IN")} / {expandedOrbitOperation.accepted.toLocaleString("en-IN")} / {expandedOrbitOperation.rejected.toLocaleString("en-IN")} {quantityUnit}</strong></div>
+          <div><small>PRICE / PART</small><strong>{moneyLabel(expandedOrbitOperation.actualRatePerPart > 0 ? expandedOrbitOperation.actualRatePerPart : expandedOrbitOperation.ratePerPart)}</strong></div>
+          <div><small>PROCESS AMOUNT</small><strong>{moneyLabel(expandedOrbitOperation.quantity * (expandedOrbitOperation.actualRatePerPart > 0 ? expandedOrbitOperation.actualRatePerPart : expandedOrbitOperation.ratePerPart))}</strong></div>
+          <div><small>STATUS</small><strong>{expandedOrbitOperation.status}</strong></div>
+          <div><small>PAYMENT STATUS</small><strong>{expandedOrbitOperation.paymentStatus || "Unpaid"}</strong></div>
+          <div><small>PAID AMOUNT</small><strong>{moneyLabel(expandedOrbitOperation.paidAmount || 0)}</strong></div>
+          <div><small>EXECUTION</small><strong>{expandedOrbitOperation.executionType || "Outsourced"}</strong></div>
+          <div><small>MACHINE / STATION</small><strong>{expandedOrbitOperation.machine || "Not assigned"}</strong></div>
+          <div><small>TOLERANCE</small><strong>{expandedOrbitOperation.toleranceCategory || "Standard"}</strong></div>
+          <div><small>TRANSPORT VENDOR</small><strong>{vendors.find(vendor => vendor.id === expandedOrbitOperation.transportVendorId)?.company || "Not assigned"}</strong></div>
+          <div><small>TRANSPORT PICKUP → DELIVERY</small><strong>{[expandedOrbitOperation.transportPickup || expandedOrbitOperation.transportFrom, expandedOrbitOperation.transportDelivery || expandedOrbitOperation.transportTo].filter(Boolean).join(" → ") || "Not set"}</strong></div>
+          <div><small>TRANSPORT COST</small><strong>{moneyLabel(operationTransportAmounts[expandedOrbitOperation.id] || expandedOrbitOperation.transportCost || 0)}</strong></div>
+          <div><small>INSPECTION RESULT</small><strong>{expandedOrbitOperation.inspectionResult || "Not recorded"}</strong></div>
+          <div><small>BRANCH / ROUTE</small><strong>{expandedOrbitOperation.branch || "Main route"}{expandedOrbitOperation.relationType ? " · " + expandedOrbitOperation.relationType : ""}</strong></div>
+          <div className="process-orbit-selected-wide"><small>OPERATION NOTES / QUALITY NOTES</small><strong>{expandedOrbitOperation.notes || expandedOrbitOperation.qualityNotes || "No notes recorded"}</strong></div>
         </div>
         {(expandedOrbitSubprocesses.length > 0 || expandedOrbitBranches.length > 0 || onAddSubprocess || onAddAlternateRoute || onAddReworkRoute) && <div className="process-orbit-selected-links">
           {expandedOrbitSubprocesses.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(""); }}>Sub-process · {child.name} · {child.status}</button>)}
