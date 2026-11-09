@@ -4,6 +4,7 @@ import { ArrowRight, Check, CircleDollarSign, Layers3, Plus, Search, ShieldCheck
 import { activeRows, makeId, nowIso, useManufacturingData, type PlannedCostEntry, type ProcessDefinitionRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
+import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 import { MechanicalIconGlyph, MECHANICAL_ICON_INVENTORY, mechanicalOperationSvgForName } from "./MechanicalOperationIcon";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 
@@ -324,6 +325,7 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
     <div className="module-form-actions"><button className="button-primary" onClick={save}><Plus size={14}/> Save {extraProcesses.length+1} process cost row(s)</button></div>
    </div>
   </section>
+  {componentId && <PartMaterialCostingPanel key={componentId+"-"+poId} scope="planned-cost" companyId={companyId} poId={poId} componentId={componentId} componentName={componentName} componentNumber={componentNumber} onNotice={onNotice} />}
   <section className="surface-panel"><div className="panel-heading"><div><h3>Planned cost register</h3><p>{filtered.length} of {rows.length} saved records</p></div></div>
    {filtered.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Company reference</th><th>PO reference</th><th>Component</th><th>Component number</th><th>Process</th><th>Category</th><th>Subcategory</th><th>Quantity</th><th>Planned rate</th><th>Planned amount</th><th>Action</th></tr></thead><tbody>{filtered.map(row=><tr key={row.id}><td>{row.companyName||"—"}</td><td>{row.poNumber||"—"}</td><td><div className="planned-cost-component-name"><ComponentIcon componentId={row.componentId} componentName={row.componentName+" "+row.componentNumber}/> <strong>{row.componentName}</strong></div><small>{row.notes||"Independent planned cost"}</small></td><td>{row.componentNumber}</td><td><span className="process-inline-identity"><ProcessIcon processId={row.processDefinitionId} processName={row.processType} category={row.processCategory} subcategory={row.processSubcategory} fallback={<Layers3 size={14}/>} />{row.processType}</span></td><td>{row.processCategory||"—"}</td><td>{row.processSubcategory||"—"}</td><td>{row.plannedQty.toLocaleString("en-IN")} {row.unit}</td><td>{money(row.plannedRate)}</td><td><strong>{money(row.plannedQty*row.plannedRate)}</strong></td><td><button className="button-quiet compact-button" onClick={()=>remove(row.id)}><Trash2 size={13}/> Delete</button></td></tr>)}</tbody></table></div>:<div className="module-empty-state"><CircleDollarSign size={24}/><h3>{search?"No matching planned costs":"No planned costs saved"}</h3><p>Create an independent planned rate for each component and process combination.</p></div>}
   </section>
