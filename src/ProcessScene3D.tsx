@@ -185,6 +185,11 @@ export default function ProcessScene3D({operations,materialRoutes=[],visibleFiel
  const replacedOperationEdges=new Set(materialPlacements.filter(item=>item.fromOperation&&item.toOperation).map(item=>item.fromOperation!.id+"->"+item.toOperation!.id));
  const routeEdges=edges.length?edges:points.slice(0,-1).map((item,i)=>({from:item.op,to:points[i+1].op,relation:"main",color:"#4b95eb"}));
  let flowIndex=0;
+ const drawOperationFlow=(p:P,q:P,offset:number,rgb:number[])=>{
+  const delta={x:q.x-p.x,y:q.y-p.y,z:q.z-p.z},length=Math.hypot(delta.x,delta.y,delta.z)||1;
+  draw(lineMesh(p,q,.038),rgb);
+  if(showArrows){const tip={x:q.x-delta.x/length*.14,y:q.y-delta.y/length*.14,z:q.z-delta.z/length*.14};draw(arrowHeadMesh(tip,q,.095),rgb);const phase=((now*.00012+offset*.23)%1+1)%1;const particle={x:p.x+delta.x*phase,y:p.y+delta.y*phase,z:p.z+delta.z*phase};draw(sphereMesh(particle.x,particle.y,particle.z,.045,4,6),[.24,.86,1]);}
+ };
  const drawFlow=(from:P,to:P,offset:number,rgb:number[],radius=.034)=>{
   const delta={x:to.x-from.x,y:to.y-from.y,z:to.z-from.z},length=Math.hypot(delta.x,delta.y,delta.z)||1;
   draw(lineMesh(from,to,radius),rgb);
@@ -197,7 +202,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],visibleFiel
   if(mode==="gantt"){const fromIndex=geometryRows.findIndex(op=>op.id===edge.from.id),toIndex=geometryRows.findIndex(op=>op.id===edge.to.id);if(fromIndex>=0&&toIndex>=0){p=ganttSegment(fromIndex,geometryRows,ganttScale).end;q=ganttSegment(toIndex,geometryRows,ganttScale).start;}}
   if(!p||!q)return;
   const rgb=edge.relation==="rework"?[.89,.48,.18]:edge.relation==="alternate"?[.12,.48,.88]:[.12,.43,.82];
-  drawFlow(p,q,edgeIndex,rgb,.038);
+  drawOperationFlow(p,q,edgeIndex,rgb);
  });
  materialPlacements.forEach((placement,index)=>{
   const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
