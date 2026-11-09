@@ -8,7 +8,7 @@ import ProcessScene3D from "./ProcessScene3D";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
 type MaterialRouteNode = {
-  id:string; partLabel:string; materialLabel:string; dimensionsLabel?:string; quantity:number; weightKg:number;
+  id:string; partLabel:string; materialLabel:string; dimensionsLabel?:string; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number;
   supplier:string; transporter:string; from:string; to:string; vehicle:string;
   materialGivenAt:string; materialDueAt:string; materialReceivedAt:string;
   pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb";
@@ -299,7 +299,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
       {materialRoutes.length>0 && <section className="process-orbit-material-routes" aria-label="Material procurement and inbound transport routes">
         <div className="process-orbit-material-routes-head"><strong>MATERIAL PROCUREMENT &amp; INBOUND TRANSPORT</strong><span>{materialRoutes.length} saved material movement(s) · material, cutting and transport costs separate</span></div>
         {materialRoutes.map(route=><article className="process-orbit-material-route" key={route.id}>
-          <div className="process-orbit-material-ident"><small>{route.partLabel}</small><strong>{route.materialLabel}</strong><small>{route.dimensionsLabel||"Shape / dimensions not entered"}</small><span>Qty {route.quantity.toLocaleString("en-IN")} · {route.weightKg.toFixed(3)} kg · ₹{route.materialRate.toLocaleString("en-IN",{maximumFractionDigits:2})}/{route.priceUnit}</span></div>
+          <div className="process-orbit-material-ident"><small>{route.partLabel}</small><strong>{route.materialLabel}</strong><small>{route.dimensionsLabel||"Shape / dimensions not entered"}</small><small>{route.anchorOperationId?"PROCUREMENT AFTER · "+(route.anchorOperationName||"Selected process"):"PROCUREMENT · ROUTE START"}</small><span>Qty {route.quantity.toLocaleString("en-IN")} · {route.weightKg.toFixed(3)} kg · ₹{route.materialRate.toLocaleString("en-IN",{maximumFractionDigits:2})}/{route.priceUnit}</span></div>
           <div className="process-orbit-material-flow">
             <span><small>SUPPLIER</small><strong>{route.supplier}</strong><em>{route.from}</em></span><b aria-hidden="true">→</b>
             <span><small>TRANSPORTER</small><strong>{route.transporter}</strong><em>{route.vehicle}</em></span><b aria-hidden="true">→</b>
