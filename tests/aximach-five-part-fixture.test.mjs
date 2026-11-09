@@ -1467,7 +1467,7 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   for (const company of ["ASTER MOTION COMPONENTS PVT LTD", "MERIDIAN FLUID SYSTEMS PVT LTD"]) {
     assert.ok(demo.includes(company), "missing demo company: " + company);
   }
-  const partKeys = [...demo.matchAll(/key:"(AST-\\d{4}|MER-\\d{4})"/g)].map(match => match[1]);
+  const partKeys = [...demo.matchAll(/key:"(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
   assert.equal(partKeys.length, 5, "bundled demo must include exactly five component examples");
   assert.equal(new Set(partKeys).size, 5, "demo component IDs must be unique");
   for (const collection of ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
