@@ -2124,3 +2124,37 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 
 /* Gantt makes missing and partial schedule data explicit instead of inventing dates. */
 .ax-full3d-gantt-status{position:absolute;left:10px;top:10px;z-index:5;max-width:calc(100% - 20px);padding:6px 9px;border:1px solid rgba(149,117,49,.3);border-radius:7px;background:rgba(255,249,230,.94);color:#785a18;font:700 8px/1.3 'DM Mono',monospace;letter-spacing:.04em;pointer-events:none}
+
+
+/* Route connectors are usable on touch screens as well as visual indicators. */
+.ax-full3d-label-layer .ax-full3d-route-arrow{
+  pointer-events:auto;
+  cursor:pointer;
+  height:18px;
+  background:transparent;
+  border:0;
+  padding:0;
+  outline-offset:3px;
+  touch-action:manipulation;
+}
+.ax-full3d-route-arrow::before{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:50%;
+  height:3px;
+  transform:translateY(-50%);
+  background:#1686d5;
+  box-shadow:0 0 5px rgba(22,134,213,.55);
+}
+.ax-full3d-route-arrow::after{
+  top:50%;
+  right:-1px;
+  transform:translateY(-50%);
+}
+.ax-full3d-route-arrow.alternate::before{background:#287bd0}
+.ax-full3d-route-arrow.rework::before{background:#e66e20}
+.ax-full3d-route-arrow:focus-visible{outline:2px solid #0a78bc;border-radius:6px}
+.ax-full3d-route-arrow span{top:-14px}
+.ax-full3d-route-arrow.no-arrowhead::after{display:none}
