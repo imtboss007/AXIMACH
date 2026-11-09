@@ -129,6 +129,9 @@ export type MaterialCostEntryRecord = {
   weightPerPieceKg: number; totalWeightKg: number; priceUnit: "kg" | "lb"; materialRate: number; materialCost: number;
   cuttingType: string; cuttingBasis: string; cuttingRate: number; cutsPerPiece: number; cuttingHours: number; cuttingCost: number; wastagePercent: number;
   vendorId: string; givenDate: string; deliveryDate: string; actualDeliveryDate: string; poReference: string; notes: string; currency: "INR";
+  /** Direct material inbound transport; kept separate from material and cutting cost. */
+  transportVendorId?: string; transportFrom?: string; transportTo?: string; transportVehicleType?: string;
+  transportCost?: number; transportPickupAt?: string; transportDeliveryAt?: string; transportStatus?: LifecycleStatus;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type BomLineRecord = {
