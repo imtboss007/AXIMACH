@@ -1784,12 +1784,41 @@ test("3D Gantt does not fabricate schedule dates for operations without date-tim
   assert.ok(!scene.includes("events.length?Math.min(...events):Date.now()"));
 });
 
-test("Process Map route cards always display process category and cannot clear it", () => {
+test("Process Map route cards always display essential fields and retain optional single/multi-select visibility", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
-  assert.ok(workspace.includes('setCardVisibleFields(["category"])'));
-  assert.ok(workspace.includes('checked={field.key==="category"||cardVisibleFields.includes(field.key)}'));
-  assert.ok(workspace.includes('disabled={field.key==="category"}'));
-  assert.ok(scene.includes('<small>CATEGORY · {op.category||"Not set"}</small>'));
-  assert.ok(!scene.includes('{visibleFields.includes("category")&&<small>CATEGORY'));
+  assert.ok(workspace.includes('const REQUIRED_PROCESS_CARD_FIELDS: ProcessCardField[] = ["category","subcategory","quantity","plannedStart","plannedEnd","vendor","amount"]'));
+  assert.ok(workspace.includes('checked={REQUIRED_PROCESS_CARD_FIELDS.includes(field.key)||cardVisibleFields.includes(field.key)}'));
+  assert.ok(workspace.includes('disabled={REQUIRED_PROCESS_CARD_FIELDS.includes(field.key)}'));
+  assert.ok(workspace.includes("Clear optional fields · keep essential route details"));
+  for (const field of ['<small>CATEGORY · {op.category||"Not set"}</small>','<small>SUB-PROCESS · {op.subcategory||"Not set"}</small>','<em>Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>','Given / start · {nodeDateTime(op.plannedStart)}','Delivery / due · {nodeDateTime(op.plannedEnd)}','Vendor · {vendors.find(vendor=>vendor.id===op.vendorId)?.company||"Vendor not assigned"}','Linked amount · ₹']) assert.ok(scene.includes(field), "missing required route card field: "+field);
+  assert.ok(scene.includes('const cardHeight=width<600?188:190;'));
+});
+
+test("Material Directory saves each material allocation directly into its selected PO-component Process Map route", () => {
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  const materialPanel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes('import PartMaterialCostingPanel from "./PartMaterialCostingPanel"'));
+  assert.ok(inventory.includes('scope="process-map"'));
+  assert.ok(inventory.includes('companyId={directoryCompanyId}'));
+  assert.ok(inventory.includes('poId={directoryPoId}'));
+  assert.ok(inventory.includes('componentId={directoryComponentId}'));
+  assert.ok(inventory.includes('requirePoLine'));
+  assert.ok(inventory.includes('startExpanded'));
+  assert.ok(materialPanel.includes('if(requirePoLine&&!effectivePoLineId)'));
+  assert.ok(materialPanel.includes('materialCostEntries:[entry,...(current.materialCostEntries||[]).filter(row=>row.id!==entry.id)]'));
+  assert.ok(materialPanel.includes('shapeType:existingPart?.shapeType||shape'));
+  assert.ok(processMap.includes('materialRoutes={materialRouteEntries.map(entry=>'));
+});
+
+test("3D route arrows stay enabled and narrow-screen process metadata is not hidden", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(workspace.includes('showArrows={true}'));
+  assert.ok(workspace.includes('checked={exportArrows} disabled /> Connection arrows'));
+  assert.ok(scene.includes('if(mat&&trans)add("material-transport-"'));
+  assert.ok(scene.includes('if(trans&&to)add("transport-process-"'));
+  assert.ok(css.includes('.ax-full3d-label .ax-full3d-node-meta{display:block!important'));
 });
