@@ -38,7 +38,7 @@ The machine-readable process/category/sub-process fixture is in [tests/fixtures/
 
 ## Command globe and logo export acceptance additions
 
-- The main dashboard and 3D Command Centre share the same full WebGL sphere component. The 18-module shell and separate lower live-record shell are manual-drag only: neither has an idle animation, timer or automatic rotation. Each shell has an independent drag lock/unlock control, and each workspace surface retains its own saved interaction preferences.
+- The main dashboard and 3D Command Centre share the same full WebGL sphere component. The 18-module shell and separate lower live-record shell auto-rotate by default; pointer/touch drag takes over immediately, and Pause auto-rotation stops idle movement. Each shell has an independent drag lock/unlock control, and each workspace surface retains its own saved interaction preferences.
 - The 18 module controls use Fibonacci-sphere coordinates distributed across the full spherical surface. Rear-facing controls are hidden by back-face culling until the operator rotates them into view. The WebGL globe surface texture receives the same drag orientation as a shader uniform, so the spherical silhouette stays round instead of rotating as a flat canvas plane.
 - The lower shell carries six live record categories: companies, purchase orders, PO component lines, components, vendors and open operations.
 - Component Master and Purchase Order PDF/Excel exports include the component logo. A saved imported SVG/PNG logo is preferred when present; otherwise the deterministic name-based mechanical symbol is used.
