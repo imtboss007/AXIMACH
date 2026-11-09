@@ -145,11 +145,13 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     const textMatch = !query || (m.code + " " + m.name + " " + m.grade + " " + m.materialType + " " + m.shapeType + " " + m.specification + " " + m.notes + " " + Object.entries(m.dimensions||{}).map(([key,value])=>key+" "+value).join(" ")).toLowerCase().includes(query);
     const bomLinks = bomLines.filter(row => row.materialId === m.id);
     const costLinks = (data.materialCostEntries || []).filter(entry => entry.materialId === m.id && !entry.deletedAt);
-    const companyMatch = !directoryCompanyId || costLinks.some(entry => entry.companyId === directoryCompanyId) || bomLinks.some(row => orders.some(po => po.companyId === directoryCompanyId && po.lines.some(line => line.componentId === row.componentId)));
-    const poMatch = !directoryPoId || costLinks.some(entry => entry.poId === directoryPoId) || bomLinks.some(row => orders.some(po => po.id === directoryPoId && po.lines.some(line => line.componentId === row.componentId)));
-    const componentMatch = !directoryComponentId || bomLinks.some(row => row.componentId === directoryComponentId) || costLinks.some(entry => entry.componentId === directoryComponentId);
+    const stockLinks = inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === m.id);
+    const stockComponentIds = stockLinks.flatMap(row => orders.flatMap(po => po.lines.filter(line => line.id === row.poLineId).map(line => line.componentId)));
+    const companyMatch = !directoryCompanyId || costLinks.some(entry => entry.companyId === directoryCompanyId) || stockLinks.some(row => row.companyId === directoryCompanyId) || bomLinks.some(row => orders.some(po => po.companyId === directoryCompanyId && po.lines.some(line => line.componentId === row.componentId)));
+    const poMatch = !directoryPoId || costLinks.some(entry => entry.poId === directoryPoId) || stockLinks.some(row => row.poId === directoryPoId) || bomLinks.some(row => orders.some(po => po.id === directoryPoId && po.lines.some(line => line.componentId === row.componentId)));
+    const componentMatch = !directoryComponentId || bomLinks.some(row => row.componentId === directoryComponentId) || costLinks.some(entry => entry.componentId === directoryComponentId) || stockComponentIds.includes(directoryComponentId);
     return textMatch && companyMatch && poMatch && componentMatch;
-  }), [materials, search, bomLines, data.materialCostEntries, orders, directoryCompanyId, directoryPoId, directoryComponentId]);
+  }), [materials, search, bomLines, data.materialCostEntries, orders, inventoryTransactions, directoryCompanyId, directoryPoId, directoryComponentId]);
   const visibleBom = useMemo(() => bomLines.filter(row => {
     const component = components.find(c => c.id === row.componentId);
     const material = materials.find(m => m.id === row.materialId);
