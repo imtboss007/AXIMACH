@@ -2099,3 +2099,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .process-material-route-node span{font-size:9px;color:#637b97;overflow-wrap:anywhere}
 .process-material-route-arrow{display:flex;align-items:center;color:#1686d5}
 @media(max-width:760px){.process-material-route-row{grid-template-columns:1fr;gap:6px}.process-material-route-arrow{transform:rotate(90deg);justify-content:center}.process-material-route-node{padding:4px 0}}
+
+.ax-full3d-gantt-tick{position:absolute;bottom:7px;transform:translateX(-50%);z-index:5;pointer-events:none;padding:2px 4px;border-radius:4px;background:rgba(12,34,58,.78);color:#fff;font:700 8px/1.2 'DM Mono',monospace;white-space:nowrap}
+.ax-material-transport{padding:10px;border:1px solid rgba(72,126,187,.22);border-radius:10px;background:rgba(235,244,255,.52)}
+.ax-material-transport .panel-heading{margin-bottom:8px}
