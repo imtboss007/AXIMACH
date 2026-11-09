@@ -8,7 +8,7 @@ const newTime = "2026-11-04T09:00:00.000Z";
 test("server merge covers every manufacturing collection, including follow-up assignments", () => {
   assert.deepEqual(manufacturingCollections, [
     "companies", "factories", "purchaseOrders", "components", "vendors", "operations",
-    "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles",
+    "quotations", "materials", "componentParts", "materialCostEntries", "bomLines", "inventoryTransactions", "contactProfiles",
     "processDefinitions", "plannedCosts", "paymentTransactions", "inspectionMeasurements",
     "followUpAssignments", "transportRoutes", "transportLegs"
   ]);
@@ -82,4 +82,20 @@ test("an empty or older device payload cannot erase records from the shared serv
   assert.equal(merged.companies[0].name, "Saved company");
   assert.equal(merged.followUpAssignments.length, 1);
   assert.equal(merged.followUpAssignments[0].contactName, "Saved contact");
+});
+
+
+test("component parts and material cost streams sync independently by stable ID", () => {
+  const componentPart = { id: "part-1", componentId: "component-1", partNumber: "P-01", name: "Laser rib", updatedAt: newTime };
+  const processMapCost = { id: "mat-cost-process", scope: "process-map", componentId: "component-1", partId: "part-1", materialCost: 1000, cuttingCost: 59, updatedAt: newTime };
+  const plannedCost = { id: "mat-cost-planned", scope: "planned-cost", componentId: "component-1", partId: "part-1", materialCost: 1100, cuttingCost: 65, updatedAt: newTime };
+  const merged = mergeManufacturingData(
+    { componentParts: [], materialCostEntries: [processMapCost] },
+    { componentParts: [componentPart], materialCostEntries: [plannedCost] }
+  );
+  assert.equal(merged.componentParts.length, 1);
+  assert.equal(merged.componentParts[0].componentId, "component-1");
+  assert.equal(merged.materialCostEntries.length, 2);
+  assert.equal(merged.materialCostEntries.find(row => row.scope === "process-map").cuttingCost, 59);
+  assert.equal(merged.materialCostEntries.find(row => row.scope === "planned-cost").cuttingCost, 65);
 });
