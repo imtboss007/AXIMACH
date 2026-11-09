@@ -172,7 +172,8 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     setBomDraft(draft); setBomEditingId(id); setBomFormOpen(true);
   };
   const saveMaterial = () => {
-    if (!materialDraft.code.trim() || !materialDraft.name.trim() || !materialDraft.unit.trim()) { onNotice("Material code, name and unit are required."); return; }
+    if (!materialDraft.code.trim() || !materialDraft.name.trim() || !materialDraft.materialType?.trim() || !materialDraft.grade.trim() || !materialDraft.unit.trim()) { onNotice("Material code, material type, name, grade and unit are required."); return; }
+    if (!(Number(materialDraft.densityKgM3)>0)) { onNotice("Enter a typical density in kg/m³ or select a known grade to fill it automatically."); return; }
     if (materialDraft.densityKgM3 && (!Number.isFinite(Number(materialDraft.densityKgM3)) || Number(materialDraft.densityKgM3) <= 0)) { onNotice("Density must be a positive kg/m³ value."); return; }
     if (!Number.isFinite(Number(materialDraft.ratePerUnit)) || Number(materialDraft.ratePerUnit) < 0) { onNotice("Material rate must be a finite non-negative number."); return; }
     if (materialDraft.preferredVendorId && !vendors.some(vendor => vendor.id === materialDraft.preferredVendorId)) { onNotice("Preferred vendor is missing or archived. Choose an active Vendor Directory record."); return; }
@@ -199,8 +200,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     resetBom(); onNotice("BOM line saved against component ID and material ID. Planned material requirement/cost updates from the linked master records.");
   };
   const archiveMaterial = (row: MaterialRecord) => {
-    if (data.bomLines.some(b => b.materialId === row.id && !b.deletedAt)) { onNotice("This material is used by a BOM. Remove/archive its BOM lines first or retain the material for historical traceability."); return; }
-    if (!window.confirm("Archive this material master? Stock transaction history remains intact.")) return;
+    if (!window.confirm("Delete this material from active directory searches? Existing BOM, procurement and stock history will be retained for traceability.")) return;
     const stamp = nowIso();
     update(current => ({ ...current, materials: current.materials.map(m => m.id === row.id ? { ...m, deletedAt: stamp, updatedAt: stamp } : m) }));
     onNotice("Material archived; posted stock transactions remain in the ledger.");
