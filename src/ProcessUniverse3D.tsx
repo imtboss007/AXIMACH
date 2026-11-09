@@ -4,6 +4,7 @@ import { Activity, ArrowRight, Boxes, ClipboardCheck, Cog, Cpu, Disc3, GitBranch
 import type { OperationRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
 import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
+import ProcessScene3D from "./ProcessScene3D";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
 type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
@@ -267,60 +268,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
     </nav>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
-      <div className="process-orbit-viewport">
-        <motion.div className="process-orbit-rotator" onPointerDown={event => { if ((event.target as HTMLElement).closest(".process-orbit-node")) return; startDrag(event); }} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} style={{ rotateX, rotateY, touchAction: "none" }}>
-          <div className="process-orbit-ring process-orbit-ring-a" /><div className="process-orbit-ring process-orbit-ring-b" />{showArrows && orbitConnections.edges.map(edge=>{
-            const from=orbitPointFor(edge.from), to=orbitPointFor(edge.to);
-            const dx=to.x-from.x, dy=to.y-from.y, dz=to.z-from.z;
-            const length=Math.sqrt(dx*dx+dy*dy+dz*dz);
-            if(length<1)return null;
-            const axisY=-dz/length, axisZ=dy/length;
-            const axisMagnitude=Math.hypot(axisY,axisZ);
-            const rotateAxisY=axisMagnitude<0.0001?1:axisY/axisMagnitude;
-            const rotateAxisZ=axisMagnitude<0.0001?0:axisZ/axisMagnitude;
-            const angle=Math.acos(Math.max(-1,Math.min(1,dx/length)))*180/Math.PI;
-            const midX=(from.x+to.x)/2,midY=(from.y+to.y)/2,midZ=(from.z+to.z)/2;
-            return <div key={edge.id} className={"process-orbit-connector is-"+edge.relation} style={{width:length,color:edge.color,transform:`translate3d(${midX}px,${midY}px,${midZ}px) rotate3d(0,${rotateAxisY},${rotateAxisZ},${angle}deg) translate(-50%,-50%)`}} title={edge.from.name+" → "+edge.to.name} aria-hidden="true"/>;
-          })}
-          {showArrows && orbitConnections.anchors.map(anchor=>{
-            const point=orbitPointFor(anchor.operation);
-            return <div key={"anchor-"+anchor.operation.id} className={"process-orbit-parent-anchor is-"+anchor.relation} style={{color:anchor.color,transform:`translate3d(${point.x}px,${point.y}px,${point.z}px) translate(-50%,-50%)`}} title={"Connected parent: "+anchor.operation.name+" · OP-"+anchor.operation.sequence} aria-hidden="true"><span/></div>;
-          })}
-          
-          <div className="process-orbit-core process-orbit-core-webgl"><ProcessUniverseWebGLCore mode={layoutMode} rotationX={rotateX} rotationY={rotateY} /><span className="process-orbit-core-gloss" /><div className="process-orbit-core-content"><small>AXIMACH / ROUTE CORE</small><strong>{orbitCount.toString().padStart(2,"0")}</strong><b>{displayOperations.length ? "PROCESS STEPS" : "DIRECTORY STAGES"}</b><em>{displayOperations.length ? "SAVED ROUTE" : "CATALOGUE ONLY"}</em></div><i className="process-orbit-dot process-orbit-dot-a" /><i className="process-orbit-dot process-orbit-dot-b" /><i className="process-orbit-dot process-orbit-dot-c" /></div>
-          {orbitNodes.map(({ operation, index, transform }) => {
-            const active = selectedOperationId === operation.id, current = simulationIndex === index, passed = simulationIndex > index;
-            const expanded = expandedOperationId === operation.id;
-            const state = operation.status.toLowerCase().replaceAll(" ","-");
-            const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
-            const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
-            return <button key={operation.id} type="button" className={"process-orbit-node status-" + state + (active ? " is-selected" : "") + (expanded ? " is-expanded" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{ transform, "--process-accent":accent } as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} aria-expanded={expanded} aria-controls="process-orbit-selected-details" title={operation.name + " · " + operation.status}>
-              <span className="process-orbit-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><i /></span>
-              <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} />
-              <strong>{operation.name}</strong>
-              {subprocessesFor(operation.id).length > 0 && <small className="process-orbit-node-qty">{subprocessesFor(operation.id).length} SUB-PROCESS(ES)</small>}
-              {branchesFor(operation.id).length > 0 && <small className="process-orbit-node-qty">{branchesFor(operation.id).length} ALTERNATE / REWORK STEP(S)</small>}
-              <small className="process-orbit-node-qty">{expanded ? "− COLLAPSE DETAILS" : "+ EXPAND DETAILS"}</small>
-            </button>;
-          })}
-          {showCatalogueOrbit && catalogueOrbitNodes.map(({ definition, index, transform }) => (
-            <button key={definition.id} type="button" className="process-orbit-node status-planned process-orbit-node-catalog"
-              style={{ transform }}
-              onPointerDown={event => event.stopPropagation()}
-              onClick={() => onAddProcessDefinition?.(definition.id)}
-              disabled={!onAddProcessDefinition}
-              aria-label={"Add " + definition.processType + " from Process Directory to selected PO line"}
-              title={definition.category + " · " + definition.processType + " · Add to selected PO line"}>
-              <span className="process-orbit-node-top"><small>LIB-{String(index + 1).padStart(2,"0")}</small><i /></span>
-              <ProcessIcon processId={definition.id} processName={definition.processType} category={definition.category} fallback={fallbackFor(definition.processType)} />
-              <strong>{definition.processType}</strong>
-              <small className="process-orbit-node-qty">{definition.category}</small>
-              <small className="process-orbit-node-qty">{(definition.subcategories || []).length} SUB-PROCESS OPTION(S)</small>
-              <em className="process-orbit-node-action">＋ ADD TO PO LINE</em>
-            </button>
-          ))}
-        </motion.div>
-      </div>
+      <ProcessScene3D operations={displayOperations} mode={layoutMode} selectedOperationId={selectedOperationId} onSelectOperation={onSelectOperation} />
       <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>{showCatalogueOrbit ? "SELECT A DIRECTORY NODE TO CREATE A PO-LINE OPERATION" : "SELECT A PROCESS NODE TO OPEN ITS RECORD"}</span><span>SIMULATION IS VISUAL ONLY</span></div>
       {layoutMode !== "route" && expandedOrbitOperation && <section className="process-orbit-selected-details" id="process-orbit-selected-details" aria-label={"Expanded details for " + expandedOrbitOperation.name}>
         <div className="process-orbit-selected-heading"><div><small>SELECTED PROCESS / OP-{String(expandedOrbitOperation.sequence).padStart(3,"0")}</small><strong>{expandedOrbitOperation.name}</strong></div><button type="button" onClick={() => setExpandedOperationId("")}>Collapse details −</button></div>
