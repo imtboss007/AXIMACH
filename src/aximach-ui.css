@@ -555,7 +555,7 @@
   .ax-icon-studio-bottom { font-size: 7px; padding: 8px 10px; }
 }
 @media (max-width: 380px) {
-  .ax-orb-drag-zone { width: 110%; margin-left: -5%; }
+  .ax-orb-drag-zone { width: min(100%,360px); max-width: 100%; margin-inline: auto; }
   .ax-orb-core { width: 164px; }
   .ax-icon-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
   .ax-icon-studio-bottom { flex-direction: column; }
@@ -797,7 +797,7 @@
 }
 .process-universe-connector::before {
   content: ""; position: absolute; left: 0; right: 0; top: 50%;
-  border-top: 2px dashed #9db8df; animation: processUniverseFlow 1.4s linear infinite;
+  border-top: 2px dashed currentColor;
 }
 .process-universe-connector svg {
   position: relative; z-index: 1; width: 17px; height: 17px; padding: 2px;
@@ -813,12 +813,10 @@
 .process-universe-empty { padding: 40px; color: #8a9ab0; text-align: center; font-size: 10px; }
 .process-universe-node.simulation-current {
   z-index: 5; border-color: #438df3; border-top-color: #1b72e8;
-  animation: processUniversePulse .8s ease-in-out infinite alternate;
+  transform: perspective(720px) rotateY(-5deg) rotateX(2deg) translateZ(10px);
   box-shadow: 0 0 0 5px rgba(65,137,241,.13),0 0 26px rgba(56,131,238,.36),0 8px 0 rgba(81,112,164,.14);
 }
 .process-universe-node.simulation-passed { filter: saturate(.8); border-color: #79c7a7; }
-@keyframes processUniverseFlow { to { background-position: 28px 0; } }
-@keyframes processUniversePulse { from { transform: perspective(720px) rotateY(-8deg) rotateX(4deg) translateZ(4px) scale(1); } to { transform: perspective(720px) rotateY(-2deg) rotateX(1deg) translateZ(18px) scale(1.025); } }
 .process-universe-legend {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   padding: 11px 16px; border-top: 1px solid #e2eaf5; background: rgba(255,255,255,.72);
@@ -1740,3 +1738,266 @@
 .linked-node-arrow { display:inline-flex; align-items:center; }
 .process-row-delete { color:#f2a0a3 !important; border-color:rgba(218,103,112,.38) !important; }
 .process-row-delete:hover:not(:disabled) { color:#fff !important; background:rgba(181,58,69,.22) !important; border-color:#dc737c !important; }
+
+/* Explicit visual distinction for main, alternate and rework path connectors. */
+.process-universe-lane.is-branch.is-alternate { border-left-color: #4b95eb; }
+.process-universe-lane.is-branch.is-rework { border-left-color: #e38b45; }
+.process-universe-branch-link { min-height: 40px; }
+.process-universe-branch-link::before,
+.process-universe-branch-link::after {
+  content: ""; position: absolute; left: 22px; width: 0; border-left: 2px dashed currentColor; opacity: .9;
+}
+.process-universe-branch-link::before { top: -12px; height: 12px; }
+.process-universe-branch-link::after { bottom: -14px; height: 14px; }
+.process-universe-branch-link svg { flex: 0 0 auto; padding: 3px; border-radius: 50%; background: color-mix(in srgb,currentColor 12%,transparent); }
+.process-universe-node-subcategory { display: inline-flex; max-width: 100%; padding: 3px 6px; border: 1px solid rgba(75,149,235,.26); border-radius: 6px; color: #4c85c1; background: rgba(75,149,235,.07); font-size: 8px; overflow-wrap: anywhere; }
+.process-route-flow-subcategory { display: block; max-width: 100%; color: #8eabd0; font-size: 8px; line-height: 1.2; overflow-wrap: anywhere; }
+.process-visual-style-buttons button { min-height: 38px; touch-action: manipulation; }
+@media(max-width:650px) {
+  .process-visual-style-buttons button { min-height: 42px; flex: 1 1 calc(50% - 7px); }
+  .process-universe-branch-link { gap: 6px; padding: 8px; }
+  .process-universe-node-subcategory { font-size: 7px; }
+}
+
+/* 3D route connectors live in the same transform space as the process nodes. */
+.process-orbit-core { z-index: 2; }
+.process-orbit-connector {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  display: block;
+  height: 3px;
+  border-radius: 99px;
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+  background: currentColor;
+  opacity: .94;
+  box-shadow: 0 0 7px currentColor, 0 0 2px rgba(255,255,255,.9);
+  pointer-events: none;
+}
+.process-orbit-connector::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-left: 8px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transform: translateY(-50%);
+  filter: drop-shadow(0 0 3px currentColor);
+}
+.process-orbit-connector.is-alternate { color: #4b95eb; }
+.process-orbit-connector.is-rework { color: #e38b45; }
+.process-orbit-parent-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255,255,255,.96);
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px color-mix(in srgb,currentColor 22%,transparent), 0 0 14px currentColor;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+.process-orbit-parent-anchor span { width: 3px; height: 3px; border-radius: 50%; background: #fff; }
+.process-orbit-node { z-index: 4; }
+@media(max-width:650px) {
+  .process-orbit-connector { height: 2.5px; }
+  .process-orbit-connector::after { border-left-width: 7px; border-top-width: 4px; border-bottom-width: 4px; }
+}
+
+
+/* AXIMACH screenshot acceptance: stable 3D module hit targets and responsive route controls. */
+.ax-orb-satellite-3d { cursor: pointer; transition: filter .16s ease; }
+.ax-orb-satellite-3d:hover { filter: brightness(1.16); }
+.ax-orb-satellite-3d:focus-visible { outline: 2px solid #6ed9f1; outline-offset: 4px; }
+.process-orbit-node-details,.process-universe-node-details { display:grid; gap:3px; width:100%; margin-top:6px; text-align:left; }
+.process-orbit-node-details small,.process-universe-node-details small { min-width:0; color:#9fb9cf; font-size:9px; line-height:1.35; overflow-wrap:anywhere; }
+.process-universe-viewport { max-width:100%; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; }
+.relationship-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; min-width:0; }
+.panel-collapse-toggle { min-height:32px; padding:6px 10px; border:1px solid rgba(119,164,204,.36); border-radius:8px; color:var(--text,#dceeff); background:rgba(90,139,185,.11); font-size:10px; font-weight:700; cursor:pointer; }
+.panel-collapse-toggle:hover { border-color:#68bde8; background:rgba(61,142,198,.16); }
+.transport-leg-menu-anchor { position:relative; z-index:65; display:inline-flex; }
+.transport-leg-menu { position:absolute; top:calc(100% + 8px); left:0; z-index:180; display:grid; gap:7px; width:min(320px,calc(100vw - 36px)); max-width:calc(100vw - 36px); padding:12px; border:1px solid rgba(105,174,220,.38); border-radius:12px; color:#e9f5ff; background:linear-gradient(155deg,#102b42,#081c2e); box-shadow:0 18px 44px rgba(0,0,0,.42); }
+.transport-leg-menu>strong { padding:3px 4px; font-size:12px; }
+.transport-leg-menu>button { display:flex; align-items:center; gap:8px; min-height:38px; padding:8px 10px; border:1px solid rgba(130,177,212,.24); border-radius:8px; color:#dceeff; background:rgba(255,255,255,.035); text-align:left; cursor:pointer; }
+.transport-leg-menu>button:hover { border-color:#68bde8; background:rgba(61,142,198,.16); }
+.process-panel-body { min-width:0; }
+.process-simulation-hint,.process-filter-link-note { color:var(--muted,#98afc2); font-size:10px; line-height:1.45; }
+.process-view-directory-catalog { display:grid; gap:14px; margin:12px 0; padding:16px; border:1px solid rgba(105,185,220,.28); border-radius:14px; background:linear-gradient(145deg,rgba(8,30,51,.92),rgba(13,48,72,.84)); }
+.process-view-directory-catalog>div:first-child { display:grid; gap:5px; }
+.process-view-directory-catalog h3 { margin:0; color:#eaf6ff; font-size:13px; }
+.process-view-directory-catalog p { margin:0; color:#a9c1d4; font-size:11px; line-height:1.45; }
+.process-view-directory-catalog-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:9px; }
+.process-view-directory-catalog-grid>button { display:flex; min-width:0; min-height:120px; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:12px; border:1px solid rgba(113,197,224,.35); border-radius:11px; color:#e9f6ff; background:linear-gradient(155deg,rgba(26,72,99,.92),rgba(10,35,58,.96)); text-align:center; cursor:pointer; }
+.process-view-directory-catalog-grid>button:disabled { opacity:.5; cursor:not-allowed; }
+.process-view-directory-catalog-grid>button strong { font-size:11px; }
+.process-view-directory-catalog-grid>button small,.process-view-directory-catalog-grid>button span { color:#a9c6d9; font-size:9px; }
+.process-view-directory-catalog-grid>button em { color:#8de5ef; font-size:9px; font-style:normal; font-weight:800; }
+@media(max-width:700px) { .linked-route-actions,.linked-route-visual-controls { align-items:stretch; } .transport-leg-menu-anchor,.transport-leg-menu-anchor>button { width:100%; } .transport-leg-menu-anchor>button { justify-content:center; } .process-view-directory-catalog-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .process-map-filter-grid,.process-map-filter-numeric { grid-template-columns:repeat(2,minmax(0,1fr)); } .process-universe-viewport { width:100%; } }
+@media(max-width:420px) { .process-view-directory-catalog-grid,.process-map-filter-grid,.process-map-filter-numeric { grid-template-columns:minmax(0,1fr); } .panel-collapse-toggle { min-height:30px; padding:5px 8px; } }
+
+
+/* Native expand/collapse headers used by the Process Plan data panels. */
+details.surface-panel { display:block; min-width:0; }
+details.surface-panel > summary.panel-heading {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  cursor:pointer;
+  list-style:none;
+  user-select:none;
+}
+details.surface-panel > summary.panel-heading::-webkit-details-marker { display:none; }
+details.surface-panel > summary.panel-heading::marker { content:""; }
+details.surface-panel > summary.panel-heading:focus-visible {
+  outline:2px solid #6ed9f1;
+  outline-offset:3px;
+  border-radius:8px;
+}
+details.surface-panel[open] > summary.panel-heading { margin-bottom:12px; }
+details.surface-panel:not([open]) > summary.panel-heading { margin-bottom:0; }
+details.surface-panel > summary.panel-heading > button,
+details.surface-panel > summary.panel-heading .relationship-actions { flex-shrink:0; }
+@media(max-width:700px) {
+  details.surface-panel > summary.panel-heading { align-items:flex-start; flex-wrap:wrap; }
+  details.surface-panel > summary.panel-heading .relationship-actions { width:100%; justify-content:flex-start; }
+}
+@media print {
+  details.surface-panel:not([open]) > :not(summary) { display:block !important; }
+}
+
+
+/* Keep the actual dashboard 18-module sphere centered and visible on narrow phones. */
+@media(max-width:620px) {
+  .dashboard-welcome { flex-direction:column; align-items:stretch; gap:4px; }
+  .dashboard-welcome-orb { display:block; flex:0 0 auto; width:100%; min-width:0; max-width:100%; margin:0 auto; }
+  .dashboard-welcome-orb .ax-orb-stage { min-height:360px; }
+  .dashboard-welcome-orb .ax-orb-drag-zone { width:min(100%,360px); height:350px; flex-basis:350px; margin-left:auto; margin-right:auto; }
+  .dashboard-welcome-orb .ax-orb-depth { max-width:360px; }
+}
+
+
+/* Process Universe detail toggles: visible-field controls remain usable on touch and desktop. */
+.process-map-visible-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px 12px;padding:10px;border:1px solid rgba(108,160,203,.22);border-radius:9px;background:rgba(5,22,40,.42)}
+.process-map-visible-fields>strong{grid-column:1/-1;color:#b8d1e9;font-size:10px;letter-spacing:.04em}
+.process-map-visible-fields>label{display:flex;align-items:center;gap:6px;min-width:0;color:#a8bfd8;font-size:9px}
+.process-map-visible-fields input{flex:0 0 auto;accent-color:#4bb9dc}
+@media(max-width:800px){.process-map-visible-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.process-map-visible-fields{grid-template-columns:minmax(0,1fr)}}
+/* Keep the 18 module controls outside the core silhouette on narrow touch screens. */
+@media(max-width:620px){.ax-orb-module-shell .ax-orb-satellite-3d{width:48px;max-width:48px}.ax-orb-module-shell .ax-orb-satellite-3d small{max-width:48px;font-size:6px}.ax-orb-drag-zone{width:min(100%,390px)}}
+
+
+/* Expandable Process Plan panels: only primary working surfaces start expanded. */
+.linked-process-page details>summary.panel-heading{cursor:pointer;list-style:none;position:relative;padding-right:26px}
+.linked-process-page details>summary.panel-heading::-webkit-details-marker{display:none}
+.linked-process-page details>summary.panel-heading::after{content:"＋";position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:20px;height:20px;border:1px solid rgba(108,160,203,.35);border-radius:6px;color:#8fb9df;font:700 12px sans-serif}
+.linked-process-page details[open]>summary.panel-heading::after{content:"−"}
+.linked-process-page details>summary.panel-heading>*{min-width:0}
+@media(max-width:680px){.linked-process-page details>summary.panel-heading{align-items:flex-start;gap:8px}.linked-process-page details>summary.panel-heading p{max-width:calc(100vw - 90px)}}
+
+.process-upcoming-delivery-row{cursor:pointer}
+.process-upcoming-delivery-row:hover{background:var(--surface-hover,rgba(76,145,225,.08))}
+.process-upcoming-delivery-row:focus-visible{outline:2px solid var(--accent,#4b95eb);outline-offset:-2px}
+.process-list-component-transport-summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px;margin-top:10px;border:1px solid var(--line,rgba(120,150,190,.24));border-radius:10px;background:var(--surface-muted,rgba(105,135,175,.08))}
+.process-list-component-transport-summary>div{display:grid;gap:3px}
+.process-list-component-transport-summary small{color:var(--muted,#8090a6)}
+.process-list-component-transport-summary>strong:last-child{white-space:nowrap}
+@media(max-width:640px){.process-list-component-transport-summary{align-items:flex-start;flex-direction:column;gap:6px}}
+
+
+/* Process Universe drill-down and lane disclosure controls. */
+.process-orbit-selected-details{display:grid;gap:10px;margin:12px 0 7px;padding:12px;border:1px solid #c9d9ee;border-radius:11px;background:rgba(255,255,255,.96);color:#35557f;box-shadow:0 7px 18px rgba(39,76,137,.08)}
+.process-orbit-selected-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.process-orbit-selected-heading>div{display:grid;gap:3px;min-width:0}
+.process-orbit-selected-heading small,.process-orbit-selected-grid small{color:#7890ae;font:700 8px 'DM Mono',monospace;letter-spacing:.06em}
+.process-orbit-selected-heading strong{color:#244b79;font-size:13px;overflow-wrap:anywhere}
+.process-orbit-selected-heading>button{min-height:30px;padding:5px 9px;border:1px solid #c8d9ed;border-radius:7px;background:#f2f7ff;color:#315c8d;font-size:9px;font-weight:700;cursor:pointer}
+.process-orbit-selected-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.process-orbit-selected-grid>div{display:grid;gap:3px;min-width:0;padding:7px 8px;border:1px solid #e1eaf5;border-radius:7px;background:#f8fbff}
+.process-orbit-selected-grid strong{color:#3d5878;font-size:10px;overflow-wrap:anywhere}
+.process-orbit-selected-grid .process-orbit-selected-wide{grid-column:1/-1}
+.process-orbit-selected-links{display:flex;gap:7px;flex-wrap:wrap}
+.process-orbit-selected-links>button{min-height:30px;padding:6px 9px;border:1px solid #cbdcf0;border-radius:7px;background:#f1f7ff;color:#315c8d;font-size:9px;font-weight:600;text-align:left;cursor:pointer}
+.process-orbit-selected-links>button.process-orbit-add-subprocess{border-color:#9ec6e8;background:#eaf5ff;color:#155b97}
+.process-orbit-selected-links>button.process-orbit-add-alternate{border-color:#7bb8ee;background:#eaf4ff;color:#155fa4}
+.process-orbit-selected-links>button.process-orbit-add-rework{border-color:#e3a16e;background:#fff3e8;color:#a95c20}
+.process-node-subprocess-dropdown>button.process-node-add-alternate{align-items:center;background:#eaf4ff;border-color:#8bbfe9;color:#155fa4;font-weight:700}
+.process-node-subprocess-dropdown>button.process-node-add-rework{align-items:center;background:#fff3e8;border-color:#e3a16e;color:#a95c20;font-weight:700}
+.process-orbit-node.is-expanded{z-index:12;border-color:#3984dc;box-shadow:0 0 0 4px rgba(72,133,226,.17),0 12px 24px rgba(39,76,137,.22)}
+.process-universe-lane-toggle{display:flex;align-items:center;gap:9px;flex:1;min-width:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.process-universe-lane-toggle>span:nth-child(2){display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.process-universe-lane-disclosure{display:grid;place-items:center;flex:0 0 22px;width:22px;height:22px;border:1px solid #d7e4f7;border-radius:6px;background:#fff;color:#3977ce;font-size:15px;font-weight:700}
+.process-universe-lane-toggle:focus-visible{outline:2px solid #438df3;outline-offset:4px;border-radius:5px}
+.process-universe-lane-content[hidden]{display:none!important}
+.process-universe-node.is-expanded{z-index:14;border-color:#3984dc;box-shadow:0 0 0 3px rgba(72,133,225,.16),0 12px 24px rgba(39,76,137,.2)}
+.process-universe-node-wrap:has(.process-node-subprocess-dropdown){z-index:15}
+@media(max-width:650px){.process-orbit-selected-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.process-orbit-selected-heading>button{width:100%}.process-universe-lane-toggle{gap:7px}.process-universe-lane-label{gap:6px}}
+
+
+.process-add-prerequisite-note{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:13px 15px;margin:12px 0;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft,var(--surface));color:var(--text)}.process-add-prerequisite-note strong{font-size:13px}.process-add-prerequisite-note span{flex:1 1 260px;color:var(--muted);font-size:12px;line-height:1.5}.process-add-prerequisite-note>div{display:flex;flex-wrap:wrap;gap:7px}
+
+
+/* Volumetric 3D core for every Process Plan visual mode. */
+.process-orbit-core-webgl{background:transparent!important;overflow:hidden;isolation:isolate}
+.process-orbit-core-webgl:before,.process-orbit-core-webgl:after{display:none!important}
+.process-orbit-webgl-canvas{position:absolute;inset:0;z-index:0;display:block;width:100%;height:100%;pointer-events:none}
+.process-orbit-core-webgl .process-orbit-core-gloss{z-index:1;pointer-events:none}
+.process-orbit-core-webgl .process-orbit-core-content{z-index:3;pointer-events:none}
+.process-orbit-core-webgl .process-orbit-dot{z-index:4}
+.process-orbit-node{transform-style:preserve-3d;backface-visibility:hidden}
+.process-orbit-rotator{transform-style:preserve-3d;will-change:transform}
+.process-orbit-auto-toggle{margin-top:8px;min-height:27px;padding:4px 9px;border:1px solid rgba(94,205,232,.5);border-radius:7px;background:rgba(14,48,77,.82);color:#d7f5ff;font:700 8px 'DM Mono',monospace;cursor:pointer}
+.process-orbit-auto-toggle:disabled{opacity:.58;cursor:not-allowed}
+.process-universe-head .process-universe-count{display:flex;flex-direction:column;align-items:center;gap:5px}
+@media(max-width:600px){.process-orbit-auto-toggle{font-size:7px;padding:4px 6px}.process-orbit-core-content small{font-size:6px!important}}
+
+/* The 3D universe replaces the legacy 2D route-lane canvas for every selected Process Plan view. */
+.process-universe-3d.mode-linear .process-universe-viewport,
+.process-universe-3d.mode-horizontal .process-universe-viewport,
+.process-universe-3d.mode-vertical .process-universe-viewport,
+.process-universe-3d.mode-timeline .process-universe-viewport,
+.process-universe-3d.mode-gantt .process-universe-viewport,
+.process-universe-3d.mode-nodes .process-universe-viewport,
+.process-universe-3d.mode-branch .process-universe-viewport,
+.process-universe-3d.mode-combined .process-universe-viewport{display:none!important}
+.process-orbit-core-webgl{background:radial-gradient(circle at 31% 22%,rgba(255,255,255,.94),transparent 24%),radial-gradient(circle at 52% 55%,#4e8fe9 0%,#1f5ba9 54%,#12386e 100%)}
+
+
+/* Mobile process-universe clarity: keep the route nodes readable around a smaller
+   central core, and make the selected 3D mode unmistakable. */
+.process-universe-layouts{display:flex;flex-wrap:wrap;gap:7px}
+.process-universe-layouts>button{min-height:42px;padding:8px 12px;border:1px solid rgba(104,143,188,.34);border-radius:10px;background:linear-gradient(145deg,#17334d,#0d2338);color:#c9d9ec;font-size:10px;font-weight:700;letter-spacing:.02em}
+.process-universe-layouts>button.active{border:1px solid #42c7df;background:linear-gradient(145deg,#126b83,#174b77);color:#fff;box-shadow:0 0 0 2px rgba(66,199,223,.2),0 5px 16px rgba(15,120,160,.22)}
+.process-orbit-connector{height:4px;opacity:1;box-shadow:0 0 9px currentColor,0 0 2px rgba(255,255,255,.95)}
+.process-orbit-connector::after{border-left-width:12px;border-top-width:7px;border-bottom-width:7px}
+.process-orbit-node{backface-visibility:visible}
+@media(max-width:650px){
+  .process-orbit-viewport{height:500px;min-height:460px;overflow:hidden;perspective:1000px}
+  .process-orbit-core{width:154px;height:154px;margin:-77px 0 0 -77px}
+  .process-orbit-core>div strong{font-size:38px;letter-spacing:-1px}
+  .process-orbit-core>div small{font-size:7px}
+  .process-orbit-core>div b{font-size:8px}
+  .process-orbit-core>div em{font-size:6px;margin-top:6px}
+  .process-orbit-ring{width:340px;height:340px;margin:-170px 0 0 -170px}
+  .process-orbit-ring-b{width:270px;height:270px;margin:-135px 0 0 -135px}
+  .process-orbit-node{width:116px;min-height:88px;padding:7px 7px 8px;gap:3px;border-radius:10px}
+  .process-orbit-node .linked-node-icon{width:27px;height:27px;min-width:27px;min-height:27px}
+  .process-orbit-node strong{font-size:9px;line-height:1.25}
+  .process-orbit-node-top small{font-size:7px}
+  .process-orbit-node-qty{font-size:6px}
+  .process-orbit-connector{height:3px}
+  .process-orbit-connector::after{border-left-width:9px;border-top-width:5px;border-bottom-width:5px}
+  .process-universe-layouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .process-universe-layouts>button{min-width:0;min-height:40px;padding:7px 4px;font-size:9px;white-space:nowrap}
+}

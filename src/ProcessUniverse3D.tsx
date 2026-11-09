@@ -1,11 +1,12 @@
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
-import { motion, useMotionValue } from "motion/react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
+import { motion, useMotionValue, useReducedMotion } from "motion/react";
 import { Activity, ArrowRight, Boxes, ClipboardCheck, Cog, Cpu, Disc3, GitBranch, Scissors, Zap, Truck, Workflow, Wrench } from "lucide-react";
 import type { OperationRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
+import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 
-type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; vendorIds?: string[]; displayColor?: string };
-type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; selectedOperationId: string; simulationIndex: number; zoom: number; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
+type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
+type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
 function fallbackFor(name: string) {
   const value = name.toLowerCase();
@@ -22,16 +23,113 @@ function fallbackFor(name: string) {
   return <Workflow size={20} />;
 }
 
-type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh";
+type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "gantt" | "nodes" | "branch" | "combined";
+type Point3D = { x: number; y: number; z: number };
 
-export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
+function getLayoutPoint(index: number, operation: OperationRecord | undefined, mode: ProcessLayoutMode, count: number, source: OperationRecord[]): Point3D {
+  const total = Math.max(1, count);
+  const branchNames = [...new Set(source.map(item => item.branch || "Main route"))];
+  const branchName = operation?.branch || "Main route";
+  const branchIndex = Math.max(0, branchNames.indexOf(branchName));
+  const branchCount = Math.max(1, branchNames.length);
+  const branchRows = source.filter(item => (item.branch || "Main route") === branchName).slice().sort((a,b) => a.sequence-b.sequence);
+  const localIndex = operation ? Math.max(0, branchRows.findIndex(item => item.id === operation.id)) : index;
+  const localCount = Math.max(1, branchRows.length || total);
+  const center = (index - (total - 1) / 2);
+  const branchOffset = branchIndex - (branchCount - 1) / 2;
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const unitY = 1 - 2 * ((index + 0.5) / total);
+  const ringRadius = Math.sqrt(Math.max(0, 1 - unitY * unitY));
+  const angle = index * golden;
+  const sphere: Point3D = { x: Math.cos(angle) * ringRadius * 188, y: -unitY * 188, z: Math.sin(angle) * ringRadius * 188 };
+  if (mode === "vortex") {
+    const spin = index * 0.92;
+    const radius = 108 + (index % 4) * 17;
+    return { x: Math.cos(spin) * radius, y: center * 34, z: Math.sin(spin) * radius };
+  }
+  if (mode === "cube") {
+    const side = Math.ceil(Math.cbrt(total));
+    const x = index % side, y = Math.floor(index / side) % side, z = Math.floor(index / (side * side));
+    const half = (side - 1) / 2;
+    return { x: (x-half)*112, y: (half-y)*112, z: (z-half)*112 };
+  }
+  if (mode === "digital-mesh") {
+    // Ordered serpentine lattice: each successive operation sits beside the
+    // previous one, so the 3D arrows read as a route rather than crossing chords.
+    const columns = Math.max(2, Math.ceil(Math.sqrt(total)));
+    const row = Math.floor(index / columns);
+    const slot = index % columns;
+    const column = row % 2 === 0 ? slot : columns - 1 - slot;
+    const rows = Math.ceil(total / columns);
+    return { x: (column - (columns - 1) / 2) * 92, y: ((rows - 1) / 2 - row) * 78, z: branchOffset * 76 + Math.sin(index * 0.42) * 12 };
+  }
+  if (mode === "nodes") {
+    // A readable 3D hierarchy: route steps occupy staggered depth planes.
+    const columns = Math.max(2, Math.ceil(Math.sqrt(localCount)));
+    const row = Math.floor(localIndex / columns);
+    const column = localIndex % columns;
+    return { x: (column - (columns - 1) / 2) * 112, y: branchOffset * 104 + ((Math.ceil(localCount / columns) - 1) / 2 - row) * 94, z: (row % 2 ? 1 : -1) * 58 + branchOffset * 36 };
+  }
+  if (mode === "molecular") {
+    // Molecular clusters: each branch is a nucleus with linked process satellites.
+    const clusterAngle = branchIndex * (Math.PI * 2 / branchCount);
+    const satelliteAngle = localIndex * golden;
+    const radius = 82 + (localIndex % 3) * 28;
+    return { x: Math.cos(clusterAngle) * 72 + Math.cos(satelliteAngle) * radius, y: branchOffset * 54 + Math.sin(localIndex * 0.9) * 54, z: Math.sin(clusterAngle) * 72 + Math.sin(satelliteAngle) * radius };
+  }
+  if (mode === "orbit" || mode === "horizontal" || mode === "vertical") {
+    if (mode === "horizontal") return { x: center * 116, y: branchOffset * 104 + Math.sin(index*0.7)*18, z: branchOffset * 58 + Math.cos(index*0.8)*34 };
+    if (mode === "vertical") return { x: Math.cos(index*golden)*74, y: -center*112, z: Math.sin(index*golden)*74 };
+    const orbitRing = Math.floor(Math.sqrt(index));
+    const orbitPosition = index - orbitRing * orbitRing;
+    const orbitCount = Math.max(1, 2 * orbitRing + 1);
+    const orbitAngle = orbitPosition / orbitCount * Math.PI * 2;
+    const orbitRadius = 72 + orbitRing * 58;
+    return { x: Math.cos(orbitAngle) * orbitRadius, y: branchOffset * 54 + (orbitRing % 2 ? 42 : -42), z: Math.sin(orbitAngle) * orbitRadius };
+  }
+  if (mode === "linear" || mode === "route") return { x: center*118, y: Math.sin(index*0.82)*42, z: Math.cos(index*0.67)*72 };
+  if (mode === "timeline" || mode === "gantt") {
+    const dates = source.map(item => Date.parse(item.plannedStart || item.actualStart || "")).filter(Number.isFinite);
+    const minimum = dates.length ? Math.min(...dates) : 0;
+    const maximum = dates.length ? Math.max(...dates) : 0;
+    const timestamp = operation ? Date.parse(operation.plannedStart || operation.actualStart || "") : Number.NaN;
+    const ratio = Number.isFinite(timestamp) && maximum > minimum ? (timestamp-minimum)/(maximum-minimum) : (index+0.5)/total;
+    const span = mode === "gantt" ? 215 : 190;
+    return { x: (ratio-0.5)*span*2, y: branchOffset*106 + (mode === "timeline" ? Math.sin(index*0.76)*22 : 0), z: branchOffset*82 + Math.cos(index*0.55)*28 };
+  }
+  if (mode === "branch") return { x: (localIndex-(localCount-1)/2)*102, y: branchOffset*74 + Math.sin(localIndex*0.7)*20, z: branchOffset*112 + Math.cos(localIndex*0.6)*26 };
+  if (mode === "combined") {
+    const spiral = index*0.82;
+    const radius = 112 + (index%5)*19;
+    return { x: Math.cos(spiral)*radius, y: sphere.y*0.56, z: Math.sin(spiral)*radius };
+  }
+  return sphere;
+}
+
+function transformStyle3d(point: Point3D) {
+  const radius = Math.max(1, Math.hypot(point.x, point.y, point.z));
+  const yaw = Math.atan2(point.x, point.z) * 180 / Math.PI;
+  const pitch = -Math.asin(Math.max(-1, Math.min(1, point.y / radius))) * 180 / Math.PI;
+  return `translate(-50%,-50%) translate3d(${point.x}px,${point.y}px,${point.z}px) rotateY(${yaw}deg) rotateX(${pitch}deg)`;
+}
+
+export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", onSelectOperation, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
+  const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);
+  const fieldVisible = (field: string) => visibleFields.includes(field);
+  const dateLabel = (value?: string) => value ? value.slice(0, 10) : "Not set";
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
   const displayOperations = parentOperations.length ? parentOperations : operations;
   const lookupOperations = allOperations || operations;
   const subprocessesFor = (parentId: string) => lookupOperations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
   const branchesFor = (parentId: string) => lookupOperations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
-  const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>("sphere");
+  const expandedOrbitOperation = displayOperations.find(operation => operation.id === expandedOperationId);
+  const expandedOrbitSubprocesses = expandedOrbitOperation ? subprocessesFor(expandedOrbitOperation.id) : [];
+  const expandedOrbitBranches = expandedOrbitOperation ? branchesFor(expandedOrbitOperation.id) : [];
+  const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>(initialLayout);
+  const [autoRotateEnabled, setAutoRotateEnabled] = useState(true);
+  const prefersReducedMotion = useReducedMotion();
+  useEffect(() => setLayoutMode(initialLayout), [initialLayout]);
   const rotateX = useMotionValue(-12);
   const rotateY = useMotionValue(18);
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
@@ -45,15 +143,36 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
     rotateX.set(Math.max(-55, Math.min(55, drag.current.rx - (event.clientY - drag.current.y) * 0.52)));
   };
   const endDrag = () => { drag.current = null; };
+  useEffect(() => {
+    if (!autoRotateEnabled || prefersReducedMotion) return;
+    let frame = 0;
+    let previousTime = 0;
+    const tick = (time: number) => {
+      if (previousTime > 0 && !drag.current) rotateY.set(rotateY.get() + Math.min(50, time - previousTime) * 0.0065);
+      previousTime = time;
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [autoRotateEnabled, prefersReducedMotion, rotateY]);
 
+  // Coordinate all saved route nodes against the full PO-line route. A scoped
+  // view therefore keeps stable globe positions and can still draw an origin
+  // connection to a parent that is not part of the selected route scope.
+  const coordinateOperations = useMemo(() => {
+    const source = lookupOperations.length ? lookupOperations : displayOperations;
+    return source.filter(operation => operation.relationType !== "subprocess").slice().sort((a,b) => a.sequence-b.sequence);
+  }, [lookupOperations, displayOperations]);
+  const orbitPointFor = (operation: OperationRecord) => {
+    const index = coordinateOperations.findIndex(item => item.id === operation.id);
+    if (index < 0) return { x: 0, y: 0, z: 0 };
+    return getLayoutPoint(index, operation, layoutMode, coordinateOperations.length, coordinateOperations);
+  };
   const orbitNodes = useMemo(() => displayOperations.map((operation, index) => {
-    const count = Math.max(displayOperations.length, 1);
-    const y = 1 - 2 * ((index + 0.5) / count);
-    const latitude = Math.asin(Math.max(-1, Math.min(1, y))) * 180 / Math.PI;
-    const longitude = index * (Math.PI * (3 - Math.sqrt(5))) * 180 / Math.PI;
-    const transform = `translate(-50%,-50%) rotateY(${longitude}deg) rotateX(${latitude}deg) translateZ(var(--process-orbit-radius,205px)) rotateX(${-latitude}deg) rotateY(${-longitude}deg)`;
-    return { operation, index, transform };
-  }), [displayOperations]);
+    const globalIndex = coordinateOperations.findIndex(item => item.id === operation.id);
+    const point = getLayoutPoint(globalIndex < 0 ? index : globalIndex, operation, layoutMode, coordinateOperations.length, coordinateOperations);
+    return { operation, index, transform: transformStyle3d(point), point };
+  }), [displayOperations, coordinateOperations, layoutMode]);
 
   // When a PO line has no saved operations yet, put the real Process Directory
   // definitions onto the interactive 3D orbit. These are catalogue actions,
@@ -61,12 +180,10 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
   // operation editor and only Save creates a production record.
   const catalogueOrbitNodes = useMemo(() => processDefinitions.map((definition, index) => {
     const count = Math.max(processDefinitions.length, 1);
-    const y = 1 - 2 * ((index + 0.5) / count);
-    const latitude = Math.asin(Math.max(-1, Math.min(1, y))) * 180 / Math.PI;
-    const longitude = index * (Math.PI * (3 - Math.sqrt(5))) * 180 / Math.PI;
-    const transform = `translate(-50%,-50%) rotateY(${longitude}deg) rotateX(${latitude}deg) translateZ(var(--process-orbit-radius,205px)) rotateX(${-latitude}deg) rotateY(${-longitude}deg)`;
+    const point = getLayoutPoint(index, undefined, layoutMode, count, coordinateOperations);
+    const transform = transformStyle3d(point);
     return { definition, index, transform };
-  }), [processDefinitions]);
+  }), [processDefinitions, layoutMode, coordinateOperations]);
   const showCatalogueOrbit = operations.length === 0 && catalogueOrbitNodes.length > 0;
   const orbitCount = displayOperations.length || (showCatalogueOrbit ? catalogueOrbitNodes.length : 0);
 
@@ -80,36 +197,110 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
     }
     return [...grouped.entries()].map(([name, rows]) => {
       const ordered = rows.slice().sort((a,b) => a.sequence-b.sequence);
-      const branchRoot = ordered.find(row => row.parentId && (row.relationType === "alternate" || row.relationType === "rework") && lookupOperations.find(item=>item.id===row.parentId)?.branch !== name);
-      const parent = branchRoot ? lookupOperations.find(item=>item.id===branchRoot.parentId) : undefined;
+      let branchRoot: OperationRecord | undefined;
+      let parent: OperationRecord | undefined;
+      if (name !== "Main route") {
+        for (const candidate of ordered) {
+          if (candidate.relationType !== "alternate" && candidate.relationType !== "rework") continue;
+          let current = candidate;
+          let ancestor = lookupOperations.find(item => item.id === current.parentId);
+          let guard = 0;
+          // Walk through later branch steps until we reach the original operation
+          // outside this branch. This still works when the active route scope only
+          // contains one selected branch step rather than the branch root.
+          while (ancestor && (ancestor.branch || "Main route") === name && ancestor.parentId && guard++ < lookupOperations.length) {
+            current = ancestor;
+            ancestor = lookupOperations.find(item => item.id === current.parentId);
+          }
+          if (ancestor && (ancestor.branch || "Main route") !== name) {
+            branchRoot = current;
+            parent = ancestor;
+            break;
+          }
+        }
+      }
       return { name, rows: ordered, alternate: name !== "Main route", branchRoot, parent, branchRelation: branchRoot?.relationType };
     });
-  }, [parentOperations]);
+  }, [parentOperations, lookupOperations]);
+  const orbitConnections = useMemo(() => {
+    const visibleIds = new Set(displayOperations.map(operation => operation.id));
+    const edges: Array<{id:string;from:OperationRecord;to:OperationRecord;relation:"main"|"alternate"|"rework";color:string}> = [];
+    const byBranch = new Map<string, OperationRecord[]>();
+    for (const operation of coordinateOperations) {
+      const branch = operation.branch || "Main route";
+      const rows = byBranch.get(branch) || [];
+      rows.push(operation);
+      byBranch.set(branch, rows);
+    }
+    const accentFor = (operation:OperationRecord) => processDefinitions.find(definition=>definition.id===operation.processDefinitionId)?.displayColor || operation.processColor || "#6fa9e5";
+    for (const [branch, rows] of byBranch) {
+      const ordered = rows.slice().sort((a,b)=>a.sequence-b.sequence);
+      const lane = lanes.find(item=>item.name===branch);
+      const relation = branch==="Main route" ? "main" : lane?.branchRelation==="rework" ? "rework" : "alternate";
+      const color = relation==="rework" ? "#e38b45" : relation==="alternate" ? "#4b95eb" : undefined;
+      for (let index=0; index<ordered.length-1; index++) {
+        const from=ordered[index], to=ordered[index+1];
+        if (!visibleIds.has(from.id) && !visibleIds.has(to.id)) continue;
+        edges.push({id:from.id+"->"+to.id,from,to,relation,color:color||accentFor(to)});
+      }
+      if (branch!=="Main route" && lane?.branchRoot && lane.parent && displayOperations.some(operation=>(operation.branch||"Main route")===branch)) {
+        const from=lane.parent, to=lane.branchRoot;
+        edges.push({id:from.id+"->"+to.id,from,to,relation:relation==="rework"?"rework":"alternate",color:relation==="rework"?"#e38b45":"#4b95eb"});
+      }
+    }
+    const anchors = new Map<string,{operation:OperationRecord;relation:"main"|"alternate"|"rework";color:string}>();
+    for (const edge of edges) {
+      if (!visibleIds.has(edge.from.id)) anchors.set(edge.from.id,{operation:edge.from,relation:edge.relation,color:edge.color});
+      if (!visibleIds.has(edge.to.id)) anchors.set(edge.to.id,{operation:edge.to,relation:edge.relation,color:edge.color});
+    }
+    return { edges, anchors:[...anchors.values()] };
+  }, [coordinateOperations, displayOperations, lanes, processDefinitions, layoutMode]);
   const stageStyle: CSSProperties = { transform: `scale(${zoom}) rotateX(2deg)`, transformOrigin: "top left", width: `${100 / zoom}%` };
 
   return <section className={"process-universe-3d mode-" + layoutMode} aria-label="Interactive 3D process route graph">
     <header className="process-universe-head">
       <div><span className="process-universe-kicker"><span /> LIVE ROUTE / INTERACTIVE 3D</span><h3>Manufacturing process universe</h3><p>Drag the process sphere to rotate it. Select any saved process icon to open its real operation record; simulation highlights each step in sequence.</p></div>
-      <div className="process-universe-count"><strong>{orbitCount}</strong><span>{displayOperations.length ? "SAVED PROCESS STEPS" : "AVAILABLE STAGES"}</span></div>
+      <div className="process-universe-count"><strong>{orbitCount}</strong><span>{displayOperations.length ? "SAVED PROCESS STEPS" : "AVAILABLE STAGES"}</span><button type="button" className="process-orbit-auto-toggle" aria-pressed={autoRotateEnabled} disabled={!!prefersReducedMotion} onClick={() => setAutoRotateEnabled(value => !value)}>{prefersReducedMotion ? "Reduced motion" : autoRotateEnabled ? "Pause rotation" : "Resume rotation"}</button></div>
     </header>
     <nav className="process-universe-layouts" aria-label="Process map visualisation modes">
-      {([{id:"sphere",label:"Sphere"},{id:"route",label:"Conventional route"},{id:"vortex",label:"Vortex"},{id:"cube",label:"Cube"},{id:"molecular",label:"Molecular"},{id:"orbit",label:"Orbit"},{id:"digital-mesh",label:"Digital mesh"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}>{option.label}</button>)}
+      {([{id:"sphere",label:"Sphere"},{id:"vortex",label:"Vortex"},{id:"linear",label:"Linear"},{id:"horizontal",label:"Horizontal"},{id:"vertical",label:"Vertical"},{id:"timeline",label:"Timeline"},{id:"gantt",label:"Gantt"},{id:"nodes",label:"Nodes"},{id:"branch",label:"Branch"},{id:"combined",label:"Combined"},{id:"cube",label:"Cube"},{id:"molecular",label:"Molecular"},{id:"orbit",label:"Orbit"},{id:"digital-mesh",label:"Digital mesh"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}>{option.label}</button>)}
     </nav>
     <div className="process-orbit-panel">
-      <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>3D ORBIT · TOUCH / MOUSE DRAG</span></div>
+      <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
       <div className="process-orbit-viewport">
         <motion.div className="process-orbit-rotator" onPointerDown={event => { if ((event.target as HTMLElement).closest(".process-orbit-node")) return; startDrag(event); }} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} style={{ rotateX, rotateY, touchAction: "none" }}>
-          <div className="process-orbit-ring process-orbit-ring-a" /><div className="process-orbit-ring process-orbit-ring-b" />
-          <div className="process-orbit-core"><span className="process-orbit-core-gloss" /><span className="process-orbit-core-grid" /><div><small>AXIMACH / ROUTE CORE</small><strong>{orbitCount.toString().padStart(2,"0")}</strong><b>{displayOperations.length ? "PROCESS STEPS" : "DIRECTORY STAGES"}</b><em>{displayOperations.length ? "SAVED ROUTE" : "CATALOGUE ONLY"}</em></div><i className="process-orbit-dot process-orbit-dot-a" /><i className="process-orbit-dot process-orbit-dot-b" /><i className="process-orbit-dot process-orbit-dot-c" /></div>
+          <div className="process-orbit-ring process-orbit-ring-a" /><div className="process-orbit-ring process-orbit-ring-b" />{showArrows && orbitConnections.edges.map(edge=>{
+            const from=orbitPointFor(edge.from), to=orbitPointFor(edge.to);
+            const dx=to.x-from.x, dy=to.y-from.y, dz=to.z-from.z;
+            const length=Math.sqrt(dx*dx+dy*dy+dz*dz);
+            if(length<1)return null;
+            const axisY=-dz/length, axisZ=dy/length;
+            const axisMagnitude=Math.hypot(axisY,axisZ);
+            const rotateAxisY=axisMagnitude<0.0001?1:axisY/axisMagnitude;
+            const rotateAxisZ=axisMagnitude<0.0001?0:axisZ/axisMagnitude;
+            const angle=Math.acos(Math.max(-1,Math.min(1,dx/length)))*180/Math.PI;
+            const midX=(from.x+to.x)/2,midY=(from.y+to.y)/2,midZ=(from.z+to.z)/2;
+            return <div key={edge.id} className={"process-orbit-connector is-"+edge.relation} style={{width:length,color:edge.color,transform:`translate3d(${midX}px,${midY}px,${midZ}px) rotate3d(0,${rotateAxisY},${rotateAxisZ},${angle}deg) translate(-50%,-50%)`}} title={edge.from.name+" → "+edge.to.name} aria-hidden="true"/>;
+          })}
+          {showArrows && orbitConnections.anchors.map(anchor=>{
+            const point=orbitPointFor(anchor.operation);
+            return <div key={"anchor-"+anchor.operation.id} className={"process-orbit-parent-anchor is-"+anchor.relation} style={{color:anchor.color,transform:`translate3d(${point.x}px,${point.y}px,${point.z}px) translate(-50%,-50%)`}} title={"Connected parent: "+anchor.operation.name+" · OP-"+anchor.operation.sequence} aria-hidden="true"><span/></div>;
+          })}
+          
+          <div className="process-orbit-core process-orbit-core-webgl"><ProcessUniverseWebGLCore mode={layoutMode} rotationX={rotateX} rotationY={rotateY} /><span className="process-orbit-core-gloss" /><div className="process-orbit-core-content"><small>AXIMACH / ROUTE CORE</small><strong>{orbitCount.toString().padStart(2,"0")}</strong><b>{displayOperations.length ? "PROCESS STEPS" : "DIRECTORY STAGES"}</b><em>{displayOperations.length ? "SAVED ROUTE" : "CATALOGUE ONLY"}</em></div><i className="process-orbit-dot process-orbit-dot-a" /><i className="process-orbit-dot process-orbit-dot-b" /><i className="process-orbit-dot process-orbit-dot-c" /></div>
           {orbitNodes.map(({ operation, index, transform }) => {
             const active = selectedOperationId === operation.id, current = simulationIndex === index, passed = simulationIndex > index;
+            const expanded = expandedOperationId === operation.id;
             const state = operation.status.toLowerCase().replaceAll(" ","-");
             const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
             const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
-            return <button key={operation.id} type="button" className={"process-orbit-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{ transform, "--process-accent":accent } as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={operation.name + " · " + operation.status}>
+            return <button key={operation.id} type="button" className={"process-orbit-node status-" + state + (active ? " is-selected" : "") + (expanded ? " is-expanded" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{ transform, "--process-accent":accent } as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} aria-expanded={expanded} aria-controls="process-orbit-selected-details" title={operation.name + " · " + operation.status}>
               <span className="process-orbit-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><i /></span>
               <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} />
-              <strong>{operation.name}</strong>{subprocessesFor(operation.id).length > 0 && <small className="process-orbit-node-qty">{subprocessesFor(operation.id).length} SUB-PROCESS(ES)</small>}<small className="process-orbit-node-qty">{operation.completed.toLocaleString("en-IN")} / {operation.quantity.toLocaleString("en-IN")} pcs</small>
+              <strong>{operation.name}</strong>
+              {subprocessesFor(operation.id).length > 0 && <small className="process-orbit-node-qty">{subprocessesFor(operation.id).length} SUB-PROCESS(ES)</small>}
+              {branchesFor(operation.id).length > 0 && <small className="process-orbit-node-qty">{branchesFor(operation.id).length} ALTERNATE / REWORK STEP(S)</small>}
+              <small className="process-orbit-node-qty">{expanded ? "− COLLAPSE DETAILS" : "+ EXPAND DETAILS"}</small>
             </button>;
           })}
           {showCatalogueOrbit && catalogueOrbitNodes.map(({ definition, index, transform }) => (
@@ -131,34 +322,99 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
         </motion.div>
       </div>
       <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>{showCatalogueOrbit ? "SELECT A DIRECTORY NODE TO CREATE A PO-LINE OPERATION" : "SELECT A PROCESS NODE TO OPEN ITS RECORD"}</span><span>SIMULATION IS VISUAL ONLY</span></div>
+      {layoutMode !== "route" && expandedOrbitOperation && <section className="process-orbit-selected-details" id="process-orbit-selected-details" aria-label={"Expanded details for " + expandedOrbitOperation.name}>
+        <div className="process-orbit-selected-heading"><div><small>SELECTED PROCESS / OP-{String(expandedOrbitOperation.sequence).padStart(3,"0")}</small><strong>{expandedOrbitOperation.name}</strong></div><button type="button" onClick={() => setExpandedOperationId("")}>Collapse details −</button></div>
+        <div className="process-orbit-selected-grid">
+          {fieldVisible("category") && <div><small>CATEGORY</small><strong>{expandedOrbitOperation.category || "Not set"}</strong></div>}
+          {fieldVisible("subcategory") && <div><small>SUBCATEGORY</small><strong>{expandedOrbitOperation.subcategory || "Not set"}</strong></div>}
+          {fieldVisible("vendor") && <div><small>VENDOR</small><strong>{vendors.find(vendor => vendor.id === expandedOrbitOperation.vendorId)?.company || "Not assigned"}</strong></div>}
+          {fieldVisible("plannedStart") && <div><small>START</small><strong>{dateLabel(expandedOrbitOperation.plannedStart)}</strong></div>}
+          {fieldVisible("plannedEnd") && <div><small>DELIVERY</small><strong>{dateLabel(expandedOrbitOperation.plannedEnd)}</strong></div>}
+          {fieldVisible("quantity") && <div><small>QUANTITY</small><strong>{expandedOrbitOperation.quantity.toLocaleString("en-IN")} {quantityUnit}</strong></div>}
+          {fieldVisible("completed") && <div><small>COMPLETED</small><strong>{expandedOrbitOperation.completed.toLocaleString("en-IN")} {quantityUnit}</strong></div>}
+          {fieldVisible("price") && <div><small>PRICE / PART</small><strong>₹{(expandedOrbitOperation.actualRatePerPart || expandedOrbitOperation.ratePerPart).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
+          {fieldVisible("amount") && <div><small>PROCESS AMOUNT</small><strong>₹{(expandedOrbitOperation.quantity * (expandedOrbitOperation.actualRatePerPart || expandedOrbitOperation.ratePerPart)).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
+          {fieldVisible("transportLegCost") && <div><small>TRANSPORT AMOUNT</small><strong>₹{(operationTransportAmounts[expandedOrbitOperation.id] || 0).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
+          {fieldVisible("combinedAmount") && <div><small>PROCESS + TRANSPORT</small><strong>₹{(expandedOrbitOperation.quantity * (expandedOrbitOperation.actualRatePerPart || expandedOrbitOperation.ratePerPart) + (operationTransportAmounts[expandedOrbitOperation.id] || 0)).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>}
+          {fieldVisible("status") && <div><small>STATUS</small><strong>{expandedOrbitOperation.status}</strong></div>}
+          {fieldVisible("execution") && <div><small>EXECUTION</small><strong>{expandedOrbitOperation.executionType || "Outsourced"}</strong></div>}
+          {fieldVisible("tolerance") && <div><small>TOLERANCE</small><strong>{expandedOrbitOperation.toleranceCategory || "Standard"}</strong></div>}
+          {fieldVisible("paymentStatus") && <div><small>PAYMENT</small><strong>{expandedOrbitOperation.paymentStatus || "Unpaid"}</strong></div>}
+          {fieldVisible("machine") && <div><small>MACHINE / STATION</small><strong>{expandedOrbitOperation.machine || "Not set"}</strong></div>}
+          {fieldVisible("description") && <div className="process-orbit-selected-wide"><small>OPERATION DETAILS</small><strong>{expandedOrbitOperation.notes || expandedOrbitOperation.qualityNotes || "Not set"}</strong></div>}
+        </div>
+        {(expandedOrbitSubprocesses.length > 0 || expandedOrbitBranches.length > 0 || onAddSubprocess || onAddAlternateRoute || onAddReworkRoute) && <div className="process-orbit-selected-links">
+          {expandedOrbitSubprocesses.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(""); }}>Sub-process · {child.name} · {child.status}</button>)}
+          {expandedOrbitBranches.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(child.id); }}>{child.relationType === "rework" ? "Rework" : "Alternate"} · {child.name} · {child.status}</button>)}
+          {onAddSubprocess && <button type="button" className="process-orbit-add-subprocess" onClick={() => onAddSubprocess(expandedOrbitOperation.id)}>＋ Add sub-process</button>}
+          {onAddAlternateRoute && <button type="button" className="process-orbit-add-alternate" onClick={() => onAddAlternateRoute(expandedOrbitOperation.id)}>＋ Create alternate route</button>}
+          {onAddReworkRoute && <button type="button" className="process-orbit-add-rework" onClick={() => onAddReworkRoute(expandedOrbitOperation.id)}>＋ Create rework route</button>}
+        </div>}
+      </section>}
     </div>
     <div className="process-universe-viewport"><div className="process-universe-stage" style={stageStyle}>
-      {lanes.map(lane => <section className={"process-universe-lane" + (lane.alternate ? " is-branch " + (lane.branchRelation==="rework"?"is-rework":"is-alternate") : "")} key={lane.name}>
-        <div className="process-universe-lane-label"><span className="process-universe-branch-icon">{lane.alternate ? <GitBranch size={15}/> : <Workflow size={15}/>}</span><span><strong>{lane.name}</strong><small>{lane.alternate ? (lane.branchRelation==="rework"?"Rework branch":"Alternate route") + (lane.parent ? " · connected from OP-" + String(lane.parent.sequence).padStart(3,"0") + " " + lane.parent.name : "") : "Primary manufacturing route"}</small></span><em>{lane.rows.length} STEP{lane.rows.length === 1 ? "" : "S"}</em></div>
-        {lane.alternate && lane.branchRoot && <div className={"process-universe-branch-link " + (lane.branchRelation==="rework"?"is-rework":"is-alternate")}><span>OP-{String(lane.parent?.sequence||0).padStart(3,"0")} · {lane.parent?.name||"Parent operation"}</span><ArrowRight size={16} style={{color:lane.branchRelation==="rework"?"#e38b45":"#4b95eb"}}/><strong>{lane.rows[0]?.name||lane.name}</strong><small>{lane.branchRelation==="rework"?"REWORK BRANCH":"ALTERNATE ROUTE"}</small></div>}
-        <div className="process-universe-node-track">{lane.rows.map((operation,index) => {
-          const globalIndex = displayOperations.findIndex(item => item.id === operation.id);
-          const active = selectedOperationId === operation.id, current = simulationIndex === globalIndex, passed = simulationIndex > globalIndex;
-          const childOperations = subprocessesFor(operation.id);
-          const linkedBranches = branchesFor(operation.id);
-          const expanded = expandedOperationId === operation.id;
-          const state = operation.status.toLowerCase().replaceAll(" ","-");
-          const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
-          const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
-          return <div className="process-universe-node-wrap" key={operation.id}>
-            <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{"--process-accent":accent} as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={"Open " + operation.name + " operation record"}>
-              <span className="process-universe-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><em>{operation.status}</em></span>
-              <span className="process-universe-node-icon"><ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} /></span>
-              <strong>{operation.name}</strong>{childOperations.length > 0 && <small className="process-universe-node-category">{childOperations.length} sub-process(es) · {childOperations[0].vendorId ? "vendor linked" : "vendor assignment pending"}</small>}<small className="process-universe-node-category">{operation.category || operation.machine || "Manufacturing operation"}</small>
-              <span className="process-universe-qty"><b>{operation.completed.toLocaleString("en-IN")}</b> / {operation.quantity.toLocaleString("en-IN")} pcs</span>
-              {operation.machine && <span className="process-universe-machine">{operation.machine}</span>}
+      {lanes.map((lane,laneIndex) => {
+        const collapsed = collapsedLaneNames.includes(lane.name);
+        const lanePanelId = "process-universe-lane-" + laneIndex;
+        return <section className={"process-universe-lane" + (lane.alternate ? " is-branch " + (lane.branchRelation==="rework"?"is-rework":"is-alternate") : "")} key={lane.name}>
+          <div className="process-universe-lane-label">
+            <button type="button" className="process-universe-lane-toggle" aria-expanded={!collapsed} aria-controls={lanePanelId} onClick={() => setCollapsedLaneNames(current => current.includes(lane.name) ? current.filter(name => name !== lane.name) : [...current,lane.name])}>
+              <span className="process-universe-branch-icon">{lane.alternate ? <GitBranch size={15}/> : <Workflow size={15}/>}</span>
+              <span><strong>{lane.name}</strong><small>{lane.alternate ? (lane.branchRelation==="rework"?"Rework branch":"Alternate route") + (lane.parent ? " · connected from OP-" + String(lane.parent.sequence).padStart(3,"0") + " " + lane.parent.name : "") : "Primary manufacturing route"}</small></span>
+              <span className="process-universe-lane-disclosure" aria-hidden="true">{collapsed ? "+" : "−"}</span>
             </button>
-            {expanded && <div className="process-node-subprocess-dropdown"><strong>{operation.name} · Linked steps</strong>{childOperations.map(child => <button type="button" key={child.id} onClick={() => onSelectOperation(child.id)}><span>{child.name}</span><small>Sub-process · {child.status} · {child.machine || "Machine not set"}</small></button>)}{linkedBranches.map(child => <button type="button" key={child.id} onClick={() => onSelectOperation(child.id)}><span>{child.name}</span><small>{child.relationType === "rework" ? "Rework branch" : "Alternate route"} · {child.status}</small></button>)}<button type="button" className="process-node-add-subprocess" onClick={() => onAddSubprocess?.(operation.id)}>＋ Add sub-process</button></div>}
-            {index < lane.rows.length - 1 && <span className="process-universe-connector" style={{color:lane.branchRelation==="rework"?"#e38b45":lane.branchRelation==="alternate"?"#4b95eb":accent}} aria-hidden="true"><ArrowRight size={17}/></span>}
-          </div>;
-        })}</div>
-        {lane.alternate && <div className="process-universe-branch-note">Branch retained with its parent operation and rework history.</div>}
-      </section>)}
+            <em>{lane.rows.length} STEP{lane.rows.length === 1 ? "" : "S"}</em>
+          </div>
+          <div id={lanePanelId} className="process-universe-lane-content" hidden={collapsed}>
+            {lane.alternate && lane.branchRoot && <div className={"process-universe-branch-link " + (lane.branchRelation==="rework"?"is-rework":"is-alternate")} data-parent-id={lane.parent?.id||""} data-branch-root-id={lane.branchRoot?.id||""} aria-label={(lane.branchRelation==="rework"?"Rework":"Alternate")+" branch connection from "+(lane.parent?.name||"parent process")+" to "+(lane.branchRoot?.name||lane.name)}><span>OP-{String(lane.parent?.sequence||0).padStart(3,"0")} · {lane.parent?.name||"Parent operation"}</span>{showArrows && <ArrowRight size={16} style={{color:lane.branchRelation==="rework"?"#e38b45":"#4b95eb"}}/>}<strong>{lane.branchRoot?.name||lane.name}</strong><small>{lane.branchRelation==="rework"?"REWORK BRANCH":"ALTERNATE ROUTE"}</small></div>}
+            <div className="process-universe-node-track">{lane.rows.map((operation,index) => {
+              const globalIndex = displayOperations.findIndex(item => item.id === operation.id);
+              const active = selectedOperationId === operation.id, current = simulationIndex === globalIndex, passed = simulationIndex > globalIndex;
+              const childOperations = subprocessesFor(operation.id);
+              const linkedBranches = branchesFor(operation.id);
+              const expanded = expandedOperationId === operation.id;
+              const state = operation.status.toLowerCase().replaceAll(" ","-");
+              const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
+              const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
+              return <div className="process-universe-node-wrap" key={operation.id}>
+                <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (expanded ? " is-expanded" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{"--process-accent":accent} as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} aria-expanded={expanded} aria-controls={"process-universe-node-details-"+operation.id} title={"Open " + operation.name + " operation record"}>
+                  <span className="process-universe-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><em>{operation.status}</em></span>
+                  <span className="process-universe-node-icon"><ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} /></span>
+                  <strong>{operation.name}</strong>
+                  <div className="process-universe-node-details"><small>{childOperations.length} linked sub-process(es) · {linkedBranches.length} alternate / rework step(s)</small><small>{expanded ? "− COLLAPSE DETAILS" : "+ EXPAND DETAILS"}</small></div>
+                </button>
+                {expanded && <div id={"process-universe-node-details-"+operation.id} className="process-node-subprocess-dropdown">
+                  <strong>{operation.name} · Linked steps</strong>
+                  <div className="process-universe-node-details">
+                    {fieldVisible("category") && <small>Category · {operation.category || "Not set"}</small>}
+                    {fieldVisible("subcategory") && operation.subcategory && <small>Subcategory · {operation.subcategory}</small>}
+                    {fieldVisible("vendor") && <small>Vendor · {vendors.find(vendor => vendor.id === operation.vendorId)?.company || "Not assigned"}</small>}
+                    {fieldVisible("plannedStart") && <small>Start · {dateLabel(operation.plannedStart)}</small>}
+                    {fieldVisible("plannedEnd") && <small>Delivery · {dateLabel(operation.plannedEnd)}</small>}
+                    {fieldVisible("quantity") && <small>Quantity · {operation.quantity.toLocaleString("en-IN")} {quantityUnit}</small>}
+                    {fieldVisible("completed") && <small>Completed · {operation.completed.toLocaleString("en-IN")} {quantityUnit}</small>}
+                    {fieldVisible("price") && <small>Price / part · ₹{(operation.actualRatePerPart || operation.ratePerPart).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                    {fieldVisible("amount") && <small>Process amount · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                    {fieldVisible("transportLegCost") && <small>Transport amount · ₹{(operationTransportAmounts[operation.id] || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                    {fieldVisible("combinedAmount") && <small>Process + transport · ₹{(operation.quantity * (operation.actualRatePerPart || operation.ratePerPart) + (operationTransportAmounts[operation.id] || 0)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</small>}
+                    {fieldVisible("status") && <small>Status · {operation.status}</small>}
+                    {fieldVisible("execution") && <small>Execution · {operation.executionType || "Outsourced"}</small>}
+                    {fieldVisible("tolerance") && <small>Tolerance · {operation.toleranceCategory || "Standard"}</small>}
+                    {fieldVisible("paymentStatus") && <small>Payment · {operation.paymentStatus || "Unpaid"}</small>}
+                    {fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>}
+                    {fieldVisible("description") && <small>Operation details · {operation.notes || operation.qualityNotes || "Not set"}</small>}
+                  </div>
+                  {childOperations.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(""); }}><span>{child.name}</span><small>Sub-process · {child.status} · {child.machine || "Machine not set"}</small></button>)}
+                  {linkedBranches.map(child => <button type="button" key={child.id} onClick={() => { onSelectOperation(child.id); setExpandedOperationId(child.id); }}><span>{child.name}</span><small>{child.relationType === "rework" ? "Rework branch" : "Alternate route"} · {child.status}</small></button>)}
+                  <button type="button" className="process-node-add-subprocess" onClick={() => onAddSubprocess?.(operation.id)}>＋ Add sub-process</button>{onAddAlternateRoute && <button type="button" className="process-node-add-alternate" onClick={() => onAddAlternateRoute(operation.id)}>＋ Create alternate route</button>}{onAddReworkRoute && <button type="button" className="process-node-add-rework" onClick={() => onAddReworkRoute(operation.id)}>＋ Create rework route</button>}
+                </div>}
+                {showArrows && index < lane.rows.length - 1 && <span className="process-universe-connector" style={{color:lane.branchRelation==="rework"?"#e38b45":lane.branchRelation==="alternate"?"#4b95eb":accent}} aria-hidden="true"><ArrowRight size={17}/></span>}
+              </div>;
+            })}</div>
+            {lane.alternate && <div className="process-universe-branch-note">Branch retained with its parent operation and rework history.</div>}
+          </div>
+        </section>;
+      })}
       {operations.length === 0 && processDefinitions.length > 0 && <section className="process-directory-map-catalog" aria-label="Available Process Directory stages">
         <div className="process-directory-map-heading"><span>PROCESS DIRECTORY</span><strong>{processDefinitions.length} AVAILABLE STAGES</strong><small>Library definitions only · not yet saved as production operations</small></div>
         <div className="process-directory-map-nodes">{processDefinitions.map(definition => <button type="button" className="process-directory-map-node" key={definition.id} onClick={() => onAddProcessDefinition?.(definition.id)} disabled={!onAddProcessDefinition}>

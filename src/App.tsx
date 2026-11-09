@@ -386,7 +386,7 @@ function CommandCentre(props: {
         </div>
         <div className="hero-graphic axim-hero-graphic" aria-label="Interactive AXIMACH 3D operations sphere">
           <div className="graphic-grid" />
-          <AXIMACHOrb onSelectModule={onSelectModule} />
+          <AXIMACHOrb surface="command-centre" onSelectModule={onSelectModule} />
         </div>
       </section>
 

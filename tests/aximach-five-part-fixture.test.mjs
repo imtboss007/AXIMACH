@@ -102,7 +102,11 @@ test("Quality Inspection limits the measurement selector to search-visible opera
 test("Production Plan hides inactive transport routes and Transport Directory rejects archived vendors", () => {
   const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
   const transport = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(operations.includes("route.vendorId===draft.vendorId&&route.active!==false"));
+  assert.ok(!operations.includes("const openTransport=(poId:string,lineId:string)"));
+  assert.ok(!operations.includes("route.vendorId===draft.vendorId&&route.active!==false"));
+  assert.ok(!operations.includes("<th>Transport</th>"));
+  assert.ok(operations.includes('onSelectModule("transport-master")'));
+  assert.ok(operations.includes("Attach a route before or after a process from Process Map"));
   assert.ok(transport.includes("!vendors.some(vendor => vendor.id === vendorId)"));
 });
 
@@ -126,13 +130,17 @@ test("Production Plan bulk finish checks incomplete operations against exact PO 
   assert.ok(workspace.includes("selectedIds.has(op.poId+\":\"+op.poLineId)"));
 });
 
-test("Transport assignment rejects inactive directory routes in both creation workflows", () => {
-  const production = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+test("Transport route ownership stays in Transport Directory and Process Plan rejects inactive saved routes", () => {
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const production = operations.slice(operations.indexOf("export function ProductionPlanWorkspace"), operations.indexOf("export function TransportDispatchWorkspace"));
   const processPlan = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(production.includes("if(route.active===false)"));
-  assert.ok(production.includes("route.active!==false"));
+  assert.ok(!production.includes("transportLine"));
+  assert.ok(!production.includes("openTransport("));
+  assert.ok(!production.includes("jobTransportLegs"));
+  assert.ok(production.includes('onSelectModule("transport-master")'));
   assert.ok(processPlan.includes("selectedTransportDirectoryRoute.active===false"));
   assert.ok(processPlan.includes("route.active!==false"));
+  assert.ok(processPlan.includes("componentTransportLegs"));
 });
 
 test("Process Plan transport assignment rejects missing vendors and invalid master rates", () => {
@@ -146,13 +154,15 @@ test("Process Plan enforces Process Directory vendor assignments", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)'));
   assert.ok(workspace.includes('vendorStillAssigned=!definition?.vendorIds?.length||definition.vendorIds.includes(draft.vendorId)'));
-  assert.ok(workspace.includes('subcategory:"",vendorId:""'));
+  assert.ok(workspace.includes('subcategory:"",processSubcategoryId:"",vendorId:""'));
 });
 
 test("Process Plan rejects stale process-definition IDs when the definition name or category changed", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(workspace.includes('item.id === draft.processDefinitionId && item.processType === draft.name && item.category === draft.category'));
-  assert.ok(workspace.includes('processDefinitionId: selectedProcessDefinition?.id || undefined'));
+  assert.ok(workspace.includes('stableDefinition.processType === processType') && workspace.includes('stableDefinition.category === category'));
+  assert.ok(workspace.includes('return matches.length === 1 ? matches[0] : undefined'));
+  assert.ok(workspace.includes('processDefinitionId: processDefinition?.id || undefined'));
+  assert.ok(workspace.includes("const resolvedDefinition = selectedProcessDefinition || resolveProcessDefinition"));
 });
 
 test("Process Directory prevents duplicate process type within the same category", () => {
@@ -218,7 +228,7 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(orb.includes("const ringRadius = Math.sqrt(Math.max(0, 1 - unitY * unitY))"));
   assert.ok(orb.includes("const yaw = Math.atan2(unitX, unitZ) * 180 / Math.PI"));
   assert.ok(orb.includes("const pitch = -Math.asin(unitY) * 180 / Math.PI"));
-  assert.ok(orb.includes("compactViewport ? 86 : 106"));
+  assert.ok(orb.includes("compactViewport ? 116 : 132"));
   assert.ok(orb.includes('rotateY(" + yaw + "deg) rotateX(" + pitch + "deg)'));
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   assert.match(css, /\.ax-orb-module-shell \{[\s\S]*?pointer-events:none;[\s\S]*?transform-style:preserve-3d;/);
@@ -452,13 +462,18 @@ test("Purchase Orders exposes column-wise searchable filters and guarded delete-
   assert.ok(workspace.includes("Delete all components"));
 });
 
-test("Production Plan renders saved transport legs with route, anchor, vendor and trip details", () => {
-  const production = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
-  assert.ok(production.includes("jobTransportLegs.map(leg=>"));
-  assert.ok(production.includes('leg.placement==="start"?"At component start":leg.placement==="before"?"Before":"After"'));
-  assert.ok(production.includes("leg.fromLocation} → {leg.toLocation}"));
-  assert.ok(production.includes("leg.tripCount} trip(s)"));
-  assert.ok(production.includes("leg.status||\"Queued\""));
+test("Production Plan routes transport entry through Process Plan and keeps transport legs separate", () => {
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const production = operations.slice(operations.indexOf("export function ProductionPlanWorkspace"), operations.indexOf("export function TransportDispatchWorkspace"));
+  const processPlan = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(!production.includes("jobTransportLegs"));
+  assert.ok(!production.includes("<th>Transport</th>"));
+  assert.ok(production.includes("Attach a route before or after a process from Process Map"));
+  assert.ok(production.includes('onSelectModule("process-map"'));
+  assert.ok(processPlan.includes("const componentTransportLegs = allTransportLegs.filter"));
+  assert.ok(processPlan.includes("const operationTransportAmount = (operation: OperationRecord)"));
+  assert.ok(processPlan.includes("Add component transport entry"));
+  assert.ok(processPlan.includes("anchorOperationId: transportPlacement === \"start\" ? \"\" : transportAnchorOperationId"));
 });
 
 test("Process Plan Add operation dropdown exposes working operation and route actions", () => {
@@ -484,6 +499,9 @@ test("Process Plan Add operation dropdown exposes working operation and route ac
 test("Process Plan route scope drives displayed visuals and every export format", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
+  assert.ok(workspace.includes('if (scope === "all") return routeOperations;'), "All routes must include every saved operation even when filters are active");
+  assert.ok(workspace.includes('if (scope === "filtered") return source;'), "Filtered results must be the explicit filtered-only scope");
+  assert.ok(workspace.includes('{ key: "all", label: "All routes", count: routeOperations.length }'), "All routes count must reflect the complete saved route graph");
   assert.ok(workspace.includes("operations={exportOperations} allOperations={routeOperations}"));
   assert.ok(workspace.includes("exportOperations.map(op=>"));
   assert.ok(workspace.includes("exportBranches.map(branch =>"));
@@ -512,6 +530,17 @@ test("Alternate and rework routes use different arrow colours while process type
   assert.ok(css.includes(".process-universe-lane.is-branch.is-alternate .process-universe-connector"));
   assert.ok(css.includes(".process-universe-lane.is-branch.is-rework .process-universe-connector"));
   assert.ok(css.includes(".process-universe-branch-link.is-rework"));
+});
+
+test("Process Plan resolves stable Process Directory IDs before legacy labels in filters and editor validation", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const resolveProcessDefinition ="));
+  assert.ok(workspace.includes("const stableDefinition = definitionId ? definitions.find(definition => definition.id === definitionId) : undefined;"));
+  assert.ok(workspace.includes("return matches.length === 1 ? matches[0] : undefined;"), "legacy name fallback must not guess between ambiguous definitions");
+  assert.ok(workspace.includes("const selectedProcessDefinition = resolveProcessDefinition(processDefinitions, draft.processDefinitionId, draft.name, draft.category);"));
+  assert.ok(workspace.includes("const operationDefinition = resolveProcessDefinition(processDefinitions, op.processDefinitionId, op.name, op.category);"));
+  assert.ok(workspace.includes("const effectiveCategory = operationDefinition?.category || op.category;"));
+  assert.ok(workspace.includes("categoryFilters.includes(effectiveCategory)"), "category filtering must follow the stable Process Directory definition when legacy operation text is stale");
 });
 
 test("Process Directory PDF and Excel exports include per-process logo artwork", () => {
@@ -575,13 +604,27 @@ test("Five fixture parts create independent multi-process routes linked by stabl
   assert.ok(workspace.includes("id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id"));
 });
 
-test("Dashboard spheres only rotate on direct drag and dashboard navigation buttons select the correct views", () => {
+test("Dashboard spheres auto-rotate by default, preserve separate drag locks, and navigate to the correct workspaces", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
   const process = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   assert.ok(!orb.includes("useAnimationFrame"));
   assert.ok(!orb.includes("rotateY:360"));
   assert.ok(!orb.includes("rotate:360"));
+  assert.ok(!orb.includes("window.setInterval"));
+  assert.ok(orb.includes("const [moduleRotationEnabled, setModuleRotationEnabled]"));
+  assert.ok(orb.includes("const [recordRotationEnabled, setRecordRotationEnabled]"));
+  assert.ok(orb.includes("if (!moduleRotationEnabled) return"));
+  assert.ok(orb.includes("if (!recordRotationEnabled) return"));
+  assert.ok(orb.includes("Lock modules"));
+  assert.ok(orb.includes("Enable module drag"));
+  assert.ok(orb.includes("Lock records"));
+  assert.ok(orb.includes("Enable record drag"));
+  assert.ok(orb.includes("requestAnimationFrame"));
+  assert.ok(orb.includes("cancelAnimationFrame"));
+  assert.ok(orb.includes("autoRotate"));
+  assert.ok(orb.includes("Pause auto-rotation"));
+  assert.ok(orb.includes("Resume auto-rotation"));
   assert.ok(orb.includes("const startDrag ="));
   assert.ok(orb.includes('className="ax-orb-depth" style={{rotateX,rotateY'));
   assert.ok(orb.includes("const dragSensitivity = speed ==="));
@@ -604,7 +647,7 @@ test("WebGL sphere rotates its surface coordinates with the same manual globe or
   assert.ok(sphere.includes("gl.uniform2f(globeRotation"));
 });
 
-test("static WebGL globe redraws only when resized and does not burn frames while idle", () => {
+test("WebGL globe redraws on parent motion updates without an independent animation loop", () => {
   const sphere = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
   assert.ok(sphere.includes("const draw = () =>"));
   assert.ok(sphere.includes("const observer = typeof ResizeObserver"));
@@ -614,7 +657,7 @@ test("static WebGL globe redraws only when resized and does not burn frames whil
   assert.ok(!sphere.includes("cancelAnimationFrame"));
 });
 
-test("WebGL globe surface follows manual drag orientation without independent auto-rotation", () => {
+test("WebGL globe surface follows the parent rotation for drag and idle auto-rotation", () => {
   const shader = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
   assert.ok(shader.includes("vec3 q = hit;"));
   assert.ok(shader.includes("uniform vec2 globeRotation"));
@@ -646,7 +689,11 @@ test("AXIMACH command sphere module buttons can be dragged without losing click 
   assert.ok(orb.includes("onPointerMove={moveDrag}"));
   assert.ok(orb.includes("onPointerUp={endDrag}"));
   assert.ok(orb.includes("if (!dragMoved.current) onSelectModule(id)"));
-  assert.ok(orb.includes("Both spheres are stationary until the user drags them. No idle auto-rotation."));
+  assert.ok(orb.includes("Both shells auto-rotate while idle. Manual pointer/touch drag takes over"));
+  assert.ok(orb.includes("saved.current.moduleRotationEnabled !== false"));
+  assert.ok(orb.includes("saved.current.recordRotationEnabled !== false"));
+  assert.ok(!orb.includes("window.setInterval"));
+  assert.ok(!orb.includes("rotate gently by default"));
   assert.ok(orb.includes("onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag}"));
   assert.ok(orb.includes("if (!lowerDragMoved.current) onSelectModule(id)"));
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
@@ -668,6 +715,72 @@ test("Process Directory stores a colour per process type and route exports share
   }
 });
 
+
+test("Process Plan sub-processes inherit their Process Directory definition and persist stable subcategory IDs", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  assert.ok(workspace.includes("base.processDefinitionId = parent.processDefinitionId"));
+  assert.ok(workspace.includes("base.name = parent.name"));
+  assert.ok(workspace.includes("value={draft.processSubcategoryId}"));
+  assert.ok(workspace.includes("options={processSubcategoryOptions}"));
+  assert.ok(workspace.includes("subcategoryFilters.includes(operationSubcategoryId)"));
+  assert.ok(workspace.includes("processSubcategoryId: draft.processSubcategoryId"));
+  assert.ok(directory.includes("processSubcategoryId:stableSubcategoryId"));
+  assert.ok(directory.includes("value={processSubcategoryId}"));
+  assert.ok(directory.includes("value={row.processSubcategoryId}"));
+  assert.ok(data.includes("subcategoryIds?: string[]"));
+  assert.ok(data.includes("processSubcategoryId?: string;"));
+});
+
+test("Contact 360 resolves vendor capability subcategories by stable Process Directory IDs", () => {
+  const workspace = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("processSubcategoryFilterOptions=selectedCapabilityDefinitions.flatMap"));
+  assert.ok(workspace.includes("definition.subcategoryIds?.[index]"));
+  assert.ok(workspace.includes("customContactSubcategoryFilterOptions"));
+  assert.ok(workspace.includes("capabilitySubcategoryIds.includes(id)"));
+  assert.ok(workspace.includes('id="contact-process-subcategory" label="Process subcategory" options={subcategoryOptions}'));
+});
+
+test("Vendor Network resolves capability and assigned-operation subcategories through stable Process Directory IDs", () => {
+  const workspace = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("definition.subcategoryIds?.[index]"));
+  assert.ok(workspace.includes("const stableSubcategoryIdsFor="));
+  assert.ok(workspace.includes("capabilitySubcategoryIds=capabilityDefinitions.flatMap"));
+  assert.ok(workspace.includes("operation.processSubcategoryId"));
+  assert.ok(workspace.includes("subcategories.some(id=>capabilitySubcategoryIds.includes(id)||operationSubcategoryIds.includes(id))"));
+  assert.ok(workspace.includes('id="network-subcategory" label="Subcategory" options={subcategoryOptions}'));
+});
+
+test("3D process orbit renders route arrows and preserves hidden parent origins for scoped branches", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(universe.includes("const orbitConnections = useMemo"));
+  assert.ok(universe.includes("orbitConnections.edges.map"));
+  assert.ok(universe.includes("orbitConnections.anchors.map"));
+  assert.ok(universe.includes('className={"process-orbit-connector is-"+edge.relation}'));
+  assert.ok(universe.includes('className={"process-orbit-parent-anchor is-"+anchor.relation}'));
+  assert.ok(styles.includes(".process-orbit-connector.is-alternate { color: #4b95eb; }"));
+  assert.ok(styles.includes(".process-orbit-connector.is-rework { color: #e38b45; }"));
+  assert.ok(styles.includes(".process-orbit-connector::after"));
+});
+
+test("Process route scope keeps original parent arrows visible and each 3D view opens its matching layout", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const resolveBranchOrigin ="));
+  assert.ok(workspace.includes("while (parent && (parent.branch || \"Main route\") === branch"));
+  assert.ok(workspace.includes("const branchOrigin=resolveBranchOrigin(branch,lane)"));
+  assert.ok(workspace.includes("const branchOrigin=resolveBranchOrigin(branch,laneOperations)"));
+  for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
+    assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
+  }
+  assert.ok(workspace.includes("initialLayout={visualStyle}"));
+  assert.ok(universe.includes('initialLayout = "sphere"'));
+  assert.ok(universe.includes("useState<ProcessLayoutMode>(initialLayout)"));
+  assert.ok(universe.includes("while (ancestor && (ancestor.branch || \"Main route\") === name"));
+  assert.ok(universe.includes("[parentOperations, lookupOperations]"));
+});
 
 test("mechanical icon inventory covers process stages beyond cutting and machining", () => {
   const source = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
@@ -710,4 +823,707 @@ test("five synthetic component names resolve to the intended mechanical logo fam
     assert.equal(glyphFor(part.name + " " + part.partNumber), expected.get(part.partNumber), part.partNumber + " mechanical logo family");
   }
   assert.ok(iconSource.indexOf("gear|sprocket|rack|worm wheel|splined") < iconSource.indexOf("shaft|spindle|axle|pinion shaft|drive shaft"), "gear identity must take priority over the generic shaft rule");
+});
+
+
+test("Main dashboard sphere uses native 3D module hit targets with stable transforms", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"'));
+  assert.ok(orb.includes('translate3d(" + x + "px," + y + "px," + z + "px)'));
+  assert.ok(orb.includes("onPointerDown={startDrag}"));
+  assert.ok(orb.includes("onPointerMove={moveDrag}"));
+  assert.ok(!orb.includes("return <motion.button key={id}"));
+});
+
+test("Process Universe supports field visibility, vendor identity and arrow visibility without auto-animation", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("visibleFields?: string[]"));
+  assert.ok(universe.includes("vendors?: Array<{ id: string; company: string }>"));
+  assert.ok(universe.includes("showArrows?: boolean"));
+  assert.ok(universe.includes('fieldVisible("plannedEnd")'));
+  assert.ok(universe.includes('fieldVisible("vendor")'));
+  assert.ok(universe.includes('fieldVisible("price")'));
+  assert.ok(universe.includes('fieldVisible("amount")'));
+  assert.ok(universe.includes("{showArrows && index < lane.rows.length - 1"));
+  assert.ok(universe.includes('useEffect(() => setLayoutMode(initialLayout), [initialLayout])'));
+});
+
+test("Logo Studio limits selectable and persisted symbols to mechanical and transport families", () => {
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  const mechanical = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  assert.ok(studio.includes("MECHANICAL_ICON_NAME_PATTERN"));
+  assert.ok(studio.includes("const ICONS: IconMeta[] = engineeredMechanicalIcons;"));
+  assert.ok(!studio.includes("tablerIconCatalogue"));
+  assert.ok(studio.includes("useState(() => iconKey(ICONS[0]))"));
+  assert.ok(studio.includes("Mechanical &amp; transport logos"));
+  assert.ok(studio.includes("!isMechanicalStudioIcon(assignment.iconName)"));
+  assert.ok(mechanical.includes('mechanicalGlyphForOperation(operation) || "component-block"'));
+});
+
+
+test("Process Plan route scopes stay selectable, and simulation follows the selected scope", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(!workspace.includes("disabled={scope.count===0}"));
+  assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
+  assert.ok(workspace.includes("const simulationOperations = exportOperations.filter(operation => operation.relationType !== \"subprocess\")"));
+  assert.ok(workspace.includes("simulationOperations.length - 1"));
+  assert.ok(workspace.includes("No saved operations in this route scope"));
+});
+
+test("Transport leg action is a dropdown, and process and transport costs remain separate", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("transport-leg-menu-anchor"));
+  assert.ok(workspace.includes("Open Transport Directory"));
+  assert.ok(workspace.includes('case "transportLegCost"'));
+  assert.ok(workspace.includes('case "combinedAmount"'));
+  assert.ok(workspace.includes("<th>Transport amount</th>"));
+  assert.ok(workspace.includes("operationTransportAmount"));
+});
+
+test("Process Plan shares field and arrow controls with Process Universe", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("visibleFields={exportFields} showArrows={exportArrows}"));
+  assert.ok(universe.includes('fieldVisible("plannedEnd")'));
+  assert.ok(universe.includes('fieldVisible("vendor")'));
+  assert.ok(universe.includes('fieldVisible("price")'));
+  assert.ok(universe.includes('fieldVisible("amount")'));
+  assert.ok(universe.includes("{showArrows && index < lane.rows.length - 1"));
+});
+
+test("All non-3D Process Plan views expose the same Process Directory definitions without inventing operations", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("process-view-directory-catalog-grid"));
+  assert.ok(workspace.includes("AVAILABLE PROCESS DEFINITIONS"));
+  assert.ok(workspace.includes("These are engineering definitions, not saved production steps"));
+  for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
+    assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
+  }
+});
+
+
+test("Process Plan panels expose independent native expand/collapse sections", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const panels = [
+    "component-transport-map-strip","process-map-filter-panel","process-route-scope-panel",
+    "linked-route-canvas","process-operation-table-panel","linked-operation-side",
+    "linked-cost-card","linked-timeline-card","linked-process-table"
+  ];
+  for (const panel of panels) {
+    const selectedPanel = /<details open(?=[^>]*className="surface-panel linked-operation-side")(?=[^>]*ref=\{selectedOperationPanelRef\})[^>]*>/;
+    const expected = panel === "linked-operation-side" ? selectedPanel.test(workspace) : workspace.includes('<details open className="surface-panel ' + panel + '"');
+    assert.ok(expected, "missing open/close panel " + panel);
+  }
+  assert.equal((workspace.match(/<details\b/g) || []).length, (workspace.match(/<\/details>/g) || []).length);
+  assert.ok(workspace.includes("<summary className=\"panel-heading\">"));
+});
+
+
+test("Main Dashboard and 3D Command Centre center the 18-module orb on mobile", () => {
+  const dashboardStyles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  const appStyles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.ok(dashboardStyles.includes(".dashboard-welcome-orb .ax-orb-drag-zone"));
+  assert.ok(appStyles.includes("@media(max-width:760px)"));
+  assert.ok(appStyles.includes(".hero-command {"));
+  assert.ok(appStyles.includes("grid-template-columns:minmax(0,1fr)"));
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes("useMotionValue(compactViewport ? -7 : -15)"));
+  assert.ok(orb.includes("useMotionValue(compactViewport ? 0 : 22)"));
+  assert.ok(orb.includes("useMotionValue(compactViewport ? -5 : -8)"));
+});
+
+
+test("Process Universe receives shared visibility controls, vendor labels and diagram arrow state from Process Plan", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("visibleFields={exportFields} showArrows={exportArrows}"));
+  assert.ok(workspace.includes("showArrows={exportArrows}"));
+  assert.ok(workspace.includes("PROCESS_EXPORT_FIELDS.map(field=>"));
+  assert.ok(workspace.includes("visibleFields={exportFields} showArrows={exportArrows}"));
+  for (const field of ["status", "execution", "tolerance", "paymentStatus", "machine"]) assert.ok(universe.includes(`fieldVisible("${field}")`));
+});
+
+
+test("mobile and desktop command sphere orbit controls sit outside the core radius", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(orb.includes("const radius = compactViewport ? 116 : 132"));
+  assert.ok(css.includes(".process-map-visible-fields"));
+  assert.ok(css.includes("@media(max-width:620px){.ax-orb-module-shell .ax-orb-satellite-3d"));
+});
+
+test("Process Map route scopes intersect active filters before diagram and export selection", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const scopeStart = workspace.indexOf("const getRouteScopeOperations =");
+  const scopeEnd = workspace.indexOf("const exportScopeLabel =", scopeStart);
+  const scope = workspace.slice(scopeStart, scopeEnd);
+  assert.ok(scope.includes("const source = visibleOperations"));
+  assert.ok(scope.includes('if (scope === "all") return routeOperations'), "All routes must retain the complete saved route graph");
+  assert.ok(scope.includes('if (scope === "filtered") return source'), "Filtered results must remain filter-scoped");
+  assert.ok(scope.includes('if (scope === "main") return source.filter'));
+  assert.ok(scope.includes('if (scope === "rework") return source.filter'));
+  assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
+  assert.ok(workspace.includes("operations={exportOperations}"));
+});
+
+
+test("secondary Process Plan workspaces are user-expandable while route filters and graph stay open", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('<details open className="surface-panel component-transport-map-strip">'));
+  assert.ok(workspace.includes('<details open className="surface-panel process-operation-table-panel">'));
+  assert.ok(workspace.includes('<details open className="surface-panel linked-cost-card">'));
+  assert.ok(workspace.includes('<details open className="surface-panel process-route-scope-panel">'));
+  assert.ok(workspace.includes('<details open className="surface-panel linked-route-canvas">'));
+});
+
+
+test("Process Plan process-type filters use stable Process Directory definition IDs", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const processFilterTypes = processDefinitions.map(definition => ({ id: definition.id"));
+  assert.ok(workspace.includes('const stableProcessDefinitionId = operationDefinition?.id || op.processDefinitionId || ""'));
+  assert.ok(workspace.includes("processTypeFilters.includes(stableProcessDefinitionId)"));
+  assert.ok(workspace.includes("options={processFilterTypes} selected={processTypeFilters}"));
+});
+
+
+test("Icon Studio catalogue is restricted to mechanical and transport identities", () => {
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  assert.ok(studio.includes("MECHANICAL_ICON_NAME_PATTERN.test(iconBaseName(name))"));
+  for (const unwanted of ["building-warehouse", "|box|", "|package|", "|container|", "|ship|"]) assert.ok(!studio.includes(unwanted));
+  assert.ok(studio.includes("truck-delivery"));
+  assert.ok(studio.includes("automatic-gearbox"));
+  assert.ok(studio.includes("ruler-measure"));
+});
+
+
+test("process glyph lookup uses the full Process Directory definition and renders that exact mechanical glyph", () => {
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  const mechanical = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  assert.ok(studio.includes("{ processName, fallback, processId, category, subcategory }"));
+  assert.ok(studio.includes("mechanicalGlyphForOperation([processName, category, subcategory].filter(Boolean).join"));
+  assert.ok(studio.includes("MechanicalIconGlyph glyph={knownMechanicalGlyph}"));
+  assert.ok(studio.includes("(fallback || <Workflow size={16} />)"));
+  assert.ok(mechanical.includes('/\\bmilling\\b|mill operation|milling operation/, "end-mill"'));
+});
+
+
+test("Process Universe field visibility is applied to both orbit and connected route nodes", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  for (const field of ["status", "execution", "tolerance", "paymentStatus", "machine"]) {
+    assert.equal((universe.match(new RegExp('fieldVisible\\("' + field + '"\\)', "g")) || []).length, 2, field + " must be rendered in both layouts");
+  }
+  assert.ok(universe.includes('fieldVisible("machine") && <small>Machine · {operation.machine || "Not set"}</small>'));
+});
+
+
+test("saved mechanical icon assignments with outline/filled prefixes resolve correctly", () => {
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  assert.ok(studio.includes('name.slice(name.lastIndexOf(":") + 1)'));
+  assert.ok(studio.includes("MECHANICAL_ICON_NAME_PATTERN.test"));
+  assert.ok(studio.includes("isMechanicalStudioIcon(assignment.iconName)"));
+});
+
+test("selected-operation and selected-branch route scopes require an explicit selection", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const explicitlySelectedOperation = routeOperations.find(op => op.id === selectedOperationId)"));
+  assert.ok(workspace.includes('if (scope === \"selected-operation\") return explicitlySelectedOperation'));
+  assert.ok(workspace.includes('if (scope === \"selected-branch\") return explicitlySelectedOperation'));
+});
+
+test("Process Universe payment visibility uses the Process Plan export field ID", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.equal(universe.split('fieldVisible("paymentStatus")').length - 1, 2);
+});
+
+test("Icon Studio strips saved outline/filled prefixes before rendering Tabler class names", () => {
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  assert.ok(studio.includes("const iconBaseName = (name: string) =>"));
+  assert.ok(studio.includes("const resolvedVariant = name.startsWith(\"filled:\") ? \"filled\""));
+  assert.ok(studio.includes("ti ti-" + "${baseName}"));
+});
+
+test("CI skips Electron binary download for frontend and Android jobs only", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
+  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 2);
+  const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
+  assert.ok(!windows.includes("ELECTRON_SKIP_BINARY_DOWNLOAD"));
+});
+
+test("Dashboard module and live-record spheres are independently draggable with idle auto-rotation", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes("moduleRotationEnabled"));
+  assert.ok(orb.includes("recordRotationEnabled"));
+  assert.ok(orb.includes("setModuleRotationEnabled"));
+  assert.ok(orb.includes("setRecordRotationEnabled"));
+  assert.ok(orb.includes("saved.current.moduleRotationEnabled !== false"));
+  assert.ok(orb.includes("saved.current.recordRotationEnabled !== false"));
+  assert.ok(!orb.includes("window.setInterval"));
+  const sphere = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
+  assert.ok(sphere.includes("float h = b*b - (dot(ro,ro) - 1.0)"));
+  assert.ok(sphere.includes("The parent drives this true spherical surface during idle rotation and drag."));
+});
+
+test("Logo Studio lists and renders the authored mechanical tool and transport glyph inventory", () => {
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  const mechanical = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  assert.ok(studio.includes("MECHANICAL_ICON_INVENTORY.map"));
+  assert.ok(studio.includes('name:"mechanical:"+item.glyph'));
+  assert.ok(studio.includes("MechanicalIconGlyph glyph={item.glyph}"));
+  assert.ok(studio.includes("mechanicalGlyphForStudioName(assignment.iconName)"));
+  assert.ok(mechanical.includes('{glyph:"transport-truck",label:"Transport / dispatch"'));
+  assert.ok(mechanical.includes('[/\\bvmc\\b|vertical machining centre|vertical machining center/, "vmc-machine"]'));
+  assert.ok(mechanical.includes('[/\\bhmc\\b|horizontal machining centre|horizontal machining center/, "cnc-machine"]'));
+  assert.ok(studio.includes("const ICONS: IconMeta[] = engineeredMechanicalIcons;"));
+  assert.ok(studio.includes("useState(() => iconKey(ICONS[0]))"));
+  assert.ok(studio.includes("Mechanical &amp; transport logos"));
+  assert.ok(studio.includes("Search mechanical process, machine, tool or transport logo"));
+  assert.ok(!studio.includes("tablerIconCatalogue"));
+});
+
+test("Process Universe shows selectable transport cost and combined cost values from Process Plan", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("operationTransportAmounts={Object.fromEntries(exportOperations.map"));
+  assert.ok(workspace.includes("quantityUnit={quantityUnit}"));
+  assert.ok(universe.includes('fieldVisible("transportLegCost")'));
+  assert.ok(universe.includes('fieldVisible("combinedAmount")'));
+});
+
+test("Dashboard and Command Centre keep independent persisted sphere preferences", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const dashboard = readFileSync(new URL("../src/DashboardWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes('surface === "command-centre" ? "aximach.command-centre.orb.preferences.v1" : "aximach.orb.preferences.v1"'));
+  assert.ok(orb.includes("window.localStorage.setItem(preferenceKey"));
+  assert.ok(app.includes('<AXIMACHOrb surface="command-centre"'));
+  assert.ok(dashboard.includes('<AXIMACHOrb surface="dashboard"'));
+});
+
+test("Selecting an already active process row or Process Universe node reopens the selected-operation panel", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("if(selectedOperationPanelRef.current)selectedOperationPanelRef.current.open=true"));
+  assert.ok(workspace.includes("onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); if(selectedOperationPanelRef.current)selectedOperationPanelRef.current.open=true; }}"));
+});
+
+test("Route simulation advances the selected operation through the currently selected route scope", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const stepOperation = simulationOperations[simulationIndex]"));
+  assert.ok(workspace.includes("if (stepOperation) setSelectedOperationId(stepOperation.id)"));
+  assert.ok(workspace.includes("[simulationActive, simulationIndex, simulationOperations]"));
+});
+
+test("Process Directory milling definitions resolve to machining tools using type, category and subcategory context", () => {
+  const icons = readFileSync(new URL("../src/MechanicalOperationIcon.tsx", import.meta.url), "utf8");
+  const studio = readFileSync(new URL("../src/IconStudio.tsx", import.meta.url), "utf8");
+  assert.ok(icons.includes('/\\bmilling\\b|mill operation|milling operation/, "end-mill"'));
+  assert.ok(studio.includes("mechanicalGlyphForOperation([processName, category, subcategory].filter(Boolean).join(\" \"))"));
+  assert.ok(icons.includes('{glyph:"end-mill",label:"End mill"'));
+  assert.ok(icons.includes('{glyph:"transport-truck",label:"Transport / dispatch"'));
+});
+
+test("Android packaging rewrites the generated Gradle wrapper to verified distribution mirrors and retries", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
+  const android = workflow.slice(workflow.indexOf("android-apk:"));
+  assert.ok(android.includes("mirrors.huaweicloud.com/gradle/gradle-8.11.1-all.zip"));
+  assert.ok(android.includes("mirrors.aliyun.com/gradle/distributions/v8.11.1/gradle-8.11.1-all.zip"));
+  assert.ok(android.includes("for attempt in 1 2 3; do"));
+  assert.ok(android.includes("Expected Gradle 8.11.1 wrapper URL was not found"));
+});
+
+test("Windows packaging retries Electron downloads through a configured mirror", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
+  const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
+  assert.ok(windows.includes("ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/"));
+  assert.ok(windows.includes("for ($attempt = 1; $attempt -le 3; $attempt++)"))
+  assert.ok(windows.includes("if ($LASTEXITCODE -eq 0) { exit 0 }"));
+  const android = workflow.slice(workflow.indexOf("android-apk:"));
+  assert.ok(android.includes("for attempt in 1 2 3; do"));
+});
+
+test("Windows installer uses mirrors for Electron and electron-builder binaries", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
+  const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
+  assert.ok(windows.includes("ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/"));
+});
+
+test("Android Gradle wrapper uses primary and fallback distribution mirrors", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
+  const android = workflow.slice(workflow.indexOf("android-apk:"));
+  assert.ok(android.includes("mirrors.huaweicloud.com/gradle/gradle-8.11.1-all.zip"));
+  assert.ok(android.includes("mirrors.aliyun.com/gradle/distributions/v8.11.1/gradle-8.11.1-all.zip"));
+});
+
+test("Upcoming delivery rows open their exact saved PO component line and clear stale route filters", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("className=\"process-upcoming-delivery-row\""));
+  assert.ok(workspace.includes("setCompanyId(item.po.companyId);setPoId(item.po.id);setPoLineId(item.line.id)"));
+  assert.ok(workspace.includes("operation.poId===item.po.id&&operation.poLineId===item.line.id&&operation.componentId===item.line.componentId"));
+  assert.ok(workspace.includes('setExportScope("all");setSearch("");setCategorySearch("")'));
+  assert.ok(workspace.includes('onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openLine();}}}'));
+});
+
+test("Component-start transport remains visible inside Process List before a process operation exists", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("!firstMainRouteOperation && unanchoredTransportCost>0"));
+  assert.ok(workspace.includes("Component-start transport cost"));
+  assert.ok(workspace.includes("Saved transport leg is not assigned to a process operation."));
+  assert.ok(workspace.includes("{money(unanchoredTransportCost)}"));
+});
+
+test("Process Universe connectors and simulation highlight do not run autonomous animation", () => {
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  const connector = styles.slice(styles.indexOf(".process-universe-connector::before"), styles.indexOf(".process-universe-connector::before") + 320);
+  const current = styles.slice(styles.indexOf(".process-universe-node.simulation-current"), styles.indexOf(".process-universe-node.simulation-current") + 420);
+  assert.ok(!connector.includes("animation:"));
+  assert.ok(!current.includes("animation:"));
+  assert.ok(!styles.includes("@keyframes processUniverseFlow"));
+  assert.ok(!styles.includes("@keyframes processUniversePulse"));
+});
+
+test("Small-phone sphere container stays within viewport width", () => {
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(styles.includes(".ax-orb-drag-zone { width: min(100%,360px); max-width: 100%; margin-inline: auto; }"));
+  assert.ok(!styles.includes(".ax-orb-drag-zone { width: 110%; margin-left: -5%; }"));
+});
+
+
+test("Process Universe sphere nodes reveal a real linked detail panel and can collapse it", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(universe.includes('aria-controls="process-orbit-selected-details"'));
+  assert.ok(universe.includes('aria-expanded={expanded}'));
+  assert.ok(universe.includes('id="process-orbit-selected-details"'));
+  assert.ok(universe.includes('{layoutMode !== "route" && expandedOrbitOperation && <section'));
+  assert.ok(universe.includes('onClick={() => setExpandedOperationId("")}'));
+  assert.ok(universe.includes("const expandedOrbitOperation = displayOperations.find(operation => operation.id === expandedOperationId);"));
+  assert.ok(styles.includes(".process-orbit-selected-details{"));
+});
+
+test("Process Universe route sections can independently expand and collapse", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(universe.includes("const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);"));
+  assert.ok(universe.includes("const collapsed = collapsedLaneNames.includes(lane.name);"));
+  assert.ok(universe.includes('className="process-universe-lane-toggle"'));
+  assert.ok(universe.includes("aria-expanded={!collapsed}"));
+  assert.ok(universe.includes('className="process-universe-lane-content" hidden={collapsed}'));
+  assert.ok(universe.includes('onClick={() => setCollapsedLaneNames(current => current.includes(lane.name)'));
+  assert.ok(styles.includes(".process-universe-lane-content[hidden]{display:none!important}"));
+});
+
+test("Process Universe route nodes expose expandable linked subprocess and alternate/rework controls", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes('aria-controls={"process-universe-node-details-"+operation.id}'));
+  assert.ok(universe.includes('id={"process-universe-node-details-"+operation.id} className="process-node-subprocess-dropdown"'));
+  assert.ok(universe.includes("childOperations.map(child =>"));
+  assert.ok(universe.includes("linkedBranches.map(child =>"));
+});
+
+
+test("Clear filters resets every active Process Plan filter through the visible control", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const handlerStart = workspace.indexOf("const clearAllFilters =");
+  const handlerEnd = workspace.indexOf("const toggleOperationSelection", handlerStart);
+  const handler = workspace.slice(handlerStart, handlerEnd);
+  for (const reset of [
+    'setExportScope("all")', "setZoom(1)", 'setSearch("")',
+    "setStatusFilters([])", "setExecutionFilters([])", "setCategoryFilters([])",
+    "setToleranceFilters([])", "setPaymentFilters([])", "setVendorFilters([])",
+    "setProcessTypeFilters([])", "setSubcategoryFilters([])", 'setCategorySearch("")',
+    'setDateFrom("")', 'setDateTo("")', 'setMinQuantity("")', 'setMaxQuantity("")',
+    'setMinPrice("")', 'setMaxPrice("")', 'setMinAmount("")', 'setMaxAmount("")',
+    "setSelectedOperationIds([])"
+  ]) assert.ok(handler.includes(reset), "Clear-all handler must reset " + reset);
+  const labelIndex = workspace.indexOf("Clear filters");
+  const buttonStart = workspace.lastIndexOf("<button", labelIndex);
+  const buttonEnd = workspace.indexOf("</button>", labelIndex);
+  assert.ok(buttonStart >= 0 && buttonEnd > buttonStart);
+  assert.ok(workspace.slice(buttonStart, buttonEnd).includes("onClick={clearAllFilters}"));
+});
+
+
+test("Contact 360 saves Process Directory references by stable IDs and keeps manual tags separate", () => {
+  const workspace = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  assert.ok(data.includes("processDefinitionIds?: string[]; processSubcategoryIds?: string[];"));
+  assert.ok(workspace.includes('id:"directory:"+definition.id'));
+  assert.ok(workspace.includes('materials:v.materials||"",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[]'));
+  assert.ok(workspace.includes("processDefinitionIds:contactProcessDefinitionIds(row)"));
+  assert.ok(workspace.includes("processDefinitionIds:row.processDefinitionIds,processSubcategoryIds:row.processSubcategoryIds||[]"));
+  assert.ok(workspace.includes('selected={draft.processDefinitionIds||[]}'));
+  assert.ok(workspace.includes('selected={draft.processSubcategoryIds||[]}'));
+  assert.ok(workspace.includes("id:stableContactSubcategoryId(definition,index)"));
+  assert.ok(workspace.includes("contactSubcategoryIds.includes(id)"));
+  assert.ok(workspace.includes('!processFilters.length||processFilters.includes("directory:"+definition.id)'));
+  assert.ok(workspace.includes("const linkedNames=processDefinitions.filter(definition=>contactProcessDefinitionIds(row).includes(definition.id)"));
+  assert.ok(workspace.includes("const legacyProcessNames=[...(row.processTypes||[]).filter(value=>!contactDefinitionNames.includes(value.trim().toLowerCase()))"));
+  assert.ok(workspace.includes('Manual contact capability tags (separate from Process Directory)'));
+  assert.ok(workspace.includes('id:"contact:"+name.trim().toLowerCase()'));
+  assert.ok(!workspace.includes('selected={draft.processSubcategories||[]} onChange={values=>setDraft(current=>({...current,processSubcategories:values}))}'));
+});
+
+test("Contact 360 resolves legacy process names only when one Process Directory definition matches", () => {
+  const workspace = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("if(Array.isArray(row.processDefinitionIds))return [...new Set(row.processDefinitionIds)]"));
+  assert.ok(workspace.includes("if(matches.length===1)resolved.push(matches[0].id)"));
+  assert.ok(workspace.includes("const direct=processDefinitions.filter(definition=>definition.id===value)"));
+});
+
+
+test("Vendor Network process filters use stable Process Directory IDs and keep legacy vendor text separate", () => {
+  const workspace = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  const start = workspace.indexOf("export function VendorNetworkWorkspace");
+  const network = workspace.slice(start);
+  assert.ok(network.includes('id:"directory:"+definition.id'));
+  assert.ok(network.includes('id:"text:"+name.trim().toLowerCase()'));
+  assert.ok(network.includes('label:"Vendor / legacy text · "+name'));
+  assert.ok(network.includes('value==="directory:"+definition.id'));
+  assert.ok(network.includes("const capabilityDefinitionIds=capabilityDefinitions.map(definition=>definition.id)"));
+  assert.ok(network.includes("const processAssignedOperations=assigned.filter(operation=>operation.vendorId===v.id)"));
+  assert.ok(network.includes('const assignedDefinitionIds=processAssignedOperations.map(operation=>resolveOperationDefinition(operation)?.id||"").filter(Boolean)'));
+  assert.ok(network.includes("const operationSubcategoryIds=processAssignedOperations.map(operation=>{"));
+  assert.ok(network.includes('value.startsWith("directory:")'));
+  assert.ok(network.includes('value.startsWith("text:")&&legacyProcessNamesForVendor.includes(value.slice(5))'));
+  assert.ok(network.includes('id="network-process-type" label="Process type" options={processOptions}'));
+  assert.ok(!network.includes('matchesAny(processTypes,capabilityTypes+" "+v.processes+" "+operationTypes)'));
+});
+
+
+test("AXIMACH sphere core supports drag while clickable module buttons retain normal clicks", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  const start = orb.slice(orb.indexOf("const startDrag"), orb.indexOf("const moveDrag"));
+  const guard = start.indexOf("if (interactiveTarget) return;");
+  const capture = start.indexOf("setPointerCapture(event.pointerId)");
+  assert.ok(guard >= 0 && capture > guard, "real child controls must be ignored before drag pointer capture");
+  assert.ok(start.includes('event.target.closest("button, a, input, select, textarea")'));
+  assert.ok(!start.includes("[role='button']"), "the sphere core's role=button must not block pointer dragging");
+  assert.ok(start.includes("const captureTarget = event.target instanceof HTMLElement ? event.target : event.currentTarget;"));
+  assert.ok(start.includes("captureTarget.setPointerCapture(event.pointerId)"), "capture the actual hit element so a core click still reaches its zoom handler");
+  assert.ok(orb.includes('className="ax-orb-core"'));
+  assert.ok(orb.includes('onClick={() => { if (!dragMoved.current) toggleZoom(); }}'));
+  assert.ok(orb.includes('onClick={() => { if (!dragMoved.current) onSelectModule(id); }}'));
+});
+
+
+test("Process Map permits saving a planned outsourced operation before vendor assignment", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const saveStart = workspace.indexOf("const saveOperation =");
+  const saveEnd = workspace.indexOf("const deleteOperation =", saveStart);
+  const saveHandler = workspace.slice(saveStart, saveEnd);
+  assert.ok(saveHandler.includes("if (draft.vendorId && !vendors.some"), "A supplied vendor must still resolve to an active vendor record");
+  assert.ok(!saveHandler.includes('draft.executionType === "Outsourced" && !draft.vendorId'), "Vendor assignment must not block saving a planned outsourced process");
+  assert.ok(saveHandler.includes("operations: [...current.operations.filter(op => op.id !== next.id), next]"));
+});
+
+
+test("Process Map explains missing company, PO or component prerequisites when Add Operation is unavailable", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('className="process-add-prerequisite-note" role="status"'));
+  assert.ok(workspace.includes("Select a saved company, purchase order and active PO component line above"));
+  assert.ok(workspace.includes('onSelectModule("companies")'));
+  assert.ok(workspace.includes('onSelectModule("purchasing")'));
+  assert.ok(workspace.includes('onSelectModule("components")'));
+  assert.ok(workspace.includes('selectedLine && !selectedComponent'));
+});
+
+
+test("Process Map operation editor accepts a new process type as well as Process Directory definitions", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const pickerStart = workspace.indexOf('<SearchablePicker id="operation-process-type"');
+  const pickerEnd = workspace.indexOf("/>", pickerStart);
+  const picker = workspace.slice(pickerStart, pickerEnd);
+  assert.ok(picker.includes("Search or enter a new process type"));
+  assert.ok(picker.includes("name:definition?.processType||value"));
+  assert.ok(picker.includes("processDefinitionId:definition?.id||\"\""));
+  assert.ok(picker.includes("allowCustom"));
+});
+
+
+test("New Process Map process types are saved into Process Directory with stable IDs", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('const proposedProcessDefinitionId = makeId("process-definition")'));
+  assert.ok(workspace.includes("const resolvedDefinition = selectedProcessDefinition || resolveProcessDefinition"));
+  assert.ok(workspace.includes("id: proposedProcessDefinitionId, processType: draft.name.trim(), category: draft.category.trim()"));
+  assert.ok(workspace.includes("subcategories: [], subcategoryIds: [], vendorIds: []"));
+  assert.ok(workspace.includes("processDefinitionId: processDefinition?.id || undefined"));
+  assert.ok(workspace.includes(": [...current.processDefinitions, processDefinition]"));
+});
+
+
+test("Process Map validates category and process type before saving an operation", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const start = workspace.indexOf("const saveOperation =");
+  const end = workspace.indexOf("const deleteOperation =", start);
+  const handler = workspace.slice(start, end);
+  assert.ok(handler.includes('if (!draft.category.trim()) { onNotice("Select or enter a process category.")'));
+  assert.ok(handler.includes('if (!draft.name.trim()) { onNotice("Select or enter a process type.")'));
+});
+
+
+test("Production Plan no longer owns the component transport registry or inline transport editor", () => {
+  const workspace = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const production = workspace.slice(workspace.indexOf("export function ProductionPlanWorkspace"), workspace.indexOf("export function TransportDispatchWorkspace"));
+  assert.ok(!production.includes("transportLine"));
+  assert.ok(!production.includes("saveTransport"));
+  assert.ok(!production.includes("jobTransportLegs"));
+  assert.ok(!production.includes("<th>Transport</th>"));
+  assert.ok(production.includes('onSelectModule("transport-master")'));
+  assert.ok(production.includes('onSelectModule("process-map"'));
+});
+
+
+test("Process Operations table and bulk controls use the same selected route scope as the graph and exports", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
+  assert.ok(workspace.includes("const selectedVisibleOperations = exportOperations.filter(op => selectedOperationIds.includes(op.id))"));
+  assert.ok(workspace.includes("...exportOperations.map(op => op.id)"));
+  assert.ok(workspace.includes("checked={exportOperations.length>0&&exportOperations.every(op=>selectedOperationIds.includes(op.id))}"));
+  assert.ok(workspace.includes("tbody>{exportOperations.map((op,index)=>"));
+  assert.ok(workspace.includes("Selected route scope · {exportOperations.length} of {routeOperations.length} operation(s)."));
+  assert.ok(!workspace.includes("tbody>{visibleOperations.map((op,index)=>"));
+});
+
+
+test("Process Universe node offers real alternate and rework creation from the selected parent", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("onAddAlternateRoute?: (parentId: string) => void"));
+  assert.ok(universe.includes("onAddReworkRoute?: (parentId: string) => void"));
+  assert.ok(universe.includes("onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props)"));
+  assert.ok(universe.includes("onAddAlternateRoute(expandedOrbitOperation.id)"));
+  assert.ok(universe.includes("onAddReworkRoute(expandedOrbitOperation.id)"));
+  assert.ok(workspace.includes('onAddAlternateRoute={parentId=>startAddBranch("alternate",parentId)}'));
+  assert.ok(workspace.includes('onAddReworkRoute={parentId=>startAddBranch("rework",parentId)}'));
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(css.includes(".process-orbit-selected-links>button.process-orbit-add-alternate"));
+  assert.ok(css.includes(".process-orbit-selected-links>button.process-orbit-add-rework"));
+  assert.ok(css.includes("background:#eaf4ff;color:#155fa4"));
+  assert.ok(css.includes("background:#fff3e8;color:#a95c20"));
+});
+
+
+test("Costing rollup has linked searchable process and payment filters with one clear-all action", () => {
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  for (const id of ["costing-filter-process-category", "costing-filter-process-type", "costing-filter-process-subcategory", "costing-filter-execution", "costing-filter-payment"]) {
+    assert.ok(costing.includes('id="'+id+'"'), "missing costing filter: "+id);
+  }
+  assert.ok(costing.includes("row.linkedOperations.some(op=>rollupCategoryFilters.includes"));
+  assert.ok(costing.includes("row.linkedOperations.some(op=>rollupProcessFilters.includes(op.name))"));
+  assert.ok(costing.includes("row.linkedOperations.some(op=>rollupPaymentFilters.includes(op.paymentStatus||\"Unpaid\"))"));
+  assert.ok(costing.includes("setRollupCategoryFilters([])"));
+  assert.ok(costing.includes("setRollupPaymentFilters([])"));
+});
+
+
+test("Component Planned Cost subcategory filter is linked to the saved planned-cost records and clears with the other filters", () => {
+  const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const planned = directory.slice(directory.indexOf("function PlannedCostDirectory"), directory.indexOf("export default function SpecializedDirectoryWorkspace"));
+  assert.ok(planned.includes('id="planned-cost-subcategory-filter"'));
+  assert.ok(planned.includes("selected={subcategoryFilters} onChange={setSubcategoryFilters}"));
+  assert.ok(planned.includes("subcategoryFilters.includes(row.processSubcategory||\"\")"));
+  assert.ok(planned.includes("setSubcategoryFilters([])"));
+});
+
+
+test("Add Operation menu remains clickable and explains the required PO component selection", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const buttonIndex = workspace.indexOf('aria-label="Add operation ▾"');
+  const buttonStart = workspace.lastIndexOf("<button", buttonIndex);
+  const buttonEnd = workspace.indexOf(">", buttonIndex);
+  const button = workspace.slice(buttonStart, buttonEnd + 1);
+  assert.ok(button.includes("onClick={toggleAddMenu}"));
+  assert.ok(!button.includes("disabled="));
+  assert.ok(workspace.includes('"Select a PO component line first"'));
+  assert.ok(workspace.includes("saving an operation requires a valid PO component line"));
+});
+
+
+test("390px mobile layout keeps the spherical command centre and Process Map controls responsive", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const appCss = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  const uiCss = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  const process = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(html.includes('name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"'));
+  assert.ok(appCss.includes("@media(max-width:820px)"));
+  assert.ok(appCss.includes(".command-rail {"));
+  assert.ok(appCss.includes("overflow-x: auto"));
+  assert.ok(appCss.includes(".hero-command { grid-template-columns:minmax(0,1fr)"));
+  assert.ok(appCss.includes(".hero-graphic .ax-orb-drag-zone { width:min(100%,360px)"));
+  assert.ok(appCss.includes(".linked-process-page .linked-master-selectors,.linked-costing-page .linked-cost-selectors{grid-template-columns:minmax(0,1fr)}"));
+  assert.ok(uiCss.includes("@media (max-width: 600px)"));
+  assert.ok(uiCss.includes(".ax-orb-satellite small { font-size: 7px"));
+  assert.ok(uiCss.includes(".process-route-scope-buttons { display:flex; flex-wrap:wrap"));
+  assert.ok(uiCss.includes(".process-table-bulkbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap"));
+  assert.ok(uiCss.includes(".process-export-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap"));
+  assert.ok(uiCss.includes("@media(max-width:700px){.process-map-filter-grid{grid-template-columns:repeat(2,minmax(115px,1fr))"));
+  assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 38px"));
+  assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 42px"));
+  assert.ok(process.includes('<details open className="surface-panel process-route-scope-panel">'));
+  assert.ok(process.includes('<details open className="surface-panel linked-route-canvas">'));
+});
+
+
+test("bundled two-company five-part demo is opt-in, fully linked and removable", () => {
+  const demo = readFileSync(new URL("../src/aximachDemoData.ts", import.meta.url), "utf8");
+  const importer = readFileSync(new URL("../src/IntelligenceWorkspaces.tsx", import.meta.url), "utf8");
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  for (const company of ["ASTER MOTION COMPONENTS PVT LTD", "MERIDIAN FLUID SYSTEMS PVT LTD"]) {
+    assert.ok(demo.includes(company), "missing demo company: " + company);
+  }
+  const partKeys = [...demo.matchAll(/key:"(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
+  assert.equal(partKeys.length, 5, "bundled demo must include exactly five component examples");
+  assert.equal(new Set(partKeys).size, 5, "demo component IDs must be unique");
+  for (const collection of ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
+    assert.ok(demo.includes(collection), "demo dataset must include " + collection);
+  }
+  assert.ok(demo.includes('processSubcategoryId:def.subcategoryIds?.[def.subcategories.indexOf(s.sub)]'));
+  assert.ok(demo.includes('relationType:"alternate"'));
+  assert.ok(demo.includes('relationType:"rework"'));
+  assert.ok(demo.includes('branch:"Main route"'));
+  assert.ok(demo.includes('branch:"Alternate route"'));
+  assert.ok(demo.includes('branch:"Rework route"'));
+  assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
+  assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
+  assert.ok(importer.includes('onClick={loadTwoCompanyDemo}'));
+  assert.ok(importer.includes('onClick={removeTwoCompanyDemo}'));
+  assert.ok(importer.includes('mergeManufacturingData(current,createAxMachTwoCompanyDemo())'));
+  assert.ok(importer.includes('archiveAxMachTwoCompanyDemo(current)'));
+  assert.ok(importer.includes('window.confirm("Archive all AXIMACH DEMO records'));
+  assert.ok(inventory.includes('const inventoryTransactions = activeRows(data.inventoryTransactions);'));
+  assert.ok(!inventory.includes('data.inventoryTransactions.filter('), "archived demo stock movements must not remain visible");
+});
+
+
+test("AXIMACH spheres auto-rotate by default with an explicit pause control while manual drag remains available", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes('useState(saved.current.autoRotate !== false)'), "auto-rotation should be enabled unless the operator has paused it");
+  assert.ok(orb.includes("requestAnimationFrame"), "rotation should be driven by a frame loop");
+  assert.ok(orb.includes("cancelAnimationFrame"), "the animation frame must be cleaned up");
+  assert.ok(orb.includes("Pause auto-rotation"));
+  assert.ok(orb.includes("Resume auto-rotation"));
+  assert.ok(orb.includes("moduleRotationEnabled") && orb.includes("recordRotationEnabled"), "manual drag locks must remain independent");
+  assert.ok(!orb.includes("NO IDLE ROTATION"));
+});
+
+test("every Process Plan view uses the interactive 3D universe and volumetric WebGL core", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const core = readFileSync(new URL("../src/ProcessUniverseWebGLCore.tsx", import.meta.url), "utf8");
+  for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
+    assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
+  }
+  assert.ok(workspace.includes('initialLayout={visualStyle}'), "selected view must be passed directly to the 3D renderer");
+  assert.ok(universe.includes("ProcessUniverseWebGLCore"));
+  assert.ok(universe.includes("getLayoutPoint"));
+  assert.ok(universe.includes("transformStyle3d"));
+  assert.ok(universe.includes("autoRotateEnabled"));
+  assert.ok(universe.includes("Pause rotation"));
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  for (const view of ["linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
+    assert.ok(styles.includes(".process-universe-3d.mode-" + view + " .process-universe-viewport"), "2D fallback viewport must be hidden for " + view);
+  }
+  assert.ok(core.includes('canvas.getContext("webgl"'));
+  assert.ok(core.includes("raymarch"));
+  assert.ok(core.includes("gl.drawArrays(gl.TRIANGLES"));
 });

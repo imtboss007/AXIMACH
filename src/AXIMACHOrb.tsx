@@ -4,12 +4,12 @@ import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, Clipboard
 import { activeRows, useManufacturingData } from "./manufacturingData";
 import AXIMACHWebGLSphere from "./AXIMACHWebGLSphere";
 
-type Props = { onSelectModule: (id: string) => void };
+type Props = { onSelectModule: (id: string) => void; surface: "dashboard" | "command-centre" };
 
 type OrbVisualMode = "sphere" | "cube" | "vortex" | "molecular" | "orbit" | "mesh" | "holographic" | "radial" | "particle" | "industrial" | "kinetic" | "multi-core";
 type OrbSpeed = "Slow" | "Normal" | "Fast";
-function readOrbPreferences(): Record<string, unknown> {
-  try { return JSON.parse(window.localStorage.getItem("aximach.orb.preferences.v1") || "{}") as Record<string, unknown>; }
+function readOrbPreferences(storageKey: string): Record<string, unknown> {
+  try { return JSON.parse(window.localStorage.getItem(storageKey) || "{}") as Record<string, unknown>; }
   catch { return {}; }
 }
 
@@ -34,8 +34,9 @@ const satellites = [
   { id: "export", label: "Import / Export", Icon: FileDown },
 ];
 
-export default function AXIMACHOrb({ onSelectModule }: Props) {
-  const saved = useRef(readOrbPreferences());
+export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
+  const preferenceKey = surface === "command-centre" ? "aximach.command-centre.orb.preferences.v1" : "aximach.orb.preferences.v1";
+  const saved = useRef(readOrbPreferences(preferenceKey));
   const { data } = useManufacturingData();
   const shellStats = [
     { id: "companies", label: "Companies", value: activeRows(data.companies).length, Icon: Building2 },
@@ -52,6 +53,11 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   const [studioOpen, setStudioOpen] = useState(false);
   const reducedMotion = useReducedMotion();
   const [reduceMotion, setReduceMotion] = useState(saved.current.reduceMotion === true);
+  const [autoRotate, setAutoRotate] = useState(saved.current.autoRotate !== false);
+  // Both shells auto-rotate while idle. Manual pointer/touch drag takes over
+  // immediately and the frame loop resumes after the pointer is released.
+  const [moduleRotationEnabled, setModuleRotationEnabled] = useState(saved.current.moduleRotationEnabled !== false);
+  const [recordRotationEnabled, setRecordRotationEnabled] = useState(saved.current.recordRotationEnabled !== false);
   const [zoomed, setZoomed] = useState(saved.current.zoomed === true);
   const dragMoved = useRef(false);
   const lowerDragMoved = useRef(false);
@@ -63,21 +69,48 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
     return () => query.removeEventListener("change", updateCompact);
   }, []);
   useEffect(() => {
-    try { window.localStorage.setItem("aximach.orb.preferences.v1", JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed})); } catch { /* Preferences are optional. */ }
-  }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,zoomed]);
-  // Both spheres are stationary until the user drags them. No idle auto-rotation.
-  const rotateX = useMotionValue(-15);
-  const rotateY = useMotionValue(22);
-  const lowerRotateX = useMotionValue(-8);
-  const lowerRotateY = useMotionValue(12);
+    try { window.localStorage.setItem(preferenceKey, JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,autoRotate,zoomed,moduleRotationEnabled,recordRotationEnabled})); } catch { /* Preferences are optional. */ }
+  }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,autoRotate,zoomed,moduleRotationEnabled,recordRotationEnabled,preferenceKey]);
+  // Both shells stay still while idle. Only a direct pointer/touch drag changes
+  // their orientation. A front-facing starting angle keeps the full 3D shell
+  // legible on narrow phone viewports.
+  const rotateX = useMotionValue(compactViewport ? -7 : -15);
+  const rotateY = useMotionValue(compactViewport ? 0 : 22);
+  const lowerRotateX = useMotionValue(compactViewport ? -5 : -8);
+  const lowerRotateY = useMotionValue(compactViewport ? 0 : 12);
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
   const lowerDrag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
   const dragSensitivity = speed === "Slow" ? 0.45 : speed === "Fast" ? 0.95 : 0.72;
-
+  useEffect(() => {
+    if (!autoRotate || reduceMotion || reducedMotion) return;
+    let frame = 0;
+    let previousTime = 0;
+    const degreesPerSecond = speed === "Slow" ? 3.5 : speed === "Fast" ? 11 : 7;
+    const tick = (time: number) => {
+      if (previousTime > 0) {
+        const delta = Math.min(50, time - previousTime) / 1000;
+        if (!drag.current) rotateY.set(rotateY.get() + delta * degreesPerSecond);
+        if (!lowerDrag.current) lowerRotateY.set(lowerRotateY.get() + delta * degreesPerSecond * 0.72);
+      }
+      previousTime = time;
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [autoRotate, reduceMotion, reducedMotion, speed, rotateY, lowerRotateY]);
   const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
     dragMoved.current = false;
+    if (!moduleRotationEnabled) return;
+    // Interactive descendants must receive their own press/click sequence.
+    // Capturing their pointer on the surrounding drag surface can retarget
+    // pointerup/click and make module buttons appear unselectable.
+    const interactiveTarget = event.target instanceof Element
+      ? event.target.closest("button, a, input, select, textarea")
+      : null;
+    if (interactiveTarget) return;
     drag.current = { x: event.clientX, y: event.clientY, rx: rotateX.get(), ry: rotateY.get() };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    const captureTarget = event.target instanceof HTMLElement ? event.target : event.currentTarget;
+    captureTarget.setPointerCapture(event.pointerId);
   };
   const moveDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (!drag.current) return;
@@ -95,6 +128,7 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
   };
   const startLowerDrag = (event: ReactPointerEvent<HTMLElement>) => {
     lowerDragMoved.current = false;
+    if (!recordRotationEnabled) return;
     lowerDrag.current = { x: event.clientX, y: event.clientY, rx: lowerRotateX.get(), ry: lowerRotateY.get() };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -169,20 +203,18 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
             const angle = index * goldenAngle;
             const unitX = Math.cos(angle) * ringRadius;
             const unitZ = Math.sin(angle) * ringRadius;
-            const radius = compactViewport ? 86 : 106;
+            const radius = compactViewport ? 116 : 132;
             const x = unitX * radius;
             const y = unitY * radius;
             const z = unitZ * radius;
             const yaw = Math.atan2(unitX, unitZ) * 180 / Math.PI;
             const pitch = -Math.asin(unitY) * 180 / Math.PI;
-            return <motion.button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"
+            return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"
               style={{ left: "50%", top: "50%", transform: "translate3d(" + x + "px," + y + "px," + z + "px) translate(-50%,-50%) rotateY(" + yaw + "deg) rotateX(" + pitch + "deg)" }}
               onClick={() => { if (!dragMoved.current) onSelectModule(id); }}
-              aria-label={"Open " + label + " module"} title={"Open " + label}
-              initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.08 + index * 0.025, type: "spring", stiffness: 130 }} whileHover={{ filter: "brightness(1.15)" }} whileTap={{ scale: 0.94 }}>
+              aria-label={"Open " + label + " module"} title={"Open " + label}>
               <span><Icon size={15} strokeWidth={1.8}/></span><small>{label}</small>
-            </motion.button>;
+            </button>;
           })}
         </motion.div>
         </motion.div>
@@ -200,10 +232,12 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
           </button>)}
         </motion.div>
       </div>
-      <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> DRAG EITHER SPHERE TO ROTATE · NO AUTO-ROTATION <i /> SELECT AN ORBIT NODE TO OPEN A WORKSPACE</div>
+      <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> AUTO ROTATION · {autoRotate && !reduceMotion && !reducedMotion ? "ON" : "PAUSED"} <i/> MODULE SHELL · {moduleRotationEnabled ? "DRAG ENABLED" : "LOCKED"} <i/> RECORD SHELL · {recordRotationEnabled ? "DRAG ENABLED" : "LOCKED"}</div>
       <div className="ax-orb-studio-actions">
+        <button type="button" className="ax-orb-pause" aria-pressed={!autoRotate} onClick={() => setAutoRotate(value => !value)}>{autoRotate ? "Ⅱ Pause auto-rotation" : "▶ Resume auto-rotation"}</button>
         <button type="button" className="ax-orb-studio-toggle" aria-expanded={studioOpen} onClick={() => setStudioOpen(value => !value)}>✧ Visual Experience Studio <span>{studioOpen ? "Close" : "Customize"}</span></button>
-        <span className="ax-orb-pause" aria-live="polite">Manual rotation only</span>
+        <button type="button" className="ax-orb-pause" aria-pressed={!moduleRotationEnabled} onClick={() => setModuleRotationEnabled(value => !value)}>{moduleRotationEnabled ? "Ⅱ Lock modules" : "▶ Enable module drag"}</button>
+        <button type="button" className="ax-orb-pause ax-orb-record-pause" aria-pressed={!recordRotationEnabled} onClick={() => setRecordRotationEnabled(value => !value)}>{recordRotationEnabled ? "Ⅱ Lock records" : "▶ Enable record drag"}</button>
         <button type="button" className="ax-orb-zoom" aria-pressed={zoomed} onClick={() => setZoomed(value => !value)}>{zoomed ? "− Zoom out" : "+ Zoom in"}</button>
       </div>
       {studioOpen && <div className="ax-orb-studio-panel">
@@ -212,9 +246,9 @@ export default function AXIMACHOrb({ onSelectModule }: Props) {
         <label>Sphere size<input type="range" min=".82" max="1.12" step=".01" value={sphereSize} onChange={event=>setSphereSize(Number(event.target.value))}/><small>{Math.round(sphereSize*100)}%</small></label>
         <label>Orbit intensity<input type="range" min="0" max="1" step=".05" value={orbitIntensity} onChange={event=>setOrbitIntensity(Number(event.target.value))}/><small>{Math.round(orbitIntensity*100)}%</small></label>
         <label className="ax-orb-motion-setting"><input type="checkbox" checked={reduceMotion} onChange={event=>setReduceMotion(event.target.checked)}/> Reduce motion</label>
-        <button type="button" className="ax-orb-reset" onClick={()=>{setVisualMode("sphere");setSpeed("Normal");setSphereSize(1);setOrbitIntensity(1);setReduceMotion(false);setZoomed(false);}}>Reset preferences</button>
+        <button type="button" className="ax-orb-reset" onClick={()=>{setVisualMode("sphere");setSpeed("Normal");setSphereSize(1);setOrbitIntensity(1);setReduceMotion(false);setAutoRotate(true);setModuleRotationEnabled(true);setRecordRotationEnabled(true);setZoomed(false);}}>Reset preferences</button>
       </div>}
-      <motion.div className="ax-orb-coordinate" animate={reducedMotion ? undefined : { opacity: [0.45, 1, 0.45] }} transition={{ duration: 4.5, repeat: Infinity }}>AX / 360° / LIVE DATA SURFACE</motion.div>
+      <motion.div className="ax-orb-coordinate" animate={reducedMotion || reduceMotion ? undefined : { opacity: [0.45, 1, 0.45] }} transition={{ duration: 4.5, repeat: Infinity }}>AX / 360° / LIVE DATA SURFACE</motion.div>
     </div>
   );
 }

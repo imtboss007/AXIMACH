@@ -26,6 +26,11 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   const [rollupComponentIds, setRollupComponentIds] = useState<string[]>([]);
   const [rollupQuantities, setRollupQuantities] = useState<number[]>([]);
   const [rollupVendorIds, setRollupVendorIds] = useState<string[]>([]);
+  const [rollupCategoryFilters, setRollupCategoryFilters] = useState<string[]>([]);
+  const [rollupProcessFilters, setRollupProcessFilters] = useState<string[]>([]);
+  const [rollupSubcategoryFilters, setRollupSubcategoryFilters] = useState<string[]>([]);
+  const [rollupExecutionFilters, setRollupExecutionFilters] = useState<string[]>([]);
+  const [rollupPaymentFilters, setRollupPaymentFilters] = useState<string[]>([]);
   const [poValueWarningPercent, setPoValueWarningPercent] = useState(90);
   const [poId, setPoId] = useState("");
   const [lineKey, setLineKey] = useState("");
@@ -130,16 +135,27 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   const rollupVendorOptions = [...new Set(companyRollupRows.flatMap(row=>row.vendorIds))].map(id=>({id,label:vendors.find(v=>v.id===id)?.company||"Archived vendor"}));
   const rollupComponentOptions = [...new Map(companyRollupRows.filter(row=>row.component).map(row=>[row.component!.id,{id:row.component!.id,label:(row.component!.partNumber||"")+" · "+row.component!.name}])).values()];
   const rollupQuantityOptions = [...new Set(companyRollupRows.map(row=>row.line.quantity))].sort((a,b)=>a-b);
+  const rollupOperationRows = companyRollupRows.flatMap(row=>row.linkedOperations);
+  const rollupCategoryOptions = [...new Set(rollupOperationRows.map(op=>processDefinitions.find(definition=>definition.id===op.processDefinitionId)?.category||op.category||"").filter(Boolean))].sort().map(value=>({id:value,label:value}));
+  const rollupProcessOptions = [...new Set(rollupOperationRows.map(op=>op.name).filter(Boolean))].sort().map(value=>({id:value,label:value}));
+  const rollupSubcategoryOptions = [...new Set(rollupOperationRows.map(op=>op.subcategory||"").filter(Boolean))].sort().map(value=>({id:value,label:value}));
+  const rollupExecutionOptions = [...new Set(rollupOperationRows.map(op=>op.executionType||"Outsourced"))].sort().map(value=>({id:value,label:value}));
+  const rollupPaymentOptions = [...new Set(rollupOperationRows.map(op=>op.paymentStatus||"Unpaid"))].sort().map(value=>({id:value,label:value}));
   const visibleCompanyRollup = companyRollupRows.filter(row=>
     (!rollupCompanyIds.length||rollupCompanyIds.includes(row.po.companyId)) &&
     (!rollupPoIds.length||rollupPoIds.includes(row.po.id)) &&
     (!rollupComponentIds.length||rollupComponentIds.includes(row.component?.id||"")) &&
     (!rollupQuantities.length||rollupQuantities.includes(row.line.quantity)) &&
-    (!rollupVendorIds.length||row.vendorIds.some(id=>rollupVendorIds.includes(id)))
+    (!rollupVendorIds.length||row.vendorIds.some(id=>rollupVendorIds.includes(id))) &&
+    (!rollupCategoryFilters.length||row.linkedOperations.some(op=>rollupCategoryFilters.includes(processDefinitions.find(definition=>definition.id===op.processDefinitionId)?.category||op.category||""))) &&
+    (!rollupProcessFilters.length||row.linkedOperations.some(op=>rollupProcessFilters.includes(op.name))) &&
+    (!rollupSubcategoryFilters.length||row.linkedOperations.some(op=>rollupSubcategoryFilters.includes(op.subcategory||""))) &&
+    (!rollupExecutionFilters.length||row.linkedOperations.some(op=>rollupExecutionFilters.includes(op.executionType||"Outsourced"))) &&
+    (!rollupPaymentFilters.length||row.linkedOperations.some(op=>rollupPaymentFilters.includes(op.paymentStatus||"Unpaid")))
   );
   const toggleRollupFilter = (value: string|number, selected: (string|number)[], setter: (next: any[])=>void) =>
     setter(selected.includes(value) ? selected.filter(item=>item!==value) : [...selected,value]);
-  const clearRollupFilters = () => { setRollupCompanyIds([]); setRollupPoIds([]); setRollupComponentIds([]); setRollupQuantities([]); setRollupVendorIds([]); };
+  const clearRollupFilters = () => { setRollupCompanyIds([]); setRollupPoIds([]); setRollupComponentIds([]); setRollupQuantities([]); setRollupVendorIds([]); setRollupCategoryFilters([]); setRollupProcessFilters([]); setRollupSubcategoryFilters([]); setRollupExecutionFilters([]); setRollupPaymentFilters([]); };
   const companyRollupTotals = visibleCompanyRollup.reduce((sum,row)=>({
     revenue:sum.revenue+row.revenue,planned:sum.planned+row.plannedCost,plannedProcess:sum.plannedProcess+row.plannedProcessCost,
     material:sum.material+row.materialCost,actualMaterial:sum.actualMaterial+row.actualMaterialCost,estimatedMaterial:sum.estimatedMaterial+row.estimatedMaterialCost,extras:sum.extras+row.extras,actualExtras:sum.actualExtras+row.actualExtras,process:sum.process+row.processCost,
@@ -359,6 +375,11 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
           <SearchableMultiSelect id="costing-filter-components" label="Components" options={rollupComponentOptions} selected={rollupComponentIds} onChange={setRollupComponentIds} emptyMeansAll/>
           <SearchableMultiSelect id="costing-filter-quantity" label="PO quantity" options={rollupQuantityOptions.map(qty=>({id:String(qty),label:qty.toLocaleString("en-IN")}))} selected={rollupQuantities.map(String)} onChange={values=>setRollupQuantities(values.map(Number).filter(Number.isFinite))} emptyMeansAll/>
           <SearchableMultiSelect id="costing-filter-vendors" label="Vendors" options={rollupVendorOptions} selected={rollupVendorIds} onChange={setRollupVendorIds} emptyMeansAll/>
+          <SearchableMultiSelect id="costing-filter-process-category" label="Process category" options={rollupCategoryOptions} selected={rollupCategoryFilters} onChange={setRollupCategoryFilters} emptyMeansAll/>
+          <SearchableMultiSelect id="costing-filter-process-type" label="Process type" options={rollupProcessOptions} selected={rollupProcessFilters} onChange={setRollupProcessFilters} emptyMeansAll/>
+          <SearchableMultiSelect id="costing-filter-process-subcategory" label="Subcategory" options={rollupSubcategoryOptions} selected={rollupSubcategoryFilters} onChange={setRollupSubcategoryFilters} emptyMeansAll/>
+          <SearchableMultiSelect id="costing-filter-execution" label="Execution" options={rollupExecutionOptions} selected={rollupExecutionFilters} onChange={setRollupExecutionFilters} emptyMeansAll/>
+          <SearchableMultiSelect id="costing-filter-payment" label="Payment status" options={rollupPaymentOptions} selected={rollupPaymentFilters} onChange={setRollupPaymentFilters} emptyMeansAll/>
           <div className="costing-filter-actions"><label>PO value warning at <input type="number" min="1" max="100" value={poValueWarningPercent} onChange={e=>setPoValueWarningPercent(Math.min(100,Math.max(1,Number(e.target.value)||1)))}/> %</label><button className="button-quiet compact-button" onClick={clearRollupFilters}>Clear all filters</button><span>{visibleCompanyRollup.length} / {companyRollupRows.length} component lines</span></div>
         </div>
         <div className="dashboard-job-summary company-rollup-totals">

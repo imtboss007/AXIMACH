@@ -57,7 +57,10 @@ export type VendorRecord = {
 export type ContactProfileRecord = {
   id: string; linkedType: "company" | "vendor"; linkedId: string; name: string; role: string; group?: string;
   phone: string; whatsapp: string; additionalPhones?: string[]; email: string; address: string; followUpDate: string; history: string;
-  processCategories?: string[]; processTypes?: string[]; processSubcategories?: string[]; machineCapabilities?: string[]; materialCapabilities?: string[];
+  processCategories?: string[]; processTypes?: string[]; processSubcategories?: string[];
+  /** Stable Process Directory references selected for this contact; separate from contact-entered text tags. */
+  processDefinitionIds?: string[]; processSubcategoryIds?: string[];
+  machineCapabilities?: string[]; materialCapabilities?: string[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type FollowUpAssignmentRecord = {
@@ -72,7 +75,7 @@ export type ProcessDefinitionRecord = {
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type PlannedCostEntry = {
-  id: string; companyId?: string; poId?: string; componentId?: string; processDefinitionId?: string; companyName?: string; poNumber?: string; componentName: string; componentNumber: string; processType: string; processCategory: string; processSubcategory?: string;
+  id: string; companyId?: string; poId?: string; componentId?: string; processDefinitionId?: string; processSubcategoryId?: string; companyName?: string; poNumber?: string; componentName: string; componentNumber: string; processType: string; processCategory: string; processSubcategory?: string;
   plannedQty: number; unit: "piece" | "set"; plannedRate: number; notes: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
@@ -83,7 +86,7 @@ export type OperationRecord = {
   quantity: number; completed: number; accepted: number; rejected: number;
   ratePerPart: number; actualRatePerPart: number; transportVendorId: string; transportPickup: string; transportDelivery: string;
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
-  paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;
+  paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string; processSubcategoryId?: string;
   executionType?: "Internal" | "Outsourced"; toleranceCategory?: "Standard" | "Precision" | "Close" | "Ultra Precision"; inspectionRequired?: boolean;
   transportFrom?: string; transportTo?: string; transportVehicleType?: string; transportRouteId?: string;
   /** Snapshot of the Process Directory identity colour used by this saved operation. */
@@ -119,7 +122,7 @@ export type InventoryTransactionRecord = {
   id: string; itemType: "material" | "component"; itemId: string; transactionType: StockTransactionKind;
   direction: "in" | "out"; quantity: number; occurredAt: string; reference: string; notes: string;
   companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string; vendorId: string;
-  reversalOfId: string; createdAt: string; createdBy: string;
+  reversalOfId: string; createdAt: string; createdBy: string; updatedAt?: string; deletedAt?: string;
 };
 export type ManufacturingData = {
   updatedAt: string;
