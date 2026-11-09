@@ -785,7 +785,7 @@ test("Process route scope keeps original parent arrows visible and each 3D view 
   assert.ok(universe.includes('initialLayout = "sphere"'));
   assert.ok(universe.includes("useState<ProcessLayoutMode>(initialLayout)"));
   assert.ok(universe.includes("while (ancestor && routeGroupKey(ancestor) === key"));
-  assert.ok(universe.includes("[parentOperations, lookupOperations]"));
+  assert.ok(universe.includes("[parentOperations, lookupOperations, routeLabels]"));
 });
 
 test("mechanical icon inventory covers process stages beyond cutting and machining", () => {
@@ -1249,7 +1249,7 @@ test("Process Universe route sections can independently expand and collapse", ()
   assert.ok(universe.includes('className="process-universe-lane-toggle"'));
   assert.ok(universe.includes("aria-expanded={!collapsed}"));
   assert.ok(universe.includes('className="process-universe-lane-content" hidden={collapsed}'));
-  assert.ok(universe.includes('onClick={() => setCollapsedLaneNames(current => current.includes(lane.name)'));
+  assert.ok(universe.includes('onClick={() => setCollapsedLaneNames(current => current.includes(lane.key)'));
   assert.ok(styles.includes(".process-universe-lane-content[hidden]{display:none!important}"));
 });
 
