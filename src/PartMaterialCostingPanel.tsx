@@ -37,7 +37,7 @@ const MATERIAL_SEEDS = [
   {name:"Alloy steel",grade:"EN24",density:7850,type:"Steel"},
   {name:"Alloy steel",grade:"EN31",density:7850,type:"Steel"},
   {name:"Alloy steel",grade:"EN36",density:7850,type:"Steel"},
-  {name:"Stainless steel",grade:"SS 304",density:8000,type:"Stainless steel"},
+  {name:"Stainless steel",grade:"SS 304",density:7930,type:"Stainless steel"},
   {name:"Stainless steel",grade:"SS 316",density:8000,type:"Stainless steel"},
   {name:"Stainless steel",grade:"SS 410",density:7750,type:"Stainless steel"},
   {name:"Stainless steel",grade:"SS 420",density:7750,type:"Stainless steel"},
@@ -52,7 +52,8 @@ const MATERIAL_SEEDS = [
   {name:"Bronze",grade:"Tin bronze",density:8800,type:"Bronze"},
   {name:"Cast iron",grade:"Grey cast iron",density:7200,type:"Cast iron"},
   {name:"Zinc",grade:"Zinc",density:7140,type:"Non-ferrous"},
-  {name:"Titanium",grade:"Titanium Grade 2",density:4510,type:"Titanium"}
+  {name:"Titanium",grade:"Titanium Grade 2",density:4510,type:"Titanium"},
+  {name:"Carbon steel",grade:"AISI 1018",density:7870,type:"Steel"},{name:"Carbon steel",grade:"S355 / IS 2062 E350",density:7850,type:"Steel"},{name:"Alloy steel",grade:"AISI 4130",density:7850,type:"Steel"},{name:"Alloy steel",grade:"AISI 52100 / 100Cr6",density:7810,type:"Steel"},{name:"Stainless steel",grade:"SS 201",density:7800,type:"Stainless steel"},{name:"Stainless steel",grade:"SS 303",density:7900,type:"Stainless steel"},{name:"Stainless steel",grade:"SS 430",density:7700,type:"Stainless steel"},{name:"Stainless steel",grade:"17-4PH",density:7800,type:"Stainless steel"},{name:"Aluminium",grade:"Aluminium 1100",density:2710,type:"Aluminium"},{name:"Aluminium",grade:"Aluminium 3003",density:2730,type:"Aluminium"},{name:"Aluminium",grade:"Aluminium 6061-T6",density:2700,type:"Aluminium"},{name:"Aluminium",grade:"Aluminium 7075-T6",density:2810,type:"Aluminium"},{name:"Copper alloy",grade:"Cupronickel 70/30",density:8960,type:"Copper alloy"},{name:"Nickel alloy",grade:"Hastelloy C276",density:8410,type:"Nickel alloy"},{name:"Engineering plastic",grade:"Polyetheretherketone (PEEK)",density:1300,type:"Plastic"},{name:"Engineering plastic",grade:"Polyamide 66 (PA66)",density:1140,type:"Plastic"}
 ];
 const money = (n:number) => "₹" + (Number(n)||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
 const unitScale = (unit:string) => UNIT_MM[unit] || 1;
@@ -89,7 +90,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const materials=activeRows(data.materials);
   useEffect(()=>{
     const additions=MATERIAL_SEEDS.map(item=>({
-      id:"material-seed-"+item.grade.toLowerCase().replace(/[^a-z0-9]+/g,"-"),code:item.grade.toUpperCase().replace(/[^A-Z0-9]+/g,"-"),name:item.name,grade:item.grade,unit:"kg",specification:"Typical reference density; verify against material certificate and supplier data.",preferredVendorId:"",ratePerUnit:0,notes:"Reference density only; editable for actual grade / certificate.",materialType:item.type,densityKgM3:item.density,densityUnit:"kg/m3" as const,priceUnit:"kg" as const,createdAt:nowIso(),updatedAt:nowIso()
+      id:"material-seed-"+item.grade.toLowerCase().replace(/[^a-z0-9]+/g,"-"),code:item.grade.toUpperCase().replace(/[^A-Z0-9]+/g,"-"),name:item.name,grade:item.grade,unit:"kg",specification:"Typical reference density; verify against material certificate and supplier data.",preferredVendorId:"",ratePerUnit:0,notes:"Reference density in kg/m³ only; verify actual grade against supplier material certificate.",materialType:item.type,densityKgM3:item.density,densityUnit:"kg/m3" as const,priceUnit:"kg" as const,createdAt:nowIso(),updatedAt:nowIso()
     }));
     update(current=>{const keys=new Set(current.materials.map(item=>(item.name+"::"+item.grade).toLowerCase()));const missing=additions.filter(item=>!keys.has((item.name+"::"+item.grade).toLowerCase()));return missing.length?{...current,materials:[...missing,...current.materials]}:current;});
   // Seed once when the shared material catalogue is first opened.
