@@ -254,7 +254,7 @@ test("new PO lines do not copy Component Master selling prices into editable lin
   const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
   const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
   const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(master.includes('const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quantity: 0, targetDelivery: "", notes: "" })'));
+  assert.ok(master.includes('const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quantity: 0, targetDelivery: "", notes: "", allocationLevel: "component", partId: "" })'));
   assert.ok(master.includes("delete clean.unitPrice"));
   assert.ok(data.includes("unitPrice?: number"));
   assert.ok(costing.includes("const sellingRate = selectedComponent?.salePrice ?? 0"));
