@@ -1720,3 +1720,14 @@ test("Material transport is separately costed from raw material and cutting", ()
   assert.ok(panel.includes("money(entry.materialCost+entry.cuttingCost+(entry.transportCost||0))"));
   assert.ok(processMap.includes("materialInboundTransportCost"));
 });
+
+
+test("Editing or extending a part route retains its source PO line and payment allocation", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes("const parentOperation = draft.parentId ? current.operations.find(op=>op.id===draft.parentId && !op.deletedAt) : undefined"));
+  assert.ok(processMap.includes("const effectivePoLineId = old?.poLineId || parentOperation?.poLineId || selectedLine.id"));
+  assert.ok(processMap.includes("poLineId: effectivePoLineId, componentId: effectiveComponentId"));
+  assert.ok(processMap.includes("poLineId:effectivePoLineId,componentId:effectiveComponentId"));
+  assert.ok(processMap.includes("const selectedLineOperations = operations.filter(op=>op.poId===poId && op.poLineId===poLineId"));
+  assert.ok(processMap.includes("const sameRoute=routeOperations.filter(op=>op.poLineId===current.poLineId"));
+});
