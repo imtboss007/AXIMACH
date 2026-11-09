@@ -4,9 +4,9 @@ import type { OperationRecord } from "./manufacturingData";
 type Mode = "sphere"|"vortex"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined"|"cube"|"molecular"|"orbit"|"digital-mesh"|"route"|"helix"|"stacked"|"pipeline"|"network"|"grid";
 type CatalogueDefinition = { id:string; processType:string; category:string; displayColor?:string };
 type RouteAnchor = { operation:OperationRecord; relation:"main"|"alternate"|"rework"; color:string };
-type MaterialRouteNode = { id:string; partLabel:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
+type MaterialRouteNode = { id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
 
-type Props = { operations: OperationRecord[]; materialRoutes?: MaterialRouteNode[]; autoRotate?: boolean; mode: Mode; selectedOperationId: string; expandedOperationId?: string; onSelectOperation: (id:string)=>void; onExpandOperation?:(id:string)=>void; onArrowSelect?:(id:string)=>void; edges?:Array<{from:OperationRecord;to:OperationRecord;relation:string;color:string}>; coordinateOperations?:OperationRecord[]; anchors?:RouteAnchor[]; catalogue?:CatalogueDefinition[]; onAddCatalogue?:(id:string)=>void; showArrows?: boolean; vendors?:Array<{id:string;company:string}>; quantityUnit?:string; ganttScale?:"day"|"week"|"month" };
+type Props = { operations: OperationRecord[]; materialRoutes?: MaterialRouteNode[]; visibleFields?:string[]; autoRotate?: boolean; mode: Mode; selectedOperationId: string; expandedOperationId?: string; onSelectOperation: (id:string)=>void; onExpandOperation?:(id:string)=>void; onArrowSelect?:(id:string)=>void; edges?:Array<{from:OperationRecord;to:OperationRecord;relation:string;color:string}>; coordinateOperations?:OperationRecord[]; anchors?:RouteAnchor[]; catalogue?:CatalogueDefinition[]; onAddCatalogue?:(id:string)=>void; showArrows?: boolean; vendors?:Array<{id:string;company:string}>; quantityUnit?:string; ganttScale?:"day"|"week"|"month" };
 const EMPTY_CATALOGUE: CatalogueDefinition[] = [];
 
 type P = {x:number;y:number;z:number};
@@ -106,10 +106,10 @@ function operationCode(operation:OperationRecord):string{
  return "OP-"+String(operation.sequence).padStart(3,"0")+(relation?" · "+relation:"");
 }
 type ProjectedPoint={x:number;y:number;z:number};
-type LabelCandidate={id:string;screen:ProjectedPoint;kind:"operation"|"material"};
+type LabelCandidate={id:string;screen:ProjectedPoint;kind:"operation"|"material"|"transport"};
 function relaxLabels(items:LabelCandidate[],width:number,height:number){
  const cardWidth=width<600?Math.min(116,width*.31):Math.min(168,width*.36);
- const cardHeight=width<600?84:112;
+ const cardHeight=width<600?96:132;
  const placed=items.map((item,index)=>({...item,screen:{...item.screen},index}));
  const minX=cardWidth/2+7,maxX=Math.max(cardWidth/2+7,width-cardWidth/2-7);
  const minY=cardHeight/2+24,maxY=Math.max(cardHeight/2+24,height-cardHeight/2-48);
@@ -142,23 +142,31 @@ const SPHERE_GUIDE_MESH = sphereWireMesh(1.025);
 const SPHERE_ORBIT_MESH = sphereOrbitMesh();
 function pointFor(i:number,n:number,mode:Mode):P{const t=(i+0.5)/Math.max(1,n),a=i*2.399963;const c=i-(n-1)/2;switch(mode){case"route":case"linear":case"horizontal":case"pipeline":return{x:c*.72,y:Math.sin(i*.7)*.16,z:Math.cos(i*.5)*.18};case"vertical":return{x:Math.cos(a)*.34,y:-c*.64,z:Math.sin(a)*.34};case"timeline":case"gantt":return{x:(t-.5)*2.5,y:Math.sin(i*.8)*.12,z:Math.cos(i*.6)*.28};case"cube":{const s=Math.ceil(Math.cbrt(n));return{x:((i%s)-(s-1)/2)*.72,y:((Math.floor(i/s)%s)-(s-1)/2)*.72,z:(Math.floor(i/(s*s))-(s-1)/2)*.72};}case"vortex":{const r=.35+t*.72;return{x:Math.cos(a)*r,y:(t-.5)*1.7,z:Math.sin(a)*r};}case"molecular":case"network":return{x:Math.cos(Math.floor(i/3)*2.1)*.55+Math.cos(a)*.25,y:Math.sin(i*.8)*.35,z:Math.sin(Math.floor(i/3)*2.1)*.55+Math.sin(a)*.25};case"orbit":{const r=.42+(i%3)*.28;return{x:Math.cos(a)*r,y:Math.sin(i*.65)*.42,z:Math.sin(a)*r};}case"nodes":return{x:(i%3-1)*.8,y:(Math.floor(i/3)-(Math.ceil(n/3)-1)/2)*.65,z:(i%2?1:-1)*.24};case"branch":return{x:c*.55,y:(i%3-1)*.25,z:(i%2?1:-1)*.52};case"digital-mesh":case"grid":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=row%2?cols-1-i%cols:i%cols;return{x:(col-(cols-1)/2)*.58,y:((Math.ceil(n/cols)-1)/2-row)*.55,z:Math.sin(i*.45)*.12};}case"helix":{const radius=.48+(i%3)*.08;return{x:Math.cos(i*1.08)*radius,y:(t-.5)*2.05,z:Math.sin(i*1.08)*radius};}case"stacked":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=i%cols,rows=Math.ceil(n/cols);return{x:(col-(cols-1)/2)*.7,y:((rows-1)/2-row)*.68,z:(i%3-1)*.48};}case"combined":return{x:Math.cos(a)*(.4+t*.6),y:Math.sin(i*.9)*.5,z:Math.sin(a)*(.4+t*.6)};default:{const y=1-2*t,r=Math.sqrt(1-y*y);return{x:Math.cos(a)*r*.9,y:y*.9,z:Math.sin(a)*r*.9};}}}
 
-export default function ProcessScene3D({operations,materialRoutes=[],autoRotate=true,mode,selectedOperationId,expandedOperationId="",onSelectOperation,onExpandOperation,onArrowSelect,edges=[],coordinateOperations=[],anchors=[],catalogue=EMPTY_CATALOGUE,onAddCatalogue,showArrows=true,vendors=[],quantityUnit="pieces",ganttScale="week"}:Props){
+export default function ProcessScene3D({operations,materialRoutes=[],visibleFields=[],autoRotate=true,mode,selectedOperationId,expandedOperationId="",onSelectOperation,onExpandOperation,onArrowSelect,edges=[],coordinateOperations=[],anchors=[],catalogue=EMPTY_CATALOGUE,onAddCatalogue,showArrows=true,vendors=[],quantityUnit="pieces",ganttScale="week"}:Props){
  const canvas=useRef<HTMLCanvasElement>(null),[angle,setAngle]=useState(0),rotationRef=useRef(0),[dragging,setDragging]=useState(false),drag=useRef<{x:number;y:number;angle:number}|null>(null),[size,setSize]=useState({w:600,h:500});
  const rows=useMemo(()=>operations.slice().sort((a,b)=>a.sequence-b.sequence),[operations]);
  const geometryRows=useMemo(()=>{const byId=new Map<string,OperationRecord>();for(const op of (coordinateOperations.length?coordinateOperations:rows))byId.set(op.id,op);for(const anchor of anchors)byId.set(anchor.operation.id,anchor.operation);return [...byId.values()].sort((a,b)=>a.sequence-b.sequence);},[coordinateOperations,rows,anchors]);
  const geometryPoints=useMemo(()=>geometryRows.map((op,i)=>({op,p:mode==="gantt"?ganttSegment(i,geometryRows,ganttScale).center:pointFor(i,geometryRows.length,mode)})),[geometryRows,mode,ganttScale]);
- const materialAnchorIds=useMemo(()=>[...new Set(materialRoutes.map(route=>route.anchorOperationId||""))],[materialRoutes]);
- const materialAnchorId=materialAnchorIds.length===1?materialAnchorIds[0]:"";
- const materialAnchorOperation=useMemo(()=>materialAnchorId?geometryRows.find(operation=>operation.id===materialAnchorId)||null:null,[materialAnchorId,geometryRows]);
- const materialAnchorNextOperation=useMemo(()=>materialAnchorOperation?geometryRows.filter(operation=>(operation.branch||"Main route")===(materialAnchorOperation.branch||"Main route")&&operation.sequence>materialAnchorOperation.sequence&&operation.relationType!=="subprocess").sort((a,b)=>a.sequence-b.sequence)[0]||null:null,[materialAnchorOperation,geometryRows]);
- const procurementPoint=useMemo(()=>{
-  if(!materialAnchorOperation)return PROCUREMENT_POINT;
-  const from=geometryPoints.find(item=>item.op.id===materialAnchorOperation.id)?.p;
-  const to=materialAnchorNextOperation?geometryPoints.find(item=>item.op.id===materialAnchorNextOperation.id)?.p:undefined;
-  if(!from)return PROCUREMENT_POINT;
-  if(to)return {x:(from.x+to.x)/2,y:(from.y+to.y)/2+.18,z:(from.z+to.z)/2+.16};
-  return {x:from.x+.30,y:from.y+.15,z:from.z+.18};
- },[materialAnchorOperation,materialAnchorNextOperation,geometryPoints]);
+ const materialPlacements=useMemo(()=>materialRoutes.map((route,index)=>{
+  const lineRows=geometryRows.filter(operation=>(!route.poLineId||operation.poLineId===route.poLineId)&&operation.relationType!=="subprocess");
+  const anchor=route.anchorOperationId?lineRows.find(operation=>operation.id===route.anchorOperationId):undefined;
+  const branch=anchor?.branch||"Main route";
+  const firstMain=lineRows.filter(operation=>(operation.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence)[0]||lineRows.slice().sort((a,b)=>a.sequence-b.sequence)[0];
+  const fromOperation=anchor||undefined;
+  const toOperation=anchor
+    ? lineRows.filter(operation=>(operation.branch||"Main route")===branch&&operation.sequence>anchor.sequence).sort((a,b)=>a.sequence-b.sequence)[0]
+    : firstMain;
+  const fromPoint=fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined;
+  const toPoint=toOperation?geometryPoints.find(item=>item.op.id===toOperation.id)?.p:undefined;
+  const lane=(index-(materialRoutes.length-1)/2)*.13;
+  const lerp=(a:P,b:P,t:number):P=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t+lane,z:a.z+(b.z-a.z)*t+Math.sign(lane||1)*.045});
+  let materialPoint:P,transportPoint:P;
+  if(fromPoint&&toPoint){materialPoint=lerp(fromPoint,toPoint,.28);transportPoint=lerp(fromPoint,toPoint,.70);}
+  else if(fromPoint){materialPoint={x:fromPoint.x+.30,y:fromPoint.y+.20+lane,z:fromPoint.z+.16};transportPoint={x:fromPoint.x+.62,y:fromPoint.y+.30+lane,z:fromPoint.z+.22};}
+  else if(toPoint){materialPoint={x:toPoint.x-.48,y:toPoint.y+.17+lane,z:toPoint.z+.16};transportPoint={x:toPoint.x-.22,y:toPoint.y+.10+lane,z:toPoint.z+.22};}
+  else{materialPoint={x:-.98,y:-.55+lane,z:.30};transportPoint={x:-.62,y:-.60+lane,z:.34};}
+  return {route,index,fromOperation,toOperation,materialPoint,transportPoint};
+ }),[materialRoutes,geometryRows,geometryPoints]);
  const points=useMemo(()=>rows.map(op=>geometryPoints.find(item=>item.op.id===op.id)).filter((item):item is {op:OperationRecord;p:P}=>!!item),[rows,geometryPoints]);
  const anchorPoints=useMemo(()=>anchors.filter(anchor=>!rows.some(op=>op.id===anchor.operation.id)).map(anchor=>({anchor,point:geometryPoints.find(item=>item.op.id===anchor.operation.id)?.p})).filter((item):item is {anchor:RouteAnchor;point:P}=>!!item),[anchors,rows,geometryPoints]);
  const cataloguePoints=useMemo(()=>catalogue.map((definition,index)=>({definition,p:pointFor(index,catalogue.length,mode)})),[catalogue,mode]);
@@ -174,30 +182,34 @@ export default function ProcessScene3D({operations,materialRoutes=[],autoRotate=
    geometryRows.forEach((op,index)=>{const segment=ganttSegment(index,geometryRows,ganttScale),status=op.status.toLowerCase();const rgb=status.includes("complete")?[.12,.62,.42]:status.includes("running")?[.12,.42,.88]:status.includes("hold")?[.83,.27,.35]:op.relationType==="rework"?[.89,.48,.18]:op.relationType==="alternate"?[.18,.49,.86]:[.35,.56,.78];const length=Math.hypot(segment.end.x-segment.start.x,segment.end.y-segment.start.y,segment.end.z-segment.start.z);if(segment.hasStart&&segment.hasEnd&&length>.035)draw(lineMesh(segment.start,segment.end,.071),rgb);if(segment.scheduled){draw(sphereMesh(segment.start.x,segment.start.y,segment.start.z,.052),rgb);if(length>.035)draw(sphereMesh(segment.end.x,segment.end.y,segment.end.z,.052),rgb);}else draw(sphereMesh(segment.center.x,segment.center.y,segment.center.z,.065),[.52,.59,.68]);});
  }
  const pointById=new Map(geometryPoints.map(({op,p})=>[op.id,p]));
+ const replacedOperationEdges=new Set(materialPlacements.filter(item=>item.fromOperation&&item.toOperation).map(item=>item.fromOperation!.id+"->"+item.toOperation!.id));
  const routeEdges=edges.length?edges:points.slice(0,-1).map((item,i)=>({from:item.op,to:points[i+1].op,relation:"main",color:"#4b95eb"}));
- let flowIndex=0;routeEdges.forEach(edge=>{const edgeIndex=flowIndex++;
-  if(materialAnchorOperation&&materialAnchorNextOperation&&edge.from.id===materialAnchorOperation.id&&edge.to.id===materialAnchorNextOperation.id)return;
+ let flowIndex=0;
+ const drawFlow=(from:P,to:P,offset:number,rgb:number[],radius=.034)=>{
+  const delta={x:to.x-from.x,y:to.y-from.y,z:to.z-from.z},length=Math.hypot(delta.x,delta.y,delta.z)||1;
+  draw(lineMesh(from,to,radius),rgb);
+  if(showArrows){const tip={x:to.x-delta.x/length*.14,y:to.y-delta.y/length*.14,z:to.z-delta.z/length*.14};draw(arrowHeadMesh(tip,to,.09),rgb);const phase=((now*.00012+offset*.23)%1+1)%1;const particle={x:from.x+delta.x*phase,y:from.y+delta.y*phase,z:from.z+delta.z*phase};draw(sphereMesh(particle.x,particle.y,particle.z,.045,4,6),[.24,.86,1]);}
+ };
+ routeEdges.forEach(edge=>{
+  if(replacedOperationEdges.has(edge.from.id+"->"+edge.to.id))return;
+  const edgeIndex=flowIndex++;
   let p=pointById.get(edge.from.id),q=pointById.get(edge.to.id);
   if(mode==="gantt"){const fromIndex=geometryRows.findIndex(op=>op.id===edge.from.id),toIndex=geometryRows.findIndex(op=>op.id===edge.to.id);if(fromIndex>=0&&toIndex>=0){p=ganttSegment(fromIndex,geometryRows,ganttScale).end;q=ganttSegment(toIndex,geometryRows,ganttScale).start;}}
   if(!p||!q)return;
   const rgb=edge.relation==="rework"?[.89,.48,.18]:edge.relation==="alternate"?[.12,.48,.88]:[.12,.43,.82];
-  draw(lineMesh(p,q,.038),rgb);
-  if(showArrows){const d={x:q.x-p.x,y:q.y-p.y,z:q.z-p.z},l=Math.hypot(d.x,d.y,d.z)||1;
-   const tip={x:q.x-d.x/l*.14,y:q.y-d.y/l*.14,z:q.z-d.z/l*.14};
-   draw(arrowHeadMesh(tip,q,.095),rgb);const phase=((now*.00012+edgeIndex*.19)%1+1)%1;const particle={x:p.x+(q.x-p.x)*phase,y:p.y+(q.y-p.y)*phase,z:p.z+(q.z-p.z)*phase};draw(sphereMesh(particle.x,particle.y,particle.z,.045,4,6),[.24,.86,1]);
-  }
+  drawFlow(p,q,edgeIndex,rgb,.038);
  });
- if(materialRoutes.length){
-  const firstMain=points.map(item=>item.op).filter(op=>op.branch==="Main route"&&!op.parentId).sort((a,b)=>a.sequence-b.sequence)[0]||points.slice().sort((a,b)=>a.op.sequence-b.op.sequence)[0]?.op;
-  const target=firstMain?pointById.get(firstMain.id):undefined;
-  const materialFrom=materialAnchorOperation?pointById.get(materialAnchorOperation.id):undefined;
-  const materialTo=materialAnchorNextOperation?pointById.get(materialAnchorNextOperation.id):target;
-  const drawProcurementLink=(from:P,to:P,offset:number)=>{const delta={x:to.x-from.x,y:to.y-from.y,z:to.z-from.z},length=Math.hypot(delta.x,delta.y,delta.z)||1;draw(lineMesh(from,to,.035),[.06,.72,.96]);const tip={x:to.x-delta.x/length*.14,y:to.y-delta.y/length*.14,z:to.z-delta.z/length*.14};if(showArrows)draw(arrowHeadMesh(tip,to,.09),[.06,.82,1]);if(showArrows){const phase=((now*.00012+offset*.23)%1+1)%1;const particle={x:from.x+delta.x*phase,y:from.y+delta.y*phase,z:from.z+delta.z*phase};draw(sphereMesh(particle.x,particle.y,particle.z,.045,4,6),[.24,.86,1]);}};
-  if(materialAnchorOperation&&materialFrom){drawProcurementLink(materialFrom,procurementPoint,0);if(materialTo)drawProcurementLink(procurementPoint,materialTo,1);}
-  else if(target)drawProcurementLink(procurementPoint,target,0);
-  draw(sphereMesh(procurementPoint.x,procurementPoint.y,procurementPoint.z,.17),[.05,.74,.92]);
- }
- points.forEach(({p,op})=>{const rgb=operationRgb(op);draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:[.24,.5,.78];draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>cancelAnimationFrame(raf);},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialRoutes.length,materialAnchorOperation,materialAnchorNextOperation,procurementPoint]);
+ materialPlacements.forEach((placement,index)=>{
+  const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
+  const to=placement.toOperation?pointById.get(placement.toOperation.id):undefined;
+  const rgb=[.06,.76,.98];
+  if(from)drawFlow(from,placement.materialPoint,index*3,rgb,.037);
+  drawFlow(placement.materialPoint,placement.transportPoint,index*3+1,rgb,.042);
+  if(to)drawFlow(placement.transportPoint,to,index*3+2,rgb,.037);
+  draw(sphereMesh(placement.materialPoint.x,placement.materialPoint.y,placement.materialPoint.z,.13),[.03,.78,.96]);
+  draw(boxMesh(placement.transportPoint.x,placement.transportPoint.y,placement.transportPoint.z,.105),[.14,.55,.91]);
+ });
+ points.forEach(({p,op})=>{const rgb=operationRgb(op);draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:[.24,.5,.78];draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>cancelAnimationFrame(raf);},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialPlacements]);
  useEffect(()=>{const el=canvas.current;if(!el)return;const ro=new ResizeObserver(entries=>{const r=entries[0]?.contentRect;if(r)setSize({w:r.width,h:r.height});});ro.observe(el);return()=>ro.disconnect();},[]);
  const projectedLayout=useMemo(()=>{
   const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));
