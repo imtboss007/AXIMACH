@@ -1050,7 +1050,7 @@ test("CI skips Electron binary download for frontend and Android jobs only", () 
   assert.ok(!windows.includes("ELECTRON_SKIP_BINARY_DOWNLOAD"));
 });
 
-test("Dashboard module and live-record spheres are independently draggable and never auto-rotate", () => {
+test("Dashboard module and live-record spheres are independently draggable with idle auto-rotation", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   assert.ok(orb.includes("moduleRotationEnabled"));
   assert.ok(orb.includes("recordRotationEnabled"));
@@ -1061,7 +1061,7 @@ test("Dashboard module and live-record spheres are independently draggable and n
   assert.ok(!orb.includes("window.setInterval"));
   const sphere = readFileSync(new URL("../src/AXIMACHWebGLSphere.tsx", import.meta.url), "utf8");
   assert.ok(sphere.includes("float h = b*b - (dot(ro,ro) - 1.0)"));
-  assert.ok(sphere.includes("The globe remains spherical and never auto-rotates while idle."));
+  assert.ok(sphere.includes("The parent drives this true spherical surface during idle rotation and drag."));
 });
 
 test("Logo Studio lists and renders the authored mechanical tool and transport glyph inventory", () => {
