@@ -185,7 +185,13 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     vendors: Array.isArray(value?.vendors) ? value.vendors : empty.vendors,
     operations: Array.isArray(value?.operations) ? value.operations : empty.operations,
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
-    materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
+    materials: Array.isArray(value?.materials) ? value.materials.map(material => ({
+      ...material,
+      densityKgM3: material.densityKgM3 == null ? undefined : Number(material.densityUnit === "g/cm3" ? Number(material.densityKgM3) * 1000 : material.densityKgM3),
+      densityUnit: "kg/m3" as const,
+      priceUnit: material.priceUnit === "lb" ? "lb" as const : "kg" as const,
+      unit: material.unit || "kg"
+    })) : empty.materials,
     componentParts: Array.isArray(value?.componentParts) ? value.componentParts : empty.componentParts,
     materialCostEntries: Array.isArray(value?.materialCostEntries) ? value.materialCostEntries : empty.materialCostEntries,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
