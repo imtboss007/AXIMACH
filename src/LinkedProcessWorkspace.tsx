@@ -10,6 +10,7 @@ import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
 type ProcessExportField = "company" | "po" | "component" | "componentNumber" | "operation" | "category" | "subcategory" | "execution" | "machine" | "description" | "vendor" | "transportVendor" | "transportRoute" | "vehicle" | "quantity" | "quantityUnit" | "completed" | "rejected" | "status" | "tolerance" | "inspection" | "paymentStatus" | "paidAmount" | "plannedStart" | "plannedEnd" | "price" | "transportCost" | "transportLegCost" | "amount" | "combinedAmount";
+type ProcessCardField = "category"|"subcategory"|"execution"|"machine"|"vendor"|"plannedStart"|"plannedEnd"|"actualStart"|"actualEnd"|"quantity"|"completed"|"accepted"|"rejected"|"price"|"amount"|"status"|"transportVendor"|"transportRoute"|"vehicle"|"transportPickup"|"transportDelivery"|"transportLegCost"|"combinedAmount"|"company"|"po"|"component"|"materialShape"|"materialDensity"|"materialQuantity"|"materialWeight"|"materialVendor"|"materialGiven"|"materialDelivery"|"materialReceived"|"materialCost"|"materialCuttingCost"|"materialTransportCost";
 const DEFAULT_PROCESS_COLOR = "#6fa9e5";
 const ALTERNATE_ROUTE_COLOR = "#4b95eb";
 const REWORK_ROUTE_COLOR = "#e38b45";
@@ -22,6 +23,19 @@ const PROCESS_EXPORT_FIELDS: Array<{key:ProcessExportField;label:string}> = [
   {key:"tolerance",label:"Tolerance"},{key:"inspection",label:"Inspection result"},{key:"paymentStatus",label:"Payment status"},
   {key:"paidAmount",label:"Paid amount"},{key:"plannedStart",label:"Start date/time"},{key:"plannedEnd",label:"Due date/time"},
   {key:"price",label:"Price / piece or set"},{key:"transportCost",label:"Legacy operation transport (separate)"},{key:"transportLegCost",label:"Transport leg amount"},{key:"amount",label:"Process amount (transport excluded)"},{key:"combinedAmount",label:"Process + transport total"}
+];
+const PROCESS_CARD_FIELDS: Array<{key:ProcessCardField;label:string}> = [
+  {key:"company",label:"Company"},{key:"po",label:"PO"},{key:"component",label:"Component"},
+  {key:"category",label:"Process category"},{key:"subcategory",label:"Sub-process"},{key:"quantity",label:"Quantity"},
+  {key:"vendor",label:"Process vendor"},{key:"plannedStart",label:"Process given / start date-time"},{key:"plannedEnd",label:"Process delivery / due date-time"},
+  {key:"actualStart",label:"Actual start"},{key:"actualEnd",label:"Actual completion"},{key:"price",label:"Rate / piece"},{key:"amount",label:"Linked process amount"},
+  {key:"status",label:"Process status"},{key:"execution",label:"Execution type"},{key:"machine",label:"Machine / station"},
+  {key:"completed",label:"Completed quantity"},{key:"accepted",label:"Accepted quantity"},{key:"rejected",label:"Rejected quantity"},
+  {key:"transportVendor",label:"Transport vendor"},{key:"transportRoute",label:"Transport route"},{key:"vehicle",label:"Vehicle type"},
+  {key:"transportPickup",label:"Transport pickup date-time"},{key:"transportDelivery",label:"Transport delivery date-time"},{key:"transportLegCost",label:"Transport amount"},{key:"combinedAmount",label:"Combined amount"},
+  {key:"materialShape",label:"Material shape / dimensions"},{key:"materialDensity",label:"Material density"},{key:"materialQuantity",label:"Material quantity"},{key:"materialWeight",label:"Material weight"},
+  {key:"materialVendor",label:"Material supplier"},{key:"materialGiven",label:"Material given date-time"},{key:"materialDelivery",label:"Material delivery due date-time"},{key:"materialReceived",label:"Actual material receipt"},
+  {key:"materialCost",label:"Material linked amount"},{key:"materialCuttingCost",label:"Cutting amount"},{key:"materialTransportCost",label:"Material transport amount"}
 ];
 type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean; processCostTotal:number; parentId?:string; relationType?:"subprocess"|"alternate"|"rework"; costIncluded:boolean; processDefinitionId?: string; processSubcategoryId:string; processColor?: string };
 const processSubcategoryIdFor = (definition: ProcessDefinitionRecord | undefined, subcategory: string) => {
@@ -96,6 +110,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     return () => window.cancelAnimationFrame(frame);
   }, [showEditor, editingId]);
   const [exportFields,setExportFields] = useState<ProcessExportField[]>(["operation","quantity","status","plannedStart","plannedEnd"]);
+  const [cardVisibleFields,setCardVisibleFields] = useState<ProcessCardField[]>(["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]);
   const [exportScope,setExportScope] = useState<string>("all");
   const [exportArrows,setExportArrows] = useState(true);
   const [visualStyle,setVisualStyle] = useState<"sphere"|"cube"|"vortex"|"helix"|"orbit"|"stacked"|"pipeline"|"network"|"grid"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"digital-mesh"|"molecular"|"combined">("sphere");
@@ -179,7 +194,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const selectedLine = poLines.find(line => line.id === poLineId);
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
   const selectedPart = componentParts.find(part => part.id === selectedLine?.partId);
-  const processMapMaterialEntries = allMaterialCostEntries.filter(entry => entry.scope === "process-map" && entry.componentId === selectedLine?.componentId && entry.poId === selectedPO?.id && (!entry.poLineId || entry.poLineId === selectedLine?.id)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  const processMapMaterialEntries = allMaterialCostEntries.filter(entry => entry.scope === "process-map" && entry.componentId === selectedLine?.componentId && entry.poId === selectedPO?.id).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const selectedProcessDefinition = resolveProcessDefinition(processDefinitions, draft.processDefinitionId, draft.name, draft.category);
   // Process Map is component-wide: each PO line / part keeps an independent route,
   // even when its branch is also named "Main route".
@@ -191,7 +206,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const label=part ? [part.partNumber,part.name].filter(Boolean).join(" · ") : "Component-level route";
     return [line.id,label+" · Qty "+line.quantity];
   }));
-  const materialRouteEntries = allMaterialCostEntries.filter(entry=>entry.scope==="process-map" && entry.poId===poId && entry.componentId===selectedLine?.componentId && (!entry.poLineId || entry.poLineId===poLineId));
+  const materialRouteEntries = allMaterialCostEntries.filter(entry=>entry.scope==="process-map" && entry.poId===poId && entry.componentId===selectedLine?.componentId).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const selectedTransportDirectoryRoute = transportRoutes.find(route => route.id === transportRouteId);
   const processCategories = [...new Set(processDefinitions.map(item => item.category).filter(Boolean))].sort();
   const processTypeOptions = [...new Set(processDefinitions.filter(item => !draft.category || item.category === draft.category).map(item => item.processType).filter(Boolean))].sort();
@@ -1274,6 +1289,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       <details open className="surface-panel linked-route-canvas">
         <summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></summary>
         <div className="process-export-panel">
+          <div className="process-card-display-fields"><div className="process-export-field-actions"><strong>ROUTE CARD VISIBILITY · SINGLE OR MULTI-SELECT</strong><button type="button" onClick={()=>setCardVisibleFields(PROCESS_CARD_FIELDS.map(field=>field.key))}>Show all</button><button type="button" onClick={()=>setCardVisibleFields([])}>Clear optional fields</button></div><div className="process-card-display-grid">{PROCESS_CARD_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={cardVisibleFields.includes(field.key)} onChange={()=>setCardVisibleFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div></div>
           <div className="process-export-fields"><div className="process-export-field-actions"><button type="button" onClick={()=>setExportFields(PROCESS_EXPORT_FIELDS.map(field=>field.key))}>Select all fields</button><button type="button" onClick={()=>setExportFields([])}>Clear fields</button></div>{PROCESS_EXPORT_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={exportFields.includes(field.key)} onChange={()=>setExportFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div>
           <div className="process-export-options" style={{display:"grid",gap:"10px"}}>
             <label><input type="checkbox" checked={exportArrows} onChange={event=>setExportArrows(event.target.checked)}/> Connection arrows</label>
@@ -1372,7 +1388,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             const transporter=vendors.find(vendor=>vendor.id===entry.transportVendorId);
             return {
               id:entry.id,
-              partLabel:routeLabels[entry.poLineId||""] || (entry.partNumber ? entry.partNumber+" · "+entry.partName : "Component-level material"),
+              poLineId:entry.poLineId||"",
+              partNumber:entry.partNumber||"",
+              partName:entry.partName||"",
+              partLabel:entry.partNumber||entry.partName ? [entry.partNumber,entry.partName].filter(Boolean).join(" · ") : (routeLabels[entry.poLineId||""] || "Component-level material"),
               materialLabel:[entry.materialName,entry.materialGrade].filter(Boolean).join(" · "),
               companyLabel:companies.find(company=>company.id===(entry.companyId||purchaseOrders.find(po=>po.id===entry.poId)?.companyId))?.name||"Company not linked",
               poLabel:purchaseOrders.find(po=>po.id===entry.poId)?.number||"—",
@@ -1393,17 +1412,17 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
               from:entry.transportFrom || supplier?.address || "Supplier pickup",
               to:entry.transportTo || "Destination not set",
               vehicle:entry.transportVehicleType || "Vehicle not set",
-              materialGivenAt:shortDate(entry.givenDate),
-              materialDueAt:shortDate(entry.deliveryDate),
-              materialReceivedAt:shortDate(entry.actualDeliveryDate),
-              pickupAt:shortDate(entry.transportPickupAt),
-              deliveryAt:shortDate(entry.transportDeliveryAt),
+              materialGivenAt:entry.givenDate||"",
+              materialDueAt:entry.deliveryDate||"",
+              materialReceivedAt:entry.actualDeliveryDate||"",
+              pickupAt:entry.transportPickupAt||"",
+              deliveryAt:entry.transportDeliveryAt||"",
               status:entry.transportStatus || "Planned",
               materialCost:entry.materialCost || 0,
               cuttingCost:entry.cuttingCost || 0,
               transportCost:entry.transportCost || 0
             };
-          })} visibleFields={exportFields} showArrows={exportArrows} quantityUnit={quantityUnit} ganttScale={ganttScale} onGanttScaleChange={setGanttScale} operationTransportAmounts={Object.fromEntries(exportOperations.map(operation=>[operation.id,operationTransportAmount(operation)]))} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); if(selectedOperationPanelRef.current)selectedOperationPanelRef.current.open=true; }} onEditOperation={id=>editActive(id)} onChangeProcessColor={(id,color)=>updateOperation(id,{processColor:color})} onAddSubprocess={startAddSubprocess} onAddAlternateRoute={parentId=>startAddBranch("alternate",parentId)} onAddReworkRoute={parentId=>startAddBranch("rework",parentId)} onAddProcessDefinition={startAddDefinition} /></div>
+          })} visibleFields={cardVisibleFields} showArrows={exportArrows} quantityUnit={quantityUnit} ganttScale={ganttScale} onGanttScaleChange={setGanttScale} operationTransportAmounts={Object.fromEntries(exportOperations.map(operation=>[operation.id,operationTransportAmount(operation)]))} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); if(selectedOperationPanelRef.current)selectedOperationPanelRef.current.open=true; }} onEditOperation={id=>editActive(id)} onChangeProcessColor={(id,color)=>updateOperation(id,{processColor:color})} onAddSubprocess={startAddSubprocess} onAddAlternateRoute={parentId=>startAddBranch("alternate",parentId)} onAddReworkRoute={parentId=>startAddBranch("rework",parentId)} onAddProcessDefinition={startAddDefinition} /></div>
           : visualStyle==="gantt" && exportOperations.length ? <div className="process-gantt-view">
               <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {exportOperations.length} operations in {exportScopeLabel}</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
               {exportOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));const branch=op.branch||"Main route";const color=processAccent(op);const routeColor=branchAccent(op);return <div className={"process-gantt-row "+(branch==="Main route"?"":"is-branch")} key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small><i style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:routeColor,marginRight:5}}/>{branch} · {shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%",backgroundColor:color}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
