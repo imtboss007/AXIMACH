@@ -74,6 +74,8 @@ function nodeDateTime(value?:string):string{
  if(!Number.isFinite(parsed.getTime()))return value;
  return parsed.toLocaleString("en-IN",{day:"2-digit",month:"short",year:"2-digit",hour:"2-digit",minute:"2-digit"});
 }
+function hexRgb(hex?:string):number[]{const value=(hex||"#477fbd").replace("#","");if(!/^[0-9a-fA-F]{6}$/.test(value))return [.28,.5,.74];return [parseInt(value.slice(0,2),16)/255,parseInt(value.slice(2,4),16)/255,parseInt(value.slice(4,6),16)/255];}
+function operationRgb(operation:OperationRecord):number[]{if(operation.relationType==="rework")return [.9,.43,.12];if(operation.status==="Complete")return [.12,.64,.4];if(operation.relationType==="alternate")return [.12,.48,.88];return hexRgb(operation.processColor);}
 function operationCode(operation:OperationRecord):string{
  const relation=operation.relationType==="alternate"?"ALT":operation.relationType==="rework"?"REWORK":operation.relationType==="subprocess"?"SUB":"";
  return "OP-"+String(operation.sequence).padStart(3,"0")+(relation?" · "+relation:"");
@@ -104,11 +106,11 @@ export default function ProcessScene3D({operations,mode,selectedOperationId,expa
   if(mode==="gantt"){const fromIndex=geometryRows.findIndex(op=>op.id===edge.from.id),toIndex=geometryRows.findIndex(op=>op.id===edge.to.id);if(fromIndex>=0&&toIndex>=0){p=ganttSegment(fromIndex,geometryRows).end;q=ganttSegment(toIndex,geometryRows).start;}}
   if(!p||!q)return;
   const rgb=edge.relation==="rework"?[.89,.48,.18]:edge.relation==="alternate"?[.12,.48,.88]:[.12,.43,.82];
-  draw(lineMesh(p,q,.026),rgb);
+  draw(lineMesh(p,q,.038),rgb);
   const d={x:q.x-p.x,y:q.y-p.y,z:q.z-p.z},l=Math.hypot(d.x,d.y,d.z)||1;
   const tip={x:q.x-d.x/l*.14,y:q.y-d.y/l*.14,z:q.z-d.z/l*.14};
   draw(arrowHeadMesh(tip,q,.095),rgb);
- });points.forEach(({p,op})=>{const status=op.status.toLowerCase();const rgb=status.includes("complete")?[.12,.62,.42]:status.includes("running")?[.12,.42,.88]:status.includes("hold")?[.83,.27,.35]:[.35,.52,.72];draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:[.24,.5,.78];draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>cancelAnimationFrame(raf);},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,paused,showArrows,ganttScale]);
+ });points.forEach(({p,op})=>{const status=op.status.toLowerCase();const rgb=operationRgb(op);draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:[.24,.5,.78];draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>cancelAnimationFrame(raf);},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,paused,showArrows,ganttScale]);
  useEffect(()=>{const el=canvas.current;if(!el)return;const ro=new ResizeObserver(entries=>{const r=entries[0]?.contentRect;if(r)setSize({w:r.width,h:r.height});});ro.observe(el);return()=>ro.disconnect();},[]);
  const projected=useMemo(()=>{const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));return points.map(({op,p})=>({op,screen:project(p,m,w,h)}));},[points,size,angle]);
  const projectedCatalogue=useMemo(()=>{const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));return cataloguePoints.map(({definition,p})=>({definition,screen:project(p,m,w,h)}));},[cataloguePoints,size,angle]);
