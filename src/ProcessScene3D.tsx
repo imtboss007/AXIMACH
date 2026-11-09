@@ -264,7 +264,9 @@ export default function ProcessScene3D({operations,materialRoutes=[],visibleFiel
    {projectedEdges.map(edge=><div key={edge.key} role="button" tabIndex={0} className={"ax-full3d-route-arrow "+(edge.relation==="rework"?"rework":edge.relation==="alternate"?"alternate":edge.relation==="material"?"material":"main")+(showArrows?"":" no-arrowhead")} style={{left:edge.x,top:edge.y,width:edge.length,transform:"rotate("+edge.angle+"deg)"}} aria-label={"Follow route from "+edge.from+" to "+edge.to} title={"Route: "+edge.from+" → "+edge.to} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(edge.toId)onArrowSelect?.(edge.toId);}} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();if(edge.toId)onArrowSelect?.(edge.toId);}}}><span>{edge.from} → {edge.to}</span></div>)}
    {projectedMaterials.map((item,index)=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;return <div key={"material-card-"+item.id} className="ax-full3d-label ax-full3d-material-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()}>
      <small>MATERIAL PROCUREMENT · {index+1}/{materialRoutes.length}</small><strong>{route.partLabel}</strong><em>{route.materialLabel}</em>
-     {visibleFields.includes("company")&&<small>{route.companyLabel||"Company not linked"} · PO {route.poLabel||"—"} · {route.componentLabel||"Component"}</small>}
+     {visibleFields.includes("company")&&<small>Company · {route.companyLabel||"Not linked"}</small>}
+     {visibleFields.includes("po")&&<small>PO · {route.poLabel||"—"}</small>}
+     {visibleFields.includes("component")&&<small>Component · {route.componentLabel||"—"}</small>}
      {visibleFields.includes("materialShape")&&<small>{route.dimensionsLabel||"Shape / dimensions not entered"}</small>}
      {visibleFields.includes("materialDensity")&&<small>Density {route.densityKgM3?route.densityKgM3.toLocaleString("en-IN")+" kg/m³":"Not set"}</small>}
      {visibleFields.includes("materialQuantity")&&<small>Qty {route.quantity.toLocaleString("en-IN")}</small>}
