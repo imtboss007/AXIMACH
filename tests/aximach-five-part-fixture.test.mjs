@@ -1489,3 +1489,31 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   assert.ok(inventory.includes('const inventoryTransactions = activeRows(data.inventoryTransactions);'));
   assert.ok(!inventory.includes('data.inventoryTransactions.filter('), "archived demo stock movements must not remain visible");
 });
+
+
+test("AXIMACH spheres auto-rotate by default with an explicit pause control while manual drag remains available", () => {
+  const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
+  assert.ok(orb.includes('useState(saved.current.autoRotate !== false)'), "auto-rotation should be enabled unless the operator has paused it");
+  assert.ok(orb.includes("requestAnimationFrame"), "rotation should be driven by a frame loop");
+  assert.ok(orb.includes("cancelAnimationFrame"), "the animation frame must be cleaned up");
+  assert.ok(orb.includes("Pause auto-rotation"));
+  assert.ok(orb.includes("Resume auto-rotation"));
+  assert.ok(orb.includes("moduleRotationEnabled") && orb.includes("recordRotationEnabled"), "manual drag locks must remain independent");
+  assert.ok(!orb.includes("NO IDLE ROTATION"));
+});
+
+test("every Process Plan view uses the interactive 3D universe and volumetric WebGL core", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const core = readFileSync(new URL("../src/ProcessUniverseWebGLCore.tsx", import.meta.url), "utf8");
+  for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
+    assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
+  }
+  assert.ok(workspace.includes('initialLayout={visualStyle}'), "selected view must be passed directly to the 3D renderer");
+  assert.ok(universe.includes("ProcessUniverseWebGLCore"));
+  assert.ok(universe.includes("getLayoutPoint"));
+  assert.ok(universe.includes("transformStyle3d"));
+  assert.ok(core.includes('canvas.getContext("webgl"'));
+  assert.ok(core.includes("raymarch"));
+  assert.ok(core.includes("gl.drawArrays(gl.TRIANGLES"));
+});
