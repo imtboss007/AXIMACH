@@ -316,7 +316,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
         const lanePanelId = "process-universe-lane-" + laneIndex;
         return <section className={"process-universe-lane" + (lane.alternate ? " is-branch " + (lane.branchRelation==="rework"?"is-rework":"is-alternate") : "")} key={lane.key}>
           <div className="process-universe-lane-label">
-            <button type="button" className="process-universe-lane-toggle" aria-expanded={!collapsed} aria-controls={lanePanelId} onClick={() => setCollapsedLaneNames(current => current.includes(lane.name) ? current.filter(name => name !== lane.name) : [...current,lane.name])}>
+            <button type="button" className="process-universe-lane-toggle" aria-expanded={!collapsed} aria-controls={lanePanelId} onClick={() => setCollapsedLaneNames(current => current.includes(lane.key) ? current.filter(name => name !== lane.key) : [...current,lane.key])}>
               <span className="process-universe-branch-icon">{lane.alternate ? <GitBranch size={15}/> : <Workflow size={15}/>}</span>
               <span><strong>{lane.label}</strong><small>{lane.alternate ? (lane.branchRelation==="rework"?"Rework branch":"Alternate route") + (lane.parent ? " · connected from OP-" + String(lane.parent.sequence).padStart(3,"0") + " " + lane.parent.name : "") : "Primary manufacturing route"}</small></span>
               <span className="process-universe-lane-disclosure" aria-hidden="true">{collapsed ? "+" : "−"}</span>
