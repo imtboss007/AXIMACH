@@ -8,7 +8,7 @@ import ProcessScene3D from "./ProcessScene3D";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
 type MaterialRouteNode = {
-  id:string; partLabel:string; materialLabel:string; dimensionsLabel?:string; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number;
+  id:string; partLabel:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number;
   supplier:string; transporter:string; from:string; to:string; vehicle:string;
   materialGivenAt:string; materialDueAt:string; materialReceivedAt:string;
   pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb";
