@@ -1374,7 +1374,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
               id:entry.id,
               partLabel:routeLabels[entry.poLineId||""] || (entry.partNumber ? entry.partNumber+" · "+entry.partName : "Component-level material"),
               materialLabel:[entry.materialName,entry.materialGrade].filter(Boolean).join(" · "),
-              dimensionsLabel:entry.shapeType+" · "+Object.entries(entry.dimensions||{}).filter(([,value])=>Number(value)>0).map(([key,value])=>key.replace(/[A-Z]/g," materialLabel:[entry.materialName,entry.materialGrade].filter(Boolean).join(" · "),")+" "+value+" "+(entry.dimensionUnits?.[key]||"mm")).join(" · "),
+              dimensionsLabel:entry.shapeType+" · "+Object.entries(entry.dimensions||{}).filter(([,value])=>Number(value)>0).map(([key,value])=>key.replace(/[A-Z]/g,letter=>" "+letter)+" "+value+" "+(entry.dimensionUnits?.[key]||"mm")).join(" · "),
               quantity:entry.quantity,
               weightKg:entry.totalWeightKg,
               materialRate:entry.materialRate || 0,
