@@ -233,16 +233,17 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const activeOperation = explicitlySelectedOperation || routeOperations[0];
   const selectedRouteOperations = visibleOperations.filter(op => selectedOperationIds.includes(op.id));
   const resolveBranchOrigin = (branch: string, candidates: OperationRecord[]) => {
+    const poLineId=candidates[0]?.poLineId;
     for (const candidate of candidates) {
       if (candidate.relationType !== "alternate" && candidate.relationType !== "rework") continue;
       let branchRoot = candidate;
-      let parent = routeOperations.find(item => item.id === branchRoot.parentId);
+      let parent = routeOperations.find(item => item.id === branchRoot.parentId && item.poLineId===poLineId);
       let guard = 0;
-      while (parent && (parent.branch || "Main route") === branch && parent.parentId && guard++ < routeOperations.length) {
+      while (parent && parent.poLineId===poLineId && (parent.branch || "Main route") === branch && parent.parentId && guard++ < routeOperations.length) {
         branchRoot = parent;
-        parent = routeOperations.find(item => item.id === branchRoot.parentId);
+        parent = routeOperations.find(item => item.id === branchRoot.parentId && item.poLineId===poLineId);
       }
-      if (parent && (parent.branch || "Main route") !== branch) return { branchRoot, parent };
+      if (parent && parent.poLineId===poLineId && (parent.branch || "Main route") !== branch) return { branchRoot, parent };
     }
     return undefined;
   };
@@ -413,8 +414,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
 
   const exportColumns = PROCESS_EXPORT_FIELDS.filter(field=>exportFields.includes(field.key));
   const simulationOperations = exportOperations.filter(operation => operation.relationType !== "subprocess");
-  const exportBranches = [...new Set(exportOperations.map(op=>op.branch||"Main route"))]
-    .sort((a,b)=>a==="Main route"?-1:b==="Main route"?1:a.localeCompare(b));
+  const exportBranches = [...new Set(exportOperations.map(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")))].sort((a,b)=>a.localeCompare(b));
   const processAccent = (operation:OperationRecord) => processDefinitions.find(item=>item.id===operation.processDefinitionId)?.displayColor || operation.processColor || DEFAULT_PROCESS_COLOR;
   const branchAccent = (operation:OperationRecord) => operation.relationType==="rework" ? REWORK_ROUTE_COLOR : operation.relationType==="alternate" ? ALTERNATE_ROUTE_COLOR : processAccent(operation);
   const exportValue = (op:OperationRecord,key:ProcessExportField):string|number => {
@@ -1296,15 +1296,17 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         </section>}
         {exportOperations.length > 0 && <section className="process-route-flow" aria-label="Selected route arrow diagram">
           <div className="process-route-flow-heading"><strong>ROUTE FLOW · {exportScopeLabel}</strong><span>{exportOperations.length} selected process record(s) · arrows remain inside their own route</span></div>
-          {exportBranches.map(branch=>{
-            const lane=exportOperations.filter(operation=>(operation.branch||"Main route")===branch).slice().sort((a,b)=>a.sequence-b.sequence);
+          {exportBranches.map(routeGroup=>{
+            const lane=exportOperations.filter(operation=>(operation.poLineId||operation.componentId)+"::"+(operation.branch||"Main route")===routeGroup).slice().sort((a,b)=>a.sequence-b.sequence);
+            const branch=lane[0]?.branch||"Main route";
+            const partLabel=routeLabels[lane[0]?.poLineId||""]||"";
             const branchOrigin=resolveBranchOrigin(branch,lane);
             const branchRoot=branchOrigin?.branchRoot;
             const parent=branchOrigin?.parent;
             const rework=branchRoot?.relationType==="rework"||/rework/i.test(branch);
             const routeColor=rework?REWORK_ROUTE_COLOR:branchRoot||branch!=="Main route"?ALTERNATE_ROUTE_COLOR:"#5a8fc4";
-            return <div className={"process-route-flow-lane "+(rework?"is-rework":branchRoot||branch!=="Main route"?"is-alternate":"is-main")} key={branch}>
-              <div className="process-route-flow-lane-title"><i style={{background:routeColor}}/><strong>{branch}</strong><small>{lane.length} step(s) · {rework?"REWORK":branchRoot||branch!=="Main route"?"ALTERNATE":"MAIN ROUTE"}</small></div>
+            return <div className={"process-route-flow-lane "+(rework?"is-rework":branchRoot||branch!=="Main route"?"is-alternate":"is-main")} key={routeGroup}>
+              <div className="process-route-flow-lane-title"><i style={{background:routeColor}}/><strong>{partLabel ? partLabel+" · " : ""}{branch}</strong><small>{lane.length} step(s) · {rework?"REWORK":branchRoot||branch!=="Main route"?"ALTERNATE":"MAIN ROUTE"}</small></div>
               {branchRoot&&<div className={"process-route-parent-link "+(rework?"is-rework":"is-alternate")}>
                 <button type="button" onClick={()=>{setSelectedOperationId(parent?.id||"");setShowEditor(false);}} disabled={!parent}>OP-{String(parent?.sequence||0).padStart(3,"0")} · {parent?.name||"Parent process"}</button>
                 <ArrowRight size={17} style={{color:rework?REWORK_ROUTE_COLOR:ALTERNATE_ROUTE_COLOR}}/>
@@ -1333,16 +1335,18 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
               <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {exportOperations.length} operations in {exportScopeLabel}</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
               {exportOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));const branch=op.branch||"Main route";const color=processAccent(op);const routeColor=branchAccent(op);return <div className={"process-gantt-row "+(branch==="Main route"?"":"is-branch")} key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small><i style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:routeColor,marginRight:5}}/>{branch} · {shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%",backgroundColor:color}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
             </div>
-          : exportOperations.length ? <div className={"linked-node-scroll process-visual-"+visualStyle+" " + (visualStyle==="vertical" ? "linked-node-vertical" : "")}><div className="linked-route-lanes" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{exportBranches.map(branch => {
-          const laneOperations = exportOperations.filter(op => (op.branch || "Main route") === branch).slice().sort((a,b)=>a.sequence-b.sequence);
+          : exportOperations.length ? <div className={"linked-node-scroll process-visual-"+visualStyle+" " + (visualStyle==="vertical" ? "linked-node-vertical" : "")}><div className="linked-route-lanes" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{exportBranches.map(routeGroup => {
+          const laneOperations = exportOperations.filter(op => (op.poLineId||op.componentId)+"::"+(op.branch||"Main route") === routeGroup).slice().sort((a,b)=>a.sequence-b.sequence);
+          const branch = laneOperations[0]?.branch || "Main route";
+          const partLabel = routeLabels[laneOperations[0]?.poLineId || ""] || "";
           const alternate = branch !== "Main route";
           const branchOrigin=resolveBranchOrigin(branch,laneOperations);
           const branchRoot=branchOrigin?.branchRoot;
           const parent=branchOrigin?.parent;
           const rework=branchRoot?.relationType==="rework"||/rework/i.test(branch);
           const routeColor=rework?REWORK_ROUTE_COLOR:alternate?ALTERNATE_ROUTE_COLOR:"#5a8fc4";
-          return <section className={"linked-route-lane " + (alternate ? "linked-route-lane-alternate " : "")+(rework?"route-rework":"route-alternate")} style={{borderLeftColor:routeColor}} key={branch}>
-            <div className="linked-route-lane-heading"><strong>{branch}</strong><small>{laneOperations.length} operation(s) · {rework?"rework route":alternate?"alternate route":"primary route"}{parent ? " · branches from "+parent.name : ""}</small>{alternate && <button type="button" className="button-quiet compact-button" onClick={() => setBranchCostIncluded(branch, !laneOperations.some(op => op.costIncluded !== false))}>{laneOperations.some(op => op.costIncluded !== false) ? "Exclude this route from costing" : "Use this route · include costs"}</button>}</div>
+          return <section className={"linked-route-lane " + (alternate ? "linked-route-lane-alternate " : "")+(rework?"route-rework":"route-alternate")} style={{borderLeftColor:routeColor}} key={routeGroup}>
+            <div className="linked-route-lane-heading"><strong>{partLabel ? partLabel+" · " : ""}{branch}</strong><small>{laneOperations.length} operation(s) · {rework?"rework route":alternate?"alternate route":"primary route"}{parent ? " · branches from "+parent.name : ""}</small>{alternate && <button type="button" className="button-quiet compact-button" onClick={() => setBranchCostIncluded(branch, !laneOperations.some(op => op.costIncluded !== false))}>{laneOperations.some(op => op.costIncluded !== false) ? "Exclude this route from costing" : "Use this route · include costs"}</button>}</div>
             {branchRoot&&<div className={"linked-route-parent-arrow "+(rework?"is-rework":"is-alternate")}><span>OP-{String(parent?.sequence||0).padStart(3,"0")} · {parent?.name||"Parent process"}</span><ArrowRight size={17}/><strong>{branchRoot.name}</strong></div>}
             <div className="linked-node-track">{laneOperations.map((op,index) => {
               const vendor = vendors.find(v => v.id === op.vendorId);
