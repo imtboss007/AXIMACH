@@ -12,26 +12,29 @@ const emptyMaterial = (): MaterialDraft => ({ code: "", name: "", grade: "", uni
 const emptyBom = (): BomDraft => ({ componentId: "", materialId: "", revision: "", quantityPerPart: 0, scrapPercent: 0, notes: "" });
 const stockKinds: StockTransactionKind[] = ["Opening balance", "Receipt", "Issue to production", "WIP transfer", "Return", "Rejected", "Scrap", "Finished goods receipt", "Dispatch", "Adjustment"];
 const MATERIAL_SHAPES = ["Round bar", "Square bar", "Hexagonal bar", "Flat bar", "Sheet", "Plate", "Coil", "Pipe", "Round tube", "Square tube", "Rectangular tube", "Angle", "Channel", "I-beam / H-beam", "T-section", "Billet", "Bloom", "Slab", "Wire", "Wire rod", "Casting", "Forging", "Perforated sheet", "Chequered plate", "Expanded metal / mesh", "Custom profile", "Cut blank", "Other"] as const;
-const MATERIAL_DIMENSIONS = [{ key: "diameter", label: "Diameter (mm)" }, { key: "width", label: "Width (mm)" }, { key: "thickness", label: "Thickness (mm)" }, { key: "length", label: "Length (mm)" }, { key: "outerDiameter", label: "Outer diameter (mm)" }, { key: "innerDiameter", label: "Inner diameter (mm)" }, { key: "acrossFlats", label: "Across flats (mm)" }];
+const MATERIAL_DIMENSIONS = [{ key: "diameter", label: "Diameter (mm)" }, { key: "width", label: "Width (mm)" }, { key: "height", label: "Height (mm)" }, { key: "thickness", label: "Thickness (mm)" }, { key: "length", label: "Length (mm)" }, { key: "outerDiameter", label: "Outer diameter / OD (mm)" }, { key: "innerDiameter", label: "Inner diameter / ID (mm)" }, { key: "wallThickness", label: "Wall thickness (mm)" }, { key: "outerWidth", label: "Outer width (mm)" }, { key: "outerHeight", label: "Outer height (mm)" }, { key: "legA", label: "Leg A (mm)" }, { key: "legB", label: "Leg B (mm)" }, { key: "flangeWidth", label: "Flange width (mm)" }, { key: "flangeThickness", label: "Flange thickness (mm)" }, { key: "webThickness", label: "Web thickness (mm)" }, { key: "acrossFlats", label: "Across flats (mm)" }];
 const MATERIAL_DIMENSIONS_BY_SHAPE: Record<string, Array<{key:string;label:string}>> = {
   "Round bar":[{key:"diameter",label:"Diameter (mm)"},{key:"length",label:"Length (mm)"}],
   "Square bar":[{key:"width",label:"Side width (mm)"},{key:"length",label:"Length (mm)"}],
   "Hexagonal bar":[{key:"acrossFlats",label:"Across flats (mm)"},{key:"length",label:"Length (mm)"}],
   "Flat bar":[{key:"width",label:"Width (mm)"},{key:"thickness",label:"Thickness (mm)"},{key:"length",label:"Length (mm)"}],
-  "Sheet":[{key:"width",label:"Width (mm)"},{key:"thickness",label:"Thickness (mm)"}],
-  "Plate":[{key:"width",label:"Width (mm)"},{key:"thickness",label:"Thickness (mm)"},{key:"length",label:"Length (mm)"}],
-  "Coil":[{key:"width",label:"Width (mm)"},{key:"thickness",label:"Thickness (mm)"}],
-  "Pipe":[{key:"outerDiameter",label:"OD (mm)"},{key:"innerDiameter",label:"ID (mm)"},{key:"length",label:"Length (mm)"}],
-  "Round tube":[{key:"outerDiameter",label:"OD (mm)"},{key:"innerDiameter",label:"ID (mm)"},{key:"length",label:"Length (mm)"}],
-  "Square tube":[{key:"width",label:"Outer width (mm)"},{key:"thickness",label:"Wall thickness (mm)"},{key:"length",label:"Length (mm)"}],
-  "Rectangular tube":[{key:"width",label:"Outer width (mm)"},{key:"thickness",label:"Wall thickness (mm)"},{key:"length",label:"Length (mm)"}],
-  "Angle":[{key:"width",label:"Leg A (mm)"},{key:"thickness",label:"Thickness (mm)"},{key:"length",label:"Length (mm)"}],
-  "Channel":[{key:"width",label:"Flange width (mm)"},{key:"thickness",label:"Web / flange thickness (mm)"},{key:"length",label:"Length (mm)"}],
-  "I-beam / H-beam":[{key:"width",label:"Flange width (mm)"},{key:"thickness",label:"Web / flange thickness (mm)"},{key:"length",label:"Length (mm)"}],
-  "T-section":[{key:"width",label:"Flange width (mm)"},{key:"thickness",label:"Web / flange thickness (mm)"},{key:"length",label:"Length (mm)"}],
+  "Sheet":[{key:"width",label:"Width (mm)"},{key:"length",label:"Length (mm)"},{key:"thickness",label:"Thickness (mm)"}],
+  "Plate":[{key:"width",label:"Width (mm)"},{key:"length",label:"Length (mm)"},{key:"thickness",label:"Thickness (mm)"}],
+  "Coil":[{key:"width",label:"Width (mm)"},{key:"thickness",label:"Thickness (mm)"},{key:"outerDiameter",label:"Coil OD (mm)"},{key:"innerDiameter",label:"Coil ID (mm)"}],
+  "Pipe":[{key:"outerDiameter",label:"Outer diameter / OD (mm)"},{key:"innerDiameter",label:"Inner diameter / ID (mm)"},{key:"length",label:"Length (mm)"}],
+  "Round tube":[{key:"outerDiameter",label:"Outer diameter / OD (mm)"},{key:"innerDiameter",label:"Inner diameter / ID (mm)"},{key:"length",label:"Length (mm)"}],
+  "Square tube":[{key:"outerWidth",label:"Outer side (mm)"},{key:"wallThickness",label:"Wall thickness (mm)"},{key:"length",label:"Length (mm)"}],
+  "Rectangular tube":[{key:"outerWidth",label:"Outer width (mm)"},{key:"outerHeight",label:"Outer height (mm)"},{key:"wallThickness",label:"Wall thickness (mm)"},{key:"length",label:"Length (mm)"}],
+  "Angle":[{key:"legA",label:"Leg A (mm)"},{key:"legB",label:"Leg B (mm)"},{key:"thickness",label:"Thickness (mm)"},{key:"length",label:"Length (mm)"}],
+  "Channel":[{key:"width",label:"Flange width (mm)"},{key:"height",label:"Overall height (mm)"},{key:"webThickness",label:"Web thickness (mm)"},{key:"flangeThickness",label:"Flange thickness (mm)"},{key:"length",label:"Length (mm)"}],
+  "I-beam / H-beam":[{key:"flangeWidth",label:"Flange width (mm)"},{key:"height",label:"Overall height (mm)"},{key:"webThickness",label:"Web thickness (mm)"},{key:"flangeThickness",label:"Flange thickness (mm)"},{key:"length",label:"Length (mm)"}],
+  "T-section":[{key:"flangeWidth",label:"Flange width (mm)"},{key:"height",label:"Overall height (mm)"},{key:"webThickness",label:"Web thickness (mm)"},{key:"flangeThickness",label:"Flange thickness (mm)"},{key:"length",label:"Length (mm)"}],
   "Wire":[{key:"diameter",label:"Diameter (mm)"},{key:"length",label:"Length (mm)"}],
   "Wire rod":[{key:"diameter",label:"Diameter (mm)"},{key:"length",label:"Length (mm)"}],
-  "Cut blank":[{key:"width",label:"Width (mm)"},{key:"thickness",label:"Thickness (mm)"},{key:"length",label:"Length (mm)"}]
+  "Billet":[{key:"width",label:"Width (mm)"},{key:"height",label:"Height (mm)"},{key:"length",label:"Length (mm)"}],
+  "Bloom":[{key:"width",label:"Width (mm)"},{key:"height",label:"Height (mm)"},{key:"length",label:"Length (mm)"}],
+  "Slab":[{key:"width",label:"Width (mm)"},{key:"thickness",label:"Thickness (mm)"},{key:"length",label:"Length (mm)"}],
+  "Cut blank":[{key:"width",label:"Width (mm)"},{key:"height",label:"Height (mm)"},{key:"thickness",label:"Thickness (mm)"},{key:"length",label:"Length (mm)"}]
 };
 const fixedStockDirections: Partial<Record<StockTransactionKind, "in" | "out">> = { "Opening balance": "in", "Receipt": "in", "Issue to production": "out", "Return": "in", "Scrap": "out", "Finished goods receipt": "in", "Dispatch": "out" };
 const money = (v: number) => "₹" + (Number(v) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
