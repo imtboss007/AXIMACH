@@ -79,12 +79,21 @@ function suggestedDensity(name:string,grade:string) {
 export default function PartMaterialCostingPanel({scope,companyId="",poId="",poLineId="",componentId,componentName="",componentNumber="",onNotice}:Props) {
   const {data,update}=useManufacturingData();
   const materials=activeRows(data.materials);
-  useEffect(()=>{\n    const existing=new Set(materials.map(item=>(item.name+"::"+item.grade).toLowerCase()));\n    const additions=MATERIAL_SEEDS.filter(item=>!existing.has((item.name+"::"+item.grade).toLowerCase())).map(item=>({\n      id:"material-seed-"+item.grade.toLowerCase().replace(/[^a-z0-9]+/g,"-"),code:item.grade.toUpperCase().replace(/[^A-Z0-9]+/g,"-"),name:item.name,grade:item.grade,unit:"kg",specification:"Typical reference density; verify against material certificate and supplier data.",preferredVendorId:"",ratePerUnit:0,notes:"Reference density only; editable for actual grade / certificate.",materialType:item.type,densityKgM3:item.density,densityUnit:"kg/m3" as const,priceUnit:"kg" as const,createdAt:nowIso(),updatedAt:nowIso()\n    }));\n    if(additions.length)update(current=>({...current,materials:[...additions,...current.materials]}));\n  // Seed once when the shared material catalogue is first opened.\n  // eslint-disable-next-line react-hooks/exhaustive-deps\n  },[]);
+  useEffect(()=>{
+    const existing=new Set(materials.map(item=>(item.name+"::"+item.grade).toLowerCase()));
+    const additions=MATERIAL_SEEDS.filter(item=>!existing.has((item.name+"::"+item.grade).toLowerCase())).map(item=>({
+      id:"material-seed-"+item.grade.toLowerCase().replace(/[^a-z0-9]+/g,"-"),code:item.grade.toUpperCase().replace(/[^A-Z0-9]+/g,"-"),name:item.name,grade:item.grade,unit:"kg",specification:"Typical reference density; verify against material certificate and supplier data.",preferredVendorId:"",ratePerUnit:0,notes:"Reference density only; editable for actual grade / certificate.",materialType:item.type,densityKgM3:item.density,densityUnit:"kg/m3" as const,priceUnit:"kg" as const,createdAt:nowIso(),updatedAt:nowIso()
+    }));
+    if(additions.length)update(current=>({...current,materials:[...additions,...current.materials]}));
+  // Seed once when the shared material catalogue is first opened.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
   const vendors=activeRows(data.vendors);
   const parts=activeRows(data.componentParts||[]).filter(part=>part.componentId===componentId);
   const entries=activeRows(data.materialCostEntries||[]).filter(entry=>entry.scope===scope&&entry.componentId===componentId&&(!poId||entry.poId===poId)&&(!poLineId||entry.poLineId===poLineId));
   const [expanded,setExpanded]=useState(false);
-  const [target,setTarget]=useState<"component"|"part">("component");\n  const [newPartMode,setNewPartMode]=useState(false);
+  const [target,setTarget]=useState<"component"|"part">("component");
+  const [newPartMode,setNewPartMode]=useState(false);
   const [partId,setPartId]=useState("");
   const [partName,setPartName]=useState("");
   const [partNumber,setPartNumber]=useState("");
