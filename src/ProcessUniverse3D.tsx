@@ -26,6 +26,7 @@ function fallbackFor(name: string) {
 
 type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "gantt" | "nodes" | "branch" | "combined";
 type Point3D = { x: number; y: number; z: number };
+const routeGroupKey = (operation:OperationRecord) => (operation.poLineId || operation.componentId) + "::" + (operation.branch || "Main route");
 
 function getLayoutPoint(index: number, operation: OperationRecord | undefined, mode: ProcessLayoutMode, count: number, source: OperationRecord[]): Point3D {
   const total = Math.max(1, count);
@@ -190,7 +191,6 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
   const showCatalogueOrbit = operations.length === 0 && catalogueOrbitNodes.length > 0;
   const orbitCount = displayOperations.length || (showCatalogueOrbit ? catalogueOrbitNodes.length : 0);
 
-  const routeGroupKey = (operation:OperationRecord) => (operation.poLineId || operation.componentId) + "::" + (operation.branch || "Main route");
   const lanes = useMemo(() => {
     const grouped = new Map<string, OperationRecord[]>();
     for (const operation of parentOperations) {
