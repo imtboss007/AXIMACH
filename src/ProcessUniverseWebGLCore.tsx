@@ -81,6 +81,7 @@ void main() {
   float travelled = 0.0;
   float hit = 0.0;
   vec3 point = ro;
+  // WebGL raymarch loop: intersect the volumetric signed-distance geometry.
   // Sphere tracing over the actual 3D signed-distance geometry.
   for (int i = 0; i < 72; i++) {
     point = ro + rd * travelled;
