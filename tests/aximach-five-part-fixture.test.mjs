@@ -889,10 +889,12 @@ test("Transport leg action is a dropdown, and process and transport costs remain
   assert.ok(workspace.includes("operationTransportAmount"));
 });
 
-test("Process Plan shares field and arrow controls with Process Universe", () => {
+test("Process Plan shares multi-select route card fields and arrow controls with Process Universe", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
-  assert.ok(workspace.includes("visibleFields={exportFields} showArrows={exportArrows}"));
+  assert.ok(workspace.includes("visibleFields={cardVisibleFields} showArrows={exportArrows}"));
+  assert.ok(workspace.includes("PROCESS_CARD_FIELDS"));
+  assert.ok(workspace.includes("setCardVisibleFields"));
   assert.ok(universe.includes('fieldVisible("plannedEnd")'));
   assert.ok(universe.includes('fieldVisible("vendor")'));
   assert.ok(universe.includes('fieldVisible("price")'));
@@ -942,13 +944,17 @@ test("Main Dashboard and 3D Command Centre center the 18-module orb on mobile", 
 });
 
 
-test("Process Universe receives shared visibility controls, vendor labels and diagram arrow state from Process Plan", () => {
+test("Process Universe receives route-card visibility and diagram arrow state from Process Plan", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
-  assert.ok(workspace.includes("visibleFields={exportFields} showArrows={exportArrows}"));
+  assert.ok(workspace.includes("visibleFields={cardVisibleFields} showArrows={exportArrows}"));
+  assert.ok(workspace.includes("PROCESS_CARD_FIELDS"));
+  assert.ok(workspace.includes("setCardVisibleFields"));
   assert.ok(workspace.includes("showArrows={exportArrows}"));
   assert.ok(workspace.includes("PROCESS_EXPORT_FIELDS.map(field=>"));
-  assert.ok(workspace.includes("visibleFields={exportFields} showArrows={exportArrows}"));
+  assert.ok(workspace.includes("visibleFields={cardVisibleFields} showArrows={exportArrows}"));
+  assert.ok(workspace.includes("PROCESS_CARD_FIELDS"));
+  assert.ok(workspace.includes("setCardVisibleFields"));
   for (const field of ["status", "execution", "tolerance", "paymentStatus", "machine"]) assert.ok(universe.includes(`fieldVisible("${field}")`));
 });
 
@@ -1735,16 +1741,25 @@ test("Editing or extending a part route retains its source PO line and payment a
 });
 
 
-test("Process Map drill-down always shows saved fields independently of export field selection", () => {
+test("Process Map drill-down respects the selected route-card visibility fields", () => {
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
-  assert.ok(universe.includes("const fieldVisible = (_field: string) => true;"));
-  for (const field of ["VENDOR", "plannedStart", "plannedEnd", "actualStart", "actualEnd", "accepted", "rejected", "paidAmount", "transportVendor", "inspection"]) assert.ok(universe.includes(field), "missing detail field " + field);
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("const fieldVisible = (field: string) => visibleFields.includes(field);"));
+  assert.ok(workspace.includes("PROCESS_CARD_FIELDS"));
+  assert.ok(workspace.includes("Show all"));
+  assert.ok(workspace.includes("Clear optional fields"));
+  for (const field of ["category", "subcategory", "plannedStart", "plannedEnd", "vendor", "quantity", "amount"]) assert.ok(universe.includes(`fieldVisible("${field}")`), "missing selectable field " + field);
 });
 
-test("Process Map material allocations stay within the selected PO line", () => {
+test("Process Map material allocations include every part under the selected PO component", () => {
   const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(processMap.includes('entry.poId === selectedPO?.id && (!entry.poLineId || entry.poLineId === selectedLine?.id)'));
-  assert.ok(processMap.includes('entry.poId===poId && entry.componentId===selectedLine?.componentId && (!entry.poLineId || entry.poLineId===poLineId)'));
+  const materialPanel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes('entry.componentId === selectedLine?.componentId && entry.poId === selectedPO?.id'));
+  assert.ok(processMap.includes('entry.poId===poId && entry.componentId===selectedLine?.componentId'));
+  assert.ok(materialPanel.includes('entry.scope===scope&&entry.componentId===componentId&&(!poId||entry.poId===poId)'));
+  assert.ok(processMap.includes('poLineId:entry.poLineId||""'));
+  assert.ok(processMap.includes("materialPlacements"));
+  assert.ok(!processMap.includes('entry.poId===poId && entry.componentId===selectedLine?.componentId && (!entry.poLineId || entry.poLineId===poLineId)'));
 });
 
 test("Process Map exposes material rate and cutting cost separately in route views", () => {
