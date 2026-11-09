@@ -4,7 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, t
 import SearchablePicker from "./SearchablePicker";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 
-type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
+type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string }) => void };
 type Tab = "materials" | "bom" | "stock";
 type MaterialDraft = Omit<MaterialRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type BomDraft = Omit<BomLineRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
@@ -346,7 +346,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
         <div><div className="eyebrow">MATERIAL DIRECTORY → PROCESS MAP</div><h3>PO-linked material procurement</h3>
           <p>Select Company, Purchase Order and Component above, then add each part, material grade, stock shape, dimensions, quantity, supplier, delivery timing and inbound transport. Every saved allocation is written to the shared Process Map route automatically. Add separate allocations for copper, brass, mild steel or any other material variety under the same component.</p>
         </div>
-        <button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("process-map")}><Activity size={14}/> Open Process Map</button>
+        <button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("process-map",{companyId:directoryCompanyId,poId:directoryPoId,componentId:directoryComponentId})}><Activity size={14}/> Open Process Map</button>
       </div>
       {directoryCompanyId && directoryPoId && directoryComponentId
         ? <PartMaterialCostingPanel
