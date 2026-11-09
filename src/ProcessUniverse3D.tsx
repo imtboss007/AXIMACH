@@ -11,7 +11,7 @@ type MaterialRouteNode = {
   id:string; partLabel:string; materialLabel:string; quantity:number; weightKg:number;
   supplier:string; transporter:string; from:string; to:string; vehicle:string;
   materialGivenAt:string; materialDueAt:string; materialReceivedAt:string;
-  pickupAt:string; deliveryAt:string; status:string; transportCost:number;
+  pickupAt:string; deliveryAt:string; status:string; materialCost:number; cuttingCost:number; transportCost:number;
 };
 type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; routeLabels?: Record<string,string>; materialRoutes?: MaterialRouteNode[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onSelectOperation: (id: string) => void; onEditOperation?: (id: string) => void; onChangeProcessColor?: (id: string, color: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
@@ -283,7 +283,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
             <span><small>TRANSPORTER</small><strong>{route.transporter}</strong><em>{route.vehicle}</em></span><b aria-hidden="true">→</b>
             <span><small>DELIVERY</small><strong>{route.to}</strong><em>{route.status}</em></span>
           </div>
-          <div className="process-orbit-material-dates"><span>Given: {route.materialGivenAt||"—"}</span><span>Due: {route.materialDueAt||"—"}</span><span>Received: {route.materialReceivedAt||"—"}</span><span>Pickup: {route.pickupAt||"—"}</span><span>Transport delivery: {route.deliveryAt||"—"}</span><strong>Transport ₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>
+          <div className="process-orbit-material-dates"><span>Given: {route.materialGivenAt||"—"}</span><span>Due: {route.materialDueAt||"—"}</span><span>Received: {route.materialReceivedAt||"—"}</span><span>Pickup: {route.pickupAt||"—"}</span><span>Transport delivery: {route.deliveryAt||"—"}</span><strong>Material ₹{route.materialCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong><strong>Cutting ₹{route.cuttingCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong><strong>Transport ₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>
         </article>)}
       </section>}
       {layoutMode === "gantt" && <div className="process-gantt-toolbar process-gantt-3d-toolbar"><label>Time scale<select value={ganttScale} onChange={event => onGanttScaleChange?.(event.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>3D SCHEDULE · {displayOperations.length} PROCESS STEPS · DRAG TO ROTATE</span></div>}
