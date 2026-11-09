@@ -179,7 +179,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     if(target==="part"&&!partName.trim()){onNotice?.("Enter a part name or select an existing part.");return;}
     if(effectivePoLineId&&!relatedPoLines.some(item=>item.line.id===effectivePoLineId)){onNotice?.("The selected PO line does not belong to this component.");return;}
     if(!newMaterialOpen&&!material){onNotice?.("Select a material grade from Material Directory or add a new grade.");return;}
-    if(newMaterialOpen&&(!materialName||!materialGrade||density<=0)){onNotice?.("Enter material name, grade and a positive density value.");return;}
+    if(newMaterialOpen&&(!materialName||!newMaterialType.trim()||!materialGrade||density<=0)){onNotice?.("Enter material name, material type, grade and a positive density in kg/m³.");return;}
     if(!Number.isFinite(qty)||qty<=0){onNotice?.("Enter a valid part quantity.");return;}
     if(volumeMm3<=0||perPieceKg<=0){onNotice?.("Enter valid dimensions for the selected shape and material density.");return;}
     if(!Number.isFinite(rate)||rate<0){onNotice?.("Enter a valid material rate per kg or lb.");return;}
