@@ -1473,6 +1473,7 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   for (const collection of ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
     assert.ok(demo.includes(collection), "demo dataset must include " + collection);
   }
+  assert.ok(demo.includes('processSubcategoryId:def.subcategoryIds?.[def.subcategories.indexOf(s.sub)]'));
   assert.ok(demo.includes('relationType:"alternate"'));
   assert.ok(demo.includes('relationType:"rework"'));
   assert.ok(demo.includes('branch:"Main route"'));
