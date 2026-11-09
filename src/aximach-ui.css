@@ -1972,3 +1972,32 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .process-universe-3d.mode-branch .process-universe-viewport,
 .process-universe-3d.mode-combined .process-universe-viewport{display:none!important}
 .process-orbit-core-webgl{background:radial-gradient(circle at 31% 22%,rgba(255,255,255,.94),transparent 24%),radial-gradient(circle at 52% 55%,#4e8fe9 0%,#1f5ba9 54%,#12386e 100%)}
+
+
+/* Mobile process-universe clarity: keep the route nodes readable around a smaller
+   central core, and make the selected 3D mode unmistakable. */
+.process-universe-layouts{display:flex;flex-wrap:wrap;gap:7px}
+.process-universe-layouts>button{min-height:42px;padding:8px 12px;border:1px solid rgba(104,143,188,.34);border-radius:10px;background:linear-gradient(145deg,#17334d,#0d2338);color:#c9d9ec;font-size:10px;font-weight:700;letter-spacing:.02em}
+.process-universe-layouts>button.active{border:1px solid #42c7df;background:linear-gradient(145deg,#126b83,#174b77);color:#fff;box-shadow:0 0 0 2px rgba(66,199,223,.2),0 5px 16px rgba(15,120,160,.22)}
+.process-orbit-connector{height:4px;opacity:1;box-shadow:0 0 9px currentColor,0 0 2px rgba(255,255,255,.95)}
+.process-orbit-connector::after{border-left-width:12px;border-top-width:7px;border-bottom-width:7px}
+.process-orbit-node{backface-visibility:visible}
+@media(max-width:650px){
+  .process-orbit-viewport{height:500px;min-height:460px;overflow:hidden;perspective:1000px}
+  .process-orbit-core{width:154px;height:154px;margin:-77px 0 0 -77px}
+  .process-orbit-core>div strong{font-size:38px;letter-spacing:-1px}
+  .process-orbit-core>div small{font-size:7px}
+  .process-orbit-core>div b{font-size:8px}
+  .process-orbit-core>div em{font-size:6px;margin-top:6px}
+  .process-orbit-ring{width:340px;height:340px;margin:-170px 0 0 -170px}
+  .process-orbit-ring-b{width:270px;height:270px;margin:-135px 0 0 -135px}
+  .process-orbit-node{width:116px;min-height:88px;padding:7px 7px 8px;gap:3px;border-radius:10px}
+  .process-orbit-node .linked-node-icon{width:27px;height:27px;min-width:27px;min-height:27px}
+  .process-orbit-node strong{font-size:9px;line-height:1.25}
+  .process-orbit-node-top small{font-size:7px}
+  .process-orbit-node-qty{font-size:6px}
+  .process-orbit-connector{height:3px}
+  .process-orbit-connector::after{border-left-width:9px;border-top-width:5px;border-bottom-width:5px}
+  .process-universe-layouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .process-universe-layouts>button{min-width:0;min-height:40px;padding:7px 4px;font-size:9px;white-space:nowrap}
+}
