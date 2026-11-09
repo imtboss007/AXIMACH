@@ -124,6 +124,7 @@ function transformStyle3d(point: Point3D) {
 
 export default function ProcessUniverse3D({ operations, allOperations, routeLabels = {}, materialRoutes = [], processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", ganttScale = "week", onGanttScaleChange, onSelectOperation, onEditOperation, onChangeProcessColor, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
+  const expandedDetailsRef = useRef<HTMLElement | null>(null);
   const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);
   const fieldVisible = (field: string) => visibleFields.includes(field);
   const dateLabel = (value?: string) => { if (!value) return "Not scheduled"; const parsed = new Date(value); return Number.isFinite(parsed.getTime()) ? parsed.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : value; };
@@ -136,6 +137,11 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
   const expandedOrbitOperation = lookupOperations.find(operation => operation.id === expandedOperationId) || displayOperations.find(operation => operation.id === expandedOperationId);
   const expandedOrbitSubprocesses = expandedOrbitOperation ? subprocessesFor(expandedOrbitOperation.id) : [];
   const expandedOrbitBranches = expandedOrbitOperation ? branchesFor(expandedOrbitOperation.id) : [];
+  useEffect(() => {
+    if (!expandedOperationId) return;
+    const frame = window.requestAnimationFrame(() => expandedDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [expandedOperationId]);
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>(initialLayout);
   const [autoRotateEnabled, setAutoRotateEnabled] = useState(true);
   const prefersReducedMotion = useReducedMotion();
@@ -291,7 +297,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
       <ProcessScene3D operations={displayOperations} mode={layoutMode} selectedOperationId={selectedOperationId} expandedOperationId={expandedOperationId} onSelectOperation={onSelectOperation} onExpandOperation={(id)=>setExpandedOperationId(id)} edges={orbitConnections.edges} coordinateOperations={coordinateOperations} anchors={orbitConnections.anchors} catalogue={showCatalogueOrbit ? processDefinitions : undefined} onAddCatalogue={onAddProcessDefinition} showArrows={showArrows} vendors={vendors} quantityUnit={quantityUnit} ganttScale={ganttScale} />
       
       <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>{showCatalogueOrbit ? "SELECT A DIRECTORY NODE TO CREATE A PO-LINE OPERATION" : "SELECT A PROCESS NODE TO OPEN ITS RECORD"}</span><span>SIMULATION IS VISUAL ONLY</span></div>
-      {expandedOrbitOperation && <section className="process-orbit-selected-details" id="process-orbit-selected-details" aria-label={"Expanded details for " + expandedOrbitOperation.name}>
+      {expandedOrbitOperation && <section ref={expandedDetailsRef} className="process-orbit-selected-details" id="process-orbit-selected-details" aria-label={"Expanded details for " + expandedOrbitOperation.name}>
         <div className="process-orbit-selected-heading"><div><small>SELECTED PROCESS / OP-{String(expandedOrbitOperation.sequence).padStart(3,"0")}</small><strong>{expandedOrbitOperation.name}</strong></div><div className="process-orbit-detail-actions"><label className="process-orbit-color-control">PROCESS COLOUR <input type="color" aria-label="Process colour" value={expandedOrbitOperation.relationType==="rework"?"#e66e20":expandedOrbitOperation.status==="Complete"?"#20a36b":expandedOrbitOperation.relationType==="alternate"?"#287bd0":expandedOrbitOperation.processColor||"#477fbd"} disabled={expandedOrbitOperation.status==="Complete"||expandedOrbitOperation.relationType==="rework"||expandedOrbitOperation.relationType==="alternate"} onChange={event=>onChangeProcessColor?.(expandedOrbitOperation.id,event.target.value)}/></label><button type="button" onClick={()=>onEditOperation?.(expandedOrbitOperation.id)} disabled={!onEditOperation}>Edit process ✎</button><button type="button" onClick={() => setExpandedOperationId("")}>Collapse details −</button></div></div>
         <div className="process-orbit-selected-grid">
           <div><small>PART / PO LINE</small><strong>{routeLabels[expandedOrbitOperation.poLineId] || expandedOrbitOperation.poLineId || "Not assigned"}</strong></div>
