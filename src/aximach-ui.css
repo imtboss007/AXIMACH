@@ -2189,3 +2189,9 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 @media(max-width:820px){.material-directory-filter-bar{grid-template-columns:repeat(2,minmax(0,1fr))}.material-directory-filter-bar label:last-of-type{grid-column:span 2}}
 @media(max-width:600px){.material-directory-filter-bar{grid-template-columns:1fr 1fr;padding:9px}.material-directory-filter-bar label{font-size:9px}.material-directory-filter-bar label:last-of-type{grid-column:auto}.material-directory-filter-bar button{grid-column:span 2}.ax-full3d-material-label{width:min(132px,32vw);min-height:94px;padding:6px 7px;gap:2px}.ax-full3d-material-label small{font-size:6px}.ax-full3d-material-label strong{font-size:8px}.ax-full3d-material-label em{font-size:7px}}
 @media(prefers-reduced-motion:reduce){.ax-full3d-route-arrow::before{animation:none}}
+
+
+.process-universe-layouts>button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:92px;padding-inline:10px}
+.process-universe-layouts>button>span{font-size:17px;line-height:1;color:#72d8f1;text-shadow:0 0 10px rgba(68,207,255,.34)}
+.process-universe-layouts>button.active>span{color:#fff;text-shadow:0 0 12px rgba(93,226,255,.8)}
+@media(max-width:820px){.process-universe-layouts>button{min-width:0;min-height:48px;flex-direction:column;gap:3px;padding:5px 2px;font-size:8px}.process-universe-layouts>button>span{font-size:17px}}
