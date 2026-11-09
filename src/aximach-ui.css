@@ -1946,3 +1946,18 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 
 
 .process-add-prerequisite-note{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:13px 15px;margin:12px 0;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft,var(--surface));color:var(--text)}.process-add-prerequisite-note strong{font-size:13px}.process-add-prerequisite-note span{flex:1 1 260px;color:var(--muted);font-size:12px;line-height:1.5}.process-add-prerequisite-note>div{display:flex;flex-wrap:wrap;gap:7px}
+
+
+/* Volumetric 3D core for every Process Plan visual mode. */
+.process-orbit-core-webgl{background:transparent!important;overflow:hidden;isolation:isolate}
+.process-orbit-core-webgl:before,.process-orbit-core-webgl:after{display:none!important}
+.process-orbit-webgl-canvas{position:absolute;inset:0;z-index:0;display:block;width:100%;height:100%;pointer-events:none}
+.process-orbit-core-webgl .process-orbit-core-gloss{z-index:1;pointer-events:none}
+.process-orbit-core-webgl .process-orbit-core-content{z-index:3;pointer-events:none}
+.process-orbit-core-webgl .process-orbit-dot{z-index:4}
+.process-orbit-node{transform-style:preserve-3d;backface-visibility:hidden}
+.process-orbit-rotator{transform-style:preserve-3d;will-change:transform}
+.process-orbit-auto-toggle{margin-top:8px;min-height:27px;padding:4px 9px;border:1px solid rgba(94,205,232,.5);border-radius:7px;background:rgba(14,48,77,.82);color:#d7f5ff;font:700 8px 'DM Mono',monospace;cursor:pointer}
+.process-orbit-auto-toggle:disabled{opacity:.58;cursor:not-allowed}
+.process-universe-head .process-universe-count{display:flex;flex-direction:column;align-items:center;gap:5px}
+@media(max-width:600px){.process-orbit-auto-toggle{font-size:7px;padding:4px 6px}.process-orbit-core-content small{font-size:6px!important}}
