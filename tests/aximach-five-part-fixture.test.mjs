@@ -1517,6 +1517,12 @@ test("every Process Plan view uses the interactive 3D universe and volumetric We
   assert.ok(universe.includes("ProcessUniverseWebGLCore"));
   assert.ok(universe.includes("getLayoutPoint"));
   assert.ok(universe.includes("transformStyle3d"));
+  assert.ok(universe.includes("autoRotateEnabled"));
+  assert.ok(universe.includes("Pause rotation"));
+  const styles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  for (const view of ["linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
+    assert.ok(styles.includes(".process-universe-3d.mode-" + view + " .process-universe-viewport"), "2D fallback viewport must be hidden for " + view);
+  }
   assert.ok(core.includes('canvas.getContext("webgl"'));
   assert.ok(core.includes("raymarch"));
   assert.ok(core.includes("gl.drawArrays(gl.TRIANGLES"));
