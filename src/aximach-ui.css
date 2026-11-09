@@ -2071,3 +2071,13 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .ax-material-calculation { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .ax-material-cost-list .costing-table { min-width:900px; }
 }
+
+/* Always show route connectors; arrowheads are independently controlled. */
+.ax-full3d-route-arrow.no-arrowhead::after{display:none}
+.ax-full3d-route-arrow{z-index:2}
+.ax-full3d-label-layer{z-index:3}
+.ax-full3d-label{z-index:4}
+.process-orbit-selected-details{position:relative;z-index:8;max-height:min(52vh,520px);overflow:auto;overscroll-behavior:contain}
+.ax-material-route-line{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:11px;font-weight:700;color:var(--text,#24364b)}
+.ax-material-route-line b{color:#1686d5;font-size:15px}
+.ax-material-route-line small{font-weight:500;color:var(--muted,#718096)}
