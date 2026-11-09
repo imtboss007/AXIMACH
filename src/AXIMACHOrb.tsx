@@ -71,9 +71,9 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
   useEffect(() => {
     try { window.localStorage.setItem(preferenceKey, JSON.stringify({mode:visualMode,speed,sphereSize,orbitIntensity,reduceMotion,autoRotate,zoomed,moduleRotationEnabled,recordRotationEnabled})); } catch { /* Preferences are optional. */ }
   }, [visualMode,speed,sphereSize,orbitIntensity,reduceMotion,autoRotate,zoomed,moduleRotationEnabled,recordRotationEnabled,preferenceKey]);
-  // Both shells stay still while idle. Only a direct pointer/touch drag changes
-  // their orientation. A front-facing starting angle keeps the full 3D shell
-  // legible on narrow phone viewports.
+  // Both shells auto-rotate while idle; direct pointer/touch drag takes over
+  // immediately, then idle rotation resumes after release. A front-facing
+  // starting angle keeps the full 3D shell legible on narrow phone viewports.
   const rotateX = useMotionValue(compactViewport ? -7 : -15);
   const rotateY = useMotionValue(compactViewport ? 0 : 22);
   const lowerRotateX = useMotionValue(compactViewport ? -5 : -8);
