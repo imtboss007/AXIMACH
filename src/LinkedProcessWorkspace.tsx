@@ -98,7 +98,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [exportFields,setExportFields] = useState<ProcessExportField[]>(["operation","quantity","status","plannedStart","plannedEnd"]);
   const [exportScope,setExportScope] = useState<string>("all");
   const [exportArrows,setExportArrows] = useState(true);
-  const [visualStyle,setVisualStyle] = useState<"sphere"|"vortex"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined">("sphere");
+  const [visualStyle,setVisualStyle] = useState<"sphere"|"cube"|"vortex"|"helix"|"orbit"|"stacked"|"pipeline"|"network"|"grid"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"digital-mesh"|"molecular"|"combined">("sphere");
   const [ganttScale,setGanttScale] = useState<"day"|"week"|"month">("week");
   const [histogramStyle,setHistogramStyle] = useState<"bar"|"stacked"|"donut">("bar");
   const [statusFilters,setStatusFilters] = useState<string[]>([]);
@@ -1186,16 +1186,19 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         <strong className="process-visual-style-label">VIEW</strong>
         <div className="process-visual-style-buttons" aria-label="All Process Map viewing modes" style={{display:"flex",flexWrap:"wrap",gap:"7px",width:"100%"}}>
           {([
-            {id:"sphere",label:"1 · 3D Sphere"},
-            {id:"vortex",label:"2 · 3D Vortex"},
-            {id:"linear",label:"3 · Linear Flow"},
-            {id:"horizontal",label:"4 · Horizontal Flow"},
-            {id:"vertical",label:"5 · Vertical Flow"},
-            {id:"timeline",label:"6 · Timeline"},
-            {id:"gantt",label:"7 · Gantt View"},
-            {id:"nodes",label:"8 · Connected Nodes"},
-            {id:"branch",label:"9 · Branch / Rework"},
-            {id:"combined",label:"10 · Combined 3D"}
+            {id:"sphere",label:"◎ Sphere 3D"},
+            {id:"cube",label:"⬡ Cube 3D"},
+            {id:"vortex",label:"◉ Vortex"},
+            {id:"helix",label:"⌁ Helix"},
+            {id:"orbit",label:"⊙ Orbit"},
+            {id:"stacked",label:"▤ Stacked"},
+            {id:"pipeline",label:"⇢ Pipeline"},
+            {id:"network",label:"✣ Network"},
+            {id:"grid",label:"▦ Grid"},
+            {id:"timeline",label:"▥ Timeline"},
+            {id:"molecular",label:"⚙ Molecular"},
+            {id:"combined",label:"✧ Combined"},
+            {id:"gantt",label:"▰ Gantt Schedule"}
           ] as const).map(option=><button key={option.id} type="button" aria-pressed={visualStyle===option.id}
             className={(visualStyle===option.id?"button-primary":"button-quiet")+" compact-button"}
             onClick={()=>{setVisualStyle(option.id);setRouteView("3d");setSimulationActive(false);setSimulationIndex(-1);}}>
