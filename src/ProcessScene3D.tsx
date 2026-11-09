@@ -256,15 +256,17 @@ export default function ProcessScene3D({operations,materialRoutes=[],visibleFiel
   <div className="ax-full3d-label-layer">{projectedCore&&mode==="sphere"&&<div className="ax-full3d-core-label" style={{left:projectedCore.x,top:projectedCore.y}}><strong>AXIMACH</strong><small>MANUFACTURING FLOW</small></div>}
    {ganttStatus&&<div className="ax-full3d-gantt-status">{ganttStatus}</div>}
    {projectedGanttTicks.map(tick=>tick&&<div key={tick.key} className="ax-full3d-gantt-tick" style={{left:tick.x}}>{tick.label}</div>)}
-   {projectedEdges.map(edge=><div key={edge.key} role="button" tabIndex={0} className={"ax-full3d-route-arrow "+(edge.relation==="rework"?"rework":edge.relation==="alternate"?"alternate":edge.relation==="material"?"material":"main")} style={{left:edge.x,top:edge.y,width:edge.length,transform:"rotate("+edge.angle+"deg)"}} aria-label={"Follow route from "+edge.from+" to "+edge.to} title={"Route: "+edge.from+" → "+edge.to} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(edge.toId)onArrowSelect?.(edge.toId);}} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();if(edge.toId)onArrowSelect?.(edge.toId);}}}><span>{edge.from} → {edge.to}</span></div>)}
+   {projectedEdges.map(edge=><div key={edge.key} role="button" tabIndex={0} className={"ax-full3d-route-arrow "+(edge.relation==="rework"?"rework":edge.relation==="alternate"?"alternate":edge.relation==="material"?"material":"main")+(showArrows?"":" no-arrowhead")} style={{left:edge.x,top:edge.y,width:edge.length,transform:"rotate("+edge.angle+"deg)"}} aria-label={"Follow route from "+edge.from+" to "+edge.to} title={"Route: "+edge.from+" → "+edge.to} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(edge.toId)onArrowSelect?.(edge.toId);}} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();if(edge.toId)onArrowSelect?.(edge.toId);}}}><span>{edge.from} → {edge.to}</span></div>)}
    {projectedMaterials.map((item,index)=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;return <div key={"material-card-"+item.id} className="ax-full3d-label ax-full3d-material-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()}>
      <small>MATERIAL PROCUREMENT · {index+1}/{materialRoutes.length}</small><strong>{route.partLabel}</strong><em>{route.materialLabel}</em>
      {visibleFields.includes("company")&&<small>{route.companyLabel||"Company not linked"} · PO {route.poLabel||"—"} · {route.componentLabel||"Component"}</small>}
      {visibleFields.includes("materialShape")&&<small>{route.dimensionsLabel||"Shape / dimensions not entered"}</small>}
      {visibleFields.includes("materialDensity")&&<small>Density {route.densityKgM3?route.densityKgM3.toLocaleString("en-IN")+" kg/m³":"Not set"}</small>}
-     {visibleFields.includes("materialQuantity")&&<small>Qty {route.quantity.toLocaleString("en-IN")} · Weight {route.weightKg.toFixed(3)} kg</small>}
+     {visibleFields.includes("materialQuantity")&&<small>Qty {route.quantity.toLocaleString("en-IN")}</small>}
+     {visibleFields.includes("materialWeight")&&<small>Weight {route.weightKg.toFixed(3)} kg</small>}
      {visibleFields.includes("materialVendor")&&<small>Supplier {route.supplier}</small>}
-     {visibleFields.includes("materialGiven")&&<small>Given {nodeDateTime(route.materialGivenAt)} · Due {nodeDateTime(route.materialDueAt)}</small>}
+     {visibleFields.includes("materialGiven")&&<small>Given {nodeDateTime(route.materialGivenAt)}</small>}
+     {visibleFields.includes("materialDelivery")&&<small>Expected delivery {nodeDateTime(route.materialDueAt)}</small>}
      {visibleFields.includes("materialReceived")&&<small>Received {nodeDateTime(route.materialReceivedAt)}</small>}
      {visibleFields.includes("materialCost")&&<small>₹{route.materialRate.toLocaleString("en-IN",{maximumFractionDigits:2})}/{route.priceUnit} · Material {route.materialCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
      {visibleFields.includes("materialCuttingCost")&&<small>{route.cuttingType||"No cutting"} · Cutting ₹{route.cuttingCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
@@ -273,7 +275,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],visibleFiel
      <small>INBOUND TRANSPORT · {index+1}/{materialRoutes.length}</small><strong>{route.transporter||"Transporter not assigned"}</strong>
      {visibleFields.includes("transportRoute")&&<small>{route.from||"Pickup not set"} → {route.to||"Delivery not set"}</small>}
      {visibleFields.includes("vehicle")&&<small>{route.vehicle||"Vehicle not set"} · {route.status||"Planned"}</small>}
-     {visibleFields.includes("transportVendor")&&<small>Supplier {route.supplier}</small>}
+     {visibleFields.includes("transportVendor")&&<small>Transporter {route.transporter||"Not assigned"}</small>}
      {visibleFields.includes("transportPickup")&&<small>Pickup {nodeDateTime(route.pickupAt)}</small>}
      {visibleFields.includes("transportDelivery")&&<small>Delivery {nodeDateTime(route.deliveryAt)}</small>}
      {visibleFields.includes("materialTransportCost")&&<small>Transport ₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
