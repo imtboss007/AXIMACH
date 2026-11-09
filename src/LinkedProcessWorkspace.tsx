@@ -1024,10 +1024,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const routeNeighbor = (id: string, direction: -1 | 1) => {
     const current = routeOperations.find(op => op.id === id);
     if (!current) return undefined;
-    const sameRoute = routeOperations
-      .filter(op => op.poId === current.poId && op.poLineId === current.poLineId && (op.branch || "Main route") === (current.branch || "Main route"))
-      .slice()
-      .sort((a,b) => a.sequence - b.sequence || a.createdAt.localeCompare(b.createdAt));
+    const sameRoute=routeOperations.filter(op=>op.poLineId===current.poLineId&&(op.branch||"Main route")===(current.branch||"Main route")).sort((a,b)=>a.sequence-b.sequence);
     const index = sameRoute.findIndex(op => op.id === id);
     return index < 0 ? undefined : sameRoute[index + direction];
   };
