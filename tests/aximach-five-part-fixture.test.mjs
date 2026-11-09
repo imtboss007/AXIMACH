@@ -1458,3 +1458,33 @@ test("390px mobile layout keeps the spherical command centre and Process Map con
   assert.ok(process.includes('<details open className="surface-panel process-route-scope-panel">'));
   assert.ok(process.includes('<details open className="surface-panel linked-route-canvas">'));
 });
+
+
+test("bundled two-company five-part demo is opt-in, fully linked and removable", () => {
+  const demo = readFileSync(new URL("../src/aximachDemoData.ts", import.meta.url), "utf8");
+  const importer = readFileSync(new URL("../src/IntelligenceWorkspaces.tsx", import.meta.url), "utf8");
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  for (const company of ["ASTER MOTION COMPONENTS PVT LTD", "MERIDIAN FLUID SYSTEMS PVT LTD"]) {
+    assert.ok(demo.includes(company), "missing demo company: " + company);
+  }
+  const partKeys = [...demo.matchAll(/key:"(AST-\\d{4}|MER-\\d{4})"/g)].map(match => match[1]);
+  assert.equal(partKeys.length, 5, "bundled demo must include exactly five component examples");
+  assert.equal(new Set(partKeys).size, 5, "demo component IDs must be unique");
+  for (const collection of ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
+    assert.ok(demo.includes(collection), "demo dataset must include " + collection);
+  }
+  assert.ok(demo.includes('relationType:"alternate"'));
+  assert.ok(demo.includes('relationType:"rework"'));
+  assert.ok(demo.includes('branch:"Main route"'));
+  assert.ok(demo.includes('branch:"Alternate route"'));
+  assert.ok(demo.includes('branch:"Rework route"'));
+  assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
+  assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
+  assert.ok(importer.includes('onClick={loadTwoCompanyDemo}'));
+  assert.ok(importer.includes('onClick={removeTwoCompanyDemo}'));
+  assert.ok(importer.includes('mergeManufacturingData(current,createAxMachTwoCompanyDemo())'));
+  assert.ok(importer.includes('archiveAxMachTwoCompanyDemo(current)'));
+  assert.ok(importer.includes('window.confirm("Archive all AXIMACH DEMO records'));
+  assert.ok(inventory.includes('const inventoryTransactions = activeRows(data.inventoryTransactions);'));
+  assert.ok(!inventory.includes('data.inventoryTransactions.filter('), "archived demo stock movements must not remain visible");
+});
