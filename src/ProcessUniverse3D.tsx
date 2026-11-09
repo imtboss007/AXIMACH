@@ -31,7 +31,7 @@ function fallbackFor(name: string) {
   return <Workflow size={20} />;
 }
 
-type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "gantt" | "nodes" | "branch" | "combined";
+type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "gantt" | "nodes" | "branch" | "combined" | "helix" | "stacked" | "pipeline" | "network" | "grid";
 type Point3D = { x: number; y: number; z: number };
 const routeGroupKey = (operation:OperationRecord) => (operation.poLineId || operation.componentId) + "::" + (operation.branch || "Main route");
 
@@ -57,13 +57,28 @@ function getLayoutPoint(index: number, operation: OperationRecord | undefined, m
     const radius = 108 + (index % 4) * 17;
     return { x: Math.cos(spin) * radius, y: center * 34, z: Math.sin(spin) * radius };
   }
+  if (mode === "helix") {
+    const turn = index * 1.08;
+    const radius = 78 + (index % 3) * 13;
+    return { x: Math.cos(turn) * radius, y: (0.5 - (index + 0.5) / total) * 300, z: Math.sin(turn) * radius };
+  }
+  if (mode === "stacked") {
+    const columns = Math.max(2, Math.ceil(Math.sqrt(localCount)));
+    const row = Math.floor(localIndex / columns), column = localIndex % columns;
+    const layer = branchIndex;
+    return { x: (column - (columns - 1) / 2) * 104, y: ((Math.ceil(localCount / columns) - 1) / 2 - row) * 82, z: (layer - (branchCount - 1) / 2) * 112 };
+  }
+  if (mode === "pipeline" || mode === "linear" || mode === "route") {
+    const lane = Math.floor(localIndex / 5);
+    return { x: (localIndex % 5 - 2) * 112 + (lane % 2 ? 48 : -48), y: (1 - lane) * 105 + branchOffset * 38, z: (lane % 2 ? 1 : -1) * 52 };
+  }
   if (mode === "cube") {
     const side = Math.ceil(Math.cbrt(total));
     const x = index % side, y = Math.floor(index / side) % side, z = Math.floor(index / (side * side));
     const half = (side - 1) / 2;
     return { x: (x-half)*112, y: (half-y)*112, z: (z-half)*112 };
   }
-  if (mode === "digital-mesh") {
+  if (mode === "digital-mesh" || mode === "grid") {
     // Ordered serpentine lattice: each successive operation sits beside the
     // previous one, so the 3D arrows read as a route rather than crossing chords.
     const columns = Math.max(2, Math.ceil(Math.sqrt(total)));
@@ -80,7 +95,7 @@ function getLayoutPoint(index: number, operation: OperationRecord | undefined, m
     const column = localIndex % columns;
     return { x: (column - (columns - 1) / 2) * 112, y: branchOffset * 104 + ((Math.ceil(localCount / columns) - 1) / 2 - row) * 94, z: (row % 2 ? 1 : -1) * 58 + branchOffset * 36 };
   }
-  if (mode === "molecular") {
+  if (mode === "molecular" || mode === "network") {
     // Molecular clusters: each branch is a nucleus with linked process satellites.
     const clusterAngle = branchIndex * (Math.PI * 2 / branchCount);
     const satelliteAngle = localIndex * golden;
@@ -97,7 +112,7 @@ function getLayoutPoint(index: number, operation: OperationRecord | undefined, m
     const orbitRadius = 72 + orbitRing * 58;
     return { x: Math.cos(orbitAngle) * orbitRadius, y: branchOffset * 54 + (orbitRing % 2 ? 42 : -42), z: Math.sin(orbitAngle) * orbitRadius };
   }
-  if (mode === "linear" || mode === "route") return { x: center*118, y: Math.sin(index*0.82)*42, z: Math.cos(index*0.67)*72 };
+  if (mode === "linear" || mode === "route" || mode === "pipeline") return { x: center*118, y: Math.sin(index*0.82)*42, z: Math.cos(index*0.67)*72 };
   if (mode === "timeline" || mode === "gantt") {
     const dates = source.map(item => Date.parse(item.plannedStart || item.actualStart || "")).filter(Number.isFinite);
     const minimum = dates.length ? Math.min(...dates) : 0;
@@ -278,7 +293,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
       <div className="process-universe-count"><strong>{orbitCount}</strong><span>{displayOperations.length ? "SAVED PROCESS STEPS" : "AVAILABLE STAGES"}</span><button type="button" className="process-orbit-auto-toggle" aria-pressed={autoRotateEnabled} disabled={!!prefersReducedMotion} onClick={() => setAutoRotateEnabled(value => !value)}>{prefersReducedMotion ? "Reduced motion" : autoRotateEnabled ? "Pause rotation" : "Resume rotation"}</button></div>
     </header>
     <nav className="process-universe-layouts" aria-label="Process map visualisation modes">
-      {([{id:"sphere",label:"Sphere"},{id:"vortex",label:"Vortex"},{id:"linear",label:"Linear"},{id:"horizontal",label:"Horizontal"},{id:"vertical",label:"Vertical"},{id:"timeline",label:"Timeline"},{id:"gantt",label:"Gantt"},{id:"nodes",label:"Nodes"},{id:"branch",label:"Branch"},{id:"combined",label:"Combined"},{id:"cube",label:"Cube"},{id:"molecular",label:"Molecular"},{id:"orbit",label:"Orbit"},{id:"digital-mesh",label:"Digital mesh"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}>{option.label}</button>)}
+      {([{id:"sphere",label:"Sphere 3D",glyph:"◎"},{id:"cube",label:"Cube 3D",glyph:"⬡"},{id:"vortex",label:"Vortex",glyph:"◉"},{id:"helix",label:"Helix",glyph:"⌁"},{id:"orbit",label:"Orbit",glyph:"⊙"},{id:"stacked",label:"Stacked",glyph:"▤"},{id:"pipeline",label:"Pipeline",glyph:"⇢"},{id:"network",label:"Network",glyph:"✣"},{id:"grid",label:"Grid",glyph:"▦"},{id:"timeline",label:"Timeline",glyph:"▥"},{id:"molecular",label:"Molecular",glyph:"⚙"},{id:"combined",label:"Combined",glyph:"✧"},{id:"gantt",label:"Gantt",glyph:"▰"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}
     </nav>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
