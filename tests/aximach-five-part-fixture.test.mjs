@@ -1754,11 +1754,14 @@ test("Process Map drill-down respects the selected route-card visibility fields"
 test("Process Map material allocations include every part under the selected PO component", () => {
   const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const materialPanel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
   assert.ok(processMap.includes('entry.componentId === selectedLine?.componentId && entry.poId === selectedPO?.id'));
   assert.ok(processMap.includes('entry.poId===poId && entry.componentId===selectedLine?.componentId'));
   assert.ok(materialPanel.includes('entry.scope===scope&&entry.componentId===componentId&&(!poId||entry.poId===poId)'));
   assert.ok(processMap.includes('poLineId:entry.poLineId||""'));
-  assert.ok(processMap.includes("materialPlacements"));
+  assert.ok(scene.includes("const materialPlacements=useMemo"));
+  assert.ok(scene.includes("projectedMaterials.map"));
+  assert.ok(scene.includes("projectedTransports.map"));
   assert.ok(!processMap.includes('entry.poId===poId && entry.componentId===selectedLine?.componentId && (!entry.poLineId || entry.poLineId===poLineId)'));
 });
 
