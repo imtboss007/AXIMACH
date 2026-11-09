@@ -184,6 +184,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const label=part ? [part.partNumber,part.name].filter(Boolean).join(" · ") : "Component-level route";
     return [line.id,label+" · Qty "+line.quantity];
   }));
+  const materialRouteEntries = allMaterialCostEntries.filter(entry=>entry.scope==="process-map" && entry.poId===poId && entry.componentId===selectedLine?.componentId);
   const selectedTransportDirectoryRoute = transportRoutes.find(route => route.id === transportRouteId);
   const processCategories = [...new Set(processDefinitions.map(item => item.category).filter(Boolean))].sort();
   const processTypeOptions = [...new Set(processDefinitions.filter(item => !draft.category || item.category === draft.category).map(item => item.processType).filter(Boolean))].sort();
@@ -369,7 +370,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   }).map(leg=>leg.anchorOperationId));
   const legacyTransportCost = costedOperations.reduce((sum, op) => sum + (duplicateLegacyTransportIds.has(op.id)?0:Math.max(0, Number(op.transportCost) || 0)), 0);
   const componentTransportCost = includedTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.fixedAmount) || 0) * Math.max(0, Number(leg.tripCount) || 0), 0);
-  const totalTransportCost = legacyTransportCost + componentTransportCost;
+  const materialInboundTransportCost = materialRouteEntries.reduce((sum,entry)=>sum+Math.max(0,Number(entry.transportCost)||0),0);
+  const totalTransportCost = legacyTransportCost + componentTransportCost + materialInboundTransportCost;
   const componentTotalCost = totalProcessCost + totalTransportCost;
   const firstMainRouteOperation = routeOperations.filter(operation => (operation.branch || "Main route") === "Main route").slice().sort((a,b) => a.sequence-b.sequence)[0];
   const unanchoredTransportCost = includedTransportLegs.filter(leg => !leg.anchorOperationId).reduce((sum,leg) => sum + Math.max(0,Number(leg.fixedAmount)||0) * Math.max(0,Number(leg.tripCount)||0),0);
@@ -378,7 +380,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const legacy = duplicateLegacyTransportIds.has(operation.id) ? 0 : Math.max(0,Number(operation.transportCost)||0);
     return anchored + legacy + (firstMainRouteOperation?.id === operation.id ? unanchoredTransportCost : 0);
   };
-  const expectedQuantity = selectedLine?.quantity || 0;
+  const expectedQuantity = poLines.filter(line=>line.componentId===selectedLine?.componentId).reduce((sum,line)=>sum+Math.max(0,Number(line.quantity)||0),0) || selectedLine?.quantity || 0;
   const completedQuantity = activeRouteOperations.length ? Math.min(...activeRouteOperations.map(op => op.accepted || 0)) : 0;
   const finalRouteOperation = [...routeOperations].filter(op=>(op.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence).at(-1) || routeOperations[routeOperations.length-1];
   const finalCompletedQty = Math.min(expectedQuantity,Math.max(0,finalRouteOperation?.accepted||finalRouteOperation?.completed||0));
@@ -393,7 +395,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const op=routeOperations.find(operation=>operation.id===leg.anchorOperationId);
     return Boolean(op?.transportRouteId)&&op?.transportRouteId===leg.routeId&&Math.abs(Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0)-Math.max(0,Number(op?.transportCost)||0))<0.01;
   }).map(leg=>leg.anchorOperationId));
-  const transportCount = includedTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.tripCount) || 0), 0) + costedOperations.filter(op => !duplicateLegacyTransportIdsForCount.has(op.id) && (op.transportCost > 0 || op.transportVendorId)).length;
+  const transportCount = includedTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.tripCount) || 0), 0) + costedOperations.filter(op => !duplicateLegacyTransportIdsForCount.has(op.id) && (op.transportCost > 0 || op.transportVendorId)).length + materialRouteEntries.filter(entry=>(Number(entry.transportCost)||0)>0 || entry.transportVendorId).length;
   const totalAccepted = routeOperations.reduce((sum, op) => sum + op.accepted, 0);
   const allDone = activeRouteOperations.length > 0 && activeRouteOperations.every(op => op.status === "Complete");
   const finalDelivery = selectedLine?.targetDelivery || selectedPO?.targetDelivery || "";
