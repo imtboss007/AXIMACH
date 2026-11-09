@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Boxes, Check, ClipboardList, Factory, FileText, Package, Plus, Search, ShieldCheck, Trash2, Truck, Users, Warehouse, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialRecord, type StockTransactionKind } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
+import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
 type Tab = "materials" | "bom" | "stock";
@@ -340,6 +341,29 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
        <label>Component<select value={directoryComponentId} onChange={e=>setDirectoryComponentId(e.target.value)}><option value="">All components</option>{directoryComponentOptions.map(component=><option key={component.id} value={component.id}>{component.partNumber} · {component.name}</option>)}</select></label>
        {(directoryCompanyId||directoryPoId||directoryComponentId)&&<button type="button" className="button-quiet compact-button" onClick={()=>{setDirectoryCompanyId("");setDirectoryPoId("");setDirectoryComponentId("");}}>Clear filters</button>}
      </div>}
+    {tab==="materials" && <section className="surface-panel material-directory-route-allocation">
+      <div className="panel-heading">
+        <div><div className="eyebrow">MATERIAL DIRECTORY → PROCESS MAP</div><h3>PO-linked material procurement</h3>
+          <p>Select Company, Purchase Order and Component above, then add each part, material grade, stock shape, dimensions, quantity, supplier, delivery timing and inbound transport. Every saved allocation is written to the shared Process Map route automatically. Add separate allocations for copper, brass, mild steel or any other material variety under the same component.</p>
+        </div>
+        <button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("process-map")}><Activity size={14}/> Open Process Map</button>
+      </div>
+      {directoryCompanyId && directoryPoId && directoryComponentId
+        ? <PartMaterialCostingPanel
+            key={directoryCompanyId+"-"+directoryPoId+"-"+directoryComponentId}
+            scope="process-map"
+            companyId={directoryCompanyId}
+            poId={directoryPoId}
+            componentId={directoryComponentId}
+            componentName={components.find(component=>component.id===directoryComponentId)?.name||""}
+            componentNumber={components.find(component=>component.id===directoryComponentId)?.partNumber||""}
+            requirePoLine
+            startExpanded
+            processOptions={operations.filter(operation=>operation.poId===directoryPoId&&operation.componentId===directoryComponentId&&!operation.deletedAt)}
+            onNotice={onNotice}
+          />
+        : <div className="module-empty-state"><Package size={22}/><strong>Select the manufacturing job to allocate material</strong><p>Choose one Company, its Purchase Order and the Component using the three filters above. The material allocation form will then open here. You can add more than one part and more than one material / size / grade without replacing earlier entries.</p></div>}
+    </section>}
     {tab==="materials" && <>
       <div className="workspace-title-actions"><button className="button-primary" onClick={()=>{setMaterialDraft(emptyMaterial());setMaterialEditingId("");setMaterialFormOpen(true);}}><Plus size={14}/> Add material</button><button className="button-quiet" onClick={()=>onSelectModule("vendors")}><Users size={14}/> Vendor master</button></div>
       {materialFormOpen && <section className="surface-panel module-record-form-panel"><div className="panel-heading"><div><h3>{materialEditingId?"Edit material record":"Add material to directory"}</h3><p>Grade suggestions fill the typical reference density automatically. Your saved custom grades, types, shapes and rates remain in the permanent material catalogue.</p></div><button className="icon-control" onClick={resetMaterial} aria-label="Close material form"><X size={15}/></button></div>
