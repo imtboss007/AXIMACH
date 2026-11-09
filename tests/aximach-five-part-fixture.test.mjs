@@ -1226,7 +1226,7 @@ test("Sphere view is a full 3D globe with visible route cylinders and distinct a
   assert.ok(scene.includes("function operationCode(operation:OperationRecord)"));
   assert.ok(scene.includes('"ALT"'));
   assert.ok(scene.includes('"REWORK"'));
-  assert.ok(scene.includes("draw(lineMesh(p,q,.026),rgb)"));
+  assert.ok(scene.includes("draw(lineMesh(p,q,.038),rgb)"));
 });
 
 test("3D Gantt view uses saved planned/actual date ranges as volumetric duration bars and preserves time scale controls", () => {
