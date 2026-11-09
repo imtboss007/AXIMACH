@@ -1198,7 +1198,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             {id:"timeline",label:"▥ Timeline"},
             {id:"molecular",label:"⚙ Molecular"},
             {id:"combined",label:"✧ Combined"},
-            {id:"gantt",label:"▰ Gantt Schedule"}
+            {id:"gantt",label:"▰ Gantt Schedule"},
+            {id:"linear",label:"Linear Flow"},
+            {id:"horizontal",label:"Horizontal Flow"},
+            {id:"vertical",label:"Vertical Flow"},
+            {id:"nodes",label:"Connected Nodes"},
+            {id:"branch",label:"Branch / Rework"}
           ] as const).map(option=><button key={option.id} type="button" aria-pressed={visualStyle===option.id}
             className={(visualStyle===option.id?"button-primary":"button-quiet")+" compact-button"}
             onClick={()=>{setVisualStyle(option.id);setRouteView("3d");setSimulationActive(false);setSimulationIndex(-1);}}>
