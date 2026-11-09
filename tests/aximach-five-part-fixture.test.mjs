@@ -604,7 +604,9 @@ test("Five fixture parts create independent multi-process routes linked by stabl
     assert.equal(new Set(route.map(row => row.id)).size, route.length);
   }
   assert.equal(new Set(linked.map(row => row.componentId)).size, 5);
-  assert.ok(workspace.includes("id: operationId, poId: selectedPO.id, poLineId: selectedLine.id, componentId: selectedComponent.id"));
+  assert.ok(workspace.includes("const effectivePoLineId = old?.poLineId || parentOperation?.poLineId || selectedLine.id"));
+  assert.ok(workspace.includes("id: operationId, poId: effectivePoId, poLineId: effectivePoLineId, componentId: effectiveComponentId"));
+  assert.ok(workspace.includes("op.poId === poId && op.componentId === selectedLine?.componentId"));
 });
 
 test("Dashboard spheres auto-rotate by default, preserve separate drag locks, and navigate to the correct workspaces", () => {
