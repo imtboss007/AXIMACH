@@ -289,7 +289,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],visibleFiel
    </div>;})}
    {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
      <small>{operationCode(op)}{visibleFields.includes("status")?" · "+op.status:""}</small><strong>{op.name}</strong>
-     {visibleFields.includes("category")&&<small>CATEGORY · {op.category||"Not set"}</small>}
+     <small>CATEGORY · {op.category||"Not set"}</small>
      {visibleFields.includes("subcategory")&&<small>SUB-PROCESS · {op.subcategory||"Not set"}</small>}
      {visibleFields.includes("quantity")&&<em>Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>}
      {visibleFields.includes("plannedStart")&&<small className="ax-full3d-node-meta">Given / start · {nodeDateTime(op.plannedStart)}</small>}
