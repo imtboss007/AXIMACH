@@ -28,14 +28,27 @@ const CUT_TYPES = ["Bandsaw","Laser","Gas cut","Plasma","Waterjet","Circular saw
 const CUT_BASES = ["Per piece","Per cut","Per kg","Per metre","Per hour","Fixed job"];
 const MATERIAL_SEEDS = [
   {name:"Mild steel",grade:"MS / low-carbon steel",density:7850,type:"Steel"},
+  {name:"Mild steel",grade:"IS 2062 E250",density:7850,type:"Steel"},
+  {name:"Mild steel",grade:"IS 2062 E350",density:7850,type:"Steel"},
+  {name:"Carbon steel",grade:"EN1A",density:7850,type:"Steel"},
   {name:"Carbon steel",grade:"EN8",density:7850,type:"Steel"},
+  {name:"Carbon steel",grade:"EN9",density:7850,type:"Steel"},
+  {name:"Alloy steel",grade:"EN19",density:7850,type:"Steel"},
+  {name:"Alloy steel",grade:"EN24",density:7850,type:"Steel"},
+  {name:"Alloy steel",grade:"EN31",density:7850,type:"Steel"},
   {name:"Alloy steel",grade:"EN36",density:7850,type:"Steel"},
   {name:"Stainless steel",grade:"SS 304",density:8000,type:"Stainless steel"},
   {name:"Stainless steel",grade:"SS 316",density:8000,type:"Stainless steel"},
+  {name:"Stainless steel",grade:"SS 410",density:7750,type:"Stainless steel"},
+  {name:"Stainless steel",grade:"SS 420",density:7750,type:"Stainless steel"},
+  {name:"Aluminium",grade:"Aluminium 1050",density:2710,type:"Aluminium"},
   {name:"Aluminium",grade:"Aluminium 6061",density:2700,type:"Aluminium"},
   {name:"Aluminium",grade:"Aluminium 6063",density:2700,type:"Aluminium"},
-  {name:"Copper",grade:"Electrolytic copper",density:8960,type:"Copper"},
-  {name:"Brass",grade:"Common brass",density:8500,type:"Brass"},
+  {name:"Aluminium",grade:"Aluminium 6082",density:2700,type:"Aluminium"},
+  {name:"Aluminium",grade:"Aluminium 7075",density:2810,type:"Aluminium"},
+  {name:"Copper",grade:"Copper C11000 / ETP",density:8960,type:"Copper"},
+  {name:"Brass",grade:"Brass C26000",density:8530,type:"Brass"},
+  {name:"Brass",grade:"Brass C36000",density:8500,type:"Brass"},
   {name:"Bronze",grade:"Tin bronze",density:8800,type:"Bronze"},
   {name:"Cast iron",grade:"Grey cast iron",density:7200,type:"Cast iron"},
   {name:"Zinc",grade:"Zinc",density:7140,type:"Non-ferrous"},
@@ -70,12 +83,7 @@ function densityKgM3(material?:MaterialRecord) {
   if(material.densityUnit==="g/cm3") return density*1000;
   return density;
 }
-function suggestedDensity(name:string,grade:string) {
-  const row=MATERIAL_SEEDS.find(item=>(item.name+" "+item.grade).toLowerCase()===(name+" "+grade).toLowerCase())
-    || MATERIAL_SEEDS.find(item=>item.grade.toLowerCase()===grade.toLowerCase())
-    || MATERIAL_SEEDS.find(item=>item.name.toLowerCase()===name.toLowerCase());
-  return row?.density||0;
-}
+
 export default function PartMaterialCostingPanel({scope,companyId="",poId="",poLineId="",componentId,componentName="",componentNumber="",initialPartId="",onNotice}:Props) {
   const {data,update}=useManufacturingData();
   const materials=activeRows(data.materials);
@@ -196,7 +204,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
         {scope==="planned-cost"&&<SearchablePicker id={"planned-material-po-line-"+componentId} label="PO line allocation (optional)" value={selectedPoLineId} placeholder="Optional: assign this material cost to a PO line…" options={relatedPoLines.map(item=>({id:item.line.id,label:item.po.number+" · "+(item.part?(item.part.partNumber?item.part.partNumber+" · ":"")+item.part.name:"Component-level")+" · Qty "+item.line.quantity}))} onChange={id=>{setSelectedPoLineId(id);const selected=relatedPoLines.find(item=>item.line.id===id);if(selected?.line.partId){setTarget("part");selectPart(selected.line.partId);}else if(id){setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");}}}/>}
         <SearchablePicker id={"material-shape-"+scope+"-"+componentId} label="Shape type *" value={shape} placeholder="Search shape / profile…" options={shapeOptions} onChange={setShape}/>
         <div className="module-form-wide ax-material-dimensions"><strong>Dimensions — choose a unit for each dimension</strong><div className="module-record-form">{chosenShape.fields.map(field=><div className="ax-material-dimension" key={field.key}><label>{field.label}{field.unit?" ("+field.unit+")":" *"}<input type="number" min="0" step="any" value={dimensions[field.key]||""} onChange={e=>setDimensions(current=>({...current,[field.key]:e.target.value}))}/></label>{!field.unit&&<select aria-label={field.label+" unit"} value={dimensionUnits[field.key]||"mm"} onChange={e=>setDimensionUnits(current=>({...current,[field.key]:e.target.value}))}>{UNITS.map(unit=><option key={unit}>{unit}</option>)}</select>}</div>)}</div></div>
-        <div className="module-form-wide ax-material-picker"><SearchablePicker id={"material-grade-"+scope+"-"+componentId} label="Material / grade *" value={materialId} placeholder="Search material name, grade or code…" options={materialOptions} onChange={id=>{setMaterialId(id);setNewMaterialOpen(false);const item=materials.find(row=>row.id===id);if(item)setMaterialRate(String(item.ratePerUnit||""));}}/><button type="button" className="button-quiet compact-button" onClick={()=>{setNewMaterialOpen(value=>!value);setMaterialId("");}}><Plus size={13}/> Add material / grade</button></div>
+        <div className="module-form-wide ax-material-picker"><SearchablePicker id={"material-grade-"+scope+"-"+componentId} label="Material / grade *" value={materialId} placeholder="Search material name, grade or code…" options={materialOptions} onChange={id=>{setMaterialId(id);setNewMaterialOpen(false);const item=materials.find(row=>row.id===id);if(item){setMaterialRate(String(item.ratePerUnit||""));setPriceUnit(item.priceUnit||"kg");}}}/><button type="button" className="button-quiet compact-button" onClick={()=>{setNewMaterialOpen(value=>!value);setMaterialId("");}}><Plus size={13}/> Add material / grade</button></div>
         {newMaterialOpen&&<div className="module-form-wide surface-panel ax-material-new-grade"><div className="module-record-form"><label>Material name *<input value={newMaterialName} onChange={e=>setNewMaterialName(e.target.value)} placeholder="MS, brass, copper, aluminium…"/></label><label>Grade *<input value={newMaterialGrade} onChange={e=>setNewMaterialGrade(e.target.value)} placeholder="EN8, EN36, SS304, 6061…"/></label><label>Material code<input value={newMaterialCode} onChange={e=>setNewMaterialCode(e.target.value)} placeholder="Optional stock code"/></label><label>Density *<input type="number" min="0" step="any" value={newDensity} onChange={e=>setNewDensity(e.target.value)} placeholder="e.g. 7850"/></label><label>Density unit<select value={densityUnit} onChange={e=>setDensityUnit(e.target.value as "kg/m3"|"g/cm3")}><option value="kg/m3">kg/m³</option><option value="g/cm3">g/cm³</option></select></label></div></div>}
         <div className="module-form-wide ax-material-density"><span>Selected density</span><strong>{densityDisplay>0?densityDisplay.toLocaleString("en-IN")+" kg/m³":"Density not set"}</strong><small>Density is stored per grade. Values are editable; grade variations must use the supplier / material certificate value.</small></div>
         <label>Quantity (pieces) *<input type="number" min="1" step="1" value={quantity} onChange={e=>setQuantity(e.target.value)}/></label>
