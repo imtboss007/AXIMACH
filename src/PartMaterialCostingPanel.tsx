@@ -185,6 +185,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     if(!vendorId){onNotice?.("Link this material entry to its supplier/vendor before saving.");return;}
     if(target==="part"&&!partName.trim()){onNotice?.("Enter a part name or select an existing part.");return;}
     if(effectivePoLineId&&!relatedPoLines.some(item=>item.line.id===effectivePoLineId)){onNotice?.("The selected PO line does not belong to this component.");return;}
+    if(scope==="process-map"&&anchorOperationId&&!processOptions.some(operation=>operation.id===anchorOperationId)){onNotice?.("Select an active operation from this component route for the procurement position.");return;}
     if(!newMaterialOpen&&!material){onNotice?.("Select a material grade from Material Directory or add a new grade.");return;}
     if(newMaterialOpen&&(!materialName||!newMaterialType.trim()||!materialGrade||density<=0)){onNotice?.("Enter material name, material type, grade and a positive density in kg/m³.");return;}
     if(!Number.isFinite(qty)||qty<=0){onNotice?.("Enter a valid part quantity.");return;}
@@ -194,6 +195,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     let materialRecord=material;
     if(newMaterialOpen){
       const savedGrade=materials.find(row=>row.grade.trim().toLowerCase()===materialGrade.toLowerCase() && (row.materialType||row.name).trim().toLowerCase()===(newMaterialType.trim()||materialName).toLowerCase());
+      if(!savedGrade&&newMaterialCode.trim()&&materials.some(row=>row.code.trim().toLowerCase()===newMaterialCode.trim().toLowerCase())){onNotice?.("That material code is already in the Material Directory. Reuse the saved grade or enter a unique code.");return;}
       materialRecord=savedGrade
         ? {...savedGrade,ratePerUnit:rate,priceUnit,preferredVendorId:vendorId||savedGrade.preferredVendorId,densityKgM3:density,densityUnit:"kg/m3",updatedAt:stamp}
         : {id:makeId("material"),code:newMaterialCode.trim()||makeId("MAT").toUpperCase(),name:materialName,grade:materialGrade,unit:"kg",specification:"Typical room-temperature reference density in kg/m³. Reference tables: https://mlc.org.uk/guides/metal-density-chart and https://calibr.pro/tables/density-of-materials-chart/. Confirm the exact grade and supplier certificate.",preferredVendorId:vendorId,ratePerUnit:rate,notes:"Created from "+scope+" material procurement; density reference is typical only, supplier certificate takes priority.",densityKgM3:density,densityUnit:"kg/m3",materialType:newMaterialType.trim()||materialName,priceUnit,createdAt:stamp,updatedAt:stamp};
