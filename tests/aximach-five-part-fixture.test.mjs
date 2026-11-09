@@ -1593,3 +1593,53 @@ test("expanded process record provides edit and linked custom colour controls wi
   assert.ok(scene.includes('if(operation.status==="Complete")return [.12,.64,.4]'));
   assert.ok(scene.includes("return hexRgb(operation.processColor)"));
 });
+
+
+test("Material Directory calculator supports engineering shapes, units, grade density and separate costs", () => {
+  const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  for (const shape of ["plate", "round-bar", "hex-bar", "round-tube", "square-tube", "rectangular-tube", "angle", "channel", "i-beam", "t-section", "custom-profile"]) {
+    assert.ok(panel.includes('id: "' + shape + '"'), "missing shape " + shape);
+  }
+  for (const unit of ['"mm"', '"cm"', '"m"', '"ft"', '"inch"']) assert.ok(panel.includes(unit));
+  assert.ok(panel.includes("densityKgM3(material"));
+  assert.ok(panel.includes("volumeMm3*densityKgM3"));
+  assert.ok(panel.includes("const materialCost=priceUnit==="));
+  assert.ok(panel.includes('const cuttingCost=!cuttingType?0:'));
+  assert.ok(panel.includes('"Bandsaw"') && panel.includes('"Laser"') && panel.includes('"Gas cut"') && panel.includes('"Waterjet"'));
+  assert.ok(panel.includes('"Per piece"') && panel.includes('"Per cut"') && panel.includes('"Per kg"') && panel.includes('"Per metre"') && panel.includes('"Per hour"') && panel.includes('"Fixed job"'));
+  assert.ok(inventory.includes("densityKgM3") && inventory.includes("priceUnit"));
+});
+
+test("Material calculator is available in Process Map and Component Planned Cost with separate scopes", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const plannedCost = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes('<PartMaterialCostingPanel') && processMap.includes('scope="process-map"'));
+  assert.ok(plannedCost.includes('<PartMaterialCostingPanel') && plannedCost.includes('scope="planned-cost"'));
+  assert.ok(costing.includes("plannedMaterialCostEntries") && costing.includes("processMapMaterialCostEntries"));
+  assert.ok(costing.includes("Unassigned material/cutting") || costing.includes("not assigned to a PO line"));
+  assert.ok(costing.includes("plannedCuttingCost") && costing.includes("processMapCuttingCost"));
+});
+
+test("PO lines support component-only, part-only and mixed component-plus-part allocations", () => {
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  const purchasing = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(data.includes('allocationLevel?: "component" | "part"; partId?: string;'));
+  assert.ok(purchasing.includes('value="component">Component-level'));
+  assert.ok(purchasing.includes('value="part">Part-level'));
+  assert.ok(purchasing.includes("componentParts.filter(part=>part.componentId===line.componentId)"));
+  assert.ok(purchasing.includes('line.allocationLevel === "part" && !componentParts.some'));
+  assert.ok(processMap.includes("selectedPart?.id"));
+});
+
+test("component part and independent material cost records are included in shared sync", () => {
+  const schema = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  const server = readFileSync(new URL("../server/manufacturing-data.mjs", import.meta.url), "utf8");
+  const serverTests = readFileSync(new URL("../server/manufacturing-data.test.mjs", import.meta.url), "utf8");
+  assert.ok(schema.includes("componentParts: ComponentPartRecord[]"));
+  assert.ok(schema.includes("materialCostEntries: MaterialCostEntryRecord[]"));
+  assert.ok(server.includes('"componentParts"') && server.includes('"materialCostEntries"'));
+  assert.ok(serverTests.includes("component parts and material cost streams sync independently"));
+});
