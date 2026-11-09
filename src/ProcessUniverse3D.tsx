@@ -7,7 +7,13 @@ import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
-type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; routeLabels?: Record<string,string>; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onSelectOperation: (id: string) => void; onEditOperation?: (id: string) => void; onChangeProcessColor?: (id: string, color: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
+type MaterialRouteNode = {
+  id:string; partLabel:string; materialLabel:string; quantity:number; weightKg:number;
+  supplier:string; transporter:string; from:string; to:string; vehicle:string;
+  materialGivenAt:string; materialDueAt:string; materialReceivedAt:string;
+  pickupAt:string; deliveryAt:string; status:string; transportCost:number;
+};
+type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; routeLabels?: Record<string,string>; materialRoutes?: MaterialRouteNode[]; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onSelectOperation: (id: string) => void; onEditOperation?: (id: string) => void; onChangeProcessColor?: (id: string, color: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
 function fallbackFor(name: string) {
   const value = name.toLowerCase();
@@ -116,7 +122,7 @@ function transformStyle3d(point: Point3D) {
   return `translate(-50%,-50%) translate3d(${point.x}px,${point.y}px,${point.z}px) rotateY(${yaw}deg) rotateX(${pitch}deg)`;
 }
 
-export default function ProcessUniverse3D({ operations, allOperations, routeLabels = {}, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", ganttScale = "week", onGanttScaleChange, onSelectOperation, onEditOperation, onChangeProcessColor, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
+export default function ProcessUniverse3D({ operations, allOperations, routeLabels = {}, materialRoutes = [], processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", ganttScale = "week", onGanttScaleChange, onSelectOperation, onEditOperation, onChangeProcessColor, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);
   const fieldVisible = (field: string) => visibleFields.includes(field);
@@ -268,6 +274,18 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
     </nav>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
+      {materialRoutes.length>0 && <section className="process-orbit-material-routes" aria-label="Material procurement and inbound transport routes">
+        <div className="process-orbit-material-routes-head"><strong>MATERIAL PROCUREMENT &amp; INBOUND TRANSPORT</strong><span>{materialRoutes.length} saved material movement(s) · material, cutting and transport costs separate</span></div>
+        {materialRoutes.map(route=><article className="process-orbit-material-route" key={route.id}>
+          <div className="process-orbit-material-ident"><small>{route.partLabel}</small><strong>{route.materialLabel}</strong><span>Qty {route.quantity.toLocaleString("en-IN")} · {route.weightKg.toFixed(3)} kg</span></div>
+          <div className="process-orbit-material-flow">
+            <span><small>SUPPLIER</small><strong>{route.supplier}</strong><em>{route.from}</em></span><b aria-hidden="true">→</b>
+            <span><small>TRANSPORTER</small><strong>{route.transporter}</strong><em>{route.vehicle}</em></span><b aria-hidden="true">→</b>
+            <span><small>DELIVERY</small><strong>{route.to}</strong><em>{route.status}</em></span>
+          </div>
+          <div className="process-orbit-material-dates"><span>Given: {route.materialGivenAt||"—"}</span><span>Due: {route.materialDueAt||"—"}</span><span>Received: {route.materialReceivedAt||"—"}</span><span>Pickup: {route.pickupAt||"—"}</span><span>Transport delivery: {route.deliveryAt||"—"}</span><strong>Transport ₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>
+        </article>)}
+      </section>}
       {layoutMode === "gantt" && <div className="process-gantt-toolbar process-gantt-3d-toolbar"><label>Time scale<select value={ganttScale} onChange={event => onGanttScaleChange?.(event.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>3D SCHEDULE · {displayOperations.length} PROCESS STEPS · DRAG TO ROTATE</span></div>}
       {/* Branch-aware route connectors: orbitConnections.edges.map is rendered by the WebGL scene in shared camera space. */}
       <ProcessScene3D operations={displayOperations} mode={layoutMode} selectedOperationId={selectedOperationId} expandedOperationId={expandedOperationId} onSelectOperation={onSelectOperation} onExpandOperation={(id)=>setExpandedOperationId(id)} edges={orbitConnections.edges} coordinateOperations={coordinateOperations} anchors={orbitConnections.anchors} catalogue={showCatalogueOrbit ? processDefinitions : undefined} onAddCatalogue={onAddProcessDefinition} showArrows={showArrows} vendors={vendors} quantityUnit={quantityUnit} ganttScale={ganttScale} />
