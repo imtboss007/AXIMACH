@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Truck } from "lucide-react";
 import type { OperationRecord } from "./manufacturingData";
 
 type Mode = "sphere"|"vortex"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined"|"cube"|"molecular"|"orbit"|"digital-mesh"|"route"|"helix"|"stacked"|"pipeline"|"network"|"grid";
 type CatalogueDefinition = { id:string; processType:string; category:string; displayColor?:string };
 type RouteAnchor = { operation:OperationRecord; relation:"main"|"alternate"|"rework"; color:string };
 type MaterialRouteNode = { id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
+type TransportLegNode = { id:string; poLineId:string; anchorOperationId:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; relation:"main"|"alternate"|"rework" };
 
-type Props = { operations: OperationRecord[]; materialRoutes?: MaterialRouteNode[]; visibleFields?:string[]; autoRotate?: boolean; mode: Mode; selectedOperationId: string; expandedOperationId?: string; onSelectOperation: (id:string)=>void; onExpandOperation?:(id:string)=>void; onArrowSelect?:(id:string)=>void; edges?:Array<{from:OperationRecord;to:OperationRecord;relation:string;color:string}>; coordinateOperations?:OperationRecord[]; anchors?:RouteAnchor[]; catalogue?:CatalogueDefinition[]; onAddCatalogue?:(id:string)=>void; showArrows?: boolean; vendors?:Array<{id:string;company:string}>; quantityUnit?:string; ganttScale?:"day"|"week"|"month" };
+type Props = { operations: OperationRecord[]; materialRoutes?: MaterialRouteNode[]; transportLegs?:TransportLegNode[]; visibleFields?:string[]; autoRotate?: boolean; mode: Mode; selectedOperationId: string; expandedOperationId?: string; onSelectOperation: (id:string)=>void; onExpandOperation?:(id:string)=>void; onArrowSelect?:(id:string)=>void; onSelectTransportLeg?:(id:string)=>void; edges?:Array<{from:OperationRecord;to:OperationRecord;relation:string;color:string}>; coordinateOperations?:OperationRecord[]; anchors?:RouteAnchor[]; catalogue?:CatalogueDefinition[]; onAddCatalogue?:(id:string)=>void; showArrows?: boolean; vendors?:Array<{id:string;company:string}>; quantityUnit?:string; ganttScale?:"day"|"week"|"month" };
 const EMPTY_CATALOGUE: CatalogueDefinition[] = [];
 
 type P = {x:number;y:number;z:number};
@@ -106,7 +108,7 @@ function operationCode(operation:OperationRecord):string{
  return "OP-"+String(operation.sequence).padStart(3,"0")+(relation?" · "+relation:"");
 }
 type ProjectedPoint={x:number;y:number;z:number};
-type LabelCandidate={id:string;screen:ProjectedPoint;kind:"operation"|"material"|"transport"};
+type LabelCandidate={id:string;screen:ProjectedPoint;kind:"operation"|"material"|"transport"|"transportLeg"};
 function relaxLabels(items:LabelCandidate[],width:number,height:number){
  const cardWidth=width<600?Math.min(166,width*.44):Math.min(220,width*.36);
  const cardHeight=width<600?188:190;
@@ -142,7 +144,7 @@ const SPHERE_GUIDE_MESH = sphereWireMesh(1.025);
 const SPHERE_ORBIT_MESH = sphereOrbitMesh();
 function pointFor(i:number,n:number,mode:Mode):P{const t=(i+0.5)/Math.max(1,n),a=i*2.399963;const c=i-(n-1)/2;switch(mode){case"route":case"linear":case"horizontal":case"pipeline":return{x:c*.72,y:Math.sin(i*.7)*.16,z:Math.cos(i*.5)*.18};case"vertical":return{x:Math.cos(a)*.34,y:-c*.64,z:Math.sin(a)*.34};case"timeline":case"gantt":return{x:(t-.5)*2.5,y:Math.sin(i*.8)*.12,z:Math.cos(i*.6)*.28};case"cube":{const s=Math.ceil(Math.cbrt(n));return{x:((i%s)-(s-1)/2)*.72,y:((Math.floor(i/s)%s)-(s-1)/2)*.72,z:(Math.floor(i/(s*s))-(s-1)/2)*.72};}case"vortex":{const r=.35+t*.72;return{x:Math.cos(a)*r,y:(t-.5)*1.7,z:Math.sin(a)*r};}case"molecular":case"network":return{x:Math.cos(Math.floor(i/3)*2.1)*.55+Math.cos(a)*.25,y:Math.sin(i*.8)*.35,z:Math.sin(Math.floor(i/3)*2.1)*.55+Math.sin(a)*.25};case"orbit":{const r=.42+(i%3)*.28;return{x:Math.cos(a)*r,y:Math.sin(i*.65)*.42,z:Math.sin(a)*r};}case"nodes":return{x:(i%3-1)*.8,y:(Math.floor(i/3)-(Math.ceil(n/3)-1)/2)*.65,z:(i%2?1:-1)*.24};case"branch":return{x:c*.55,y:(i%3-1)*.25,z:(i%2?1:-1)*.52};case"digital-mesh":case"grid":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=row%2?cols-1-i%cols:i%cols;return{x:(col-(cols-1)/2)*.58,y:((Math.ceil(n/cols)-1)/2-row)*.55,z:Math.sin(i*.45)*.12};}case"helix":{const radius=.48+(i%3)*.08;return{x:Math.cos(i*1.08)*radius,y:(t-.5)*2.05,z:Math.sin(i*1.08)*radius};}case"stacked":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=i%cols,rows=Math.ceil(n/cols);return{x:(col-(cols-1)/2)*.7,y:((rows-1)/2-row)*.68,z:(i%3-1)*.48};}case"combined":return{x:Math.cos(a)*(.4+t*.6),y:Math.sin(i*.9)*.5,z:Math.sin(a)*(.4+t*.6)};default:{const y=1-2*t,r=Math.sqrt(1-y*y);return{x:Math.cos(a)*r*.9,y:y*.9,z:Math.sin(a)*r*.9};}}}
 
-export default function ProcessScene3D({operations,materialRoutes=[],visibleFields=[],autoRotate=true,mode,selectedOperationId,expandedOperationId="",onSelectOperation,onExpandOperation,onArrowSelect,edges=[],coordinateOperations=[],anchors=[],catalogue=EMPTY_CATALOGUE,onAddCatalogue,showArrows=true,vendors=[],quantityUnit="pieces",ganttScale="week"}:Props){
+export default function ProcessScene3D({operations,materialRoutes=[],transportLegs=[],visibleFields=[],autoRotate=true,mode,selectedOperationId,expandedOperationId="",onSelectOperation,onExpandOperation,onArrowSelect,onSelectTransportLeg,edges=[],coordinateOperations=[],anchors=[],catalogue=EMPTY_CATALOGUE,onAddCatalogue,showArrows=true,vendors=[],quantityUnit="pieces",ganttScale="week"}:Props){
  const canvas=useRef<HTMLCanvasElement>(null),[angle,setAngle]=useState(0),rotationRef=useRef(0),[dragging,setDragging]=useState(false),drag=useRef<{x:number;y:number;angle:number}|null>(null),[size,setSize]=useState({w:600,h:500});
  const rows=useMemo(()=>operations.slice().sort((a,b)=>a.sequence-b.sequence),[operations]);
  const geometryRows=useMemo(()=>{const byId=new Map<string,OperationRecord>();for(const op of (coordinateOperations.length?coordinateOperations:rows))byId.set(op.id,op);for(const anchor of anchors)byId.set(anchor.operation.id,anchor.operation);return [...byId.values()].sort((a,b)=>a.sequence-b.sequence);},[coordinateOperations,rows,anchors]);
@@ -167,6 +169,24 @@ export default function ProcessScene3D({operations,materialRoutes=[],visibleFiel
   else{materialPoint={x:-.98,y:-.55+lane,z:.30};transportPoint={x:-.62,y:-.60+lane,z:.34};}
   return {route,index,fromOperation,toOperation,materialPoint,transportPoint};
  }),[materialRoutes,geometryRows,geometryPoints]);
+ const transportLegPlacements=useMemo(()=>transportLegs.map((leg,index)=>{
+  const anchor=leg.anchorOperationId?geometryRows.find(operation=>operation.id===leg.anchorOperationId):undefined;
+  const branch=anchor?.branch||"Main route";
+  const lineRows=geometryRows.filter(operation=>operation.poLineId===leg.poLineId&&(operation.branch||"Main route")===branch&&operation.relationType!=="subprocess").sort((a,b)=>a.sequence-b.sequence);
+  const anchorIndex=anchor?lineRows.findIndex(operation=>operation.id===anchor.id):-1;
+  const fromOperation=leg.placement==="start"?undefined:leg.placement==="before"?(anchorIndex>0?lineRows[anchorIndex-1]:undefined):anchor;
+  const toOperation=leg.placement==="start"?lineRows[0]:leg.placement==="before"?anchor:(anchorIndex>=0?lineRows[anchorIndex+1]:undefined);
+  const fromPoint=fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined;
+  const toPoint=toOperation?geometryPoints.find(item=>item.op.id===toOperation.id)?.p:undefined;
+  const siblings=transportLegs.filter(other=>other.poLineId===leg.poLineId&&other.anchorOperationId===leg.anchorOperationId&&other.placement===leg.placement);
+  const lane=(siblings.findIndex(other=>other.id===leg.id)-(siblings.length-1)/2)*.17;
+  let point:P;
+  if(fromPoint&&toPoint)point={x:(fromPoint.x+toPoint.x)/2,y:(fromPoint.y+toPoint.y)/2+lane,z:(fromPoint.z+toPoint.z)/2+.16};
+  else if(toPoint)point={x:toPoint.x-.34,y:toPoint.y+.22+lane,z:toPoint.z+.18};
+  else if(fromPoint)point={x:fromPoint.x+.34,y:fromPoint.y+.22+lane,z:fromPoint.z+.18};
+  else point={x:-.8+lane,y:-.65,z:.32};
+  return {leg,index,fromOperation,toOperation,point};
+ }),[transportLegs,geometryRows,geometryPoints]);
  const points=useMemo(()=>rows.map(op=>geometryPoints.find(item=>item.op.id===op.id)).filter((item):item is {op:OperationRecord;p:P}=>!!item),[rows,geometryPoints]);
  const anchorPoints=useMemo(()=>anchors.filter(anchor=>!rows.some(op=>op.id===anchor.operation.id)).map(anchor=>({anchor,point:geometryPoints.find(item=>item.op.id===anchor.operation.id)?.p})).filter((item):item is {anchor:RouteAnchor;point:P}=>!!item),[anchors,rows,geometryPoints]);
  const cataloguePoints=useMemo(()=>catalogue.map((definition,index)=>({definition,p:pointFor(index,catalogue.length,mode)})),[catalogue,mode]);
