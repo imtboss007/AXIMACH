@@ -1508,7 +1508,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 return <><div className="process-route-layout-toolbar"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><RouteConnectorLegend compact/></div><div className="process-route-flow-track" data-route-layout={routeLayout}>{routeNodes.map((item,index)=>{
                   const next=routeNodes[index+1];
                   const isTransport=item.kind==="transport"||item.kind==="material-transport"||next?.kind==="transport"||next?.kind==="material-transport";
-                  const arrowColor=isTransport?"#1cc8e5":routeColor;
+                  const fromOperation=item.kind==="operation"?item.operation:undefined;
+                  const toOperation=next?.kind==="operation"?next.operation:undefined;
+                  const savedRelationship=fromOperation&&toOperation?activeRows(data.routeRelationships||[]).find(link=>link.poId===poId&&link.poLineId===lineId&&link.fromOperationId===fromOperation.id&&link.toOperationId===toOperation.id&&link.status!=="Disabled"):undefined;
+                  const routeRelationshipType=savedRelationship?.relationshipType||(rework?"rework":branchRoot||branch!=="Main route"?"alternate":"main");
+                  const routeRelationshipColors:Record<string,string>={main:"#12b9d5",alternate:"#d99a27",rework:"#df4d59",dependency:"#347de5",parallel:"#9848d6",merge:"#9e4bc9",split:"#3d79df","follow-on":"#173c6c",feedback:"#455bd6",conditional:"#9954ce",successor:"#203e62"};
+                  const arrowColor=isTransport?"#1cc8e5":routeRelationshipColors[routeRelationshipType]||routeColor;
                   if(item.kind==="material"){
                     const entry=item.entry;
                     return <div className="process-route-flow-step process-route-flow-material" key={item.id}>
@@ -1520,7 +1525,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                         <small>Supplier · {vendors.find(vendor=>vendor.id===entry.vendorId)?.company||"Not assigned"}</small>
                         <em>{money(entry.materialCost)} material</em>
                       </div>
-                      {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport":"")} style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
+                      {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport ":"")+"is-"+routeRelationshipType} style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
                     </div>;
                   }
                   if(item.kind==="material-transport"){
@@ -1550,7 +1555,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                       <em style={{background:processColor}}>{operation.category||"Process"}</em>{operation.subcategory&&<small className="process-route-flow-subcategory">SUB · {operation.subcategory}</small>}
                       <small>Qty {operation.quantity.toLocaleString("en-IN")} · {vendors.find(vendor=>vendor.id===operation.vendorId)?.company||"Vendor not assigned"}</small>
                     </button>
-                    {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport":"")} style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
+                    {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport ":"")+"is-"+routeRelationshipType} style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
                   </div>;
                 })}</div></>;
               })()}
