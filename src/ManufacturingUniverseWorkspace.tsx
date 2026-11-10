@@ -218,6 +218,31 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         onSelectMaterialTransport={id=>setInspectedMaterialTransportId(id)}
       />:<div className="manufacturing-universe-empty"><Network size={34}/><strong>No saved manufacturing route for this PO line</strong><span>Add material allocations and process steps first. The universe does not invent placeholder operations.</span><div><button className="button-primary" onClick={()=>onNavigate("route-flow")}><Route size={14}/> Open Route Flow</button><button className="button-quiet" onClick={()=>onNavigate("process-map")}><Workflow size={14}/> Open Process Plan</button></div></div>}
     </section>
+    {inspectedMaterialTransportEntry&&<MaterialTransportRecordInspector
+      entry={inspectedMaterialTransportEntry}
+      vendor={inspectedMaterialTransportVendor}
+      directoryRoute={inspectedMaterialTransportRoute}
+      onClose={()=>setInspectedMaterialTransportId("")}
+      onOpenDirectory={()=>{setInspectedMaterialTransportId("");onNavigate("transport-master",activeOperation);}}
+    />}
+    {inspectedTransportLeg&&<TransportRecordInspector
+      leg={inspectedTransportLeg}
+      vendor={inspectedTransportVendor}
+      directoryRoute={inspectedTransportRoute}
+      legacyVendorRoute={inspectedLegacyVendorRoute}
+      onClose={()=>setInspectedTransportId("")}
+      onOpenDirectory={()=>{setInspectedTransportId("");onNavigate("transport-master",activeOperation);}}
+    />}
+    {showAddOperation&&<OperationQuickCreate
+      poId={poId} poLineId={poLineId} componentId={componentId}
+      sequence={Math.max(0,...allRouteOperations.map(row=>row.sequence))+1}
+      branch="Main route" vendors={vendors.map(row=>({id:row.id,company:row.company}))}
+      onSave={saveNewOperation} onCancel={()=>setShowAddOperation(false)}
+    />}
+    {editingOperation&&<OperationInlineEditor
+      operation={editingOperation} vendors={vendors.map(row=>({id:row.id,company:row.company}))}
+      onSave={saveInlineOperation} onCancel={()=>setEditingOperation(null)}
+    />}
     <section className="manufacturing-universe-module-links">
       <div className="manufacturing-universe-links-head"><div><span className="eyebrow">CONNECTED WORKSPACES</span><h2>Edit the live records from their source modules</h2><p>Changes made in a source module flow back into this universe through AXIMACH's shared manufacturing data.</p></div></div>
       <div className="manufacturing-universe-links-grid">{linkModules.filter(item=>visibleUniverseModules.includes(item.id)).map(item=>{const Icon=item.icon;return <button key={item.id} onClick={()=>onNavigate(item.id,activeOperation)}><span><Icon size={17}/></span><strong>{item.title}</strong><small>{item.meta}</small><ArrowRight size={14}/></button>;})}</div>
