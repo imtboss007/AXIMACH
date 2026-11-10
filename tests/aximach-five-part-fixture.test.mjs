@@ -2130,3 +2130,21 @@ test("Both engineering workspaces share persistent light, medium, dark and ocean
   assert.ok(hook.includes("aximach.workspaceTheme.v1"));
   assert.ok(hook.includes("localStorage.setItem"));
 });
+
+
+test("Inbound material transport icons open the complete transporter directory inspector in both workspaces", () => {
+  const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  const universe3d=readFileSync(new URL("../src/ProcessUniverse3D.tsx",import.meta.url),"utf8");
+  const scene=readFileSync(new URL("../src/ProcessScene3D.tsx",import.meta.url),"utf8");
+  const inspector=readFileSync(new URL("../src/MaterialTransportRecordInspector.tsx",import.meta.url),"utf8");
+  assert.ok(route.includes("MaterialTransportRecordInspector"));
+  assert.ok(route.includes("setInspectedMaterialTransportId(node.entry.id)"));
+  assert.ok(universe.includes("MaterialTransportRecordInspector"));
+  assert.ok(universe.includes("onSelectMaterialTransport={id=>setInspectedMaterialTransportId(id)}"));
+  assert.ok(universe3d.includes("onSelectMaterialTransport"));
+  assert.ok(universe3d.includes("onSelectMaterialTransport={onSelectMaterialTransport}"));
+  assert.ok(scene.includes("INBOUND TRANSPORT DIRECTORY"));
+  assert.ok(scene.includes("onSelectMaterialTransport?.(route.id)"));
+  for(const field of ["entry.materialName","entry.materialGrade","entry.transportFrom","entry.transportTo","entry.transportPickupAt","entry.transportDeliveryAt","entry.transportCost","vendor?.phone","vendor?.whatsappNumber","vendor?.email","directoryRoute?.fixedCost"]) assert.ok(inspector.includes(field));
+});
