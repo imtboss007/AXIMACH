@@ -2757,3 +2757,17 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .route-flow-matrix-row{grid-template-columns:minmax(0,1fr) 36px minmax(0,1fr) minmax(82px,auto);min-width:350px}
  .route-flow-matrix-arrow{width:36px}
 }
+
+/* Full Route Flow relationship cross-links for non-adjacent saved process pairs. */
+.route-flow-stage-scroll{position:relative}
+.route-flow-relationship-overlay{position:absolute;left:0;top:0;z-index:1;display:block;overflow:visible;pointer-events:none}
+.route-flow-relationship-overlay .route-flow-curve-path{stroke-width:3.5;filter:drop-shadow(0 2px 3px rgba(26,61,99,.2))}
+.route-flow-relationship-overlay .route-flow-curve-shadow{stroke-width:9;opacity:.18}
+.route-flow-relationship-overlay .route-flow-curve-head{stroke-width:3.5}
+.route-flow-overlay-label{font:700 8px 'DM Mono',monospace;fill:currentColor;text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
+.route-flow-stage-track{position:relative;z-index:2}
+.route-flow-stage-card{z-index:2}
+@media(max-width:760px){
+ .route-flow-relationship-overlay .route-flow-curve-path{stroke-width:3}
+ .route-flow-overlay-label{font-size:7px}
+}
