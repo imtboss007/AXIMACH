@@ -4,6 +4,7 @@ import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type Op
 import ProcessUniverse3D from "./ProcessUniverse3D";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import OperationInlineEditor from "./OperationInlineEditor";
+import OperationQuickCreate from "./OperationQuickCreate";
 
 type NavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
 type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void };
@@ -17,6 +18,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const workspaceRef=useRef<HTMLElement|null>(null);
   const [selectedOperationId,setSelectedOperationId]=useState("");
   const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
+  const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
   const [zoom,setZoom]=useState(1),[simulationIndex,setSimulationIndex]=useState(-1);
   const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
@@ -113,6 +115,12 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   ];
   const universeFieldOptions=[["company","Company"],["po","Purchase order"],["component","Component / part"],["category","Process category"],["subcategory","Sub-process"],["quantity","Quantity"],["vendor","Process vendor"],["plannedStart","Planned start"],["plannedEnd","Delivery / due date"],["price","Rate"],["amount","Process amount"],["status","Process status"],["transportVendor","Transporter"],["transportRoute","Transport route"],["vehicle","Vehicle type"],["transportPickup","Pickup time"],["transportDelivery","Delivery time"],["transportLegCost","Transport cost"],["combinedAmount","Combined amount"],["materialShape","Material shape"],["materialDensity","Material density"],["materialQuantity","Material quantity"],["materialWeight","Material weight"],["materialVendor","Material supplier"],["materialGiven","Material given date"],["materialDelivery","Material due date"],["materialReceived","Material received"],["materialCost","Material cost"],["materialCuttingCost","Cutting cost"],["materialTransportCost","Material transport cost"]] as const;
   const syncText=syncStatus==="synced"?"Live server sync":syncStatus==="syncing"?"Syncing shared data":syncStatus==="error"?"Sync error":"Local records";
+  const saveNewOperation=(operation:OperationRecord)=>{
+    update(current=>({...current,operations:[...current.operations,operation]}));
+    setSelectedOperationId(operation.id);
+    setShowAddOperation(false);
+    onNotice("New process stage added to the selected PO line and shared Manufacturing Universe.");
+  };
   const saveInlineOperation=(patch:Partial<OperationRecord>)=>{
     if(!editingOperation)return;
     const id=editingOperation.id;
@@ -154,7 +162,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     <section className="manufacturing-universe-customizer"><div className="manufacturing-universe-customizer-head"><div><span className="eyebrow">UNIVERSE DISPLAY CONTROLS</span><strong>Choose what appears in this live view</strong><small>These are view preferences only. They do not delete or change source records.</small></div><button className="button-quiet compact-button" onClick={()=>setShowUniverseSettings(value=>!value)}><Settings2 size={14}/>{showUniverseSettings?"Hide display settings":"Customize view"}</button></div>{showUniverseSettings&&<div className="manufacturing-universe-customizer-body"><div><strong>Live scene information</strong><div className="manufacturing-universe-toggle-grid">{universeFieldOptions.map(([id,label])=><label key={id}><input type="checkbox" checked={visibleUniverseFields.includes(id)} onChange={event=>setVisibleUniverseFields(current=>event.target.checked?[...current,id]:current.filter(value=>value!==id))}/><span>{label}</span></label>)}</div></div><div><strong>Connected module shortcuts</strong><div className="manufacturing-universe-toggle-grid">{linkModules.map(item=><label key={item.id}><input type="checkbox" checked={visibleUniverseModules.includes(item.id)} onChange={event=>setVisibleUniverseModules(current=>event.target.checked?[...current,item.id]:current.filter(value=>value!==item.id))}/><span>{item.title}</span></label>)}</div></div><div className="manufacturing-universe-customizer-actions"><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields(universeFieldOptions.map(([id])=>id));setVisibleUniverseModules(linkModules.map(item=>item.id));}}>Show all</button><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields([]);setVisibleUniverseModules([]);}}>Clear optional display items</button></div></div>}</section>
     <div className="manufacturing-universe-stat-grid">{stats.filter(item=>visibleUniverseModules.includes(item.module)).map(item=>{const Icon=item.icon;return <button key={item.label} onClick={()=>onNavigate(item.module,activeOperation)}><Icon size={16}/><strong>{item.value.toLocaleString("en-IN")}</strong><small>{item.label}</small></button>;})}</div>
     <section className="manufacturing-universe-live-panel">
-      <div className="manufacturing-universe-live-heading"><div><span className="eyebrow">LIVE MANUFACTURING SCENE · WEBGL</span><h2>Manufacturing process universe</h2><p>Sphere, cube, vortex, helix, orbit, network, grid, pipeline, layered, stacked, matrix and tree views use the selected live PO-line data.</p></div><span className="manufacturing-universe-live-state"><i/> LIVE RECORDS</span></div>
+      <div className="manufacturing-universe-live-heading"><div><span className="eyebrow">LIVE MANUFACTURING SCENE · WEBGL</span><h2>Manufacturing process universe</h2><p>Sphere, cube, vortex, helix, orbit, network, grid, pipeline, layered, stacked, matrix and tree views use the selected live PO-line data.</p></div><div className="manufacturing-universe-live-tools"><button className="button-primary compact-button" disabled={!poId||!poLineId||!componentId} onClick={()=>setShowAddOperation(value=>!value)}><Activity size={14}/> Add process stage</button><span className="manufacturing-universe-live-state"><i/> LIVE RECORDS</span></div></div>
       {(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0||definitions.length>0)?<ProcessUniverse3D
         key={poLineId}
         operations={routeOperations.filter(row=>row.relationType!=="subprocess")}
