@@ -1535,13 +1535,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                     const anchor=lane.find(op=>op.id===leg.anchorOperationId);
                     const legRelation=anchor?.relationType==="rework"?"rework":anchor?.relationType==="alternate"?"alternate":"main";
                     return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
-                      <button type="button" className="process-route-flow-transport-card" onClick={()=>editTransportLeg(leg)} title="Edit this transport connection">
-                        <Truck size={18}/><small>TRANSPORT LEG · {leg.placement||"start"}</small>
+                      <div className="process-route-flow-transport-card">
+                        <button type="button" className={"ax-transport-icon-trigger vehicle-"+String(leg.vehicleType||"truck").toLowerCase().replace(/[^a-z]+/g,"-")} aria-label="Open transport popup" title="Transport details" onClick={event=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><Truck size={17}/></button>
+                        <small>TRANSPORT LEG · {leg.placement||"start"}</small>
                         <strong>{transporter}</strong>
                         <small>{leg.fromLocation||"From not set"} → {leg.toLocation||"To not set"}</small>
                         <small>{leg.vehicleType||"Vehicle not set"} · {leg.tripDirection}</small>
                         <em>{leg.tripCount} carry / trip(s) · {money(leg.fixedAmount*leg.tripCount)}</em>
-                      </button>
+                      </div>
                       {next&&<span className={"process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
                     </div>;
                   }
