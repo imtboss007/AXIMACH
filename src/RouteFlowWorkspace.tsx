@@ -220,6 +220,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
 
     <section className="route-flow-canvas-panel">
       <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button></div></div>
+      <div className="route-flow-canvas-layout"><div className="route-flow-map-main">
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:
       <div className="route-flow-stage-scroll"><div className="route-flow-stage-track">
         {routeNodes.map((node,index)=>{
@@ -236,7 +237,25 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           </div>;
         })}
       </div></div>}
-      <div className="route-flow-legend">{RELATIONSHIPS.map(item=><span key={item.id} className={"route-flow-legend-item route-flow-curve-"+item.id}><i/>{item.label}</span>)}<span className="route-flow-legend-item route-flow-curve-transport"><Truck size={13}/> Transport leg</span></div>
+      </div><aside className="route-flow-relationship-panel">
+        <div><span className="eyebrow">ROUTE DESIGN TOOLKIT</span><h3>Relationship Types (11)</h3></div>
+        <div className="route-flow-relationship-types">
+          {RELATIONSHIPS.map(item=><button type="button" key={item.id} className={"route-flow-relationship-type route-flow-curve-"+item.id+(relationshipType===item.id?" is-selected":"")} onClick={()=>{setRelationshipType(item.id);setShowRelationshipEditor(true);}}>
+            <span className="route-flow-type-swatch" aria-hidden="true"/>
+            <span><strong>{item.label}</strong><small>{item.description}</small></span>
+          </button>)}
+        </div>
+        <div className="route-flow-relationship-matrix"><h4>RELATIONSHIP MATRIX · {relationships.length}</h4>
+          {relationships.length?relationships.map(link=><div className="route-flow-matrix-row" key={link.id}>
+            <strong title={processName(link.fromOperationId)}>{processName(link.fromOperationId)}</strong>
+            <strong title={processName(link.toOperationId)}>{processName(link.toOperationId)}</strong>
+            <em title={relationLabel(link.relationshipType)}>{relationLabel(link.relationshipType)} · {link.status}</em>
+          </div>):<div className="route-flow-matrix-empty">No explicit relationship links saved yet. Select a relationship type above to connect two process stages.</div>}
+        </div>
+        <button type="button" className="button-primary compact-button" onClick={()=>setShowRelationshipEditor(true)}><GitBranch size={14}/> Add selected relationship</button>
+      </aside></div>
+      <div className="route-flow-legend">
+{RELATIONSHIPS.map(item=><span key={item.id} className={"route-flow-legend-item route-flow-curve-"+item.id}><i/>{item.label}</span>)}<span className="route-flow-legend-item route-flow-curve-transport"><Truck size={13}/> Transport leg</span></div>
     </section>
 
     {showTransportEditor&&<section className="route-flow-editor-panel">
