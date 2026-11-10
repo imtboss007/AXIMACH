@@ -3,7 +3,7 @@ import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
   ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge, GitBranch, Network, Route,
-  GitBranch, HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
+  HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
   Package, Pause, Play, Plug, Plus, RotateCcw, ScanLine, Search, Settings2,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Truck, Users,
   Wallet, Workflow, Wrench, X, Zap
