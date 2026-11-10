@@ -90,6 +90,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [relationshipCondition,setRelationshipCondition]=useState("");
   const [relationshipNotes,setRelationshipNotes]=useState("");
   const [transportFromOperationId,setTransportFromOperationId]=useState("");
+  const [transportFromMaterialId,setTransportFromMaterialId]=useState("");
   const [transportToOperationId,setTransportToOperationId]=useState("");
   const [transportVendorId,setTransportVendorId]=useState("");
   const [transportRouteId,setTransportRouteId]=useState("");
@@ -146,16 +147,17 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       nodes.push({kind:"material",id:"material-"+entry.id,entry});
       if(entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||Number(entry.transportCost)>0||entry.transportPickupAt||entry.transportDeliveryAt)
         nodes.push({kind:"material-transport",id:"material-transport-"+entry.id,entry});
+      routeLegs.filter(leg=>leg.materialEntryId===entry.id).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
     };
-    const startLegs=routeLegs.filter(leg=>(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start");
+    const startLegs=routeLegs.filter(leg=>!leg.materialEntryId&&(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start");
     startLegs.forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
     const initialMaterials=routeMaterials.filter(entry=>!entry.anchorOperationId);
     if(!initialMaterials.length&&!lane.length)nodes.push({kind:"missing-material",id:"missing-material"});
     initialMaterials.forEach(addMaterial);
     lane.forEach(operation=>{
-      routeLegs.filter(leg=>leg.placement==="before"&&leg.anchorOperationId===operation.id).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+      routeLegs.filter(leg=>!leg.materialEntryId&&leg.placement==="before"&&leg.anchorOperationId===operation.id).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
       nodes.push({kind:"operation",id:operation.id,operation});
-      routeLegs.filter(leg=>(leg.placement||"after")==="after"&&leg.anchorOperationId===operation.id).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+      routeLegs.filter(leg=>!leg.materialEntryId&&(leg.placement||"after")==="after"&&leg.anchorOperationId===operation.id).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
       routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(addMaterial);
     });
     return nodes;
@@ -210,7 +212,8 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   };
   const saveTransportLeg=()=>{
     const from=routeOperations.find(row=>row.id===transportFromOperationId),to=routeOperations.find(row=>row.id===transportToOperationId);
-    if(!from||!to||from.id===to.id){onNotice("Choose the process that sends the item and the process that receives it.");return;}
+    const fromMaterial=routeMaterials.find(row=>row.id===transportFromMaterialId);
+    if(!to||(!from&&!fromMaterial)||(from&&fromMaterial)||from?.id===to.id){onNotice("Choose one source: a material allocation or a sending process, then choose the receiving process.");return;}
     if(!transportFrom.trim()||!transportTo.trim()){onNotice("Enter both From and To locations. You can select a known location or type a new one.");return;}
     const count=Math.max(1,Math.floor(Number(tripCount)||1)),amount=Math.max(0,Number(transportAmount)||0);
     const stamp=nowIso(),route=selectedTransportRoute;
@@ -220,12 +223,12 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       sequence:Math.max(0,...routeLegs.map(leg=>leg.sequence||0))+10,
       routeId:route?.id||"",vendorId,fromLocation:transportFrom.trim(),toLocation:transportTo.trim(),
       tripDirection:route?.tripDirection||tripDirection,vehicleType:vehicleType.trim()||route?.vehicleType||"Vehicle not set",
-      fixedAmount:route?.fixedAmount??amount,tripCount:count,anchorOperationId:from.id,targetOperationId:to.id,
-      placement:"after",pickupAt,deliveryAt,status:"Planned",notes:transportNotes.trim(),createdAt:stamp,updatedAt:stamp
+      fixedAmount:route?.fixedAmount??amount,tripCount:count,anchorOperationId:from?.id||"",targetOperationId:to.id,
+      materialEntryId:fromMaterial?.id,placement:fromMaterial?"start":"after",pickupAt,deliveryAt,status:"Planned",notes:transportNotes.trim(),createdAt:stamp,updatedAt:stamp
     };
     update(current=>({...current,transportLegs:[...(current.transportLegs||[]),record]}));
-    setTransportRouteId("");setTransportAmount("");setTransportNotes("");setPickupAt("");setDeliveryAt("");setShowTransportEditor(false);
-    onNotice("Transport leg added between "+from.name+" and "+to.name+". Add another leg to show another carrier or vehicle on the same connection.");
+    setTransportRouteId("");setTransportAmount("");setTransportNotes("");setPickupAt("");setDeliveryAt("");setTransportFromOperationId("");setTransportFromMaterialId("");setShowTransportEditor(false);
+    onNotice("Transport leg added from "+(fromMaterial?fromMaterial.materialName+" · "+fromMaterial.materialGrade:from?.name)+" to "+to.name+". Add another leg to assign another carrier or vehicle without replacing this record.");
   };
   const openProcessMap=()=>onSelectModule("process-map",{companyId,poId,poLineId,componentId});
   const saveNewOperation=(operation:OperationRecord)=>{
@@ -419,7 +422,8 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     {showTransportEditor&&<section className="route-flow-editor-panel">
       <div className="route-flow-editor-title"><div><span className="eyebrow">TRANSPORT DIRECTORY · MULTIPLE CARRIERS SUPPORTED</span><h3>Add a transport leg between two process stages</h3></div><button className="close-round compact" onClick={()=>setShowTransportEditor(false)}><X size={16}/></button></div>
       <div className="route-flow-editor-grid">
-        <label>From process<select value={transportFromOperationId} onChange={e=>setTransportFromOperationId(e.target.value)}><option value="">Select sending process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
+        <label>From process<select value={transportFromOperationId} onChange={e=>{setTransportFromOperationId(e.target.value);if(e.target.value)setTransportFromMaterialId("");}}><option value="">Select sending process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
+        <label>Or source material<select value={transportFromMaterialId} onChange={e=>{setTransportFromMaterialId(e.target.value);if(e.target.value)setTransportFromOperationId("");}}><option value="">No material source selected</option>{routeMaterials.map(row=><option key={row.id} value={row.id}>{row.partNumber||row.partName||"Part"} · {row.materialName} {row.materialGrade} · Qty {row.quantity}</option>)}</select></label>
         <label>To process<select value={transportToOperationId} onChange={e=>setTransportToOperationId(e.target.value)}><option value="">Select receiving process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
         <label>Transport vendor<select value={transportVendorId} onChange={e=>{setTransportVendorId(e.target.value);setTransportRouteId("");}}><option value="">Select a carrier…</option>{vendors.map(v=><option key={v.id} value={v.id}>{v.company} · {v.phone||"No phone"}</option>)}</select></label>
         <label>Saved route<select value={transportRouteId} onChange={e=>{setTransportRouteId(e.target.value);const r=transportChoices.find(item=>item.id===e.target.value);if(r){setTransportVendorId(r.vendorId);setTransportFrom(r.fromLocation);setTransportTo(r.toLocation);setVehicleType(r.vehicleType);setTripDirection(r.tripDirection);setTransportAmount(String(r.fixedAmount));}}}><option value="">Choose a saved route or enter new locations…</option>{transportChoices.filter(r=>!transportVendorId||r.vendorId===transportVendorId).map(r=><option key={r.id} value={r.id}>{r.fromLocation} → {r.toLocation} · {r.vehicleType} · {money(r.fixedAmount)}</option>)}</select></label>
