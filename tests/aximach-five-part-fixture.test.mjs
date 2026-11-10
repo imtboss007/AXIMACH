@@ -2272,3 +2272,27 @@ test("Route Flow, Process Map and Manufacturing Universe share a selectable rout
   assert.ok(universe.includes('useEffect(() => setLayoutMode(routeLayout as ProcessLayoutMode), [routeLayout])'));
   for(const mode of ["orthogonal","s-curve","vertical","swimlane","timeline"]) assert.ok(css.includes('data-route-layout="'+mode+'"'));
 });
+
+
+test("Route graph transport stages render as vehicle icons and keep full data in tap popups", () => {
+  const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const map=readFileSync(new URL("../src/LinkedProcessWorkspace.tsx",import.meta.url),"utf8");
+  const scene=readFileSync(new URL("../src/ProcessScene3D.tsx",import.meta.url),"utf8");
+  const flowBranch=route.slice(route.indexOf('{node.kind==="material-transport"'),route.indexOf('{node.kind==="operation"'));
+  const mapBranch=map.slice(map.indexOf('if(item.kind==="material-transport"){'),map.indexOf('const operation=item.operation as OperationRecord;'));
+  assert.ok(flowBranch.includes("ax-transport-icon-trigger"));
+  assert.ok(flowBranch.includes("setInspectedTransportId(node.leg.id)"));
+  assert.ok(!flowBranch.includes("Transporter not assigned"));
+  assert.ok(mapBranch.includes("ax-transport-icon-trigger"));
+  assert.ok(mapBranch.includes("setInspectedTransportId(leg.id)"));
+  assert.ok(!mapBranch.includes("process-route-flow-transport-card"));
+  for(const mode of ["orthogonal","s-curve","swimlane","radial","circular","organic"]) assert.ok(scene.includes('"'+mode+'"'));
+});
+
+test("3D process graph offers radial, circular and organic layouts", () => {
+  const universe=readFileSync(new URL("../src/ProcessUniverse3D.tsx",import.meta.url),"utf8");
+  for(const mode of ["radial","circular","organic"]) {
+    assert.ok(universe.includes('id:"'+mode+'"'));
+    assert.ok(universe.includes('mode === "'+mode+'"'));
+  }
+});
