@@ -3655,3 +3655,8 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .process-route-flow-arrow.is-conditional::before{content:"◇";font-size:12px;font-weight:800;margin-right:2px}
 .process-route-flow-arrow.is-successor{color:#203e62}
 .process-route-flow-arrow.is-transport{color:#1cc8e5}
+
+/* Material route summaries keep freight as a dedicated, colour-coded vehicle icon.
+   Full carrier/route details open only from the transport record popup. */
+.process-orbit-material-flow>.process-orbit-material-transport-slot{display:flex;align-items:center;justify-content:center;min-width:38px}
+.process-orbit-material-transport{align-self:center}
