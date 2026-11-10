@@ -28,7 +28,7 @@ export default function ImmersiveWorkspaceControls({targetRef,onBack,onNotice}:P
     const target=targetRef.current;
     try {
       if(!document.fullscreenElement&&target) await target.requestFullscreen({navigationUI:"hide"});
-      const orientation=window.screen?.orientation;
+      const orientation=window.screen?.orientation as unknown as {lock?:(value:"portrait"|"landscape")=>Promise<void>;unlock?:()=>void};
       if(orientation&&typeof orientation.lock==="function") {
         await orientation.lock(mode);
         onNotice("Workspace orientation locked to "+mode+".");
@@ -40,7 +40,7 @@ export default function ImmersiveWorkspaceControls({targetRef,onBack,onNotice}:P
   const back=async()=>{
     try {
       if(document.fullscreenElement) await document.exitFullscreen();
-      window.screen?.orientation?.unlock?.();
+      (window.screen?.orientation as unknown as {unlock?:()=>void}|undefined)?.unlock?.();
     } catch { /* Navigation must still return to the previous module. */ }
     onBack();
   };
