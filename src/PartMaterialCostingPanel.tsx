@@ -4,7 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type ComponentPartRec
 import SearchablePicker from "./SearchablePicker";
 
 type Scope = "process-map" | "planned-cost";
-type Props = { scope: Scope; companyId?: string; poId?: string; poLineId?: string; componentId: string; componentName?: string; componentNumber?: string; initialPartId?: string; processOptions?: OperationRecord[]; onNotice?: (value: string) => void; requirePoLine?: boolean; startExpanded?: boolean };
+type Props = { scope: Scope; companyId?: string; poId?: string; poLineId?: string; componentId: string; componentName?: string; componentNumber?: string; initialPartId?: string; processOptions?: OperationRecord[]; onNotice?: (value: string) => void; requirePoLine?: boolean; startExpanded?: boolean; defaultNewPart?: boolean };
 type DimensionKey = "length" | "width" | "thickness" | "diameter" | "outerDiameter" | "innerDiameter" | "wallThickness" | "outerWidth" | "outerHeight" | "height" | "legA" | "legB" | "flangeWidth" | "flangeThickness" | "webThickness" | "acrossFlats" | "crossSectionArea";
 type Shape = { id: string; label: string; fields: Array<{ key: DimensionKey; label: string; unit?: string }> };
 const SHAPES: Shape[] = [
@@ -91,7 +91,7 @@ function densityKgM3(material?:MaterialRecord) {
   return density;
 }
 
-export default function PartMaterialCostingPanel({scope,companyId="",poId="",poLineId="",componentId,componentName="",componentNumber="",initialPartId="",processOptions=[],onNotice,requirePoLine=false,startExpanded=false}:Props) {
+export default function PartMaterialCostingPanel({scope,companyId="",poId="",poLineId="",componentId,componentName="",componentNumber="",initialPartId="",processOptions=[],onNotice,requirePoLine=false,startExpanded=false,defaultNewPart=false}:Props) {
   const {data,update}=useManufacturingData();
   const materials=activeRows(data.materials);
   useEffect(()=>{
@@ -108,8 +108,9 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   // Show every saved part/material allocation for this component and PO, not only the currently selected PO line.
   const entries=activeRows(data.materialCostEntries||[]).filter(entry=>entry.scope===scope&&entry.componentId===componentId&&(!poId||entry.poId===poId));
   const [expanded,setExpanded]=useState(startExpanded);
-  const [target,setTarget]=useState<"component"|"part">(initialPartId?"part":"component");
-  const [newPartMode,setNewPartMode]=useState(false);
+  const [target,setTarget]=useState<"component"|"part">(initialPartId||defaultNewPart?"part":"component");
+  const [newPartMode,setNewPartMode]=useState(defaultNewPart&&!initialPartId);
+  const [formError,setFormError]=useState("");
   const [selectedPoLineId,setSelectedPoLineId]=useState(poLineId);
   const [anchorOperationId,setAnchorOperationId]=useState("");
   const [partId,setPartId]=useState(initialPartId);
@@ -164,7 +165,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const cutRate=Math.max(0,Number(cuttingRate)||0);
   const cuttingCost=!cuttingType?0:cuttingBasis==="Per piece"?cutRate*qty:cuttingBasis==="Per cut"?cutRate*qty*Math.max(1,Number(cutsPerPiece)||1):cuttingBasis==="Per kg"?cutRate*totalWeightKg:cuttingBasis==="Per metre"?cutRate*lengthM*qty:cuttingBasis==="Per hour"?cutRate*Math.max(0,Number(cuttingHours)||0):cutRate;
   const totalCost=materialCost+cuttingCost;
-  const reset=()=>{setEditingEntryId("");setAnchorOperationId("");setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");setShape("plate");setDimensions({});setDimensionUnits({});setMaterialId("");setNewMaterialOpen(false);setNewMaterialName("");setNewMaterialType("");setNewMaterialGrade("");setNewMaterialCode("");setNewDensity("");setMaterialRate("");setPriceUnit("kg");setQuantity("1");setVendorId("");setGivenDate("");setDeliveryDate("");setActualDeliveryDate("");setTransportVendorId("");setTransportFrom("");setTransportTo("");setTransportVehicleType("");setTransportCost("");setTransportPickupAt("");setTransportDeliveryAt("");setTransportStatus("Planned");setCuttingType("");setCustomCuttingType("");setCuttingBasis("Per piece");setCuttingRate("");setCutsPerPiece("1");setCuttingHours("0");setWastagePercent("0");setNotes("");};
+  const reset=()=>{setFormError("");setEditingEntryId("");setAnchorOperationId("");setTarget(defaultNewPart&&!initialPartId?"part":"component");setNewPartMode(defaultNewPart&&!initialPartId);setPartId("");setPartName("");setPartNumber("");setShape("plate");setDimensions({});setDimensionUnits({});setMaterialId("");setNewMaterialOpen(false);setNewMaterialName("");setNewMaterialType("");setNewMaterialGrade("");setNewMaterialCode("");setNewDensity("");setMaterialRate("");setPriceUnit("kg");setQuantity("1");setVendorId("");setGivenDate("");setDeliveryDate("");setActualDeliveryDate("");setTransportVendorId("");setTransportFrom("");setTransportTo("");setTransportVehicleType("");setTransportCost("");setTransportPickupAt("");setTransportDeliveryAt("");setTransportStatus("Planned");setCuttingType("");setCustomCuttingType("");setCuttingBasis("Per piece");setCuttingRate("");setCutsPerPiece("1");setCuttingHours("0");setWastagePercent("0");setNotes("");};
   const selectPart=(id:string)=>{const part=parts.find(item=>item.id===id);setNewPartMode(false);setPartId(id);setPartName(part?.name||"");setPartNumber(part?.partNumber||"");setShape(part?.shapeType||"plate");setDimensions(Object.fromEntries(Object.entries(part?.dimensions||{}).map(([key,value])=>[key,String(value)])));setDimensionUnits(part?.dimensionUnits||{});setMaterialId(part?.materialId||"");const savedMaterial=materials.find(item=>item.id===part?.materialId);if(savedMaterial){setMaterialRate(String(savedMaterial.ratePerUnit||""));setPriceUnit(savedMaterial.priceUnit||"kg");setVendorId(part?.vendorIds?.[0]||savedMaterial.preferredVendorId||"");}};
   useEffect(()=>{
     if(requirePoLine&&!selectedPoLineId&&relatedPoLines.length===1){
@@ -184,27 +185,29 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   };
   const effectivePoLineId=selectedPoLineId;
   const effectivePoLine=relatedPoLines.find(item=>item.line.id===effectivePoLineId);
+  const reportError=(message:string)=>{setFormError(message);onNotice?.(message);};
   const save=()=>{
+    setFormError("");
     const material=chosenMaterial;
     const materialName=newMaterialOpen?newMaterialName.trim():material?.name||"";
     const materialGrade=newMaterialOpen?newMaterialGrade.trim():material?.grade||"";
     const density= newMaterialOpen ? Math.max(0,Number(newDensity)||0)*(densityUnit==="g/cm3"?1000:1) : densityKgM3(material);
-    if(!componentId){onNotice?.("Select a component before saving material costing.");return;}
-    if(requirePoLine&&!effectivePoLineId){onNotice?.("Select the exact PO component line before saving this Material Directory allocation.");return;}
-    if(!vendorId){onNotice?.("Link this material entry to its supplier/vendor before saving.");return;}
-    if(target==="part"&&!partName.trim()){onNotice?.("Enter a part name or select an existing part.");return;}
-    if(effectivePoLineId&&!relatedPoLines.some(item=>item.line.id===effectivePoLineId)){onNotice?.("The selected PO line does not belong to this component.");return;}
-    if(scope==="process-map"&&anchorOperationId&&!processOptions.some(operation=>operation.id===anchorOperationId)){onNotice?.("Select an active operation from this component route for the procurement position.");return;}
-    if(!newMaterialOpen&&!material){onNotice?.("Select a material grade from Material Directory or add a new grade.");return;}
-    if(newMaterialOpen&&(!materialName||!newMaterialType.trim()||!materialGrade||density<=0)){onNotice?.("Enter material name, material type, grade and a positive density in kg/m³.");return;}
-    if(!Number.isFinite(qty)||qty<=0){onNotice?.("Enter a valid part quantity.");return;}
-    if(volumeMm3<=0||perPieceKg<=0){onNotice?.("Enter valid dimensions for the selected shape and material density.");return;}
-    if(!Number.isFinite(rate)||rate<0){onNotice?.("Enter a valid material rate per kg or lb.");return;}
+    if(!componentId){reportError("Select a component before saving material costing.");return;}
+    if(requirePoLine&&!effectivePoLineId){reportError("Select the exact PO component line before saving this Material Directory allocation.");return;}
+    
+    if(target==="part"&&!partName.trim()){reportError("Enter a part name or select an existing part.");return;}
+    if(effectivePoLineId&&!relatedPoLines.some(item=>item.line.id===effectivePoLineId)){reportError("The selected PO line does not belong to this component.");return;}
+    if(scope==="process-map"&&anchorOperationId&&!processOptions.some(operation=>operation.id===anchorOperationId)){reportError("Select an active operation from this component route for the procurement position.");return;}
+    if(!newMaterialOpen&&!material){reportError("Select a material grade from Material Directory or add a new grade.");return;}
+    if(newMaterialOpen&&(!materialName||!newMaterialType.trim()||!materialGrade||density<=0)){reportError("Enter material name, material type, grade and a positive density in kg/m³.");return;}
+    if(!Number.isFinite(qty)||qty<=0){reportError("Enter a valid part quantity.");return;}
+    if(volumeMm3<=0||perPieceKg<=0){reportError("Enter valid dimensions for the selected shape and material density.");return;}
+    if(!Number.isFinite(rate)||rate<0){reportError("Enter a valid material rate per kg or lb.");return;}
     const stamp=nowIso();
     let materialRecord=material;
     if(newMaterialOpen){
       const savedGrade=materials.find(row=>row.grade.trim().toLowerCase()===materialGrade.toLowerCase() && (row.materialType||row.name).trim().toLowerCase()===(newMaterialType.trim()||materialName).toLowerCase());
-      if(!savedGrade&&newMaterialCode.trim()&&materials.some(row=>row.code.trim().toLowerCase()===newMaterialCode.trim().toLowerCase())){onNotice?.("That material code is already in the Material Directory. Reuse the saved grade or enter a unique code.");return;}
+      if(!savedGrade&&newMaterialCode.trim()&&materials.some(row=>row.code.trim().toLowerCase()===newMaterialCode.trim().toLowerCase())){reportError("That material code is already in the Material Directory. Reuse the saved grade or enter a unique code.");return;}
       materialRecord=savedGrade
         ? {...savedGrade,ratePerUnit:rate,priceUnit,preferredVendorId:vendorId||savedGrade.preferredVendorId,densityKgM3:density,densityUnit:"kg/m3",updatedAt:stamp}
         : {id:makeId("material"),code:newMaterialCode.trim()||makeId("MAT").toUpperCase(),name:materialName,grade:materialGrade,unit:"kg",specification:"Typical room-temperature reference density in kg/m³. Reference tables: https://mlc.org.uk/guides/metal-density-chart and https://calibr.pro/tables/density-of-materials-chart/. Confirm the exact grade and supplier certificate.",preferredVendorId:vendorId,ratePerUnit:rate,notes:"Created from "+scope+" material procurement; density reference is typical only, supplier certificate takes priority.",densityKgM3:density,densityUnit:"kg/m3",materialType:newMaterialType.trim()||materialName,priceUnit,createdAt:stamp,updatedAt:stamp};
@@ -245,6 +248,8 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const form=(
     <section className="surface-panel ax-material-cost-panel">
       <div className="panel-heading"><div><h3>{scope==="process-map"?"Material Procurement · First Route Stage":"Material, part & cutting cost"}</h3><p>Shared Material Directory · multiple material / shape / part allocations per component, each with quantity, supplier, given date, promised delivery and actual receipt</p></div><span className="module-number">{parts.length} SAVED PARTS</span></div>
+      {formError&&<div className="ax-material-form-error" role="alert">{formError}</div>}
+      {defaultNewPart&&!initialPartId&&<div className="ax-material-part-guidance"><strong>New part allocation is selected.</strong> Enter the part number and part name below. Choose an existing part or “Component only — no parts” from Allocation level when that is what you intend.</div>}
       <div className="module-record-form">
         <label>Allocation level<select value={partValue} onChange={event=>{if(event.target.value==="__component__"){setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");}else if(event.target.value==="__new__"){setTarget("part");setNewPartMode(true);setPartId("");setPartName("");setPartNumber("");setShape("plate");setDimensions({});setDimensionUnits({});setMaterialId("");}else{setTarget("part");selectPart(event.target.value);}}}><option value="__component__">Component only — no parts</option>{parts.map(part=><option key={part.id} value={part.id}>{part.partNumber?part.partNumber+" · ":""}{part.name}</option>)}<option value="__new__">＋ Add a new part under this component</option></select></label>
         {partValue==="__new__"&&<div className="module-form-wide"><strong>New part details</strong></div>}
@@ -261,7 +266,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
         <label>Rate unit<select value={priceUnit} onChange={e=>setPriceUnit(e.target.value as "kg"|"lb")}><option value="kg">₹ per kg</option><option value="lb">₹ per lb</option></select></label>
         <div className="module-form-wide ax-material-calculation"><div><span>Volume / piece</span><strong>{(volumeMm3/1_000_000_000).toFixed(6)} m³</strong></div><div><span>Weight / piece</span><strong>{perPieceKg.toFixed(3)} kg</strong></div><div><span>Total weight</span><strong>{totalWeightKg.toFixed(3)} kg · {(totalWeightKg*kgToLb).toFixed(3)} lb</strong></div><div><span>Material cost</span><strong>{money(materialCost)}</strong></div></div>
         <div className="module-form-wide ax-cutting-cost-box"><div className="panel-heading"><div><h4><Scissors size={15}/> Cutting charge — separate from material</h4><p>Choose a cutting method and its own pricing basis. No cutting fee is assumed when left blank.</p></div></div><div className="module-record-form"><label>Cutting type<select value={cuttingType} onChange={e=>setCuttingType(e.target.value)}><option value="">No cutting charge</option>{CUT_TYPES.map(type=><option key={type}>{type}</option>)}</select></label>{cuttingType==="Other"&&<label>Other cutting type<input value={customCuttingType} onChange={e=>setCustomCuttingType(e.target.value)}/></label>}<label>Charge basis<select value={cuttingBasis} onChange={e=>setCuttingBasis(e.target.value)}>{CUT_BASES.map(basis=><option key={basis}>{basis}</option>)}</select></label><label>Cut rate (₹)<input type="number" min="0" step="any" value={cuttingRate} onChange={e=>setCuttingRate(e.target.value)} placeholder="e.g. 59"/></label>{cuttingBasis==="Per cut"&&<label>Cuts per piece<input type="number" min="1" step="1" value={cutsPerPiece} onChange={e=>setCutsPerPiece(e.target.value)}/></label>}{cuttingBasis==="Per hour"&&<label>Hours<input type="number" min="0" step="any" value={cuttingHours} onChange={e=>setCuttingHours(e.target.value)}/></label>}<div className="module-form-wide ax-material-calculation"><div><span>Cutting cost</span><strong>{money(cuttingCost)}</strong></div><div><span>Material + cutting total</span><strong>{money(totalCost)}</strong></div></div></div></div>
-        <SearchablePicker id={"material-vendor-"+scope+"-"+componentId} label="Vendor for this part / material" value={vendorId} placeholder="Search supplier…" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+vendor.contact}))} onChange={setVendorId}/>
+        <SearchablePicker id={"material-vendor-"+scope+"-"+componentId} label="Supplier / material vendor (optional until assigned)" value={vendorId} placeholder="Search supplier…" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+vendor.contact}))} onChange={setVendorId}/>
         <label>Material given date/time<input type="datetime-local" value={givenDate} onChange={e=>setGivenDate(e.target.value)}/></label>
         <label>Expected material delivery date/time<input type="datetime-local" value={deliveryDate} onChange={e=>setDeliveryDate(e.target.value)}/></label>
         <label>Actual material receipt date/time<input type="datetime-local" value={actualDeliveryDate} onChange={e=>setActualDeliveryDate(e.target.value)}/></label>
