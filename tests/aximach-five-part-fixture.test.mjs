@@ -2217,3 +2217,39 @@ test("Multiple transport legs remain separate and visible for each source and ta
   assert.ok(scene.includes("other.materialEntryId===leg.materialEntryId"));
   assert.ok(universe.includes("routeLegs.map(leg=>"));
 });
+
+ 
+test("AXIMACH mobile navigation keeps its icon rail visible and hamburger expands a labelled drawer", () => {
+  const app=readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  assert.ok(app.includes('className="mobile-nav-trigger"'));
+  assert.ok(app.includes('className={`command-rail${mobileNavOpen ? " mobile-nav-open" : ""}`}'));
+  assert.ok(app.includes('{modules.map((item)'));
+  assert.ok(css.includes(".app-shell .command-rail.mobile-nav-open"));
+  assert.ok(css.includes(".app-shell .command-rail>button svg"));
+  assert.ok(css.includes("position:fixed!important;left:0!important;right:auto!important"));
+  assert.ok(css.includes("left:52px!important"));
+});
+
+test("AXIMACH mobile 3D command centre keeps module reachability and non-overlapping record summaries", () => {
+  const orb=readFileSync(new URL("../src/AXIMACHOrb.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  assert.ok(orb.includes('const radius = compactViewport ? 82 : 132'));
+  assert.ok(orb.includes("ax-orb-lower-summary-grid"));
+  assert.ok(orb.includes("ax-orb-lower-summary-card"));
+  assert.ok(css.includes(".ax-orb-lower-summary-grid"));
+  assert.ok(css.includes(".ax-orb-lower-shell{display:none!important}"));
+});
+
+test("Route Flow and Process Universe expose independent canvas zoom and fit controls", () => {
+  const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ProcessUniverse3D.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  assert.ok(route.includes("ax-map-zoom-toolbar"));
+  assert.ok(route.includes("setRouteZoom(.82)"));
+  assert.ok(route.includes("style={{zoom:routeZoom}}"));
+  assert.ok(universe.includes("ax-map-zoom-toolbar"));
+  assert.ok(universe.includes("onZoomChange?.(Math.max(.55"));
+  assert.ok(universe.includes("onZoomChange?.(.78)"));
+  assert.ok(css.includes(".ax-map-zoom-toolbar"));
+});
