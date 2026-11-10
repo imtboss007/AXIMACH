@@ -2197,7 +2197,7 @@ test("Multiple transport legs remain separate and visible for each source and ta
   const scene=readFileSync(new URL("../src/ProcessScene3D.tsx",import.meta.url),"utf8");
   const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
   assert.ok(flow.includes("legs.map") || flow.includes("routeLegs.map") || flow.includes("routeLegs.filter"));
-  assert.ok(flow.includes("leg.id,leg}"));
+  assert.ok(flow.includes('id:"transport-"+leg.id,leg'));
   assert.ok(flow.includes("operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId"));
   assert.ok(scene.includes("transportLegs.map((leg,index)"));
   assert.ok(scene.includes("other.materialEntryId===leg.materialEntryId"));
