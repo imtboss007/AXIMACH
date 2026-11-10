@@ -312,7 +312,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
     return { edges, anchors:[...anchors.values()] };
   }, [coordinateOperations, displayOperations, lanes, processDefinitions, routeRelationships, layoutMode]);
   const pinchStart=useRef<{distance:number;zoom:number}|null>(null);
-  const touchDistance=(touches:TouchList)=>Math.hypot(touches[0].clientX-touches[1].clientX,touches[0].clientY-touches[1].clientY);
+  const touchDistance=(touches:ReactTouchEvent<HTMLElement>["touches"])=>Math.hypot(touches[0].clientX-touches[1].clientX,touches[0].clientY-touches[1].clientY);
   const onPinchStart=(event:ReactTouchEvent<HTMLElement>)=>{if(event.touches.length===2)pinchStart.current={distance:Math.max(1,touchDistance(event.touches)),zoom};};
   const onPinchMove=(event:ReactTouchEvent<HTMLElement>)=>{if(event.touches.length===2&&pinchStart.current){event.preventDefault();const ratio=touchDistance(event.touches)/pinchStart.current.distance;onZoomChange?.(Math.max(.55,Math.min(2.6,pinchStart.current.zoom*ratio)));}};
   const onPinchEnd=(event:ReactTouchEvent<HTMLElement>)=>{if(event.touches.length<2)pinchStart.current=null;};
