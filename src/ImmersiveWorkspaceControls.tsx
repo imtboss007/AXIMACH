@@ -12,7 +12,8 @@ export default function ImmersiveWorkspaceControls({targetRef,onNotice,onZoomRes
   const update=()=>{
    const active=Boolean(document.fullscreenElement);
    setFullscreen(active);
-   onZoomReset?.();\n   if(!active){(window.screen?.orientation as unknown as {unlock?:()=>void}|undefined)?.unlock?.();}
+   onZoomReset?.();
+   if(!active){(window.screen?.orientation as unknown as {unlock?:()=>void}|undefined)?.unlock?.();}
   };
   document.addEventListener("fullscreenchange",update);
   return ()=>document.removeEventListener("fullscreenchange",update);
