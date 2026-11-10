@@ -48,7 +48,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
   ];
   const [visualMode, setVisualMode] = useState<OrbVisualMode>(() => ["sphere","cube","vortex","molecular","orbit","mesh","holographic","radial","particle","industrial","kinetic","multi-core"].includes(String(saved.current.mode)) ? saved.current.mode as OrbVisualMode : "sphere");
   const [speed, setSpeed] = useState<OrbSpeed>(() => ["Slow","Normal","Fast"].includes(String(saved.current.speed)) ? saved.current.speed as OrbSpeed : "Normal");
-  const [sphereSize, setSphereSize] = useState(() => Number.isFinite(Number(saved.current.sphereSize)) ? Math.max(.82,Math.min(1.12,Number(saved.current.sphereSize))) : 1);
+  const [sphereSize, setSphereSize] = useState(() => Number.isFinite(Number(saved.current.sphereSize)) ? Math.max(.60,Math.min(1.12,Number(saved.current.sphereSize))) : 1);
   const [orbitIntensity, setOrbitIntensity] = useState(() => Number.isFinite(Number(saved.current.orbitIntensity)) ? Math.max(0,Math.min(1,Number(saved.current.orbitIntensity))) : 1);
   const [studioOpen, setStudioOpen] = useState(false);
   const reducedMotion = useReducedMotion();
@@ -188,7 +188,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
 
         <motion.div
           className="ax-orb-module-shell"
-          style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}
+          style={{ transformStyle: "preserve-3d", scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1) }}
           aria-label="18 clickable AXIMACH modules"
         >
           {satellites.map(({ id, label, Icon }, index) => {
@@ -203,7 +203,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
             const angle = index * goldenAngle;
             const unitX = Math.cos(angle) * ringRadius;
             const unitZ = Math.sin(angle) * ringRadius;
-            const radius = compactViewport ? 82 : 132;
+            const radius = compactViewport ? 116 : 132;
             const x = unitX * radius;
             const y = unitY * radius;
             const z = unitZ * radius;
