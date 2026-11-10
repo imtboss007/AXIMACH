@@ -2313,3 +2313,157 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .process-material-route-collapsible>.process-material-route-row{margin:10px 12px}
 .process-universe-collapsible>.process-visual-stage{margin:0;padding:10px;border:0;border-radius:0}
 @media(max-width:600px){.process-route-flow-collapsible>.process-route-flow-heading,.process-material-route-collapsible>.process-material-route-heading,.process-universe-collapsible>summary{align-items:flex-start;flex-wrap:wrap}.process-route-flow-collapsible>.process-route-flow-heading span,.process-material-route-collapsible>.process-material-route-heading span,.process-universe-collapsible>summary span{flex-basis:100%;padding-right:22px}}
+
+
+/* Dedicated full-screen Route Flow and live Manufacturing Universe modules. */
+.page-content:has(.route-flow-workspace),.page-content:has(.manufacturing-universe-workspace){width:100%;max-width:none;padding:16px clamp(10px,1.7vw,28px) 36px}
+.route-flow-workspace,.manufacturing-universe-workspace{width:100%;min-width:0;color:var(--ink)}
+.route-flow-workspace-head,.manufacturing-universe-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:14px}
+.route-flow-workspace-head h1,.manufacturing-universe-head h1{margin:7px 0 6px;font:600 clamp(25px,3vw,38px)/1.08 'Space Grotesk';letter-spacing:-1.3px;color:#1b3457}
+.route-flow-workspace-head h1 span,.manufacturing-universe-head h1 span{color:#3279df}
+.route-flow-workspace-head p,.manufacturing-universe-head p{max-width:840px;margin:0;color:#7789a2;font-size:10px;line-height:1.6}
+.route-flow-head-actions,.manufacturing-universe-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.route-flow-sync,.manufacturing-universe-sync{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid #dfe8f3;border-radius:7px;background:#f8fbff;color:#73859e;font:8px 'DM Mono';white-space:nowrap}
+.route-flow-sync i,.manufacturing-universe-sync i{width:6px;height:6px;border-radius:50%;background:#d49c35}
+.route-flow-sync.is-synced i,.manufacturing-universe-sync.is-synced i{background:#1b9d79;box-shadow:0 0 0 3px rgba(27,157,121,.12)}
+.route-flow-scope-bar,.manufacturing-universe-scope{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr)) minmax(120px,.75fr);gap:10px;align-items:end;padding:13px 14px;margin-bottom:13px;border:1px solid #dce6f3;border-radius:12px;background:linear-gradient(120deg,#fff,#f4f8ff);box-shadow:0 5px 17px rgba(31,72,126,.035)}
+.route-flow-scope-bar label,.manufacturing-universe-scope label{display:flex;flex-direction:column;gap:6px;min-width:0;color:#7e8fa6;font:8px 'DM Mono';letter-spacing:.45px}
+.route-flow-scope-bar select,.manufacturing-universe-scope select,.route-flow-editor-grid select,.route-flow-editor-grid input{width:100%;min-width:0;height:36px;padding:0 10px;border:1px solid #dbe5f1;border-radius:8px;background:#fff;color:#334d70;font-size:10px;outline:none}
+.route-flow-scope-bar select:focus,.manufacturing-universe-scope select:focus,.route-flow-editor-grid select:focus,.route-flow-editor-grid input:focus{border-color:#76a7ee;box-shadow:0 0 0 3px #eaf2ff}
+.route-flow-scope-stats{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;align-items:center;justify-items:start;padding-left:10px;border-left:1px solid #e3eaf4}
+.route-flow-scope-stats strong{font:600 18px 'Space Grotesk';color:#2b6ed5}
+.route-flow-scope-stats span{font:7px 'DM Mono';letter-spacing:.45px;color:#8596ac}
+.route-flow-canvas-panel{min-width:0;border:1px solid #d8e4f3;border-radius:15px;background:linear-gradient(145deg,#fff,#f7faff);box-shadow:0 10px 32px rgba(28,65,115,.055);overflow:hidden}
+.route-flow-canvas-heading{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:17px 19px;border-bottom:1px solid #e7edf6;background:linear-gradient(110deg,#fff,#f1f6ff)}
+.route-flow-canvas-heading h2{margin:5px 0 4px;font:600 17px 'Space Grotesk';color:#294666;letter-spacing:-.3px}
+.route-flow-canvas-heading p{margin:0;color:#8394aa;font-size:9px}
+.route-flow-canvas-tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.route-flow-stage-scroll{overflow-x:auto;overflow-y:hidden;min-height:350px;padding:27px 20px 30px;background:radial-gradient(ellipse at 35% 0%,rgba(65,132,231,.09),transparent 48%),linear-gradient(180deg,#fbfdff,#f4f8fe);scrollbar-width:thin;overscroll-behavior:contain}
+.route-flow-stage-track{display:flex;align-items:center;width:max-content;min-width:100%;gap:0}
+.route-flow-stage-wrap{display:flex;align-items:center;flex-shrink:0}
+.route-flow-stage-card{position:relative;display:flex;flex-direction:column;gap:7px;width:236px;min-height:218px;padding:14px;border:1px solid #dce6f3;border-radius:12px;background:linear-gradient(150deg,#fff,#f8fbff);box-shadow:0 8px 19px rgba(24,57,102,.075);color:#496381}
+.route-flow-stage-card strong{font:600 12px/1.4 'Space Grotesk';color:#294768;overflow-wrap:anywhere}
+.route-flow-stage-card>span{font-size:9px;line-height:1.45;color:#6f839e;overflow-wrap:anywhere}
+.route-flow-stage-card>small{font-size:8px;line-height:1.45;color:#91a0b3}
+.route-flow-stage-card>em{font-style:normal;font:9px 'DM Mono';color:#2b75cc;margin-top:auto}
+.route-flow-node-top{display:flex;align-items:center;gap:7px;color:#3479d6}
+.route-flow-node-top small{font:8px 'DM Mono';letter-spacing:.5px;color:#8295ad}
+.route-flow-stage-card>button{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;margin-top:3px;padding:6px 8px;border:1px solid #dbe6f4;border-radius:7px;background:#f7faff;color:#3574c9;font-size:8px;font-weight:700}
+.route-flow-stage-card>button:hover{border-color:#9ebdec;background:#edf5ff}
+.route-flow-stage-material{border-top:3px solid #21a7bf}
+.route-flow-stage-material-transport,.route-flow-stage-transport{border-top:3px solid #3286df;background:linear-gradient(150deg,#f8fcff,#edf6ff)}
+.route-flow-stage-operation{border-top:3px solid #638bd0}
+.route-flow-stage-missing-material{border:1.5px dashed #e0a34a;background:linear-gradient(150deg,#fffdf6,#fff8e9)}
+.route-flow-stage-missing-material .route-flow-node-top{color:#c68a25}
+.route-flow-vehicle-chip{display:inline-flex;align-items:center;gap:6px;width:max-content;padding:5px 7px;border-radius:6px;background:#e9f3ff;color:#286fbd!important;font-weight:700}
+.route-flow-curve{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 140px;width:140px;height:74px;margin:0 1px;color:#2ab9d5}
+.route-flow-curve svg{width:100%;height:66px;overflow:visible}
+.route-flow-curve-shadow{fill:none;stroke:rgba(48,116,193,.08);stroke-width:8;stroke-linecap:round}
+.route-flow-curve-path{fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-dasharray:9 3;animation:route-flow-dash 1.6s linear infinite}
+.route-flow-curve-head{fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.route-flow-curve-pulse{fill:#fff;stroke:currentColor;stroke-width:2.5;filter:drop-shadow(0 0 4px currentColor)}
+.route-flow-curve-diamond{fill:#fff;stroke:currentColor;stroke-width:2}
+.route-flow-curve>small{margin-top:-3px;padding:3px 5px;border-radius:4px;background:#fff;color:currentColor;font:7px 'DM Mono';letter-spacing:.3px;white-space:nowrap;box-shadow:0 2px 6px rgba(30,60,100,.06)}
+.route-flow-curve-alternate{color:#dc961e}
+.route-flow-curve-rework{color:#e34e59}
+.route-flow-curve-rework .route-flow-curve-path{stroke-dasharray:4 5}
+.route-flow-curve-dependency{color:#347de5}
+.route-flow-curve-dependency .route-flow-curve-path{stroke-dasharray:2 5}
+.route-flow-curve-parallel{color:#9848d6}
+.route-flow-curve-parallel .route-flow-curve-shadow{stroke:rgba(151,72,214,.18);stroke-width:14}
+.route-flow-curve-merge{color:#9e4bc9}
+.route-flow-curve-split{color:#3d79df}
+.route-flow-curve-follow-on{color:#173c6c}
+.route-flow-curve-feedback{color:#455bd6}
+.route-flow-curve-feedback .route-flow-curve-path{stroke-dasharray:7 5}
+.route-flow-curve-conditional{color:#9954ce}
+.route-flow-curve-successor{color:#203e62}
+.route-flow-curve-transport{color:#2385cf}
+.route-flow-curve-transport .route-flow-curve-path{stroke-width:4;stroke-dasharray:3 4}
+@keyframes route-flow-dash{to{stroke-dashoffset:-24}}
+.route-flow-legend{display:flex;align-items:center;gap:12px 17px;flex-wrap:wrap;padding:13px 17px;border-top:1px solid #e7edf6;background:#fbfdff}
+.route-flow-legend-item{display:inline-flex;align-items:center;gap:6px;color:#788ba5;font-size:8px}
+.route-flow-legend-item i{width:18px;height:3px;border-radius:4px;background:#2ab9d5}
+.route-flow-legend-item.route-flow-curve-alternate i{background:#dc961e}
+.route-flow-legend-item.route-flow-curve-rework i{background:#e34e59}
+.route-flow-legend-item.route-flow-curve-dependency i{background:#347de5;border-top:1px dashed #fff}
+.route-flow-legend-item.route-flow-curve-parallel i{height:5px;background:#9848d6;box-shadow:0 3px 0 -1px #9848d6}
+.route-flow-legend-item.route-flow-curve-merge i{background:#9e4bc9}
+.route-flow-legend-item.route-flow-curve-split i{background:#3d79df}
+.route-flow-legend-item.route-flow-curve-follow-on i{background:#173c6c}
+.route-flow-legend-item.route-flow-curve-feedback i{background:#455bd6}
+.route-flow-legend-item.route-flow-curve-conditional i{background:#9954ce}
+.route-flow-legend-item.route-flow-curve-successor i{background:#203e62}
+.route-flow-legend-item svg{color:#2385cf}
+.route-flow-empty{min-height:240px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:9px;color:#7890ad}
+.route-flow-empty strong{font:600 14px 'Space Grotesk';color:#435e80}
+.route-flow-empty span{font-size:10px}
+.route-flow-editor-panel{margin-top:13px;padding:16px 18px;border:1px solid #dce6f3;border-radius:12px;background:linear-gradient(130deg,#fff,#f7faff);box-shadow:0 6px 20px rgba(27,65,115,.04)}
+.route-flow-editor-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+.route-flow-editor-title h3{margin:5px 0 0;font:600 15px 'Space Grotesk';color:#2e4d70}
+.route-flow-editor-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.route-flow-editor-grid label{display:flex;flex-direction:column;gap:6px;min-width:0;color:#7488a2;font:8px 'DM Mono';letter-spacing:.35px}
+.route-flow-editor-grid .route-flow-wide{grid-column:1/-1}
+.route-flow-editor-actions{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:13px;padding-top:12px;border-top:1px solid #e8eef6}
+.route-flow-editor-actions small{max-width:720px;color:#8294aa;font-size:9px;line-height:1.5}
+.route-flow-bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:14px}
+.route-flow-record-panel,.route-flow-module-links{padding:16px 17px;min-width:0}
+.route-flow-saved-link{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #edf1f7}
+.route-flow-link-symbol{width:30px;height:30px;display:grid;place-items:center;flex:0 0 auto;border-radius:8px;background:#eaf7fb;color:#218eae;font-size:17px}
+.route-flow-link-symbol.route-flow-curve-alternate{background:#fff5e4;color:#c48a1f}
+.route-flow-link-symbol.route-flow-curve-rework{background:#fff0f1;color:#d64e58}
+.route-flow-link-symbol.route-flow-curve-dependency{background:#edf4ff;color:#347de5}
+.route-flow-link-symbol.route-flow-curve-parallel,.route-flow-link-symbol.route-flow-curve-merge{background:#f5edff;color:#9848d6}
+.route-flow-link-symbol.route-flow-curve-split{background:#edf4ff;color:#3d79df}
+.route-flow-link-symbol.route-flow-curve-follow-on,.route-flow-link-symbol.route-flow-curve-successor{background:#eef3f9;color:#173c6c}
+.route-flow-link-symbol.route-flow-curve-feedback{background:#eef0ff;color:#455bd6}
+.route-flow-link-symbol.route-flow-curve-conditional{background:#f8efff;color:#9954ce}
+.route-flow-saved-link>div{flex:1;min-width:0}
+.route-flow-saved-link strong,.route-flow-saved-link small{display:block;overflow-wrap:anywhere}
+.route-flow-saved-link strong{color:#405c7f;font-size:10px}
+.route-flow-saved-link small{margin-top:4px;color:#8798ae;font-size:8px;line-height:1.45}
+.route-flow-empty-inline{padding:15px 0;color:#8798ae;font-size:9px;line-height:1.55}
+.route-flow-module-links .panel-heading{margin-bottom:9px}
+.route-flow-module-link-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.route-flow-module-link-grid>button{display:flex;align-items:center;gap:8px;min-width:0;padding:9px;border:1px solid #e6edf6;border-radius:8px;background:#fbfdff;text-align:left;color:#4c6e99}
+.route-flow-module-link-grid>button>span{flex:1;min-width:0}
+.route-flow-module-link-grid strong,.route-flow-module-link-grid small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.route-flow-module-link-grid strong{font-size:8px;color:#4b6384}
+.route-flow-module-link-grid small{margin-top:3px;color:#94a2b5;font-size:7px}
+.route-flow-module-link-grid>button:hover{border-color:#abc7ee;background:#f1f7ff}
+.manufacturing-universe-head{align-items:center}
+.manufacturing-universe-scope{grid-template-columns:repeat(3,minmax(170px,.8fr)) minmax(250px,1.7fr);align-items:center}
+.manufacturing-universe-current{display:flex;flex-direction:column;gap:5px;min-width:0;padding:0 10px;border-left:1px solid #e3eaf4}
+.manufacturing-universe-current strong{color:#3d587b;font-size:10px;overflow-wrap:anywhere}
+.manufacturing-universe-current span{color:#8697ad;font-size:8px;line-height:1.45}
+.manufacturing-universe-stat-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:13px}
+.manufacturing-universe-stat-grid>button{display:grid;grid-template-columns:25px 1fr;grid-template-rows:auto auto;align-items:center;gap:1px 7px;min-width:0;padding:10px;border:1px solid #dfe8f4;border-radius:9px;background:#fff;text-align:left;box-shadow:0 3px 12px rgba(35,70,114,.025)}
+.manufacturing-universe-stat-grid>button svg{grid-row:1/3;color:#3d80d6}
+.manufacturing-universe-stat-grid>button strong{font:600 15px 'Space Grotesk';color:#2f5786}
+.manufacturing-universe-stat-grid>button small{font:7px 'DM Mono';letter-spacing:.3px;color:#899bb2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.manufacturing-universe-stat-grid>button:hover{border-color:#a8c5ee;background:#f8fbff}
+.manufacturing-universe-live-panel{min-width:0;padding:14px;border:1px solid #dce6f3;border-radius:15px;background:linear-gradient(145deg,#fff,#f4f8ff);box-shadow:0 10px 34px rgba(30,66,115,.055)}
+.manufacturing-universe-live-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 4px 12px}
+.manufacturing-universe-live-heading h2,.manufacturing-universe-links-head h2{margin:5px 0 4px;color:#2b496d;font:600 17px 'Space Grotesk'}
+.manufacturing-universe-live-heading p,.manufacturing-universe-links-head p{margin:0;color:#8797ab;font-size:9px;line-height:1.5}
+.manufacturing-universe-live-state{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid #ccebdd;border-radius:6px;background:#f1fbf6;color:#188967;font:8px 'DM Mono';white-space:nowrap}
+.manufacturing-universe-live-state i{width:6px;height:6px;border-radius:50%;background:#1aa47b;box-shadow:0 0 0 3px #1aa47b19}
+.manufacturing-universe-live-panel .process-universe-3d{width:100%;max-width:none;margin:0;border:0;box-shadow:none}
+.manufacturing-universe-live-panel .process-orbit-panel{min-height:650px}
+.manufacturing-universe-live-panel .process-orbit-scene,.manufacturing-universe-live-panel .process-scene-stage{min-height:570px}
+.manufacturing-universe-empty{min-height:420px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#7d91ad;text-align:center}
+.manufacturing-universe-empty strong{font:600 15px 'Space Grotesk';color:#415d80}
+.manufacturing-universe-empty span{max-width:540px;color:#8b9bb0;font-size:10px;line-height:1.55}
+.manufacturing-universe-empty>div{display:flex;gap:8px;margin-top:7px;flex-wrap:wrap;justify-content:center}
+.manufacturing-universe-module-links{margin-top:14px;padding:17px;border:1px solid #dfe8f3;border-radius:13px;background:#fff}
+.manufacturing-universe-links-head{margin-bottom:12px}
+.manufacturing-universe-links-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.manufacturing-universe-links-grid>button{display:grid;grid-template-columns:32px 1fr 16px;grid-template-rows:auto auto;align-items:center;gap:2px 8px;min-width:0;padding:11px;border:1px solid #e4ebf5;border-radius:9px;background:#fbfdff;text-align:left}
+.manufacturing-universe-links-grid>button>span{grid-row:1/3;width:30px;height:30px;display:grid;place-items:center;border-radius:8px;background:#edf4ff;color:#3778d3}
+.manufacturing-universe-links-grid>button strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#476282;font-size:9px}
+.manufacturing-universe-links-grid>button small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#91a0b4;font-size:8px}
+.manufacturing-universe-links-grid>button>svg{grid-column:3;grid-row:1/3;color:#90a3bd}
+.manufacturing-universe-links-grid>button:hover{border-color:#aac7ed;background:#f4f8ff}
+@media(max-width:1100px){.route-flow-scope-bar{grid-template-columns:repeat(2,minmax(0,1fr))}.route-flow-scope-stats{grid-column:1/-1;display:flex;align-items:center;gap:7px;padding:7px 0 0;border-left:0;border-top:1px solid #e5edf6}.route-flow-scope-stats strong{font-size:14px}.route-flow-scope-stats span{margin-right:10px}.manufacturing-universe-scope{grid-template-columns:repeat(2,minmax(0,1fr))}.manufacturing-universe-current{grid-column:1/-1;border-left:0;border-top:1px solid #e5edf6;padding:9px 0 0}.manufacturing-universe-stat-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.manufacturing-universe-links-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.route-flow-workspace-head,.manufacturing-universe-head{align-items:flex-start;flex-direction:column}.route-flow-head-actions,.manufacturing-universe-actions{width:100%;justify-content:flex-start}.route-flow-canvas-heading{align-items:flex-start;flex-direction:column}.route-flow-stage-scroll{min-height:310px;padding:18px 12px 22px}.route-flow-stage-card{width:210px;min-height:206px;padding:12px}.route-flow-curve{flex-basis:100px;width:100px}.route-flow-curve svg{width:100px}.route-flow-editor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.route-flow-bottom-grid{grid-template-columns:1fr}.manufacturing-universe-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.manufacturing-universe-links-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.manufacturing-universe-live-panel .process-orbit-panel{min-height:540px}.manufacturing-universe-live-panel .process-orbit-scene,.manufacturing-universe-live-panel .process-scene-stage{min-height:450px}}
+@media(max-width:520px){.page-content:has(.route-flow-workspace),.page-content:has(.manufacturing-universe-workspace){padding:12px 8px 26px}.route-flow-workspace-head h1,.manufacturing-universe-head h1{font-size:26px}.route-flow-scope-bar,.manufacturing-universe-scope{grid-template-columns:1fr;gap:8px;padding:10px}.route-flow-scope-bar label,.manufacturing-universe-scope label{font-size:8px}.route-flow-scope-stats{grid-column:1;flex-wrap:wrap}.manufacturing-universe-current{grid-column:1}.route-flow-canvas-panel{border-radius:11px}.route-flow-canvas-heading{padding:13px}.route-flow-canvas-tools{width:100%}.route-flow-canvas-tools button{flex:1}.route-flow-stage-scroll{min-height:285px;padding:16px 9px}.route-flow-stage-card{width:190px;min-height:204px}.route-flow-curve{flex-basis:82px;width:82px}.route-flow-curve svg{width:82px;height:58px}.route-flow-editor-panel{padding:12px}.route-flow-editor-grid{grid-template-columns:1fr}.route-flow-editor-grid .route-flow-wide{grid-column:auto}.route-flow-editor-actions{align-items:flex-start;flex-direction:column}.route-flow-editor-actions button{width:100%}.route-flow-module-link-grid{grid-template-columns:1fr}.manufacturing-universe-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.manufacturing-universe-links-grid{grid-template-columns:1fr 1fr}.manufacturing-universe-live-panel{padding:8px}.manufacturing-universe-live-heading{align-items:flex-start;flex-direction:column;padding:4px}.manufacturing-universe-live-heading h2,.manufacturing-universe-links-head h2{font-size:14px}.manufacturing-universe-live-panel .process-orbit-panel{min-height:460px}.manufacturing-universe-live-panel .process-orbit-scene,.manufacturing-universe-live-panel .process-scene-stage{min-height:390px}}
