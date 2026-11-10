@@ -3214,3 +3214,54 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 }
 .route-flow-vehicle-marker-button svg{flex:0 0 auto!important}
 .route-flow-vehicle-marker-button b{font-size:9px!important;font-weight:800!important;white-space:nowrap!important}
+
+
+/* Mobile navigation: use a readable off-canvas drawer instead of a narrow floating rail. */
+.mobile-nav-trigger,.mobile-nav-backdrop{display:none}
+@media(max-width:820px){
+  .mobile-nav-trigger{
+    display:grid!important;place-items:center!important;flex:0 0 42px!important;
+    width:42px!important;height:42px!important;min-width:42px!important;
+    margin-left:4px!important;border:1px solid #29445d!important;border-radius:12px!important;
+    color:#dcecff!important;background:#0c1c2c!important;cursor:pointer!important;
+  }
+  .mobile-nav-backdrop{
+    display:block!important;position:fixed!important;inset:0!important;z-index:100!important;
+    width:100vw!important;height:100dvh!important;padding:0!important;border:0!important;
+    background:rgba(2,10,19,.62)!important;backdrop-filter:blur(2px)!important;
+  }
+  .app-shell .command-rail{
+    display:flex!important;position:fixed!important;top:0!important;bottom:0!important;left:0!important;
+    z-index:101!important;width:min(304px,86vw)!important;max-width:86vw!important;height:100dvh!important;
+    max-height:100dvh!important;min-height:0!important;margin:0!important;padding:calc(14px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom))!important;
+    flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;
+    gap:5px!important;overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important;
+    border:0!important;border-right:1px solid rgba(118,164,202,.25)!important;border-radius:0 18px 18px 0!important;
+    background:#071625!important;box-shadow:18px 0 44px rgba(0,0,0,.38)!important;
+    transform:translateX(-110%)!important;visibility:hidden!important;pointer-events:none!important;
+    transition:transform .22s ease,visibility .22s ease!important;
+  }
+  .app-shell .command-rail.mobile-nav-open{
+    transform:translateX(0)!important;visibility:visible!important;pointer-events:auto!important;
+  }
+  .app-shell .command-rail .rail-section-label{
+    display:block!important;flex:0 0 auto!important;width:100%!important;margin:12px 0 5px!important;
+    padding:0 9px!important;text-align:left!important;white-space:normal!important;
+    font-size:9px!important;letter-spacing:.12em!important;
+  }
+  .app-shell .command-rail>button{
+    display:flex!important;flex:0 0 auto!important;flex-direction:row!important;align-items:center!important;
+    justify-content:flex-start!important;gap:12px!important;width:100%!important;min-width:0!important;
+    max-width:none!important;min-height:46px!important;height:auto!important;padding:10px 12px!important;
+    border-radius:10px!important;text-align:left!important;
+  }
+  .app-shell .command-rail>button svg{flex:0 0 19px!important;width:19px!important;height:19px!important}
+  .app-shell .command-rail>button span{
+    display:block!important;flex:1 1 auto!important;min-width:0!important;max-width:none!important;
+    overflow:visible!important;white-space:normal!important;overflow-wrap:normal!important;word-break:normal!important;
+    text-align:left!important;line-height:1.25!important;font-size:12px!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .app-shell .command-rail{transition:none!important}
+}
