@@ -3566,3 +3566,71 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .process-route-flow-transport .process-route-flow-transport-card{display:contents}
 .process-route-flow-transport .ax-transport-icon-trigger{width:42px;height:42px;flex:0 0 42px}
 .process-route-flow-transport{justify-content:center;min-width:50px}
+
+/* Unified flow layout engine: the same user-selected arrangement is applied in
+   Route Flow, Process Map and the Manufacturing Universe route graph. */
+.route-flow-stage-track[data-route-layout="horizontal"],
+.process-route-flow-track[data-route-layout="horizontal"]{display:flex;flex-flow:row nowrap;align-items:center;justify-content:flex-start}
+.route-flow-stage-track[data-route-layout="vertical"]{display:flex;flex-direction:column;align-items:center;gap:14px;min-width:0}
+.route-flow-stage-track[data-route-layout="vertical"] .route-flow-stage-wrap{width:min(100%,620px);flex-direction:column;align-items:center}
+.route-flow-stage-track[data-route-layout="vertical"] .route-flow-curve{transform:rotate(90deg);margin:6px 0}
+.process-route-flow-track[data-route-layout="vertical"]{display:flex;flex-direction:column;align-items:stretch;gap:10px}
+.process-route-flow-track[data-route-layout="vertical"] .process-route-flow-step{width:100%;flex-direction:column;align-items:center}
+.process-route-flow-track[data-route-layout="vertical"] .process-route-flow-arrow{transform:rotate(90deg);padding:7px}
+.route-flow-stage-track[data-route-layout="radial"],
+.route-flow-stage-track[data-route-layout="circular"],
+.route-flow-stage-track[data-route-layout="organic"],
+.process-route-flow-track[data-route-layout="radial"],
+.process-route-flow-track[data-route-layout="circular"],
+.process-route-flow-track[data-route-layout="organic"]{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));align-items:stretch;gap:16px;overflow:visible}
+.route-flow-stage-track[data-route-layout="radial"] .route-flow-stage-wrap,
+.route-flow-stage-track[data-route-layout="circular"] .route-flow-stage-wrap,
+.route-flow-stage-track[data-route-layout="organic"] .route-flow-stage-wrap{min-width:0;flex-direction:column;align-items:center;justify-content:flex-start;border:1px solid rgba(94,145,190,.16);border-radius:14px;padding:10px;background:rgba(10,37,60,.025)}
+.route-flow-stage-track[data-route-layout="radial"] .route-flow-curve,
+.route-flow-stage-track[data-route-layout="circular"] .route-flow-curve,
+.route-flow-stage-track[data-route-layout="organic"] .route-flow-curve{transform:rotate(90deg);margin:6px 0}
+.route-flow-stage-track[data-route-layout="circular"] .route-flow-stage-wrap:nth-child(4n+1){border-top:3px solid rgba(36,160,210,.6)}
+.route-flow-stage-track[data-route-layout="circular"] .route-flow-stage-wrap:nth-child(4n+2){border-top:3px solid rgba(210,154,44,.6)}
+.route-flow-stage-track[data-route-layout="circular"] .route-flow-stage-wrap:nth-child(4n+3){border-top:3px solid rgba(105,112,213,.6)}
+.route-flow-stage-track[data-route-layout="organic"] .route-flow-stage-wrap:nth-child(3n+2){transform:translateY(10px)}
+.process-route-flow-track[data-route-layout="radial"] .process-route-flow-step,
+.process-route-flow-track[data-route-layout="circular"] .process-route-flow-step,
+.process-route-flow-track[data-route-layout="organic"] .process-route-flow-step{min-width:0;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:10px;border:1px solid rgba(112,159,194,.22);border-radius:12px;background:rgba(9,33,52,.035)}
+.process-route-flow-track[data-route-layout="radial"] .process-route-flow-arrow,
+.process-route-flow-track[data-route-layout="circular"] .process-route-flow-arrow,
+.process-route-flow-track[data-route-layout="organic"] .process-route-flow-arrow{transform:rotate(90deg);align-self:center;padding:6px}
+.process-route-flow-track[data-route-layout="circular"] .process-route-flow-step:nth-child(4n+1){border-top:3px solid rgba(36,160,210,.6)}
+.process-route-flow-track[data-route-layout="circular"] .process-route-flow-step:nth-child(4n+2){border-top:3px solid rgba(210,154,44,.6)}
+.process-route-flow-track[data-route-layout="organic"] .process-route-flow-step:nth-child(3n+2){transform:translateY(8px)}
+.ax-route-connector-legend{display:flex;align-items:center;gap:7px 12px;flex-wrap:wrap;padding:9px 11px;border:1px solid rgba(119,151,180,.2);border-radius:10px;background:rgba(127,157,187,.045)}
+.ax-route-connector-legend>strong{width:100%;font:700 9px "DM Mono",monospace;letter-spacing:.08em;color:#71839a}
+.ax-route-connector-legend-item{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;color:#74869a;font-size:8px}
+.ax-route-connector-legend-item i{display:inline-block;position:relative;width:21px;height:3px;border-radius:3px;background:#2ab9d5}
+.ax-route-connector-legend-item b{font:600 8px "DM Sans",sans-serif;color:#52677f}
+.ax-route-connector-legend-item small{font:400 7px "DM Sans",sans-serif;color:#8796a9}
+.ax-route-connector-legend-item.route-flow-curve-alternate i{background:#dc961e}
+.ax-route-connector-legend-item.route-flow-curve-rework i{background:repeating-linear-gradient(90deg,#e34e59 0 5px,transparent 5px 8px)}
+.ax-route-connector-legend-item.route-flow-curve-dependency i{background:repeating-linear-gradient(90deg,#347de5 0 2px,transparent 2px 5px)}
+.ax-route-connector-legend-item.route-flow-curve-parallel i{height:5px;background:#9848d6;box-shadow:0 3px 0 -1px #9848d6}
+.ax-route-connector-legend-item.route-flow-curve-merge i{background:#9e4bc9}
+.ax-route-connector-legend-item.route-flow-curve-split i{background:#3d79df}
+.ax-route-connector-legend-item.route-flow-curve-follow-on i{background:#173c6c}
+.ax-route-connector-legend-item.route-flow-curve-feedback i{background:repeating-linear-gradient(90deg,#455bd6 0 6px,transparent 6px 9px)}
+.ax-route-connector-legend-item.route-flow-curve-conditional i{background:#9954ce}
+.ax-route-connector-legend-item.route-flow-curve-successor i{background:#203e62}
+.ax-route-connector-legend-item.route-flow-curve-transport i{background:repeating-linear-gradient(90deg,#2385cf 0 3px,transparent 3px 6px)}
+.ax-route-connector-legend-item.route-flow-curve-material i{background:#15b8d7;box-shadow:0 0 0 2px rgba(21,184,215,.16)}
+.ax-route-connector-legend.is-compact{gap:5px 9px;padding:6px 8px}
+.ax-route-connector-legend.is-compact>strong{font-size:8px}
+.ax-route-connector-legend.is-compact .ax-route-connector-legend-item small{display:none}
+.process-route-layout-toolbar{align-items:flex-start;flex-wrap:wrap}
+@media(max-width:760px){
+ .route-flow-stage-track[data-route-layout="radial"],
+ .route-flow-stage-track[data-route-layout="circular"],
+ .route-flow-stage-track[data-route-layout="organic"],
+ .process-route-flow-track[data-route-layout="radial"],
+ .process-route-flow-track[data-route-layout="circular"],
+ .process-route-flow-track[data-route-layout="organic"]{grid-template-columns:minmax(0,1fr)}
+ .route-flow-stage-track[data-route-layout="organic"] .route-flow-stage-wrap:nth-child(3n+2),
+ .process-route-flow-track[data-route-layout="organic"] .process-route-flow-step:nth-child(3n+2){transform:none}
+}
