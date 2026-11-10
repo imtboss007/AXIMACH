@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import { motion, useMotionValue, useReducedMotion } from "motion/react";
 import { Activity, ArrowRight, Boxes, ClipboardCheck, Cog, Cpu, Disc3, GitBranch, Scissors, Zap, Truck, Workflow, Wrench } from "lucide-react";
-import type { OperationRecord } from "./manufacturingData";
+import type { OperationRecord, RouteRelationshipRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
 import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
@@ -15,7 +15,7 @@ type MaterialRouteNode = {
   materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number;
 };
 type TransportLegRouteNode = { id:string; poLineId:string; anchorOperationId:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
-type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; routeLabels?: Record<string,string>; materialRoutes?: MaterialRouteNode[]; transportLegs?: TransportLegRouteNode[]; onSelectTransportLeg?: (id:string)=>void; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onSelectOperation: (id: string) => void; onEditOperation?: (id: string) => void; onChangeProcessColor?: (id: string, color: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
+type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; routeLabels?: Record<string,string>; materialRoutes?: MaterialRouteNode[]; transportLegs?: TransportLegRouteNode[]; routeRelationships?: RouteRelationshipRecord[]; onSelectTransportLeg?: (id:string)=>void; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onSelectOperation: (id: string) => void; onEditOperation?: (id: string) => void; onChangeProcessColor?: (id: string, color: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
 function fallbackFor(name: string) {
   const value = name.toLowerCase();
@@ -138,7 +138,7 @@ function transformStyle3d(point: Point3D) {
   return `translate(-50%,-50%) translate3d(${point.x}px,${point.y}px,${point.z}px) rotateY(${yaw}deg) rotateX(${pitch}deg)`;
 }
 
-export default function ProcessUniverse3D({ operations, allOperations, routeLabels = {}, materialRoutes = [], transportLegs = [], onSelectTransportLeg, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", ganttScale = "week", onGanttScaleChange, onSelectOperation, onEditOperation, onChangeProcessColor, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
+export default function ProcessUniverse3D({ operations, allOperations, routeLabels = {}, materialRoutes = [], transportLegs = [], routeRelationships = [], onSelectTransportLeg, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", ganttScale = "week", onGanttScaleChange, onSelectOperation, onEditOperation, onChangeProcessColor, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const expandedDetailsRef = useRef<HTMLElement | null>(null);
   const [collapsedLaneNames, setCollapsedLaneNames] = useState<string[]>([]);
@@ -253,7 +253,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
   }, [parentOperations, lookupOperations, routeLabels]);
   const orbitConnections = useMemo(() => {
     const visibleIds = new Set(displayOperations.map(operation => operation.id));
-    const edges: Array<{id:string;from:OperationRecord;to:OperationRecord;relation:"main"|"alternate"|"rework";color:string}> = [];
+    const edges: Array<{id:string;from:OperationRecord;to:OperationRecord;relation:string;color:string}> = [];
     const byBranch = new Map<string, OperationRecord[]>();
     for (const operation of coordinateOperations) {
       const groupKey = routeGroupKey(operation);
@@ -278,13 +278,23 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
         edges.push({id:from.id+"->"+to.id,from,to,relation:relation==="rework"?"rework":"alternate",color:relation==="rework"?"#e38b45":"#4b95eb"});
       }
     }
+    const relationshipColors:Record<string,string>={main:"#12c7df",alternate:"#f1a42b",rework:"#ef4c50",dependency:"#2f7cff",parallel:"#9b48e9",merge:"#b24be7",split:"#3c7ee8","follow-on":"#163b68",feedback:"#3866ea",conditional:"#a45be8",successor:"#132d52"};
+    for(const link of routeRelationships){
+      if(link.deletedAt||link.status==="Disabled")continue;
+      const from=lookupOperations.find(operation=>operation.id===link.fromOperationId);
+      const to=lookupOperations.find(operation=>operation.id===link.toOperationId);
+      if(!from||!to)continue;
+      if((from.poLineId||from.componentId)!==(to.poLineId||to.componentId))continue;
+      if(!visibleIds.has(from.id)&&!visibleIds.has(to.id))continue;
+      edges.push({id:"relationship-"+link.id,from,to,relation:link.relationshipType,color:relationshipColors[link.relationshipType]||"#4b95eb"});
+    }
     const anchors = new Map<string,{operation:OperationRecord;relation:"main"|"alternate"|"rework";color:string}>();
     for (const edge of edges) {
       if (!visibleIds.has(edge.from.id)) anchors.set(edge.from.id,{operation:edge.from,relation:edge.relation,color:edge.color});
       if (!visibleIds.has(edge.to.id)) anchors.set(edge.to.id,{operation:edge.to,relation:edge.relation,color:edge.color});
     }
     return { edges, anchors:[...anchors.values()] };
-  }, [coordinateOperations, displayOperations, lanes, processDefinitions, layoutMode]);
+  }, [coordinateOperations, displayOperations, lanes, processDefinitions, routeRelationships, layoutMode]);
   const stageStyle: CSSProperties = { transform: `scale(${zoom}) rotateX(2deg)`, transformOrigin: "top left", width: `${100 / zoom}%` };
 
   return <section className={"process-universe-3d mode-" + layoutMode} aria-label="Interactive 3D process route graph">
