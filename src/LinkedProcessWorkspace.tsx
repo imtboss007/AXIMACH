@@ -38,6 +38,7 @@ const PROCESS_CARD_FIELDS: Array<{key:ProcessCardField;label:string}> = [
   {key:"materialCost",label:"Material linked amount"},{key:"materialCuttingCost",label:"Cutting amount"},{key:"materialTransportCost",label:"Material transport amount"}
 ];
 const REQUIRED_PROCESS_CARD_FIELDS: ProcessCardField[] = ["category","subcategory","quantity","plannedStart","plannedEnd","vendor","amount"];
+type TransportRouteOption = TransportRouteRecord & { legacy?: boolean; sourceRouteId?: string };
 type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean; processCostTotal:number; parentId?:string; relationType?:"subprocess"|"alternate"|"rework"; costIncluded:boolean; processDefinitionId?: string; processSubcategoryId:string; processColor?: string };
 const processSubcategoryIdFor = (definition: ProcessDefinitionRecord | undefined, subcategory: string) => {
   const index = definition?.subcategories.indexOf(subcategory) ?? -1;
@@ -219,9 +220,28 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const materialRouteEntries = allMaterialCostEntries.filter(entry=>entry.scope==="process-map" && entry.poId===poId && entry.componentId===selectedLine?.componentId).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const selectedLineMaterialEntries=materialRouteEntries.filter(entry=>!entry.poLineId||entry.poLineId===selectedLine?.id);
   const hasSelectedLineMaterial=selectedLineMaterialEntries.some(entry=>!selectedPart||!entry.partId||entry.partId===selectedPart.id);
-  const selectedTransportDirectoryRoute = transportRoutes.find(route => route.id === transportRouteId);
+  const transportRouteOptions:TransportRouteOption[]=[
+    ...transportRoutes.map(route=>({...route,legacy:false})),
+    ...vendors.flatMap(vendor=>(vendor.transportRoutes||[]).map(route=>({
+      id:"legacy-"+vendor.id+"-"+route.id,
+      sourceRouteId:route.id,
+      legacy:true,
+      vendorId:vendor.id,
+      fromLocation:route.fromLocation,
+      toLocation:route.toLocation,
+      tripDirection:route.tripDirection||"One-way" as const,
+      vehicleType:route.vehicleType,
+      fixedAmount:route.fixedCost,
+      currency:"INR" as const,
+      active:true,
+      notes:route.notes||"Imported from legacy Vendor Directory transport route.",
+      createdAt:vendor.createdAt,
+      updatedAt:vendor.updatedAt
+    })))
+  ];
+  const selectedTransportDirectoryRoute = transportRouteOptions.find(route => route.id === transportRouteId || (route.legacy&&route.sourceRouteId===transportRouteId));
   const transportLocationOptions = [...new Set([
-    ...transportRoutes.flatMap(route=>[route.fromLocation,route.toLocation]),
+    ...transportRouteOptions.flatMap(route=>[route.fromLocation,route.toLocation]),
     ...vendors.map(vendor=>vendor.address)
   ].map(value=>value?.trim()).filter((value):value is string=>Boolean(value)))].sort((a,b)=>a.localeCompare(b));
   const processCategories = [...new Set(processDefinitions.map(item => item.category).filter(Boolean))].sort();
@@ -1009,7 +1029,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     setNewTransportAmount("");
     setNewTransportNotes("");
     setEditingTransportLegId(leg?.id || "");
-    setTransportRouteId(leg?.routeId || transportRoutes.find(route=>route.active!==false)?.id || "");
+    const legacyMatch=transportRouteOptions.find(route=>route.id===leg?.routeId||(route.legacy&&route.sourceRouteId===leg?.routeId));
+    setTransportRouteId(legacyMatch?.id || transportRouteOptions.find(route=>route.active!==false)?.id || "");
     setTransportTripCount(String(leg?.tripCount || 1));
     setTransportAnchorOperationId(leg?.anchorOperationId || activeOperation?.id || "");
     setTransportPlacement(leg?.placement || (activeOperation && (activeOperation.branch || "Main route") !== "Main route" ? "after" : leg?.anchorOperationId ? "after" : "start"));
@@ -1276,7 +1297,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     {showTransportEditor && <section ref={operationEditorRef} className="route-editor-panel linked-operation-editor" tabIndex={-1}>
       <div className="route-editor-heading"><div><strong><Truck size={15}/> {editingTransportLegId ? "Edit component transport entry" : "Add transport between route nodes"}</strong><small>A leg can be placed before the first process, before a selected process, or after a selected process. Multiple legs may share the same connection.</small></div><button className="icon-control" onClick={closeTransportEditor} aria-label="Close transport editor"><X size={14}/></button></div>
       <div className="route-editor-form">
-        <SearchablePicker id="process-transport-directory-route" label="Saved Transport Directory route *" value={transportRouteId} placeholder="Search route, vendor, vehicle or direction…" options={transportRoutes.filter(route=>route.active!==false||(editingTransportLegId&&route.id===componentTransportLegs.find(leg=>leg.id===editingTransportLegId)?.routeId)).map(route=>({id:route.id,label:route.fromLocation+" → "+route.toLocation+" · "+route.vehicleType+" · "+route.tripDirection+" · "+vendors.find(item=>item.id===route.vendorId)?.company+" · "+money(route.fixedAmount)}))} onChange={setTransportRouteId}/>
+        <SearchablePicker id="process-transport-directory-route" label="Saved Transport Directory route *" value={transportRouteId} placeholder="Search route, vendor, vehicle or direction…" options={transportRouteOptions.filter(route=>route.active!==false||(editingTransportLegId&&(route.id===componentTransportLegs.find(leg=>leg.id===editingTransportLegId)?.routeId||route.sourceRouteId===componentTransportLegs.find(leg=>leg.id===editingTransportLegId)?.routeId))).map(route=>({id:route.id,label:(route.legacy?"Legacy · ":"")+route.fromLocation+" → "+route.toLocation+" · "+route.vehicleType+" · "+route.tripDirection+" · "+vendors.find(item=>item.id===route.vendorId)?.company+" · "+money(route.fixedAmount)}))} onChange={setTransportRouteId}/>
         <button type="button" className="button-quiet compact-button" onClick={()=>setShowNewTransportRoute(value=>!value)}><Plus size={13}/> {showNewTransportRoute?"Cancel new route":"Create a new route here"}</button>
         {showNewTransportRoute&&<div className="editor-wide transport-route-inline-create">
           <strong>New Transport Directory route</strong>
