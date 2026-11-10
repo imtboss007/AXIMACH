@@ -2266,3 +2266,11 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .ax-full3d-material-label{width:min(166px,44vw);min-height:118px;max-height:190px;padding:7px}
  .ax-full3d-transport-label{width:min(154px,41vw);min-height:100px;max-height:174px;padding:7px}
 }
+
+
+/* Material Directory allocation guidance and inline validation */
+.ax-material-form-error{display:flex;align-items:flex-start;margin:12px 0;padding:11px 13px;border:1px solid rgba(255,112,122,.45);border-radius:9px;background:rgba(112,25,39,.24);color:#ffb9c0;font-size:11px;line-height:1.5}
+.ax-material-part-guidance{margin:12px 0;padding:10px 12px;border:1px solid rgba(38,174,220,.35);border-left:3px solid #22b8e5;border-radius:8px;background:rgba(9,91,130,.15);color:#a9c9df;font-size:10px;line-height:1.55}
+.ax-material-part-guidance strong{color:#e3f7ff;margin-right:4px}
+.inventory-workspace,.inventory-workspace .material-directory-route-allocation,.inventory-workspace .ax-material-costing-workspace,.inventory-workspace .ax-material-cost-panel{width:100%;max-width:100%;min-width:0}
+.inventory-workspace .ax-material-cost-panel .module-record-form>*{min-width:0}
