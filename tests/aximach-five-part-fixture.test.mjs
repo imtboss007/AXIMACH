@@ -1447,7 +1447,7 @@ test("Process Universe node offers real alternate and rework creation from the s
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(universe.includes("onAddAlternateRoute?: (parentId: string) => void"));
   assert.ok(universe.includes("onAddReworkRoute?: (parentId: string) => void"));
-  assert.ok(universe.includes("onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition }: Props)"));
+  assert.ok(universe.includes("onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition, onNotice=()=>{} }: Props)"));
   assert.ok(universe.includes("onAddAlternateRoute(expandedOrbitOperation.id)"));
   assert.ok(universe.includes("onAddReworkRoute(expandedOrbitOperation.id)"));
   assert.ok(workspace.includes('onAddAlternateRoute={parentId=>startAddBranch("alternate",parentId)}'));
@@ -2029,11 +2029,17 @@ test("Route Flow draws saved non-adjacent relationships as responsive curved cro
 test("Immersive Route Flow and Manufacturing Universe expose full-screen controls and export formats", () => {
   const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
   const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  const processUniverse=readFileSync(new URL("../src/ProcessUniverse3D.tsx",import.meta.url),"utf8");
   const controls=readFileSync(new URL("../src/ImmersiveWorkspaceControls.tsx",import.meta.url),"utf8");
   for(const source of [route,universe]) {
-    assert.ok(source.includes("ImmersiveWorkspaceControls"));
     for(const format of ["svg","png","pdf","csv","json"]) assert.ok(source.includes('option value="'+format+'"'));
   }
+  assert.ok(route.includes('className="route-flow-map-main ax-map-fullscreen-shell" ref={mapViewportRef}'));
+  assert.ok(route.includes("targetRef={mapViewportRef}"));
+  assert.ok(!route.includes("targetRef={workspaceRef}"));
+  assert.ok(universe.includes("<ProcessUniverse3D"));
+  assert.ok(processUniverse.includes('className="ax-map-fullscreen-shell ax-process-map-fullscreen"'));
+  assert.ok(processUniverse.includes("targetRef={mapViewportRef}"));
   assert.ok(controls.includes("requestFullscreen"));
   assert.ok(controls.includes("exitFullscreen"));
 });
@@ -2044,7 +2050,7 @@ test("Route Flow and Manufacturing Universe support local operation editing and 
   const editor=readFileSync(new URL("../src/OperationInlineEditor.tsx",import.meta.url),"utf8");
   const create=readFileSync(new URL("../src/OperationQuickCreate.tsx",import.meta.url),"utf8");
   assert.ok(route.includes("onClick={()=>setEditingOperation(node.operation)}"));
-  assert.ok(universe.includes("onEditOperation={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)setEditingOperation(op);}}"));
+  assert.ok(universe.includes("setSelectedOperationId(op.id);setEditingOperation(op);"));
   for(const source of [route,universe]) {
     assert.ok(source.includes("OperationInlineEditor"));
     assert.ok(source.includes("OperationQuickCreate"));
@@ -2076,7 +2082,13 @@ test("Route Flow and Manufacturing Universe keep normal view fitted and use expl
   const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
   const controls=readFileSync(new URL("../src/ImmersiveWorkspaceControls.tsx",import.meta.url),"utf8");
   const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
-  for(const source of [route,universe]) assert.ok(source.includes("ax-workspace-expand-toggle")||source.includes("ImmersiveWorkspaceControls"));
+  const processUniverse=readFileSync(new URL("../src/ProcessUniverse3D.tsx",import.meta.url),"utf8");
+  assert.ok(route.includes('className="route-flow-map-main ax-map-fullscreen-shell"'));
+  assert.ok(route.includes("targetRef={mapViewportRef}"));
+  assert.ok(processUniverse.includes('className="ax-map-fullscreen-shell ax-process-map-fullscreen"'));
+  assert.ok(processUniverse.includes("targetRef={mapViewportRef}"));
+  assert.ok(!route.includes("targetRef={workspaceRef}"));
+  assert.ok(!universe.includes("targetRef={workspaceRef}"));
   assert.ok(controls.includes("requestFullscreen"));
   assert.ok(controls.includes("exitFullscreen"));
   assert.ok(controls.includes("ArrowLeft"));
