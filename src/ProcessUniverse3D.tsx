@@ -32,7 +32,7 @@ function fallbackFor(name: string) {
   return <Workflow size={20} />;
 }
 
-type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "gantt" | "nodes" | "branch" | "combined" | "helix" | "stacked" | "pipeline" | "network" | "grid";
+type ProcessLayoutMode = "sphere" | "cube" | "vortex" | "helix" | "orbit" | "network" | "grid" | "pipeline" | "layered" | "stacked" | "matrix" | "tree" | "route" | "molecular" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "gantt" | "nodes" | "branch" | "combined";
 type Point3D = { x: number; y: number; z: number };
 const routeGroupKey = (operation:OperationRecord) => (operation.poLineId || operation.componentId) + "::" + (operation.branch || "Main route");
 
@@ -68,6 +68,22 @@ function getLayoutPoint(index: number, operation: OperationRecord | undefined, m
     const row = Math.floor(localIndex / columns), column = localIndex % columns;
     const layer = branchIndex;
     return { x: (column - (columns - 1) / 2) * 104, y: ((Math.ceil(localCount / columns) - 1) / 2 - row) * 82, z: (layer - (branchCount - 1) / 2) * 112 };
+  }  if (mode === "layered") {
+    const columns = Math.max(2, Math.ceil(Math.sqrt(localCount)));
+    const rows = Math.ceil(localCount / columns);
+    const row = Math.floor(localIndex / columns), column = localIndex % columns;
+    return { x: (column - (columns - 1) / 2) * 92, y: ((rows - 1) / 2 - row) * 76, z: (branchIndex - (branchCount - 1) / 2) * 118 + (row % 2 ? 26 : -26) };
+  }
+  if (mode === "matrix") {
+    const columns = Math.max(2, Math.ceil(Math.sqrt(total)));
+    const rows = Math.ceil(total / columns), row = Math.floor(index / columns), column = index % columns;
+    return { x: (column - (columns - 1) / 2) * 88, y: ((rows - 1) / 2 - row) * 78, z: branchOffset * 82 + (index % 3 - 1) * 18 };
+  }
+  if (mode === "tree") {
+    const level = Math.floor(Math.log2(index + 1));
+    const firstAtLevel = Math.pow(2, level) - 1;
+    const slot = index - firstAtLevel, slots = Math.pow(2, level);
+    return { x: ((slot + 0.5) / slots * 2 - 1) * Math.min(260, 104 + slots * 44), y: 150 - level * 104, z: branchOffset * 62 + (slot % 2 ? 26 : -26) };
   }
   if (mode === "pipeline" || mode === "linear" || mode === "route") {
     const lane = Math.floor(localIndex / 5);
@@ -303,7 +319,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
       <div className="process-universe-count"><strong>{orbitCount}</strong><span>{displayOperations.length ? "SAVED PROCESS STEPS" : "AVAILABLE STAGES"}</span><button type="button" className="process-orbit-auto-toggle" aria-pressed={autoRotateEnabled} disabled={!!prefersReducedMotion} onClick={() => setAutoRotateEnabled(value => !value)}>{prefersReducedMotion ? "Reduced motion" : autoRotateEnabled ? "Pause rotation" : "Resume rotation"}</button></div>
     </header>
     <nav className="process-universe-layouts" aria-label="Process map visualisation modes">
-      {([{id:"sphere",label:"Sphere 3D",glyph:"◎"},{id:"cube",label:"Cube 3D",glyph:"⬡"},{id:"vortex",label:"Vortex",glyph:"◉"},{id:"helix",label:"Helix",glyph:"⌁"},{id:"orbit",label:"Orbit",glyph:"⊙"},{id:"stacked",label:"Stacked",glyph:"▤"},{id:"pipeline",label:"Pipeline",glyph:"⇢"},{id:"network",label:"Network",glyph:"✣"},{id:"grid",label:"Grid",glyph:"▦"},{id:"timeline",label:"Timeline",glyph:"▥"},{id:"molecular",label:"Molecular",glyph:"⚙"},{id:"combined",label:"Combined",glyph:"✧"},{id:"gantt",label:"Gantt",glyph:"▰"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}
+      {([{id:"sphere",label:"Sphere View",glyph:"◎"},{id:"cube",label:"Cube View",glyph:"⬡"},{id:"vortex",label:"Vortex View",glyph:"◉"},{id:"helix",label:"Helix View",glyph:"⌁"},{id:"orbit",label:"Orbit View",glyph:"⊙"},{id:"network",label:"Network View",glyph:"✣"},{id:"grid",label:"Grid View",glyph:"▦"},{id:"pipeline",label:"Pipeline View",glyph:"⇢"},{id:"layered",label:"Layered View",glyph:"▱"},{id:"stacked",label:"Stacked View",glyph:"▤"},{id:"matrix",label:"Matrix View",glyph:"▦"},{id:"tree",label:"Tree View",glyph:"♧"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}
     </nav>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
