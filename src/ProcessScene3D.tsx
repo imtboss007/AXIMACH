@@ -188,7 +188,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
     ? lineRows.filter(operation=>(operation.branch||"Main route")===branch&&operation.sequence>anchor.sequence).sort((a,b)=>a.sequence-b.sequence)[0]
     : firstMain;
   const materialSource=leg.materialEntryId?materialPlacements.find(item=>item.route.id===leg.materialEntryId):undefined;
-  const fromPoint=materialSource?(materialSource.transportPoint||materialSource.materialPoint):(fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined);
+  const fromPoint=materialSource?(hasMaterialTransport(materialSource.route)?materialSource.transportPoint:materialSource.materialPoint):(fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined);
   const toPoint=toOperation?geometryPoints.find(item=>item.op.id===toOperation.id)?.p:undefined;
   const lane=(index-(materialRoutes.length-1)/2)*.13;
   const lerp=(a:P,b:P,t:number):P=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t+lane,z:a.z+(b.z-a.z)*t+Math.sign(lane||1)*.045});
@@ -301,7 +301,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const to=placement.toOperation?pointById.get(placement.toOperation.id):undefined;
   const rgb=placement.leg.relation==="rework"?[.9,.43,.12]:placement.leg.relation==="alternate"?[.18,.49,.88]:[.12,.68,.86];
   const materialSource=placement.leg.materialEntryId?materialPlacements.find(item=>item.route.id===placement.leg.materialEntryId):undefined;
-  const fromMaterial=materialSource?(materialSource.transportPoint||materialSource.materialPoint):undefined;
+  const fromMaterial=materialSource?(hasMaterialTransport(materialSource.route)?materialSource.transportPoint:materialSource.materialPoint):undefined;
   if(from)drawFlow(from,placement.point,index*2,rgb,.034);else if(fromMaterial)drawFlow(fromMaterial,placement.point,index*2,rgb,.034);
   if(to)drawFlow(placement.point,to,index*2+1,rgb,.034);
   draw(boxMesh(placement.point.x,placement.point.y,placement.point.z,.115),[.08,.55,.85]);
@@ -360,7 +360,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   transportLegPlacements.forEach(item=>{
    const node=transportLegPosition.get(item.leg.id);
    const from=item.fromOperation?positions.get(item.fromOperation.id):undefined;
-   const fromMaterial=item.leg.materialEntryId?materialPosition.get(item.leg.materialEntryId):undefined;
+   const fromMaterial=item.leg.materialEntryId?(transportPosition.get(item.leg.materialEntryId)||materialPosition.get(item.leg.materialEntryId)):undefined;
    const to=item.toOperation?positions.get(item.toOperation.id):undefined;
    const relation=item.leg.relation;
    if(from&&node)add("operation-transport-"+item.leg.id,item.fromOperation!.id,"__transport_leg__"+item.leg.id,item.fromOperation!.name,"Transport · "+item.leg.fromLocation+" → "+item.leg.toLocation,from,node,relation);
