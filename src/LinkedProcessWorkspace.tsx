@@ -9,7 +9,7 @@ import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 import TransportRecordInspector from "./TransportRecordInspector";
 import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector";
 import { transportPopupAnchor, transportPopupAnchorFromPoint } from "./transportPopup";
-import { RouteLayoutPicker, useRouteLayout } from "./RouteLayoutPicker";
+import { RouteLayoutPicker, RouteConnectorLegend, useRouteLayout } from "./RouteLayoutPicker";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -1489,20 +1489,23 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 const appendMaterial=(entry:MaterialCostEntryRecord)=>{
                   routeNodes.push({kind:"material",id:"material-"+entry.id,entry});
                   if(entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||entry.transportPickupAt||entry.transportDeliveryAt||Number(entry.transportCost)>0)routeNodes.push({kind:"material-transport",id:"material-transport-"+entry.id,entry});
+                  // Each material-sourced leg stays beside its own material record.
+                  // Do not flatten these independent legs into a shared route-start list.
+                  routeTransportLegs.filter(leg=>leg.materialEntryId===entry.id).slice().sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
                 };
                 // A start-of-route carry may precede procurement. Otherwise material
                 // is the first stage, followed by its own inbound transport.
-                routeTransportLegs.filter(leg=>(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start").sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                routeTransportLegs.filter(leg=>!leg.materialEntryId&&(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start").sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
                 routeMaterials.filter(entry=>!entry.anchorOperationId).forEach(appendMaterial);
                 lane.forEach(operation=>{
-                  routeTransportLegs.filter(leg=>leg.placement==="before"&&leg.anchorOperationId===operation.id).sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                  routeTransportLegs.filter(leg=>!leg.materialEntryId&&leg.placement==="before"&&leg.anchorOperationId===operation.id).sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
                   routeNodes.push({kind:"operation",id:operation.id,operation});
-                  routeTransportLegs.filter(leg=>(leg.placement||"after")==="after"&&leg.anchorOperationId===operation.id).sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                  routeTransportLegs.filter(leg=>!leg.materialEntryId&&(leg.placement||"after")==="after"&&leg.anchorOperationId===operation.id).sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
                   // Preserve explicit material insertion points instead of moving
                   // every saved material allocation to the beginning of the route.
                   routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(appendMaterial);
                 });
-                return <><div className="process-route-layout-toolbar"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/></div><div className="process-route-flow-track" data-route-layout={routeLayout}>{routeNodes.map((item,index)=>{
+                return <><div className="process-route-layout-toolbar"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><RouteConnectorLegend compact/></div><div className="process-route-flow-track" data-route-layout={routeLayout}>{routeNodes.map((item,index)=>{
                   const next=routeNodes[index+1];
                   const isTransport=item.kind==="transport"||item.kind==="material-transport"||next?.kind==="transport"||next?.kind==="material-transport";
                   const arrowColor=isTransport?"#1cc8e5":routeColor;
