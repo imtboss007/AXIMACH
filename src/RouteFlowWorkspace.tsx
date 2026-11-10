@@ -187,8 +187,8 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     if(!toId){for(let i=index+1;i<routeNodes.length;i++)if(routeNodes[i].kind==="operation"){toId=(routeNodes[i] as Extract<FlowNode,{kind:"operation"}>).operation.id;break;}}
     const relation=fromId&&toId?relationFor(fromId,toId):undefined;
     const defaultType:RouteRelationshipType=branch.toLowerCase().includes("rework")?"rework":branch==="Main route"?"main":"alternate";
-    const transportNode=current?.kind==="transport"?current:next?.kind==="transport"?next:null;
-    const materialTransportNode=current?.kind==="material-transport"?current:next?.kind==="material-transport"?next:null;
+    const transportNode=current?.kind==="transport"?current:null;
+    const materialTransportNode=current?.kind==="material-transport"?current:null;
     const vehicleType=transportNode?.kind==="transport"?transportNode.leg.vehicleType:materialTransportNode?.kind==="material-transport"?materialTransportNode.entry.transportVehicleType||"":"";
     const tripCount=transportNode?.kind==="transport"?transportNode.leg.tripCount:materialTransportNode?.kind==="material-transport"?1:0;
     return {transport,relation,type:relation?.relationshipType||defaultType,label:relation?.label,vehicleType,tripCount,transportLegId:transportNode?.kind==="transport"?transportNode.leg.id:undefined,materialTransportId:materialTransportNode?.kind==="material-transport"?materialTransportNode.entry.id:undefined};
