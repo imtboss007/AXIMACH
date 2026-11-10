@@ -3559,3 +3559,10 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .process-route-flow-track[data-route-layout="s-curve"] .process-route-flow-arrow{transform:rotate(90deg);padding:7px}
  .process-route-flow-track[data-route-layout="swimlane"]{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Transport is a typed route marker; the full directory record opens only on tap. */
+.route-flow-stage-transport,.route-flow-stage-material-transport{display:flex;align-items:center;justify-content:center;flex:0 0 56px;width:56px;min-height:56px;padding:0;border:0;background:transparent;box-shadow:none}
+.route-flow-stage-transport .ax-transport-icon-trigger,.route-flow-stage-material-transport .ax-transport-icon-trigger{width:42px;height:42px;border-radius:12px}
+.process-route-flow-transport .process-route-flow-transport-card{display:contents}
+.process-route-flow-transport .ax-transport-icon-trigger{width:42px;height:42px;flex:0 0 42px}
+.process-route-flow-transport{justify-content:center;min-width:50px}
