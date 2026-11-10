@@ -1,7 +1,7 @@
 import { Truck, X, CalendarClock, Phone, Mail, MessageCircle, Building2, Route, ReceiptText, Package, Bike, Bus, CarFront, Plane, Ship, TrainFront } from "lucide-react";
 import type { MaterialCostEntryRecord, VendorRecord, VendorTransportRoute } from "./manufacturingData";
 
-type Props={entry:MaterialCostEntryRecord;vendor?:VendorRecord;directoryRoute?:VendorTransportRoute;onClose:()=>void;onOpenDirectory?:()=>void};
+type Props={anchor?:{x:number;y:number};entry:MaterialCostEntryRecord;vendor?:VendorRecord;directoryRoute?:VendorTransportRoute;onClose:()=>void;onOpenDirectory?:()=>void};
 const vehicleClass=(value:string)=>{
  const type=(value||"").toLowerCase();
  if(/bike|motorcycle|scooter/.test(type))return "bike";
@@ -18,11 +18,11 @@ const vehicleIcon=(value:string)=>{
 };
 const dt=(value?:string)=>value?new Date(value).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"Not recorded";
 const money=(value:number)=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
-export default function MaterialTransportRecordInspector({entry,vendor,directoryRoute,onClose,onOpenDirectory}:Props){
+export default function MaterialTransportRecordInspector({entry,vendor,directoryRoute,onClose,onOpenDirectory,anchor}:Props){
  const VehicleIcon=vehicleIcon(entry.transportVehicleType||"");
  const tone=vehicleClass(entry.transportVehicleType||"");
- return <div className="ax-transport-inspector-backdrop" role="presentation" onClick={onClose}>
-  <section className={"ax-transport-inspector vehicle-"+tone} role="dialog" aria-modal="true" aria-label="Inbound material transport details" onClick={event=>event.stopPropagation()}>
+ return <div className="ax-transport-inspector-backdrop ax-transport-popover-backdrop" style={{"--ax-transport-popup-x":(anchor?.x??8)+"px","--ax-transport-popup-y":(anchor?.y??8)+"px"} as React.CSSProperties} role="presentation" onClick={onClose}>
+  <section className={"ax-transport-inspector ax-transport-popover vehicle-"+tone} role="dialog" aria-modal="true" aria-label="Inbound material transport details" onClick={event=>event.stopPropagation()}>
    <header className="ax-transport-inspector-head"><div className="ax-transport-vehicle-identity"><span className={"ax-transport-vehicle-icon vehicle-"+tone}><VehicleIcon size={22}/></span><div><small>AXIMACH · INBOUND MATERIAL TRANSPORT</small><h2>{entry.transportVehicleType||"Vehicle not specified"}</h2><p>{vendor?.company||"Transporter not assigned"}</p></div></div><button type="button" className="ax-transport-inspector-close" onClick={onClose} aria-label="Close transport details"><X size={20}/></button></header>
    <div className="ax-transport-inspector-grid">
     <div className="ax-transport-info-card ax-transport-wide"><small><Route size={13}/> MATERIAL MOVEMENT ROUTE</small><strong>{entry.transportFrom||"Pickup not recorded"} → {entry.transportTo||"Delivery not recorded"}</strong><p>{entry.transportStatus||"Planned"} · {entry.quantity} pieces · {Number(entry.totalWeightKg||0).toFixed(3)} kg</p></div>
