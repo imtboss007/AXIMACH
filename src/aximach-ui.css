@@ -3103,3 +3103,26 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .manufacturing-universe-workspace[data-workspace-theme="dark"] .process-orbit-selected-heading strong{color:#f2f7fb!important}
 .ax-transport-inspector{background:var(--ax-ws-panel,#fff)!important;color:var(--ax-ws-text,#183650)!important}
 @media(max-width:760px){.ax-workspace-theme-picker{min-height:32px}.ax-workspace-theme-picker span{display:none}}
+
+/* Touch-first graph interaction: do not intercept pinch zoom with page scrolling. */
+.process-universe-3d,.process-scene-zoom-viewport{touch-action:none!important}
+@media(max-width:600px){
+ .ax-full3d-label{width:min(148px,41vw)!important;min-height:86px!important;max-height:112px!important;padding:6px 7px!important;gap:3px!important;border-radius:8px!important}
+ .ax-full3d-label small{font-size:6.5px!important;line-height:1.2!important}
+ .ax-full3d-label strong{font-size:8.5px!important;line-height:1.22!important}
+ .ax-full3d-label em{font-size:7px!important;line-height:1.2!important}
+ .ax-full3d-node-meta{font-size:6px!important}
+ .ax-full3d-transport-leg-label{width:min(154px,42vw)!important;min-height:100px!important;max-height:128px!important}
+ .process-universe-head{gap:7px!important;padding:8px 4px!important}
+ .process-universe-head h3{font-size:14px!important}
+ .process-universe-head p{font-size:9px!important;line-height:1.35!important}
+ .process-universe-count strong{font-size:20px!important}
+ .process-universe-layouts{gap:6px!important;padding:7px 0!important}
+ .process-universe-layouts>button{min-width:76px!important;min-height:48px!important}
+}
+.route-flow-workspace[data-workspace-theme="dark"] .ax-workspace-expand-toggle,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .ax-workspace-expand-toggle{background:#18334b!important;border-color:#42627c!important;color:#eaf5fc!important}
+.route-flow-workspace[data-workspace-theme="dark"] .ax-workspace-theme-picker,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .ax-workspace-theme-picker{background:#12253a!important;border-color:#34536c!important;color:#dcebf5!important}
+.route-flow-workspace[data-workspace-theme="dark"] .ax-workspace-theme-picker select,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .ax-workspace-theme-picker select{color:#e6f0f8!important;background:#12253a!important}
