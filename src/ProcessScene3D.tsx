@@ -6,7 +6,7 @@ type Mode = "sphere"|"cube"|"vortex"|"helix"|"orbit"|"network"|"grid"|"pipeline"
 type CatalogueDefinition = { id:string; processType:string; category:string; displayColor?:string };
 type RouteAnchor = { operation:OperationRecord; relation:string; color:string };
 type MaterialRouteNode = { id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
-type TransportLegNode = { id:string; poLineId:string; anchorOperationId:string; targetOperationId?:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; vendorContact?:string; vendorRole?:string; vendorPhone?:string; vendorWhatsapp?:string; vendorEmail?:string; vendorAddress?:string; vendorStatus?:string; vendorNotes?:string; directoryRouteNotes?:string; directoryRouteActive?:boolean; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
+type TransportLegNode = { id:string; poLineId:string; anchorOperationId:string; targetOperationId?:string; materialEntryId?:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; vendorContact?:string; vendorRole?:string; vendorPhone?:string; vendorWhatsapp?:string; vendorEmail?:string; vendorAddress?:string; vendorStatus?:string; vendorNotes?:string; directoryRouteNotes?:string; directoryRouteActive?:boolean; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
 const vehicleIconFor=(value:string)=>{
  const type=(value||"").toLowerCase();
  if(/bike|motorcycle|scooter|two.wheeler/.test(type))return Bike;
@@ -187,7 +187,8 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const toOperation=anchor
     ? lineRows.filter(operation=>(operation.branch||"Main route")===branch&&operation.sequence>anchor.sequence).sort((a,b)=>a.sequence-b.sequence)[0]
     : firstMain;
-  const fromPoint=fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined;
+  const materialSource=leg.materialEntryId?materialPlacements.find(item=>item.route.id===leg.materialEntryId):undefined;
+  const fromPoint=materialSource?(materialSource.transportPoint||materialSource.materialPoint):(fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined);
   const toPoint=toOperation?geometryPoints.find(item=>item.op.id===toOperation.id)?.p:undefined;
   const lane=(index-(materialRoutes.length-1)/2)*.13;
   const lerp=(a:P,b:P,t:number):P=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t+lane,z:a.z+(b.z-a.z)*t+Math.sign(lane||1)*.045});
@@ -207,7 +208,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const toOperation=(leg.targetOperationId?lineRows.find(operation=>operation.id===leg.targetOperationId):undefined)||(leg.placement==="start"?lineRows[0]:leg.placement==="before"?anchor:(anchorIndex>=0?lineRows[anchorIndex+1]:undefined));
   const fromPoint=fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined;
   const toPoint=toOperation?geometryPoints.find(item=>item.op.id===toOperation.id)?.p:undefined;
-  const siblings=transportLegs.filter(other=>other.poLineId===leg.poLineId&&other.anchorOperationId===leg.anchorOperationId&&other.placement===leg.placement);
+  const siblings=transportLegs.filter(other=>other.poLineId===leg.poLineId&&other.anchorOperationId===leg.anchorOperationId&&other.materialEntryId===leg.materialEntryId&&other.placement===leg.placement);
   const lane=(siblings.findIndex(other=>other.id===leg.id)-(siblings.length-1)/2)*.17;
   let point:P;
   if(fromPoint&&toPoint)point={x:(fromPoint.x+toPoint.x)/2,y:(fromPoint.y+toPoint.y)/2+lane,z:(fromPoint.z+toPoint.z)/2+.16};
