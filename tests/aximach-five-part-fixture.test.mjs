@@ -1538,6 +1538,10 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   assert.ok(demo.includes('branch:"Main route"'));
   assert.ok(demo.includes('branch:"Alternate route"'));
   assert.ok(demo.includes('branch:"Rework route"'));
+  assert.ok(demo.includes('materialCostEntries.push({id:id("MATERIAL-ALLOCATION"'));
+  assert.ok(demo.includes('scope:"process-map"'));
+  assert.ok(demo.includes('transportVendorId:id("VENDOR","LOG")'));
+  assert.ok(demo.includes('return {updatedAt:stamp,companies,factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
   assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
   assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
   assert.ok(importer.includes('onClick={loadTwoCompanyDemo}'));
@@ -1859,6 +1863,23 @@ test("Process Definition catalogue headings span the full grid instead of leavin
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   assert.ok(css.includes('.process-view-directory-catalog-grid{display:grid;grid-template-columns:minmax(0,1fr)!important'));
   assert.ok(css.includes('.process-view-directory-catalog-grid>.process-directory-map-nodes'));
+});
+
+test("Process Map offers legacy vendor transport routes alongside the current Transport Directory", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('...vendors.flatMap(vendor=>(vendor.transportRoutes||[]).map(route=>({'));
+  assert.ok(workspace.includes('id:"legacy-"+vendor.id+"-"+route.id'));
+  assert.ok(workspace.includes('legacy:true'));
+  assert.ok(workspace.includes('route.sourceRouteId===leg?.routeId'));
+  assert.ok(workspace.includes('(route.legacy?"Legacy · ":"")'));
+  assert.ok(workspace.includes('options={transportRouteOptions.filter'));
+});
+
+test("Material allocation saves the selected part onto its PO line for an independent route", () => {
+  const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  assert.ok(panel.includes('allocationLevel:"part" as const,partId:part.id'));
+  assert.ok(panel.includes("purchaseOrders:nextPurchaseOrders"));
+  assert.ok(panel.includes("effectivePoLine?.line.partId&&effectivePoLine.line.partId!==partId"));
 });
 
 test("3D route arrows stay enabled and narrow-screen process metadata is not hidden", () => {
