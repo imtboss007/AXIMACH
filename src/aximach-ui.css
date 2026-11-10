@@ -3355,3 +3355,157 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
    text-align:left!important;font-size:12px!important;line-height:1.25!important
  }
 }
+
+ 
+/* AXIMACH mobile permanent icon rail — the reserved left gutter must contain navigation. */
+@media(max-width:760px){
+  html,body,#root{width:100%!important;max-width:100%!important;overflow:hidden!important}
+  .app-shell,
+  .app-shell:has(.route-flow-workspace),
+  .app-shell:has(.manufacturing-universe-workspace){
+    position:relative!important;width:100%!important;max-width:100%!important;
+    height:100dvh!important;min-height:100dvh!important;padding:0!important;
+    padding-left:0!important;overflow:hidden!important
+  }
+  .app-shell .command-deck,
+  .app-shell:has(.route-flow-workspace) .command-deck,
+  .app-shell:has(.manufacturing-universe-workspace) .command-deck{
+    display:flex!important;position:absolute!important;inset:0 0 auto 0!important;
+    width:100%!important;height:58px!important;min-height:58px!important;
+    padding:0 8px!important;gap:6px!important;z-index:110!important;overflow:hidden!important
+  }
+  .mobile-nav-trigger{
+    display:grid!important;place-items:center!important;flex:0 0 42px!important;
+    width:42px!important;height:42px!important;min-width:42px!important;
+    margin:0 2px!important;border:1px solid #29445d!important;border-radius:12px!important;
+    color:#dcecff!important;background:#0c1c2c!important;cursor:pointer!important
+  }
+  .app-shell .status-ribbon,
+  .app-shell:has(.route-flow-workspace) .status-ribbon,
+  .app-shell:has(.manufacturing-universe-workspace) .status-ribbon{
+    display:flex!important;position:absolute!important;top:58px!important;left:52px!important;right:0!important;
+    width:auto!important;height:26px!important;min-height:26px!important;margin:0!important;
+    padding:0 8px!important;overflow:hidden!important;font-size:8px!important;z-index:20!important
+  }
+  .app-shell .page-content,
+  .app-shell:has(.route-flow-workspace) .page-content,
+  .app-shell:has(.manufacturing-universe-workspace) .page-content{
+    position:absolute!important;top:84px!important;left:52px!important;right:0!important;bottom:0!important;
+    width:auto!important;height:auto!important;max-width:none!important;margin:0!important;margin-left:0!important;
+    padding:8px!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important
+  }
+  .app-shell .command-rail,
+  .app-shell:has(.route-flow-workspace) .command-rail,
+  .app-shell:has(.manufacturing-universe-workspace) .command-rail,
+  .app-shell:has(.linked-process-page) .command-rail{
+    display:flex!important;position:fixed!important;left:0!important;right:auto!important;
+    top:84px!important;bottom:0!important;width:52px!important;max-width:52px!important;height:auto!important;
+    max-height:none!important;margin:0!important;padding:7px 4px calc(12px + env(safe-area-inset-bottom))!important;
+    flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:5px!important;
+    overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important;
+    transform:none!important;visibility:visible!important;pointer-events:auto!important;
+    border:0!important;border-right:1px solid rgba(118,164,202,.22)!important;border-radius:0!important;
+    background:#071625!important;box-shadow:5px 0 18px rgba(0,0,0,.18)!important;z-index:100!important
+  }
+  .app-shell .command-rail .rail-section-label,
+  .app-shell .command-rail>button span{display:none!important}
+  .app-shell .command-rail>button{
+    display:grid!important;place-items:center!important;flex:0 0 43px!important;
+    width:44px!important;min-width:44px!important;max-width:44px!important;height:43px!important;min-height:43px!important;
+    margin:0!important;padding:0!important;border:1px solid transparent!important;border-radius:10px!important;
+    flex-direction:row!important;gap:0!important;text-align:center!important;color:#93afca!important;background:transparent!important
+  }
+  .app-shell .command-rail>button svg{width:19px!important;height:19px!important;flex:0 0 19px!important}
+  .app-shell .command-rail>button.rail-active{background:#103653!important;border-color:#147fc1!important;color:#67caff!important}
+  .app-shell .command-rail .rail-all{margin-top:7px!important;border-top:1px solid #29445d!important;border-radius:0!important;color:#69b9ed!important}
+  .mobile-nav-backdrop{
+    display:block!important;position:fixed!important;inset:58px 0 0!important;z-index:99!important;
+    width:100vw!important;height:calc(100dvh - 58px)!important;margin:0!important;padding:0!important;border:0!important;
+    background:rgba(1,9,18,.62)!important;backdrop-filter:blur(2px)!important
+  }
+  .app-shell .command-rail.mobile-nav-open,
+  .app-shell:has(.route-flow-workspace) .command-rail.mobile-nav-open,
+  .app-shell:has(.manufacturing-universe-workspace) .command-rail.mobile-nav-open,
+  .app-shell:has(.linked-process-page) .command-rail.mobile-nav-open{
+    left:0!important;right:auto!important;top:58px!important;bottom:0!important;
+    width:min(308px,86vw)!important;max-width:86vw!important;height:auto!important;max-height:none!important;
+    padding:12px 12px calc(14px + env(safe-area-inset-bottom))!important;gap:5px!important;
+    align-items:stretch!important;overflow-x:hidden!important;overflow-y:auto!important;
+    transform:none!important;visibility:visible!important;pointer-events:auto!important;
+    border-right:1px solid rgba(118,164,202,.25)!important;border-radius:0 16px 16px 0!important;
+    box-shadow:18px 0 44px rgba(0,0,0,.36)!important;z-index:101!important
+  }
+  .app-shell .command-rail.mobile-nav-open .rail-section-label{
+    display:block!important;flex:0 0 auto!important;width:100%!important;margin:12px 0 5px!important;
+    padding:0 8px!important;text-align:left!important;color:#819ab5!important;font-size:9px!important;letter-spacing:.12em!important
+  }
+  .app-shell .command-rail.mobile-nav-open>button{
+    display:flex!important;flex:0 0 auto!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;
+    gap:12px!important;width:100%!important;min-width:0!important;max-width:none!important;height:auto!important;min-height:45px!important;
+    padding:10px 12px!important;border-radius:10px!important;text-align:left!important
+  }
+  .app-shell .command-rail.mobile-nav-open>button svg{width:19px!important;height:19px!important;flex:0 0 19px!important}
+  .app-shell .command-rail.mobile-nav-open>button span{
+    display:block!important;flex:1 1 auto!important;min-width:0!important;max-width:none!important;
+    color:inherit!important;text-align:left!important;font-size:12px!important;line-height:1.25!important;
+    white-space:normal!important;overflow-wrap:normal!important;word-break:normal!important
+  }
+  .app-shell .command-rail.mobile-nav-open>button.rail-all{
+    margin-top:9px!important;border-top:1px solid #29445d!important;border-radius:0!important;padding-top:13px!important
+  }
+  .app-shell:has(.route-flow-workspace) .route-flow-canvas-layout{grid-template-columns:minmax(0,1fr)!important}
+  .app-shell:has(.route-flow-workspace) .route-flow-relationship-panel{margin-top:10px!important}
+}
+
+/* Small, always-visible map zoom controls. They affect only the canvas, never its module. */
+.ax-map-zoom-toolbar{
+  position:absolute!important;left:10px!important;top:10px!important;z-index:75!important;
+  display:flex!important;align-items:center!important;gap:5px!important;padding:5px!important;
+  border:1px solid rgba(91,143,184,.38)!important;border-radius:11px!important;
+  background:rgba(6,24,41,.92)!important;box-shadow:0 5px 16px rgba(0,0,0,.18)!important;
+  backdrop-filter:blur(10px)!important
+}
+.ax-map-zoom-toolbar button{
+  display:grid!important;place-items:center!important;min-width:34px!important;height:32px!important;
+  padding:0 8px!important;border:1px solid rgba(111,169,207,.32)!important;border-radius:7px!important;
+  background:#102e48!important;color:#e3f4ff!important;font-size:17px!important;font-weight:700!important;cursor:pointer!important
+}
+.ax-map-zoom-toolbar button.ax-map-zoom-fit{min-width:42px!important;font-size:10px!important;letter-spacing:.04em!important}
+.ax-map-zoom-toolbar output{min-width:43px!important;text-align:center!important;color:#9dc7e3!important;font:10px 'DM Mono',monospace!important}
+.ax-map-fullscreen-shell>.ax-map-fullscreen-toggle{z-index:76!important}
+.ax-map-fullscreen-shell:fullscreen .ax-map-zoom-toolbar{position:fixed!important;top:max(10px,env(safe-area-inset-top))!important;left:max(10px,env(safe-area-inset-left))!important}
+.ax-map-fullscreen-shell:fullscreen>.ax-map-fullscreen-toggle{position:fixed!important;right:max(10px,env(safe-area-inset-right))!important}
+
+/* Fit mobile manufacturing scenes inside the workspace; users control subsequent zoom. */
+@media(max-width:760px){
+  .dashboard-welcome{display:block!important;padding:15px!important}
+  .dashboard-welcome-copy{max-width:none!important}
+  .dashboard-welcome-orb{width:100%!important;max-width:100%!important;margin:10px 0 0!important;overflow:visible!important}
+  .ax-orb-stage{min-height:250px!important;max-height:none!important;padding:4px 0 34px!important;overflow:visible!important}
+  .ax-orb-status-top{top:0!important;font-size:7px!important}
+  .ax-orb-drag-zone{width:min(100%,320px)!important;height:220px!important;margin:5px auto 6px!important}
+  .ax-orb-depth{max-width:290px!important}
+  .ax-orb-core{width:146px!important}
+  .ax-orb-satellite>span{width:30px!important;height:30px!important;border-radius:9px!important}
+  .ax-orb-satellite>span svg{width:13px!important;height:13px!important}
+  .ax-orb-satellite small{max-width:68px!important;padding:2px 4px!important;font-size:6px!important;line-height:1.1!important;white-space:normal!important;text-align:center!important}
+  .ax-orb-status-bottom{bottom:0!important;max-width:96%!important;white-space:normal!important;justify-content:center!important;text-align:center!important;font-size:6px!important}
+  .ax-orb-lower-summary-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;width:min(100%,430px)!important;margin:9px auto 4px!important}
+  .ax-orb-lower-summary-card{
+    display:grid!important;grid-template-columns:22px 1fr!important;grid-template-rows:auto auto!important;align-items:center!important;
+    gap:2px 7px!important;min-width:0!important;min-height:54px!important;padding:8px!important;
+    border:1px solid rgba(88,151,205,.33)!important;border-radius:10px!important;background:rgba(11,34,57,.88)!important;
+    color:#d6ebff!important;text-align:left!important
+  }
+  .ax-orb-lower-summary-card svg{grid-row:1/3!important;width:18px!important;height:18px!important;color:#81c9f1!important}
+  .ax-orb-lower-summary-card strong{font:700 14px 'Space Grotesk'!important}
+  .ax-orb-lower-summary-card small{font:8px 'DM Mono'!important;color:#9db8d1!important;line-height:1.15!important}
+  .ax-orb-lower-shell{display:none!important}
+  .ax-orb-studio-actions{gap:5px!important;margin-top:7px!important}
+  .ax-orb-studio-actions>button{min-height:34px!important;font-size:8px!important}
+  .ax-orb-studio-panel{width:100%!important;grid-template-columns:1fr 1fr!important}
+  .ax-process-map-fullscreen .process-scene-zoom-viewport{max-height:40dvh!important;min-height:0!important}
+  .ax-process-map-fullscreen .ax-full3d-scene{height:clamp(250px,40dvh,390px)!important;min-height:250px!important;max-height:390px!important}
+  .route-flow-map-main .route-flow-stage-scroll{max-height:45dvh!important;min-height:280px!important;overflow:auto!important}
+  .route-flow-stage-zoom-content{min-width:100%!important;transform-origin:top left!important}
+}
