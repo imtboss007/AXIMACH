@@ -67,7 +67,7 @@ export function createAxMachTwoCompanyDemo():ManufacturingData{
  const processDefinitions=[...defs.values()];
  vendors.forEach(v=>v.processDefinitionIds=processDefinitions.filter(d=>d.vendorIds.includes(v.id)).map(d=>d.id));
  const purchaseOrders:ManufacturingData["purchaseOrders"]=[],components:ManufacturingData["components"]=[],operations:ManufacturingData["operations"]=[];
- const plannedCosts:ManufacturingData["plannedCosts"]=[],materials:ManufacturingData["materials"]=[],bomLines:ManufacturingData["bomLines"]=[];
+ const plannedCosts:ManufacturingData["plannedCosts"]=[],materials:ManufacturingData["materials"]=[],bomLines:ManufacturingData["bomLines"]=[],materialCostEntries:ManufacturingData["materialCostEntries"]=[];
  const inventoryTransactions:ManufacturingData["inventoryTransactions"]=[],quotations:ManufacturingData["quotations"]=[];
  const paymentTransactions:ManufacturingData["paymentTransactions"]=[],inspectionMeasurements:ManufacturingData["inspectionMeasurements"]=[];
  const poMap=new Map<string,ManufacturingData["purchaseOrders"][number]>(), companyMap=new Map(companies.map(c=>[c.name.startsWith("ASTER")?"ASTER":"MERIDIAN",c]));
@@ -79,8 +79,19 @@ export function createAxMachTwoCompanyDemo():ManufacturingData{
   if(!po){po={id:poId,number:"DEMO-PO-"+(p.co==="ASTER"?"001":"002"),companyId:company.id,factoryId:factory.id,issueDate:date(),targetDelivery:date(35),status:"Open",notes:"DEMO ONLY — synthetic purchase order.",lines:[],createdAt:stamp,updatedAt:stamp};poMap.set(company.id,po);purchaseOrders.push(po);}
   po.lines.push({id:lineId,componentId,quantity:p.qty,targetDelivery:date(35),unitPrice:p.price,notes:"DEMO PO line — assumed values.",jobStatus:"In progress",updatedAt:stamp});
   const materialId=id("MATERIAL",p.key);
-  materials.push({id:materialId,code:"MAT-"+p.key,name:p.material,grade:p.material,unit:"kg",specification:"Synthetic material spec; verify before use.",preferredVendorId:id("VENDOR","CNC"),ratePerUnit:420,notes:"DEMO material rate.",createdAt:stamp,updatedAt:stamp});
+  const densityKgM3=/aluminium/i.test(p.material)?2700:7850;
+  const plateLike=/bracket|manifold|block|base plate|mounting/i.test(p.name);
+  const shapeType=plateLike?"plate":"round-bar";
+  const dimensions=plateLike?{length:180,width:110,thickness:18}:{length:165,diameter:52};
+  const dimensionUnits=Object.fromEntries(Object.keys(dimensions).map(key=>[key,"mm"]));
+  const volumeMm3=plateLike?dimensions.length*dimensions.width*dimensions.thickness:Math.PI*Math.pow(dimensions.diameter,2)*dimensions.length/4;
+  const weightPerPieceKg=volumeMm3*densityKgM3/1_000_000_000;
+  const totalWeightKg=weightPerPieceKg*p.qty*1.025;
+  const materialRate=420;
+  const materialCost=totalWeightKg*materialRate;
+  materials.push({id:materialId,code:"MAT-"+p.key,name:p.material,grade:p.material,unit:"kg",specification:"Synthetic material spec; verify before use.",preferredVendorId:id("VENDOR","CNC"),ratePerUnit:materialRate,notes:"DEMO material rate.",materialType:/aluminium/i.test(p.material)?"Aluminium":"Steel",densityKgM3,densityUnit:"kg/m3",priceUnit:"kg",createdAt:stamp,updatedAt:stamp});
   bomLines.push({id:id("BOM",p.key),componentId,materialId,revision:"A",quantityPerPart:1.25,scrapPercent:2.5,notes:"DEMO BOM quantity; verify against drawing.",createdAt:stamp,updatedAt:stamp});
+  materialCostEntries.push({id:id("MATERIAL-ALLOCATION",p.key),scope:"process-map",companyId:company.id,poId,poLineId:lineId,componentId,partNumber:p.key,partName:p.name,materialId,materialName:p.material,materialGrade:p.material,densityKgM3,shapeType,dimensions,dimensionUnits,quantity:p.qty,weightPerPieceKg,totalWeightKg,priceUnit:"kg",materialRate,materialCost,cuttingType:"",cuttingBasis:"Per piece",cuttingRate:0,cutsPerPiece:1,cuttingHours:0,cuttingCost:0,wastagePercent:2.5,vendorId:id("VENDOR","CNC"),givenDate:date(-1)+"T08:00",deliveryDate:date(1)+"T12:00",actualDeliveryDate:"",poReference:"DEMO-PO-"+(p.co==="ASTER"?"001":"002"),notes:"SYNTHETIC DEMO MATERIAL PROCUREMENT — do not use as a live quote or certificate.",currency:"INR",transportVendorId:id("VENDOR","LOG"),transportFrom:"Bengaluru DEMO",transportTo:p.co==="ASTER"?"Bengaluru DEMO":"Coimbatore DEMO",transportVehicleType:"Closed van",transportCost:0,transportPickupAt:date(1)+"T08:00",transportDeliveryAt:date(2)+"T12:00",transportStatus:"Planned",createdAt:stamp,updatedAt:stamp});
   let parentId="";const mainIds:string[]=[];
   p.steps.forEach((s,i)=>{
    const def=defs.get(s.category+"::"+s.name)!,vendor=vendorByCode.get(s.vendor)!;
@@ -106,7 +117,7 @@ export function createAxMachTwoCompanyDemo():ManufacturingData{
   ...vendors.map(v=>({id:id("CONTACT",v.id),linkedType:"vendor" as const,linkedId:v.id,name:v.contact,role:"Demo vendor contact",group:"DEMO",phone:"",whatsapp:"",additionalPhones:[],email:v.email,address:v.address,followUpDate:date(4),history:"Synthetic DEMO vendor contact; do not contact.",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[],machineCapabilities:[],materialCapabilities:[],createdAt:stamp,updatedAt:stamp}))
  ];
  const followUpAssignments:ManufacturingData["followUpAssignments"]=vendors.map(v=>({id:id("FOLLOW-UP",v.id),moduleId:"vendors",recordId:v.id,recordLabel:v.company,contactId:id("CONTACT",v.id),contactName:v.contact,contactPhone:"",contactEmail:v.email,createdAt:stamp,updatedAt:stamp}));
- return {updatedAt:stamp,companies,factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries:[],bomLines,inventoryTransactions,contactProfiles,processDefinitions,plannedCosts,transportRoutes,transportLegs,paymentTransactions,inspectionMeasurements,followUpAssignments};
+ return {updatedAt:stamp,companies,factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines,inventoryTransactions,contactProfiles,processDefinitions,plannedCosts,transportRoutes,transportLegs,paymentTransactions,inspectionMeasurements,followUpAssignments};
 }
 export function archiveAxMachTwoCompanyDemo(current:ManufacturingData,stamp=new Date().toISOString()):ManufacturingData{
  const archive=<T extends {id:string;updatedAt?:string;deletedAt?:string}>(rows:T[]):T[]=>rows.map(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)?{...row,deletedAt:stamp,updatedAt:stamp}:row);
