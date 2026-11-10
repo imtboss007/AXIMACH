@@ -2324,6 +2324,9 @@ test("AXIMACH integrates every shared route layout, independent material legs, c
   assert.ok(map.includes('!leg.materialEntryId&&leg.placement==="before"'));
   assert.ok(map.includes("<RouteConnectorLegend compact/>"));
   assert.ok(universe.includes("<RouteConnectorLegend compact/>"));
+  assert.ok(map.includes("savedRelationship?.relationshipType"));
+  assert.ok(map.includes("routeRelationshipColors:Record<string,string>"));
+  for(const kind of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"]) assert.ok(css.includes(".process-route-flow-arrow.is-"+kind),"Process Map connector style missing "+kind);
   assert.ok(picker.includes("CONNECTOR LEGEND"));
   assert.ok(scene.includes("hasMaterialSpecificLeg"));
   assert.ok(scene.includes("if(to&&!hasMaterialSpecificLeg)"));
