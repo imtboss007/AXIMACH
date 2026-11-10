@@ -155,6 +155,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     if(!initialMaterials.length&&!lane.length)nodes.push({kind:"missing-material",id:"missing-material"});
     initialMaterials.forEach(addMaterial);
     lane.forEach(operation=>{
+      routeLegs.filter(leg=>!leg.materialEntryId&&leg.targetOperationId===operation.id&&!lane.some(row=>row.id===leg.anchorOperationId)).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
       routeLegs.filter(leg=>!leg.materialEntryId&&leg.placement==="before"&&leg.anchorOperationId===operation.id).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
       nodes.push({kind:"operation",id:operation.id,operation});
       routeLegs.filter(leg=>!leg.materialEntryId&&(leg.placement||"after")==="after"&&leg.anchorOperationId===operation.id).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
