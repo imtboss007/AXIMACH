@@ -1430,7 +1430,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 const routeNodes:Array<any>=[];
                 routeMaterials.forEach(entry=>{
                   routeNodes.push({kind:"material",id:"material-"+entry.id,entry});
-                  if(entry.transportVendorId||entry.transportFrom||entry.transportTo||Number(entry.transportCost)>0)routeNodes.push({kind:"material-transport",id:"material-transport-"+entry.id,entry});
+                  if(entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||entry.transportPickupAt||entry.transportDeliveryAt||Number(entry.transportCost)>0)routeNodes.push({kind:"material-transport",id:"material-transport-"+entry.id,entry});
                 });
                 routeTransportLegs.filter(leg=>(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start").forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
                 lane.forEach(operation=>{
