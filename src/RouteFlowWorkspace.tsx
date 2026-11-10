@@ -34,8 +34,11 @@ type FlowNode =
  | {kind:"operation";id:string;operation:OperationRecord}
  | {kind:"missing-material";id:string};
 
-function vehicleIconFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type)) return Bike; if(/bus/.test(type)) return Bus; if(/car|taxi|auto|three.wheeler/.test(type)) return CarFront; if(/air|plane|flight/.test(type)) return Plane; if(/ship|boat|vessel/.test(type)) return Ship; if(/train|rail/.test(type)) return TrainFront; return Truck; }\n\nfunction RouteCurve({type,transport=false,label,vehicleType="",tripCount=0}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number}) {
-  const style=transport?"transport":type;\n  const VehicleIcon=vehicleIconFor(vehicleType);
+function vehicleIconFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type)) return Bike; if(/bus/.test(type)) return Bus; if(/car|taxi|auto|three.wheeler/.test(type)) return CarFront; if(/air|plane|flight/.test(type)) return Plane; if(/ship|boat|vessel/.test(type)) return Ship; if(/train|rail/.test(type)) return TrainFront; return Truck; }
+
+function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number}) {
+  const style=transport?"transport":type;
+  const VehicleIcon=vehicleIconFor(vehicleType);
   return <div className={"route-flow-curve route-flow-curve-"+style} aria-label={transport?"Transport connection":relationLabel(type)}>
     <svg viewBox="0 0 140 66" role="img" aria-hidden="true">
       <path className="route-flow-curve-shadow" d="M4 36 C42 -5 91 77 132 31"/>
@@ -44,7 +47,8 @@ function vehicleIconFor(value:string) { const type=(value||"").toLowerCase(); if
       <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path="M4 36 C42 -5 91 77 132 31"/></circle>
       {style==="conditional"&&<path className="route-flow-curve-diamond" d="M69 22 L76 29 L69 36 L62 29 Z"/>}
     </svg>
-    {transport&&<span className="route-flow-vehicle-marker" title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></span>}\n    <small>{transport?(vehicleType||"TRANSPORT"):label||relationLabel(type)}</small>
+    {transport&&<span className="route-flow-vehicle-marker" title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></span>}
+    <small>{transport?(vehicleType||"TRANSPORT"):label||relationLabel(type)}</small>
   </div>;
 }
 
@@ -140,7 +144,11 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     if(!toId){for(let i=index+1;i<routeNodes.length;i++)if(routeNodes[i].kind==="operation"){toId=(routeNodes[i] as Extract<FlowNode,{kind:"operation"}>).operation.id;break;}}
     const relation=fromId&&toId?relationFor(fromId,toId):undefined;
     const defaultType:RouteRelationshipType=branch.toLowerCase().includes("rework")?"rework":branch==="Main route"?"main":"alternate";
-    const transportNode=current?.kind==="transport"?current:next?.kind==="transport"?next:null;\n    const materialTransportNode=current?.kind==="material-transport"?current:next?.kind==="material-transport"?next:null;\n    const vehicleType=transportNode?.kind==="transport"?transportNode.leg.vehicleType:materialTransportNode?.kind==="material-transport"?materialTransportNode.entry.transportVehicleType||"":"";\n    const tripCount=transportNode?.kind==="transport"?transportNode.leg.tripCount:materialTransportNode?.kind==="material-transport"?1:0;\n    return {transport,relation,type:relation?.relationshipType||defaultType,label:relation?.label,vehicleType,tripCount};
+    const transportNode=current?.kind==="transport"?current:next?.kind==="transport"?next:null;
+    const materialTransportNode=current?.kind==="material-transport"?current:next?.kind==="material-transport"?next:null;
+    const vehicleType=transportNode?.kind==="transport"?transportNode.leg.vehicleType:materialTransportNode?.kind==="material-transport"?materialTransportNode.entry.transportVehicleType||"":"";
+    const tripCount=transportNode?.kind==="transport"?transportNode.leg.tripCount:materialTransportNode?.kind==="material-transport"?1:0;
+    return {transport,relation,type:relation?.relationshipType||defaultType,label:relation?.label,vehicleType,tripCount};
   };
 
   const saveRelationship=()=>{
