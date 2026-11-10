@@ -259,6 +259,46 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const relaxed=relaxLabels(all,w,h);
   return {operations:relaxed.filter(item=>item.kind==="operation").map(item=>({op:ops.find(candidate=>candidate.id===item.id)!.op,screen:item.screen})),materials:relaxed.filter(item=>item.kind==="material").map(item=>({id:item.id,screen:item.screen})),transports:relaxed.filter(item=>item.kind==="transport").map(item=>({id:item.id,screen:item.screen})),transportLegs:relaxed.filter(item=>item.kind==="transportLeg").map(item=>({id:item.id,screen:item.screen})),center:centerScreen};
  },[points,size,angle,materialPlacements,transportLegPlacements,mode]);
+ const projected=projectedLayout.operations;
+ const projectedMaterials=projectedLayout.materials;
+ const projectedTransports=projectedLayout.transports;
+ const projectedTransportLegs=projectedLayout.transportLegs;
+ const projectedCore=projectedLayout.center;
+ const projectedEdges=useMemo(()=>{
+  const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));
+  const positions=new Map(projected.map(item=>[item.op.id,item.screen]));
+  for(const anchor of anchorPoints){const screen=project(anchor.point,m,w,h);if(screen)positions.set(anchor.anchor.operation.id,screen);}
+  const materialPosition=new Map(projectedMaterials.map(item=>[item.id,item.screen]));
+  const transportPosition=new Map(projectedTransports.map(item=>[item.id,item.screen]));
+  const transportLegPosition=new Map(projectedTransportLegs.map(item=>[item.id,item.screen]));
+  const result:any[]=[];
+  const add=(key:string,fromId:string,toId:string,fromName:string,toName:string,from:ProjectedPoint|undefined|null,to:ProjectedPoint|undefined|null,relation:string)=>{
+   if(!from||!to)return;const dx=to.x-from.x,dy=to.y-from.y,length=Math.hypot(dx,dy);if(length<7)return;const inset=Math.min(20,length*.2);result.push({key,fromId,toId,from:fromName,to:toName,x:from.x+(dx/length)*inset,y:from.y+(dy/length)*inset,length:Math.max(7,length-inset*2),angle:Math.atan2(dy,dx)*180/Math.PI,relation});
+  };
+  const routeEdges=edges.length?edges:points.slice(0,-1).map((item,i)=>({from:item.op,to:points[i+1].op,relation:"main",color:"#4b95eb"}));
+  const replaced=new Set([
+   ...materialPlacements.filter(item=>item.fromOperation&&item.toOperation).map(item=>item.fromOperation!.id+"->"+item.toOperation!.id),
+   ...transportLegPlacements.filter(item=>item.fromOperation&&item.toOperation).map(item=>item.fromOperation!.id+"->"+item.toOperation!.id)
+  ]);
+  routeEdges.forEach(edge=>{if(replaced.has(edge.from.id+"->"+edge.to.id))return;add("op-"+edge.from.id+"-"+edge.to.id,edge.from.id,edge.to.id,edge.from.name,edge.to.name,positions.get(edge.from.id),positions.get(edge.to.id),edge.relation);});
+  materialPlacements.forEach(item=>{
+   const mat=materialPosition.get(item.route.id),trans=transportPosition.get(item.route.id);
+   const from=item.fromOperation?positions.get(item.fromOperation.id):undefined;
+   const to=item.toOperation?positions.get(item.toOperation.id):undefined;
+   if(from&&mat)add("material-in-"+item.route.id,item.fromOperation!.id,"",item.fromOperation!.name,"Material · "+item.route.materialLabel,from,mat,"material");
+   if(mat&&trans)add("material-transport-"+item.route.id,"","","Material · "+item.route.materialLabel,"Transport · "+item.route.transporter,mat,trans,"material");
+   if(trans&&to)add("transport-process-"+item.route.id,"__transport__"+item.route.id,item.toOperation!.id,"Transport · "+item.route.transporter,item.toOperation!.name,trans,to,"material");
+  });
+  transportLegPlacements.forEach(item=>{
+   const node=transportLegPosition.get(item.leg.id);
+   const from=item.fromOperation?positions.get(item.fromOperation.id):undefined;
+   const to=item.toOperation?positions.get(item.toOperation.id):undefined;
+   const relation=item.leg.relation;
+   if(from&&node)add("operation-transport-"+item.leg.id,item.fromOperation!.id,"__transport_leg__"+item.leg.id,item.fromOperation!.name,"Transport · "+item.leg.fromLocation+" → "+item.leg.toLocation,from,node,relation);
+   if(node&&to)add("transport-operation-"+item.leg.id,"__transport_leg__"+item.leg.id,item.toOperation!.id,"Transport · "+item.leg.fromLocation+" → "+item.leg.toLocation,item.toOperation!.name,node,to,relation);
+  });
+  return result;
+ },[projected,projectedMaterials,projectedTransports,projectedTransportLegs,materialPlacements,transportLegPlacements,edges,points,anchorPoints,size,angle]);
  const projectedGanttTicks=useMemo(()=>{if(mode!=="gantt")return[];const domain=ganttDomain(geometryRows,ganttScale);if(!domain.hasEvents)return[];const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));return domain.ticks.map(value=>{const x=((value-domain.minimum)/Math.max(1,domain.maximum-domain.minimum))*2.35-1.175;const screen=project({x,y:-1.08,z:-.09},m,w,h);const date=new Date(value);const label=date.toLocaleDateString("en-IN",ganttScale==="month"?{month:"short",year:"2-digit"}:{day:"2-digit",month:"short"});return screen?{key:String(value),x:screen.x,label}:null;}).filter(Boolean);},[mode,geometryRows,ganttScale,size,angle]);
  const projectedCatalogue=useMemo(()=>{const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));return cataloguePoints.map(({definition,p})=>({definition,screen:project(p,m,w,h)}));},[cataloguePoints,size,angle]);
   const ganttStatus=useMemo(()=>{if(mode!=="gantt")return "";const domain=ganttDomain(geometryRows,ganttScale);const unscheduled=geometryRows.filter(op=>!(timestamp(op.plannedStart)??timestamp(op.actualStart))&&!(timestamp(op.plannedEnd)??timestamp(op.actualEnd))).length;const incomplete=geometryRows.filter(op=>!(timestamp(op.plannedStart)??timestamp(op.actualStart))||!(timestamp(op.plannedEnd)??timestamp(op.actualEnd))).length;return !domain.hasEvents?"NO SCHEDULE DATES · "+unscheduled+" UNSCHEDULED":incomplete?"INCOMPLETE SCHEDULE · "+incomplete+" OPERATION(S)":"";},[mode,geometryRows,ganttScale]);
@@ -293,6 +333,12 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
      {visibleFields.includes("transportDelivery")&&<small>Delivery {nodeDateTime(route.deliveryAt)}</small>}
      {visibleFields.includes("materialTransportCost")&&<small>Transport ₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
    </div>;})}
+    {projectedTransportLegs.map((item,index)=>{const leg=transportLegs.find(row=>row.id===item.id);if(!leg)return null;return <button type="button" key={"transport-leg-card-"+item.id} className="ax-full3d-label ax-full3d-transport-leg-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onSelectTransportLeg?.(leg.id);}} aria-label={"Edit transport leg "+leg.fromLocation+" to "+leg.toLocation}>
+      <small><Truck size={12}/> TRANSPORT LEG · {index+1}/{transportLegs.length}</small><strong>{leg.vendorName||"Transporter not assigned"}</strong>
+      <small>{leg.fromLocation||"From not set"} → {leg.toLocation||"To not set"}</small>
+      <small>{leg.vehicleType||"Vehicle not set"} · {leg.tripDirection} · {leg.tripCount} trip(s)</small>
+      <em>₹{leg.amount.toLocaleString("en-IN",{maximumFractionDigits:2})}</em>
+    </button>;})}
     {projectedTransportLegs.map((item,index)=>{const leg=transportLegs.find(row=>row.id===item.id);if(!leg)return null;return <button type="button" key={"transport-leg-card-"+item.id} className="ax-full3d-label ax-full3d-transport-leg-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onSelectTransportLeg?.(leg.id);}} aria-label={"Edit transport leg "+leg.fromLocation+" to "+leg.toLocation}>
       <small><Truck size={12}/> TRANSPORT LEG · {index+1}/{transportLegs.length}</small><strong>{leg.vendorName||"Transporter not assigned"}</strong>
       <small>{leg.fromLocation||"From not set"} → {leg.toLocation||"To not set"}</small>
