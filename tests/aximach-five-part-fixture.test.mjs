@@ -1721,7 +1721,9 @@ test("Material allocations save supplier-linked inbound transport and appear in 
   assert.ok(processMap.includes("materialRoutes={materialRouteEntries.map(entry=>"));
   assert.ok(universe.includes("MATERIAL PROCUREMENT &amp; INBOUND TRANSPORT"));
   assert.ok(universe.includes("route.materialLabel"));
-  assert.ok(universe.includes("route.transporter"));
+  assert.ok(universe.includes("function MaterialRouteTransportMarker"));
+  assert.ok(universe.includes("route.vehicle"));
+  assert.ok(!universe.includes("<strong>{route.transporter}</strong>"));
   assert.ok(processMap.includes("materialInboundTransportCost"));
 });
 
@@ -2342,7 +2344,7 @@ test("AXIMACH integrates every shared route layout, independent material legs, c
   assert.ok(universe.includes("setRouteLayout(option.id as RouteLayoutMode)"));
   assert.ok(universe.includes("simulationIndex={simulationIndex}"));
   assert.ok(universe.includes("function MaterialRouteTransportMarker"));
-  assert.ok(universe.includes("onSelectMaterialTransport?.(route.id,{x:rect.left,y:rect.top})"));
+  assert.ok(universe.includes("onSelect?.(route.id,{x:rect.left,y:rect.top})"));
   assert.ok(!universe.includes("<strong>{route.transporter}</strong>"));
   for(const vehicle of ["truck","bike","bus","car","air","ship","rail"]) assert.ok(css.includes(".ax-transport-icon-trigger.vehicle-"+vehicle),"compact vehicle colour missing "+vehicle);
   assert.ok(universe.includes("SIMULATION · STEP"));
