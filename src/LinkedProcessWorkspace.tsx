@@ -64,7 +64,16 @@ const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
 });
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const dateValue = (value: string) => new Date(value.includes("T") ? value : value + "T12:00:00");
-const dateTimeInput = (value?: string) => {\n  if (!value) return "";\n  const trimmed=value.trim();\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(trimmed)) return trimmed+"T08:00";\n  if (/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}/.test(trimmed) && !/(Z|[+-]\\d{2}:?\\d{2})$/i.test(trimmed)) return trimmed.slice(0,16);\n  const parsed=new Date(trimmed);\n  if (Number.isNaN(parsed.getTime())) return "";\n  const pad=(number:number)=>String(number).padStart(2,"0");\n  return parsed.getFullYear()+"-"+pad(parsed.getMonth()+1)+"-"+pad(parsed.getDate())+"T"+pad(parsed.getHours())+":"+pad(parsed.getMinutes());\n};
+const dateTimeInput = (value?: string) => {
+  if (!value) return "";
+  const trimmed=value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed+"T08:00";
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(trimmed) && !/(Z|[+-]\d{2}:?\d{2})$/i.test(trimmed)) return trimmed.slice(0,16);
+  const parsed=new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const pad=(number:number)=>String(number).padStart(2,"0");
+  return parsed.getFullYear()+"-"+pad(parsed.getMonth()+1)+"-"+pad(parsed.getDate())+"T"+pad(parsed.getHours())+":"+pad(parsed.getMinutes());
+};
 const shortDate = (value?: string) => value ? dateValue(value).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", ...(value.includes("T") ? {hour:"2-digit",minute:"2-digit"} : {}) }) : "Not set";
 const daysBetween = (start?: string, end?: string) => start && end ? Math.max(1, Math.round((dateValue(end).getTime() - dateValue(start).getTime()) / 86400000) + 1) : 0;
 
