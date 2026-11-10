@@ -353,16 +353,20 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
    const mat=materialPosition.get(item.route.id),trans=transportPosition.get(item.route.id);
    const from=item.fromOperation?positions.get(item.fromOperation.id):undefined;
    const to=item.toOperation?positions.get(item.toOperation.id):undefined;
-   const startLegs=transportLegPlacements.filter(leg=>leg.leg.poLineId===item.route.poLineId&&leg.leg.placement==="start"&&!leg.leg.anchorOperationId);
+   const explicitMaterialLegs=transportLegPlacements.filter(leg=>leg.leg.materialEntryId===item.route.id);
+   const lineMaterials=materialPlacements.filter(candidate=>candidate.route.poLineId===item.route.poLineId).slice().sort((a,b)=>a.index-b.index);
+   const isFirstMaterialForLine=lineMaterials[0]?.route.id===item.route.id;
+   const routeStartLegs=explicitMaterialLegs.length||!isFirstMaterialForLine?[]:transportLegPlacements.filter(leg=>leg.leg.poLineId===item.route.poLineId&&leg.leg.placement==="start"&&!leg.leg.anchorOperationId&&!leg.leg.materialEntryId);
+   const legsForMaterial=explicitMaterialLegs.length?explicitMaterialLegs:routeStartLegs;
    const exit=trans||mat;
    if(from&&mat)add("material-in-"+item.route.id,item.fromOperation!.id,"",item.fromOperation!.name,"Material · "+item.route.materialLabel,from,mat,"material");
    if(mat&&trans)add("material-transport-"+item.route.id,"","","Material · "+item.route.materialLabel,"Transport · "+item.route.transporter,mat,trans,"material");
-   if(exit&&startLegs.length)startLegs.forEach(leg=>{
+   if(exit&&legsForMaterial.length)legsForMaterial.forEach(leg=>{
     const node=transportLegPosition.get(leg.leg.id);
     if(node)add("material-start-transport-"+item.route.id+"-"+leg.leg.id,"","__transport_leg__"+leg.leg.id,"Material · "+item.route.materialLabel,"Transport · "+leg.leg.fromLocation+" → "+leg.leg.toLocation,exit,node,"material");
    });
-   else if(exit&&to&&!trans)add("material-process-"+item.route.id,"",item.toOperation!.id,"Material · "+item.route.materialLabel,item.toOperation!.name,exit,to,"material");
-   else if(trans&&to&&!startLegs.length)add("transport-process-"+item.route.id,"__transport__"+item.route.id,item.toOperation!.id,"Transport · "+item.route.transporter,item.toOperation!.name,trans,to,"material");
+   else if(exit&&to&&!trans&&!explicitMaterialLegs.length)add("material-process-"+item.route.id,"",item.toOperation!.id,"Material · "+item.route.materialLabel,item.toOperation!.name,exit,to,"material");
+   else if(trans&&to&&!legsForMaterial.length&&!explicitMaterialLegs.length)add("transport-process-"+item.route.id,"__transport__"+item.route.id,item.toOperation!.id,"Transport · "+item.route.transporter,item.toOperation!.name,trans,to,"material");
   });
   transportLegPlacements.forEach(item=>{
    const node=transportLegPosition.get(item.leg.id);
