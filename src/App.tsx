@@ -170,6 +170,7 @@ function App() {
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
   const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>({});
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
   const [iconStudioTarget,setIconStudioTarget] = useState<{targetType:"process"|"component"|"subcategory";targetRecordId:string}|null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -218,6 +219,7 @@ function App() {
       if (event.key === "Escape") {
         setCommandOpen(false);
         setModuleExplorerOpen(false);
+        setMobileNavOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -228,6 +230,7 @@ function App() {
     setModuleContext(context);
     setActiveModuleId(id);
     setModuleExplorerOpen(false);
+    setMobileNavOpen(false);
     setCommandOpen(false);
     setQuery("");
     setNotice("");
@@ -266,6 +269,7 @@ function App() {
           <span className="brand-copy"><strong>Machining Flow Control</strong><small>Multi-Company Manufacturing OS</small></span>
         </button>
 
+        <button type="button" className="mobile-nav-trigger" aria-label="Open navigation menu" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen(value => !value)}><Menu size={19} /></button>
         <div className="deck-divider" />
         <button className="factory-switcher" onClick={() => selectModule("dashboard")} aria-label="Open main dashboard">
           <Gauge size={16} /><span>Dashboard</span>
@@ -359,7 +363,8 @@ function App() {
         />
       )}
 
-      <nav className="command-rail" aria-label="AXIMACH navigation">
+      {mobileNavOpen && <button type="button" className="mobile-nav-backdrop" aria-label="Close navigation menu" onClick={() => setMobileNavOpen(false)} />}
+      <nav className={`command-rail${mobileNavOpen ? " mobile-nav-open" : ""}`} aria-label="AXIMACH navigation">
         <div className="rail-section-label">COMMAND CENTRES</div>
         <button title="Main Dashboard" className={activeModuleId === "dashboard" ? "rail-active" : ""} onClick={() => selectModule("dashboard")}><Gauge size={16} /><span>Main Dashboard</span></button>
         <button title="3D Command Centre" className={activeModuleId === "command-centre" ? "rail-active" : ""} onClick={() => selectModule("command-centre")}><Command size={16} /><span>3D Command Centre</span></button>
