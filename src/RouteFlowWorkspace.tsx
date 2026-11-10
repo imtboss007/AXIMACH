@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
-import { RouteLayoutPicker, useRouteLayout } from "./RouteLayoutPicker";
+import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
 import TransportRecordInspector from "./TransportRecordInspector";
@@ -46,10 +46,10 @@ type FlowNode =
 function vehicleClassFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike"; if(/bus/.test(type))return "bus"; if(/car|taxi|auto|three.wheeler/.test(type))return "car"; if(/air|plane|flight/.test(type))return "air"; if(/ship|boat|vessel/.test(type))return "ship"; if(/train|rail/.test(type))return "rail"; return "truck"}
 function vehicleIconFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type)) return Bike; if(/bus/.test(type)) return Bus; if(/car|taxi|auto|three.wheeler/.test(type)) return CarFront; if(/air|plane|flight/.test(type)) return Plane; if(/ship|boat|vessel/.test(type)) return Ship; if(/train|rail/.test(type)) return TrainFront; return Truck; }
 
-function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,transportLegId,materialTransportId,onTransportClick}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number;transportLegId?:string;materialTransportId?:string;onTransportClick?:(id:string,kind:"leg"|"material",element:HTMLElement)=>void}) {
+function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,transportLegId,materialTransportId,layout="orthogonal",onTransportClick}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number;transportLegId?:string;materialTransportId?:string;layout?:RouteLayoutMode;onTransportClick?:(id:string,kind:"leg"|"material",element:HTMLElement)=>void}) {
   const style=transport?"transport":type;
   const VehicleIcon=vehicleIconFor(vehicleType);
-  const curvePath=style==="feedback"?"M4 35 C20 -2 48 -5 68 28 C84 55 112 60 132 25"
+  const curvePath=layout==="orthogonal"?"M4 36 L54 36 L54 12 L88 12 L88 36 L132 36":layout==="horizontal"?"M4 36 L132 36":style==="feedback"?"M4 35 C20 -2 48 -5 68 28 C84 55 112 60 132 25"
     :style==="rework"?"M4 37 C36 67 92 2 132 31"
     :style==="alternate"?"M4 36 C35 -15 93 -12 132 31"
     :style==="dependency"?"M4 36 C42 36 92 6 132 31"
@@ -403,7 +403,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
               {node.kind==="operation"&&<><div className="route-flow-node-top"><Factory size={18}/><small>OP-{String(node.operation.sequence).padStart(3,"0")} · {node.operation.status}</small></div><strong>{node.operation.name}</strong><span>{node.operation.category} · {node.operation.subcategory||"Sub-process not selected"}</span><span>Qty {node.operation.quantity} · {vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned"}</span><em>{money(node.operation.quantity*(node.operation.actualRatePerPart||node.operation.ratePerPart))} process amount</em><small>Start {dateTime(node.operation.plannedStart)} · Due {dateTime(node.operation.plannedEnd)}</small><button onClick={()=>setEditingOperation(node.operation)}>Edit here <ArrowRight size={12}/></button></>}
               {node.kind==="missing-material"&&<><div className="route-flow-node-top"><Package size={18}/><small>REQUIRED FIRST STAGE</small></div><strong>Material allocation missing</strong><span>A manufacturing route must have its material / grade allocation before its first process.</span><button onClick={openProcessMap}>Add material <ArrowRight size={12}/></button></>}
             </article>
-            {connector&&<RouteCurve type={connector.type} transport={connector.transport} label={connector.label} vehicleType={connector.vehicleType} tripCount={connector.tripCount} transportLegId={connector.transportLegId} materialTransportId={connector.materialTransportId} onTransportClick={(id,kind,element)=>{setTransportPopupPoint(transportPopupAnchor(element));if(kind==="leg"){setInspectedTransportId(id);setInspectedMaterialTransportId("");}else{setInspectedMaterialTransportId(id);setInspectedTransportId("");}}}/>}
+            {connector&&<RouteCurve type={connector.type} layout={routeLayout} transport={connector.transport} label={connector.label} vehicleType={connector.vehicleType} tripCount={connector.tripCount} transportLegId={connector.transportLegId} materialTransportId={connector.materialTransportId} onTransportClick={(id,kind,element)=>{setTransportPopupPoint(transportPopupAnchor(element));if(kind==="leg"){setInspectedTransportId(id);setInspectedMaterialTransportId("");}else{setInspectedMaterialTransportId(id);setInspectedTransportId("");}}}/>}
           </div>;
         })}
       </div></div></div>}
