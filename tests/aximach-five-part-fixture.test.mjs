@@ -2024,3 +2024,50 @@ test("Route Flow draws saved non-adjacent relationships as responsive curved cro
   assert.ok(route.includes('ResizeObserver(measure)'));
   assert.ok(css.includes('.route-flow-relationship-overlay{position:absolute'));
 });
+
+
+test("Immersive Route Flow and Manufacturing Universe expose full-screen controls and export formats", () => {
+  const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  const controls=readFileSync(new URL("../src/ImmersiveWorkspaceControls.tsx",import.meta.url),"utf8");
+  for(const source of [route,universe]) {
+    assert.ok(source.includes("ImmersiveWorkspaceControls"));
+    for(const format of ["svg","png","pdf","csv","json"]) assert.ok(source.includes('option value="'+format+'"'));
+  }
+  assert.ok(controls.includes("requestFullscreen"));
+  assert.ok(controls.includes('lockOrientation("portrait")'));
+  assert.ok(controls.includes('lockOrientation("landscape")'));
+  assert.ok(controls.includes("exitFullscreen"));
+});
+
+test("Route Flow and Manufacturing Universe support local operation editing and process creation", () => {
+  const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  const editor=readFileSync(new URL("../src/OperationInlineEditor.tsx",import.meta.url),"utf8");
+  const create=readFileSync(new URL("../src/OperationQuickCreate.tsx",import.meta.url),"utf8");
+  assert.ok(route.includes("onClick={()=>setEditingOperation(node.operation)}"));
+  assert.ok(universe.includes("onEditOperation={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)setEditingOperation(op);}}"));
+  for(const source of [route,universe]) {
+    assert.ok(source.includes("OperationInlineEditor"));
+    assert.ok(source.includes("OperationQuickCreate"));
+    assert.ok(source.includes("saveNewOperation"));
+  }
+  for(const field of ["plannedStart","plannedEnd","actualStart","actualEnd","transportVendorId","transportVehicleType","inspectionResult","paidAmount","qualityNotes"]) assert.ok(editor.includes(field));
+  assert.ok(create.includes('status:"Planned"'));
+});
+
+test("Manufacturing Universe has touch pinch zoom and clearly typed visible graph arrows", () => {
+  const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  const scene=readFileSync(new URL("../src/ProcessUniverse3D.tsx",import.meta.url),"utf8");
+  const webgl=readFileSync(new URL("../src/ProcessScene3D.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  assert.ok(universe.includes("onZoomChange={setZoom}"));
+  assert.ok(scene.includes("onPinchMove"));
+  assert.ok(scene.includes("process-universe-zoom-controls"));
+  assert.ok(scene.includes("process-scene-zoom-viewport"));
+  assert.ok(webgl.includes('"+edge.relation+"'));
+  assert.ok(css.includes(".process-universe-zoom-controls"));
+  assert.ok(css.includes(".ax-full3d-route-arrow.dependency"));
+  assert.ok(css.includes(".route-flow-workspace:fullscreen"));
+  assert.ok(css.includes("orientation:landscape"));
+});
