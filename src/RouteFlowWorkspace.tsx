@@ -116,13 +116,16 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     });
     return nodes;
   },[routeMaterials,routeLegs,lane]);
-  const transportChoices=routes.filter(route=>route.active!==false).map(route=>({...route,legacy:false as const})).concat(
-    vendors.flatMap(vendor=>(vendor.transportRoutes||[]).map(route=>({
+  const transportChoices = [
+    ...routes.filter(route=>route.active!==false).map(route=>({
+      id:route.id,vendorId:route.vendorId,fromLocation:route.fromLocation,toLocation:route.toLocation,
+      tripDirection:route.tripDirection,vehicleType:route.vehicleType,fixedAmount:route.fixedAmount,legacy:false as const
+    })),
+    ...vendors.flatMap(vendor=>(vendor.transportRoutes||[]).map(route=>({
       id:route.id,sourceRouteId:route.id,vendorId:vendor.id,fromLocation:route.fromLocation,toLocation:route.toLocation,
-      tripDirection:route.tripDirection||"One-way" as const,vehicleType:route.vehicleType,fixedAmount:route.fixedCost,
-      legacy:true as const
+      tripDirection:route.tripDirection||"One-way" as const,vehicleType:route.vehicleType,fixedAmount:route.fixedCost,legacy:true as const
     })))
-  );
+  ];
   const selectedTransportRoute=transportChoices.find(route=>route.id===transportRouteId);
   const locationHints=[...new Set([...transportChoices.flatMap(route=>[route.fromLocation,route.toLocation]),...vendors.map(v=>v.address).filter(Boolean)])];
 
@@ -148,7 +151,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const existing=relationships.find(row=>row.fromOperationId===fromOperationId&&row.toOperationId===toOperationId&&row.relationshipType===relationshipType&&row.status!=="Disabled");
     if(existing){onNotice("This relationship is already saved. Edit or disable its existing record before adding another identical link.");return;}
     const stamp=nowIso();
-    const record:RouteRelationshipRecord={id:makeId("route-relationship"),poId,poLineId,componentId,fromOperationId,toOperationId,relationshipType,status:relationshipStatus,condition:relationshipCondition.trim(),label:relationshipLabel(relationshipType),notes:relationshipNotes.trim(),createdAt:stamp,updatedAt:stamp};
+    const record:RouteRelationshipRecord={id:makeId("route-relationship"),poId,poLineId,componentId,fromOperationId,toOperationId,relationshipType,status:relationshipStatus,condition:relationshipCondition.trim(),label:relationLabel(relationshipType),notes:relationshipNotes.trim(),createdAt:stamp,updatedAt:stamp};
     update(current=>({...current,routeRelationships:[...(current.routeRelationships||[]),record]}));
     setRelationshipCondition("");setRelationshipNotes("");setShowRelationshipEditor(false);
     onNotice(relationLabel(relationshipType)+" connection saved between "+from.name+" and "+to.name+".");
