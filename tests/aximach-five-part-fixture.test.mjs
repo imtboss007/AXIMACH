@@ -2253,3 +2253,22 @@ test("Route Flow and Process Universe expose independent canvas zoom and fit con
   assert.ok(universe.includes("onZoomChange?.(.78)"));
   assert.ok(css.includes(".ax-map-zoom-toolbar"));
 });
+
+
+test("Route Flow, Process Map and Manufacturing Universe share a selectable route layout", () => {
+  const picker=readFileSync(new URL("../src/RouteLayoutPicker.tsx",import.meta.url),"utf8");
+  const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const map=readFileSync(new URL("../src/LinkedProcessWorkspace.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ProcessUniverse3D.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  for(const mode of ["orthogonal","s-curve","horizontal","vertical","swimlane","timeline"]) assert.ok(picker.includes('value="'+mode+'"'));
+  assert.ok(picker.includes("aximach.route-layout.v1"));
+  assert.ok(route.includes("RouteLayoutPicker value={routeLayout}"));
+  assert.ok(route.includes('data-route-layout={routeLayout}'));
+  assert.ok(route.includes('layout={routeLayout}'));
+  assert.ok(map.includes("RouteLayoutPicker value={routeLayout}"));
+  assert.ok(map.includes('data-route-layout={routeLayout}'));
+  assert.ok(universe.includes("RouteLayoutPicker value={routeLayout}"));
+  assert.ok(universe.includes('useEffect(() => setLayoutMode(routeLayout as ProcessLayoutMode), [routeLayout])'));
+  for(const mode of ["orthogonal","s-curve","vertical","swimlane","timeline"]) assert.ok(css.includes('data-route-layout="'+mode+'"'));
+});
