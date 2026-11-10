@@ -1242,7 +1242,8 @@ test("Sphere view is a full 3D globe with visible route cylinders and distinct a
   assert.ok(scene.includes("const drawOperationFlow=(p:P,q:P,offset:number,rgb:number[],relation:string=\"main\")=>"));
   assert.ok(scene.includes("const pointAt=(t:number):P=>"));
   assert.ok(scene.includes("draw(lineMesh(a,b,relation===\"parallel\"?.026:.035),rgb)"));
-  assert.ok(scene.includes("drawOperationFlow(p,q,edgeIndex,rgb,edge.relation)"));
+  assert.ok(scene.includes("drawOperationFlow(p,q,edgeIndex,rgb,isSimulationEdge?\"main\":edge.relation)"));
+  assert.ok(scene.includes("isSimulationEdge"));
 });
 
 test("3D Gantt view uses saved planned/actual date ranges as volumetric duration bars and preserves time scale controls", () => {
@@ -1883,7 +1884,7 @@ test("Process route graph preserves stage order, independent collapse state, and
   const process = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
-  assert.ok(process.includes('routeTransportLegs.filter(leg=>(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start").sort((a,b)=>a.sequence-b.sequence)'));
+  assert.ok(process.includes('routeTransportLegs.filter(leg=>!leg.materialEntryId&&(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start").sort((a,b)=>a.sequence-b.sequence)'));
   assert.ok(process.includes('routeMaterials.filter(entry=>!entry.anchorOperationId).forEach(appendMaterial)'));
   assert.ok(process.includes('routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(appendMaterial)'));
   assert.ok(process.includes('const selectedTransportRoutes = transportRouteOptions.filter(route=>route.active!==false || route.id===draft.transportRouteId || route.sourceRouteId===draft.transportRouteId)'));
@@ -1966,7 +1967,8 @@ test("3D route arrows stay enabled and narrow-screen process metadata is not hid
   assert.ok(workspace.includes('checked={exportArrows} disabled /> Connection arrows'));
   assert.ok(scene.includes("const hasTransport=hasMaterialTransport(placement.route)"));
   assert.ok(scene.includes('if(hasTransport){'));
-  assert.ok(scene.includes("if(startLegs.length)startLegs.forEach"));
+  assert.ok(scene.includes("const hasMaterialSpecificLeg=transportLegPlacements.some(item=>item.leg.materialEntryId===placement.route.id)"));
+  assert.ok(scene.includes("if(to&&!hasMaterialSpecificLeg)"));
   assert.ok(scene.includes('if(mat&&trans)add("material-transport-"'));
   assert.ok(scene.includes('else if(exit&&to&&!trans)add("material-process-"'));
   assert.ok(scene.includes('if(node&&to)add("transport-operation-"'));
@@ -2200,7 +2202,7 @@ test("A material allocation can have its own independent transport legs to proce
   assert.ok(flow.includes("transportFromMaterialId"));
   assert.ok(flow.includes("materialEntryId:fromMaterial?.id"));
   assert.ok(flow.includes('routeLegs.filter(leg=>leg.materialEntryId===entry.id)'));
-  assert.ok(scene.includes("leg.materialEntryId?materialPlacements.find"));
+  assert.ok(scene.includes("placement.leg.materialEntryId\n   ?materialPlacements.find(item=>item.route.id===placement.leg.materialEntryId)"));
   assert.ok(scene.includes("material-transport-leg-"));
   assert.ok(universe.includes("materialEntryId:leg.materialEntryId||"));
   assert.ok(map.includes("materialEntryId:leg.materialEntryId||"));
@@ -2214,7 +2216,8 @@ test("Multiple transport legs remain separate and visible for each source and ta
   assert.ok(flow.includes('id:"transport-"+leg.id,leg'));
   assert.ok(flow.includes("operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId"));
   assert.ok(scene.includes("transportLegs.map((leg,index)"));
-  assert.ok(scene.includes("other.materialEntryId===leg.materialEntryId"));
+  assert.ok(scene.includes("other.targetOperationId===leg.targetOperationId"));
+  assert.ok(scene.includes("other.placement===leg.placement"));
   assert.ok(universe.includes("routeLegs.map(leg=>"));
 });
 
