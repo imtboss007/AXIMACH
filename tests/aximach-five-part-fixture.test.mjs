@@ -1859,6 +1859,23 @@ test("Process Map routes integrate material and saved transport legs before and 
   assert.ok(scene.includes('"operation-transport-"+item.leg.id'));
 });
 
+test("Process route graph preserves stage order, independent collapse state, and legacy Transport Directory routes", () => {
+  const process = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(process.includes('routeTransportLegs.filter(leg=>(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start").sort((a,b)=>a.sequence-b.sequence)'));
+  assert.ok(process.includes('routeMaterials.filter(entry=>!entry.anchorOperationId).forEach(appendMaterial)'));
+  assert.ok(process.includes('routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(appendMaterial)'));
+  assert.ok(process.includes('const selectedTransportRoutes = transportRouteOptions.filter(route=>route.vendorId===draft.transportVendorId)'));
+  assert.ok(process.includes('const selectedLegacyDraftRoute = selectedTransportRoutes.find(route=>route.id===draft.transportRouteId||route.sourceRouteId===draft.transportRouteId)'));
+  assert.ok(process.includes('Legacy / Transport Directory saved route'));
+  assert.ok(panel.includes('if(linkedLine)setSelectedPoLineId(linkedLine.line.id)'));
+  assert.ok(process.includes('className="process-route-flow process-route-flow-collapsible"'));
+  assert.ok(process.includes('className="process-material-route-panel process-material-route-collapsible"'));
+  assert.ok(process.includes('className="process-universe-collapsible"'));
+  assert.ok(css.includes('.process-route-flow-collapsible,.process-material-route-collapsible,.process-universe-collapsible'));
+});
+
 test("Process Definition catalogue headings span the full grid instead of leaving an empty left column", () => {
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   assert.ok(css.includes('.process-view-directory-catalog-grid{display:grid;grid-template-columns:minmax(0,1fr)!important'));
