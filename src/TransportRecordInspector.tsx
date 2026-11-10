@@ -31,14 +31,14 @@ const vehicleIcon=(value:string)=>{
  if(/train|rail/.test(type))return TrainFront;
  return Truck;
 };
-export default function TransportRecordInspector({leg,vendor,directoryRoute,legacyVendorRoute,onClose,onOpenDirectory}:Props){
+export default function TransportRecordInspector({leg,vendor,directoryRoute,legacyVendorRoute,onClose,onOpenDirectory,anchor}:Props){
  const vehicle=vehicleClass(leg.vehicleType);
  const VehicleIcon=vehicleIcon(leg.vehicleType);
  const route=directoryRoute||legacyVendorRoute;
  const routeStatus=directoryRoute?(directoryRoute.active?"Active":"Inactive"):"Vendor route";
  const directoryAmount=directoryRoute?.fixedAmount??legacyVendorRoute?.fixedCost??leg.fixedAmount;
- return <div className="ax-transport-inspector-backdrop" role="presentation" onClick={onClose}>
-  <section className={"ax-transport-inspector vehicle-"+vehicle} role="dialog" aria-modal="true" aria-label="Transport and directory record details" onClick={event=>event.stopPropagation()}>
+ return <div className="ax-transport-inspector-backdrop ax-transport-popover-backdrop" style={{"--ax-transport-popup-x":(anchor?.x??8)+"px","--ax-transport-popup-y":(anchor?.y??8)+"px"} as React.CSSProperties} role="presentation" onClick={onClose}>
+  <section className={"ax-transport-inspector ax-transport-popover vehicle-"+vehicle} role="dialog" aria-modal="true" aria-label="Transport and directory record details" onClick={event=>event.stopPropagation()}>
    <header className="ax-transport-inspector-head">
     <div className="ax-transport-vehicle-identity">
      <span className={"ax-transport-vehicle-icon vehicle-"+vehicle}><VehicleIcon size={22}/></span>
