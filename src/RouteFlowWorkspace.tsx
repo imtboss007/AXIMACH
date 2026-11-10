@@ -203,6 +203,33 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const openProcessMap=()=>onSelectModule("process-map",{companyId,poId,poLineId,componentId});
   const syncLabel=syncStatus==="synced"?"PC / server synced":syncStatus==="syncing"?"Syncing shared records":syncStatus==="error"?"Sync error":"Local data";
   const processName=(id:string)=>routeOperations.find(row=>row.id===id)?.name||"Process not found";
+  const relationshipMatrixRows=useMemo(()=>{
+    const rows:Array<{fromId:string;toId:string;type:RouteRelationshipType;status:string}>=[];
+    const add=(fromId:string,toId:string,type:RouteRelationshipType,status:string)=>{
+      if(!fromId||!toId||fromId===toId)return;
+      const existing=rows.findIndex(row=>row.fromId===fromId&&row.toId===toId);
+      const next={fromId,toId,type,status};
+      if(existing>=0)rows[existing]=next;else rows.push(next);
+    };
+    const groups=new Map<string,OperationRecord[]>();
+    routeOperations.filter(operation=>operation.relationType!=="subprocess").forEach(operation=>{
+      const key=operation.branch||"Main route";
+      const current=groups.get(key)||[];
+      current.push(operation);
+      groups.set(key,current);
+    });
+    for(const [branchName,branchRows] of groups){
+      const ordered=branchRows.slice().sort((a,b)=>a.sequence-b.sequence);
+      const type:RouteRelationshipType=branchName==="Main route"?"main":/rework/i.test(branchName)?"rework":"alternate";
+      const status=type==="rework"?"Conditional":"Active";
+      for(let index=0;index<ordered.length-1;index++)add(ordered[index].id,ordered[index+1].id,type,status);
+    }
+    routeOperations.filter(operation=>operation.relationType==="alternate"||operation.relationType==="rework").forEach(operation=>{
+      if(operation.parentId)add(operation.parentId,operation.id,operation.relationType==="rework"?"rework":"alternate",operation.relationType==="rework"?"Conditional":"Planned");
+    });
+    relationships.forEach(link=>add(link.fromOperationId,link.toOperationId,link.relationshipType,link.status));
+    return rows;
+  },[routeOperations,relationships]);
 
   return <section className="route-flow-workspace">
     <header className="route-flow-workspace-head">
@@ -246,12 +273,12 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
             <span><strong>{item.label}</strong><small>{item.description}</small></span>
           </button>)}
         </div>
-        <div className="route-flow-relationship-matrix"><h4>RELATIONSHIP MATRIX · {relationships.length}</h4>
-          {relationships.length?relationships.map(link=><div className="route-flow-matrix-row" key={link.id}>
-            <strong title={processName(link.fromOperationId)}>{processName(link.fromOperationId)}</strong>
-            <strong title={processName(link.toOperationId)}>{processName(link.toOperationId)}</strong>
-            <em title={relationLabel(link.relationshipType)}>{relationLabel(link.relationshipType)} · {link.status}</em>
-          </div>):<div className="route-flow-matrix-empty">No explicit relationship links saved yet. Select a relationship type above to connect two process stages.</div>}
+        <div className="route-flow-relationship-matrix"><h4>RELATIONSHIP MATRIX · {relationshipMatrixRows.length}</h4>
+          {relationshipMatrixRows.length?relationshipMatrixRows.map((link,index)=><div className="route-flow-matrix-row" key={link.fromId+"-"+link.toId+"-"+index}>
+            <strong title={processName(link.fromId)}>{processName(link.fromId)}</strong>
+            <strong title={processName(link.toId)}>{processName(link.toId)}</strong>
+            <em title={relationLabel(link.type)}>{relationLabel(link.type)} · {link.status}</em>
+          </div>):<div className="route-flow-matrix-empty">No saved route connections yet. Add process stages or select a relationship type above.</div>}
         </div>
         <button type="button" className="button-primary compact-button" onClick={()=>setShowRelationshipEditor(true)}><GitBranch size={14}/> Add selected relationship</button>
       </aside></div>
