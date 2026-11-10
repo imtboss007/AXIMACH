@@ -196,6 +196,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     if(requirePoLine&&!effectivePoLineId){reportError("Select the exact PO component line before saving this Material Directory allocation.");return;}
     
     if(target==="part"&&!partName.trim()){reportError("Enter a part name or select an existing part.");return;}
+    if(target==="part"&&effectivePoLine?.line.partId&&effectivePoLine.line.partId!==partId){reportError("This PO line is already linked to a different part. Create or select a separate PO line for this additional part so each part has its own process route.");return;}
     if(effectivePoLineId&&!relatedPoLines.some(item=>item.line.id===effectivePoLineId)){reportError("The selected PO line does not belong to this component.");return;}
     if(scope==="process-map"&&anchorOperationId&&!processOptions.some(operation=>operation.id===anchorOperationId)){reportError("Select an active operation from this component route for the procurement position.");return;}
     if(!newMaterialOpen&&!material){reportError("Select a material grade from Material Directory or add a new grade.");return;}
@@ -227,12 +228,22 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
       cuttingType:cuttingType==="Other"?customCuttingType.trim()||"Other":cuttingType,cuttingBasis,cuttingRate:cutRate,cutsPerPiece:Number(cutsPerPiece)||1,cuttingHours:Number(cuttingHours)||0,cuttingCost,wastagePercent:wastage,
       vendorId,givenDate,deliveryDate,actualDeliveryDate,poReference:"",notes:notes.trim(),currency:"INR",transportVendorId,transportFrom:transportFrom.trim(),transportTo:transportTo.trim(),transportVehicleType:transportVehicleType.trim(),transportCost:Math.max(0,Number(transportCost)||0),transportPickupAt,transportDeliveryAt,transportStatus,createdAt:stamp,updatedAt:stamp
     };
-    update(current=>({
-      ...current,
-      materials:newMaterialOpen?[materialRecord!,...current.materials.filter(row=>row.id!==materialRecord!.id)]:current.materials,
-      componentParts:part?[part,...(current.componentParts||[]).filter(row=>row.id!==part.id)]:current.componentParts||[],
-      materialCostEntries:[entry,...(current.materialCostEntries||[]).filter(row=>row.id!==entry.id)]
-    }));
+    update(current=>{
+      const nextPurchaseOrders=part&&effectivePoLineId
+        ? current.purchaseOrders.map(order=>order.id!==effectivePoLine!.po.id?order:{
+            ...order,
+            updatedAt:stamp,
+            lines:order.lines.map(line=>line.id!==effectivePoLineId?line:{...line,allocationLevel:"part" as const,partId:part.id})
+          })
+        : current.purchaseOrders;
+      return {
+        ...current,
+        materials:newMaterialOpen?[materialRecord!,...current.materials.filter(row=>row.id!==materialRecord!.id)]:current.materials,
+        componentParts:part?[part,...(current.componentParts||[]).filter(row=>row.id!==part.id)]:current.componentParts||[],
+        purchaseOrders:nextPurchaseOrders,
+        materialCostEntries:[entry,...(current.materialCostEntries||[]).filter(row=>row.id!==entry.id)]
+      };
+    });
     reset();
     onNotice?.((scope==="process-map"?"Process Map":"Component Planned Cost")+" material entry saved: "+money(materialCost)+" material + "+money(cuttingCost)+" cutting + "+money(Math.max(0,Number(transportCost)||0))+" transport.");
   };
