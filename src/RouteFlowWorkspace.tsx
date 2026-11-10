@@ -45,7 +45,7 @@ type FlowNode =
 function vehicleClassFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike"; if(/bus/.test(type))return "bus"; if(/car|taxi|auto|three.wheeler/.test(type))return "car"; if(/air|plane|flight/.test(type))return "air"; if(/ship|boat|vessel/.test(type))return "ship"; if(/train|rail/.test(type))return "rail"; return "truck"}
 function vehicleIconFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type)) return Bike; if(/bus/.test(type)) return Bus; if(/car|taxi|auto|three.wheeler/.test(type)) return CarFront; if(/air|plane|flight/.test(type)) return Plane; if(/ship|boat|vessel/.test(type)) return Ship; if(/train|rail/.test(type)) return TrainFront; return Truck; }
 
-function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number}) {
+function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,transportLegId,materialTransportId,onTransportClick}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number;transportLegId?:string;materialTransportId?:string;onTransportClick?:(id:string,kind:"leg"|"material",element:HTMLElement)=>void}) {
   const style=transport?"transport":type;
   const VehicleIcon=vehicleIconFor(vehicleType);
   const curvePath=style==="feedback"?"M4 35 C20 -2 48 -5 68 28 C84 55 112 60 132 25"
@@ -69,7 +69,7 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0}:{typ
       {style==="split"&&<path className="route-flow-curve-branch" d="M56 54 L68 32 L80 54"/>}
       <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path={curvePath}/></circle>
     </svg>
-    {transport&&<span className={"route-flow-vehicle-marker vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></span>}
+    {transport&&(transportLegId||materialTransportId?<button type="button" className={"route-flow-vehicle-marker route-flow-vehicle-marker-button vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s) · Open details"} aria-label="Open this transport popup" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onTransportClick?.(transportLegId||materialTransportId!,transportLegId?"leg":"material",event.currentTarget);}}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></button>:<span className={"route-flow-vehicle-marker vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></span>)}
     <small>{transport?(vehicleType||"TRANSPORT"):label||relationLabel(type)}</small>
   </div>;
 }
@@ -191,7 +191,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const materialTransportNode=current?.kind==="material-transport"?current:next?.kind==="material-transport"?next:null;
     const vehicleType=transportNode?.kind==="transport"?transportNode.leg.vehicleType:materialTransportNode?.kind==="material-transport"?materialTransportNode.entry.transportVehicleType||"":"";
     const tripCount=transportNode?.kind==="transport"?transportNode.leg.tripCount:materialTransportNode?.kind==="material-transport"?1:0;
-    return {transport,relation,type:relation?.relationshipType||defaultType,label:relation?.label,vehicleType,tripCount};
+    return {transport,relation,type:relation?.relationshipType||defaultType,label:relation?.label,vehicleType,tripCount,transportLegId:transportNode?.kind==="transport"?transportNode.leg.id:undefined,materialTransportId:materialTransportNode?.kind==="material-transport"?materialTransportNode.entry.id:undefined};
   };
 
   const saveRelationship=()=>{
@@ -394,7 +394,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
               {node.kind==="operation"&&<><div className="route-flow-node-top"><Factory size={18}/><small>OP-{String(node.operation.sequence).padStart(3,"0")} · {node.operation.status}</small></div><strong>{node.operation.name}</strong><span>{node.operation.category} · {node.operation.subcategory||"Sub-process not selected"}</span><span>Qty {node.operation.quantity} · {vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned"}</span><em>{money(node.operation.quantity*(node.operation.actualRatePerPart||node.operation.ratePerPart))} process amount</em><small>Start {dateTime(node.operation.plannedStart)} · Due {dateTime(node.operation.plannedEnd)}</small><button onClick={()=>setEditingOperation(node.operation)}>Edit here <ArrowRight size={12}/></button></>}
               {node.kind==="missing-material"&&<><div className="route-flow-node-top"><Package size={18}/><small>REQUIRED FIRST STAGE</small></div><strong>Material allocation missing</strong><span>A manufacturing route must have its material / grade allocation before its first process.</span><button onClick={openProcessMap}>Add material <ArrowRight size={12}/></button></>}
             </article>
-            {connector&&<RouteCurve type={connector.type} transport={connector.transport} label={connector.label} vehicleType={connector.vehicleType} tripCount={connector.tripCount}/>}
+            {connector&&<RouteCurve type={connector.type} transport={connector.transport} label={connector.label} vehicleType={connector.vehicleType} tripCount={connector.tripCount} transportLegId={connector.transportLegId} materialTransportId={connector.materialTransportId} onTransportClick={(id,kind,element)=>{setTransportPopupPoint(transportPopupAnchor(element));if(kind==="leg"){setInspectedTransportId(id);setInspectedMaterialTransportId("");}else{setInspectedMaterialTransportId(id);setInspectedTransportId("");}}}/>}
           </div>;
         })}
       </div></div>}
