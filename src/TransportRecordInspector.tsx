@@ -32,7 +32,8 @@ const vehicleIcon=(value:string)=>{
  return Truck;
 };
 export default function TransportRecordInspector({leg,vendor,directoryRoute,legacyVendorRoute,onClose,onOpenDirectory}:Props){
- const vehicle=vehicleClass(leg.vehicleType);\n const VehicleIcon=vehicleIcon(leg.vehicleType);
+ const vehicle=vehicleClass(leg.vehicleType);
+ const VehicleIcon=vehicleIcon(leg.vehicleType);
  const route=directoryRoute||legacyVendorRoute;
  const routeStatus=directoryRoute?(directoryRoute.active?"Active":"Inactive"):"Vendor route";
  const directoryAmount=directoryRoute?.fixedAmount??legacyVendorRoute?.fixedCost??leg.fixedAmount;
