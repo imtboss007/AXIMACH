@@ -1422,19 +1422,82 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 <ArrowRight size={17} style={{color:rework?REWORK_ROUTE_COLOR:ALTERNATE_ROUTE_COLOR}}/>
                 <strong>{branchRoot.name}</strong><small>{rework?"Rework starts here":"Alternate route starts here"}</small>
               </div>}
-              <div className="process-route-flow-track">{lane.map((operation,index)=>{
-                const processColor=processAccent(operation);
-                const nodeColor=processColor;
-                const routeArrowColor=rework?REWORK_ROUTE_COLOR:branchRoot||branch!=="Main route"?ALTERNATE_ROUTE_COLOR:processColor;
-                return <div className="process-route-flow-step" key={operation.id}>
-                  <button type="button" className={activeOperation?.id===operation.id?"is-selected":""} style={{borderColor:nodeColor}} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} title={"Select "+operation.name+" · OP-"+operation.sequence}>
-                    <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={<Workflow size={16}/>}/>
-                    <strong>{operation.name}</strong><small>OP-{String(operation.sequence).padStart(3,"0")}</small>
-                    <em style={{background:nodeColor}}>{operation.category||"Process"}</em>{operation.subcategory&&<small className="process-route-flow-subcategory">SUB · {operation.subcategory}</small>}
-                  </button>
-                  {index<lane.length-1&&<span className="process-route-flow-arrow" style={{color:routeArrowColor}}><ArrowRight size={20}/></span>}
-                </div>;
-              })}</div>
+              {(()=>{
+                const lineId=lane[0]?.poLineId||"";
+                const line=poLines.find(item=>item.id===lineId);
+                const routeMaterials=materialRouteEntries.filter(entry=>(!entry.poLineId||entry.poLineId===lineId)&&(!line?.partId||!entry.partId||entry.partId===line.partId));
+                const routeTransportLegs=componentTransportLegs.filter(leg=>leg.poLineId===lineId);
+                const routeNodes:Array<any>=[];
+                routeMaterials.forEach(entry=>{
+                  routeNodes.push({kind:"material",id:"material-"+entry.id,entry});
+                  if(entry.transportVendorId||entry.transportFrom||entry.transportTo||Number(entry.transportCost)>0)routeNodes.push({kind:"material-transport",id:"material-transport-"+entry.id,entry});
+                });
+                routeTransportLegs.filter(leg=>(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start").forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                lane.forEach(operation=>{
+                  routeTransportLegs.filter(leg=>leg.placement==="before"&&leg.anchorOperationId===operation.id).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                  routeNodes.push({kind:"operation",id:operation.id,operation});
+                  routeTransportLegs.filter(leg=>(leg.placement||"after")==="after"&&leg.anchorOperationId===operation.id).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                });
+                return <div className="process-route-flow-track">{routeNodes.map((item,index)=>{
+                  const next=routeNodes[index+1];
+                  const isTransport=item.kind==="transport"||item.kind==="material-transport"||item.kind==="material"||next?.kind==="transport"||next?.kind==="material-transport"||next?.kind==="material";
+                  const arrowColor=isTransport?"#1cc8e5":routeColor;
+                  if(item.kind==="material"){
+                    const entry=item.entry;
+                    return <div className="process-route-flow-step process-route-flow-material" key={item.id}>
+                      <div className="process-route-flow-material-card" title="Material procurement · mandatory route stage">
+                        <Package size={18}/><small>MATERIAL / GRADE</small>
+                        <strong>{entry.materialName} · {entry.materialGrade}</strong>
+                        <small>{entry.partNumber||entry.partName||"Component allocation"} · {entry.shapeType}</small>
+                        <small>Qty {entry.quantity} · {entry.totalWeightKg.toFixed(3)} kg</small>
+                        <small>Supplier · {vendors.find(vendor=>vendor.id===entry.vendorId)?.company||"Not assigned"}</small>
+                        <em>{money(entry.materialCost)} material</em>
+                      </div>
+                      {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport":"")} style={{color:arrowColor}}><ArrowRight size={20}/></span>}
+                    </div>;
+                  }
+                  if(item.kind==="material-transport"){
+                    const entry=item.entry;
+                    return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
+                      <div className="process-route-flow-transport-card">
+                        <Truck size={18}/><small>INBOUND MATERIAL TRANSPORT</small>
+                        <strong>{vendors.find(vendor=>vendor.id===entry.transportVendorId)?.company||"Transporter not assigned"}</strong>
+                        <small>{entry.transportFrom||vendors.find(vendor=>vendor.id===entry.vendorId)?.address||"Pickup not set"} → {entry.transportTo||"Destination not set"}</small>
+                        <small>{entry.transportVehicleType||"Vehicle not set"} · Pickup {entry.transportPickupAt||"—"}</small>
+                        <em>{money(entry.transportCost||0)} · Delivery {entry.transportDeliveryAt||"—"}</em>
+                      </div>
+                      {next&&<span className="process-route-flow-arrow is-transport" style={{color:arrowColor}}><ArrowRight size={20}/></span>}
+                    </div>;
+                  }
+                  if(item.kind==="transport"){
+                    const leg=item.leg;
+                    const transporter=vendors.find(vendor=>vendor.id===leg.vendorId)?.company||"Transporter not assigned";
+                    const anchor=lane.find(op=>op.id===leg.anchorOperationId);
+                    const legRelation=anchor?.relationType==="rework"?"rework":anchor?.relationType==="alternate"?"alternate":"main";
+                    return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
+                      <button type="button" className="process-route-flow-transport-card" onClick={()=>editTransportLeg(leg)} title="Edit this transport connection">
+                        <Truck size={18}/><small>TRANSPORT LEG · {leg.placement||"start"}</small>
+                        <strong>{transporter}</strong>
+                        <small>{leg.fromLocation||"From not set"} → {leg.toLocation||"To not set"}</small>
+                        <small>{leg.vehicleType||"Vehicle not set"} · {leg.tripDirection}</small>
+                        <em>{leg.tripCount} carry / trip(s) · {money(leg.fixedAmount*leg.tripCount)}</em>
+                      </button>
+                      {next&&<span className={"process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}><ArrowRight size={20}/></span>}
+                    </div>;
+                  }
+                  const operation=item.operation as OperationRecord;
+                  const processColor=processAccent(operation);
+                  return <div className="process-route-flow-step" key={item.id}>
+                    <button type="button" className={activeOperation?.id===operation.id?"is-selected":""} style={{borderColor:processColor}} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} title={"Select "+operation.name+" · OP-"+operation.sequence}>
+                      <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={<Workflow size={16}/>}/>
+                      <strong>{operation.name}</strong><small>OP-{String(operation.sequence).padStart(3,"0")}</small>
+                      <em style={{background:processColor}}>{operation.category||"Process"}</em>{operation.subcategory&&<small className="process-route-flow-subcategory">SUB · {operation.subcategory}</small>}
+                      <small>Qty {operation.quantity.toLocaleString("en-IN")} · {vendors.find(vendor=>vendor.id===operation.vendorId)?.company||"Vendor not assigned"}</small>
+                    </button>
+                    {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport":"")} style={{color:arrowColor}}><ArrowRight size={20}/></span>}
+                  </div>;
+                })}</div>;
+              })()}
             </div>;
           })}
         </section>}
