@@ -288,7 +288,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
       if(!visibleIds.has(from.id)&&!visibleIds.has(to.id))continue;
       edges.push({id:"relationship-"+link.id,from,to,relation:link.relationshipType,color:relationshipColors[link.relationshipType]||"#4b95eb"});
     }
-    const anchors = new Map<string,{operation:OperationRecord;relation:"main"|"alternate"|"rework";color:string}>();
+    const anchors = new Map<string,{operation:OperationRecord;relation:string;color:string}>();
     for (const edge of edges) {
       if (!visibleIds.has(edge.from.id)) anchors.set(edge.from.id,{operation:edge.from,relation:edge.relation,color:edge.color});
       if (!visibleIds.has(edge.to.id)) anchors.set(edge.to.id,{operation:edge.to,relation:edge.relation,color:edge.color});
