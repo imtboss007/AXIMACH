@@ -13,7 +13,7 @@ const localInput=(value:string)=>{if(!value)return "";const date=new Date(value)
 const storedDate=(value:string)=>value?new Date(value).toISOString():"";
 
 export default function OperationInlineEditor({operation,vendors,onSave,onCancel}:Props) {
-  const [draft,setDraft]=useState({
+  const [draft,setDraft]=useState<Record<string,string>>({
     name:operation.name,category:operation.category,subcategory:operation.subcategory||"",
     machine:operation.machine||"",vendorId:operation.vendorId||"",status:operation.status,
     quantity:String(operation.quantity),completed:String(operation.completed),accepted:String(operation.accepted),rejected:String(operation.rejected),
