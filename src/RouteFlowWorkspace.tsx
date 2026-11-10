@@ -39,13 +39,26 @@ function vehicleIconFor(value:string) { const type=(value||"").toLowerCase(); if
 function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number}) {
   const style=transport?"transport":type;
   const VehicleIcon=vehicleIconFor(vehicleType);
+  const curvePath=style==="feedback"?"M4 35 C20 -2 48 -5 68 28 C84 55 112 60 132 25"
+    :style==="rework"?"M4 37 C36 67 92 2 132 31"
+    :style==="alternate"?"M4 36 C35 -15 93 -12 132 31"
+    :style==="dependency"?"M4 36 C42 36 92 6 132 31"
+    :style==="parallel"?"M4 28 C42 -12 91 47 132 23"
+    :style==="merge"?"M4 12 C40 12 48 34 68 34 C90 34 96 54 132 54"
+    :style==="split"?"M4 34 C40 34 48 10 68 10 C90 10 98 54 132 54"
+    :style==="conditional"?"M4 36 C42 -10 91 76 132 31"
+    :style==="successor"?"M4 36 C42 36 91 36 132 31":"M4 36 C42 -5 91 77 132 31";
   return <div className={"route-flow-curve route-flow-curve-"+style} aria-label={transport?"Transport connection":relationLabel(type)}>
     <svg viewBox="0 0 140 66" role="img" aria-hidden="true">
-      <path className="route-flow-curve-shadow" d="M4 36 C42 -5 91 77 132 31"/>
-      <path className="route-flow-curve-path" d="M4 36 C42 -5 91 77 132 31"/>
+      <path className="route-flow-curve-shadow" d={curvePath}/>
+      {style==="parallel"&&<path className="route-flow-curve-secondary" d="M4 43 C42 3 91 86 132 38"/>}
+      <path className="route-flow-curve-path" d={curvePath}/>
       <path className="route-flow-curve-head" d="M119 18 L133 31 L115 39"/>
-      <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path="M4 36 C42 -5 91 77 132 31"/></circle>
+      {style==="feedback"&&<path className="route-flow-curve-feedback-head" d="M8 26 L3 35 L15 37"/>}
       {style==="conditional"&&<path className="route-flow-curve-diamond" d="M69 22 L76 29 L69 36 L62 29 Z"/>}
+      {style==="merge"&&<path className="route-flow-curve-branch" d="M56 12 L68 34 L80 12"/>}
+      {style==="split"&&<path className="route-flow-curve-branch" d="M56 54 L68 32 L80 54"/>}
+      <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path={curvePath}/></circle>
     </svg>
     {transport&&<span className="route-flow-vehicle-marker" title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></span>}
     <small>{transport?(vehicleType||"TRANSPORT"):label||relationLabel(type)}</small>
@@ -99,7 +112,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const lane=routeOperations.filter(row=>(row.branch||"Main route")===branch);
   const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(!entry.poLineId||entry.poLineId===poLineId)&&(!entry.poId||entry.poId===poId)&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&(!leg.anchorOperationId||lane.some(operation=>operation.id===leg.anchorOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
-  const relationships=activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===poLineId&&lane.some(op=>op.id===link.fromOperationId||op.id===link.toOperationId));
+  const relationships=activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===poLineId&&routeOperations.some(op=>op.id===link.fromOperationId||op.id===link.toOperationId));
   const routeNodes=useMemo<FlowNode[]>(()=>{
     const nodes:FlowNode[]=[];
     const addMaterial=(entry:any)=>{
