@@ -160,7 +160,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
       >
         <motion.div
           className="ax-orb-core"
-          style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}
+          style={{ transformStyle: "preserve-3d", scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1) }}
           role="button"
           tabIndex={0}
           aria-label={zoomed ? "Zoom out of AXIMACH sphere" : "Zoom in to AXIMACH sphere"}
@@ -203,7 +203,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
             const angle = index * goldenAngle;
             const unitX = Math.cos(angle) * ringRadius;
             const unitZ = Math.sin(angle) * ringRadius;
-            const radius = compactViewport ? 116 : 132;
+            const radius = compactViewport ? 82 : 132;
             const x = unitX * radius;
             const y = unitY * radius;
             const z = unitZ * radius;
@@ -219,7 +219,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
         </motion.div>
         </motion.div>
       </motion.div>
-      <div className="ax-orb-lower-shell" aria-label="Separate live record summary shell" onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag} onPointerUp={endLowerDrag} onPointerCancel={endLowerDrag} style={{touchAction:"none"}}>
+      {compactViewport ? <div className="ax-orb-lower-summary-grid" aria-label="Live record summaries">{shellStats.map(({id,label,value,Icon})=><button type="button" key={id} className="ax-orb-lower-summary-card" onClick={()=>onSelectModule(id)}><Icon size={16}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small></button>)}</div> : <div className="ax-orb-lower-shell" aria-label="Separate live record summary shell" onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag} onPointerUp={endLowerDrag} onPointerCancel={endLowerDrag} style={{touchAction:"none"}}>
         <motion.div className="ax-orb-lower-rotator" style={{rotateX:lowerRotateX,rotateY:lowerRotateY,transformStyle:"preserve-3d"}}>
           {shellStats.map(({ id, label, value, Icon }, index) => <button type="button" key={label} className="ax-orb-lower-node"
             style={{ transform: "translate(-50%,-50%) rotateY(" + (index * 60) + "deg) translateZ(" + (compactViewport ? 94 : 132) + "px) rotateY(-" + (index * 60) + "deg)" }}
@@ -231,7 +231,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
             <Icon size={13}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small>
           </button>)}
         </motion.div>
-      </div>
+      </div>}
       <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> AUTO ROTATION · {autoRotate && !reduceMotion && !reducedMotion ? "ON" : "PAUSED"} <i/> MODULE SHELL · {moduleRotationEnabled ? "DRAG ENABLED" : "LOCKED"} <i/> RECORD SHELL · {recordRotationEnabled ? "DRAG ENABLED" : "LOCKED"}</div>
       <div className="ax-orb-studio-actions">
         <button type="button" className="ax-orb-pause" aria-pressed={!autoRotate} onClick={() => setAutoRotate(value => !value)}>{autoRotate ? "Ⅱ Pause auto-rotation" : "▶ Resume auto-rotation"}</button>
@@ -243,7 +243,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
       {studioOpen && <div className="ax-orb-studio-panel">
         <label>Sphere mode<select value={visualMode} onChange={event=>setVisualMode(event.target.value as OrbVisualMode)}><option value="sphere">Classic sphere</option><option value="holographic">Holographic</option><option value="cube">Geometric cube</option><option value="vortex">Vortex</option><option value="molecular">Molecular network</option><option value="orbit">Orbiting planetary</option><option value="radial">Radial command</option><option value="mesh">Digital mesh</option><option value="particle">Particle field</option><option value="industrial">Industrial network topology</option><option value="kinetic">Abstract kinetic geometry</option><option value="multi-core">Multi-layer rotating core</option></select></label>
         <label>Drag sensitivity<select value={speed} onChange={event=>setSpeed(event.target.value as OrbSpeed)}><option>Slow</option><option>Normal</option><option>Fast</option></select></label>
-        <label>Sphere size<input type="range" min=".82" max="1.12" step=".01" value={sphereSize} onChange={event=>setSphereSize(Number(event.target.value))}/><small>{Math.round(sphereSize*100)}%</small></label>
+        <label>Sphere size<input type="range" min=".60" max="1.12" step=".01" value={sphereSize} onChange={event=>setSphereSize(Number(event.target.value))}/><small>{Math.round(sphereSize*100)}%</small></label>
         <label>Orbit intensity<input type="range" min="0" max="1" step=".05" value={orbitIntensity} onChange={event=>setOrbitIntensity(Number(event.target.value))}/><small>{Math.round(orbitIntensity*100)}%</small></label>
         <label className="ax-orb-motion-setting"><input type="checkbox" checked={reduceMotion} onChange={event=>setReduceMotion(event.target.checked)}/> Reduce motion</label>
         <button type="button" className="ax-orb-reset" onClick={()=>{setVisualMode("sphere");setSpeed("Normal");setSphereSize(1);setOrbitIntensity(1);setReduceMotion(false);setAutoRotate(true);setModuleRotationEnabled(true);setRecordRotationEnabled(true);setZoomed(false);}}>Reset preferences</button>
