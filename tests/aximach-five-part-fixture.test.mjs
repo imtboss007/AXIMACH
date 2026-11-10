@@ -2300,3 +2300,36 @@ test("3D process graph offers radial, circular and organic layouts", () => {
     assert.ok(universe.includes('mode === "'+mode+'"'));
   }
 });
+
+
+test("AXIMACH integrates every shared route layout, independent material legs, connector legend and visual simulation progression", () => {
+  const picker=readFileSync(new URL("../src/RouteLayoutPicker.tsx",import.meta.url),"utf8");
+  const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const map=readFileSync(new URL("../src/LinkedProcessWorkspace.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ProcessUniverse3D.tsx",import.meta.url),"utf8");
+  const scene=readFileSync(new URL("../src/ProcessScene3D.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  const modes=["orthogonal","s-curve","horizontal","vertical","swimlane","timeline","radial","circular","organic"];
+  for(const mode of modes) {
+    assert.ok(picker.includes('value="'+mode+'"'),"shared picker missing "+mode);
+    assert.ok(css.includes('data-route-layout="'+mode+'"'),"route layout CSS missing "+mode);
+  }
+  assert.ok(route.includes("RouteLayoutPicker value={routeLayout}"));
+  assert.ok(map.includes("RouteLayoutPicker value={routeLayout}"));
+  assert.ok(universe.includes("RouteLayoutPicker value={routeLayout}"));
+  assert.ok(map.includes("routeTransportLegs.filter(leg=>leg.materialEntryId===entry.id)"));
+  assert.ok(map.includes('!leg.materialEntryId&&leg.placement==="before"'));
+  assert.ok(map.includes("<RouteConnectorLegend compact/>"));
+  assert.ok(universe.includes("<RouteConnectorLegend compact/>"));
+  assert.ok(picker.includes("CONNECTOR LEGEND"));
+  assert.ok(scene.includes("hasMaterialSpecificLeg"));
+  assert.ok(scene.includes("if(to&&!hasMaterialSpecificLeg)"));
+  assert.ok(scene.includes("simulationIndex?:number"));
+  assert.ok(scene.includes("simulatedOperation?.id"));
+  assert.ok(scene.includes("isSimulationEdge"));
+  assert.ok(universe.includes("simulationIndex={simulationIndex}"));
+  assert.ok(universe.includes("SIMULATION · STEP"));
+  for(const kind of ["alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor","transport","material"]) {
+    assert.ok(picker.includes('["'+kind+'"'),"connector legend missing "+kind);
+  }
+});
