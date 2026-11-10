@@ -5,13 +5,14 @@ import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: { vendorId?: string }) => void; onOpenContact360?: (vendorId: string) => void };
-const VEHICLES = ["2-wheeler", "3-wheeler", "4-wheeler", "Heavy-duty 4-wheeler"];
+const VEHICLES = ["2-wheeler", "3-wheeler", "4-wheeler", "Tempo", "Mini truck", "Pickup truck", "LCV", "HCV", "Container truck", "Trailer", "Refrigerated truck", "Flatbed truck", "Tanker", "Courier van", "Heavy-duty 4-wheeler"];
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
 export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, onSelectModule, onOpenContact360 }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const routes = activeRows(data.transportRoutes || []);
   const vendors = activeRows(data.vendors);
+  const locationOptions=[...new Set([...routes.flatMap(route=>[route.fromLocation,route.toLocation]),...vendors.map(vendor=>vendor.address)].map(value=>value?.trim()).filter((value):value is string=>Boolean(value)))].sort((a,b)=>a.localeCompare(b));
   const [search, setSearch] = useState("");
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [selectedDirections, setSelectedDirections] = useState<string[]>([]);
@@ -79,7 +80,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
   return <section className="workspace-page specialized-directory">
     {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/> {syncStatus === "synced" ? "SHARED DATA SYNCED" : "TRANSPORT MASTER"}</span><span className="module-number">{routes.length} SAVED ROUTES</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / RATE MASTER</div><h1>Transport Directory<span>.</span></h1><p>Maintain fixed route rates linked to existing Vendor Directory records. One-way and two-way prices are stored separately by vehicle type.</p></div></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> SUPPLY NETWORK / RATE MASTER</div><h1>Transport Directory<span>.</span></h1><p>Maintain fixed route rates linked to Vendor Directory. Search saved pickup and delivery locations or enter new ones; vehicle classes can also be selected or added as text.</p></div></div>
     <div className="module-action-bar">
       <label className="module-record-search"><Search size={16}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search route, vehicle, vendor or location…"/></label>
       <button className="button-quiet compact-button" onClick={() => onSelectModule("vendors")}><Users size={14}/> Vendor Directory</button>
@@ -100,10 +101,12 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
       <div className="panel-heading"><div><h3>{editingId ? "Edit fixed route rate" : "Add transport route"}</h3><p>Save one rate for each route, vehicle and trip direction. Select a different rate record for a one-way or round trip.</p></div><Truck size={19}/></div>
       <div className="module-form-grid">
         <SearchablePicker id="transport-route-vendor" label="Transport vendor *" value={vendorId} placeholder="Type vendor name or contact…" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+(vendor.contact||"Contact not set")}))} onChange={setVendorId}/>
-        <label>From location *<input value={fromLocation} onChange={event => setFromLocation(event.target.value)} placeholder="Pickup location"/></label>
-        <label>To location *<input value={toLocation} onChange={event => setToLocation(event.target.value)} placeholder="Delivery location"/></label>
-        <SearchablePicker id="transport-route-direction" label="Trip direction *" value={tripDirection} options={["One-way","Two-way"].map(value=>({id:value,label:value}))} onChange={value=>setTripDirection(value as "One-way"|"Two-way")}/>
-        <SearchablePicker id="transport-route-vehicle" label="Vehicle type *" value={vehicleType} placeholder="Search vehicle class…" options={VEHICLES.map(value=>({id:value,label:value}))} onChange={setVehicleType}/>
+        <label>From location *<input list="aximach-transport-location-list" value={fromLocation} onChange={event => setFromLocation(event.target.value)} placeholder="Search saved locations or type a new pickup location…"/></label>
+        <label>To location *<input list="aximach-transport-location-list" value={toLocation} onChange={event => setToLocation(event.target.value)} placeholder="Search saved locations or type a new delivery location…"/></label>
+        <datalist id="aximach-transport-location-list">{locationOptions.map(location=><option key={location} value={location}/>)}</datalist>
+        <SearchablePicker id="transport-route-direction" label="Route type *" value={tripDirection} options={["One-way","Two-way"].map(value=>({id:value,label:value}))} onChange={value=>setTripDirection(value as "One-way"|"Two-way")}/>
+        <label>Vehicle type *<input list="aximach-transport-vehicle-list" value={vehicleType} onChange={event=>setVehicleType(event.target.value)} placeholder="Search vehicle or type a new vehicle class…"/></label>
+        <datalist id="aximach-transport-vehicle-list">{VEHICLES.map(value=><option key={value} value={value}/>)}</datalist>
         <label>Fixed amount (₹) *<input inputMode="decimal" type="number" min="0" step="0.01" value={fixedAmount} onChange={event => setFixedAmount(event.target.value)} placeholder="Enter agreed route rate"/></label>
         <label className="editor-wide">Notes<input value={notes} onChange={event => setNotes(event.target.value)} placeholder="Validity, loading terms, waiting charges or agreement reference"/></label>
       </div>
