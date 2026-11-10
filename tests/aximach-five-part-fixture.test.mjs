@@ -1998,3 +1998,29 @@ test("Manufacturing Universe lets the operator choose live scene fields and conn
   assert.ok(scene.includes("fieldVisible"));
   assert.ok(css.includes(".manufacturing-universe-customizer"));
 });
+
+
+test("Manufacturing Universe exposes every AXIMACH module and renders material-first PO lines", () => {
+  const universe = readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx", import.meta.url), "utf8");
+  const moduleBlock = universe.match(/const linkModules=\[([\s\S]*?)\n  \];/);
+  assert.ok(moduleBlock, "missing Manufacturing Universe module directory");
+  const ids = [...moduleBlock[1].matchAll(/id:"([^"]+)"/g)].map(match => match[1]);
+  const expected = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"];
+  assert.deepEqual([...new Set(ids)].sort(), [...expected].sort());
+  assert.equal(ids.length, 20, "module shortcuts must not contain duplicate entries");
+  assert.ok(universe.includes('routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0||definitions.length>0'));
+  assert.ok(universe.includes('materialRoutes={materialRouteNodes}'));
+});
+
+test("Route Flow draws saved non-adjacent relationships as responsive curved cross-links", () => {
+  const route = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(route.includes('const routeViewportRef=useRef<HTMLDivElement|null>(null)'));
+  assert.ok(route.includes('data-route-operation-id={node.kind==="operation"?node.operation.id:undefined}'));
+  assert.ok(route.includes('const fromIndex=ordered.findIndex(operation=>operation.id===link.fromOperationId)'));
+  assert.ok(route.includes('if(fromIndex>=0&&toIndex===fromIndex+1)continue'));
+  assert.ok(route.includes('const pathData="M "+startX+" "+startY+" C "'));
+  assert.ok(route.includes('className="route-flow-relationship-overlay"'));
+  assert.ok(route.includes('ResizeObserver(measure)'));
+  assert.ok(css.includes('.route-flow-relationship-overlay{position:absolute'));
+});
