@@ -3201,3 +3201,16 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .ax-transport-icon-trigger{width:28px!important;height:28px!important;min-width:28px!important}
  .ax-full3d-transport-icon{width:32px!important;height:32px!important;min-width:32px!important}
 }
+
+.route-flow-vehicle-marker-button{
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;
+ padding:5px 8px!important;border:1px solid currentColor!important;border-radius:10px!important;
+ font:inherit!important;cursor:pointer!important;pointer-events:auto!important;
+ box-shadow:0 3px 10px rgba(9,39,67,.17)!important;transition:transform .14s ease,box-shadow .14s ease!important
+}
+.route-flow-vehicle-marker-button:hover,.route-flow-vehicle-marker-button:focus-visible{
+ transform:translateY(-2px) scale(1.06)!important;outline:2px solid currentColor!important;outline-offset:2px!important;
+ box-shadow:0 5px 14px rgba(9,39,67,.24)!important
+}
+.route-flow-vehicle-marker-button svg{flex:0 0 auto!important}
+.route-flow-vehicle-marker-button b{font-size:9px!important;font-weight:800!important;white-space:nowrap!important}
