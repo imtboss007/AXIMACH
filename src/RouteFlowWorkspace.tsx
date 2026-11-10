@@ -66,7 +66,7 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0}:{typ
       {style==="split"&&<path className="route-flow-curve-branch" d="M56 54 L68 32 L80 54"/>}
       <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path={curvePath}/></circle>
     </svg>
-    {transport&&<span className="route-flow-vehicle-marker" title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></span>}
+    {transport&&<span className={"route-flow-vehicle-marker vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></span>}
     <small>{transport?(vehicleType||"TRANSPORT"):label||relationLabel(type)}</small>
   </div>;
 }
