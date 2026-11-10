@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
+import OperationInlineEditor from "./OperationInlineEditor";
+import OperationQuickCreate from "./OperationQuickCreate";
 import { Activity, ArrowLeft, ArrowRight, Bike, Box, Bus, CarFront, Check, ChevronDown, CircleDashed, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, GitMerge, GitPullRequest, Link2, MessageCircle, Network, Package, Plane, Plus, Route, Save, ShieldCheck, Ship, Sparkles, Split, TrainFront, Truck, Users, Waypoints, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
