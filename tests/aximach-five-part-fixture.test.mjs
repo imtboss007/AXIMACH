@@ -1874,7 +1874,7 @@ test("Process Map routes integrate material and saved transport legs before and 
   assert.ok(universe.includes("transportLegs={transportLegs} onSelectTransportLeg={onSelectTransportLeg}"));
   assert.ok(scene.includes("const transportLegPlacements=useMemo"));
   assert.ok(scene.includes("projectedTransportLegs.map"));
-  assert.ok(scene.includes('TRANSPORT HAND-OFF · {index+1}/{transportLegs.length}'));
+  assert.ok(scene.includes('TRANSPORT DIRECTORY · {index+1}/{transportLegs.length}'));
   assert.ok(scene.includes('{leg.vehicleType||"Vehicle not set"}'));
   assert.ok(scene.includes('"operation-transport-"+item.leg.id'));
 });
@@ -2035,8 +2035,6 @@ test("Immersive Route Flow and Manufacturing Universe expose full-screen control
     for(const format of ["svg","png","pdf","csv","json"]) assert.ok(source.includes('option value="'+format+'"'));
   }
   assert.ok(controls.includes("requestFullscreen"));
-  assert.ok(controls.includes('lockOrientation("portrait")'));
-  assert.ok(controls.includes('lockOrientation("landscape")'));
   assert.ok(controls.includes("exitFullscreen"));
 });
 
@@ -2063,13 +2061,13 @@ test("Manufacturing Universe has touch pinch zoom and clearly typed visible grap
   const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
   assert.ok(universe.includes("onZoomChange={setZoom}"));
   assert.ok(scene.includes("onPinchMove"));
-  assert.ok(scene.includes("process-universe-zoom-controls"));
+  assert.ok(!scene.includes("process-universe-zoom-controls"));
   assert.ok(scene.includes("process-scene-zoom-viewport"));
   assert.ok(webgl.includes('"+edge.relation+"'));
   assert.ok(css.includes(".process-universe-zoom-controls"));
   assert.ok(css.includes(".ax-full3d-route-arrow.dependency"));
   assert.ok(css.includes(".route-flow-workspace:fullscreen"));
-  assert.ok(css.includes("orientation:landscape"));
+  assert.ok(css.includes(".process-universe-3d,.process-scene-zoom-viewport{touch-action:none"));
 });
 
 
