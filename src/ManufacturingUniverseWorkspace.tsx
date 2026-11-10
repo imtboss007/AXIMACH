@@ -1,8 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord, type RouteRelationshipRecord } from "./manufacturingData";
 import ProcessUniverse3D from "./ProcessUniverse3D";
-import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
 import TransportRecordInspector from "./TransportRecordInspector";
@@ -20,7 +19,6 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const vendors=activeRows(data.vendors),operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),legs=activeRows(data.transportLegs||[]);
   const definitions=activeRows(data.processDefinitions),relationships=activeRows(data.routeRelationships||[]);
   const [companyPick,setCompanyPick]=useState(""),[poPick,setPoPick]=useState(""),[linePick,setLinePick]=useState("");
-  const workspaceRef=useRef<HTMLElement|null>(null);
   const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
   const [inspectedTransportId,setInspectedTransportId]=useState("");
   const [inspectedMaterialTransportId,setInspectedMaterialTransportId]=useState("");
@@ -176,7 +174,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   return <section ref={workspaceRef} className="manufacturing-universe-workspace" data-workspace-theme={workspaceTheme}>
     <header className="manufacturing-universe-head">
       <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE CONNECTED OPERATIONS</div><h1>Manufacturing <span>Universe</span></h1><p>A dedicated large-format 3D view of live material, transport, process, quality and delivery records. Select a PO line to see its live route.</p></div>
-      <div className="manufacturing-universe-actions"><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div><ImmersiveWorkspaceControls targetRef={workspaceRef} onNotice={onNotice} onZoomReset={()=>setZoom(1)}/></div>
+      <div className="manufacturing-universe-actions"><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div></div>
     </header>
     {notice&&<div className="notice-banner"><CheckCircle2 size={15}/><span>{notice}</span></div>}
     <div className="manufacturing-universe-scope">
@@ -190,7 +188,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     <section className="manufacturing-universe-live-panel">
       <div className="manufacturing-universe-live-heading"><div><span className="eyebrow">LIVE MANUFACTURING SCENE · WEBGL</span><h2>Manufacturing process universe</h2><p>Sphere, cube, vortex, helix, orbit, network, grid, pipeline, layered, stacked, matrix and tree views use the selected live PO-line data.</p></div><div className="manufacturing-universe-live-tools"><button className="button-primary compact-button" disabled={!poId||!poLineId||!componentId} onClick={()=>setShowAddOperation(value=>!value)}><Activity size={14}/> Add process stage</button><span className="manufacturing-universe-live-state"><i/> LIVE RECORDS</span></div></div>
       {(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0||definitions.length>0)?<ProcessUniverse3D
-        key={poLineId}
+        onNotice={onNotice} key={poLineId}
         operations={routeOperations.filter(row=>row.relationType!=="subprocess")}
         allOperations={allRouteOperations}
         routeLabels={routeLabels}
@@ -210,7 +208,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         ganttScale={ganttScale}
         onGanttScaleChange={setGanttScale}
         onSelectOperation={id=>setSelectedOperationId(id)}
-        onEditOperation={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)setEditingOperation(op);}}
+        onEditOperation={id=>{const op=allRouteOperations.find(row=>row.id===id)||operations.find(row=>row.id===id);if(!op){onNotice("The selected process record could not be found in the current PO line. Refresh the line and try again.");return;}setSelectedOperationId(op.id);setEditingOperation(op);}}
         onChangeProcessColor={(id,color)=>update(current=>({...current,operations:current.operations.map(row=>row.id===id?{...row,processColor:color,updatedAt:new Date().toISOString()}:row)}))}
         onAddSubprocess={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
         onAddAlternateRoute={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
