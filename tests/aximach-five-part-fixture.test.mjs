@@ -475,7 +475,9 @@ test("Production Plan routes transport entry through Process Plan and keeps tran
   assert.ok(production.includes('onSelectModule("process-map"'));
   assert.ok(processPlan.includes("const componentTransportLegs = allTransportLegs.filter"));
   assert.ok(processPlan.includes("const operationTransportAmount = (operation: OperationRecord)"));
-  assert.ok(processPlan.includes("Add component transport entry"));
+  assert.ok(processPlan.includes("Add transport between route nodes"));
+  assert.ok(processPlan.includes("Create a new route here"));
+  assert.ok(processPlan.includes("Save route to Transport Directory"));
   assert.ok(processPlan.includes("anchorOperationId: transportPlacement === \"start\" ? \"\" : transportAnchorOperationId"));
 });
 
@@ -526,7 +528,9 @@ test("Alternate and rework routes use different arrow colours while process type
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   assert.ok(workspace.includes('const ALTERNATE_ROUTE_COLOR = "#4b95eb"'));
   assert.ok(workspace.includes('const REWORK_ROUTE_COLOR = "#e38b45"'));
-  assert.ok(workspace.includes("const routeArrowColor=rework?REWORK_ROUTE_COLOR:branchRoot||branch!==\"Main route\"?ALTERNATE_ROUTE_COLOR:processColor"));
+  assert.ok(workspace.includes('const routeColor=rework?REWORK_ROUTE_COLOR:branchRoot||branch!=="Main route"?ALTERNATE_ROUTE_COLOR:"#5a8fc4"'));
+  assert.ok(workspace.includes('legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"'));
+  assert.ok(workspace.includes('className={"process-route-flow-arrow is-transport "+'));
   assert.ok(workspace.includes("const processColor=processAccent(operation)"));
   assert.ok(workspace.includes("displayColor: draft.processColor"));
   assert.ok(universe.includes("processDefinition?.displayColor || operation.processColor"));
