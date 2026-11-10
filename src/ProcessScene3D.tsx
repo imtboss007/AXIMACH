@@ -6,7 +6,7 @@ type Mode = "sphere"|"vortex"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt
 type CatalogueDefinition = { id:string; processType:string; category:string; displayColor?:string };
 type RouteAnchor = { operation:OperationRecord; relation:"main"|"alternate"|"rework"; color:string };
 type MaterialRouteNode = { id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
-type TransportLegNode = { id:string; poLineId:string; anchorOperationId:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
+type TransportLegNode = { id:string; poLineId:string; anchorOperationId:string; targetOperationId?:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
 const hasMaterialTransport=(route:MaterialRouteNode)=>Boolean(
  route.transporter&&route.transporter!=="Transporter not assigned" ||
  route.from || route.to || route.vehicle || route.transportCost>0 || route.pickupAt || route.deliveryAt
@@ -179,7 +179,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const lineRows=geometryRows.filter(operation=>operation.poLineId===leg.poLineId&&(operation.branch||"Main route")===branch&&operation.relationType!=="subprocess").sort((a,b)=>a.sequence-b.sequence);
   const anchorIndex=anchor?lineRows.findIndex(operation=>operation.id===anchor.id):-1;
   const fromOperation=leg.placement==="start"?undefined:leg.placement==="before"?(anchorIndex>0?lineRows[anchorIndex-1]:undefined):anchor;
-  const toOperation=leg.placement==="start"?lineRows[0]:leg.placement==="before"?anchor:(anchorIndex>=0?lineRows[anchorIndex+1]:undefined);
+  const toOperation=(leg.targetOperationId?lineRows.find(operation=>operation.id===leg.targetOperationId):undefined)||(leg.placement==="start"?lineRows[0]:leg.placement==="before"?anchor:(anchorIndex>=0?lineRows[anchorIndex+1]:undefined));
   const fromPoint=fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined;
   const toPoint=toOperation?geometryPoints.find(item=>item.op.id===toOperation.id)?.p:undefined;
   const siblings=transportLegs.filter(other=>other.poLineId===leg.poLineId&&other.anchorOperationId===leg.anchorOperationId&&other.placement===leg.placement);
