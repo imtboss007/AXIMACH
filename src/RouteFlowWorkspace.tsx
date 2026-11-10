@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Box, Check, ChevronDown, CircleDashed, Factory, GitBranch, GitMerge, GitPullRequest, Link2, Network, Package, Plus, Route, Save, ShieldCheck, Split, Truck, Waypoints, Workflow, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bike, Box, Bus, CarFront, Check, ChevronDown, CircleDashed, Factory, GitBranch, GitMerge, GitPullRequest, Link2, Network, Package, Plane, Plus, Route, Save, ShieldCheck, Ship, Split, TrainFront, Truck, Waypoints, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
   type ComponentTransportLegRecord, type OperationRecord, type RouteRelationshipRecord,
@@ -34,8 +34,8 @@ type FlowNode =
  | {kind:"operation";id:string;operation:OperationRecord}
  | {kind:"missing-material";id:string};
 
-function RouteCurve({type,transport=false,label}:{type:RouteRelationshipType;transport?:boolean;label?:string}) {
-  const style=transport?"transport":type;
+function vehicleIconFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type)) return Bike; if(/bus/.test(type)) return Bus; if(/car|taxi|auto|three.wheeler/.test(type)) return CarFront; if(/air|plane|flight/.test(type)) return Plane; if(/ship|boat|vessel/.test(type)) return Ship; if(/train|rail/.test(type)) return TrainFront; return Truck; }\n\nfunction RouteCurve({type,transport=false,label,vehicleType="",tripCount=0}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number}) {
+  const style=transport?"transport":type;\n  const VehicleIcon=vehicleIconFor(vehicleType);
   return <div className={"route-flow-curve route-flow-curve-"+style} aria-label={transport?"Transport connection":relationLabel(type)}>
     <svg viewBox="0 0 140 66" role="img" aria-hidden="true">
       <path className="route-flow-curve-shadow" d="M4 36 C42 -5 91 77 132 31"/>
@@ -44,7 +44,7 @@ function RouteCurve({type,transport=false,label}:{type:RouteRelationshipType;tra
       <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path="M4 36 C42 -5 91 77 132 31"/></circle>
       {style==="conditional"&&<path className="route-flow-curve-diamond" d="M69 22 L76 29 L69 36 L62 29 Z"/>}
     </svg>
-    <small>{transport?"TRANSPORT":label||relationLabel(type)}</small>
+    {transport&&<span className="route-flow-vehicle-marker" title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></span>}\n    <small>{transport?(vehicleType||"TRANSPORT"):label||relationLabel(type)}</small>
   </div>;
 }
 
@@ -140,7 +140,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     if(!toId){for(let i=index+1;i<routeNodes.length;i++)if(routeNodes[i].kind==="operation"){toId=(routeNodes[i] as Extract<FlowNode,{kind:"operation"}>).operation.id;break;}}
     const relation=fromId&&toId?relationFor(fromId,toId):undefined;
     const defaultType:RouteRelationshipType=branch.toLowerCase().includes("rework")?"rework":branch==="Main route"?"main":"alternate";
-    return {transport,relation,type:relation?.relationshipType||defaultType,label:relation?.label};
+    const transportNode=current?.kind==="transport"?current:next?.kind==="transport"?next:null;\n    const materialTransportNode=current?.kind==="material-transport"?current:next?.kind==="material-transport"?next:null;\n    const vehicleType=transportNode?.kind==="transport"?transportNode.leg.vehicleType:materialTransportNode?.kind==="material-transport"?materialTransportNode.entry.transportVehicleType||"":"";\n    const tripCount=transportNode?.kind==="transport"?transportNode.leg.tripCount:materialTransportNode?.kind==="material-transport"?1:0;\n    return {transport,relation,type:relation?.relationshipType||defaultType,label:relation?.label,vehicleType,tripCount};
   };
 
   const saveRelationship=()=>{
@@ -211,7 +211,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
               {node.kind==="operation"&&<><div className="route-flow-node-top"><Factory size={18}/><small>OP-{String(node.operation.sequence).padStart(3,"0")} · {node.operation.status}</small></div><strong>{node.operation.name}</strong><span>{node.operation.category} · {node.operation.subcategory||"Sub-process not selected"}</span><span>Qty {node.operation.quantity} · {vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned"}</span><em>{money(node.operation.quantity*(node.operation.actualRatePerPart||node.operation.ratePerPart))} process amount</em><small>Start {dateTime(node.operation.plannedStart)} · Due {dateTime(node.operation.plannedEnd)}</small><button onClick={()=>onSelectModule("process-map",{companyId,poId,poLineId,componentId,operationId:node.operation.id})}>Open process record <ArrowRight size={12}/></button></>}
               {node.kind==="missing-material"&&<><div className="route-flow-node-top"><Package size={18}/><small>REQUIRED FIRST STAGE</small></div><strong>Material allocation missing</strong><span>A manufacturing route must have its material / grade allocation before its first process.</span><button onClick={openProcessMap}>Add material <ArrowRight size={12}/></button></>}
             </article>
-            {connector&&<RouteCurve type={connector.type} transport={connector.transport} label={connector.label}/>}
+            {connector&&<RouteCurve type={connector.type} transport={connector.transport} label={connector.label} vehicleType={connector.vehicleType} tripCount={connector.tripCount}/>}
           </div>;
         })}
       </div></div>}
