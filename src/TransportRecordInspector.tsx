@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Truck, X, CalendarClock, Phone, Mail, MessageCircle, Building2, Route, ReceiptText, BadgeCheck, Bike, Bus, CarFront, Plane, Ship, TrainFront } from "lucide-react";
 import type { ComponentTransportLegRecord, TransportRouteRecord, VendorRecord, VendorTransportRoute } from "./manufacturingData";
 
@@ -37,7 +38,7 @@ export default function TransportRecordInspector({leg,vendor,directoryRoute,lega
  const route=directoryRoute||legacyVendorRoute;
  const routeStatus=directoryRoute?(directoryRoute.active?"Active":"Inactive"):"Vendor route";
  const directoryAmount=directoryRoute?.fixedAmount??legacyVendorRoute?.fixedCost??leg.fixedAmount;
- return <div className="ax-transport-inspector-backdrop ax-transport-popover-backdrop" style={{"--ax-transport-popup-x":(anchor?.x??8)+"px","--ax-transport-popup-y":(anchor?.y??8)+"px"} as React.CSSProperties} role="presentation" onClick={onClose}>
+ return <div className="ax-transport-inspector-backdrop ax-transport-popover-backdrop" style={{"--ax-transport-popup-x":(anchor?.x??8)+"px","--ax-transport-popup-y":(anchor?.y??8)+"px"} as CSSProperties} role="presentation" onClick={onClose}>
   <section className={"ax-transport-inspector ax-transport-popover vehicle-"+vehicle} role="dialog" aria-modal="true" aria-label="Transport and directory record details" onClick={event=>event.stopPropagation()}>
    <header className="ax-transport-inspector-head">
     <div className="ax-transport-vehicle-identity">
