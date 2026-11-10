@@ -117,7 +117,7 @@ export function createAxMachTwoCompanyDemo():ManufacturingData{
   ...vendors.map(v=>({id:id("CONTACT",v.id),linkedType:"vendor" as const,linkedId:v.id,name:v.contact,role:"Demo vendor contact",group:"DEMO",phone:"",whatsapp:"",additionalPhones:[],email:v.email,address:v.address,followUpDate:date(4),history:"Synthetic DEMO vendor contact; do not contact.",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[],machineCapabilities:[],materialCapabilities:[],createdAt:stamp,updatedAt:stamp}))
  ];
  const followUpAssignments:ManufacturingData["followUpAssignments"]=vendors.map(v=>({id:id("FOLLOW-UP",v.id),moduleId:"vendors",recordId:v.id,recordLabel:v.company,contactId:id("CONTACT",v.id),contactName:v.contact,contactPhone:"",contactEmail:v.email,createdAt:stamp,updatedAt:stamp}));
- return {updatedAt:stamp,companies,factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines,inventoryTransactions,contactProfiles,processDefinitions,plannedCosts,transportRoutes,transportLegs,paymentTransactions,inspectionMeasurements,followUpAssignments};
+ return {updatedAt:stamp,companies,factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines,inventoryTransactions,contactProfiles,processDefinitions,plannedCosts,transportRoutes,transportLegs,paymentTransactions,inspectionMeasurements,routeRelationships:[],followUpAssignments};
 }
 export function archiveAxMachTwoCompanyDemo(current:ManufacturingData,stamp=new Date().toISOString()):ManufacturingData{
  const archive=<T extends {id:string;updatedAt?:string;deletedAt?:string}>(rows:T[]):T[]=>rows.map(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)?{...row,deletedAt:stamp,updatedAt:stamp}:row);
@@ -128,6 +128,6 @@ export function archiveAxMachTwoCompanyDemo(current:ManufacturingData,stamp=new 
   inventoryTransactions:archive(current.inventoryTransactions),contactProfiles:archive(current.contactProfiles),
   processDefinitions:archive(current.processDefinitions),plannedCosts:archive(current.plannedCosts),
   transportRoutes:archive(current.transportRoutes),transportLegs:archive(current.transportLegs),
-  paymentTransactions:archive(current.paymentTransactions),inspectionMeasurements:archive(current.inspectionMeasurements),
+  paymentTransactions:archive(current.paymentTransactions),inspectionMeasurements:archive(current.inspectionMeasurements),routeRelationships:archive(current.routeRelationships||[]),
   followUpAssignments:archive(current.followUpAssignments)};
 }
