@@ -1,4 +1,4 @@
-import { Truck, X, CalendarClock, Phone, Mail, MessageCircle, Building2, Route, ReceiptText, BadgeCheck } from "lucide-react";
+import { Truck, X, CalendarClock, Phone, Mail, MessageCircle, Building2, Route, ReceiptText, BadgeCheck, Bike, Bus, CarFront, Plane, Ship, TrainFront } from "lucide-react";
 import type { ComponentTransportLegRecord, TransportRouteRecord, VendorRecord, VendorTransportRoute } from "./manufacturingData";
 
 type Props={
@@ -21,8 +21,18 @@ const vehicleClass=(value:string)=>{
 };
 const displayDate=(value?:string)=>value?new Date(value).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"Not recorded";
 const amount=(value:number)=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+const vehicleIcon=(value:string)=>{
+ const type=(value||"").toLowerCase();
+ if(/bike|motorcycle|scooter/.test(type))return Bike;
+ if(/bus/.test(type))return Bus;
+ if(/car|taxi|auto/.test(type))return CarFront;
+ if(/plane|air|flight/.test(type))return Plane;
+ if(/ship|boat|vessel/.test(type))return Ship;
+ if(/train|rail/.test(type))return TrainFront;
+ return Truck;
+};
 export default function TransportRecordInspector({leg,vendor,directoryRoute,legacyVendorRoute,onClose,onOpenDirectory}:Props){
- const vehicle=vehicleClass(leg.vehicleType);
+ const vehicle=vehicleClass(leg.vehicleType);\n const VehicleIcon=vehicleIcon(leg.vehicleType);
  const route=directoryRoute||legacyVendorRoute;
  const routeStatus=directoryRoute?(directoryRoute.active?"Active":"Inactive"):"Vendor route";
  const directoryAmount=directoryRoute?.fixedAmount??legacyVendorRoute?.fixedCost??leg.fixedAmount;
@@ -30,7 +40,7 @@ export default function TransportRecordInspector({leg,vendor,directoryRoute,lega
   <section className={"ax-transport-inspector vehicle-"+vehicle} role="dialog" aria-modal="true" aria-label="Transport and directory record details" onClick={event=>event.stopPropagation()}>
    <header className="ax-transport-inspector-head">
     <div className="ax-transport-vehicle-identity">
-     <span className={"ax-transport-vehicle-icon vehicle-"+vehicle}><Truck size={22}/></span>
+     <span className={"ax-transport-vehicle-icon vehicle-"+vehicle}><VehicleIcon size={22}/></span>
      <div><small>AXIMACH · TRANSPORT RECORD</small><h2>{leg.vehicleType||"Vehicle not specified"}</h2><p>{vendor?.company||"Transporter not assigned"} · {leg.tripDirection}</p></div>
     </div>
     <button type="button" className="ax-transport-inspector-close" onClick={onClose} aria-label="Close transport details"><X size={20}/></button>
