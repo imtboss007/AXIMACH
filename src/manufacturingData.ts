@@ -46,7 +46,15 @@ export type ComponentTransportLegRecord = {
   id: string; poId: string; poLineId: string; componentId: string; sequence: number;
   routeId: string; vendorId: string; fromLocation: string; toLocation: string;
   tripDirection: TransportTripDirection; vehicleType: string; fixedAmount: number;
-  tripCount: number; anchorOperationId: string; placement?: "start" | "before" | "after"; pickupAt?: string; deliveryAt?: string; status?: LifecycleStatus; completedTrips?: number; notes: string;
+  tripCount: number; anchorOperationId: string; targetOperationId?: string; placement?: "start" | "before" | "after"; pickupAt?: string; deliveryAt?: string; status?: LifecycleStatus; completedTrips?: number; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type RouteRelationshipType = "main" | "alternate" | "rework" | "dependency" | "parallel" | "merge" | "split" | "follow-on" | "feedback" | "conditional" | "successor";
+export type RouteRelationshipStatus = "Active" | "Planned" | "Conditional" | "Disabled";
+export type RouteRelationshipRecord = {
+  id: string; poId: string; poLineId: string; componentId: string;
+  fromOperationId: string; toOperationId: string; relationshipType: RouteRelationshipType;
+  status: RouteRelationshipStatus; condition?: string; label?: string; notes: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type VendorTransportRoute = { id: string; fromLocation: string; toLocation: string; fixedCost: number; vehicleType: string; notes?: string; tripDirection?: TransportTripDirection };
@@ -156,7 +164,7 @@ export type ManufacturingData = {
   contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
   transportRoutes: TransportRouteRecord[]; transportLegs: ComponentTransportLegRecord[];
   paymentTransactions: PaymentTransactionRecord[]; inspectionMeasurements: InspectionMeasurementRecord[];
-  followUpAssignments: FollowUpAssignmentRecord[];
+  routeRelationships: RouteRelationshipRecord[]; followUpAssignments: FollowUpAssignmentRecord[];
 };
 
 export const nowIso = () => new Date().toISOString();
@@ -170,7 +178,7 @@ export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
   operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
-  followUpAssignments: []
+  routeRelationships: [], followUpAssignments: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -205,6 +213,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     transportLegs: Array.isArray(value?.transportLegs) ? value.transportLegs : empty.transportLegs,
     paymentTransactions: Array.isArray(value?.paymentTransactions) ? value.paymentTransactions : empty.paymentTransactions,
     inspectionMeasurements: Array.isArray(value?.inspectionMeasurements) ? value.inspectionMeasurements : empty.inspectionMeasurements,
+    routeRelationships: Array.isArray(value?.routeRelationships) ? value.routeRelationships : empty.routeRelationships,
     followUpAssignments: Array.isArray(value?.followUpAssignments) ? value.followUpAssignments : empty.followUpAssignments
   };
 }
@@ -308,6 +317,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     transportLegs: mergeRows(local.transportLegs, remote.transportLegs),
     paymentTransactions: mergeRows(local.paymentTransactions, remote.paymentTransactions),
     inspectionMeasurements: mergeRows(local.inspectionMeasurements, remote.inspectionMeasurements),
+    routeRelationships: mergeRows(local.routeRelationships, remote.routeRelationships),
     followUpAssignments: mergeRows(local.followUpAssignments, remote.followUpAssignments)
   };
 }
