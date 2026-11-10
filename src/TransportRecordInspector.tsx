@@ -1,5 +1,5 @@
-import { Truck, X, MapPin, CalendarClock, Phone, Mail, MessageCircle, Building2, Route, ReceiptText, BadgeCheck } from "lucide-react";
-import type { ComponentTransportLegRecord, TransportRouteRecord, VendorRecord } from "./manufacturingData";
+import { Truck, X, CalendarClock, Phone, Mail, MessageCircle, Building2, Route, ReceiptText, BadgeCheck } from "lucide-react";
+import type { ComponentTransportLegRecord, TransportRouteRecord, VendorRecord, VendorTransportRoute } from "./manufacturingData";
 
 type Props={
   leg:ComponentTransportLegRecord;
