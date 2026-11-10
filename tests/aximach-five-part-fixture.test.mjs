@@ -2353,3 +2353,15 @@ test("AXIMACH integrates every shared route layout, independent material legs, c
     assert.ok(picker.includes('["'+kind+'"'),"connector legend missing "+kind);
   }
 });
+
+
+test("Dedicated Manufacturing Universe advances, pauses and resets the visual route simulation",()=>{
+  const workspace=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  assert.ok(workspace.includes('const simulationOperations=routeOperations.filter(row=>row.relationType!=="subprocess")'));
+  assert.ok(workspace.includes("setTimeout(()=>setSimulationIndex(index=>index+1),950)"));
+  assert.ok(workspace.includes("Simulate route"));
+  assert.ok(workspace.includes("Pause simulation"));
+  assert.ok(workspace.includes("setSimulationIndex(-1)"));
+  assert.ok(workspace.includes("simulationIndex={simulationIndex}"));
+  assert.ok(workspace.includes("STEP {simulationIndex+1}/{simulationOperations.length}"));
+});
