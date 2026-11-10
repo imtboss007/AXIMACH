@@ -339,12 +339,6 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
       <small>{leg.vehicleType||"Vehicle not set"} · {leg.tripDirection} · {leg.tripCount} trip(s)</small>
       <em>₹{leg.amount.toLocaleString("en-IN",{maximumFractionDigits:2})}</em>
     </button>;})}
-    {projectedTransportLegs.map((item,index)=>{const leg=transportLegs.find(row=>row.id===item.id);if(!leg)return null;return <button type="button" key={"transport-leg-card-"+item.id} className="ax-full3d-label ax-full3d-transport-leg-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onSelectTransportLeg?.(leg.id);}} aria-label={"Edit transport leg "+leg.fromLocation+" to "+leg.toLocation}>
-      <small><Truck size={12}/> TRANSPORT LEG · {index+1}/{transportLegs.length}</small><strong>{leg.vendorName||"Transporter not assigned"}</strong>
-      <small>{leg.fromLocation||"From not set"} → {leg.toLocation||"To not set"}</small>
-      <small>{leg.vehicleType||"Vehicle not set"} · {leg.tripDirection} · {leg.tripCount} trip(s)</small>
-      <em>₹{leg.amount.toLocaleString("en-IN",{maximumFractionDigits:2})}</em>
-    </button>;})}
    {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
      <small>{operationCode(op)}{visibleFields.includes("status")?" · "+op.status:""}</small><strong>{op.name}</strong>
      <small>CATEGORY · {op.category||"Not set"}</small>
