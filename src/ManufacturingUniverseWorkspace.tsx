@@ -60,7 +60,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     const anchor=allRouteOperations.find(operation=>operation.id===leg.anchorOperationId);
     const relation=anchor?.relationType==="rework"||/rework/i.test(anchor?.branch||"")?"rework" as const:anchor?.relationType==="alternate"||Boolean(anchor?.branch&&anchor.branch!=="Main route")?"alternate" as const:"main" as const;
     return {
-      id:leg.id,poLineId:leg.poLineId,anchorOperationId:leg.anchorOperationId||"",
+      id:leg.id,poLineId:leg.poLineId,anchorOperationId:leg.anchorOperationId||"",targetOperationId:leg.targetOperationId||"",
       placement:leg.placement||(!leg.anchorOperationId?"start":"after") as "start"|"before"|"after",
       fromLocation:leg.fromLocation,toLocation:leg.toLocation,vehicleType:leg.vehicleType,
       vendorName:vendors.find(vendor=>vendor.id===leg.vendorId)?.company||"Transporter not assigned",
