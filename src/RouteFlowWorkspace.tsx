@@ -1,0 +1,263 @@
+import { useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight, Box, Check, ChevronDown, CircleDashed, Factory, GitBranch, GitMerge, GitPullRequest, Link2, Network, Package, Plus, Route, Save, ShieldCheck, Split, Truck, Waypoints, Workflow, X } from "lucide-react";
+import {
+  activeRows, makeId, nowIso, useManufacturingData,
+  type ComponentTransportLegRecord, type OperationRecord, type RouteRelationshipRecord,
+  type RouteRelationshipType, type RouteRelationshipStatus
+} from "./manufacturingData";
+
+type NavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
+type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void };
+
+const RELATIONSHIPS:Array<{id:RouteRelationshipType;label:string;description:string;symbol:string}> = [
+  {id:"main",label:"Main route",description:"Primary manufacturing flow",symbol:"→"},
+  {id:"alternate",label:"Alternate route",description:"Secondary / optional path",symbol:"↗"},
+  {id:"rework",label:"Rework route",description:"Corrective / reprocessing path",symbol:"↶"},
+  {id:"dependency",label:"Dependency",description:"Prerequisite / linked step",symbol:"⇢"},
+  {id:"parallel",label:"Parallel route",description:"Simultaneous process",symbol:"⇉"},
+  {id:"merge",label:"Merge route",description:"Converging processes",symbol:"⋎"},
+  {id:"split",label:"Split route",description:"Diverging processes",symbol:"⋔"},
+  {id:"follow-on",label:"Follow-on",description:"Next sequential activity",symbol:"⟶"},
+  {id:"feedback",label:"Feedback route",description:"Quality / result feedback loop",symbol:"⟳"},
+  {id:"conditional",label:"Conditional route",description:"Rule or result-dependent path",symbol:"◇"},
+  {id:"successor",label:"Successor",description:"Next linked operation",symbol:"⤷"}
+];
+const STATUS_OPTIONS:RouteRelationshipStatus[]=["Active","Planned","Conditional","Disabled"];
+const relationLabel=(type:RouteRelationshipType)=>RELATIONSHIPS.find(item=>item.id===type)?.label||type;
+const money=(amount:number)=>"₹"+Number(amount||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+const dateTime=(value?:string)=>value?new Date(value).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"Not scheduled";
+
+type FlowNode =
+ | {kind:"material";id:string;entry:any}
+ | {kind:"material-transport";id:string;entry:any}
+ | {kind:"transport";id:string;leg:ComponentTransportLegRecord}
+ | {kind:"operation";id:string;operation:OperationRecord}
+ | {kind:"missing-material";id:string};
+
+function RouteCurve({type,transport=false,label}:{type:RouteRelationshipType;transport?:boolean;label?:string}) {
+  const style=transport?"transport":type;
+  return <div className={"route-flow-curve route-flow-curve-"+style} aria-label={transport?"Transport connection":relationLabel(type)}>
+    <svg viewBox="0 0 140 66" role="img" aria-hidden="true">
+      <path className="route-flow-curve-shadow" d="M4 36 C42 -5 91 77 132 31"/>
+      <path className="route-flow-curve-path" d="M4 36 C42 -5 91 77 132 31"/>
+      <path className="route-flow-curve-head" d="M119 18 L133 31 L115 39"/>
+      <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path="M4 36 C42 -5 91 77 132 31"/></circle>
+      {style==="conditional"&&<path className="route-flow-curve-diamond" d="M69 22 L76 29 L69 36 L62 29 Z"/>}
+    </svg>
+    <small>{transport?"TRANSPORT":label||relationLabel(type)}</small>
+  </div>;
+}
+
+export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModule}:Props) {
+  const {data,update,syncStatus}=useManufacturingData();
+  const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),vendors=activeRows(data.vendors);
+  const operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),legs=activeRows(data.transportLegs||[]);
+  const routes=activeRows(data.transportRoutes||[]);
+  const [companyPick,setCompanyPick]=useState("");
+  const [poPick,setPoPick]=useState("");
+  const [linePick,setLinePick]=useState("");
+  const [branchPick,setBranchPick]=useState("Main route");
+  const [fromOperationId,setFromOperationId]=useState("");
+  const [toOperationId,setToOperationId]=useState("");
+  const [relationshipType,setRelationshipType]=useState<RouteRelationshipType>("main");
+  const [relationshipStatus,setRelationshipStatus]=useState<RouteRelationshipStatus>("Planned");
+  const [relationshipCondition,setRelationshipCondition]=useState("");
+  const [relationshipNotes,setRelationshipNotes]=useState("");
+  const [transportFromOperationId,setTransportFromOperationId]=useState("");
+  const [transportToOperationId,setTransportToOperationId]=useState("");
+  const [transportVendorId,setTransportVendorId]=useState("");
+  const [transportRouteId,setTransportRouteId]=useState("");
+  const [transportFrom,setTransportFrom]=useState("");
+  const [transportTo,setTransportTo]=useState("");
+  const [vehicleType,setVehicleType]=useState("4-wheeler");
+  const [tripDirection,setTripDirection]=useState<"One-way"|"Two-way">("One-way");
+  const [tripCount,setTripCount]=useState("1");
+  const [transportAmount,setTransportAmount]=useState("");
+  const [pickupAt,setPickupAt]=useState("");
+  const [deliveryAt,setDeliveryAt]=useState("");
+  const [transportNotes,setTransportNotes]=useState("");
+  const [showRelationshipEditor,setShowRelationshipEditor]=useState(false);
+  const [showTransportEditor,setShowTransportEditor]=useState(false);
+
+  const company=companies.find(row=>row.id===companyPick)||companies[0];
+  const companyId=company?.id||"";
+  const companyOrders=orders.filter(row=>row.companyId===companyId);
+  const order=companyOrders.find(row=>row.id===poPick)||companyOrders[0];
+  const poId=order?.id||"";
+  const lineOptions=(order?.lines||[]).filter(line=>!line.deletedAt);
+  const line=lineOptions.find(row=>row.id===linePick)||lineOptions[0];
+  const poLineId=line?.id||"";
+  const component=data.components.find(row=>row.id===line?.componentId);
+  const componentId=component?.id||"";
+  const routeOperations=operations.filter(row=>row.poId===poId&&row.poLineId===poLineId).sort((a,b)=>a.sequence-b.sequence);
+  const branches=[...new Set(["Main route",...routeOperations.map(row=>row.branch||"Main route")])];
+  const branch=branches.includes(branchPick)?branchPick:"Main route";
+  const lane=routeOperations.filter(row=>(row.branch||"Main route")===branch);
+  const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(!entry.poLineId||entry.poLineId===poLineId)&&(!entry.poId||entry.poId===poId)&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&(!leg.anchorOperationId||lane.some(operation=>operation.id===leg.anchorOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
+  const relationships=activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===poLineId&&lane.some(op=>op.id===link.fromOperationId||op.id===link.toOperationId));
+  const routeNodes=useMemo<FlowNode[]>(()=>{
+    const nodes:FlowNode[]=[];
+    const addMaterial=(entry:any)=>{
+      nodes.push({kind:"material",id:"material-"+entry.id,entry});
+      if(entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||Number(entry.transportCost)>0||entry.transportPickupAt||entry.transportDeliveryAt)
+        nodes.push({kind:"material-transport",id:"material-transport-"+entry.id,entry});
+    };
+    const startLegs=routeLegs.filter(leg=>(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start");
+    startLegs.forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+    const initialMaterials=routeMaterials.filter(entry=>!entry.anchorOperationId);
+    if(!initialMaterials.length&&!lane.length)nodes.push({kind:"missing-material",id:"missing-material"});
+    initialMaterials.forEach(addMaterial);
+    lane.forEach(operation=>{
+      routeLegs.filter(leg=>leg.placement==="before"&&leg.anchorOperationId===operation.id).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+      nodes.push({kind:"operation",id:operation.id,operation});
+      routeLegs.filter(leg=>(leg.placement||"after")==="after"&&leg.anchorOperationId===operation.id).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+      routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(addMaterial);
+    });
+    return nodes;
+  },[routeMaterials,routeLegs,lane]);
+  const transportChoices=routes.filter(route=>route.active!==false).map(route=>({...route,legacy:false as const})).concat(
+    vendors.flatMap(vendor=>(vendor.transportRoutes||[]).map(route=>({
+      id:route.id,sourceRouteId:route.id,vendorId:vendor.id,fromLocation:route.fromLocation,toLocation:route.toLocation,
+      tripDirection:route.tripDirection||"One-way" as const,vehicleType:route.vehicleType,fixedAmount:route.fixedCost,
+      legacy:true as const
+    })))
+  );
+  const selectedTransportRoute=transportChoices.find(route=>route.id===transportRouteId);
+  const locationHints=[...new Set([...transportChoices.flatMap(route=>[route.fromLocation,route.toLocation]),...vendors.map(v=>v.address).filter(Boolean)])];
+
+  const relationFor=(fromId:string,toId:string):RouteRelationshipRecord|undefined=>
+    relationships.find(link=>link.fromOperationId===fromId&&link.toOperationId===toId&&link.status!=="Disabled");
+  const connectorFor=(index:number)=>{
+    const current=routeNodes[index],next=routeNodes[index+1];
+    const transport=current?.kind==="transport"||current?.kind==="material-transport"||next?.kind==="transport"||next?.kind==="material-transport";
+    let fromId=current?.kind==="operation"?current.operation.id:"";
+    let toId=next?.kind==="operation"?next.operation.id:"";
+    if(!fromId){for(let i=index-1;i>=0;i--)if(routeNodes[i].kind==="operation"){fromId=(routeNodes[i] as Extract<FlowNode,{kind:"operation"}>).operation.id;break;}}
+    if(!toId){for(let i=index+1;i<routeNodes.length;i++)if(routeNodes[i].kind==="operation"){toId=(routeNodes[i] as Extract<FlowNode,{kind:"operation"}>).operation.id;break;}}
+    const relation=fromId&&toId?relationFor(fromId,toId):undefined;
+    const defaultType:RouteRelationshipType=branch.toLowerCase().includes("rework")?"rework":branch==="Main route"?"main":"alternate";
+    return {transport,relation,type:relation?.relationshipType||defaultType,label:relation?.label};
+  };
+
+  const saveRelationship=()=>{
+    if(!poId||!poLineId){onNotice("Select a company, PO and component line before adding a route relationship.");return;}
+    if(!fromOperationId||!toOperationId||fromOperationId===toOperationId){onNotice("Choose two different saved process operations.");return;}
+    const from=routeOperations.find(row=>row.id===fromOperationId),to=routeOperations.find(row=>row.id===toOperationId);
+    if(!from||!to){onNotice("Both route endpoints must belong to the selected PO line.");return;}
+    const existing=relationships.find(row=>row.fromOperationId===fromOperationId&&row.toOperationId===toOperationId&&row.relationshipType===relationshipType&&row.status!=="Disabled");
+    if(existing){onNotice("This relationship is already saved. Edit or disable its existing record before adding another identical link.");return;}
+    const stamp=nowIso();
+    const record:RouteRelationshipRecord={id:makeId("route-relationship"),poId,poLineId,componentId,fromOperationId,toOperationId,relationshipType,status:relationshipStatus,condition:relationshipCondition.trim(),label:relationshipLabel(relationshipType),notes:relationshipNotes.trim(),createdAt:stamp,updatedAt:stamp};
+    update(current=>({...current,routeRelationships:[...(current.routeRelationships||[]),record]}));
+    setRelationshipCondition("");setRelationshipNotes("");setShowRelationshipEditor(false);
+    onNotice(relationLabel(relationshipType)+" connection saved between "+from.name+" and "+to.name+".");
+  };
+  const disableRelationship=(record:RouteRelationshipRecord)=>{
+    const stamp=nowIso();
+    update(current=>({...current,routeRelationships:(current.routeRelationships||[]).map(row=>row.id===record.id?{...row,status:"Disabled" as const,updatedAt:stamp}:row)}));
+  };
+  const saveTransportLeg=()=>{
+    const from=routeOperations.find(row=>row.id===transportFromOperationId),to=routeOperations.find(row=>row.id===transportToOperationId);
+    if(!from||!to||from.id===to.id){onNotice("Choose the process that sends the item and the process that receives it.");return;}
+    if(!transportFrom.trim()||!transportTo.trim()){onNotice("Enter both From and To locations. You can select a known location or type a new one.");return;}
+    const count=Math.max(1,Math.floor(Number(tripCount)||1)),amount=Math.max(0,Number(transportAmount)||0);
+    const stamp=nowIso(),route=selectedTransportRoute;
+    const vendorId=route?.vendorId||transportVendorId;
+    const record:ComponentTransportLegRecord={
+      id:makeId("transport-leg"),poId,poLineId,componentId,
+      sequence:Math.max(0,...routeLegs.map(leg=>leg.sequence||0))+10,
+      routeId:route?.id||"",vendorId,fromLocation:transportFrom.trim(),toLocation:transportTo.trim(),
+      tripDirection:route?.tripDirection||tripDirection,vehicleType:vehicleType.trim()||route?.vehicleType||"Vehicle not set",
+      fixedAmount:route?.fixedAmount??amount,tripCount:count,anchorOperationId:from.id,targetOperationId:to.id,
+      placement:"after",pickupAt,deliveryAt,status:"Planned",notes:transportNotes.trim(),createdAt:stamp,updatedAt:stamp
+    };
+    update(current=>({...current,transportLegs:[...(current.transportLegs||[]),record]}));
+    setTransportRouteId("");setTransportAmount("");setTransportNotes("");setPickupAt("");setDeliveryAt("");setShowTransportEditor(false);
+    onNotice("Transport leg added between "+from.name+" and "+to.name+". Add another leg to show another carrier or vehicle on the same connection.");
+  };
+  const openProcessMap=()=>onSelectModule("process-map",{companyId,poId,poLineId,componentId});
+  const syncLabel=syncStatus==="synced"?"PC / server synced":syncStatus==="syncing"?"Syncing shared records":syncStatus==="error"?"Sync error":"Local data";
+  const processName=(id:string)=>routeOperations.find(row=>row.id===id)?.name||"Process not found";
+
+  return <section className="route-flow-workspace">
+    <header className="route-flow-workspace-head">
+      <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE ROUTE EDITOR</div><h1>Route Flow <span>&amp; Relationships</span></h1><p>Open this as a dedicated route canvas. Material, transport, process steps and saved relationship types stay linked to their original PO component line.</p></div>
+      <div className="route-flow-head-actions"><span className={"route-flow-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncLabel}</span><button className="button-quiet" onClick={openProcessMap}><Workflow size={15}/> Open Process Plan</button><button className="button-quiet" onClick={onBack}><ArrowLeft size={15}/> Back</button></div>
+    </header>
+    {notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
+    <div className="route-flow-scope-bar">
+      <label>Company<select value={companyId} onChange={e=>{setCompanyPick(e.target.value);setPoPick("");setLinePick("");}}><option value="">Select company…</option>{companies.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+      <label>Purchase order<select value={poId} onChange={e=>{setPoPick(e.target.value);setLinePick("");}}><option value="">Select PO…</option>{companyOrders.map(row=><option key={row.id} value={row.id}>{row.number}</option>)}</select></label>
+      <label>Component / PO line<select value={poLineId} onChange={e=>setLinePick(e.target.value)}><option value="">Select PO component line…</option>{lineOptions.map(row=>{const part=data.componentParts.find(p=>p.id===row.partId);return <option key={row.id} value={row.id}>{component?.partNumber||""} · {component?.name||"Component"}{part?" · "+part.partNumber+" "+part.name:""} · Qty {row.quantity}</option>;})}</select></label>
+      <label>Route branch<select value={branch} onChange={e=>setBranchPick(e.target.value)}>{branches.map(value=><option key={value}>{value}</option>)}</select></label>
+      <div className="route-flow-scope-stats"><strong>{routeNodes.length}</strong><span>ROUTE STAGES</span><strong>{routeLegs.length}</strong><span>TRANSPORT LEGS</span></div>
+    </div>
+
+    <section className="route-flow-canvas-panel">
+      <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button></div></div>
+      {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:
+      <div className="route-flow-stage-scroll"><div className="route-flow-stage-track">
+        {routeNodes.map((node,index)=>{
+          const connector=index<routeNodes.length-1?connectorFor(index):null;
+          return <div className="route-flow-stage-wrap" key={node.id}>
+            <article className={"route-flow-stage-card route-flow-stage-"+node.kind}>
+              {node.kind==="material"&&<><div className="route-flow-node-top"><Package size={18}/><small>MANDATORY MATERIAL STAGE</small></div><strong>{node.entry.materialName} · {node.entry.materialGrade}</strong><span>{node.entry.partNumber||node.entry.partName||"Component-level allocation"} · {node.entry.shapeType}</span><span>{node.entry.quantity} pieces · {Number(node.entry.totalWeightKg||0).toFixed(3)} kg</span><span>Supplier: {vendors.find(v=>v.id===node.entry.vendorId)?.company||"Not assigned"}</span><em>{money(node.entry.materialCost)} material · {money(node.entry.cuttingCost)} cutting</em><small>Given {dateTime(node.entry.givenDate)} · Due {dateTime(node.entry.deliveryDate)}</small><button onClick={openProcessMap}>Edit material <ArrowRight size={12}/></button></>}
+              {node.kind==="material-transport"&&<><div className="route-flow-node-top"><Truck size={18}/><small>INBOUND MATERIAL TRANSPORT</small></div><strong>{vendors.find(v=>v.id===node.entry.transportVendorId)?.company||"Transporter not assigned"}</strong><span>{node.entry.transportFrom||"Pickup not set"} → {node.entry.transportTo||"Destination not set"}</span><span>{node.entry.transportVehicleType||"Vehicle not set"} · {money(node.entry.transportCost||0)}</span><small>Pickup {dateTime(node.entry.transportPickupAt)} · Delivery {dateTime(node.entry.transportDeliveryAt)}</small><button onClick={openProcessMap}>Edit material transport <ArrowRight size={12}/></button></>}
+              {node.kind==="transport"&&<><div className="route-flow-node-top"><Truck size={18}/><small>TRANSPORT LEG · {node.leg.tripDirection}</small></div><strong>{vendors.find(v=>v.id===node.leg.vendorId)?.company||"Transporter not assigned"}</strong><span>{node.leg.fromLocation} → {node.leg.toLocation}</span><span className="route-flow-vehicle-chip"><Truck size={14}/> {node.leg.vehicleType||"Vehicle not set"}</span><em>{node.leg.tripCount} trip(s) · {money(node.leg.fixedAmount*node.leg.tripCount)}</em><small>Pickup {dateTime(node.leg.pickupAt)} · Delivery {dateTime(node.leg.deliveryAt)}</small><small>{processName(node.leg.anchorOperationId)} → {processName(node.leg.targetOperationId||"")}</small><button onClick={openProcessMap}>Edit transport leg <ArrowRight size={12}/></button></>}
+              {node.kind==="operation"&&<><div className="route-flow-node-top"><Factory size={18}/><small>OP-{String(node.operation.sequence).padStart(3,"0")} · {node.operation.status}</small></div><strong>{node.operation.name}</strong><span>{node.operation.category} · {node.operation.subcategory||"Sub-process not selected"}</span><span>Qty {node.operation.quantity} · {vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned"}</span><em>{money(node.operation.quantity*(node.operation.actualRatePerPart||node.operation.ratePerPart))} process amount</em><small>Start {dateTime(node.operation.plannedStart)} · Due {dateTime(node.operation.plannedEnd)}</small><button onClick={()=>onSelectModule("process-map",{companyId,poId,poLineId,componentId,operationId:node.operation.id})}>Open process record <ArrowRight size={12}/></button></>}
+              {node.kind==="missing-material"&&<><div className="route-flow-node-top"><Package size={18}/><small>REQUIRED FIRST STAGE</small></div><strong>Material allocation missing</strong><span>A manufacturing route must have its material / grade allocation before its first process.</span><button onClick={openProcessMap}>Add material <ArrowRight size={12}/></button></>}
+            </article>
+            {connector&&<RouteCurve type={connector.type} transport={connector.transport} label={connector.label}/>}
+          </div>;
+        })}
+      </div></div>}
+      <div className="route-flow-legend">{RELATIONSHIPS.map(item=><span key={item.id} className={"route-flow-legend-item route-flow-curve-"+item.id}><i/>{item.label}</span>)}<span className="route-flow-legend-item route-flow-curve-transport"><Truck size={13}/> Transport leg</span></div>
+    </section>
+
+    {showTransportEditor&&<section className="route-flow-editor-panel">
+      <div className="route-flow-editor-title"><div><span className="eyebrow">TRANSPORT DIRECTORY · MULTIPLE CARRIERS SUPPORTED</span><h3>Add a transport leg between two process stages</h3></div><button className="close-round compact" onClick={()=>setShowTransportEditor(false)}><X size={16}/></button></div>
+      <div className="route-flow-editor-grid">
+        <label>From process<select value={transportFromOperationId} onChange={e=>setTransportFromOperationId(e.target.value)}><option value="">Select sending process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
+        <label>To process<select value={transportToOperationId} onChange={e=>setTransportToOperationId(e.target.value)}><option value="">Select receiving process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
+        <label>Transport vendor<select value={transportVendorId} onChange={e=>{setTransportVendorId(e.target.value);setTransportRouteId("");}}><option value="">Select a carrier…</option>{vendors.map(v=><option key={v.id} value={v.id}>{v.company} · {v.phone||"No phone"}</option>)}</select></label>
+        <label>Saved route<select value={transportRouteId} onChange={e=>{setTransportRouteId(e.target.value);const r=transportChoices.find(item=>item.id===e.target.value);if(r){setTransportVendorId(r.vendorId);setTransportFrom(r.fromLocation);setTransportTo(r.toLocation);setVehicleType(r.vehicleType);setTripDirection(r.tripDirection);setTransportAmount(String(r.fixedAmount));}}}><option value="">Choose a saved route or enter new locations…</option>{transportChoices.filter(r=>!transportVendorId||r.vendorId===transportVendorId).map(r=><option key={r.id} value={r.id}>{r.fromLocation} → {r.toLocation} · {r.vehicleType} · {money(r.fixedAmount)}</option>)}</select></label>
+        <label>From location<input list="route-flow-locations" value={transportFrom} onChange={e=>setTransportFrom(e.target.value)} placeholder="Search or enter new pickup location"/></label>
+        <label>To location<input list="route-flow-locations" value={transportTo} onChange={e=>setTransportTo(e.target.value)} placeholder="Search or enter new destination"/></label>
+        <datalist id="route-flow-locations">{locationHints.map(value=><option key={value} value={value}/>)}</datalist>
+        <label>Vehicle type<input value={vehicleType} onChange={e=>setVehicleType(e.target.value)} placeholder="Truck, tempo, van, car, bike…"/></label>
+        <label>Trip direction<select value={tripDirection} onChange={e=>setTripDirection(e.target.value as "One-way"|"Two-way")}><option>One-way</option><option>Two-way</option></select></label>
+        <label>Trips / carries<input type="number" min="1" step="1" value={tripCount} onChange={e=>setTripCount(e.target.value)}/></label>
+        <label>Amount per trip (₹)<input type="number" min="0" step="0.01" value={transportAmount} onChange={e=>setTransportAmount(e.target.value)}/></label>
+        <label>Pickup date &amp; time<input type="datetime-local" value={pickupAt} onChange={e=>setPickupAt(e.target.value)}/></label>
+        <label>Delivery date &amp; time<input type="datetime-local" value={deliveryAt} onChange={e=>setDeliveryAt(e.target.value)}/></label>
+        <label className="route-flow-wide">Notes<input value={transportNotes} onChange={e=>setTransportNotes(e.target.value)} placeholder="Special handling, route instructions, vehicle details…"/></label>
+      </div>
+      <div className="route-flow-editor-actions"><small>Each save creates a separate transport leg. Add several carriers / vehicle types on the same process connection as separate records.</small><button className="button-primary" onClick={saveTransportLeg}><Save size={14}/> Save transport leg</button></div>
+    </section>}
+
+    {showRelationshipEditor&&<section className="route-flow-editor-panel">
+      <div className="route-flow-editor-title"><div><span className="eyebrow">RELATIONSHIP DIRECTORY · PERSISTED CONNECTIONS</span><h3>Add a typed process relationship</h3></div><button className="close-round compact" onClick={()=>setShowRelationshipEditor(false)}><X size={16}/></button></div>
+      <div className="route-flow-editor-grid">
+        <label>From process<select value={fromOperationId} onChange={e=>setFromOperationId(e.target.value)}><option value="">Select source process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
+        <label>To process<select value={toOperationId} onChange={e=>setToOperationId(e.target.value)}><option value="">Select destination process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
+        <label>Relationship type<select value={relationshipType} onChange={e=>setRelationshipType(e.target.value as RouteRelationshipType)}>{RELATIONSHIPS.map(item=><option key={item.id} value={item.id}>{item.label} · {item.description}</option>)}</select></label>
+        <label>Link status<select value={relationshipStatus} onChange={e=>setRelationshipStatus(e.target.value as RouteRelationshipStatus)}>{STATUS_OPTIONS.filter(value=>value!=="Disabled").map(value=><option key={value}>{value}</option>)}</select></label>
+        {relationshipType==="conditional"&&<label className="route-flow-wide">Condition / rule<input value={relationshipCondition} onChange={e=>setRelationshipCondition(e.target.value)} placeholder="Example: continue only if inspection result is accepted"/></label>}
+        <label className="route-flow-wide">Notes<input value={relationshipNotes} onChange={e=>setRelationshipNotes(e.target.value)} placeholder="Why these process steps are linked…"/></label>
+      </div>
+      <div className="route-flow-editor-actions"><small>The relationship is saved against this PO line and shown with its own arrow colour, curve and pattern.</small><button className="button-primary" onClick={saveRelationship}><Save size={14}/> Save relationship</button></div>
+    </section>}
+
+    <section className="route-flow-bottom-grid">
+      <div className="surface-panel route-flow-record-panel"><div className="panel-heading"><div><h3>Saved relationship links</h3><p>These links are persisted with the selected PO line.</p></div><span className="module-number">{relationships.length} LINKS</span></div>
+        {relationships.length?relationships.map(link=><div className="route-flow-saved-link" key={link.id}><span className={"route-flow-link-symbol route-flow-curve-"+link.relationshipType}>{RELATIONSHIPS.find(item=>item.id===link.relationshipType)?.symbol}</span><div><strong>{processName(link.fromOperationId)} → {processName(link.toOperationId)}</strong><small>{relationLabel(link.relationshipType)} · {link.status}{link.condition?" · "+link.condition:""}</small></div><button className="button-quiet compact-button" disabled={link.status==="Disabled"} onClick={()=>disableRelationship(link)}>Disable</button></div>):<div className="route-flow-empty-inline">No explicit relationship links saved for this PO line yet. Existing main, alternate and rework operation branches remain visible in the route.</div>}
+      </div>
+      <div className="surface-panel route-flow-module-links"><div className="panel-heading"><div><h3>Connected manufacturing modules</h3><p>Open the source module to edit the underlying live record.</p></div><Waypoints size={18}/></div>
+        <div className="route-flow-module-link-grid">
+          {[{id:"manufacturing-universe",title:"Manufacturing Universe",icon:Network,meta:"Live 3D overview"},{id:"inventory",title:"Material Directory",icon:Package,meta:materials.length+" material allocations"},{id:"transport-master",title:"Transport Directory",icon:Truck,meta:routes.length+" saved transport routes"},{id:"process-master",title:"Process Directory",icon:Workflow,meta:data.processDefinitions.length+" process definitions"},{id:"vendors",title:"Vendor Directory",icon:Factory,meta:vendors.length+" vendors"},{id:"quality",title:"Quality Inspection",icon:Check,meta:"Inspection and acceptance"},{id:"costing",title:"Costing & Payment",icon:GitMerge,meta:"Process / transport / material cost"},{id:"purchasing",title:"Purchase Orders",icon:Box,meta:"PO line and quantity"}].map(item=>{const Icon=item.icon;return <button key={item.id} onClick={()=>onSelectModule(item.id,{companyId,poId,poLineId,componentId})}><Icon size={15}/><span><strong>{item.title}</strong><small>{item.meta}</small></span><ArrowRight size={13}/></button>;})}
+        </div>
+      </div>
+    </section>
+  </section>;
+}
