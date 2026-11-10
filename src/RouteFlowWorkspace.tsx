@@ -133,7 +133,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     relationships.find(link=>link.fromOperationId===fromId&&link.toOperationId===toId&&link.status!=="Disabled");
   const connectorFor=(index:number)=>{
     const current=routeNodes[index],next=routeNodes[index+1];
-    const transport=current?.kind==="transport"||current?.kind==="material-transport"||next?.kind==="transport"||next?.kind==="material-transport";
+    const transport=next?.kind==="transport"||next?.kind==="material-transport";
     let fromId=current?.kind==="operation"?current.operation.id:"";
     let toId=next?.kind==="operation"?next.operation.id:"";
     if(!fromId){for(let i=index-1;i>=0;i--)if(routeNodes[i].kind==="operation"){fromId=(routeNodes[i] as Extract<FlowNode,{kind:"operation"}>).operation.id;break;}}
