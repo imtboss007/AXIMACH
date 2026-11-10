@@ -7,6 +7,7 @@ import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
 import TransportRecordInspector from "./TransportRecordInspector";
 import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector";
+import { transportPopupAnchorFromPoint } from "./transportPopup";
 import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
 
@@ -23,6 +24,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
   const [inspectedTransportId,setInspectedTransportId]=useState("");
   const [inspectedMaterialTransportId,setInspectedMaterialTransportId]=useState("");
+  const [transportPopupPoint,setTransportPopupPoint]=useState<{x:number;y:number}>({x:8,y:8});
   const [selectedOperationId,setSelectedOperationId]=useState("");
   const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
   const [showAddOperation,setShowAddOperation]=useState(false);
@@ -214,12 +216,13 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         onAddAlternateRoute={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
         onAddReworkRoute={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
         onAddProcessDefinition={()=>onNavigate("process-map",activeOperation)}
-        onSelectTransportLeg={id=>setInspectedTransportId(id)}
-        onSelectMaterialTransport={id=>setInspectedMaterialTransportId(id)}
+        onSelectTransportLeg={(id,anchor)=>{setInspectedTransportId(id);setInspectedMaterialTransportId("");if(anchor)setTransportPopupPoint(transportPopupAnchorFromPoint(anchor.x,anchor.y));}}
+        onSelectMaterialTransport={(id,anchor)=>{setInspectedMaterialTransportId(id);setInspectedTransportId("");if(anchor)setTransportPopupPoint(transportPopupAnchorFromPoint(anchor.x,anchor.y));}}
       />:<div className="manufacturing-universe-empty"><Network size={34}/><strong>No saved manufacturing route for this PO line</strong><span>Add material allocations and process steps first. The universe does not invent placeholder operations.</span><div><button className="button-primary" onClick={()=>onNavigate("route-flow")}><Route size={14}/> Open Route Flow</button><button className="button-quiet" onClick={()=>onNavigate("process-map")}><Workflow size={14}/> Open Process Plan</button></div></div>}
     </section>
     {inspectedMaterialTransportEntry&&<MaterialTransportRecordInspector
       entry={inspectedMaterialTransportEntry}
+      anchor={transportPopupPoint}
       vendor={inspectedMaterialTransportVendor}
       directoryRoute={inspectedMaterialTransportRoute}
       onClose={()=>setInspectedMaterialTransportId("")}
@@ -227,6 +230,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     />}
     {inspectedTransportLeg&&<TransportRecordInspector
       leg={inspectedTransportLeg}
+      anchor={transportPopupPoint}
       vendor={inspectedTransportVendor}
       directoryRoute={inspectedTransportRoute}
       legacyVendorRoute={inspectedLegacyVendorRoute}
