@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 
-export type RouteLayoutMode = "orthogonal" | "s-curve" | "horizontal" | "vertical" | "swimlane" | "timeline";
+export type RouteLayoutMode = "orthogonal" | "s-curve" | "horizontal" | "vertical" | "swimlane" | "timeline" | "radial" | "circular" | "organic";
 
 const STORAGE_KEY = "aximach.route-layout.v1";
 const EVENT_NAME = "aximach-route-layout-change";
 const DEFAULT_LAYOUT: RouteLayoutMode = "orthogonal";
-const VALID_LAYOUTS: RouteLayoutMode[] = ["orthogonal", "s-curve", "horizontal", "vertical", "swimlane", "timeline"];
+const VALID_LAYOUTS: RouteLayoutMode[] = ["orthogonal", "s-curve", "horizontal", "vertical", "swimlane", "timeline", "radial", "circular", "organic"];
 
 function readLayout(): RouteLayoutMode {
   if (typeof window === "undefined") return DEFAULT_LAYOUT;
@@ -47,6 +47,34 @@ export function RouteLayoutPicker({ value, onChange, compact = false }: { value:
       <option value="vertical">Vertical · top to bottom</option>
       <option value="swimlane">Swimlane · grouped route</option>
       <option value="timeline">Timeline · schedule order</option>
+      <option value="radial">Radial · hub and spoke</option>
+      <option value="circular">Circular · closed loop</option>
+      <option value="organic">Organic · adaptive clusters</option>
     </select>
   </label>;
+}
+
+
+export function RouteConnectorLegend({ compact = false }: { compact?: boolean }) {
+  const connectors = [
+    ["main", "Main route", "Solid cyan"],
+    ["alternate", "Alternate", "Solid amber"],
+    ["rework", "Rework", "Dashed red"],
+    ["dependency", "Dependency", "Dotted blue"],
+    ["parallel", "Parallel", "Double purple"],
+    ["merge", "Merge", "Converging violet"],
+    ["split", "Split", "Diverging blue"],
+    ["follow-on", "Follow-on", "Navy"],
+    ["feedback", "Feedback", "Dashed indigo"],
+    ["conditional", "Conditional", "Violet"],
+    ["successor", "Successor", "Dark blue"],
+    ["transport", "Transport leg", "Vehicle marker"],
+    ["material", "Material movement", "Cyan link"]
+  ] as const;
+  return <div className={"ax-route-connector-legend" + (compact ? " is-compact" : "")} aria-label="Route connector legend">
+    <strong>CONNECTOR LEGEND</strong>
+    {connectors.map(([id, label, description]) => <span key={id} className={"ax-route-connector-legend-item route-flow-curve-" + id}>
+      <i aria-hidden="true"/><b>{label}</b><small>{description}</small>
+    </span>)}
+  </div>;
 }
