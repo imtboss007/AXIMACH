@@ -1699,7 +1699,9 @@ test("Material allocations save supplier-linked inbound transport and appear in 
   assert.ok(materialPanel.includes("transportCost:Math.max(0,Number(transportCost)||0)"));
   assert.ok(materialPanel.includes("Material inbound transport"));
   assert.ok(materialPanel.includes("Material transport route"));
-  assert.ok(materialPanel.includes("if(!vendorId)"));
+  assert.ok(materialPanel.includes('label="Supplier / material vendor (optional until assigned)"'));
+  assert.ok(!materialPanel.includes('if(!vendorId){reportError("Link this material entry to its supplier/vendor before saving.")'));
+  assert.ok(materialPanel.includes("transportVendorId,transportFrom:transportFrom.trim(),transportTo:transportTo.trim()"));
   assert.ok(schema.includes("transportVendorId?: string; transportFrom?: string; transportTo?: string;"));
   assert.ok(processMap.includes("const materialRouteEntries ="));
   assert.ok(processMap.includes("materialRoutes={materialRouteEntries.map(entry=>"));
@@ -1806,10 +1808,28 @@ test("Material Directory saves each material allocation directly into its select
   assert.ok(inventory.includes('componentId={directoryComponentId}'));
   assert.ok(inventory.includes('requirePoLine'));
   assert.ok(inventory.includes('startExpanded'));
+  assert.ok(inventory.includes('defaultNewPart'));
+  assert.ok(materialPanel.includes('defaultNewPart=false'));
+  assert.ok(materialPanel.includes('useState(defaultNewPart&&!initialPartId)'));
+  assert.ok(materialPanel.includes('New part allocation is selected.'));
+  assert.ok(materialPanel.includes('role="alert"'));
   assert.ok(materialPanel.includes('if(requirePoLine&&!effectivePoLineId)'));
   assert.ok(materialPanel.includes('materialCostEntries:[entry,...(current.materialCostEntries||[]).filter(row=>row.id!==entry.id)]'));
   assert.ok(materialPanel.includes('shapeType:existingPart?.shapeType||shape'));
   assert.ok(processMap.includes('materialRoutes={materialRouteEntries.map(entry=>'));
+});
+
+test("Material procurement defaults to a part draft and does not block an unassigned supplier", () => {
+  const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes("defaultNewPart"));
+  assert.ok(panel.includes('initialPartId||defaultNewPart?"part":"component"'));
+  assert.ok(panel.includes("setNewPartMode(defaultNewPart&&!initialPartId)"));
+  assert.ok(panel.includes('Choose an existing part or “Component only — no parts”'));
+  assert.ok(panel.includes('label="Supplier / material vendor (optional until assigned)"'));
+  assert.ok(!panel.includes('if(!vendorId){onNotice?.("Link this material entry to its supplier/vendor before saving.")'));
+  assert.ok(panel.includes('const reportError=(message:string)=>{setFormError(message);onNotice?.(message);}'));
+  assert.ok(panel.includes('formError&&<div className="ax-material-form-error" role="alert">{formError}</div>'));
 });
 
 test("3D route arrows stay enabled and narrow-screen process metadata is not hidden", () => {
