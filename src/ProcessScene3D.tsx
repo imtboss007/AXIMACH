@@ -114,8 +114,8 @@ function operationCode(operation:OperationRecord):string{
 type ProjectedPoint={x:number;y:number;z:number};
 type LabelCandidate={id:string;screen:ProjectedPoint;kind:"operation"|"material"|"transport"|"transportLeg"};
 function relaxLabels(items:LabelCandidate[],width:number,height:number){
- const cardWidth=width<600?Math.min(166,width*.44):Math.min(220,width*.36);
- const cardHeight=width<600?188:190;
+ const cardWidth=width<600?Math.min(124,width*.34):Math.min(184,width*.27);
+ const cardHeight=width<600?76:92;
  const placed=items.map((item,index)=>({...item,screen:{...item.screen},index}));
  const minX=cardWidth/2+7,maxX=Math.max(cardWidth/2+7,width-cardWidth/2-7);
  const minY=cardHeight/2+24,maxY=Math.max(cardHeight/2+24,height-cardHeight/2-48);
@@ -131,6 +131,11 @@ function relaxLabels(items:LabelCandidate[],width:number,height:number){
   for(const item of placed){item.screen.x=Math.max(minX,Math.min(maxX,item.screen.x));item.screen.y=Math.max(minY,Math.min(maxY,item.screen.y));}
  }
  return placed;
+}
+function frontFacing(p:P,angle:number):boolean{
+ const x=-.24,y=angle,cx=Math.cos(x),sx=Math.sin(x),cy=Math.cos(y),sy=Math.sin(y);
+ const cameraZ=cx*sy*p.x-sx*p.y+cx*cy*p.z;
+ return cameraZ>-.035;
 }
 const PROCUREMENT_POINT:P={x:-1.18,y:-.05,z:0};
 function arrowHeadMesh(from:P,to:P,r:number){const dx=to.x-from.x,dy=to.y-from.y,dz=to.z-from.z,len=Math.hypot(dx,dy,dz)||1,ux=dx/len,uy=dy/len,uz=dz/len,ref=Math.abs(uy)<.9?{x:0,y:1,z:0}:{x:1,y:0,z:0};let vx=uy*ref.z-uz*ref.y,vy=uz*ref.x-ux*ref.z,vz=ux*ref.y-uy*ref.x,vl=Math.hypot(vx,vy,vz)||1;vx/=vl;vy/=vl;vz/=vl;const wx=uy*vz-uz*vy,wy=uz*vx-ux*vz,wz=ux*vy-uy*vx,base={x:to.x-ux*.16,y:to.y-uy*.16,z:to.z-uz*.16},v:number[]=[],n:number[]=[];for(let i=0;i<8;i++){const a=i*Math.PI/4,b=(i+1)*Math.PI/4,p1={x:base.x+r*(vx*Math.cos(a)+wx*Math.sin(a)),y:base.y+r*(vy*Math.cos(a)+wy*Math.sin(a)),z:base.z+r*(vz*Math.cos(a)+wz*Math.sin(a))},p2={x:base.x+r*(vx*Math.cos(b)+wx*Math.sin(b)),y:base.y+r*(vy*Math.cos(b)+wy*Math.sin(b)),z:base.z+r*(vz*Math.cos(b)+wz*Math.sin(b))};v.push(to.x,to.y,to.z,p1.x,p1.y,p1.z,p2.x,p2.y,p2.z);for(let j=0;j<3;j++)n.push(ux*.55+vx*.45,uy*.55+vy*.45,uz*.55+vz*.45);}return {v,n};}
@@ -283,10 +288,10 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
  useEffect(()=>{const el=canvas.current;if(!el)return;const ro=new ResizeObserver(entries=>{const r=entries[0]?.contentRect;if(r)setSize({w:r.width,h:r.height});});ro.observe(el);return()=>ro.disconnect();},[]);
  const projectedLayout=useMemo(()=>{
   const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));
-  const ops=points.map(({op,p})=>({id:op.id,op,kind:"operation" as const,screen:project(p,m,w,h)})).filter((item):item is {id:string;op:OperationRecord;kind:"operation";screen:ProjectedPoint}=>!!item.screen);
-  const materials=materialPlacements.map(item=>({id:item.route.id,screen:project(item.materialPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
-  const transports=materialPlacements.filter(item=>hasMaterialTransport(item.route)).map(item=>({id:item.route.id,screen:project(item.transportPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
-  const transportLegsProjected=transportLegPlacements.map(item=>({id:item.leg.id,screen:project(item.point,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
+  const ops=points.filter(({p})=>mode!=="sphere"||frontFacing(p,angle)).map(({op,p})=>({id:op.id,op,kind:"operation" as const,screen:project(p,m,w,h)})).filter((item):item is {id:string;op:OperationRecord;kind:"operation";screen:ProjectedPoint}=>!!item.screen);
+  const materials=materialPlacements.filter(item=>mode!=="sphere"||frontFacing(item.materialPoint,angle)).map(item=>({id:item.route.id,screen:project(item.materialPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
+  const transports=materialPlacements.filter(item=>hasMaterialTransport(item.route)&&(mode!=="sphere"||frontFacing(item.transportPoint,angle))).map(item=>({id:item.route.id,screen:project(item.transportPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
+  const transportLegsProjected=transportLegPlacements.filter(item=>mode!=="sphere"||frontFacing(item.point,angle)).map(item=>({id:item.leg.id,screen:project(item.point,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
   const centerScreen=mode==="sphere"?project({x:0,y:0,z:0},m,w,h):null;
   const all:LabelCandidate[]=[...ops.map(item=>({id:item.id,kind:item.kind,screen:item.screen})),...materials.map(item=>({id:item.id,kind:"material" as const,screen:item.screen})),...transports.map(item=>({id:item.id,kind:"transport" as const,screen:item.screen})),...transportLegsProjected.map(item=>({id:item.id,kind:"transportLeg" as const,screen:item.screen}))];
   const relaxed=relaxLabels(all,w,h);
@@ -349,47 +354,24 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
    {projectedGanttTicks.map(tick=>tick&&<div key={tick.key} className="ax-full3d-gantt-tick" style={{left:tick.x}}>{tick.label}</div>)}
    {projectedEdges.map(edge=><div key={edge.key} role="button" tabIndex={0} className={"ax-full3d-route-arrow "+(edge.relation==="rework"?"rework":edge.relation==="alternate"?"alternate":edge.relation==="material"?"material":"main")+(showArrows?"":" no-arrowhead")} style={{left:edge.x,top:edge.y,width:edge.length,transform:"rotate("+edge.angle+"deg)"}} aria-label={"Follow route from "+edge.from+" to "+edge.to} title={"Route: "+edge.from+" → "+edge.to} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(edge.toId)onArrowSelect?.(edge.toId);}} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();if(edge.toId)onArrowSelect?.(edge.toId);}}}><span>{edge.from} → {edge.to}</span></div>)}
    {projectedMaterials.map((item,index)=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;return <div key={"material-card-"+item.id} className="ax-full3d-label ax-full3d-material-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()}>
-     <small>MATERIAL PROCUREMENT · {index+1}/{materialRoutes.length}</small><strong>{route.partLabel}</strong><em>{route.materialLabel}</em>
-     {visibleFields.includes("company")&&<small>Company · {route.companyLabel||"Not linked"}</small>}
-     {visibleFields.includes("po")&&<small>PO · {route.poLabel||"—"}</small>}
-     {visibleFields.includes("component")&&<small>Component · {route.componentLabel||"—"}</small>}
-     {visibleFields.includes("materialShape")&&<small>{route.dimensionsLabel||"Shape / dimensions not entered"}</small>}
-     {visibleFields.includes("materialDensity")&&<small>Density {route.densityKgM3?route.densityKgM3.toLocaleString("en-IN")+" kg/m³":"Not set"}</small>}
-     {visibleFields.includes("materialQuantity")&&<small>Qty {route.quantity.toLocaleString("en-IN")}</small>}
-     {visibleFields.includes("materialWeight")&&<small>Weight {route.weightKg.toFixed(3)} kg</small>}
-     {visibleFields.includes("materialVendor")&&<small>Supplier {route.supplier}</small>}
-     {visibleFields.includes("materialGiven")&&<small>Given {nodeDateTime(route.materialGivenAt)}</small>}
-     {visibleFields.includes("materialDelivery")&&<small>Expected delivery {nodeDateTime(route.materialDueAt)}</small>}
-     {visibleFields.includes("materialReceived")&&<small>Received {nodeDateTime(route.materialReceivedAt)}</small>}
-     {visibleFields.includes("materialCost")&&<small>₹{route.materialRate.toLocaleString("en-IN",{maximumFractionDigits:2})}/{route.priceUnit} · Material {route.materialCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
-     {visibleFields.includes("materialCuttingCost")&&<small>{route.cuttingType||"No cutting"} · Cutting ₹{route.cuttingCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
+     <small>MATERIAL · {index+1}/{materialRoutes.length}</small><strong>{route.materialLabel}</strong><em>{route.partLabel}</em>
+     {visibleFields.includes("materialQuantity")&&<small>Qty {route.quantity.toLocaleString("en-IN")} · {route.weightKg.toFixed(2)} kg</small>}
+     {visibleFields.includes("materialVendor")&&<small>Supplier · {route.supplier}</small>}
    </div>;})}
    {projectedTransports.map((item,index)=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;return <div key={"transport-card-"+item.id} className="ax-full3d-label ax-full3d-transport-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()}>
-     <small>INBOUND TRANSPORT · {index+1}/{materialRoutes.length}</small><strong>{route.transporter||"Transporter not assigned"}</strong>
+     <small>INBOUND TRANSPORT · {index+1}/{materialRoutes.length}</small><strong>{route.vehicle||"Vehicle not set"}</strong><em>{route.transporter||"Transporter not assigned"}</em>
      {visibleFields.includes("transportRoute")&&<small>{route.from||"Pickup not set"} → {route.to||"Delivery not set"}</small>}
-     {visibleFields.includes("vehicle")&&<small>{route.vehicle||"Vehicle not set"} · {route.status||"Planned"}</small>}
-     {visibleFields.includes("transportVendor")&&<small>Transporter {route.transporter||"Not assigned"}</small>}
-     {visibleFields.includes("transportPickup")&&<small>Pickup {nodeDateTime(route.pickupAt)}</small>}
-     {visibleFields.includes("transportDelivery")&&<small>Delivery {nodeDateTime(route.deliveryAt)}</small>}
-     {visibleFields.includes("materialTransportCost")&&<small>Transport ₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
+     {visibleFields.includes("materialTransportCost")&&<small>₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
    </div>;})}
     {projectedTransportLegs.map((item,index)=>{const leg=transportLegs.find(row=>row.id===item.id);if(!leg)return null;return <button type="button" key={"transport-leg-card-"+item.id} className="ax-full3d-label ax-full3d-transport-leg-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onSelectTransportLeg?.(leg.id);}} aria-label={"Edit transport leg "+leg.fromLocation+" to "+leg.toLocation}>
-      <small><Truck size={12}/> TRANSPORT LEG · {index+1}/{transportLegs.length}</small><strong>{leg.vendorName||"Transporter not assigned"}</strong>
+      <small><Truck size={12}/> TRANSPORT HAND-OFF · {index+1}/{transportLegs.length}</small><strong>{leg.vehicleType||"Vehicle not set"}</strong><em>{leg.vendorName||"Transporter not assigned"}</em>
       <small>{leg.fromLocation||"From not set"} → {leg.toLocation||"To not set"}</small>
-      <small>{leg.vehicleType||"Vehicle not set"} · {leg.tripDirection} · {leg.tripCount} trip(s)</small>
-      <small>Pickup {nodeDateTime(leg.pickupAt)} → Delivery {nodeDateTime(leg.deliveryAt)} · {leg.status||"Planned"}</small>
-      <em>₹{leg.amount.toLocaleString("en-IN",{maximumFractionDigits:2})}</em>
+      <small>{leg.tripDirection} · {leg.tripCount} trip(s) · {leg.status||"Planned"}</small>
     </button>;})}
    {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
-     <small>{operationCode(op)}{visibleFields.includes("status")?" · "+op.status:""}</small><strong>{op.name}</strong>
-     <small>CATEGORY · {op.category||"Not set"}</small>
-     <small>SUB-PROCESS · {op.subcategory||"Not set"}</small>
-     <em>Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>
-     <small className="ax-full3d-node-meta">Given / start · {nodeDateTime(op.plannedStart)}</small>
-     <small className="ax-full3d-node-meta">Delivery / due · {nodeDateTime(op.plannedEnd)}</small>
-     <small className="ax-full3d-node-meta">Vendor · {vendors.find(vendor=>vendor.id===op.vendorId)?.company||"Vendor not assigned"}</small>
-     {visibleFields.includes("price")&&<small className="ax-full3d-node-meta">Rate · ₹{(op.actualRatePerPart>0?op.actualRatePerPart:op.ratePerPart).toLocaleString("en-IN",{maximumFractionDigits:2})}/{quantityUnit==="sets"?"set":"piece"}</small>}
-     <small className="ax-full3d-node-meta">Linked amount · ₹{(op.quantity*(op.actualRatePerPart>0?op.actualRatePerPart:op.ratePerPart)).toLocaleString("en-IN",{maximumFractionDigits:2})}</small>
+     <small>{operationCode(op)}</small><strong>{op.name}</strong>
+     <em>{visibleFields.includes("status")?op.status:"Process step"} · Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>
+     {visibleFields.includes("category")&&<small>{op.category||"Category not set"}</small>}
    </button>)}
    {projectedCatalogue.map(({definition,screen},index)=>screen&&<button key={definition.id} type="button" className="ax-full3d-label ax-full3d-catalogue-label" style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>onAddCatalogue?.(definition.id)} disabled={!onAddCatalogue} aria-label={"Add "+definition.processType+" to this PO line"}><small>LIB-{String(index+1).padStart(2,"0")}</small><strong>{definition.processType}</strong><em>{definition.category} · ADD STAGE</em></button>)}
   </div>
