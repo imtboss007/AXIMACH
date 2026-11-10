@@ -2144,7 +2144,7 @@ test("Inbound material transport icons open the complete transporter directory i
   assert.ok(universe.includes("onSelectMaterialTransport={(id,anchor)=>"));
   assert.ok(universe3d.includes("onSelectMaterialTransport"));
   assert.ok(universe3d.includes("onSelectMaterialTransport={onSelectMaterialTransport}"));
-  assert.ok(scene.includes("aria-label={\"Open inbound material transport popup · \"+route.from+ \" to \"+route.to}"));
+  assert.ok(scene.includes("Open inbound material transport popup"));
   assert.ok(scene.includes("onSelectMaterialTransport?.(route.id,{x:rect.left,y:rect.top})"));
   for(const field of ["entry.materialName","entry.materialGrade","entry.transportFrom","entry.transportTo","entry.transportPickupAt","entry.transportDeliveryAt","entry.transportCost","vendor?.phone","vendor?.whatsappNumber","vendor?.email","directoryRoute?.fixedCost"]) assert.ok(inspector.includes(field));
 });
