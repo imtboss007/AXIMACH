@@ -3660,3 +3660,12 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
    Full carrier/route details open only from the transport record popup. */
 .process-orbit-material-flow>.process-orbit-material-transport-slot{display:flex;align-items:center;justify-content:center;min-width:38px}
 .process-orbit-material-transport{align-self:center}
+
+/* Vehicle category identity is permanent across compact route-map buttons too. */
+.ax-transport-icon-trigger.vehicle-bike{color:#965f0b!important;background:#fff4d9!important;border-color:#e7c26b!important}
+.ax-transport-icon-trigger.vehicle-bus{color:#23724c!important;background:#e5f7ed!important;border-color:#8dc8a5!important}
+.ax-transport-icon-trigger.vehicle-car{color:#5945a5!important;background:#efebff!important;border-color:#b9a9eb!important}
+.ax-transport-icon-trigger.vehicle-air{color:#146b9f!important;background:#e4f5ff!important;border-color:#83c6e7!important}
+.ax-transport-icon-trigger.vehicle-ship{color:#087d88!important;background:#e1f8f7!important;border-color:#83d1cd!important}
+.ax-transport-icon-trigger.vehicle-rail{color:#9a4e29!important;background:#fff0e8!important;border-color:#e0ac91!important}
+.ax-transport-icon-trigger.vehicle-truck{color:#126aa5!important;background:#e7f4ff!important;border-color:#8fc4e6!important}
