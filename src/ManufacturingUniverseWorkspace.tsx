@@ -231,6 +231,9 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     {inspectedTransportLeg&&<TransportRecordInspector
       leg={inspectedTransportLeg}
       anchor={transportPopupPoint}
+      materialEntry={routeMaterials.find(entry=>entry.id===inspectedTransportLeg.materialEntryId)}
+      fromOperationName={allRouteOperations.find(row=>row.id===inspectedTransportLeg.anchorOperationId)?.name}
+      toOperationName={allRouteOperations.find(row=>row.id===inspectedTransportLeg.targetOperationId)?.name}
       vendor={inspectedTransportVendor}
       directoryRoute={inspectedTransportRoute}
       legacyVendorRoute={inspectedLegacyVendorRoute}
