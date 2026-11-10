@@ -921,11 +921,13 @@ test("Process Plan panels expose independent native expand/collapse sections", (
     "linked-cost-card","linked-timeline-card","linked-process-table"
   ];
   for (const panel of panels) {
-    const selectedPanel = /<details open(?=[^>]*className="surface-panel linked-operation-side")(?=[^>]*ref=\{selectedOperationPanelRef\})[^>]*>/;
-    const expected = panel === "linked-operation-side" ? selectedPanel.test(workspace) : workspace.includes('<details open className="surface-panel ' + panel + '"');
+    const selectedPanel = /<details(?=[^>]*className="surface-panel linked-operation-side")(?=[^>]*ref=\{selectedOperationPanelRef\})[^>]*>/;
+    const expected = panel === "linked-operation-side" ? selectedPanel.test(workspace) : workspace.includes('<details className="surface-panel ' + panel + '"');
     assert.ok(expected, "missing open/close panel " + panel);
   }
   assert.equal((workspace.match(/<details\b/g) || []).length, (workspace.match(/<\/details>/g) || []).length);
+  assert.ok(!workspace.includes("<details open"), "Process Map panels must start collapsed");
+  assert.ok(workspace.includes("selectedOperationPanelRef.current.open=true") || workspace.includes("selectedOperationPanelRef.current.open = true"), "Selecting an operation may open only its selected detail panel");
   assert.ok(workspace.includes("<summary className=\"panel-heading\">"));
 });
 
@@ -982,13 +984,12 @@ test("Process Map route scopes intersect active filters before diagram and expor
 });
 
 
-test("secondary Process Plan workspaces are user-expandable while route filters and graph stay open", () => {
+test("Process Plan panels are independently collapsed until the user opens each section", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(workspace.includes('<details open className="surface-panel component-transport-map-strip">'));
-  assert.ok(workspace.includes('<details open className="surface-panel process-operation-table-panel">'));
-  assert.ok(workspace.includes('<details open className="surface-panel linked-cost-card">'));
-  assert.ok(workspace.includes('<details open className="surface-panel process-route-scope-panel">'));
-  assert.ok(workspace.includes('<details open className="surface-panel linked-route-canvas">'));
+  for (const panel of ["component-transport-map-strip","process-operation-table-panel","linked-cost-card","process-route-scope-panel","linked-route-canvas"]) {
+    assert.ok(workspace.includes('<details className="surface-panel ' + panel + '"'), "missing independently expandable panel " + panel);
+  }
+  assert.ok(!workspace.includes("<details open"));
 });
 
 
@@ -1508,8 +1509,9 @@ test("390px mobile layout keeps the spherical command centre and Process Map con
   assert.ok(uiCss.includes("@media(max-width:700px){.process-map-filter-grid{grid-template-columns:repeat(2,minmax(115px,1fr))"));
   assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 38px"));
   assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 42px"));
-  assert.ok(process.includes('<details open className="surface-panel process-route-scope-panel">'));
-  assert.ok(process.includes('<details open className="surface-panel linked-route-canvas">'));
+  assert.ok(process.includes('<details className="surface-panel process-route-scope-panel">'));
+  assert.ok(process.includes('<details className="surface-panel linked-route-canvas">'));
+  assert.ok(!process.includes("<details open"));
 });
 
 
@@ -1830,6 +1832,29 @@ test("Material procurement defaults to a part draft and does not block an unassi
   assert.ok(!panel.includes('if(!vendorId){onNotice?.("Link this material entry to its supplier/vendor before saving.")'));
   assert.ok(panel.includes('const reportError=(message:string)=>{setFormError(message);onNotice?.(message);}'));
   assert.ok(panel.includes('formError&&<div className="ax-material-form-error" role="alert">{formError}</div>'));
+});
+
+test("Process Map routes integrate material and saved transport legs before and between operations", () => {
+  const process = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  assert.ok(process.includes('routeNodes.push({kind:"material"'));
+  assert.ok(process.includes('kind:"material-transport"'));
+  assert.ok(process.includes('kind:"transport",id:"transport-"+leg.id'));
+  assert.ok(process.includes('onClick={()=>editTransportLeg(leg)}'));
+  assert.ok(process.includes('onSelectTransportLeg={id=>'));
+  assert.ok(universe.includes("transportLegs?: TransportLegRouteNode[]"));
+  assert.ok(universe.includes("transportLegs={transportLegs} onSelectTransportLeg={onSelectTransportLeg}"));
+  assert.ok(scene.includes("const transportLegPlacements=useMemo"));
+  assert.ok(scene.includes("projectedTransportLegs.map"));
+  assert.ok(scene.includes('TRANSPORT LEG · {index+1}/{transportLegs.length}'));
+  assert.ok(scene.includes('"operation-transport-"+item.leg.id'));
+});
+
+test("Process Definition catalogue headings span the full grid instead of leaving an empty left column", () => {
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(css.includes('.process-view-directory-catalog-grid{display:grid;grid-template-columns:minmax(0,1fr)!important'));
+  assert.ok(css.includes('.process-view-directory-catalog-grid>.process-directory-map-nodes'));
 });
 
 test("3D route arrows stay enabled and narrow-screen process metadata is not hidden", () => {
