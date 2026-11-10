@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord, type RouteRelationshipRecord } from "./manufacturingData";
 import ProcessUniverse3D from "./ProcessUniverse3D";
+import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
+import OperationInlineEditor from "./OperationInlineEditor";
 
 type NavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
 type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void };
@@ -12,7 +14,10 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const vendors=activeRows(data.vendors),operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),legs=activeRows(data.transportLegs||[]);
   const definitions=activeRows(data.processDefinitions),relationships=activeRows(data.routeRelationships||[]);
   const [companyPick,setCompanyPick]=useState(""),[poPick,setPoPick]=useState(""),[linePick,setLinePick]=useState("");
+  const workspaceRef=useRef<HTMLElement|null>(null);
   const [selectedOperationId,setSelectedOperationId]=useState("");
+  const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
+  const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
   const [zoom,setZoom]=useState(1),[simulationIndex,setSimulationIndex]=useState(-1);
   const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
   const [showUniverseSettings,setShowUniverseSettings]=useState(false);
@@ -108,11 +113,36 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   ];
   const universeFieldOptions=[["company","Company"],["po","Purchase order"],["component","Component / part"],["category","Process category"],["subcategory","Sub-process"],["quantity","Quantity"],["vendor","Process vendor"],["plannedStart","Planned start"],["plannedEnd","Delivery / due date"],["price","Rate"],["amount","Process amount"],["status","Process status"],["transportVendor","Transporter"],["transportRoute","Transport route"],["vehicle","Vehicle type"],["transportPickup","Pickup time"],["transportDelivery","Delivery time"],["transportLegCost","Transport cost"],["combinedAmount","Combined amount"],["materialShape","Material shape"],["materialDensity","Material density"],["materialQuantity","Material quantity"],["materialWeight","Material weight"],["materialVendor","Material supplier"],["materialGiven","Material given date"],["materialDelivery","Material due date"],["materialReceived","Material received"],["materialCost","Material cost"],["materialCuttingCost","Cutting cost"],["materialTransportCost","Material transport cost"]] as const;
   const syncText=syncStatus==="synced"?"Live server sync":syncStatus==="syncing"?"Syncing shared data":syncStatus==="error"?"Sync error":"Local records";
+  const saveInlineOperation=(patch:Partial<OperationRecord>)=>{
+    if(!editingOperation)return;
+    const id=editingOperation.id;
+    update(current=>({...current,operations:current.operations.map(row=>row.id===id?{...row,...patch,updatedAt:new Date().toISOString()}:row)}));
+    setEditingOperation(null);
+    onNotice("Process operation updated in Manufacturing Universe. The shared record has been saved.");
+  };
+  const exportUniverse=()=>{
+    const safeName=("AXIMACH-"+(component?.partNumber||"Manufacturing-Universe")).replace(/[^a-z0-9-_]+/gi,"-");
+    const download=(blob:Blob,name:string)=>{const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1200);};
+    const escape=(value:unknown)=>String(value??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    const records={company:company?.name,po:po?.number,component:component?.name,stages:routeOperations,materials:routeMaterials,transportLegs:routeLegs,relationships:routeRelationships};
+    if(exportFormat==="json"){download(new Blob([JSON.stringify(records,null,2)],{type:"application/json"}),safeName+".json");}
+    else if(exportFormat==="csv"){const rows=[["Type","Code","Name","Category","Subcategory","Quantity","Vendor","Rate","Amount","Status","Planned Start","Planned End"],...routeOperations.map(op=>["Process","OP-"+String(op.sequence).padStart(3,"0"),op.name,op.category,op.subcategory||"",op.quantity,vendors.find(v=>v.id===op.vendorId)?.company||"",op.actualRatePerPart||op.ratePerPart,op.quantity*(op.actualRatePerPart||op.ratePerPart),op.status,op.plannedStart,op.plannedEnd]),...routeMaterials.map(m=>["Material",m.materialGrade,m.materialName,m.shapeType,"",m.quantity,vendors.find(v=>v.id===m.vendorId)?.company||"",m.materialRate,m.materialCost,"",m.givenDate,m.deliveryDate])];const csv=rows.map(row=>row.map(value=>'"'+String(value??"").replace(/"/g,'""')+'"').join(",")).join("\\r\\n");download(new Blob(["\\ufeff"+csv],{type:"text/csv;charset=utf-8"}),safeName+"-excel.csv");}
+    else {
+      const count=Math.max(1,routeOperations.length),cx=650,cy=470,radius=Math.min(310,120+count*22),positions=routeOperations.map((op,i)=>({op,x:cx+Math.cos((i/count)*Math.PI*2-Math.PI/2)*radius,y:cy+Math.sin((i/count)*Math.PI*2-Math.PI/2)*radius}));
+      const nodes=positions.map(({op,x,y})=>'<g><rect x="'+(x-110)+'" y="'+(y-46)+'" width="220" height="92" rx="13" fill="#f4f9ff" stroke="#2d8ac8" stroke-width="3"/><text x="'+x+'" y="'+(y-10)+'" text-anchor="middle" font-family="Arial" font-size="15" font-weight="700" fill="#173954">'+escape("OP-"+String(op.sequence).padStart(3,"0")+" · "+op.name)+'</text><text x="'+x+'" y="'+(y+16)+'" text-anchor="middle" font-family="Arial" font-size="12" fill="#355a7a">'+escape(op.category+" · Qty "+op.quantity)+'</text><text x="'+x+'" y="'+(y+34)+'" text-anchor="middle" font-family="Arial" font-size="11" fill="#55718c">'+escape(op.status)+'</text></g>').join("");
+      const edges=positions.map((p,i)=>{const next=positions[(i+1)%positions.length];if(!next||positions.length<2)return "";return '<path d="M '+p.x+' '+p.y+' Q '+cx+' '+cy+' '+next.x+' '+next.y+'" fill="none" stroke="#16aeca" stroke-width="4" marker-end="url(#universeArrow)"/>';}).join("");
+      const svg='<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="950" viewBox="0 0 1300 950"><defs><marker id="universeArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#16aeca"/></marker></defs><rect width="100%" height="100%" fill="#eaf3fc"/><text x="650" y="70" font-family="Arial" font-size="30" font-weight="700" text-anchor="middle" fill="#173954">AXIMACH · MANUFACTURING UNIVERSE</text><text x="650" y="105" font-family="Arial" font-size="16" text-anchor="middle" fill="#55718c">'+escape((company?.name||"Company")+" · "+(po?.number||"PO")+" · "+(component?.name||"Component"))+'</text><circle cx="650" cy="470" r="75" fill="#0e3454" stroke="#27b8d2" stroke-width="8"/><text x="650" y="462" text-anchor="middle" font-family="Arial" font-size="21" font-weight="700" fill="#fff">AXIMACH</text><text x="650" y="490" text-anchor="middle" font-family="Arial" font-size="13" fill="#c6eaff">LIVE ROUTE</text>'+edges+nodes+'</svg>';
+      if(exportFormat==="svg")download(new Blob([svg],{type:"image/svg+xml;charset=utf-8"}),safeName+".svg");
+      else if(exportFormat==="pdf"){const win=window.open("","_blank","noopener,noreferrer");if(!win){onNotice("PDF print window was blocked. Allow pop-ups or export SVG.");return;}win.document.write('<!doctype html><html><head><title>AXIMACH Universe</title><style>body{margin:0;padding:15px}svg{width:100%;height:auto}@page{size:landscape;margin:10mm}</style></head><body>'+svg+'<script>window.onload=()=>window.print()<\\/script></body></html>');win.document.close();}
+      else {const image=new Image(),url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));image.onload=()=>{const canvas=document.createElement("canvas");canvas.width=2600;canvas.height=1900;const ctx=canvas.getContext("2d");if(!ctx){URL.revokeObjectURL(url);return;}ctx.drawImage(image,0,0,2600,1900);canvas.toBlob(blob=>{if(blob)download(blob,safeName+".png");URL.revokeObjectURL(url);},"image/png");};image.src=url;}
+    }
+    onNotice("Manufacturing Universe export started: "+exportFormat.toUpperCase()+".");
+  };
 
-  return <section className="manufacturing-universe-workspace">
+  return <section ref={workspaceRef} className="manufacturing-universe-workspace">
     <header className="manufacturing-universe-head">
       <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE CONNECTED OPERATIONS</div><h1>Manufacturing <span>Universe</span></h1><p>A dedicated large-format 3D view of live material, transport, process, quality and delivery records. Select a PO line to see its live route.</p></div>
-      <div className="manufacturing-universe-actions"><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" onClick={()=>onNavigate("process-map",activeOperation)}><Workflow size={15}/> Edit Process Plan</button><button className="button-quiet" onClick={onBack}><ArrowRight size={15}/> Back</button></div>
+      <div className="manufacturing-universe-actions"><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div><ImmersiveWorkspaceControls targetRef={workspaceRef} onBack={onBack} onNotice={onNotice}/></div>
     </header>
     {notice&&<div className="notice-banner"><CheckCircle2 size={15}/><span>{notice}</span></div>}
     <div className="manufacturing-universe-scope">
@@ -145,7 +175,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         ganttScale={ganttScale}
         onGanttScaleChange={setGanttScale}
         onSelectOperation={id=>setSelectedOperationId(id)}
-        onEditOperation={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
+        onEditOperation={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)setEditingOperation(op);}}
         onChangeProcessColor={(id,color)=>update(current=>({...current,operations:current.operations.map(row=>row.id===id?{...row,processColor:color,updatedAt:new Date().toISOString()}:row)}))}
         onAddSubprocess={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
         onAddAlternateRoute={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
