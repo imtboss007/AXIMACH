@@ -3669,3 +3669,6 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .ax-transport-icon-trigger.vehicle-ship{color:#087d88!important;background:#e1f8f7!important;border-color:#83d1cd!important}
 .ax-transport-icon-trigger.vehicle-rail{color:#9a4e29!important;background:#fff0e8!important;border-color:#e0ac91!important}
 .ax-transport-icon-trigger.vehicle-truck{color:#126aa5!important;background:#e7f4ff!important;border-color:#8fc4e6!important}
+
+.manufacturing-universe-simulation-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.manufacturing-universe-simulation-controls>small{font:700 8px "DM Mono",monospace;letter-spacing:.06em;color:#7488a1;padding:5px 7px;border:1px solid rgba(112,145,178,.24);border-radius:7px}
