@@ -298,7 +298,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   }
   // A material with its own transport leg must not also receive a synthetic direct edge.
   if(to&&!hasMaterialSpecificLeg)drawFlow(routeExit,to,index*3+2,rgb,.037);
-  draw(sphereMesh(placement.materialPoint.x,placement.materialPoint.y,placement.materialPoint.z,isSimulationMaterial?.18:.13),isSimulationMaterial?[.04,.9,1]:[.03,.78,.96]);
+  draw(sphereMesh(placement.materialPoint.x,placement.materialPoint.y,placement.materialPoint.z,isSimulationMaterial ? .18 : .13),isSimulationMaterial?[.04,.9,1]:[.03,.78,.96]);
   if(isSimulationMaterial){const radius=.23+Math.sin(now*.008)*.035;for(let segment=0;segment<24;segment++){const a=segment*Math.PI*2/24,b=(segment+1)*Math.PI*2/24;draw(lineMesh({x:placement.materialPoint.x+Math.cos(a)*radius,y:placement.materialPoint.y+Math.sin(a)*radius,z:placement.materialPoint.z+.015},{x:placement.materialPoint.x+Math.cos(b)*radius,y:placement.materialPoint.y+Math.sin(b)*radius,z:placement.materialPoint.z+.015},.01),[.04,.86,1]);}}
  });
  transportLegPlacements.forEach((placement,index)=>{
@@ -314,8 +314,8 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const fromMaterial=materialSource?(hasMaterialTransport(materialSource.route)?materialSource.transportPoint:materialSource.materialPoint):undefined;
   if(from)drawFlow(from,placement.point,index*2,rgb,.034);else if(fromMaterial)drawFlow(fromMaterial,placement.point,index*2,rgb,.034);
   if(to)drawFlow(placement.point,to,index*2+1,rgb,.034);
-  draw(boxMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport?.15:.115),isSimulationTransport?[.04,.78,.98]:[.08,.55,.85]);
-  draw(sphereMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport?.085:.065),isSimulationTransport?[.04,.95,1]:[.12,.79,.94]);
+  draw(boxMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport ? .15 : .115),isSimulationTransport?[.04,.78,.98]:[.08,.55,.85]);
+  draw(sphereMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport ? .085 : .065),isSimulationTransport?[.04,.95,1]:[.12,.79,.94]);
   if(isSimulationTransport){const radius=.21+Math.sin(now*.008)*.035;for(let segment=0;segment<24;segment++){const a=segment*Math.PI*2/24,b=(segment+1)*Math.PI*2/24;draw(lineMesh({x:placement.point.x+Math.cos(a)*radius,y:placement.point.y+Math.sin(a)*radius,z:placement.point.z+.015},{x:placement.point.x+Math.cos(b)*radius,y:placement.point.y+Math.sin(b)*radius,z:placement.point.z+.015},.01),[.04,.86,1]);}}
  });
  points.forEach(({p,op})=>{const rgb=operationRgb(op);draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"||mode==="layered"||mode==="matrix"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);if(op.id===simulatedOperation?.id){const radius=.22+Math.sin(now*.008)*.035;for(let segment=0;segment<32;segment++){const a=segment*Math.PI*2/32,b=(segment+1)*Math.PI*2/32;draw(lineMesh({x:p.x+Math.cos(a)*radius,y:p.y+Math.sin(a)*radius,z:p.z+.015},{x:p.x+Math.cos(b)*radius,y:p.y+Math.sin(b)*radius,z:p.z+.015},.012),[.04,.86,1]);}draw(sphereMesh(p.x,p.y,p.z,.065),[.05,.88,1]);}});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:[.24,.5,.78];draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>cancelAnimationFrame(raf);},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialPlacements,transportLegPlacements,simulationIndex]);
