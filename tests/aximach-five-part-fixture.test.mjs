@@ -1957,3 +1957,29 @@ test("3D route arrows stay enabled and narrow-screen process metadata is not hid
   assert.ok(scene.includes('if(node&&to)add("transport-operation-"'));
   assert.ok(css.includes('.ax-full3d-label .ax-full3d-node-meta{display:block!important'));
 });
+
+
+test("Route Flow draws vehicle-specific transport icons on curved connectors and supports multiple vehicle types", () => {
+  const route = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  for (const icon of ["Bike", "Bus", "CarFront", "Plane", "Ship", "TrainFront", "Truck"]) assert.ok(route.includes(icon));
+  assert.ok(route.includes("vehicleType={connector.vehicleType}"));
+  assert.ok(route.includes("tripCount={connector.tripCount}"));
+  assert.ok(route.includes("route-flow-vehicle-marker"));
+  assert.ok(route.includes("Add another leg to show another carrier or vehicle on the same connection."));
+  assert.ok(css.includes(".route-flow-vehicle-marker"));
+});
+
+test("Manufacturing Universe lets the operator choose live scene fields and connected module shortcuts", () => {
+  const universe = readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(universe.includes("UNIVERSE DISPLAY CONTROLS"));
+  assert.ok(universe.includes("visibleUniverseFields"));
+  assert.ok(universe.includes("visibleUniverseModules"));
+  assert.ok(universe.includes("visibleFields={visibleUniverseFields}"));
+  assert.ok(universe.includes("linkModules.filter(item=>visibleUniverseModules.includes(item.id))"));
+  assert.ok(universe.includes("These are view preferences only. They do not delete or change source records."));
+  assert.ok(scene.includes("fieldVisible"));
+  assert.ok(css.includes(".manufacturing-universe-customizer"));
+});
