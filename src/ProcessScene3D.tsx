@@ -300,7 +300,9 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
   const to=placement.toOperation?pointById.get(placement.toOperation.id):undefined;
   const rgb=placement.leg.relation==="rework"?[.9,.43,.12]:placement.leg.relation==="alternate"?[.18,.49,.88]:[.12,.68,.86];
-  if(from)drawFlow(from,placement.point,index*2,rgb,.034);
+  const materialSource=placement.leg.materialEntryId?materialPlacements.find(item=>item.route.id===placement.leg.materialEntryId):undefined;
+  const fromMaterial=materialSource?(materialSource.transportPoint||materialSource.materialPoint):undefined;
+  if(from)drawFlow(from,placement.point,index*2,rgb,.034);else if(fromMaterial)drawFlow(fromMaterial,placement.point,index*2,rgb,.034);
   if(to)drawFlow(placement.point,to,index*2+1,rgb,.034);
   draw(boxMesh(placement.point.x,placement.point.y,placement.point.z,.115),[.08,.55,.85]);
   draw(sphereMesh(placement.point.x,placement.point.y,placement.point.z,.065),[.12,.79,.94]);
@@ -358,9 +360,11 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   transportLegPlacements.forEach(item=>{
    const node=transportLegPosition.get(item.leg.id);
    const from=item.fromOperation?positions.get(item.fromOperation.id):undefined;
+   const fromMaterial=item.leg.materialEntryId?materialPosition.get(item.leg.materialEntryId):undefined;
    const to=item.toOperation?positions.get(item.toOperation.id):undefined;
    const relation=item.leg.relation;
    if(from&&node)add("operation-transport-"+item.leg.id,item.fromOperation!.id,"__transport_leg__"+item.leg.id,item.fromOperation!.name,"Transport · "+item.leg.fromLocation+" → "+item.leg.toLocation,from,node,relation);
+   else if(fromMaterial&&node)add("material-transport-leg-"+item.leg.id,"__material__"+item.leg.materialEntryId,"__transport_leg__"+item.leg.id,"Material · "+(materialPlacements.find(row=>row.route.id===item.leg.materialEntryId)?.route.materialLabel||"Allocation"),"Transport · "+item.leg.fromLocation+" → "+item.leg.toLocation,fromMaterial,node,relation);
    if(node&&to)add("transport-operation-"+item.leg.id,"__transport_leg__"+item.leg.id,item.toOperation!.id,"Transport · "+item.leg.fromLocation+" → "+item.leg.toLocation,item.toOperation!.name,node,to,relation);
   });
   return result;
