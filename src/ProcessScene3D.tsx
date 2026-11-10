@@ -201,7 +201,8 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
  }),[materialRoutes,geometryRows,geometryPoints]);
  const transportLegPlacements=useMemo(()=>transportLegs.map((leg,index)=>{
   const anchor=leg.anchorOperationId?geometryRows.find(operation=>operation.id===leg.anchorOperationId):undefined;
-  const branch=anchor?.branch||"Main route";
+  const target=leg.targetOperationId?geometryRows.find(operation=>operation.id===leg.targetOperationId):undefined;
+  const branch=anchor?.branch||target?.branch||"Main route";
   const lineRows=geometryRows.filter(operation=>operation.poLineId===leg.poLineId&&(operation.branch||"Main route")===branch&&operation.relationType!=="subprocess").sort((a,b)=>a.sequence-b.sequence);
   const anchorIndex=anchor?lineRows.findIndex(operation=>operation.id===anchor.id):-1;
   const fromOperation=leg.placement==="start"?undefined:leg.placement==="before"?(anchorIndex>0?lineRows[anchorIndex-1]:undefined):anchor;
