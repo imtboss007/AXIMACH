@@ -2327,6 +2327,9 @@ test("AXIMACH integrates every shared route layout, independent material legs, c
   assert.ok(picker.includes("CONNECTOR LEGEND"));
   assert.ok(scene.includes("hasMaterialSpecificLeg"));
   assert.ok(scene.includes("if(to&&!hasMaterialSpecificLeg)"));
+  assert.ok(scene.includes("const explicitMaterialLegs=transportLegPlacements.filter(leg=>leg.leg.materialEntryId===item.route.id)"));
+  assert.ok(scene.includes("const isFirstMaterialForLine=lineMaterials[0]?.route.id===item.route.id"));
+  assert.ok(scene.includes("const legsForMaterial=explicitMaterialLegs.length?explicitMaterialLegs:routeStartLegs"));
   assert.ok(scene.includes("simulationIndex?:number"));
   assert.ok(scene.includes("simulatedOperation?.id"));
   assert.ok(scene.includes("isSimulationEdge"));
