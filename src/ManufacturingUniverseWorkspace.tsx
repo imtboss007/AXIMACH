@@ -5,6 +5,9 @@ import ProcessUniverse3D from "./ProcessUniverse3D";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
+import TransportRecordInspector from "./TransportRecordInspector";
+import WorkspaceThemePicker from "./WorkspaceThemePicker";
+import { useWorkspaceTheme } from "./workspaceTheme";
 
 type NavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
 type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void };
@@ -16,6 +19,8 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const definitions=activeRows(data.processDefinitions),relationships=activeRows(data.routeRelationships||[]);
   const [companyPick,setCompanyPick]=useState(""),[poPick,setPoPick]=useState(""),[linePick,setLinePick]=useState("");
   const workspaceRef=useRef<HTMLElement|null>(null);
+  const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
+  const [inspectedTransportId,setInspectedTransportId]=useState("");
   const [selectedOperationId,setSelectedOperationId]=useState("");
   const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
   const [showAddOperation,setShowAddOperation]=useState(false);
@@ -66,6 +71,10 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
       cuttingCost:entry.cuttingCost||0,transportCost:entry.transportCost||0
     };
   });
+  const inspectedTransportLeg=routeLegs.find(leg=>leg.id===inspectedTransportId);
+  const inspectedTransportVendor=inspectedTransportLeg?vendors.find(vendor=>vendor.id===inspectedTransportLeg.vendorId):undefined;
+  const inspectedTransportRoute=inspectedTransportLeg?activeRows(data.transportRoutes||[]).find(route=>route.id===inspectedTransportLeg.routeId):undefined;
+  const inspectedLegacyVendorRoute=inspectedTransportLeg?inspectedTransportVendor?.transportRoutes?.find(route=>route.id===inspectedTransportLeg.routeId):undefined;
   const transportNodes=routeLegs.map(leg=>{
     const anchor=allRouteOperations.find(operation=>operation.id===leg.anchorOperationId);
     const relation=anchor?.relationType==="rework"||/rework/i.test(anchor?.branch||"")?"rework" as const:anchor?.relationType==="alternate"||Boolean(anchor?.branch&&anchor.branch!=="Main route")?"alternate" as const:"main" as const;
@@ -74,6 +83,16 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
       placement:leg.placement||(!leg.anchorOperationId?"start":"after") as "start"|"before"|"after",
       fromLocation:leg.fromLocation,toLocation:leg.toLocation,vehicleType:leg.vehicleType,
       vendorName:vendors.find(vendor=>vendor.id===leg.vendorId)?.company||"Transporter not assigned",
+      vendorContact:vendors.find(vendor=>vendor.id===leg.vendorId)?.contact||"",
+      vendorRole:vendors.find(vendor=>vendor.id===leg.vendorId)?.role||"",
+      vendorPhone:vendors.find(vendor=>vendor.id===leg.vendorId)?.phone||"",
+      vendorWhatsapp:vendors.find(vendor=>vendor.id===leg.vendorId)?.whatsappNumber||"",
+      vendorEmail:vendors.find(vendor=>vendor.id===leg.vendorId)?.email||"",
+      vendorAddress:vendors.find(vendor=>vendor.id===leg.vendorId)?.address||"",
+      vendorStatus:vendors.find(vendor=>vendor.id===leg.vendorId)?.status||"",
+      vendorNotes:vendors.find(vendor=>vendor.id===leg.vendorId)?.notes||"",
+      directoryRouteNotes:activeRows(data.transportRoutes||[]).find(route=>route.id===leg.routeId)?.notes||vendors.find(vendor=>vendor.id===leg.vendorId)?.transportRoutes?.find(route=>route.id===leg.routeId)?.notes||"",
+      directoryRouteActive:activeRows(data.transportRoutes||[]).find(route=>route.id===leg.routeId)?.active??true,
       tripDirection:leg.tripDirection,tripCount:leg.tripCount,amount:leg.fixedAmount*leg.tripCount,
       pickupAt:leg.pickupAt||"",deliveryAt:leg.deliveryAt||"",status:leg.status||"Planned",relation
     };
@@ -147,10 +166,10 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     onNotice("Manufacturing Universe export started: "+exportFormat.toUpperCase()+".");
   };
 
-  return <section ref={workspaceRef} className="manufacturing-universe-workspace">
+  return <section ref={workspaceRef} className="manufacturing-universe-workspace" data-workspace-theme={workspaceTheme}>
     <header className="manufacturing-universe-head">
       <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE CONNECTED OPERATIONS</div><h1>Manufacturing <span>Universe</span></h1><p>A dedicated large-format 3D view of live material, transport, process, quality and delivery records. Select a PO line to see its live route.</p></div>
-      <div className="manufacturing-universe-actions"><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div><ImmersiveWorkspaceControls targetRef={workspaceRef} onBack={onBack} onNotice={onNotice}/></div>
+      <div className="manufacturing-universe-actions"><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div><ImmersiveWorkspaceControls targetRef={workspaceRef} onNotice={onNotice} onZoomReset={()=>setZoom(1)}/></div>
     </header>
     {notice&&<div className="notice-banner"><CheckCircle2 size={15}/><span>{notice}</span></div>}
     <div className="manufacturing-universe-scope">
@@ -190,7 +209,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         onAddAlternateRoute={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
         onAddReworkRoute={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
         onAddProcessDefinition={()=>onNavigate("process-map",activeOperation)}
-        onSelectTransportLeg={()=>onNavigate("route-flow",activeOperation)}
+        onSelectTransportLeg={id=>setInspectedTransportId(id)}
       />:<div className="manufacturing-universe-empty"><Network size={34}/><strong>No saved manufacturing route for this PO line</strong><span>Add material allocations and process steps first. The universe does not invent placeholder operations.</span><div><button className="button-primary" onClick={()=>onNavigate("route-flow")}><Route size={14}/> Open Route Flow</button><button className="button-quiet" onClick={()=>onNavigate("process-map")}><Workflow size={14}/> Open Process Plan</button></div></div>}
     </section>
     <section className="manufacturing-universe-module-links">
