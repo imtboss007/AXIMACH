@@ -27,7 +27,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
   const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
-  const [zoom,setZoom]=useState(1),[simulationIndex,setSimulationIndex]=useState(-1);
+  const [zoom,setZoom]=useState(()=>typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches?.78:1),[simulationIndex,setSimulationIndex]=useState(-1);
   const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
   const [showUniverseSettings,setShowUniverseSettings]=useState(false);
   const [visibleUniverseFields,setVisibleUniverseFields]=useState<string[]>(["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]);
@@ -204,7 +204,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         simulationIndex={simulationIndex}
         zoom={zoom}
         onZoomChange={setZoom}
-        initialLayout="sphere"
+        initialLayout={typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches?"network":"sphere"}
         ganttScale={ganttScale}
         onGanttScaleChange={setGanttScale}
         onSelectOperation={id=>setSelectedOperationId(id)}
