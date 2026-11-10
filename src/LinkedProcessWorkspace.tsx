@@ -106,7 +106,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const operationEditorRef = useRef<HTMLElement | null>(null);
   const [search, setSearch] = useState("");
   const [vertical, setVertical] = useState(false);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(()=>typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches?.78:1);
   const [routeView, setRouteView] = useState<"3d" | "list">("3d");
   const [simulationActive, setSimulationActive] = useState(false);
   const [simulationIndex, setSimulationIndex] = useState(-1);
