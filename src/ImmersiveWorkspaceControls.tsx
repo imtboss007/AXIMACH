@@ -10,26 +10,27 @@ export default function ImmersiveWorkspaceControls({targetRef,onNotice,onZoomRes
  const [fullscreen,setFullscreen]=useState(false);
  useEffect(()=>{
   const update=()=>{
-   const active=Boolean(document.fullscreenElement);
+   const active=document.fullscreenElement===targetRef.current;
    setFullscreen(active);
    onZoomReset?.();
    if(!active){(window.screen?.orientation as unknown as {unlock?:()=>void}|undefined)?.unlock?.();}
   };
   document.addEventListener("fullscreenchange",update);
   return ()=>document.removeEventListener("fullscreenchange",update);
- },[onZoomReset]);
+ },[targetRef,onZoomReset]);
  const toggle=async()=>{
   const target=targetRef.current;
   if(!target){onNotice("The workspace is not ready for full-screen mode.");return;}
   try{
-   if(document.fullscreenElement){await document.exitFullscreen();return;}
+   if(document.fullscreenElement===target){await document.exitFullscreen();return;}
+   if(document.fullscreenElement) await document.exitFullscreen();
    await target.requestFullscreen({navigationUI:"hide"});
   }catch{
    onNotice("Full-screen is not available in this browser. The workspace will remain in its normal responsive view.");
   }
  };
- return <button type="button" className={"ax-workspace-expand-toggle"+(fullscreen?" is-expanded":"")} onClick={toggle}
-   title={fullscreen?"Back to fitted workspace":"Expand workspace"} aria-label={fullscreen?"Back to fitted workspace":"Expand workspace"}>
+ return <button type="button" className={"ax-map-fullscreen-toggle"+(fullscreen?" is-expanded":"")} onClick={toggle}
+   title={fullscreen?"Exit map full screen":"Open map full screen"} aria-label={fullscreen?"Exit map full screen":"Open map full screen"}>
    {fullscreen?<ArrowLeft size={20}/>:<Expand size={18}/>}
   </button>;
 }
