@@ -3,6 +3,10 @@ import { Truck, X, CalendarClock, Phone, Mail, MessageCircle, Building2, Route, 
 import type { ComponentTransportLegRecord, MaterialCostEntryRecord, TransportRouteRecord, VendorRecord, VendorTransportRoute } from "./manufacturingData";
 
 type Props={
+  anchor?:{x:number;y:number};
+  materialEntry?:MaterialCostEntryRecord;
+  fromOperationName?:string;
+  toOperationName?:string;
   leg:ComponentTransportLegRecord;
   vendor?:VendorRecord;
   directoryRoute?:TransportRouteRecord;
