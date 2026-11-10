@@ -951,3 +951,20 @@ img,svg,canvas,video{max-width:100%}
 .appearance-picker{height:36px;display:flex;align-items:center;gap:7px;padding:0 9px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--muted);font-size:11px}
 .appearance-picker select{border:0;background:transparent;color:inherit;max-width:88px;font-size:11px;outline:none;cursor:pointer}
 @media(max-width:760px){.appearance-picker{height:34px;padding:0 6px}.appearance-picker select{max-width:65px}.appearance-picker svg{display:none}}
+
+
+/* Command Centre hero becomes a vertically stacked, centered orb on phones. */
+@media(max-width:760px) {
+  .hero-command { grid-template-columns:minmax(0,1fr); gap:8px; padding:26px 18px 10px; }
+  .hero-copy { text-align:center; }
+  .hero-copy>p { margin:0 auto; }
+  .hero-copy .hero-actions { justify-content:center; }
+  .hero-graphic { width:100%; min-height:370px; }
+  .hero-graphic .ax-orb-stage { min-height:360px; }
+  .hero-graphic .ax-orb-drag-zone { width:min(100%,360px); height:350px; flex-basis:350px; }
+}
+@media(max-width:520px) {
+  .hero-command { padding:22px 12px 8px; }
+  .hero-copy h1 { font-size:30px; }
+  .hero-graphic { min-height:360px; }
+}

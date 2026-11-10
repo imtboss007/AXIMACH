@@ -11,7 +11,7 @@ type Contact360Props=Props & {initialVendorId?:string;onInitialVendorConsumed?:(
 type ContactRecord=ContactProfileRecord;
 type ContactDraft=Omit<ContactRecord,"id"|"createdAt"|"updatedAt">;
 const CONTACT_KEY="aximach.contact360.v1";
-const blank=():ContactDraft=>({linkedType:"company",linkedId:"",name:"",role:"",group:"",phone:"",whatsapp:"",additionalPhones:[],email:"",address:"",followUpDate:"",history:"",processCategories:[],processTypes:[],processSubcategories:[],machineCapabilities:[],materialCapabilities:[]});
+const blank=():ContactDraft=>({linkedType:"company",linkedId:"",name:"",role:"",group:"",phone:"",whatsapp:"",additionalPhones:[],email:"",address:"",followUpDate:"",history:"",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[],machineCapabilities:[],materialCapabilities:[]});
 function readContacts():ContactRecord[]{try{const value=JSON.parse(localStorage.getItem(CONTACT_KEY)||"[]");return Array.isArray(value)?value as ContactRecord[]:[];}catch{return[];}}
 
 export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initialVendorId,onInitialVendorConsumed}:Contact360Props){
@@ -30,21 +30,46 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
  useEffect(()=>{if(!initialVendorId)return;setEditingId("");setDraft({...blank(),linkedType:"vendor",linkedId:initialVendorId});setShowForm(true);onInitialVendorConsumed?.();},[initialVendorId]);
  const relatedLabel=(row:ContactRecord)=>row.linkedType==="company"?companies.find(x=>x.id===row.linkedId)?.name||"Company record missing":vendors.find(x=>x.id===row.linkedId)?.company||"Vendor record missing";
  const generated=[
-  ...companies.filter(c=>c.contactPerson?.trim()).map(c=>({id:"company:"+c.id,linkedId:c.id,name:c.contactPerson||"",role:"Company contact",group:"",phone:c.phone,whatsapp:c.phone,additionalPhones:[],email:c.email,address:c.address||"",followUpDate:"",history:"",relationship:c.name,source:"Company Directory",linkedType:"company",vendorType:"Company",processes:"",machines:"",materials:"",processCategories:[],processTypes:[],processSubcategories:[],machineCapabilities:[],materialCapabilities:[]})),
-  ...vendors.map(v=>({id:"vendor:"+v.id,linkedId:v.id,name:v.contact,role:v.role,group:"",phone:v.phone,whatsapp:v.whatsappNumber||v.phone,additionalPhones:v.additionalPhones||[],email:v.email,address:v.address,followUpDate:"",history:"",relationship:v.company,source:"Vendor Directory",linkedType:"vendor",vendorType:v.vendorType||"",processes:v.processes||"",machines:v.machines||"",materials:v.materials||"",processCategories:[],processTypes:[],processSubcategories:[],machineCapabilities:[],materialCapabilities:[]}))
+  ...companies.filter(c=>c.contactPerson?.trim()).map(c=>({id:"company:"+c.id,linkedId:c.id,name:c.contactPerson||"",role:"Company contact",group:"",phone:c.phone,whatsapp:c.phone,additionalPhones:[],email:c.email,address:c.address||"",followUpDate:"",history:"",relationship:c.name,source:"Company Directory",linkedType:"company",vendorType:"Company",processes:"",machines:"",materials:"",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[],machineCapabilities:[],materialCapabilities:[]})),
+  ...vendors.map(v=>({id:"vendor:"+v.id,linkedId:v.id,name:v.contact,role:v.role,group:"",phone:v.phone,whatsapp:v.whatsappNumber||v.phone,additionalPhones:v.additionalPhones||[],email:v.email,address:v.address,followUpDate:"",history:"",relationship:v.company,source:"Vendor Directory",linkedType:"vendor",vendorType:v.vendorType||"",processes:v.processes||"",machines:v.machines||"",materials:v.materials||"",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[],machineCapabilities:[],materialCapabilities:[]}))
  ];
  const processDefinitions=activeRows(data.processDefinitions);
+ const stableContactSubcategoryId=(definition:typeof processDefinitions[number],index:number)=>definition.subcategoryIds?.[index]||definition.id+"-subprocess-"+String(index+1).padStart(3,"0");
+ const contactProcessDefinitionIds=(row:{processDefinitionIds?:string[];processTypes?:string[];processCategories?:string[]})=>{
+  if(Array.isArray(row.processDefinitionIds))return [...new Set(row.processDefinitionIds)];
+  const resolved:string[]=[];
+  for(const value of row.processTypes||[]){
+   const direct=processDefinitions.filter(definition=>definition.id===value);
+   if(direct.length===1){resolved.push(direct[0].id);continue;}
+   const matches=processDefinitions.filter(definition=>definition.processType===value&&(!(row.processCategories||[]).length||(row.processCategories||[]).includes(definition.category)));
+   if(matches.length===1)resolved.push(matches[0].id);
+  }
+  return [...new Set(resolved)];
+ };
  const manual=activeRows(rows);
  const contactRows=[
   ...generated.map(row=>({...row,kind:"master" as const})),
-  ...manual.map(row=>{const vendor=row.linkedType==="vendor"?vendors.find(v=>v.id===row.linkedId):undefined;return {...row,kind:"manual" as const,relationship:row.linkedType==="company"?companies.find(c=>c.id===row.linkedId)?.name||"Company":vendor?.company||"Vendor",source:"Contact 360",vendorType:vendor?.vendorType||"",processes:vendor?.processes||"",machines:vendor?.machines||"",materials:vendor?.materials||"",processCategories:row.processCategories||[],processTypes:row.processTypes||[],processSubcategories:row.processSubcategories||[],machineCapabilities:row.machineCapabilities||[],materialCapabilities:row.materialCapabilities||[]};})
+  ...manual.map(row=>{const vendor=row.linkedType==="vendor"?vendors.find(v=>v.id===row.linkedId):undefined;return {...row,kind:"manual" as const,relationship:row.linkedType==="company"?companies.find(c=>c.id===row.linkedId)?.name||"Company":vendor?.company||"Vendor",source:"Contact 360",vendorType:vendor?.vendorType||"",processes:vendor?.processes||"",machines:vendor?.machines||"",materials:vendor?.materials||"",processCategories:row.processCategories||[],processTypes:row.processTypes||[],processSubcategories:row.processSubcategories||[],processDefinitionIds:row.processDefinitionIds,processSubcategoryIds:row.processSubcategoryIds||[],machineCapabilities:row.machineCapabilities||[],materialCapabilities:row.materialCapabilities||[]};})
  ];
  const roleOptions=[...new Set(contactRows.map(row=>row.role).filter(Boolean))].sort();
  const vendorTypeOptions=[...new Set(vendors.map(v=>v.vendorType||"").filter(Boolean))].sort();
- const processOptions=[...new Set([...processDefinitions.map(x=>x.processType),...contactRows.flatMap(row=>row.processTypes||[]),...vendors.flatMap(v=>v.processes.split(/[,;|]/).map(x=>x.trim()).filter(Boolean))])].sort();
+ const legacyContactProcessNames=contactRows.flatMap(row=>{
+  const linkedNames=processDefinitions.filter(definition=>contactProcessDefinitionIds(row).includes(definition.id)).map(definition=>definition.processType.trim().toLowerCase());
+  return (row.processTypes||[]).filter(value=>!linkedNames.includes(value.trim().toLowerCase()));
+ });
+ const legacyProcessTextValues=[...legacyContactProcessNames,...vendors.flatMap(v=>String(v.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean))];
+ const legacyProcessTextOptions=[...new Set(legacyProcessTextValues.map(value=>value.trim().toLowerCase()).filter(Boolean))].map(normalized=>legacyProcessTextValues.find(value=>value.trim().toLowerCase()===normalized)?.trim()||normalized).sort((a,b)=>a.localeCompare(b));
+ const processOptions=[...processDefinitions.map(definition=>({id:"directory:"+definition.id,label:definition.category+" · "+definition.processType})),...legacyProcessTextOptions.map(value=>({id:"text:"+value.trim().toLowerCase(),label:"Legacy / contact text · "+value}))];
  const categoryOptions=[...new Set([...processDefinitions.map(x=>x.category),...contactRows.flatMap(row=>row.processCategories||[])].filter(Boolean))].sort();
- const selectedCapabilityDefinitions=processDefinitions.filter(x=>(!categoryFilters.length||categoryFilters.includes(x.category))&&(!processFilters.length||processFilters.includes(x.processType)));
- const subcategoryOptions=[...new Set([...selectedCapabilityDefinitions.flatMap(x=>x.subcategories||[]),...contactRows.flatMap(row=>row.processSubcategories||[])])].sort();
+ const selectedCapabilityDefinitions=processDefinitions.filter(definition=>(!categoryFilters.length||categoryFilters.includes(definition.category))&&(!processFilters.length||processFilters.includes("directory:"+definition.id)));
+ const processSubcategoryFilterOptions=selectedCapabilityDefinitions.flatMap(definition=>(definition.subcategories||[]).map((name,index)=>({
+  id:stableContactSubcategoryId(definition,index),
+  label:definition.category+" · "+definition.processType+" · "+name
+ })));
+ const customContactSubcategoryFilterOptions=[...new Set(contactRows.flatMap(row=>row.processSubcategories||[]))].map(name=>({
+  id:"contact:"+name.trim().toLowerCase(),label:"Contact capability · "+name
+ }));
+ const subcategoryOptions=[...new Map([...processSubcategoryFilterOptions,...customContactSubcategoryFilterOptions].map(option=>[option.id,option])).values()].sort((a,b)=>a.label.localeCompare(b.label));
  const machineOptions=[...new Set([...vendors.flatMap(v=>v.machines.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)),...contactRows.flatMap(row=>row.machineCapabilities||[])])].sort();
  const materialOptions=[...new Set([...vendors.flatMap(v=>v.materials.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)),...contactRows.flatMap(row=>row.materialCapabilities||[])])].sort();
 
@@ -52,22 +77,31 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
   const text=(row.name+" "+row.role+" "+(row.group||"")+" "+row.phone+" "+(row.additionalPhones||[]).join(" ")+" "+row.whatsapp+" "+row.email+" "+row.address+" "+row.relationship+" "+row.source+" "+row.vendorType+" "+row.processes+" "+row.machines+" "+row.materials).toLowerCase();
   const vendorId=row.linkedType==="vendor"?(row.linkedId||String(row.id).replace(/^vendor:/,"")):"";
   const capabilityRows=processDefinitions.filter(definition=>(definition.vendorIds||[]).includes(vendorId));
-  const rowCategories=[...capabilityRows.map(definition=>definition.category),...(row.processCategories||[])].join(" ").toLowerCase();
-  const rowSubcategories=[...capabilityRows.flatMap(definition=>definition.subcategories||[]),...(row.processSubcategories||[])].join(" ").toLowerCase();
+  const contactDefinitionIds=contactProcessDefinitionIds(row);
+  const linkedDefinitionIds=[...new Set([...capabilityRows.map(definition=>definition.id),...contactDefinitionIds])];
+  const contactDefinitionCategories=contactDefinitionIds.map(id=>processDefinitions.find(definition=>definition.id===id)?.category||"");
+  const rowCategories=[...capabilityRows.map(definition=>definition.category),...contactDefinitionCategories,...(row.processCategories||[])].join(" ").toLowerCase();
+  const capabilitySubcategoryIds=capabilityRows.flatMap(definition=>(definition.subcategories||[]).map((_,index)=>stableContactSubcategoryId(definition,index)));
+  const contactSubcategoryIds:string[]=row.processSubcategoryIds||[];
+  const customContactSubcategoryIds=(row.processSubcategories||[]).map(name=>"contact:"+name.trim().toLowerCase());
+  const subcategoryMatch=!subcategoryFilters.length||subcategoryFilters.some(id=>capabilitySubcategoryIds.includes(id)||contactSubcategoryIds.includes(id)||customContactSubcategoryIds.includes(id));
+  const contactDefinitionNames=processDefinitions.filter(definition=>contactDefinitionIds.includes(definition.id)).map(definition=>definition.processType.trim().toLowerCase());
+  const legacyProcessNames=[...(row.processTypes||[]).filter(value=>!contactDefinitionNames.includes(value.trim().toLowerCase())),...String(row.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean)].map(value=>value.toLowerCase());
+  const processMatch=!processFilters.length||processFilters.some(value=>value.startsWith("directory:")?linkedDefinitionIds.includes(value.slice(10)):value.startsWith("text:")&&legacyProcessNames.includes(value.slice(5)));
   const containsAny=(values:string[],source:string)=>!values.length||values.some(value=>source.toLowerCase().includes(value.toLowerCase()));
   return text.includes(search.toLowerCase().trim())
    &&(typeFilter==="All"||row.linkedType===typeFilter.toLowerCase())
    &&(!roleFilters.length||roleFilters.includes(row.role))
    &&(!vendorTypeFilters.length||vendorTypeFilters.includes(row.vendorType))
    &&containsAny(categoryFilters,rowCategories)
-   &&containsAny(processFilters,row.processes+" "+capabilityRows.map(definition=>definition.processType).join(" ")+" "+(row.processTypes||[]).join(" "))
-   &&containsAny(subcategoryFilters,rowSubcategories)
+   &&processMatch
+   &&subcategoryMatch
    &&containsAny(machineFilters,row.machines+" "+(row.machineCapabilities||[]).join(" "))
    &&containsAny(materialFilters,row.materials+" "+(row.materialCapabilities||[]).join(" "))
    &&(!onlyWhatsApp||Boolean(String(row.whatsapp||"").replace(/\D/g,"").length>=8));
  }),[contactRows,search,typeFilter,roleFilters,vendorTypeFilters,categoryFilters,processFilters,subcategoryFilters,machineFilters,materialFilters,onlyWhatsApp]);
  const beginNew=()=>{setEditingId("");setDraft(blank());setShowForm(true);};
- const edit=(row:ContactRecord)=>{setEditingId(row.id);setDraft({linkedType:row.linkedType,linkedId:row.linkedId,name:row.name,role:row.role,group:row.group||"",phone:row.phone,whatsapp:row.whatsapp,additionalPhones:row.additionalPhones||[],email:row.email,address:row.address,followUpDate:row.followUpDate,history:row.history,processCategories:row.processCategories||[],processTypes:row.processTypes||[],processSubcategories:row.processSubcategories||[],machineCapabilities:row.machineCapabilities||[],materialCapabilities:row.materialCapabilities||[]});setShowForm(true);};
+ const edit=(row:ContactRecord)=>{setEditingId(row.id);setDraft({linkedType:row.linkedType,linkedId:row.linkedId,name:row.name,role:row.role,group:row.group||"",phone:row.phone,whatsapp:row.whatsapp,additionalPhones:row.additionalPhones||[],email:row.email,address:row.address,followUpDate:row.followUpDate,history:row.history,processCategories:row.processCategories||[],processTypes:row.processTypes||[],processSubcategories:row.processSubcategories||[],processDefinitionIds:contactProcessDefinitionIds(row),processSubcategoryIds:row.processSubcategoryIds||[],machineCapabilities:row.machineCapabilities||[],materialCapabilities:row.materialCapabilities||[]});setShowForm(true);};
  const save=()=>{if(!draft.name.trim()||!draft.linkedId){onNotice("Enter the contact name and link it to a company or vendor.");return;}const stamp=nowIso();const old=rows.find(x=>x.id===editingId);const row:ContactRecord={...draft,id:editingId||makeId("contact"),createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};update(current=>({...current,contactProfiles:[row,...current.contactProfiles.filter(x=>x.id!==row.id)]}));setShowForm(false);setEditingId("");setDraft(blank());onNotice("Contact profile saved to shared AXIMACH contact data with its company/vendor relationship and follow-up history.");};
  const remove=(id:string)=>{if(!window.confirm("Delete this Contact 360 profile? The linked company or vendor master will not be deleted."))return;const stamp=nowIso();update(current=>({...current,contactProfiles:current.contactProfiles.map(row=>row.id===id?{...row,deletedAt:stamp,updatedAt:stamp}:row)}));onNotice("Contact profile archived. Linked company/vendor master and historical record were retained.");};
  const options=draft.linkedType==="company"?companies.map(c=>({id:c.id,label:c.name})):vendors.map(v=>({id:v.id,label:v.company+" · "+v.contact}));
@@ -82,8 +116,8 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
       <SearchableMultiSelect id="contact-role" label="Role / designation" options={roleOptions.map(x=>({id:x,label:x}))} selected={roleFilters} onChange={setRoleFilters} emptyMeansAll/>
       <SearchableMultiSelect id="contact-vendor-type" label="Vendor category" options={vendorTypeOptions.map(x=>({id:x,label:x}))} selected={vendorTypeFilters} onChange={setVendorTypeFilters} emptyMeansAll/>
       <SearchableMultiSelect id="contact-process-category" label="Process category" options={categoryOptions.map(x=>({id:x,label:x}))} selected={categoryFilters} onChange={setCategoryFilters} emptyMeansAll/>
-      <SearchableMultiSelect id="contact-process-type" label="Process type" options={processOptions.map(x=>({id:x,label:x}))} selected={processFilters} onChange={setProcessFilters} emptyMeansAll/>
-      <SearchableMultiSelect id="contact-process-subcategory" label="Process subcategory" options={subcategoryOptions.map(x=>({id:x,label:x}))} selected={subcategoryFilters} onChange={setSubcategoryFilters} emptyMeansAll/>
+      <SearchableMultiSelect id="contact-process-type" label="Process type" options={processOptions} selected={processFilters} onChange={setProcessFilters} emptyMeansAll/>
+      <SearchableMultiSelect id="contact-process-subcategory" label="Process subcategory" options={subcategoryOptions} selected={subcategoryFilters} onChange={setSubcategoryFilters} emptyMeansAll/>
       <SearchableMultiSelect id="contact-machine" label="Machine capability" options={machineOptions.map(x=>({id:x,label:x}))} selected={machineFilters} onChange={setMachineFilters} emptyMeansAll/>
       <SearchableMultiSelect id="contact-material" label="Material capability" options={materialOptions.map(x=>({id:x,label:x}))} selected={materialFilters} onChange={setMaterialFilters} emptyMeansAll/>
     </div>
@@ -101,9 +135,10 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
     <label>Email<input type="email" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="name@company.com"/></label>
     <div className="module-form-wide contact-capability-assignment"><div className="panel-heading"><div><strong>Contact capability assignments</strong><p>Selections are stored on this contact and also combine with linked vendor capabilities.</p></div></div>
      <div className="ax-search-filter-columns">
-      <SearchableMultiSelect id="contact-edit-process-category" label="Process category" options={categoryOptions.map(value=>({id:value,label:value}))} selected={draft.processCategories||[]} onChange={values=>{setDraft(current=>({...current,processCategories:values,processTypes:(current.processTypes||[]).filter(value=>processDefinitions.some(def=>def.processType===value&&values.includes(def.category))),processSubcategories:[]}));}}/>
-      <SearchableMultiSelect id="contact-edit-process-type" label="Process type" options={processDefinitions.filter(def=>!(draft.processCategories||[]).length||(draft.processCategories||[]).includes(def.category)).map(def=>({id:def.id,label:def.processType+" · "+def.category}))} selected={(draft.processTypes||[]).map(value=>processDefinitions.find(def=>def.processType===value)?.id||value)} onChange={ids=>setDraft(current=>({...current,processTypes:ids.map(id=>processDefinitions.find(def=>def.id===id)?.processType||id)}))}/>
-      <SearchableMultiSelect id="contact-edit-process-subcategory" label="Process subcategory" options={processDefinitions.filter(def=>(draft.processTypes||[]).includes(def.processType)).flatMap(def=>def.subcategories||[]).filter((value,index,array)=>array.indexOf(value)===index).map(value=>({id:value,label:value}))} selected={draft.processSubcategories||[]} onChange={values=>setDraft(current=>({...current,processSubcategories:values}))}/>
+      <SearchableMultiSelect id="contact-edit-process-category" label="Process category" options={categoryOptions.map(value=>({id:value,label:value}))} selected={draft.processCategories||[]} onChange={values=>setDraft(current=>{const retained=(current.processDefinitionIds||[]).filter(id=>{const definition=processDefinitions.find(item=>item.id===id);return Boolean(definition&&values.includes(definition.category));});const retainedDefinitions=processDefinitions.filter(definition=>retained.includes(definition.id));const retainedSubcategories=retainedDefinitions.flatMap(definition=>(definition.subcategories||[]).map((_,index)=>stableContactSubcategoryId(definition,index)));return {...current,processCategories:values,processDefinitionIds:retained,processTypes:retainedDefinitions.map(definition=>definition.processType),processSubcategoryIds:(current.processSubcategoryIds||[]).filter(id=>retainedSubcategories.includes(id))};})}/>
+      <SearchableMultiSelect id="contact-edit-process-type" label="Process Directory process type" options={processDefinitions.filter(definition=>!(draft.processCategories||[]).length||(draft.processCategories||[]).includes(definition.category)).map(definition=>({id:definition.id,label:definition.processType+" · "+definition.category}))} selected={draft.processDefinitionIds||[]} onChange={ids=>setDraft(current=>{const selectedDefinitions=processDefinitions.filter(definition=>ids.includes(definition.id));const subcategoryIds=selectedDefinitions.flatMap(definition=>(definition.subcategories||[]).map((_,index)=>stableContactSubcategoryId(definition,index)));return {...current,processDefinitionIds:ids,processTypes:selectedDefinitions.map(definition=>definition.processType),processSubcategoryIds:(current.processSubcategoryIds||[]).filter(id=>subcategoryIds.includes(id))};})}/>
+      <SearchableMultiSelect id="contact-edit-process-subcategory" label="Process Directory subcategory" options={processDefinitions.filter(definition=>(draft.processDefinitionIds||[]).includes(definition.id)).flatMap(definition=>(definition.subcategories||[]).map((name,index)=>({id:stableContactSubcategoryId(definition,index),label:definition.category+" · "+definition.processType+" · "+name})))} selected={draft.processSubcategoryIds||[]} onChange={values=>setDraft(current=>({...current,processSubcategoryIds:values}))}/>
+      <label className="module-form-wide">Manual contact capability tags (separate from Process Directory)<input value={(draft.processSubcategories||[]).join(", ")} onChange={event=>setDraft(current=>({...current,processSubcategories:[...new Set(event.target.value.split(",").map(value=>value.trim()).filter(Boolean))]}))} placeholder="Enter contact-only tags separated by commas"/></label>
       <SearchableMultiSelect id="contact-edit-machine" label="Machine capability" options={[...new Set(vendors.flatMap(v=>v.machines.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)))].sort().map(value=>({id:value,label:value}))} selected={draft.machineCapabilities||[]} onChange={values=>setDraft(current=>({...current,machineCapabilities:values}))}/>
       <SearchableMultiSelect id="contact-edit-material" label="Material capability" options={[...new Set(vendors.flatMap(v=>v.materials.split(/[,;|]/).map(x=>x.trim()).filter(Boolean)))].sort().map(value=>({id:value,label:value}))} selected={draft.materialCapabilities||[]} onChange={values=>setDraft(current=>({...current,materialCapabilities:values}))}/>
      </div>
@@ -136,10 +171,36 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
  const [onlyAssigned,setOnlyAssigned]=useState(false);
  const vendorTypeOptions=[...new Set(vendors.map(v=>v.vendorType||"").filter(Boolean))].sort();
  const categoryOptions=[...new Set(definitions.map(p=>p.category).filter(Boolean))].sort();
- const processOptions=[...new Set(definitions.map(p=>p.processType).filter(Boolean))].sort();
- const selectedDefinitions=definitions.filter(p=>(!categories.length||categories.includes(p.category))&&(!processTypes.length||processTypes.includes(p.processType)));
- const subcategoryOptions=[...new Set(selectedDefinitions.flatMap(p=>p.subcategories||[]))].sort();
+ const legacyProcessNames=[...new Set([
+  ...vendors.flatMap(v=>String(v.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean)),
+  ...operations.filter(operation=>{
+   if(definitions.some(definition=>definition.id===operation.processDefinitionId))return false;
+   const matches=definitions.filter(definition=>definition.processType.trim().toLowerCase()===operation.name.trim().toLowerCase()&&definition.category.trim().toLowerCase()===operation.category.trim().toLowerCase());
+   return matches.length!==1;
+  }).map(operation=>operation.name)
+ ])].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+ const processOptions=[
+  ...definitions.map(definition=>({id:"directory:"+definition.id,label:definition.category+" · "+definition.processType})),
+  ...legacyProcessNames.map(name=>({id:"text:"+name.trim().toLowerCase(),label:"Vendor / legacy text · "+name}))
+ ];
+ const selectedDefinitions=definitions.filter(definition=>(!categories.length||categories.includes(definition.category))&&(!processTypes.length||processTypes.some(value=>value==="directory:"+definition.id)));
+ const subcategoryOptions=selectedDefinitions.flatMap(definition=>(definition.subcategories||[]).map((name,index)=>({
+  id:definition.subcategoryIds?.[index]||definition.id+"-subprocess-"+String(index+1).padStart(3,"0"),
+  label:definition.category+" · "+definition.processType+" · "+name
+ }))).sort((a,b)=>a.label.localeCompare(b.label));
+ const stableSubcategoryIdsFor=(definition:typeof definitions[number],name:string,storedId?:string)=>{
+  if(storedId)return storedId;
+  const index=definition.subcategories.indexOf(name);
+  if(index<0)return "";
+  return definition.subcategoryIds?.[index]||definition.id+"-subprocess-"+String(index+1).padStart(3,"0");
+ };
  const matchesAny=(selected:string[],source:string)=>!selected.length||selected.some(value=>source.toLowerCase().split(/[,;|]/).map(x=>x.trim()).includes(value.toLowerCase()));
+ const resolveOperationDefinition=(operation:typeof operations[number])=>{
+  const direct=definitions.find(definition=>definition.id===operation.processDefinitionId);
+  if(direct)return direct;
+  const matches=definitions.filter(definition=>definition.processType.trim().toLowerCase()===operation.name.trim().toLowerCase()&&definition.category.trim().toLowerCase()===operation.category.trim().toLowerCase());
+  return matches.length===1?matches[0]:undefined;
+ };
 
  const clearFilters=()=>{setSearch("");setVendorTypes([]);setCategories([]);setProcessTypes([]);setSubcategories([]);setExecutionTypes([]);setOnlyAssigned(false);};
  const rows=vendors.map(v=>{
@@ -154,18 +215,28 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
   const linkedContacts=contacts.filter(c=>c.linkedType==="vendor"&&c.linkedId===v.id).map(c=>[c.name,c.role,c.phone,c.whatsapp,c.email,c.group].join(" ")).join(" ");
   const capabilityText=capabilityDefinitions.map(definition=>[definition.processType,definition.category,...(definition.subcategories||[])].join(" ")).join(" ");
   const fullText=(v.company+" "+v.contact+" "+v.role+" "+v.phone+" "+v.email+" "+v.vendorType+" "+v.processes+" "+capabilityText+" "+v.machines+" "+v.materials+" "+v.notes+" "+linkedContacts+" "+assigned.map(op=>op.name+" "+op.category+" "+op.subcategory+" "+op.status).join(" ")).toLowerCase();
-  const operationCategory=assigned.map(op=>op.category).join(" ");
-  const operationTypes=assigned.map(op=>op.name).join(" ");
-  const operationSubcategories=assigned.map(op=>op.subcategory||"").join(" ");
+  const processAssignedOperations=assigned.filter(operation=>operation.vendorId===v.id);
+  const operationCategory=processAssignedOperations.map(op=>op.category).join(" ");
+  const capabilityDefinitionIds=capabilityDefinitions.map(definition=>definition.id);
+  const assignedDefinitionIds=processAssignedOperations.map(operation=>resolveOperationDefinition(operation)?.id||"").filter(Boolean);
+  const legacyProcessNamesForVendor=[...String(v.processes||"").split(/[,;|]/).map(value=>value.trim()).filter(Boolean),...processAssignedOperations.filter(operation=>!resolveOperationDefinition(operation)).map(operation=>operation.name)].map(value=>value.toLowerCase());
   const capabilityCategories=capabilityDefinitions.map(definition=>definition.category).join(" ");
-  const capabilityTypes=capabilityDefinitions.map(definition=>definition.processType).join(" ");
-  const capabilitySubcategories=capabilityDefinitions.flatMap(definition=>definition.subcategories||[]).join(" ");
+  const capabilitySubcategoryIds=capabilityDefinitions.flatMap(definition=>definition.subcategories.map(name=>stableSubcategoryIdsFor(definition,name)));
+  const operationSubcategoryIds=processAssignedOperations.map(operation=>{
+   const definition=definitions.find(item=>item.id===operation.processDefinitionId)
+    || definitions.find(item=>item.processType===operation.name&&item.category===operation.category);
+   return definition?stableSubcategoryIdsFor(definition,operation.subcategory||"",operation.processSubcategoryId):operation.processSubcategoryId||"";
+  }).filter(Boolean);
   const execution=assigned.map(op=>op.executionType||"Outsourced").join(" ");
+  const subcategoryMatch=!subcategories.length||subcategories.some(id=>capabilitySubcategoryIds.includes(id)||operationSubcategoryIds.includes(id));
+  const processMatch=!processTypes.length||processTypes.some(value=>value.startsWith("directory:")
+   ? capabilityDefinitionIds.includes(value.slice(10))||assignedDefinitionIds.includes(value.slice(10))
+   : value.startsWith("text:")&&legacyProcessNamesForVendor.includes(value.slice(5)));
   return fullText.includes(search.toLowerCase().trim())
    &&(!vendorTypes.length||vendorTypes.includes(v.vendorType||""))
    &&matchesAny(categories,capabilityCategories+" "+operationCategory)
-   &&matchesAny(processTypes,capabilityTypes+" "+v.processes+" "+operationTypes)
-   &&matchesAny(subcategories,capabilitySubcategories+" "+operationSubcategories)
+   &&processMatch
+   &&subcategoryMatch
    &&matchesAny(executionTypes,execution)
    &&(!onlyAssigned||assigned.length>0);
  });
@@ -177,8 +248,8 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
  <div className="contact360-filter-grid ax-search-filter-columns">
   <SearchableMultiSelect id="network-vendor-type" label="Vendor category" options={vendorTypeOptions.map(x=>({id:x,label:x}))} selected={vendorTypes} onChange={setVendorTypes} emptyMeansAll/>
   <SearchableMultiSelect id="network-process-category" label="Process category" options={categoryOptions.map(x=>({id:x,label:x}))} selected={categories} onChange={setCategories} emptyMeansAll/>
-  <SearchableMultiSelect id="network-process-type" label="Process type" options={processOptions.map(x=>({id:x,label:x}))} selected={processTypes} onChange={setProcessTypes} emptyMeansAll/>
-  <SearchableMultiSelect id="network-subcategory" label="Subcategory" options={subcategoryOptions.map(x=>({id:x,label:x}))} selected={subcategories} onChange={setSubcategories} emptyMeansAll/>
+  <SearchableMultiSelect id="network-process-type" label="Process type" options={processOptions} selected={processTypes} onChange={setProcessTypes} emptyMeansAll/>
+  <SearchableMultiSelect id="network-subcategory" label="Subcategory" options={subcategoryOptions} selected={subcategories} onChange={setSubcategories} emptyMeansAll/>
   <SearchableMultiSelect id="network-execution" label="Execution" options={["Internal","Outsourced"].map(x=>({id:x,label:x}))} selected={executionTypes} onChange={setExecutionTypes} emptyMeansAll/>
  </div>
 </section>

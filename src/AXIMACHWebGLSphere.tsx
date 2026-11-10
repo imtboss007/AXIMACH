@@ -29,7 +29,7 @@ void main() {
   float t = -b - sqrt(h);
   vec3 hit = ro + rd * t;
   // User drag changes the surface-coordinate orientation through globeRotation.
-  // The globe remains spherical and never auto-rotates while idle.
+  // The parent drives this true spherical surface during idle rotation and drag.
   vec3 q = hit;
   float cx = cos(globeRotation.x), sx = sin(globeRotation.x);
   float cy = cos(globeRotation.y), sy = sin(globeRotation.y);

@@ -38,14 +38,20 @@ The machine-readable process/category/sub-process fixture is in [tests/fixtures/
 
 ## Command globe and logo export acceptance additions
 
-- The main dashboard and 3D Command Centre share the same manually draggable globe component; the lower live-record shell is a separate rotator. Neither sphere should auto-rotate while idle.
+- The main dashboard and 3D Command Centre share the same full WebGL sphere component. The 18-module shell and separate lower live-record shell auto-rotate by default; pointer/touch drag takes over immediately, and Pause auto-rotation stops idle movement. Each shell has an independent drag lock/unlock control, and each workspace surface retains its own saved interaction preferences.
 - The 18 module controls use Fibonacci-sphere coordinates distributed across the full spherical surface. Rear-facing controls are hidden by back-face culling until the operator rotates them into view. The WebGL globe surface texture receives the same drag orientation as a shader uniform, so the spherical silhouette stays round instead of rotating as a flat canvas plane.
 - The lower shell carries six live record categories: companies, purchase orders, PO component lines, components, vendors and open operations.
 - Component Master and Purchase Order PDF/Excel exports include the component logo. A saved imported SVG/PNG logo is preferred when present; otherwise the deterministic name-based mechanical symbol is used.
 - Every saved Component Master row opens Logo Studio with its own stable component ID preselected. The Component Master also exposes the 46-symbol mechanical inventory; Process Directory exposes the same inventory and per-process Logo Studio actions.
 - Process Directory PDF/Excel exports include the saved process logo asset where available, with a process-name-based mechanical glyph fallback.
-- Process Directory keeps a process-type colour and provides a stable-ID Logo Studio action for each process definition. Sub-process logo assignments use stable subcategory IDs.
+- Process Directory keeps a process-type colour and provides a stable-ID Logo Studio action for each process definition. Sub-process logo assignments use stable subcategory IDs. Process Plan operations and Component Planned Cost rows persist both the Process Directory definition ID and the selected stable subcategory ID; adding a sub-process inherits its parent definition before the user selects a permitted subcategory. Vendor Network and Contact 360 derive their Process Directory subcategory filter options from those stable IDs as well, while separate manually entered Contact 360 capability tags remain explicitly labelled as contact-level metadata.
 - Example company/vendor/PO data remain an isolated acceptance fixture. The application must not seed Company XYZ or PO-1 into live records.
+
+## Automated interaction-contract coverage and manual device acceptance
+
+- Regression tests assert that the 10 Process Plan view buttons select the matching visual renderer, with 3D Sphere, Vortex and Combined 3D opening the corresponding 3D layout. Dashboard and Command Centre sphere tests also assert no idle auto-rotation timer, direct drag on the WebGL sphere core, independent lower-shell drag control, and clickable module navigation.
+- Alternate and rework branch origin resolution walks the complete parent chain, so a selected-branch or selected-operation route scope still displays the original parent connection. Main-route connectors use process colour, alternate connectors use blue and rework connectors use orange. The same arrow connectors render directly in the 3D process orbit, including a parent-origin marker when the parent is outside the current scope.
+- Route-scope regression checks cover the selected diagram data and all five export handlers. Physical end-to-end checks must still be completed on a configured PC and Android device.
 
 ## Manual device acceptance still required
 
