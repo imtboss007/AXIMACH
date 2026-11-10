@@ -90,7 +90,7 @@ export type OperationRecord = {
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
   paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string; processSubcategoryId?: string;
   executionType?: "Internal" | "Outsourced"; toleranceCategory?: "Standard" | "Precision" | "Close" | "Ultra Precision"; inspectionRequired?: boolean;
-  transportFrom?: string; transportTo?: string; transportVehicleType?: string; transportRouteId?: string;
+  transportFrom?: string; transportTo?: string; transportVehicleType?: string; transportRouteId?: string; transportTripDirection?: "One-way" | "Two-way";
   /** Snapshot of the Process Directory identity colour used by this saved operation. */
   processColor?: string;
   branch: string; parentId: string; relationType?: "subprocess" | "alternate" | "rework"; costIncluded?: boolean; createdAt: string; updatedAt: string; deletedAt?: string;
