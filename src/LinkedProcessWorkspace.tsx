@@ -8,7 +8,7 @@ import ProcessUniverse3D from "./ProcessUniverse3D";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 import TransportRecordInspector from "./TransportRecordInspector";
 import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector";
-import { transportPopupAnchorFromPoint } from "./transportPopup";
+import { transportPopupAnchor, transportPopupAnchorFromPoint } from "./transportPopup";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
