@@ -1869,13 +1869,13 @@ test("Process Map routes integrate material and saved transport legs before and 
   assert.ok(process.includes('kind:"material-transport"'));
   assert.ok(process.includes('kind:"transport",id:"transport-"+leg.id'));
   assert.ok(process.includes('onClick={()=>editTransportLeg(leg)}'));
-  assert.ok(process.includes('onSelectTransportLeg={id=>'));
+  assert.ok(process.includes('onSelectTransportLeg={(id,anchor)=>'));
   assert.ok(universe.includes("transportLegs?: TransportLegRouteNode[]"));
   assert.ok(universe.includes("transportLegs={transportLegs} onSelectTransportLeg={onSelectTransportLeg}"));
   assert.ok(scene.includes("const transportLegPlacements=useMemo"));
   assert.ok(scene.includes("projectedTransportLegs.map"));
-  assert.ok(scene.includes('TRANSPORT DIRECTORY · {index+1}/{transportLegs.length}'));
-  assert.ok(scene.includes('{leg.vehicleType||"Vehicle not set"}'));
+  assert.ok(scene.includes('ax-full3d-transport-icon'));
+  assert.ok(scene.includes('title={(leg.vehicleType||"Transport")+" · "+(leg.vendorName||"Transporter not assigned")}'));
   assert.ok(scene.includes('"operation-transport-"+item.leg.id'));
 });
 
@@ -1981,7 +1981,7 @@ test("Route Flow draws vehicle-specific transport icons on curved connectors and
   assert.ok(route.includes("vehicleType={connector.vehicleType}"));
   assert.ok(route.includes("tripCount={connector.tripCount}"));
   assert.ok(route.includes("route-flow-vehicle-marker"));
-  assert.ok(route.includes("Add another leg to show another carrier or vehicle on the same connection."));
+  assert.ok(route.includes("transportFromMaterialId"));
   assert.ok(css.includes(".route-flow-vehicle-marker"));
 });
 
@@ -2109,11 +2109,11 @@ test("Transport icon opens the linked directory route and full transporter profi
   const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
   assert.ok(route.includes("setInspectedTransportId(node.leg.id)"));
   assert.ok(route.includes("TransportRecordInspector"));
-  assert.ok(universe.includes("onSelectTransportLeg={id=>setInspectedTransportId(id)}"));
+  assert.ok(universe.includes("onSelectTransportLeg={(id,anchor)=>"));
   assert.ok(universe.includes("TransportRecordInspector"));
   assert.ok(scene.includes("TRANSPORT DIRECTORY"));
   for(const field of ["vendor?.contact","vendor?.phone","vendor?.whatsappNumber","vendor?.email","vendor?.address","vendor?.notes","leg.fromLocation","leg.toLocation","leg.tripCount","leg.fixedAmount","leg.pickupAt","leg.deliveryAt"]) assert.ok(inspector.includes(field));
-  for(const tone of ["bike","bus","car","air","ship","rail","truck"]) assert.ok(css.includes(".ax-full3d-transport-leg-label.vehicle-"+tone));
+  for(const tone of ["bike","bus","car","air","ship","rail","truck"]) assert.ok(css.includes(".ax-full3d-transport-icon.vehicle-"+tone));
 });
 
 test("Both engineering workspaces share persistent light, medium, dark and ocean palettes", () => {
@@ -2141,11 +2141,11 @@ test("Inbound material transport icons open the complete transporter directory i
   assert.ok(route.includes("MaterialTransportRecordInspector"));
   assert.ok(route.includes("setInspectedMaterialTransportId(node.entry.id)"));
   assert.ok(universe.includes("MaterialTransportRecordInspector"));
-  assert.ok(universe.includes("onSelectMaterialTransport={id=>setInspectedMaterialTransportId(id)}"));
+  assert.ok(universe.includes("onSelectMaterialTransport={(id,anchor)=>"));
   assert.ok(universe3d.includes("onSelectMaterialTransport"));
   assert.ok(universe3d.includes("onSelectMaterialTransport={onSelectMaterialTransport}"));
   assert.ok(scene.includes("INBOUND TRANSPORT DIRECTORY"));
-  assert.ok(scene.includes("onSelectMaterialTransport?.(route.id)"));
+  assert.ok(scene.includes("onSelectMaterialTransport?.(route.id,{x:rect.left,y:rect.top})"));
   for(const field of ["entry.materialName","entry.materialGrade","entry.transportFrom","entry.transportTo","entry.transportPickupAt","entry.transportDeliveryAt","entry.transportCost","vendor?.phone","vendor?.whatsappNumber","vendor?.email","directoryRoute?.fixedCost"]) assert.ok(inspector.includes(field));
 });
 
