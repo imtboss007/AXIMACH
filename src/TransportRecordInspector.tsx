@@ -5,7 +5,7 @@ type Props={
   leg:ComponentTransportLegRecord;
   vendor?:VendorRecord;
   directoryRoute?:TransportRouteRecord;
-  legacyVendorRoute?:VendorRecord["transportRoutes"] extends Array<infer T>?T:never;
+  legacyVendorRoute?:VendorTransportRoute;
   onClose:()=>void;
   onOpenDirectory?:()=>void;
 };
