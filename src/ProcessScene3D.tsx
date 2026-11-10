@@ -32,7 +32,7 @@ const hasMaterialTransport=(route:MaterialRouteNode)=>Boolean(
  route.from || route.to || route.vehicle || route.transportCost>0 || route.pickupAt || route.deliveryAt
 );
 
-type Props = { operations: OperationRecord[]; materialRoutes?: MaterialRouteNode[]; transportLegs?:TransportLegNode[]; visibleFields?:string[]; autoRotate?: boolean; mode: Mode; selectedOperationId: string; expandedOperationId?: string; onSelectOperation: (id:string)=>void; onExpandOperation?:(id:string)=>void; onArrowSelect?:(id:string)=>void; onSelectTransportLeg?:(id:string,anchor?:{x:number;y:number})=>void; onSelectMaterialTransport?:(id:string,anchor?:{x:number;y:number})=>void; edges?:Array<{from:OperationRecord;to:OperationRecord;relation:string;color:string}>; coordinateOperations?:OperationRecord[]; anchors?:RouteAnchor[]; catalogue?:CatalogueDefinition[]; onAddCatalogue?:(id:string)=>void; showArrows?: boolean; vendors?:Array<{id:string;company:string}>; quantityUnit?:string; ganttScale?:"day"|"week"|"month" };
+type Props = { operations: OperationRecord[]; materialRoutes?: MaterialRouteNode[]; transportLegs?:TransportLegNode[]; visibleFields?:string[]; autoRotate?: boolean; mode: Mode; selectedOperationId: string; expandedOperationId?: string; onSelectOperation: (id:string)=>void; onExpandOperation?:(id:string)=>void; onArrowSelect?:(id:string)=>void; onSelectTransportLeg?:(id:string,anchor?:{x:number;y:number})=>void; onSelectMaterialTransport?:(id:string,anchor?:{x:number;y:number})=>void; edges?:Array<{from:OperationRecord;to:OperationRecord;relation:string;color:string}>; coordinateOperations?:OperationRecord[]; anchors?:RouteAnchor[]; catalogue?:CatalogueDefinition[]; onAddCatalogue?:(id:string)=>void; showArrows?: boolean; vendors?:Array<{id:string;company:string}>; quantityUnit?:string; ganttScale?:"day"|"week"|"month"; simulationIndex?:number };
 const EMPTY_CATALOGUE: CatalogueDefinition[] = [];
 
 type P = {x:number;y:number;z:number};
@@ -173,7 +173,7 @@ const SPHERE_GUIDE_MESH = sphereWireMesh(1.025);
 const SPHERE_ORBIT_MESH = sphereOrbitMesh();
 function pointFor(i:number,n:number,mode:Mode):P{const t=(i+0.5)/Math.max(1,n),a=i*2.399963;const c=i-(n-1)/2;switch(mode){case"route":case"linear":case"horizontal":case"pipeline":return{x:c*.72,y:Math.sin(i*.7)*.16,z:Math.cos(i*.5)*.18};case"vertical":return{x:Math.cos(a)*.34,y:-c*.64,z:Math.sin(a)*.34};case"timeline":case"gantt":return{x:(t-.5)*2.5,y:Math.sin(i*.8)*.12,z:Math.cos(i*.6)*.28};case"cube":{const s=Math.ceil(Math.cbrt(n));return{x:((i%s)-(s-1)/2)*.72,y:((Math.floor(i/s)%s)-(s-1)/2)*.72,z:(Math.floor(i/(s*s))-(s-1)/2)*.72};}case"vortex":{const r=.35+t*.72;return{x:Math.cos(a)*r,y:(t-.5)*1.7,z:Math.sin(a)*r};}case"molecular":case"network":return{x:Math.cos(Math.floor(i/3)*2.1)*.55+Math.cos(a)*.25,y:Math.sin(i*.8)*.35,z:Math.sin(Math.floor(i/3)*2.1)*.55+Math.sin(a)*.25};case"orbit":{const r=.42+(i%3)*.28;return{x:Math.cos(a)*r,y:Math.sin(i*.65)*.42,z:Math.sin(a)*r};}case"nodes":return{x:(i%3-1)*.8,y:(Math.floor(i/3)-(Math.ceil(n/3)-1)/2)*.65,z:(i%2?1:-1)*.24};case"branch":return{x:c*.55,y:(i%3-1)*.25,z:(i%2?1:-1)*.52};case"digital-mesh":case"grid":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=row%2?cols-1-i%cols:i%cols;return{x:(col-(cols-1)/2)*.58,y:((Math.ceil(n/cols)-1)/2-row)*.55,z:Math.sin(i*.45)*.12};}case"helix":{const radius=.48+(i%3)*.08;return{x:Math.cos(i*1.08)*radius,y:(t-.5)*2.05,z:Math.sin(i*1.08)*radius};}case"stacked":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=i%cols,rows=Math.ceil(n/cols);return{x:(col-(cols-1)/2)*.7,y:((rows-1)/2-row)*.68,z:(i%3-1)*.48};}case"layered":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=i%cols,rows=Math.ceil(n/cols),layers=Math.max(1,Math.ceil(rows/2));return{x:(col-(cols-1)/2)*.68,y:((rows-1)/2-row)*.62,z:(Math.floor(row/2)-(layers-1)/2)*.46};}case"matrix":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),rows=Math.ceil(n/cols),row=Math.floor(i/cols),col=i%cols;return{x:(col-(cols-1)/2)*.64,y:((rows-1)/2-row)*.62,z:(i%3-1)*.12};}case"tree":{const level=Math.floor(Math.log2(i+1)),first=Math.pow(2,level)-1,slot=i-first,count=Math.pow(2,level);return{x:((slot+.5)/count*2-1)*Math.min(1.2,.48+count*.16),y:.82-level*.62,z:(slot%2?1:-1)*.16};}case"combined":return{x:Math.cos(a)*(.4+t*.6),y:Math.sin(i*.9)*.5,z:Math.sin(a)*(.4+t*.6)};default:{const depth=.95-((i+.5)/Math.max(1,n))*.86,r=Math.sqrt(Math.max(0,1-depth*depth));return{x:Math.cos(a)*r*.9,y:Math.sin(a)*r*.9,z:depth*.9};}}}
 
-export default function ProcessScene3D({operations,materialRoutes=[],transportLegs=[],visibleFields=[],autoRotate=true,mode,selectedOperationId,expandedOperationId="",onSelectOperation,onExpandOperation,onArrowSelect,onSelectTransportLeg,onSelectMaterialTransport,edges=[],coordinateOperations=[],anchors=[],catalogue=EMPTY_CATALOGUE,onAddCatalogue,showArrows=true,vendors=[],quantityUnit="pieces",ganttScale="week"}:Props){
+export default function ProcessScene3D({operations,materialRoutes=[],transportLegs=[],visibleFields=[],autoRotate=true,mode,selectedOperationId,expandedOperationId="",onSelectOperation,onExpandOperation,onArrowSelect,onSelectTransportLeg,onSelectMaterialTransport,edges=[],coordinateOperations=[],anchors=[],catalogue=EMPTY_CATALOGUE,onAddCatalogue,showArrows=true,vendors=[],quantityUnit="pieces",ganttScale="week",simulationIndex=-1}:Props){
  const canvas=useRef<HTMLCanvasElement>(null),[angle,setAngle]=useState(0),rotationRef=useRef(0),[dragging,setDragging]=useState(false),drag=useRef<{x:number;y:number;angle:number}|null>(null),[size,setSize]=useState({w:600,h:500});
  const rows=useMemo(()=>operations.slice().sort((a,b)=>a.sequence-b.sequence),[operations]);
  const geometryRows=useMemo(()=>{const byId=new Map<string,OperationRecord>();for(const op of (coordinateOperations.length?coordinateOperations:rows))byId.set(op.id,op);for(const anchor of anchors)byId.set(anchor.operation.id,anchor.operation);return [...byId.values()].sort((a,b)=>a.sequence-b.sequence);},[coordinateOperations,rows,anchors]);
@@ -208,7 +208,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const toOperation=(leg.targetOperationId?lineRows.find(operation=>operation.id===leg.targetOperationId):undefined)||(leg.placement==="start"?lineRows[0]:leg.placement==="before"?anchor:(anchorIndex>=0?lineRows[anchorIndex+1]:undefined));
   const fromPoint=fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined;
   const toPoint=toOperation?geometryPoints.find(item=>item.op.id===toOperation.id)?.p:undefined;
-  const siblings=transportLegs.filter(other=>other.poLineId===leg.poLineId&&other.anchorOperationId===leg.anchorOperationId&&other.materialEntryId===leg.materialEntryId&&other.placement===leg.placement);
+  const siblings=transportLegs.filter(other=>other.poLineId===leg.poLineId&&other.placement===leg.placement&&(leg.targetOperationId?other.targetOperationId===leg.targetOperationId:other.anchorOperationId===leg.anchorOperationId));
   const lane=(siblings.findIndex(other=>other.id===leg.id)-(siblings.length-1)/2)*.17;
   let point:P;
   if(fromPoint&&toPoint)point={x:(fromPoint.x+toPoint.x)/2,y:(fromPoint.y+toPoint.y)/2+lane,z:(fromPoint.z+toPoint.z)/2+.16};
@@ -232,6 +232,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
    geometryRows.forEach((op,index)=>{const segment=ganttSegment(index,geometryRows,ganttScale),status=op.status.toLowerCase();const rgb=status.includes("complete")?[.12,.62,.42]:status.includes("running")?[.12,.42,.88]:status.includes("hold")?[.83,.27,.35]:op.relationType==="rework"?[.89,.48,.18]:op.relationType==="alternate"?[.18,.49,.86]:[.35,.56,.78];const length=Math.hypot(segment.end.x-segment.start.x,segment.end.y-segment.start.y,segment.end.z-segment.start.z);if(segment.hasStart&&segment.hasEnd&&length>.035)draw(lineMesh(segment.start,segment.end,.071),rgb);if(segment.scheduled){draw(sphereMesh(segment.start.x,segment.start.y,segment.start.z,.052),rgb);if(length>.035)draw(sphereMesh(segment.end.x,segment.end.y,segment.end.z,.052),rgb);}else draw(sphereMesh(segment.center.x,segment.center.y,segment.center.z,.065),[.52,.59,.68]);});
  }
  const pointById=new Map(geometryPoints.map(({op,p})=>[op.id,p]));
+ const simulatedOperation=simulationIndex>=0?rows[simulationIndex]:undefined;
  const replacedOperationEdges=new Set([
   ...materialPlacements.filter(item=>item.fromOperation&&item.toOperation).map(item=>item.fromOperation!.id+"->"+item.toOperation!.id),
   ...transportLegPlacements.filter(item=>item.fromOperation&&item.toOperation).map(item=>item.fromOperation!.id+"->"+item.toOperation!.id)
@@ -277,37 +278,43 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   if(!p||!q)return;
   const fallback=edge.relation==="rework"?[.93,.25,.29]:edge.relation==="alternate"?[.95,.61,.12]:[.12,.43,.82];
   const hex=String(edge.color||"").replace("#","");
-  const rgb=/^[0-9a-f]{6}$/i.test(hex)?[0,2,4].map(index=>parseInt(hex.slice(index,index+2),16)/255):fallback;
-  drawOperationFlow(p,q,edgeIndex,rgb,edge.relation);
+  const baseRgb=/^[0-9a-f]{6}$/i.test(hex)?[0,2,4].map(index=>parseInt(hex.slice(index,index+2),16)/255):fallback;
+  const isSimulationEdge=!!simulatedOperation&&edge.to.id===simulatedOperation.id;
+  const rgb=isSimulationEdge?[.05,.86,1]:baseRgb;
+  drawOperationFlow(p,q,edgeIndex,rgb,isSimulationEdge?"main":edge.relation);
  });
  materialPlacements.forEach((placement,index)=>{
   const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
   const to=placement.toOperation?pointById.get(placement.toOperation.id):undefined;
   const rgb=[.06,.76,.98];
   const hasTransport=hasMaterialTransport(placement.route);
-  const startLegs=transportLegPlacements.filter(item=>item.leg.poLineId===placement.route.poLineId&&item.leg.placement==="start"&&!item.leg.anchorOperationId);
+  const hasMaterialSpecificLeg=transportLegPlacements.some(item=>item.leg.materialEntryId===placement.route.id);
   const routeExit=hasTransport?placement.transportPoint:placement.materialPoint;
   if(from)drawFlow(from,placement.materialPoint,index*3,rgb,.037);
   if(hasTransport){
    drawFlow(placement.materialPoint,placement.transportPoint,index*3+1,rgb,.042);
    draw(boxMesh(placement.transportPoint.x,placement.transportPoint.y,placement.transportPoint.z,.105),[.14,.55,.91]);
   }
-  if(startLegs.length)startLegs.forEach((leg,legIndex)=>drawFlow(routeExit,leg.point,index*5+legIndex+2,rgb,.032));
-  else if(to)drawFlow(routeExit,to,index*3+2,rgb,.037);
+  // A material with its own transport leg must not also receive a synthetic direct edge.
+  if(to&&!hasMaterialSpecificLeg)drawFlow(routeExit,to,index*3+2,rgb,.037);
   draw(sphereMesh(placement.materialPoint.x,placement.materialPoint.y,placement.materialPoint.z,.13),[.03,.78,.96]);
  });
  transportLegPlacements.forEach((placement,index)=>{
   const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
   const to=placement.toOperation?pointById.get(placement.toOperation.id):undefined;
   const rgb=placement.leg.relation==="rework"?[.9,.43,.12]:placement.leg.relation==="alternate"?[.18,.49,.88]:[.12,.68,.86];
-  const materialSource=placement.leg.materialEntryId?materialPlacements.find(item=>item.route.id===placement.leg.materialEntryId):undefined;
+  const materialSource=placement.leg.materialEntryId
+   ?materialPlacements.find(item=>item.route.id===placement.leg.materialEntryId)
+   :placement.leg.placement==="start"&&!placement.leg.anchorOperationId
+    ?materialPlacements.filter(item=>!placement.leg.poLineId||item.route.poLineId===placement.leg.poLineId).slice().sort((a,b)=>a.index-b.index)[0]
+    :undefined;
   const fromMaterial=materialSource?(hasMaterialTransport(materialSource.route)?materialSource.transportPoint:materialSource.materialPoint):undefined;
   if(from)drawFlow(from,placement.point,index*2,rgb,.034);else if(fromMaterial)drawFlow(fromMaterial,placement.point,index*2,rgb,.034);
   if(to)drawFlow(placement.point,to,index*2+1,rgb,.034);
   draw(boxMesh(placement.point.x,placement.point.y,placement.point.z,.115),[.08,.55,.85]);
   draw(sphereMesh(placement.point.x,placement.point.y,placement.point.z,.065),[.12,.79,.94]);
  });
- points.forEach(({p,op})=>{const rgb=operationRgb(op);draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"||mode==="layered"||mode==="matrix"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:[.24,.5,.78];draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>cancelAnimationFrame(raf);},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialPlacements,transportLegPlacements]);
+ points.forEach(({p,op})=>{const rgb=operationRgb(op);draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"||mode==="layered"||mode==="matrix"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);if(op.id===simulatedOperation?.id){const radius=.22+Math.sin(now*.008)*.035;for(let segment=0;segment<32;segment++){const a=segment*Math.PI*2/32,b=(segment+1)*Math.PI*2/32;draw(lineMesh({x:p.x+Math.cos(a)*radius,y:p.y+Math.sin(a)*radius,z:p.z+.015},{x:p.x+Math.cos(b)*radius,y:p.y+Math.sin(b)*radius,z:p.z+.015},.012),[.04,.86,1]);}draw(sphereMesh(p.x,p.y,p.z,.065),[.05,.88,1]);}});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:[.24,.5,.78];draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>cancelAnimationFrame(raf);},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialPlacements,transportLegPlacements,simulationIndex]);
  useEffect(()=>{const el=canvas.current;if(!el)return;const ro=new ResizeObserver(entries=>{const r=entries[0]?.contentRect;if(r)setSize({w:r.width,h:r.height});});ro.observe(el);return()=>ro.disconnect();},[]);
  const projectedLayout=useMemo(()=>{
   const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));
