@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront } from "lucide-react";
 import type { OperationRecord } from "./manufacturingData";
 
-type Mode = "sphere"|"cube"|"vortex"|"helix"|"orbit"|"network"|"grid"|"pipeline"|"layered"|"stacked"|"matrix"|"tree"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined"|"molecular"|"digital-mesh"|"route";
+type Mode = "sphere"|"cube"|"vortex"|"helix"|"orbit"|"network"|"grid"|"pipeline"|"layered"|"stacked"|"matrix"|"tree"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined"|"molecular"|"digital-mesh"|"route"|"orthogonal"|"s-curve"|"swimlane"|"radial"|"circular"|"organic";
 type CatalogueDefinition = { id:string; processType:string; category:string; displayColor?:string };
 type RouteAnchor = { operation:OperationRecord; relation:string; color:string };
 type MaterialRouteNode = { id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
