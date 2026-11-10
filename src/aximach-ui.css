@@ -2706,3 +2706,29 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .route-flow-relationship-type small{font-size:7px}
   .route-flow-matrix-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 60px}
 }
+
+/* Keep optional global follow-up controls out of the two immersive engineering canvases. */
+.app-shell:has(.route-flow-workspace) .ax-followup-assignment-dock,
+.app-shell:has(.manufacturing-universe-workspace) .ax-followup-assignment-dock{display:none!important}
+
+/* Explicit SVG primitives for merge/split/feedback and parallel route glyphs. */
+.route-flow-curve-secondary,
+.route-flow-curve-feedback-head,
+.route-flow-curve-branch{fill:none;stroke:currentColor;stroke-width:2.7;stroke-linecap:round;stroke-linejoin:round}
+.route-flow-curve-secondary{stroke-width:2.2;opacity:.82}
+.route-flow-curve-merge .route-flow-curve-branch,
+.route-flow-curve-split .route-flow-curve-branch{stroke-width:3.5}
+.route-flow-curve-feedback .route-flow-curve-feedback-head{stroke-width:3.2}
+.route-flow-stage-transport .route-flow-node-top svg,
+.route-flow-vehicle-chip svg{color:#1685c4;filter:drop-shadow(0 0 4px rgba(22,133,196,.25))}
+.route-flow-vehicle-chip{display:inline-flex!important;align-items:center;gap:6px;padding:6px 8px;border:1px solid #b9d8ee;border-radius:7px;background:#edf8ff;color:#23628e!important;font-weight:700}
+.route-flow-curve-transport .route-flow-vehicle-marker{display:flex;align-items:center;gap:5px}
+@media(max-width:760px){
+ .route-flow-canvas-layout{gap:9px}
+ .route-flow-relationship-panel{order:2}
+ .route-flow-relationship-types{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .route-flow-stage-scroll{max-height:58vh}
+ .route-flow-stage-track{padding-bottom:12px}
+ .route-flow-relationship-matrix{overflow-x:auto}
+ .route-flow-matrix-row{min-width:320px}
+}
