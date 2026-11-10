@@ -2298,3 +2298,18 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .ax-full3d-transport-leg-label small{display:flex;align-items:center;gap:4px;color:#8fe5f1;font-size:8px}
 .ax-full3d-transport-leg-label strong{color:#f2fcff;font-size:10px}
 .ax-full3d-transport-leg-label em{color:#8cebf3;font-style:normal;font-size:9px;font-weight:800}
+
+
+/* Independent route panels: opening one section never expands its neighbours. */
+.process-route-flow-collapsible,.process-material-route-collapsible,.process-universe-collapsible{display:block;min-width:0;margin:12px 0;border:1px solid #1d4968;border-radius:12px;background:linear-gradient(145deg,#0a2034,#071727);color:#d9eafa;overflow:hidden}
+.process-route-flow-collapsible>.process-route-flow-heading,.process-material-route-collapsible>.process-material-route-heading,.process-universe-collapsible>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:12px 15px;cursor:pointer;list-style:none;color:#e8f7ff}
+.process-route-flow-collapsible>.process-route-flow-heading::-webkit-details-marker,.process-material-route-collapsible>.process-material-route-heading::-webkit-details-marker,.process-universe-collapsible>summary::-webkit-details-marker{display:none}
+.process-route-flow-collapsible>.process-route-flow-heading:after,.process-material-route-collapsible>.process-material-route-heading:after,.process-universe-collapsible>summary:after{content:"＋";flex:0 0 auto;color:#36c8ee;font-size:17px;font-weight:700}
+.process-route-flow-collapsible[open]>.process-route-flow-heading:after,.process-material-route-collapsible[open]>.process-material-route-heading:after,.process-universe-collapsible[open]>summary:after{content:"−"}
+.process-route-flow-collapsible>.process-route-flow-heading strong,.process-material-route-collapsible>.process-material-route-heading strong,.process-universe-collapsible>summary strong{font-size:12px;color:#f1f8ff}
+.process-route-flow-collapsible>.process-route-flow-heading span,.process-material-route-collapsible>.process-material-route-heading span,.process-universe-collapsible>summary span{font-size:9px;color:#8eacc6}
+.process-route-flow-collapsible[open]>.process-route-flow-heading,.process-material-route-collapsible[open]>.process-material-route-heading,.process-universe-collapsible[open]>summary{border-bottom:1px solid #1d4968;background:#0b2942}
+.process-route-flow-collapsible>.process-route-flow-lane{margin:12px}
+.process-material-route-collapsible>.process-material-route-row{margin:10px 12px}
+.process-universe-collapsible>.process-visual-stage{margin:0;padding:10px;border:0;border-radius:0}
+@media(max-width:600px){.process-route-flow-collapsible>.process-route-flow-heading,.process-material-route-collapsible>.process-material-route-heading,.process-universe-collapsible>summary{align-items:flex-start;flex-wrap:wrap}.process-route-flow-collapsible>.process-route-flow-heading span,.process-material-route-collapsible>.process-material-route-heading span,.process-universe-collapsible>summary span{flex-basis:100%;padding-right:22px}}
