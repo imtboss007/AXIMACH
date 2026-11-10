@@ -354,5 +354,5 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
    {projectedCatalogue.map(({definition,screen},index)=>screen&&<button key={definition.id} type="button" className="ax-full3d-label ax-full3d-catalogue-label" style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>onAddCatalogue?.(definition.id)} disabled={!onAddCatalogue} aria-label={"Add "+definition.processType+" to this PO line"}><small>LIB-{String(index+1).padStart(2,"0")}</small><strong>{definition.processType}</strong><em>{definition.category} · ADD STAGE</em></button>)}
   </div>
   <div className="ax-full3d-controls"><span>{dragging?"DRAGGING · TRUE 3D VIEW":mode.toUpperCase()+" · WEBGL 3D · "+(autoRotate?"AUTO ROTATING":"ROTATION PAUSED")}</span></div>
- </div></div>;
+ </div>;
 }
