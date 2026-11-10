@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord, type RouteRelationshipRecord } from "./manufacturingData";
 import ProcessUniverse3D from "./ProcessUniverse3D";
@@ -28,6 +28,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
   const [zoom,setZoom]=useState(()=>typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches?.78:1),[simulationIndex,setSimulationIndex]=useState(-1);
+  const [simulationActive,setSimulationActive]=useState(false);
   const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
   const [showUniverseSettings,setShowUniverseSettings]=useState(false);
   const [visibleUniverseFields,setVisibleUniverseFields]=useState<string[]>(["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]);
@@ -45,6 +46,19 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const allRouteOperations=operations.filter(row=>row.poId===poId&&row.poLineId===poLineId);
   const routeOperations=allRouteOperations.filter(row=>row.relationType!=="subprocess").sort((a,b)=>a.sequence-b.sequence);
   const activeOperation=routeOperations.find(row=>row.id===selectedOperationId)||routeOperations[0];
+  const simulationOperations=routeOperations.filter(row=>row.relationType!=="subprocess");
+  const simulatedOperationId=simulationOperations[simulationIndex]?.id||"";
+  useEffect(()=>{
+    if(!simulationActive)return;
+    if(!simulationOperations.length||simulationIndex>=simulationOperations.length-1){setSimulationActive(false);return;}
+    const timer=window.setTimeout(()=>setSimulationIndex(index=>index+1),950);
+    return ()=>window.clearTimeout(timer);
+  },[simulationActive,simulationIndex,simulationOperations.length]);
+  useEffect(()=>{
+    if(!simulationActive||simulationIndex<0||!simulatedOperationId)return;
+    setSelectedOperationId(simulatedOperationId);
+  },[simulationActive,simulationIndex,simulatedOperationId]);
+
   const routeLabels=useMemo(()=>Object.fromEntries(lines.map(item=>[item.id,(component?.partNumber?component.partNumber+" · ":"")+(component?.name||"Component")+" · Qty "+item.quantity])),[lines,component]);
   const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.poId===poId&&entry.componentId===componentId&&(!entry.poLineId||entry.poLineId===poLineId)&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId);
@@ -171,16 +185,21 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     onNotice("Manufacturing Universe export started: "+exportFormat.toUpperCase()+".");
   };
 
+  const startRouteSimulation=()=>{
+    if(!simulationOperations.length){onNotice("No saved process operations in this PO line. Add an operation before running the route simulation.");return;}
+    if(simulationIndex<0||simulationIndex>=simulationOperations.length-1)setSimulationIndex(0);
+    setSimulationActive(true);
+  };
   return <section className="manufacturing-universe-workspace" data-workspace-theme={workspaceTheme}>
     <header className="manufacturing-universe-head">
       <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE CONNECTED OPERATIONS</div><h1>Manufacturing <span>Universe</span></h1><p>A dedicated large-format 3D view of live material, transport, process, quality and delivery records. Select a PO line to see its live route.</p></div>
-      <div className="manufacturing-universe-actions"><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div></div>
+      <div className="manufacturing-universe-actions"><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="manufacturing-universe-simulation-controls">{simulationActive?<button className="button-quiet compact-button" onClick={()=>setSimulationActive(false)}><Activity size={14}/> Pause simulation</button>:<button className="button-quiet compact-button" onClick={startRouteSimulation} disabled={!simulationOperations.length}><Activity size={14}/> Simulate route</button>}<button className="button-quiet compact-button" onClick={()=>{setSimulationActive(false);setSimulationIndex(-1);}} disabled={simulationIndex<0}><CheckCircle2 size={14}/> Reset</button>{simulationIndex>=0&&<small>STEP {simulationIndex+1}/{simulationOperations.length} · VISUAL ONLY</small>}</div><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div></div>
     </header>
     {notice&&<div className="notice-banner"><CheckCircle2 size={15}/><span>{notice}</span></div>}
     <div className="manufacturing-universe-scope">
-      <label>Company<select value={companyId} onChange={e=>{setCompanyPick(e.target.value);setPoPick("");setLinePick("");setSelectedOperationId("");}}><option value="">Select company…</option>{companies.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
-      <label>Purchase order<select value={poId} onChange={e=>{setPoPick(e.target.value);setLinePick("");setSelectedOperationId("");}}><option value="">Select PO…</option>{companyOrders.map(row=><option key={row.id} value={row.id}>{row.number}</option>)}</select></label>
-      <label>Component / PO line<select value={poLineId} onChange={e=>{setLinePick(e.target.value);setSelectedOperationId("");}}><option value="">Select component line…</option>{lines.map(row=><option key={row.id} value={row.id}>{component?.partNumber||""} · {component?.name||"Component"} · Qty {row.quantity}</option>)}</select></label>
+      <label>Company<select value={companyId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setCompanyPick(e.target.value);setPoPick("");setLinePick("");setSelectedOperationId("");}}><option value="">Select company…</option>{companies.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+      <label>Purchase order<select value={poId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setPoPick(e.target.value);setLinePick("");setSelectedOperationId("");}}><option value="">Select PO…</option>{companyOrders.map(row=><option key={row.id} value={row.id}>{row.number}</option>)}</select></label>
+      <label>Component / PO line<select value={poLineId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setLinePick(e.target.value);setSelectedOperationId("");}}><option value="">Select component line…</option>{lines.map(row=><option key={row.id} value={row.id}>{component?.partNumber||""} · {component?.name||"Component"} · Qty {row.quantity}</option>)}</select></label>
       <div className="manufacturing-universe-current"><strong>{component?.partNumber||"No component selected"} · {component?.name||"Select a PO line"}</strong><span>{po?.number||"No purchase order"} · {routeOperations.length} process stages · {routeMaterials.length} material allocations · {routeLegs.length} transport legs</span></div>
     </div>
     <section className="manufacturing-universe-customizer"><div className="manufacturing-universe-customizer-head"><div><span className="eyebrow">UNIVERSE DISPLAY CONTROLS</span><strong>Choose what appears in this live view</strong><small>These are view preferences only. They do not delete or change source records.</small></div><button className="button-quiet compact-button" onClick={()=>setShowUniverseSettings(value=>!value)}><Settings2 size={14}/>{showUniverseSettings?"Hide display settings":"Customize view"}</button></div>{showUniverseSettings&&<div className="manufacturing-universe-customizer-body"><div><strong>Live scene information</strong><div className="manufacturing-universe-toggle-grid">{universeFieldOptions.map(([id,label])=><label key={id}><input type="checkbox" checked={visibleUniverseFields.includes(id)} onChange={event=>setVisibleUniverseFields(current=>event.target.checked?[...current,id]:current.filter(value=>value!==id))}/><span>{label}</span></label>)}</div></div><div><strong>Connected module shortcuts</strong><div className="manufacturing-universe-toggle-grid">{linkModules.map(item=><label key={item.id}><input type="checkbox" checked={visibleUniverseModules.includes(item.id)} onChange={event=>setVisibleUniverseModules(current=>event.target.checked?[...current,item.id]:current.filter(value=>value!==item.id))}/><span>{item.title}</span></label>)}</div></div><div className="manufacturing-universe-customizer-actions"><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields(universeFieldOptions.map(([id])=>id));setVisibleUniverseModules(linkModules.map(item=>item.id));}}>Show all</button><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields([]);setVisibleUniverseModules([]);}}>Clear optional display items</button></div></div>}</section>
@@ -207,7 +226,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         initialLayout={typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches?"network":"sphere"}
         ganttScale={ganttScale}
         onGanttScaleChange={setGanttScale}
-        onSelectOperation={id=>setSelectedOperationId(id)}
+        onSelectOperation={id=>{setSimulationActive(false);setSelectedOperationId(id);}}
         onEditOperation={id=>{const op=allRouteOperations.find(row=>row.id===id)||operations.find(row=>row.id===id);if(!op){onNotice("The selected process record could not be found in the current PO line. Refresh the line and try again.");return;}setSelectedOperationId(op.id);setEditingOperation(op);}}
         onChangeProcessColor={(id,color)=>update(current=>({...current,operations:current.operations.map(row=>row.id===id?{...row,processColor:color,updatedAt:new Date().toISOString()}:row)}))}
         onAddSubprocess={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
