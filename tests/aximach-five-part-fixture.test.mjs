@@ -1825,7 +1825,9 @@ test("Material Directory saves each material allocation directly into its select
   assert.ok(materialPanel.includes('role="alert"'));
   assert.ok(materialPanel.includes('if(requirePoLine&&!effectivePoLineId)'));
   assert.ok(materialPanel.includes('materialCostEntries:[entry,...(current.materialCostEntries||[]).filter(row=>row.id!==entry.id)]'));
-  assert.ok(materialPanel.includes('shapeType:existingPart?.shapeType||shape'));
+  assert.ok(materialPanel.includes('shapeType:shape'));
+  assert.ok(materialPanel.includes('dimensions:Object.fromEntries(Object.entries(dimensions)'));
+  assert.ok(materialPanel.includes('useEffect(()=>{if(!poLineId)return;setSelectedPoLineId(poLineId)'));
   assert.ok(processMap.includes('materialRoutes={materialRouteEntries.map(entry=>'));
 });
 
@@ -1866,8 +1868,12 @@ test("Process route graph preserves stage order, independent collapse state, and
   assert.ok(process.includes('routeTransportLegs.filter(leg=>(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start").sort((a,b)=>a.sequence-b.sequence)'));
   assert.ok(process.includes('routeMaterials.filter(entry=>!entry.anchorOperationId).forEach(appendMaterial)'));
   assert.ok(process.includes('routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(appendMaterial)'));
-  assert.ok(process.includes('const selectedTransportRoutes = transportRouteOptions.filter(route=>route.vendorId===draft.transportVendorId)'));
+  assert.ok(process.includes('const selectedTransportRoutes = transportRouteOptions.filter(route=>route.active!==false || route.id===draft.transportRouteId || route.sourceRouteId===draft.transportRouteId)'));
   assert.ok(process.includes('const selectedLegacyDraftRoute = selectedTransportRoutes.find(route=>route.id===draft.transportRouteId||route.sourceRouteId===draft.transportRouteId)'));
+  assert.ok(process.includes('transportTripDirection:route?.tripDirection||"One-way"'));
+  assert.ok(process.includes('Legacy / Transport Directory saved route'));
+  assert.ok(process.includes('const dateTimeInput = (value?: string) => {'));
+  assert.ok(process.includes('targetLegacyRoute=transportRouteOptions.find'));
   assert.ok(process.includes('Legacy / Transport Directory saved route'));
   assert.ok(panel.includes('if(linkedLine)setSelectedPoLineId(linkedLine.line.id)'));
   assert.ok(process.includes('className="process-route-flow process-route-flow-collapsible"'));
