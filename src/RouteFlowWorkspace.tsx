@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
+import { RouteLayoutPicker, useRouteLayout } from "./RouteLayoutPicker";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
 import TransportRecordInspector from "./TransportRecordInspector";
@@ -115,6 +116,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [showTransportEditor,setShowTransportEditor]=useState(false);
   const routeViewportRef=useRef<HTMLDivElement|null>(null);
   const [routeZoom,setRouteZoom]=useState(()=>typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches?.82:1);
+  const [routeLayout,setRouteLayout]=useRouteLayout();
   const [relationshipOverlay,setRelationshipOverlay]=useState<Array<{id:string;type:RouteRelationshipType;path:string;arrow:string;label:string;x:number;y:number}>>([]);
   const [relationshipOverlaySize,setRelationshipOverlaySize]=useState({width:0,height:0});
 
@@ -366,7 +368,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   return <section className="route-flow-workspace" data-workspace-theme={workspaceTheme}>
     <header className="route-flow-workspace-head">
       <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE ROUTE EDITOR</div><h1>Route Flow <span>&amp; Relationships</span></h1><p>Open this as a dedicated route canvas. Material, transport, process steps and saved relationship types stay linked to their original PO component line.</p></div>
-      <div className="route-flow-head-actions"><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"route-flow-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncLabel}</span><div className="route-flow-export-controls"><select aria-label="Route export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportRouteFile}><FileDown size={14}/> Download</button></div><button className="button-quiet" onClick={openProcessMap}><Workflow size={15}/> Open Process Plan</button></div>
+      <div className="route-flow-head-actions"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"route-flow-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncLabel}</span><div className="route-flow-export-controls"><select aria-label="Route export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportRouteFile}><FileDown size={14}/> Download</button></div><button className="button-quiet" onClick={openProcessMap}><Workflow size={15}/> Open Process Plan</button></div>
     </header>
     {notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
     {inspectedMaterialTransportEntry&&<MaterialTransportRecordInspector entry={inspectedMaterialTransportEntry} anchor={transportPopupPoint} vendor={inspectedMaterialTransportVendor} directoryRoute={inspectedMaterialTransportRoute} onClose={()=>setInspectedMaterialTransportId("")} onOpenDirectory={()=>{setInspectedMaterialTransportId("");onSelectModule("transport-master",{companyId,poId,poLineId,componentId});}}/>}
@@ -381,7 +383,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
 
     <section className="route-flow-canvas-panel">
       <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" onClick={()=>setShowAddOperation(v=>!v)}><Plus size={14}/> Add process stage</button><button className="button-quiet compact-button" onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button></div></div>
-      <div className="route-flow-canvas-layout"><div className="route-flow-map-main ax-map-fullscreen-shell" ref={mapViewportRef}><ImmersiveWorkspaceControls targetRef={mapViewportRef} onNotice={onNotice}/>
+      <div className="route-flow-canvas-layout"><div className="route-flow-map-main ax-map-fullscreen-shell" ref={mapViewportRef} data-route-layout={routeLayout}><ImmersiveWorkspaceControls targetRef={mapViewportRef} onNotice={onNotice}/>
         <div className="ax-map-zoom-toolbar" role="group" aria-label="Route flow zoom controls">
           <button type="button" aria-label="Zoom out" title="Zoom out" onClick={()=>setRouteZoom(value=>Math.max(.55,Number((value-.1).toFixed(2))))}>−</button>
           <output aria-live="polite">{Math.round(routeZoom*100)}%</output>
@@ -389,7 +391,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           <button type="button" className="ax-map-zoom-fit" onClick={()=>setRouteZoom(.82)} title="Fit route">Fit</button>
         </div>
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:
-      <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<div className="route-flow-stage-track">
+      <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<div className="route-flow-stage-track" data-route-layout={routeLayout}>
         {routeNodes.map((node,index)=>{
           const connector=index<routeNodes.length-1?connectorFor(index):null;
           const NodeVehicleIcon=node.kind==="transport"?vehicleIconFor(node.leg.vehicleType):node.kind==="material-transport"?vehicleIconFor(node.entry.transportVehicleType||""):Truck;
