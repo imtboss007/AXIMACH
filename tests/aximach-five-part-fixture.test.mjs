@@ -1867,7 +1867,11 @@ test("3D route arrows stay enabled and narrow-screen process metadata is not hid
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   assert.ok(workspace.includes('showArrows={exportArrows}'));
   assert.ok(workspace.includes('checked={exportArrows} disabled /> Connection arrows'));
+  assert.ok(scene.includes("const hasTransport=hasMaterialTransport(placement.route)"));
+  assert.ok(scene.includes('if(hasTransport){'));
+  assert.ok(scene.includes("if(startLegs.length)startLegs.forEach"));
   assert.ok(scene.includes('if(mat&&trans)add("material-transport-"'));
-  assert.ok(scene.includes('if(trans&&to)add("transport-process-"'));
+  assert.ok(scene.includes('else if(exit&&to&&!trans)add("material-process-"'));
+  assert.ok(scene.includes('if(node&&to)add("transport-operation-"'));
   assert.ok(css.includes('.ax-full3d-label .ax-full3d-node-meta{display:block!important'));
 });
