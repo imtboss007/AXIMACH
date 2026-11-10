@@ -226,7 +226,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         initialLayout={typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches?"network":"sphere"}
         ganttScale={ganttScale}
         onGanttScaleChange={setGanttScale}
-        onSelectOperation={id=>{setSimulationActive(false);setSelectedOperationId(id);}}
+        onSelectOperation={id=>{setSimulationActive(false);setSimulationIndex(-1);setSelectedOperationId(id);}}
         onEditOperation={id=>{const op=allRouteOperations.find(row=>row.id===id)||operations.find(row=>row.id===id);if(!op){onNotice("The selected process record could not be found in the current PO line. Refresh the line and try again.");return;}setSelectedOperationId(op.id);setEditingOperation(op);}}
         onChangeProcessColor={(id,color)=>update(current=>({...current,operations:current.operations.map(row=>row.id===id?{...row,processColor:color,updatedAt:new Date().toISOString()}:row)}))}
         onAddSubprocess={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
