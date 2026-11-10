@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Bike, Box, Bus, CarFront, Check, ChevronDown, CircleDashed, Factory, GitBranch, GitMerge, GitPullRequest, Link2, Network, Package, Plane, Plus, Route, Save, ShieldCheck, Ship, Split, TrainFront, Truck, Waypoints, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
@@ -95,6 +95,9 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [transportNotes,setTransportNotes]=useState("");
   const [showRelationshipEditor,setShowRelationshipEditor]=useState(false);
   const [showTransportEditor,setShowTransportEditor]=useState(false);
+  const routeViewportRef=useRef<HTMLDivElement|null>(null);
+  const [relationshipOverlay,setRelationshipOverlay]=useState<Array<{id:string;type:RouteRelationshipType;path:string;arrow:string;label:string;x:number;y:number}>>([]);
+  const [relationshipOverlaySize,setRelationshipOverlaySize]=useState({width:0,height:0});
 
   const company=companies.find(row=>row.id===companyPick)||companies[0];
   const companyId=company?.id||"";
@@ -231,6 +234,54 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     return rows;
   },[routeOperations,relationships]);
 
+  // Draw saved non-adjacent relationships as curved cross-links over the stage track.
+  useEffect(()=>{
+    const viewport=routeViewportRef.current;
+    if(!viewport){setRelationshipOverlay([]);setRelationshipOverlaySize({width:0,height:0});return;}
+    const measure=()=>{
+      const bounds=viewport.getBoundingClientRect();
+      const track=viewport.querySelector(".route-flow-stage-track");
+      const width=Math.max(viewport.clientWidth,track?.scrollWidth||0);
+      const height=Math.max(viewport.clientHeight,track?.scrollHeight||0);
+      const cards=new Map();
+      viewport.querySelectorAll("[data-route-operation-id]").forEach(card=>{
+        const id=card.dataset.routeOperationId;
+        if(!id)return;
+        const rect=card.getBoundingClientRect();
+        cards.set(id,{x:rect.left-bounds.left+viewport.scrollLeft+rect.width/2,y:rect.top-bounds.top+viewport.scrollTop+rect.height/2});
+      });
+      const ordered=lane.filter(operation=>operation.relationType!=="subprocess").slice().sort((a,b)=>a.sequence-b.sequence);
+      const items=[];
+      for(const link of relationships){
+        if(link.status==="Disabled")continue;
+        const fromIndex=ordered.findIndex(operation=>operation.id===link.fromOperationId);
+        const toIndex=ordered.findIndex(operation=>operation.id===link.toOperationId);
+        if(fromIndex>=0&&toIndex===fromIndex+1)continue;
+        const from=cards.get(link.fromOperationId),to=cards.get(link.toOperationId);
+        if(!from||!to)continue;
+        const dx=to.x-from.x,dy=to.y-from.y;
+        const lift=Math.max(58,Math.min(180,Math.abs(dx)*.18));
+        const direction=dx>=0?-1:1;
+        const control1={x:from.x+dx*.25,y:from.y+direction*lift};
+        const control2={x:to.x-dx*.25,y:to.y+direction*lift};
+        const pathData="M "+from.x+" "+from.y+" C "+control1.x+" "+control1.y+" "+control2.x+" "+control2.y+" "+to.x+" "+to.y;
+        const tx=to.x-control2.x,ty=to.y-control2.y,length=Math.hypot(tx,ty)||1;
+        const ux=tx/length,uy=ty/length,px=-uy,py=ux,tipX=to.x,tipY=to.y;
+        const arrowData="M "+(tipX-ux*15+px*6)+" "+(tipY-uy*15+py*6)+" L "+tipX+" "+tipY+" L "+(tipX-ux*15-px*6)+" "+(tipY-uy*15-py*6);
+        items.push({id:link.id,type:link.relationshipType,path:pathData,arrow:arrowData,label:link.label||relationLabel(link.relationshipType),x:(from.x+to.x)/2,y:Math.min(from.y,to.y)-lift+12});
+      }
+      setRelationshipOverlay(items);
+      setRelationshipOverlaySize({width,height});
+    };
+    measure();
+    const observer=new ResizeObserver(measure);
+    observer.observe(viewport);
+    const track=viewport.querySelector(".route-flow-stage-track");
+    if(track)observer.observe(track);
+    window.addEventListener("resize",measure);
+    return ()=>{observer.disconnect();window.removeEventListener("resize",measure);};
+  },[relationships,routeOperations,lane,routeNodes,branch]);
+
   return <section className="route-flow-workspace">
     <header className="route-flow-workspace-head">
       <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE ROUTE EDITOR</div><h1>Route Flow <span>&amp; Relationships</span></h1><p>Open this as a dedicated route canvas. Material, transport, process steps and saved relationship types stay linked to their original PO component line.</p></div>
@@ -249,12 +300,12 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button></div></div>
       <div className="route-flow-canvas-layout"><div className="route-flow-map-main">
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:
-      <div className="route-flow-stage-scroll"><div className="route-flow-stage-track">
+      <div className="route-flow-stage-scroll" ref={routeViewportRef}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<div className="route-flow-stage-track">
         {routeNodes.map((node,index)=>{
           const connector=index<routeNodes.length-1?connectorFor(index):null;
           const NodeVehicleIcon=node.kind==="transport"?vehicleIconFor(node.leg.vehicleType):node.kind==="material-transport"?vehicleIconFor(node.entry.transportVehicleType||""):Truck;
           return <div className="route-flow-stage-wrap" key={node.id}>
-            <article className={"route-flow-stage-card route-flow-stage-"+node.kind}>
+            <article className={"route-flow-stage-card route-flow-stage-"+node.kind} data-route-operation-id={node.kind==="operation"?node.operation.id:undefined}>
               {node.kind==="material"&&<><div className="route-flow-node-top"><Package size={18}/><small>MANDATORY MATERIAL STAGE</small></div><strong>{node.entry.materialName} · {node.entry.materialGrade}</strong><span>{node.entry.partNumber||node.entry.partName||"Component-level allocation"} · {node.entry.shapeType}</span><span>{node.entry.quantity} pieces · {Number(node.entry.totalWeightKg||0).toFixed(3)} kg</span><span>Supplier: {vendors.find(v=>v.id===node.entry.vendorId)?.company||"Not assigned"}</span><em>{money(node.entry.materialCost)} material · {money(node.entry.cuttingCost)} cutting</em><small>Given {dateTime(node.entry.givenDate)} · Due {dateTime(node.entry.deliveryDate)}</small><button onClick={openProcessMap}>Edit material <ArrowRight size={12}/></button></>}
               {node.kind==="material-transport"&&<><div className="route-flow-node-top"><NodeVehicleIcon size={18}/><small>INBOUND MATERIAL TRANSPORT</small></div><strong>{vendors.find(v=>v.id===node.entry.transportVendorId)?.company||"Transporter not assigned"}</strong><span>{node.entry.transportFrom||"Pickup not set"} → {node.entry.transportTo||"Destination not set"}</span><span>{node.entry.transportVehicleType||"Vehicle not set"} · {money(node.entry.transportCost||0)}</span><small>Pickup {dateTime(node.entry.transportPickupAt)} · Delivery {dateTime(node.entry.transportDeliveryAt)}</small><button onClick={openProcessMap}>Edit material transport <ArrowRight size={12}/></button></>}
               {node.kind==="transport"&&<><div className="route-flow-node-top"><NodeVehicleIcon size={18}/><small>TRANSPORT LEG · {node.leg.tripDirection}</small></div><strong>{vendors.find(v=>v.id===node.leg.vendorId)?.company||"Transporter not assigned"}</strong><span>{node.leg.fromLocation} → {node.leg.toLocation}</span><span className="route-flow-vehicle-chip"><NodeVehicleIcon size={14}/> {node.leg.vehicleType||"Vehicle not set"}</span><em>{node.leg.tripCount} trip(s) · {money(node.leg.fixedAmount*node.leg.tripCount)}</em><small>Pickup {dateTime(node.leg.pickupAt)} · Delivery {dateTime(node.leg.deliveryAt)}</small><small>{processName(node.leg.anchorOperationId)} → {processName(node.leg.targetOperationId||"")}</small><button onClick={openProcessMap}>Edit transport leg <ArrowRight size={12}/></button></>}
