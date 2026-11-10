@@ -1477,7 +1477,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 });
                 return <div className="process-route-flow-track">{routeNodes.map((item,index)=>{
                   const next=routeNodes[index+1];
-                  const isTransport=item.kind==="transport"||item.kind==="material-transport"||item.kind==="material"||next?.kind==="transport"||next?.kind==="material-transport"||next?.kind==="material";
+                  const isTransport=item.kind==="transport"||item.kind==="material-transport"||next?.kind==="transport"||next?.kind==="material-transport";
                   const arrowColor=isTransport?"#1cc8e5":routeColor;
                   if(item.kind==="material"){
                     const entry=item.entry;
@@ -1490,7 +1490,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                         <small>Supplier · {vendors.find(vendor=>vendor.id===entry.vendorId)?.company||"Not assigned"}</small>
                         <em>{money(entry.materialCost)} material</em>
                       </div>
-                      {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport":"")} style={{color:arrowColor}}><ArrowRight size={20}/></span>}
+                      {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport":"")} style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
                     </div>;
                   }
                   if(item.kind==="material-transport"){
@@ -1503,7 +1503,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                         <small>{entry.transportVehicleType||"Vehicle not set"} · Pickup {entry.transportPickupAt||"—"}</small>
                         <em>{money(entry.transportCost||0)} · Delivery {entry.transportDeliveryAt||"—"}</em>
                       </div>
-                      {next&&<span className="process-route-flow-arrow is-transport" style={{color:arrowColor}}><ArrowRight size={20}/></span>}
+                      {next&&<span className="process-route-flow-arrow is-transport" style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
                     </div>;
                   }
                   if(item.kind==="transport"){
@@ -1519,7 +1519,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                         <small>{leg.vehicleType||"Vehicle not set"} · {leg.tripDirection}</small>
                         <em>{leg.tripCount} carry / trip(s) · {money(leg.fixedAmount*leg.tripCount)}</em>
                       </button>
-                      {next&&<span className={"process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}><ArrowRight size={20}/></span>}
+                      {next&&<span className={"process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
                     </div>;
                   }
                   const operation=item.operation as OperationRecord;
@@ -1531,7 +1531,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                       <em style={{background:processColor}}>{operation.category||"Process"}</em>{operation.subcategory&&<small className="process-route-flow-subcategory">SUB · {operation.subcategory}</small>}
                       <small>Qty {operation.quantity.toLocaleString("en-IN")} · {vendors.find(vendor=>vendor.id===operation.vendorId)?.company||"Vendor not assigned"}</small>
                     </button>
-                    {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport":"")} style={{color:arrowColor}}><ArrowRight size={20}/></span>}
+                    {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport":"")} style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
                   </div>;
                 })}</div>;
               })()}
