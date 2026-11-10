@@ -2341,6 +2341,7 @@ test("AXIMACH integrates every shared route layout, independent material legs, c
   assert.ok(scene.includes("isSimulationMaterial"));
   assert.ok(scene.includes("isSimulationTransport"));
   assert.ok(scene.includes("rows.find(operation=>operation.id===selectedOperationId)"));
+  assert.ok(scene.includes("transportLegPlacements,simulationIndex,selectedOperationId"));
   assert.ok(universe.includes("setRouteLayout(option.id as RouteLayoutMode)"));
   assert.ok(universe.includes("simulationIndex={simulationIndex}"));
   assert.ok(universe.includes("function MaterialRouteTransportMarker"));
