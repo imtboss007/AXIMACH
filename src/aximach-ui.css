@@ -2732,3 +2732,28 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .route-flow-relationship-matrix{overflow-x:auto}
  .route-flow-matrix-row{min-width:320px}
 }
+
+/* Relationship matrix arrows mirror the same colour/pattern grammar as the route canvas. */
+.route-flow-matrix-row{grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr) minmax(78px,auto);gap:7px}
+.route-flow-matrix-arrow{position:relative;display:block;width:42px;height:14px;color:#2ab9d5}
+.route-flow-matrix-arrow i{position:absolute;left:0;right:8px;top:6px;height:2.5px;border-radius:3px;background:currentColor}
+.route-flow-matrix-arrow:after{content:"";position:absolute;right:1px;top:2px;border-left:8px solid currentColor;border-top:5px solid transparent;border-bottom:5px solid transparent}
+.route-flow-matrix-arrow.route-flow-curve-alternate{color:#dc961e}
+.route-flow-matrix-arrow.route-flow-curve-rework{color:#e34e59}
+.route-flow-matrix-arrow.route-flow-curve-rework i{background:repeating-linear-gradient(90deg,currentColor 0 5px,transparent 5px 9px)}
+.route-flow-matrix-arrow.route-flow-curve-dependency{color:#347de5}
+.route-flow-matrix-arrow.route-flow-curve-dependency i{background:repeating-linear-gradient(90deg,currentColor 0 3px,transparent 3px 7px)}
+.route-flow-matrix-arrow.route-flow-curve-parallel{color:#9848d6}
+.route-flow-matrix-arrow.route-flow-curve-parallel i{height:2px;box-shadow:0 4px 0 currentColor}
+.route-flow-matrix-arrow.route-flow-curve-merge{color:#9e4bc9}
+.route-flow-matrix-arrow.route-flow-curve-split{color:#3d79df}
+.route-flow-matrix-arrow.route-flow-curve-follow-on{color:#173c6c}
+.route-flow-matrix-arrow.route-flow-curve-feedback{color:#455bd6}
+.route-flow-matrix-arrow.route-flow-curve-feedback i{background:repeating-linear-gradient(90deg,currentColor 0 6px,transparent 6px 10px)}
+.route-flow-matrix-arrow.route-flow-curve-conditional{color:#9954ce}
+.route-flow-matrix-arrow.route-flow-curve-conditional i{background:repeating-linear-gradient(90deg,currentColor 0 6px,transparent 6px 9px)}
+.route-flow-matrix-arrow.route-flow-curve-successor{color:#203e62}
+@media(max-width:760px){
+ .route-flow-matrix-row{grid-template-columns:minmax(0,1fr) 36px minmax(0,1fr) minmax(82px,auto);min-width:350px}
+ .route-flow-matrix-arrow{width:36px}
+}
