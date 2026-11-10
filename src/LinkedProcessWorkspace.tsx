@@ -786,6 +786,13 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       return;
     }
     const base = blankOperation(selectedLine);
+    // New route steps inherit the selected upstream step's working quantity,
+    // rather than silently resetting to the original PO-line quantity.
+    base.quantity = activeOperation?.quantity || selectedLine.quantity;
+    base.processCostTotal = base.quantity * base.ratePerPart;
+    base.completed = 0;
+    base.accepted = 0;
+    base.rejected = 0;
     base.processDefinitionId = definition.id;
     base.name = definition.processType;
     base.category = definition.category;
