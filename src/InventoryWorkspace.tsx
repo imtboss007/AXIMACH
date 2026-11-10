@@ -359,6 +359,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
             componentNumber={components.find(component=>component.id===directoryComponentId)?.partNumber||""}
             requirePoLine
             startExpanded
+            defaultNewPart
             processOptions={operations.filter(operation=>operation.poId===directoryPoId&&operation.componentId===directoryComponentId&&!operation.deletedAt)}
             onNotice={onNotice}
           />
