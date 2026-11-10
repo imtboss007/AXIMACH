@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Save, X } from "lucide-react";
 import type { LifecycleStatus, OperationRecord } from "./manufacturingData";
 
@@ -30,10 +30,16 @@ export default function OperationInlineEditor({operation,vendors,onSave,onCancel
   const set=(key:keyof typeof draft,value:string)=>setDraft(current=>({...current,[key]:value}));
   const numeric=(value:string)=>Math.max(0,Number(value)||0);
   const date=(value:string)=>value?storedDate(value):"";
-  return <section className="ax-operation-inline-editor" aria-label={"Edit "+operation.name+" in this workspace"}>
-    <div className="ax-inline-editor-head"><div><small>EDIT IN THIS WORKSPACE · OP-{String(operation.sequence).padStart(3,"0")}</small><strong>{operation.name}</strong></div><button type="button" className="button-quiet compact-button" onClick={onCancel}><X size={14}/> Close</button></div>
+  useEffect(()=>{
+    const handleKey=(event:KeyboardEvent)=>{if(event.key==="Escape")onCancel();};
+    document.addEventListener("keydown",handleKey);
+    return ()=>document.removeEventListener("keydown",handleKey);
+  },[onCancel]);
+  return <div className="ax-operation-editor-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)onCancel();}}>
+  <section className="ax-operation-inline-editor" role="dialog" aria-modal="true" aria-labelledby="ax-operation-editor-title">
+    <div className="ax-inline-editor-head"><div><small>EDIT IN THIS WORKSPACE · OP-{String(operation.sequence).padStart(3,"0")}</small><strong id="ax-operation-editor-title">{operation.name}</strong></div><button type="button" className="button-quiet compact-button" onClick={onCancel}><X size={14}/> Close</button></div>
     <div className="ax-inline-editor-grid">
-      <label>Operation / process<input value={draft.name} onChange={e=>set("name",e.target.value)}/></label>
+      <label>Operation / process<input autoFocus value={draft.name} onChange={e=>set("name",e.target.value)}/></label>
       <label>Category<input value={draft.category} onChange={e=>set("category",e.target.value)}/></label>
       <label>Sub-process<input value={draft.subcategory} onChange={e=>set("subcategory",e.target.value)}/></label>
       <label>Machine / station<input value={draft.machine} onChange={e=>set("machine",e.target.value)}/></label>
@@ -76,5 +82,5 @@ export default function OperationInlineEditor({operation,vendors,onSave,onCancel
       transportVehicleType:draft.transportVehicleType,transportPickup:date(draft.transportPickup),transportDelivery:date(draft.transportDelivery),
       transportCost:numeric(draft.transportCost),inspectionResult:draft.inspectionResult,qualityNotes:draft.qualityNotes,branch:draft.branch.trim()||"Main route",notes:draft.notes
     })}><Save size={15}/> Save operation</button></div>
-  </section>;
+  </section></div>;
 }
