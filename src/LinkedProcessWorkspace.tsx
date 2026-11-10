@@ -256,7 +256,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const quantityUnit = selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces";
   const processVendorOptions = selectedProcessDefinition?.vendorIds?.length ? vendors.filter(vendor => selectedProcessDefinition.vendorIds.includes(vendor.id)) : vendors;
   const selectedTransportVendor = vendors.find(vendor => vendor.id === draft.transportVendorId);
-  const selectedTransportRoutes = selectedTransportVendor?.transportRoutes || [];
+  // Current Transport Directory routes and vendor-embedded legacy routes share
+  // one compatibility picker, so historical operation records remain editable.
+  const selectedTransportRoutes = transportRouteOptions.filter(route=>route.vendorId===draft.transportVendorId);
+  const selectedLegacyDraftRoute = selectedTransportRoutes.find(route=>route.id===draft.transportRouteId||route.sourceRouteId===draft.transportRouteId);
   const visibleOperations = routeOperations.filter(op => {
     const text = [op.name,op.category,op.subcategory,op.machine,op.executionType,op.status,op.branch,op.plannedStart,op.plannedEnd,op.actualStart,op.actualEnd,op.quantity,op.completed,op.accepted,op.rejected,op.ratePerPart,op.actualRatePerPart,op.transportCost,op.paymentStatus,op.paidAmount,op.toleranceCategory,op.inspectionResult,op.qualityNotes,op.notes,op.transportFrom,op.transportTo,op.transportVehicleType,vendors.find(v => v.id === op.vendorId)?.company,vendors.find(v => v.id === op.transportVendorId)?.company].join(" ").toLowerCase();
     const statusMatch = !statusFilters.length || statusFilters.includes(op.status);
@@ -1401,8 +1404,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
               const relationType=value==="Rework route"?"rework" as const:"alternate" as const;
               setDraft({...draft,branch:(value==="Rework route"?"Rework":"Alternate route")+" · OP-"+String(activeOperation.sequence).padStart(3,"0")+" · "+activeOperation.name,parentId:activeOperation.id,relationType,costIncluded:false});
             }}/>
-            <SearchablePicker id="operation-transport-vendor-picker" label="Legacy operation transport vendor (older records)" value={draft.transportVendorId} placeholder="Type transporter name or phone…" options={vendors.filter(v=>/transport|logistic|courier/i.test(v.vendorType||"")||(v.transportRoutes||[]).length>0).map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")}))} onChange={transportVendorId=>setDraft({...draft,transportVendorId,transportRouteId:"",transportFrom:"",transportTo:"",transportVehicleType:"",transportCost:0})}/>
-            <label>Legacy saved route (older vendor-linked records)<select value={draft.transportRouteId} onChange={e=>{const route=selectedTransportRoutes.find(item=>item.id===e.target.value);setDraft({...draft,transportRouteId:e.target.value,transportFrom:route?.fromLocation||"",transportTo:route?.toLocation||"",transportVehicleType:route?.vehicleType||"",transportCost:route?.fixedCost||0});}}><option value="">Select saved route…</option>{selectedTransportRoutes.map(route=><option key={route.id} value={route.id}>{route.fromLocation} → {route.toLocation} · ₹{route.fixedCost.toLocaleString("en-IN")} · {route.vehicleType||"Vehicle not set"}</option>)}</select></label>
+            <SearchablePicker id="operation-transport-vendor-picker" label="Legacy operation transport vendor (older records)" value={draft.transportVendorId} placeholder="Type transporter name or phone…" options={vendors.filter(v=>transportRouteOptions.some(route=>route.vendorId===v.id)).map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")}))} onChange={transportVendorId=>setDraft({...draft,transportVendorId,transportRouteId:"",transportFrom:"",transportTo:"",transportVehicleType:"",transportCost:0})}/>
+            <label>Legacy / Transport Directory saved route<select value={selectedLegacyDraftRoute?.id||""} onChange={e=>{const route=selectedTransportRoutes.find(item=>item.id===e.target.value);setDraft({...draft,transportVendorId:route?.vendorId||draft.transportVendorId,transportRouteId:route?(route.legacy?(route.sourceRouteId||route.id):route.id):"",transportFrom:route?.fromLocation||"",transportTo:route?.toLocation||"",transportVehicleType:route?.vehicleType||"",transportCost:route?.fixedAmount||0});}}><option value="">Select saved route…</option>{selectedTransportRoutes.map(route=><option key={route.id} value={route.id}>{route.fromLocation} → {route.toLocation} · ₹{route.fixedAmount.toLocaleString("en-IN")} · {route.vehicleType||"Vehicle not set"} · {route.legacy?"Legacy":"Transport Directory"}</option>)}</select></label>
             <label>From location<input readOnly value={draft.transportFrom||""}/></label>
             <label>To location<input readOnly value={draft.transportTo||""}/></label>
             <label>Vehicle type<input readOnly value={draft.transportVehicleType||""}/></label>
@@ -1449,15 +1452,21 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 const routeMaterials=materialRouteEntries.filter(entry=>(!entry.poLineId||entry.poLineId===lineId)&&(!line?.partId||!entry.partId||entry.partId===line.partId));
                 const routeTransportLegs=componentTransportLegs.filter(leg=>leg.poLineId===lineId);
                 const routeNodes:Array<any>=[];
-                routeMaterials.forEach(entry=>{
+                const appendMaterial=(entry:MaterialCostEntryRecord)=>{
                   routeNodes.push({kind:"material",id:"material-"+entry.id,entry});
                   if(entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||entry.transportPickupAt||entry.transportDeliveryAt||Number(entry.transportCost)>0)routeNodes.push({kind:"material-transport",id:"material-transport-"+entry.id,entry});
-                });
-                routeTransportLegs.filter(leg=>(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start").forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                };
+                // A start-of-route carry may precede procurement. Otherwise material
+                // is the first stage, followed by its own inbound transport.
+                routeTransportLegs.filter(leg=>(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start").sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                routeMaterials.filter(entry=>!entry.anchorOperationId).forEach(appendMaterial);
                 lane.forEach(operation=>{
-                  routeTransportLegs.filter(leg=>leg.placement==="before"&&leg.anchorOperationId===operation.id).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                  routeTransportLegs.filter(leg=>leg.placement==="before"&&leg.anchorOperationId===operation.id).sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
                   routeNodes.push({kind:"operation",id:operation.id,operation});
-                  routeTransportLegs.filter(leg=>(leg.placement||"after")==="after"&&leg.anchorOperationId===operation.id).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                  routeTransportLegs.filter(leg=>(leg.placement||"after")==="after"&&leg.anchorOperationId===operation.id).sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                  // Preserve explicit material insertion points instead of moving
+                  // every saved material allocation to the beginning of the route.
+                  routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(appendMaterial);
                 });
                 return <div className="process-route-flow-track">{routeNodes.map((item,index)=>{
                   const next=routeNodes[index+1];
