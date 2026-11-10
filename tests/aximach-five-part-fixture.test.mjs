@@ -2148,3 +2148,58 @@ test("Inbound material transport icons open the complete transporter directory i
   assert.ok(scene.includes("onSelectMaterialTransport?.(route.id)"));
   for(const field of ["entry.materialName","entry.materialGrade","entry.transportFrom","entry.transportTo","entry.transportPickupAt","entry.transportDeliveryAt","entry.transportCost","vendor?.phone","vendor?.whatsappNumber","vendor?.email","directoryRoute?.fixedCost"]) assert.ok(inspector.includes(field));
 });
+
+
+test("Transport icons alone open compact anchored popups in Route Map, Route Flow and Manufacturing Universe", () => {
+  const routeMap=readFileSync(new URL("../src/LinkedProcessWorkspace.tsx",import.meta.url),"utf8");
+  const routeFlow=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  const scene=readFileSync(new URL("../src/ProcessScene3D.tsx",import.meta.url),"utf8");
+  const transport=readFileSync(new URL("../src/TransportRecordInspector.tsx",import.meta.url),"utf8");
+  const material=readFileSync(new URL("../src/MaterialTransportRecordInspector.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  for(const source of [routeMap,routeFlow,universe]) {
+    assert.ok(source.includes("TransportRecordInspector"));
+    assert.ok(source.includes("MaterialTransportRecordInspector"));
+    assert.ok(source.includes("anchor={transportPopupPoint}"));
+  }
+  assert.ok(scene.includes("ax-full3d-transport-icon"));
+  assert.ok(scene.includes("onSelectTransportLeg?.(leg.id,{x:rect.left,y:rect.top})"));
+  assert.ok(scene.includes("onSelectMaterialTransport?.(route.id,{x:rect.left,y:rect.top})"));
+  assert.ok(routeFlow.includes("ax-transport-icon-trigger"));
+  assert.ok(!routeFlow.includes("View full transport record"));
+  assert.ok(routeMap.includes("onSelectTransportLeg={(id,anchor)=>"));
+  assert.ok(routeMap.includes("onSelectMaterialTransport={(id,anchor)=>"));
+  assert.ok(transport.includes("ax-transport-popover"));
+  assert.ok(material.includes("ax-transport-popover"));
+  assert.ok(css.includes("width:min(360px,calc(100vw - 16px))"));
+  assert.ok(css.includes("background:transparent!important;backdrop-filter:none!important"));
+});
+
+test("A material allocation can have its own independent transport legs to process stages", () => {
+  const data=readFileSync(new URL("../src/manufacturingData.ts",import.meta.url),"utf8");
+  const flow=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const scene=readFileSync(new URL("../src/ProcessScene3D.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  const map=readFileSync(new URL("../src/LinkedProcessWorkspace.tsx",import.meta.url),"utf8");
+  assert.ok(data.includes("materialEntryId?: string"));
+  assert.ok(flow.includes("transportFromMaterialId"));
+  assert.ok(flow.includes("materialEntryId:fromMaterial?.id"));
+  assert.ok(flow.includes('routeLegs.filter(leg=>leg.materialEntryId===entry.id)'));
+  assert.ok(scene.includes("leg.materialEntryId?materialPlacements.find"));
+  assert.ok(scene.includes("material-transport-leg-"));
+  assert.ok(universe.includes("materialEntryId:leg.materialEntryId||"));
+  assert.ok(map.includes("materialEntryId:leg.materialEntryId||"));
+});
+
+test("Multiple transport legs remain separate and visible for each source and target process", () => {
+  const flow=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const scene=readFileSync(new URL("../src/ProcessScene3D.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  assert.ok(flow.includes("legs.map") || flow.includes("routeLegs.map") || flow.includes("routeLegs.filter"));
+  assert.ok(flow.includes("leg.id,leg}"));
+  assert.ok(flow.includes("operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId"));
+  assert.ok(scene.includes("transportLegs.map((leg,index)"));
+  assert.ok(scene.includes("other.materialEntryId===leg.materialEntryId"));
+  assert.ok(universe.includes("routeLegs.map(leg=>"));
+});
