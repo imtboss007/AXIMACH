@@ -187,8 +187,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const toOperation=anchor
     ? lineRows.filter(operation=>(operation.branch||"Main route")===branch&&operation.sequence>anchor.sequence).sort((a,b)=>a.sequence-b.sequence)[0]
     : firstMain;
-  const materialSource=leg.materialEntryId?materialPlacements.find(item=>item.route.id===leg.materialEntryId):undefined;
-  const fromPoint=materialSource?(hasMaterialTransport(materialSource.route)?materialSource.transportPoint:materialSource.materialPoint):(fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined);
+  const fromPoint=fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined;
   const toPoint=toOperation?geometryPoints.find(item=>item.op.id===toOperation.id)?.p:undefined;
   const lane=(index-(materialRoutes.length-1)/2)*.13;
   const lerp=(a:P,b:P,t:number):P=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t+lane,z:a.z+(b.z-a.z)*t+Math.sign(lane||1)*.045});
