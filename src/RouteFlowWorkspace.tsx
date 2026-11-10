@@ -95,6 +95,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [transportNotes,setTransportNotes]=useState("");
   const workspaceRef=useRef<HTMLElement|null>(null);
   const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
+  const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
   const [showRelationshipEditor,setShowRelationshipEditor]=useState(false);
   const [showTransportEditor,setShowTransportEditor]=useState(false);
@@ -207,6 +208,12 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     onNotice("Transport leg added between "+from.name+" and "+to.name+". Add another leg to show another carrier or vehicle on the same connection.");
   };
   const openProcessMap=()=>onSelectModule("process-map",{companyId,poId,poLineId,componentId});
+  const saveNewOperation=(operation:OperationRecord)=>{
+    update(current=>({...current,operations:[...current.operations,operation]}));
+    setShowAddOperation(false);
+    setBranchPick(operation.branch||"Main route");
+    onNotice("New process stage added to the selected PO line and shared Route Flow.");
+  };
   const saveInlineOperation=(patch:Partial<OperationRecord>)=>{
     if(!editingOperation)return;
     const id=editingOperation.id;
@@ -346,7 +353,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     </div>
 
     <section className="route-flow-canvas-panel">
-      <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button></div></div>
+      <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" onClick={()=>setShowAddOperation(v=>!v)}><Plus size={14}/> Add process stage</button><button className="button-quiet compact-button" onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button></div></div>
       <div className="route-flow-canvas-layout"><div className="route-flow-map-main">
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:
       <div className="route-flow-stage-scroll" ref={routeViewportRef}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<div className="route-flow-stage-track">
@@ -408,6 +415,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       <div className="route-flow-editor-actions"><small>Each save creates a separate transport leg. Add several carriers / vehicle types on the same process connection as separate records.</small><button className="button-primary" onClick={saveTransportLeg}><Save size={14}/> Save transport leg</button></div>
     </section>}
 
+    {showAddOperation&&<OperationQuickCreate poId={poId} poLineId={poLineId} componentId={componentId} sequence={Math.max(0,...routeOperations.map(row=>row.sequence))+1} branch={branch} vendors={vendors.map(v=>({id:v.id,company:v.company}))} onSave={saveNewOperation} onCancel={()=>setShowAddOperation(false)}/>}
     {editingOperation&&<OperationInlineEditor operation={editingOperation} vendors={vendors.map(v=>({id:v.id,company:v.company}))} onSave={saveInlineOperation} onCancel={()=>setEditingOperation(null)}/>}
 
     {showRelationshipEditor&&<section className="route-flow-editor-panel">
