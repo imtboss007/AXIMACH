@@ -3126,3 +3126,11 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .manufacturing-universe-workspace[data-workspace-theme="dark"] .ax-workspace-theme-picker{background:#12253a!important;border-color:#34536c!important;color:#dcebf5!important}
 .route-flow-workspace[data-workspace-theme="dark"] .ax-workspace-theme-picker select,
 .manufacturing-universe-workspace[data-workspace-theme="dark"] .ax-workspace-theme-picker select{color:#e6f0f8!important;background:#12253a!important}
+
+.route-flow-vehicle-marker.vehicle-bike{color:#965f0b!important;background:#fff4d9!important;border-color:#e7c26b!important}
+.route-flow-vehicle-marker.vehicle-bus{color:#23724c!important;background:#e5f7ed!important;border-color:#8dc8a5!important}
+.route-flow-vehicle-marker.vehicle-car{color:#5945a5!important;background:#efebff!important;border-color:#b9a9eb!important}
+.route-flow-vehicle-marker.vehicle-air{color:#146b9f!important;background:#e4f5ff!important;border-color:#83c6e7!important}
+.route-flow-vehicle-marker.vehicle-ship{color:#087d88!important;background:#e1f8f7!important;border-color:#83d1cd!important}
+.route-flow-vehicle-marker.vehicle-rail{color:#9a4e29!important;background:#fff0e8!important;border-color:#e0ac91!important}
+.route-flow-vehicle-marker.vehicle-truck{color:#126aa5!important;background:#e7f4ff!important;border-color:#8fc4e6!important}
