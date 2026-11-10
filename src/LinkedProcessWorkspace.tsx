@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine, type TransportRouteRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
@@ -103,6 +103,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [transportAnchorOperationId, setTransportAnchorOperationId] = useState("");
   const [transportPlacement, setTransportPlacement] = useState<"start"|"before"|"after">("after");
   const [transportLegNotes, setTransportLegNotes] = useState("");
+  const [showNewTransportRoute, setShowNewTransportRoute] = useState(false);
+  const [newTransportVendorId, setNewTransportVendorId] = useState("");
+  const [newTransportFrom, setNewTransportFrom] = useState("");
+  const [newTransportTo, setNewTransportTo] = useState("");
+  const [newTransportVehicle, setNewTransportVehicle] = useState("4-wheeler");
+  const [newTransportDirection, setNewTransportDirection] = useState<"One-way"|"Two-way">("One-way");
+  const [newTransportAmount, setNewTransportAmount] = useState("");
+  const [newTransportNotes, setNewTransportNotes] = useState("");
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
   useEffect(() => {
@@ -209,6 +217,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   }));
   const materialRouteEntries = allMaterialCostEntries.filter(entry=>entry.scope==="process-map" && entry.poId===poId && entry.componentId===selectedLine?.componentId).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const selectedTransportDirectoryRoute = transportRoutes.find(route => route.id === transportRouteId);
+  const transportLocationOptions = [...new Set([
+    ...transportRoutes.flatMap(route=>[route.fromLocation,route.toLocation]),
+    ...vendors.map(vendor=>vendor.address)
+  ].map(value=>value?.trim()).filter((value):value is string=>Boolean(value)))].sort((a,b)=>a.localeCompare(b));
   const processCategories = [...new Set(processDefinitions.map(item => item.category).filter(Boolean))].sort();
   const processTypeOptions = [...new Set(processDefinitions.filter(item => !draft.category || item.category === draft.category).map(item => item.processType).filter(Boolean))].sort();
   const processFilterTypes = processDefinitions.map(definition => ({ id: definition.id, label: definition.category + " · " + definition.processType }));
@@ -984,6 +996,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       : branch + " excluded: its process costs and anchored transport legs are removed from active costing.");
   };
   const openTransportEditor = (leg?: ComponentTransportLegRecord) => {
+    setShowNewTransportRoute(false);
+    setNewTransportVendorId(leg?.vendorId||"");
+    setNewTransportFrom(leg?.fromLocation||"");
+    setNewTransportTo(leg?.toLocation||"");
+    setNewTransportVehicle(leg?.vehicleType||"4-wheeler");
+    setNewTransportDirection(leg?.tripDirection||"One-way");
+    setNewTransportAmount("");
+    setNewTransportNotes("");
     setEditingTransportLegId(leg?.id || "");
     setTransportRouteId(leg?.routeId || transportRoutes.find(route=>route.active!==false)?.id || "");
     setTransportTripCount(String(leg?.tripCount || 1));
@@ -993,7 +1013,19 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     setShowTransportEditor(true);
     setShowEditor(false);
   };
-  const closeTransportEditor = () => { setShowTransportEditor(false); setEditingTransportLegId(""); };
+  const closeTransportEditor = () => { setShowTransportEditor(false); setEditingTransportLegId(""); setShowNewTransportRoute(false); };
+  const saveNewTransportDirectoryRoute = () => {
+    if(!newTransportVendorId||!vendors.some(vendor=>vendor.id===newTransportVendorId)){onNotice("Select an active transport vendor from Vendor Directory.");return;}
+    if(!newTransportFrom.trim()||!newTransportTo.trim()||!newTransportVehicle.trim()){onNotice("Enter both transport locations and a vehicle type.");return;}
+    const amount=Number(newTransportAmount);
+    if(!Number.isFinite(amount)||amount<0){onNotice("Enter a valid transport route amount in rupees.");return;}
+    const stamp=nowIso();
+    const route:TransportRouteRecord={id:makeId("transport-route"),vendorId:newTransportVendorId,fromLocation:newTransportFrom.trim(),toLocation:newTransportTo.trim(),tripDirection:newTransportDirection,vehicleType:newTransportVehicle.trim(),fixedAmount:amount,currency:"INR",active:true,notes:newTransportNotes.trim(),createdAt:stamp,updatedAt:stamp};
+    update(current=>({...current,transportRoutes:[route,...(current.transportRoutes||[]).filter(item=>item.id!==route.id)]}));
+    setTransportRouteId(route.id);
+    setShowNewTransportRoute(false);
+    onNotice("New transport route saved to Transport Directory. It is now selected for this route leg; save the transport leg to link it between route nodes.");
+  };
   const saveTransportLeg = () => {
     if (!selectedPO || !selectedLine || !selectedComponent) { onNotice("Select a PO component line before adding transport."); return; }
     if (transportPlacement !== "start" && !routeOperations.some(operation=>operation.id===transportAnchorOperationId)) { onNotice("Select the process operation to place this transport before or after."); return; }
