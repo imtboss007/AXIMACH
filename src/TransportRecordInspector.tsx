@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Truck, X, CalendarClock, Phone, Mail, MessageCircle, Building2, Route, ReceiptText, BadgeCheck, Bike, Bus, CarFront, Plane, Ship, TrainFront } from "lucide-react";
-import type { ComponentTransportLegRecord, TransportRouteRecord, VendorRecord, VendorTransportRoute } from "./manufacturingData";
+import type { ComponentTransportLegRecord, MaterialCostEntryRecord, TransportRouteRecord, VendorRecord, VendorTransportRoute } from "./manufacturingData";
 
 type Props={
   leg:ComponentTransportLegRecord;
@@ -32,7 +32,7 @@ const vehicleIcon=(value:string)=>{
  if(/train|rail/.test(type))return TrainFront;
  return Truck;
 };
-export default function TransportRecordInspector({leg,vendor,directoryRoute,legacyVendorRoute,onClose,onOpenDirectory,anchor}:Props){
+export default function TransportRecordInspector({leg,vendor,directoryRoute,legacyVendorRoute,onClose,onOpenDirectory,anchor,materialEntry,fromOperationName,toOperationName}:Props){
  const vehicle=vehicleClass(leg.vehicleType);
  const VehicleIcon=vehicleIcon(leg.vehicleType);
  const route=directoryRoute||legacyVendorRoute;
@@ -59,7 +59,7 @@ export default function TransportRecordInspector({leg,vendor,directoryRoute,lega
       {vendor?.whatsappNumber&&<a href={"https://wa.me/"+vendor.whatsappNumber.replace(/[^0-9]/g,"")} target="_blank" rel="noreferrer"><MessageCircle size={14}/>WhatsApp {vendor.whatsappNumber}</a>}
       {vendor?.email&&<a href={"mailto:"+vendor.email}><Mail size={14}/>{vendor.email}</a>}
      </div><p>Vendor status: {vendor?.status||"Not recorded"}</p><p>Vendor notes: {vendor?.notes||"No vendor notes recorded."}</p></div>
-    <div className="ax-transport-info-card ax-transport-wide"><small>LINKED PROCESS HAND-OFF</small><strong>{leg.anchorOperationId||"No anchor operation"}{leg.targetOperationId?" → "+leg.targetOperationId:""}</strong><p>Route / PO line: {leg.poLineId}</p><p>Record ID: {leg.id}</p><p>Transport leg notes: {leg.notes||"No transport leg notes recorded."}</p></div>
+    <div className="ax-transport-info-card ax-transport-wide"><small>LINKED MATERIAL / PROCESS HAND-OFF</small><strong>{materialEntry?[materialEntry.partNumber||materialEntry.partName||"Material",materialEntry.materialName,materialEntry.materialGrade].filter(Boolean).join(" · "):fromOperationName||leg.anchorOperationId||"Material / process source"} → {toOperationName||leg.targetOperationId||"Destination not linked"}</strong>{materialEntry&&<p>{materialEntry.quantity} pcs · {Number(materialEntry.totalWeightKg||0).toFixed(3)} kg · {materialEntry.shapeType} · Material allocation {materialEntry.id}</p>}<p>PO line: {leg.poLineId} · Transport leg: {leg.id}</p><p>Transport leg notes: {leg.notes||"No transport leg notes recorded."}</p></div>
    </div>
    <footer className="ax-transport-inspector-actions"><small>Source-linked details · opening the directory will preserve the selected PO-line context</small>{onOpenDirectory&&<button type="button" className="button-quiet" onClick={onOpenDirectory}>Open Transport Directory</button>}</footer>
   </section>
