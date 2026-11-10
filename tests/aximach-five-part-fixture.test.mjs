@@ -2278,8 +2278,12 @@ test("Route graph transport stages render as vehicle icons and keep full data in
   const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
   const map=readFileSync(new URL("../src/LinkedProcessWorkspace.tsx",import.meta.url),"utf8");
   const scene=readFileSync(new URL("../src/ProcessScene3D.tsx",import.meta.url),"utf8");
-  const flowBranch=route.slice(route.indexOf('{node.kind==="material-transport"'),route.indexOf('{node.kind==="operation"'));
-  const mapBranch=map.slice(map.indexOf('if(item.kind==="material-transport"){'),map.indexOf('const operation=item.operation as OperationRecord;'));
+  const flowStart=route.indexOf('{node.kind==="material-transport"');
+  const flowEnd=route.indexOf('{node.kind==="operation"',flowStart);
+  const flowBranch=route.slice(flowStart,flowEnd);
+  const mapStart=map.indexOf('if(item.kind==="material-transport"){');
+  const mapEnd=map.indexOf('const operation=item.operation as OperationRecord;',mapStart);
+  const mapBranch=map.slice(mapStart,mapEnd);
   assert.ok(flowBranch.includes("ax-transport-icon-trigger"));
   assert.ok(flowBranch.includes("setInspectedTransportId(node.leg.id)"));
   assert.ok(!flowBranch.includes("Transporter not assigned"));
