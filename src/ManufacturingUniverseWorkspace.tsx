@@ -179,6 +179,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         selectedOperationId={activeOperation?.id||""}
         simulationIndex={simulationIndex}
         zoom={zoom}
+        onZoomChange={setZoom}
         initialLayout="sphere"
         ganttScale={ganttScale}
         onGanttScaleChange={setGanttScale}
