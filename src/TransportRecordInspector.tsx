@@ -25,6 +25,7 @@ export default function TransportRecordInspector({leg,vendor,directoryRoute,lega
  const vehicle=vehicleClass(leg.vehicleType);
  const route=directoryRoute||legacyVendorRoute;
  const routeStatus=directoryRoute?(directoryRoute.active?"Active":"Inactive"):"Vendor route";
+ const directoryAmount=directoryRoute?.fixedAmount??legacyVendorRoute?.fixedCost??leg.fixedAmount;
  return <div className="ax-transport-inspector-backdrop" role="presentation" onClick={onClose}>
   <section className={"ax-transport-inspector vehicle-"+vehicle} role="dialog" aria-modal="true" aria-label="Transport and directory record details" onClick={event=>event.stopPropagation()}>
    <header className="ax-transport-inspector-head">
@@ -40,7 +41,7 @@ export default function TransportRecordInspector({leg,vendor,directoryRoute,lega
     <div className="ax-transport-info-card"><small><ReceiptText size={13}/> TOTAL TRANSPORT COST</small><strong>{amount(leg.fixedAmount*leg.tripCount)}</strong></div>
     <div className="ax-transport-info-card"><small><BadgeCheck size={13}/> EXECUTION STATUS</small><strong>{leg.status||"Planned"}</strong></div>
     <div className="ax-transport-info-card"><small><CalendarClock size={13}/> SCHEDULE</small><strong>Pickup · {displayDate(leg.pickupAt)}</strong><strong>Delivery · {displayDate(leg.deliveryAt)}</strong></div>
-    <div className="ax-transport-info-card ax-transport-wide"><small><Building2 size={13}/> TRANSPORT DIRECTORY ROUTE</small><strong>{route?route.fromLocation+" → "+route.toLocation:"No linked directory route found"}</strong><p>{route?.vehicleType||leg.vehicleType} · {route?.tripDirection||leg.tripDirection} · {route?amount("fixedCost" in route?route.fixedCost:route.fixedCost):amount(leg.fixedAmount)} · {routeStatus}</p><p>{route?.notes||"No directory route notes recorded."}</p></div>
+    <div className="ax-transport-info-card ax-transport-wide"><small><Building2 size={13}/> TRANSPORT DIRECTORY ROUTE</small><strong>{route?route.fromLocation+" → "+route.toLocation:"No linked directory route found"}</strong><p>{route?.vehicleType||leg.vehicleType} · {route?.tripDirection||leg.tripDirection} · {route?amount(directoryAmount):amount(leg.fixedAmount)} · {routeStatus}</p><p>{route?.notes||"No directory route notes recorded."}</p></div>
     <div className="ax-transport-info-card ax-transport-wide"><small><Building2 size={13}/> TRANSPORTER / VENDOR DIRECTORY PROFILE</small><strong>{vendor?.company||"Transporter not assigned"}</strong><p>{[vendor?.contact,vendor?.role].filter(Boolean).join(" · ")||"No contact person recorded"}</p><p>{vendor?.address||"Address not recorded"}</p><div className="ax-transport-contact-links">
       {vendor?.phone&&<a href={"tel:"+vendor.phone}><Phone size={14}/>{vendor.phone}</a>}
       {vendor?.whatsappNumber&&<a href={"https://wa.me/"+vendor.whatsappNumber.replace(/[^0-9]/g,"")} target="_blank" rel="noreferrer"><MessageCircle size={14}/>WhatsApp {vendor.whatsappNumber}</a>}
