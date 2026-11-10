@@ -240,6 +240,7 @@ function App() {
     setQuery("");
     setDomain("All domains");
     setModuleExplorerOpen(true);
+    setMobileNavOpen(false);
     setCommandOpen(false);
   };
 
