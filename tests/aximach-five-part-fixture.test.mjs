@@ -2167,6 +2167,8 @@ test("Transport icons alone open compact anchored popups in Route Map, Route Flo
   assert.ok(scene.includes("onSelectTransportLeg?.(leg.id,{x:rect.left,y:rect.top})"));
   assert.ok(scene.includes("onSelectMaterialTransport?.(route.id,{x:rect.left,y:rect.top})"));
   assert.ok(routeFlow.includes("ax-transport-icon-trigger"));
+  assert.ok(routeFlow.includes("route-flow-vehicle-marker-button"));
+  assert.ok(routeFlow.includes("onTransportClick?.(transportLegId||materialTransportId!"));
   assert.ok(!routeFlow.includes("View full transport record"));
   assert.ok(routeMap.includes("onSelectTransportLeg={(id,anchor)=>"));
   assert.ok(routeMap.includes("onSelectMaterialTransport={(id,anchor)=>"));
