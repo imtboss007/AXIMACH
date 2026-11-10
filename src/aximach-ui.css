@@ -3634,3 +3634,24 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .route-flow-stage-track[data-route-layout="organic"] .route-flow-stage-wrap:nth-child(3n+2),
  .process-route-flow-track[data-route-layout="organic"] .process-route-flow-step:nth-child(3n+2){transform:none}
 }
+
+/* Process Map sequence arrows use the saved route relationship type, not one
+   generic connector style. The same relationship colour/pattern vocabulary is
+   present in the Route Flow and 3D Manufacturing Universe legends. */
+.process-route-flow-arrow.is-main{color:#12b9d5}
+.process-route-flow-arrow.is-alternate{color:#d99a27}
+.process-route-flow-arrow.is-rework{color:#df4d59}
+.process-route-flow-arrow.is-rework svg path{stroke-dasharray:4 3;stroke-width:2.4}
+.process-route-flow-arrow.is-dependency{color:#347de5}
+.process-route-flow-arrow.is-dependency svg path{stroke-dasharray:1.5 3.5;stroke-width:2.2}
+.process-route-flow-arrow.is-parallel{color:#9848d6}
+.process-route-flow-arrow.is-parallel svg{filter:drop-shadow(0 3px 0 currentColor)}
+.process-route-flow-arrow.is-merge{color:#9e4bc9}
+.process-route-flow-arrow.is-split{color:#3d79df}
+.process-route-flow-arrow.is-follow-on{color:#173c6c}
+.process-route-flow-arrow.is-feedback{color:#455bd6}
+.process-route-flow-arrow.is-feedback svg{transform:rotate(180deg)}
+.process-route-flow-arrow.is-conditional{color:#9954ce}
+.process-route-flow-arrow.is-conditional::before{content:"◇";font-size:12px;font-weight:800;margin-right:2px}
+.process-route-flow-arrow.is-successor{color:#203e62}
+.process-route-flow-arrow.is-transport{color:#1cc8e5}
