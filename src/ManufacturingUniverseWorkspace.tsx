@@ -171,7 +171,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     onNotice("Manufacturing Universe export started: "+exportFormat.toUpperCase()+".");
   };
 
-  return <section ref={workspaceRef} className="manufacturing-universe-workspace" data-workspace-theme={workspaceTheme}>
+  return <section className="manufacturing-universe-workspace" data-workspace-theme={workspaceTheme}>
     <header className="manufacturing-universe-head">
       <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE CONNECTED OPERATIONS</div><h1>Manufacturing <span>Universe</span></h1><p>A dedicated large-format 3D view of live material, transport, process, quality and delivery records. Select a PO line to see its live route.</p></div>
       <div className="manufacturing-universe-actions"><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div></div>
