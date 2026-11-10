@@ -152,6 +152,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const [wastagePercent,setWastagePercent]=useState("0");
   const [notes,setNotes]=useState("");
   useEffect(()=>{if(initialPartId){const part=parts.find(item=>item.id===initialPartId);if(part){setTarget("part");selectPart(initialPartId);}}},[initialPartId,parts.length]);
+  useEffect(()=>{if(!poLineId)return;setSelectedPoLineId(poLineId);const line=relatedPoLines.find(item=>item.line.id===poLineId);if(line?.line.partId){setTarget("part");selectPart(line.line.partId);}else if(line){setTarget(defaultNewPart?"part":"component");setNewPartMode(defaultNewPart);setPartId("");setPartName("");setPartNumber("");}},[poLineId,relatedPoLines.length,defaultNewPart]);
   const chosenMaterial=materials.find(item=>item.id===materialId);
   const chosenShape=SHAPES.find(item=>item.id===shape)||SHAPES[0];
   const volumeMm3=shapeVolumeMm3(shape,dimensions,dimensionUnits);
@@ -217,9 +218,9 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     const existingPart=parts.find(row=>row.id===partId);
     const part:ComponentPartRecord|undefined=target==="part"?{
       id:existingPart?.id||partId||makeId("component-part"),companyId,componentId,partNumber:partNumber.trim(),name:partName.trim(),revision:existingPart?.revision||"",drawingReference:existingPart?.drawingReference||"",
-      shapeType:existingPart?.shapeType||shape,
-      dimensions:existingPart&&Object.keys(existingPart.dimensions||{}).length?existingPart.dimensions:Object.fromEntries(Object.entries(dimensions).map(([key,value])=>[key,Number(value)||0])),
-      dimensionUnits:existingPart&&Object.keys(existingPart.dimensionUnits||{}).length?existingPart.dimensionUnits:dimensionUnits,
+      shapeType:shape,
+      dimensions:Object.fromEntries(Object.entries(dimensions).map(([key,value])=>[key,Number(value)||0])),
+      dimensionUnits:{...dimensionUnits},
       vendorIds:[...new Set([...(existingPart?.vendorIds||[]),...(vendorId?[vendorId]:[])])],materialId:existingPart?.materialId||materialRecord?.id||"",notes:existingPart?.notes||notes.trim(),createdAt:existingPart?.createdAt||stamp,updatedAt:stamp
     }:undefined;
     const entry:MaterialCostEntryRecord={
