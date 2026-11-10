@@ -2111,7 +2111,7 @@ test("Transport icon opens the linked directory route and full transporter profi
   assert.ok(route.includes("TransportRecordInspector"));
   assert.ok(universe.includes("onSelectTransportLeg={(id,anchor)=>"));
   assert.ok(universe.includes("TransportRecordInspector"));
-  assert.ok(scene.includes("TRANSPORT DIRECTORY"));
+  assert.ok(scene.includes("ax-full3d-transport-icon"));
   for(const field of ["vendor?.contact","vendor?.phone","vendor?.whatsappNumber","vendor?.email","vendor?.address","vendor?.notes","leg.fromLocation","leg.toLocation","leg.tripCount","leg.fixedAmount","leg.pickupAt","leg.deliveryAt"]) assert.ok(inspector.includes(field));
   for(const tone of ["bike","bus","car","air","ship","rail","truck"]) assert.ok(css.includes(".ax-full3d-transport-icon.vehicle-"+tone));
 });
@@ -2144,7 +2144,7 @@ test("Inbound material transport icons open the complete transporter directory i
   assert.ok(universe.includes("onSelectMaterialTransport={(id,anchor)=>"));
   assert.ok(universe3d.includes("onSelectMaterialTransport"));
   assert.ok(universe3d.includes("onSelectMaterialTransport={onSelectMaterialTransport}"));
-  assert.ok(scene.includes("INBOUND TRANSPORT DIRECTORY"));
+  assert.ok(scene.includes("aria-label={\"Open inbound material transport popup · \"+route.from+ \" to \"+route.to}"));
   assert.ok(scene.includes("onSelectMaterialTransport?.(route.id,{x:rect.left,y:rect.top})"));
   for(const field of ["entry.materialName","entry.materialGrade","entry.transportFrom","entry.transportTo","entry.transportPickupAt","entry.transportDeliveryAt","entry.transportCost","vendor?.phone","vendor?.whatsappNumber","vendor?.email","directoryRoute?.fixedCost"]) assert.ok(inspector.includes(field));
 });
