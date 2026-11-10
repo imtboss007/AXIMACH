@@ -253,39 +253,68 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const ops=points.map(({op,p})=>({id:op.id,op,kind:"operation" as const,screen:project(p,m,w,h)})).filter((item):item is {id:string;op:OperationRecord;kind:"operation";screen:ProjectedPoint}=>!!item.screen);
   const materials=materialPlacements.map(item=>({id:item.route.id,screen:project(item.materialPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
   const transports=materialPlacements.map(item=>({id:item.route.id,screen:project(item.transportPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
+  const transportLegsProjected=transportLegPlacements.map(item=>({id:item.leg.id,screen:project(item.point,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
   const centerScreen=mode==="sphere"?project({x:0,y:0,z:0},m,w,h):null;
-  const all:LabelCandidate[]=[...ops.map(item=>({id:item.id,kind:item.kind,screen:item.screen})),...materials.map(item=>({id:item.id,kind:"material" as const,screen:item.screen})),...transports.map(item=>({id:item.id,kind:"transport" as const,screen:item.screen}))];
+  const all:LabelCandidate[]=[...ops.map(item=>({id:item.id,kind:item.kind,screen:item.screen})),...materials.map(item=>({id:item.id,kind:"material" as const,screen:item.screen})),...transports.map(item=>({id:item.id,kind:"transport" as const,screen:item.screen})),...transportLegsProjected.map(item=>({id:item.id,kind:"transportLeg" as const,screen:item.screen}))];
   const relaxed=relaxLabels(all,w,h);
-  return {operations:relaxed.filter(item=>item.kind==="operation").map(item=>({op:ops.find(candidate=>candidate.id===item.id)!.op,screen:item.screen})),materials:relaxed.filter(item=>item.kind==="material").map(item=>({id:item.id,screen:item.screen})),transports:relaxed.filter(item=>item.kind==="transport").map(item=>({id:item.id,screen:item.screen})),center:centerScreen};
- },[points,size,angle,materialPlacements,mode]);
- const projected=projectedLayout.operations;
- const projectedMaterials=projectedLayout.materials;
- const projectedTransports=projectedLayout.transports;
- const projectedCore=projectedLayout.center;
- const projectedEdges=useMemo(()=>{
-  const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));
-  const positions=new Map(projected.map(item=>[item.op.id,item.screen]));
-  for(const anchor of anchorPoints){const screen=project(anchor.point,m,w,h);if(screen)positions.set(anchor.anchor.operation.id,screen);}
-  const materialPosition=new Map(projectedMaterials.map(item=>[item.id,item.screen]));
-  const transportPosition=new Map(projectedTransports.map(item=>[item.id,item.screen]));
-  const result:any[]=[];
-  const add=(key:string,fromId:string,toId:string,fromName:string,toName:string,from:ProjectedPoint|undefined|null,to:ProjectedPoint|undefined|null,relation:string)=>{
-   if(!from||!to)return;const dx=to.x-from.x,dy=to.y-from.y,length=Math.hypot(dx,dy);if(length<7)return;const inset=Math.min(20,length*.2);result.push({key,fromId,toId,from:fromName,to:toName,x:from.x+(dx/length)*inset,y:from.y+(dy/length)*inset,length:Math.max(7,length-inset*2),angle:Math.atan2(dy,dx)*180/Math.PI,relation});
-  };
-  const routeEdges=edges.length?edges:points.slice(0,-1).map((item,i)=>({from:item.op,to:points[i+1].op,relation:"main",color:"#4b95eb"}));
-  const replaced=new Set(materialPlacements.filter(item=>item.fromOperation&&item.toOperation).map(item=>item.fromOperation!.id+"->"+item.toOperation!.id));
-  routeEdges.forEach(edge=>{if(replaced.has(edge.from.id+"->"+edge.to.id))return;add("op-"+edge.from.id+"-"+edge.to.id,edge.from.id,edge.to.id,edge.from.name,edge.to.name,positions.get(edge.from.id),positions.get(edge.to.id),edge.relation);});
-  materialPlacements.forEach(item=>{
-   const mat=materialPosition.get(item.route.id),trans=transportPosition.get(item.route.id);
-   const from=item.fromOperation?positions.get(item.fromOperation.id):undefined;
-   const to=item.toOperation?positions.get(item.toOperation.id):undefined;
-   if(from&&mat)add("material-in-"+item.route.id,item.fromOperation!.id,"",item.fromOperation!.name,"Material · "+item.route.materialLabel,from,mat,"material");
-   if(mat&&trans)add("material-transport-"+item.route.id,"","","Material · "+item.route.materialLabel,"Transport · "+item.route.transporter,mat,trans,"material");
-   if(trans&&to)add("transport-process-"+item.route.id,"__transport__"+item.route.id,item.toOperation!.id,"Transport · "+item.route.transporter,item.toOperation!.name,trans,to,"material");
-  });
-  return result;
- },[projected,projectedMaterials,projectedTransports,materialPlacements,edges,points,anchorPoints,size,angle]);
+  return {operations:relaxed.filter(item=>item.kind==="operation").map(item=>({op:ops.find(candidate=>candidate.id===item.id)!.op,screen:item.screen})),materials:relaxed.filter(item=>item.kind==="material").map(item=>({id:item.id,screen:item.screen})),transports:relaxed.filter(item=>item.kind==="transport").map(item=>({id:item.id,screen:item.screen})),transportLegs:relaxed.filter(item=>item.kind==="transportLeg").map(item=>({id:item.id,screen:item.screen})),center:centerScreen};
+ },[points,size,angle,materialPlacements,transportLegPlacements,mode]);
  const projectedGanttTicks=useMemo(()=>{if(mode!=="gantt")return[];const domain=ganttDomain(geometryRows,ganttScale);if(!domain.hasEvents)return[];const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));return domain.ticks.map(value=>{const x=((value-domain.minimum)/Math.max(1,domain.maximum-domain.minimum))*2.35-1.175;const screen=project({x,y:-1.08,z:-.09},m,w,h);const date=new Date(value);const label=date.toLocaleDateString("en-IN",ganttScale==="month"?{month:"short",year:"2-digit"}:{day:"2-digit",month:"short"});return screen?{key:String(value),x:screen.x,label}:null;}).filter(Boolean);},[mode,geometryRows,ganttScale,size,angle]);
+ const projectedCatalogue=useMemo(()=>{const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));return cataloguePoints.map(({definition,p})=>({definition,screen:project(p,m,w,h)}));},[cataloguePoints,size,angle]);
+  const ganttStatus=useMemo(()=>{if(mode!=="gantt")return "";const domain=ganttDomain(geometryRows,ganttScale);const unscheduled=geometryRows.filter(op=>!(timestamp(op.plannedStart)??timestamp(op.actualStart))&&!(timestamp(op.plannedEnd)??timestamp(op.actualEnd))).length;const incomplete=geometryRows.filter(op=>!(timestamp(op.plannedStart)??timestamp(op.actualStart))||!(timestamp(op.plannedEnd)??timestamp(op.actualEnd))).length;return !domain.hasEvents?"NO SCHEDULE DATES · "+unscheduled+" UNSCHEDULED":incomplete?"INCOMPLETE SCHEDULE · "+incomplete+" OPERATION(S)":"";},[mode,geometryRows,ganttScale]);
+ return <div className="ax-full3d-scene" onPointerDown={e=>{drag.current={x:e.clientX,y:e.clientY,angle:rotationRef.current};e.currentTarget.setPointerCapture(e.pointerId);setDragging(true);}} onPointerMove={e=>{if(drag.current){rotationRef.current=drag.current.angle+(e.clientX-drag.current.x)*.008;setAngle(rotationRef.current);}}} onPointerUp={()=>{drag.current=null;setDragging(false);}} onPointerCancel={()=>{drag.current=null;setDragging(false);}}>
+  <canvas ref={canvas} aria-label="Interactive WebGL 3D manufacturing process graph"/>
+  <div className="ax-full3d-label-layer">{projectedCore&&mode==="sphere"&&<div className="ax-full3d-core-label" style={{left:projectedCore.x,top:projectedCore.y}}><strong>AXIMACH</strong><small>MANUFACTURING FLOW</small></div>}
+   {ganttStatus&&<div className="ax-full3d-gantt-status">{ganttStatus}</div>}
+   {projectedGanttTicks.map(tick=>tick&&<div key={tick.key} className="ax-full3d-gantt-tick" style={{left:tick.x}}>{tick.label}</div>)}
+   {projectedEdges.map(edge=><div key={edge.key} role="button" tabIndex={0} className={"ax-full3d-route-arrow "+(edge.relation==="rework"?"rework":edge.relation==="alternate"?"alternate":edge.relation==="material"?"material":"main")+(showArrows?"":" no-arrowhead")} style={{left:edge.x,top:edge.y,width:edge.length,transform:"rotate("+edge.angle+"deg)"}} aria-label={"Follow route from "+edge.from+" to "+edge.to} title={"Route: "+edge.from+" → "+edge.to} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(edge.toId)onArrowSelect?.(edge.toId);}} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();if(edge.toId)onArrowSelect?.(edge.toId);}}}><span>{edge.from} → {edge.to}</span></div>)}
+   {projectedMaterials.map((item,index)=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;return <div key={"material-card-"+item.id} className="ax-full3d-label ax-full3d-material-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()}>
+     <small>MATERIAL PROCUREMENT · {index+1}/{materialRoutes.length}</small><strong>{route.partLabel}</strong><em>{route.materialLabel}</em>
+     {visibleFields.includes("company")&&<small>Company · {route.companyLabel||"Not linked"}</small>}
+     {visibleFields.includes("po")&&<small>PO · {route.poLabel||"—"}</small>}
+     {visibleFields.includes("component")&&<small>Component · {route.componentLabel||"—"}</small>}
+     {visibleFields.includes("materialShape")&&<small>{route.dimensionsLabel||"Shape / dimensions not entered"}</small>}
+     {visibleFields.includes("materialDensity")&&<small>Density {route.densityKgM3?route.densityKgM3.toLocaleString("en-IN")+" kg/m³":"Not set"}</small>}
+     {visibleFields.includes("materialQuantity")&&<small>Qty {route.quantity.toLocaleString("en-IN")}</small>}
+     {visibleFields.includes("materialWeight")&&<small>Weight {route.weightKg.toFixed(3)} kg</small>}
+     {visibleFields.includes("materialVendor")&&<small>Supplier {route.supplier}</small>}
+     {visibleFields.includes("materialGiven")&&<small>Given {nodeDateTime(route.materialGivenAt)}</small>}
+     {visibleFields.includes("materialDelivery")&&<small>Expected delivery {nodeDateTime(route.materialDueAt)}</small>}
+     {visibleFields.includes("materialReceived")&&<small>Received {nodeDateTime(route.materialReceivedAt)}</small>}
+     {visibleFields.includes("materialCost")&&<small>₹{route.materialRate.toLocaleString("en-IN",{maximumFractionDigits:2})}/{route.priceUnit} · Material {route.materialCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
+     {visibleFields.includes("materialCuttingCost")&&<small>{route.cuttingType||"No cutting"} · Cutting ₹{route.cuttingCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
+   </div>;})}
+   {projectedTransports.map((item,index)=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;return <div key={"transport-card-"+item.id} className="ax-full3d-label ax-full3d-transport-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()}>
+     <small>INBOUND TRANSPORT · {index+1}/{materialRoutes.length}</small><strong>{route.transporter||"Transporter not assigned"}</strong>
+     {visibleFields.includes("transportRoute")&&<small>{route.from||"Pickup not set"} → {route.to||"Delivery not set"}</small>}
+     {visibleFields.includes("vehicle")&&<small>{route.vehicle||"Vehicle not set"} · {route.status||"Planned"}</small>}
+     {visibleFields.includes("transportVendor")&&<small>Transporter {route.transporter||"Not assigned"}</small>}
+     {visibleFields.includes("transportPickup")&&<small>Pickup {nodeDateTime(route.pickupAt)}</small>}
+     {visibleFields.includes("transportDelivery")&&<small>Delivery {nodeDateTime(route.deliveryAt)}</small>}
+     {visibleFields.includes("materialTransportCost")&&<small>Transport ₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>}
+   </div>;})}
+    {projectedTransportLegs.map((item,index)=>{const leg=transportLegs.find(row=>row.id===item.id);if(!leg)return null;return <button type="button" key={"transport-leg-card-"+item.id} className="ax-full3d-label ax-full3d-transport-leg-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onSelectTransportLeg?.(leg.id);}} aria-label={"Edit transport leg "+leg.fromLocation+" to "+leg.toLocation}>
+      <small><Truck size={12}/> TRANSPORT LEG · {index+1}/{transportLegs.length}</small><strong>{leg.vendorName||"Transporter not assigned"}</strong>
+      <small>{leg.fromLocation||"From not set"} → {leg.toLocation||"To not set"}</small>
+      <small>{leg.vehicleType||"Vehicle not set"} · {leg.tripDirection} · {leg.tripCount} trip(s)</small>
+      <em>₹{leg.amount.toLocaleString("en-IN",{maximumFractionDigits:2})}</em>
+    </button>;})}
+   {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
+     <small>{operationCode(op)}{visibleFields.includes("status")?" · "+op.status:""}</small><strong>{op.name}</strong>
+     <small>CATEGORY · {op.category||"Not set"}</small>
+     <small>SUB-PROCESS · {op.subcategory||"Not set"}</small>
+     <em>Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>
+     <small className="ax-full3d-node-meta">Given / start · {nodeDateTime(op.plannedStart)}</small>
+     <small className="ax-full3d-node-meta">Delivery / due · {nodeDateTime(op.plannedEnd)}</small>
+     <small className="ax-full3d-node-meta">Vendor · {vendors.find(vendor=>vendor.id===op.vendorId)?.company||"Vendor not assigned"}</small>
+     {visibleFields.includes("price")&&<small className="ax-full3d-node-meta">Rate · ₹{(op.actualRatePerPart>0?op.actualRatePerPart:op.ratePerPart).toLocaleString("en-IN",{maximumFractionDigits:2})}/{quantityUnit==="sets"?"set":"piece"}</small>}
+     <small className="ax-full3d-node-meta">Linked amount · ₹{(op.quantity*(op.actualRatePerPart>0?op.actualRatePerPart:op.ratePerPart)).toLocaleString("en-IN",{maximumFractionDigits:2})}</small>
+   </button>)}
+   {projectedCatalogue.map(({definition,screen},index)=>screen&&<button key={definition.id} type="button" className="ax-full3d-label ax-full3d-catalogue-label" style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>onAddCatalogue?.(definition.id)} disabled={!onAddCatalogue} aria-label={"Add "+definition.processType+" to this PO line"}><small>LIB-{String(index+1).padStart(2,"0")}</small><strong>{definition.processType}</strong><em>{definition.category} · ADD STAGE</em></button>)}
+  </div>
+  <div className="ax-full3d-controls"><span>{dragging?"DRAGGING · TRUE 3D VIEW":mode.toUpperCase()+" · WEBGL 3D · "+(autoRotate?"AUTO ROTATING":"ROTATION PAUSED")}</span></div>
+ </div>;
+} const projectedGanttTicks=useMemo(()=>{if(mode!=="gantt")return[];const domain=ganttDomain(geometryRows,ganttScale);if(!domain.hasEvents)return[];const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));return domain.ticks.map(value=>{const x=((value-domain.minimum)/Math.max(1,domain.maximum-domain.minimum))*2.35-1.175;const screen=project({x,y:-1.08,z:-.09},m,w,h);const date=new Date(value);const label=date.toLocaleDateString("en-IN",ganttScale==="month"?{month:"short",year:"2-digit"}:{day:"2-digit",month:"short"});return screen?{key:String(value),x:screen.x,label}:null;}).filter(Boolean);},[mode,geometryRows,ganttScale,size,angle]);
  const projectedCatalogue=useMemo(()=>{const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));return cataloguePoints.map(({definition,p})=>({definition,screen:project(p,m,w,h)}));},[cataloguePoints,size,angle]);
   const ganttStatus=useMemo(()=>{if(mode!=="gantt")return "";const domain=ganttDomain(geometryRows,ganttScale);const unscheduled=geometryRows.filter(op=>!(timestamp(op.plannedStart)??timestamp(op.actualStart))&&!(timestamp(op.plannedEnd)??timestamp(op.actualEnd))).length;const incomplete=geometryRows.filter(op=>!(timestamp(op.plannedStart)??timestamp(op.actualStart))||!(timestamp(op.plannedEnd)??timestamp(op.actualEnd))).length;return !domain.hasEvents?"NO SCHEDULE DATES · "+unscheduled+" UNSCHEDULED":incomplete?"INCOMPLETE SCHEDULE · "+incomplete+" OPERATION(S)":"";},[mode,geometryRows,ganttScale]);
  return <div className="ax-full3d-scene" onPointerDown={e=>{drag.current={x:e.clientX,y:e.clientY,angle:rotationRef.current};e.currentTarget.setPointerCapture(e.pointerId);setDragging(true);}} onPointerMove={e=>{if(drag.current){rotationRef.current=drag.current.angle+(e.clientX-drag.current.x)*.008;setAngle(rotationRef.current);}}} onPointerUp={()=>{drag.current=null;setDragging(false);}} onPointerCancel={()=>{drag.current=null;setDragging(false);}}>
