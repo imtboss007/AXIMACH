@@ -244,14 +244,14 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       const width=Math.max(viewport.clientWidth,track?.scrollWidth||0);
       const height=Math.max(viewport.clientHeight,track?.scrollHeight||0);
       const cards=new Map();
-      viewport.querySelectorAll("[data-route-operation-id]").forEach(card=>{
+      viewport.querySelectorAll<HTMLElement>("[data-route-operation-id]").forEach(card=>{
         const id=card.dataset.routeOperationId;
         if(!id)return;
         const rect=card.getBoundingClientRect();
         cards.set(id,{x:rect.left-bounds.left+viewport.scrollLeft+rect.width/2,y:rect.top-bounds.top+viewport.scrollTop+rect.height/2,width:rect.width,height:rect.height});
       });
       const ordered=lane.filter(operation=>operation.relationType!=="subprocess").slice().sort((a,b)=>a.sequence-b.sequence);
-      const items=[];
+      const items:Array<{id:string;type:RouteRelationshipType;path:string;arrow:string;label:string;x:number;y:number}>=[];
       for(const link of relationships){
         if(link.status==="Disabled")continue;
         const fromIndex=ordered.findIndex(operation=>operation.id===link.fromOperationId);
