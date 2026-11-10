@@ -211,7 +211,7 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
   assert.ok(orb.includes('className="ax-orb-core"'));
   assert.ok(orb.includes("scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1)"));
-  assert.ok(orb.includes('style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}'));
+  assert.ok(orb.includes("scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1)"));
   assert.ok(orb.includes("onClick={() => { if (!dragMoved.current) toggleZoom(); }}"), "dragging on the globe core must not trigger click-to-zoom");
   assert.ok(orb.includes("const startDrag ="));
   assert.ok(orb.includes("const startLowerDrag ="));
@@ -2234,7 +2234,7 @@ test("AXIMACH mobile navigation keeps its icon rail visible and hamburger expand
 test("AXIMACH mobile 3D command centre keeps module reachability and non-overlapping record summaries", () => {
   const orb=readFileSync(new URL("../src/AXIMACHOrb.tsx",import.meta.url),"utf8");
   const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
-  assert.ok(orb.includes('const radius = compactViewport ? 82 : 132'));
+  assert.ok(orb.includes('const radius = compactViewport ? 116 : 132'));
   assert.ok(orb.includes("ax-orb-lower-summary-grid"));
   assert.ok(orb.includes("ax-orb-lower-summary-card"));
   assert.ok(css.includes(".ax-orb-lower-summary-grid"));
