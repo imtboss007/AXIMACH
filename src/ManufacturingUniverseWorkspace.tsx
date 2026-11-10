@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Activity, ArrowRight, Boxes, CheckCircle2, ClipboardCheck, Factory, GitBranch, Network, Package, Route, Settings2, Truck, Workflow } from "lucide-react";
+import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord, type RouteRelationshipRecord } from "./manufacturingData";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 
@@ -17,7 +17,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
   const [showUniverseSettings,setShowUniverseSettings]=useState(false);
   const [visibleUniverseFields,setVisibleUniverseFields]=useState<string[]>(["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]);
-  const [visibleUniverseModules,setVisibleUniverseModules]=useState<string[]>(["companies","purchasing","components","inventory","process-master","transport-master","vendors","production","quality","costing","route-flow","reports"]);
+  const [visibleUniverseModules,setVisibleUniverseModules]=useState<string[]>(["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"]);
   const company=companies.find(row=>row.id===companyPick)||companies[0];
   const companyId=company?.id||"";
   const companyOrders=orders.filter(row=>row.companyId===companyId);
@@ -78,6 +78,10 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     {label:"TRANSPORT LEGS",value:routeLegs.length,icon:Truck,module:"transport-master"},
     {label:"PROCESS DEFINITIONS",value:definitions.length,icon:Workflow,module:"process-master"},
     {label:"VENDORS",value:vendors.length,icon:Factory,module:"vendors"},
+    {label:"CONTACTS",value:activeRows(data.contactProfiles||[]).length,icon:Users,module:"contact360"},
+    {label:"PLANNED COSTS",value:activeRows(data.plannedCosts||[]).length,icon:CircleDollarSign,module:"planned-cost"},
+    {label:"FOLLOW-UP LINKS",value:activeRows(data.followUpAssignments||[]).length,icon:MessageCircle,module:"communications"},
+    {label:"DISPATCH LEGS",value:routeLegs.length,icon:Truck,module:"dispatch"},
     {label:"RELATIONSHIPS",value:routeRelationships.length,icon:GitBranch,module:"route-flow"}
   ];
   const linkModules=[
@@ -88,11 +92,19 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     {id:"process-master",title:"Process Directory",icon:Workflow,meta:"Categories and sub-process definitions"},
     {id:"transport-master",title:"Transport Directory",icon:Truck,meta:"Carriers, vehicles and route rates"},
     {id:"vendors",title:"Vendor Directory",icon:Factory,meta:"Suppliers, processors and transporters"},
+    {id:"contact360",title:"Contact 360",icon:Users,meta:"Company, vendor and WhatsApp contacts"},
+    {id:"process-master",title:"Process Directory",icon:Workflow,meta:"Process categories, types and sub-processes"},
+    {id:"planned-cost",title:"Component Planned Cost",icon:CircleDollarSign,meta:"Component and process cost plans"},
+    {id:"vendor-capability",title:"Vendor Network",icon:Network,meta:"Vendor process capabilities and categories"},
     {id:"production",title:"Production Plan",icon:Activity,meta:"PO-wise production state and quantities"},
+    {id:"dispatch",title:"Transport & Dispatch",icon:Truck,meta:"Dispatch legs, pickups and deliveries"},
     {id:"quality",title:"Quality Inspection",icon:ClipboardCheck,meta:"Measurements, QC and acceptance"},
     {id:"costing",title:"Costing & Payment",icon:CheckCircle2,meta:"Material, process, transport and payment"},
+    {id:"communications",title:"Follow-up Centre",icon:MessageCircle,meta:"Assigned contacts and communications"},
     {id:"route-flow",title:"Route Flow & Relationships",icon:Route,meta:"Full-screen route and link editor"},
-    {id:"reports",title:"Reports & Analytics",icon:Network,meta:"Operations and delivery analytics"}
+    {id:"reports",title:"Reports & Analytics",icon:Network,meta:"Operations and delivery analytics"},
+    {id:"ai-insights",title:"AI Insights",icon:Sparkles,meta:"Insights from saved operational records"},
+    {id:"export",title:"Data Exchange Centre",icon:FileDown,meta:"Import, export and backups"}
   ];
   const universeFieldOptions=[["company","Company"],["po","Purchase order"],["component","Component / part"],["category","Process category"],["subcategory","Sub-process"],["quantity","Quantity"],["vendor","Process vendor"],["plannedStart","Planned start"],["plannedEnd","Delivery / due date"],["price","Rate"],["amount","Process amount"],["status","Process status"],["transportVendor","Transporter"],["transportRoute","Transport route"],["vehicle","Vehicle type"],["transportPickup","Pickup time"],["transportDelivery","Delivery time"],["transportLegCost","Transport cost"],["combinedAmount","Combined amount"],["materialShape","Material shape"],["materialDensity","Material density"],["materialQuantity","Material quantity"],["materialWeight","Material weight"],["materialVendor","Material supplier"],["materialGiven","Material given date"],["materialDelivery","Material due date"],["materialReceived","Material received"],["materialCost","Material cost"],["materialCuttingCost","Cutting cost"],["materialTransportCost","Material transport cost"]] as const;
   const syncText=syncStatus==="synced"?"Live server sync":syncStatus==="syncing"?"Syncing shared data":syncStatus==="error"?"Sync error":"Local records";
@@ -113,7 +125,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     <div className="manufacturing-universe-stat-grid">{stats.filter(item=>visibleUniverseModules.includes(item.module)).map(item=>{const Icon=item.icon;return <button key={item.label} onClick={()=>onNavigate(item.module,activeOperation)}><Icon size={16}/><strong>{item.value.toLocaleString("en-IN")}</strong><small>{item.label}</small></button>;})}</div>
     <section className="manufacturing-universe-live-panel">
       <div className="manufacturing-universe-live-heading"><div><span className="eyebrow">LIVE MANUFACTURING SCENE · WEBGL</span><h2>Manufacturing process universe</h2><p>Sphere, cube, vortex, helix, orbit, network, grid, pipeline, layered, stacked, matrix and tree views use the selected live PO-line data.</p></div><span className="manufacturing-universe-live-state"><i/> LIVE RECORDS</span></div>
-      {routeOperations.length?<ProcessUniverse3D
+      {(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0||definitions.length>0)?<ProcessUniverse3D
         key={poLineId}
         operations={routeOperations.filter(row=>row.relationType!=="subprocess")}
         allOperations={allRouteOperations}
