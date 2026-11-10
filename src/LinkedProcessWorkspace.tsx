@@ -9,6 +9,7 @@ import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 import TransportRecordInspector from "./TransportRecordInspector";
 import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector";
 import { transportPopupAnchor, transportPopupAnchorFromPoint } from "./transportPopup";
+import { RouteLayoutPicker, useRouteLayout } from "./RouteLayoutPicker";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -140,6 +141,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [cardVisibleFields,setCardVisibleFields] = useState<ProcessCardField[]>(["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]);
   const [exportScope,setExportScope] = useState<string>("all");
   const [exportArrows] = useState(true);
+  const [routeLayout,setRouteLayout]=useRouteLayout();
   const [visualStyle,setVisualStyle] = useState<"sphere"|"cube"|"vortex"|"helix"|"orbit"|"stacked"|"pipeline"|"network"|"grid"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"digital-mesh"|"molecular"|"combined">("sphere");
   const [ganttScale,setGanttScale] = useState<"day"|"week"|"month">("week");
   const [histogramStyle,setHistogramStyle] = useState<"bar"|"stacked"|"donut">("bar");
@@ -1500,7 +1502,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                   // every saved material allocation to the beginning of the route.
                   routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(appendMaterial);
                 });
-                return <div className="process-route-flow-track">{routeNodes.map((item,index)=>{
+                return <><div className="process-route-layout-toolbar"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/></div><div className="process-route-flow-track" data-route-layout={routeLayout}>{routeNodes.map((item,index)=>{
                   const next=routeNodes[index+1];
                   const isTransport=item.kind==="transport"||item.kind==="material-transport"||next?.kind==="transport"||next?.kind==="material-transport";
                   const arrowColor=isTransport?"#1cc8e5":routeColor;
@@ -1561,7 +1563,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                     </button>
                     {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport":"")} style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
                   </div>;
-                })}</div>;
+                })}</div></>;
               })()}
             </div>;
           })}
