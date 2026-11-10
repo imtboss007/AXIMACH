@@ -210,7 +210,7 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
   assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
   assert.ok(orb.includes('className="ax-orb-core"'));
-  assert.ok(orb.includes('style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}'));
+  assert.ok(orb.includes("scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1)"));
   assert.ok(orb.includes('style={{ transformStyle: "preserve-3d", scale: sphereSize * (zoomed ? 1.2 : 1) }}'));
   assert.ok(orb.includes("onClick={() => { if (!dragMoved.current) toggleZoom(); }}"), "dragging on the globe core must not trigger click-to-zoom");
   assert.ok(orb.includes("const startDrag ="));
@@ -228,7 +228,7 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(orb.includes("const ringRadius = Math.sqrt(Math.max(0, 1 - unitY * unitY))"));
   assert.ok(orb.includes("const yaw = Math.atan2(unitX, unitZ) * 180 / Math.PI"));
   assert.ok(orb.includes("const pitch = -Math.asin(unitY) * 180 / Math.PI"));
-  assert.ok(orb.includes("compactViewport ? 116 : 132"));
+  assert.ok(orb.includes("compactViewport ? 82 : 132"));
   assert.ok(orb.includes('rotateY(" + yaw + "deg) rotateX(" + pitch + "deg)'));
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   assert.match(css, /\.ax-orb-module-shell \{[\s\S]*?pointer-events:none;[\s\S]*?transform-style:preserve-3d;/);
@@ -968,7 +968,7 @@ test("Process Universe receives route-card visibility and diagram arrow state fr
 test("mobile and desktop command sphere orbit controls sit outside the core radius", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
-  assert.ok(orb.includes("const radius = compactViewport ? 116 : 132"));
+  assert.ok(orb.includes("const radius = compactViewport ? 82 : 132"));
   assert.ok(css.includes(".process-map-visible-fields"));
   assert.ok(css.includes("@media(max-width:620px){.ax-orb-module-shell .ax-orb-satellite-3d"));
 });
