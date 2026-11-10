@@ -1524,32 +1524,18 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                     const entry=item.entry;
                     const MaterialTransportIcon=transportVehicleIcon(entry.transportVehicleType||"");
                     return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
-                      <div className="process-route-flow-transport-card">
-                        <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(entry.transportVehicleType||"")} aria-label="Open inbound material transport popup" title="Transport details" onClick={event=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><MaterialTransportIcon size={17}/></button><small>INBOUND MATERIAL TRANSPORT</small>
-                        <strong>{vendors.find(vendor=>vendor.id===entry.transportVendorId)?.company||"Transporter not assigned"}</strong>
-                        <small>{entry.transportFrom||vendors.find(vendor=>vendor.id===entry.vendorId)?.address||"Pickup not set"} → {entry.transportTo||"Destination not set"}</small>
-                        <small>{entry.transportVehicleType||"Vehicle not set"} · Pickup {entry.transportPickupAt||"—"}</small>
-                        <em>{money(entry.transportCost||0)} · Delivery {entry.transportDeliveryAt||"—"}</em>
-                      </div>
-                      {next&&<span className="process-route-flow-arrow is-transport" style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
+                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(entry.transportVehicleType||"")} aria-label="Open inbound material transport popup" title={(entry.transportVehicleType||"Vehicle")+" · "+(entry.transportFrom||"Pickup")+" → "+(entry.transportTo||"Destination")} onClick={event=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><MaterialTransportIcon size={20}/></button>
+                      {next&&<span className="process-route-flow-arrow is-transport" style={{color:arrowColor}}><ArrowRight size={20}/></span>}
                     </div>;
                   }
                   if(item.kind==="transport"){
                     const leg=item.leg;
-                    const transporter=vendors.find(vendor=>vendor.id===leg.vendorId)?.company||"Transporter not assigned";
                     const anchor=lane.find(op=>op.id===leg.anchorOperationId);
                     const legRelation=anchor?.relationType==="rework"?"rework":anchor?.relationType==="alternate"?"alternate":"main";
                     const TransportIcon=transportVehicleIcon(leg.vehicleType);
                     return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
-                      <div className="process-route-flow-transport-card">
-                        <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(leg.vehicleType)} aria-label="Open transport popup" title="Transport details" onClick={event=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><TransportIcon size={17}/></button>
-                        <small>TRANSPORT LEG · {leg.placement||"start"}</small>
-                        <strong>{transporter}</strong>
-                        <small>{leg.fromLocation||"From not set"} → {leg.toLocation||"To not set"}</small>
-                        <small>{leg.vehicleType||"Vehicle not set"} · {leg.tripDirection}</small>
-                        <em>{leg.tripCount} carry / trip(s) · {money(leg.fixedAmount*leg.tripCount)}</em>
-                      </div>
-                      {next&&<span className={"process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
+                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(leg.vehicleType)} aria-label="Open transport popup" title={(leg.vehicleType||"Vehicle")+" · "+(leg.fromLocation||"From")+" → "+(leg.toLocation||"To")} onClick={event=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><TransportIcon size={20}/></button>
+                      {next&&<span className={"process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}><ArrowRight size={20}/></span>}
                     </div>;
                   }
                   const operation=item.operation as OperationRecord;
