@@ -6,7 +6,7 @@ import { ProcessIcon } from "./IconStudio";
 import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
-import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
+import { RouteLayoutPicker, RouteConnectorLegend, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
 type MaterialRouteNode = {
@@ -360,6 +360,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
     <nav className="process-universe-layouts" aria-label="Process map visualisation modes"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout}/>
       {([{id:"sphere",label:"Sphere View",glyph:"◎"},{id:"cube",label:"Cube View",glyph:"⬡"},{id:"vortex",label:"Vortex View",glyph:"◉"},{id:"helix",label:"Helix View",glyph:"⌁"},{id:"orbit",label:"Orbit View",glyph:"⊙"},{id:"network",label:"Network View",glyph:"✣"},{id:"grid",label:"Grid View",glyph:"▦"},{id:"pipeline",label:"Pipeline View",glyph:"⇢"},{id:"layered",label:"Layered View",glyph:"▱"},{id:"stacked",label:"Stacked View",glyph:"▤"},{id:"matrix",label:"Matrix View",glyph:"▦"},{id:"tree",label:"Tree View",glyph:"♧"}, {id:"radial",label:"Radial View",glyph:"◎"}, {id:"circular",label:"Circular View",glyph:"◌"}, {id:"organic",label:"Organic View",glyph:"✣"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}
     </nav>
+    <RouteConnectorLegend compact/>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
       {materialRoutes.length>0 && <section className="process-orbit-material-routes" aria-label="Material procurement and inbound transport routes">
