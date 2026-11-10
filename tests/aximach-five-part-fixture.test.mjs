@@ -1909,9 +1909,10 @@ test("All eleven route relationship types have persisted styling and separate ro
   const route = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   for (const type of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"]) {
     assert.ok(route.includes('id:"' + type + '"'), "missing relationship option " + type);
-    assert.ok(route.includes('route-flow-curve-' + type), "missing route curve style " + type);
+    assert.ok(css.includes('.route-flow-curve-' + type), "missing route curve style " + type);
   }
   assert.ok(universe.includes('routeRelationships?: RouteRelationshipRecord[]'));
   assert.ok(universe.includes('edges.push({id:"relationship-"+link.id'));
