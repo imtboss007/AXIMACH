@@ -82,9 +82,9 @@ export function createAxMachTwoCompanyDemo():ManufacturingData{
   const densityKgM3=/aluminium/i.test(p.material)?2700:7850;
   const plateLike=/bracket|manifold|block|base plate|mounting/i.test(p.name);
   const shapeType=plateLike?"plate":"round-bar";
-  const dimensions=plateLike?{length:180,width:110,thickness:18}:{length:165,diameter:52};
-  const dimensionUnits=Object.fromEntries(Object.keys(dimensions).map(key=>[key,"mm"]));
-  const volumeMm3=plateLike?dimensions.length*dimensions.width*dimensions.thickness:Math.PI*Math.pow(dimensions.diameter,2)*dimensions.length/4;
+  const dimensions:Record<string,number>=plateLike?{length:180,width:110,thickness:18}:{length:165,diameter:52};
+  const dimensionUnits:Record<string,string>=Object.fromEntries(Object.keys(dimensions).map(key=>[key,"mm"]));
+  const volumeMm3=plateLike?dimensions.length!*dimensions.width!*dimensions.thickness!:Math.PI*Math.pow(dimensions.diameter!,2)*dimensions.length!/4;
   const weightPerPieceKg=volumeMm3*densityKgM3/1_000_000_000;
   const totalWeightKg=weightPerPieceKg*p.qty*1.025;
   const materialRate=420;
