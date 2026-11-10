@@ -34,7 +34,7 @@ function fallbackFor(name: string) {
   return <Workflow size={20} />;
 }
 
-type ProcessLayoutMode = "sphere" | "cube" | "vortex" | "helix" | "orbit" | "network" | "grid" | "pipeline" | "layered" | "stacked" | "matrix" | "tree" | "route" | "molecular" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "orthogonal" | "s-curve" | "swimlane" | "gantt" | "nodes" | "branch" | "combined";
+type ProcessLayoutMode = "sphere" | "cube" | "vortex" | "helix" | "orbit" | "network" | "grid" | "pipeline" | "layered" | "stacked" | "matrix" | "tree" | "route" | "molecular" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "orthogonal" | "s-curve" | "swimlane" | "radial" | "circular" | "organic" | "gantt" | "nodes" | "branch" | "combined";
 type Point3D = { x: number; y: number; z: number };
 const routeGroupKey = (operation:OperationRecord) => (operation.poLineId || operation.componentId) + "::" + (operation.branch || "Main route");
 
@@ -80,6 +80,24 @@ function getLayoutPoint(index: number, operation: OperationRecord | undefined, m
     const columns = Math.max(2, Math.ceil(Math.sqrt(total)));
     const rows = Math.ceil(total / columns), row = Math.floor(index / columns), column = index % columns;
     return { x: (column - (columns - 1) / 2) * 88, y: ((rows - 1) / 2 - row) * 78, z: branchOffset * 82 + (index % 3 - 1) * 18 };
+  }
+  if (mode === "circular") {
+    const angle = (localIndex / localCount) * Math.PI * 2;
+    const radius = Math.max(105, localCount * 20);
+    return { x: Math.cos(angle) * radius, y: branchOffset * 76 + Math.sin(localIndex * 0.5) * 12, z: Math.sin(angle) * radius };
+  }
+  if (mode === "radial") {
+    const ring = Math.floor(Math.sqrt(localIndex));
+    const first = ring * ring;
+    const slots = Math.max(1, 2 * ring + 1);
+    const angle = ((localIndex - first) / slots) * Math.PI * 2;
+    const radius = 76 + ring * 92;
+    return { x: Math.cos(angle) * radius, y: branchOffset * 82 - ring * 26, z: Math.sin(angle) * radius };
+  }
+  if (mode === "organic") {
+    const angle = localIndex * golden;
+    const radius = 72 + Math.sqrt(localIndex + 1) * 48;
+    return { x: Math.cos(angle) * radius + branchOffset * 26, y: branchOffset * 62 + Math.sin(localIndex * 1.31) * 48, z: Math.sin(angle) * radius };
   }
   if (mode === "orthogonal" || mode === "s-curve") {
     const columns = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(localCount))));
@@ -340,7 +358,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
       <div className="process-universe-count"><strong>{orbitCount}</strong><span>{displayOperations.length ? "SAVED PROCESS STEPS" : "AVAILABLE STAGES"}</span><button type="button" className="process-orbit-auto-toggle" aria-pressed={autoRotateEnabled} disabled={!!prefersReducedMotion} onClick={() => setAutoRotateEnabled(value => !value)}>{prefersReducedMotion ? "Reduced motion" : autoRotateEnabled ? "Pause rotation" : "Resume rotation"}</button></div>
     </header>
     <nav className="process-universe-layouts" aria-label="Process map visualisation modes"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout}/>
-      {([{id:"sphere",label:"Sphere View",glyph:"◎"},{id:"cube",label:"Cube View",glyph:"⬡"},{id:"vortex",label:"Vortex View",glyph:"◉"},{id:"helix",label:"Helix View",glyph:"⌁"},{id:"orbit",label:"Orbit View",glyph:"⊙"},{id:"network",label:"Network View",glyph:"✣"},{id:"grid",label:"Grid View",glyph:"▦"},{id:"pipeline",label:"Pipeline View",glyph:"⇢"},{id:"layered",label:"Layered View",glyph:"▱"},{id:"stacked",label:"Stacked View",glyph:"▤"},{id:"matrix",label:"Matrix View",glyph:"▦"},{id:"tree",label:"Tree View",glyph:"♧"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}
+      {([{id:"sphere",label:"Sphere View",glyph:"◎"},{id:"cube",label:"Cube View",glyph:"⬡"},{id:"vortex",label:"Vortex View",glyph:"◉"},{id:"helix",label:"Helix View",glyph:"⌁"},{id:"orbit",label:"Orbit View",glyph:"⊙"},{id:"network",label:"Network View",glyph:"✣"},{id:"grid",label:"Grid View",glyph:"▦"},{id:"pipeline",label:"Pipeline View",glyph:"⇢"},{id:"layered",label:"Layered View",glyph:"▱"},{id:"stacked",label:"Stacked View",glyph:"▤"},{id:"matrix",label:"Matrix View",glyph:"▦"},{id:"tree",label:"Tree View",glyph:"♧"}, {id:"radial",label:"Radial View",glyph:"◎"}, {id:"circular",label:"Circular View",glyph:"◌"}, {id:"organic",label:"Organic View",glyph:"✣"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}
     </nav>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
