@@ -212,10 +212,31 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
  ]);
  const routeEdges=edges.length?edges:points.slice(0,-1).map((item,i)=>({from:item.op,to:points[i+1].op,relation:"main",color:"#4b95eb"}));
  let flowIndex=0;
- const drawOperationFlow=(p:P,q:P,offset:number,rgb:number[])=>{
+ const drawOperationFlow=(p:P,q:P,offset:number,rgb:number[],relation:string="main")=>{
   const delta={x:q.x-p.x,y:q.y-p.y,z:q.z-p.z},length=Math.hypot(delta.x,delta.y,delta.z)||1;
-  draw(lineMesh(p,q,.038),rgb);
-  if(showArrows){const tip={x:q.x-delta.x/length*.14,y:q.y-delta.y/length*.14,z:q.z-delta.z/length*.14};draw(arrowHeadMesh(tip,q,.095),rgb);const phase=((now*.00012+offset*.23)%1+1)%1;const particle={x:p.x+delta.x*phase,y:p.y+delta.y*phase,z:p.z+delta.z*phase};draw(sphereMesh(particle.x,particle.y,particle.z,.045,4,6),[.24,.86,1]);}
+  const planar=Math.hypot(delta.x,delta.y)||1;
+  const bend=relation==="feedback"?.52:relation==="parallel"?.32:relation==="merge"||relation==="split"?.26:relation==="conditional"?.22:relation==="dependency"?.18:.14;
+  const direction=relation==="feedback"||relation==="alternate"?-1:1;
+  const control={x:(p.x+q.x)/2+(-delta.y/planar)*bend*direction,y:(p.y+q.y)/2+(delta.x/planar)*bend*direction,z:(p.z+q.z)/2+(relation==="parallel"?.14:relation==="feedback"?.20:0)};
+  const pointAt=(t:number):P=>{const u=1-t;return{x:u*u*p.x+2*u*t*control.x+t*t*q.x,y:u*u*p.y+2*u*t*control.y+t*t*q.y,z:u*u*p.z+2*u*t*control.z+t*t*q.z};};
+  const dashed=relation==="rework"||relation==="dependency"||relation==="conditional";
+  const segments=16;
+  for(let i=0;i<segments;i++){
+   if(dashed&&(i%4===1||i%4===2))continue;
+   const a=pointAt(i/segments),b=pointAt((i+1)/segments);
+   draw(lineMesh(a,b,relation==="parallel"?.026:.035),rgb);
+  }
+  if(showArrows){
+   const tangent={x:q.x-control.x,y:q.y-control.y,z:q.z-control.z},tLen=Math.hypot(tangent.x,tangent.y,tangent.z)||1;
+   const tip={x:q.x-tangent.x/tLen*.14,y:q.y-tangent.y/tLen*.14,z:q.z-tangent.z/tLen*.14};
+   draw(arrowHeadMesh(tip,q,.095),rgb);
+   const phase=((now*.00012+offset*.23)%1+1)%1,particle=pointAt(phase);
+   draw(sphereMesh(particle.x,particle.y,particle.z,.045,4,6),[.24,.86,1]);
+   if(relation==="conditional"||relation==="merge"||relation==="split"){
+    const mid=pointAt(.52);
+    draw(sphereMesh(mid.x,mid.y,mid.z,relation==="conditional"?.065:.05,5,7),rgb);
+   }
+  }
  };
  const drawFlow=(from:P,to:P,offset:number,rgb:number[],radius=.034)=>{
   const delta={x:to.x-from.x,y:to.y-from.y,z:to.z-from.z},length=Math.hypot(delta.x,delta.y,delta.z)||1;
@@ -228,8 +249,10 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   let p=pointById.get(edge.from.id),q=pointById.get(edge.to.id);
   if(mode==="gantt"){const fromIndex=geometryRows.findIndex(op=>op.id===edge.from.id),toIndex=geometryRows.findIndex(op=>op.id===edge.to.id);if(fromIndex>=0&&toIndex>=0){p=ganttSegment(fromIndex,geometryRows,ganttScale).end;q=ganttSegment(toIndex,geometryRows,ganttScale).start;}}
   if(!p||!q)return;
-  const rgb=edge.relation==="rework"?[.89,.48,.18]:edge.relation==="alternate"?[.12,.48,.88]:[.12,.43,.82];
-  drawOperationFlow(p,q,edgeIndex,rgb);
+  const fallback=edge.relation==="rework"?[.93,.25,.29]:edge.relation==="alternate"?[.95,.61,.12]:[.12,.43,.82];
+  const hex=String(edge.color||"").replace("#","");
+  const rgb=/^[0-9a-f]{6}$/i.test(hex)?[0,2,4].map(index=>parseInt(hex.slice(index,index+2),16)/255):fallback;
+  drawOperationFlow(p,q,edgeIndex,rgb,edge.relation);
  });
  materialPlacements.forEach((placement,index)=>{
   const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
