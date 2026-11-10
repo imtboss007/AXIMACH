@@ -1970,7 +1970,7 @@ test("3D route arrows stay enabled and narrow-screen process metadata is not hid
   assert.ok(scene.includes("const hasMaterialSpecificLeg=transportLegPlacements.some(item=>item.leg.materialEntryId===placement.route.id)"));
   assert.ok(scene.includes("if(to&&!hasMaterialSpecificLeg)"));
   assert.ok(scene.includes('if(mat&&trans)add("material-transport-"'));
-  assert.ok(scene.includes('else if(exit&&to&&!trans)add("material-process-"'));
+  assert.ok(scene.includes('else if(exit&&to&&!trans&&!explicitMaterialLegs.length)add("material-process-"'));
   assert.ok(scene.includes('if(node&&to)add("transport-operation-"'));
   assert.ok(css.includes('.ax-full3d-label .ax-full3d-node-meta{display:block!important'));
 });
@@ -2333,6 +2333,10 @@ test("AXIMACH integrates every shared route layout, independent material legs, c
   assert.ok(scene.includes("simulationIndex?:number"));
   assert.ok(scene.includes("simulatedOperation?.id"));
   assert.ok(scene.includes("isSimulationEdge"));
+  assert.ok(scene.includes("isSimulationMaterial"));
+  assert.ok(scene.includes("isSimulationTransport"));
+  assert.ok(scene.includes("rows.find(operation=>operation.id===selectedOperationId)"));
+  assert.ok(universe.includes("setRouteLayout(option.id as RouteLayoutMode)"));
   assert.ok(universe.includes("simulationIndex={simulationIndex}"));
   assert.ok(universe.includes("SIMULATION · STEP"));
   for(const kind of ["alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor","transport","material"]) {
