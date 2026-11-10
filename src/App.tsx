@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
-  ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge,
+  ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge, GitBranch, Network, Route,
   GitBranch, HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
   Package, Pause, Play, Plug, Plus, RotateCcw, ScanLine, Search, Settings2,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Truck, Users,
@@ -31,6 +31,8 @@ const AIInsightsWorkspace = lazy(() => import("./IntelligenceWorkspaces").then(m
 const ExportCentreWorkspace = lazy(() => import("./IntelligenceWorkspaces").then(module => ({ default: module.ExportCentreWorkspace })));
 const ImportCentreWorkspace = lazy(() => import("./IntelligenceWorkspaces").then(module => ({ default: module.ImportCentreWorkspace })));
 const LinkedProcessWorkspace = lazy(() => import("./LinkedProcessWorkspace"));
+const RouteFlowWorkspace = lazy(() => import("./RouteFlowWorkspace"));
+const ManufacturingUniverseWorkspace = lazy(() => import("./ManufacturingUniverseWorkspace"));
 const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
 const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
 import { activeRows, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
@@ -73,6 +75,8 @@ const modules: ModuleItem[] = [
   { id: "vendor-capability", title: "Vendor Network", group: "Supply Network", description: "Filter vendors by process category and supported processes.", icon: Workflow, action: "Open vendor network" },
   { id: "inventory", title: "Material Directory", group: "Operations", description: "Material grades, shapes, dimensions, density, supplier rates, BOM links and stock ledger.", icon: Boxes, action: "Open Material Directory" },
   { id: "production", title: "Production Plan & Process Plan", group: "Operations", description: "PO-wise component production, process assignments, transport and job completion.", icon: Activity, action: "Open production and process plans" },
+  { id: "route-flow", title: "Route Flow & Relationships", group: "Manufacturing", description: "Full-screen editable material, transport and process route with 11 persisted relationship types.", icon: GitBranch, action: "Open full-screen route flow" },
+  { id: "manufacturing-universe", title: "Manufacturing Universe", group: "Manufacturing", description: "Dedicated large-format live 3D manufacturing universe connected to all AXIMACH modules.", icon: Network, action: "Open live manufacturing universe" },
   { id: "dispatch", title: "Transport & Dispatch", group: "Operations", description: "Transport vendors, pickup, delivery, cost and dispatch status.", icon: Truck, action: "Open transport and dispatch" },
   { id: "quality", title: "Quality Inspection", group: "Quality", description: "Inspection measurements, accepted and rejected quantities and quality status.", icon: ClipboardCheck, action: "Open quality inspection" },
   { id: "costing", title: "Costing & Payment", group: "Finance", description: "Company, PO and component-wise planned versus actual process costs and payments.", icon: CircleDollarSign, action: "Open costing and payment" },
@@ -106,6 +110,7 @@ function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNoti
           vendors:mergeById(current.vendors,sample.vendors), operations:mergeById(current.operations,sample.operations),
           quotations:mergeById(current.quotations,sample.quotations), materials:mergeById(current.materials,sample.materials),
           componentParts:mergeById(current.componentParts,sample.componentParts), materialCostEntries:mergeById(current.materialCostEntries,sample.materialCostEntries),
+          routeRelationships:mergeById(current.routeRelationships||[],sample.routeRelationships||[]),
           bomLines:mergeById(current.bomLines,sample.bomLines), inventoryTransactions:mergeById(current.inventoryTransactions,sample.inventoryTransactions),
           contactProfiles:mergeById(current.contactProfiles,sample.contactProfiles), processDefinitions:mergeById(current.processDefinitions,sample.processDefinitions),
           plannedCosts:mergeById(current.plannedCosts,sample.plannedCosts), transportRoutes:mergeById(current.transportRoutes,sample.transportRoutes),
@@ -303,6 +308,10 @@ function App() {
             onSelectModule={selectModule}
             onOpenModules={openModuleExplorer}
           />
+        ) : activeModuleId === "manufacturing-universe" ? (
+          <ManufacturingUniverseWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "route-flow" ? (
+          <RouteFlowWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-map" ? (
           <LinkedProcessWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
@@ -354,7 +363,7 @@ function App() {
         <div className="rail-section-label">COMMAND CENTRES</div>
         <button title="Main Dashboard" className={activeModuleId === "dashboard" ? "rail-active" : ""} onClick={() => selectModule("dashboard")}><Gauge size={16} /><span>Main Dashboard</span></button>
         <button title="3D Command Centre" className={activeModuleId === "command-centre" ? "rail-active" : ""} onClick={() => selectModule("command-centre")}><Command size={16} /><span>3D Command Centre</span></button>
-        <div className="rail-section-label">MODULES 03–20</div>
+        <div className="rail-section-label">ALL MODULES</div>
         {modules.map((item) => { const ItemIcon = item.icon; return <button key={item.id} title={item.title} className={activeModuleId === item.id ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16} /><span>{item.title}</span></button>; })}
         <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={16} /><span>Module explorer</span></button>
       </nav>
@@ -371,7 +380,7 @@ function App() {
               <button className="close-round" onClick={() => setModuleExplorerOpen(false)} aria-label="Close module universe"><X size={19} /></button>
             </div>
             <div className="universe-tools">
-              <label className="universe-search"><Search size={18} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find any module or capability…" /><kbd>18 MODULES</kbd></label>
+              <label className="universe-search"><Search size={18} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find any module or capability…" /><kbd>{modules.length} MODULES</kbd></label>
               <div className="domain-filters" aria-label="Filter modules by domain">
                 {groupOptions.map((option) => <button key={option} className={domain === option ? "domain-active" : ""} onClick={() => setDomain(option)}>{option}</button>)}
               </div>
