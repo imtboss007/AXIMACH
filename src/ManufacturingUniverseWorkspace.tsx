@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Activity, ArrowRight, Boxes, CheckCircle2, ClipboardCheck, Factory, GitBranch, Network, Package, Route, Truck, Workflow } from "lucide-react";
+import { Activity, ArrowRight, Boxes, CheckCircle2, ClipboardCheck, Factory, GitBranch, Network, Package, Route, Settings2, Truck, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord, type RouteRelationshipRecord } from "./manufacturingData";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 
@@ -14,7 +14,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [companyPick,setCompanyPick]=useState(""),[poPick,setPoPick]=useState(""),[linePick,setLinePick]=useState("");
   const [selectedOperationId,setSelectedOperationId]=useState("");
   const [zoom,setZoom]=useState(1),[simulationIndex,setSimulationIndex]=useState(-1);
-  const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
+  const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");\n  const [showUniverseSettings,setShowUniverseSettings]=useState(false);\n  const [visibleUniverseFields,setVisibleUniverseFields]=useState<string[]>(["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]);\n  const [visibleUniverseModules,setVisibleUniverseModules]=useState<string[]>(["companies","purchasing","components","inventory","process-master","transport-master","vendors","production","quality","costing","route-flow","reports"]);
   const company=companies.find(row=>row.id===companyPick)||companies[0];
   const companyId=company?.id||"";
   const companyOrders=orders.filter(row=>row.companyId===companyId);
@@ -91,7 +91,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     {id:"route-flow",title:"Route Flow & Relationships",icon:Route,meta:"Full-screen route and link editor"},
     {id:"reports",title:"Reports & Analytics",icon:Network,meta:"Operations and delivery analytics"}
   ];
-  const syncText=syncStatus==="synced"?"Live server sync":syncStatus==="syncing"?"Syncing shared data":syncStatus==="error"?"Sync error":"Local records";
+  const universeFieldOptions=[["company","Company"],["po","Purchase order"],["component","Component / part"],["category","Process category"],["subcategory","Sub-process"],["quantity","Quantity"],["vendor","Process vendor"],["plannedStart","Planned start"],["plannedEnd","Delivery / due date"],["price","Rate"],["amount","Process amount"],["status","Process status"],["transportVendor","Transporter"],["transportRoute","Transport route"],["vehicle","Vehicle type"],["transportPickup","Pickup time"],["transportDelivery","Delivery time"],["transportLegCost","Transport cost"],["combinedAmount","Combined amount"],["materialShape","Material shape"],["materialDensity","Material density"],["materialQuantity","Material quantity"],["materialWeight","Material weight"],["materialVendor","Material supplier"],["materialGiven","Material given date"],["materialDelivery","Material due date"],["materialReceived","Material received"],["materialCost","Material cost"],["materialCuttingCost","Cutting cost"],["materialTransportCost","Material transport cost"]] as const;\n  const syncText=syncStatus==="synced"?"Live server sync":syncStatus==="syncing"?"Syncing shared data":syncStatus==="error"?"Sync error":"Local records";
 
   return <section className="manufacturing-universe-workspace">
     <header className="manufacturing-universe-head">
@@ -105,7 +105,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
       <label>Component / PO line<select value={poLineId} onChange={e=>{setLinePick(e.target.value);setSelectedOperationId("");}}><option value="">Select component line…</option>{lines.map(row=><option key={row.id} value={row.id}>{component?.partNumber||""} · {component?.name||"Component"} · Qty {row.quantity}</option>)}</select></label>
       <div className="manufacturing-universe-current"><strong>{component?.partNumber||"No component selected"} · {component?.name||"Select a PO line"}</strong><span>{po?.number||"No purchase order"} · {routeOperations.length} process stages · {routeMaterials.length} material allocations · {routeLegs.length} transport legs</span></div>
     </div>
-    <div className="manufacturing-universe-stat-grid">{stats.map(item=>{const Icon=item.icon;return <button key={item.label} onClick={()=>onNavigate(item.module,activeOperation)}><Icon size={16}/><strong>{item.value.toLocaleString("en-IN")}</strong><small>{item.label}</small></button>;})}</div>
+    <section className="manufacturing-universe-customizer"><div className="manufacturing-universe-customizer-head"><div><span className="eyebrow">UNIVERSE DISPLAY CONTROLS</span><strong>Choose what appears in this live view</strong><small>These are view preferences only. They do not delete or change source records.</small></div><button className="button-quiet compact-button" onClick={()=>setShowUniverseSettings(value=>!value)}><Settings2 size={14}/>{showUniverseSettings?"Hide display settings":"Customize view"}</button></div>{showUniverseSettings&&<div className="manufacturing-universe-customizer-body"><div><strong>Live scene information</strong><div className="manufacturing-universe-toggle-grid">{universeFieldOptions.map(([id,label])=><label key={id}><input type="checkbox" checked={visibleUniverseFields.includes(id)} onChange={event=>setVisibleUniverseFields(current=>event.target.checked?[...current,id]:current.filter(value=>value!==id))}/><span>{label}</span></label>)}</div></div><div><strong>Connected module shortcuts</strong><div className="manufacturing-universe-toggle-grid">{linkModules.map(item=><label key={item.id}><input type="checkbox" checked={visibleUniverseModules.includes(item.id)} onChange={event=>setVisibleUniverseModules(current=>event.target.checked?[...current,item.id]:current.filter(value=>value!==item.id))}/><span>{item.title}</span></label>)}</div></div><div className="manufacturing-universe-customizer-actions"><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields(universeFieldOptions.map(([id])=>id));setVisibleUniverseModules(linkModules.map(item=>item.id));}}>Show all</button><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields([]);setVisibleUniverseModules([]);}}>Clear optional display items</button></div></div>}</section>\n    <div className="manufacturing-universe-stat-grid">{stats.filter(item=>visibleUniverseModules.includes(item.module)).map(item=>{const Icon=item.icon;return <button key={item.label} onClick={()=>onNavigate(item.module,activeOperation)}><Icon size={16}/><strong>{item.value.toLocaleString("en-IN")}</strong><small>{item.label}</small></button>;})}</div>
     <section className="manufacturing-universe-live-panel">
       <div className="manufacturing-universe-live-heading"><div><span className="eyebrow">LIVE MANUFACTURING SCENE · WEBGL</span><h2>Manufacturing process universe</h2><p>Sphere, cube, vortex, helix, orbit, network, grid, pipeline, layered, stacked, matrix and tree views use the selected live PO-line data.</p></div><span className="manufacturing-universe-live-state"><i/> LIVE RECORDS</span></div>
       {routeOperations.length?<ProcessUniverse3D
@@ -118,7 +118,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         routeRelationships={routeRelationships}
         processDefinitions={definitions}
         vendors={vendors.map(row=>({id:row.id,company:row.company}))}
-        visibleFields={["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]}
+        visibleFields={visibleUniverseFields}
         showArrows
         operationTransportAmounts={transportCostByOperation}
         selectedOperationId={activeOperation?.id||""}
@@ -139,7 +139,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     </section>
     <section className="manufacturing-universe-module-links">
       <div className="manufacturing-universe-links-head"><div><span className="eyebrow">CONNECTED WORKSPACES</span><h2>Edit the live records from their source modules</h2><p>Changes made in a source module flow back into this universe through AXIMACH's shared manufacturing data.</p></div></div>
-      <div className="manufacturing-universe-links-grid">{linkModules.map(item=>{const Icon=item.icon;return <button key={item.id} onClick={()=>onNavigate(item.id,activeOperation)}><span><Icon size={17}/></span><strong>{item.title}</strong><small>{item.meta}</small><ArrowRight size={14}/></button>;})}</div>
+      <div className="manufacturing-universe-links-grid">{linkModules.filter(item=>visibleUniverseModules.includes(item.id)).map(item=>{const Icon=item.icon;return <button key={item.id} onClick={()=>onNavigate(item.id,activeOperation)}><span><Icon size={17}/></span><strong>{item.title}</strong><small>{item.meta}</small><ArrowRight size={14}/></button>;})}</div>
     </section>
   </section>;
 }
