@@ -1239,7 +1239,10 @@ test("Sphere view is a full 3D globe with visible route cylinders and distinct a
   assert.ok(scene.includes("function operationCode(operation:OperationRecord)"));
   assert.ok(scene.includes('"ALT"'));
   assert.ok(scene.includes('"REWORK"'));
-  assert.ok(scene.includes("draw(lineMesh(p,q,.038),rgb)"));
+  assert.ok(scene.includes("const drawOperationFlow=(p:P,q:P,offset:number,rgb:number[],relation:string=\"main\")=>"));
+  assert.ok(scene.includes("const pointAt=(t:number):P=>"));
+  assert.ok(scene.includes("draw(lineMesh(a,b,relation===\"parallel\"?.026:.035),rgb)"));
+  assert.ok(scene.includes("drawOperationFlow(p,q,edgeIndex,rgb,edge.relation)"));
 });
 
 test("3D Gantt view uses saved planned/actual date ranges as volumetric duration bars and preserves time scale controls", () => {
@@ -1880,6 +1883,40 @@ test("Process route graph preserves stage order, independent collapse state, and
   assert.ok(process.includes('className="process-material-route-panel process-material-route-collapsible"'));
   assert.ok(process.includes('className="process-universe-collapsible"'));
   assert.ok(css.includes('.process-route-flow-collapsible,.process-material-route-collapsible,.process-universe-collapsible'));
+});
+
+test("Dedicated full-screen Route Flow and Manufacturing Universe modules are wired to shared data", () => {
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const route = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx", import.meta.url), "utf8");
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  assert.ok(app.includes('id: "route-flow"'));
+  assert.ok(app.includes('id: "manufacturing-universe"'));
+  assert.ok(app.includes('<RouteFlowWorkspace'));
+  assert.ok(app.includes('<ManufacturingUniverseWorkspace'));
+  assert.ok(route.includes('const RELATIONSHIPS:Array<{id:RouteRelationshipType;label:string;description:string;symbol:string}>'));
+  assert.ok(route.includes('routeRelationships:[...(current.routeRelationships||[]),record]'));
+  assert.ok(route.includes('targetOperationId:to.id'));
+  assert.ok(route.includes('<RouteCurve type={connector.type}'));
+  assert.ok(universe.includes('<ProcessUniverse3D'));
+  assert.ok(universe.includes('routeRelationships={routeRelationships}'));
+  assert.ok(universe.includes('onNavigate("route-flow"'));
+  assert.ok(data.includes('routeRelationships: RouteRelationshipRecord[]'));
+  assert.ok(data.includes('mergeRows(local.routeRelationships, remote.routeRelationships)'));
+});
+
+test("All eleven route relationship types have persisted styling and separate route workspace controls", () => {
+  const route = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  for (const type of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"]) {
+    assert.ok(route.includes('id:"' + type + '"'), "missing relationship option " + type);
+    assert.ok(route.includes('route-flow-curve-' + type), "missing route curve style " + type);
+  }
+  assert.ok(universe.includes('routeRelationships?: RouteRelationshipRecord[]'));
+  assert.ok(universe.includes('edges.push({id:"relationship-"+link.id'));
+  assert.ok(scene.includes('relation==="feedback"'));
+  assert.ok(scene.includes('relation==="conditional"'));
 });
 
 test("Process Definition catalogue headings span the full grid instead of leaving an empty left column", () => {
