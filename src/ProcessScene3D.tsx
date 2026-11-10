@@ -7,6 +7,10 @@ type CatalogueDefinition = { id:string; processType:string; category:string; dis
 type RouteAnchor = { operation:OperationRecord; relation:"main"|"alternate"|"rework"; color:string };
 type MaterialRouteNode = { id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
 type TransportLegNode = { id:string; poLineId:string; anchorOperationId:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
+const hasMaterialTransport=(route:MaterialRouteNode)=>Boolean(
+ route.transporter&&route.transporter!=="Transporter not assigned" ||
+ route.from || route.to || route.vehicle || route.transportCost>0 || route.pickupAt || route.deliveryAt
+);
 
 type Props = { operations: OperationRecord[]; materialRoutes?: MaterialRouteNode[]; transportLegs?:TransportLegNode[]; visibleFields?:string[]; autoRotate?: boolean; mode: Mode; selectedOperationId: string; expandedOperationId?: string; onSelectOperation: (id:string)=>void; onExpandOperation?:(id:string)=>void; onArrowSelect?:(id:string)=>void; onSelectTransportLeg?:(id:string)=>void; edges?:Array<{from:OperationRecord;to:OperationRecord;relation:string;color:string}>; coordinateOperations?:OperationRecord[]; anchors?:RouteAnchor[]; catalogue?:CatalogueDefinition[]; onAddCatalogue?:(id:string)=>void; showArrows?: boolean; vendors?:Array<{id:string;company:string}>; quantityUnit?:string; ganttScale?:"day"|"week"|"month" };
 const EMPTY_CATALOGUE: CatalogueDefinition[] = [];
@@ -231,11 +235,17 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
   const to=placement.toOperation?pointById.get(placement.toOperation.id):undefined;
   const rgb=[.06,.76,.98];
+  const hasTransport=hasMaterialTransport(placement.route);
+  const startLegs=transportLegPlacements.filter(item=>item.leg.poLineId===placement.route.poLineId&&item.leg.placement==="start"&&!item.leg.anchorOperationId);
+  const routeExit=hasTransport?placement.transportPoint:placement.materialPoint;
   if(from)drawFlow(from,placement.materialPoint,index*3,rgb,.037);
-  drawFlow(placement.materialPoint,placement.transportPoint,index*3+1,rgb,.042);
-  if(to)drawFlow(placement.transportPoint,to,index*3+2,rgb,.037);
+  if(hasTransport){
+   drawFlow(placement.materialPoint,placement.transportPoint,index*3+1,rgb,.042);
+   draw(boxMesh(placement.transportPoint.x,placement.transportPoint.y,placement.transportPoint.z,.105),[.14,.55,.91]);
+  }
+  if(startLegs.length)startLegs.forEach((leg,legIndex)=>drawFlow(routeExit,leg.point,index*5+legIndex+2,rgb,.032));
+  else if(to)drawFlow(routeExit,to,index*3+2,rgb,.037);
   draw(sphereMesh(placement.materialPoint.x,placement.materialPoint.y,placement.materialPoint.z,.13),[.03,.78,.96]);
-  draw(boxMesh(placement.transportPoint.x,placement.transportPoint.y,placement.transportPoint.z,.105),[.14,.55,.91]);
  });
  transportLegPlacements.forEach((placement,index)=>{
   const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
@@ -252,7 +262,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));
   const ops=points.map(({op,p})=>({id:op.id,op,kind:"operation" as const,screen:project(p,m,w,h)})).filter((item):item is {id:string;op:OperationRecord;kind:"operation";screen:ProjectedPoint}=>!!item.screen);
   const materials=materialPlacements.map(item=>({id:item.route.id,screen:project(item.materialPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
-  const transports=materialPlacements.map(item=>({id:item.route.id,screen:project(item.transportPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
+  const transports=materialPlacements.filter(item=>hasMaterialTransport(item.route)).map(item=>({id:item.route.id,screen:project(item.transportPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
   const transportLegsProjected=transportLegPlacements.map(item=>({id:item.leg.id,screen:project(item.point,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
   const centerScreen=mode==="sphere"?project({x:0,y:0,z:0},m,w,h):null;
   const all:LabelCandidate[]=[...ops.map(item=>({id:item.id,kind:item.kind,screen:item.screen})),...materials.map(item=>({id:item.id,kind:"material" as const,screen:item.screen})),...transports.map(item=>({id:item.id,kind:"transport" as const,screen:item.screen})),...transportLegsProjected.map(item=>({id:item.id,kind:"transportLeg" as const,screen:item.screen}))];
@@ -285,9 +295,16 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
    const mat=materialPosition.get(item.route.id),trans=transportPosition.get(item.route.id);
    const from=item.fromOperation?positions.get(item.fromOperation.id):undefined;
    const to=item.toOperation?positions.get(item.toOperation.id):undefined;
+   const startLegs=transportLegPlacements.filter(leg=>leg.leg.poLineId===item.route.poLineId&&leg.leg.placement==="start"&&!leg.leg.anchorOperationId);
+   const exit=trans||mat;
    if(from&&mat)add("material-in-"+item.route.id,item.fromOperation!.id,"",item.fromOperation!.name,"Material · "+item.route.materialLabel,from,mat,"material");
    if(mat&&trans)add("material-transport-"+item.route.id,"","","Material · "+item.route.materialLabel,"Transport · "+item.route.transporter,mat,trans,"material");
-   if(trans&&to)add("transport-process-"+item.route.id,"__transport__"+item.route.id,item.toOperation!.id,"Transport · "+item.route.transporter,item.toOperation!.name,trans,to,"material");
+   if(exit&&startLegs.length)startLegs.forEach(leg=>{
+    const node=transportLegPosition.get(leg.leg.id);
+    if(node)add("material-start-transport-"+item.route.id+"-"+leg.leg.id,"","__transport_leg__"+leg.leg.id,"Material · "+item.route.materialLabel,"Transport · "+leg.leg.fromLocation+" → "+leg.leg.toLocation,exit,node,"material");
+   });
+   else if(exit&&to&&!trans)add("material-process-"+item.route.id,"",item.toOperation!.id,"Material · "+item.route.materialLabel,item.toOperation!.name,exit,to,"material");
+   else if(trans&&to&&!startLegs.length)add("transport-process-"+item.route.id,"__transport__"+item.route.id,item.toOperation!.id,"Transport · "+item.route.transporter,item.toOperation!.name,trans,to,"material");
   });
   transportLegPlacements.forEach(item=>{
    const node=transportLegPosition.get(item.leg.id);
