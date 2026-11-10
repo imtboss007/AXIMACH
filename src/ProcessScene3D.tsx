@@ -232,7 +232,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
    geometryRows.forEach((op,index)=>{const segment=ganttSegment(index,geometryRows,ganttScale),status=op.status.toLowerCase();const rgb=status.includes("complete")?[.12,.62,.42]:status.includes("running")?[.12,.42,.88]:status.includes("hold")?[.83,.27,.35]:op.relationType==="rework"?[.89,.48,.18]:op.relationType==="alternate"?[.18,.49,.86]:[.35,.56,.78];const length=Math.hypot(segment.end.x-segment.start.x,segment.end.y-segment.start.y,segment.end.z-segment.start.z);if(segment.hasStart&&segment.hasEnd&&length>.035)draw(lineMesh(segment.start,segment.end,.071),rgb);if(segment.scheduled){draw(sphereMesh(segment.start.x,segment.start.y,segment.start.z,.052),rgb);if(length>.035)draw(sphereMesh(segment.end.x,segment.end.y,segment.end.z,.052),rgb);}else draw(sphereMesh(segment.center.x,segment.center.y,segment.center.z,.065),[.52,.59,.68]);});
  }
  const pointById=new Map(geometryPoints.map(({op,p})=>[op.id,p]));
- const simulatedOperation=simulationIndex>=0?rows[simulationIndex]:undefined;
+ const simulatedOperation=simulationIndex>=0?(rows.find(operation=>operation.id===selectedOperationId)||undefined):undefined;
  const replacedOperationEdges=new Set([
   ...materialPlacements.filter(item=>item.fromOperation&&item.toOperation).map(item=>item.fromOperation!.id+"->"+item.toOperation!.id),
   ...transportLegPlacements.filter(item=>item.fromOperation&&item.toOperation).map(item=>item.fromOperation!.id+"->"+item.toOperation!.id)
@@ -286,7 +286,8 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
  materialPlacements.forEach((placement,index)=>{
   const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
   const to=placement.toOperation?pointById.get(placement.toOperation.id):undefined;
-  const rgb=[.06,.76,.98];
+  const isSimulationMaterial=!!simulatedOperation&&placement.toOperation?.id===simulatedOperation.id;
+  const rgb=isSimulationMaterial?[.05,.9,1]:[.06,.76,.98];
   const hasTransport=hasMaterialTransport(placement.route);
   const hasMaterialSpecificLeg=transportLegPlacements.some(item=>item.leg.materialEntryId===placement.route.id);
   const routeExit=hasTransport?placement.transportPoint:placement.materialPoint;
@@ -297,12 +298,14 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   }
   // A material with its own transport leg must not also receive a synthetic direct edge.
   if(to&&!hasMaterialSpecificLeg)drawFlow(routeExit,to,index*3+2,rgb,.037);
-  draw(sphereMesh(placement.materialPoint.x,placement.materialPoint.y,placement.materialPoint.z,.13),[.03,.78,.96]);
+  draw(sphereMesh(placement.materialPoint.x,placement.materialPoint.y,placement.materialPoint.z,isSimulationMaterial?.18:.13),isSimulationMaterial?[.04,.9,1]:[.03,.78,.96]);
+  if(isSimulationMaterial){const radius=.23+Math.sin(now*.008)*.035;for(let segment=0;segment<24;segment++){const a=segment*Math.PI*2/24,b=(segment+1)*Math.PI*2/24;draw(lineMesh({x:placement.materialPoint.x+Math.cos(a)*radius,y:placement.materialPoint.y+Math.sin(a)*radius,z:placement.materialPoint.z+.015},{x:placement.materialPoint.x+Math.cos(b)*radius,y:placement.materialPoint.y+Math.sin(b)*radius,z:placement.materialPoint.z+.015},.01),[.04,.86,1]);}}
  });
  transportLegPlacements.forEach((placement,index)=>{
   const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
   const to=placement.toOperation?pointById.get(placement.toOperation.id):undefined;
-  const rgb=placement.leg.relation==="rework"?[.9,.43,.12]:placement.leg.relation==="alternate"?[.18,.49,.88]:[.12,.68,.86];
+  const isSimulationTransport=!!simulatedOperation&&placement.toOperation?.id===simulatedOperation.id;
+  const rgb=isSimulationTransport?[.04,.88,1]:placement.leg.relation==="rework"?[.9,.43,.12]:placement.leg.relation==="alternate"?[.18,.49,.88]:[.12,.68,.86];
   const materialSource=placement.leg.materialEntryId
    ?materialPlacements.find(item=>item.route.id===placement.leg.materialEntryId)
    :placement.leg.placement==="start"&&!placement.leg.anchorOperationId
@@ -311,8 +314,9 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const fromMaterial=materialSource?(hasMaterialTransport(materialSource.route)?materialSource.transportPoint:materialSource.materialPoint):undefined;
   if(from)drawFlow(from,placement.point,index*2,rgb,.034);else if(fromMaterial)drawFlow(fromMaterial,placement.point,index*2,rgb,.034);
   if(to)drawFlow(placement.point,to,index*2+1,rgb,.034);
-  draw(boxMesh(placement.point.x,placement.point.y,placement.point.z,.115),[.08,.55,.85]);
-  draw(sphereMesh(placement.point.x,placement.point.y,placement.point.z,.065),[.12,.79,.94]);
+  draw(boxMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport?.15:.115),isSimulationTransport?[.04,.78,.98]:[.08,.55,.85]);
+  draw(sphereMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport?.085:.065),isSimulationTransport?[.04,.95,1]:[.12,.79,.94]);
+  if(isSimulationTransport){const radius=.21+Math.sin(now*.008)*.035;for(let segment=0;segment<24;segment++){const a=segment*Math.PI*2/24,b=(segment+1)*Math.PI*2/24;draw(lineMesh({x:placement.point.x+Math.cos(a)*radius,y:placement.point.y+Math.sin(a)*radius,z:placement.point.z+.015},{x:placement.point.x+Math.cos(b)*radius,y:placement.point.y+Math.sin(b)*radius,z:placement.point.z+.015},.01),[.04,.86,1]);}}
  });
  points.forEach(({p,op})=>{const rgb=operationRgb(op);draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"||mode==="layered"||mode==="matrix"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);if(op.id===simulatedOperation?.id){const radius=.22+Math.sin(now*.008)*.035;for(let segment=0;segment<32;segment++){const a=segment*Math.PI*2/32,b=(segment+1)*Math.PI*2/32;draw(lineMesh({x:p.x+Math.cos(a)*radius,y:p.y+Math.sin(a)*radius,z:p.z+.015},{x:p.x+Math.cos(b)*radius,y:p.y+Math.sin(b)*radius,z:p.z+.015},.012),[.04,.86,1]);}draw(sphereMesh(p.x,p.y,p.z,.065),[.05,.88,1]);}});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:[.24,.5,.78];draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>cancelAnimationFrame(raf);},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialPlacements,transportLegPlacements,simulationIndex]);
  useEffect(()=>{const el=canvas.current;if(!el)return;const ro=new ResizeObserver(entries=>{const r=entries[0]?.contentRect;if(r)setSize({w:r.width,h:r.height});});ro.observe(el);return()=>ro.disconnect();},[]);
