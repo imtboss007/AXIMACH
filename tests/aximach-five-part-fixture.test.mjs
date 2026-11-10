@@ -2071,3 +2071,64 @@ test("Manufacturing Universe has touch pinch zoom and clearly typed visible grap
   assert.ok(css.includes(".route-flow-workspace:fullscreen"));
   assert.ok(css.includes("orientation:landscape"));
 });
+
+
+test("Route Flow and Manufacturing Universe keep normal view fitted and use explicit corner full-screen only", () => {
+  const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  const controls=readFileSync(new URL("../src/ImmersiveWorkspaceControls.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  for(const source of [route,universe]) assert.ok(source.includes("ax-workspace-expand-toggle")||source.includes("ImmersiveWorkspaceControls"));
+  assert.ok(controls.includes("requestFullscreen"));
+  assert.ok(controls.includes("exitFullscreen"));
+  assert.ok(controls.includes("ArrowLeft"));
+  assert.ok(!controls.includes("orientation.lock"));
+  assert.ok(!controls.includes("lockOrientation"));
+  assert.ok(!controls.includes("Portrait"));
+  assert.ok(!controls.includes("Landscape"));
+  assert.ok(css.lastIndexOf("/* Restore standard AXIMACH navigation")>css.lastIndexOf("/* Default-open behavior"));
+  assert.ok(css.includes(".route-flow-workspace:fullscreen"));
+  assert.ok(css.includes(".app-shell:has(.route-flow-workspace) .command-rail"));
+});
+
+test("Manufacturing Universe uses gesture-only pinch zoom and compact screen-fitted scene", () => {
+  const scene=readFileSync(new URL("../src/ProcessUniverse3D.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  assert.ok(scene.includes("onPinchStart"));
+  assert.ok(scene.includes("onPinchMove"));
+  assert.ok(scene.includes("onPinchEnd"));
+  assert.ok(scene.includes("process-scene-zoom-viewport"));
+  assert.ok(!scene.includes('className="process-universe-zoom-controls"'));
+  assert.ok(css.includes(".process-universe-3d,.process-scene-zoom-viewport{touch-action:none"));
+  assert.ok(css.includes(".ax-full3d-label{width:min(148px,41vw)"));
+});
+
+test("Transport icon opens the linked directory route and full transporter profile in both workspaces", () => {
+  const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  const scene=readFileSync(new URL("../src/ProcessScene3D.tsx",import.meta.url),"utf8");
+  const inspector=readFileSync(new URL("../src/TransportRecordInspector.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  assert.ok(route.includes("setInspectedTransportId(node.leg.id)"));
+  assert.ok(route.includes("TransportRecordInspector"));
+  assert.ok(universe.includes("onSelectTransportLeg={id=>setInspectedTransportId(id)}"));
+  assert.ok(universe.includes("TransportRecordInspector"));
+  assert.ok(scene.includes("TRANSPORT DIRECTORY"));
+  for(const field of ["vendor?.contact","vendor?.phone","vendor?.whatsappNumber","vendor?.email","vendor?.address","vendor?.notes","leg.fromLocation","leg.toLocation","leg.tripCount","leg.fixedAmount","leg.pickupAt","leg.deliveryAt"]) assert.ok(inspector.includes(field));
+  for(const tone of ["bike","bus","car","air","ship","rail","truck"]) assert.ok(css.includes(".ax-full3d-transport-leg-label.vehicle-"+tone));
+});
+
+test("Both engineering workspaces share persistent light, medium, dark and ocean palettes", () => {
+  const route=readFileSync(new URL("../src/RouteFlowWorkspace.tsx",import.meta.url),"utf8");
+  const universe=readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx",import.meta.url),"utf8");
+  const picker=readFileSync(new URL("../src/WorkspaceThemePicker.tsx",import.meta.url),"utf8");
+  const hook=readFileSync(new URL("../src/workspaceTheme.ts",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  for(const source of [route,universe]) assert.ok(source.includes("useWorkspaceTheme"));
+  for(const theme of ["light","medium","dark","ocean"]) {
+    assert.ok(picker.includes('value="'+theme+'"'));
+    assert.ok(css.includes('data-workspace-theme="'+theme+'"'));
+  }
+  assert.ok(hook.includes("aximach.workspaceTheme.v1"));
+  assert.ok(hook.includes("localStorage.setItem"));
+});
