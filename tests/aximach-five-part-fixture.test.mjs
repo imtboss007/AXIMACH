@@ -2341,6 +2341,9 @@ test("AXIMACH integrates every shared route layout, independent material legs, c
   assert.ok(scene.includes("rows.find(operation=>operation.id===selectedOperationId)"));
   assert.ok(universe.includes("setRouteLayout(option.id as RouteLayoutMode)"));
   assert.ok(universe.includes("simulationIndex={simulationIndex}"));
+  assert.ok(universe.includes("function MaterialRouteTransportMarker"));
+  assert.ok(universe.includes("onSelectMaterialTransport?.(route.id,{x:rect.left,y:rect.top})"));
+  assert.ok(!universe.includes("<strong>{route.transporter}</strong>"));
   assert.ok(universe.includes("SIMULATION · STEP"));
   for(const kind of ["alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor","transport","material"]) {
     assert.ok(picker.includes('["'+kind+'"'),"connector legend missing "+kind);
