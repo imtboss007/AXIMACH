@@ -1799,15 +1799,29 @@ test("3D Gantt does not fabricate schedule dates for operations without date-tim
   assert.ok(!scene.includes("events.length?Math.min(...events):Date.now()"));
 });
 
-test("Process Map route cards always display essential fields and retain optional single/multi-select visibility", () => {
+test("Manufacturing Universe uses compact 3D nodes and keeps full operation details in the selected-record panel", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('const REQUIRED_PROCESS_CARD_FIELDS: ProcessCardField[] = ["category","subcategory","quantity","plannedStart","plannedEnd","vendor","amount"]'));
   assert.ok(workspace.includes('checked={REQUIRED_PROCESS_CARD_FIELDS.includes(field.key)||cardVisibleFields.includes(field.key)}'));
   assert.ok(workspace.includes('disabled={REQUIRED_PROCESS_CARD_FIELDS.includes(field.key)}'));
   assert.ok(workspace.includes("Clear optional fields · keep essential route details"));
-  for (const field of ['<small>CATEGORY · {op.category||"Not set"}</small>','<small>SUB-PROCESS · {op.subcategory||"Not set"}</small>','<em>Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>','Given / start · {nodeDateTime(op.plannedStart)}','Delivery / due · {nodeDateTime(op.plannedEnd)}','Vendor · {vendors.find(vendor=>vendor.id===op.vendorId)?.company||"Vendor not assigned"}','Linked amount · ₹']) assert.ok(scene.includes(field), "missing required route card field: "+field);
-  assert.ok(scene.includes('const cardHeight=width<600?188:190;'));
+  assert.ok(scene.includes("<small>{operationCode(op)}</small><strong>{op.name}</strong>"));
+  assert.ok(scene.includes('Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}'));
+  assert.ok(scene.includes('visibleFields.includes("category")'));
+  assert.ok(scene.includes("const cardHeight=width<600?76:92;"));
+  assert.ok(universe.includes('className="process-orbit-selected-details"'));
+  for (const field of [
+    '<small>CATEGORY</small><strong>{expandedOrbitOperation.category || "Not set"}</strong>',
+    '<small>PROCESS / SUBCATEGORY</small>',
+    '<small>PLANNED START · DATE &amp; TIME</small>',
+    '<small>PLANNED DELIVERY · DATE &amp; TIME</small>',
+    '<small>VENDOR</small><strong>{vendors.find(vendor => vendor.id === expandedOrbitOperation.vendorId)?.company || "Vendor not assigned"}</strong>',
+    '<small>PLANNED QUANTITY</small>',
+    '<small>PROCESS AMOUNT</small>',
+    '<small>STATUS</small>'
+  ]) assert.ok(universe.includes(field), "missing expanded process detail field: "+field);
 });
 
 test("Material Directory saves each material allocation directly into its selected PO-component Process Map route", () => {
@@ -1860,7 +1874,8 @@ test("Process Map routes integrate material and saved transport legs before and 
   assert.ok(universe.includes("transportLegs={transportLegs} onSelectTransportLeg={onSelectTransportLeg}"));
   assert.ok(scene.includes("const transportLegPlacements=useMemo"));
   assert.ok(scene.includes("projectedTransportLegs.map"));
-  assert.ok(scene.includes('TRANSPORT LEG · {index+1}/{transportLegs.length}'));
+  assert.ok(scene.includes('TRANSPORT HAND-OFF · {index+1}/{transportLegs.length}'));
+  assert.ok(scene.includes('{leg.vehicleType||"Vehicle not set"}'));
   assert.ok(scene.includes('"operation-transport-"+item.leg.id'));
 });
 
