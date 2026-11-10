@@ -2919,3 +2919,187 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
     width:100%!important;height:100%!important;padding:calc(8px + env(safe-area-inset-top)) 8px calc(18px + env(safe-area-inset-bottom))!important;
   }
 }
+
+/* Restore standard AXIMACH navigation and fitted workspace sizing by default.
+   Full-screen is entered only by the corner expand control. */
+.app-shell:has(.route-flow-workspace),.app-shell:has(.manufacturing-universe-workspace){
+  height:auto!important;min-height:100vh!important;min-height:100dvh!important;
+  padding:0 0 74px!important;overflow-x:clip!important;overflow-y:auto!important;
+}
+.app-shell:has(.route-flow-workspace) .command-deck,.app-shell:has(.manufacturing-universe-workspace) .command-deck{
+  display:flex!important;position:sticky!important;top:0!important;height:76px!important;min-height:76px!important;
+  left:auto!important;width:100%!important;z-index:40!important;
+}
+.app-shell:has(.route-flow-workspace) .status-ribbon,.app-shell:has(.manufacturing-universe-workspace) .status-ribbon{
+  display:flex!important;position:relative!important;height:32px!important;
+}
+.app-shell:has(.route-flow-workspace) .command-rail,.app-shell:has(.manufacturing-universe-workspace) .command-rail{
+  display:flex!important;position:fixed!important;left:50%!important;bottom:13px!important;top:auto!important;
+  transform:translateX(-50%)!important;z-index:50!important;
+}
+.app-shell:has(.route-flow-workspace) .page-content,.app-shell:has(.manufacturing-universe-workspace) .page-content{
+  position:static!important;inset:auto!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
+  width:auto!important;height:auto!important;max-width:1680px!important;margin:0 auto!important;
+  padding:20px clamp(12px,2.5vw,36px) 28px!important;overflow:visible!important;
+}
+.route-flow-workspace,.manufacturing-universe-workspace{width:100%!important;min-width:0!important;min-height:0!important;padding-bottom:18px!important}
+.route-flow-workspace-head,.manufacturing-universe-head{position:relative!important;padding-right:48px!important}
+.ax-workspace-expand-toggle{
+  position:absolute!important;right:4px!important;top:4px!important;z-index:40!important;
+  display:grid!important;place-items:center!important;width:38px!important;height:38px!important;min-width:38px!important;
+  border:1px solid #aac5dc!important;border-radius:11px!important;background:#fff!important;color:#174e78!important;
+  box-shadow:0 4px 13px rgba(22,57,88,.15)!important;cursor:pointer!important;
+}
+.ax-workspace-expand-toggle:hover{background:#eaf6ff!important;border-color:#438dc2!important}
+.route-flow-workspace:fullscreen,.manufacturing-universe-workspace:fullscreen{
+  position:fixed!important;inset:0!important;z-index:2147483000!important;
+  width:100vw!important;height:100vh!important;height:100dvh!important;min-height:100dvh!important;
+  max-width:none!important;margin:0!important;padding:clamp(12px,1.6vw,24px)!important;
+  overflow:auto!important;overscroll-behavior:contain!important;box-sizing:border-box!important;
+  background:var(--ax-ws-bg,#f2f7fc)!important;color:var(--ax-ws-text,#183650)!important;
+}
+.route-flow-workspace:fullscreen .ax-workspace-expand-toggle,.manufacturing-universe-workspace:fullscreen .ax-workspace-expand-toggle{
+  position:fixed!important;top:max(10px,env(safe-area-inset-top))!important;right:max(10px,env(safe-area-inset-right))!important;
+  width:44px!important;height:44px!important;border-radius:50%!important;background:var(--ax-ws-panel,#fff)!important;
+}
+.route-flow-workspace:fullscreen .route-flow-workspace-head,.manufacturing-universe-workspace:fullscreen .manufacturing-universe-head{padding-right:60px!important}
+.route-flow-workspace:fullscreen .route-flow-stage-scroll{max-height:none!important;min-height:50dvh!important}
+.manufacturing-universe-workspace:fullscreen .manufacturing-universe-live-panel{min-height:0!important}
+.manufacturing-universe-workspace:fullscreen .process-orbit-panel{min-height:0!important}
+.manufacturing-universe-workspace:fullscreen .process-scene-zoom-viewport{max-height:68dvh!important}
+@media(max-width:820px){
+ .app-shell:has(.route-flow-workspace),.app-shell:has(.manufacturing-universe-workspace){padding-bottom:74px!important}
+ .app-shell:has(.route-flow-workspace) .command-deck,.app-shell:has(.manufacturing-universe-workspace) .command-deck{
+   height:64px!important;min-height:64px!important;padding:0 10px!important
+ }
+ .app-shell:has(.route-flow-workspace) .status-ribbon,.app-shell:has(.manufacturing-universe-workspace) .status-ribbon{display:none!important}
+ .app-shell:has(.route-flow-workspace) .page-content,.app-shell:has(.manufacturing-universe-workspace) .page-content{padding:12px 9px 18px!important}
+ .route-flow-workspace-head,.manufacturing-universe-head{padding-right:44px!important;gap:8px!important}
+ .route-flow-workspace-head h1,.manufacturing-universe-head h1{font-size:clamp(20px,4.5vw,27px)!important}
+ .route-flow-workspace-head p,.manufacturing-universe-head p{font-size:10px!important;line-height:1.45!important}
+ .route-flow-head-actions,.manufacturing-universe-actions{gap:6px!important}
+ .ax-workspace-expand-toggle{top:2px!important;right:0!important;width:36px!important;height:36px!important}
+ .route-flow-workspace:fullscreen,.manufacturing-universe-workspace:fullscreen{padding:calc(8px + env(safe-area-inset-top)) 8px calc(14px + env(safe-area-inset-bottom))!important}
+ .route-flow-workspace:fullscreen .route-flow-stage-scroll{max-height:76dvh!important;min-height:55dvh!important}
+ .manufacturing-universe-workspace:fullscreen .process-scene-zoom-viewport{max-height:70dvh!important}
+}
+@media(max-width:600px) and (orientation:portrait){
+ .route-flow-stage-scroll{overflow-x:hidden!important;overflow-y:visible!important;max-height:none!important;min-height:0!important;padding:9px 7px!important}
+ .route-flow-stage-track{display:flex!important;flex-direction:column!important;align-items:stretch!important;width:100%!important;min-width:0!important;gap:0!important}
+ .route-flow-stage-wrap{display:flex!important;flex-direction:column!important;align-items:center!important;width:100%!important;flex:0 0 auto!important}
+ .route-flow-stage-card{width:100%!important;max-width:620px!important;min-height:0!important;padding:10px 11px!important}
+ .route-flow-stage-card strong{font-size:12px!important}
+ .route-flow-stage-card>span{font-size:10px!important}
+ .route-flow-stage-card>small{font-size:9px!important}
+ .route-flow-stage-card>em{font-size:10px!important}
+ .route-flow-curve{flex:0 0 62px!important;width:62px!important;height:62px!important;margin:0!important;transform:rotate(90deg)}
+ .route-flow-curve svg{width:74px!important;height:58px!important}
+ .route-flow-curve>small{font-size:8px!important}
+ .route-flow-relationship-overlay{display:none!important}
+ .route-flow-relationship-panel{order:2}
+}
+@media(max-width:600px) and (orientation:landscape){
+ .route-flow-stage-scroll{max-height:68dvh!important;min-height:46dvh!important;overflow-x:auto!important;overflow-y:auto!important}
+ .route-flow-stage-card{width:190px!important;min-height:160px!important}
+ .route-flow-curve{flex-basis:104px!important;width:104px!important}
+}
+.process-scene-zoom-viewport{max-width:100%!important;max-height:68vh!important;overflow:auto!important;overscroll-behavior:contain!important;touch-action:pan-x pan-y!important}
+.process-scene-zoom-layer{min-width:100%!important;transform-origin:center center!important}
+.process-universe-3d{touch-action:pan-x pan-y!important}
+.process-universe-zoom-controls{display:none!important}
+.ax-full3d-scene{height:clamp(320px,55vh,620px)!important;min-height:320px!important}
+@media(max-width:760px){.ax-full3d-scene{height:clamp(300px,49vh,520px)!important;min-height:300px!important}}
+.manufacturing-universe-live-panel .process-orbit-material-routes{max-height:clamp(150px,24vh,230px)!important;overflow:auto!important}
+.process-orbit-material-route{padding:9px 11px!important;margin:7px 0!important}
+.process-orbit-material-dates{gap:5px 10px!important;font-size:8px!important}
+.route-flow-vehicle-chip{display:inline-flex!important;align-items:center;gap:7px;min-height:34px;padding:7px 10px;border:1px solid currentColor;border-radius:9px;font-size:10px;font-weight:800;cursor:pointer}
+.route-flow-vehicle-chip.vehicle-bike{color:#965f0b!important;background:#fff4d9!important;border-color:#e7c26b!important}
+.route-flow-vehicle-chip.vehicle-bus{color:#23724c!important;background:#e5f7ed!important;border-color:#8dc8a5!important}
+.route-flow-vehicle-chip.vehicle-car{color:#5945a5!important;background:#efebff!important;border-color:#b9a9eb!important}
+.route-flow-vehicle-chip.vehicle-air{color:#146b9f!important;background:#e4f5ff!important;border-color:#83c6e7!important}
+.route-flow-vehicle-chip.vehicle-ship{color:#087d88!important;background:#e1f8f7!important;border-color:#83d1cd!important}
+.route-flow-vehicle-chip.vehicle-rail{color:#9a4e29!important;background:#fff0e8!important;border-color:#e0ac91!important}
+.route-flow-vehicle-chip.vehicle-truck{color:#126aa5!important;background:#e7f4ff!important;border-color:#8fc4e6!important}
+.ax-full3d-transport-leg-label{cursor:pointer!important}
+.ax-full3d-transport-leg-label.vehicle-bike{border-color:#dfa92d!important;background:linear-gradient(145deg,#fff8e5,#f9e8b6)!important;color:#754b09!important}
+.ax-full3d-transport-leg-label.vehicle-bus{border-color:#5eae84!important;background:linear-gradient(145deg,#effcf4,#d7f1e2)!important;color:#1d6544!important}
+.ax-full3d-transport-leg-label.vehicle-car{border-color:#9586d9!important;background:linear-gradient(145deg,#f5f2ff,#e4ddff)!important;color:#4d3d93!important}
+.ax-full3d-transport-leg-label.vehicle-air{border-color:#65afd5!important;background:linear-gradient(145deg,#effaff,#d9f1ff)!important;color:#165f8e!important}
+.ax-full3d-transport-leg-label.vehicle-ship{border-color:#4eb9b0!important;background:linear-gradient(145deg,#effdfb,#d3f2ee)!important;color:#096c70!important}
+.ax-full3d-transport-leg-label.vehicle-rail{border-color:#d38e66!important;background:linear-gradient(145deg,#fff6ef,#f8e2d4)!important;color:#844326!important}
+.ax-full3d-transport-leg-label.vehicle-truck{border-color:#559bd2!important;background:linear-gradient(145deg,#f0f8ff,#dbeeff)!important;color:#164f7b!important}
+.ax-transport-inspector-backdrop{position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;padding:clamp(8px,3vw,30px);background:rgba(6,18,32,.58);backdrop-filter:blur(7px)}
+.ax-transport-inspector{width:min(900px,100%);max-height:min(90dvh,900px);overflow:auto;border:1px solid var(--ax-ws-border,#c7d8e7);border-top:5px solid var(--ax-vehicle,#3485bf);border-radius:17px;background:var(--ax-ws-panel,#fff);color:var(--ax-ws-text,#183650);box-shadow:0 25px 80px rgba(0,0,0,.3);padding:17px}
+.ax-transport-inspector.vehicle-bike{--ax-vehicle:#d29b25}.ax-transport-inspector.vehicle-bus{--ax-vehicle:#3a9a68}.ax-transport-inspector.vehicle-car{--ax-vehicle:#7761c7}.ax-transport-inspector.vehicle-air{--ax-vehicle:#348fbd}.ax-transport-inspector.vehicle-ship{--ax-vehicle:#219b9b}.ax-transport-inspector.vehicle-rail{--ax-vehicle:#c4774e}.ax-transport-inspector.vehicle-truck{--ax-vehicle:#3485bf}
+.ax-transport-inspector-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.ax-transport-vehicle-identity{display:flex;align-items:center;gap:12px;min-width:0}
+.ax-transport-vehicle-identity small{color:var(--ax-ws-muted,#648097);font:700 9px 'DM Mono';letter-spacing:.7px}
+.ax-transport-vehicle-identity h2{margin:3px 0;color:var(--ax-ws-text,#183650);font:700 20px 'Space Grotesk'}
+.ax-transport-vehicle-identity p{margin:0;color:var(--ax-ws-muted,#648097);font-size:12px}
+.ax-transport-vehicle-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:13px;background:color-mix(in srgb,var(--ax-vehicle) 15%,white);color:var(--ax-vehicle);border:1px solid color-mix(in srgb,var(--ax-vehicle) 45%,white)}
+.ax-transport-inspector-close{display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--ax-ws-border,#c7d8e7);border-radius:10px;background:var(--ax-ws-panel,#fff);color:var(--ax-ws-text,#183650)}
+.ax-transport-inspector-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.ax-transport-info-card{min-width:0;padding:11px;border:1px solid var(--ax-ws-border,#d3e0eb);border-radius:11px;background:var(--ax-ws-card,#f6f9fc);color:var(--ax-ws-text,#183650)}
+.ax-transport-info-card.ax-transport-wide{grid-column:1/-1}
+.ax-transport-info-card>small{display:flex;align-items:center;gap:6px;margin-bottom:7px;color:var(--ax-ws-muted,#5f7c92);font:700 9px 'DM Mono';letter-spacing:.45px}
+.ax-transport-info-card>strong{display:block;color:var(--ax-ws-text,#183650);font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.ax-transport-info-card>p{margin:5px 0 0;color:var(--ax-ws-muted,#4b687d);font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+.ax-transport-contact-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.ax-transport-contact-links a{display:inline-flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid var(--ax-ws-border,#c7d8e7);border-radius:8px;color:var(--ax-ws-accent,#276eaa);font-size:10px;text-decoration:none;overflow-wrap:anywhere}
+.ax-transport-inspector-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:13px;padding-top:12px;border-top:1px solid var(--ax-ws-border,#d3e0eb)}
+.ax-transport-inspector-actions small{color:var(--ax-ws-muted,#668199);font-size:9px}
+@media(max-width:560px){.ax-transport-inspector{max-height:92dvh;padding:12px;border-radius:13px}.ax-transport-inspector-grid{grid-template-columns:1fr}.ax-transport-info-card.ax-transport-wide{grid-column:auto}.ax-transport-inspector-actions{align-items:stretch;flex-direction:column}}
+.ax-workspace-theme-picker{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:4px 7px;border:1px solid var(--ax-ws-border,#c5d6e5);border-radius:8px;background:var(--ax-ws-panel,#fff);color:var(--ax-ws-muted,#516b82);font-size:9px;font-weight:800}
+.ax-workspace-theme-picker select{max-width:96px;border:0;outline:0;background:transparent;color:var(--ax-ws-text,#193b55);font-size:10px;font-weight:750}
+.route-flow-workspace[data-workspace-theme="light"],.manufacturing-universe-workspace[data-workspace-theme="light"]{--ax-ws-bg:#f2f7fc;--ax-ws-panel:#fff;--ax-ws-card:#f7fbff;--ax-ws-text:#183650;--ax-ws-muted:#56748c;--ax-ws-border:#cad9e6;--ax-ws-accent:#236fa7;background:var(--ax-ws-bg);color:var(--ax-ws-text)}
+.route-flow-workspace[data-workspace-theme="medium"],.manufacturing-universe-workspace[data-workspace-theme="medium"]{--ax-ws-bg:#dce4ec;--ax-ws-panel:#eaf0f5;--ax-ws-card:#f5f8fb;--ax-ws-text:#24394d;--ax-ws-muted:#52687c;--ax-ws-border:#b6c5d2;--ax-ws-accent:#385f82;background:var(--ax-ws-bg);color:var(--ax-ws-text)}
+.route-flow-workspace[data-workspace-theme="dark"],.manufacturing-universe-workspace[data-workspace-theme="dark"]{--ax-ws-bg:#0b1422;--ax-ws-panel:#12253a;--ax-ws-card:#173149;--ax-ws-text:#e6f0f8;--ax-ws-muted:#adc0d0;--ax-ws-border:#34536c;--ax-ws-accent:#5bb7ee;background:var(--ax-ws-bg);color:var(--ax-ws-text)}
+.route-flow-workspace[data-workspace-theme="ocean"],.manufacturing-universe-workspace[data-workspace-theme="ocean"]{--ax-ws-bg:#e4f5f6;--ax-ws-panel:#f2ffff;--ax-ws-card:#fff;--ax-ws-text:#12434d;--ax-ws-muted:#39727c;--ax-ws-border:#acd4d8;--ax-ws-accent:#087f95;background:var(--ax-ws-bg);color:var(--ax-ws-text)}
+.route-flow-workspace[data-workspace-theme] .route-flow-canvas-panel,
+.route-flow-workspace[data-workspace-theme] .route-flow-scope-bar,
+.manufacturing-universe-workspace[data-workspace-theme] .manufacturing-universe-scope,
+.manufacturing-universe-workspace[data-workspace-theme] .manufacturing-universe-live-panel,
+.manufacturing-universe-workspace[data-workspace-theme] .manufacturing-universe-customizer{
+  background:var(--ax-ws-panel)!important;border-color:var(--ax-ws-border)!important;color:var(--ax-ws-text)!important
+}
+.route-flow-workspace[data-workspace-theme] .route-flow-stage-scroll,
+.manufacturing-universe-workspace[data-workspace-theme] .process-orbit-panel,
+.manufacturing-universe-workspace[data-workspace-theme] .process-orbit-material-routes{background:var(--ax-ws-card)!important;border-color:var(--ax-ws-border)!important;color:var(--ax-ws-text)!important}
+.route-flow-workspace[data-workspace-theme] .route-flow-canvas-heading,
+.manufacturing-universe-workspace[data-workspace-theme] .process-universe-head{background:transparent!important;color:var(--ax-ws-text)!important}
+.route-flow-workspace[data-workspace-theme] .route-flow-workspace-head h1,
+.route-flow-workspace[data-workspace-theme] .route-flow-workspace-head h1 span,
+.manufacturing-universe-workspace[data-workspace-theme] .manufacturing-universe-head h1,
+.manufacturing-universe-workspace[data-workspace-theme] .manufacturing-universe-head h1 span,
+.manufacturing-universe-workspace[data-workspace-theme] .process-universe-head h3{color:var(--ax-ws-text)!important}
+.route-flow-workspace[data-workspace-theme] .route-flow-workspace-head p,
+.route-flow-workspace[data-workspace-theme] .route-flow-canvas-heading p,
+.route-flow-workspace[data-workspace-theme] .route-flow-stage-card small,
+.route-flow-workspace[data-workspace-theme] .route-flow-stage-card span,
+.manufacturing-universe-workspace[data-workspace-theme] .manufacturing-universe-head p,
+.manufacturing-universe-workspace[data-workspace-theme] .process-universe-head p,
+.manufacturing-universe-workspace[data-workspace-theme] .process-orbit-help{color:var(--ax-ws-muted)!important}
+.route-flow-workspace[data-workspace-theme="dark"] .route-flow-stage-card,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-orbit-material-route,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-orbit-selected-details{
+  background:#1a344a!important;border-color:#3c5b73!important;color:#e6f0f8!important
+}
+.route-flow-workspace[data-workspace-theme="dark"] .route-flow-stage-card strong,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-orbit-material-route strong,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-orbit-selected-grid strong{color:#f2f7fb!important}
+.route-flow-workspace[data-workspace-theme="dark"] .route-flow-stage-card small,
+.route-flow-workspace[data-workspace-theme="dark"] .route-flow-stage-card span,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-orbit-material-route small,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-orbit-material-route span{color:#b6cbdc!important}
+.route-flow-workspace[data-workspace-theme="dark"] .route-flow-canvas-heading h2,
+.route-flow-workspace[data-workspace-theme="dark"] .route-flow-stage-card em,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-orbit-material-route em{color:#79cdf6!important}
+.route-flow-workspace[data-workspace-theme="dark"] .route-flow-relationship-panel{background:#152a3e!important;border-color:#34536c!important;color:#e5f0f8!important}
+.route-flow-workspace[data-workspace-theme="dark"] .route-flow-relationship-panel h3,
+.route-flow-workspace[data-workspace-theme="dark"] .route-flow-relationship-panel p{color:#e5f0f8!important}
+.route-flow-workspace[data-workspace-theme="dark"] .route-flow-relationship-type{background:#203d55!important;border-color:#3d607a!important;color:#deebf5!important}
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-orbit-selected-heading{background:#1c3a52!important}
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-orbit-selected-heading small{color:#b7d2e5!important}
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-orbit-selected-heading strong{color:#f2f7fb!important}
+.ax-transport-inspector{background:var(--ax-ws-panel,#fff)!important;color:var(--ax-ws-text,#183650)!important}
+@media(max-width:760px){.ax-workspace-theme-picker{min-height:32px}.ax-workspace-theme-picker span{display:none}}
