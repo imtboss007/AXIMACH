@@ -73,7 +73,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   });
   const onNavigate=(moduleId:string,operation?:OperationRecord)=>onSelectModule(moduleId,{companyId,poId,poLineId,componentId,operationId:operation?.id});
   const stats=[
-    {label:"PROCESS STAGES",value:routeOperations.length,icon:Activity,module:"process-map"},
+    {label:"PROCESS STAGES",value:routeOperations.length,icon:Activity,module:"production"},
     {label:"MATERIAL ALLOCATIONS",value:routeMaterials.length,icon:Package,module:"inventory"},
     {label:"TRANSPORT LEGS",value:routeLegs.length,icon:Truck,module:"transport-master"},
     {label:"PROCESS DEFINITIONS",value:definitions.length,icon:Workflow,module:"process-master"},
@@ -93,7 +93,6 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     {id:"transport-master",title:"Transport Directory",icon:Truck,meta:"Carriers, vehicles and route rates"},
     {id:"vendors",title:"Vendor Directory",icon:Factory,meta:"Suppliers, processors and transporters"},
     {id:"contact360",title:"Contact 360",icon:Users,meta:"Company, vendor and WhatsApp contacts"},
-    {id:"process-master",title:"Process Directory",icon:Workflow,meta:"Process categories, types and sub-processes"},
     {id:"planned-cost",title:"Component Planned Cost",icon:CircleDollarSign,meta:"Component and process cost plans"},
     {id:"vendor-capability",title:"Vendor Network",icon:Network,meta:"Vendor process capabilities and categories"},
     {id:"production",title:"Production Plan",icon:Activity,meta:"PO-wise production state and quantities"},
@@ -102,6 +101,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     {id:"costing",title:"Costing & Payment",icon:CheckCircle2,meta:"Material, process, transport and payment"},
     {id:"communications",title:"Follow-up Centre",icon:MessageCircle,meta:"Assigned contacts and communications"},
     {id:"route-flow",title:"Route Flow & Relationships",icon:Route,meta:"Full-screen route and link editor"},
+    {id:"manufacturing-universe",title:"Manufacturing Universe",icon:Network,meta:"Live 3D view and editable scene preferences"},
     {id:"reports",title:"Reports & Analytics",icon:Network,meta:"Operations and delivery analytics"},
     {id:"ai-insights",title:"AI Insights",icon:Sparkles,meta:"Insights from saved operational records"},
     {id:"export",title:"Data Exchange Centre",icon:FileDown,meta:"Import, export and backups"}
