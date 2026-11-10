@@ -6,6 +6,7 @@ import { ProcessIcon } from "./IconStudio";
 import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
+import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
 type MaterialRouteNode = {
@@ -33,7 +34,7 @@ function fallbackFor(name: string) {
   return <Workflow size={20} />;
 }
 
-type ProcessLayoutMode = "sphere" | "cube" | "vortex" | "helix" | "orbit" | "network" | "grid" | "pipeline" | "layered" | "stacked" | "matrix" | "tree" | "route" | "molecular" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "gantt" | "nodes" | "branch" | "combined";
+type ProcessLayoutMode = "sphere" | "cube" | "vortex" | "helix" | "orbit" | "network" | "grid" | "pipeline" | "layered" | "stacked" | "matrix" | "tree" | "route" | "molecular" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "orthogonal" | "s-curve" | "swimlane" | "gantt" | "nodes" | "branch" | "combined";
 type Point3D = { x: number; y: number; z: number };
 const routeGroupKey = (operation:OperationRecord) => (operation.poLineId || operation.componentId) + "::" + (operation.branch || "Main route");
 
@@ -79,6 +80,17 @@ function getLayoutPoint(index: number, operation: OperationRecord | undefined, m
     const columns = Math.max(2, Math.ceil(Math.sqrt(total)));
     const rows = Math.ceil(total / columns), row = Math.floor(index / columns), column = index % columns;
     return { x: (column - (columns - 1) / 2) * 88, y: ((rows - 1) / 2 - row) * 78, z: branchOffset * 82 + (index % 3 - 1) * 18 };
+  }
+  if (mode === "orthogonal" || mode === "s-curve") {
+    const columns = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(localCount))));
+    const rows = Math.ceil(localCount / columns);
+    const row = Math.floor(localIndex / columns);
+    const slot = localIndex % columns;
+    const column = mode === "s-curve" && row % 2 === 1 ? columns - 1 - slot : slot;
+    return { x: (column - (columns - 1) / 2) * 126, y: ((rows - 1) / 2 - row) * 104 + branchOffset * 42, z: branchOffset * 70 };
+  }
+  if (mode === "swimlane") {
+    return { x: (localIndex - (localCount - 1) / 2) * 112, y: branchOffset * 122, z: branchOffset * 72 + Math.sin(localIndex * 0.45) * 14 };
   }
   if (mode === "tree") {
     const level = Math.floor(Math.log2(index + 1));
@@ -178,9 +190,11 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
     return () => window.cancelAnimationFrame(frame);
   }, [expandedOperationId]);
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>(initialLayout);
+  const [routeLayout,setRouteLayout]=useRouteLayout();
   const [autoRotateEnabled, setAutoRotateEnabled] = useState(true);
   const prefersReducedMotion = useReducedMotion();
   useEffect(() => setLayoutMode(initialLayout), [initialLayout]);
+  useEffect(() => setLayoutMode(routeLayout as ProcessLayoutMode), [routeLayout]);
   const rotateX = useMotionValue(-12);
   const rotateY = useMotionValue(18);
   const drag = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
@@ -325,7 +339,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
       <div><span className="process-universe-kicker"><span /> LIVE ROUTE / INTERACTIVE 3D</span><h3>Manufacturing process universe</h3><p>Drag the process sphere to rotate it. Select any saved process icon to open its real operation record; simulation highlights each step in sequence.</p></div>
       <div className="process-universe-count"><strong>{orbitCount}</strong><span>{displayOperations.length ? "SAVED PROCESS STEPS" : "AVAILABLE STAGES"}</span><button type="button" className="process-orbit-auto-toggle" aria-pressed={autoRotateEnabled} disabled={!!prefersReducedMotion} onClick={() => setAutoRotateEnabled(value => !value)}>{prefersReducedMotion ? "Reduced motion" : autoRotateEnabled ? "Pause rotation" : "Resume rotation"}</button></div>
     </header>
-    <nav className="process-universe-layouts" aria-label="Process map visualisation modes">
+    <nav className="process-universe-layouts" aria-label="Process map visualisation modes"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout}/>
       {([{id:"sphere",label:"Sphere View",glyph:"◎"},{id:"cube",label:"Cube View",glyph:"⬡"},{id:"vortex",label:"Vortex View",glyph:"◉"},{id:"helix",label:"Helix View",glyph:"⌁"},{id:"orbit",label:"Orbit View",glyph:"⊙"},{id:"network",label:"Network View",glyph:"✣"},{id:"grid",label:"Grid View",glyph:"▦"},{id:"pipeline",label:"Pipeline View",glyph:"⇢"},{id:"layered",label:"Layered View",glyph:"▱"},{id:"stacked",label:"Stacked View",glyph:"▤"},{id:"matrix",label:"Matrix View",glyph:"▦"},{id:"tree",label:"Tree View",glyph:"♧"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>setLayoutMode(option.id)}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}
     </nav>
     <div className="process-orbit-panel">
