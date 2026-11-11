@@ -90,12 +90,13 @@ test("generic Production workspace route launchers require one exact PO componen
 });
 
 
+
 test("every literal in-app module navigation target resolves to a registered module", () => {
   const app = read("../src/App.tsx");
   const catalogueStart = app.indexOf("const modules: ModuleItem[] = [");
-  const catalogueEnd = app.indexOf("\\n];", catalogueStart);
+  const catalogueEnd = app.indexOf("\n];", catalogueStart);
   const catalogue = app.slice(catalogueStart, catalogueEnd);
-  const moduleIds = [...catalogue.matchAll(/\\{ id: "([^"]+)"/g)].map(match => match[1]);
+  const moduleIds = [...catalogue.matchAll(/\{ id: "([^"]+)"/g)].map(match => match[1]);
   const validIds = new Set([...moduleIds, "dashboard", "command-centre", "process-map"]);
   const files = [
     "../src/App.tsx",
@@ -117,7 +118,7 @@ test("every literal in-app module navigation target resolves to a registered mod
   const invalid = [];
   for (const path of files) {
     const source = read(path);
-    for (const match of source.matchAll(/(?:onSelectModule|selectModule)\\s*\\(\\s*["'`]([^"'`]+)["'`]/g)) {
+    for (const match of source.matchAll(/(?:onSelectModule|selectModule)\s*\(\s*["']([^"']+)["']/g)) {
       if (!validIds.has(match[1])) invalid.push(path + " -> " + match[1]);
     }
   }
