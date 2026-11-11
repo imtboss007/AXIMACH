@@ -22,6 +22,7 @@ export function getVehicleVisual(vehicleType: string): VehicleVisual {
   const value = (vehicleType || "").toLowerCase();
   if (/2.?wheel|bike|motorcycle|scooter|courier/.test(value)) return { Icon: Bike, color: "#D49A2D" };
   if (/3.?wheel|auto|rickshaw/.test(value)) return { Icon: Bus, color: "#16A6A0" };
+  if (/heavy.?duty/.test(value)) return { Icon: Truck, color: "#C94D75" };
   if (/4.?wheel|pickup|car/.test(value)) return { Icon: Car, color: "#397FE0" };
   if (/bus|staff/.test(value)) return { Icon: Bus, color: "#9869D5" };
   if (/container/.test(value)) return { Icon: Boxes, color: "#7B8BA5" };

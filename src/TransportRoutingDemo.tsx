@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Activity, CheckCircle2, GitBranch, RotateCcw, X } from "lucide-react";
 import demoFixture from "../tests/fixtures/aximach-transport-routing-demo.json";
 import type { ComponentTransportLegRecord } from "./manufacturingData";
-import { TransportLegMarker, VehicleBadge } from "./TransportVehicle";
+import { TransportLegMarker, VehicleBadge, VEHICLE_TYPES } from "./TransportVehicle";
 
 type Props = { onClose?: () => void };
 type DemoOperation = { id:string; name:string; sequence:number; branch:string; relationType:string|null; parentId:string; quantity:number; costIncluded:boolean };
@@ -63,7 +63,7 @@ export default function TransportRoutingDemo({onClose}:Props) {
         {legsAt(operation.id,"after").map(renderLeg)}
       </div>)}</div>
     </div>
-    <div className="transport-demo-vehicle-legend"><strong>Vehicle identity</strong>{[...new Set(legs.map(leg=>leg.vehicleType))].map(type=><VehicleBadge key={type} vehicleType={type}/>)}</div>
+    <div className="transport-demo-vehicle-legend"><strong>Vehicle identity</strong>{VEHICLE_TYPES.map(type=><VehicleBadge key={type} vehicleType={type}/>)}</div>
     <div className="transport-demo-costs">
       <div><small>PROCESS COST</small><strong>{money(processCost)}</strong><span>Kept separate from transport</span></div>
       <div><small>MAIN ROUTE TRANSPORT</small><strong>{money(mainTransportCost)}</strong><span>{legs.filter(leg=>!leg.anchorOperationId||mainOperations.some(operation=>operation.id===leg.anchorOperationId)).reduce((sum,leg)=>sum+leg.tripCount,0)} trips</span></div>

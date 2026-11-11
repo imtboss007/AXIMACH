@@ -85,3 +85,11 @@ test("Transport & Dispatch also displays the shared multi-route demo and vehicle
   assert.ok(dispatch.includes("<TransportRoutingDemo onClose="));
   assert.ok(dispatch.includes("<VehicleBadge vehicleType={row.vehicle}/>"));
 });
+
+test("every supported vehicle category is displayed with a permanent visual identity", () => {
+  const visuals = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
+  const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
+  assert.ok(visuals.includes('if (/heavy.?duty/.test(value))'));
+  assert.ok(demo.includes("{VEHICLE_TYPES.map(type=><VehicleBadge"));
+  for (const type of ["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery"]) assert.ok(visuals.includes(type));
+});
