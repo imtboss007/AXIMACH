@@ -263,5 +263,5 @@ test("master module navigation opens the exact selected component or PO and does
   assert.ok(master.includes("disabled={!selectedComponentForNavigation}"));
   assert.ok(master.includes("disabled={!selectedPOForNavigation}"));
   assert.ok(master.includes("setSelectedComponentIds([target.id])"));
-  assert.ok(master.includes("setOpenedPoId(navigationContext?.poId || "")"));
+  assert.ok(master.includes('setOpenedPoId(navigationContext?.poId || "")'));
 });
