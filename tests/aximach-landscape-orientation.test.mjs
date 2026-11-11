@@ -16,7 +16,7 @@ test("Route Graph, Route Flow and Manufacturing Universe lock the phone to lands
   assert.ok(app.includes('activeModuleId === "route-flow"'));
   assert.ok(app.includes('activeModuleId === "manufacturing-universe"'));
   assert.ok(app.includes('CapacitorScreenOrientation.lock({ orientation: "landscape-primary" })'));
-  assert.ok(app.includes('window.matchMedia("(max-width: 900px)")'));
+  assert.ok(app.includes('window.matchMedia("(pointer: coarse) and (max-width: 900px)")'));
 });
 
 test("Landscape orientation is released when leaving the three route workspaces", () => {
@@ -32,7 +32,7 @@ test("A browser that cannot lock orientation shows a rotate-device fallback", ()
   assert.ok(app.includes("Landscape view required"));
   assert.ok(app.includes("Try landscape again"));
   assert.ok(css.includes(".ax-landscape-rotate-prompt"));
-  assert.ok(css.includes("@media (orientation:portrait) and (max-width:900px)"));
+  assert.ok(css.includes("@media (orientation:portrait) and (max-width:900px) and (pointer:coarse)"));
 });
 
 test("Exiting only the Process Map graph fullscreen does not unlock the workspace orientation", () => {
