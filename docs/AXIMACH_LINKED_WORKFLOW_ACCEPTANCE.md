@@ -65,3 +65,16 @@ Acceptance checks:
 - No synthetic company, PO, component, vendor, operation or transport route is inserted into live local/shared data.
 
 Automated coverage is in `tests/aximach-transport-route-demo.test.mjs`. Browser/device acceptance (portrait, landscape, fullscreen orientation support, touch hit targets and popup placement) remains a physical-device check.
+
+
+## Multi-material / multi-process routing and connector acceptance
+
+- Every production material flow is a separate materialProcessLinks record keyed by company, PO, PO line, component, BOM line, material and operation IDs.
+- One component can link several BOM materials to different process operations. A process can receive more than one material. Material links do not reuse transport-leg IDs and do not post stock movements.
+- Inventory provides a Material → process tab. It creates a persistent material feed mapping using the real PO line, component BOM material and process operation. The Process Map tab opens that exact PO-line scope.
+- Process Map and Manufacturing Universe show a small material icon at the before/after position of its exact process operation. Clicking it opens the saved material/BOM/operation/PO quantity details.
+- Transport markers are vehicle icons only. Clicking one opens the exact component transport leg and its associated Transport Directory master route, including master rate versus saved rate snapshot.
+- The route legend distinguishes main (solid), alternate (dashed), rework (dotted), material feed (cyan dashed) and transport (vehicle-specific icon/colour) connections.
+- The isolated hydraulic manifold fixture has three distinct materials mapped to three different process steps and six transport legs across the primary and alternate paths. Demo data remains test-only and must not be inserted into live records.
+
+Automated coverage is in tests/aximach-material-process-links.test.mjs. Browser/device acceptance (portrait, landscape, full-screen orientation support, touch hit targets and popup placement) remains a physical-device check.
