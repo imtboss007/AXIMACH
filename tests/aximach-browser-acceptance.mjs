@@ -321,6 +321,68 @@ async function main() {
   // Manufacturing Universe: scope by exact company, PO and component line; cycle export formats.
   await openModule(page, "Manufacturing Universe");
   await chooseNativeScope(page, ".manufacturing-universe-scope");
+  const universeLayoutPicker = page.getByLabel("Choose route flow layout", { exact: true });
+  const universeRouteLayouts = await universeLayoutPicker.locator("option").evaluateAll(nodes => nodes.map(node => node.value).filter(Boolean));
+  if (universeRouteLayouts.length !== 9) throw new Error("Manufacturing Universe expected all nine shared route layouts");
+  for (const layout of universeRouteLayouts) {
+    await universeLayoutPicker.selectOption(layout);
+    if (!(await page.locator('[data-route-layout="' + layout + '"]').count())) throw new Error("Manufacturing Universe route layout did not render: " + layout);
+  }
+
+  const universeModes = page.locator('[aria-label="Process map visualisation modes"] button');
+  const universeModeCount = await universeModes.count();
+  if (universeModeCount !== 15) throw new Error("Expected all 15 Manufacturing Universe visualisation modes; found " + universeModeCount);
+  const universeModeResults = [];
+  for (let i = 0; i < universeModeCount; i++) {
+    const button = universeModes.nth(i);
+    const label = (await button.innerText()).trim();
+    await button.click();
+    if ((await button.getAttribute("aria-pressed")) !== "true") throw new Error("Manufacturing Universe visual mode failed to activate: " + label);
+    await page.waitForTimeout(80);
+    await assertWorkspace(page, "Manufacturing Universe " + label);
+    universeModeResults.push(label);
+  }
+
+  const universeTransportButtons = page.locator('button[aria-label*="transport record" i]');
+  const universeTransportCount = await universeTransportButtons.count();
+  const expectedInboundCount = fixture.materialCostEntries.length;
+  if (universeTransportCount < fixture.transportLegs.length + expectedInboundCount) {
+    throw new Error("Manufacturing Universe did not expose all outbound legs and inbound material transport records; found " + universeTransportCount);
+  }
+  const universeTransportIds = new Set();
+  const universeMaterialTransportIds = new Set();
+  for (let i = 0; i < universeTransportCount; i++) {
+    const button = page.locator('button[aria-label*="transport record" i]').nth(i);
+    if (!(await button.isVisible().catch(() => false))) continue;
+    const isMaterialTransport = await button.evaluate(el => el.classList.contains("process-orbit-material-transport"));
+    await button.click();
+    if (isMaterialTransport) {
+      const dialog = page.getByRole("dialog", { name: "Inbound material transport details" });
+      await dialog.waitFor({ state: "visible", timeout: 5000 });
+      const details = await dialog.innerText();
+      const match = details.match(/Material allocation ID:\\s*(mp-cost-[A-Za-z0-9-]+)/);
+      if (!match || !details.includes("MATERIAL MOVEMENT ROUTE")) throw new Error("Inbound material transport popup lost its exact material allocation record: " + details);
+      universeMaterialTransportIds.add(match[1]);
+      await dialog.getByRole("button", { name: "Close transport details" }).click();
+    } else {
+      const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
+      await dialog.waitFor({ state: "visible", timeout: 5000 });
+      const details = await dialog.innerText();
+      const match = details.match(/Transport leg:\\s*(mp-leg-[A-Za-z0-9-]+)/);
+      if (!match || !details.includes("TRANSPORT ROUTE")) throw new Error("Universe transport popup lost its exact route leg record: " + details);
+      universeTransportIds.add(match[1]);
+      await dialog.getByRole("button", { name: "Close transport details" }).click();
+    }
+  }
+  if (universeTransportIds.size !== fixture.transportLegs.length ||
+      fixture.transportLegs.some(row => !universeTransportIds.has(row.id))) {
+    throw new Error("Manufacturing Universe did not open all exact component transport legs: " + [...universeTransportIds].join(", "));
+  }
+  if (universeMaterialTransportIds.size !== expectedInboundCount ||
+      fixture.materialCostEntries.some(row => !universeMaterialTransportIds.has(row.id))) {
+    throw new Error("Manufacturing Universe did not open all exact inbound material transport records: " + [...universeMaterialTransportIds].join(", "));
+  }
+
   const exportFormat = page.getByLabel("Universe export format", { exact: true });
   const exportFormats = await exportFormat.locator("option").evaluateAll(nodes => nodes.map(node => node.value).filter(Boolean));
   for (const format of exportFormats) {
@@ -329,7 +391,7 @@ async function main() {
   }
   if (exportFormats.length !== 5) throw new Error("Expected SVG, PNG, PDF, CSV and JSON export format choices");
   const universeText = await page.locator(".page-content").innerText();
-  for (const expected of ["Hydraulic control assembly", "Material saw cutting", "VMC datum and port machining"]) {
+  for (const expected of ["Multi-part hydraulic control assembly", "Material saw cutting", "VMC datum and port machining"]) {
     if (!universeText.includes(expected)) throw new Error("Manufacturing Universe is missing " + expected);
   }
 
@@ -394,7 +456,7 @@ async function main() {
     fixture: { parts: fixture.parts.length, materials: fixture.materials.length, operations: fixture.operations.length,
       materialProcessLinks: fixture.materialProcessLinks.length, relationshipTypes: relationshipResults.length,
       transportLegs: fixture.transportLegs.length, transportPopupsOpened: legPopupsOpened,
-      materialPopupsOpened, processMapMaterialPopups, processMapViews: visualModes.length },
+      materialPopupsOpened, processMapMaterialPopups, processMapViews: visualModes.length, universeVisualModes: universeModeResults.length, universeRouteLayouts: universeRouteLayouts.length, universeTransportRecords: universeTransportIds.size, inboundMaterialTransportRecords: universeMaterialTransportIds.size },
     modules: moduleResults,
     nativeOptions: nativeOptionResults,
     routeLayouts,
