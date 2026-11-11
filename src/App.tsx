@@ -401,7 +401,7 @@ function App() {
         ) : activeModuleId === "quality" ? (
           <QualityInspectionWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "contact360" ? (
-          <Contact360Workspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} initialVendorId={contactVendorSeed} onInitialVendorConsumed={()=>setContactVendorSeed("")} />
+          <Contact360Workspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} initialVendorId={moduleContext.vendorId||contactVendorSeed} onInitialVendorConsumed={()=>setContactVendorSeed("")} />
         ) : activeModuleId === "vendor-capability" ? (
           <VendorNetworkWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
