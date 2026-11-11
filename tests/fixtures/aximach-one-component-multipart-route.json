@@ -4,12 +4,40 @@
   "liveSeed": false,
   "company": {
     "id": "mp-company",
-    "name": "Synthetic Multi-Part Precision Works"
+    "name": "Synthetic Multi-Part Precision Works",
+    "gstin": "",
+    "contactPerson": "Demo Planner",
+    "phone": "",
+    "email": "planner@multipart-demo.invalid",
+    "address": "SYNTHETIC TEST SITE",
+    "notes": "Synthetic record",
+    "createdAt": "2026-01-01T09:00:00.000Z",
+    "updatedAt": "2026-01-01T09:00:00.000Z"
   },
   "purchaseOrder": {
     "id": "mp-po",
     "number": "MP-DEMO-001",
-    "companyId": "mp-company"
+    "companyId": "mp-company",
+    "factoryId": "mp-factory",
+    "issueDate": "2026-01-01",
+    "targetDelivery": "2026-02-15",
+    "status": "Open",
+    "notes": "Synthetic test PO",
+    "createdAt": "2026-01-01T09:00:00.000Z",
+    "updatedAt": "2026-01-01T09:00:00.000Z",
+    "lines": [
+      {
+        "id": "mp-line",
+        "componentId": "mp-component",
+        "quantity": 120,
+        "allocationLevel": "component",
+        "partId": "",
+        "targetDelivery": "2026-02-15",
+        "notes": "Component-level PO line for three part records",
+        "jobStatus": "In progress",
+        "updatedAt": "2026-01-01T09:00:00.000Z"
+      }
+    ]
   },
   "component": {
     "id": "mp-component",
@@ -17,39 +45,174 @@
     "poLineId": "mp-line",
     "partNumber": "ASSY-MP-01",
     "name": "Multi-part hydraulic control assembly",
-    "quantity": 120
+    "quantity": 120,
+    "companyId": "mp-company",
+    "revision": "A",
+    "material": "Multiple materials by part",
+    "drawingReference": "MP-ASSY-01.pdf",
+    "notes": "Synthetic assembly",
+    "salePrice": 0,
+    "salePriceUnit": "piece",
+    "orderUnit": "Piece",
+    "quantityPerUnit": 1,
+    "overhead": 0,
+    "toolingCost": 0,
+    "reworkCost": 0,
+    "scrapCost": 0,
+    "rejectedQty": 0,
+    "gstRate": 18,
+    "createdAt": "2026-01-01T09:00:00.000Z",
+    "updatedAt": "2026-01-01T09:00:00.000Z"
   },
   "poLine": {
     "id": "mp-line",
     "componentId": "mp-component",
     "quantity": 120,
     "allocationLevel": "component",
-    "partId": ""
+    "partId": "",
+    "targetDelivery": "2026-02-15",
+    "notes": "Component-level PO line for three part records",
+    "jobStatus": "In progress",
+    "updatedAt": "2026-01-01T09:00:00.000Z"
   },
   "vendors": [
     {
       "id": "mp-vendor-material",
-      "company": "Synthetic Material Logistics"
+      "company": "Synthetic Material Logistics",
+      "contact": "Demo Contact 1",
+      "role": "Synthetic",
+      "phone": "",
+      "whatsappNumber": "",
+      "email": "vendor1@multipart-demo.invalid",
+      "address": "SYNTHETIC TEST SITE",
+      "processes": "",
+      "processDefinitionIds": [],
+      "machines": "",
+      "materials": "",
+      "notes": "Synthetic",
+      "status": "Demo only — not verified",
+      "sourceContactId": "",
+      "whatsappSyncedAt": "",
+      "vendorType": "Demo",
+      "transportRoutes": [],
+      "additionalPhones": [],
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-vendor-machining",
-      "company": "Synthetic CNC & VMC"
+      "company": "Synthetic CNC & VMC",
+      "contact": "Demo Contact 2",
+      "role": "Synthetic",
+      "phone": "",
+      "whatsappNumber": "",
+      "email": "vendor2@multipart-demo.invalid",
+      "address": "SYNTHETIC TEST SITE",
+      "processes": "",
+      "processDefinitionIds": [],
+      "machines": "",
+      "materials": "",
+      "notes": "Synthetic",
+      "status": "Demo only — not verified",
+      "sourceContactId": "",
+      "whatsappSyncedAt": "",
+      "vendorType": "Demo",
+      "transportRoutes": [],
+      "additionalPhones": [],
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-vendor-heat",
-      "company": "Synthetic Heat Treatment"
+      "company": "Synthetic Heat Treatment",
+      "contact": "Demo Contact 3",
+      "role": "Synthetic",
+      "phone": "",
+      "whatsappNumber": "",
+      "email": "vendor3@multipart-demo.invalid",
+      "address": "SYNTHETIC TEST SITE",
+      "processes": "",
+      "processDefinitionIds": [],
+      "machines": "",
+      "materials": "",
+      "notes": "Synthetic",
+      "status": "Demo only — not verified",
+      "sourceContactId": "",
+      "whatsappSyncedAt": "",
+      "vendorType": "Demo",
+      "transportRoutes": [],
+      "additionalPhones": [],
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-vendor-grind",
-      "company": "Synthetic Precision Grinding"
+      "company": "Synthetic Precision Grinding",
+      "contact": "Demo Contact 4",
+      "role": "Synthetic",
+      "phone": "",
+      "whatsappNumber": "",
+      "email": "vendor4@multipart-demo.invalid",
+      "address": "SYNTHETIC TEST SITE",
+      "processes": "",
+      "processDefinitionIds": [],
+      "machines": "",
+      "materials": "",
+      "notes": "Synthetic",
+      "status": "Demo only — not verified",
+      "sourceContactId": "",
+      "whatsappSyncedAt": "",
+      "vendorType": "Demo",
+      "transportRoutes": [],
+      "additionalPhones": [],
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-vendor-qa",
-      "company": "Synthetic Metrology"
+      "company": "Synthetic Metrology",
+      "contact": "Demo Contact 5",
+      "role": "Synthetic",
+      "phone": "",
+      "whatsappNumber": "",
+      "email": "vendor5@multipart-demo.invalid",
+      "address": "SYNTHETIC TEST SITE",
+      "processes": "",
+      "processDefinitionIds": [],
+      "machines": "",
+      "materials": "",
+      "notes": "Synthetic",
+      "status": "Demo only — not verified",
+      "sourceContactId": "",
+      "whatsappSyncedAt": "",
+      "vendorType": "Demo",
+      "transportRoutes": [],
+      "additionalPhones": [],
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-vendor-courier",
-      "company": "Synthetic Express Transport"
+      "company": "Synthetic Express Transport",
+      "contact": "Demo Contact 6",
+      "role": "Synthetic",
+      "phone": "",
+      "whatsappNumber": "",
+      "email": "vendor6@multipart-demo.invalid",
+      "address": "SYNTHETIC TEST SITE",
+      "processes": "",
+      "processDefinitionIds": [],
+      "machines": "",
+      "materials": "",
+      "notes": "Synthetic",
+      "status": "Demo only — not verified",
+      "sourceContactId": "",
+      "whatsappSyncedAt": "",
+      "vendorType": "Demo",
+      "transportRoutes": [],
+      "additionalPhones": [],
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     }
   ],
   "materials": [
@@ -58,35 +221,85 @@
       "code": "MP-AL-6082",
       "name": "Aluminium 6082-T6 billet",
       "unit": "kg",
-      "ratePerUnit": 245
+      "ratePerUnit": 245,
+      "grade": "Aluminium 6082-T6 billet",
+      "specification": "Synthetic only",
+      "preferredVendorId": "mp-vendor-material",
+      "notes": "Synthetic material",
+      "materialType": "Synthetic",
+      "densityKgM3": 2700,
+      "densityUnit": "kg/m3",
+      "priceUnit": "kg",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-mat-ss",
       "code": "MP-SS316",
       "name": "SS316 threaded insert",
       "unit": "pcs",
-      "ratePerUnit": 18
+      "ratePerUnit": 18,
+      "grade": "SS316 threaded insert",
+      "specification": "Synthetic only",
+      "preferredVendorId": "mp-vendor-material",
+      "notes": "Synthetic material",
+      "materialType": "Synthetic",
+      "densityKgM3": 2700,
+      "densityUnit": "kg/m3",
+      "priceUnit": "kg",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-mat-nbr",
       "code": "MP-NBR70",
       "name": "NBR 70 seal",
       "unit": "pcs",
-      "ratePerUnit": 12
+      "ratePerUnit": 12,
+      "grade": "NBR 70 seal",
+      "specification": "Synthetic only",
+      "preferredVendorId": "mp-vendor-material",
+      "notes": "Synthetic material",
+      "materialType": "Synthetic",
+      "densityKgM3": 2700,
+      "densityUnit": "kg/m3",
+      "priceUnit": "kg",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-mat-en24",
       "code": "MP-EN24",
       "name": "EN24 shaft blank",
       "unit": "kg",
-      "ratePerUnit": 310
+      "ratePerUnit": 310,
+      "grade": "EN24 shaft blank",
+      "specification": "Synthetic only",
+      "preferredVendorId": "mp-vendor-material",
+      "notes": "Synthetic material",
+      "materialType": "Synthetic",
+      "densityKgM3": 2700,
+      "densityUnit": "kg/m3",
+      "priceUnit": "kg",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-mat-fastener",
       "code": "MP-FASTENER",
       "name": "High tensile fastener",
       "unit": "pcs",
-      "ratePerUnit": 8
+      "ratePerUnit": 8,
+      "grade": "High tensile fastener",
+      "specification": "Synthetic only",
+      "preferredVendorId": "mp-vendor-material",
+      "notes": "Synthetic material",
+      "materialType": "Synthetic",
+      "densityKgM3": 2700,
+      "densityUnit": "kg/m3",
+      "priceUnit": "kg",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     }
   ],
   "parts": [
@@ -100,7 +313,24 @@
         "mp-mat-al",
         "mp-mat-ss",
         "mp-mat-nbr"
-      ]
+      ],
+      "shapeType": "block",
+      "dimensions": {
+        "length": 180,
+        "width": 110,
+        "thickness": 18
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "width": "mm",
+        "thickness": "mm"
+      },
+      "materialId": "mp-mat-al",
+      "vendorIds": [],
+      "drawingReference": "ASSY-MP-01-BODY.pdf",
+      "notes": "Synthetic part",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-part-shaft",
@@ -111,7 +341,24 @@
       "materialIds": [
         "mp-mat-en24",
         "mp-mat-fastener"
-      ]
+      ],
+      "shapeType": "block",
+      "dimensions": {
+        "length": 180,
+        "width": 110,
+        "thickness": 18
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "width": "mm",
+        "thickness": "mm"
+      },
+      "materialId": "mp-mat-en24",
+      "vendorIds": [],
+      "drawingReference": "ASSY-MP-01-SHAFT.pdf",
+      "notes": "Synthetic part",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-part-cover",
@@ -122,7 +369,24 @@
       "materialIds": [
         "mp-mat-al",
         "mp-mat-fastener"
-      ]
+      ],
+      "shapeType": "block",
+      "dimensions": {
+        "length": 180,
+        "width": 110,
+        "thickness": 18
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "width": "mm",
+        "thickness": "mm"
+      },
+      "materialId": "mp-mat-al",
+      "vendorIds": [],
+      "drawingReference": "ASSY-MP-01-COVER.pdf",
+      "notes": "Synthetic part",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     }
   ],
   "bomLines": [
@@ -131,49 +395,84 @@
       "componentId": "mp-component",
       "partId": "mp-part-body",
       "materialId": "mp-mat-al",
-      "quantityPerPart": 2.6
+      "quantityPerPart": 2.6,
+      "revision": "A",
+      "scrapPercent": 0,
+      "notes": "Synthetic BOM",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-bom-body-ss",
       "componentId": "mp-component",
       "partId": "mp-part-body",
       "materialId": "mp-mat-ss",
-      "quantityPerPart": 4
+      "quantityPerPart": 4,
+      "revision": "A",
+      "scrapPercent": 0,
+      "notes": "Synthetic BOM",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-bom-body-nbr",
       "componentId": "mp-component",
       "partId": "mp-part-body",
       "materialId": "mp-mat-nbr",
-      "quantityPerPart": 2
+      "quantityPerPart": 2,
+      "revision": "A",
+      "scrapPercent": 0,
+      "notes": "Synthetic BOM",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-bom-shaft-en24",
       "componentId": "mp-component",
       "partId": "mp-part-shaft",
       "materialId": "mp-mat-en24",
-      "quantityPerPart": 1.4
+      "quantityPerPart": 1.4,
+      "revision": "A",
+      "scrapPercent": 0,
+      "notes": "Synthetic BOM",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-bom-shaft-fastener",
       "componentId": "mp-component",
       "partId": "mp-part-shaft",
       "materialId": "mp-mat-fastener",
-      "quantityPerPart": 2
+      "quantityPerPart": 2,
+      "revision": "A",
+      "scrapPercent": 0,
+      "notes": "Synthetic BOM",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-bom-cover-al",
       "componentId": "mp-component",
       "partId": "mp-part-cover",
       "materialId": "mp-mat-al",
-      "quantityPerPart": 0.8
+      "quantityPerPart": 0.8,
+      "revision": "A",
+      "scrapPercent": 0,
+      "notes": "Synthetic BOM",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "mp-bom-cover-fastener",
       "componentId": "mp-component",
       "partId": "mp-part-cover",
       "materialId": "mp-mat-fastener",
-      "quantityPerPart": 4
+      "quantityPerPart": 4,
+      "revision": "A",
+      "scrapPercent": 0,
+      "notes": "Synthetic BOM",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     }
   ],
   "operations": [
@@ -198,7 +497,7 @@
       "completed": 0,
       "accepted": 0,
       "rejected": 0,
-      "ratePerPart": 0,
+      "ratePerPart": 120,
       "actualRatePerPart": 0,
       "transportVendorId": "",
       "transportPickup": "",
@@ -208,7 +507,23 @@
       "inspectionResult": "Not assessed",
       "notes": "Synthetic acceptance data",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "processDefinitionId": "mp-process-cut",
+      "processSubcategoryId": "mp-sub-mp-op-cut",
+      "subcategory": "Material saw cutting stage",
+      "executionType": "Outsourced",
+      "toleranceCategory": "Precision",
+      "inspectionRequired": false,
+      "paymentStatus": "Unpaid",
+      "paidAmount": 0,
+      "paymentReference": "",
+      "transportFrom": "",
+      "transportTo": "",
+      "transportVehicleType": "",
+      "transportRouteId": "",
+      "transportTripDirection": "One-way",
+      "processColor": "#4b95eb",
+      "costIncluded": true
     },
     {
       "id": "mp-op-vmc",
@@ -231,7 +546,7 @@
       "completed": 0,
       "accepted": 0,
       "rejected": 0,
-      "ratePerPart": 0,
+      "ratePerPart": 120,
       "actualRatePerPart": 0,
       "transportVendorId": "",
       "transportPickup": "",
@@ -241,7 +556,23 @@
       "inspectionResult": "Not assessed",
       "notes": "Synthetic acceptance data",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "processDefinitionId": "mp-process-vmc",
+      "processSubcategoryId": "mp-sub-mp-op-vmc",
+      "subcategory": "VMC datum and port machining stage",
+      "executionType": "Outsourced",
+      "toleranceCategory": "Precision",
+      "inspectionRequired": false,
+      "paymentStatus": "Unpaid",
+      "paidAmount": 0,
+      "paymentReference": "",
+      "transportFrom": "",
+      "transportTo": "",
+      "transportVehicleType": "",
+      "transportRouteId": "",
+      "transportTripDirection": "One-way",
+      "processColor": "#4b95eb",
+      "costIncluded": true
     },
     {
       "id": "mp-op-turn",
@@ -264,7 +595,7 @@
       "completed": 0,
       "accepted": 0,
       "rejected": 0,
-      "ratePerPart": 0,
+      "ratePerPart": 120,
       "actualRatePerPart": 0,
       "transportVendorId": "",
       "transportPickup": "",
@@ -274,7 +605,23 @@
       "inspectionResult": "Not assessed",
       "notes": "Synthetic acceptance data",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "processDefinitionId": "mp-process-turn",
+      "processSubcategoryId": "mp-sub-mp-op-turn",
+      "subcategory": "CNC shaft turning stage",
+      "executionType": "Outsourced",
+      "toleranceCategory": "Precision",
+      "inspectionRequired": false,
+      "paymentStatus": "Unpaid",
+      "paidAmount": 0,
+      "paymentReference": "",
+      "transportFrom": "",
+      "transportTo": "",
+      "transportVehicleType": "",
+      "transportRouteId": "",
+      "transportTripDirection": "One-way",
+      "processColor": "#4b95eb",
+      "costIncluded": true
     },
     {
       "id": "mp-op-heat",
@@ -297,7 +644,7 @@
       "completed": 0,
       "accepted": 0,
       "rejected": 0,
-      "ratePerPart": 0,
+      "ratePerPart": 120,
       "actualRatePerPart": 0,
       "transportVendorId": "",
       "transportPickup": "",
@@ -307,7 +654,23 @@
       "inspectionResult": "Not assessed",
       "notes": "Synthetic acceptance data",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "processDefinitionId": "mp-process-heat",
+      "processSubcategoryId": "mp-sub-mp-op-heat",
+      "subcategory": "Shaft heat treatment stage",
+      "executionType": "Outsourced",
+      "toleranceCategory": "Precision",
+      "inspectionRequired": false,
+      "paymentStatus": "Unpaid",
+      "paidAmount": 0,
+      "paymentReference": "",
+      "transportFrom": "",
+      "transportTo": "",
+      "transportVehicleType": "",
+      "transportRouteId": "",
+      "transportTripDirection": "One-way",
+      "processColor": "#4b95eb",
+      "costIncluded": true
     },
     {
       "id": "mp-op-grind",
@@ -330,7 +693,7 @@
       "completed": 0,
       "accepted": 0,
       "rejected": 0,
-      "ratePerPart": 0,
+      "ratePerPart": 120,
       "actualRatePerPart": 0,
       "transportVendorId": "",
       "transportPickup": "",
@@ -340,7 +703,23 @@
       "inspectionResult": "Not assessed",
       "notes": "Synthetic acceptance data",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "processDefinitionId": "mp-process-grind",
+      "processSubcategoryId": "mp-sub-mp-op-grind",
+      "subcategory": "Shaft cylindrical grinding stage",
+      "executionType": "Outsourced",
+      "toleranceCategory": "Precision",
+      "inspectionRequired": false,
+      "paymentStatus": "Unpaid",
+      "paidAmount": 0,
+      "paymentReference": "",
+      "transportFrom": "",
+      "transportTo": "",
+      "transportVehicleType": "",
+      "transportRouteId": "",
+      "transportTripDirection": "One-way",
+      "processColor": "#4b95eb",
+      "costIncluded": true
     },
     {
       "id": "mp-op-insert",
@@ -363,7 +742,7 @@
       "completed": 0,
       "accepted": 0,
       "rejected": 0,
-      "ratePerPart": 0,
+      "ratePerPart": 120,
       "actualRatePerPart": 0,
       "transportVendorId": "",
       "transportPickup": "",
@@ -373,7 +752,23 @@
       "inspectionResult": "Not assessed",
       "notes": "Synthetic acceptance data",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "processDefinitionId": "mp-process-insert",
+      "processSubcategoryId": "mp-sub-mp-op-insert",
+      "subcategory": "Insert installation stage",
+      "executionType": "Outsourced",
+      "toleranceCategory": "Precision",
+      "inspectionRequired": false,
+      "paymentStatus": "Unpaid",
+      "paidAmount": 0,
+      "paymentReference": "",
+      "transportFrom": "",
+      "transportTo": "",
+      "transportVehicleType": "",
+      "transportRouteId": "",
+      "transportTripDirection": "One-way",
+      "processColor": "#4b95eb",
+      "costIncluded": true
     },
     {
       "id": "mp-op-seal",
@@ -396,7 +791,7 @@
       "completed": 0,
       "accepted": 0,
       "rejected": 0,
-      "ratePerPart": 0,
+      "ratePerPart": 120,
       "actualRatePerPart": 0,
       "transportVendorId": "",
       "transportPickup": "",
@@ -406,7 +801,23 @@
       "inspectionResult": "Not assessed",
       "notes": "Synthetic acceptance data",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "processDefinitionId": "mp-process-seal",
+      "processSubcategoryId": "mp-sub-mp-op-seal",
+      "subcategory": "Seal installation stage",
+      "executionType": "Outsourced",
+      "toleranceCategory": "Precision",
+      "inspectionRequired": false,
+      "paymentStatus": "Unpaid",
+      "paidAmount": 0,
+      "paymentReference": "",
+      "transportFrom": "",
+      "transportTo": "",
+      "transportVehicleType": "",
+      "transportRouteId": "",
+      "transportTripDirection": "One-way",
+      "processColor": "#4b95eb",
+      "costIncluded": true
     },
     {
       "id": "mp-op-cover",
@@ -429,7 +840,7 @@
       "completed": 0,
       "accepted": 0,
       "rejected": 0,
-      "ratePerPart": 0,
+      "ratePerPart": 120,
       "actualRatePerPart": 0,
       "transportVendorId": "",
       "transportPickup": "",
@@ -439,7 +850,23 @@
       "inspectionResult": "Not assessed",
       "notes": "Synthetic acceptance data",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "processDefinitionId": "mp-process-cover",
+      "processSubcategoryId": "mp-sub-mp-op-cover",
+      "subcategory": "Cover machining and assembly stage",
+      "executionType": "Outsourced",
+      "toleranceCategory": "Precision",
+      "inspectionRequired": false,
+      "paymentStatus": "Unpaid",
+      "paidAmount": 0,
+      "paymentReference": "",
+      "transportFrom": "",
+      "transportTo": "",
+      "transportVehicleType": "",
+      "transportRouteId": "",
+      "transportTripDirection": "One-way",
+      "processColor": "#4b95eb",
+      "costIncluded": true
     },
     {
       "id": "mp-op-inspect",
@@ -462,7 +889,7 @@
       "completed": 0,
       "accepted": 0,
       "rejected": 0,
-      "ratePerPart": 0,
+      "ratePerPart": 120,
       "actualRatePerPart": 0,
       "transportVendorId": "",
       "transportPickup": "",
@@ -472,7 +899,23 @@
       "inspectionResult": "Not assessed",
       "notes": "Synthetic acceptance data",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "processDefinitionId": "mp-process-inspect",
+      "processSubcategoryId": "mp-sub-mp-op-inspect",
+      "subcategory": "Final CMM and pressure inspection stage",
+      "executionType": "Outsourced",
+      "toleranceCategory": "Precision",
+      "inspectionRequired": false,
+      "paymentStatus": "Unpaid",
+      "paidAmount": 0,
+      "paymentReference": "",
+      "transportFrom": "",
+      "transportTo": "",
+      "transportVehicleType": "",
+      "transportRouteId": "",
+      "transportTripDirection": "One-way",
+      "processColor": "#4b95eb",
+      "costIncluded": true
     }
   ],
   "materialProcessLinks": [
@@ -900,9 +1343,13 @@
       "tripDirection": "One-way",
       "fixedAmount": 500,
       "tripCount": 1,
-      "notes": "Separate synthetic transport leg",
+      "notes": "Synthetic transport leg",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "pickupAt": "2026-01-02T08:00",
+      "deliveryAt": "2026-01-03T08:00",
+      "status": "Planned",
+      "completedTrips": 0
     },
     {
       "id": "mp-leg-02",
@@ -920,9 +1367,13 @@
       "tripDirection": "One-way",
       "fixedAmount": 500,
       "tripCount": 1,
-      "notes": "Separate synthetic transport leg",
+      "notes": "Synthetic transport leg",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "pickupAt": "2026-01-02T08:00",
+      "deliveryAt": "2026-01-03T08:00",
+      "status": "Planned",
+      "completedTrips": 0
     },
     {
       "id": "mp-leg-03",
@@ -940,9 +1391,13 @@
       "tripDirection": "One-way",
       "fixedAmount": 500,
       "tripCount": 1,
-      "notes": "Separate synthetic transport leg",
+      "notes": "Synthetic transport leg",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "pickupAt": "2026-01-02T08:00",
+      "deliveryAt": "2026-01-03T08:00",
+      "status": "Planned",
+      "completedTrips": 0
     },
     {
       "id": "mp-leg-04",
@@ -960,9 +1415,13 @@
       "tripDirection": "One-way",
       "fixedAmount": 500,
       "tripCount": 1,
-      "notes": "Separate synthetic transport leg",
+      "notes": "Synthetic transport leg",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "pickupAt": "2026-01-02T08:00",
+      "deliveryAt": "2026-01-03T08:00",
+      "status": "Planned",
+      "completedTrips": 0
     },
     {
       "id": "mp-leg-05",
@@ -980,9 +1439,13 @@
       "tripDirection": "One-way",
       "fixedAmount": 500,
       "tripCount": 1,
-      "notes": "Separate synthetic transport leg",
+      "notes": "Synthetic transport leg",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "pickupAt": "2026-01-02T08:00",
+      "deliveryAt": "2026-01-03T08:00",
+      "status": "Planned",
+      "completedTrips": 0
     },
     {
       "id": "mp-leg-06",
@@ -1000,9 +1463,13 @@
       "tripDirection": "One-way",
       "fixedAmount": 500,
       "tripCount": 1,
-      "notes": "Separate synthetic transport leg",
+      "notes": "Synthetic transport leg",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "pickupAt": "2026-01-02T08:00",
+      "deliveryAt": "2026-01-03T08:00",
+      "status": "Planned",
+      "completedTrips": 0
     },
     {
       "id": "mp-leg-07",
@@ -1020,9 +1487,13 @@
       "tripDirection": "One-way",
       "fixedAmount": 500,
       "tripCount": 1,
-      "notes": "Separate synthetic transport leg",
+      "notes": "Synthetic transport leg",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "pickupAt": "2026-01-02T08:00",
+      "deliveryAt": "2026-01-03T08:00",
+      "status": "Planned",
+      "completedTrips": 0
     },
     {
       "id": "mp-leg-08",
@@ -1040,9 +1511,13 @@
       "tripDirection": "One-way",
       "fixedAmount": 500,
       "tripCount": 1,
-      "notes": "Separate synthetic transport leg",
+      "notes": "Synthetic transport leg",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "pickupAt": "2026-01-02T08:00",
+      "deliveryAt": "2026-01-03T08:00",
+      "status": "Planned",
+      "completedTrips": 0
     }
   ],
   "expected": {
@@ -1058,5 +1533,579 @@
     "sharedMaterialFeedsMultipleOperations": true,
     "allPartsBelongToSameComponent": true,
     "allTransportLegsBelongToSameComponent": true
-  }
+  },
+  "factory": {
+    "id": "mp-factory",
+    "companyId": "mp-company",
+    "name": "Synthetic test works",
+    "address": "SYNTHETIC TEST SITE",
+    "contactPhone": "",
+    "createdAt": "2026-01-01T09:00:00.000Z",
+    "updatedAt": "2026-01-01T09:00:00.000Z"
+  },
+  "processDefinitions": [
+    {
+      "id": "mp-process-cut",
+      "processType": "Material saw cutting",
+      "category": "Synthetic process",
+      "subcategories": [
+        "Material saw cutting stage"
+      ],
+      "subcategoryIds": [
+        "mp-sub-mp-op-cut"
+      ],
+      "vendorIds": [
+        "mp-vendor-machining"
+      ],
+      "displayColor": "#4b95eb",
+      "notes": "Synthetic process definition",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-process-vmc",
+      "processType": "VMC datum and port machining",
+      "category": "Synthetic process",
+      "subcategories": [
+        "VMC datum and port machining stage"
+      ],
+      "subcategoryIds": [
+        "mp-sub-mp-op-vmc"
+      ],
+      "vendorIds": [
+        "mp-vendor-machining"
+      ],
+      "displayColor": "#4b95eb",
+      "notes": "Synthetic process definition",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-process-turn",
+      "processType": "CNC shaft turning",
+      "category": "Synthetic process",
+      "subcategories": [
+        "CNC shaft turning stage"
+      ],
+      "subcategoryIds": [
+        "mp-sub-mp-op-turn"
+      ],
+      "vendorIds": [
+        "mp-vendor-machining"
+      ],
+      "displayColor": "#4b95eb",
+      "notes": "Synthetic process definition",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-process-heat",
+      "processType": "Shaft heat treatment",
+      "category": "Synthetic process",
+      "subcategories": [
+        "Shaft heat treatment stage"
+      ],
+      "subcategoryIds": [
+        "mp-sub-mp-op-heat"
+      ],
+      "vendorIds": [
+        "mp-vendor-machining"
+      ],
+      "displayColor": "#4b95eb",
+      "notes": "Synthetic process definition",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-process-grind",
+      "processType": "Shaft cylindrical grinding",
+      "category": "Synthetic process",
+      "subcategories": [
+        "Shaft cylindrical grinding stage"
+      ],
+      "subcategoryIds": [
+        "mp-sub-mp-op-grind"
+      ],
+      "vendorIds": [
+        "mp-vendor-machining"
+      ],
+      "displayColor": "#4b95eb",
+      "notes": "Synthetic process definition",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-process-insert",
+      "processType": "Insert installation",
+      "category": "Synthetic process",
+      "subcategories": [
+        "Insert installation stage"
+      ],
+      "subcategoryIds": [
+        "mp-sub-mp-op-insert"
+      ],
+      "vendorIds": [
+        "mp-vendor-machining"
+      ],
+      "displayColor": "#4b95eb",
+      "notes": "Synthetic process definition",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-process-seal",
+      "processType": "Seal installation",
+      "category": "Synthetic process",
+      "subcategories": [
+        "Seal installation stage"
+      ],
+      "subcategoryIds": [
+        "mp-sub-mp-op-seal"
+      ],
+      "vendorIds": [
+        "mp-vendor-machining"
+      ],
+      "displayColor": "#4b95eb",
+      "notes": "Synthetic process definition",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-process-cover",
+      "processType": "Cover machining and assembly",
+      "category": "Synthetic process",
+      "subcategories": [
+        "Cover machining and assembly stage"
+      ],
+      "subcategoryIds": [
+        "mp-sub-mp-op-cover"
+      ],
+      "vendorIds": [
+        "mp-vendor-machining"
+      ],
+      "displayColor": "#4b95eb",
+      "notes": "Synthetic process definition",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-process-inspect",
+      "processType": "Final CMM and pressure inspection",
+      "category": "Synthetic process",
+      "subcategories": [
+        "Final CMM and pressure inspection stage"
+      ],
+      "subcategoryIds": [
+        "mp-sub-mp-op-inspect"
+      ],
+      "vendorIds": [
+        "mp-vendor-machining"
+      ],
+      "displayColor": "#4b95eb",
+      "notes": "Synthetic process definition",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    }
+  ],
+  "materialCostEntries": [
+    {
+      "id": "mp-cost-mp-part-body-0",
+      "scope": "process-map",
+      "companyId": "mp-company",
+      "poId": "mp-po",
+      "poLineId": "mp-line",
+      "componentId": "mp-component",
+      "partId": "mp-part-body",
+      "partNumber": "ASSY-MP-01-BODY",
+      "partName": "Hydraulic manifold body",
+      "materialId": "mp-mat-al",
+      "materialName": "Aluminium 6082-T6 billet",
+      "materialGrade": "Aluminium 6082-T6 billet",
+      "densityKgM3": 2700,
+      "shapeType": "block",
+      "dimensions": {
+        "length": 180,
+        "width": 110,
+        "thickness": 18
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "width": "mm",
+        "thickness": "mm"
+      },
+      "quantity": 120,
+      "weightPerPieceKg": 1,
+      "totalWeightKg": 120,
+      "priceUnit": "kg",
+      "materialRate": 200,
+      "materialCost": 24000,
+      "cuttingType": "",
+      "cuttingBasis": "Per piece",
+      "cuttingRate": 0,
+      "cutsPerPiece": 1,
+      "cuttingHours": 0,
+      "cuttingCost": 0,
+      "wastagePercent": 0,
+      "vendorId": "mp-vendor-material",
+      "givenDate": "2026-01-02",
+      "deliveryDate": "2026-01-04",
+      "actualDeliveryDate": "",
+      "poReference": "MP-DEMO-001",
+      "notes": "Synthetic material allocation",
+      "currency": "INR",
+      "transportVendorId": "mp-vendor-material",
+      "transportFrom": "Material store",
+      "transportTo": "Factory",
+      "transportVehicleType": "4-wheeler",
+      "transportCost": 100,
+      "transportPickupAt": "2026-01-02T08:00",
+      "transportDeliveryAt": "2026-01-03T08:00",
+      "transportStatus": "Planned",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-cost-mp-part-body-1",
+      "scope": "process-map",
+      "companyId": "mp-company",
+      "poId": "mp-po",
+      "poLineId": "mp-line",
+      "componentId": "mp-component",
+      "partId": "mp-part-body",
+      "partNumber": "ASSY-MP-01-BODY",
+      "partName": "Hydraulic manifold body",
+      "materialId": "mp-mat-ss",
+      "materialName": "SS316 threaded insert",
+      "materialGrade": "SS316 threaded insert",
+      "densityKgM3": 2700,
+      "shapeType": "block",
+      "dimensions": {
+        "length": 180,
+        "width": 110,
+        "thickness": 18
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "width": "mm",
+        "thickness": "mm"
+      },
+      "quantity": 120,
+      "weightPerPieceKg": 1,
+      "totalWeightKg": 120,
+      "priceUnit": "kg",
+      "materialRate": 200,
+      "materialCost": 24000,
+      "cuttingType": "",
+      "cuttingBasis": "Per piece",
+      "cuttingRate": 0,
+      "cutsPerPiece": 1,
+      "cuttingHours": 0,
+      "cuttingCost": 0,
+      "wastagePercent": 0,
+      "vendorId": "mp-vendor-material",
+      "givenDate": "2026-01-02",
+      "deliveryDate": "2026-01-04",
+      "actualDeliveryDate": "",
+      "poReference": "MP-DEMO-001",
+      "notes": "Synthetic material allocation",
+      "currency": "INR",
+      "transportVendorId": "mp-vendor-material",
+      "transportFrom": "Material store",
+      "transportTo": "Factory",
+      "transportVehicleType": "4-wheeler",
+      "transportCost": 100,
+      "transportPickupAt": "2026-01-02T08:00",
+      "transportDeliveryAt": "2026-01-03T08:00",
+      "transportStatus": "Planned",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-cost-mp-part-body-2",
+      "scope": "process-map",
+      "companyId": "mp-company",
+      "poId": "mp-po",
+      "poLineId": "mp-line",
+      "componentId": "mp-component",
+      "partId": "mp-part-body",
+      "partNumber": "ASSY-MP-01-BODY",
+      "partName": "Hydraulic manifold body",
+      "materialId": "mp-mat-nbr",
+      "materialName": "NBR 70 seal",
+      "materialGrade": "NBR 70 seal",
+      "densityKgM3": 2700,
+      "shapeType": "block",
+      "dimensions": {
+        "length": 180,
+        "width": 110,
+        "thickness": 18
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "width": "mm",
+        "thickness": "mm"
+      },
+      "quantity": 120,
+      "weightPerPieceKg": 1,
+      "totalWeightKg": 120,
+      "priceUnit": "kg",
+      "materialRate": 200,
+      "materialCost": 24000,
+      "cuttingType": "",
+      "cuttingBasis": "Per piece",
+      "cuttingRate": 0,
+      "cutsPerPiece": 1,
+      "cuttingHours": 0,
+      "cuttingCost": 0,
+      "wastagePercent": 0,
+      "vendorId": "mp-vendor-material",
+      "givenDate": "2026-01-02",
+      "deliveryDate": "2026-01-04",
+      "actualDeliveryDate": "",
+      "poReference": "MP-DEMO-001",
+      "notes": "Synthetic material allocation",
+      "currency": "INR",
+      "transportVendorId": "mp-vendor-material",
+      "transportFrom": "Material store",
+      "transportTo": "Factory",
+      "transportVehicleType": "4-wheeler",
+      "transportCost": 100,
+      "transportPickupAt": "2026-01-02T08:00",
+      "transportDeliveryAt": "2026-01-03T08:00",
+      "transportStatus": "Planned",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-cost-mp-part-shaft-0",
+      "scope": "process-map",
+      "companyId": "mp-company",
+      "poId": "mp-po",
+      "poLineId": "mp-line",
+      "componentId": "mp-component",
+      "partId": "mp-part-shaft",
+      "partNumber": "ASSY-MP-01-SHAFT",
+      "partName": "Actuator shaft",
+      "materialId": "mp-mat-en24",
+      "materialName": "EN24 shaft blank",
+      "materialGrade": "EN24 shaft blank",
+      "densityKgM3": 2700,
+      "shapeType": "block",
+      "dimensions": {
+        "length": 180,
+        "width": 110,
+        "thickness": 18
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "width": "mm",
+        "thickness": "mm"
+      },
+      "quantity": 120,
+      "weightPerPieceKg": 1,
+      "totalWeightKg": 120,
+      "priceUnit": "kg",
+      "materialRate": 200,
+      "materialCost": 24000,
+      "cuttingType": "",
+      "cuttingBasis": "Per piece",
+      "cuttingRate": 0,
+      "cutsPerPiece": 1,
+      "cuttingHours": 0,
+      "cuttingCost": 0,
+      "wastagePercent": 0,
+      "vendorId": "mp-vendor-material",
+      "givenDate": "2026-01-02",
+      "deliveryDate": "2026-01-04",
+      "actualDeliveryDate": "",
+      "poReference": "MP-DEMO-001",
+      "notes": "Synthetic material allocation",
+      "currency": "INR",
+      "transportVendorId": "mp-vendor-material",
+      "transportFrom": "Material store",
+      "transportTo": "Factory",
+      "transportVehicleType": "4-wheeler",
+      "transportCost": 100,
+      "transportPickupAt": "2026-01-02T08:00",
+      "transportDeliveryAt": "2026-01-03T08:00",
+      "transportStatus": "Planned",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-cost-mp-part-shaft-1",
+      "scope": "process-map",
+      "companyId": "mp-company",
+      "poId": "mp-po",
+      "poLineId": "mp-line",
+      "componentId": "mp-component",
+      "partId": "mp-part-shaft",
+      "partNumber": "ASSY-MP-01-SHAFT",
+      "partName": "Actuator shaft",
+      "materialId": "mp-mat-fastener",
+      "materialName": "High tensile fastener",
+      "materialGrade": "High tensile fastener",
+      "densityKgM3": 2700,
+      "shapeType": "block",
+      "dimensions": {
+        "length": 180,
+        "width": 110,
+        "thickness": 18
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "width": "mm",
+        "thickness": "mm"
+      },
+      "quantity": 120,
+      "weightPerPieceKg": 1,
+      "totalWeightKg": 120,
+      "priceUnit": "kg",
+      "materialRate": 200,
+      "materialCost": 24000,
+      "cuttingType": "",
+      "cuttingBasis": "Per piece",
+      "cuttingRate": 0,
+      "cutsPerPiece": 1,
+      "cuttingHours": 0,
+      "cuttingCost": 0,
+      "wastagePercent": 0,
+      "vendorId": "mp-vendor-material",
+      "givenDate": "2026-01-02",
+      "deliveryDate": "2026-01-04",
+      "actualDeliveryDate": "",
+      "poReference": "MP-DEMO-001",
+      "notes": "Synthetic material allocation",
+      "currency": "INR",
+      "transportVendorId": "mp-vendor-material",
+      "transportFrom": "Material store",
+      "transportTo": "Factory",
+      "transportVehicleType": "4-wheeler",
+      "transportCost": 100,
+      "transportPickupAt": "2026-01-02T08:00",
+      "transportDeliveryAt": "2026-01-03T08:00",
+      "transportStatus": "Planned",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-cost-mp-part-cover-0",
+      "scope": "process-map",
+      "companyId": "mp-company",
+      "poId": "mp-po",
+      "poLineId": "mp-line",
+      "componentId": "mp-component",
+      "partId": "mp-part-cover",
+      "partNumber": "ASSY-MP-01-COVER",
+      "partName": "End cover",
+      "materialId": "mp-mat-al",
+      "materialName": "Aluminium 6082-T6 billet",
+      "materialGrade": "Aluminium 6082-T6 billet",
+      "densityKgM3": 2700,
+      "shapeType": "block",
+      "dimensions": {
+        "length": 180,
+        "width": 110,
+        "thickness": 18
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "width": "mm",
+        "thickness": "mm"
+      },
+      "quantity": 120,
+      "weightPerPieceKg": 1,
+      "totalWeightKg": 120,
+      "priceUnit": "kg",
+      "materialRate": 200,
+      "materialCost": 24000,
+      "cuttingType": "",
+      "cuttingBasis": "Per piece",
+      "cuttingRate": 0,
+      "cutsPerPiece": 1,
+      "cuttingHours": 0,
+      "cuttingCost": 0,
+      "wastagePercent": 0,
+      "vendorId": "mp-vendor-material",
+      "givenDate": "2026-01-02",
+      "deliveryDate": "2026-01-04",
+      "actualDeliveryDate": "",
+      "poReference": "MP-DEMO-001",
+      "notes": "Synthetic material allocation",
+      "currency": "INR",
+      "transportVendorId": "mp-vendor-material",
+      "transportFrom": "Material store",
+      "transportTo": "Factory",
+      "transportVehicleType": "4-wheeler",
+      "transportCost": 100,
+      "transportPickupAt": "2026-01-02T08:00",
+      "transportDeliveryAt": "2026-01-03T08:00",
+      "transportStatus": "Planned",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "mp-cost-mp-part-cover-1",
+      "scope": "process-map",
+      "companyId": "mp-company",
+      "poId": "mp-po",
+      "poLineId": "mp-line",
+      "componentId": "mp-component",
+      "partId": "mp-part-cover",
+      "partNumber": "ASSY-MP-01-COVER",
+      "partName": "End cover",
+      "materialId": "mp-mat-fastener",
+      "materialName": "High tensile fastener",
+      "materialGrade": "High tensile fastener",
+      "densityKgM3": 2700,
+      "shapeType": "block",
+      "dimensions": {
+        "length": 180,
+        "width": 110,
+        "thickness": 18
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "width": "mm",
+        "thickness": "mm"
+      },
+      "quantity": 120,
+      "weightPerPieceKg": 1,
+      "totalWeightKg": 120,
+      "priceUnit": "kg",
+      "materialRate": 200,
+      "materialCost": 24000,
+      "cuttingType": "",
+      "cuttingBasis": "Per piece",
+      "cuttingRate": 0,
+      "cutsPerPiece": 1,
+      "cuttingHours": 0,
+      "cuttingCost": 0,
+      "wastagePercent": 0,
+      "vendorId": "mp-vendor-material",
+      "givenDate": "2026-01-02",
+      "deliveryDate": "2026-01-04",
+      "actualDeliveryDate": "",
+      "poReference": "MP-DEMO-001",
+      "notes": "Synthetic material allocation",
+      "currency": "INR",
+      "transportVendorId": "mp-vendor-material",
+      "transportFrom": "Material store",
+      "transportTo": "Factory",
+      "transportVehicleType": "4-wheeler",
+      "transportCost": 100,
+      "transportPickupAt": "2026-01-02T08:00",
+      "transportDeliveryAt": "2026-01-03T08:00",
+      "transportStatus": "Planned",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    }
+  ],
+  "plannedCosts": [],
+  "quotations": [],
+  "inventoryTransactions": [],
+  "contactProfiles": [],
+  "paymentTransactions": [],
+  "inspectionMeasurements": [],
+  "followUpAssignments": []
 }
