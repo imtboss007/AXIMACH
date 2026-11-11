@@ -61,3 +61,10 @@ test("multi-route example is visible and interactive in both Process Map and Tra
   assert.ok(demo.includes("No company, PO, component, vendor, operation, route, or transport record is written"));
   assert.ok(demo.includes("TransportLegMarker"));
 });
+
+test("Module Universe cards remain compact and scroll within the viewport", () => {
+  const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.ok(styles.includes(".module-universe .universe-grid{grid-template-columns:repeat(auto-fill"));
+  assert.ok(styles.includes(".module-universe .universe-card{min-height:76px"));
+  assert.ok(styles.includes("orientation:landscape) and (max-height:600px"));
+});
