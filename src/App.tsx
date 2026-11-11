@@ -497,7 +497,7 @@ function App() {
 function CommandCentre(props: {
   activeModule: ModuleItem; aiPrompt: string; aiResponse: string; notice: string;
   onAiPromptChange: (value: string) => void; onRunCommand: () => void; onNotice: (value: string) => void;
-  onSelectModule: (id: string) => void; onOpenModules: () => void;
+  onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenModules: () => void;
 }) {
   const { aiPrompt, aiResponse, notice, onAiPromptChange, onRunCommand, onNotice, onSelectModule, onOpenModules } = props;
   const { data: actualData } = useManufacturingData();
@@ -509,7 +509,7 @@ function CommandCentre(props: {
           <div className="eyebrow"><span className="eyebrow-mark" /> 3D COMMAND CENTRE / 02</div>
           <h1>One sphere.<br /><em>Every command.</em></h1>
           <p>An interactive manufacturing command surface. Rotate the sphere, open workspaces and control the connected operating flow.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all 18 modules</button></div>
+          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all {modules.length} modules</button></div>
         </div>
         <div className="hero-graphic axim-hero-graphic" aria-label="Interactive AXIMACH 3D operations sphere">
           <div className="graphic-grid" />
@@ -543,7 +543,7 @@ function CommandCentre(props: {
               <span className="setup-step-icon"><Package size={21}/></span>
               <span className="setup-step-copy"><strong>PO lines</strong><b className="setup-step-quantity">{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0)}</b><small>component lines</small></span>
             </button>
-            <button onClick={() => onSelectModule("vendors")} aria-label="Open Contact 360">
+            <button onClick={() => onSelectModule("contact360")} aria-label="Open Contact 360">
               <span className="setup-step-icon"><Users size={21}/></span>
               <span className="setup-step-copy"><strong>Contacts</strong><b className="setup-step-quantity">{activeRows(actualData.vendors).length}</b><small>Contact 360</small></span>
             </button>
@@ -559,7 +559,7 @@ function CommandCentre(props: {
         </div>
         <div className="surface-panel attention-panel">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> REVIEW QUEUE</div><h3>Recorded risks</h3><p>No illustrative alerts are shown.</p></div><ShieldCheck size={18}/></div>
-          {activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).length ? activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).slice(0,5).map(op => <button className="attention-row" key={op.id} onClick={() => onSelectModule("process-map")}><span className="attention-symbol red-symbol"><ShieldAlert size={17}/></span><span className="attention-copy"><strong>{op.name}</strong><small>{op.status === "Quality hold" ? "Quality hold entered" : "Target date overdue"} · {op.plannedEnd || "No target date"}</small><em>Open linked Process Map</em></span><ArrowUpRight size={16}/></button>) : <div className="vendor-empty">No overdue operations or quality holds are recorded.</div>}
+          {activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).length ? activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).slice(0,5).map(op => {const po=actualData.purchaseOrders.find(row=>row.id===op.poId);return <button className="attention-row" key={op.id} onClick={() => onSelectModule("process-map",{companyId:po?.companyId,poId:op.poId,poLineId:op.poLineId,componentId:op.componentId,operationId:op.id,vendorId:op.vendorId||undefined})}><span className="attention-symbol red-symbol"><ShieldAlert size={17}/></span><span className="attention-copy"><strong>{op.name}</strong><small>{op.status === "Quality hold" ? "Quality hold entered" : "Target date overdue"} · {op.plannedEnd || "No target date"}</small><em>Open linked Process Map</em></span><ArrowUpRight size={16}/></button>;}) : <div className="vendor-empty">No overdue operations or quality holds are recorded.</div>}
           <div className="attention-safety"><ShieldCheck size={14}/> Alerts are calculated from saved operation status and target dates.</div>
         </div>
       </section>
