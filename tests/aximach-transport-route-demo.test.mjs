@@ -79,3 +79,9 @@ test("portrait operation navigation is available in Route Flow, node Process Map
   assert.match(css, /linked-node-scroll\{display:grid;grid-template-columns:42px minmax\(0,1fr\)/);
   assert.match(css, /process-universe-viewport\{display:grid;grid-template-columns:42px minmax\(0,1fr\)/);
 });
+
+test("Transport & Dispatch also displays the shared multi-route demo and vehicle-specific icon", () => {
+  const dispatch = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(dispatch.includes("<TransportRoutingDemo onClose="));
+  assert.ok(dispatch.includes("<VehicleBadge vehicleType={row.vehicle}/>"));
+});
