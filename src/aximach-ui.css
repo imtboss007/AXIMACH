@@ -2934,8 +2934,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   display:flex!important;position:relative!important;height:32px!important;
 }
 .app-shell:has(.route-flow-workspace) .command-rail,.app-shell:has(.manufacturing-universe-workspace) .command-rail{
-  display:flex!important;position:fixed!important;left:50%!important;bottom:13px!important;top:auto!important;
-  transform:translateX(-50%)!important;z-index:50!important;
+  display:none!important;
 }
 .app-shell:has(.route-flow-workspace) .page-content,.app-shell:has(.manufacturing-universe-workspace) .page-content{
   position:static!important;inset:auto!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
