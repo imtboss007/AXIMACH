@@ -28,6 +28,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - name: Check server syntax
         run: |
           node --check server/index.mjs
@@ -61,6 +63,9 @@ jobs:
     name: Build Windows installer
     runs-on: windows-latest
     timeout-minutes: 30
+    env:
+      ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+      ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,7 +74,15 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            npm install --no-audit --no-fund
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            if ($attempt -eq 3) { exit $LASTEXITCODE }
+            Start-Sleep -Seconds (15 * $attempt)
+          }
       - name: Check Electron main-process syntax
         run: node --check electron/main.cjs
       - name: Package Windows installer
@@ -129,6 +142,8 @@ jobs:
           packages: platform-tools
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - name: Build web assets
         run: npm run build
       - name: Add Android platform
@@ -152,7 +167,37 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          python - <<'PY'
+          from pathlib import Path
+          wrapper = Path("gradle/wrapper/gradle-wrapper.properties")
+          config = wrapper.read_text(encoding="utf-8")
+          original = r"https\://services.gradle.org/distributions/gradle-8.11.1-all.zip"
+          mirror = r"https\://mirrors.huaweicloud.com/gradle/gradle-8.11.1-all.zip"
+          if original not in config:
+              raise SystemExit("Expected Gradle 8.11.1 wrapper URL was not found; refusing an unverified rewrite.")
+          wrapper.write_text(config.replace(original, mirror), encoding="utf-8")
+          print("Using the pinned Gradle 8.11.1 distribution mirror.")
+          PY
+          for attempt in 1 2 3; do
+            ./gradlew assembleDebug && exit 0
+            status=$?
+            if [ "$attempt" -eq 1 ]; then
+              python - <<'PY'
+          from pathlib import Path
+          wrapper = Path("gradle/wrapper/gradle-wrapper.properties")
+          config = wrapper.read_text(encoding="utf-8")
+          primary = r"https\://mirrors.huaweicloud.com/gradle/gradle-8.11.1-all.zip"
+          fallback = r"https\://mirrors.aliyun.com/gradle/distributions/v8.11.1/gradle-8.11.1-all.zip"
+          if primary not in config:
+              raise SystemExit("Primary Gradle mirror URL changed unexpectedly; refusing an unverified fallback rewrite.")
+          wrapper.write_text(config.replace(primary, fallback), encoding="utf-8")
+          print("Switching Gradle 8.11.1 download to the secondary distribution mirror.")
+          PY
+            fi
+            if [ "$attempt" -eq 3 ]; then exit "$status"; fi
+            echo "Gradle build failed; retrying after transient download/build error (attempt $attempt of 3)."
+            sleep $((attempt * 15))
+          done
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
