@@ -163,8 +163,10 @@ test("Route Flow never defaults to an unrelated first company, PO or component l
 test("Component master and Process Map module links pass source record context", () => {
   const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
   const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(master.includes('onSelectModule("process-map",{companyId:linkedOrder?.companyId||row.companyId,poId:linkedOrder?.id,poLineId:linkedLine?.id,componentId:row.id})'));
-  assert.ok(master.includes('onSelectModule("inventory",{companyId:linkedOrder?.companyId||row.companyId,poId:linkedOrder?.id,poLineId:linkedLine?.id,componentId:row.id})'));
+  assert.ok(master.includes("const componentNavigationContext ="));
+  assert.ok(master.includes('onSelectModule("process-map",componentNavigationContext(row.id))'));
+  assert.ok(master.includes('onSelectModule("inventory",componentNavigationContext(row.id))'));
+  assert.ok(master.includes("selectedComponentForNavigation"));
   assert.ok(processMap.includes('subtab:"process-links"'));
   assert.ok(processMap.includes('onSelectModule("transport-master",{companyId,poId,poLineId,componentId:selectedLine?.componentId})'));
   assert.ok(processMap.includes("materialProcessPartLabels"));
@@ -238,4 +240,28 @@ test("All Material Directory tabs share linked-record filters and show the part 
   assert.ok(inventory.includes('link.poId===directoryPoId'));
   assert.ok(inventory.includes('const part=bom?.partId?'));
   assert.ok(inventory.includes('Part "+(part.partNumber?part.partNumber+" ":"")+part.name'));
+});
+
+test("component-only navigation does not silently pick the first PO when the component has multiple PO lines", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx", import.meta.url), "utf8");
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes("const componentOnlyLine = componentLines.length === 1 ? componentLines[0] : undefined"));
+  assert.ok(routeFlow.includes("const componentOnlyLine=componentLines.length===1?componentLines[0]:undefined"));
+  assert.ok(universe.includes("const componentOnlyLine=componentLines.length===1?componentLines[0]:undefined"));
+  assert.ok(master.includes("const unique=matchingLines.length===1?matchingLines[0]:undefined"));
+  assert.ok(processMap.includes("targetComponentLines.length === 1 ? targetComponentLines[0] : undefined"));
+  assert.ok(routeFlow.includes("matchingComponentLines.length===1?matchingComponentLines[0]:undefined"));
+  assert.ok(universe.includes("matchingComponentLines.length===1?matchingComponentLines[0]:undefined"));
+});
+
+test("master module navigation opens the exact selected component or PO and does not silently route the first row", () => {
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(master.includes("const selectedComponentForNavigation="));
+  assert.ok(master.includes("const selectedPOForNavigation="));
+  assert.ok(master.includes("disabled={!selectedComponentForNavigation}"));
+  assert.ok(master.includes("disabled={!selectedPOForNavigation}"));
+  assert.ok(master.includes("setSelectedComponentIds([target.id])"));
+  assert.ok(master.includes("setOpenedPoId(navigationContext?.poId || "")"));
 });
