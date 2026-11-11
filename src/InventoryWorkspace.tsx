@@ -11,7 +11,7 @@ type MaterialDraft = Omit<MaterialRecord, "id" | "createdAt" | "updatedAt" | "de
 type BomDraft = Omit<BomLineRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type BomIssuePreviewRow = { material: MaterialRecord; bomLineIds: string[]; required: number; issued: number; pending: number; available: number; shortage: number };
 const emptyMaterial = (): MaterialDraft => ({ code: "", name: "", grade: "", unit: "kg", specification: "", preferredVendorId: "", ratePerUnit: 0, notes: "", materialType: "", shapeType: "Round bar", dimensions: {}, dimensionUnit: "mm", densityKgM3: 0, densityUnit: "kg/m3", priceUnit: "kg" });
-const emptyBom = (): BomDraft => ({ componentId: "", materialId: "", revision: "", quantityPerPart: 0, scrapPercent: 0, notes: "" });
+const emptyBom = (): BomDraft => ({ componentId: "", partId: "", materialId: "", revision: "", quantityPerPart: 0, scrapPercent: 0, notes: "" });
 const stockKinds: StockTransactionKind[] = ["Opening balance", "Receipt", "Issue to production", "WIP transfer", "Return", "Rejected", "Scrap", "Finished goods receipt", "Dispatch", "Adjustment"];
 const MATERIAL_SHAPES = ["Round bar", "Square bar", "Hexagonal bar", "Flat bar", "Sheet", "Plate", "Coil", "Pipe", "Round tube", "Square tube", "Rectangular tube", "Angle", "Channel", "I-beam / H-beam", "T-section", "Billet", "Bloom", "Slab", "Wire", "Wire rod", "Casting", "Forging", "Perforated sheet", "Chequered plate", "Expanded metal / mesh", "Custom profile", "Cut blank", "Other"] as const;
 const MATERIAL_DIMENSIONS = [{ key: "diameter", label: "Diameter (mm)" }, { key: "width", label: "Width (mm)" }, { key: "height", label: "Height (mm)" }, { key: "thickness", label: "Thickness (mm)" }, { key: "length", label: "Length (mm)" }, { key: "outerDiameter", label: "Outer diameter / OD (mm)" }, { key: "innerDiameter", label: "Inner diameter / ID (mm)" }, { key: "wallThickness", label: "Wall thickness (mm)" }, { key: "outerWidth", label: "Outer width (mm)" }, { key: "outerHeight", label: "Outer height (mm)" }, { key: "legA", label: "Leg A (mm)" }, { key: "legB", label: "Leg B (mm)" }, { key: "flangeWidth", label: "Flange width (mm)" }, { key: "flangeThickness", label: "Flange thickness (mm)" }, { key: "webThickness", label: "Web thickness (mm)" }, { key: "acrossFlats", label: "Across flats (mm)" }];
@@ -107,9 +107,12 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     if (initialContext?.poId && initialContext?.poLineId) setMaterialLinkPoLineKey(initialContext.poId+"::"+initialContext.poLineId);
     if (initialContext?.operationId) setMaterialLinkOperationId(initialContext.operationId);
     if (initialContext?.subtab === "process-links") setTab("process-links");
-  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.operationId, initialContext?.subtab]);
+    if (initialContext?.companyId) setDirectoryCompanyId(initialContext.companyId);
+    if (initialContext?.poId) setDirectoryPoId(initialContext.poId);
+    if (initialContext?.componentId) setDirectoryComponentId(initialContext.componentId);
+  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.operationId, initialContext?.subtab, initialContext?.companyId, initialContext?.componentId]);
   const directoryPoOptions = orders.filter(po => !directoryCompanyId || po.companyId === directoryCompanyId);
-  const directoryComponentOptions = components.filter(component => (!directoryPoId || orders.some(po => po.id === directoryPoId && po.lines.some(line => line.componentId === component.id))) && (!directoryCompanyId || orders.some(po => po.companyId === directoryCompanyId && po.lines.some(line => line.componentId === component.id))));
+  const directoryComponentOptions = components.filter(component => (!directoryPoId || orders.some(po => po.id === directoryPoId && po.lines.some(line => line.componentId === component.id))) && (!directoryCompanyId || component.companyId === directoryCompanyId || orders.some(po => po.companyId === directoryCompanyId && po.lines.some(line => line.componentId === component.id))));
   const directoryDimensionFields = MATERIAL_DIMENSIONS_BY_SHAPE[materialDraft.shapeType || "Round bar"] || MATERIAL_DIMENSIONS;
 
   const companyOrders = orders.filter(po => po.companyId === companyId && (!factoryId || po.factoryId === factoryId));
@@ -133,7 +136,9 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const materialLinkSelection = bomIssuePoLineOptions.find(row => row.id === materialLinkPoLineKey);
   const materialProcessLinks = activeRows(data.materialProcessLinks || []);
   const materialLinkBomOptions = materialLinkSelection?.component
-    ? bomLines.filter(row => row.componentId === materialLinkSelection.component!.id && (!row.revision || row.revision === materialLinkSelection.component!.revision))
+    ? bomLines.filter(row => row.componentId === materialLinkSelection.component!.id
+      && (!row.revision || row.revision === materialLinkSelection.component!.revision)
+      && (!materialLinkSelection.line.partId || !row.partId || row.partId === materialLinkSelection.line.partId))
     : [];
   const materialLinkOperations = materialLinkSelection
     ? operations.filter(op => op.poId === materialLinkSelection.po.id && op.poLineId === materialLinkSelection.line.id && op.componentId === materialLinkSelection.line.componentId && !op.deletedAt)
@@ -157,7 +162,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     const operation = materialLinkOperations.find(row=>row.id===materialLinkOperationId);
     const material = bom ? materials.find(row=>row.id===bom.materialId&&!row.deletedAt) : undefined;
     const quantity = Number(materialLinkQuantityPerPart);
-    if (!selection || !selectedComponent || !bom || !material || bom.componentId!==selectedComponent.id || (bom.revision && bom.revision!==selectedComponent.revision)) { onNotice("Select a BOM material belonging to the exact PO component revision."); return; }
+    if (!selection || !selectedComponent || !bom || !material || bom.componentId!==selectedComponent.id || (bom.revision && bom.revision!==selectedComponent.revision) || (selection.line.partId && bom.partId && bom.partId!==selection.line.partId)) { onNotice("Select a BOM material belonging to the exact PO component, part (when part-scoped) and revision."); return; }
     if (!operation || operation.poId!==selection.po.id || operation.poLineId!==selection.line.id || operation.componentId!==selectedComponent.id) { onNotice("Select a process operation from this exact PO component line."); return; }
     if (!Number.isFinite(quantity)||quantity<=0) { onNotice("Material quantity per part must be a positive finite number."); return; }
     const duplicate = materialProcessLinks.find(link=>link.id!==materialLinkEditingId&&link.poLineId===selection.line.id&&link.bomLineId===bom.id&&link.operationId===operation.id&&link.flowType===materialLinkFlowType&&link.placement===materialLinkPlacement&&!link.deletedAt);
@@ -185,7 +190,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const bomIssueOperations = bomIssueSelection ? operations.filter(op => op.poId === bomIssueSelection.po.id && op.poLineId === bomIssueSelection.line.id && !op.deletedAt) : [];
   const bomIssuePreview = useMemo<BomIssuePreviewRow[]>(() => {
     if (!bomIssueSelection?.component) return [];
-    const eligibleBom = bomLines.filter(row => row.componentId === bomIssueSelection.component!.id && (!row.revision || row.revision === bomIssueSelection.component!.revision));
+    const eligibleBom = bomLines.filter(row => row.componentId === bomIssueSelection.component!.id && (!row.revision || row.revision === bomIssueSelection.component!.revision) && (!bomIssueSelection.line.partId || !row.partId || row.partId === bomIssueSelection.line.partId));
     const totals = new Map<string, { required: number; bomLineIds: string[] }>();
     for (const row of eligibleBom) {
       const prior = totals.get(row.materialId) || { required: 0, bomLineIds: [] };
@@ -211,14 +216,15 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     const query = search.toLowerCase().trim();
     const textMatch = !query || (m.code + " " + m.name + " " + m.grade + " " + m.materialType + " " + m.shapeType + " " + m.specification + " " + m.notes + " " + Object.entries(m.dimensions||{}).map(([key,value])=>key+" "+value).join(" ")).toLowerCase().includes(query);
     const bomLinks = bomLines.filter(row => row.materialId === m.id);
+    const partLinks = (data.componentParts || []).filter(part => part.materialId === m.id || part.materialIds?.includes(m.id));
     const costLinks = (data.materialCostEntries || []).filter(entry => entry.materialId === m.id && !entry.deletedAt);
     const stockLinks = inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === m.id);
     const stockComponentIds = stockLinks.flatMap(row => orders.flatMap(po => po.lines.filter(line => line.id === row.poLineId).map(line => line.componentId)));
-    const companyMatch = !directoryCompanyId || costLinks.some(entry => entry.companyId === directoryCompanyId) || stockLinks.some(row => row.companyId === directoryCompanyId) || bomLinks.some(row => orders.some(po => po.companyId === directoryCompanyId && po.lines.some(line => line.componentId === row.componentId)));
+    const companyMatch = !directoryCompanyId || costLinks.some(entry => entry.companyId === directoryCompanyId) || stockLinks.some(row => row.companyId === directoryCompanyId) || partLinks.some(part => part.companyId === directoryCompanyId || components.find(component => component.id === part.componentId)?.companyId === directoryCompanyId) || bomLinks.some(row => orders.some(po => po.companyId === directoryCompanyId && po.lines.some(line => line.componentId === row.componentId)));
     const poMatch = !directoryPoId || costLinks.some(entry => entry.poId === directoryPoId) || stockLinks.some(row => row.poId === directoryPoId) || bomLinks.some(row => orders.some(po => po.id === directoryPoId && po.lines.some(line => line.componentId === row.componentId)));
-    const componentMatch = !directoryComponentId || bomLinks.some(row => row.componentId === directoryComponentId) || costLinks.some(entry => entry.componentId === directoryComponentId) || stockComponentIds.includes(directoryComponentId);
+    const componentMatch = !directoryComponentId || bomLinks.some(row => row.componentId === directoryComponentId) || costLinks.some(entry => entry.componentId === directoryComponentId) || partLinks.some(part => part.componentId === directoryComponentId) || stockComponentIds.includes(directoryComponentId);
     return textMatch && companyMatch && poMatch && componentMatch;
-  }), [materials, search, bomLines, data.materialCostEntries, orders, inventoryTransactions, directoryCompanyId, directoryPoId, directoryComponentId]);
+  }), [materials, search, bomLines, data.componentParts, data.materialCostEntries, orders, components, inventoryTransactions, directoryCompanyId, directoryPoId, directoryComponentId]);
   const visibleBom = useMemo(() => bomLines.filter(row => {
     const component = components.find(c => c.id === row.componentId);
     const material = materials.find(m => m.id === row.materialId);
@@ -331,7 +337,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       const component = current.components.find(row => row.id === line?.componentId);
       if (!po || !line || !component) { result = { posted: 0, shortage: ["The PO component line or Component Master record changed; refresh and select it again."] }; return current; }
       if (bomIssueOperationId && !current.operations.some(op => op.id === bomIssueOperationId && op.poId === po.id && op.poLineId === line.id && !op.deletedAt)) { result = { posted: 0, shortage: ["The selected process operation is no longer active on this PO component line. No material was issued."] }; return current; }
-      const eligibleBom = current.bomLines.filter(row => row.componentId === component.id && !row.deletedAt && (!row.revision || row.revision === component.revision));
+      const eligibleBom = current.bomLines.filter(row => row.componentId === component.id && !row.deletedAt && (!row.revision || row.revision === component.revision) && (!line.partId || !row.partId || row.partId === line.partId));
       const totals = new Map<string, { required: number; bomLineIds: string[] }>();
       for (const bom of eligibleBom) {
         const prior = totals.get(bom.materialId) || { required: 0, bomLineIds: [] };
