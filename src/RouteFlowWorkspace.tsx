@@ -158,11 +158,17 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const poLineId=line?.id||"";
   const component=data.components.find(row=>row.id===line?.componentId);
   const componentId=component?.id||"";
-  const routeOperations=operations.filter(row=>row.poId===poId&&row.poLineId===poLineId).sort((a,b)=>a.sequence-b.sequence);
+  const componentLineCount=lineOptions.filter(row=>row.componentId===componentId).length;
+  const componentGlobalLineCount=orders.reduce((count,poRow)=>count+poRow.lines.filter(row=>!row.deletedAt&&row.componentId===componentId).length,0);
+  const routeOperations=operations.filter(row=>row.poId===poId&&row.poLineId===poLineId&&row.componentId===componentId).sort((a,b)=>a.sequence-b.sequence);
   const branches=[...new Set(["Main route",...routeOperations.map(row=>row.branch||"Main route")])];
   const branch=branches.includes(branchPick)?branchPick:"Main route";
   const lane=routeOperations.filter(row=>(row.branch||"Main route")===branch);
-  const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(!entry.poLineId||entry.poLineId===poLineId)&&(!entry.poId||entry.poId===poId)&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(
+    (entry.poLineId===poLineId&&(!entry.poId||entry.poId===poId))
+    ||(!entry.poLineId&&entry.poId===poId&&componentLineCount===1)
+    ||(!entry.poLineId&&!entry.poId&&componentGlobalLineCount===1)
+  )&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&leg.componentId===componentId&&(!leg.anchorOperationId&&!leg.targetOperationId||lane.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
   const routeMaterialProcessLinks=allMaterialProcessLinks.filter(link=>{
     if(link.poId!==poId||link.poLineId!==poLineId||link.componentId!==componentId)return false;
