@@ -155,9 +155,76 @@ async function main() {
   // eleven relationship types, eight independently identified transport legs.
   await openModule(page, "Route Flow & Relationships");
   await chooseNativeScope(page, ".route-flow-scope-bar");
-  const routeFlowText = await page.locator(".page-content").innerText();
-  for (const expected of ["Material saw cutting", "VMC datum and port machining", "CNC shaft turning", "Port"]) {
-    if (!routeFlowText.includes(expected)) throw new Error("Route Flow is missing seeded route content: " + expected);
+  const branchPicker = page.locator(".route-flow-scope-bar select").nth(3);
+  const branchOptions = await branchPicker.locator("option").evaluateAll(nodes => nodes.map(node => node.value || node.textContent?.trim()).filter(Boolean));
+  const expectedBranchOperations = {
+    "Main route": ["Material saw cutting", "VMC datum and port machining", "Final CMM and pressure inspection"],
+    "Shaft branch": ["CNC shaft turning", "Shaft heat treatment", "Shaft cylindrical grinding"],
+    "Body branch": ["Insert installation", "Seal installation"],
+    "Cover branch": ["Cover machining and assembly"]
+  };
+  const visitedTransportIds = new Set();
+  const visitedMaterialLinks = new Set();
+  const branchResults = [];
+  for (const branchName of branchOptions) {
+    await branchPicker.selectOption({ label: branchName }).catch(async () => branchPicker.selectOption(branchName));
+    await page.waitForTimeout(200);
+    const branchText = await page.locator(".page-content").innerText();
+    for (const expected of expectedBranchOperations[branchName] || []) {
+      if (!branchText.includes(expected)) throw new Error("Route Flow branch " + branchName + " is missing operation " + expected);
+    }
+    const branchLegButtons = page.locator('button[aria-label="Open transport leg popup"]');
+    const branchLegCount = await branchLegButtons.count();
+    for (let i = 0; i < branchLegCount; i++) {
+      const button = page.locator('button[aria-label="Open transport leg popup"]').nth(i);
+      if (!(await button.isVisible().catch(() => false))) continue;
+      await button.click();
+      const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
+      await dialog.waitFor({ state: "visible", timeout: 5000 });
+      const details = await dialog.innerText();
+      const match = details.match(/Transport leg:\\s*(mp-leg-[A-Za-z0-9-]+)/);
+      if (!details.includes("TRANSPORT RECORD") || !details.includes("TRANSPORT ROUTE") || !match) {
+        throw new Error("Transport popup must expose its exact transport leg and directory route identity: " + details);
+      }
+      visitedTransportIds.add(match[1]);
+      await dialog.getByRole("button", { name: "Close transport details" }).click();
+    }
+    const branchMaterialMarkers = page.locator(".material-flow-marker-button");
+    const branchMarkerCount = await branchMaterialMarkers.count();
+    for (let i = 0; i < branchMarkerCount; i++) {
+      const button = page.locator(".material-flow-marker-button").nth(i);
+      if (!(await button.isVisible().catch(() => false))) continue;
+      await button.click();
+      const popup = page.getByRole("dialog", { name: "Material to process link" });
+      await popup.waitFor({ state: "visible", timeout: 4000 });
+      const details = await popup.innerText();
+      const bomMatch = details.match(/BOM line:\\s*(mp-bom-[A-Za-z0-9-]+)/);
+      const operationMatch = details.match(/Process operation:\\s*(mp-op-[A-Za-z0-9-]+)/);
+      if (!details.includes("Part:") || !bomMatch || !operationMatch) {
+        throw new Error("Material popup lost part, BOM or process-operation identity: " + details);
+      }
+      visitedMaterialLinks.add(bomMatch[1] + ":" + operationMatch[1]);
+      await button.click();
+    }
+    branchResults.push({ branch: branchName, visibleTransportIcons: branchLegCount, visibleMaterialLinks: branchMarkerCount });
+  }
+  const expectedLegIds = new Set(fixture.transportLegs.map(row => row.id));
+  if (visitedTransportIds.size !== fixture.transportLegs.length ||
+      [...expectedLegIds].some(id => !visitedTransportIds.has(id))) {
+    throw new Error("Route Flow did not independently open every transport record. Visited: " + [...visitedTransportIds].join(", "));
+  }
+  const expectedMaterialLinkIds = new Set(fixture.materialProcessLinks.map(row => row.bomLineId + ":" + row.operationId));
+  if (visitedMaterialLinks.size !== expectedMaterialLinkIds.size ||
+      [...expectedMaterialLinkIds].some(id => !visitedMaterialLinks.has(id))) {
+    throw new Error("Route Flow did not independently expose every part-scoped BOM-to-operation material link. Visited: " + [...visitedMaterialLinks].join(", "));
+  }
+  const matrixRows = page.locator(".route-flow-matrix-row");
+  if (await matrixRows.count() < fixture.routeRelationships.length) {
+    throw new Error("Route Flow relationship matrix did not render all seeded cross-route edges");
+  }
+  const matrixClasses = await matrixRows.locator(".route-flow-matrix-arrow").evaluateAll(nodes => nodes.flatMap(node => [...node.classList]));
+  for (const type of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"]) {
+    if (!matrixClasses.includes("route-flow-curve-" + type)) throw new Error("Route Flow relationship edge type is missing from the rendered matrix: " + type);
   }
 
   const layoutPicker = page.getByLabel("Choose route flow layout", { exact: true });
