@@ -314,7 +314,7 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "manufacturing-universe" ? (
-          <ManufacturingUniverseWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <ManufacturingUniverseWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "route-flow" ? (
           <RouteFlowWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-map" ? (
