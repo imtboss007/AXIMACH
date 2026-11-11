@@ -7,6 +7,8 @@ export const manufacturingCollections = Object.freeze([
   "operations",
   "quotations",
   "materials",
+  "componentParts",
+  "materialCostEntries",
   "bomLines",
   "materialProcessLinks",
   "inventoryTransactions",
