@@ -326,7 +326,7 @@ async function main() {
   if (universeRouteLayouts.length !== 9) throw new Error("Manufacturing Universe expected all nine shared route layouts");
   for (const layout of universeRouteLayouts) {
     await universeLayoutPicker.selectOption(layout);
-    if (!(await page.locator('[data-route-layout="' + layout + '"]').count())) throw new Error("Manufacturing Universe route layout did not render: " + layout);
+    if (!(await page.locator(".process-universe-3d.mode-" + layout).count())) throw new Error("Manufacturing Universe route layout did not activate: " + layout);
   }
 
   const universeModes = page.locator('[aria-label="Process map visualisation modes"] button');
