@@ -16,7 +16,7 @@
     "cap:sync": "cap sync android",
     "cap:android": "cap open android",
     "package:windows": "npm run build && electron-builder --win nsis --x64 --publish never",
-    "test:server": "node --test server/manufacturing-data.test.mjs server/index.test.mjs tests/aximach-five-part-fixture.test.mjs tests/aximach-transport-route-demo.test.mjs tests/aximach-material-process-links.test.mjs tests/aximach-landscape-orientation.test.mjs tests/aximach-module-navigation-audit.test.mjs",
+    "test:server": "node --test server/manufacturing-data.test.mjs server/index.test.mjs tests/aximach-five-part-fixture.test.mjs tests/aximach-transport-route-demo.test.mjs tests/aximach-material-process-links.test.mjs tests/aximach-landscape-orientation.test.mjs tests/aximach-module-navigation-audit.test.mjs tests/aximach-multipart-route-acceptance.test.mjs",
     "test:browser": "node tests/aximach-browser-acceptance.mjs",
     "start:scheduler": "node server/index.mjs",
     "start:whatsapp-web": "node server/whatsapp-web.mjs"
