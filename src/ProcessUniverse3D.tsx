@@ -4,11 +4,11 @@ import { Activity, ArrowRight, Bike, Boxes, Bus, CarFront, ClipboardCheck, Cog, 
 import type { MaterialProcessLinkRecord, MaterialRecord, OperationRecord, RouteRelationshipRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
-import { RouteConnectorLegend } from "./RouteConnectorLegend";
+import { RouteConnectorLegend as MaterialRouteConnectorLegend } from "./RouteConnectorLegend";
 import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
-import { RouteLayoutPicker, RouteConnectorLegend as RouteLayoutConnectorPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
+import { RouteLayoutPicker, RouteConnectorLegend as RouteLayoutConnectorLegend, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
 type MaterialRouteNode = {
@@ -49,6 +49,10 @@ function fallbackFor(name: string) {
 }
 
 type ProcessLayoutMode = "sphere" | "cube" | "vortex" | "helix" | "orbit" | "network" | "grid" | "pipeline" | "layered" | "stacked" | "matrix" | "tree" | "route" | "molecular" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "orthogonal" | "s-curve" | "swimlane" | "radial" | "circular" | "organic" | "gantt" | "nodes" | "branch" | "combined";
+function RouteConnectorLegend({compact=false}:{compact?:boolean}) {
+  return compact ? <RouteLayoutConnectorLegend compact/> : <MaterialRouteConnectorLegend/>;
+}
+
 type Point3D = { x: number; y: number; z: number };
 const routeGroupKey = (operation:OperationRecord) => (operation.poLineId || operation.componentId) + "::" + (operation.branch || "Main route");
 
@@ -379,7 +383,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materials = [], 
     <nav className="process-universe-layouts" aria-label="Process map visualisation modes"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout}/>
       {([{id:"sphere",label:"Sphere View",glyph:"◎"},{id:"cube",label:"Cube View",glyph:"⬡"},{id:"vortex",label:"Vortex View",glyph:"◉"},{id:"helix",label:"Helix View",glyph:"⌁"},{id:"orbit",label:"Orbit View",glyph:"⊙"},{id:"network",label:"Network View",glyph:"✣"},{id:"grid",label:"Grid View",glyph:"▦"},{id:"pipeline",label:"Pipeline View",glyph:"⇢"},{id:"layered",label:"Layered View",glyph:"▱"},{id:"stacked",label:"Stacked View",glyph:"▤"},{id:"matrix",label:"Matrix View",glyph:"▦"},{id:"tree",label:"Tree View",glyph:"♧"}, {id:"radial",label:"Radial View",glyph:"◎"}, {id:"circular",label:"Circular View",glyph:"◌"}, {id:"organic",label:"Organic View",glyph:"✣"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>{setLayoutMode(option.id);if((["orthogonal","s-curve","horizontal","vertical","swimlane","timeline","radial","circular","organic"] as string[]).includes(option.id))setRouteLayout(option.id as RouteLayoutMode);}}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}
     </nav>
-    <RouteLayoutConnectorPicker compact/><RouteConnectorLegend/>
+    <RouteConnectorLegend compact/><RouteConnectorLegend/>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
       {materialRoutes.length>0 && <section className="process-orbit-material-routes" aria-label="Material procurement and inbound transport routes">
