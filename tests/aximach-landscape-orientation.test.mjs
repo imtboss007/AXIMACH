@@ -50,4 +50,6 @@ test("Route Flow, Route Graph and Manufacturing Universe have compact short-land
   assert.ok(css.includes(".route-flow-stage-scroll{min-height:0;max-height:calc(100dvh - 190px)"));
   assert.ok(css.includes(".linked-process-page .process-route-flow-track{max-height:calc(100dvh - 190px)"));
   assert.ok(css.includes(".manufacturing-universe-live-panel .process-orbit-scene,.manufacturing-universe-live-panel .process-scene-stage{min-height:280px!important}"));
+  assert.ok(css.includes(".app-shell:has(.linked-process-page) .command-rail"));
+  assert.ok(css.includes(".app-shell:has(.linked-process-page) .page-content"));
 });
