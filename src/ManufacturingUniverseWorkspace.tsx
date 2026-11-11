@@ -11,14 +11,14 @@ import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
 
 type NavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
-type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void };
+type Props = { initialContext?:NavigationContext; onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void };
 
-export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,onSelectModule}:Props) {
+export default function ManufacturingUniverseWorkspace({initialContext,onBack,onNotice,notice,onSelectModule}:Props) {
   const {data,syncStatus,update}=useManufacturingData();
   const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),components=activeRows(data.components);
   const vendors=activeRows(data.vendors),operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),legs=activeRows(data.transportLegs||[]);
   const definitions=activeRows(data.processDefinitions),relationships=activeRows(data.routeRelationships||[]);
-  const [companyPick,setCompanyPick]=useState(""),[poPick,setPoPick]=useState(""),[linePick,setLinePick]=useState("");
+  const [companyPick,setCompanyPick]=useState(initialContext?.companyId||""),[poPick,setPoPick]=useState(initialContext?.poId||""),[linePick,setLinePick]=useState(initialContext?.poLineId||"");
   const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
   const [inspectedTransportId,setInspectedTransportId]=useState("");
   const [inspectedMaterialTransportId,setInspectedMaterialTransportId]=useState("");
@@ -29,6 +29,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
   const [zoom,setZoom]=useState(()=>typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches?.78:1),[simulationIndex,setSimulationIndex]=useState(-1);
   const [simulationActive,setSimulationActive]=useState(false);
+  useEffect(()=>{if(initialContext?.companyId)setCompanyPick(initialContext.companyId);if(initialContext?.poId)setPoPick(initialContext.poId);if(initialContext?.poLineId)setLinePick(initialContext.poLineId);if(initialContext?.operationId)setSelectedOperationId(initialContext.operationId);},[initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.operationId]);
   const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
   const [showUniverseSettings,setShowUniverseSettings]=useState(false);
   const [visibleUniverseFields,setVisibleUniverseFields]=useState<string[]>(["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]);

@@ -16,7 +16,7 @@ import {
 } from "./manufacturingData";
 
 type NavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
-type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void };
+type Props = { initialContext?:NavigationContext; onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void };
 
 const RELATIONSHIPS:Array<{id:RouteRelationshipType;label:string;description:string;symbol:string}> = [
   {id:"main",label:"Main route",description:"Primary manufacturing flow",symbol:"→"},
@@ -75,14 +75,14 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,trans
   </div>;
 }
 
-export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModule}:Props) {
+export default function RouteFlowWorkspace({initialContext,onBack,onNotice,notice,onSelectModule}:Props) {
   const {data,update,syncStatus}=useManufacturingData();
   const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),vendors=activeRows(data.vendors);
   const operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),legs=activeRows(data.transportLegs||[]);
   const routes=activeRows(data.transportRoutes||[]);
-  const [companyPick,setCompanyPick]=useState("");
-  const [poPick,setPoPick]=useState("");
-  const [linePick,setLinePick]=useState("");
+  const [companyPick,setCompanyPick]=useState(initialContext?.companyId||"");
+  const [poPick,setPoPick]=useState(initialContext?.poId||"");
+  const [linePick,setLinePick]=useState(initialContext?.poLineId||"");
   const [branchPick,setBranchPick]=useState("Main route");
   const [fromOperationId,setFromOperationId]=useState("");
   const [toOperationId,setToOperationId]=useState("");
@@ -119,6 +119,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [routeLayout,setRouteLayout]=useRouteLayout();
   const [relationshipOverlay,setRelationshipOverlay]=useState<Array<{id:string;type:RouteRelationshipType;path:string;arrow:string;label:string;x:number;y:number}>>([]);
   const [relationshipOverlaySize,setRelationshipOverlaySize]=useState({width:0,height:0});
+  useEffect(()=>{if(initialContext?.companyId)setCompanyPick(initialContext.companyId);if(initialContext?.poId)setPoPick(initialContext.poId);if(initialContext?.poLineId)setLinePick(initialContext.poLineId);if(initialContext?.operationId){setFromOperationId(initialContext.operationId);setToOperationId(initialContext.operationId);}},[initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.operationId]);
 
   const company=companies.find(row=>row.id===companyPick)||companies[0];
   const companyId=company?.id||"";
