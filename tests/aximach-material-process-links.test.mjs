@@ -265,3 +265,18 @@ test("master module navigation opens the exact selected component or PO and does
   assert.ok(master.includes("setSelectedComponentIds([target.id])"));
   assert.ok(master.includes('setOpenedPoId(navigationContext?.poId || "")'));
 });
+
+test("BOM part selection rejects a part belonging to a different or archived component", () => {
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes('part.id === bomDraft.partId && part.componentId === bomDraft.componentId && !part.deletedAt'));
+  assert.ok(inventory.includes("The selected BOM part must be an active part belonging to the selected component."));
+});
+
+test("Production Plan opens Process Map only for an exact selected or unique visible PO line and counts that line's own operations", () => {
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(operations.includes("const processNavigationJob=selectedVisibleJobs.length===1?selectedVisibleJobs[0]:(filtered.length===1?filtered[0]:undefined)"));
+  assert.ok(operations.includes('disabled={!processNavigationContext}'));
+  assert.ok(operations.includes('ops.find(op=>op.poId===po.id&&op.poLineId===line.id)'));
+  assert.ok(!operations.includes('||operations[0]'));
+  assert.ok(operations.includes('operations.filter(op=>op.category!=="Logistics").length'));
+});
