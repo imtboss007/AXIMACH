@@ -8,7 +8,7 @@ const newTime = "2026-11-04T09:00:00.000Z";
 test("server merge covers every manufacturing collection, including follow-up assignments", () => {
   assert.deepEqual(manufacturingCollections, [
     "companies", "factories", "purchaseOrders", "components", "vendors", "operations",
-    "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles",
+    "quotations", "materials", "bomLines", "materialProcessLinks", "inventoryTransactions", "contactProfiles",
     "processDefinitions", "plannedCosts", "paymentTransactions", "inspectionMeasurements",
     "followUpAssignments", "transportRoutes", "transportLegs"
   ]);
@@ -82,4 +82,19 @@ test("an empty or older device payload cannot erase records from the shared serv
   assert.equal(merged.companies[0].name, "Saved company");
   assert.equal(merged.followUpAssignments.length, 1);
   assert.equal(merged.followUpAssignments[0].contactName, "Saved contact");
+});
+
+
+test("material-to-process links sync independently by stable ID and preserve deletion tombstones", () => {
+  const first = { id: "material-process-1", materialId: "material-1", bomLineId: "bom-1", operationId: "op-1", poLineId: "line-1", quantityPerPart: 2.5, placement: "before", updatedAt: oldTime };
+  const updated = { ...first, operationId: "op-2", quantityPerPart: 1.25, updatedAt: newTime, deletedAt: newTime };
+  const second = { id: "material-process-2", materialId: "material-2", bomLineId: "bom-2", operationId: "op-3", poLineId: "line-1", quantityPerPart: 4, placement: "before", updatedAt: newTime };
+  const merged = mergeManufacturingData(
+    { materialProcessLinks: [first] },
+    { materialProcessLinks: [updated, second] }
+  );
+  assert.equal(merged.materialProcessLinks.length, 2);
+  assert.equal(merged.materialProcessLinks.find(row => row.id === first.id).operationId, "op-2");
+  assert.equal(merged.materialProcessLinks.find(row => row.id === first.id).deletedAt, newTime);
+  assert.equal(merged.materialProcessLinks.find(row => row.id === second.id).materialId, "material-2");
 });
