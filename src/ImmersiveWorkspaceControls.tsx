@@ -13,7 +13,8 @@ export default function ImmersiveWorkspaceControls({targetRef,onNotice,onZoomRes
    const active=document.fullscreenElement===targetRef.current;
    setFullscreen(active);
    onZoomReset?.();
-   if(!active){(window.screen?.orientation as unknown as {unlock?:()=>void}|undefined)?.unlock?.();}
+   // Fullscreen belongs to the selected map only. Do not unlock device
+   // orientation here; the app-level workspace guard owns that lifecycle.
   };
   document.addEventListener("fullscreenchange",update);
   return ()=>document.removeEventListener("fullscreenchange",update);

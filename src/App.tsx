@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { ScreenOrientation as CapacitorScreenOrientation } from "@capacitor/screen-orientation";
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
@@ -183,6 +184,53 @@ function App() {
   const [notice, setNotice] = useState("");
   const [appearance, setAppearance] = useState<"light"|"dark"|"midnight"|"ocean">(() => { try { const saved=localStorage.getItem("aximach.ui.appearance"); return saved==="dark"||saved==="midnight"||saved==="ocean"?saved:"light"; } catch { return "light"; } });
   const [followUpSeed,setFollowUpSeed] = useState<{name:string;phone:string;company:string;vendorId:string;process:string;operationId:string}>({name:"",phone:"",company:"",vendorId:"",process:"",operationId:""});
+  const needsLandscapeOrientation = activeModuleId === "process-map" || activeModuleId === "route-flow" || activeModuleId === "manufacturing-universe";
+  const [orientationLockUnavailable,setOrientationLockUnavailable] = useState(false);
+  const [orientationHintDismissed,setOrientationHintDismissed] = useState(false);
+  const requestLandscapeOrientation = async ():Promise<boolean> => {
+    try {
+      await CapacitorScreenOrientation.lock({ orientation: "landscape-primary" });
+      return true;
+    } catch {
+      try {
+        const browserOrientation = window.screen?.orientation as unknown as { lock?: (orientation:"landscape-primary")=>Promise<void> };
+        if (!browserOrientation?.lock) return false;
+        await browserOrientation.lock("landscape-primary");
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  };
+  useEffect(() => {
+    let disposed = false;
+    setOrientationHintDismissed(false);
+    if (!needsLandscapeOrientation || !window.matchMedia("(pointer: coarse) and (max-width: 900px)").matches) {
+      setOrientationLockUnavailable(false);
+      void CapacitorScreenOrientation.unlock().catch(() => undefined);
+      return;
+    }
+    setOrientationLockUnavailable(false);
+    void requestLandscapeOrientation().then(locked => {
+      if (disposed) {
+        // A slow native bridge must not re-apply landscape after the user
+        // has already left this workspace.
+        if (locked) void CapacitorScreenOrientation.unlock().catch(() => undefined);
+        return;
+      }
+      setOrientationLockUnavailable(!locked);
+    });
+    return () => {
+      disposed = true;
+      // Release the temporary landscape lock only when the user leaves all
+      // landscape-first manufacturing workspaces.
+      if (needsLandscapeOrientation) void CapacitorScreenOrientation.unlock().catch(() => undefined);
+    };
+  },[needsLandscapeOrientation]);
+  const retryLandscapeOrientation = async () => {
+    const locked = await requestLandscapeOrientation();
+    setOrientationLockUnavailable(!locked);
+  };
   const openVendorFollowUp = (vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string}, operationId="", processName="") => {
     setFollowUpSeed({name:vendor.contact,phone:vendor.whatsappNumber||vendor.phone,company:vendor.company,vendorId:vendor.id,process:processName||vendor.processes||"",operationId});
     selectModule("communications");
@@ -298,6 +346,17 @@ function App() {
       </div>
 
       <main className="page-content">
+        {needsLandscapeOrientation && orientationLockUnavailable && !orientationHintDismissed && <div className="ax-landscape-rotate-prompt" role="status">
+          <section>
+            <RotateCcw size={38}/>
+            <strong>Landscape view required</strong>
+            <p>This browser could not rotate the screen automatically. Enable auto-rotate and turn your phone sideways for the full route canvas.</p>
+            <div>
+              <button type="button" className="button-primary" onClick={() => void retryLandscapeOrientation()}>Try landscape again</button>
+              <button type="button" className="button-quiet" onClick={() => setOrientationHintDismissed(true)}>Continue in portrait</button>
+            </div>
+          </section>
+        </div>}
         <Suspense fallback={<div className="workspace-loading-state" role="status"><span className="workspace-loading-spinner" /> Loading AXIMACH workspace…</div>}>
         {activeModuleId === "dashboard" ? (
           <DashboardWorkspace onSelectModule={selectModule} onOpenCommandCentre={() => selectModule("command-centre")} onOpenModules={openModuleExplorer} />

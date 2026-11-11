@@ -5642,3 +5642,73 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .route-connector-legend{gap:7px 9px}
  .route-connector-legend>span{font-size:7px}
 }
+
+/* Landscape-first route views: native orientation lock is managed by App.tsx. */
+.ax-landscape-rotate-prompt{display:none}
+@media (orientation:portrait) and (max-width:900px) and (pointer:coarse){
+  .ax-landscape-rotate-prompt{
+    position:fixed;inset:0;z-index:9999;display:grid;place-items:center;
+    padding:22px;background:rgba(3,13,29,.94);backdrop-filter:blur(16px);
+  }
+  .ax-landscape-rotate-prompt>section{
+    display:flex;flex-direction:column;align-items:center;gap:12px;
+    width:min(420px,100%);padding:26px 22px;border:1px solid rgba(105,163,231,.34);
+    border-radius:18px;background:linear-gradient(145deg,#10294a,#071a32);
+    box-shadow:0 24px 70px rgba(0,0,0,.38);color:#eaf4ff;text-align:center;
+  }
+  .ax-landscape-rotate-prompt>section>svg{color:#78c9ee;transform:rotate(-90deg)}
+  .ax-landscape-rotate-prompt strong{font:700 20px 'Space Grotesk';letter-spacing:-.4px}
+  .ax-landscape-rotate-prompt p{max-width:330px;margin:0;color:#adc2db;font-size:12px;line-height:1.65}
+  .ax-landscape-rotate-prompt>section>div{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;width:100%;margin-top:5px}
+  .ax-landscape-rotate-prompt button{min-height:40px}
+}
+@media (orientation:landscape) and (max-height:600px) and (max-width:1100px){
+  .page-content:has(.route-flow-workspace),.page-content:has(.manufacturing-universe-workspace){padding:7px 10px 16px!important}
+  .route-flow-workspace-head,.manufacturing-universe-head{
+    display:grid;grid-template-columns:minmax(190px,.8fr) minmax(0,1.2fr);
+    align-items:center;gap:8px;margin-bottom:8px;
+  }
+  .route-flow-workspace-head h1,.manufacturing-universe-head h1{font-size:clamp(18px,2.7vw,25px)!important;margin:3px 0}
+  .route-flow-workspace-head p,.manufacturing-universe-head p{display:none}
+  .route-flow-head-actions,.manufacturing-universe-actions{justify-content:flex-end;gap:5px}
+  .route-flow-stage-scroll{min-height:0;max-height:calc(100dvh - 190px);padding:10px 8px 14px}
+  .route-flow-stage-card{width:clamp(132px,17vw,178px);min-height:142px;padding:9px;gap:5px}
+  .route-flow-stage-card strong{font-size:10px}
+  .route-flow-stage-card>span{font-size:8px}
+  .route-flow-curve{flex-basis:58px;width:58px}
+  .route-flow-curve svg{width:58px}
+  .manufacturing-universe-live-panel{padding:7px!important}
+  .manufacturing-universe-live-panel .process-orbit-panel{margin-top:5px!important;padding:5px!important}
+  .manufacturing-universe-live-panel .process-orbit-scene,.manufacturing-universe-live-panel .process-scene-stage{min-height:280px!important}
+  .manufacturing-universe-links-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .linked-process-page .workspace-title-row{margin-bottom:8px}
+  .linked-process-page .workspace-title-row h1{font-size:clamp(18px,2.8vw,25px)}
+  .linked-process-page .workspace-title-row p{display:none}
+  .linked-process-page .route-canvas-heading{align-items:center;flex-direction:row;padding:8px 10px}
+  .linked-process-page .route-canvas-heading-actions{width:auto;justify-content:flex-end}
+  .linked-process-page .linked-route-canvas{width:100%;max-width:none;min-width:0}
+  .linked-process-page .process-route-flow{min-height:0;padding:8px;gap:7px}
+  .linked-process-page .process-route-flow-track{max-height:calc(100dvh - 190px);overflow:auto}
+  .linked-process-page .process-universe-viewport{max-height:calc(100dvh - 230px)}
+  .linked-process-page .linked-node-scroll{max-height:calc(100dvh - 250px)}
+}
+@media (orientation:landscape) and (max-height:600px) and (max-width:1100px){
+  .app-shell:has(.linked-process-page){padding:54px 0 0!important}
+  .app-shell:has(.linked-process-page) .command-rail,
+  .app-shell:has(.linked-process-page) .status-ribbon{display:none!important}
+  .app-shell:has(.linked-process-page) .command-deck{
+    height:54px!important;min-height:54px!important;padding:0 10px!important;gap:8px!important;
+  }
+  .app-shell:has(.linked-process-page) .page-content{
+    top:54px!important;left:0!important;right:0!important;bottom:0!important;
+    width:100%!important;max-width:none!important;margin:0!important;
+    padding:7px 10px 16px!important;overflow:auto!important;overscroll-behavior:contain;
+  }
+  .app-shell:has(.linked-process-page) .command-search,
+  .app-shell:has(.linked-process-page) .deck-action,
+  .app-shell:has(.linked-process-page) .appearance-picker,
+  .app-shell:has(.linked-process-page) .profile-trigger{display:none!important}
+  .linked-process-page{width:100%;max-width:none!important;min-width:0}
+  .linked-process-page .linked-route-canvas{width:100%;max-width:none!important;min-width:0}
+}
+
