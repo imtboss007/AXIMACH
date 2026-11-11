@@ -1852,3 +1852,56 @@
   .process-universe-node{min-height:76px}
   .linked-process-page .linked-node-scroll{max-height:calc(100dvh - 280px)}
 }
+
+
+.linked-route-canvas:fullscreen>.process-export-panel{display:none!important}
+.transport-demo-panel{display:grid;gap:12px;margin:10px 0 14px;padding:12px;min-width:0;overflow:visible;border-color:rgba(75,149,235,.4);background:linear-gradient(150deg,rgba(7,28,47,.98),rgba(10,39,61,.97));color:#e7f3ff}
+.transport-demo-heading,.transport-demo-heading-actions,.transport-demo-toolbar,.transport-demo-lane-title{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.transport-demo-heading h3{margin:4px 0;color:#f1f8ff;font-size:14px}
+.transport-demo-heading p{margin:0;color:#9eb7cf;font-size:10px}
+.transport-demo-kicker{display:inline-flex;align-items:center;gap:5px;color:#74d7eb;font:700 8px 'DM Mono';letter-spacing:.09em}
+.transport-demo-toolbar{justify-content:flex-start;padding:8px;border:1px solid #24435e;border-radius:8px;background:#081a2b}
+.transport-demo-toolbar>label{display:flex;align-items:center;gap:6px;color:#b6cadd;font-size:9px}
+.transport-demo-toolbar>span{margin-left:auto;color:#8db3d2;font-size:9px}
+.transport-demo-current{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:7px;background:rgba(28,151,119,.12);color:#a9decf;font-size:10px}
+.transport-demo-current strong{color:#eafff7}
+.transport-demo-lane{display:grid;gap:8px;min-width:0;padding:9px;border:1px solid #254861;border-left:3px solid #438fc8;border-radius:9px;background:rgba(3,19,33,.44)}
+.transport-demo-lane-title{justify-content:flex-start}
+.transport-demo-lane-title strong{display:flex;align-items:center;gap:5px;color:#eaf5ff;font-size:10px}
+.transport-demo-lane-title small{color:#8eaac1;font-size:8px}
+.transport-demo-track{display:flex;align-items:stretch;flex-wrap:wrap;gap:7px;min-width:0}
+.transport-demo-step-wrap{display:flex;align-items:center;flex:1 1 clamp(112px,calc(150px * var(--route-density,1)),190px);gap:5px;min-width:0;max-width:230px}
+.transport-demo-operation{display:grid;align-content:center;gap:4px;flex:1 1 auto;min-width:0;min-height:70px;padding:7px;border:1px solid #355572;border-radius:8px;background:#0c2941}
+.transport-demo-operation>small{color:#8ab9db;font:700 8px 'DM Mono'}
+.transport-demo-operation>strong{color:#eff7ff;font-size:9px;line-height:1.2;overflow-wrap:anywhere}
+.transport-demo-operation>span{color:#9cb6cd;font-size:8px}
+.transport-demo-operation.is-current{border:2px solid #38c99d;box-shadow:0 0 0 2px #2cc79a20}
+.transport-demo-arrow{color:#7da8c8;font-size:16px}
+.transport-demo-start-legs{display:flex;flex-wrap:wrap;gap:5px}
+.transport-demo-alternate{border-style:dashed;border-left-color:#4b95eb;opacity:.82}
+.transport-demo-alternate.is-enabled{border-color:#4b95eb;opacity:1;background:rgba(44,100,161,.11)}
+.transport-demo-vehicle-legend{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.transport-demo-vehicle-legend>strong{margin-right:5px;color:#a9c3d9;font-size:9px}
+.transport-demo-costs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.transport-demo-costs>div{display:grid;gap:3px;min-width:0;padding:8px;border:1px solid #27465e;border-radius:8px;background:#081d2e}
+.transport-demo-costs small{color:#8baec6;font:700 7px 'DM Mono';letter-spacing:.07em}
+.transport-demo-costs strong{color:#f1f7ff;font-size:13px}
+.transport-demo-costs span{color:#96b0c6;font-size:8px}
+.transport-demo-costs .transport-demo-total{border-color:#328e83;background:rgba(22,118,102,.12)}
+.transport-demo-safety{margin:0;color:#9eb5c7;font-size:9px;line-height:1.4}
+@media (orientation:portrait) and (max-width:900px){
+ .transport-demo-track{display:flex;flex-direction:column;align-items:stretch}
+ .transport-demo-step-wrap{width:100%;max-width:none;flex:0 0 auto}
+ .transport-demo-operation{min-height:54px;grid-template-columns:28px minmax(0,1fr) auto;align-items:center}
+ .transport-demo-operation>small{grid-column:1;grid-row:1}
+ .transport-demo-operation>strong{grid-column:2;grid-row:1}
+ .transport-demo-operation>span{grid-column:3;grid-row:1}
+ .transport-demo-costs{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .transport-demo-toolbar>span{width:100%;margin-left:0}
+}
+@media (max-width:520px){
+ .transport-demo-panel{padding:8px}
+ .transport-demo-heading h3{font-size:12px}
+ .transport-demo-costs strong{font-size:11px}
+ .transport-demo-toolbar button{font-size:8px;padding:6px}
+}

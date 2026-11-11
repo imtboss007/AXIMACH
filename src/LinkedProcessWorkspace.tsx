@@ -6,6 +6,7 @@ import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 import { TransportLegMarker } from "./TransportVehicle";
+import TransportRoutingDemo from "./TransportRoutingDemo";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -57,6 +58,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [simulationActive, setSimulationActive] = useState(false);
   const [simulationIndex, setSimulationIndex] = useState(-1);
   const [routeFullscreen, setRouteFullscreen] = useState(false);
+  const [showTransportDemo, setShowTransportDemo] = useState(false);
   const [selectedTransportLegId, setSelectedTransportLegId] = useState("");
   const routeCanvasRef = useRef<HTMLElement | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -1171,7 +1173,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     </section>
     <div className="linked-process-layout">
       <section className="surface-panel linked-route-canvas" ref={routeCanvasRef}>
-        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><div className="route-canvas-heading-actions"><span className="module-number">{routeOperations.length} OPS</span><button type="button" className="button-quiet compact-button route-fullscreen-button" onClick={() => void toggleRouteFullscreen()} aria-label={routeFullscreen ? "Exit route full screen" : "Open route in full-screen landscape"}>{routeFullscreen ? <Minimize2 size={14}/> : <Maximize2 size={14}/>} {routeFullscreen ? "Exit full screen" : "Full screen · landscape"}</button></div></div>
+        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><div className="route-canvas-heading-actions"><span className="module-number">{routeOperations.length} OPS</span><button type="button" className="button-quiet compact-button" onClick={()=>setShowTransportDemo(value=>!value)} aria-expanded={showTransportDemo}>{showTransportDemo?"Close demo":"Preview multi-route demo"}</button><button type="button" className="button-quiet compact-button route-fullscreen-button" onClick={() => void toggleRouteFullscreen()} aria-label={routeFullscreen ? "Exit route full screen" : "Open route in full-screen landscape"}>{routeFullscreen ? <Minimize2 size={14}/> : <Maximize2 size={14}/>} {routeFullscreen ? "Exit full screen" : "Full screen · landscape"}</button></div></div>
         <div className="process-export-panel">
           <div className="process-export-fields"><div className="process-export-field-actions"><button type="button" onClick={()=>setExportFields(PROCESS_EXPORT_FIELDS.map(field=>field.key))}>Select all fields</button><button type="button" onClick={()=>setExportFields([])}>Clear fields</button></div>{PROCESS_EXPORT_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={exportFields.includes(field.key)} onChange={()=>setExportFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div>
           <div className="process-export-options" style={{display:"grid",gap:"10px"}}>
@@ -1180,6 +1182,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           </div>
           <div className="process-export-actions"><button type="button" className="button-primary compact-button" onClick={exportCsv}><FileDown size={14}/> CSV</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("svg")}>SVG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportVisual("png")}>PNG</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportPowerPoint()}><FileText size={14}/> PowerPoint</button><button type="button" className="button-quiet compact-button" onClick={()=>void exportExcel()}><FileDown size={14}/> Excel</button><button type="button" className="button-quiet compact-button" onClick={printExport}><Printer size={14}/> Diagram PDF</button><small>{exportOperations.length} operation(s) · {exportColumns.length} field(s)</small></div>
         </div>
+        {showTransportDemo && <TransportRoutingDemo onClose={()=>setShowTransportDemo(false)}/>}
         {showEditor && <section className="route-editor-panel linked-operation-editor"><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
             <SearchablePicker id="operation-category" label="Process category *" value={draft.category} placeholder="Search process category…" options={processCategories.map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,category:value,name:"",processDefinitionId:"",subcategory:"",vendorId:""})} allowCustom/>

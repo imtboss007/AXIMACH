@@ -49,3 +49,15 @@ test("route views fit smaller cards, expose portrait step navigation and support
   assert.ok(workspace.includes('className="process-route-index"'));
   assert.ok(universe.includes("process-universe-node-track"));
 });
+
+test("multi-route example is visible and interactive in both Process Map and Transport Directory without live writes", () => {
+  const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes("<TransportRoutingDemo onClose="));
+  assert.ok(directory.includes("<TransportRoutingDemo onClose="));
+  assert.ok(demo.includes("Next process step"));
+  assert.ok(demo.includes("Activate alternate supplier route"));
+  assert.ok(demo.includes("No company, PO, component, vendor, operation, route, or transport record is written"));
+  assert.ok(demo.includes("TransportLegMarker"));
+});

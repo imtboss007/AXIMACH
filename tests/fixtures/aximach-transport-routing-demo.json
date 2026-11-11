@@ -19,7 +19,8 @@
     "partNumber": "AX-DEMO-HMB-01",
     "name": "Hydraulic manifold block",
     "material": "Aluminium 6082-T6",
-    "quantity": 240
+    "quantity": 240,
+    "processCostINR": 12800
   },
   "vendors": [
     {
@@ -183,7 +184,9 @@
       "fixedAmount": 750,
       "tripCount": 1,
       "anchorOperationId": "",
-      "placement": "start"
+      "placement": "start",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "demo-leg-02",
@@ -200,7 +203,9 @@
       "fixedAmount": 900,
       "tripCount": 1,
       "anchorOperationId": "demo-op-02",
-      "placement": "after"
+      "placement": "after",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "demo-leg-03",
@@ -217,7 +222,9 @@
       "fixedAmount": 1100,
       "tripCount": 1,
       "anchorOperationId": "demo-op-04",
-      "placement": "after"
+      "placement": "after",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "demo-leg-04",
@@ -234,7 +241,9 @@
       "fixedAmount": 250,
       "tripCount": 2,
       "anchorOperationId": "demo-op-05",
-      "placement": "before"
+      "placement": "before",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "demo-leg-05",
@@ -251,7 +260,9 @@
       "fixedAmount": 600,
       "tripCount": 1,
       "anchorOperationId": "demo-op-06",
-      "placement": "after"
+      "placement": "after",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "demo-leg-06",
@@ -268,7 +279,9 @@
       "fixedAmount": 480,
       "tripCount": 1,
       "anchorOperationId": "demo-op-07",
-      "placement": "after"
+      "placement": "after",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     }
   ],
   "expected": {
@@ -277,6 +290,7 @@
     "mainRouteTripCount": 6,
     "uniqueMainRouteVehicleTypes": 5,
     "allTransportLegsShareOneComponent": true,
-    "transportCostIsSeparateFromProcessCost": true
+    "transportCostIsSeparateFromProcessCost": true,
+    "processCostINR": 12800
   }
 }
