@@ -86,13 +86,19 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [companyPick,setCompanyPick]=useState(initialContext?.companyId||"");
   const [poPick,setPoPick]=useState(initialContext?.poId||"");
   const [linePick,setLinePick]=useState(initialContext?.poLineId||"");
+  const appliedContextKey=useRef("");
   useEffect(()=>{
     const context=initialContext||{};
+    const contextKey=JSON.stringify({companyId:context.companyId,poId:context.poId,poLineId:context.poLineId,componentId:context.componentId,operationId:context.operationId});
+    if(appliedContextKey.current===contextKey)return;
     const targetComponent=context.componentId?data.components.find(row=>row.id===context.componentId):undefined;
     const targetPO=(context.poId?orders.find(row=>row.id===context.poId):undefined)
       || (context.poLineId?orders.find(row=>row.lines.some(line=>line.id===context.poLineId)):undefined)
       || (context.operationId?orders.find(row=>row.id===operations.find(op=>op.id===context.operationId)?.poId):undefined)
       || (context.componentId?orders.find(row=>row.lines.some(line=>line.componentId===context.componentId)):undefined);
+    // Wait for a requested linked record to arrive from the shared data store;
+    // never fall back to the first unrelated company, PO or component.
+    if((context.poId||context.poLineId||context.operationId||context.componentId)&&!targetPO&&!targetComponent)return;
     const targetLine=targetPO?.lines.find(row=>row.id===context.poLineId)
       || (context.operationId?targetPO?.lines.find(row=>row.id===operations.find(op=>op.id===context.operationId)?.poLineId):undefined)
       || targetPO?.lines.find(row=>row.componentId===context.componentId);
@@ -102,7 +108,8 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     setBranchPick("Main route");
     setInspectedTransportId("");setInspectedMaterialTransportId("");setSelectedMaterialLinkId("");
     setShowRelationshipEditor(false);setShowTransportEditor(false);setShowAddOperation(false);
-  },[initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.componentId,initialContext?.operationId,data.components,orders,operations]);
+    appliedContextKey.current=contextKey;
+  },[initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.componentId,initialContext?.operationId,data.updatedAt]);
   const [branchPick,setBranchPick]=useState("Main route");
   const [selectedMaterialLinkId,setSelectedMaterialLinkId]=useState("");
   const [fromOperationId,setFromOperationId]=useState("");
