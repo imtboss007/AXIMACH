@@ -200,7 +200,7 @@ async function main() {
       const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
       await dialog.waitFor({ state: "visible", timeout: 5000 });
       const details = await dialog.innerText();
-      const match = details.match(/Transport leg:\\s*(mp-leg-[A-Za-z0-9-]+)/);
+      const match = details.match(/Transport leg:\s*(mp-leg-[A-Za-z0-9-]+)/);
       if (!details.includes("TRANSPORT RECORD") || !details.includes("TRANSPORT ROUTE") || !match) {
         throw new Error("Transport popup must expose its exact transport leg and directory route identity: " + details);
       }
@@ -212,13 +212,13 @@ async function main() {
     for (let i = 0; i < branchMarkerCount; i++) {
       const button = page.locator(".material-flow-marker-button").nth(i);
       if (!(await button.isVisible().catch(() => false))) continue;
-      await scrollGraphNodeIntoView(button);
+      await scrollGraphNodeIntoView(page, button);
       await button.click({ timeout: 8000 });
       const popup = page.getByRole("dialog", { name: "Material to process link" });
       await popup.waitFor({ state: "visible", timeout: 4000 });
       const details = await popup.innerText();
-      const bomMatch = details.match(/BOM line:\\s*(mp-bom-[A-Za-z0-9-]+)/);
-      const operationMatch = details.match(/Process operation:\\s*(mp-op-[A-Za-z0-9-]+)/);
+      const bomMatch = details.match(/BOM line:\s*(mp-bom-[A-Za-z0-9-]+)/);
+      const operationMatch = details.match(/Process operation:\s*(mp-op-[A-Za-z0-9-]+)/);
       if (!details.includes("Part:") || !bomMatch || !operationMatch) {
         throw new Error("Material popup lost part, BOM or process-operation identity: " + details);
       }
@@ -379,7 +379,7 @@ async function main() {
       const dialog = page.getByRole("dialog", { name: "Inbound material transport details" });
       await dialog.waitFor({ state: "visible", timeout: 5000 });
       const details = await dialog.innerText();
-      const match = details.match(/Material allocation ID:\\s*(mp-cost-[A-Za-z0-9-]+)/);
+      const match = details.match(/Material allocation ID:\s*(mp-cost-[A-Za-z0-9-]+)/);
       if (!match || !details.includes("MATERIAL MOVEMENT ROUTE")) throw new Error("Inbound material transport popup lost its exact material allocation record: " + details);
       universeMaterialTransportIds.add(match[1]);
       await dialog.getByRole("button", { name: "Close transport details" }).click();
@@ -387,7 +387,7 @@ async function main() {
       const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
       await dialog.waitFor({ state: "visible", timeout: 5000 });
       const details = await dialog.innerText();
-      const match = details.match(/Transport leg:\\s*(mp-leg-[A-Za-z0-9-]+)/);
+      const match = details.match(/Transport leg:\s*(mp-leg-[A-Za-z0-9-]+)/);
       if (!match || !details.includes("TRANSPORT ROUTE")) throw new Error("Universe transport popup lost its exact route leg record: " + details);
       universeTransportIds.add(match[1]);
       await dialog.getByRole("button", { name: "Close transport details" }).click();
