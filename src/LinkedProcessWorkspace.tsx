@@ -256,7 +256,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const routeOperations = operations.filter(op => op.poId === poId && op.poLineId === selectedLine?.id && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const selectedLineOperations = operations.filter(op=>op.poId===poId && op.poLineId===poLineId && op.componentId===selectedLine?.componentId).sort((a,b)=>a.sequence-b.sequence);
   const componentTransportLegs = allTransportLegs.filter(leg => leg.poId === poId && leg.componentId === selectedLine?.componentId && (!leg.poLineId || leg.poLineId === selectedLine?.id)).sort((a,b) => a.sequence - b.sequence);
-  const componentMaterialProcessLinks = allMaterialProcessLinks.filter(link => link.poId === poId && link.poLineId === selectedLine?.id && link.componentId === selectedLine?.componentId);
+  const componentMaterialProcessLinks = allMaterialProcessLinks.filter(link => {
+    if(link.poId!==poId||link.poLineId!==selectedLine?.id||link.componentId!==selectedLine?.componentId)return false;
+    const linkedBom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
+    return !selectedPart||!linkedBom?.partId||linkedBom.partId===selectedPart.id;
+  });
   const materialProcessPartLabels = Object.fromEntries(componentMaterialProcessLinks.map(link=>{
     const bom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
     const part=bom?.partId?componentParts.find(row=>row.id===bom.partId):undefined;
