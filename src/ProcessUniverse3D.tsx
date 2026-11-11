@@ -4,11 +4,11 @@ import { Activity, ArrowRight, Bike, Boxes, Bus, CarFront, ClipboardCheck, Cog, 
 import type { MaterialProcessLinkRecord, MaterialRecord, OperationRecord, RouteRelationshipRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
-import { RouteConnectorLegend as SemanticRouteConnectorLegend } from "./RouteConnectorLegend";
+import { RouteConnectorLegend } from "./RouteConnectorLegend";
 import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
-import { RouteLayoutPicker, RouteConnectorLegend, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
+import { RouteLayoutPicker, RouteConnectorLegend as RouteLayoutConnectorPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; subcategoryIds?: string[]; vendorIds?: string[]; displayColor?: string };
 type MaterialRouteNode = {
@@ -25,6 +25,11 @@ function materialVehicleIconFor(value:string){const type=(value||"").toLowerCase
 function MaterialRouteTransportMarker({route,onSelect}:{route:MaterialRouteNode;onSelect?:Props["onSelectMaterialTransport"]}){
  const VehicleIcon=materialVehicleIconFor(route.vehicle);
  return <button type="button" className={"ax-transport-icon-trigger process-orbit-material-transport vehicle-"+materialVehicleClassFor(route.vehicle)} aria-label={"Open "+(route.vehicle||"vehicle")+" transport record"} title={(route.vehicle||"Vehicle")+" · "+route.from+" → "+route.to} onClick={event=>{const rect=event.currentTarget.getBoundingClientRect();onSelect?.(route.id,{x:rect.left,y:rect.top});}}><VehicleIcon size={19}/></button>;
+}
+
+function TransportLegNodeMarker({leg,onSelect}:{leg:TransportLegRouteNode;onSelect?:Props["onSelectTransportLeg"]}){
+ const VehicleIcon=materialVehicleIconFor(leg.vehicleType);
+ return <button type="button" className={"ax-transport-icon-trigger process-universe-transport-marker vehicle-"+materialVehicleClassFor(leg.vehicleType)} aria-label={"Open "+(leg.vehicleType||"vehicle")+" transport record"} title={(leg.vehicleType||"Vehicle")+" · "+leg.fromLocation+" → "+leg.toLocation} onClick={event=>{const rect=event.currentTarget.getBoundingClientRect();onSelect?.(leg.id,{x:rect.left,y:rect.top});}}><VehicleIcon size={19}/></button>;
 }
 
 
@@ -210,6 +215,9 @@ export default function ProcessUniverse3D({ materialLinks = [], materials = [], 
   const branchesFor = (parentId: string) => lookupOperations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
   const materialLinksAt = (operationId:string,placement:"before"|"after") => materialLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
   const renderMaterialLink = (link:MaterialProcessLinkRecord) => { const material=materials.find(row=>row.id===link.materialId); return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={componentQuantity} selected={selectedMaterialLinkId===link.id} onSelect={()=>onSelectMaterialLink?.(link.id)}/>:null; };
+  const transportFor = (operationId:string,placement:"before"|"after") => (transportLegs||[]).filter(leg=>leg.anchorOperationId===operationId&&leg.placement===placement);
+  const renderTransportLeg = (leg:TransportLegRouteNode) => <TransportLegNodeMarker key={leg.id} leg={leg} onSelect={onSelectTransportLeg}/>;
+
   const expandedOrbitOperation = lookupOperations.find(operation => operation.id === expandedOperationId) || displayOperations.find(operation => operation.id === expandedOperationId);
   const expandedOrbitSubprocesses = expandedOrbitOperation ? subprocessesFor(expandedOrbitOperation.id) : [];
   const expandedOrbitBranches = expandedOrbitOperation ? branchesFor(expandedOrbitOperation.id) : [];
@@ -371,7 +379,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materials = [], 
     <nav className="process-universe-layouts" aria-label="Process map visualisation modes"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout}/>
       {([{id:"sphere",label:"Sphere View",glyph:"◎"},{id:"cube",label:"Cube View",glyph:"⬡"},{id:"vortex",label:"Vortex View",glyph:"◉"},{id:"helix",label:"Helix View",glyph:"⌁"},{id:"orbit",label:"Orbit View",glyph:"⊙"},{id:"network",label:"Network View",glyph:"✣"},{id:"grid",label:"Grid View",glyph:"▦"},{id:"pipeline",label:"Pipeline View",glyph:"⇢"},{id:"layered",label:"Layered View",glyph:"▱"},{id:"stacked",label:"Stacked View",glyph:"▤"},{id:"matrix",label:"Matrix View",glyph:"▦"},{id:"tree",label:"Tree View",glyph:"♧"}, {id:"radial",label:"Radial View",glyph:"◎"}, {id:"circular",label:"Circular View",glyph:"◌"}, {id:"organic",label:"Organic View",glyph:"✣"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>{setLayoutMode(option.id);if((["orthogonal","s-curve","horizontal","vertical","swimlane","timeline","radial","circular","organic"] as string[]).includes(option.id))setRouteLayout(option.id as RouteLayoutMode);}}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}
     </nav>
-    <RouteConnectorLegend compact/><SemanticRouteConnectorLegend/>
+    <RouteLayoutConnectorPicker compact/><RouteConnectorLegend/>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
       {materialRoutes.length>0 && <section className="process-orbit-material-routes" aria-label="Material procurement and inbound transport routes">
@@ -460,6 +468,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materials = [], 
               const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
               return <div className="process-universe-node-wrap" key={operation.id}>
                 {materialLinksAt(operation.id,"before").map(renderMaterialLink)}
+                {transportFor(operation.id,"before").map(renderTransportLeg)}
                 <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (expanded ? " is-expanded" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{"--process-accent":accent} as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(operation.id); }} aria-pressed={active} aria-expanded={expanded} aria-controls={"process-universe-node-details-"+operation.id} title={"Open " + operation.name + " operation record"}>
                   <span className="process-universe-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><em>{operation.status}</em></span>
                   <span className="process-universe-node-icon"><ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} /></span>
@@ -467,6 +476,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materials = [], 
                   <div className="process-universe-node-details"><small>{childOperations.length} linked sub-process(es) · {linkedBranches.length} alternate / rework step(s)</small><small>{expanded ? "− COLLAPSE DETAILS" : "+ EXPAND DETAILS"}</small></div>
                 </button>
                 {materialLinksAt(operation.id,"after").map(renderMaterialLink)}
+                {transportFor(operation.id,"after").map(renderTransportLeg)}
                 {expanded && <div id={"process-universe-node-details-"+operation.id} className="process-node-subprocess-dropdown">
                   <strong>{operation.name} · Linked steps</strong>
                   <div className="process-universe-node-details">
