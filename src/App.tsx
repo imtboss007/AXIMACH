@@ -212,7 +212,13 @@ function App() {
     }
     setOrientationLockUnavailable(false);
     void requestLandscapeOrientation().then(locked => {
-      if (!disposed) setOrientationLockUnavailable(!locked);
+      if (disposed) {
+        // A slow native bridge must not re-apply landscape after the user
+        // has already left this workspace.
+        if (locked) void CapacitorScreenOrientation.unlock().catch(() => undefined);
+        return;
+      }
+      setOrientationLockUnavailable(!locked);
     });
     return () => {
       disposed = true;
