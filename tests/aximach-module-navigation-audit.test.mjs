@@ -88,3 +88,39 @@ test("generic Production workspace route launchers require one exact PO componen
   assert.ok(app.includes("disabled={productionJobRows.length!==1}"));
   assert.ok(app.includes('poLineId:row.line.id,componentId:row.line.componentId'));
 });
+
+
+test("every literal in-app module navigation target resolves to a registered module", () => {
+  const app = read("../src/App.tsx");
+  const catalogueStart = app.indexOf("const modules: ModuleItem[] = [");
+  const catalogueEnd = app.indexOf("\\n];", catalogueStart);
+  const catalogue = app.slice(catalogueStart, catalogueEnd);
+  const moduleIds = [...catalogue.matchAll(/\\{ id: "([^"]+)"/g)].map(match => match[1]);
+  const validIds = new Set([...moduleIds, "dashboard", "command-centre", "process-map"]);
+  const files = [
+    "../src/App.tsx",
+    "../src/DashboardWorkspace.tsx",
+    "../src/IntelligenceWorkspaces.tsx",
+    "../src/LinkedCostingWorkspace.tsx",
+    "../src/LinkedProcessWorkspace.tsx",
+    "../src/ManufacturingMasterWorkspace.tsx",
+    "../src/OperationsWorkspaces.tsx",
+    "../src/RelationshipWorkspaces.tsx",
+    "../src/RouteFlowWorkspace.tsx",
+    "../src/ManufacturingUniverseWorkspace.tsx",
+    "../src/InventoryWorkspace.tsx",
+    "../src/TransportDirectoryWorkspace.tsx",
+    "../src/SpecializedDirectoryWorkspace.tsx",
+    "../src/ProcessUniverse3D.tsx",
+    "../src/FollowUpAssignments.tsx"
+  ];
+  const invalid = [];
+  for (const path of files) {
+    const source = read(path);
+    for (const match of source.matchAll(/(?:onSelectModule|selectModule)\\s*\\(\\s*["'`]([^"'`]+)["'`]/g)) {
+      if (!validIds.has(match[1])) invalid.push(path + " -> " + match[1]);
+    }
+  }
+  assert.deepEqual(invalid, [], "unregistered navigation targets: " + invalid.join(", "));
+  assert.ok(read("../src/LinkedProcessWorkspace.tsx").includes('onSelectModule("dispatch"'));
+});
