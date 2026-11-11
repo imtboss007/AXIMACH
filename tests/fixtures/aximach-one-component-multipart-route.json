@@ -1497,7 +1497,7 @@
     },
     {
       "id": "mp-leg-08",
-      "routeId": "mp-route-02",
+      "routeId": "mp-route-06",
       "vendorId": "mp-vendor-machining",
       "componentId": "mp-component",
       "poId": "mp-po",
