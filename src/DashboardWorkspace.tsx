@@ -27,7 +27,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
         <p>Live overview of companies, purchase orders, components, production operations, quality holds and delivery risks. Metrics are derived only from saved AXIMACH records.</p>
         <div className="hero-actions"><button className="button-primary" onClick={onOpenCommandCentre}><Command size={16}/> Open 3D Command Centre <ArrowRight size={15}/></button><button className="button-quiet" onClick={onOpenModules}>View all 18 modules <ArrowRight size={15}/></button></div>
       </div>
-      <div className="dashboard-welcome-orb"><AXIMACHOrb onSelectModule={onSelectModule}/></div>
+      <div className="dashboard-welcome-orb"><AXIMACHOrb surface="dashboard" onSelectModule={onSelectModule}/></div>
     </section>
     <section className="metric-grid dashboard-metric-grid">
       <Kpi label="Companies" value={companies.length} detail="Company directory" icon={Building2}/>

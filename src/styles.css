@@ -953,6 +953,23 @@ img,svg,canvas,video{max-width:100%}
 @media(max-width:760px){.appearance-picker{height:34px;padding:0 6px}.appearance-picker select{max-width:65px}.appearance-picker svg{display:none}}
 
 
+/* Command Centre hero becomes a vertically stacked, centered orb on phones. */
+@media(max-width:760px) {
+  .hero-command { grid-template-columns:minmax(0,1fr); gap:8px; padding:26px 18px 10px; }
+  .hero-copy { text-align:center; }
+  .hero-copy>p { margin:0 auto; }
+  .hero-copy .hero-actions { justify-content:center; }
+  .hero-graphic { width:100%; min-height:370px; }
+  .hero-graphic .ax-orb-stage { min-height:360px; }
+  .hero-graphic .ax-orb-drag-zone { width:min(100%,360px); height:350px; flex-basis:350px; }
+}
+@media(max-width:520px) {
+  .hero-command { padding:22px 12px 8px; }
+  .hero-copy h1 { font-size:30px; }
+  .hero-graphic { min-height:360px; }
+}
+
+
 /* Module Universe: compact, viewport-first card density across phone and landscape layouts. */
 .module-universe{width:min(1500px,calc(100vw - 20px));max-height:calc(100dvh - 16px);align-self:flex-start}
 .module-universe .universe-grid{grid-template-columns:repeat(auto-fill,minmax(min(245px,100%),1fr));align-content:start;gap:7px;padding:11px 16px;overflow:auto;scrollbar-gutter:stable}
@@ -976,12 +993,7 @@ img,svg,canvas,video{max-width:100%}
   .module-universe .universe-header h2{font-size:18px;margin:3px 0}
   .module-universe .universe-header p{font-size:8px}
   .module-universe .universe-tools{padding:7px 12px}
-  .module-universe .universe-search{height:32px}
-  .module-universe .universe-grid{grid-template-columns:repeat(4,minmax(0,1fr));padding:7px 12px;gap:5px}
-  .module-universe .universe-card{min-height:56px;padding:6px;gap:5px}
-  .module-universe .universe-icon{width:24px;height:24px}
-  .module-universe .universe-icon svg{width:14px;height:14px}
-  .module-universe .universe-card-copy strong{font-size:8px}
-  .module-universe .universe-card-copy small{font-size:7px;margin-top:2px}
+  .module-universe .universe-grid{grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:5px;padding:7px 12px}
+  .module-universe .universe-card{min-height:58px;padding:6px;gap:6px}
   .module-universe .universe-footer{padding:6px 12px}
 }

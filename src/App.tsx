@@ -2,8 +2,8 @@ import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
-  ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge,
-  GitBranch, HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
+  ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge, GitBranch, Network, Route,
+  HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
   Package, Pause, Play, Plug, Plus, RotateCcw, ScanLine, Search, Settings2,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Truck, Users,
   Wallet, Workflow, Wrench, X, Zap
@@ -31,9 +31,12 @@ const AIInsightsWorkspace = lazy(() => import("./IntelligenceWorkspaces").then(m
 const ExportCentreWorkspace = lazy(() => import("./IntelligenceWorkspaces").then(module => ({ default: module.ExportCentreWorkspace })));
 const ImportCentreWorkspace = lazy(() => import("./IntelligenceWorkspaces").then(module => ({ default: module.ImportCentreWorkspace })));
 const LinkedProcessWorkspace = lazy(() => import("./LinkedProcessWorkspace"));
+const RouteFlowWorkspace = lazy(() => import("./RouteFlowWorkspace"));
+const ManufacturingUniverseWorkspace = lazy(() => import("./ManufacturingUniverseWorkspace"));
 const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
 const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
 import { activeRows, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
+import { AXIMACH_DEMO_ID_PREFIX, archiveAxMachTwoCompanyDemo, createAxMachTwoCompanyDemo } from "./aximachDemoData";
 
 function isAllowedAxMachServiceUrl(value: string) {
   try {
@@ -70,8 +73,10 @@ const modules: ModuleItem[] = [
   { id: "process-master", title: "Process Directory", group: "Manufacturing", description: "Process types, categories, subcategories and linked vendors.", icon: Layers3, action: "Open process directory" },
   { id: "planned-cost", title: "Component Planned Cost", group: "Finance", description: "Independent planned component and process costs for comparison in costing.", icon: CircleDollarSign, action: "Open planned costs" },
   { id: "vendor-capability", title: "Vendor Network", group: "Supply Network", description: "Filter vendors by process category and supported processes.", icon: Workflow, action: "Open vendor network" },
-  { id: "inventory", title: "BOM & Inventory", group: "Operations", description: "Interlinked bills of material, materials, stock and inventory movements.", icon: Boxes, action: "Open BOM and inventory" },
+  { id: "inventory", title: "Material Directory", group: "Operations", description: "Material grades, shapes, dimensions, density, supplier rates, BOM links and stock ledger.", icon: Boxes, action: "Open Material Directory" },
   { id: "production", title: "Production Plan & Process Plan", group: "Operations", description: "PO-wise component production, process assignments, transport and job completion.", icon: Activity, action: "Open production and process plans" },
+  { id: "route-flow", title: "Route Flow & Relationships", group: "Manufacturing", description: "Full-screen editable material, transport and process route with 11 persisted relationship types.", icon: GitBranch, action: "Open full-screen route flow" },
+  { id: "manufacturing-universe", title: "Manufacturing Universe", group: "Manufacturing", description: "Dedicated large-format live 3D manufacturing universe connected to all AXIMACH modules.", icon: Network, action: "Open live manufacturing universe" },
   { id: "dispatch", title: "Transport & Dispatch", group: "Operations", description: "Transport vendors, pickup, delivery, cost and dispatch status.", icon: Truck, action: "Open transport and dispatch" },
   { id: "quality", title: "Quality Inspection", group: "Quality", description: "Inspection measurements, accepted and rejected quantities and quality status.", icon: ClipboardCheck, action: "Open quality inspection" },
   { id: "costing", title: "Costing & Payment", group: "Finance", description: "Company, PO and component-wise planned versus actual process costs and payments.", icon: CircleDollarSign, action: "Open costing and payment" },
@@ -85,6 +90,44 @@ const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) =>
 
 function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNotice:(value:string)=>void;notice:string}) {
   const [mode,setMode] = useState<"export"|"import">("export");
+  const { data, update, syncStatus } = useManufacturingData();
+  const [demoBusy,setDemoBusy] = useState(false);
+  const demoRows = Object.values(data).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX));
+  const activeDemoCount = demoRows.filter(row => !row.deletedAt).length;
+  const demoLoaded = activeDemoCount > 0;
+  const demoCounts = { companies:data.companies.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, factories:data.factories.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, vendors:data.vendors.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, components:data.components.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, orders:data.purchaseOrders.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, operations:data.operations.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length };
+  const importDemo = () => {
+    if (demoLoaded) { onNotice("Demo Factory is already imported. Delete the existing demo dataset before importing it again."); return; }
+    if (!window.confirm("Import the isolated AXIMACH Demo Factory? All records are synthetic and clearly marked DEMO. Live factory records will be preserved.")) return;
+    setDemoBusy(true);
+    try {
+      const sample = createAxMachTwoCompanyDemo();
+      update(current => {
+        const mergeById = <T extends {id:string}>(live:T[], incoming:T[]) => { const map=new Map(live.map(row=>[row.id,row])); incoming.forEach(row=>map.set(row.id,row)); return [...map.values()]; };
+        return { ...current, updatedAt:sample.updatedAt,
+          companies:mergeById(current.companies,sample.companies), factories:mergeById(current.factories,sample.factories),
+          purchaseOrders:mergeById(current.purchaseOrders,sample.purchaseOrders), components:mergeById(current.components,sample.components),
+          vendors:mergeById(current.vendors,sample.vendors), operations:mergeById(current.operations,sample.operations),
+          quotations:mergeById(current.quotations,sample.quotations), materials:mergeById(current.materials,sample.materials),
+          componentParts:mergeById(current.componentParts,sample.componentParts), materialCostEntries:mergeById(current.materialCostEntries,sample.materialCostEntries),
+          routeRelationships:mergeById(current.routeRelationships||[],sample.routeRelationships||[]),
+          bomLines:mergeById(current.bomLines,sample.bomLines), inventoryTransactions:mergeById(current.inventoryTransactions,sample.inventoryTransactions),
+          contactProfiles:mergeById(current.contactProfiles,sample.contactProfiles), processDefinitions:mergeById(current.processDefinitions,sample.processDefinitions),
+          plannedCosts:mergeById(current.plannedCosts,sample.plannedCosts), transportRoutes:mergeById(current.transportRoutes,sample.transportRoutes),
+          transportLegs:mergeById(current.transportLegs,sample.transportLegs), paymentTransactions:mergeById(current.paymentTransactions,sample.paymentTransactions),
+          inspectionMeasurements:mergeById(current.inspectionMeasurements,sample.inspectionMeasurements), followUpAssignments:mergeById(current.followUpAssignments,sample.followUpAssignments)
+        };
+      });
+      onNotice("Demo Factory imported. Synthetic records are isolated with DEMO IDs; actual factory records were preserved.");
+    } catch (error) { onNotice(error instanceof Error ? error.message : "Demo import failed."); }
+    finally { setDemoBusy(false); }
+  };
+  const deleteDemo = () => {
+    if (!demoLoaded) { onNotice("No active Demo Factory records to delete."); return; }
+    if (!window.confirm("Delete the imported Demo Factory? Only records with the reserved DEMO- ID prefix will be archived. Actual factory records will not be changed.")) return;
+    update(current => archiveAxMachTwoCompanyDemo(current));
+    onNotice("Demo Factory records archived. Actual factory records were preserved; the demo can be imported again.");
+  };
   return (
     <section className="workspace-page">
       <div className="workspace-topline">
@@ -94,6 +137,21 @@ function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNoti
       <div className="workspace-title-row">
         <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA / IMPORT &amp; EXPORT</div><h1>Data Exchange Centre<span>.</span></h1><p>One workspace for validated imports, module exports and full AXIMACH backups.</p></div>
       </div>
+      <section className="workspace-card" aria-label="Demo Factory data centre" style={{marginBottom:20,border:"1px solid var(--line, #d9e0e8)"}}>
+        <div className="workspace-title-row" style={{alignItems:"center"}}>
+          <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA CENTRE / SANDBOX</div><h2 style={{margin:"4px 0"}}>Demo Factory</h2><p>Import a complete synthetic manufacturing workspace for testing. It remains identifiable by DEMO IDs and can be archived independently.</p></div>
+          <span className="demo-pill"><i/> {demoLoaded?"DEMO LOADED":"ISOLATED SANDBOX"}</span>
+        </div>
+        <div className="metric-grid" style={{margin:"14px 0"}}>
+          <div className="metric-card"><small>Companies</small><strong>{demoCounts.companies}</strong></div><div className="metric-card"><small>Factories</small><strong>{demoCounts.factories}</strong></div><div className="metric-card"><small>Demo vendors</small><strong>{demoCounts.vendors}</strong></div><div className="metric-card"><small>Components</small><strong>{demoCounts.components}</strong></div><div className="metric-card"><small>Purchase orders</small><strong>{demoCounts.orders}</strong></div><div className="metric-card"><small>Operations</small><strong>{demoCounts.operations}</strong></div>
+        </div>
+        <div className="linked-route-actions">
+          <button type="button" className="button-primary compact-button" disabled={demoBusy||demoLoaded} onClick={importDemo}><Package size={14}/> {demoBusy?"Importing…":"Import Demo Factory"}</button>
+          <button type="button" className="button-quiet compact-button" disabled={demoBusy||!demoLoaded} onClick={deleteDemo}><RotateCcw size={14}/> Delete Demo Data</button>
+          <span className="muted-copy">Sync: {syncStatus} · Live records are retained</span>
+        </div>
+        <p className="muted-copy" style={{marginTop:10}}>Demo records are fictional test data, not real supplier offers, payments, inspections or production results. Delete archives only DEMO-prefixed records.</p>
+      </section>
       <div className="linked-route-actions" role="tablist" aria-label="Data exchange mode">
         <button type="button" role="tab" aria-selected={mode==="export"} className={(mode==="export"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("export")}><FileDown size={14}/> Export records</button>
         <button type="button" role="tab" aria-selected={mode==="import"} className={(mode==="import"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("import")}><FileUp size={14}/> Import and validate</button>
@@ -112,6 +170,7 @@ function App() {
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
   const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>({});
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
   const [iconStudioTarget,setIconStudioTarget] = useState<{targetType:"process"|"component"|"subcategory";targetRecordId:string}|null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -160,6 +219,7 @@ function App() {
       if (event.key === "Escape") {
         setCommandOpen(false);
         setModuleExplorerOpen(false);
+        setMobileNavOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -170,6 +230,7 @@ function App() {
     setModuleContext(context);
     setActiveModuleId(id);
     setModuleExplorerOpen(false);
+    setMobileNavOpen(false);
     setCommandOpen(false);
     setQuery("");
     setNotice("");
@@ -179,6 +240,7 @@ function App() {
     setQuery("");
     setDomain("All domains");
     setModuleExplorerOpen(true);
+    setMobileNavOpen(false);
     setCommandOpen(false);
   };
 
@@ -208,6 +270,7 @@ function App() {
           <span className="brand-copy"><strong>Machining Flow Control</strong><small>Multi-Company Manufacturing OS</small></span>
         </button>
 
+        <button type="button" className="mobile-nav-trigger" aria-label="Open navigation menu" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen(value => !value)}><Menu size={19} /></button>
         <div className="deck-divider" />
         <button className="factory-switcher" onClick={() => selectModule("dashboard")} aria-label="Open main dashboard">
           <Gauge size={16} /><span>Dashboard</span>
@@ -250,6 +313,10 @@ function App() {
             onSelectModule={selectModule}
             onOpenModules={openModuleExplorer}
           />
+        ) : activeModuleId === "manufacturing-universe" ? (
+          <ManufacturingUniverseWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+        ) : activeModuleId === "route-flow" ? (
+          <RouteFlowWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-map" ? (
           <LinkedProcessWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
@@ -297,11 +364,12 @@ function App() {
         />
       )}
 
-      <nav className="command-rail" aria-label="AXIMACH navigation">
+      {mobileNavOpen && <button type="button" className="mobile-nav-backdrop" aria-label="Close navigation menu" onClick={() => setMobileNavOpen(false)} />}
+      <nav className={`command-rail${mobileNavOpen ? " mobile-nav-open" : ""}`} aria-label="AXIMACH navigation">
         <div className="rail-section-label">COMMAND CENTRES</div>
         <button title="Main Dashboard" className={activeModuleId === "dashboard" ? "rail-active" : ""} onClick={() => selectModule("dashboard")}><Gauge size={16} /><span>Main Dashboard</span></button>
         <button title="3D Command Centre" className={activeModuleId === "command-centre" ? "rail-active" : ""} onClick={() => selectModule("command-centre")}><Command size={16} /><span>3D Command Centre</span></button>
-        <div className="rail-section-label">MODULES 03–20</div>
+        <div className="rail-section-label">ALL MODULES</div>
         {modules.map((item) => { const ItemIcon = item.icon; return <button key={item.id} title={item.title} className={activeModuleId === item.id ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16} /><span>{item.title}</span></button>; })}
         <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={16} /><span>Module explorer</span></button>
       </nav>
@@ -318,7 +386,7 @@ function App() {
               <button className="close-round" onClick={() => setModuleExplorerOpen(false)} aria-label="Close module universe"><X size={19} /></button>
             </div>
             <div className="universe-tools">
-              <label className="universe-search"><Search size={18} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find any module or capability…" /><kbd>18 MODULES</kbd></label>
+              <label className="universe-search"><Search size={18} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find any module or capability…" /><kbd>{modules.length} MODULES</kbd></label>
               <div className="domain-filters" aria-label="Filter modules by domain">
                 {groupOptions.map((option) => <button key={option} className={domain === option ? "domain-active" : ""} onClick={() => setDomain(option)}>{option}</button>)}
               </div>
@@ -386,7 +454,7 @@ function CommandCentre(props: {
         </div>
         <div className="hero-graphic axim-hero-graphic" aria-label="Interactive AXIMACH 3D operations sphere">
           <div className="graphic-grid" />
-          <AXIMACHOrb onSelectModule={onSelectModule} />
+          <AXIMACHOrb surface="command-centre" onSelectModule={onSelectModule} />
         </div>
       </section>
 
@@ -576,12 +644,14 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
   type ApiContact = { id: string; name: string; phone: string; company: string; optedIn: boolean; createdAt: string };
   type ApiSchedule = { id: string; to: string; message: string; nextRunAt: string | null; repeat: "once" | "daily" | "weekly"; enabled: boolean; lastRunAt: string | null; lastError: string; vendorId?: string; operationId?: string; process?: string; company?: string };
   type ApiLog = { id: string; scheduleId: string; at: string; status: string; detail: string; providerMessageId?: string };
-  const [apiUrl,setApiUrl]=useState(()=>window.localStorage.getItem("aximach.scheduler.url")||((window.location.protocol==="file:"||window.location.protocol==="aximach:")?"http://127.0.0.1:8787":""));
+  const [storageMode,setStorageMode]=useState<"local-only"|"shared-server">(()=>window.localStorage.getItem("aximach.storage.mode")==="local-only"?"local-only":(window.localStorage.getItem("aximach.scheduler.url")&&window.localStorage.getItem("aximach.scheduler.key")?"shared-server":"local-only"));
+  const [apiUrl,setApiUrl]=useState(()=>window.localStorage.getItem("aximach.storage.mode")==="local-only"?"":window.localStorage.getItem("aximach.scheduler.url")||((window.location.protocol==="file:"||window.location.protocol==="aximach:")?"http://127.0.0.1:8787":""));
   const [apiKey,setApiKey]=useState(()=>window.localStorage.getItem("aximach.scheduler.key")||"");
   const [connected,setConnected]=useState(false);
   const [lanInfo,setLanInfo]=useState<{addresses:string[];apiKey:string;port:number}|null>(null);
   useEffect(()=>{
     if(window.location.protocol!=="file:"&&window.location.protocol!=="aximach:")return;
+    if(window.localStorage.getItem("aximach.storage.mode")==="local-only")return;
     let cancelled=false;
     let attempts=0;
     let timer:number|undefined;
@@ -590,7 +660,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
         const response=await fetch("http://127.0.0.1:8787/api/connection-info",{cache:"no-store"});
         if(!response.ok)throw new Error("Local server unavailable");
         const info=await response.json();
-        if(!cancelled){setLanInfo(info);setApiKey(info.apiKey||"");setApiUrl("http://127.0.0.1:8787");}
+        if(!cancelled&&window.localStorage.getItem("aximach.storage.mode")!=="local-only"){setLanInfo(info);setApiKey(info.apiKey||"");setApiUrl("http://127.0.0.1:8787");setStorageMode("shared-server");}
       }catch{
         attempts++;
         if(!cancelled&&attempts<12)timer=window.setTimeout(loadLanInfo,1000);
@@ -728,7 +798,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
   const base=apiUrl.trim().replace(/\/+$/,"");
   const visibleContacts=contacts.filter(c=>(c.name+" "+c.company+" "+c.phone).toLowerCase().includes(contactSearch.toLowerCase().trim()));
   const request=async(path:string,init:RequestInit={})=>{const response=await fetch(base+path,{...init,headers:{"content-type":"application/json","x-aximach-key":apiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"The service returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
-  const connect=async()=>{setBusy(true);setApiError("");try{if(!isAllowedAxMachServiceUrl(base))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("AXIMACH shared-data server health check failed.");const [manufacturing,c,s]=await Promise.all([request("/api/manufacturing-data"),request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);if(base.startsWith("http://")){const bridge=new URL(base);bridge.port="8789";const bridgeUrl=bridge.toString().replace(/\/$/,"");setWaUrl(bridgeUrl);window.localStorage.setItem("aximach.whatsapp.url",bridgeUrl);}if(manufacturing.data&&typeof manufacturing.data==="object"){updateManufacturingData(currentData=>mergeManufacturingData(currentData,manufacturing.data));}else{updateManufacturingData(currentData=>({...currentData}));}const synced=readManufacturingData();setConnected(true);setApiError("");onNotice("AXIMACH PC shared data connected and manufacturing records fetched: "+activeRows(synced.companies).length+" companies, "+activeRows(synced.purchaseOrders).length+" POs, "+activeRows(synced.components).length+" components and "+activeRows(synced.operations).length+" process operations. Shared sync is now active on this device.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
+  const connect=async()=>{setBusy(true);setApiError("");try{if(!isAllowedAxMachServiceUrl(base))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("AXIMACH shared-data server health check failed.");const [manufacturing,c,s]=await Promise.all([request("/api/manufacturing-data"),request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);window.localStorage.setItem("aximach.storage.mode","shared-server");setStorageMode("shared-server");if(base.startsWith("http://")){const bridge=new URL(base);bridge.port="8789";const bridgeUrl=bridge.toString().replace(/\/$/,"");setWaUrl(bridgeUrl);window.localStorage.setItem("aximach.whatsapp.url",bridgeUrl);}if(manufacturing.data&&typeof manufacturing.data==="object"){updateManufacturingData(currentData=>mergeManufacturingData(currentData,manufacturing.data));}else{updateManufacturingData(currentData=>({...currentData}));}const synced=readManufacturingData();setConnected(true);setApiError("");onNotice("AXIMACH PC shared data connected and manufacturing records fetched: "+activeRows(synced.companies).length+" companies, "+activeRows(synced.purchaseOrders).length+" POs, "+activeRows(synced.components).length+" components and "+activeRows(synced.operations).length+" process operations. Shared sync is now active on this device.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
   useEffect(()=>{
     if(!apiKey.trim()||!isAllowedAxMachServiceUrl(apiUrl))return;
     let cancelled=false;
@@ -747,6 +817,32 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     const timer=window.setInterval(()=>void verify(),10000);
     return()=>{cancelled=true;window.clearInterval(timer);};
   },[apiUrl,apiKey]);
+  const prepareSharedPcServer=async()=>{
+    if(window.location.protocol!=="file:"&&window.location.protocol!=="aximach:"){
+      onNotice("Enter the PC's private Wi-Fi server URL and API key, then press Connect / refresh shared data.");
+      return;
+    }
+    setBusy(true);setApiError("");
+    try{
+      const response=await fetch("http://127.0.0.1:8787/api/connection-info",{cache:"no-store"});
+      const info=await response.json();
+      if(!response.ok||!info.apiKey||!Array.isArray(info.addresses))throw new Error("The PC shared-data server is not ready. Keep AXIMACH running on the PC and try again.");
+      setLanInfo(info);setApiUrl("http://127.0.0.1:8787");setApiKey(info.apiKey);
+      onNotice("PC shared-server details loaded. Use a displayed LAN address and this API key on Android, then press Connect / refresh shared data.");
+    }catch(error){setApiError(error instanceof Error?error.message:"Could not load the PC shared-server details.");}
+    finally{setBusy(false);}
+  };
+  const useLocalOnly=()=>{
+    window.localStorage.setItem("aximach.storage.mode","local-only");
+    window.localStorage.removeItem("aximach.scheduler.url");
+    setApiUrl("");
+    setConnected(false);
+    setStorageMode("local-only");
+    window.dispatchEvent(new Event("aximach-storage-mode-change"));
+    setLanInfo(null);
+    setApiError("");
+    onNotice("Local-only storage is active on this device. Manufacturing records remain in this device's local storage. The PC server and its data are not deleted; reconnect to the same shared server to resume cross-device sync.");
+  };
   const refresh=async()=>{setBusy(true);setApiError("");try{const [c,s]=await Promise.all([request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);setConnected(true);}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Refresh failed.");}finally{setBusy(false);}};
   const addContact=async()=>{setBusy(true);setApiError("");try{const d=await request("/api/contacts",{method:"POST",body:JSON.stringify({name,phone,company,optedIn})});setContacts(prev=>[...prev,d.contact]);setName("");setPhone("");setCompany("");setOptedIn(false);onNotice("Contact saved to the scheduler server.");}catch(e){setApiError(e instanceof Error?e.message:"Could not save contact.");}finally{setBusy(false);}};
   const addSchedule=async()=>{setBusy(true);setApiError("");try{const d=await request("/api/schedules",{method:"POST",body:JSON.stringify({to,message,nextRunAt:new Date(due).toISOString(),repeat,vendorId:initialRecipient?.vendorId||"",operationId:initialRecipient?.operationId||"",process:initialRecipient?.process||"",company:initialRecipient?.company||""})});setSchedules(prev=>[d.schedule,...prev]);setMessage("");onNotice("Schedule saved on the server. Actual sending still depends on valid Meta credentials and messaging policy.");}catch(e){setApiError(e instanceof Error?e.message:"Could not create schedule.");}finally{setBusy(false);}};
@@ -757,7 +853,8 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> SERVER-BACKED SCHEDULER CONNECTOR</span></div>
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMMUNICATION / CRM</div><h1>Follow-up centre<span>.</span></h1><p>Contacts, one-time and recurring individual messages, server schedules and send logs.</p></div><button className="button-quiet" onClick={downloadContacts} disabled={!contacts.length}><FileDown size={15}/> Export contacts CSV</button></div>
     <section className="surface-panel followup-list-panel scheduler-connect-panel"><div className="panel-heading"><div><h3><Plug size={17}/> Scheduler connection</h3><p>Connect to your PC-hosted private Wi-Fi server or a deployed AXIMACH server.</p></div><span className={"module-number "+(connected?"scheduler-connected":"")}>{connected?"CONNECTED":"NOT CONNECTED"}</span></div>
-      <div className="scheduler-connect-form"><label>Shared AXIMACH data server URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="http://192.168.x.x:8787 (same Wi-Fi) or HTTPS server"/></label><label>API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label><button className="button-primary" disabled={busy||!apiUrl.trim()||!apiKey.trim()} onClick={connect}>{busy?"Connecting…":"Connect / refresh"}</button></div>
+      <div className="scheduler-connect-form"><label>Shared AXIMACH data server URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="http://192.168.x.x:8787 (same Wi-Fi) or HTTPS server"/></label><label>API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label><button className="button-primary" disabled={busy||!apiUrl.trim()||!apiKey.trim()} onClick={connect}>{busy?"Connecting…":"Connect / refresh shared data"}</button><button type="button" className="button-quiet" disabled={busy||storageMode==="local-only"} onClick={useLocalOnly}>Use local-only on this device</button></div>
+      <div className="module-safety-note"><ShieldCheck size={15}/><span><strong>Manufacturing storage mode: {storageMode==="local-only"?"LOCAL ONLY · THIS DEVICE":connected?"SHARED SERVER · CONNECTED":"SHARED SERVER · NOT CONNECTED"}.</strong> Local-only data is saved on this device and does not synchronize. Shared mode synchronizes devices using the same server URL and API key. This build does not include a cloud account/login service; cloud account sync needs a separately configured account backend.</span>{storageMode==="local-only"&&<button type="button" className="button-quiet compact-button" onClick={()=>void prepareSharedPcServer()}>Set up shared sync</button>}</div>
       {apiError&&<div className="scheduler-error"><ShieldAlert size={15}/>{apiError}</div>}
       <div className="module-safety-note"><ShieldCheck size={15}/><span>Use one shared server URL and API key on both devices. A Windows-installed AXIMACH can host the private server: keep the PC and this Android device on the same Wi-Fi, keep AXIMACH running on the PC, then enter one of the PC LAN addresses below on Android (not localhost). Public HTTP is blocked; HTTPS and private LAN HTTP only are allowed. Keep the API key private.</span></div>
       {lanInfo&&<div className="aximach-lan-share">

@@ -7,6 +7,8 @@ export const manufacturingCollections = Object.freeze([
   "operations",
   "quotations",
   "materials",
+  "componentParts",
+  "materialCostEntries",
   "bomLines",
   "materialProcessLinks",
   "inventoryTransactions",
@@ -15,6 +17,7 @@ export const manufacturingCollections = Object.freeze([
   "plannedCosts",
   "paymentTransactions",
   "inspectionMeasurements",
+  "routeRelationships",
   "followUpAssignments",
   "transportRoutes",
   "transportLegs"

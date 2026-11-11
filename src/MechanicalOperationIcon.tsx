@@ -18,7 +18,8 @@ const rules: Array<[RegExp, ToolGlyph]> = [
   [/assembly|fitment|press fit|fastening|bolt assembly/, "assembly-tool"],
   [/transport|dispatch|shipping|logistics|delivery/, "transport-truck"],
   [/raw material|stock bar|sheet blank|material stock|bar stock/, "material-stock"],
-  [/vmc machine|vertical machining centre|vertical machining center/, "vmc-machine"],
+  [/\bvmc\b|vertical machining centre|vertical machining center/, "vmc-machine"],
+  [/\bhmc\b|horizontal machining centre|horizontal machining center/, "cnc-machine"],
   [/lathe machine|cnc lathe|turning centre|turning center/, "lathe-machine"],
   [/wire edm machine|edm machine|spark erosion machine/, "edm-machine"],
   [/grinding machine|cylindrical grinder|surface grinder/, "grinding-machine"],
@@ -40,6 +41,7 @@ const rules: Array<[RegExp, ToolGlyph]> = [
   [/slot mill|slotting mill|keyway milling/, "slot-mill"],
   [/chamfer|deburr bevel/, "chamfer"],
   [/end mill|end milling|pocket milling|profile milling|contour milling|helical milling/, "end-mill"],
+  [/\bmilling\b|mill operation|milling operation/, "end-mill"],
   [/turn|facing|cnc lathe|profile turning/, "turning-insert"],
   [/groov|undercut/, "grooving"],
   [/threading|thread turning|external thread/, "threading-insert"],
@@ -98,7 +100,6 @@ export const MECHANICAL_ICON_INVENTORY: Array<{ glyph: ToolGlyph; label: string;
   {glyph:"powder-coating-gun",label:"Coating / finishing gun",application:"Powder coating, painting and surface finishing"},
   {glyph:"assembly-tool",label:"Assembly tool",application:"Mechanical assembly, fastening and press-fit operations"},
   {glyph:"transport-truck",label:"Transport / dispatch",application:"Vendor collection, route movement, logistics and delivery"},
-  {glyph:"material-stock",label:"Material stock",application:"Bar stock, sheet blanks and raw-material preparation"},
   {glyph:"cnc-machine",label:"CNC machining centre",application:"CNC production centres, enclosed machining cells and multi-axis machining"},
   {glyph:"vmc-machine",label:"VMC machine",application:"Vertical machining centres, spindle stations and milling work centres"},
   {glyph:"lathe-machine",label:"CNC lathe / turning centre",application:"CNC turning machines, chucking lathes and turning cells"},
@@ -108,8 +109,7 @@ export const MECHANICAL_ICON_INVENTORY: Array<{ glyph: ToolGlyph; label: string;
   {glyph:"welding-station",label:"Welding station",application:"MIG, TIG, arc welding and robotic welding cells"},
   {glyph:"fixture-jig",label:"Fixture / jig / workholding",application:"Jigs, fixtures, clamps, datum locators and production workholding"},
   {glyph:"cmm-machine",label:"CMM / inspection machine",application:"Bridge CMMs, probing systems and coordinate metrology"},
-  {glyph:"caliper",label:"Caliper / dimensional gauge",application:"Vernier calipers, micrometers, height gauges and dimensional checks"},
-  {glyph:"component-block",label:"Generic component",application:"Mechanical component fallback symbol"}
+  {glyph:"caliper",label:"Caliper / dimensional gauge",application:"Vernier calipers, micrometers, height gauges and dimensional checks"}
 ];
 
 export function MechanicalIconGlyph({ glyph, label, className = "" }: { glyph: ToolGlyph; label?: string; className?: string }) {
@@ -224,8 +224,7 @@ export function mechanicalOperationSvgForName(operationName: string): string {
 }
 
 export function MechanicalOperationIcon({ operation, className = "" }: { operation: string; className?: string }) {
-  const glyph = mechanicalGlyphForOperation(operation);
-  if (!glyph) return null;
+  const glyph = mechanicalGlyphForOperation(operation) || "component-block";
   return <span className={"ax-mechanical-tool-icon " + className} title={operation + " tool symbol"} aria-label={operation + " tool symbol"}>
     <svg viewBox="0 0 24 24" width="24" height="24" role="img" aria-hidden="true"><GlyphShape glyph={glyph}/></svg>
   </span>;

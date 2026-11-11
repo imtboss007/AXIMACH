@@ -24,6 +24,8 @@ export type ComponentRecord = {
 };
 export type PurchaseOrderLine = {
   id: string; componentId: string; quantity: number; targetDelivery: string; unitPrice?: number; notes: string;
+  /** A PO line can be component-level or assigned to one saved part; mixed POs use separate lines. */
+  allocationLevel?: "component" | "part"; partId?: string;
   jobStatus?: "In progress" | "Finished"; jobFinishedAt?: string; updatedAt?: string; deletedAt?: string;
   materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number;
   overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number;
@@ -44,7 +46,15 @@ export type ComponentTransportLegRecord = {
   id: string; poId: string; poLineId: string; componentId: string; sequence: number;
   routeId: string; vendorId: string; fromLocation: string; toLocation: string;
   tripDirection: TransportTripDirection; vehicleType: string; fixedAmount: number;
-  tripCount: number; anchorOperationId: string; placement?: "start" | "before" | "after"; pickupAt?: string; deliveryAt?: string; status?: LifecycleStatus; completedTrips?: number; notes: string;
+  tripCount: number; anchorOperationId: string; targetOperationId?: string; materialEntryId?: string; placement?: "start" | "before" | "after"; pickupAt?: string; deliveryAt?: string; status?: LifecycleStatus; completedTrips?: number; notes: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type RouteRelationshipType = "main" | "alternate" | "rework" | "dependency" | "parallel" | "merge" | "split" | "follow-on" | "feedback" | "conditional" | "successor";
+export type RouteRelationshipStatus = "Active" | "Planned" | "Conditional" | "Disabled";
+export type RouteRelationshipRecord = {
+  id: string; poId: string; poLineId: string; componentId: string;
+  fromOperationId: string; toOperationId: string; relationshipType: RouteRelationshipType;
+  status: RouteRelationshipStatus; condition?: string; label?: string; notes: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type VendorTransportRoute = { id: string; fromLocation: string; toLocation: string; fixedCost: number; vehicleType: string; notes?: string; tripDirection?: TransportTripDirection };
@@ -57,7 +67,10 @@ export type VendorRecord = {
 export type ContactProfileRecord = {
   id: string; linkedType: "company" | "vendor"; linkedId: string; name: string; role: string; group?: string;
   phone: string; whatsapp: string; additionalPhones?: string[]; email: string; address: string; followUpDate: string; history: string;
-  processCategories?: string[]; processTypes?: string[]; processSubcategories?: string[]; machineCapabilities?: string[]; materialCapabilities?: string[];
+  processCategories?: string[]; processTypes?: string[]; processSubcategories?: string[];
+  /** Stable Process Directory references selected for this contact; separate from contact-entered text tags. */
+  processDefinitionIds?: string[]; processSubcategoryIds?: string[];
+  machineCapabilities?: string[]; materialCapabilities?: string[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type FollowUpAssignmentRecord = {
@@ -72,7 +85,7 @@ export type ProcessDefinitionRecord = {
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type PlannedCostEntry = {
-  id: string; companyId?: string; poId?: string; componentId?: string; processDefinitionId?: string; companyName?: string; poNumber?: string; componentName: string; componentNumber: string; processType: string; processCategory: string; processSubcategory?: string;
+  id: string; companyId?: string; poId?: string; componentId?: string; processDefinitionId?: string; processSubcategoryId?: string; companyName?: string; poNumber?: string; componentName: string; componentNumber: string; processType: string; processCategory: string; processSubcategory?: string;
   plannedQty: number; unit: "piece" | "set"; plannedRate: number; notes: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
@@ -83,9 +96,9 @@ export type OperationRecord = {
   quantity: number; completed: number; accepted: number; rejected: number;
   ratePerPart: number; actualRatePerPart: number; transportVendorId: string; transportPickup: string; transportDelivery: string;
   transportCost: number; qualityNotes: string; inspectionResult: string; notes: string;
-  paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string;
+  paymentStatus?: "Paid" | "Unpaid"; paidAmount?: number; paymentReference?: string; subcategory?: string; processSubcategoryId?: string;
   executionType?: "Internal" | "Outsourced"; toleranceCategory?: "Standard" | "Precision" | "Close" | "Ultra Precision"; inspectionRequired?: boolean;
-  transportFrom?: string; transportTo?: string; transportVehicleType?: string; transportRouteId?: string;
+  transportFrom?: string; transportTo?: string; transportVehicleType?: string; transportRouteId?: string; transportTripDirection?: "One-way" | "Two-way";
   /** Snapshot of the Process Directory identity colour used by this saved operation. */
   processColor?: string;
   branch: string; parentId: string; relationType?: "subprocess" | "alternate" | "rework"; costIncluded?: boolean; createdAt: string; updatedAt: string; deletedAt?: string;
@@ -108,35 +121,56 @@ export type InspectionMeasurementRecord = {
 };
 export type MaterialRecord = {
   id: string; code: string; name: string; grade: string; unit: string; specification: string;
-  preferredVendorId: string; ratePerUnit: number; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+  preferredVendorId: string; ratePerUnit: number; notes: string;
+  materialType?: string; shapeType?: string; dimensions?: Record<string, number>; dimensionUnit?: "mm" | "inch"; densityKgM3?: number; densityUnit?: "kg/m3" | "g/cm3"; priceUnit?: "kg" | "lb";
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type ComponentPartRecord = {
+  id: string; companyId?: string; componentId: string; partNumber: string; name: string; revision: string; drawingReference: string;
+  shapeType: string; dimensions: Record<string, number>; dimensionUnits: Record<string, string>; materialId: string;
+  vendorIds: string[]; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type MaterialCostEntryRecord = {
+  id: string; scope: "process-map" | "planned-cost"; companyId?: string; poId?: string; poLineId?: string; componentId: string;
+  partId?: string; partNumber: string; partName: string; materialId: string; materialName: string; materialGrade: string; densityKgM3: number;
+  /** Optional route insertion point: blank means procurement before the first manufacturing operation. */
+  anchorOperationId?: string;
+  shapeType: string; dimensions: Record<string, number>; dimensionUnits: Record<string, string>; quantity: number;
+  weightPerPieceKg: number; totalWeightKg: number; priceUnit: "kg" | "lb"; materialRate: number; materialCost: number;
+  cuttingType: string; cuttingBasis: string; cuttingRate: number; cutsPerPiece: number; cuttingHours: number; cuttingCost: number; wastagePercent: number;
+  vendorId: string; givenDate: string; deliveryDate: string; actualDeliveryDate: string; poReference: string; notes: string; currency: "INR";
+  /** Direct material inbound transport; kept separate from material and cutting cost. */
+  transportVendorId?: string; transportFrom?: string; transportTo?: string; transportVehicleType?: string;
+  transportCost?: number; transportPickupAt?: string; transportDeliveryAt?: string; transportStatus?: LifecycleStatus;
+  createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type BomLineRecord = {
   id: string; componentId: string; materialId: string; revision: string; quantityPerPart: number;
   scrapPercent: number; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
-export type StockTransactionKind = "Opening balance" | "Receipt" | "Issue to production" | "WIP transfer" | "Return" | "Rejected" | "Scrap" | "Finished goods receipt" | "Dispatch" | "Adjustment";
 export type MaterialProcessLinkRecord = {
   id: string; companyId: string; poId: string; poLineId: string; componentId: string;
   bomLineId: string; materialId: string; operationId: string; quantityPerPart: number; unit: string;
   flowType: "Material input" | "Consumable" | "WIP transfer" | "Output";
   placement: "before" | "after"; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type StockTransactionKind = "Opening balance" | "Receipt" | "Issue to production" | "WIP transfer" | "Return" | "Rejected" | "Scrap" | "Finished goods receipt" | "Dispatch" | "Adjustment";
 export type InventoryTransactionRecord = {
   id: string; itemType: "material" | "component"; itemId: string; transactionType: StockTransactionKind;
   direction: "in" | "out"; quantity: number; occurredAt: string; reference: string; notes: string;
   companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string; vendorId: string;
-  reversalOfId: string; createdAt: string; createdBy: string;
+  reversalOfId: string; createdAt: string; createdBy: string; updatedAt?: string; deletedAt?: string;
 };
 export type ManufacturingData = {
   updatedAt: string;
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
-  quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
-  materialProcessLinks: MaterialProcessLinkRecord[]; inventoryTransactions: InventoryTransactionRecord[];
+  quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[]; materialProcessLinks: MaterialProcessLinkRecord[];
+  inventoryTransactions: InventoryTransactionRecord[];
   contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
   transportRoutes: TransportRouteRecord[]; transportLegs: ComponentTransportLegRecord[];
   paymentTransactions: PaymentTransactionRecord[]; inspectionMeasurements: InspectionMeasurementRecord[];
-  followUpAssignments: FollowUpAssignmentRecord[];
+  routeRelationships: RouteRelationshipRecord[]; followUpAssignments: FollowUpAssignmentRecord[];
 };
 
 export const nowIso = () => new Date().toISOString();
@@ -148,9 +182,9 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], bomLines: [], materialProcessLinks: [], inventoryTransactions: [],
+  operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
-  followUpAssignments: []
+  routeRelationships: [], followUpAssignments: []
 });
 
 function normaliseData(value: Partial<ManufacturingData> | null | undefined): ManufacturingData {
@@ -167,7 +201,15 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     vendors: Array.isArray(value?.vendors) ? value.vendors : empty.vendors,
     operations: Array.isArray(value?.operations) ? value.operations : empty.operations,
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
-    materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
+    materials: Array.isArray(value?.materials) ? value.materials.map(material => ({
+      ...material,
+      densityKgM3: material.densityKgM3 == null ? undefined : Number(material.densityUnit === "g/cm3" ? Number(material.densityKgM3) * 1000 : material.densityKgM3),
+      densityUnit: "kg/m3" as const,
+      priceUnit: material.priceUnit === "lb" ? "lb" as const : "kg" as const,
+      unit: material.unit || "kg"
+    })) : empty.materials,
+    componentParts: Array.isArray(value?.componentParts) ? value.componentParts : empty.componentParts,
+    materialCostEntries: Array.isArray(value?.materialCostEntries) ? value.materialCostEntries : empty.materialCostEntries,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
     materialProcessLinks: Array.isArray(value?.materialProcessLinks) ? value.materialProcessLinks : empty.materialProcessLinks,
     inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
@@ -178,6 +220,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     transportLegs: Array.isArray(value?.transportLegs) ? value.transportLegs : empty.transportLegs,
     paymentTransactions: Array.isArray(value?.paymentTransactions) ? value.paymentTransactions : empty.paymentTransactions,
     inspectionMeasurements: Array.isArray(value?.inspectionMeasurements) ? value.inspectionMeasurements : empty.inspectionMeasurements,
+    routeRelationships: Array.isArray(value?.routeRelationships) ? value.routeRelationships : empty.routeRelationships,
     followUpAssignments: Array.isArray(value?.followUpAssignments) ? value.followUpAssignments : empty.followUpAssignments
   };
 }
@@ -270,6 +313,8 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     operations: mergeRows(local.operations, remote.operations),
     quotations: mergeRows(local.quotations, remote.quotations),
     materials: mergeRows(local.materials, remote.materials),
+    componentParts: mergeRows(local.componentParts, remote.componentParts),
+    materialCostEntries: mergeRows(local.materialCostEntries, remote.materialCostEntries),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
     materialProcessLinks: mergeRows(local.materialProcessLinks, remote.materialProcessLinks),
     inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
@@ -280,12 +325,14 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     transportLegs: mergeRows(local.transportLegs, remote.transportLegs),
     paymentTransactions: mergeRows(local.paymentTransactions, remote.paymentTransactions),
     inspectionMeasurements: mergeRows(local.inspectionMeasurements, remote.inspectionMeasurements),
+    routeRelationships: mergeRows(local.routeRelationships, remote.routeRelationships),
     followUpAssignments: mergeRows(local.followUpAssignments, remote.followUpAssignments)
   };
 }
 
 function serverConfig() {
   if (typeof window === "undefined") return null;
+  if (window.localStorage.getItem("aximach.storage.mode") === "local-only") return null;
   const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
   const key = window.localStorage.getItem("aximach.scheduler.key") || "";
   if (!base || !key) return null;
@@ -341,6 +388,7 @@ export function useManufacturingData() {
           syncPending = false;
           const localBeforeFetch = readManufacturingData();
           const remote = await getRemote(cfg);
+          if (!serverConfig()) { if (!cancelled) setSyncStatus("local"); return; }
           const localAfterFetch = readManufacturingData();
 
           // An edit made while the network request was in flight must be sent on
@@ -351,6 +399,7 @@ export function useManufacturingData() {
           if (JSON.stringify(merged) !== JSON.stringify(remote)) {
             if (!cancelled) setSyncStatus("syncing");
             const saved = await putRemote(merged, cfg);
+            if (!serverConfig()) { if (!cancelled) setSyncStatus("local"); return; }
             const localAfterPut = readManufacturingData();
             if (JSON.stringify(localAfterPut) !== JSON.stringify(localAfterFetch)) syncPending = true;
             const finalData = mergeManufacturingData(localAfterPut, saved);
@@ -381,8 +430,10 @@ export function useManufacturingData() {
     const syncWhenActive = () => {
       if (document.visibilityState !== "hidden") void syncOnce();
     };
+    const syncWhenModeChanges = () => { void syncOnce(); };
 
     window.addEventListener("aximach-manufacturing-data-updated", refreshLocal as EventListener);
+    window.addEventListener("aximach-storage-mode-change", syncWhenModeChanges);
     window.addEventListener("storage", refreshLocal);
     window.addEventListener("focus", syncWhenActive);
     window.addEventListener("online", syncWhenActive);
@@ -394,6 +445,7 @@ export function useManufacturingData() {
       cancelled = true;
       window.clearInterval(timer);
       window.removeEventListener("aximach-manufacturing-data-updated", refreshLocal as EventListener);
+      window.removeEventListener("aximach-storage-mode-change", syncWhenModeChanges);
       window.removeEventListener("storage", refreshLocal);
       window.removeEventListener("focus", syncWhenActive);
       window.removeEventListener("online", syncWhenActive);
