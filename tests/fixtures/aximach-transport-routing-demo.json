@@ -1,0 +1,296 @@
+{
+  "fixtureName": "AXIMACH one-component multi-route and multi-vehicle transport simulation",
+  "purpose": "Synthetic acceptance data only. Do not import or seed into live manufacturing records.",
+  "synthetic": true,
+  "liveSeed": false,
+  "company": {
+    "id": "demo-company-01",
+    "name": "Demo Precision Works"
+  },
+  "purchaseOrder": {
+    "id": "demo-po-01",
+    "number": "DEMO-PO-001",
+    "companyId": "demo-company-01"
+  },
+  "component": {
+    "id": "demo-component-01",
+    "poId": "demo-po-01",
+    "poLineId": "demo-line-01",
+    "partNumber": "AX-DEMO-HMB-01",
+    "name": "Hydraulic manifold block",
+    "material": "Aluminium 6082-T6",
+    "quantity": 240,
+    "processCostINR": 12800
+  },
+  "vendors": [
+    {
+      "id": "demo-vendor-haul",
+      "company": "Demo Industrial Haulage"
+    },
+    {
+      "id": "demo-vendor-courier",
+      "company": "Demo Precision Courier"
+    },
+    {
+      "id": "demo-vendor-ht",
+      "company": "Demo Heat Treatment Services"
+    },
+    {
+      "id": "demo-vendor-grind",
+      "company": "Demo Grinding Centre"
+    }
+  ],
+  "operations": [
+    {
+      "id": "demo-op-01",
+      "name": "Material identification and blank preparation",
+      "sequence": 1,
+      "branch": "Main route",
+      "relationType": null,
+      "parentId": "",
+      "costIncluded": true,
+      "quantity": 240
+    },
+    {
+      "id": "demo-op-02",
+      "name": "VMC datum milling and pocketing",
+      "sequence": 2,
+      "branch": "Main route",
+      "relationType": null,
+      "parentId": "",
+      "costIncluded": true,
+      "quantity": 240
+    },
+    {
+      "id": "demo-op-03",
+      "name": "Deep-hole drilling and cross ports",
+      "sequence": 3,
+      "branch": "Main route",
+      "relationType": null,
+      "parentId": "",
+      "costIncluded": true,
+      "quantity": 240
+    },
+    {
+      "id": "demo-op-04",
+      "name": "Heat treatment / stress relief",
+      "sequence": 4,
+      "branch": "Main route",
+      "relationType": null,
+      "parentId": "",
+      "costIncluded": true,
+      "quantity": 240
+    },
+    {
+      "id": "demo-op-05",
+      "name": "Cylindrical grinding",
+      "sequence": 5,
+      "branch": "Main route",
+      "relationType": null,
+      "parentId": "",
+      "costIncluded": true,
+      "quantity": 240
+    },
+    {
+      "id": "demo-op-06",
+      "name": "Pressure and CMM inspection",
+      "sequence": 6,
+      "branch": "Main route",
+      "relationType": null,
+      "parentId": "",
+      "costIncluded": true,
+      "quantity": 240
+    },
+    {
+      "id": "demo-op-07",
+      "name": "Alternate supplier grinding",
+      "sequence": 7,
+      "branch": "Alternate grinding vendor",
+      "relationType": "alternate",
+      "parentId": "demo-op-04",
+      "costIncluded": false,
+      "quantity": 240
+    }
+  ],
+  "transportRoutes": [
+    {
+      "id": "demo-route-01",
+      "vendorId": "demo-vendor-haul",
+      "fromLocation": "Raw material store",
+      "toLocation": "VMC machine shop",
+      "vehicleType": "4-wheeler",
+      "tripDirection": "One-way",
+      "fixedAmount": 750
+    },
+    {
+      "id": "demo-route-02",
+      "vendorId": "demo-vendor-haul",
+      "fromLocation": "VMC machine shop",
+      "toLocation": "Deep-hole subcontractor",
+      "vehicleType": "Mini truck",
+      "tripDirection": "One-way",
+      "fixedAmount": 900
+    },
+    {
+      "id": "demo-route-03",
+      "vendorId": "demo-vendor-ht",
+      "fromLocation": "Heat treatment vendor",
+      "toLocation": "Grinding centre",
+      "vehicleType": "Heavy-duty 4-wheeler",
+      "tripDirection": "Two-way",
+      "fixedAmount": 1100
+    },
+    {
+      "id": "demo-route-04",
+      "vendorId": "demo-vendor-courier",
+      "fromLocation": "Grinding centre",
+      "toLocation": "CMM laboratory",
+      "vehicleType": "2-wheeler",
+      "tripDirection": "Two-way",
+      "fixedAmount": 250
+    },
+    {
+      "id": "demo-route-05",
+      "vendorId": "demo-vendor-haul",
+      "fromLocation": "CMM laboratory",
+      "toLocation": "Assembly and finished-goods store",
+      "vehicleType": "Light commercial vehicle",
+      "tripDirection": "One-way",
+      "fixedAmount": 600
+    },
+    {
+      "id": "demo-route-06",
+      "vendorId": "demo-vendor-grind",
+      "fromLocation": "Alternate grinding supplier",
+      "toLocation": "CMM laboratory",
+      "vehicleType": "3-wheeler",
+      "tripDirection": "Two-way",
+      "fixedAmount": 480
+    }
+  ],
+  "transportLegs": [
+    {
+      "id": "demo-leg-01",
+      "routeId": "demo-route-01",
+      "vendorId": "demo-vendor-haul",
+      "componentId": "demo-component-01",
+      "poId": "demo-po-01",
+      "poLineId": "demo-line-01",
+      "sequence": 1,
+      "fromLocation": "Raw material store",
+      "toLocation": "VMC machine shop",
+      "vehicleType": "4-wheeler",
+      "tripDirection": "One-way",
+      "fixedAmount": 750,
+      "tripCount": 1,
+      "anchorOperationId": "",
+      "placement": "start",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-leg-02",
+      "routeId": "demo-route-02",
+      "vendorId": "demo-vendor-haul",
+      "componentId": "demo-component-01",
+      "poId": "demo-po-01",
+      "poLineId": "demo-line-01",
+      "sequence": 2,
+      "fromLocation": "VMC machine shop",
+      "toLocation": "Deep-hole subcontractor",
+      "vehicleType": "Mini truck",
+      "tripDirection": "One-way",
+      "fixedAmount": 900,
+      "tripCount": 1,
+      "anchorOperationId": "demo-op-02",
+      "placement": "after",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-leg-03",
+      "routeId": "demo-route-03",
+      "vendorId": "demo-vendor-ht",
+      "componentId": "demo-component-01",
+      "poId": "demo-po-01",
+      "poLineId": "demo-line-01",
+      "sequence": 3,
+      "fromLocation": "Heat treatment vendor",
+      "toLocation": "Grinding centre",
+      "vehicleType": "Heavy-duty 4-wheeler",
+      "tripDirection": "Two-way",
+      "fixedAmount": 1100,
+      "tripCount": 1,
+      "anchorOperationId": "demo-op-04",
+      "placement": "after",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-leg-04",
+      "routeId": "demo-route-04",
+      "vendorId": "demo-vendor-courier",
+      "componentId": "demo-component-01",
+      "poId": "demo-po-01",
+      "poLineId": "demo-line-01",
+      "sequence": 4,
+      "fromLocation": "Grinding centre",
+      "toLocation": "CMM laboratory",
+      "vehicleType": "2-wheeler",
+      "tripDirection": "Two-way",
+      "fixedAmount": 250,
+      "tripCount": 2,
+      "anchorOperationId": "demo-op-05",
+      "placement": "before",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-leg-05",
+      "routeId": "demo-route-05",
+      "vendorId": "demo-vendor-haul",
+      "componentId": "demo-component-01",
+      "poId": "demo-po-01",
+      "poLineId": "demo-line-01",
+      "sequence": 5,
+      "fromLocation": "CMM laboratory",
+      "toLocation": "Assembly and finished-goods store",
+      "vehicleType": "Light commercial vehicle",
+      "tripDirection": "One-way",
+      "fixedAmount": 600,
+      "tripCount": 1,
+      "anchorOperationId": "demo-op-06",
+      "placement": "after",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-leg-06",
+      "routeId": "demo-route-06",
+      "vendorId": "demo-vendor-grind",
+      "componentId": "demo-component-01",
+      "poId": "demo-po-01",
+      "poLineId": "demo-line-01",
+      "sequence": 6,
+      "fromLocation": "Alternate grinding supplier",
+      "toLocation": "CMM laboratory",
+      "vehicleType": "3-wheeler",
+      "tripDirection": "Two-way",
+      "fixedAmount": 480,
+      "tripCount": 1,
+      "anchorOperationId": "demo-op-07",
+      "placement": "after",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    }
+  ],
+  "expected": {
+    "mainRouteTransportCostINR": 3850,
+    "alternateBranchTransportCostINR": 480,
+    "mainRouteTripCount": 6,
+    "uniqueMainRouteVehicleTypes": 5,
+    "allTransportLegsShareOneComponent": true,
+    "transportCostIsSeparateFromProcessCost": true,
+    "processCostINR": 12800
+  }
+}

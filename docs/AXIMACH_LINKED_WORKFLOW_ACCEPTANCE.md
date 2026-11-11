@@ -50,3 +50,18 @@ The machine-readable process/category/sub-process fixture is in [tests/fixtures/
 ## Manual device acceptance still required
 
 Automated tests and CI verify source contracts, type-checking, web packaging, Windows installation/launch and Android APK generation. They do not certify touch hit-targets, visual depth sorting, real-device WebGL fallback, print-to-PDF rendering, Excel image rendering, or PC-to-Android round-trip sync. Those checks must be completed in the deployed browser/PC and Android app before release approval.
+
+
+## Multi-route / multi-transport demonstration — isolated fixture
+
+The fixture `tests/fixtures/aximach-transport-routing-demo.json` is a synthetic hydraulic-manifold example and is not loaded into the live workspace. One component line follows VMC machining, deep-hole subcontracting, heat treatment, grinding and inspection, with separate transport legs before/after the relevant operations. The alternate grinding supplier has its own anchored transport leg and remains excluded while that branch is inactive.
+
+Acceptance checks:
+- All legs retain the same component, PO and PO-line IDs while each route, vendor and anchor operation resolves independently.
+- The route graph and Manufacturing Universe show a vehicle-specific icon at the leg's placement; selecting it opens the stored route, vendor, vehicle, direction, trip count, snapshot rate and amount.
+- Vehicle categories retain distinct icon/colour identities in Transport Directory and the linked route views.
+- Main-route transport cost is ₹3,850 in the fixture; alternate-branch transport is ₹480 and is included only when that branch is activated. Transport remains separate from process cost.
+- Portrait layout exposes a vertically scrollable step rail on the left; route cards stack compactly. Full-screen attempts a landscape orientation lock where the browser permits it and otherwise requests manual rotation.
+- No synthetic company, PO, component, vendor, operation or transport route is inserted into live local/shared data.
+
+Automated coverage is in `tests/aximach-transport-route-demo.test.mjs`. Browser/device acceptance (portrait, landscape, fullscreen orientation support, touch hit targets and popup placement) remains a physical-device check.
