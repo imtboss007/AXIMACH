@@ -218,6 +218,8 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
   const materialLinksAt = (operationId:string,placement:"before"|"after") => materialLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
   const renderMaterialLink = (link:MaterialProcessLinkRecord) => { const material=materials.find(row=>row.id===link.materialId); return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={componentQuantity} partLabel={materialPartLabels?.[link.id]} selected={selectedMaterialLinkId===link.id} onSelect={()=>onSelectMaterialLink?.(link.id)}/>:null; };
   const transportFor = (operationId:string,placement:"before"|"after") => (transportLegs||[]).filter(leg=>!leg.materialEntryId&&leg.anchorOperationId===operationId&&leg.placement===placement);
+  const firstMainOperationId = displayOperations.filter(operation=>(operation.branch||"Main route")==="Main route").slice().sort((a,b)=>a.sequence-b.sequence)[0]?.id||displayOperations.slice().sort((a,b)=>a.sequence-b.sequence)[0]?.id||"";
+  const transportAtStart = (operationId:string) => (transportLegs||[]).filter(leg=>!leg.materialEntryId&&leg.placement==="start"&&(leg.anchorOperationId?leg.anchorOperationId===operationId:operationId===firstMainOperationId));
   const renderTransportLeg = (leg:TransportLegRouteNode) => <TransportLegNodeMarker key={leg.id} leg={leg} onSelect={onSelectTransportLeg}/>;
 
   const expandedOrbitOperation = lookupOperations.find(operation => operation.id === expandedOperationId) || displayOperations.find(operation => operation.id === expandedOperationId);
@@ -469,6 +471,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
               const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
               const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
               return <div className="process-universe-node-wrap" key={operation.id}>
+                {transportAtStart(operation.id).map(renderTransportLeg)}
                 {materialLinksAt(operation.id,"before").map(renderMaterialLink)}
                 {transportFor(operation.id,"before").map(renderTransportLeg)}
                 <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (expanded ? " is-expanded" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{"--process-accent":accent} as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(operation.id); }} aria-pressed={active} aria-expanded={expanded} aria-controls={"process-universe-node-details-"+operation.id} title={"Open " + operation.name + " operation record"}>
