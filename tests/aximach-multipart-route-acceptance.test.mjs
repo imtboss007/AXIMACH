@@ -95,7 +95,7 @@ test("Process Map, Route Flow and Manufacturing Universe keep part-scoped materi
   const universe = source("ProcessUniverse3D.tsx");
   const workspace = source("ManufacturingUniverseWorkspace.tsx");
   assert.ok(processMap.includes("componentMaterialProcessLinks"));
-  assert.ok(processMap.includes("linkedBom?.partId===selectedPart.id"));
+  assert.ok(processMap.includes("linkedBom.partId===selectedPart.id"));
   assert.ok(processMap.includes("materialProcessPartLabels"));
   assert.ok(routeFlow.includes("materialProcessPartLabels"));
   assert.ok(routeFlow.includes("leg.poLineId===linePick"));
@@ -154,6 +154,6 @@ test("Manufacturing Universe exposes export formats, field visibility and a tran
   const graph = source("ProcessUniverse3D.tsx");
   for (const format of ["svg","png","pdf","csv","json"]) assert.ok(universe.includes('value="' + format + '"'));
   assert.ok(universe.includes("visibleUniverseFields"));
-  assert.ok(graph.includes("TransportRecordInspector"));
-  assert.ok(graph.includes("MaterialTransportRecordInspector"));
+  assert.ok(universe.includes("TransportRecordInspector"));
+  assert.ok(universe.includes("MaterialTransportRecordInspector"));
 });
