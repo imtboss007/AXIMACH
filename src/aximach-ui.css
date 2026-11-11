@@ -2626,7 +2626,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .route-flow-matrix-row strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#3c5878;font-size:8px}
 .route-flow-matrix-row em{font-style:normal;color:#7c91aa;white-space:nowrap}
 .route-flow-matrix-empty{padding:9px;border-radius:7px;background:#f4f8fd;color:#8a9bb0;font-size:8px;line-height:1.5}
-.route-flow-stage-scroll{min-height:540px;max-height:72vh;display:flex;align-items:center;overflow:auto}
+.route-flow-stage-scroll{min-height:540px;max-height:72vh;display:flex;align-items:flex-start;overflow:auto}
 .route-flow-stage-track{align-items:center;min-height:430px}
 .route-flow-stage-card{width:212px;min-height:190px}
 .route-flow-curve{flex-basis:124px;width:124px}
