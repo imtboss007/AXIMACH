@@ -139,7 +139,12 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
       </div>
       <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>{showCatalogueOrbit ? "SELECT A DIRECTORY NODE TO CREATE A PO-LINE OPERATION" : "SELECT A PROCESS NODE TO OPEN ITS RECORD"}</span><span>SIMULATION IS VISUAL ONLY</span></div>
     </div>
-    <div className="process-universe-viewport"><div className="process-universe-stage" style={stageStyle}>
+    <div className="process-universe-viewport">
+      <nav className="process-universe-index" aria-label="Jump to manufacturing operation">
+        <strong>STEPS</strong>
+        {displayOperations.length>0 ? displayOperations.map(operation=><button type="button" key={operation.id} onClick={()=>onSelectOperation(operation.id)} aria-label={"Go to operation "+operation.sequence+": "+operation.name}><b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span></button>) : processDefinitions.map((definition,index)=><button type="button" key={definition.id} onClick={()=>onAddProcessDefinition?.(definition.id)} aria-label={"Add "+definition.processType}><b>{String(index+1).padStart(2,"0")}</b><span>{definition.processType}</span></button>)}
+      </nav>
+      <div className="process-universe-stage" style={stageStyle}>
       {lanes.map(lane => <section className={"process-universe-lane" + (lane.alternate ? " is-branch " + (lane.branchRelation==="rework"?"is-rework":"is-alternate") : "")} key={lane.name}>
         <div className="process-universe-lane-label"><span className="process-universe-branch-icon">{lane.alternate ? <GitBranch size={15}/> : <Workflow size={15}/>}</span><span><strong>{lane.name}</strong><small>{lane.alternate ? (lane.branchRelation==="rework"?"Rework branch":"Alternate route") + (lane.parent ? " · connected from OP-" + String(lane.parent.sequence).padStart(3,"0") + " " + lane.parent.name : "") : "Primary manufacturing route"}</small></span><em>{lane.rows.length} STEP{lane.rows.length === 1 ? "" : "S"}</em></div>
         {lane.alternate && lane.branchRoot && <div className={"process-universe-branch-link " + (lane.branchRelation==="rework"?"is-rework":"is-alternate")}><span>OP-{String(lane.parent?.sequence||0).padStart(3,"0")} · {lane.parent?.name||"Parent operation"}</span><ArrowRight size={16} style={{color:lane.branchRelation==="rework"?"#e38b45":"#4b95eb"}}/><strong>{lane.rows[0]?.name||lane.name}</strong><small>{lane.branchRelation==="rework"?"REWORK BRANCH":"ALTERNATE ROUTE"}</small></div>}

@@ -1905,3 +1905,24 @@
  .transport-demo-costs strong{font-size:11px}
  .transport-demo-toolbar button{font-size:8px;padding:6px}
 }
+
+
+/* Portrait navigation rails are shared across arrow flow, node map and Manufacturing Universe. */
+.linked-process-index,.process-universe-index{display:none}
+.linked-process-page .linked-node-scroll{min-width:0}
+@media (orientation:portrait) and (max-width:900px){
+  .linked-process-page .linked-node-scroll{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:start;gap:8px}
+  .linked-process-index,.process-universe-index{position:sticky;top:8px;display:flex;flex-direction:column;gap:4px;max-height:min(62vh,520px);min-width:0;overflow-y:auto;overflow-x:hidden;padding:5px 3px;border:1px solid rgba(94,163,204,.28);border-radius:8px;background:#071a2b;scrollbar-width:thin;scrollbar-gutter:stable}
+  .linked-process-index>strong,.process-universe-index>strong{position:sticky;top:0;padding:4px 1px;background:#071a2b;color:#8eb4ce;font-size:7px;letter-spacing:.08em;text-align:center}
+  .linked-process-index>button,.process-universe-index>button{display:grid;gap:2px;justify-items:center;min-width:0;min-height:34px;padding:4px 2px;border:1px solid rgba(120,166,201,.2);border-radius:6px;background:#0d2940;color:#d8eaff}
+  .linked-process-index>button b,.process-universe-index>button b{color:#76c4ea;font:700 8px 'DM Mono'}
+  .linked-process-index>button span,.process-universe-index>button span{display:-webkit-box;max-width:34px;overflow:hidden;-webkit-line-clamp:2;-webkit-box-orient:vertical;color:#a4bdd2;font-size:6px;line-height:1.15;text-align:center;overflow-wrap:anywhere}
+  .linked-process-page .linked-node-scroll>.linked-route-lanes{min-width:0;width:100%}
+  .process-universe-viewport{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:start;gap:8px;max-width:100%;overflow:auto}
+  .process-universe-index{max-height:min(62vh,520px)}
+  .process-universe-stage{min-width:0!important;width:100%!important;max-width:100%;transform-origin:top left}
+}
+@media (orientation:landscape) and (max-height:560px){
+  .linked-process-index,.process-universe-index{display:none!important}
+}
+.linked-route-canvas:fullscreen .linked-process-index,.linked-route-canvas:fullscreen .process-universe-index{display:none!important}

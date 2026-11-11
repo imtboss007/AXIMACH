@@ -68,3 +68,14 @@ test("Module Universe cards remain compact and scroll within the viewport", () =
   assert.ok(styles.includes(".module-universe .universe-card{min-height:76px"));
   assert.ok(styles.includes("orientation:landscape) and (max-height:600px"));
 });
+
+test("portrait operation navigation is available in Route Flow, node Process Map and Manufacturing Universe", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(workspace.includes('className="process-route-index"'));
+  assert.ok(workspace.includes('className="linked-process-index"'));
+  assert.ok(universe.includes('className="process-universe-index"'));
+  assert.match(css, /linked-node-scroll\{display:grid;grid-template-columns:42px minmax\(0,1fr\)/);
+  assert.match(css, /process-universe-viewport\{display:grid;grid-template-columns:42px minmax\(0,1fr\)/);
+});
