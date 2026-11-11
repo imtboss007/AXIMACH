@@ -107,6 +107,8 @@ test("every transport category keeps a unique stable colour in Process Map, Rout
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
   const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const transportInspector = readFileSync(new URL("../src/TransportRecordInspector.tsx", import.meta.url), "utf8");
+  const materialInspector = readFileSync(new URL("../src/MaterialTransportRecordInspector.tsx", import.meta.url), "utf8");
   const visualBlock = visuals.slice(visuals.indexOf("export function getVehicleVisual"), visuals.indexOf("export function VehicleIcon"));
   const colors = [...visualBlock.matchAll(/color: "(#[A-Fa-f0-9]+)"/g)].map(match => match[1]);
   assert.equal(colors.length, 12, "11 supported vehicle categories plus one fallback identity must have colours");
@@ -116,6 +118,8 @@ test("every transport category keeps a unique stable colour in Process Map, Rout
   assert.ok(scene.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
   assert.ok(scene.includes("<VehicleTypeIcon vehicleType={leg.vehicleType}"));
   assert.ok(routeFlow.includes("<VehicleTypeIcon vehicleType={vehicleType}"));
+  assert.ok(transportInspector.includes("<VehicleTypeIcon vehicleType={leg.vehicleType}"));
+  assert.ok(materialInspector.includes('<VehicleTypeIcon vehicleType={entry.transportVehicleType||""}'));
 });
 
 test("Manufacturing Universe does not render a material-entry transport leg twice", () => {
