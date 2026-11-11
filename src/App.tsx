@@ -838,6 +838,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     setApiUrl("");
     setConnected(false);
     setStorageMode("local-only");
+    window.dispatchEvent(new Event("aximach-storage-mode-change"));
     setLanInfo(null);
     setApiError("");
     onNotice("Local-only storage is active on this device. Manufacturing records remain in this device's local storage. The PC server and its data are not deleted; reconnect to the same shared server to resume cross-device sync.");
