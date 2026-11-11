@@ -817,6 +817,21 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     const timer=window.setInterval(()=>void verify(),10000);
     return()=>{cancelled=true;window.clearInterval(timer);};
   },[apiUrl,apiKey]);
+  const prepareSharedPcServer=async()=>{
+    if(window.location.protocol!=="file:"&&window.location.protocol!=="aximach:"){
+      onNotice("Enter the PC's private Wi-Fi server URL and API key, then press Connect / refresh shared data.");
+      return;
+    }
+    setBusy(true);setApiError("");
+    try{
+      const response=await fetch("http://127.0.0.1:8787/api/connection-info",{cache:"no-store"});
+      const info=await response.json();
+      if(!response.ok||!info.apiKey||!Array.isArray(info.addresses))throw new Error("The PC shared-data server is not ready. Keep AXIMACH running on the PC and try again.");
+      setLanInfo(info);setApiUrl("http://127.0.0.1:8787");setApiKey(info.apiKey);
+      onNotice("PC shared-server details loaded. Use a displayed LAN address and this API key on Android, then press Connect / refresh shared data.");
+    }catch(error){setApiError(error instanceof Error?error.message:"Could not load the PC shared-server details.");}
+    finally{setBusy(false);}
+  };
   const useLocalOnly=()=>{
     window.localStorage.setItem("aximach.storage.mode","local-only");
     window.localStorage.removeItem("aximach.scheduler.url");
@@ -838,7 +853,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMMUNICATION / CRM</div><h1>Follow-up centre<span>.</span></h1><p>Contacts, one-time and recurring individual messages, server schedules and send logs.</p></div><button className="button-quiet" onClick={downloadContacts} disabled={!contacts.length}><FileDown size={15}/> Export contacts CSV</button></div>
     <section className="surface-panel followup-list-panel scheduler-connect-panel"><div className="panel-heading"><div><h3><Plug size={17}/> Scheduler connection</h3><p>Connect to your PC-hosted private Wi-Fi server or a deployed AXIMACH server.</p></div><span className={"module-number "+(connected?"scheduler-connected":"")}>{connected?"CONNECTED":"NOT CONNECTED"}</span></div>
       <div className="scheduler-connect-form"><label>Shared AXIMACH data server URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="http://192.168.x.x:8787 (same Wi-Fi) or HTTPS server"/></label><label>API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label><button className="button-primary" disabled={busy||!apiUrl.trim()||!apiKey.trim()} onClick={connect}>{busy?"Connecting…":"Connect / refresh shared data"}</button><button type="button" className="button-quiet" disabled={busy||storageMode==="local-only"} onClick={useLocalOnly}>Use local-only on this device</button></div>
-      <div className="module-safety-note"><ShieldCheck size={15}/><span><strong>Manufacturing storage mode: {storageMode==="local-only"?"LOCAL ONLY · THIS DEVICE":connected?"SHARED SERVER · CONNECTED":"SHARED SERVER · NOT CONNECTED"}.</strong> Local-only data is saved on this device and does not synchronize. Shared mode synchronizes devices using the same server URL and API key. This build does not include a cloud account/login service; cloud account sync needs a separately configured account backend.</span>{storageMode==="local-only"&&<button type="button" className="button-quiet compact-button" onClick={()=>{setApiUrl((window.location.protocol==="aximach:"||window.location.protocol==="file:")?"http://127.0.0.1:8787":apiUrl);setApiError("Enter the shared server URL and API key, then choose Connect / refresh shared data.");}}>Set up shared sync</button>}</div>
+      <div className="module-safety-note"><ShieldCheck size={15}/><span><strong>Manufacturing storage mode: {storageMode==="local-only"?"LOCAL ONLY · THIS DEVICE":connected?"SHARED SERVER · CONNECTED":"SHARED SERVER · NOT CONNECTED"}.</strong> Local-only data is saved on this device and does not synchronize. Shared mode synchronizes devices using the same server URL and API key. This build does not include a cloud account/login service; cloud account sync needs a separately configured account backend.</span>{storageMode==="local-only"&&<button type="button" className="button-quiet compact-button" onClick={()=>void prepareSharedPcServer()}>Set up shared sync</button>}</div>
       {apiError&&<div className="scheduler-error"><ShieldAlert size={15}/>{apiError}</div>}
       <div className="module-safety-note"><ShieldCheck size={15}/><span>Use one shared server URL and API key on both devices. A Windows-installed AXIMACH can host the private server: keep the PC and this Android device on the same Wi-Fi, keep AXIMACH running on the PC, then enter one of the PC LAN addresses below on Android (not localhost). Public HTTP is blocked; HTTPS and private LAN HTTP only are allowed. Keep the API key private.</span></div>
       {lanInfo&&<div className="aximach-lan-share">
