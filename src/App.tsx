@@ -1027,7 +1027,7 @@ function mergeModuleRecordSets(local: Record<string, ModuleRecord[]>, remote: Re
   }
   return merged;
 }
-function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModule }: { module: ModuleItem; onBack: () => void; onNotice: (value: string) => void; onOpenModules: () => void; onSelectModule: (id: string) => void }) {
+function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModule }: { module: ModuleItem; onBack: () => void; onNotice: (value: string) => void; onOpenModules: () => void; onSelectModule: (id: string, context?: LinkedNavigationContext) => void }) {
   const Icon = module.icon;
   const profile = moduleProfiles[module.id] ?? defaultProfile;
   const { data: linkedManufacturing, update: updateLinkedManufacturing } = useManufacturingData();
