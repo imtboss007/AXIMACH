@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { ScreenOrientation } from "@capacitor/screen-orientation";
+import { ScreenOrientation as CapacitorScreenOrientation } from "@capacitor/screen-orientation";
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
@@ -189,11 +189,11 @@ function App() {
   const [orientationHintDismissed,setOrientationHintDismissed] = useState(false);
   const requestLandscapeOrientation = async ():Promise<boolean> => {
     try {
-      await ScreenOrientation.lock({ orientation: "landscape-primary" });
+      await CapacitorScreenOrientation.lock({ orientation: "landscape-primary" });
       return true;
     } catch {
       try {
-        const browserOrientation = window.screen?.orientation as ScreenOrientation & { lock?: (orientation:"landscape-primary")=>Promise<void> };
+        const browserOrientation = window.screen?.orientation as unknown as { lock?: (orientation:"landscape-primary")=>Promise<void> };
         if (!browserOrientation?.lock) return false;
         await browserOrientation.lock("landscape-primary");
         return true;
@@ -207,7 +207,7 @@ function App() {
     setOrientationHintDismissed(false);
     if (!needsLandscapeOrientation || !window.matchMedia("(max-width: 900px)").matches) {
       setOrientationLockUnavailable(false);
-      void ScreenOrientation.unlock().catch(() => undefined);
+      void CapacitorScreenOrientation.unlock().catch(() => undefined);
       return;
     }
     setOrientationLockUnavailable(false);
@@ -218,7 +218,7 @@ function App() {
       disposed = true;
       // Release the temporary landscape lock only when the user leaves all
       // landscape-first manufacturing workspaces.
-      if (needsLandscapeOrientation) void ScreenOrientation.unlock().catch(() => undefined);
+      if (needsLandscapeOrientation) void CapacitorScreenOrientation.unlock().catch(() => undefined);
     };
   },[needsLandscapeOrientation]);
   const retryLandscapeOrientation = async () => {
