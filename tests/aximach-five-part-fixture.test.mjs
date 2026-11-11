@@ -2377,6 +2377,7 @@ test("local-only storage mode takes precedence over any saved server URL/key", (
   assert.ok(data.includes('window.localStorage.getItem("aximach.storage.mode") === "local-only"'));
   assert.ok(data.includes('window.addEventListener("aximach-storage-mode-change", syncWhenModeChanges)'));
   assert.ok(data.includes('if (!serverConfig()) { if (!cancelled) setSyncStatus("local"); return; }'));
+  assert.equal((data.match(/if \(!serverConfig\(\)\) \{ if \(!cancelled\) setSyncStatus\("local"\); return; \}/g)||[]).length,2,"sync checks mode after both remote read and write");
   assert.ok(data.includes("if (window.localStorage.getItem(\"aximach.storage.mode\") === \"local-only\") return null;"));
 });
 
