@@ -5,13 +5,14 @@ import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
 import TransportRecordInspector from "./TransportRecordInspector";
 import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector";
+import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { transportPopupAnchor } from "./transportPopup";
 import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
 import { Activity, ArrowLeft, ArrowRight, Bike, Box, Bus, CarFront, Check, ChevronDown, CircleDashed, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, GitMerge, GitPullRequest, Link2, MessageCircle, Network, Package, Plane, Plus, Route, Save, ShieldCheck, Ship, Sparkles, Split, TrainFront, Truck, Users, Waypoints, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
-  type ComponentTransportLegRecord, type OperationRecord, type RouteRelationshipRecord,
+  type ComponentTransportLegRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type RouteRelationshipRecord,
   type RouteRelationshipType, type RouteRelationshipStatus
 } from "./manufacturingData";
 
@@ -40,6 +41,7 @@ type FlowNode =
  | {kind:"material";id:string;entry:any}
  | {kind:"material-transport";id:string;entry:any}
  | {kind:"transport";id:string;leg:ComponentTransportLegRecord}
+ | {kind:"material-process";id:string;link:MaterialProcessLinkRecord}
  | {kind:"operation";id:string;operation:OperationRecord}
  | {kind:"missing-material";id:string};
 
@@ -79,6 +81,7 @@ export default function RouteFlowWorkspace({initialContext,onBack,onNotice,notic
   const {data,update,syncStatus}=useManufacturingData();
   const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),vendors=activeRows(data.vendors);
   const operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),legs=activeRows(data.transportLegs||[]);
+  const materialMaster=activeRows(data.materials||[]),materialProcessLinks=activeRows(data.materialProcessLinks||[]);
   const routes=activeRows(data.transportRoutes||[]);
   const [companyPick,setCompanyPick]=useState(initialContext?.companyId||"");
   const [poPick,setPoPick]=useState(initialContext?.poId||"");
@@ -107,6 +110,7 @@ export default function RouteFlowWorkspace({initialContext,onBack,onNotice,notic
   const mapViewportRef=useRef<HTMLDivElement|null>(null);
   const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
   const [inspectedTransportId,setInspectedTransportId]=useState("");
+  const [selectedMaterialLinkId,setSelectedMaterialLinkId]=useState("");
   const [inspectedMaterialTransportId,setInspectedMaterialTransportId]=useState("");
   const [transportPopupPoint,setTransportPopupPoint]=useState<{x:number;y:number}>({x:8,y:8});
   const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
@@ -136,6 +140,7 @@ export default function RouteFlowWorkspace({initialContext,onBack,onNotice,notic
   const branch=branches.includes(branchPick)?branchPick:"Main route";
   const lane=routeOperations.filter(row=>(row.branch||"Main route")===branch);
   const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(!entry.poLineId||entry.poLineId===poLineId)&&(!entry.poId||entry.poId===poId)&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  const routeMaterialProcessLinks=materialProcessLinks.filter(link=>link.poId===poId&&link.poLineId===poLineId&&link.componentId===componentId&&lane.some(operation=>operation.id===link.operationId));
   const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&(!leg.anchorOperationId&&!leg.targetOperationId||lane.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
   const inspectedTransportLeg=routeLegs.find(leg=>leg.id===inspectedTransportId);
   const inspectedTransportVendor=inspectedTransportLeg?vendors.find(vendor=>vendor.id===inspectedTransportLeg.vendorId):undefined;
@@ -161,12 +166,14 @@ export default function RouteFlowWorkspace({initialContext,onBack,onNotice,notic
     lane.forEach(operation=>{
       routeLegs.filter(leg=>!leg.materialEntryId&&leg.targetOperationId===operation.id&&!lane.some(row=>row.id===leg.anchorOperationId)).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
       routeLegs.filter(leg=>!leg.materialEntryId&&leg.placement==="before"&&leg.anchorOperationId===operation.id).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+      routeMaterialProcessLinks.filter(link=>link.operationId===operation.id&&link.placement==="before").forEach(link=>nodes.push({kind:"material-process",id:"material-process-"+link.id,link}));
       nodes.push({kind:"operation",id:operation.id,operation});
+      routeMaterialProcessLinks.filter(link=>link.operationId===operation.id&&link.placement==="after").forEach(link=>nodes.push({kind:"material-process",id:"material-process-"+link.id,link}));
       routeLegs.filter(leg=>!leg.materialEntryId&&(leg.placement||"after")==="after"&&leg.anchorOperationId===operation.id).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
       routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(addMaterial);
     });
     return nodes;
-  },[routeMaterials,routeLegs,lane]);
+  },[routeMaterials,routeLegs,lane,routeMaterialProcessLinks]);
   const transportChoices = [
     ...routes.filter(route=>route.active!==false).map(route=>({
       id:route.id,vendorId:route.vendorId,fromLocation:route.fromLocation,toLocation:route.toLocation,
@@ -257,6 +264,7 @@ export default function RouteFlowWorkspace({initialContext,onBack,onNotice,notic
     const nodeDetails=(node:FlowNode):string[]=>{
       if(node.kind==="operation")return [node.operation.name,node.operation.category+" · "+(node.operation.subcategory||"No sub-process"),"Qty "+node.operation.quantity+" · "+(vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned"),money(node.operation.quantity*(node.operation.actualRatePerPart||node.operation.ratePerPart))+" process amount","Start "+dateTime(node.operation.plannedStart),"Due "+dateTime(node.operation.plannedEnd)];
       if(node.kind==="material")return [node.entry.materialName+" · "+node.entry.materialGrade,node.entry.partNumber||node.entry.partName||"Component material",node.entry.shapeType+" · Qty "+node.entry.quantity,"Weight "+Number(node.entry.totalWeightKg||0).toFixed(3)+" kg","Supplier "+(vendors.find(v=>v.id===node.entry.vendorId)?.company||"Not assigned"),money(node.entry.materialCost)+" material"];
+      if(node.kind==="material-process"){const material=materialMaster.find(row=>row.id===node.link.materialId);return ["Material → "+(material?.name||"Material"),material?.grade||"Grade not specified",node.link.flowType+" · "+node.link.placement,node.link.quantityPerPart+" "+node.link.unit+" / part","BOM "+node.link.bomLineId,"Operation "+node.link.operationId];}
       if(node.kind==="material-transport")return ["Inbound material transport",vendors.find(v=>v.id===node.entry.transportVendorId)?.company||"Transporter not assigned",(node.entry.transportFrom||"Pickup")+" → "+(node.entry.transportTo||"Destination"),node.entry.transportVehicleType||"Vehicle not set","Pickup "+dateTime(node.entry.transportPickupAt),"Delivery "+dateTime(node.entry.transportDeliveryAt)];
       if(node.kind==="transport")return ["Transport · "+node.leg.tripDirection,vendors.find(v=>v.id===node.leg.vendorId)?.company||"Transporter not assigned",node.leg.fromLocation+" → "+node.leg.toLocation,node.leg.vehicleType+" · "+node.leg.tripCount+" trip(s)",money(node.leg.fixedAmount*node.leg.tripCount),"Pickup "+dateTime(node.leg.pickupAt)+" · Due "+dateTime(node.leg.deliveryAt)];
       return ["Material allocation missing","Create a material / grade allocation before production."];
@@ -392,13 +400,14 @@ export default function RouteFlowWorkspace({initialContext,onBack,onNotice,notic
           <button type="button" className="ax-map-zoom-fit" onClick={()=>setRouteZoom(.82)} title="Fit route">Fit</button>
         </div>
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:
-      <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<div className="route-flow-stage-track" data-route-layout={routeLayout}>
+      <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<nav className="route-flow-index" aria-label="Jump to process operation"><strong>STEPS</strong>{routeOperations.map((operation,index)=><button type="button" key={operation.id} onClick={()=>{document.querySelector(`[data-route-operation-id="${operation.id}"]`)?.scrollIntoView({behavior:"smooth",block:"center"});setFromOperationId(operation.id);setToOperationId(operation.id);}}><b>{String(index+1).padStart(2,"0")}</b><span>{operation.name}</span></button>)}</nav><div className="route-flow-stage-track" data-route-layout={routeLayout}>
         {routeNodes.map((node,index)=>{
           const connector=index<routeNodes.length-1?connectorFor(index):null;
           const NodeVehicleIcon=node.kind==="transport"?vehicleIconFor(node.leg.vehicleType):node.kind==="material-transport"?vehicleIconFor(node.entry.transportVehicleType||""):Truck;
           return <div className="route-flow-stage-wrap" key={node.id}>
             <article className={"route-flow-stage-card route-flow-stage-"+node.kind} data-route-operation-id={node.kind==="operation"?node.operation.id:undefined}>
               {node.kind==="material"&&<><div className="route-flow-node-top"><Package size={18}/><small>MANDATORY MATERIAL STAGE</small></div><strong>{node.entry.materialName} · {node.entry.materialGrade}</strong><span>{node.entry.partNumber||node.entry.partName||"Component-level allocation"} · {node.entry.shapeType}</span><span>{node.entry.quantity} pieces · {Number(node.entry.totalWeightKg||0).toFixed(3)} kg</span><span>Supplier: {vendors.find(v=>v.id===node.entry.vendorId)?.company||"Not assigned"}</span><em>{money(node.entry.materialCost)} material · {money(node.entry.cuttingCost)} cutting</em><small>Given {dateTime(node.entry.givenDate)} · Due {dateTime(node.entry.deliveryDate)}</small><button onClick={openProcessMap}>Edit material <ArrowRight size={12}/></button></>}
+              {node.kind==="material-process"&&<div className="route-flow-material-process-marker">{(()=>{const material=materialMaster.find(row=>row.id===node.link.materialId);return material?<MaterialFlowMarker link={node.link} material={material} componentQuantity={line?.quantity||0} selected={selectedMaterialLinkId===node.link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===node.link.id?"":node.link.id)}/>:<small>Material link target missing</small>;})()}</div>}
               {node.kind==="material-transport"&&<button type="button" className={"ax-transport-icon-trigger vehicle-"+vehicleClassFor(node.entry.transportVehicleType||"")} aria-label="Open inbound material transport popup" title={(node.entry.transportVehicleType||"Vehicle")+" · "+(node.entry.transportFrom||"Pickup")+" → "+(node.entry.transportTo||"Destination")} onClick={event=>{setInspectedMaterialTransportId(node.entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><NodeVehicleIcon size={20}/></button>}
               {node.kind==="transport"&&<button type="button" className={"ax-transport-icon-trigger vehicle-"+vehicleClassFor(node.leg.vehicleType)} aria-label="Open transport leg popup" title={(node.leg.vehicleType||"Vehicle")+" · "+node.leg.fromLocation+" → "+node.leg.toLocation} onClick={event=>{setInspectedTransportId(node.leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><NodeVehicleIcon size={20}/></button>}
               {node.kind==="operation"&&<><div className="route-flow-node-top"><Factory size={18}/><small>OP-{String(node.operation.sequence).padStart(3,"0")} · {node.operation.status}</small></div><strong>{node.operation.name}</strong><span>{node.operation.category} · {node.operation.subcategory||"Sub-process not selected"}</span><span>Qty {node.operation.quantity} · {vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned"}</span><em>{money(node.operation.quantity*(node.operation.actualRatePerPart||node.operation.ratePerPart))} process amount</em><small>Start {dateTime(node.operation.plannedStart)} · Due {dateTime(node.operation.plannedEnd)}</small><button onClick={()=>setEditingOperation(node.operation)}>Edit here <ArrowRight size={12}/></button></>}
