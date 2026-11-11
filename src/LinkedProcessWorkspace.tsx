@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type MaterialProcessLinkRecord, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 import { TransportLegMarker } from "./TransportVehicle";
+import { MaterialFlowMarker } from "./MaterialFlowMarker";
+import { RouteConnectorLegend } from "./RouteConnectorLegend";
 import TransportRoutingDemo from "./TransportRoutingDemo";
 
-type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
+type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
 type ProcessExportField = "company" | "po" | "component" | "componentNumber" | "operation" | "category" | "subcategory" | "execution" | "description" | "vendor" | "transportVendor" | "transportRoute" | "vehicle" | "quantity" | "quantityUnit" | "completed" | "rejected" | "status" | "tolerance" | "inspection" | "paymentStatus" | "paidAmount" | "plannedStart" | "plannedEnd" | "price" | "transportCost" | "amount";
 const DEFAULT_PROCESS_COLOR = "#6fa9e5";
@@ -46,6 +48,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const processDefinitions = activeRows(data.processDefinitions);
   const transportRoutes = activeRows(data.transportRoutes || []);
   const allTransportLegs = activeRows(data.transportLegs || []);
+  const materials = activeRows(data.materials || []);
+  const allMaterialProcessLinks = activeRows(data.materialProcessLinks || []);
 
   const [companyId, setCompanyId] = useState("");
   const [poId, setPoId] = useState("");
@@ -60,6 +64,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [routeFullscreen, setRouteFullscreen] = useState(false);
   const [showTransportDemo, setShowTransportDemo] = useState(false);
   const [selectedTransportLegId, setSelectedTransportLegId] = useState("");
+  const [selectedMaterialLinkId, setSelectedMaterialLinkId] = useState("");
   const routeCanvasRef = useRef<HTMLElement | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -165,11 +170,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     || processDefinitions.find(item => item.processType === draft.name && item.category === draft.category);
   const routeOperations = operations.filter(op => op.poLineId === poLineId && op.poId === poId && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const componentTransportLegs = allTransportLegs.filter(leg => leg.poLineId === poLineId && leg.poId === poId && leg.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
+  const componentMaterialProcessLinks = allMaterialProcessLinks.filter(link=>link.poLineId===poLineId&&link.poId===poId&&link.componentId===selectedLine?.componentId);
   const selectedTransportDirectoryRoute = transportRoutes.find(route => route.id === transportRouteId);
   const transportVendorName = (vendorId: string) => vendors.find(vendor => vendor.id === vendorId)?.company || "Vendor not linked";
   const renderTransportLeg = (leg: ComponentTransportLegRecord) => <TransportLegMarker key={leg.id} leg={leg}
-    vendorName={transportVendorName(leg.vendorId)} selected={selectedTransportLegId === leg.id}
-    onSelect={() => setSelectedTransportLegId(current => current === leg.id ? "" : leg.id)} />;
+    vendorName={transportVendorName(leg.vendorId)} routeRecord={transportRoutes.find(route=>route.id===leg.routeId)}
+    selected={selectedTransportLegId === leg.id} onSelect={() => setSelectedTransportLegId(current => current === leg.id ? "" : leg.id)} />;
+  const materialLinksAt = (operationId:string,placement:"before"|"after") => componentMaterialProcessLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
+  const renderMaterialLink = (link:MaterialProcessLinkRecord) => { const material=materials.find(row=>row.id===link.materialId); return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={selectedLine?.quantity||0} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":id)}/>:null; };
   const transportLegsAt = (operationId: string, placement: "before" | "after") =>
     componentTransportLegs.filter(leg => leg.anchorOperationId === operationId && (leg.placement || "after") === placement);
   const startTransportLegs = componentTransportLegs.filter(leg => !leg.anchorOperationId || leg.placement === "start");
@@ -1003,7 +1011,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const selectedVendor = vendors.find(v => v.id === activeOperation?.vendorId);
   const selectedOperationQuotations = componentQuotes.filter(q => q.operationId === activeOperation?.id);
   const deliveryState = !finalDelivery ? "No delivery date" : allDone ? "Route complete" : lateOps.length ? "At risk" : "Scheduled";
-  const tab = (id: string, title: string, Icon: typeof Workflow) => <button key={id} className={"route-tab " + (id === "process-map" ? "route-tab-current" : "")} onClick={() => id === "process-map" ? undefined : onSelectModule(id === "components" ? "components" : id === "purchasing" ? "purchasing" : id === "inventory" ? "inventory" : id === "costing" ? "costing" : id === "documents" ? "engineering-change" : id === "history" ? "reports" : "quality")}><Icon size={14}/>{title}</button>;
+  const tab = (id: string, title: string, Icon: typeof Workflow) => <button key={id} className={"route-tab " + (id === "process-map" ? "route-tab-current" : "")} onClick={() => id === "process-map" ? undefined : id === "inventory" ? onSelectModule("inventory",{companyId:selectedPO?.companyId,poId,poLineId,componentId:selectedLine?.componentId,operationId:activeOperation?.id,subtab:"process-links"}) : onSelectModule(id === "components" ? "components" : id === "purchasing" ? "purchasing" : id === "costing" ? "costing" : id === "documents" ? "engineering-change" : id === "history" ? "reports" : "quality")}><Icon size={14}/>{title}</button>;
 
   return <section className="workspace-page linked-process-page">
     {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
@@ -1255,6 +1263,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 const nodeColor=processColor;
                 const routeArrowColor=rework?REWORK_ROUTE_COLOR:branchRoot||branch!=="Main route"?ALTERNATE_ROUTE_COLOR:processColor;
                 return <div className="process-route-flow-step" key={operation.id}>
+                  {materialLinksAt(operation.id,"before").map(renderMaterialLink)}
                   {transportLegsAt(operation.id,"before").map(renderTransportLeg)}
                   <button type="button" data-route-operation-id={operation.id} className={activeOperation?.id===operation.id?"is-selected":""} style={{borderColor:nodeColor}} onClick={()=>focusRouteOperation(operation.id)} title={"Select "+operation.name+" · OP-"+operation.sequence}>
                     <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={<Workflow size={16}/>}/>
@@ -1262,16 +1271,18 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                     <em style={{background:nodeColor}}>{operation.category||"Process"}</em>
                   </button>
                   {transportLegsAt(operation.id,"after").map(renderTransportLeg)}
-                  {index<lane.length-1&&<span className="process-route-flow-arrow" style={{color:routeArrowColor}}><ArrowRight size={20}/></span>}
+                  {materialLinksAt(operation.id,"after").map(renderMaterialLink)}
+                  {index<lane.length-1&&<span className={"process-route-flow-arrow route-connector "+(rework?"route-connector-rework":branchRoot||branch!=="Main route"?"route-connector-alternate":"route-connector-main")} style={{color:routeArrowColor}}><ArrowRight size={20}/></span>}
                 </div>;
               })}</div>
             </div>;
           })}
             </div>
           </div>
+          <RouteConnectorLegend/>
         </section>}
         {["sphere","vortex","combined"].includes(visualStyle) && (exportOperations.length > 0 || (routeOperations.length===0 && processDefinitions.length > 0))
-          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} transportLegs={componentTransportLegs} transportVendors={vendors.map(vendor=>({id:vendor.id,company:vendor.company}))} selectedTransportLegId={selectedTransportLegId} onSelectTransportLeg={id=>setSelectedTransportLegId(current=>current===id?"":id)} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={focusRouteOperation} onAddSubprocess={startAddSubprocess} onAddProcessDefinition={startAddDefinition} /></div>
+          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} transportLegs={componentTransportLegs} transportRoutes={transportRoutes} transportVendors={vendors.map(vendor=>({id:vendor.id,company:vendor.company}))} materialLinks={componentMaterialProcessLinks} materials={materials} componentQuantity={selectedLine?.quantity||0} selectedMaterialLinkId={selectedMaterialLinkId} onSelectMaterialLink={id=>setSelectedMaterialLinkId(current=>current===id?"":id)} selectedTransportLegId={selectedTransportLegId} onSelectTransportLeg={id=>setSelectedTransportLegId(current=>current===id?"":id)} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={focusRouteOperation} onAddSubprocess={startAddSubprocess} onAddProcessDefinition={startAddDefinition} /></div>
           : visualStyle==="gantt" && exportOperations.length ? <div className="process-gantt-view">
               <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {exportOperations.length} operations in {exportScopeLabel}</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
               {exportOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));const branch=op.branch||"Main route";const color=processAccent(op);const routeColor=branchAccent(op);return <div className={"process-gantt-row "+(branch==="Main route"?"":"is-branch")} key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small><i style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:routeColor,marginRight:5}}/>{branch} · {shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%",backgroundColor:color}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
