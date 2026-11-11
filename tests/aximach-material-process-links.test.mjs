@@ -221,3 +221,21 @@ test("Legacy Process Map allocations and transport legs are not copied into ambi
   assert.ok(routeFlow.includes("componentGlobalLineCount===1"));
   assert.ok(routeFlow.includes("componentLineCount===1"));
 });
+
+test("Save & Add Another Material retains the same part identity and physical dimensions", () => {
+  const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  assert.ok(panel.includes('if(part){\n      setTarget("part");setNewPartMode(false);setPartId(part.id);setPartName(part.name);setPartNumber(part.partNumber);'));
+  assert.ok(panel.includes('setDimensions(Object.fromEntries(Object.entries(part.dimensions||{}).map(([key,value])=>[key,String(value)])));'));
+  assert.ok(panel.includes('setDimensionUnits(part.dimensionUnits||{});'));
+  assert.ok(panel.includes('Save & Add Another Material'));
+});
+
+test("All Material Directory tabs share linked-record filters and show the part belonging to each process-link BOM", () => {
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes('const visibleTransactions = useMemo'));
+  assert.ok(inventory.includes('return companyMatch&&poMatch&&componentMatch'));
+  assert.ok(inventory.includes('(!directoryComponentId || link.componentId===directoryComponentId)'));
+  assert.ok(inventory.includes('materialLinkPoLineKey || link.poId'));
+  assert.ok(inventory.includes('const part=bom?.partId?'));
+  assert.ok(inventory.includes('Part "+(part.partNumber?part.partNumber+" ":"")+part.name'));
+});
