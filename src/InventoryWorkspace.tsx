@@ -145,10 +145,14 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const materialLinkOperations = materialLinkSelection
     ? operations.filter(op => op.poId === materialLinkSelection.po.id && op.poLineId === materialLinkSelection.line.id && op.componentId === materialLinkSelection.line.componentId && !op.deletedAt)
     : [];
-  const visibleMaterialProcessLinks = materialProcessLinks.filter(link =>
-    (!materialLinkPoLineKey || link.poId+"::"+link.poLineId === materialLinkPoLineKey)
-    && (!search.trim() || [link.id,link.flowType,link.placement,link.notes,link.quantityPerPart,materials.find(m=>m.id===link.materialId)?.code,materials.find(m=>m.id===link.materialId)?.name,operations.find(op=>op.id===link.operationId)?.name].join(" ").toLowerCase().includes(search.toLowerCase().trim()))
-  );
+  const visibleMaterialProcessLinks = materialProcessLinks.filter(link => {
+    const linkedPO=orders.find(po=>po.id===link.poId);
+    return (!materialLinkPoLineKey || link.poId+"::"+link.poLineId === materialLinkPoLineKey)
+      && (!directoryCompanyId || link.companyId===directoryCompanyId || linkedPO?.companyId===directoryCompanyId)
+      && (!directoryPoId || link.poId===directoryPoId)
+      && (!directoryComponentId || link.componentId===directoryComponentId)
+      && (!search.trim() || [link.id,link.flowType,link.placement,link.notes,link.quantityPerPart,materials.find(m=>m.id===link.materialId)?.code,materials.find(m=>m.id===link.materialId)?.name,operations.find(op=>op.id===link.operationId)?.name].join(" ").toLowerCase().includes(search.toLowerCase().trim()));
+  });
   const selectedMaterialLinkBom = materialLinkBomOptions.find(row => row.id === materialLinkBomLineId);
   const selectedMaterialLinkMaterial = materials.find(row => row.id === selectedMaterialLinkBom?.materialId);
   const resetMaterialLink = () => { setMaterialLinkEditingId(""); setMaterialLinkBomLineId(""); setMaterialLinkOperationId(""); setMaterialLinkQuantityPerPart(""); setMaterialLinkFlowType("Material input"); setMaterialLinkPlacement("before"); setMaterialLinkNotes(""); };
@@ -241,8 +245,21 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   }), [bomLines, components, data.componentParts, materials, orders, search, directoryCompanyId, directoryPoId, directoryComponentId]);
   const visibleTransactions = useMemo(() => inventoryTransactions.filter(row => {
     const item = row.itemType === "material" ? materials.find(m => m.id === row.itemId) : components.find(c => c.id === row.itemId);
-    return (item?.name + " " + ("code" in (item || {}) ? (item as MaterialRecord).code : (item as any)?.partNumber) + " " + row.transactionType + " " + row.reference + " " + row.notes + " " + row.occurredAt + " " + row.quantity).toLowerCase().includes(search.toLowerCase().trim());
-  }).slice().sort((a,b) => b.occurredAt.localeCompare(a.occurredAt) || b.createdAt.localeCompare(a.createdAt)), [inventoryTransactions, materials, components, search]);
+    const po=orders.find(order=>order.id===row.poId);
+    const poLine=po?.lines.find(line=>line.id===row.poLineId);
+    const materialBomLinks=row.itemType==="material"?bomLines.filter(bom=>bom.materialId===row.itemId):[];
+    const materialPartLinks=row.itemType==="material"?(data.componentParts||[]).filter(part=>part.materialId===row.itemId||part.materialIds?.includes(row.itemId)):[];
+    const linkedComponentIds=new Set<string>(row.itemType==="component"?[row.itemId]:[
+      ...materialBomLinks.map(bom=>bom.componentId),
+      ...materialPartLinks.map(part=>part.componentId)
+    ]);
+    const linkedPOs=orders.filter(order=>order.lines.some(line=>linkedComponentIds.has(line.componentId)&&(!line.partId||materialBomLinks.some(bom=>!bom.partId||bom.partId===line.partId)||materialPartLinks.some(part=>part.id===line.partId))));
+    const companyMatch=!directoryCompanyId||row.companyId===directoryCompanyId||po?.companyId===directoryCompanyId||linkedPOs.some(order=>order.companyId===directoryCompanyId)||[...linkedComponentIds].some(id=>components.find(component=>component.id===id)?.companyId===directoryCompanyId);
+    const poMatch=!directoryPoId||row.poId===directoryPoId||(!row.poId&&linkedPOs.some(order=>order.id===directoryPoId));
+    const componentMatch=!directoryComponentId||linkedComponentIds.has(directoryComponentId)||poLine?.componentId===directoryComponentId;
+    const query=(item?.name+" "+("code" in (item||{})?(item as MaterialRecord).code:(item as any)?.partNumber)+" "+row.transactionType+" "+row.reference+" "+row.notes+" "+row.occurredAt+" "+row.quantity).toLowerCase();
+    return companyMatch&&poMatch&&componentMatch&&(!search.trim()||query.includes(search.toLowerCase().trim()));
+  }).slice().sort((a,b) => b.occurredAt.localeCompare(a.occurredAt) || b.createdAt.localeCompare(a.createdAt)), [inventoryTransactions, materials, components, orders, bomLines, data.componentParts, search, directoryCompanyId, directoryPoId, directoryComponentId]);
   const linkedMaterialContexts = (materialId: string) => {
     const contexts: string[] = [];
     for (const entry of (data.materialCostEntries || []).filter(row => row.materialId === materialId && !row.deletedAt)) {
