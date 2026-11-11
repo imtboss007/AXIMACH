@@ -2375,6 +2375,8 @@ test("Dedicated Manufacturing Universe advances, pauses and resets the visual ro
 test("local-only storage mode takes precedence over any saved server URL/key", () => {
   const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
   assert.ok(data.includes('window.localStorage.getItem("aximach.storage.mode") === "local-only"'));
+  assert.ok(data.includes('window.addEventListener("aximach-storage-mode-change", syncWhenModeChanges)'));
+  assert.ok(data.includes('if (!serverConfig()) { if (!cancelled) setSyncStatus("local"); return; }'));
   assert.ok(data.includes("if (window.localStorage.getItem(\"aximach.storage.mode\") === \"local-only\") return null;"));
 });
 
