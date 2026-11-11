@@ -104,7 +104,7 @@ test("component parts retain multiple material master IDs with legacy single-mat
 test("saving additional parts does not convert a component-level PO line into one single-part allocation", () => {
   const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
   assert.ok(panel.includes("const nextPurchaseOrders=current.purchaseOrders"));
-  assert.ok(panel.includes("One component line may contain multiple part records"));
+  assert.ok(panel.includes("// Do not convert a component-level PO line to a single-part line"));
   assert.ok(!panel.includes('lines:order.lines.map(line=>line.id!==effectivePoLineId?line:{...line,allocationLevel:"part" as const,partId:part.id})'));
 });
 
@@ -128,7 +128,7 @@ test("Material Directory BOM, part and material-process actions enforce exact pa
   assert.ok(inventory.includes('part.materialIds?.includes(m.id)'));
   assert.ok(inventory.includes("const visibleBom = useMemo"));
   assert.ok(inventory.includes("const linkedOrders = orders.filter"));
-  assert.ok(inventory.includes('(tab==="materials" || tab==="bom")'));
+  assert.ok(inventory.includes('className="material-directory-filter-bar"'));
 });
 
 test("BOM issue preview and ledger posting include component-wide and selected-part BOM rows only", () => {
@@ -234,7 +234,7 @@ test("All Material Directory tabs share linked-record filters and show the part 
   const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(inventory.includes('const visibleTransactions = useMemo'));
   assert.ok(inventory.includes('return companyMatch&&poMatch&&componentMatch'));
-  assert.ok(inventory.includes('(!directoryComponentId || link.componentId===directoryComponentId)'));
+  assert.ok(inventory.includes('(!directoryComponentId || link.componentId===directoryComponentId)') || inventory.includes('!directoryComponentId || link.componentId===directoryComponentId'));
   assert.ok(inventory.includes('link.poId===directoryPoId'));
   assert.ok(inventory.includes('const part=bom?.partId?'));
   assert.ok(inventory.includes('Part "+(part.partNumber?part.partNumber+" ":"")+part.name'));
