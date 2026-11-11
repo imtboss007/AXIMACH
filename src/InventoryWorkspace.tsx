@@ -229,9 +229,16 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   }), [materials, search, bomLines, data.componentParts, data.materialCostEntries, orders, components, inventoryTransactions, directoryCompanyId, directoryPoId, directoryComponentId]);
   const visibleBom = useMemo(() => bomLines.filter(row => {
     const component = components.find(c => c.id === row.componentId);
+    const part = row.partId ? (data.componentParts || []).find(item => item.id === row.partId) : undefined;
     const material = materials.find(m => m.id === row.materialId);
-    return (component?.partNumber + " " + component?.name + " " + material?.code + " " + material?.name + " " + row.revision + " " + row.notes).toLowerCase().includes(search.toLowerCase().trim());
-  }), [bomLines, components, materials, search]);
+    const linkedOrders = orders.filter(po => po.lines.some(line => line.componentId === row.componentId && (!line.partId || !row.partId || line.partId === row.partId)));
+    const query = (component?.partNumber + " " + component?.name + " " + part?.partNumber + " " + part?.name + " " + material?.code + " " + material?.name + " " + row.revision + " " + row.notes).toLowerCase();
+    const textMatch = !search.trim() || query.includes(search.toLowerCase().trim());
+    const companyMatch = !directoryCompanyId || component?.companyId === directoryCompanyId || linkedOrders.some(po => po.companyId === directoryCompanyId);
+    const poMatch = !directoryPoId || linkedOrders.some(po => po.id === directoryPoId);
+    const componentMatch = !directoryComponentId || row.componentId === directoryComponentId;
+    return textMatch && companyMatch && poMatch && componentMatch;
+  }), [bomLines, components, data.componentParts, materials, orders, search, directoryCompanyId, directoryPoId, directoryComponentId]);
   const visibleTransactions = useMemo(() => inventoryTransactions.filter(row => {
     const item = row.itemType === "material" ? materials.find(m => m.id === row.itemId) : components.find(c => c.id === row.itemId);
     return (item?.name + " " + ("code" in (item || {}) ? (item as MaterialRecord).code : (item as any)?.partNumber) + " " + row.transactionType + " " + row.reference + " " + row.notes + " " + row.occurredAt + " " + row.quantity).toLowerCase().includes(search.toLowerCase().trim());
@@ -417,7 +424,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       <button className={tab==="process-links"?"costing-tab-active":""} onClick={()=>{setTab("process-links");setSearch("");}}><Activity size={15}/> Material → process ({materialProcessLinks.length})</button>
     </div>
     <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={tab==="materials"?"Search material, grade, type, shape, dimension…":tab==="bom"?"Search component, material, revision…":"Search item, movement, reference…"} /></label><span className="module-number">{tab==="materials"?visibleMaterials.length+" / "+materials.length+" MATERIALS":tab==="bom"?bomLines.length+" BOM LINES":inventoryTransactions.length+" POSTED MOVEMENTS"}</span></div>
-     {tab==="materials" && <div className="material-directory-filter-bar" aria-label="Filter material directory by linked records">
+     {(tab==="materials" || tab==="bom") && <div className="material-directory-filter-bar" aria-label="Filter material directory by linked records">
        <label>Company<select value={directoryCompanyId} onChange={e=>{setDirectoryCompanyId(e.target.value);setDirectoryPoId("");}}><option value="">All companies</option>{companies.map(company=><option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
        <label>Purchase order<select value={directoryPoId} onChange={e=>{setDirectoryPoId(e.target.value);setDirectoryComponentId("");}}><option value="">All purchase orders</option>{directoryPoOptions.map(po=><option key={po.id} value={po.id}>{po.number}</option>)}</select></label>
        <label>Component<select value={directoryComponentId} onChange={e=>setDirectoryComponentId(e.target.value)}><option value="">All components</option>{directoryComponentOptions.map(component=><option key={component.id} value={component.id}>{component.partNumber} · {component.name}</option>)}</select></label>
