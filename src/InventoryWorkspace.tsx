@@ -103,12 +103,13 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   };
   const saveMaterialLink = () => {
     const selection = bomIssuePoLineOptions.find(row=>row.id===materialLinkPoLineKey);
+    const selectedComponent = selection?.component;
     const bom = bomLines.find(row=>row.id===materialLinkBomLineId&&!row.deletedAt);
     const operation = materialLinkOperations.find(row=>row.id===materialLinkOperationId);
     const material = bom ? materials.find(row=>row.id===bom.materialId&&!row.deletedAt) : undefined;
     const quantity = Number(materialLinkQuantityPerPart);
-    if (!selection?.component || !bom || !material || bom.componentId!==selection.component.id || (bom.revision && bom.revision!==selection.component.revision)) { onNotice("Select a BOM material belonging to the exact PO component revision."); return; }
-    if (!operation || operation.poId!==selection.po.id || operation.poLineId!==selection.line.id || operation.componentId!==selection.component.id) { onNotice("Select a process operation from this exact PO component line."); return; }
+    if (!selection || !selectedComponent || !bom || !material || bom.componentId!==selectedComponent.id || (bom.revision && bom.revision!==selectedComponent.revision)) { onNotice("Select a BOM material belonging to the exact PO component revision."); return; }
+    if (!operation || operation.poId!==selection.po.id || operation.poLineId!==selection.line.id || operation.componentId!==selectedComponent.id) { onNotice("Select a process operation from this exact PO component line."); return; }
     if (!Number.isFinite(quantity)||quantity<=0) { onNotice("Material quantity per part must be a positive finite number."); return; }
     const duplicate = materialProcessLinks.find(link=>link.id!==materialLinkEditingId&&link.poLineId===selection.line.id&&link.bomLineId===bom.id&&link.operationId===operation.id&&link.flowType===materialLinkFlowType&&link.placement===materialLinkPlacement&&!link.deletedAt);
     if (duplicate) { onNotice("This BOM material is already linked to that process and position. Edit the existing link instead."); return; }
@@ -117,7 +118,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       const old=current.materialProcessLinks.find(link=>link.id===materialLinkEditingId);
       const record:MaterialProcessLinkRecord={
         id:materialLinkEditingId||makeId("material-process-link"), companyId:selection.po.companyId, poId:selection.po.id,
-        poLineId:selection.line.id, componentId:selection.component.id, bomLineId:bom.id, materialId:material.id,
+        poLineId:selection.line.id, componentId:selectedComponent.id, bomLineId:bom.id, materialId:material.id,
         operationId:operation.id, quantityPerPart:quantity, unit:material.unit, flowType:materialLinkFlowType,
         placement:materialLinkPlacement, notes:materialLinkNotes.trim(), createdAt:old?.createdAt||stamp, updatedAt:stamp
       };
