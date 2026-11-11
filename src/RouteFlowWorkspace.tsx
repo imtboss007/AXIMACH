@@ -47,7 +47,6 @@ type FlowNode =
  | {kind:"missing-material";id:string};
 
 function vehicleClassFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike"; if(/bus/.test(type))return "bus"; if(/car|taxi|auto|three.wheeler/.test(type))return "car"; if(/air|plane|flight/.test(type))return "air"; if(/ship|boat|vessel/.test(type))return "ship"; if(/train|rail/.test(type))return "rail"; return "truck"}
-function vehicleIconFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type)) return Bike; if(/bus/.test(type)) return Bus; if(/car|taxi|auto|three.wheeler/.test(type)) return CarFront; if(/air|plane|flight/.test(type)) return Plane; if(/ship|boat|vessel/.test(type)) return Ship; if(/train|rail/.test(type)) return TrainFront; return Truck; }
 
 function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,transportLegId,materialTransportId,layout="orthogonal",onTransportClick}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number;transportLegId?:string;materialTransportId?:string;layout?:RouteLayoutMode;onTransportClick?:(id:string,kind:"leg"|"material",element:HTMLElement)=>void}) {
   const style=transport?"transport":type;
