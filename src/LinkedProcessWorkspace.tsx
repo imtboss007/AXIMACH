@@ -9,14 +9,18 @@ import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 import TransportRecordInspector from "./TransportRecordInspector";
 import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector";
 import { transportPopupAnchor, transportPopupAnchorFromPoint } from "./transportPopup";
-import { RouteLayoutPicker, RouteConnectorLegend as RouteLayoutConnectorPicker, useRouteLayout } from "./RouteLayoutPicker";
+import { RouteLayoutPicker, RouteConnectorLegend as RouteLayoutConnectorLegend, useRouteLayout } from "./RouteLayoutPicker";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
-import { RouteConnectorLegend } from "./RouteConnectorLegend";
+import { RouteConnectorLegend as MaterialRouteConnectorLegend } from "./RouteConnectorLegend";
 import TransportRoutingDemo from "./TransportRoutingDemo";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
 type ProcessExportField = "company" | "po" | "component" | "componentNumber" | "operation" | "category" | "subcategory" | "execution" | "machine" | "description" | "vendor" | "transportVendor" | "transportRoute" | "vehicle" | "quantity" | "quantityUnit" | "completed" | "rejected" | "status" | "tolerance" | "inspection" | "paymentStatus" | "paidAmount" | "plannedStart" | "plannedEnd" | "price" | "transportCost" | "transportLegCost" | "amount" | "combinedAmount";
+function RouteConnectorLegend({compact=false}:{compact?:boolean}) {
+  return compact ? <RouteLayoutConnectorLegend compact/> : <MaterialRouteConnectorLegend/>;
+}
+
 type ProcessCardField = "category"|"subcategory"|"execution"|"machine"|"vendor"|"plannedStart"|"plannedEnd"|"actualStart"|"actualEnd"|"quantity"|"completed"|"accepted"|"rejected"|"price"|"amount"|"status"|"transportVendor"|"transportRoute"|"vehicle"|"transportPickup"|"transportDelivery"|"transportLegCost"|"combinedAmount"|"company"|"po"|"component"|"materialShape"|"materialDensity"|"materialQuantity"|"materialWeight"|"materialVendor"|"materialGiven"|"materialDelivery"|"materialReceived"|"materialCost"|"materialCuttingCost"|"materialTransportCost";
 const DEFAULT_PROCESS_COLOR = "#6fa9e5";
 const ALTERNATE_ROUTE_COLOR = "#4b95eb";
@@ -1549,7 +1553,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                   routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(appendMaterial);
                   materialLinksAt(operation.id,"after").forEach(link=>routeNodes.push({kind:"material-process-link",id:"material-process-link-"+link.id,link}));
                 });
-                return <><nav className="process-route-index" aria-label="Jump to route operation"><strong>STEPS</strong>{lane.map((operation,index)=><button type="button" key={operation.id} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} aria-label={"Go to operation "+(index+1)+": "+operation.name}><b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span></button>)}</nav><div className="process-route-layout-toolbar"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><RouteLayoutConnectorPicker compact/><RouteConnectorLegend/></div><div className="process-route-flow-track" data-route-layout={routeLayout}>{routeNodes.map((item,index)=>{
+                return <><nav className="process-route-index" aria-label="Jump to route operation"><strong>STEPS</strong>{lane.map((operation,index)=><button type="button" key={operation.id} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} aria-label={"Go to operation "+(index+1)+": "+operation.name}><b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span></button>)}</nav><div className="process-route-layout-toolbar"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><RouteConnectorLegend compact/><RouteConnectorLegend/></div><div className="process-route-flow-track" data-route-layout={routeLayout}>{routeNodes.map((item,index)=>{
                   const next=routeNodes[index+1];
                   const isTransport=item.kind==="transport"||item.kind==="material-transport"||next?.kind==="transport"||next?.kind==="material-transport";
                   const fromOperation=item.kind==="operation"?item.operation:undefined;
@@ -1592,7 +1596,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                     const TransportIcon=transportVehicleIcon(leg.vehicleType);
                     return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
                       <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(leg.vehicleType)} aria-label="Open transport popup" title={(leg.vehicleType||"Vehicle")+" · "+(leg.fromLocation||"From")+" → "+(leg.toLocation||"To")} onClick={event=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><TransportIcon size={20}/></button>
-                      {next&&<span className={"linked-node-arrow route-connector process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}><ArrowRight size={20}/></span>}
+                      {next&&<span className={"process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}><ArrowRight size={20}/></span>}
                     </div>;
                   }
                   const operation=item.operation as OperationRecord;
