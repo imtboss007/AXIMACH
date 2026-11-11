@@ -130,7 +130,7 @@ function startLocalServices({ includeWhatsApp = true } = {}) {
     AXIMACH_DATA_FILE: process.env.AXIMACH_DATA_FILE || path.join(serverDir, "aximach.json"),
     AXIMACH_ALLOWED_ORIGINS: CLIENT_ORIGINS,
   }, "AXIMACH shared-data server");
-  if (includeWhatsApp && !whatsappBridge) whatsappBridge = spawnLocalService(path.join(appRoot, "server", "whatsapp-web.mjs"),
+  if (includeWhatsApp && !whatsappBridge) whatsappBridge = spawnLocalService(path.join(appRoot, "server", "whatsapp-web.mjs"), {
     WA_WEB_PORT: "8789", WA_WEB_HOST: "0.0.0.0",
     AXIMACH_API_KEY: sharedApiKey, AXIMACH_ALLOWED_ORIGINS: CLIENT_ORIGINS,
     WA_WEB_DATA_FILE: path.join(whatsappDir, "whatsapp-web-lan.json"),
