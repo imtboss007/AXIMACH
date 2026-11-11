@@ -17,6 +17,7 @@ export const manufacturingCollections = Object.freeze([
   "plannedCosts",
   "paymentTransactions",
   "inspectionMeasurements",
+  "routeRelationships",
   "followUpAssignments",
   "transportRoutes",
   "transportLegs"
