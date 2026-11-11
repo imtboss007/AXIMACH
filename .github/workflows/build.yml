@@ -102,6 +102,7 @@ jobs:
             $appExe = $candidate.FullName
           }
           $env:AXIMACH_SMOKE_TEST = "1"
+          $env:AXIMACH_DATA_FILE = Join-Path $env:RUNNER_TEMP "AXIMACH-smoke-data.json"
           $env:AXIMACH_SMOKE_LOG = Join-Path $env:RUNNER_TEMP "AXIMACH-startup.log"
           $app = Start-Process -FilePath $appExe -PassThru
           if (-not $app.WaitForExit(25000)) {
@@ -110,8 +111,9 @@ jobs:
             throw "AXIMACH did not complete its renderer watchdog within 25 seconds."
           }
           if (Test-Path $env:AXIMACH_SMOKE_LOG) { Get-Content $env:AXIMACH_SMOKE_LOG }
-          if ($app.ExitCode -ne 0) { throw "AXIMACH renderer smoke test failed with exit code $($app.ExitCode)." }
-          Write-Host "PASS: installed AXIMACH app launched and its React workspace mounted."
+          if ($app.ExitCode -ne 0) { throw "AXIMACH renderer or shared-data server smoke test failed with exit code $($app.ExitCode)." }
+          if (-not (Select-String -Path $env:AXIMACH_SMOKE_LOG -SimpleMatch "shared-data server smoke check:" -Quiet)) { throw "Packaged AXIMACH did not verify its local shared-data server and authenticated read/write path." }
+          Write-Host "PASS: installed AXIMACH app, React workspace and local shared-data server launched; authenticated save/read succeeded."
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
