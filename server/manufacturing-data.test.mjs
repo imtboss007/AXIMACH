@@ -10,7 +10,7 @@ test("server merge covers every manufacturing collection, including follow-up as
     "companies", "factories", "purchaseOrders", "components", "vendors", "operations",
     "quotations", "materials", "componentParts", "materialCostEntries", "bomLines", "materialProcessLinks", "inventoryTransactions", "contactProfiles",
     "processDefinitions", "plannedCosts", "paymentTransactions", "inspectionMeasurements",
-    "followUpAssignments", "transportRoutes", "transportLegs"
+    "routeRelationships", "followUpAssignments", "transportRoutes", "transportLegs"
   ]);
 });
 
