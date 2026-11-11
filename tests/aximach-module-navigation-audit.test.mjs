@@ -125,3 +125,26 @@ test("every literal in-app module navigation target resolves to a registered mod
   assert.deepEqual(invalid, [], "unregistered navigation targets: " + invalid.join(", "));
   assert.ok(read("../src/LinkedProcessWorkspace.tsx").includes('onSelectModule("dispatch"'));
 });
+
+
+test("Manufacturing Universe stat shortcuts and all 20 module directory links resolve to registered modules", () => {
+  const app = read("../src/App.tsx");
+  const catalogueStart = app.indexOf("const modules: ModuleItem[] = [");
+  const catalogueEnd = app.indexOf("\n];", catalogueStart);
+  const catalogue = app.slice(catalogueStart, catalogueEnd);
+  const moduleIds = new Set([...catalogue.matchAll(/\{ id: "([^"]+)"/g)].map(match => match[1]));
+  const validIds = new Set([...moduleIds, "dashboard", "command-centre", "process-map"]);
+  const universe = read("../src/ManufacturingUniverseWorkspace.tsx");
+  const linksStart = universe.indexOf("const linkModules=[");
+  const linksEnd = universe.indexOf("\n  ];", linksStart);
+  const linkBlock = universe.slice(linksStart, linksEnd);
+  const shortcutIds = [...linkBlock.matchAll(/\{id:"([^"]+)"/g)].map(match => match[1]);
+  assert.equal(shortcutIds.length, 20, "Manufacturing Universe should expose all 20 module shortcuts");
+  assert.equal(new Set(shortcutIds).size, 20, "Manufacturing Universe shortcut IDs must be unique");
+  const statsStart = universe.indexOf("const stats=[");
+  const statsEnd = universe.indexOf("\n  ];", statsStart);
+  const statsBlock = universe.slice(statsStart, statsEnd);
+  const statsTargets = [...statsBlock.matchAll(/module:"([^"]+)"/g)].map(match => match[1]);
+  const invalid = [...shortcutIds, ...statsTargets].filter(id => !validIds.has(id));
+  assert.deepEqual(invalid, [], "unregistered Manufacturing Universe destinations: " + invalid.join(", "));
+});
