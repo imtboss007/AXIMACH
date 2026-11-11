@@ -4,6 +4,7 @@ import { Activity, ArrowRight, Bike, Boxes, Bus, CarFront, ClipboardCheck, Cog, 
 import type { MaterialProcessLinkRecord, MaterialRecord, OperationRecord, RouteRelationshipRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
+import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
 import { RouteConnectorLegend as MaterialRouteConnectorLegend } from "./RouteConnectorLegend";
 import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
@@ -23,13 +24,11 @@ type Props = { materialLinks?:MaterialProcessLinkRecord[]; materials?:MaterialRe
 function materialVehicleClassFor(value:string){const type=(value||"").toLowerCase();if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike";if(/bus/.test(type))return "bus";if(/car|taxi|auto|three.wheeler/.test(type))return "car";if(/air|plane|flight/.test(type))return "air";if(/ship|boat|vessel/.test(type))return "ship";if(/train|rail/.test(type))return "rail";return "truck";}
 function materialVehicleIconFor(value:string){const type=(value||"").toLowerCase();if(/bike|motorcycle|scooter|two.wheeler/.test(type))return Bike;if(/bus/.test(type))return Bus;if(/car|taxi|auto|three.wheeler/.test(type))return CarFront;if(/air|plane|flight/.test(type))return Plane;if(/ship|boat|vessel/.test(type))return Ship;if(/train|rail/.test(type))return TrainFront;return Truck;}
 function MaterialRouteTransportMarker({route,onSelect}:{route:MaterialRouteNode;onSelect?:Props["onSelectMaterialTransport"]}){
- const VehicleIcon=materialVehicleIconFor(route.vehicle);
- return <button type="button" className={"ax-transport-icon-trigger process-orbit-material-transport vehicle-"+materialVehicleClassFor(route.vehicle)} aria-label={"Open "+(route.vehicle||"vehicle")+" transport record"} title={(route.vehicle||"Vehicle")+" · "+route.from+" → "+route.to} onClick={event=>{const rect=event.currentTarget.getBoundingClientRect();onSelect?.(route.id,{x:rect.left,y:rect.top});}}><VehicleIcon size={19}/></button>;
+ return <button type="button" className={"ax-transport-icon-trigger process-orbit-material-transport vehicle-"+materialVehicleClassFor(route.vehicle)} aria-label={"Open "+(route.vehicle||"vehicle")+" transport record"} title={(route.vehicle||"Vehicle")+" · "+route.from+" → "+route.to} onClick={event=>{const rect=event.currentTarget.getBoundingClientRect();onSelect?.(route.id,{x:rect.left,y:rect.top});}}><VehicleTypeIcon vehicleType={route.vehicle} size={19}/></button>;
 }
 
 function TransportLegNodeMarker({leg,onSelect}:{leg:TransportLegRouteNode;onSelect?:Props["onSelectTransportLeg"]}){
- const VehicleIcon=materialVehicleIconFor(leg.vehicleType);
- return <button type="button" className={"ax-transport-icon-trigger process-universe-transport-marker vehicle-"+materialVehicleClassFor(leg.vehicleType)} aria-label={"Open "+(leg.vehicleType||"vehicle")+" transport record"} title={(leg.vehicleType||"Vehicle")+" · "+leg.fromLocation+" → "+leg.toLocation} onClick={event=>{const rect=event.currentTarget.getBoundingClientRect();onSelect?.(leg.id,{x:rect.left,y:rect.top});}}><VehicleIcon size={19}/></button>;
+ return <button type="button" className={"ax-transport-icon-trigger process-universe-transport-marker vehicle-"+materialVehicleClassFor(leg.vehicleType)} aria-label={"Open "+(leg.vehicleType||"vehicle")+" transport record"} title={(leg.vehicleType||"Vehicle")+" · "+leg.fromLocation+" → "+leg.toLocation} onClick={event=>{const rect=event.currentTarget.getBoundingClientRect();onSelect?.(leg.id,{x:rect.left,y:rect.top});}}><VehicleTypeIcon vehicleType={leg.vehicleType} size={19}/></button>;
 }
 
 
@@ -219,7 +218,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materials = [], 
   const branchesFor = (parentId: string) => lookupOperations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
   const materialLinksAt = (operationId:string,placement:"before"|"after") => materialLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
   const renderMaterialLink = (link:MaterialProcessLinkRecord) => { const material=materials.find(row=>row.id===link.materialId); return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={componentQuantity} selected={selectedMaterialLinkId===link.id} onSelect={()=>onSelectMaterialLink?.(link.id)}/>:null; };
-  const transportFor = (operationId:string,placement:"before"|"after") => (transportLegs||[]).filter(leg=>leg.anchorOperationId===operationId&&leg.placement===placement);
+  const transportFor = (operationId:string,placement:"before"|"after") => (transportLegs||[]).filter(leg=>!leg.materialEntryId&&leg.anchorOperationId===operationId&&leg.placement===placement);
   const renderTransportLeg = (leg:TransportLegRouteNode) => <TransportLegNodeMarker key={leg.id} leg={leg} onSelect={onSelectTransportLeg}/>;
 
   const expandedOrbitOperation = lookupOperations.find(operation => operation.id === expandedOperationId) || displayOperations.find(operation => operation.id === expandedOperationId);
