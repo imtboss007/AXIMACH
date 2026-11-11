@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Edit3, MapPin, Plus, Search, ShieldCheck, Truck, Users, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type TransportRouteRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
@@ -6,20 +6,42 @@ import SearchableMultiSelect from "./SearchableMultiSelect";
 import { VehicleBadge, VEHICLE_TYPES } from "./TransportVehicle";
 import TransportRoutingDemo from "./TransportRoutingDemo";
 
-type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: { vendorId?: string }) => void; onOpenContact360?: (vendorId: string) => void };
+type NavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; vendorId?:string; routeId?:string };
+type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: NavigationContext) => void; onOpenContact360?: (vendorId: string) => void; initialContext?:NavigationContext };
 
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
-export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, onSelectModule, onOpenContact360 }: Props) {
+export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, onSelectModule, onOpenContact360, initialContext }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const routes = activeRows(data.transportRoutes || []);
   const vendors = activeRows(data.vendors);
+  const transportLegs = activeRows(data.transportLegs || []);
+  const materialEntries = activeRows(data.materialCostEntries || []);
   const vehicleOptions = [...new Set([...VEHICLE_TYPES, ...routes.map(route => route.vehicleType).filter(Boolean)])];
   const [search, setSearch] = useState("");
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [selectedDirections, setSelectedDirections] = useState<string[]>([]);
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
+  const [routeFilterIds, setRouteFilterIds] = useState<string[]>([]);
   const [selectedRouteIds, setSelectedRouteIds] = useState<string[]>([]);
+  useEffect(()=>{
+    const matches=(record:{companyId?:string;poId?:string;poLineId?:string;componentId?:string;vendorId?:string})=>
+      (!initialContext?.companyId||record.companyId===initialContext.companyId)
+      &&(!initialContext?.poId||record.poId===initialContext.poId)
+      &&(!initialContext?.poLineId||record.poLineId===initialContext.poLineId)
+      &&(!initialContext?.componentId||record.componentId===initialContext.componentId);
+    const linkedLegs=transportLegs.filter(matches);
+    const linkedMaterials=materialEntries.filter(entry=>matches(entry)&&Boolean(entry.transportVendorId));
+    const vendorIds=[...new Set([
+      ...(initialContext?.vendorId?[initialContext.vendorId]:[]),
+      ...linkedLegs.map(row=>row.vendorId),
+      ...linkedMaterials.map(row=>row.transportVendorId)
+    ].filter((id):id is string=>Boolean(id)&&vendors.some(vendor=>vendor.id===id)))];
+    setSelectedVendors(vendorIds);
+    setRouteFilterIds(initialContext?.routeId?[initialContext.routeId]:[]);
+    setSearch("");
+    setSelectedRouteIds([]);
+  },[initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.componentId,initialContext?.vendorId,initialContext?.routeId,data.updatedAt]);
   const [editingId, setEditingId] = useState("");
   const [vendorId, setVendorId] = useState("");
   const [fromLocation, setFromLocation] = useState("");
@@ -36,11 +58,12 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
     return textMatch &&
       (!selectedVehicles.length || selectedVehicles.includes(route.vehicleType)) &&
       (!selectedDirections.length || selectedDirections.includes(route.tripDirection)) &&
-      (!selectedVendors.length || selectedVendors.includes(route.vendorId));
-  }), [routes, vendors, search, selectedVehicles, selectedDirections, selectedVendors]);
+      (!selectedVendors.length || selectedVendors.includes(route.vendorId)) &&
+      (!routeFilterIds.length || routeFilterIds.includes(route.id));
+  }), [routes, vendors, search, selectedVehicles, selectedDirections, selectedVendors, routeFilterIds]);
   const toggleFilter = (value: string, selected: string[], setter: (next: string[]) => void) =>
     setter(selected.includes(value) ? selected.filter(item => item !== value) : [...selected, value]);
-  const clearFilters = () => { setSearch(""); setSelectedVehicles([]); setSelectedDirections([]); setSelectedVendors([]); };
+  const clearFilters = () => { setSearch(""); setSelectedVehicles([]); setSelectedDirections([]); setSelectedVendors([]); setRouteFilterIds([]); };
   const selectVisibleRoutes = (checked: boolean) => setSelectedRouteIds(current =>
     checked ? [...new Set([...current, ...filtered.map(route => route.id)])] : current.filter(id => !filtered.some(route => route.id === id))
   );
@@ -87,12 +110,12 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
     <div className="module-action-bar">
       <label className="module-record-search"><Search size={16}/><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search route, vehicle, vendor or location…"/></label>
       <button className="button-quiet compact-button" onClick={() => setShowTransportDemo(value=>!value)} aria-expanded={showTransportDemo}><Truck size={14}/> {showTransportDemo ? "Close route demo" : "Preview multi-route demo"}</button>
-      <button className="button-quiet compact-button" onClick={() => onSelectModule("vendors")}><Users size={14}/> Vendor Directory</button>
-      <button className="button-quiet compact-button" onClick={() => onSelectModule("contact360")}><Users size={14}/> Contact 360</button>
+      <button className="button-quiet compact-button" onClick={() => onSelectModule("vendors",{...initialContext,vendorId:initialContext?.vendorId||(selectedVendors.length===1?selectedVendors[0]:undefined)})}><Users size={14}/> Vendor Directory</button>
+      <button className="button-quiet compact-button" onClick={() => {const targetVendor=initialContext?.vendorId||(selectedVendors.length===1?selectedVendors[0]:undefined);if(targetVendor)onOpenContact360?.(targetVendor);else onSelectModule("contact360",initialContext);}}><Users size={14}/> Contact 360</button>
     </div>
     {showTransportDemo && <TransportRoutingDemo onClose={()=>setShowTransportDemo(false)}/>}
     <section className="surface-panel transport-filter-panel">
-      <div className="panel-heading"><div><h3>Filter transport routes</h3><p>Select All to show every saved route, or tick any combination of filters.</p></div><button type="button" className="button-quiet compact-button" onClick={clearFilters}>Clear filters</button></div>
+      <div className="panel-heading"><div><h3>Filter transport routes</h3><p>{initialContext?.poId||initialContext?.componentId?"Showing transport rates linked to the selected manufacturing record where available. Clear filters to browse every route.":"Select All to show every saved route, or tick any combination of filters."}</p></div><button type="button" className="button-quiet compact-button" onClick={clearFilters}>Clear filters</button></div>
       <div className="module-action-bar po-bulk-actions"><label><input type="checkbox" checked={filtered.length > 0 && filtered.every(route => selectedRouteIds.includes(route.id))} onChange={event => selectVisibleRoutes(event.target.checked)}/> Select all visible routes</label><span className="module-number">{selectedRouteIds.filter(id => routes.some(route => route.id === id)).length} SELECTED</span><button type="button" className="button-danger compact-button" disabled={!selectedRouteIds.length} onClick={archiveSelectedRoutes}>Archive selected</button><button type="button" className="button-quiet compact-button" disabled={!selectedRouteIds.length} onClick={() => setSelectedRouteIds([])}>Clear selection</button></div>
       <div className="transport-filter-groups ax-search-filter-columns">
         <button type="button" className="button-quiet compact-button" onClick={clearFilters}>All routes</button>

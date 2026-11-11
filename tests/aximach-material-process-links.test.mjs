@@ -90,3 +90,209 @@ test("in-app transport demo displays material feeds, directory master links and 
   assert.ok(demo.includes("materialLinksAt(operation.id,\"before\")"));
   assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
 });
+
+test("component parts retain multiple material master IDs with legacy single-material migration", () => {
+  const model = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  assert.ok(model.includes("materialId: string; materialIds?: string[]"));
+  assert.ok(model.includes("Array.isArray(part.materialIds)"));
+  assert.ok(model.includes("...(part.materialId ? [part.materialId] : [])"));
+  assert.ok(panel.includes("materialIds:[...new Set"));
+  assert.ok(panel.includes("part?.materialIds?.[0]"));
+});
+
+test("saving additional parts does not convert a component-level PO line into one single-part allocation", () => {
+  const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  assert.ok(panel.includes("const nextPurchaseOrders=current.purchaseOrders"));
+  assert.ok(panel.includes("// Do not convert a component-level PO line to a single-part line"));
+  assert.ok(!panel.includes('lines:order.lines.map(line=>line.id!==effectivePoLineId?line:{...line,allocationLevel:"part" as const,partId:part.id})'));
+});
+
+test("Process Map material procurement persists a part-scoped BOM row and archives only its generated row", () => {
+  const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  const model = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  assert.ok(model.includes("partId?: string;"));
+  assert.ok(model.includes("sourceMaterialCostEntryId?: string;"));
+  assert.ok(panel.includes("sourceMaterialCostEntryId:sourceBom?.sourceMaterialCostEntryId"));
+  assert.ok(panel.includes("quantityPerPart:sourceBom?perPieceKg"));
+  assert.ok(panel.includes('row.sourceMaterialCostEntryId===entry.id'));
+});
+
+test("Material Directory BOM, part and material-process actions enforce exact part identity", () => {
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes('id="bom-part"'));
+  assert.ok(inventory.includes('(row.partId || "") === (bomDraft.partId || "")'));
+  assert.ok(inventory.includes('row.partId === materialLinkSelection.line.partId'));
+  assert.ok(inventory.includes('bom.partId!==selection.line.partId'));
+  assert.ok(inventory.includes('partLinks.some(part => part.componentId === directoryComponentId)'));
+  assert.ok(inventory.includes('part.materialIds?.includes(m.id)'));
+  assert.ok(inventory.includes("const visibleBom = useMemo"));
+  assert.ok(inventory.includes("const linkedOrders = orders.filter"));
+  assert.ok(inventory.includes('className="material-directory-filter-bar"'));
+});
+
+test("BOM issue preview and ledger posting include component-wide and selected-part BOM rows only", () => {
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes('!bomIssueSelection.line.partId || !row.partId || row.partId === bomIssueSelection.line.partId'));
+  assert.ok(inventory.includes('!line.partId || !row.partId || row.partId === line.partId'));
+});
+
+test("Process Map is scoped to the exact selected PO line and its part material allocations", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes('op.poLineId === selectedLine?.id && op.componentId === selectedLine?.componentId'));
+  assert.ok(processMap.includes('leg.poLineId === selectedLine?.id'));
+  assert.ok(processMap.includes('entry.poLineId === selectedLine?.id'));
+  assert.ok(processMap.includes('entry.partId===selectedPart.id'));
+  assert.ok(processMap.includes('const expectedQuantity = Math.max(0,Number(selectedLine?.quantity)||0)'));
+});
+
+test("Route Flow never defaults to an unrelated first company, PO or component line", () => {
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.ok(routeFlow.includes("initialContext?:NavigationContext"));
+  assert.ok(routeFlow.includes("const appliedContextKey=useRef"));
+  assert.ok(routeFlow.includes('const company=companies.find(row=>row.id===companyPick)'));
+  assert.ok(routeFlow.includes('const order=companyOrders.find(row=>row.id===poPick)'));
+  assert.ok(routeFlow.includes('const line=lineOptions.find(row=>row.id===linePick)'));
+  assert.ok(!routeFlow.includes("||companies[0]"));
+  assert.ok(!routeFlow.includes("||companyOrders[0]"));
+  assert.ok(!routeFlow.includes("||lineOptions[0]"));
+  assert.ok(app.includes('<RouteFlowWorkspace initialContext={moduleContext}'));
+});
+
+test("Component master and Process Map module links pass source record context", () => {
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(master.includes("const componentNavigationContext ="));
+  assert.ok(master.includes('onSelectModule("process-map",componentNavigationContext(row.id))'));
+  assert.ok(master.includes('onSelectModule("inventory",componentNavigationContext(row.id))'));
+  assert.ok(master.includes("selectedComponentForNavigation"));
+  assert.ok(processMap.includes('subtab:"process-links"'));
+  assert.ok(processMap.includes('onSelectModule("transport-master",{companyId,poId,poLineId,componentId:selectedLine?.componentId})'));
+  assert.ok(processMap.includes("materialProcessPartLabels"));
+});
+
+test("material-to-process markers disclose the exact BOM part across Process Map, Route Flow and Manufacturing Universe", () => {
+  const marker = readFileSync(new URL("../src/MaterialFlowMarker.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(marker.includes("partLabel?: string"));
+  assert.ok(marker.includes("Part: {partLabel}"));
+  assert.ok(processMap.includes("partLabel={materialProcessPartLabels[link.id]}"));
+  assert.ok(routeFlow.includes("partLabel={materialProcessPartLabels[link.id]}"));
+  assert.ok(universe.includes("materialPartLabels?.[link.id]"));
+});
+
+test("part-scoped routes hide process links whose BOM belongs to another part", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes("return !selectedPart||!linkedBom?.partId||linkedBom.partId===selectedPart.id"));
+  assert.ok(routeFlow.includes("return !line?.partId||!linkedBom?.partId||linkedBom.partId===line.partId"));
+  assert.ok(routeFlow.includes("leg.componentId===componentId"));
+});
+
+test("Manufacturing Universe uses the incoming component context and never falls back to first unrelated records", () => {
+  const universe = readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("initialContext?:NavigationContext"));
+  assert.ok(universe.includes("const appliedContextKey=useRef"));
+  assert.ok(universe.includes("const company=companies.find(row=>row.id===companyPick)"));
+  assert.ok(universe.includes("const po=companyOrders.find(row=>row.id===poPick)"));
+  assert.ok(universe.includes("const line=lines.find(row=>row.id===linePick)"));
+  assert.ok(!universe.includes("||companies[0]"));
+  assert.ok(!universe.includes("||companyOrders[0]"));
+  assert.ok(!universe.includes("||lines[0]"));
+  assert.ok(universe.includes("lineComponent?.partNumber"));
+  assert.ok(universe.includes("materialPartLabels={materialProcessPartLabels}"));
+  assert.ok(universe.includes("poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)"));
+  assert.ok(app.includes('<ManufacturingUniverseWorkspace initialContext={moduleContext}'));
+});
+
+test("Material Directory filters materials reachable only from component-part material IDs by PO", () => {
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes("partLinks.some(part => orders.some(po => po.id === directoryPoId"));
+  assert.ok(inventory.includes("line.componentId === part.componentId && (!line.partId || line.partId === part.id)"));
+});
+
+test("Legacy Process Map allocations and transport legs are not copied into ambiguous multi-line components", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes("selectedComponentLineCount === 1"));
+  assert.ok(processMap.includes("(!leg.poLineId && selectedComponentLineCount === 1)"));
+  assert.ok(routeFlow.includes("componentGlobalLineCount===1"));
+  assert.ok(routeFlow.includes("componentLineCount===1"));
+});
+
+test("Save & Add Another Material retains the same part identity and physical dimensions", () => {
+  const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
+  assert.ok(panel.includes('if(part){\n      setTarget("part");setNewPartMode(false);setPartId(part.id);setPartName(part.name);setPartNumber(part.partNumber);'));
+  assert.ok(panel.includes('setDimensions(Object.fromEntries(Object.entries(part.dimensions||{}).map(([key,value])=>[key,String(value)])));'));
+  assert.ok(panel.includes('setDimensionUnits(part.dimensionUnits||{});'));
+  assert.ok(panel.includes('Save & Add Another Material'));
+});
+
+test("All Material Directory tabs share linked-record filters and show the part belonging to each process-link BOM", () => {
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes('const visibleTransactions = useMemo'));
+  assert.ok(inventory.includes('return companyMatch&&poMatch&&componentMatch'));
+  assert.ok(inventory.includes('(!directoryComponentId || link.componentId===directoryComponentId)') || inventory.includes('!directoryComponentId || link.componentId===directoryComponentId'));
+  assert.ok(inventory.includes('link.poId===directoryPoId'));
+  assert.ok(inventory.includes('const part=bom?.partId?'));
+  assert.ok(inventory.includes('Part "+(part.partNumber?part.partNumber+" ":"")+part.name'));
+});
+
+test("component-only navigation does not silently pick the first PO when the component has multiple PO lines", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx", import.meta.url), "utf8");
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes("const componentOnlyLine = componentLines.length === 1 ? componentLines[0] : undefined"));
+  assert.ok(routeFlow.includes("const componentOnlyLine=componentLines.length===1?componentLines[0]:undefined"));
+  assert.ok(universe.includes("const componentOnlyLine=componentLines.length===1?componentLines[0]:undefined"));
+  assert.ok(master.includes("const unique=matchingLines.length===1?matchingLines[0]:undefined"));
+  assert.ok(processMap.includes("targetComponentLines.length === 1 ? targetComponentLines[0] : undefined"));
+  assert.ok(routeFlow.includes("matchingComponentLines.length===1?matchingComponentLines[0]:undefined"));
+  assert.ok(universe.includes("matchingComponentLines.length===1?matchingComponentLines[0]:undefined"));
+});
+
+test("master module navigation opens the exact selected component or PO and does not silently route the first row", () => {
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(master.includes("const selectedComponentForNavigation="));
+  assert.ok(master.includes("const selectedPOForNavigation="));
+  assert.ok(master.includes("disabled={!selectedComponentForNavigation}"));
+  assert.ok(master.includes("disabled={!selectedPOForNavigation}"));
+  assert.ok(master.includes("setSelectedComponentIds([target.id])"));
+  assert.ok(master.includes('setOpenedPoId(navigationContext?.poId || "")'));
+});
+
+test("BOM part selection rejects a part belonging to a different or archived component", () => {
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes('part.id === bomDraft.partId && part.componentId === bomDraft.componentId && !part.deletedAt'));
+  assert.ok(inventory.includes("The selected BOM part must be an active part belonging to the selected component."));
+});
+
+test("Production Plan opens Process Map only for an exact selected or unique visible PO line and counts that line's own operations", () => {
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(operations.includes("const processNavigationJob=selectedVisibleJobs.length===1?selectedVisibleJobs[0]:(filtered.length===1?filtered[0]:undefined)"));
+  assert.ok(operations.includes('disabled={!processNavigationContext}'));
+  assert.ok(operations.includes('ops.find(op=>op.poId===po.id&&op.poLineId===line.id)'));
+  assert.ok(!operations.includes('||operations[0]'));
+  assert.ok(operations.includes('operations.filter(op=>op.category!=="Logistics").length'));
+});
+
+test("Transport Directory and Dispatch retain the originating PO component and selected transporter", () => {
+  const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.ok(directory.includes("initialContext?:NavigationContext"));
+  assert.ok(directory.includes("const linkedLegs=transportLegs.filter(matches)"));
+  assert.ok(directory.includes("setRouteFilterIds(initialContext?.routeId?[initialContext.routeId]:[])"));
+  assert.ok(directory.includes('onSelectModule("vendors",{...initialContext,vendorId:'));
+  const dispatch = operations.slice(operations.indexOf("export function TransportDispatchWorkspace"), operations.indexOf("export function QualityInspectionWorkspace"));
+  assert.ok(dispatch.includes("const contextMatch="));
+  assert.ok(dispatch.includes("row.poLineId===initialContext.poLineId"));
+  assert.ok(dispatch.includes('onSelectModule("process-map",{companyId:pos.find(po=>po.id===row.poId)?.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.componentId'));
+  assert.ok(app.includes('<TransportDirectoryWorkspace initialContext={moduleContext}'));
+  assert.ok(app.includes('<TransportDispatchWorkspace initialContext={moduleContext}'));
+});

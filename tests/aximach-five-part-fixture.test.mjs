@@ -612,7 +612,7 @@ test("Five fixture parts create independent multi-process routes linked by stabl
   assert.equal(new Set(linked.map(row => row.componentId)).size, 5);
   assert.ok(workspace.includes("const effectivePoLineId = old?.poLineId || parentOperation?.poLineId || selectedLine.id"));
   assert.ok(workspace.includes("id: operationId, poId: effectivePoId, poLineId: effectivePoLineId, componentId: effectiveComponentId"));
-  assert.ok(workspace.includes("op.poId === poId && op.componentId === selectedLine?.componentId"));
+  assert.ok(workspace.includes("op.poId === poId && op.poLineId === selectedLine?.id && op.componentId === selectedLine?.componentId"));
 });
 
 test("Dashboard spheres auto-rotate by default, preserve separate drag locks, and navigate to the correct workspaces", () => {
@@ -1735,7 +1735,7 @@ test("Every PO part keeps its own main, alternate and rework process route group
   const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(universe.includes('const routeGroupKey = (operation:OperationRecord) => (operation.poLineId || operation.componentId) + "::" + (operation.branch || "Main route")'));
   assert.ok(universe.includes("const byBranch = new Map<string, OperationRecord[]>()"));
-  assert.ok(processMap.includes('op.poId === poId && op.componentId === selectedLine?.componentId'));
+  assert.ok(processMap.includes('op.poId === poId && op.poLineId === selectedLine?.id && op.componentId === selectedLine?.componentId'));
   assert.ok(processMap.includes('op.poLineId===current.poLineId'));
   assert.ok(processMap.includes('setBranchCostIncluded(branch, !laneOperations.some(op => op.costIncluded !== false), laneOperations[0]?.poLineId)'));
 });
@@ -1958,7 +1958,8 @@ test("Process Map offers legacy vendor transport routes alongside the current Tr
 
 test("Material allocation saves the selected part onto its PO line for an independent route", () => {
   const panel = readFileSync(new URL("../src/PartMaterialCostingPanel.tsx", import.meta.url), "utf8");
-  assert.ok(panel.includes('allocationLevel:"part" as const,partId:part.id'));
+  assert.ok(panel.includes("const nextPurchaseOrders=current.purchaseOrders"));
+  assert.ok(!panel.includes('allocationLevel:"part" as const,partId:part.id'));
   assert.ok(panel.includes("purchaseOrders:nextPurchaseOrders"));
   assert.ok(panel.includes("effectivePoLine?.line.partId&&effectivePoLine.line.partId!==partId"));
 });
@@ -2017,7 +2018,7 @@ test("Manufacturing Universe exposes every AXIMACH module and renders material-f
   const expected = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"];
   assert.deepEqual([...new Set(ids)].sort(), [...expected].sort());
   assert.equal(ids.length, 20, "module shortcuts must not contain duplicate entries");
-  assert.ok(universe.includes('routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0||definitions.length>0'));
+  assert.ok(universe.includes('poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)'));
   assert.ok(universe.includes('materialRoutes={materialRouteNodes}'));
 });
 

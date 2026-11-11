@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord, type RouteRelationshipRecord } from "./manufacturingData";
 import ProcessUniverse3D from "./ProcessUniverse3D";
@@ -11,15 +11,15 @@ import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
 
 type NavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
-type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void };
+type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void; initialContext?:NavigationContext };
 
-export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,onSelectModule}:Props) {
+export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,onSelectModule,initialContext}:Props) {
   const {data,syncStatus,update}=useManufacturingData();
   const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),components=activeRows(data.components);
   const vendors=activeRows(data.vendors),operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),materialMasterRecords=activeRows(data.materials||[]),legs=activeRows(data.transportLegs||[]);
   const materialProcessLinks=activeRows(data.materialProcessLinks||[]);
   const definitions=activeRows(data.processDefinitions),relationships=activeRows(data.routeRelationships||[]);
-  const [companyPick,setCompanyPick]=useState(""),[poPick,setPoPick]=useState(""),[linePick,setLinePick]=useState("");
+  const [companyPick,setCompanyPick]=useState(initialContext?.companyId||""),[poPick,setPoPick]=useState(initialContext?.poId||""),[linePick,setLinePick]=useState(initialContext?.poLineId||"");
   const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
   const [inspectedTransportId,setInspectedTransportId]=useState("");
   const [inspectedMaterialTransportId,setInspectedMaterialTransportId]=useState("");
@@ -35,20 +35,57 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [showUniverseSettings,setShowUniverseSettings]=useState(false);
   const [visibleUniverseFields,setVisibleUniverseFields]=useState<string[]>(["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]);
   const [visibleUniverseModules,setVisibleUniverseModules]=useState<string[]>(["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"]);
-  const company=companies.find(row=>row.id===companyPick)||companies[0];
+  const appliedContextKey=useRef("");
+  useEffect(()=>{
+    const context=initialContext||{};
+    const contextKey=JSON.stringify({companyId:context.companyId,poId:context.poId,poLineId:context.poLineId,componentId:context.componentId,operationId:context.operationId});
+    if(appliedContextKey.current===contextKey)return;
+    const targetComponent=context.componentId?components.find(row=>row.id===context.componentId):undefined;
+    const componentLines=context.componentId?orders.flatMap(po=>po.lines.filter(line=>!line.deletedAt&&line.componentId===context.componentId).map(line=>({po,line}))):[];
+    const componentOnlyLine=componentLines.length===1?componentLines[0]:undefined;
+    const targetPO=(context.poId?orders.find(row=>row.id===context.poId):undefined)
+      || (context.poLineId?orders.find(row=>row.lines.some(line=>line.id===context.poLineId)):undefined)
+      || (context.operationId?orders.find(row=>row.id===operations.find(op=>op.id===context.operationId)?.poId):undefined)
+      || (!context.poId&&!context.poLineId&&!context.operationId?componentOnlyLine?.po:undefined);
+    if((context.poId||context.poLineId||context.operationId)&&!targetPO)return;
+    if(context.componentId&&!targetComponent)return;
+    const matchingComponentLines=targetPO&&context.componentId?targetPO.lines.filter(line=>!line.deletedAt&&line.componentId===context.componentId):[];
+    const uniqueComponentLine=matchingComponentLines.length===1?matchingComponentLines[0]:undefined;
+    const targetLine=targetPO?.lines.find(row=>row.id===context.poLineId)
+      || (context.operationId?targetPO?.lines.find(row=>row.id===operations.find(op=>op.id===context.operationId)?.poLineId):undefined)
+      || uniqueComponentLine;
+    setCompanyPick(targetPO?.companyId||context.companyId||targetComponent?.companyId||"");
+    setPoPick(targetPO?.id||"");
+    setLinePick(targetLine?.id||"");
+    setSelectedOperationId(context.operationId||"");
+    setSelectedMaterialLinkId("");
+    setSimulationActive(false);setSimulationIndex(-1);
+    setInspectedTransportId("");setInspectedMaterialTransportId("");
+    appliedContextKey.current=contextKey;
+  },[initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.componentId,initialContext?.operationId,data.updatedAt]);
+  const company=companies.find(row=>row.id===companyPick);
   const companyId=company?.id||"";
   const companyOrders=orders.filter(row=>row.companyId===companyId);
-  const po=companyOrders.find(row=>row.id===poPick)||companyOrders[0];
+  const po=companyOrders.find(row=>row.id===poPick);
   const poId=po?.id||"";
   const lines=(po?.lines||[]).filter(line=>!line.deletedAt);
-  const line=lines.find(row=>row.id===linePick)||lines[0];
+  const line=lines.find(row=>row.id===linePick);
   const poLineId=line?.id||"";
   const component=components.find(row=>row.id===line?.componentId);
   const componentId=component?.id||"";
-  const allRouteOperations=operations.filter(row=>row.poId===poId&&row.poLineId===poLineId);
+  const allRouteOperations=operations.filter(row=>row.poId===poId&&row.poLineId===poLineId&&row.componentId===componentId);
   const routeOperations=allRouteOperations.filter(row=>row.relationType!=="subprocess").sort((a,b)=>a.sequence-b.sequence);
   const activeOperation=routeOperations.find(row=>row.id===selectedOperationId)||routeOperations[0];
-  const selectedMaterialProcessLinks=materialProcessLinks.filter(link=>link.poId===poId&&link.poLineId===poLineId&&link.componentId===componentId);
+  const selectedMaterialProcessLinks=materialProcessLinks.filter(link=>{
+    if(link.poId!==poId||link.poLineId!==poLineId||link.componentId!==componentId)return false;
+    const linkedBom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
+    return !line?.partId||!linkedBom?.partId||linkedBom.partId===line.partId;
+  });
+  const materialProcessPartLabels=Object.fromEntries(selectedMaterialProcessLinks.map(link=>{
+    const bom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
+    const part=bom?.partId?data.componentParts.find(row=>row.id===bom.partId):undefined;
+    return [link.id,part?((part.partNumber?part.partNumber+" · ":"")+part.name):"Whole component"];
+  }));
   const simulationOperations=routeOperations.filter(row=>row.relationType!=="subprocess");
   const simulatedOperationId=simulationOperations[simulationIndex]?.id||"";
   useEffect(()=>{
@@ -62,10 +99,11 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     setSelectedOperationId(simulatedOperationId);
   },[simulationActive,simulationIndex,simulatedOperationId]);
 
-  const routeLabels=useMemo(()=>Object.fromEntries(lines.map(item=>[item.id,(component?.partNumber?component.partNumber+" · ":"")+(component?.name||"Component")+" · Qty "+item.quantity])),[lines,component]);
-  const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.poId===poId&&entry.componentId===componentId&&(!entry.poLineId||entry.poLineId===poLineId)&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
-  const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId);
-  const routeRelationships=relationships.filter(link=>link.poId===poId&&link.poLineId===poLineId&&link.status!=="Disabled");
+  const routeLabels=useMemo(()=>Object.fromEntries(lines.map(item=>{const itemComponent=components.find(row=>row.id===item.componentId);return [item.id,(itemComponent?.partNumber?itemComponent.partNumber+" · ":"")+(itemComponent?.name||"Component")+" · Qty "+item.quantity];})),[lines,components]);
+  const componentLineCount=lines.filter(item=>item.componentId===componentId).length;
+  const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.poId===poId&&entry.componentId===componentId&&(entry.poLineId===poLineId||(!entry.poLineId&&componentLineCount===1))&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&leg.componentId===componentId);
+  const routeRelationships=relationships.filter(link=>link.poId===poId&&link.poLineId===poLineId&&link.componentId===componentId&&link.status!=="Disabled");
   const transportCostByOperation=Object.fromEntries(routeOperations.map(operation=>{
     const attached=routeLegs.filter(leg=>leg.anchorOperationId===operation.id).reduce((sum,leg)=>sum+Math.max(0,leg.fixedAmount)*Math.max(1,leg.tripCount),0);
     return [operation.id,attached+Math.max(0,Number(operation.transportCost)||0)];
@@ -202,14 +240,14 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     <div className="manufacturing-universe-scope">
       <label>Company<select value={companyId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setCompanyPick(e.target.value);setPoPick("");setLinePick("");setSelectedOperationId("");}}><option value="">Select company…</option>{companies.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
       <label>Purchase order<select value={poId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setPoPick(e.target.value);setLinePick("");setSelectedOperationId("");}}><option value="">Select PO…</option>{companyOrders.map(row=><option key={row.id} value={row.id}>{row.number}</option>)}</select></label>
-      <label>Component / PO line<select value={poLineId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setLinePick(e.target.value);setSelectedOperationId("");}}><option value="">Select component line…</option>{lines.map(row=><option key={row.id} value={row.id}>{component?.partNumber||""} · {component?.name||"Component"} · Qty {row.quantity}</option>)}</select></label>
+      <label>Component / PO line<select value={poLineId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setLinePick(e.target.value);setSelectedOperationId("");}}><option value="">Select component line…</option>{lines.map(row=>{const lineComponent=components.find(item=>item.id===row.componentId);const part=data.componentParts.find(item=>item.id===row.partId);return <option key={row.id} value={row.id}>{lineComponent?.partNumber||"Missing component"} · {lineComponent?.name||"Component"}{part?" · "+part.partNumber+" "+part.name:""} · Qty {row.quantity}</option>;})}</select></label>
       <div className="manufacturing-universe-current"><strong>{component?.partNumber||"No component selected"} · {component?.name||"Select a PO line"}</strong><span>{po?.number||"No purchase order"} · {routeOperations.length} process stages · {routeMaterials.length} material allocations · {routeLegs.length} transport legs</span></div>
     </div>
     <section className="manufacturing-universe-customizer"><div className="manufacturing-universe-customizer-head"><div><span className="eyebrow">UNIVERSE DISPLAY CONTROLS</span><strong>Choose what appears in this live view</strong><small>These are view preferences only. They do not delete or change source records.</small></div><button className="button-quiet compact-button" onClick={()=>setShowUniverseSettings(value=>!value)}><Settings2 size={14}/>{showUniverseSettings?"Hide display settings":"Customize view"}</button></div>{showUniverseSettings&&<div className="manufacturing-universe-customizer-body"><div><strong>Live scene information</strong><div className="manufacturing-universe-toggle-grid">{universeFieldOptions.map(([id,label])=><label key={id}><input type="checkbox" checked={visibleUniverseFields.includes(id)} onChange={event=>setVisibleUniverseFields(current=>event.target.checked?[...current,id]:current.filter(value=>value!==id))}/><span>{label}</span></label>)}</div></div><div><strong>Connected module shortcuts</strong><div className="manufacturing-universe-toggle-grid">{linkModules.map(item=><label key={item.id}><input type="checkbox" checked={visibleUniverseModules.includes(item.id)} onChange={event=>setVisibleUniverseModules(current=>event.target.checked?[...current,item.id]:current.filter(value=>value!==item.id))}/><span>{item.title}</span></label>)}</div></div><div className="manufacturing-universe-customizer-actions"><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields(universeFieldOptions.map(([id])=>id));setVisibleUniverseModules(linkModules.map(item=>item.id));}}>Show all</button><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields([]);setVisibleUniverseModules([]);}}>Clear optional display items</button></div></div>}</section>
     <div className="manufacturing-universe-stat-grid">{stats.filter(item=>visibleUniverseModules.includes(item.module)).map(item=>{const Icon=item.icon;return <button key={item.label} onClick={()=>onNavigate(item.module,activeOperation)}><Icon size={16}/><strong>{item.value.toLocaleString("en-IN")}</strong><small>{item.label}</small></button>;})}</div>
     <section className="manufacturing-universe-live-panel">
       <div className="manufacturing-universe-live-heading"><div><span className="eyebrow">LIVE MANUFACTURING SCENE · WEBGL</span><h2>Manufacturing process universe</h2><p>Sphere, cube, vortex, helix, orbit, network, grid, pipeline, layered, stacked, matrix and tree views use the selected live PO-line data.</p></div><div className="manufacturing-universe-live-tools"><button className="button-primary compact-button" disabled={!poId||!poLineId||!componentId} onClick={()=>setShowAddOperation(value=>!value)}><Activity size={14}/> Add process stage</button><span className="manufacturing-universe-live-state"><i/> LIVE RECORDS</span></div></div>
-      {(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0||definitions.length>0)?<ProcessUniverse3D
+      {poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)?<ProcessUniverse3D
         onNotice={onNotice} key={poLineId}
         operations={routeOperations.filter(row=>row.relationType!=="subprocess")}
         allOperations={allRouteOperations}
@@ -218,6 +256,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         transportLegs={transportNodes}
         routeRelationships={routeRelationships}
         materialLinks={selectedMaterialProcessLinks}
+        materialPartLabels={materialProcessPartLabels}
         materials={materialMasterRecords}
         componentQuantity={line?.quantity||0}
         selectedMaterialLinkId={selectedMaterialLinkId}

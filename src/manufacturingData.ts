@@ -127,7 +127,9 @@ export type MaterialRecord = {
 };
 export type ComponentPartRecord = {
   id: string; companyId?: string; componentId: string; partNumber: string; name: string; revision: string; drawingReference: string;
-  shapeType: string; dimensions: Record<string, number>; dimensionUnits: Record<string, string>; materialId: string;
+  shapeType: string; dimensions: Record<string, number>; dimensionUnits: Record<string, string>;
+  /** Legacy single-material pointer retained for older backups; materialIds is the complete allocation list. */
+  materialId: string; materialIds?: string[];
   vendorIds: string[]; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type MaterialCostEntryRecord = {
@@ -146,6 +148,12 @@ export type MaterialCostEntryRecord = {
 };
 export type BomLineRecord = {
   id: string; componentId: string; materialId: string; revision: string; quantityPerPart: number;
+  /** Optional part scope. Empty means this material is common to the complete component. */
+  partId?: string;
+  /** Unit of quantityPerPart; legacy rows default to the linked material master unit. */
+  unit?: string;
+  /** Source allocation ID when the line was first generated from Process Map material procurement. */
+  sourceMaterialCostEntryId?: string;
   scrapPercent: number; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type MaterialProcessLinkRecord = {
@@ -208,7 +216,10 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
       priceUnit: material.priceUnit === "lb" ? "lb" as const : "kg" as const,
       unit: material.unit || "kg"
     })) : empty.materials,
-    componentParts: Array.isArray(value?.componentParts) ? value.componentParts : empty.componentParts,
+    componentParts: Array.isArray(value?.componentParts) ? value.componentParts.map(part => {
+      const materialIds = [...new Set([...(Array.isArray(part.materialIds) ? part.materialIds : []), ...(part.materialId ? [part.materialId] : [])].filter(Boolean))];
+      return { ...part, materialIds, materialId: part.materialId || materialIds[0] || "" };
+    }) : empty.componentParts,
     materialCostEntries: Array.isArray(value?.materialCostEntries) ? value.materialCostEntries : empty.materialCostEntries,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
     materialProcessLinks: Array.isArray(value?.materialProcessLinks) ? value.materialProcessLinks : empty.materialProcessLinks,
