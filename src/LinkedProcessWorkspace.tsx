@@ -1570,14 +1570,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                   const isTransport=item.kind==="transport"||item.kind==="material-transport"||next?.kind==="transport"||next?.kind==="material-transport";
                   const fromOperation=item.kind==="operation"?item.operation:undefined;
                   const toOperation=next?.kind==="operation"?next.operation:undefined;
-                  const savedRelationship=fromOperation&&toOperation?activeRows(data.routeRelationships||[]).find(link=>link.poId===poId&&link.poLineId===lineId&&link.fromOperationId===fromOperation.id&&link.toOperationId===toOperation.id&&link.status!=="Disabled"):undefined;
+                  const savedRelationship=fromOperation&&toOperation?activeRows(data.routeRelationships||[]).find(link=>link.poId===poId&&link.poLineId===lineId&&link.componentId===selectedLine?.componentId&&link.fromOperationId===fromOperation.id&&link.toOperationId===toOperation.id&&link.status!=="Disabled"):undefined;
                   const routeRelationshipType=savedRelationship?.relationshipType||(rework?"rework":branchRoot||branch!=="Main route"?"alternate":"main");
                   const routeRelationshipColors:Record<string,string>={main:"#12b9d5",alternate:"#d99a27",rework:"#df4d59",dependency:"#347de5",parallel:"#9848d6",merge:"#9e4bc9",split:"#3d79df","follow-on":"#173c6c",feedback:"#455bd6",conditional:"#9954ce",successor:"#203e62"};
                   const arrowColor=isTransport?"#1cc8e5":routeRelationshipColors[routeRelationshipType]||routeColor;
                   if(item.kind==="material-process-link"){
                     const link=item.link as MaterialProcessLinkRecord;
                     const material=materialMasterRecords.find(row=>row.id===link.materialId);
-                    return <div className="process-route-flow-step process-route-flow-material-link" key={item.id}>{material&&<MaterialFlowMarker link={link} material={material} componentQuantity={line?.quantity||0} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>}{next&&<span className={"linked-node-arrow route-connector process-route-flow-arrow "+(isTransport?"is-transport ":"")+"is-"+routeRelationshipType} style={{color:arrowColor}}><ArrowRight size={20}/></span>}</div>;
+                    return <div className="process-route-flow-step process-route-flow-material-link" key={item.id}>{material&&<MaterialFlowMarker link={link} material={material} componentQuantity={line?.quantity||0} partLabel={materialProcessPartLabels[link.id]} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>}{next&&<span className={"linked-node-arrow route-connector process-route-flow-arrow "+(isTransport?"is-transport ":"")+"is-"+routeRelationshipType} style={{color:arrowColor}}><ArrowRight size={20}/></span>}</div>;
                   }
                   if(item.kind==="material"){
                     const entry=item.entry;
