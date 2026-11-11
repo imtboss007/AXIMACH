@@ -87,10 +87,14 @@ async function chooseProcessMapScope(page) {
   await page.waitForTimeout(450);
 }
 
-async function chooseNativeScope(page, selectorNames) {
+async function chooseNativeScope(page, scopeSelector) {
   const values = [fixture.company.id, fixture.purchaseOrder.id, fixture.poLine.id];
-  for (let i = 0; i < selectorNames.length; i++) {
-    await page.getByLabel(selectorNames[i], { exact: true }).selectOption(values[i]);
+  const selects = page.locator(scopeSelector + " select:visible");
+  const count = await selects.count();
+  if (count !== 3) throw new Error("Expected three linked native scope selectors in " + scopeSelector + "; found " + count);
+  for (let i = 0; i < values.length; i++) {
+    await selects.nth(i).selectOption(values[i], { timeout: 8000 });
+    await page.waitForTimeout(100);
   }
   await page.waitForTimeout(450);
 }
@@ -150,7 +154,7 @@ async function main() {
   // Route Flow: one component, three part records, five materials, nine material/process links,
   // eleven relationship types, eight independently identified transport legs.
   await openModule(page, "Route Flow & Relationships");
-  await chooseNativeScope(page, ["Company", "Purchase order", "Component / PO line"]);
+  await chooseNativeScope(page, ".route-flow-scope-bar");
   const routeFlowText = await page.locator(".page-content").innerText();
   for (const expected of ["Material saw cutting", "VMC datum and port machining", "CNC shaft turning", "Port"]) {
     if (!routeFlowText.includes(expected)) throw new Error("Route Flow is missing seeded route content: " + expected);
@@ -249,7 +253,7 @@ async function main() {
 
   // Manufacturing Universe: scope by exact company, PO and component line; cycle export formats.
   await openModule(page, "Manufacturing Universe");
-  await chooseNativeScope(page, ["Company", "Purchase order", "Component / PO line"]);
+  await chooseNativeScope(page, ".manufacturing-universe-scope");
   const exportFormat = page.getByLabel("Universe export format", { exact: true });
   const exportFormats = await exportFormat.locator("option").evaluateAll(nodes => nodes.map(node => node.value).filter(Boolean));
   for (const format of exportFormats) {
