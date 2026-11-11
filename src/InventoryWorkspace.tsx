@@ -147,8 +147,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     : [];
   const visibleMaterialProcessLinks = materialProcessLinks.filter(link => {
     const linkedPO=orders.find(po=>po.id===link.poId);
-    return (!materialLinkPoLineKey || link.poId+"::"+link.poLineId === materialLinkPoLineKey)
-      && (!directoryCompanyId || link.companyId===directoryCompanyId || linkedPO?.companyId===directoryCompanyId)
+    return (!directoryCompanyId || link.companyId===directoryCompanyId || linkedPO?.companyId===directoryCompanyId)
       && (!directoryPoId || link.poId===directoryPoId)
       && (!directoryComponentId || link.componentId===directoryComponentId)
       && (!search.trim() || [link.id,link.flowType,link.placement,link.notes,link.quantityPerPart,materials.find(m=>m.id===link.materialId)?.code,materials.find(m=>m.id===link.materialId)?.name,operations.find(op=>op.id===link.operationId)?.name].join(" ").toLowerCase().includes(search.toLowerCase().trim()));
