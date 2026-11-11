@@ -5712,3 +5712,28 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .linked-process-page .linked-route-canvas{width:100%;max-width:none!important;min-width:0}
 }
 
+
+
+/* Landscape-first Route Flow and Manufacturing Universe must use the full canvas.
+   Keep the compact top deck, but remove the side rail and its reserved 52px gutter. */
+@media (orientation:landscape) and (max-height:600px) and (max-width:1100px){
+  .app-shell:has(.route-flow-workspace) .command-rail,
+  .app-shell:has(.manufacturing-universe-workspace) .command-rail{
+    display:none!important;
+  }
+  .app-shell:has(.route-flow-workspace) .status-ribbon,
+  .app-shell:has(.manufacturing-universe-workspace) .status-ribbon{
+    left:0!important;
+    right:0!important;
+    width:100%!important;
+  }
+  .app-shell:has(.route-flow-workspace) .page-content,
+  .app-shell:has(.manufacturing-universe-workspace) .page-content{
+    left:0!important;
+    right:0!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:7px 10px 16px!important;
+  }
+}
