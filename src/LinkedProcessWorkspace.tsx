@@ -190,6 +190,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (!initialContext) { appliedLinkedContext.current = ""; return; }
     const contextKey = JSON.stringify({ companyId: initialContext.companyId, poId: initialContext.poId, poLineId: initialContext.poLineId, componentId: initialContext.componentId, operationId: initialContext.operationId, vendorId: initialContext.vendorId });
     if (appliedLinkedContext.current === contextKey) return;
+    const componentLines = initialContext.componentId
+      ? purchaseOrders.flatMap(po => po.lines.filter(line => line.componentId === initialContext.componentId && !line.deletedAt).map(line => ({ po, line })))
+      : [];
+    const componentOnlyLine = componentLines.length === 1 ? componentLines[0] : undefined;
     const targetPO = (initialContext.poId
       ? purchaseOrders.find(po => po.id === initialContext.poId)
       : undefined)
@@ -202,20 +206,23 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       || (initialContext.vendorId
         ? purchaseOrders.find(po => po.lines.some(line => operations.some(op => op.vendorId === initialContext.vendorId && op.poId === po.id && op.poLineId === line.id)))
         : undefined)
-      || (initialContext.componentId
-        ? purchaseOrders.find(po => po.lines.some(line => line.componentId === initialContext.componentId))
-        : undefined)
-      || (initialContext.vendorId
-        ? purchaseOrders.find(po => po.lines.some(line => operations.some(op => op.vendorId === initialContext.vendorId && op.poId === po.id && op.poLineId === line.id)))
+      || (!initialContext.poId && !initialContext.poLineId && !initialContext.operationId && !initialContext.vendorId
+        ? componentOnlyLine?.po
         : undefined);
+    if ((initialContext.poId || initialContext.poLineId || initialContext.operationId || initialContext.vendorId) && !targetPO) {
+      // Do not substitute another PO when an explicitly linked record is still missing.
+      return;
+    }
     if (targetPO) {
       setCompanyId(targetPO.companyId);
       setPoId(targetPO.id);
       const targetOperation = (initialContext.operationId ? operations.find(op => op.id === initialContext.operationId && op.poId === targetPO.id) : undefined)
         || (initialContext.vendorId ? operations.find(op => op.vendorId === initialContext.vendorId && op.poId === targetPO.id) : undefined);
+      const targetComponentLines = initialContext.componentId ? targetPO.lines.filter(line => line.componentId === initialContext.componentId && !line.deletedAt) : [];
+      const uniqueComponentLine = targetComponentLines.length === 1 ? targetComponentLines[0] : undefined;
       const targetLine = targetPO.lines.find(line => line.id === targetOperation?.poLineId)
         || targetPO.lines.find(line => line.id === initialContext.poLineId)
-        || targetPO.lines.find(line => line.componentId === initialContext.componentId);
+        || uniqueComponentLine;
       setPoLineId(targetLine?.id || "");
       const linkedOperation = operations.find(op => op.id === initialContext.operationId
         && op.poId === targetPO.id && op.poLineId === targetLine?.id);
