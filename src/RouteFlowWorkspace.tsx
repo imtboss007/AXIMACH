@@ -164,7 +164,11 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const lane=routeOperations.filter(row=>(row.branch||"Main route")===branch);
   const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(!entry.poLineId||entry.poLineId===poLineId)&&(!entry.poId||entry.poId===poId)&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&leg.componentId===componentId&&(!leg.anchorOperationId&&!leg.targetOperationId||lane.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
-  const routeMaterialProcessLinks=allMaterialProcessLinks.filter(link=>link.poId===poId&&link.poLineId===poLineId&&link.componentId===componentId);
+  const routeMaterialProcessLinks=allMaterialProcessLinks.filter(link=>{
+    if(link.poId!==poId||link.poLineId!==poLineId||link.componentId!==componentId)return false;
+    const linkedBom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
+    return !line?.partId||!linkedBom?.partId||linkedBom.partId===line.partId;
+  });
   const materialProcessPartLabels=Object.fromEntries(routeMaterialProcessLinks.map(link=>{
     const bom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
     const part=bom?.partId?data.componentParts.find(row=>row.id===bom.partId):undefined;
