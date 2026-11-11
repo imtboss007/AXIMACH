@@ -76,6 +76,11 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     const linkedBom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
     return !line?.partId||!linkedBom?.partId||linkedBom.partId===line.partId;
   });
+  const materialProcessPartLabels=Object.fromEntries(selectedMaterialProcessLinks.map(link=>{
+    const bom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
+    const part=bom?.partId?data.componentParts.find(row=>row.id===bom.partId):undefined;
+    return [link.id,part?((part.partNumber?part.partNumber+" · ":"")+part.name):"Whole component"];
+  }));
   const simulationOperations=routeOperations.filter(row=>row.relationType!=="subprocess");
   const simulatedOperationId=simulationOperations[simulationIndex]?.id||"";
   useEffect(()=>{
@@ -230,7 +235,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     <div className="manufacturing-universe-scope">
       <label>Company<select value={companyId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setCompanyPick(e.target.value);setPoPick("");setLinePick("");setSelectedOperationId("");}}><option value="">Select company…</option>{companies.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
       <label>Purchase order<select value={poId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setPoPick(e.target.value);setLinePick("");setSelectedOperationId("");}}><option value="">Select PO…</option>{companyOrders.map(row=><option key={row.id} value={row.id}>{row.number}</option>)}</select></label>
-      <label>Component / PO line<select value={poLineId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setLinePick(e.target.value);setSelectedOperationId("");}}><option value="">Select component line…</option>{lines.map(row=><option key={row.id} value={row.id}>{component?.partNumber||""} · {component?.name||"Component"} · Qty {row.quantity}</option>)}</select></label>
+      <label>Component / PO line<select value={poLineId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setLinePick(e.target.value);setSelectedOperationId("");}}><option value="">Select component line…</option>{lines.map(row=>{const lineComponent=components.find(item=>item.id===row.componentId);const part=data.componentParts.find(item=>item.id===row.partId);return <option key={row.id} value={row.id}>{lineComponent?.partNumber||"Missing component"} · {lineComponent?.name||"Component"}{part?" · "+part.partNumber+" "+part.name:""} · Qty {row.quantity}</option>;})}</select></label>
       <div className="manufacturing-universe-current"><strong>{component?.partNumber||"No component selected"} · {component?.name||"Select a PO line"}</strong><span>{po?.number||"No purchase order"} · {routeOperations.length} process stages · {routeMaterials.length} material allocations · {routeLegs.length} transport legs</span></div>
     </div>
     <section className="manufacturing-universe-customizer"><div className="manufacturing-universe-customizer-head"><div><span className="eyebrow">UNIVERSE DISPLAY CONTROLS</span><strong>Choose what appears in this live view</strong><small>These are view preferences only. They do not delete or change source records.</small></div><button className="button-quiet compact-button" onClick={()=>setShowUniverseSettings(value=>!value)}><Settings2 size={14}/>{showUniverseSettings?"Hide display settings":"Customize view"}</button></div>{showUniverseSettings&&<div className="manufacturing-universe-customizer-body"><div><strong>Live scene information</strong><div className="manufacturing-universe-toggle-grid">{universeFieldOptions.map(([id,label])=><label key={id}><input type="checkbox" checked={visibleUniverseFields.includes(id)} onChange={event=>setVisibleUniverseFields(current=>event.target.checked?[...current,id]:current.filter(value=>value!==id))}/><span>{label}</span></label>)}</div></div><div><strong>Connected module shortcuts</strong><div className="manufacturing-universe-toggle-grid">{linkModules.map(item=><label key={item.id}><input type="checkbox" checked={visibleUniverseModules.includes(item.id)} onChange={event=>setVisibleUniverseModules(current=>event.target.checked?[...current,item.id]:current.filter(value=>value!==item.id))}/><span>{item.title}</span></label>)}</div></div><div className="manufacturing-universe-customizer-actions"><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields(universeFieldOptions.map(([id])=>id));setVisibleUniverseModules(linkModules.map(item=>item.id));}}>Show all</button><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields([]);setVisibleUniverseModules([]);}}>Clear optional display items</button></div></div>}</section>
@@ -246,6 +251,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         transportLegs={transportNodes}
         routeRelationships={routeRelationships}
         materialLinks={selectedMaterialProcessLinks}
+        materialPartLabels={materialProcessPartLabels}
         materials={materialMasterRecords}
         componentQuantity={line?.quantity||0}
         selectedMaterialLinkId={selectedMaterialLinkId}
