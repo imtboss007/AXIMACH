@@ -296,3 +296,17 @@ test("Transport Directory and Dispatch retain the originating PO component and s
   assert.ok(app.includes('<TransportDirectoryWorkspace initialContext={moduleContext}'));
   assert.ok(app.includes('<TransportDispatchWorkspace initialContext={moduleContext}'));
 });
+
+
+test("all eleven Route Flow relationship choices have a distinct renderer class and CSS treatment", () => {
+  const flow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const model = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  const types = ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"];
+  for (const type of types) {
+    assert.ok(flow.includes('id:"' + type + '"'), "Route Flow selector exposes " + type);
+    assert.ok(model.includes('"' + type + '"'), "shared data model supports " + type);
+    assert.ok(css.includes(".route-flow-curve-" + type), "connector has a visual rule for " + type);
+  }
+  assert.equal(new Set(types).size, 11);
+});
