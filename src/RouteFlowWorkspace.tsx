@@ -163,10 +163,15 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const branch=branches.includes(branchPick)?branchPick:"Main route";
   const lane=routeOperations.filter(row=>(row.branch||"Main route")===branch);
   const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(!entry.poLineId||entry.poLineId===poLineId)&&(!entry.poId||entry.poId===poId)&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
-  const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&(!leg.anchorOperationId&&!leg.targetOperationId||lane.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
+  const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&leg.componentId===componentId&&(!leg.anchorOperationId&&!leg.targetOperationId||lane.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
   const routeMaterialProcessLinks=allMaterialProcessLinks.filter(link=>link.poId===poId&&link.poLineId===poLineId&&link.componentId===componentId);
+  const materialProcessPartLabels=Object.fromEntries(routeMaterialProcessLinks.map(link=>{
+    const bom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
+    const part=bom?.partId?data.componentParts.find(row=>row.id===bom.partId):undefined;
+    return [link.id,part?((part.partNumber?part.partNumber+" · ":"")+part.name):"Whole component"];
+  }));
   const materialLinksAt=(operationId:string,placement:"before"|"after")=>routeMaterialProcessLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
-  const renderMaterialProcessLink=(link:MaterialProcessLinkRecord)=>{const material=materialMasterRecords.find(row=>row.id===link.materialId);return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={line?.quantity||0} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>:null;};
+  const renderMaterialProcessLink=(link:MaterialProcessLinkRecord)=>{const material=materialMasterRecords.find(row=>row.id===link.materialId);return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={line?.quantity||0} partLabel={materialProcessPartLabels[link.id]} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>:null;};
   const inspectedTransportLeg=routeLegs.find(leg=>leg.id===inspectedTransportId);
   const inspectedTransportVendor=inspectedTransportLeg?vendors.find(vendor=>vendor.id===inspectedTransportLeg.vendorId):undefined;
   const inspectedTransportRoute=inspectedTransportLeg?routes.find(route=>route.id===inspectedTransportLeg.routeId):undefined;
@@ -211,7 +216,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const locationHints=[...new Set([...transportChoices.flatMap(route=>[route.fromLocation,route.toLocation]),...vendors.map(v=>v.address).filter(Boolean)])];
 
   const relationFor=(fromId:string,toId:string):RouteRelationshipRecord|undefined=>
-    relationships.find(link=>link.fromOperationId===fromId&&link.toOperationId===toId&&link.status!=="Disabled");
+    relationships.find(link=>link.poId===poId&&link.poLineId===poLineId&&link.componentId===componentId&&link.fromOperationId===fromId&&link.toOperationId===toId&&link.status!=="Disabled");
   const connectorFor=(index:number)=>{
     const current=routeNodes[index],next=routeNodes[index+1];
     const transport=current?.kind==="transport"||next?.kind==="transport"||current?.kind==="material-transport"||next?.kind==="material-transport";
