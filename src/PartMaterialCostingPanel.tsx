@@ -246,13 +246,11 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
         };
         nextBomLines=[bomLine,...nextBomLines.filter(row=>row.id!==bomLine.id)];
       }
-      const nextPurchaseOrders=part&&effectivePoLineId
-        ? current.purchaseOrders.map(order=>order.id!==effectivePoLine!.po.id?order:{
-            ...order,
-            updatedAt:stamp,
-            lines:order.lines.map(line=>line.id!==effectivePoLineId?line:{...line,allocationLevel:"part" as const,partId:part.id})
-          })
-        : current.purchaseOrders;
+      // Do not convert a component-level PO line to a single-part line just
+      // because the first part is allocated here. One component line may contain
+      // multiple part records, each with its own independent material allocations.
+      // An explicitly part-scoped PO line remains bound to the part it already names.
+      const nextPurchaseOrders=current.purchaseOrders;
       return {
         ...current,
         materials:newMaterialOpen?[materialRecord!,...current.materials.filter(row=>row.id!==materialRecord!.id)]:current.materials,
