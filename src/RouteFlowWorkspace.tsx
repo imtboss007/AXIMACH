@@ -10,6 +10,7 @@ import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
+import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
 import { Activity, ArrowLeft, ArrowRight, Bike, Box, Bus, CarFront, Check, ChevronDown, CircleDashed, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, GitMerge, GitPullRequest, Link2, MessageCircle, Network, Package, Plane, Plus, Route, Save, ShieldCheck, Ship, Sparkles, Split, TrainFront, Truck, Users, Waypoints, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
@@ -50,7 +51,7 @@ function vehicleIconFor(value:string) { const type=(value||"").toLowerCase(); if
 
 function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,transportLegId,materialTransportId,layout="orthogonal",onTransportClick}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number;transportLegId?:string;materialTransportId?:string;layout?:RouteLayoutMode;onTransportClick?:(id:string,kind:"leg"|"material",element:HTMLElement)=>void}) {
   const style=transport?"transport":type;
-  const VehicleIcon=vehicleIconFor(vehicleType);
+
   const curvePath=layout==="orthogonal"?"M4 36 L54 36 L54 12 L88 12 L88 36 L132 36":layout==="horizontal"?"M4 36 L132 36":style==="feedback"?"M4 35 C20 -2 48 -5 68 28 C84 55 112 60 132 25"
     :style==="rework"?"M4 37 C36 67 92 2 132 31"
     :style==="alternate"?"M4 36 C35 -15 93 -12 132 31"
@@ -72,7 +73,7 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,trans
       {style==="split"&&<path className="route-flow-curve-branch" d="M56 54 L68 32 L80 54"/>}
       <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path={curvePath}/></circle>
     </svg>
-    {transport&&(transportLegId||materialTransportId?<button type="button" className={"route-flow-vehicle-marker route-flow-vehicle-marker-button vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s) · Open details"} aria-label="Open this transport popup" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onTransportClick?.(transportLegId||materialTransportId!,transportLegId?"leg":"material",event.currentTarget);}}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></button>:<span className={"route-flow-vehicle-marker vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></span>)}
+    {transport&&(transportLegId||materialTransportId?<button type="button" className={"route-flow-vehicle-marker route-flow-vehicle-marker-button vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s) · Open details"} aria-label="Open this transport popup" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onTransportClick?.(transportLegId||materialTransportId!,transportLegId?"leg":"material",event.currentTarget);}}><VehicleTypeIcon vehicleType={vehicleType} size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></button>:<span className={"route-flow-vehicle-marker vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></span>)}
     <small>{transport?(vehicleType||"TRANSPORT"):label||relationLabel(type)}</small>
   </div>;
 }
