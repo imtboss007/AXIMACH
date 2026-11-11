@@ -23,6 +23,8 @@ test("Landscape orientation is released when leaving the three route workspaces"
   const app = read("../src/App.tsx");
   assert.ok(app.includes("void CapacitorScreenOrientation.unlock().catch(() => undefined)"));
   assert.ok(app.includes("return () => {\n      disposed = true;"));
+  assert.ok(app.includes("if (disposed) {\n        // A slow native bridge"));
+  assert.ok(app.includes("if (locked) void CapacitorScreenOrientation.unlock().catch(() => undefined)"));
 });
 
 test("A browser that cannot lock orientation shows a rotate-device fallback", () => {
