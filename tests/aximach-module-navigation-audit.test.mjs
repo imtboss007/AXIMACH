@@ -148,3 +148,32 @@ test("Manufacturing Universe stat shortcuts and all 20 module directory links re
   const invalid = [...shortcutIds, ...statsTargets].filter(id => !validIds.has(id));
   assert.deepEqual(invalid, [], "unregistered Manufacturing Universe destinations: " + invalid.join(", "));
 });
+
+
+test("every declared Process Map visual mode is available in the visible view selector", () => {
+  const flow = read("../src/LinkedProcessWorkspace.tsx");
+  const typeMatch = flow.match(/const \[visualStyle,setVisualStyle\] = useState<([^>]+)>/);
+  assert.ok(typeMatch, "visual style union must exist");
+  const declared = [...typeMatch[1].matchAll(/"([^"]+)"/g)].map(match => match[1]);
+  const buttonStart = flow.indexOf('aria-label="All Process Map viewing modes"');
+  const buttonEnd = flow.indexOf(".map(option=><button", buttonStart);
+  const buttonBlock = flow.slice(buttonStart, buttonEnd);
+  const exposed = [...buttonBlock.matchAll(/\{id:"([^"]+)",label:/g)].map(match => match[1]);
+  assert.deepEqual([...exposed].sort(), [...declared].sort(), "every declared visual style must be selectable exactly once");
+  assert.equal(new Set(exposed).size, exposed.length, "view selector IDs must be unique");
+  assert.ok(exposed.includes("digital-mesh"), "Digital Mesh must remain available");
+});
+
+test("all shared route layout modes are declared, persisted and selectable in the picker", () => {
+  const picker = read("../src/RouteLayoutPicker.tsx");
+  const typeMatch = picker.match(/export type RouteLayoutMode = ([^;]+);/);
+  assert.ok(typeMatch, "shared route layout type must exist");
+  const declared = [...typeMatch[1].matchAll(/"([^"]+)"/g)].map(match => match[1]);
+  const validMatch = picker.match(/const VALID_LAYOUTS: RouteLayoutMode\\[\\] = \\[([^\\]]+)\\]/);
+  assert.ok(validMatch, "layout persistence allow-list must exist");
+  const persisted = [...validMatch[1].matchAll(/"([^"]+)"/g)].map(match => match[1]);
+  const options = [...picker.matchAll(/<option value="([^"]+)">/g)].map(match => match[1]);
+  assert.deepEqual([...persisted].sort(), [...declared].sort(), "all declared layouts must be accepted by persistence");
+  assert.deepEqual([...options].sort(), [...declared].sort(), "all declared layouts must be selectable");
+  assert.equal(new Set(options).size, options.length, "route layout option IDs must be unique");
+});
