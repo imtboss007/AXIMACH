@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
+import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type PurchaseOrderLine } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 import ProcessUniverse3D from "./ProcessUniverse3D";
+import { TransportLegMarker } from "./TransportVehicle";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -55,6 +56,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [routeView, setRouteView] = useState<"3d" | "list">("3d");
   const [simulationActive, setSimulationActive] = useState(false);
   const [simulationIndex, setSimulationIndex] = useState(-1);
+  const [routeFullscreen, setRouteFullscreen] = useState(false);
+  const [selectedTransportLegId, setSelectedTransportLegId] = useState("");
+  const routeCanvasRef = useRef<HTMLElement | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [addMenuDefinitionId, setAddMenuDefinitionId] = useState("");
@@ -96,6 +100,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [bulkStart,setBulkStart] = useState("");
   const [bulkEnd,setBulkEnd] = useState("");
   const appliedLinkedContext = useRef("");
+  useEffect(() => {
+    const handleFullscreenChange = () => setRouteFullscreen(document.fullscreenElement === routeCanvasRef.current);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
   useEffect(() => {
     if (!initialContext) { appliedLinkedContext.current = ""; return; }
     const contextKey = JSON.stringify({ companyId: initialContext.companyId, poId: initialContext.poId, poLineId: initialContext.poLineId, componentId: initialContext.componentId, operationId: initialContext.operationId, vendorId: initialContext.vendorId });
@@ -155,6 +164,43 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const routeOperations = operations.filter(op => op.poLineId === poLineId && op.poId === poId && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const componentTransportLegs = allTransportLegs.filter(leg => leg.poLineId === poLineId && leg.poId === poId && leg.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const selectedTransportDirectoryRoute = transportRoutes.find(route => route.id === transportRouteId);
+  const transportVendorName = (vendorId: string) => vendors.find(vendor => vendor.id === vendorId)?.company || "Vendor not linked";
+  const renderTransportLeg = (leg: ComponentTransportLegRecord) => <TransportLegMarker key={leg.id} leg={leg}
+    vendorName={transportVendorName(leg.vendorId)} selected={selectedTransportLegId === leg.id}
+    onSelect={() => setSelectedTransportLegId(current => current === leg.id ? "" : leg.id)} />;
+  const transportLegsAt = (operationId: string, placement: "before" | "after") =>
+    componentTransportLegs.filter(leg => leg.anchorOperationId === operationId && (leg.placement || "after") === placement);
+  const startTransportLegs = componentTransportLegs.filter(leg => !leg.anchorOperationId || leg.placement === "start");
+  const toggleRouteFullscreen = async () => {
+    const target = routeCanvasRef.current;
+    if (!target) return;
+    if (document.fullscreenElement === target) {
+      try { await document.exitFullscreen(); } catch { /* browser may already have exited */ }
+      const orientation = (window.screen as Screen & { orientation?: ScreenOrientation & { unlock?: () => void } }).orientation;
+      try { orientation?.unlock?.(); } catch { /* optional mobile API */ }
+      return;
+    }
+    try { await target.requestFullscreen(); }
+    catch { onNotice("This browser did not allow route full-screen mode. Use the browser's full-screen control and rotate the device to landscape."); return; }
+    const orientation = (window.screen as Screen & { orientation?: ScreenOrientation & { lock?: (value: "landscape") => Promise<void> } }).orientation;
+    try {
+      if (orientation?.lock) {
+        await orientation.lock("landscape");
+        onNotice("Route graph opened in full-screen landscape mode.");
+      } else {
+        onNotice("Route graph opened full-screen. Rotate the device to landscape for the wider route layout.");
+      }
+    } catch {
+      onNotice("Route graph opened full-screen. This device/browser does not permit automatic landscape locking; rotate the device to landscape.");
+    }
+  };
+  const focusRouteOperation = (operationId: string) => {
+    setSelectedOperationId(operationId);
+    setShowEditor(false);
+    const target = Array.from(document.querySelectorAll<HTMLElement>("[data-route-operation-id]"))
+      .find(node => node.dataset.routeOperationId === operationId);
+    target?.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+  };
   const processCategories = [...new Set(processDefinitions.map(item => item.category).filter(Boolean))].sort();
   const processTypeOptions = [...new Set(processDefinitions.filter(item => !draft.category || item.category === draft.category).map(item => item.processType).filter(Boolean))].sort();
   const processFilterTypes = [...new Set(processDefinitions.map(item => item.processType).filter(Boolean))].sort();
@@ -1124,8 +1170,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       {!exportOperations.length && <div className="module-empty-state"><Workflow size={22}/><strong>No processes in this route scope</strong><p>Choose another scope, clear filters, or select saved process operations.</p><button className="button-quiet compact-button" onClick={()=>setExportScope("all")}>Show all routes</button></div>}
     </section>
     <div className="linked-process-layout">
-      <section className="surface-panel linked-route-canvas">
-        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></div>
+      <section className="surface-panel linked-route-canvas" ref={routeCanvasRef}>
+        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><div className="route-canvas-heading-actions"><span className="module-number">{routeOperations.length} OPS</span><button type="button" className="button-quiet compact-button route-fullscreen-button" onClick={() => void toggleRouteFullscreen()} aria-label={routeFullscreen ? "Exit route full screen" : "Open route in full-screen landscape"}>{routeFullscreen ? <Minimize2 size={14}/> : <Maximize2 size={14}/>} {routeFullscreen ? "Exit full screen" : "Full screen · landscape"}</button></div></div>
         <div className="process-export-panel">
           <div className="process-export-fields"><div className="process-export-field-actions"><button type="button" onClick={()=>setExportFields(PROCESS_EXPORT_FIELDS.map(field=>field.key))}>Select all fields</button><button type="button" onClick={()=>setExportFields([])}>Clear fields</button></div>{PROCESS_EXPORT_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={exportFields.includes(field.key)} onChange={()=>setExportFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div>
           <div className="process-export-options" style={{display:"grid",gap:"10px"}}>
@@ -1179,6 +1225,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         </section>}
         {exportOperations.length > 0 && <section className="process-route-flow" aria-label="Selected route arrow diagram">
           <div className="process-route-flow-heading"><strong>ROUTE FLOW · {exportScopeLabel}</strong><span>{exportOperations.length} selected process record(s) · arrows remain inside their own route</span></div>
+          <div className="process-route-flow-body">
+            <nav className="process-route-index" aria-label="Jump to route operation">
+              <strong>STEPS</strong>
+              {exportOperations.map((operation,index)=><button type="button" key={operation.id} onClick={()=>focusRouteOperation(operation.id)} aria-label={"Go to operation "+(index+1)+": "+operation.name}>
+                <b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span>
+              </button>)}
+            </nav>
+            <div className="process-route-flow-lanes">
           {exportBranches.map(branch=>{
             const lane=exportOperations.filter(operation=>(operation.branch||"Main route")===branch).slice().sort((a,b)=>a.sequence-b.sequence);
             const branchRoot=lane.find(operation=>operation.parentId&&(operation.relationType==="alternate"||operation.relationType==="rework")&&routeOperations.find(parent=>parent.id===operation.parentId)?.branch!==branch);
@@ -1192,24 +1246,29 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 <ArrowRight size={17} style={{color:rework?REWORK_ROUTE_COLOR:ALTERNATE_ROUTE_COLOR}}/>
                 <strong>{branchRoot.name}</strong><small>{rework?"Rework starts here":"Alternate route starts here"}</small>
               </div>}
-              <div className="process-route-flow-track">{lane.map((operation,index)=>{
+              {branch === "Main route" && startTransportLegs.length > 0 && <div className="process-route-flow-start-transports">{startTransportLegs.map(renderTransportLeg)}</div>}
+              <div className="process-route-flow-track" style={{"--route-density":Math.max(0.62,Math.min(1,5/Math.max(1,lane.length))) } as CSSProperties}>{lane.map((operation,index)=>{
                 const processColor=processAccent(operation);
                 const nodeColor=processColor;
                 const routeArrowColor=rework?REWORK_ROUTE_COLOR:branchRoot||branch!=="Main route"?ALTERNATE_ROUTE_COLOR:processColor;
                 return <div className="process-route-flow-step" key={operation.id}>
-                  <button type="button" className={activeOperation?.id===operation.id?"is-selected":""} style={{borderColor:nodeColor}} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} title={"Select "+operation.name+" · OP-"+operation.sequence}>
+                  {transportLegsAt(operation.id,"before").map(renderTransportLeg)}
+                  <button type="button" data-route-operation-id={operation.id} className={activeOperation?.id===operation.id?"is-selected":""} style={{borderColor:nodeColor}} onClick={()=>focusRouteOperation(operation.id)} title={"Select "+operation.name+" · OP-"+operation.sequence}>
                     <ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={<Workflow size={16}/>}/>
                     <strong>{operation.name}</strong><small>OP-{String(operation.sequence).padStart(3,"0")}</small>
                     <em style={{background:nodeColor}}>{operation.category||"Process"}</em>
                   </button>
+                  {transportLegsAt(operation.id,"after").map(renderTransportLeg)}
                   {index<lane.length-1&&<span className="process-route-flow-arrow" style={{color:routeArrowColor}}><ArrowRight size={20}/></span>}
                 </div>;
               })}</div>
             </div>;
           })}
+            </div>
+          </div>
         </section>}
         {["sphere","vortex","combined"].includes(visualStyle) && (exportOperations.length > 0 || (routeOperations.length===0 && processDefinitions.length > 0))
-          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={id => { setSelectedOperationId(id); setShowEditor(false); }} onAddSubprocess={startAddSubprocess} onAddProcessDefinition={startAddDefinition} /></div>
+          ? <div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} transportLegs={componentTransportLegs} transportVendors={vendors.map(vendor=>({id:vendor.id,company:vendor.company}))} selectedTransportLegId={selectedTransportLegId} onSelectTransportLeg={setSelectedTransportLegId} selectedOperationId={activeOperation?.id || ""} simulationIndex={simulationIndex} zoom={zoom} onSelectOperation={focusRouteOperation} onAddSubprocess={startAddSubprocess} onAddProcessDefinition={startAddDefinition} /></div>
           : visualStyle==="gantt" && exportOperations.length ? <div className="process-gantt-view">
               <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {exportOperations.length} operations in {exportScopeLabel}</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
               {exportOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));const branch=op.branch||"Main route";const color=processAccent(op);const routeColor=branchAccent(op);return <div className={"process-gantt-row "+(branch==="Main route"?"":"is-branch")} key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small><i style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:routeColor,marginRight:5}}/>{branch} · {shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%",backgroundColor:color}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}

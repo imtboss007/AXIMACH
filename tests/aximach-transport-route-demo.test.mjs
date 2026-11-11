@@ -1,0 +1,51 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-transport-routing-demo.json", import.meta.url), "utf8"));
+
+test("one component can carry multiple transport legs to different process steps and route branches", () => {
+  assert.equal(fixture.synthetic, true);
+  assert.equal(fixture.liveSeed, false);
+  const operations = new Map(fixture.operations.map(row => [row.id, row]));
+  const routes = new Map(fixture.transportRoutes.map(row => [row.id, row]));
+  assert.ok(fixture.transportLegs.length >= 6);
+  assert.equal(new Set(fixture.transportLegs.map(row => row.componentId)).size, 1);
+  assert.equal(new Set(fixture.transportLegs.map(row => row.poLineId)).size, 1);
+  assert.ok(new Set(fixture.transportLegs.map(row => row.anchorOperationId)).size >= 5);
+  for (const leg of fixture.transportLegs) {
+    assert.equal(leg.componentId, fixture.component.id);
+    assert.equal(leg.poId, fixture.purchaseOrder.id);
+    assert.equal(leg.poLineId, fixture.component.poLineId);
+    assert.ok(routes.has(leg.routeId), "each transport leg resolves a saved route ID");
+    assert.equal(routes.get(leg.routeId).vendorId, leg.vendorId);
+    if (leg.anchorOperationId) assert.ok(operations.has(leg.anchorOperationId), "each anchored leg resolves its exact operation ID");
+  }
+});
+
+test("vehicle classes have individual visual identities and separate transport popups", () => {
+  const visuals = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
+  const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const flow = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  for (const type of ["2-wheeler", "3-wheeler", "4-wheeler", "Mini truck", "Heavy truck", "Container truck"]) assert.ok(visuals.includes(type));
+  assert.ok(visuals.includes("TransportLegMarker"));
+  assert.ok(directory.includes("<VehicleBadge vehicleType={route.vehicleType}/>"));
+  assert.ok(flow.includes("transportLegsAt(operation.id,\"before\")"));
+  assert.ok(flow.includes("transportLegsAt(operation.id,\"after\")"));
+  assert.ok(universe.includes('transportFor(operation.id,"before")'));
+  assert.ok(universe.includes('transportFor(operation.id,"after")'));
+});
+
+test("route views fit smaller cards, expose portrait step navigation and support landscape fullscreen", () => {
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.match(css, /process-route-flow-track\{display:flex;align-items:stretch;flex-wrap:wrap/);
+  assert.match(css, /\.process-route-index\{position:sticky/);
+  assert.match(css, /\.linked-route-canvas:fullscreen/);
+  assert.match(css, /\.process-universe-stage\{width:100% !important;min-width:0 !important/);
+  assert.ok(workspace.includes('orientation.lock("landscape")'));
+  assert.ok(workspace.includes('className="process-route-index"'));
+  assert.ok(universe.includes("process-universe-node-track"));
+});

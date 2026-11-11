@@ -3,15 +3,17 @@ import { ArrowRight, Edit3, MapPin, Plus, Search, ShieldCheck, Truck, Users, X }
 import { activeRows, makeId, nowIso, useManufacturingData, type TransportRouteRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
+import { VehicleBadge, VEHICLE_TYPES } from "./TransportVehicle";
 
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: { vendorId?: string }) => void; onOpenContact360?: (vendorId: string) => void };
-const VEHICLES = ["2-wheeler", "3-wheeler", "4-wheeler", "Heavy-duty 4-wheeler"];
+
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
 export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, onSelectModule, onOpenContact360 }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const routes = activeRows(data.transportRoutes || []);
   const vendors = activeRows(data.vendors);
+  const vehicleOptions = [...new Set([...VEHICLE_TYPES, ...routes.map(route => route.vehicleType).filter(Boolean)])];
   const [search, setSearch] = useState("");
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [selectedDirections, setSelectedDirections] = useState<string[]>([]);
@@ -22,7 +24,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
   const [fromLocation, setFromLocation] = useState("");
   const [toLocation, setToLocation] = useState("");
   const [tripDirection, setTripDirection] = useState<"One-way" | "Two-way">("One-way");
-  const [vehicleType, setVehicleType] = useState(VEHICLES[2]);
+  const [vehicleType, setVehicleType] = useState(VEHICLE_TYPES[2]);
   const [fixedAmount, setFixedAmount] = useState("");
   const [notes, setNotes] = useState("");
   const filtered = useMemo(() => routes.filter(route => {
@@ -49,7 +51,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
     setSelectedRouteIds([]);
     onNotice(ids.size + " transport route(s) archived. Existing dispatch and component transport history was retained.");
   };
-  const reset = () => { setEditingId(""); setVendorId(""); setFromLocation(""); setToLocation(""); setTripDirection("One-way"); setVehicleType(VEHICLES[2]); setFixedAmount(""); setNotes(""); };
+  const reset = () => { setEditingId(""); setVendorId(""); setFromLocation(""); setToLocation(""); setTripDirection("One-way"); setVehicleType(VEHICLE_TYPES[2]); setFixedAmount(""); setNotes(""); };
   const save = () => {
     if (!vendorId || !fromLocation.trim() || !toLocation.trim() || !vehicleType.trim()) { onNotice("Select a vendor and enter both route locations and a vehicle type."); return; }
     if (!vendors.some(vendor => vendor.id === vendorId)) { onNotice("The selected transport vendor is missing or archived. Choose an active Vendor Directory record."); return; }
@@ -90,7 +92,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
       <div className="module-action-bar po-bulk-actions"><label><input type="checkbox" checked={filtered.length > 0 && filtered.every(route => selectedRouteIds.includes(route.id))} onChange={event => selectVisibleRoutes(event.target.checked)}/> Select all visible routes</label><span className="module-number">{selectedRouteIds.filter(id => routes.some(route => route.id === id)).length} SELECTED</span><button type="button" className="button-danger compact-button" disabled={!selectedRouteIds.length} onClick={archiveSelectedRoutes}>Archive selected</button><button type="button" className="button-quiet compact-button" disabled={!selectedRouteIds.length} onClick={() => setSelectedRouteIds([])}>Clear selection</button></div>
       <div className="transport-filter-groups ax-search-filter-columns">
         <button type="button" className="button-quiet compact-button" onClick={clearFilters}>All routes</button>
-        <SearchableMultiSelect id="transport-filter-vehicle" label="Vehicle type" options={VEHICLES.map(value=>({id:value,label:value}))} selected={selectedVehicles} onChange={setSelectedVehicles} emptyMeansAll/>
+        <SearchableMultiSelect id="transport-filter-vehicle" label="Vehicle type" options={vehicleOptions.map(value=>({id:value,label:value}))} selected={selectedVehicles} onChange={setSelectedVehicles} emptyMeansAll/>
         <SearchableMultiSelect id="transport-filter-direction" label="Trip direction" options={["One-way","Two-way"].map(value=>({id:value,label:value}))} selected={selectedDirections} onChange={setSelectedDirections} emptyMeansAll/>
         <SearchableMultiSelect id="transport-filter-vendor" label="Transport vendor" options={vendors.map(vendor=>({id:vendor.id,label:vendor.company+" · "+(vendor.contact||"Contact not set")}))} selected={selectedVendors} onChange={setSelectedVendors} emptyMeansAll/>
       </div>
@@ -103,7 +105,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
         <label>From location *<input value={fromLocation} onChange={event => setFromLocation(event.target.value)} placeholder="Pickup location"/></label>
         <label>To location *<input value={toLocation} onChange={event => setToLocation(event.target.value)} placeholder="Delivery location"/></label>
         <SearchablePicker id="transport-route-direction" label="Trip direction *" value={tripDirection} options={["One-way","Two-way"].map(value=>({id:value,label:value}))} onChange={value=>setTripDirection(value as "One-way"|"Two-way")}/>
-        <SearchablePicker id="transport-route-vehicle" label="Vehicle type *" value={vehicleType} placeholder="Search vehicle class…" options={VEHICLES.map(value=>({id:value,label:value}))} onChange={setVehicleType}/>
+        <SearchablePicker id="transport-route-vehicle" label="Vehicle type *" value={vehicleType} placeholder="Search vehicle class…" options={vehicleOptions.map(value=>({id:value,label:value}))} onChange={setVehicleType}/>
         <label>Fixed amount (₹) *<input inputMode="decimal" type="number" min="0" step="0.01" value={fixedAmount} onChange={event => setFixedAmount(event.target.value)} placeholder="Enter agreed route rate"/></label>
         <label className="editor-wide">Notes<input value={notes} onChange={event => setNotes(event.target.value)} placeholder="Validity, loading terms, waiting charges or agreement reference"/></label>
       </div>
@@ -111,7 +113,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
     </section>
     <section className="surface-panel">
       <div className="panel-heading"><div><div className="eyebrow">SAVED RATE REGISTER</div><h3>Transport routes ({filtered.length})</h3><p>Component transport usage copies the selected rate into a cost snapshot; later master-price changes do not rewrite earlier component costs.</p></div></div>
-      {filtered.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Select</th><th>From → To</th><th>Vehicle</th><th>Trip type</th><th>Fixed rate</th><th>Vendor</th><th>Contact</th><th>Actions</th></tr></thead><tbody>{filtered.map(route => { const vendor = vendors.find(row => row.id === route.vendorId); return <tr key={route.id}><td><input type="checkbox" aria-label={"Select route " + route.fromLocation + " to " + route.toLocation} checked={selectedRouteIds.includes(route.id)} onChange={() => setSelectedRouteIds(current => current.includes(route.id) ? current.filter(id => id !== route.id) : [...current, route.id])}/></td><td><strong>{route.fromLocation} → {route.toLocation}</strong>{route.notes && <small>{route.notes}</small>}</td><td>{route.vehicleType}</td><td>{route.tripDirection}</td><td><strong>{money(route.fixedAmount)}</strong></td><td>{vendor?.company || "Vendor archived"}</td><td>{vendor?.contact || "—"}<small>{vendor?.phone || vendor?.whatsappNumber || ""}</small></td><td><div className="process-row-actions"><button title="Edit route" onClick={() => edit(route)}><Edit3 size={13}/></button><button title="Archive route" onClick={() => archive(route)}><X size={13}/></button><button title="Open linked vendor in Contact 360" onClick={() => onSelectModule("vendors",{vendorId:route.vendorId})}><Users size={13}/></button></div></td></tr>; })}</tbody></table></div> : <div className="module-empty-state"><MapPin size={24}/><h3>{search ? "No matching routes" : "No transport routes yet"}</h3><p>Add a route and agreed amount. No vendor, route or rate is fabricated.</p></div>}
+      {filtered.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Select</th><th>From → To</th><th>Vehicle</th><th>Trip type</th><th>Fixed rate</th><th>Vendor</th><th>Contact</th><th>Actions</th></tr></thead><tbody>{filtered.map(route => { const vendor = vendors.find(row => row.id === route.vendorId); return <tr key={route.id}><td><input type="checkbox" aria-label={"Select route " + route.fromLocation + " to " + route.toLocation} checked={selectedRouteIds.includes(route.id)} onChange={() => setSelectedRouteIds(current => current.includes(route.id) ? current.filter(id => id !== route.id) : [...current, route.id])}/></td><td><strong>{route.fromLocation} → {route.toLocation}</strong>{route.notes && <small>{route.notes}</small>}</td><td><VehicleBadge vehicleType={route.vehicleType}/></td><td>{route.tripDirection}</td><td><strong>{money(route.fixedAmount)}</strong></td><td>{vendor?.company || "Vendor archived"}</td><td>{vendor?.contact || "—"}<small>{vendor?.phone || vendor?.whatsappNumber || ""}</small></td><td><div className="process-row-actions"><button title="Edit route" onClick={() => edit(route)}><Edit3 size={13}/></button><button title="Archive route" onClick={() => archive(route)}><X size={13}/></button><button title="Open linked vendor in Contact 360" onClick={() => onSelectModule("vendors",{vendorId:route.vendorId})}><Users size={13}/></button></div></td></tr>; })}</tbody></table></div> : <div className="module-empty-state"><MapPin size={24}/><h3>{search ? "No matching routes" : "No transport routes yet"}</h3><p>Add a route and agreed amount. No vendor, route or rate is fabricated.</p></div>}
     </section>
     <div className="module-safety-note"><ShieldCheck size={15}/><span>Transport rates are shared through the existing AXIMACH manufacturing data store. Vendor identity is referenced by vendor ID; this directory does not create duplicate vendors or overwrite Vendor Directory details.</span></div>
   </section>;
