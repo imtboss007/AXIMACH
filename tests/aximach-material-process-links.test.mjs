@@ -123,7 +123,7 @@ test("Material Directory BOM, part and material-process actions enforce exact pa
   assert.ok(inventory.includes('id="bom-part"'));
   assert.ok(inventory.includes('(row.partId || "") === (bomDraft.partId || "")'));
   assert.ok(inventory.includes('row.partId === materialLinkSelection.line.partId'));
-  assert.ok(inventory.includes('row.partId===selection.line.partId'));
+  assert.ok(inventory.includes('bom.partId!==selection.line.partId'));
   assert.ok(inventory.includes('partLinks.some(part => part.componentId === directoryComponentId)'));
   assert.ok(inventory.includes('part.materialIds?.includes(m.id)'));
 });
