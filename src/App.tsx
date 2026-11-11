@@ -205,7 +205,7 @@ function App() {
   useEffect(() => {
     let disposed = false;
     setOrientationHintDismissed(false);
-    if (!needsLandscapeOrientation || !window.matchMedia("(max-width: 900px)").matches) {
+    if (!needsLandscapeOrientation || !window.matchMedia("(pointer: coarse) and (max-width: 900px)").matches) {
       setOrientationLockUnavailable(false);
       void CapacitorScreenOrientation.unlock().catch(() => undefined);
       return;
