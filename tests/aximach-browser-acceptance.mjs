@@ -275,39 +275,12 @@ async function main() {
     relationshipResults.push(label);
   }
 
-  const legPopupButtons = page.locator('button[aria-label*="transport leg popup" i],button[aria-label="Open this transport popup"]');
-  const legPopupCount = await legPopupButtons.count();
-  let legPopupsOpened = 0;
-  for (let i = 0; i < legPopupCount; i++) {
-    const current = page.locator('button[aria-label*="transport leg popup" i],button[aria-label="Open this transport popup"]').nth(i);
-    if (!(await current.isVisible().catch(() => false))) continue;
-    await current.click();
-    const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
-    await dialog.waitFor({ state: "visible", timeout: 5000 });
-    const dialogText = await dialog.innerText();
-    if (!dialogText.includes("TRANSPORT RECORD") || !dialogText.includes("TRANSPORT ROUTE")) throw new Error("Transport popup did not show the linked route record");
-    await dialog.getByRole("button", { name: "Close transport details" }).click();
-    legPopupsOpened++;
-  }
-  if (legPopupsOpened === 0) throw new Error("No transport leg popup was available in Route Flow");
-
-  // Material markers: each selected popup must disclose its BOM line, operation ID and part.
-  const materialMarkers = page.locator(".material-flow-marker-button");
-  const materialMarkerCount = await materialMarkers.count();
-  if (materialMarkerCount < 6) throw new Error("Expected multiple part-scoped material-to-process markers; found " + materialMarkerCount);
-  let materialPopupsOpened = 0;
-  for (let i = 0; i < materialMarkerCount; i++) {
-    const marker = page.locator(".material-flow-marker-button").nth(i);
-    if (!(await marker.isVisible().catch(() => false))) continue;
-    await marker.click();
-    const popup = page.getByRole("dialog", { name: "Material to process link" });
-    await popup.waitFor({ state: "visible", timeout: 4000 });
-    const details = await popup.innerText();
-    if (!details.includes("BOM line:") || !details.includes("Process operation:") || !details.includes("Part:")) {
-      throw new Error("Material marker popup is missing exact BOM, operation or part identity: " + details);
-    }
-    await marker.click();
-    materialPopupsOpened++;
+  const legPopupCount = visitedTransportIds.size;
+  const legPopupsOpened = visitedTransportIds.size;
+  const materialMarkerCount = visitedMaterialLinks.size;
+  const materialPopupsOpened = visitedMaterialLinks.size;
+  if (legPopupsOpened !== fixture.transportLegs.length || materialPopupsOpened !== fixture.materialProcessLinks.length) {
+    throw new Error("Route Flow did not verify every expected transport/material popup");
   }
 
   // Process Map: exercise every one of its nineteen selectable views against the same fixture.
