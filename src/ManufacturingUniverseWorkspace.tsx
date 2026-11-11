@@ -18,6 +18,7 @@ export default function ManufacturingUniverseWorkspace({initialContext,onBack,on
   const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),components=activeRows(data.components);
   const vendors=activeRows(data.vendors),operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),legs=activeRows(data.transportLegs||[]);
   const definitions=activeRows(data.processDefinitions),relationships=activeRows(data.routeRelationships||[]);
+  const materialMaster=activeRows(data.materials||[]),materialProcessLinks=activeRows(data.materialProcessLinks||[]);
   const [companyPick,setCompanyPick]=useState(initialContext?.companyId||""),[poPick,setPoPick]=useState(initialContext?.poId||""),[linePick,setLinePick]=useState(initialContext?.poLineId||"");
   const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
   const [inspectedTransportId,setInspectedTransportId]=useState("");
@@ -63,6 +64,7 @@ export default function ManufacturingUniverseWorkspace({initialContext,onBack,on
   const routeLabels=useMemo(()=>Object.fromEntries(lines.map(item=>[item.id,(component?.partNumber?component.partNumber+" · ":"")+(component?.name||"Component")+" · Qty "+item.quantity])),[lines,component]);
   const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.poId===poId&&entry.componentId===componentId&&(!entry.poLineId||entry.poLineId===poLineId)&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId);
+  const routeMaterialProcessLinks=materialProcessLinks.filter(link=>link.poId===poId&&link.poLineId===poLineId&&link.componentId===componentId);
   const routeRelationships=relationships.filter(link=>link.poId===poId&&link.poLineId===poLineId&&link.status!=="Disabled");
   const transportCostByOperation=Object.fromEntries(routeOperations.map(operation=>{
     const attached=routeLegs.filter(leg=>leg.anchorOperationId===operation.id).reduce((sum,leg)=>sum+Math.max(0,leg.fixedAmount)*Math.max(1,leg.tripCount),0);
@@ -214,6 +216,9 @@ export default function ManufacturingUniverseWorkspace({initialContext,onBack,on
         routeLabels={routeLabels}
         materialRoutes={materialRouteNodes}
         transportLegs={transportNodes}
+        materialLinks={routeMaterialProcessLinks}
+        materials={materialMaster}
+        componentQuantity={line?.quantity||0}
         routeRelationships={routeRelationships}
         processDefinitions={definitions}
         vendors={vendors.map(row=>({id:row.id,company:row.company}))}

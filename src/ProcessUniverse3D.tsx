@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent, type CSSProperties } from "react";
 import { motion, useMotionValue, useReducedMotion } from "motion/react";
 import { Activity, ArrowRight, Bike, Boxes, Bus, CarFront, ClipboardCheck, Cog, Cpu, Disc3, GitBranch, Plane, Scissors, Ship, TrainFront, Zap, Truck, Workflow, Wrench } from "lucide-react";
-import type { OperationRecord, RouteRelationshipRecord } from "./manufacturingData";
+import type { MaterialProcessLinkRecord, MaterialRecord, OperationRecord, RouteRelationshipRecord } from "./manufacturingData";
+import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { ProcessIcon } from "./IconStudio";
 import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
@@ -17,7 +18,7 @@ type MaterialRouteNode = {
   materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number;
 };
 type TransportLegRouteNode = { id:string; poLineId:string; anchorOperationId:string; targetOperationId?:string; materialEntryId?:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; vendorContact?:string; vendorRole?:string; vendorPhone?:string; vendorWhatsapp?:string; vendorEmail?:string; vendorAddress?:string; vendorStatus?:string; vendorNotes?:string; directoryRouteNotes?:string; directoryRouteActive?:boolean; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
-type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; routeLabels?: Record<string,string>; materialRoutes?: MaterialRouteNode[]; transportLegs?: TransportLegRouteNode[]; routeRelationships?: RouteRelationshipRecord[]; onSelectTransportLeg?: (id:string,anchor?:{x:number;y:number})=>void; onSelectMaterialTransport?: (id:string,anchor?:{x:number;y:number})=>void; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onZoomChange?: (zoom:number)=>void; onSelectOperation: (id: string) => void; onEditOperation?: (id: string) => void; onChangeProcessColor?: (id: string, color: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void; onNotice?: (message:string)=>void };
+type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; routeLabels?: Record<string,string>; materialRoutes?: MaterialRouteNode[]; transportLegs?: TransportLegRouteNode[]; materialLinks?:MaterialProcessLinkRecord[]; materials?:MaterialRecord[]; componentQuantity?:number; selectedMaterialLinkId?:string; onSelectMaterialLink?:(id:string)=>void; routeRelationships?: RouteRelationshipRecord[]; onSelectTransportLeg?: (id:string,anchor?:{x:number;y:number})=>void; onSelectMaterialTransport?: (id:string,anchor?:{x:number;y:number})=>void; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onZoomChange?: (zoom:number)=>void; onSelectOperation: (id: string) => void; onEditOperation?: (id: string) => void; onChangeProcessColor?: (id: string, color: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void; onNotice?: (message:string)=>void };
 function materialVehicleClassFor(value:string){const type=(value||"").toLowerCase();if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike";if(/bus/.test(type))return "bus";if(/car|taxi|auto|three.wheeler/.test(type))return "car";if(/air|plane|flight/.test(type))return "air";if(/ship|boat|vessel/.test(type))return "ship";if(/train|rail/.test(type))return "rail";return "truck";}
 function materialVehicleIconFor(value:string){const type=(value||"").toLowerCase();if(/bike|motorcycle|scooter|two.wheeler/.test(type))return Bike;if(/bus/.test(type))return Bus;if(/car|taxi|auto|three.wheeler/.test(type))return CarFront;if(/air|plane|flight/.test(type))return Plane;if(/ship|boat|vessel/.test(type))return Ship;if(/train|rail/.test(type))return TrainFront;return Truck;}
 function MaterialRouteTransportMarker({route,onSelect}:{route:MaterialRouteNode;onSelect?:Props["onSelectMaterialTransport"]}){
@@ -192,7 +193,7 @@ function transformStyle3d(point: Point3D) {
   return `translate(-50%,-50%) translate3d(${point.x}px,${point.y}px,${point.z}px) rotateY(${yaw}deg) rotateX(${pitch}deg)`;
 }
 
-export default function ProcessUniverse3D({ operations, allOperations, routeLabels = {}, materialRoutes = [], transportLegs = [], routeRelationships = [], onSelectTransportLeg, onSelectMaterialTransport, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", ganttScale = "week", onGanttScaleChange, onZoomChange, onSelectOperation, onEditOperation, onChangeProcessColor, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition, onNotice=()=>{} }: Props) {
+export default function ProcessUniverse3D({ operations, allOperations, routeLabels = {}, materialRoutes = [], transportLegs = [], materialLinks = [], materials = [], componentQuantity = 0, selectedMaterialLinkId = "", onSelectMaterialLink, routeRelationships = [], onSelectTransportLeg, onSelectMaterialTransport, processDefinitions = [], vendors = [], visibleFields = [], showArrows = true, quantityUnit = "pieces", operationTransportAmounts = {}, selectedOperationId, simulationIndex, zoom, initialLayout = "sphere", ganttScale = "week", onGanttScaleChange, onZoomChange, onSelectOperation, onEditOperation, onChangeProcessColor, onAddSubprocess, onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition, onNotice=()=>{} }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const expandedDetailsRef = useRef<HTMLElement | null>(null);
   const mapViewportRef = useRef<HTMLDivElement | null>(null);
@@ -203,6 +204,12 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
   const moneyLabel = (value: number) => "₹" + Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
   const displayOperations = parentOperations.length ? parentOperations : operations;
+  const [localSelectedMaterialLinkId,setLocalSelectedMaterialLinkId]=useState("");
+  const materialLinksAt=(operationId:string,placement:"before"|"after")=>materialLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
+  const renderMaterialLink=(link:MaterialProcessLinkRecord)=>{const material=materials.find(row=>row.id===link.materialId);return material?<MaterialFlowMarker link={link} material={material} componentQuantity={componentQuantity} selected={(selectedMaterialLinkId||localSelectedMaterialLinkId)===link.id} onSelect={()=>{onSelectMaterialLink?.(link.id);setLocalSelectedMaterialLinkId(current=>current===link.id?"":link.id);}}/>:null;};
+  const transportFor=(operationId:string,placement:"before"|"after")=>transportLegs.filter(leg=>leg.anchorOperationId===operationId&&leg.placement===placement);
+  const renderTransportMarker=(leg:TransportLegRouteNode)=>{const Icon=materialVehicleIconFor(leg.vehicleType);return <button type="button" className={"ax-transport-icon-trigger vehicle-"+materialVehicleClassFor(leg.vehicleType)} aria-label={"Open transport record "+leg.id} title={leg.vehicleType+" · "+leg.fromLocation+" → "+leg.toLocation} onClick={event=>{const rect=event.currentTarget.getBoundingClientRect();onSelectTransportLeg?.(leg.id,{x:rect.left,y:rect.top});}}><Icon size={18}/></button>;};
+
   const lookupOperations = allOperations || operations;
   const subprocessesFor = (parentId: string) => lookupOperations.filter(operation => operation.relationType === "subprocess" && operation.parentId === parentId);
   const branchesFor = (parentId: string) => lookupOperations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
@@ -430,7 +437,7 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
         </div>}
       </section>}
     </div>
-    <div className="process-universe-viewport"><div className="process-universe-stage" style={stageStyle}>
+    <div className="process-universe-viewport"><nav className="process-universe-index" aria-label="Jump to manufacturing operation"><strong>STEPS</strong>{displayOperations.map((op,index)=><button type="button" key={op.id} onClick={()=>{onSelectOperation(op.id);setExpandedOperationId(op.id);}} aria-label={"Go to "+op.name}><b>{String(index+1).padStart(2,"0")}</b><span>{op.name}</span></button>)}</nav><div className="process-universe-stage" style={stageStyle}>
       {lanes.map((lane,laneIndex) => {
         const collapsed = collapsedLaneNames.includes(lane.key);
         const lanePanelId = "process-universe-lane-" + laneIndex;
@@ -455,12 +462,14 @@ export default function ProcessUniverse3D({ operations, allOperations, routeLabe
               const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
               const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
               return <div className="process-universe-node-wrap" key={operation.id}>
+                {materialLinksAt(operation.id,"before").map(link=><span className="process-universe-linked-marker" key={link.id}>{renderMaterialLink(link)}</span>)}{transportFor(operation.id,"before").map(leg=><span className="process-universe-linked-marker" key={leg.id}>{renderTransportMarker(leg)}</span>)}
                 <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (expanded ? " is-expanded" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{"--process-accent":accent} as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(operation.id); }} aria-pressed={active} aria-expanded={expanded} aria-controls={"process-universe-node-details-"+operation.id} title={"Open " + operation.name + " operation record"}>
                   <span className="process-universe-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><em>{operation.status}</em></span>
                   <span className="process-universe-node-icon"><ProcessIcon processId={operation.processDefinitionId} processName={operation.name} category={operation.category} subcategory={operation.subcategory} fallback={fallbackFor(operation.name)} /></span>
                   <strong>{operation.name}</strong>
                   <div className="process-universe-node-details"><small>{childOperations.length} linked sub-process(es) · {linkedBranches.length} alternate / rework step(s)</small><small>{expanded ? "− COLLAPSE DETAILS" : "+ EXPAND DETAILS"}</small></div>
                 </button>
+                {transportFor(operation.id,"after").map(leg=><span className="process-universe-linked-marker" key={leg.id}>{renderTransportMarker(leg)}</span>)}{materialLinksAt(operation.id,"after").map(link=><span className="process-universe-linked-marker" key={link.id}>{renderMaterialLink(link)}</span>)}
                 {expanded && <div id={"process-universe-node-details-"+operation.id} className="process-node-subprocess-dropdown">
                   <strong>{operation.name} · Linked steps</strong>
                   <div className="process-universe-node-details">

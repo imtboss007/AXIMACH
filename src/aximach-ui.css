@@ -3672,3 +3672,51 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 
 .manufacturing-universe-simulation-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .manufacturing-universe-simulation-controls>small{font:700 8px "DM Mono",monospace;letter-spacing:.06em;color:#7488a1;padding:5px 7px;border:1px solid rgba(112,145,178,.24);border-radius:7px}
+
+
+/* Compact adaptive route graphs, left step rails and top-left fullscreen fit. */
+.process-route-flow-track{display:flex;align-items:stretch;flex-wrap:wrap;gap:6px;min-width:0;overflow:visible}
+.process-route-index,.linked-process-index,.process-universe-index{display:flex;flex-direction:column;gap:3px;min-width:0;max-height:520px;overflow:auto;padding:5px;background:rgba(5,24,42,.72);border:1px solid rgba(130,170,205,.28);border-radius:8px;scrollbar-width:thin}
+.process-route-index{position:sticky;top:6px;z-index:12;max-width:150px}
+.process-route-index button,.linked-process-index button,.process-universe-index button{display:flex;align-items:center;gap:6px;min-height:25px;padding:4px 6px;border:1px solid rgba(125,161,196,.22);border-radius:5px;background:rgba(20,53,78,.65);color:#dceaf8;text-align:left;font-size:8px;cursor:pointer}
+.process-route-index button b,.linked-process-index button b,.process-universe-index button b{color:#74c5ee;font:8px 'DM Mono';flex:0 0 18px}
+.process-route-index button span,.linked-process-index button span,.process-universe-index button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.linked-node-scroll{display:grid;grid-template-columns:42px minmax(0,1fr);gap:8px;min-width:0}
+.linked-process-index{position:sticky;left:0;top:6px;z-index:8;width:42px;max-height:65vh}
+.linked-process-index button{justify-content:center;padding:4px 2px}
+.linked-process-index button span{display:none}
+.process-universe-viewport{display:grid;grid-template-columns:42px minmax(0,1fr);gap:8px;min-width:0;max-width:100%;overflow:auto}
+.process-universe-index{position:sticky;left:0;top:0;z-index:8;width:42px;max-height:55vh;align-self:start}
+.process-universe-index strong{font:8px 'DM Mono';color:#8dc9e9}
+.process-universe-index button{justify-content:center;padding:4px 2px}
+.process-universe-index button span{display:none}
+.process-universe-stage{width:100% !important;min-width:0 !important;max-width:100%;transform-origin:top left}
+.process-universe-node{width:clamp(88px,12vw,148px);min-height:92px;padding:6px;gap:4px}
+.process-universe-node-wrap{gap:3px;flex-wrap:wrap}
+.process-universe-linked-marker{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.process-route-flow-step>button{width:clamp(88px,11vw,132px);min-height:76px;padding:5px;font-size:9px}
+.process-route-flow-step>button strong{font-size:9px}
+.process-route-flow-material-link{width:auto;min-width:28px;flex:0 0 auto;align-items:center;justify-content:center}
+.process-map-demo-launch{display:flex;justify-content:flex-end;padding:5px 10px}
+.linked-route-canvas:fullscreen{width:100vw;height:100vh;max-height:100vh;overflow:auto;padding:8px;background:#061b2b;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start}
+.linked-route-canvas:fullscreen .process-route-flow-track{max-width:100%;max-height:calc(100vh - 130px);overflow:auto;justify-content:flex-start;align-content:flex-start}
+.linked-route-canvas:fullscreen .process-route-flow-step>button{width:clamp(76px,8vw,118px);min-height:64px}
+.process-map-demo-launch+.transport-routing-demo{max-height:70vh;overflow:auto}
+@media (orientation:portrait) and (max-width:900px){
+ .process-route-flow-track{gap:4px;justify-content:flex-start}
+ .process-route-index{max-height:40vh;max-width:100%;position:sticky;top:0}
+ .process-route-flow-step>button{width:clamp(76px,24vw,104px);min-height:68px}
+ .linked-node-scroll{grid-template-columns:38px minmax(0,1fr)}
+ .linked-process-index{width:38px}
+ .process-universe-viewport{grid-template-columns:38px minmax(0,1fr);gap:5px}
+ .process-universe-stage{width:100% !important;min-width:0 !important}
+ .process-universe-node{width:clamp(74px,20vw,102px);min-height:74px;font-size:8px}
+}
+@media (orientation:landscape) and (max-height:600px){
+ .process-route-flow-track{gap:4px;align-content:flex-start;justify-content:flex-start}
+ .process-route-flow-step>button{width:clamp(72px,8vw,108px);min-height:60px;padding:4px}
+ .linked-route-canvas:fullscreen{padding:5px}
+ .process-universe-viewport{max-height:calc(100dvh - 95px);min-height:0;padding:6px}
+ .process-universe-stage{width:100% !important;min-width:0 !important}
+ .process-universe-node{width:clamp(72px,8vw,104px);min-height:68px;padding:4px}
+}
