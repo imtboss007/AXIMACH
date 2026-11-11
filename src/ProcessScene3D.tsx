@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront } from "lucide-react";
+import { Truck } from "lucide-react";
+import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
 import type { OperationRecord } from "./manufacturingData";
 
 type Mode = "sphere"|"cube"|"vortex"|"helix"|"orbit"|"network"|"grid"|"pipeline"|"layered"|"stacked"|"matrix"|"tree"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined"|"molecular"|"digital-mesh"|"route"|"orthogonal"|"s-curve"|"swimlane"|"radial"|"circular"|"organic";
@@ -7,16 +8,6 @@ type CatalogueDefinition = { id:string; processType:string; category:string; dis
 type RouteAnchor = { operation:OperationRecord; relation:string; color:string };
 type MaterialRouteNode = { id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
 type TransportLegNode = { id:string; poLineId:string; anchorOperationId:string; targetOperationId?:string; materialEntryId?:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; vendorContact?:string; vendorRole?:string; vendorPhone?:string; vendorWhatsapp?:string; vendorEmail?:string; vendorAddress?:string; vendorStatus?:string; vendorNotes?:string; directoryRouteNotes?:string; directoryRouteActive?:boolean; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
-const vehicleIconFor=(value:string)=>{
- const type=(value||"").toLowerCase();
- if(/bike|motorcycle|scooter|two.wheeler/.test(type))return Bike;
- if(/bus/.test(type))return Bus;
- if(/car|taxi|auto|three.wheeler/.test(type))return CarFront;
- if(/air|plane|flight/.test(type))return Plane;
- if(/ship|boat|vessel/.test(type))return Ship;
- if(/train|rail/.test(type))return TrainFront;
- return Truck;
-};
 const vehicleClassFor=(value:string)=>{
  const type=(value||"").toLowerCase();
  if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike";
@@ -398,8 +389,8 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
      {visibleFields.includes("materialQuantity")&&<small>Qty {route.quantity.toLocaleString("en-IN")} · {route.weightKg.toFixed(2)} kg</small>}
      {visibleFields.includes("materialVendor")&&<small>Supplier · {route.supplier}</small>}
    </div>;})}
-   {projectedTransports.map(item=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;const VehicleIcon=vehicleIconFor(route.vehicle);const vehicleTone=vehicleClassFor(route.vehicle);return <button type="button" key={"transport-card-"+item.id} className={"ax-full3d-transport-icon vehicle-"+vehicleTone} style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();const rect=event.currentTarget.getBoundingClientRect();onSelectMaterialTransport?.(route.id,{x:rect.left,y:rect.top});}} aria-label={"Open inbound material transport popup · "+route.from+" to "+route.to} title={(route.vehicle||"Transport")+" · "+(route.transporter||"Transporter not assigned")}><VehicleIcon size={17}/></button>;})}
-    {projectedTransportLegs.map(item=>{const leg=transportLegs.find(row=>row.id===item.id);if(!leg)return null;const VehicleIcon=vehicleIconFor(leg.vehicleType);return <button type="button" key={"transport-leg-card-"+item.id} className={"ax-full3d-transport-icon vehicle-"+vehicleClassFor(leg.vehicleType)} style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();const rect=event.currentTarget.getBoundingClientRect();onSelectTransportLeg?.(leg.id,{x:rect.left,y:rect.top});}} aria-label={"Open transport popup · "+leg.fromLocation+" to "+leg.toLocation} title={(leg.vehicleType||"Transport")+" · "+(leg.vendorName||"Transporter not assigned")}><VehicleIcon size={17}/></button>;})}
+   {projectedTransports.map(item=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;const vehicleTone=vehicleClassFor(route.vehicle);return <button type="button" key={"transport-card-"+item.id} className={"ax-full3d-transport-icon vehicle-"+vehicleTone} style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();const rect=event.currentTarget.getBoundingClientRect();onSelectMaterialTransport?.(route.id,{x:rect.left,y:rect.top});}} aria-label={"Open inbound material transport popup · "+route.from+" to "+route.to} title={(route.vehicle||"Transport")+" · "+(route.transporter||"Transporter not assigned")}><VehicleTypeIcon vehicleType={route.vehicle} size={17}/></button>;})}
+    {projectedTransportLegs.map(item=>{const leg=transportLegs.find(row=>row.id===item.id);if(!leg)return null;return <button type="button" key={"transport-leg-card-"+item.id} className={"ax-full3d-transport-icon vehicle-"+vehicleClassFor(leg.vehicleType)} style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();const rect=event.currentTarget.getBoundingClientRect();onSelectTransportLeg?.(leg.id,{x:rect.left,y:rect.top});}} aria-label={"Open transport popup · "+leg.fromLocation+" to "+leg.toLocation} title={(leg.vehicleType||"Transport")+" · "+(leg.vendorName||"Transporter not assigned")}><VehicleTypeIcon vehicleType={leg.vehicleType} size={17}/></button>;})}
    {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
      <small>{operationCode(op)}</small><strong>{op.name}</strong>
      <em>{visibleFields.includes("status")?op.status:"Process step"} · Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>
