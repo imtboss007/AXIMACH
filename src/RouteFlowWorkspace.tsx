@@ -8,10 +8,12 @@ import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector
 import { transportPopupAnchor } from "./transportPopup";
 import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
+import { MaterialFlowMarker } from "./MaterialFlowMarker";
+import { RouteConnectorLegend } from "./RouteConnectorLegend";
 import { Activity, ArrowLeft, ArrowRight, Bike, Box, Bus, CarFront, Check, ChevronDown, CircleDashed, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, GitMerge, GitPullRequest, Link2, MessageCircle, Network, Package, Plane, Plus, Route, Save, ShieldCheck, Ship, Sparkles, Split, TrainFront, Truck, Users, Waypoints, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
-  type ComponentTransportLegRecord, type OperationRecord, type RouteRelationshipRecord,
+  type ComponentTransportLegRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type RouteRelationshipRecord,
   type RouteRelationshipType, type RouteRelationshipStatus
 } from "./manufacturingData";
 
@@ -78,12 +80,14 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,trans
 export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModule}:Props) {
   const {data,update,syncStatus}=useManufacturingData();
   const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),vendors=activeRows(data.vendors);
-  const operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),legs=activeRows(data.transportLegs||[]);
+  const operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),materialMasterRecords=activeRows(data.materials||[]),legs=activeRows(data.transportLegs||[]);
+  const allMaterialProcessLinks=activeRows(data.materialProcessLinks||[]);
   const routes=activeRows(data.transportRoutes||[]);
   const [companyPick,setCompanyPick]=useState("");
   const [poPick,setPoPick]=useState("");
   const [linePick,setLinePick]=useState("");
   const [branchPick,setBranchPick]=useState("Main route");
+  const [selectedMaterialLinkId,setSelectedMaterialLinkId]=useState("");
   const [fromOperationId,setFromOperationId]=useState("");
   const [toOperationId,setToOperationId]=useState("");
   const [relationshipType,setRelationshipType]=useState<RouteRelationshipType>("main");
@@ -136,6 +140,9 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const lane=routeOperations.filter(row=>(row.branch||"Main route")===branch);
   const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(!entry.poLineId||entry.poLineId===poLineId)&&(!entry.poId||entry.poId===poId)&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&(!leg.anchorOperationId&&!leg.targetOperationId||lane.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
+  const routeMaterialProcessLinks=allMaterialProcessLinks.filter(link=>link.poId===poId&&link.poLineId===poLineId&&link.componentId===componentId);
+  const materialLinksAt=(operationId:string,placement:"before"|"after")=>routeMaterialProcessLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
+  const renderMaterialProcessLink=(link:MaterialProcessLinkRecord)=>{const material=materialMasterRecords.find(row=>row.id===link.materialId);return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={line?.quantity||0} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>:null;};
   const inspectedTransportLeg=routeLegs.find(leg=>leg.id===inspectedTransportId);
   const inspectedTransportVendor=inspectedTransportLeg?vendors.find(vendor=>vendor.id===inspectedTransportLeg.vendorId):undefined;
   const inspectedTransportRoute=inspectedTransportLeg?routes.find(route=>route.id===inspectedTransportLeg.routeId):undefined;
@@ -391,7 +398,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           <button type="button" className="ax-map-zoom-fit" onClick={()=>setRouteZoom(.82)} title="Fit route">Fit</button>
         </div>
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:
-      <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<div className="route-flow-stage-track" data-route-layout={routeLayout}>
+      <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<RouteConnectorLegend/><div className="route-flow-stage-track" data-route-layout={routeLayout}>
         {routeNodes.map((node,index)=>{
           const connector=index<routeNodes.length-1?connectorFor(index):null;
           const NodeVehicleIcon=node.kind==="transport"?vehicleIconFor(node.leg.vehicleType):node.kind==="material-transport"?vehicleIconFor(node.entry.transportVehicleType||""):Truck;
@@ -400,7 +407,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
               {node.kind==="material"&&<><div className="route-flow-node-top"><Package size={18}/><small>MANDATORY MATERIAL STAGE</small></div><strong>{node.entry.materialName} · {node.entry.materialGrade}</strong><span>{node.entry.partNumber||node.entry.partName||"Component-level allocation"} · {node.entry.shapeType}</span><span>{node.entry.quantity} pieces · {Number(node.entry.totalWeightKg||0).toFixed(3)} kg</span><span>Supplier: {vendors.find(v=>v.id===node.entry.vendorId)?.company||"Not assigned"}</span><em>{money(node.entry.materialCost)} material · {money(node.entry.cuttingCost)} cutting</em><small>Given {dateTime(node.entry.givenDate)} · Due {dateTime(node.entry.deliveryDate)}</small><button onClick={openProcessMap}>Edit material <ArrowRight size={12}/></button></>}
               {node.kind==="material-transport"&&<button type="button" className={"ax-transport-icon-trigger vehicle-"+vehicleClassFor(node.entry.transportVehicleType||"")} aria-label="Open inbound material transport popup" title={(node.entry.transportVehicleType||"Vehicle")+" · "+(node.entry.transportFrom||"Pickup")+" → "+(node.entry.transportTo||"Destination")} onClick={event=>{setInspectedMaterialTransportId(node.entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><NodeVehicleIcon size={20}/></button>}
               {node.kind==="transport"&&<button type="button" className={"ax-transport-icon-trigger vehicle-"+vehicleClassFor(node.leg.vehicleType)} aria-label="Open transport leg popup" title={(node.leg.vehicleType||"Vehicle")+" · "+node.leg.fromLocation+" → "+node.leg.toLocation} onClick={event=>{setInspectedTransportId(node.leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><NodeVehicleIcon size={20}/></button>}
-              {node.kind==="operation"&&<><div className="route-flow-node-top"><Factory size={18}/><small>OP-{String(node.operation.sequence).padStart(3,"0")} · {node.operation.status}</small></div><strong>{node.operation.name}</strong><span>{node.operation.category} · {node.operation.subcategory||"Sub-process not selected"}</span><span>Qty {node.operation.quantity} · {vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned"}</span><em>{money(node.operation.quantity*(node.operation.actualRatePerPart||node.operation.ratePerPart))} process amount</em><small>Start {dateTime(node.operation.plannedStart)} · Due {dateTime(node.operation.plannedEnd)}</small><button onClick={()=>setEditingOperation(node.operation)}>Edit here <ArrowRight size={12}/></button></>}
+              {node.kind==="operation"&&<>{materialLinksAt(node.operation.id,"before").map(renderMaterialProcessLink)}<div className="route-flow-node-top"><Factory size={18}/><small>OP-{String(node.operation.sequence).padStart(3,"0")} · {node.operation.status}</small></div><strong>{node.operation.name}</strong><span>{node.operation.category} · {node.operation.subcategory||"Sub-process not selected"}</span><span>Qty {node.operation.quantity} · {vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned"}</span><em>{money(node.operation.quantity*(node.operation.actualRatePerPart||node.operation.ratePerPart))} process amount</em><small>Start {dateTime(node.operation.plannedStart)} · Due {dateTime(node.operation.plannedEnd)}</small><button onClick={()=>setEditingOperation(node.operation)}>Edit here <ArrowRight size={12}/></button>{materialLinksAt(node.operation.id,"after").map(renderMaterialProcessLink)}</>}
               {node.kind==="missing-material"&&<><div className="route-flow-node-top"><Package size={18}/><small>REQUIRED FIRST STAGE</small></div><strong>Material allocation missing</strong><span>A manufacturing route must have its material / grade allocation before its first process.</span><button onClick={openProcessMap}>Add material <ArrowRight size={12}/></button></>}
             </article>
             {connector&&<RouteCurve type={connector.type} layout={routeLayout} transport={connector.transport} label={connector.label} vehicleType={connector.vehicleType} tripCount={connector.tripCount} transportLegId={connector.transportLegId} materialTransportId={connector.materialTransportId} onTransportClick={(id,kind,element)=>{setTransportPopupPoint(transportPopupAnchor(element));if(kind==="leg"){setInspectedTransportId(id);setInspectedMaterialTransportId("");}else{setInspectedMaterialTransportId(id);setInspectedTransportId("");}}}/>}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord, type RouteRelationshipRecord } from "./manufacturingData";
-import ProcessUniverse3D from "./WebGLProcessUniverse3D";
+import ProcessUniverse3D from "./ProcessUniverse3D";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
 import TransportRecordInspector from "./TransportRecordInspector";
@@ -16,7 +16,8 @@ type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; 
 export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,onSelectModule}:Props) {
   const {data,syncStatus,update}=useManufacturingData();
   const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),components=activeRows(data.components);
-  const vendors=activeRows(data.vendors),operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),legs=activeRows(data.transportLegs||[]);
+  const vendors=activeRows(data.vendors),operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),materialMasterRecords=activeRows(data.materials||[]),legs=activeRows(data.transportLegs||[]);
+  const materialProcessLinks=activeRows(data.materialProcessLinks||[]);
   const definitions=activeRows(data.processDefinitions),relationships=activeRows(data.routeRelationships||[]);
   const [companyPick,setCompanyPick]=useState(""),[poPick,setPoPick]=useState(""),[linePick,setLinePick]=useState("");
   const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
@@ -24,6 +25,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [inspectedMaterialTransportId,setInspectedMaterialTransportId]=useState("");
   const [transportPopupPoint,setTransportPopupPoint]=useState<{x:number;y:number}>({x:8,y:8});
   const [selectedOperationId,setSelectedOperationId]=useState("");
+  const [selectedMaterialLinkId,setSelectedMaterialLinkId]=useState("");
   const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
   const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
@@ -46,6 +48,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const allRouteOperations=operations.filter(row=>row.poId===poId&&row.poLineId===poLineId);
   const routeOperations=allRouteOperations.filter(row=>row.relationType!=="subprocess").sort((a,b)=>a.sequence-b.sequence);
   const activeOperation=routeOperations.find(row=>row.id===selectedOperationId)||routeOperations[0];
+  const selectedMaterialProcessLinks=materialProcessLinks.filter(link=>link.poId===poId&&link.poLineId===poLineId&&link.componentId===componentId);
   const simulationOperations=routeOperations.filter(row=>row.relationType!=="subprocess");
   const simulatedOperationId=simulationOperations[simulationIndex]?.id||"";
   useEffect(()=>{
@@ -214,6 +217,11 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         materialRoutes={materialRouteNodes}
         transportLegs={transportNodes}
         routeRelationships={routeRelationships}
+        materialLinks={selectedMaterialProcessLinks}
+        materials={materialMasterRecords}
+        componentQuantity={line?.quantity||0}
+        selectedMaterialLinkId={selectedMaterialLinkId}
+        onSelectMaterialLink={id=>setSelectedMaterialLinkId(current=>current===id?"":id)}
         processDefinitions={definitions}
         vendors={vendors.map(row=>({id:row.id,company:row.company}))}
         visibleFields={visibleUniverseFields}
