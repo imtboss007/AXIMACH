@@ -64,7 +64,15 @@ async function assertWorkspace(page, label) {
 }
 
 async function openModule(page, title) {
-  const button = page.locator('nav[aria-label="AXIMACH navigation"] button[title="' + title.replaceAll('"', '\\"') + '"]');
+  const nav = page.locator('nav[aria-label="AXIMACH navigation"]');
+  const button = nav.locator('button[title="' + title.replaceAll('"', '\\"') + '"]');
+  if (await button.count() && !(await button.isVisible().catch(() => false))) {
+    const returnButton = page.getByRole("button", { name: "Return to Command Centre", exact: true });
+    if (await returnButton.isVisible().catch(() => false)) {
+      await returnButton.click();
+      await page.waitForTimeout(250);
+    }
+  }
   await button.waitFor({ state: "visible", timeout: 8000 });
   await button.click();
   await page.waitForTimeout(300);
