@@ -261,6 +261,17 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
       };
     });
     reset();
+    // "Save & Add Another Material" keeps the just-saved part active. This
+    // allows several material grades to be allocated to one physical part
+    // without accidentally creating a new part after every material save.
+    if(part){
+      setTarget("part");setNewPartMode(false);setPartId(part.id);setPartName(part.name);setPartNumber(part.partNumber);
+      setShape(part.shapeType||"plate");
+      setDimensions(Object.fromEntries(Object.entries(part.dimensions||{}).map(([key,value])=>[key,String(value)])));
+      setDimensionUnits(part.dimensionUnits||{});
+    }else{
+      setTarget("component");setNewPartMode(false);setPartId("");setPartName("");setPartNumber("");
+    }
     onNotice?.((scope==="process-map"?"Process Map":"Component Planned Cost")+" material entry saved: "+money(materialCost)+" material + "+money(cuttingCost)+" cutting + "+money(Math.max(0,Number(transportCost)||0))+" transport.");
   };
   const archive=(entry:MaterialCostEntryRecord)=>{
