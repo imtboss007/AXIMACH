@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, ChevronDown, Plus, Scissors, Trash2, Truck, X } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type ComponentPartRecord, type MaterialCostEntryRecord, type MaterialRecord, type OperationRecord } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type ComponentPartRecord, type MaterialCostEntryRecord, type MaterialRecord, type OperationRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
 type Scope = "process-map" | "planned-cost";
@@ -167,7 +167,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const cuttingCost=!cuttingType?0:cuttingBasis==="Per piece"?cutRate*qty:cuttingBasis==="Per cut"?cutRate*qty*Math.max(1,Number(cutsPerPiece)||1):cuttingBasis==="Per kg"?cutRate*totalWeightKg:cuttingBasis==="Per metre"?cutRate*lengthM*qty:cuttingBasis==="Per hour"?cutRate*Math.max(0,Number(cuttingHours)||0):cutRate;
   const totalCost=materialCost+cuttingCost;
   const reset=()=>{setFormError("");setEditingEntryId("");setAnchorOperationId("");setTarget(defaultNewPart&&!initialPartId?"part":"component");setNewPartMode(defaultNewPart&&!initialPartId);setPartId("");setPartName("");setPartNumber("");setShape("plate");setDimensions({});setDimensionUnits({});setMaterialId("");setNewMaterialOpen(false);setNewMaterialName("");setNewMaterialType("");setNewMaterialGrade("");setNewMaterialCode("");setNewDensity("");setMaterialRate("");setPriceUnit("kg");setQuantity("1");setVendorId("");setGivenDate("");setDeliveryDate("");setActualDeliveryDate("");setTransportVendorId("");setTransportFrom("");setTransportTo("");setTransportVehicleType("");setTransportCost("");setTransportPickupAt("");setTransportDeliveryAt("");setTransportStatus("Planned");setCuttingType("");setCustomCuttingType("");setCuttingBasis("Per piece");setCuttingRate("");setCutsPerPiece("1");setCuttingHours("0");setWastagePercent("0");setNotes("");};
-  const selectPart=(id:string)=>{const part=parts.find(item=>item.id===id);const linkedLine=relatedPoLines.find(item=>item.line.partId===id);if(linkedLine)setSelectedPoLineId(linkedLine.line.id);setNewPartMode(false);setPartId(id);setPartName(part?.name||"");setPartNumber(part?.partNumber||"");setShape(part?.shapeType||"plate");setDimensions(Object.fromEntries(Object.entries(part?.dimensions||{}).map(([key,value])=>[key,String(value)])));setDimensionUnits(part?.dimensionUnits||{});setMaterialId(part?.materialId||"");const savedMaterial=materials.find(item=>item.id===part?.materialId);if(savedMaterial){setMaterialRate(String(savedMaterial.ratePerUnit||""));setPriceUnit(savedMaterial.priceUnit||"kg");setVendorId(part?.vendorIds?.[0]||savedMaterial.preferredVendorId||"");}};
+  const selectPart=(id:string)=>{const part=parts.find(item=>item.id===id);const linkedLine=relatedPoLines.find(item=>item.line.partId===id);if(linkedLine)setSelectedPoLineId(linkedLine.line.id);setNewPartMode(false);setPartId(id);setPartName(part?.name||"");setPartNumber(part?.partNumber||"");setShape(part?.shapeType||"plate");setDimensions(Object.fromEntries(Object.entries(part?.dimensions||{}).map(([key,value])=>[key,String(value)])));setDimensionUnits(part?.dimensionUnits||{});setMaterialId(part?.materialId||part?.materialIds?.[0]||"");const savedMaterial=materials.find(item=>item.id===part?.materialId);if(savedMaterial){setMaterialRate(String(savedMaterial.ratePerUnit||""));setPriceUnit(savedMaterial.priceUnit||"kg");setVendorId(part?.vendorIds?.[0]||savedMaterial.preferredVendorId||"");}};
   useEffect(()=>{
     if(requirePoLine&&!selectedPoLineId&&relatedPoLines.length===1){
       const onlyLine=relatedPoLines[0];
@@ -221,7 +221,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
       shapeType:shape,
       dimensions:Object.fromEntries(Object.entries(dimensions).map(([key,value])=>[key,Number(value)||0])),
       dimensionUnits:{...dimensionUnits},
-      vendorIds:[...new Set([...(existingPart?.vendorIds||[]),...(vendorId?[vendorId]:[])])],materialId:existingPart?.materialId||materialRecord?.id||"",notes:existingPart?.notes||notes.trim(),createdAt:existingPart?.createdAt||stamp,updatedAt:stamp
+      vendorIds:[...new Set([...(existingPart?.vendorIds||[]),...(vendorId?[vendorId]:[])])],materialId:existingPart?.materialId||materialRecord?.id||"",materialIds:[...new Set([...(existingPart?.materialIds||[]),...(existingPart?.materialId?[existingPart.materialId]:[]),...(materialRecord?.id?[materialRecord.id]:[])])],notes:existingPart?.notes||notes.trim(),createdAt:existingPart?.createdAt||stamp,updatedAt:stamp
     }:undefined;
     const entry:MaterialCostEntryRecord={
       id:editingEntryId||makeId("material-cost"),scope,companyId,poId:effectivePoLine?.po.id||poId,poLineId:effectivePoLineId,componentId,anchorOperationId:anchorOperationId||undefined,partId:part?.id||effectivePoLine?.line.partId||partId||"",partNumber:part?.partNumber||"",partName:part?.name||(componentName||componentNumber||"Component-level"),materialId:materialRecord?.id||"",materialName,materialGrade,densityKgM3:density,
@@ -230,6 +230,22 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
       vendorId,givenDate,deliveryDate,actualDeliveryDate,poReference:"",notes:notes.trim(),currency:"INR",transportVendorId,transportFrom:transportFrom.trim(),transportTo:transportTo.trim(),transportVehicleType:transportVehicleType.trim(),transportCost:Math.max(0,Number(transportCost)||0),transportPickupAt,transportDeliveryAt,transportStatus,createdAt:stamp,updatedAt:stamp
     };
     update(current=>{
+      const componentRevision=current.components.find(row=>row.id===componentId)?.revision||"";
+      let nextBomLines=current.bomLines||[];
+      if(scope==="process-map"&&materialRecord){
+        const sourceBom=nextBomLines.find(row=>row.sourceMaterialCostEntryId===entry.id);
+        const matchingBom=nextBomLines.find(row=>!row.deletedAt&&row.componentId===componentId&&(row.partId||"")===(entry.partId||"")&&row.materialId===materialRecord!.id&&(row.revision||"")===componentRevision);
+        const existingBom=sourceBom||matchingBom;
+        const bomLine:BomLineRecord={
+          id:existingBom?.id||makeId("bom"),componentId,partId:entry.partId||undefined,materialId:materialRecord.id,revision:componentRevision,
+          quantityPerPart:sourceBom?perPieceKg:existingBom?.quantityPerPart??perPieceKg,unit:materialRecord.unit||"kg",
+          sourceMaterialCostEntryId:sourceBom?.sourceMaterialCostEntryId||(!existingBom?.sourceMaterialCostEntryId?entry.id:undefined),
+          scrapPercent:sourceBom?wastage:existingBom?.scrapPercent??wastage,
+          notes:existingBom?.notes||("Linked to Process Map material allocation "+entry.id+"; calculated from saved dimensions and material density."),
+          createdAt:existingBom?.createdAt||stamp,updatedAt:stamp
+        };
+        nextBomLines=[bomLine,...nextBomLines.filter(row=>row.id!==bomLine.id)];
+      }
       const nextPurchaseOrders=part&&effectivePoLineId
         ? current.purchaseOrders.map(order=>order.id!==effectivePoLine!.po.id?order:{
             ...order,
@@ -241,6 +257,7 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
         ...current,
         materials:newMaterialOpen?[materialRecord!,...current.materials.filter(row=>row.id!==materialRecord!.id)]:current.materials,
         componentParts:part?[part,...(current.componentParts||[]).filter(row=>row.id!==part.id)]:current.componentParts||[],
+        bomLines:nextBomLines,
         purchaseOrders:nextPurchaseOrders,
         materialCostEntries:[entry,...(current.materialCostEntries||[]).filter(row=>row.id!==entry.id)]
       };
@@ -251,7 +268,10 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
   const archive=(entry:MaterialCostEntryRecord)=>{
     if(!window.confirm("Delete this material procurement allocation? Its audit record will be retained as archived."))return;
     const stamp=nowIso();
-    update(current=>({...current,materialCostEntries:(current.materialCostEntries||[]).map(row=>row.id===entry.id?{...row,deletedAt:stamp,updatedAt:stamp}:row)}));
+    update(current=>({...current,
+      materialCostEntries:(current.materialCostEntries||[]).map(row=>row.id===entry.id?{...row,deletedAt:stamp,updatedAt:stamp}:row),
+      bomLines:entry.scope==="process-map"?(current.bomLines||[]).map(row=>row.sourceMaterialCostEntryId===entry.id?{...row,deletedAt:stamp,updatedAt:stamp}:row):current.bomLines
+    }));
   };
   const partValue=target==="component"?"__component__":newPartMode?"__new__":partId;
   const shapeOptions=SHAPES.map(item=>({id:item.id,label:item.label}));
