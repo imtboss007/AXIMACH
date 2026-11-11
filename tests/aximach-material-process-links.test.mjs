@@ -126,6 +126,9 @@ test("Material Directory BOM, part and material-process actions enforce exact pa
   assert.ok(inventory.includes('bom.partId!==selection.line.partId'));
   assert.ok(inventory.includes('partLinks.some(part => part.componentId === directoryComponentId)'));
   assert.ok(inventory.includes('part.materialIds?.includes(m.id)'));
+  assert.ok(inventory.includes("const visibleBom = useMemo"));
+  assert.ok(inventory.includes("const linkedOrders = orders.filter"));
+  assert.ok(inventory.includes('tab === "bom"'));
 });
 
 test("BOM issue preview and ledger posting include component-wide and selected-part BOM rows only", () => {
@@ -164,4 +167,25 @@ test("Component master and Process Map module links pass source record context",
   assert.ok(master.includes('onSelectModule("inventory",{companyId:linkedOrder?.companyId||row.companyId,poId:linkedOrder?.id,poLineId:linkedLine?.id,componentId:row.id})'));
   assert.ok(processMap.includes('subtab:"process-links"'));
   assert.ok(processMap.includes('onSelectModule("transport-master",{companyId,poId,poLineId,componentId:selectedLine?.componentId})'));
+  assert.ok(processMap.includes("materialProcessPartLabels"));
+});
+
+test("material-to-process markers disclose the exact BOM part across Process Map, Route Flow and Manufacturing Universe", () => {
+  const marker = readFileSync(new URL("../src/MaterialFlowMarker.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  assert.ok(marker.includes("partLabel?: string"));
+  assert.ok(marker.includes("Part: {partLabel}"));
+  assert.ok(processMap.includes("partLabel={materialProcessPartLabels[link.id]}"));
+  assert.ok(routeFlow.includes("partLabel={materialProcessPartLabels[link.id]}"));
+  assert.ok(universe.includes("materialPartLabels?.[link.id]"));
+});
+
+test("part-scoped routes hide process links whose BOM belongs to another part", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes("return !selectedPart||!linkedBom?.partId||linkedBom.partId===selectedPart.id"));
+  assert.ok(routeFlow.includes("return !line?.partId||!linkedBom?.partId||linkedBom.partId===line.partId"));
+  assert.ok(routeFlow.includes("leg.componentId===componentId"));
 });
