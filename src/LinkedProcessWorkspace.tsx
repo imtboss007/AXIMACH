@@ -248,14 +248,15 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const selectedLine = poLines.find(line => line.id === poLineId);
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
   const selectedPart = componentParts.find(part => part.id === selectedLine?.partId);
-  const processMapMaterialEntries = allMaterialCostEntries.filter(entry => entry.scope === "process-map" && entry.componentId === selectedLine?.componentId && entry.poId === selectedPO?.id && (!entry.poLineId || entry.poLineId === selectedLine?.id) && (!selectedPart || !entry.partId || entry.partId === selectedPart.id)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  const selectedComponentLineCount = poLines.filter(line => line.componentId === selectedLine?.componentId).length;
+  const processMapMaterialEntries = allMaterialCostEntries.filter(entry => entry.scope === "process-map" && entry.componentId === selectedLine?.componentId && entry.poId === selectedPO?.id && (entry.poLineId === selectedLine?.id || (!entry.poLineId && selectedComponentLineCount === 1)) && (!selectedPart || !entry.partId || entry.partId === selectedPart.id)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const selectedProcessDefinition = resolveProcessDefinition(processDefinitions, draft.processDefinitionId, draft.name, draft.category);
   const draftRouteType = draft.relationType==="rework"||/rework/i.test(draft.branch)?"Rework route":draft.relationType==="alternate"||draft.branch!=="Main route"?"Alternate route":"Main route";
   // Route operations are scoped to the selected PO line. A component can have
   // several part lines; their routes must never be mixed in the active Process Map.
   const routeOperations = operations.filter(op => op.poId === poId && op.poLineId === selectedLine?.id && op.componentId === selectedLine?.componentId).sort((a,b) => a.sequence - b.sequence);
   const selectedLineOperations = operations.filter(op=>op.poId===poId && op.poLineId===poLineId && op.componentId===selectedLine?.componentId).sort((a,b)=>a.sequence-b.sequence);
-  const componentTransportLegs = allTransportLegs.filter(leg => leg.poId === poId && leg.componentId === selectedLine?.componentId && (!leg.poLineId || leg.poLineId === selectedLine?.id)).sort((a,b) => a.sequence - b.sequence);
+  const componentTransportLegs = allTransportLegs.filter(leg => leg.poId === poId && leg.componentId === selectedLine?.componentId && (leg.poLineId === selectedLine?.id || (!leg.poLineId && selectedComponentLineCount === 1))).sort((a,b) => a.sequence - b.sequence);
   const componentMaterialProcessLinks = allMaterialProcessLinks.filter(link => {
     if(link.poId!==poId||link.poLineId!==selectedLine?.id||link.componentId!==selectedLine?.componentId)return false;
     const linkedBom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
