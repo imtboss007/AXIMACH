@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
+import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type MaterialCostEntryRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine, type TransportRouteRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
@@ -9,9 +9,10 @@ import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 import TransportRecordInspector from "./TransportRecordInspector";
 import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector";
 import { transportPopupAnchor, transportPopupAnchorFromPoint } from "./transportPopup";
-import { RouteLayoutPicker, RouteConnectorLegend, useRouteLayout } from "./RouteLayoutPicker";
+import { RouteLayoutPicker, RouteConnectorLegend as RouteLayoutConnectorPicker, useRouteLayout } from "./RouteLayoutPicker";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
-import { RouteConnectorLegend as SemanticRouteConnectorLegend } from "./RouteConnectorLegend";
+import { RouteConnectorLegend } from "./RouteConnectorLegend";
+import TransportRoutingDemo from "./TransportRoutingDemo";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -116,6 +117,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [routeView, setRouteView] = useState<"3d" | "list">("3d");
   const [simulationActive, setSimulationActive] = useState(false);
   const [simulationIndex, setSimulationIndex] = useState(-1);
+  const [routeFullscreen,setRouteFullscreen]=useState(false);
+  const [showTransportDemo,setShowTransportDemo]=useState(false);
+  const routeCanvasRef=useRef<HTMLDetailsElement|null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [addMenuDefinitionId, setAddMenuDefinitionId] = useState("");
@@ -137,6 +141,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [newTransportNotes, setNewTransportNotes] = useState("");
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
+  useEffect(() => {
+    const updateFullscreen = () => setRouteFullscreen(document.fullscreenElement === routeCanvasRef.current);
+    document.addEventListener("fullscreenchange", updateFullscreen);
+    return () => document.removeEventListener("fullscreenchange", updateFullscreen);
+  }, []);
+
   useEffect(() => {
     if (!showEditor) return;
     const frame = window.requestAnimationFrame(() => operationEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -239,6 +249,24 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const componentMaterialProcessLinks = allMaterialProcessLinks.filter(link => link.poId === poId && link.poLineId === selectedLine?.id && link.componentId === selectedLine?.componentId);
   const materialLinksAt = (operationId:string,placement:"before"|"after") => componentMaterialProcessLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
   const renderMaterialProcessLink = (link:MaterialProcessLinkRecord) => { const material=materialMasterRecords.find(row=>row.id===link.materialId); return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={selectedLine?.quantity||0} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>:null; };
+  const toggleRouteFullscreen = async () => {
+    const target = routeCanvasRef.current;
+    if (!target) { onNotice("The Process Map route graph is not ready for full-screen mode."); return; }
+    if (document.fullscreenElement === target) {
+      try { await document.exitFullscreen(); } catch { /* browser may already have exited */ }
+      const orientation = (window.screen as Screen & { orientation?: ScreenOrientation & { unlock?: () => void } }).orientation;
+      try { orientation?.unlock?.(); } catch { /* optional mobile API */ }
+      return;
+    }
+    try { await target.requestFullscreen({navigationUI:"hide"}); }
+    catch { onNotice("This browser did not allow full-screen mode. Use the browser full-screen control and rotate to landscape."); return; }
+    const orientation = (window.screen as Screen & { orientation?: ScreenOrientation & { lock?: (value:"landscape") => Promise<void> } }).orientation;
+    try {
+      if (orientation?.lock) { await orientation.lock("landscape"); onNotice("Process Map opened in full-screen landscape mode."); }
+      else onNotice("Process Map opened full-screen. Rotate the device to landscape for the wider route layout.");
+    } catch { onNotice("Process Map opened full-screen. Rotate the device to landscape; automatic orientation locking is unavailable."); }
+  };
+
   const routeLabels = Object.fromEntries(poLines.filter(line=>line.componentId===selectedLine?.componentId).map(line=>{
     const part=componentParts.find(item=>item.id===line.partId);
     const label=part ? [part.partNumber,part.name].filter(Boolean).join(" · ") : "Component-level route";
@@ -1404,8 +1432,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       {!exportOperations.length && <div className="module-empty-state"><Workflow size={22}/><strong>No processes in this route scope</strong><p>Choose another scope, clear filters, or select saved process operations.</p><button className="button-quiet compact-button" onClick={()=>setExportScope("all")}>Show all routes</button></div>}
     </details>
     <div className="linked-process-layout">
-      <details className="surface-panel linked-route-canvas">
-        <summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><span className="module-number">{routeOperations.length} OPS</span></summary>
+      <details className="surface-panel linked-route-canvas" ref={routeCanvasRef}>
+        <summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><div className="route-canvas-heading-actions"><span className="module-number">{routeOperations.length} OPS</span><button type="button" className="button-quiet compact-button" onClick={event=>{event.preventDefault();setShowTransportDemo(value=>!value);}} aria-expanded={showTransportDemo}>{showTransportDemo?"Close demo":"Preview multi-route demo"}</button><button type="button" className="button-quiet compact-button route-fullscreen-button" onClick={event=>{event.preventDefault();void toggleRouteFullscreen();}} aria-label={routeFullscreen?"Exit route full screen":"Open route in full-screen landscape"}>{routeFullscreen?<Minimize2 size={14}/>:<Maximize2 size={14}/>} {routeFullscreen?"Exit full screen":"Full screen · landscape"}</button></div></summary>
+        {showTransportDemo && <TransportRoutingDemo onClose={()=>setShowTransportDemo(false)}/>}
+        
         <div className="process-export-panel">
           <div className="process-card-display-fields"><div className="process-export-field-actions"><strong>ROUTE CARD VISIBILITY · SINGLE OR MULTI-SELECT</strong><button type="button" onClick={()=>setCardVisibleFields(PROCESS_CARD_FIELDS.map(field=>field.key))}>Show all</button><button type="button" onClick={()=>setCardVisibleFields([])}>Clear optional fields · keep essential route details</button></div><div className="process-card-display-grid">{PROCESS_CARD_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={REQUIRED_PROCESS_CARD_FIELDS.includes(field.key)||cardVisibleFields.includes(field.key)} disabled={REQUIRED_PROCESS_CARD_FIELDS.includes(field.key)} onChange={()=>setCardVisibleFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}{field.key==="category"?" · required":""}</label>)}</div></div>
           <div className="process-export-fields"><div className="process-export-field-actions"><button type="button" onClick={()=>setExportFields(PROCESS_EXPORT_FIELDS.map(field=>field.key))}>Select all fields</button><button type="button" onClick={()=>setExportFields([])}>Clear fields</button></div>{PROCESS_EXPORT_FIELDS.map(field=><label key={field.key}><input type="checkbox" checked={exportFields.includes(field.key)} onChange={()=>setExportFields(current=>current.includes(field.key)?current.filter(key=>key!==field.key):[...current,field.key])}/>{field.label}</label>)}</div>
@@ -1494,6 +1524,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 const routeMaterials=materialRouteEntries.filter(entry=>(!entry.poLineId||entry.poLineId===lineId)&&(!line?.partId||!entry.partId||entry.partId===line.partId));
                 const routeTransportLegs=componentTransportLegs.filter(leg=>leg.poLineId===lineId);
                 const routeMaterialProcessLinks=componentMaterialProcessLinks.filter(link=>link.poLineId===lineId);
+                const materialLinksAt=(operationId:string,placement:"before"|"after")=>routeMaterialProcessLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
+                const transportLegsAt=(operationId:string,placement:"before"|"after")=>routeTransportLegs.filter(leg=>!leg.materialEntryId&&leg.anchorOperationId===operationId&&(leg.placement||"after")===placement).sort((a,b)=>a.sequence-b.sequence);
                 const routeNodes:Array<any>=[];
                 const appendMaterial=(entry:MaterialCostEntryRecord)=>{
                   routeNodes.push({kind:"material",id:"material-"+entry.id,entry});
@@ -1507,16 +1539,16 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 routeTransportLegs.filter(leg=>!leg.materialEntryId&&(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start").sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
                 routeMaterials.filter(entry=>!entry.anchorOperationId).forEach(appendMaterial);
                 lane.forEach(operation=>{
-                  routeMaterialProcessLinks.filter(link=>link.operationId===operation.id&&link.placement==="before").forEach(link=>routeNodes.push({kind:"material-process-link",id:"material-process-link-"+link.id,link}));
-                  routeTransportLegs.filter(leg=>!leg.materialEntryId&&leg.placement==="before"&&leg.anchorOperationId===operation.id).sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                  materialLinksAt(operation.id,"before").forEach(link=>routeNodes.push({kind:"material-process-link",id:"material-process-link-"+link.id,link}));
+                  transportLegsAt(operation.id,"before").forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
                   routeNodes.push({kind:"operation",id:operation.id,operation});
-                  routeTransportLegs.filter(leg=>!leg.materialEntryId&&(leg.placement||"after")==="after"&&leg.anchorOperationId===operation.id).sort((a,b)=>a.sequence-b.sequence).forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
+                  transportLegsAt(operation.id,"after").forEach(leg=>routeNodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
                   // Preserve explicit material insertion points instead of moving
                   // every saved material allocation to the beginning of the route.
                   routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(appendMaterial);
-                  routeMaterialProcessLinks.filter(link=>link.operationId===operation.id&&link.placement==="after").forEach(link=>routeNodes.push({kind:"material-process-link",id:"material-process-link-"+link.id,link}));
+                  materialLinksAt(operation.id,"after").forEach(link=>routeNodes.push({kind:"material-process-link",id:"material-process-link-"+link.id,link}));
                 });
-                return <><nav className="process-route-index" aria-label="Jump to route operation"><strong>STEPS</strong>{lane.map((operation,index)=><button type="button" key={operation.id} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} aria-label={"Go to operation "+(index+1)+": "+operation.name}><b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span></button>)}</nav><div className="process-route-layout-toolbar"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><RouteConnectorLegend compact/><SemanticRouteConnectorLegend/></div><div className="process-route-flow-track" data-route-layout={routeLayout}>{routeNodes.map((item,index)=>{
+                return <><nav className="process-route-index" aria-label="Jump to route operation"><strong>STEPS</strong>{lane.map((operation,index)=><button type="button" key={operation.id} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} aria-label={"Go to operation "+(index+1)+": "+operation.name}><b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span></button>)}</nav><div className="process-route-layout-toolbar"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><RouteLayoutConnectorPicker compact/><RouteConnectorLegend/></div><div className="process-route-flow-track" data-route-layout={routeLayout}>{routeNodes.map((item,index)=>{
                   const next=routeNodes[index+1];
                   const isTransport=item.kind==="transport"||item.kind==="material-transport"||next?.kind==="transport"||next?.kind==="material-transport";
                   const fromOperation=item.kind==="operation"?item.operation:undefined;
