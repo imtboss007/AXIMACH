@@ -2370,3 +2370,16 @@ test("Dedicated Manufacturing Universe advances, pauses and resets the visual ro
   assert.ok(workspace.includes("simulationIndex={simulationIndex}"));
   assert.ok(workspace.includes("STEP {simulationIndex+1}/{simulationOperations.length}"));
 });
+
+
+test("manufacturing storage offers persistent local-only and explicit shared PC-server modes", () => {
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const electron = readFileSync(new URL("../electron/main.cjs", import.meta.url), "utf8");
+  assert.ok(app.includes('window.localStorage.setItem("aximach.storage.mode","local-only")'));
+  assert.ok(app.includes('window.localStorage.removeItem("aximach.scheduler.url")'));
+  assert.ok(app.includes('window.localStorage.setItem("aximach.storage.mode","shared-server")'));
+  assert.ok(app.includes("prepareSharedPcServer"));
+  assert.ok(app.includes("Use local-only on this device"));
+  assert.ok(electron.includes("localStorage.getItem('aximach.storage.mode') === 'local-only'"));
+  assert.ok(electron.includes("localStorage.setItem('aximach.storage.mode', 'shared-server')"));
+});
