@@ -281,17 +281,15 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (!target) { onNotice("The Process Map route graph is not ready for full-screen mode."); return; }
     if (document.fullscreenElement === target) {
       try { await document.exitFullscreen(); } catch { /* browser may already have exited */ }
-      const orientation = (window.screen as Screen & { orientation?: ScreenOrientation & { unlock?: () => void } }).orientation;
-      try { orientation?.unlock?.(); } catch { /* optional mobile API */ }
+      // The app-level landscape lock remains active until Process Map is closed.
       return;
     }
-    try { await target.requestFullscreen({navigationUI:"hide"}); }
-    catch { onNotice("This browser did not allow full-screen mode. Use the browser full-screen control and rotate to landscape."); return; }
-    const orientation = (window.screen as Screen & { orientation?: ScreenOrientation & { lock?: (value:"landscape") => Promise<void> } }).orientation;
     try {
-      if (orientation?.lock) { await orientation.lock("landscape"); onNotice("Process Map opened in full-screen landscape mode."); }
-      else onNotice("Process Map opened full-screen. Rotate the device to landscape for the wider route layout.");
-    } catch { onNotice("Process Map opened full-screen. Rotate the device to landscape; automatic orientation locking is unavailable."); }
+      await target.requestFullscreen({navigationUI:"hide"});
+      onNotice("Process Map route graph opened full-screen. Landscape orientation stays active until you leave Process Map.");
+    } catch {
+      onNotice("This browser did not allow full-screen mode. The route graph remains available in the landscape workspace.");
+    }
   };
 
   const routeLabels = Object.fromEntries(poLines.filter(line=>line.componentId===selectedLine?.componentId).map(line=>{
