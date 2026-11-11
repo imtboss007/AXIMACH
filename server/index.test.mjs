@@ -87,6 +87,47 @@ test("HTTP server persists and merges follow-up assignments across device update
     assert.equal(wrongKey.status, 401);
 
     const headers = { "content-type": "application/json", "x-aximach-key": apiKey };
+    const syntheticOperation = {
+      id: "operation-shared-1", poId: "po-shared-1", poLineId: "line-shared-1",
+      componentId: "component-shared-1", sequence: 10, name: "VMC machining",
+      updatedAt: "2026-11-04T10:00:00.000Z"
+    };
+    const syntheticTransportRoute = {
+      id: "transport-route-shared-1", vendorId: "vendor-shared-1", fromLocation: "Factory",
+      toLocation: "VMC subcontractor", vehicleType: "Mini truck", tripDirection: "One-way",
+      fixedAmount: 850, currency: "INR", active: true, updatedAt: "2026-11-04T10:00:00.000Z"
+    };
+    const syntheticTransportLeg = {
+      id: "transport-leg-device-a", poId: "po-shared-1", poLineId: "line-shared-1",
+      componentId: "component-shared-1", routeId: syntheticTransportRoute.id,
+      vendorId: "vendor-shared-1", fromLocation: "Factory", toLocation: "VMC subcontractor",
+      vehicleType: "Mini truck", tripDirection: "One-way", fixedAmount: 850, tripCount: 2,
+      anchorOperationId: syntheticOperation.id, placement: "before",
+      updatedAt: "2026-11-04T10:00:00.000Z"
+    };
+    const syntheticMaterialLink = {
+      id: "material-process-device-a", companyId: "company-1", poId: "po-shared-1",
+      poLineId: "line-shared-1", componentId: "component-shared-1", bomLineId: "bom-shared-1",
+      materialId: "material-shared-1", operationId: syntheticOperation.id,
+      quantityPerPart: 1.25, unit: "kg", flowType: "Material input", placement: "before",
+      updatedAt: "2026-11-04T10:00:00.000Z"
+    };
+    const secondMaterialLink = {
+      ...syntheticMaterialLink, id: "material-process-device-b", materialId: "material-shared-2",
+      bomLineId: "bom-shared-2", operationId: "operation-shared-2",
+      updatedAt: "2026-11-04T10:01:00.000Z"
+    };
+    const secondTransportLeg = {
+      ...syntheticTransportLeg, id: "transport-leg-device-b", anchorOperationId: "operation-shared-2",
+      toLocation: "Heat treatment", sequence: 2, updatedAt: "2026-11-04T10:01:00.000Z"
+    };
+    const syntheticRelationship = {
+      id: "relationship-shared-1", poId: "po-shared-1", poLineId: "line-shared-1",
+      componentId: "component-shared-1", fromOperationId: syntheticOperation.id,
+      toOperationId: "operation-shared-2", relationshipType: "main", status: "Active",
+      updatedAt: "2026-11-04T10:00:00.000Z"
+    };
+
     const firstAssignment = {
       id: "followup-link-device-a", moduleId: "companies", recordId: "company-1",
       recordLabel: "Company A", contactId: "contact-a", contactName: "Contact A",
@@ -102,11 +143,21 @@ test("HTTP server persists and merges follow-up assignments across device update
       fetch(baseUrl + "/api/manufacturing-data", {
         method: "PUT", headers, body: JSON.stringify({ data: {
           companies: [{ id: "company-1", name: "Company A", updatedAt: "2026-11-04T10:00:00.000Z" }],
+          operations: [syntheticOperation],
+          transportRoutes: [syntheticTransportRoute],
+          transportLegs: [syntheticTransportLeg],
+          materialProcessLinks: [syntheticMaterialLink],
+          routeRelationships: [syntheticRelationship],
           followUpAssignments: [firstAssignment]
         } })
       }),
       fetch(baseUrl + "/api/manufacturing-data", {
-        method: "PUT", headers, body: JSON.stringify({ data: { followUpAssignments: [secondAssignment] } })
+        method: "PUT", headers, body: JSON.stringify({ data: {
+          operations: [{ ...syntheticOperation, id: "operation-shared-2", sequence: 20, name: "Heat treatment", updatedAt: "2026-11-04T10:01:00.000Z" }],
+          transportLegs: [secondTransportLeg],
+          materialProcessLinks: [secondMaterialLink],
+          followUpAssignments: [secondAssignment]
+        } })
       })
     ]);
     assert.equal(initialPut.status, 200);
@@ -127,11 +178,20 @@ test("HTTP server persists and merges follow-up assignments across device update
     assert.equal(currentData.followUpAssignments.length, 2);
     assert.deepEqual(new Set(currentData.followUpAssignments.map(row => row.id)), new Set([firstAssignment.id, secondAssignment.id]));
     assert.equal(currentData.companies[0].name, "Company A");
+    assert.equal(currentData.operations.length, 2, "both devices' process operations must merge");
+    assert.equal(currentData.transportRoutes.length, 1, "Transport Directory masters remain separate from component legs");
+    assert.equal(currentData.transportLegs.length, 2, "independent transport legs from both devices must merge");
+    assert.equal(currentData.materialProcessLinks.length, 2, "independent material feeds from both devices must merge");
+    assert.equal(currentData.routeRelationships.length, 1, "saved route connectors must persist");
+    assert.equal(currentData.materialProcessLinks.find(row => row.id === syntheticMaterialLink.id).operationId, syntheticOperation.id);
 
     await stopServer(child);
     child = undefined;
     const persisted = JSON.parse(await readFile(dataFile, "utf8"));
     assert.equal(persisted.manufacturingData.followUpAssignments.length, 2);
+    assert.equal(persisted.manufacturingData.materialProcessLinks.length, 2);
+    assert.equal(persisted.manufacturingData.transportLegs.length, 2);
+    assert.equal(persisted.manufacturingData.routeRelationships.length, 1);
 
     child = startServer(port, dataFile);
     await waitForHealth(child, baseUrl);
@@ -141,6 +201,11 @@ test("HTTP server persists and merges follow-up assignments across device update
     assert.equal(restartedData.followUpAssignments.length, 2);
     assert.equal(restartedData.followUpAssignments.some(row => row.contactName === "Contact A"), true);
     assert.equal(restartedData.followUpAssignments.some(row => row.contactName === "Contact B"), true);
+    assert.equal(restartedData.operations.length, 2);
+    assert.equal(restartedData.transportRoutes[0].fixedAmount, 850);
+    assert.equal(restartedData.transportLegs.length, 2);
+    assert.equal(restartedData.materialProcessLinks.length, 2);
+    assert.equal(restartedData.routeRelationships[0].toOperationId, "operation-shared-2");
   } finally {
     await stopServer(child);
     await rm(folder, { recursive: true, force: true });
