@@ -1382,6 +1382,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             {id:"horizontal",label:"Horizontal Flow"},
             {id:"vertical",label:"Vertical Flow"},
             {id:"nodes",label:"Connected Nodes"},
+            {id:"digital-mesh",label:"◇ Digital Mesh"},
             {id:"branch",label:"Branch / Rework"}
           ] as const).map(option=><button key={option.id} type="button" aria-pressed={visualStyle===option.id}
             className={(visualStyle===option.id?"button-primary":"button-quiet")+" compact-button"}
