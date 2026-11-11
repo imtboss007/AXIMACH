@@ -105,6 +105,7 @@ test("courier/delivery and 2-wheeler use separate vehicle colours", () => {
 test("every transport category keeps a unique stable colour in Process Map, Route Flow and Manufacturing Universe", () => {
   const visuals = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
   const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const visualBlock = visuals.slice(visuals.indexOf("export function getVehicleVisual"), visuals.indexOf("export function VehicleIcon"));
   const colors = [...visualBlock.matchAll(/color: "(#[A-Fa-f0-9]+)"/g)].map(match => match[1]);
@@ -112,6 +113,8 @@ test("every transport category keeps a unique stable colour in Process Map, Rout
   assert.equal(new Set(colors).size, 11, "no two vehicle categories may share the same identity colour");
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={leg.vehicleType}"));
+  assert.ok(scene.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
+  assert.ok(scene.includes("<VehicleTypeIcon vehicleType={leg.vehicleType}"));
   assert.ok(routeFlow.includes("<VehicleTypeIcon vehicleType={vehicleType}"));
 });
 
