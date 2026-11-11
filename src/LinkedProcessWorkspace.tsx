@@ -194,6 +194,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       ? purchaseOrders.flatMap(po => po.lines.filter(line => line.componentId === initialContext.componentId && !line.deletedAt).map(line => ({ po, line })))
       : [];
     const componentOnlyLine = componentLines.length === 1 ? componentLines[0] : undefined;
+    const vendorOperations = initialContext.vendorId ? operations.filter(op => op.vendorId === initialContext.vendorId
+      && (!initialContext.componentId || op.componentId === initialContext.componentId)
+      && (!initialContext.poLineId || op.poLineId === initialContext.poLineId)) : [];
+    const vendorOnlyOperation = vendorOperations.length === 1 ? vendorOperations[0] : undefined;
     const targetPO = (initialContext.poId
       ? purchaseOrders.find(po => po.id === initialContext.poId)
       : undefined)
@@ -203,8 +207,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       || (initialContext.operationId
         ? purchaseOrders.find(po => po.id === operations.find(op => op.id === initialContext.operationId)?.poId)
         : undefined)
-      || (initialContext.vendorId
-        ? purchaseOrders.find(po => po.lines.some(line => operations.some(op => op.vendorId === initialContext.vendorId && op.poId === po.id && op.poLineId === line.id)))
+      || (vendorOnlyOperation
+        ? purchaseOrders.find(po => po.id === vendorOnlyOperation.poId)
         : undefined)
       || (!initialContext.poId && !initialContext.poLineId && !initialContext.operationId && !initialContext.vendorId
         ? componentOnlyLine?.po
@@ -216,8 +220,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (targetPO) {
       setCompanyId(targetPO.companyId);
       setPoId(targetPO.id);
+      const matchingVendorOperations = initialContext.vendorId ? operations.filter(op => op.vendorId === initialContext.vendorId && op.poId === targetPO.id
+        && (!initialContext.poLineId || op.poLineId === initialContext.poLineId)
+        && (!initialContext.componentId || op.componentId === initialContext.componentId)) : [];
       const targetOperation = (initialContext.operationId ? operations.find(op => op.id === initialContext.operationId && op.poId === targetPO.id) : undefined)
-        || (initialContext.vendorId ? operations.find(op => op.vendorId === initialContext.vendorId && op.poId === targetPO.id) : undefined);
+        || (matchingVendorOperations.length === 1 ? matchingVendorOperations[0] : undefined);
       const targetComponentLines = initialContext.componentId ? targetPO.lines.filter(line => line.componentId === initialContext.componentId && !line.deletedAt) : [];
       const uniqueComponentLine = targetComponentLines.length === 1 ? targetComponentLines[0] : undefined;
       const targetLine = targetPO.lines.find(line => line.id === targetOperation?.poLineId)
