@@ -280,3 +280,19 @@ test("Production Plan opens Process Map only for an exact selected or unique vis
   assert.ok(!operations.includes('||operations[0]'));
   assert.ok(operations.includes('operations.filter(op=>op.category!=="Logistics").length'));
 });
+
+test("Transport Directory and Dispatch retain the originating PO component and selected transporter", () => {
+  const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.ok(directory.includes("initialContext?:NavigationContext"));
+  assert.ok(directory.includes("const linkedLegs=transportLegs.filter(matches)"));
+  assert.ok(directory.includes("setRouteFilterIds(initialContext?.routeId?[initialContext.routeId]:[])"));
+  assert.ok(directory.includes('onSelectModule("vendors",{...initialContext,vendorId:'));
+  const dispatch = operations.slice(operations.indexOf("export function TransportDispatchWorkspace"), operations.indexOf("export function QualityInspectionWorkspace"));
+  assert.ok(dispatch.includes("const contextMatch="));
+  assert.ok(dispatch.includes("row.poLineId===initialContext.poLineId"));
+  assert.ok(dispatch.includes('onSelectModule("process-map",{companyId:pos.find(po=>po.id===row.poId)?.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.componentId'));
+  assert.ok(app.includes('<TransportDirectoryWorkspace initialContext={moduleContext}'));
+  assert.ok(app.includes('<TransportDispatchWorkspace initialContext={moduleContext}'));
+});
