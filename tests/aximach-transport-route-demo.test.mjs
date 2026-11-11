@@ -124,3 +124,14 @@ test("Manufacturing Universe does not render a material-entry transport leg twic
   assert.ok(universe.includes("onSelectMaterialTransport"));
   assert.ok(universe.includes("onSelectTransportLeg"));
 });
+
+
+test("Route Flow transport markers are compact vehicle-only icons; details stay in the popup", () => {
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
+  assert.ok(routeFlow.includes('!transport&&<small>{label||relationLabel(type)}</small>'));
+  assert.ok(!routeFlow.includes('<small>{transport?(vehicleType||"TRANSPORT")'));
+  assert.ok(routeFlow.includes('<VehicleTypeIcon vehicleType={vehicleType} size={17}/>'));
+  assert.ok(routeFlow.includes('tripCount+" trip(s) · Open details"'));
+  assert.ok(css.includes("width:27px;height:27px;padding:3px;border:1px solid #c9e0f5;border-radius:8px"));
+});
