@@ -235,7 +235,7 @@ test("All Material Directory tabs share linked-record filters and show the part 
   assert.ok(inventory.includes('const visibleTransactions = useMemo'));
   assert.ok(inventory.includes('return companyMatch&&poMatch&&componentMatch'));
   assert.ok(inventory.includes('(!directoryComponentId || link.componentId===directoryComponentId)'));
-  assert.ok(inventory.includes('materialLinkPoLineKey || link.poId'));
+  assert.ok(inventory.includes('link.poId===directoryPoId'));
   assert.ok(inventory.includes('const part=bom?.partId?'));
   assert.ok(inventory.includes('Part "+(part.partNumber?part.partNumber+" ":"")+part.name'));
 });
