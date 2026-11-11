@@ -372,7 +372,9 @@ test("PC-hosted shared data exposes a protected LAN endpoint and Android permits
   assert.ok(server.includes('req.headers["x-aximach-key"]'));
   assert.ok(server.includes('url.pathname === "/api/manufacturing-data" && req.method === "PUT"'));
   assert.ok(electron.includes('PORT: "8787"'));
-  assert.ok(electron.includes('AXIMACH_DATA_FILE: path.join(serverDir, "aximach.json")'));
+  assert.ok(electron.includes('AXIMACH_DATA_FILE: process.env.AXIMACH_DATA_FILE || path.join(serverDir, "aximach.json")'));
+  assert.ok(electron.includes("verifyLocalSharedDataServer"));
+  assert.ok(electron.includes("startLocalServices({ includeWhatsApp: false })"));
   assert.equal(capacitor.android.allowMixedContent, true);
   assert.ok(client.includes('window.localStorage.getItem("aximach.scheduler.url")'));
   assert.ok(client.includes('window.localStorage.getItem("aximach.scheduler.key")'));
@@ -1981,7 +1983,10 @@ test("3D route arrows stay enabled and narrow-screen process metadata is not hid
 test("Route Flow draws vehicle-specific transport icons on curved connectors and supports multiple vehicle types", () => {
   const route = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
-  for (const icon of ["Bike", "Bus", "CarFront", "Plane", "Ship", "TrainFront", "Truck"]) assert.ok(route.includes(icon));
+  assert.ok(route.includes('import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle"'));
+  assert.ok(route.includes('<VehicleTypeIcon vehicleType={vehicleType} size={17}/>'));
+  assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.leg.vehicleType} size={20}/>'));
+  assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.entry.transportVehicleType||""} size={20}/>'));
   assert.ok(route.includes("vehicleType={connector.vehicleType}"));
   assert.ok(route.includes("tripCount={connector.tripCount}"));
   assert.ok(route.includes("route-flow-vehicle-marker"));
