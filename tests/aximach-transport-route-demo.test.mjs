@@ -58,7 +58,7 @@ test("multi-route example is visible and interactive in both Process Map and Tra
   assert.ok(directory.includes("<TransportRoutingDemo onClose="));
   assert.ok(demo.includes("Next process step"));
   assert.ok(demo.includes("Activate alternate supplier route"));
-  assert.ok(demo.includes("No company, PO, component, vendor, operation, route, or transport record is written"));
+  assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
   assert.ok(demo.includes("TransportLegMarker"));
 });
 

@@ -32,7 +32,7 @@ test("Inventory creates independent material links scoped to the exact PO line, 
   const flow = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(inventory.includes("materialLinkBomLineId"));
   assert.ok(inventory.includes("materialLinkOperationId"));
-  assert.ok(inventory.includes("operation.poLineId===selection.line.id"));
+  assert.ok(inventory.includes("operation.poLineId!==selection.line.id"));
   assert.ok(inventory.includes("materialProcessLinks:[...current.materialProcessLinks"));
   assert.ok(app.includes("initialContext={moduleContext}"));
   assert.ok(flow.includes('subtab:"process-links"'));
@@ -46,7 +46,7 @@ test("Process Map node, Route Flow and Manufacturing Universe render material an
   assert.ok(flow.includes('transportLegsAt(operation.id,"before")'));
   assert.ok(flow.includes('materialLinksAt(operation.id,"after")'));
   assert.ok(flow.includes('transportLegsAt(operation.id,"after")'));
-  assert.ok(flow.includes("className=\"linked-node-arrow route-connector"));
+  assert.ok(flow.includes("linked-node-arrow route-connector"));
   assert.ok(universe.includes('materialLinksAt(operation.id,"before")'));
   assert.ok(universe.includes('transportFor(operation.id,"before")'));
   assert.ok(universe.includes('materialLinksAt(operation.id,"after")'));
