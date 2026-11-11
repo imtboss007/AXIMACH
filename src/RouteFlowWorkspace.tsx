@@ -19,7 +19,7 @@ import {
 } from "./manufacturingData";
 
 type NavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
-type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void };
+type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void; initialContext?:NavigationContext };
 
 const RELATIONSHIPS:Array<{id:RouteRelationshipType;label:string;description:string;symbol:string}> = [
   {id:"main",label:"Main route",description:"Primary manufacturing flow",symbol:"→"},
@@ -77,15 +77,32 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,trans
   </div>;
 }
 
-export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModule}:Props) {
+export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModule,initialContext}:Props) {
   const {data,update,syncStatus}=useManufacturingData();
   const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),vendors=activeRows(data.vendors);
   const operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),materialMasterRecords=activeRows(data.materials||[]),legs=activeRows(data.transportLegs||[]);
   const allMaterialProcessLinks=activeRows(data.materialProcessLinks||[]);
   const routes=activeRows(data.transportRoutes||[]);
-  const [companyPick,setCompanyPick]=useState("");
-  const [poPick,setPoPick]=useState("");
-  const [linePick,setLinePick]=useState("");
+  const [companyPick,setCompanyPick]=useState(initialContext?.companyId||"");
+  const [poPick,setPoPick]=useState(initialContext?.poId||"");
+  const [linePick,setLinePick]=useState(initialContext?.poLineId||"");
+  useEffect(()=>{
+    const context=initialContext||{};
+    const targetComponent=context.componentId?data.components.find(row=>row.id===context.componentId):undefined;
+    const targetPO=(context.poId?orders.find(row=>row.id===context.poId):undefined)
+      || (context.poLineId?orders.find(row=>row.lines.some(line=>line.id===context.poLineId)):undefined)
+      || (context.operationId?orders.find(row=>row.id===operations.find(op=>op.id===context.operationId)?.poId):undefined)
+      || (context.componentId?orders.find(row=>row.lines.some(line=>line.componentId===context.componentId)):undefined);
+    const targetLine=targetPO?.lines.find(row=>row.id===context.poLineId)
+      || (context.operationId?targetPO?.lines.find(row=>row.id===operations.find(op=>op.id===context.operationId)?.poLineId):undefined)
+      || targetPO?.lines.find(row=>row.componentId===context.componentId);
+    setCompanyPick(targetPO?.companyId||context.companyId||targetComponent?.companyId||"");
+    setPoPick(targetPO?.id||"");
+    setLinePick(targetLine?.id||"");
+    setBranchPick("Main route");
+    setInspectedTransportId("");setInspectedMaterialTransportId("");setSelectedMaterialLinkId("");
+    setShowRelationshipEditor(false);setShowTransportEditor(false);setShowAddOperation(false);
+  },[initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.componentId,initialContext?.operationId,data.components,orders,operations]);
   const [branchPick,setBranchPick]=useState("Main route");
   const [selectedMaterialLinkId,setSelectedMaterialLinkId]=useState("");
   const [fromOperationId,setFromOperationId]=useState("");
@@ -124,13 +141,13 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [relationshipOverlay,setRelationshipOverlay]=useState<Array<{id:string;type:RouteRelationshipType;path:string;arrow:string;label:string;x:number;y:number}>>([]);
   const [relationshipOverlaySize,setRelationshipOverlaySize]=useState({width:0,height:0});
 
-  const company=companies.find(row=>row.id===companyPick)||companies[0];
+  const company=companies.find(row=>row.id===companyPick);
   const companyId=company?.id||"";
   const companyOrders=orders.filter(row=>row.companyId===companyId);
-  const order=companyOrders.find(row=>row.id===poPick)||companyOrders[0];
+  const order=companyOrders.find(row=>row.id===poPick);
   const poId=order?.id||"";
   const lineOptions=(order?.lines||[]).filter(line=>!line.deletedAt);
-  const line=lineOptions.find(row=>row.id===linePick)||lineOptions[0];
+  const line=lineOptions.find(row=>row.id===linePick);
   const poLineId=line?.id||"";
   const component=data.components.find(row=>row.id===line?.componentId);
   const componentId=component?.id||"";
@@ -162,7 +179,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const startLegs=routeLegs.filter(leg=>!leg.materialEntryId&&(leg.placement||(!leg.anchorOperationId?"start":"after"))==="start");
     startLegs.forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
     const initialMaterials=routeMaterials.filter(entry=>!entry.anchorOperationId);
-    if(!initialMaterials.length&&!lane.length)nodes.push({kind:"missing-material",id:"missing-material"});
+    if(poLineId&&!initialMaterials.length&&!lane.length)nodes.push({kind:"missing-material",id:"missing-material"});
     initialMaterials.forEach(addMaterial);
     lane.forEach(operation=>{
       routeLegs.filter(leg=>!leg.materialEntryId&&leg.targetOperationId===operation.id&&!lane.some(row=>row.id===leg.anchorOperationId)).forEach(leg=>nodes.push({kind:"transport",id:"transport-"+leg.id,leg}));
@@ -172,7 +189,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(addMaterial);
     });
     return nodes;
-  },[routeMaterials,routeLegs,lane]);
+  },[routeMaterials,routeLegs,lane,poLineId]);
   const transportChoices = [
     ...routes.filter(route=>route.active!==false).map(route=>({
       id:route.id,vendorId:route.vendorId,fromLocation:route.fromLocation,toLocation:route.toLocation,
@@ -383,13 +400,13 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     <div className="route-flow-scope-bar">
       <label>Company<select value={companyId} onChange={e=>{setCompanyPick(e.target.value);setPoPick("");setLinePick("");}}><option value="">Select company…</option>{companies.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
       <label>Purchase order<select value={poId} onChange={e=>{setPoPick(e.target.value);setLinePick("");}}><option value="">Select PO…</option>{companyOrders.map(row=><option key={row.id} value={row.id}>{row.number}</option>)}</select></label>
-      <label>Component / PO line<select value={poLineId} onChange={e=>setLinePick(e.target.value)}><option value="">Select PO component line…</option>{lineOptions.map(row=>{const part=data.componentParts.find(p=>p.id===row.partId);return <option key={row.id} value={row.id}>{component?.partNumber||""} · {component?.name||"Component"}{part?" · "+part.partNumber+" "+part.name:""} · Qty {row.quantity}</option>;})}</select></label>
+      <label>Component / PO line<select value={poLineId} onChange={e=>setLinePick(e.target.value)}><option value="">Select PO component line…</option>{lineOptions.map(row=>{const part=data.componentParts.find(p=>p.id===row.partId);const lineComponent=data.components.find(item=>item.id===row.componentId);return <option key={row.id} value={row.id}>{lineComponent?.partNumber||"Missing component"} · {lineComponent?.name||"Component"}{part?" · "+part.partNumber+" "+part.name:""} · Qty {row.quantity}</option>;})}</select></label>
       <label>Route branch<select value={branch} onChange={e=>setBranchPick(e.target.value)}>{branches.map(value=><option key={value}>{value}</option>)}</select></label>
       <div className="route-flow-scope-stats"><strong>{routeNodes.length}</strong><span>ROUTE STAGES</span><strong>{routeLegs.length}</strong><span>TRANSPORT LEGS</span></div>
     </div>
 
     <section className="route-flow-canvas-panel">
-      <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" onClick={()=>setShowAddOperation(v=>!v)}><Plus size={14}/> Add process stage</button><button className="button-quiet compact-button" onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button></div></div>
+      <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowAddOperation(v=>!v)}><Plus size={14}/> Add process stage</button><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" disabled={!poLineId} onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button></div></div>
       <div className="route-flow-canvas-layout"><div className="route-flow-map-main ax-map-fullscreen-shell" ref={mapViewportRef} data-route-layout={routeLayout}><ImmersiveWorkspaceControls targetRef={mapViewportRef} onNotice={onNotice}/>
         <div className="ax-map-zoom-toolbar" role="group" aria-label="Route flow zoom controls">
           <button type="button" aria-label="Zoom out" title="Zoom out" onClick={()=>setRouteZoom(value=>Math.max(.55,Number((value-.1).toFixed(2))))}>−</button>
