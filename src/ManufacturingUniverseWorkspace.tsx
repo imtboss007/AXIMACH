@@ -41,14 +41,19 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     const contextKey=JSON.stringify({companyId:context.companyId,poId:context.poId,poLineId:context.poLineId,componentId:context.componentId,operationId:context.operationId});
     if(appliedContextKey.current===contextKey)return;
     const targetComponent=context.componentId?components.find(row=>row.id===context.componentId):undefined;
+    const componentLines=context.componentId?orders.flatMap(po=>po.lines.filter(line=>!line.deletedAt&&line.componentId===context.componentId).map(line=>({po,line}))):[];
+    const componentOnlyLine=componentLines.length===1?componentLines[0]:undefined;
     const targetPO=(context.poId?orders.find(row=>row.id===context.poId):undefined)
       || (context.poLineId?orders.find(row=>row.lines.some(line=>line.id===context.poLineId)):undefined)
       || (context.operationId?orders.find(row=>row.id===operations.find(op=>op.id===context.operationId)?.poId):undefined)
-      || (context.componentId?orders.find(row=>row.lines.some(line=>line.componentId===context.componentId)):undefined);
-    if((context.poId||context.poLineId||context.operationId||context.componentId)&&!targetPO&&!targetComponent)return;
+      || (!context.poId&&!context.poLineId&&!context.operationId?componentOnlyLine?.po:undefined);
+    if((context.poId||context.poLineId||context.operationId)&&!targetPO)return;
+    if(context.componentId&&!targetComponent)return;
+    const matchingComponentLines=targetPO&&context.componentId?targetPO.lines.filter(line=>!line.deletedAt&&line.componentId===context.componentId):[];
+    const uniqueComponentLine=matchingComponentLines.length===1?matchingComponentLines[0]:undefined;
     const targetLine=targetPO?.lines.find(row=>row.id===context.poLineId)
       || (context.operationId?targetPO?.lines.find(row=>row.id===operations.find(op=>op.id===context.operationId)?.poLineId):undefined)
-      || targetPO?.lines.find(row=>row.componentId===context.componentId);
+      || uniqueComponentLine;
     setCompanyPick(targetPO?.companyId||context.companyId||targetComponent?.companyId||"");
     setPoPick(targetPO?.id||"");
     setLinePick(targetLine?.id||"");
