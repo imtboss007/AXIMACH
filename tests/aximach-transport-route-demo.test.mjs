@@ -107,7 +107,7 @@ test("every transport category keeps a unique stable colour in Process Map, Rout
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const visualBlock = visuals.slice(visuals.indexOf("export function getVehicleVisual"), visuals.indexOf("export function VehicleIcon"));
-  const colors = [...visualBlock.matchAll(/color:\\s*"([^"]+)"/g)].map(match => match[1]);
+  const colors = [...visualBlock.matchAll(/color: "(#[A-Fa-f0-9]+)"/g)].map(match => match[1]);
   assert.equal(colors.length, 11, "all 11 supported vehicle categories must have a permanent colour");
   assert.equal(new Set(colors).size, 11, "no two vehicle categories may share the same identity colour");
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
