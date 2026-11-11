@@ -119,7 +119,6 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [simulationIndex, setSimulationIndex] = useState(-1);
   const [routeFullscreen,setRouteFullscreen]=useState(false);
   const [showTransportDemo,setShowTransportDemo]=useState(false);
-  const routeCanvasRef=useRef<HTMLDetailsElement|null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [addMenuDefinitionId, setAddMenuDefinitionId] = useState("");
@@ -142,7 +141,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
   useEffect(() => {
-    const updateFullscreen = () => setRouteFullscreen(document.fullscreenElement === routeCanvasRef.current);
+    const updateFullscreen = () => setRouteFullscreen(document.fullscreenElement === document.querySelector(".linked-process-page .linked-route-canvas"));
     document.addEventListener("fullscreenchange", updateFullscreen);
     return () => document.removeEventListener("fullscreenchange", updateFullscreen);
   }, []);
@@ -250,7 +249,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const materialLinksAt = (operationId:string,placement:"before"|"after") => componentMaterialProcessLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
   const renderMaterialProcessLink = (link:MaterialProcessLinkRecord) => { const material=materialMasterRecords.find(row=>row.id===link.materialId); return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={selectedLine?.quantity||0} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>:null; };
   const toggleRouteFullscreen = async () => {
-    const target = routeCanvasRef.current;
+    const target = document.querySelector<HTMLElement>(".linked-process-page .linked-route-canvas");
     if (!target) { onNotice("The Process Map route graph is not ready for full-screen mode."); return; }
     if (document.fullscreenElement === target) {
       try { await document.exitFullscreen(); } catch { /* browser may already have exited */ }
@@ -1241,7 +1240,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   return <section className="workspace-page linked-process-page">
     {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/> {syncStatus === "synced" ? "SHARED DATA CONNECTED" : syncStatus === "syncing" ? "SYNCING" : syncStatus === "error" ? "SYNC ERROR · LOCAL COPY KEPT" : "NO DEMO DATA · LOCAL UNTIL SERVER SYNC"}</span></div>
-    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / LINKED PROCESS ROUTE</div><h1>Process Map<span>.</span></h1><p>Choose existing master records once; operation schedules, rates, vendor assignments, quality and quotations attach to the selected PO component line.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("inventory")}><Package size={15}/> Material Directory</button><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendors</button><button type="button" className="button-primary" aria-label="Add operation ▾" aria-haspopup="menu" aria-expanded={showAddMenu} onClick={toggleAddMenu}><Plus size={15}/> Add Operation <span aria-hidden="true">▾</span></button></div></div>
+    <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / LINKED PROCESS ROUTE</div><h1>Process Map<span>.</span></h1><p>Choose existing master records once; operation schedules, rates, vendor assignments, quality and quotations attach to the selected PO component line.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("inventory")}><Package size={15}/> Material Directory</button><button className="button-quiet" onClick={() => onSelectModule("inventory",{poId,poLineId,componentId:selectedLine?.componentId,operationId:selectedOperationId,subtab:"process-links"})}><Boxes size={15}/> Material → process links</button><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendors</button><button type="button" className="button-primary" aria-label="Add operation ▾" aria-haspopup="menu" aria-expanded={showAddMenu} onClick={toggleAddMenu}><Plus size={15}/> Add Operation <span aria-hidden="true">▾</span></button></div></div>
     <div className="linked-master-selectors">
       <SearchablePicker id="route-company" label="Company" value={companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name+(c.gstin?" · "+c.gstin:"")}))} onChange={changeSelection}/>
       <div className="route-master-picker"><SearchablePicker id="route-po" label="Purchase order" value={poId} placeholder="Type PO number…" options={companyOrders.map(po=>({id:po.id,label:po.number+" · "+po.status}))} onChange={changePO}/>{companyId&&!companyOrders.length&&<button type="button" onClick={()=>onSelectModule("purchasing")}>Add PO</button>}</div>
@@ -1432,7 +1431,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       {!exportOperations.length && <div className="module-empty-state"><Workflow size={22}/><strong>No processes in this route scope</strong><p>Choose another scope, clear filters, or select saved process operations.</p><button className="button-quiet compact-button" onClick={()=>setExportScope("all")}>Show all routes</button></div>}
     </details>
     <div className="linked-process-layout">
-      <details className="surface-panel linked-route-canvas" ref={routeCanvasRef}>
+      <details className="surface-panel linked-route-canvas">
         <summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><div className="route-canvas-heading-actions"><span className="module-number">{routeOperations.length} OPS</span><button type="button" className="button-quiet compact-button" onClick={event=>{event.preventDefault();setShowTransportDemo(value=>!value);}} aria-expanded={showTransportDemo}>{showTransportDemo?"Close demo":"Preview multi-route demo"}</button><button type="button" className="button-quiet compact-button route-fullscreen-button" onClick={event=>{event.preventDefault();void toggleRouteFullscreen();}} aria-label={routeFullscreen?"Exit route full screen":"Open route in full-screen landscape"}>{routeFullscreen?<Minimize2 size={14}/>:<Maximize2 size={14}/>} {routeFullscreen?"Exit full screen":"Full screen · landscape"}</button></div></summary>
         {showTransportDemo && <TransportRoutingDemo onClose={()=>setShowTransportDemo(false)}/>}
         
@@ -1525,7 +1524,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 const routeTransportLegs=componentTransportLegs.filter(leg=>leg.poLineId===lineId);
                 const routeMaterialProcessLinks=componentMaterialProcessLinks.filter(link=>link.poLineId===lineId);
                 const materialLinksAt=(operationId:string,placement:"before"|"after")=>routeMaterialProcessLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
-                const transportLegsAt=(operationId:string,placement:"before"|"after")=>routeTransportLegs.filter(leg=>!leg.materialEntryId&&leg.anchorOperationId===operationId&&(leg.placement||"after")===placement).sort((a,b)=>a.sequence-b.sequence);
+                const routeBeforeTransportLegs=routeTransportLegs.filter(leg=>!leg.materialEntryId&&leg.placement==="before");
+                const routeAfterTransportLegs=routeTransportLegs.filter(leg=>!leg.materialEntryId&&(leg.placement||"after")==="after");
+                const transportLegsAt=(operationId:string,placement:"before"|"after")=>(placement==="before"?routeBeforeTransportLegs:routeAfterTransportLegs).filter(leg=>leg.anchorOperationId===operationId).sort((a,b)=>a.sequence-b.sequence);
                 const routeNodes:Array<any>=[];
                 const appendMaterial=(entry:MaterialCostEntryRecord)=>{
                   routeNodes.push({kind:"material",id:"material-"+entry.id,entry});
@@ -1560,7 +1561,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                   if(item.kind==="material-process-link"){
                     const link=item.link as MaterialProcessLinkRecord;
                     const material=materialMasterRecords.find(row=>row.id===link.materialId);
-                    return <div className="process-route-flow-step process-route-flow-material-link" key={item.id}>{material&&<MaterialFlowMarker link={link} material={material} componentQuantity={line?.quantity||0} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>}{next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport ":"")+"is-"+routeRelationshipType} style={{color:arrowColor}}><ArrowRight size={20}/></span>}</div>;
+                    return <div className="process-route-flow-step process-route-flow-material-link" key={item.id}>{material&&<MaterialFlowMarker link={link} material={material} componentQuantity={line?.quantity||0} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>}{next&&<span className={"linked-node-arrow route-connector process-route-flow-arrow "+(isTransport?"is-transport ":"")+"is-"+routeRelationshipType} style={{color:arrowColor}}><ArrowRight size={20}/></span>}</div>;
                   }
                   if(item.kind==="material"){
                     const entry=item.entry;
@@ -1573,7 +1574,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                         <small>Supplier · {vendors.find(vendor=>vendor.id===entry.vendorId)?.company||"Not assigned"}</small>
                         <em>{money(entry.materialCost)} material</em>
                       </div>
-                      {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport ":"")+"is-"+routeRelationshipType} style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
+                      {next&&<span className={"linked-node-arrow route-connector process-route-flow-arrow "+(isTransport?"is-transport ":"")+"is-"+routeRelationshipType} style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
                     </div>;
                   }
                   if(item.kind==="material-transport"){
@@ -1591,7 +1592,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                     const TransportIcon=transportVehicleIcon(leg.vehicleType);
                     return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
                       <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(leg.vehicleType)} aria-label="Open transport popup" title={(leg.vehicleType||"Vehicle")+" · "+(leg.fromLocation||"From")+" → "+(leg.toLocation||"To")} onClick={event=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><TransportIcon size={20}/></button>
-                      {next&&<span className={"process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}><ArrowRight size={20}/></span>}
+                      {next&&<span className={"linked-node-arrow route-connector process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}><ArrowRight size={20}/></span>}
                     </div>;
                   }
                   const operation=item.operation as OperationRecord;
@@ -1603,7 +1604,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                       <em style={{background:processColor}}>{operation.category||"Process"}</em>{operation.subcategory&&<small className="process-route-flow-subcategory">SUB · {operation.subcategory}</small>}
                       <small>Qty {operation.quantity.toLocaleString("en-IN")} · {vendors.find(vendor=>vendor.id===operation.vendorId)?.company||"Vendor not assigned"}</small>
                     </button>
-                    {next&&<span className={"process-route-flow-arrow "+(isTransport?"is-transport ":"")+"is-"+routeRelationshipType} style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
+                    {next&&<span className={"linked-node-arrow route-connector process-route-flow-arrow "+(isTransport?"is-transport ":"")+"is-"+routeRelationshipType} style={{color:arrowColor}}>{isTransport&&<Truck size={13}/>}<ArrowRight size={20}/></span>}
                   </div>;
                 })}</div></>;
               })()}
