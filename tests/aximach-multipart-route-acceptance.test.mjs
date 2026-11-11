@@ -98,7 +98,7 @@ test("Process Map, Route Flow and Manufacturing Universe keep part-scoped materi
   assert.ok(processMap.includes("linkedBom.partId===selectedPart.id"));
   assert.ok(processMap.includes("materialProcessPartLabels"));
   assert.ok(routeFlow.includes("materialProcessPartLabels"));
-  assert.ok(routeFlow.includes("leg.poLineId===linePick"));
+  assert.ok(routeFlow.includes("leg.poLineId===poLineId"));
   assert.ok(routeFlow.includes("componentId===componentId"));
   assert.ok(universe.includes("materialPartLabels?.[link.id]"));
   assert.ok(universe.includes("materialLinksAt(operation.id"));
@@ -141,8 +141,10 @@ test("all eleven relationship tools and four relationship statuses are selectabl
 
 test("Route Flow exposes 3D/list, vertical layout, independent edge types and record-popup actions", () => {
   const flow = source("RouteFlowWorkspace.tsx");
-  assert.ok(flow.includes('useState<"3d" | "list">("3d")'));
-  assert.ok(flow.includes("setVertical"));
+  assert.ok(flow.includes("routeViewportRef"));
+  assert.ok(flow.includes("routeLayout"));
+  assert.ok(flow.includes("setRouteLayout"));
+  assert.ok(flow.includes("data-route-layout"));
   assert.ok(flow.includes("transportPopupAnchor"));
   assert.ok(flow.includes("onTransportClick"));
   assert.ok(flow.includes("TransportRecordInspector"));
