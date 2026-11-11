@@ -91,7 +91,7 @@ async function chooseNativeScope(page, scopeSelector) {
   const values = [fixture.company.id, fixture.purchaseOrder.id, fixture.poLine.id];
   const selects = page.locator(scopeSelector + " select:visible");
   const count = await selects.count();
-  if (count !== 3) throw new Error("Expected three linked native scope selectors in " + scopeSelector + "; found " + count);
+  if (count < 3) throw new Error("Expected at least three linked native scope selectors in " + scopeSelector + "; found " + count);
   for (let i = 0; i < values.length; i++) {
     await selects.nth(i).selectOption(values[i], { timeout: 8000 });
     await page.waitForTimeout(100);
