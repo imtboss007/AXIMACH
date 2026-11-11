@@ -399,6 +399,7 @@ export function useManufacturingData() {
           if (JSON.stringify(merged) !== JSON.stringify(remote)) {
             if (!cancelled) setSyncStatus("syncing");
             const saved = await putRemote(merged, cfg);
+            if (!serverConfig()) { if (!cancelled) setSyncStatus("local"); return; }
             const localAfterPut = readManufacturingData();
             if (JSON.stringify(localAfterPut) !== JSON.stringify(localAfterFetch)) syncPending = true;
             const finalData = mergeManufacturingData(localAfterPut, saved);
