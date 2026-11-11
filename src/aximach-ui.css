@@ -5692,4 +5692,23 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .linked-process-page .process-universe-viewport{max-height:calc(100dvh - 230px)}
   .linked-process-page .linked-node-scroll{max-height:calc(100dvh - 250px)}
 }
+@media (orientation:landscape) and (max-height:600px) and (max-width:1100px){
+  .app-shell:has(.linked-process-page){padding:54px 0 0!important}
+  .app-shell:has(.linked-process-page) .command-rail,
+  .app-shell:has(.linked-process-page) .status-ribbon{display:none!important}
+  .app-shell:has(.linked-process-page) .command-deck{
+    height:54px!important;min-height:54px!important;padding:0 10px!important;gap:8px!important;
+  }
+  .app-shell:has(.linked-process-page) .page-content{
+    top:54px!important;left:0!important;right:0!important;bottom:0!important;
+    width:100%!important;max-width:none!important;margin:0!important;
+    padding:7px 10px 16px!important;overflow:auto!important;overscroll-behavior:contain;
+  }
+  .app-shell:has(.linked-process-page) .command-search,
+  .app-shell:has(.linked-process-page) .deck-action,
+  .app-shell:has(.linked-process-page) .appearance-picker,
+  .app-shell:has(.linked-process-page) .profile-trigger{display:none!important}
+  .linked-process-page{width:100%;max-width:none!important;min-width:0}
+  .linked-process-page .linked-route-canvas{width:100%;max-width:none!important;min-width:0}
+}
 
