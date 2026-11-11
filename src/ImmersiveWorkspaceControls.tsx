@@ -13,6 +13,7 @@ export default function ImmersiveWorkspaceControls({targetRef,onNotice,onZoomRes
    const active=document.fullscreenElement===targetRef.current;
    setFullscreen(active);
    onZoomReset?.();
+   if(active){const orientation=window.screen?.orientation as unknown as {lock?:(value:"landscape")=>Promise<void>}|undefined;if(orientation?.lock)void orientation.lock("landscape").catch(()=>{});}
    if(!active){(window.screen?.orientation as unknown as {unlock?:()=>void}|undefined)?.unlock?.();}
   };
   document.addEventListener("fullscreenchange",update);

@@ -3720,3 +3720,30 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .process-universe-stage{width:100% !important;min-width:0 !important}
  .process-universe-node{width:clamp(72px,8vw,104px);min-height:68px;padding:4px}
 }
+
+
+/* Route Flow portrait step rail and fitted fullscreen canvas. */
+.route-flow-stage-scroll{display:grid;grid-template-columns:42px minmax(0,1fr);gap:8px;min-width:0;overflow:auto}
+.route-flow-index{position:sticky;left:0;top:4px;z-index:14;display:flex;flex-direction:column;gap:3px;width:42px;max-height:65vh;overflow:auto;padding:4px;background:rgba(5,24,42,.82);border:1px solid rgba(130,170,205,.28);border-radius:8px}
+.route-flow-index strong{font:8px 'DM Mono';color:#8dc9e9}
+.route-flow-index button{display:flex;align-items:center;justify-content:center;gap:4px;min-height:25px;padding:4px 2px;border:1px solid rgba(125,161,196,.22);border-radius:5px;background:rgba(20,53,78,.65);color:#dceaf8;font-size:8px;cursor:pointer}
+.route-flow-index button b{font:8px 'DM Mono';color:#74c5ee}
+.route-flow-index button span{display:none}
+.route-flow-material-process-marker{display:flex;align-items:center;justify-content:center;min-width:34px;min-height:32px}
+.route-flow-stage-card.route-flow-material-process{min-width:42px;width:auto;min-height:42px;padding:4px;display:flex;align-items:center;justify-content:center}
+.route-flow-stage-card.route-flow-material-process .material-flow-marker{display:inline-flex}
+.route-flow-map-main:fullscreen{width:100vw;height:100vh;overflow:auto;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;padding:6px}
+.route-flow-map-main:fullscreen .route-flow-stage-scroll{width:100%;max-height:calc(100vh - 70px);overflow:auto}
+.route-flow-map-main:fullscreen .route-flow-stage-track{justify-content:flex-start;align-content:flex-start;flex-wrap:wrap}
+@media (orientation:portrait) and (max-width:900px){
+ .route-flow-stage-scroll{grid-template-columns:38px minmax(0,1fr);gap:5px}
+ .route-flow-index{width:38px;max-height:55vh}
+ .route-flow-stage-card{min-width:92px}
+ .route-flow-stage-card.route-flow-material-process{min-width:30px}
+}
+@media (orientation:landscape) and (max-height:600px){
+ .route-flow-stage-scroll{grid-template-columns:36px minmax(0,1fr);gap:4px}
+ .route-flow-index{width:36px;max-height:calc(100dvh - 90px)}
+ .route-flow-stage-card{min-width:78px;padding:5px}
+ .route-flow-map-main:fullscreen{padding:4px}
+}

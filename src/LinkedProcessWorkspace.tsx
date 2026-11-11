@@ -176,7 +176,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [bulkStart,setBulkStart] = useState("");
   const [bulkEnd,setBulkEnd] = useState("");
   useEffect(()=>{
-    const lockLandscape=()=>{if(!document.fullscreenElement)return;const orientation=(window.screen as Screen & {orientation?:ScreenOrientation & {lock?:(value:"landscape")=>Promise<void>}}).orientation;try{orientation?.lock?.("landscape");}catch{/* Fullscreen remains usable when orientation lock is unavailable. */}};
+    const lockLandscape=()=>{if(!document.fullscreenElement)return;const orientation=(window.screen as Screen & {orientation?:ScreenOrientation & {lock?:(value:"landscape")=>Promise<void>}}).orientation;try{if(orientation?.lock)void orientation.lock("landscape").catch(()=>{});}catch{/* Fullscreen remains usable when orientation lock is unavailable. */}};
     document.addEventListener("fullscreenchange",lockLandscape);
     return ()=>document.removeEventListener("fullscreenchange",lockLandscape);
   },[]);
