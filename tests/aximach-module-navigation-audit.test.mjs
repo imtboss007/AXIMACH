@@ -169,7 +169,7 @@ test("all shared route layout modes are declared, persisted and selectable in th
   const typeMatch = picker.match(/export type RouteLayoutMode = ([^;]+);/);
   assert.ok(typeMatch, "shared route layout type must exist");
   const declared = [...typeMatch[1].matchAll(/"([^"]+)"/g)].map(match => match[1]);
-  const validMatch = picker.match(/const VALID_LAYOUTS: RouteLayoutMode\\[\\] = \\[([^\\]]+)\\]/);
+  const validMatch = picker.match(/const VALID_LAYOUTS: RouteLayoutMode\[\] = \[([^\]]+)\]/);
   assert.ok(validMatch, "layout persistence allow-list must exist");
   const persisted = [...validMatch[1].matchAll(/"([^"]+)"/g)].map(match => match[1]);
   const options = [...picker.matchAll(/<option value="([^"]+)">/g)].map(match => match[1]);
