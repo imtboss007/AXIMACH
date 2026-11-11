@@ -99,7 +99,7 @@ async function chooseNativeScope(page, scopeSelector) {
   await page.waitForTimeout(450);
 }
 
-async function scrollGraphNodeIntoView(locator) {
+async function scrollGraphNodeIntoView(page, locator) {
   await locator.evaluate(el => {
     const scroller = el.closest(".route-flow-stage-scroll");
     if (scroller) {
@@ -113,7 +113,7 @@ async function scrollGraphNodeIntoView(locator) {
     el.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
   });
   await locator.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
-  await locator.page().waitForTimeout(60);
+  await page.waitForTimeout(60);
 }
 
 async function main() {
@@ -195,7 +195,7 @@ async function main() {
     for (let i = 0; i < branchLegCount; i++) {
       const button = page.locator('button[aria-label="Open transport leg popup"]').nth(i);
       if (!(await button.isVisible().catch(() => false))) continue;
-      await scrollGraphNodeIntoView(button);
+      await scrollGraphNodeIntoView(page, button);
       await button.click({ timeout: 8000 });
       const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
       await dialog.waitFor({ state: "visible", timeout: 5000 });
