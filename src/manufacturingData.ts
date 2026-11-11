@@ -388,6 +388,7 @@ export function useManufacturingData() {
           syncPending = false;
           const localBeforeFetch = readManufacturingData();
           const remote = await getRemote(cfg);
+          if (!serverConfig()) { if (!cancelled) setSyncStatus("local"); return; }
           const localAfterFetch = readManufacturingData();
 
           // An edit made while the network request was in flight must be sent on
@@ -428,8 +429,10 @@ export function useManufacturingData() {
     const syncWhenActive = () => {
       if (document.visibilityState !== "hidden") void syncOnce();
     };
+    const syncWhenModeChanges = () => { void syncOnce(); };
 
     window.addEventListener("aximach-manufacturing-data-updated", refreshLocal as EventListener);
+    window.addEventListener("aximach-storage-mode-change", syncWhenModeChanges);
     window.addEventListener("storage", refreshLocal);
     window.addEventListener("focus", syncWhenActive);
     window.addEventListener("online", syncWhenActive);
@@ -441,6 +444,7 @@ export function useManufacturingData() {
       cancelled = true;
       window.clearInterval(timer);
       window.removeEventListener("aximach-manufacturing-data-updated", refreshLocal as EventListener);
+      window.removeEventListener("aximach-storage-mode-change", syncWhenModeChanges);
       window.removeEventListener("storage", refreshLocal);
       window.removeEventListener("focus", syncWhenActive);
       window.removeEventListener("online", syncWhenActive);
