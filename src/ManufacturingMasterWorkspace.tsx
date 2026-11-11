@@ -94,13 +94,25 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const [poStatusFilters, setPoStatusFilters] = useState<string[]>([]);
   const [openedPoId, setOpenedPoId] = useState("");
   useEffect(() => {
-    if (moduleId === "purchasing" && navigationContext?.companyId) {
-      setPoCompanyFilters([navigationContext.companyId]);
+    if (moduleId === "purchasing") {
+      setPoCompanyFilters(navigationContext?.companyId ? [navigationContext.companyId] : []);
       setSearch("");
-      setOpenedPoId("");
+      setOpenedPoId(navigationContext?.poId || "");
     }
-    if (moduleId === "purchasing" && navigationContext?.poId) setOpenedPoId(navigationContext.poId);
-  }, [moduleId, navigationContext?.companyId, navigationContext?.poId]);
+    if (moduleId === "components") {
+      setSearch("");
+      const target=navigationContext?.componentId?components.find(row=>row.id===navigationContext.componentId):undefined;
+      if(target){
+        setSelectedComponentIds([target.id]);
+        setComponentCompanyFilters(target.companyId?[target.companyId]:[]);
+        setComponentNumberFilters([target.partNumber]);
+      }else{
+        setSelectedComponentIds([]);
+        setComponentCompanyFilters(navigationContext?.companyId?[navigationContext.companyId]:[]);
+        setComponentNumberFilters([]);
+      }
+    }
+  }, [moduleId, navigationContext?.companyId, navigationContext?.poId, navigationContext?.componentId, components.length]);
   const openedOrder = orders.find(order => order.id === openedPoId);
   useEffect(() => {
     if (openedPoId) document.getElementById("po-open-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
