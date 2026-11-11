@@ -6,13 +6,14 @@ type Props = {
   link: MaterialProcessLinkRecord;
   material: MaterialRecord;
   componentQuantity: number;
+  partLabel?: string;
   selected: boolean;
   onSelect: () => void;
 };
 
 const number = (value:number) => Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:4});
 
-export function MaterialFlowMarker({link,material,componentQuantity,selected,onSelect}:Props) {
+export function MaterialFlowMarker({link,material,componentQuantity,partLabel,selected,onSelect}:Props) {
   return <span className={"material-flow-marker"+(selected?" is-selected":"")} style={{"--material-color":"#42C9D3"} as CSSProperties}>
     <button type="button" className="material-flow-marker-button" onClick={onSelect} aria-expanded={selected}
       aria-label={"Open material process link "+material.code+" for "+material.name}
@@ -22,6 +23,7 @@ export function MaterialFlowMarker({link,material,componentQuantity,selected,onS
     {selected&&<span className="material-flow-popover" role="dialog" aria-label="Material to process link">
       <strong>MATERIAL → PROCESS LINK</strong>
       <span>{material.code} · {material.name}</span>
+      {partLabel&&<small>Part: {partLabel}</small>}
       <small>Grade: {material.grade||"Not specified"} · Unit: {link.unit||material.unit}</small>
       <small>BOM line: {link.bomLineId}</small>
       <small>Process operation: {link.operationId}</small>
