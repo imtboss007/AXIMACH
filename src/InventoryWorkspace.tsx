@@ -104,12 +104,14 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const [operationId, setOperationId] = useState("");
   const [vendorId, setVendorId] = useState("");
   useEffect(() => {
-    if (initialContext?.poId && initialContext?.poLineId) setMaterialLinkPoLineKey(initialContext.poId+"::"+initialContext.poLineId);
-    if (initialContext?.operationId) setMaterialLinkOperationId(initialContext.operationId);
-    if (initialContext?.subtab === "process-links") setTab("process-links");
-    if (initialContext?.companyId) setDirectoryCompanyId(initialContext.companyId);
-    if (initialContext?.poId) setDirectoryPoId(initialContext.poId);
-    if (initialContext?.componentId) setDirectoryComponentId(initialContext.componentId);
+    // Hydrate every filter from the incoming record context, including the
+    // empty case, so a new module visit cannot inherit a stale component/PO.
+    setMaterialLinkPoLineKey(initialContext?.poId && initialContext?.poLineId ? initialContext.poId+"::"+initialContext.poLineId : "");
+    setMaterialLinkOperationId(initialContext?.operationId || "");
+    setTab(initialContext?.subtab === "process-links" ? "process-links" : "materials");
+    setDirectoryCompanyId(initialContext?.companyId || "");
+    setDirectoryPoId(initialContext?.poId || "");
+    setDirectoryComponentId(initialContext?.componentId || "");
   }, [initialContext?.poId, initialContext?.poLineId, initialContext?.operationId, initialContext?.subtab, initialContext?.companyId, initialContext?.componentId]);
   const directoryPoOptions = orders.filter(po => !directoryCompanyId || po.companyId === directoryCompanyId);
   const directoryComponentOptions = components.filter(component => (!directoryPoId || orders.some(po => po.id === directoryPoId && po.lines.some(line => line.componentId === component.id))) && (!directoryCompanyId || component.companyId === directoryCompanyId || orders.some(po => po.companyId === directoryCompanyId && po.lines.some(line => line.componentId === component.id))));
