@@ -93,3 +93,10 @@ test("every supported vehicle category is displayed with a permanent visual iden
   assert.ok(demo.includes("{VEHICLE_TYPES.map(type=><VehicleBadge"));
   for (const type of ["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery"]) assert.ok(visuals.includes(type));
 });
+
+test("courier/delivery and 2-wheeler use separate vehicle colours", () => {
+  const visuals = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
+  assert.ok(visuals.includes('if (/courier|delivery/.test(value))'));
+  assert.ok(visuals.includes('color: "#B56BC5"'));
+  assert.ok(visuals.includes('color: "#D49A2D"'));
+});
