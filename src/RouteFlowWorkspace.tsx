@@ -11,7 +11,7 @@ import { useWorkspaceTheme } from "./workspaceTheme";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
 import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
-import { Activity, ArrowLeft, ArrowRight, Bike, Box, Bus, CarFront, Check, ChevronDown, CircleDashed, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, GitMerge, GitPullRequest, Link2, MessageCircle, Network, Package, Plane, Plus, Route, Save, ShieldCheck, Ship, Sparkles, Split, TrainFront, Truck, Users, Waypoints, Workflow, X } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, Box, Check, ChevronDown, CircleDashed, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, GitMerge, GitPullRequest, Link2, MessageCircle, Network, Package, Plus, Route, Save, ShieldCheck, Sparkles, Split, Truck, Users, Waypoints, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
   type ComponentTransportLegRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type RouteRelationshipRecord,
