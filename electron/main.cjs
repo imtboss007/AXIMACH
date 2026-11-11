@@ -118,7 +118,7 @@ function spawnLocalService(entry, env, label) {
   return child;
 }
 
-function startLocalServices() {
+function startLocalServices({ includeWhatsApp = true } = {}) {
   const appRoot = app.getAppPath();
   const serverDir = path.join(app.getPath("userData"), "aximach");
   const whatsappDir = path.join(app.getPath("userData"), "whatsapp");
@@ -127,15 +127,58 @@ function startLocalServices() {
   sharedApiKey = getSharedApiKey(serverDir);
   if (!manufacturingServer) manufacturingServer = spawnLocalService(path.join(appRoot, "server", "index.mjs"), {
     PORT: "8787", AXIMACH_API_KEY: sharedApiKey,
-    AXIMACH_DATA_FILE: path.join(serverDir, "aximach.json"),
+    AXIMACH_DATA_FILE: process.env.AXIMACH_DATA_FILE || path.join(serverDir, "aximach.json"),
     AXIMACH_ALLOWED_ORIGINS: CLIENT_ORIGINS,
   }, "AXIMACH shared-data server");
-  if (!whatsappBridge) whatsappBridge = spawnLocalService(path.join(appRoot, "server", "whatsapp-web.mjs"), {
+  if (includeWhatsApp && !whatsappBridge) whatsappBridge = spawnLocalService(path.join(appRoot, "server", "whatsapp-web.mjs"),
     WA_WEB_PORT: "8789", WA_WEB_HOST: "0.0.0.0",
     AXIMACH_API_KEY: sharedApiKey, AXIMACH_ALLOWED_ORIGINS: CLIENT_ORIGINS,
     WA_WEB_DATA_FILE: path.join(whatsappDir, "whatsapp-web-lan.json"),
     WA_WEB_AUTH_DIR: path.join(whatsappDir, "whatsapp-auth-lan"),
   }, "AXIMACH WhatsApp bridge");
+}
+
+async function verifyLocalSharedDataServer() {
+  const base = "http://127.0.0.1:8787";
+  let lastError;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    try {
+      const healthResponse = await fetch(base + "/health", { cache: "no-store" });
+      if (!healthResponse.ok) throw new Error("Shared-data server health returned HTTP " + healthResponse.status + ".");
+      const discoveryResponse = await fetch(base + "/api/connection-info", { cache: "no-store" });
+      if (!discoveryResponse.ok) throw new Error("Local LAN connection discovery returned HTTP " + discoveryResponse.status + ".");
+      const discovery = await discoveryResponse.json();
+      if (!sharedApiKey || discovery.apiKey !== sharedApiKey || !Array.isArray(discovery.addresses)) {
+        throw new Error("Local server did not return its persistent API key and LAN addresses.");
+      }
+
+      const headers = { "content-type": "application/json", "x-aximach-key": sharedApiKey };
+      const id = "aximach-windows-smoke-" + process.pid;
+      const payload = { data: { companies: [{
+        id, name: "AXIMACH Windows shared-data smoke test",
+        updatedAt: new Date().toISOString()
+      }] } };
+      const putResponse = await fetch(base + "/api/manufacturing-data", {
+        method: "PUT", headers, body: JSON.stringify(payload)
+      });
+      const putBody = await putResponse.json().catch(() => ({}));
+      if (!putResponse.ok) throw new Error(putBody.error || "Authenticated shared-data write failed.");
+      const readResponse = await fetch(base + "/api/manufacturing-data", {
+        headers: { "x-aximach-key": sharedApiKey }, cache: "no-store"
+      });
+      const readBody = await readResponse.json().catch(() => ({}));
+      if (!readResponse.ok || !readBody.data?.companies?.some(row => row.id === id)) {
+        throw new Error("Shared-data read-back did not return the synthetic Windows smoke-test record.");
+      }
+      diagnosticLog("shared-data server smoke check:", "health, private-LAN discovery, authenticated write and read-back passed");
+      return;
+    } catch (error) {
+      lastError = error;
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  }
+  throw new Error("AXIMACH shared-data server did not pass its packaged smoke test: "
+    + (lastError?.message || String(lastError)));
 }
 
 function injectLocalServerSettings(window) {
@@ -252,12 +295,15 @@ function stopLocalServices() {
   }
   manufacturingServer = undefined; whatsappBridge = undefined;
 }
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   try {
     diagnosticLog("application startup:", "Electron ready");
     registerFrontendProtocol();
-    if (process.env.AXIMACH_SMOKE_TEST === "1") diagnosticLog("smoke test mode:", "local background services skipped");
-    else startLocalServices();
+    if (process.env.AXIMACH_SMOKE_TEST === "1") {
+      diagnosticLog("smoke test mode:", "starting the packaged manufacturing shared-data server");
+      startLocalServices({ includeWhatsApp: false });
+      await verifyLocalSharedDataServer();
+    } else startLocalServices();
     createWindow("aximach://bundle/index.html");
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow("aximach://bundle/index.html");
