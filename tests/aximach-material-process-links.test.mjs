@@ -189,3 +189,35 @@ test("part-scoped routes hide process links whose BOM belongs to another part", 
   assert.ok(routeFlow.includes("return !line?.partId||!linkedBom?.partId||linkedBom.partId===line.partId"));
   assert.ok(routeFlow.includes("leg.componentId===componentId"));
 });
+
+test("Manufacturing Universe uses the incoming component context and never falls back to first unrelated records", () => {
+  const universe = readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("initialContext?:NavigationContext"));
+  assert.ok(universe.includes("const appliedContextKey=useRef"));
+  assert.ok(universe.includes("const company=companies.find(row=>row.id===companyPick)"));
+  assert.ok(universe.includes("const po=companyOrders.find(row=>row.id===poPick)"));
+  assert.ok(universe.includes("const line=lines.find(row=>row.id===linePick)"));
+  assert.ok(!universe.includes("||companies[0]"));
+  assert.ok(!universe.includes("||companyOrders[0]"));
+  assert.ok(!universe.includes("||lines[0]"));
+  assert.ok(universe.includes("lineComponent?.partNumber"));
+  assert.ok(universe.includes("materialPartLabels={materialProcessPartLabels}"));
+  assert.ok(universe.includes("poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)"));
+  assert.ok(app.includes('<ManufacturingUniverseWorkspace initialContext={moduleContext}'));
+});
+
+test("Material Directory filters materials reachable only from component-part material IDs by PO", () => {
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes("partLinks.some(part => orders.some(po => po.id === directoryPoId"));
+  assert.ok(inventory.includes("line.componentId === part.componentId && (!line.partId || line.partId === part.id)"));
+});
+
+test("Legacy Process Map allocations and transport legs are not copied into ambiguous multi-line components", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes("selectedComponentLineCount === 1"));
+  assert.ok(processMap.includes("(!leg.poLineId && selectedComponentLineCount === 1)"));
+  assert.ok(routeFlow.includes("componentGlobalLineCount===1"));
+  assert.ok(routeFlow.includes("componentLineCount===1"));
+});
