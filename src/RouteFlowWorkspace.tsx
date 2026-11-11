@@ -78,6 +78,12 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,trans
 }
 
 export default function RouteFlowWorkspace({initialContext,onBack,onNotice,notice,onSelectModule}:Props) {
+  useEffect(()=>{
+    const lockLandscape=()=>{if(!document.fullscreenElement)return;const orientation=(window.screen as Screen & {orientation?:ScreenOrientation & {lock?:(value:"landscape")=>Promise<void>}}).orientation;try{if(orientation?.lock)void orientation.lock("landscape").catch(()=>{});}catch{/* This browser may not support orientation locking. */}};
+    document.addEventListener("fullscreenchange",lockLandscape);
+    return ()=>document.removeEventListener("fullscreenchange",lockLandscape);
+  },[]);
+
   const {data,update,syncStatus}=useManufacturingData();
   const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),vendors=activeRows(data.vendors);
   const operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),legs=activeRows(data.transportLegs||[]);
