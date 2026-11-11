@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord, type RouteRelationshipRecord } from "./manufacturingData";
-import ProcessUniverse3D from "./WebGLProcessUniverse3D";
+import ProcessUniverse3D from "./ProcessUniverse3D";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
 import TransportRecordInspector from "./TransportRecordInspector";

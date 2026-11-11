@@ -6,7 +6,6 @@ import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { TransportLegMarker } from "./TransportVehicle";
-import { RouteConnectorLegend } from "./RouteConnectorLegend";
 import TransportRoutingDemo from "./TransportRoutingDemo";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
@@ -15,7 +14,7 @@ import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector
 import { transportPopupAnchor, transportPopupAnchorFromPoint } from "./transportPopup";
 import { RouteLayoutPicker, RouteConnectorLegend, useRouteLayout } from "./RouteLayoutPicker";
 
-type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
+type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?:string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
 type ProcessExportField = "company" | "po" | "component" | "componentNumber" | "operation" | "category" | "subcategory" | "execution" | "machine" | "description" | "vendor" | "transportVendor" | "transportRoute" | "vehicle" | "quantity" | "quantityUnit" | "completed" | "rejected" | "status" | "tolerance" | "inspection" | "paymentStatus" | "paidAmount" | "plannedStart" | "plannedEnd" | "price" | "transportCost" | "transportLegCost" | "amount" | "combinedAmount";
 type ProcessCardField = "category"|"subcategory"|"execution"|"machine"|"vendor"|"plannedStart"|"plannedEnd"|"actualStart"|"actualEnd"|"quantity"|"completed"|"accepted"|"rejected"|"price"|"amount"|"status"|"transportVendor"|"transportRoute"|"vehicle"|"transportPickup"|"transportDelivery"|"transportLegCost"|"combinedAmount"|"company"|"po"|"component"|"materialShape"|"materialDensity"|"materialQuantity"|"materialWeight"|"materialVendor"|"materialGiven"|"materialDelivery"|"materialReceived"|"materialCost"|"materialCuttingCost"|"materialTransportCost";
@@ -176,6 +175,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [bulkVendorId,setBulkVendorId] = useState("");
   const [bulkStart,setBulkStart] = useState("");
   const [bulkEnd,setBulkEnd] = useState("");
+  useEffect(()=>{
+    const lockLandscape=()=>{if(!document.fullscreenElement)return;const orientation=(window.screen as Screen & {orientation?:ScreenOrientation & {lock?:(value:"landscape")=>Promise<void>}}).orientation;try{orientation?.lock?.("landscape");}catch{/* Fullscreen remains usable when orientation lock is unavailable. */}};
+    document.addEventListener("fullscreenchange",lockLandscape);
+    return ()=>document.removeEventListener("fullscreenchange",lockLandscape);
+  },[]);
   const appliedLinkedContext = useRef("");
   useEffect(() => {
     if (!initialContext) { appliedLinkedContext.current = ""; return; }
@@ -1648,7 +1652,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
               const selected = op.id === activeOperation?.id;
               const accent = processAccent(op);
               const arrowAccent = rework?REWORK_ROUTE_COLOR:alternate?ALTERNATE_ROUTE_COLOR:accent;
-              return <div className="linked-node-wrap" key={op.id}><button style={{borderColor:accent}} data-route-operation-id={op.id} className={"linked-operation-node status-" + op.status.toLowerCase().replaceAll(" ","-") + (alternate ? " linked-node-alternate" : "") + (selected ? " linked-node-selected" : "")} onClick={() => {setSelectedOperationId(op.id);setShowEditor(false);}}><ProcessIcon processId={op.processDefinitionId} processName={op.name} category={op.category} subcategory={op.subcategory} fallback={op.name.toLowerCase().includes("transport") || op.name.toLowerCase().includes("dispatch") ? <Truck size={19}/> : op.name.toLowerCase().includes("inspect") || op.name.toLowerCase().includes("quality") ? <ClipboardCheck size={19}/> : op.name.toLowerCase().includes("grind") ? <Wrench size={19}/> : <Workflow size={19}/>} /><strong>{op.name}</strong><small>OP-{String(op.sequence).padStart(3,"0")}</small><span>{op.status}</span><small>{vendor?.company || "Vendor unassigned"}</small><small>{daysBetween(op.plannedStart,op.plannedEnd) || "—"} day(s)</small></button>{index < laneOperations.length - 1 && <span className="linked-node-arrow" style={{color:op.relationType==="rework"?REWORK_ROUTE_COLOR:op.relationType==="alternate"?ALTERNATE_ROUTE_COLOR:arrowAccent}}><ArrowRight size={18}/></span>}</div>;
+              return <div className="linked-node-wrap" key={op.id}><button style={{borderColor:accent}} data-route-operation-id={op.id} className={"linked-operation-node status-" + op.status.toLowerCase().replaceAll(" ","-") + (alternate ? " linked-node-alternate" : "") + (selected ? " linked-node-selected" : "")} onClick={() => {setSelectedOperationId(op.id);setShowEditor(false);}}><ProcessIcon processId={op.processDefinitionId} processName={op.name} category={op.category} subcategory={op.subcategory} fallback={op.name.toLowerCase().includes("transport") || op.name.toLowerCase().includes("dispatch") ? <Truck size={19}/> : op.name.toLowerCase().includes("inspect") || op.name.toLowerCase().includes("quality") ? <ClipboardCheck size={19}/> : op.name.toLowerCase().includes("grind") ? <Wrench size={19}/> : <Workflow size={19}/>} /><strong>{op.name}</strong><small>OP-{String(op.sequence).padStart(3,"0")}</small><span>{op.status}</span><small>{vendor?.company || "Vendor unassigned"}</small><small>{daysBetween(op.plannedStart,op.plannedEnd) || "—"} day(s)</small></button>{index < laneOperations.length - 1 && <span className="linked-node-arrow route-connector" style={{color:op.relationType==="rework"?REWORK_ROUTE_COLOR:op.relationType==="alternate"?ALTERNATE_ROUTE_COLOR:arrowAccent}}><ArrowRight size={18}/></span>}</div>;
             })}</div>
           </section>;
         })}</div></div> : routeOperations.length ? <div className="module-empty-state"><Workflow size={24}/><h3>No process records in the selected route scope</h3><p>Choose another route scope or reset the filters.</p></div> : <div className="module-empty-state linked-no-operations"><Workflow size={28}/><h3>No operations saved for this component</h3><p>Add only the operations this part actually requires. There is no fixed stage limit and no sample CNC or heat-treatment data.</p><button className="button-primary" disabled={!selectedLine || !selectedComponent} onClick={openAddMenu}><Plus size={14}/> Add first operation ▾</button></div>}
