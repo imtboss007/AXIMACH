@@ -72,8 +72,8 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,trans
       {style==="split"&&<path className="route-flow-curve-branch" d="M56 54 L68 32 L80 54"/>}
       <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path={curvePath}/></circle>
     </svg>
-    {transport&&(transportLegId||materialTransportId?<button type="button" className={"route-flow-vehicle-marker route-flow-vehicle-marker-button vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s) · Open details"} aria-label="Open this transport popup" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onTransportClick?.(transportLegId||materialTransportId!,transportLegId?"leg":"material",event.currentTarget);}}><VehicleTypeIcon vehicleType={vehicleType} size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></button>:<span className={"route-flow-vehicle-marker vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleIcon size={17}/><b>{tripCount>1?tripCount+"×":vehicleType||"Vehicle"}</b></span>)}
-    <small>{transport?(vehicleType||"TRANSPORT"):label||relationLabel(type)}</small>
+    {transport&&(transportLegId||materialTransportId?<button type="button" className={"route-flow-vehicle-marker route-flow-vehicle-marker-button vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s) · Open details"} aria-label="Open this transport popup" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onTransportClick?.(transportLegId||materialTransportId!,transportLegId?"leg":"material",event.currentTarget);}}><VehicleTypeIcon vehicleType={vehicleType} size={17}/></button>:<span className={"route-flow-vehicle-marker vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleTypeIcon vehicleType={vehicleType} size={17}/></span>)}
+    {!transport&&<small>{label||relationLabel(type)}</small>}
   </div>;
 }
 
