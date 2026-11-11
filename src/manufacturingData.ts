@@ -332,6 +332,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
 
 function serverConfig() {
   if (typeof window === "undefined") return null;
+  if (window.localStorage.getItem("aximach.storage.mode") === "local-only") return null;
   const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
   const key = window.localStorage.getItem("aximach.scheduler.key") || "";
   if (!base || !key) return null;
