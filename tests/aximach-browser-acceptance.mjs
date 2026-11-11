@@ -99,6 +99,23 @@ async function chooseNativeScope(page, scopeSelector) {
   await page.waitForTimeout(450);
 }
 
+async function scrollGraphNodeIntoView(locator) {
+  await locator.evaluate(el => {
+    const scroller = el.closest(".route-flow-stage-scroll");
+    if (scroller) {
+      const item = el.getBoundingClientRect();
+      const frame = scroller.getBoundingClientRect();
+      const targetLeft = scroller.scrollLeft + item.left - frame.left - (scroller.clientWidth - item.width) / 2;
+      const targetTop = scroller.scrollTop + item.top - frame.top - (scroller.clientHeight - item.height) / 2;
+      scroller.scrollLeft = Math.max(0, Math.min(scroller.scrollWidth - scroller.clientWidth, targetLeft));
+      scroller.scrollTop = Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight, targetTop));
+    }
+    el.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
+  });
+  await locator.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
+  await locator.page().waitForTimeout(60);
+}
+
 async function main() {
   await waitForServer();
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
@@ -178,7 +195,8 @@ async function main() {
     for (let i = 0; i < branchLegCount; i++) {
       const button = page.locator('button[aria-label="Open transport leg popup"]').nth(i);
       if (!(await button.isVisible().catch(() => false))) continue;
-      await button.click();
+      await scrollGraphNodeIntoView(button);
+      await button.click({ timeout: 8000 });
       const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
       await dialog.waitFor({ state: "visible", timeout: 5000 });
       const details = await dialog.innerText();
@@ -194,7 +212,8 @@ async function main() {
     for (let i = 0; i < branchMarkerCount; i++) {
       const button = page.locator(".material-flow-marker-button").nth(i);
       if (!(await button.isVisible().catch(() => false))) continue;
-      await button.click();
+      await scrollGraphNodeIntoView(button);
+      await button.click({ timeout: 8000 });
       const popup = page.getByRole("dialog", { name: "Material to process link" });
       await popup.waitFor({ state: "visible", timeout: 4000 });
       const details = await popup.innerText();
