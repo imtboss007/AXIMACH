@@ -15,13 +15,13 @@ test("Route Graph, Route Flow and Manufacturing Universe lock the phone to lands
   assert.ok(app.includes('activeModuleId === "process-map"'));
   assert.ok(app.includes('activeModuleId === "route-flow"'));
   assert.ok(app.includes('activeModuleId === "manufacturing-universe"'));
-  assert.ok(app.includes('ScreenOrientation.lock({ orientation: "landscape-primary" })'));
+  assert.ok(app.includes('CapacitorScreenOrientation.lock({ orientation: "landscape-primary" })'));
   assert.ok(app.includes('window.matchMedia("(max-width: 900px)")'));
 });
 
 test("Landscape orientation is released when leaving the three route workspaces", () => {
   const app = read("../src/App.tsx");
-  assert.ok(app.includes("void ScreenOrientation.unlock().catch(() => undefined)"));
+  assert.ok(app.includes("void CapacitorScreenOrientation.unlock().catch(() => undefined)"));
   assert.ok(app.includes("return () => {\n      disposed = true;"));
 });
 
