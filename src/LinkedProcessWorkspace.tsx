@@ -177,7 +177,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     vendorName={transportVendorName(leg.vendorId)} routeRecord={transportRoutes.find(route=>route.id===leg.routeId)}
     selected={selectedTransportLegId === leg.id} onSelect={() => setSelectedTransportLegId(current => current === leg.id ? "" : leg.id)} />;
   const materialLinksAt = (operationId:string,placement:"before"|"after") => componentMaterialProcessLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
-  const renderMaterialLink = (link:MaterialProcessLinkRecord) => { const material=materials.find(row=>row.id===link.materialId); return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={selectedLine?.quantity||0} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":id)}/>:null; };
+  const renderMaterialLink = (link:MaterialProcessLinkRecord) => { const material=materials.find(row=>row.id===link.materialId); return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={selectedLine?.quantity||0} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>:null; };
   const transportLegsAt = (operationId: string, placement: "before" | "after") =>
     componentTransportLegs.filter(leg => leg.anchorOperationId === operationId && (leg.placement || "after") === placement);
   const startTransportLegs = componentTransportLegs.filter(leg => !leg.anchorOperationId || leg.placement === "start");
