@@ -254,7 +254,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       ...materialPartLinks.map(part=>part.componentId)
     ]);
     const linkedPOs=orders.filter(order=>order.lines.some(line=>linkedComponentIds.has(line.componentId)&&(!line.partId||materialBomLinks.some(bom=>!bom.partId||bom.partId===line.partId)||materialPartLinks.some(part=>part.id===line.partId))));
-    const companyMatch=!directoryCompanyId||row.companyId===directoryCompanyId||po?.companyId===directoryCompanyId||linkedPOs.some(order=>order.companyId===directoryCompanyId)||[...linkedComponentIds].some(id=>components.find(component=>component.id===id)?.companyId===directoryCompanyId);
+    const companyMatch=!directoryCompanyId||(row.companyId?row.companyId===directoryCompanyId:po?.companyId?po.companyId===directoryCompanyId:linkedPOs.some(order=>order.companyId===directoryCompanyId)||[...linkedComponentIds].some(id=>components.find(component=>component.id===id)?.companyId===directoryCompanyId));
     const poMatch=!directoryPoId||row.poId===directoryPoId||(!row.poId&&linkedPOs.some(order=>order.id===directoryPoId));
     const componentMatch=!directoryComponentId||linkedComponentIds.has(directoryComponentId)||poLine?.componentId===directoryComponentId;
     const query=(item?.name+" "+("code" in (item||{})?(item as MaterialRecord).code:(item as any)?.partNumber)+" "+row.transactionType+" "+row.reference+" "+row.notes+" "+row.occurredAt+" "+row.quantity).toLowerCase();
