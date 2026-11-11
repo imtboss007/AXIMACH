@@ -445,7 +445,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
        <label>Purchase order<select value={directoryPoId} onChange={e=>{setDirectoryPoId(e.target.value);setDirectoryComponentId("");}}><option value="">All purchase orders</option>{directoryPoOptions.map(po=><option key={po.id} value={po.id}>{po.number}</option>)}</select></label>
        <label>Component<select value={directoryComponentId} onChange={e=>setDirectoryComponentId(e.target.value)}><option value="">All components</option>{directoryComponentOptions.map(component=><option key={component.id} value={component.id}>{component.partNumber} · {component.name}</option>)}</select></label>
        {(directoryCompanyId||directoryPoId||directoryComponentId)&&<button type="button" className="button-quiet compact-button" onClick={()=>{setDirectoryCompanyId("");setDirectoryPoId("");setDirectoryComponentId("");}}>Clear filters</button>}
-     </div>}
+     </div>
     {tab==="materials" && <section className="surface-panel material-directory-route-allocation">
       <div className="panel-heading">
         <div><div className="eyebrow">MATERIAL DIRECTORY → PROCESS MAP</div><h3>PO-linked material procurement</h3>
