@@ -325,6 +325,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   };
   const saveBom = () => {
     if (!bomDraft.componentId || !components.some(component => component.id === bomDraft.componentId) || !bomDraft.materialId || !materials.some(material => material.id === bomDraft.materialId)) { onNotice("Select active Component Master and Material Master records for this BOM line."); return; }
+    if (bomDraft.partId && !((data.componentParts || []).some(part => part.id === bomDraft.partId && part.componentId === bomDraft.componentId && !part.deletedAt))) { onNotice("The selected BOM part must be an active part belonging to the selected component."); return; }
     if (!Number.isFinite(Number(bomDraft.quantityPerPart)) || bomDraft.quantityPerPart <= 0) { onNotice("BOM quantity per part must be a finite positive number."); return; }
     if (!Number.isFinite(Number(bomDraft.scrapPercent)) || bomDraft.scrapPercent < 0 || bomDraft.scrapPercent > 100) { onNotice("BOM scrap allowance must be between 0 and 100 percent."); return; }
     const duplicate = bomLines.find(row => row.id !== bomEditingId && row.componentId === bomDraft.componentId && (row.partId || "") === (bomDraft.partId || "") && row.materialId === bomDraft.materialId && row.revision === bomDraft.revision);
