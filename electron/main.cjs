@@ -187,8 +187,8 @@ function injectLocalServerSettings(window) {
     "aximach.scheduler.key": sharedApiKey,
     "aximach.whatsapp.url": "http://127.0.0.1:8789",
   };
-  const bootstrap = "(() => { try { const values = " + JSON.stringify(settings)
-    + "; for (const [key, value] of Object.entries(values)) localStorage.setItem(key, value); } catch (_) {} })();";
+  const bootstrap = "(() => { try { if (localStorage.getItem('aximach.storage.mode') === 'local-only') return; const values = " + JSON.stringify(settings)
+    + "; for (const [key, value] of Object.entries(values)) localStorage.setItem(key, value); localStorage.setItem('aximach.storage.mode', 'shared-server'); } catch (_) {} })();";
 
   // Electron WebContents does not expose addDocumentStartJavaScript().
   // Use the documented executeJavaScript() once the page has finished loading.
