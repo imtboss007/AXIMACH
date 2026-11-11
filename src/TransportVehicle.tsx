@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Bike, Bus, Boxes, Car, Package, Truck, type LucideIcon } from "lucide-react";
-import type { ComponentTransportLegRecord } from "./manufacturingData";
+import type { ComponentTransportLegRecord, TransportRouteRecord } from "./manufacturingData";
 
 export const VEHICLE_TYPES = [
   "2-wheeler",
@@ -52,29 +52,34 @@ type TransportLegMarkerProps = {
   vendorName: string;
   selected: boolean;
   onSelect: () => void;
+  routeRecord?: TransportRouteRecord;
 };
 
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
-export function TransportLegMarker({ leg, vendorName, selected, onSelect }: TransportLegMarkerProps) {
+export function TransportLegMarker({ leg, vendorName, selected, onSelect, routeRecord }: TransportLegMarkerProps) {
   const { color } = getVehicleVisual(leg.vehicleType);
   const placement = leg.placement === "start" || !leg.anchorOperationId ? "Before route" : leg.placement === "before" ? "Before process" : "After process";
   return <span className={"transport-leg-marker" + (selected ? " is-selected" : "")} style={{ "--vehicle-color": color } as CSSProperties}>
     <button type="button" className="transport-leg-marker-button" onClick={onSelect} aria-expanded={selected}
       aria-label={"Open transport leg " + leg.fromLocation + " to " + leg.toLocation + " by " + leg.vehicleType}
       title={leg.fromLocation + " → " + leg.toLocation + " · " + leg.vehicleType}>
-      <VehicleIcon vehicleType={leg.vehicleType} size={16} />
-      <span>TRANSPORT</span>
-      <small>{leg.vehicleType}</small>
+      <VehicleIcon vehicleType={leg.vehicleType} size={19} />
     </button>
-    {selected && <span className="transport-leg-popover" role="dialog" aria-label="Transport leg details">
-      <strong>{leg.fromLocation} → {leg.toLocation}</strong>
-      <span>{leg.vehicleType} · {leg.tripDirection}</span>
-      <small>Vendor: {vendorName || "Vendor not linked"}</small>
-      <small>{placement} · {leg.tripCount} trip(s)</small>
+    {selected && <span className="transport-leg-popover" role="dialog" aria-label="Saved transport directory record and component leg">
+      <strong>TRANSPORT RECORD · {leg.id}</strong>
+      <span>{leg.fromLocation} → {leg.toLocation}</span>
+      <small>Transport Directory ID: {routeRecord?.id || leg.routeId}</small>
+      <small>Vendor: {vendorName || "Vendor not linked"} · {leg.vehicleType} · {leg.tripDirection}</small>
+      <small>Directory route: {routeRecord ? (routeRecord.active ? "Active" : "Inactive") : "Directory master not found"}</small>
+      {routeRecord && <small>Directory fixed rate: {money(routeRecord.fixedAmount)} · {routeRecord.currency || "INR"}</small>}
+      <small>Saved component rate snapshot: {money(leg.fixedAmount)}</small>
+      <small>{placement} · {leg.tripCount} trip(s) · {leg.status || "Status not set"}</small>
       <b>{leg.tripCount} × {money(leg.fixedAmount)} = {money(leg.tripCount * leg.fixedAmount)}</b>
-      {leg.status && <small>Status: {leg.status}</small>}
-      {leg.notes && <small>{leg.notes}</small>}
+      {leg.pickupAt && <small>Pickup: {leg.pickupAt}</small>}
+      {leg.deliveryAt && <small>Delivery: {leg.deliveryAt}</small>}
+      {routeRecord?.notes && <small>Directory notes: {routeRecord.notes}</small>}
+      {leg.notes && <small>Component-leg notes: {leg.notes}</small>}
     </span>}
   </span>;
 }

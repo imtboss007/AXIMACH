@@ -1,12 +1,14 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import { motion, useMotionValue } from "motion/react";
 import { Activity, ArrowRight, Boxes, ClipboardCheck, Cog, Cpu, Disc3, GitBranch, Scissors, Zap, Truck, Workflow, Wrench } from "lucide-react";
-import type { ComponentTransportLegRecord, OperationRecord } from "./manufacturingData";
+import type { ComponentTransportLegRecord, MaterialProcessLinkRecord, MaterialRecord, OperationRecord, TransportRouteRecord } from "./manufacturingData";
 import { TransportLegMarker } from "./TransportVehicle";
+import { MaterialFlowMarker } from "./MaterialFlowMarker";
+import { RouteConnectorLegend } from "./RouteConnectorLegend";
 import { ProcessIcon } from "./IconStudio";
 
 type ProcessDefinitionNode = { id: string; processType: string; category: string; subcategories?: string[]; vendorIds?: string[]; displayColor?: string };
-type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; transportLegs?: ComponentTransportLegRecord[]; transportVendors?: Array<{id:string;company:string}>; selectedTransportLegId?: string; onSelectTransportLeg?: (id:string) => void; selectedOperationId: string; simulationIndex: number; zoom: number; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
+type Props = { operations: OperationRecord[]; allOperations?: OperationRecord[]; processDefinitions?: ProcessDefinitionNode[]; transportLegs?: ComponentTransportLegRecord[]; transportRoutes?:TransportRouteRecord[]; transportVendors?: Array<{id:string;company:string}>; materialLinks?:MaterialProcessLinkRecord[]; materials?:MaterialRecord[]; componentQuantity?:number; selectedMaterialLinkId?:string; onSelectMaterialLink?: (id:string)=>void; selectedTransportLegId?: string; onSelectTransportLeg?: (id:string) => void; selectedOperationId: string; simulationIndex: number; zoom: number; onSelectOperation: (id: string) => void; onAddSubprocess?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void };
 
 function fallbackFor(name: string) {
   const value = name.toLowerCase();
@@ -25,7 +27,7 @@ function fallbackFor(name: string) {
 
 type ProcessLayoutMode = "sphere" | "route" | "vortex" | "cube" | "molecular" | "orbit" | "digital-mesh";
 
-export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], transportLegs = [], transportVendors = [], selectedTransportLegId = "", onSelectTransportLeg, selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
+export default function ProcessUniverse3D({ operations, allOperations, processDefinitions = [], transportLegs = [], transportRoutes = [], transportVendors = [], materialLinks = [], materials = [], componentQuantity = 0, selectedMaterialLinkId = "", onSelectMaterialLink, selectedTransportLegId = "", onSelectTransportLeg, selectedOperationId, simulationIndex, zoom, onSelectOperation, onAddSubprocess, onAddProcessDefinition }: Props) {
   const [expandedOperationId, setExpandedOperationId] = useState("");
   const parentOperations = useMemo(() => operations.filter(operation => operation.relationType !== "subprocess"), [operations]);
   const displayOperations = parentOperations.length ? parentOperations : operations;
@@ -35,8 +37,10 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
   const startTransportLegs = transportLegs.filter(leg => !leg.anchorOperationId || leg.placement === "start");
   const transportVendorName = (vendorId: string) => transportVendors.find(vendor => vendor.id === vendorId)?.company || "Vendor not linked";
   const renderTransportLeg = (leg: ComponentTransportLegRecord) => <TransportLegMarker key={leg.id} leg={leg}
-    vendorName={transportVendorName(leg.vendorId)} selected={selectedTransportLegId === leg.id}
+    vendorName={transportVendorName(leg.vendorId)} routeRecord={transportRoutes.find(route=>route.id===leg.routeId)} selected={selectedTransportLegId === leg.id}
     onSelect={() => onSelectTransportLeg?.(leg.id)} />;
+  const materialLinksAt = (operationId:string,placement:"before"|"after") => materialLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
+  const renderMaterialLink = (link:MaterialProcessLinkRecord) => { const material=materials.find(row=>row.id===link.materialId); return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={componentQuantity} selected={selectedMaterialLinkId===link.id} onSelect={()=>onSelectMaterialLink?.(link.id)}/>:null; };
   const branchesFor = (parentId: string) => lookupOperations.filter(operation => (operation.relationType === "alternate" || operation.relationType === "rework") && operation.parentId === parentId);
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>("sphere");
   const rotateX = useMotionValue(-12);
@@ -159,6 +163,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
           const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
           const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
           return <div className="process-universe-node-wrap" key={operation.id}>
+            {materialLinksAt(operation.id,"before").map(renderMaterialLink)}
             {transportFor(operation.id,"before").map(renderTransportLeg)}
             <button type="button" data-route-operation-id={operation.id} className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{"--process-accent":accent} as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(current => current === operation.id ? "" : operation.id); }} aria-pressed={active} title={"Open " + operation.name + " operation record"}>
               <span className="process-universe-node-top"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><em>{operation.status}</em></span>
@@ -168,8 +173,9 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
               {operation.machine && <span className="process-universe-machine">{operation.machine}</span>}
             </button>
             {transportFor(operation.id,"after").map(renderTransportLeg)}
+            {materialLinksAt(operation.id,"after").map(renderMaterialLink)}
             {expanded && <div className="process-node-subprocess-dropdown"><strong>{operation.name} · Linked steps</strong>{childOperations.map(child => <button type="button" key={child.id} onClick={() => onSelectOperation(child.id)}><span>{child.name}</span><small>Sub-process · {child.status} · {child.machine || "Machine not set"}</small></button>)}{linkedBranches.map(child => <button type="button" key={child.id} onClick={() => onSelectOperation(child.id)}><span>{child.name}</span><small>{child.relationType === "rework" ? "Rework branch" : "Alternate route"} · {child.status}</small></button>)}<button type="button" className="process-node-add-subprocess" onClick={() => onAddSubprocess?.(operation.id)}>＋ Add sub-process</button></div>}
-            {index < lane.rows.length - 1 && <span className="process-universe-connector" style={{color:lane.branchRelation==="rework"?"#e38b45":lane.branchRelation==="alternate"?"#4b95eb":accent}} aria-hidden="true"><ArrowRight size={17}/></span>}
+            {index < lane.rows.length - 1 && <span className={"process-universe-connector route-connector "+(lane.branchRelation==="rework"?"route-connector-rework":lane.branchRelation==="alternate"?"route-connector-alternate":"route-connector-main")} style={{color:lane.branchRelation==="rework"?"#e38b45":lane.branchRelation==="alternate"?"#4b95eb":accent}} aria-hidden="true"><ArrowRight size={17}/></span>}
           </div>;
         })}</div>
         {lane.alternate && <div className="process-universe-branch-note">Branch retained with its parent operation and rework history.</div>}
@@ -184,6 +190,7 @@ export default function ProcessUniverse3D({ operations, allOperations, processDe
       {operations.length === 0 && processDefinitions.length === 0 && <div className="process-universe-empty">No saved operations or Process Directory definitions are available.</div>}
       <div className="process-universe-floor" aria-hidden="true"/>
     </div></div>
+    <RouteConnectorLegend/>
     <footer className="process-universe-legend"><span><i className="legend-done"/> Complete</span><span><i className="legend-live"/> Running</span><span><i className="legend-queued"/> Queued</span><span><i className="legend-hold"/> Quality hold</span><span className="process-universe-safe">Simulation is visual only. It never changes job, operation or quantity records.</span></footer>
   </section>;
 }

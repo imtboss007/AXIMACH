@@ -93,7 +93,7 @@
     },
     {
       "id": "demo-op-06",
-      "name": "Pressure and CMM inspection",
+      "name": "Stainless threaded insert installation",
       "sequence": 6,
       "branch": "Main route",
       "relationType": null,
@@ -103,8 +103,18 @@
     },
     {
       "id": "demo-op-07",
-      "name": "Alternate supplier grinding",
+      "name": "Pressure and CMM inspection",
       "sequence": 7,
+      "branch": "Main route",
+      "relationType": null,
+      "parentId": "",
+      "costIncluded": true,
+      "quantity": 240
+    },
+    {
+      "id": "demo-op-08",
+      "name": "Alternate supplier grinding",
+      "sequence": 8,
       "branch": "Alternate grinding vendor",
       "relationType": "alternate",
       "parentId": "demo-op-04",
@@ -120,7 +130,12 @@
       "toLocation": "VMC machine shop",
       "vehicleType": "4-wheeler",
       "tripDirection": "One-way",
-      "fixedAmount": 750
+      "fixedAmount": 750,
+      "currency": "INR",
+      "active": true,
+      "notes": "Synthetic demonstration route master",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "demo-route-02",
@@ -129,7 +144,12 @@
       "toLocation": "Deep-hole subcontractor",
       "vehicleType": "Mini truck",
       "tripDirection": "One-way",
-      "fixedAmount": 900
+      "fixedAmount": 900,
+      "currency": "INR",
+      "active": true,
+      "notes": "Synthetic demonstration route master",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "demo-route-03",
@@ -138,7 +158,12 @@
       "toLocation": "Grinding centre",
       "vehicleType": "Heavy-duty 4-wheeler",
       "tripDirection": "Two-way",
-      "fixedAmount": 1100
+      "fixedAmount": 1100,
+      "currency": "INR",
+      "active": true,
+      "notes": "Synthetic demonstration route master",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "demo-route-04",
@@ -147,7 +172,12 @@
       "toLocation": "CMM laboratory",
       "vehicleType": "2-wheeler",
       "tripDirection": "Two-way",
-      "fixedAmount": 250
+      "fixedAmount": 250,
+      "currency": "INR",
+      "active": true,
+      "notes": "Synthetic demonstration route master",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "demo-route-05",
@@ -156,7 +186,12 @@
       "toLocation": "Assembly and finished-goods store",
       "vehicleType": "Light commercial vehicle",
       "tripDirection": "One-way",
-      "fixedAmount": 600
+      "fixedAmount": 600,
+      "currency": "INR",
+      "active": true,
+      "notes": "Synthetic demonstration route master",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     },
     {
       "id": "demo-route-06",
@@ -165,7 +200,12 @@
       "toLocation": "CMM laboratory",
       "vehicleType": "3-wheeler",
       "tripDirection": "Two-way",
-      "fixedAmount": 480
+      "fixedAmount": 480,
+      "currency": "INR",
+      "active": true,
+      "notes": "Synthetic demonstration route master",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
     }
   ],
   "transportLegs": [
@@ -259,7 +299,7 @@
       "tripDirection": "One-way",
       "fixedAmount": 600,
       "tripCount": 1,
-      "anchorOperationId": "demo-op-06",
+      "anchorOperationId": "demo-op-07",
       "placement": "after",
       "createdAt": "2026-01-01T09:00:00.000Z",
       "updatedAt": "2026-01-01T09:00:00.000Z"
@@ -278,7 +318,7 @@
       "tripDirection": "Two-way",
       "fixedAmount": 480,
       "tripCount": 1,
-      "anchorOperationId": "demo-op-07",
+      "anchorOperationId": "demo-op-08",
       "placement": "after",
       "createdAt": "2026-01-01T09:00:00.000Z",
       "updatedAt": "2026-01-01T09:00:00.000Z"
@@ -291,6 +331,126 @@
     "uniqueMainRouteVehicleTypes": 5,
     "allTransportLegsShareOneComponent": true,
     "transportCostIsSeparateFromProcessCost": true,
-    "processCostINR": 12800
-  }
+    "processCostINR": 12800,
+    "materialProcessLinkCount": 3,
+    "uniqueMaterials": 3,
+    "materialLinksResolveToDistinctOperations": 3
+  },
+  "materials": [
+    {
+      "id": "demo-material-al6082",
+      "code": "MAT-AL-6082",
+      "name": "Aluminium billet",
+      "grade": "6082-T6",
+      "unit": "kg",
+      "specification": "Saw-cut billet stock",
+      "ratePerUnit": 245,
+      "preferredVendorId": "demo-vendor-haul",
+      "notes": "Synthetic raw material"
+    },
+    {
+      "id": "demo-material-ss316",
+      "code": "MAT-SS316-INSERT",
+      "name": "Stainless threaded insert",
+      "grade": "SS316",
+      "unit": "pcs",
+      "specification": "Threaded pressure-port insert",
+      "ratePerUnit": 18,
+      "preferredVendorId": "demo-vendor-haul",
+      "notes": "Synthetic purchased insert"
+    },
+    {
+      "id": "demo-material-nbr",
+      "code": "MAT-NBR-SEAL",
+      "name": "NBR sealing element",
+      "grade": "NBR 70 Shore A",
+      "unit": "pcs",
+      "specification": "Hydraulic port sealing element",
+      "ratePerUnit": 12,
+      "preferredVendorId": "demo-vendor-haul",
+      "notes": "Synthetic bought-out seal"
+    }
+  ],
+  "bomLines": [
+    {
+      "id": "demo-bom-al",
+      "componentId": "demo-component-01",
+      "materialId": "demo-material-al6082",
+      "revision": "A",
+      "quantityPerPart": 2.6,
+      "scrapPercent": 7.5,
+      "notes": "Primary manifold billet"
+    },
+    {
+      "id": "demo-bom-insert",
+      "componentId": "demo-component-01",
+      "materialId": "demo-material-ss316",
+      "revision": "A",
+      "quantityPerPart": 4,
+      "scrapPercent": 0,
+      "notes": "Four pressure-port inserts"
+    },
+    {
+      "id": "demo-bom-seal",
+      "componentId": "demo-component-01",
+      "materialId": "demo-material-nbr",
+      "revision": "A",
+      "quantityPerPart": 2,
+      "scrapPercent": 1,
+      "notes": "Two sealing elements"
+    }
+  ],
+  "materialProcessLinks": [
+    {
+      "id": "demo-material-link-01",
+      "companyId": "demo-company-01",
+      "poId": "demo-po-01",
+      "poLineId": "demo-line-01",
+      "componentId": "demo-component-01",
+      "bomLineId": "demo-bom-al",
+      "materialId": "demo-material-al6082",
+      "operationId": "demo-op-01",
+      "quantityPerPart": 2.6,
+      "unit": "kg",
+      "flowType": "Material input",
+      "placement": "before",
+      "notes": "Raw billet enters blank preparation",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-material-link-02",
+      "companyId": "demo-company-01",
+      "poId": "demo-po-01",
+      "poLineId": "demo-line-01",
+      "componentId": "demo-component-01",
+      "bomLineId": "demo-bom-insert",
+      "materialId": "demo-material-ss316",
+      "operationId": "demo-op-06",
+      "quantityPerPart": 4,
+      "unit": "pcs",
+      "flowType": "Consumable",
+      "placement": "before",
+      "notes": "Four SS316 inserts feed the insert-installation operation",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-material-link-03",
+      "companyId": "demo-company-01",
+      "poId": "demo-po-01",
+      "poLineId": "demo-line-01",
+      "componentId": "demo-component-01",
+      "bomLineId": "demo-bom-seal",
+      "materialId": "demo-material-nbr",
+      "operationId": "demo-op-07",
+      "quantityPerPart": 2,
+      "unit": "pcs",
+      "flowType": "Material input",
+      "placement": "before",
+      "notes": "Two NBR seals feed final pressure inspection and sealing",
+      "createdAt": "2026-01-01T09:00:00.000Z",
+      "updatedAt": "2026-01-01T09:00:00.000Z"
+    }
+  ]
 }

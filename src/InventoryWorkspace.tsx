@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Boxes, Check, ClipboardList, Factory, FileText, Package, Plus, Search, ShieldCheck, Trash2, Truck, Users, Warehouse, X } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialRecord, type StockTransactionKind } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialProcessLinkRecord, type MaterialRecord, type StockTransactionKind } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 
-type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string) => void };
-type Tab = "materials" | "bom" | "stock";
+type InventoryNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; subtab?:string };
+type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?:InventoryNavigationContext) => void; initialContext?:InventoryNavigationContext };
+type Tab = "materials" | "bom" | "stock" | "process-links";
 type MaterialDraft = Omit<MaterialRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type BomDraft = Omit<BomLineRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type BomIssuePreviewRow = { material: MaterialRecord; bomLineIds: string[]; required: number; issued: number; pending: number; available: number; shortage: number };
@@ -15,7 +16,7 @@ const fixedStockDirections: Partial<Record<StockTransactionKind, "in" | "out">> 
 const money = (v: number) => "₹" + (Number(v) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const dateToday = () => new Date().toISOString().slice(0, 10);
 
-export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectModule }: Props) {
+export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectModule, initialContext }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const materials = activeRows(data.materials);
   const components = activeRows(data.components);
@@ -25,7 +26,15 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const orders = activeRows(data.purchaseOrders);
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
-  const [tab, setTab] = useState<Tab>("materials");
+  const [tab, setTab] = useState<Tab>(() => initialContext?.subtab === "process-links" ? "process-links" : "materials");
+  const [materialLinkPoLineKey, setMaterialLinkPoLineKey] = useState(() => initialContext?.poId && initialContext?.poLineId ? initialContext.poId+"::"+initialContext.poLineId : "");
+  const [materialLinkBomLineId, setMaterialLinkBomLineId] = useState("");
+  const [materialLinkOperationId, setMaterialLinkOperationId] = useState(initialContext?.operationId || "");
+  const [materialLinkQuantityPerPart, setMaterialLinkQuantityPerPart] = useState("");
+  const [materialLinkFlowType, setMaterialLinkFlowType] = useState<MaterialProcessLinkRecord["flowType"]>("Material input");
+  const [materialLinkPlacement, setMaterialLinkPlacement] = useState<"before"|"after">("before");
+  const [materialLinkNotes, setMaterialLinkNotes] = useState("");
+  const [materialLinkEditingId, setMaterialLinkEditingId] = useState("");
   const [search, setSearch] = useState("");
   const [materialEditingId, setMaterialEditingId] = useState("");
   const [bomEditingId, setBomEditingId] = useState("");
@@ -48,6 +57,11 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const [poLineKey, setPoLineKey] = useState("");
   const [operationId, setOperationId] = useState("");
   const [vendorId, setVendorId] = useState("");
+  useEffect(() => {
+    if (initialContext?.poId && initialContext?.poLineId) setMaterialLinkPoLineKey(initialContext.poId+"::"+initialContext.poLineId);
+    if (initialContext?.operationId) setMaterialLinkOperationId(initialContext.operationId);
+    if (initialContext?.subtab === "process-links") setTab("process-links");
+  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.operationId, initialContext?.subtab]);
 
   const companyOrders = orders.filter(po => po.companyId === companyId && (!factoryId || po.factoryId === factoryId));
   const poLineOptions = companyOrders.flatMap(po => po.lines.map(line => {
@@ -67,6 +81,58 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     };
   }));
   const bomIssueSelection = bomIssuePoLineOptions.find(row => row.id === bomIssuePoLineKey);
+  const materialLinkSelection = bomIssuePoLineOptions.find(row => row.id === materialLinkPoLineKey);
+  const materialProcessLinks = activeRows(data.materialProcessLinks || []);
+  const materialLinkBomOptions = materialLinkSelection?.component
+    ? bomLines.filter(row => row.componentId === materialLinkSelection.component!.id && (!row.revision || row.revision === materialLinkSelection.component!.revision))
+    : [];
+  const materialLinkOperations = materialLinkSelection
+    ? operations.filter(op => op.poId === materialLinkSelection.po.id && op.poLineId === materialLinkSelection.line.id && op.componentId === materialLinkSelection.line.componentId && !op.deletedAt)
+    : [];
+  const visibleMaterialProcessLinks = materialProcessLinks.filter(link =>
+    (!materialLinkPoLineKey || link.poId+"::"+link.poLineId === materialLinkPoLineKey)
+    && (!search.trim() || [link.id,link.flowType,link.placement,link.notes,link.quantityPerPart,materials.find(m=>m.id===link.materialId)?.code,materials.find(m=>m.id===link.materialId)?.name,operations.find(op=>op.id===link.operationId)?.name].join(" ").toLowerCase().includes(search.toLowerCase().trim()))
+  );
+  const selectedMaterialLinkBom = materialLinkBomOptions.find(row => row.id === materialLinkBomLineId);
+  const selectedMaterialLinkMaterial = materials.find(row => row.id === selectedMaterialLinkBom?.materialId);
+  const resetMaterialLink = () => { setMaterialLinkEditingId(""); setMaterialLinkBomLineId(""); setMaterialLinkOperationId(""); setMaterialLinkQuantityPerPart(""); setMaterialLinkFlowType("Material input"); setMaterialLinkPlacement("before"); setMaterialLinkNotes(""); };
+  const editMaterialLink = (link: MaterialProcessLinkRecord) => {
+    setMaterialLinkEditingId(link.id); setMaterialLinkPoLineKey(link.poId+"::"+link.poLineId); setMaterialLinkBomLineId(link.bomLineId);
+    setMaterialLinkOperationId(link.operationId); setMaterialLinkQuantityPerPart(String(link.quantityPerPart)); setMaterialLinkFlowType(link.flowType);
+    setMaterialLinkPlacement(link.placement); setMaterialLinkNotes(link.notes||""); setTab("process-links");
+  };
+  const saveMaterialLink = () => {
+    const selection = bomIssuePoLineOptions.find(row=>row.id===materialLinkPoLineKey);
+    const selectedComponent = selection?.component;
+    const bom = bomLines.find(row=>row.id===materialLinkBomLineId&&!row.deletedAt);
+    const operation = materialLinkOperations.find(row=>row.id===materialLinkOperationId);
+    const material = bom ? materials.find(row=>row.id===bom.materialId&&!row.deletedAt) : undefined;
+    const quantity = Number(materialLinkQuantityPerPart);
+    if (!selection || !selectedComponent || !bom || !material || bom.componentId!==selectedComponent.id || (bom.revision && bom.revision!==selectedComponent.revision)) { onNotice("Select a BOM material belonging to the exact PO component revision."); return; }
+    if (!operation || operation.poId!==selection.po.id || operation.poLineId!==selection.line.id || operation.componentId!==selectedComponent.id) { onNotice("Select a process operation from this exact PO component line."); return; }
+    if (!Number.isFinite(quantity)||quantity<=0) { onNotice("Material quantity per part must be a positive finite number."); return; }
+    const duplicate = materialProcessLinks.find(link=>link.id!==materialLinkEditingId&&link.poLineId===selection.line.id&&link.bomLineId===bom.id&&link.operationId===operation.id&&link.flowType===materialLinkFlowType&&link.placement===materialLinkPlacement&&!link.deletedAt);
+    if (duplicate) { onNotice("This BOM material is already linked to that process and position. Edit the existing link instead."); return; }
+    const stamp=nowIso();
+    update(current=>{
+      const old=current.materialProcessLinks.find(link=>link.id===materialLinkEditingId);
+      const record:MaterialProcessLinkRecord={
+        id:materialLinkEditingId||makeId("material-process-link"), companyId:selection.po.companyId, poId:selection.po.id,
+        poLineId:selection.line.id, componentId:selectedComponent.id, bomLineId:bom.id, materialId:material.id,
+        operationId:operation.id, quantityPerPart:quantity, unit:material.unit, flowType:materialLinkFlowType,
+        placement:materialLinkPlacement, notes:materialLinkNotes.trim(), createdAt:old?.createdAt||stamp, updatedAt:stamp
+      };
+      return {...current,materialProcessLinks:[...current.materialProcessLinks.filter(link=>link.id!==record.id),record]};
+    });
+    resetMaterialLink();
+    onNotice("Material-to-process link saved against the exact PO line, BOM material and operation IDs. It remains separate from transport legs and stock transactions.");
+  };
+  const archiveMaterialLink = (link:MaterialProcessLinkRecord) => {
+    if (!window.confirm("Archive this material-to-process link? The BOM, material master, stock transactions and process history remain unchanged.")) return;
+    const stamp=nowIso();
+    update(current=>({...current,materialProcessLinks:current.materialProcessLinks.map(item=>item.id===link.id?{...item,deletedAt:stamp,updatedAt:stamp}:item)}));
+    onNotice("Material-to-process link archived. No BOM, stock or process-operation record was deleted.");
+  };
   const bomIssueOperations = bomIssueSelection ? operations.filter(op => op.poId === bomIssueSelection.po.id && op.poLineId === bomIssueSelection.line.id && !op.deletedAt) : [];
   const bomIssuePreview = useMemo<BomIssuePreviewRow[]>(() => {
     if (!bomIssueSelection?.component) return [];
@@ -244,8 +310,9 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       <button className={tab==="materials"?"costing-tab-active":""} onClick={()=>{setTab("materials");setSearch("");}}><Package size={15}/> Material master ({materials.length})</button>
       <button className={tab==="bom"?"costing-tab-active":""} onClick={()=>{setTab("bom");setSearch("");}}><Boxes size={15}/> BOM lines ({bomLines.length})</button>
       <button className={tab==="stock"?"costing-tab-active":""} onClick={()=>{setTab("stock");setSearch("");}}><Warehouse size={15}/> Stock ledger ({data.inventoryTransactions.length})</button>
+      <button className={tab==="process-links"?"costing-tab-active":""} onClick={()=>{setTab("process-links");setSearch("");}}><Activity size={15}/> Material → process ({materialProcessLinks.length})</button>
     </div>
-    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={tab==="materials"?"Search material code, grade, spec…":tab==="bom"?"Search component, material, revision…":"Search item, movement, reference…"} /></label><span className="module-number">{tab==="materials"?materials.length+" MATERIALS":tab==="bom"?bomLines.length+" BOM LINES":data.inventoryTransactions.length+" POSTED MOVEMENTS"}</span></div>
+    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={tab==="materials"?"Search material code, grade, spec…":tab==="bom"?"Search component, material, revision…":tab==="process-links"?"Search material, PO line, operation or flow type…":"Search item, movement, reference…"} /></label><span className="module-number">{tab==="materials"?materials.length+" MATERIALS":tab==="bom"?bomLines.length+" BOM LINES":tab==="process-links"?visibleMaterialProcessLinks.length+" MATERIAL PROCESS LINKS":data.inventoryTransactions.length+" POSTED MOVEMENTS"}</span></div>
     {tab==="materials" && <>
       <div className="workspace-title-actions"><button className="button-primary" onClick={()=>{setMaterialDraft(emptyMaterial());setMaterialEditingId("");setMaterialFormOpen(true);}}><Plus size={14}/> Add material</button><button className="button-quiet" onClick={()=>onSelectModule("vendors")}><Users size={14}/> Vendor master</button></div>
       {materialFormOpen && <section className="surface-panel module-record-form-panel"><div className="panel-heading"><div><h3>{materialEditingId?"Edit material":"New material master"}</h3><p>Actual material/grade and quoted or purchase rate only; no default stock figures.</p></div><button className="icon-control" onClick={resetMaterial} aria-label="Close material form"><X size={15}/></button></div>
@@ -278,6 +345,26 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
         {!materials.length&&<div className="module-safety-note">Add actual material masters first. BOM lines use material master IDs.</div>}
       </div></section>}
       {visibleBom.length?<section className="surface-panel module-records-panel"><div className="panel-heading"><div><h3>Component BOM and estimated material requirement</h3><p>Estimate uses the material rate you entered; no external market price is fetched.</p></div></div><div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Component</th><th>Revision</th><th>Material</th><th>Qty / part</th><th>Scrap %</th><th>Effective qty / part</th><th>Material rate</th><th>Estimated cost / part</th><th>Posted stock</th><th>Actions</th></tr></thead><tbody>{visibleBom.map(row=>{const component=components.find(c=>c.id===row.componentId);const material=materials.find(m=>m.id===row.materialId);const qty=row.quantityPerPart*(1+row.scrapPercent/100);return <tr key={row.id}><td>{component?.partNumber||"Archived component"} · {component?.name||""}</td><td>{row.revision||"—"}</td><td>{material?.code||"Archived material"} · {material?.name||""} ({material?.grade||"—"})</td><td>{row.quantityPerPart.toLocaleString("en-IN")}</td><td>{row.scrapPercent}%</td><td>{qty.toLocaleString("en-IN")}</td><td>{money(material?.ratePerUnit||0)}/{material?.unit||"unit"}</td><td>{money(qty*(material?.ratePerUnit||0))}</td><td>{material?stockBalance("material",material.id).toLocaleString("en-IN")+" "+material.unit:"—"}</td><td><button className="button-quiet compact-button" onClick={()=>editBom(row)}>Edit</button> <button className="button-quiet compact-button" onClick={()=>archiveBom(row)}><Trash2 size={12}/> Archive</button></td></tr>})}</tbody></table></div></section>:<div className="module-empty-state"><Boxes size={26}/><h3>No BOM lines added</h3><p>Link the actual component and material master records to calculate an estimated raw-material requirement and rate per accepted part.</p><button className="button-primary" disabled={!components.length||!materials.length} onClick={()=>{setBomDraft(emptyBom());setBomEditingId("");setBomFormOpen(true);}}><Plus size={14}/> Add BOM line</button></div>}
+    </>}
+    {tab==="process-links" && <>
+      <section className="surface-panel">
+        <div className="panel-heading"><div><h3>{materialLinkEditingId?"Edit material-to-process link":"Connect a BOM material to a process"}</h3><p>Each material flow is an independent record. One component can have many materials linked to different processes, and one process can receive several materials.</p></div></div>
+        <div className="module-record-form">
+          <SearchablePicker id="material-process-po-line" label="PO component line *" value={materialLinkPoLineKey} placeholder="Search company, PO and component…" options={bomIssuePoLineOptions.map(row=>({id:row.id,label:row.label}))} onChange={value=>{setMaterialLinkPoLineKey(value);setMaterialLinkBomLineId("");setMaterialLinkOperationId("");}}/>
+          <SearchablePicker id="material-process-bom-line" label="BOM material *" value={materialLinkBomLineId} placeholder="Choose a material in this component BOM…" options={materialLinkBomOptions.map(row=>{const material=materials.find(m=>m.id===row.materialId);return {id:row.id,label:(material?.code||"Material")+" · "+(material?.name||"Missing material")+" · "+(material?.grade||"—")};})} onChange={value=>{setMaterialLinkBomLineId(value);const row=materialLinkBomOptions.find(item=>item.id===value);const material=row?materials.find(item=>item.id===row.materialId):undefined;setMaterialLinkQuantityPerPart(row?String(row.quantityPerPart*(1+row.scrapPercent/100)):"");if(material)setMaterialLinkNotes(material.grade||"");}}/>
+          <SearchablePicker id="material-process-operation" label="Process operation *" value={materialLinkOperationId} placeholder="Choose the exact process step…" options={materialLinkOperations.map(op=>({id:op.id,label:"OP-"+String(op.sequence).padStart(3,"0")+" · "+op.name+" · "+op.branch}))} onChange={setMaterialLinkOperationId}/>
+          <label>Material quantity per part *<input type="number" min="0.000001" step="0.000001" value={materialLinkQuantityPerPart} onChange={event=>setMaterialLinkQuantityPerPart(event.target.value)} placeholder="Allocated quantity per part"/></label>
+          <SearchablePicker id="material-process-flow-type" label="Material flow type *" value={materialLinkFlowType} options={["Material input","Consumable","WIP transfer","Output"].map(value=>({id:value,label:value}))} onChange={value=>setMaterialLinkFlowType(value as MaterialProcessLinkRecord["flowType"])}/>
+          <SearchablePicker id="material-process-placement" label="Connect material" value={materialLinkPlacement} options={[{id:"before",label:"Before the process"},{id:"after",label:"After the process"}]} onChange={value=>setMaterialLinkPlacement(value as "before"|"after")}/>
+          {selectedMaterialLinkMaterial&&materialLinkSelection&&<div className="module-safety-note module-form-wide"><Boxes size={14}/><span>{selectedMaterialLinkMaterial.code} · {selectedMaterialLinkMaterial.grade||"Grade not set"} · {materialLinkQuantityPerPart||"0"} {selectedMaterialLinkMaterial.unit}/part × {materialLinkSelection.line.quantity.toLocaleString("en-IN")} pcs = <strong>{(Number(materialLinkQuantityPerPart)||0)*materialLinkSelection.line.quantity} {selectedMaterialLinkMaterial.unit}</strong> planned on this PO line. This mapping does not post stock or issue material.</span></div>}
+          <label className="module-form-wide">Material flow notes<input value={materialLinkNotes} onChange={event=>setMaterialLinkNotes(event.target.value)} placeholder="Input point, feed location, batch/lot or process note…"/></label>
+          <div className="module-form-actions"><button className="button-primary" onClick={saveMaterialLink}><Check size={14}/> {materialLinkEditingId?"Save material link":"Add material link"}</button><button className="button-quiet" onClick={resetMaterialLink}>Clear form</button></div>
+        </div>
+      </section>
+      <section className="surface-panel module-records-panel">
+        <div className="panel-heading"><div><h3>Independent material-to-process links ({visibleMaterialProcessLinks.length})</h3><p>Linked by company, PO, PO line, component, BOM material and exact operation ID. These lines do not reuse or overwrite transport-leg records.</p></div></div>
+        {visibleMaterialProcessLinks.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Material / BOM line</th><th>PO / component</th><th>Process operation</th><th>Flow / position</th><th>Qty / part</th><th>PO total</th><th>Actions</th></tr></thead><tbody>{visibleMaterialProcessLinks.map(link=>{const material=materials.find(m=>m.id===link.materialId);const operation=operations.find(op=>op.id===link.operationId);const po=orders.find(row=>row.id===link.poId);const line=po?.lines.find(row=>row.id===link.poLineId);return <tr key={link.id}><td><strong>{material?.code||"Material missing"} · {material?.name||""}</strong><small>{material?.grade||"—"} · BOM {link.bomLineId}</small></td><td>{po?.number||"PO missing"}<small>{components.find(c=>c.id===link.componentId)?.partNumber||"Component missing"} · {line?.quantity||0} pcs</small></td><td><strong>OP-{String(operation?.sequence||0).padStart(3,"0")} · {operation?.name||"Operation missing"}</strong><small>{operation?.branch||"Branch unavailable"} · {link.operationId}</small></td><td>{link.flowType}<small>{link.placement==="before"?"Before":"After"} process</small></td><td>{link.quantityPerPart.toLocaleString("en-IN",{maximumFractionDigits:4})} {link.unit}</td><td><strong>{(link.quantityPerPart*(line?.quantity||0)).toLocaleString("en-IN",{maximumFractionDigits:4})} {link.unit}</strong></td><td><button type="button" className="button-quiet compact-button" onClick={()=>editMaterialLink(link)}>Edit</button> <button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("process-map",{companyId:link.companyId,poId:link.poId,poLineId:link.poLineId,componentId:link.componentId,operationId:link.operationId})}>Open route</button> <button type="button" className="button-quiet compact-button" onClick={()=>archiveMaterialLink(link)}><Trash2 size={12}/> Archive</button></td></tr>;})}</tbody></table></div>:<div className="module-empty-state"><Boxes size={25}/><h3>{materialLinkPoLineKey?"No material process links for this PO line":"No material process links yet"}</h3><p>Choose a PO component line, one of its BOM materials and the exact operation that consumes, receives or produces the material. This creates only the mapping; stock changes require a separate ledger transaction.</p></div>}
+      </section>
     </>}
     {tab==="stock" && <>
       <section className="surface-panel bom-production-issue-panel"><div className="panel-heading"><div><h3>Issue BOM materials to production</h3><p>Calculate remaining material needs from the selected PO component quantity and its matching BOM revision. The workflow checks all stock balances before posting; it will not partially issue a short kit.</p></div><span className="record-state">BOM → STOCK → PRODUCTION</span></div><div className="module-record-form">

@@ -148,3 +148,8 @@ Scale numbers are test targets, not present performance claims.
 ## 10. Prototype exit rule
 
 The current prototype is for navigation and design review. Do not use it to record production activity, promise delivery, release quality, issue purchase orders, approve payments or act as a system of record until the relevant backend, authorization, audit and validation gates are implemented.
+
+
+## Explicit multi-material and multi-transport route acceptance
+
+Component-level BOM associations do not fully describe production consumption. A PO-line-scoped materialProcessLinks collection connects each BOM material to the exact consuming or producing process operation, with independent per-part quantity, unit, before/after placement and flow type. These mappings remain separate from inventory ledger postings and transport legs. Each transport leg independently anchors to its own operation or component start. Process Map and Manufacturing Universe visualize both without conflating their IDs, connector styles or popups.

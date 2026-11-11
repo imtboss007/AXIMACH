@@ -115,6 +115,12 @@ export type BomLineRecord = {
   scrapPercent: number; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type StockTransactionKind = "Opening balance" | "Receipt" | "Issue to production" | "WIP transfer" | "Return" | "Rejected" | "Scrap" | "Finished goods receipt" | "Dispatch" | "Adjustment";
+export type MaterialProcessLinkRecord = {
+  id: string; companyId: string; poId: string; poLineId: string; componentId: string;
+  bomLineId: string; materialId: string; operationId: string; quantityPerPart: number; unit: string;
+  flowType: "Material input" | "Consumable" | "WIP transfer" | "Output";
+  placement: "before" | "after"; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type InventoryTransactionRecord = {
   id: string; itemType: "material" | "component"; itemId: string; transactionType: StockTransactionKind;
   direction: "in" | "out"; quantity: number; occurredAt: string; reference: string; notes: string;
@@ -126,7 +132,7 @@ export type ManufacturingData = {
   companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; bomLines: BomLineRecord[];
-  inventoryTransactions: InventoryTransactionRecord[];
+  materialProcessLinks: MaterialProcessLinkRecord[]; inventoryTransactions: InventoryTransactionRecord[];
   contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
   transportRoutes: TransportRouteRecord[]; transportLegs: ComponentTransportLegRecord[];
   paymentTransactions: PaymentTransactionRecord[]; inspectionMeasurements: InspectionMeasurementRecord[];
@@ -142,7 +148,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], bomLines: [], inventoryTransactions: [],
+  operations: [], quotations: [], materials: [], bomLines: [], materialProcessLinks: [], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
   followUpAssignments: []
 });
@@ -163,6 +169,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
     materials: Array.isArray(value?.materials) ? value.materials : empty.materials,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
+    materialProcessLinks: Array.isArray(value?.materialProcessLinks) ? value.materialProcessLinks : empty.materialProcessLinks,
     inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
     contactProfiles: Array.isArray(value?.contactProfiles) ? value.contactProfiles : empty.contactProfiles,
     processDefinitions: Array.isArray(value?.processDefinitions) ? value.processDefinitions : empty.processDefinitions,
@@ -264,6 +271,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     quotations: mergeRows(local.quotations, remote.quotations),
     materials: mergeRows(local.materials, remote.materials),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
+    materialProcessLinks: mergeRows(local.materialProcessLinks, remote.materialProcessLinks),
     inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
     contactProfiles: mergeRows(local.contactProfiles, remote.contactProfiles),
     processDefinitions: mergeRows(local.processDefinitions, remote.processDefinitions),

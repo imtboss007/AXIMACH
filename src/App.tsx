@@ -105,7 +105,7 @@ function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNoti
   );
 }
 
-type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string };
+type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
 
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
@@ -255,7 +255,7 @@ function App() {
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace navigationContext={moduleContext} moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(componentId)=>{setIconStudioTarget(componentId?{targetType:"component",targetRecordId:componentId}:null);setIconStudioOpen(true);}} />
         ) : activeModuleId === "inventory" ? (
-          <InventoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <InventoryWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
           <LinkedCostingWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" || activeModuleId === "planned-cost" ? (

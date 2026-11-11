@@ -1926,3 +1926,46 @@
   .linked-process-index,.process-universe-index{display:none!important}
 }
 .linked-route-canvas:fullscreen .linked-process-index,.linked-route-canvas:fullscreen .process-universe-index{display:none!important}
+
+
+/* Material feed records and connector semantics shared by Process Map and Manufacturing Universe. */
+.transport-leg-marker-button{width:32px;height:30px;min-height:30px;padding:5px;border-radius:8px;font-size:0}
+.transport-leg-marker-button svg{width:19px;height:19px}
+.transport-leg-popover{min-width:min(300px,calc(100vw - 42px));max-width:min(330px,calc(100vw - 42px))}
+.material-flow-marker{position:relative;display:inline-flex;flex:0 0 auto;align-items:center;z-index:5;color:#43d0db}
+.material-flow-marker-button{display:grid;place-items:center;width:32px;height:30px;padding:5px;border:1px solid rgba(67,208,219,.68);border-radius:8px;background:rgba(22,145,158,.16);color:#61dbe2;cursor:pointer}
+.material-flow-marker.is-selected .material-flow-marker-button{outline:2px solid #45d0d9;outline-offset:2px}
+.material-flow-popover{position:absolute;left:0;top:calc(100% + 7px);z-index:35;display:grid;gap:5px;width:min(290px,calc(100vw - 42px));padding:11px;border:1px solid #3bb7c5;border-radius:10px;background:#061c2a;box-shadow:0 14px 35px #020a13aa;color:#e7f7fa;text-align:left}
+.material-flow-popover strong{font-size:10px;letter-spacing:.04em}
+.material-flow-popover span{font-size:10px;color:#d5f6f8}
+.material-flow-popover small{font-size:9px;line-height:1.35;color:#a4c5cd;overflow-wrap:anywhere}
+.material-flow-popover b{font-size:10px;color:#fff}
+.route-connector-legend{display:flex;align-items:center;flex-wrap:wrap;gap:9px 14px;padding:8px 10px;border:1px solid rgba(104,157,196,.22);border-radius:8px;background:rgba(6,24,39,.5);color:#a9c2d5;font-size:8px}
+.route-connector-legend>span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.route-legend-line{display:inline-block;width:25px;height:0;border-top-width:2px;border-top-color:#6fadd1}
+.route-legend-main{border-top-style:solid;border-top-color:#6fadd1}
+.route-legend-alternate{border-top-style:dashed;border-top-color:#4b95eb}
+.route-legend-rework{border-top-style:dotted;border-top-color:#e38b45}
+.route-legend-material{border-top-style:dashed;border-top-color:#42c9d3}
+.route-legend-transport{border-top-style:double;border-top-color:#d49a2d}
+.process-route-flow-arrow{position:relative;display:flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:24px}
+.process-route-flow-arrow::before,.process-universe-connector::before,.linked-node-arrow::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px solid currentColor;opacity:.9}
+.route-connector-alternate::before{border-top-style:dashed}
+.route-connector-rework::before{border-top-style:dotted}
+.route-connector-main::before{border-top-style:solid}
+.process-route-flow-arrow svg{position:relative;z-index:1;width:14px;height:14px;background:#071a2b}
+.process-universe-connector{position:relative}
+.process-universe-connector::before{left:-5px;right:-5px}
+.process-universe-connector svg,.linked-node-arrow svg{position:relative;z-index:1;background:#071a2b}
+.linked-process-page .linked-node-arrow{position:relative}
+.linked-route-parent-link.is-alternate{border-top:2px dashed #4b95eb}
+.linked-route-parent-link.is-rework{border-top:2px dotted #e38b45}
+.transport-demo-material-summary{display:grid;gap:5px;padding:8px;border:1px dashed rgba(66,201,211,.4);border-radius:8px;background:rgba(13,90,100,.12)}
+.transport-demo-material-summary strong{color:#b8edf0;font-size:9px}
+.transport-demo-material-summary span{color:#9bcbd0;font-size:8px}
+@media (orientation:portrait) and (max-width:900px){
+ .material-flow-popover,.transport-leg-popover{position:fixed;left:54px;top:auto;bottom:12px;width:min(300px,calc(100vw - 68px));max-width:min(300px,calc(100vw - 68px))}
+ .transport-leg-marker-button,.material-flow-marker-button{width:30px;height:29px}
+ .route-connector-legend{gap:7px 9px}
+ .route-connector-legend>span{font-size:7px}
+}
