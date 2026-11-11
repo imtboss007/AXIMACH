@@ -128,7 +128,7 @@ test("Material Directory BOM, part and material-process actions enforce exact pa
   assert.ok(inventory.includes('part.materialIds?.includes(m.id)'));
   assert.ok(inventory.includes("const visibleBom = useMemo"));
   assert.ok(inventory.includes("const linkedOrders = orders.filter"));
-  assert.ok(inventory.includes('tab === "bom"'));
+  assert.ok(inventory.includes('(tab==="materials" || tab==="bom")'));
 });
 
 test("BOM issue preview and ledger posting include component-wide and selected-part BOM rows only", () => {
