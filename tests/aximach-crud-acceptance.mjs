@@ -115,6 +115,39 @@ async function companyCrud() {
   if (await p.locator(".module-record-card").filter({ hasText: edited }).count()) throw new Error("Archived company remains in the active directory.");
   await finishScenario(s, "Company Directory Add/Edit/Save/Archive");
 }
+
+async function factoryCrud() {
+  const s = await newScenario(), p = s.page;
+  const factoryName = suffix + " Factory";
+  await openModule(p, "Company Directory");
+  await p.getByRole("button", { name: /Factories/ }).click();
+  await p.getByRole("button", { name: "Add Factory" }).click();
+  await pick(p, "factory-parent-company", fixture.company.name);
+  await p.getByPlaceholder("Enter factory name").fill(factoryName);
+  await p.getByRole("button", { name: "Save factory" }).click();
+  let row = p.locator(".module-record-card").filter({ hasText: factoryName }).first();
+  await visible(row, "new factory row");
+  await row.getByRole("button", { name: "Edit", exact: true }).click();
+  const updatedFactory = factoryName + " Updated";
+  await p.getByPlaceholder("Enter factory name").fill(updatedFactory);
+  await p.getByRole("button", { name: "Save factory" }).click();
+  row = p.locator(".module-record-card").filter({ hasText: updatedFactory }).first();
+  await visible(row, "updated factory row");
+  await row.getByRole("button", { name: "Archive", exact: true }).click();
+  await p.waitForTimeout(200);
+  if (await p.locator(".module-record-card").filter({ hasText: updatedFactory }).count()) {
+    throw new Error("Archived factory remains in the active factory directory.");
+  }
+  const savedFactory = await p.evaluate(({ key, name }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    return (root.factories || []).find(item => item.name === name);
+  }, { key: seedKey, name: updatedFactory });
+  if (!savedFactory?.deletedAt || savedFactory.companyId !== fixture.company.id) {
+    throw new Error("Factory archive must retain its record ID and parent company relationship.");
+  }
+  await finishScenario(s, "Factory Directory Add/Edit/Save/Archive with parent company link");
+}
+
 async function componentCrud() {
   const s = await newScenario(), p = s.page;
   const partNo = suffix + "-PART-01", compName = suffix + " Test Component";
@@ -498,6 +531,7 @@ async function main() {
   await waitForServer();
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
   await companyCrud();
+  await factoryCrud();
   await componentCrud();
   await purchaseOrderCrud();
   await vendorCrud();
