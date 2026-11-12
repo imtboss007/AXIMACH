@@ -305,3 +305,20 @@ test("operational modules update their source records instead of creating duplic
   assert.ok(routeFlow.includes("const saveRelationship=") && routeFlow.includes("const saveTransportLeg="));
   assert.ok(followUps.includes("const addContact =") && followUps.includes("const removeContact ="));
 });
+
+test("Process Map archive and delete also archive dependent route and material links while retaining audit ledgers", () => {
+  const processMap = read("../src/LinkedProcessWorkspace.tsx");
+  const deleteStart = processMap.indexOf("const deleteOperation =");
+  const deleteEnd = processMap.indexOf("const finishSelectedOperations", deleteStart);
+  const archiveStart = processMap.indexOf("const archiveOperation =");
+  const archiveEnd = processMap.indexOf("const finishJob =", archiveStart);
+  const deleteBlock = processMap.slice(deleteStart, deleteEnd);
+  const archiveBlock = processMap.slice(archiveStart, archiveEnd);
+  for (const block of [deleteBlock, archiveBlock]) {
+    assert.ok(block.includes("routeRelationships"));
+    assert.ok(block.includes("materialProcessLinks"));
+    assert.ok(block.includes("quotations"));
+    assert.ok(block.includes("payment"));
+    assert.ok(block.includes("inspection"));
+  }
+});
