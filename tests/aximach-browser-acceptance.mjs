@@ -538,7 +538,7 @@ async function main() {
       if (!bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw new Error("Manufacturing Universe PNG export has an invalid PNG signature.");
     } else if (format === "csv") {
       const csv = bytes.toString("utf8");
-      for (const expected of ["Material process link","Transport leg","Relationship","ASSY-MP-01-SHAFT","mp-leg-09","mp-rel-12","EN24 shaft blank"]) {
+      for (const expected of ["Material allocation","Material inbound transport","Material process link","Transport leg","Relationship","ASSY-MP-01-SHAFT","mp-leg-09","mp-rel-12","EN24 shaft blank"]) {
         if (!csv.includes(expected)) throw new Error("Manufacturing Universe CSV export omitted " + expected);
       }
     } else {
@@ -673,6 +673,18 @@ async function main() {
     throw new Error("Manufacturing Universe did not reopen the exact persisted second-carrier leg: " + universeFanoutDetails);
   }
   await universeFanoutDialog.getByRole("button", { name: "Close transport details" }).click();
+  const persistedUniverseExportPromise = page.waitForEvent("download", { timeout: 15000 });
+  await page.getByLabel("Universe export format", { exact: true }).selectOption("json");
+  await page.locator(".manufacturing-universe-actions .route-flow-export-controls").getByRole("button", { name: "Download", exact: true }).click();
+  const persistedUniverseDownload = await persistedUniverseExportPromise;
+  const persistedUniversePath = await persistedUniverseDownload.path();
+  if (!persistedUniversePath) throw new Error("Manufacturing Universe could not export the persisted second carrier.");
+  const persistedUniverseJson = JSON.parse(readFileSync(persistedUniversePath, "utf8"));
+  const exportedSecondCarrier = persistedUniverseJson.transportLegs?.find(row => row.id === persistedBeforeReload.transportLeg.id);
+  if (!exportedSecondCarrier || exportedSecondCarrier.vehicleType !== "4-wheeler" || exportedSecondCarrier.routeId !== "mp-route-12") {
+    throw new Error("Manufacturing Universe JSON export omitted the persisted 4-wheeler second carrier.");
+  }
+  universeExportResults.push({ format: "json-after-persistence", transportLegId: exportedSecondCarrier.id, vehicle: exportedSecondCarrier.vehicleType });
   await page.locator(".manufacturing-universe-links-grid").getByRole("button", { name: /Route Flow & Relationships/ }).click();
   await chooseNativeScope(page, ".route-flow-scope-bar");
   const branchRelationAfterNavigation = page.locator(".route-flow-saved-link").filter({ hasText: "QA_PERSISTENCE_ROUTE_FANOUT_RULE" });
