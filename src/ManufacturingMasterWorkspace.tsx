@@ -275,7 +275,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
       transportLegs:current.transportLegs.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
       paymentTransactions:current.paymentTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
       materialCostEntries:(current.materialCostEntries||[]).filter(row=>(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))),
-      plannedCosts:current.plannedCosts.filter(row=>(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))),
+      plannedCosts:current.plannedCosts.filter(row=>!row.poId||!targetIds.has(row.poId)),
       inspectionMeasurements:current.inspectionMeasurements.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
       inventoryTransactions:current.inventoryTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
       followUpAssignments:(current.followUpAssignments||[]).map(row=>targetIds.has(row.recordId)||operationIds.has(row.recordId)?{...row,deletedAt:stamp,updatedAt:stamp}:row)
