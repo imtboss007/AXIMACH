@@ -232,34 +232,55 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const deleteComponents = (ids:string[]) => {
     const targets=components.filter(row=>ids.includes(row.id));
     if(!targets.length)return;
-    if(!window.confirm("Permanently delete "+targets.length+" component master record(s) and all linked PO lines, operations, transport legs, quotations, payments, inspections, BOM links and planned-cost records? This cannot be undone."))return;
+    if(!window.confirm("Permanently delete "+targets.length+" component master record(s), their PO lines and linked operations, route relationships, material-process links, transport, stock, quotations, payments, inspections, BOM and planned-cost records? Empty PO headers will be retained. This cannot be undone."))return;
     const targetIds=new Set(targets.map(row=>row.id));
     const affectedLines=orders.flatMap(po=>po.lines.filter(line=>targetIds.has(line.componentId)).map(line=>({poId:po.id,lineId:line.id})));
     const lineIds=new Set(affectedLines.map(row=>row.lineId));
+    const operationIds=new Set(operations.filter(row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)).map(row=>row.id));
     const stamp=nowIso();
     update(current=>({...current,
       components:current.components.filter(row=>!targetIds.has(row.id)),
-      purchaseOrders:current.purchaseOrders.map(po=>({...po,lines:po.lines.filter(line=>!targetIds.has(line.componentId)),updatedAt:stamp})).filter(po=>po.lines.length>0),
+      // Keep the parent PO and its header/history even when this was its last component line.
+      purchaseOrders:current.purchaseOrders.map(po=>({...po,lines:po.lines.filter(line=>!targetIds.has(line.componentId)),updatedAt:stamp})),
       operations:current.operations.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
+      routeRelationships:(current.routeRelationships||[]).filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.fromOperationId)&&!operationIds.has(row.toOperationId)),
+      materialProcessLinks:(current.materialProcessLinks||[]).filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
       quotations:current.quotations.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
       transportLegs:current.transportLegs.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
       paymentTransactions:current.paymentTransactions.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
       inspectionMeasurements:current.inspectionMeasurements.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
+      inventoryTransactions:current.inventoryTransactions.filter(row=>!(row.itemType==="component"&&targetIds.has(row.itemId))&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
       bomLines:current.bomLines.filter(row=>!targetIds.has(row.componentId)),
       componentParts:(current.componentParts||[]).filter(row=>!targetIds.has(row.componentId)),
       materialCostEntries:(current.materialCostEntries||[]).filter(row=>!targetIds.has(row.componentId)),
-      plannedCosts:current.plannedCosts.filter(row=>!targets.some(component=>row.componentNumber.trim().toLowerCase()===component.partNumber.trim().toLowerCase()||row.componentName.trim().toLowerCase()===component.name.trim().toLowerCase()))
+      plannedCosts:current.plannedCosts.filter(row=>row.componentId?!targetIds.has(row.componentId):!targets.some(component=>row.componentNumber.trim().toLowerCase()===component.partNumber.trim().toLowerCase()||row.componentName.trim().toLowerCase()===component.name.trim().toLowerCase())),
+      followUpAssignments:(current.followUpAssignments||[]).map(row=>targetIds.has(row.recordId)||operationIds.has(row.recordId)?{...row,deletedAt:stamp,updatedAt:stamp}:row)
     }));
     setSelectedComponentIds(current=>current.filter(id=>!targetIds.has(id)));
-    onNotice(targets.length+" component(s) permanently deleted with their dependent manufacturing records.");
+    onNotice(targets.length+" component(s) permanently deleted. Dependent route, material, stock and operational links were removed; PO headers were retained.");
   };
   const deletePurchaseOrders = (ids:string[]) => {
     const targets=orders.filter(row=>ids.includes(row.id));if(!targets.length)return;
-    if(!window.confirm("Permanently delete "+targets.length+" purchase order(s), their component lines and linked process, transport, costing, payment and inspection records? This cannot be undone."))return;
+    if(!window.confirm("Permanently delete "+targets.length+" purchase order(s), their component lines and linked process, route relationship, material-process, transport, costing, stock, payment, inspection and follow-up links? This cannot be undone."))return;
     const targetIds=new Set(targets.map(row=>row.id));
     const lineIds=new Set(targets.flatMap(po=>po.lines.map(line=>line.id)));
-    update(current=>({...current,purchaseOrders:current.purchaseOrders.filter(row=>!targetIds.has(row.id)),operations:current.operations.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),quotations:current.quotations.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),transportLegs:current.transportLegs.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),paymentTransactions:current.paymentTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),materialCostEntries:(current.materialCostEntries||[]).filter(row=>(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))),inspectionMeasurements:current.inspectionMeasurements.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),inventoryTransactions:current.inventoryTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId))}));
-    setSelectedPoIds(current=>current.filter(id=>!targetIds.has(id)));setOpenedPoId("");onNotice(targets.length+" purchase order(s) and linked operational records permanently deleted.");
+    const operationIds=new Set(operations.filter(row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)).map(row=>row.id));
+    const stamp=nowIso();
+    update(current=>({...current,
+      purchaseOrders:current.purchaseOrders.filter(row=>!targetIds.has(row.id)),
+      operations:current.operations.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
+      routeRelationships:(current.routeRelationships||[]).filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.fromOperationId)&&!operationIds.has(row.toOperationId)),
+      materialProcessLinks:(current.materialProcessLinks||[]).filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
+      quotations:current.quotations.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
+      transportLegs:current.transportLegs.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
+      paymentTransactions:current.paymentTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
+      materialCostEntries:(current.materialCostEntries||[]).filter(row=>(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))),
+      plannedCosts:current.plannedCosts.filter(row=>(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))),
+      inspectionMeasurements:current.inspectionMeasurements.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
+      inventoryTransactions:current.inventoryTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
+      followUpAssignments:(current.followUpAssignments||[]).map(row=>targetIds.has(row.recordId)||operationIds.has(row.recordId)?{...row,deletedAt:stamp,updatedAt:stamp}:row)
+    }));
+    setSelectedPoIds(current=>current.filter(id=>!targetIds.has(id)));setOpenedPoId("");onNotice(targets.length+" purchase order(s) and all linked operational records permanently deleted. Shared component, material and company masters were retained.");
   };
   const exportComponentsExcel = async (rows:ComponentRecord[],fileName="AXIMACH-Components.xlsx") => {
     if(!rows.length){onNotice("No component records selected for export.");return;}
