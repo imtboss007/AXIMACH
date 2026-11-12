@@ -344,3 +344,14 @@ test("Manufacturing Universe renders start-placement transport legs in the prima
   assert.ok(scene.includes('leg.anchorOperationId===lane.rows[0].id'));
   assert.ok(scene.includes(".map(renderTransportLeg)"));
 });
+
+test("Process Directory bulk archive preserves records and their stable IDs for historical operations", () => {
+  const directories = read("../src/SpecializedDirectoryWorkspace.tsx");
+  const processStart = directories.indexOf("function ProcessDirectory");
+  const processEnd = directories.indexOf("function PlannedCostDirectory", processStart);
+  const processDirectory = directories.slice(processStart, processEnd);
+  assert.ok(processDirectory.includes("Archive selected"));
+  assert.ok(processDirectory.includes("const ids=new Set(selectedProcessIds)"));
+  assert.ok(processDirectory.includes("processDefinitions:current.processDefinitions.map(row=>ids.has(row.id)?{...row,deletedAt:stamp,updatedAt:stamp}:row)"));
+  assert.ok(processDirectory.includes("Historical operations were retained."));
+});
