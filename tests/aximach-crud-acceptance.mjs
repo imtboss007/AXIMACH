@@ -90,11 +90,65 @@ async function customPick(page, id, value) {
 async function visible(locator, label) {
   await locator.waitFor({ state: "visible", timeout: 8000 }).catch(() => { throw new Error("Expected visible UI element: " + label); });
 }
+const persistenceCollections = [
+  "companies","factories","purchaseOrders","components","vendors","operations","quotations",
+  "materials","componentParts","materialCostEntries","bomLines","materialProcessLinks",
+  "inventoryTransactions","contactProfiles","processDefinitions","plannedCosts","transportRoutes",
+  "transportLegs","paymentTransactions","inspectionMeasurements","routeRelationships","followUpAssignments"
+];
+const scenarioWorkspace = {
+  "Company Directory Add/Edit/Save/Archive": "Company Directory",
+  "Factory Directory Add/Edit/Save/Archive with parent company link": "Company Directory",
+  "Component Directory Add/Edit/Save/Delete": "Component Directory",
+  "Purchase Orders Add/Edit/Save/Delete with component line": "Purchase Orders",
+  "Vendor Directory Add/Edit/Save/Archive": "Vendor Directory",
+  "Contact 360 Add/Edit/Save/Delete": "Contact 360",
+  "Transport Directory Add/Edit/Save/Archive": "Transport Directory",
+  "Process Directory Add/Edit/Save/Archive": "Process Directory",
+  "Component Planned Cost Add/Edit/Update/Archive": "Component Planned Cost",
+  "Material Directory and BOM CRUD plus append-only Stock Receipt": "Material Directory",
+  "Follow-up people assignment Add/Unlink": "Follow-up Centre",
+  "Process Map Add/Edit/Payment ledger/Delete with history retention": "Production Plan & Process Plan",
+  "Transport & Dispatch status Update": "Transport & Dispatch",
+  "Quality Inspection measurement Add and linked operation Update": "Quality Inspection",
+  "Costing & Payment quotation Add/Save/Select": "Costing & Payment"
+};
+async function readPersistenceSnapshot(page) {
+  return page.evaluate(({ key, collections }) => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return { error: "Manufacturing data key is missing after save.", state: null };
+    let root;
+    try { root = JSON.parse(raw); } catch { return { error: "Manufacturing data is not valid JSON.", state: null }; }
+    const state = {};
+    for (const name of collections) {
+      const rows = Array.isArray(root[name]) ? root[name] : [];
+      const ids = rows.map(row => String(row?.id || "")).filter(Boolean);
+      if (ids.length !== new Set(ids).size) return { error: "Duplicate stable IDs found in " + name + ".", state: null };
+      if (rows.some(row => !row?.id)) return { error: "A persisted " + name + " record has no stable ID.", state: null };
+      state[name] = rows.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    }
+    return { error: "", state };
+  }, { key: seedKey, collections: persistenceCollections });
+}
 async function finishScenario(s, label) {
   if (s.pageErrors.length) throw new Error(label + " browser runtime errors: " + s.pageErrors.join(" | "));
+  const moduleTitle = scenarioWorkspace[label];
+  if (!moduleTitle) throw new Error("No persistence/reopen workspace configured for scenario: " + label);
+  const before = await readPersistenceSnapshot(s.page);
+  if (before.error) throw new Error(label + " persistence snapshot failed: " + before.error);
+  await s.page.reload({ waitUntil: "domcontentloaded" });
+  await s.page.locator(".app-shell").waitFor({ state: "visible", timeout: 12000 });
+  if (s.pageErrors.length) throw new Error(label + " browser runtime errors after reload: " + s.pageErrors.join(" | "));
+  const after = await readPersistenceSnapshot(s.page);
+  if (after.error) throw new Error(label + " persistence check after reload failed: " + after.error);
+  if (JSON.stringify(before.state) !== JSON.stringify(after.state)) {
+    throw new Error(label + " data changed or disappeared after page reload; stable IDs and full record values must persist.");
+  }
+  await openModule(s.page, moduleTitle);
+  if (s.pageErrors.length) throw new Error(label + " browser runtime errors after reopening " + moduleTitle + ": " + s.pageErrors.join(" | "));
   await s.context.close();
   scenarioCount++;
-  console.log("PASS CRUD scenario: " + label);
+  console.log("PASS CRUD + reload/reopen persistence: " + label + " → " + moduleTitle);
 }
 async function companyCrud() {
   const s = await newScenario(), p = s.page;
