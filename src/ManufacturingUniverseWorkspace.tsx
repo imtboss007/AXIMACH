@@ -137,7 +137,10 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const inspectedMaterialTransportRoute=inspectedMaterialTransportEntry?inspectedMaterialTransportVendor?.transportRoutes?.find(route=>route.fromLocation===inspectedMaterialTransportEntry.transportFrom&&route.toLocation===inspectedMaterialTransportEntry.transportTo&&route.vehicleType===inspectedMaterialTransportEntry.transportVehicleType):undefined;
   const transportNodes=routeLegs.map(leg=>{
     const anchor=allRouteOperations.find(operation=>operation.id===leg.anchorOperationId);
-    const relation=anchor?.relationType==="rework"||/rework/i.test(anchor?.branch||"")?"rework" as const:anchor?.relationType==="alternate"||Boolean(anchor?.branch&&anchor.branch!=="Main route")?"alternate" as const:"main" as const;
+    const target=allRouteOperations.find(operation=>operation.id===leg.targetOperationId);
+    const destination=target||anchor;
+    const crossesBranch=Boolean(anchor&&target&&(anchor.branch||"Main route")!==(target.branch||"Main route"));
+    const relation=destination?.relationType==="rework"||/rework/i.test(destination?.branch||"")?"rework" as const:destination?.relationType==="alternate"||crossesBranch||Boolean(destination?.branch&&destination.branch!=="Main route")?"alternate" as const:"main" as const;
     return {
       id:leg.id,poLineId:leg.poLineId,anchorOperationId:leg.anchorOperationId||"",targetOperationId:leg.targetOperationId||"",materialEntryId:leg.materialEntryId||"",
       placement:leg.placement||(!leg.anchorOperationId?"start":"after") as "start"|"before"|"after",
