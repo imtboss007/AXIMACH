@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
+import ExcelJS from "exceljs";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright";
 
@@ -47,7 +48,7 @@ async function waitForServer() {
   throw new Error("Vite did not become ready at " + baseURL);
 }
 async function newScenario() {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1 });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, acceptDownloads: true });
   await context.addInitScript(({ key, data }) => {
     // addInitScript executes again on every reload. Seed only once per tab so
     // persistence acceptance never overwrites the records it is trying to verify.
@@ -115,7 +116,10 @@ const scenarioWorkspace = {
   "Process Map Add/Edit/Payment ledger/Delete with history retention": "Production Plan & Process Plan",
   "Transport & Dispatch status Update": "Transport & Dispatch",
   "Quality Inspection measurement Add and linked operation Update": "Quality Inspection",
-  "Costing & Payment quotation Add/Save/Select": "Costing & Payment"
+  "Costing & Payment quotation Add/Save/Select": "Costing & Payment",
+  "Production Plan individual and bulk Finish/Reopen": "Production Plan & Process Plan",
+  "Vendor Network capability filtering and vendor drill-through": "Vendor Network",
+  "Data Exchange Centre validated import/export and JSON backup": "Data Exchange Centre"
 };
 async function readPersistenceSnapshot(page) {
   return page.evaluate(({ key, collections }) => {
@@ -610,6 +614,207 @@ async function costingQuoteCrud() {
   await finishScenario(s, "Costing & Payment quotation Add/Save/Select");
 }
 
+async function productionJobLifecycleCrud() {
+  const s = await newScenario(), p = s.page;
+  await openModule(p, "Production Plan & Process Plan");
+  let row = p.locator("tr").filter({ hasText: fixture.purchaseOrder.number }).filter({ hasText: fixture.component.partNumber }).first();
+  await visible(row, "synthetic production job row");
+
+  await row.getByRole("button", { name: "Finish", exact: true }).click();
+  await p.waitForTimeout(150);
+  row = p.locator("tr").filter({ hasText: fixture.purchaseOrder.number }).filter({ hasText: fixture.component.partNumber }).first();
+  if ((await row.locator(".record-state").innerText()).trim() !== "Job Finished") {
+    throw new Error("Individual Finish did not mark the PO component job as Finished.");
+  }
+  await row.getByRole("button", { name: "Reopen", exact: true }).click();
+  await p.waitForTimeout(150);
+  row = p.locator("tr").filter({ hasText: fixture.purchaseOrder.number }).filter({ hasText: fixture.component.partNumber }).first();
+  if ((await row.locator(".record-state").innerText()).trim() !== "In Progress") {
+    throw new Error("Individual Reopen did not restore the PO component job to In Progress.");
+  }
+
+  const jobCheckbox = row.getByRole("checkbox", { name: "Select " + fixture.purchaseOrder.number + " " + fixture.component.partNumber });
+  await jobCheckbox.check();
+  await p.getByRole("button", { name: "Finish selected jobs", exact: true }).click();
+  await p.waitForTimeout(150);
+  row = p.locator("tr").filter({ hasText: fixture.purchaseOrder.number }).filter({ hasText: fixture.component.partNumber }).first();
+  if ((await row.locator(".record-state").innerText()).trim() !== "Job Finished") {
+    throw new Error("Bulk Finish selected jobs did not update the selected PO component job.");
+  }
+
+  await row.getByRole("checkbox", { name: "Select " + fixture.purchaseOrder.number + " " + fixture.component.partNumber }).check();
+  await p.getByRole("button", { name: "Reopen selected jobs", exact: true }).click();
+  await p.waitForTimeout(150);
+  row = p.locator("tr").filter({ hasText: fixture.purchaseOrder.number }).filter({ hasText: fixture.component.partNumber }).first();
+  if ((await row.locator(".record-state").innerText()).trim() !== "In Progress") {
+    throw new Error("Bulk Reopen selected jobs did not restore the PO component job.");
+  }
+
+  const lifecycle = await p.evaluate(({ key, poId, lineId }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    const po = (root.purchaseOrders || []).find(item => item.id === poId);
+    const line = po?.lines.find(item => item.id === lineId);
+    return {
+      jobStatus: line?.jobStatus,
+      operationStatuses: (root.operations || []).filter(item => item.poId === poId && item.poLineId === lineId).map(item => item.status)
+    };
+  }, { key: seedKey, poId: fixture.purchaseOrder.id, lineId: fixture.poLine.id });
+  if (lifecycle.jobStatus !== "In progress") throw new Error("Final job lifecycle status was not persisted as In progress.");
+  if (!lifecycle.operationStatuses.length || lifecycle.operationStatuses.some(status => status !== "Planned")) {
+    throw new Error("Finishing/reopening the PO-line job must not rewrite individual process-operation statuses.");
+  }
+  await finishScenario(s, "Production Plan individual and bulk Finish/Reopen");
+}
+
+async function vendorNetworkFilterCrud() {
+  const s = await newScenario(), p = s.page;
+  await openModule(p, "Vendor Network");
+  const table = p.locator("table.vendor-network-table");
+  await visible(table, "Vendor Network capability table");
+  const initialRows = await table.locator("tbody tr").count();
+  if (initialRows !== fixture.vendors.length) {
+    throw new Error("Vendor Network should initially show all six synthetic vendor records; found " + initialRows);
+  }
+
+  const search = p.getByPlaceholder("Search vendor company, contact, process, machine, material or assigned PO…");
+  await search.fill(fixture.vendors[0].company);
+  await p.waitForTimeout(100);
+  if (await table.locator("tbody tr").count() !== 1 ||
+      !(await table.locator("tbody tr").first().innerText()).includes(fixture.vendors[0].company)) {
+    throw new Error("Vendor Network free-text search did not isolate the exact vendor record.");
+  }
+
+  await search.fill("");
+  await p.getByLabel("Assigned vendors only").check();
+  await p.waitForTimeout(100);
+  const assignedRows = await table.locator("tbody tr").count();
+  if (assignedRows !== 1 ||
+      !(await table.locator("tbody tr").first().innerText()).includes("Synthetic CNC & VMC")) {
+    throw new Error("Assigned vendors only must show the vendor with the fixture's linked Process Plan assignments.");
+  }
+
+  await p.getByRole("button", { name: "Clear filters", exact: true }).click();
+  const machiningRow = table.locator("tbody tr").filter({ hasText: "Synthetic CNC & VMC" }).first();
+  await visible(machiningRow, "assigned machining vendor row");
+  await machiningRow.getByRole("button", { name: "Vendor", exact: true }).click();
+  await visible(p.locator(".vendor-detail-title").filter({ hasText: "Synthetic CNC & VMC" }), "vendor-specific drill-through from Vendor Network");
+  await finishScenario(s, "Vendor Network capability filtering and vendor drill-through");
+}
+
+async function dataExchangeCrud() {
+  const s = await newScenario(), p = s.page;
+  const importedName = suffix + " Imported Company";
+  const importTab = p.getByRole("tab", { name: /Import and validate/ });
+  await openModule(p, "Data Exchange Centre");
+  await visible(importTab, "Data Exchange import tab");
+  await importTab.click();
+
+  await p.getByLabel("Import type").selectOption("companies");
+  const fileInput = p.locator('input[type="file"]');
+  await fileInput.setInputFiles({
+    name: "invalid-companies.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("gstin,phone\nINVALID-GST,9000000000\n")
+  });
+  await p.getByRole("button", { name: "Validate & preview", exact: true }).click();
+  await visible(p.locator(".notice-banner").filter({ hasText: "required field missing" }), "failed import validation message");
+  const commitButton = p.getByRole("button", { name: "Commit import", exact: true });
+  if (!(await commitButton.isDisabled())) {
+    throw new Error("Commit import remained enabled after required company fields failed validation.");
+  }
+  const beforeInvalidCommit = await p.evaluate(key => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    return (root.companies || []).length;
+  }, seedKey);
+  if (beforeInvalidCommit !== seededData.companies.length) {
+    throw new Error("Invalid CSV validation changed the live company directory.");
+  }
+
+  const validCsv = [
+    "name,gstin,contactPerson,phone,email,address",
+    importedName + ",AXIMACH-" + suffix + ",Acceptance Contact,919900001111,acceptance@example.invalid,Synthetic Test Site",
+    importedName + ",AXIMACH-" + suffix + ",Acceptance Contact,919900001111,acceptance@example.invalid,Synthetic Test Site"
+  ].join("\n");
+  await fileInput.setInputFiles({
+    name: "valid-companies.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(validCsv)
+  });
+  await p.getByRole("button", { name: "Validate & preview", exact: true }).click();
+  await visible(p.locator(".costing-table").filter({ hasText: importedName }), "valid company import preview");
+  if (await commitButton.isDisabled()) throw new Error("A valid company CSV should enable Commit import.");
+  await commitButton.click();
+  await visible(p.locator(".notice-banner").filter({ hasText: "Import committed. Added 1 record(s); skipped 1 duplicate" }), "company CSV import result");
+  const importedCompanies = await p.evaluate(({ key, name }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    return (root.companies || []).filter(item => item.name === name && !item.deletedAt);
+  }, { key: seedKey, name: importedName });
+  if (importedCompanies.length !== 1 || importedCompanies[0].gstin !== "AXIMACH-" + suffix) {
+    throw new Error("CSV import must add one stable company and skip the duplicate row.");
+  }
+
+  await p.getByRole("tab", { name: /Export records/ }).click();
+  await p.getByLabel("Module to export").selectOption("companies");
+  const csvDownloadPromise = p.waitForEvent("download", { timeout: 12000 });
+  await p.getByRole("button", { name: "CSV", exact: true }).click();
+  const csvDownload = await csvDownloadPromise;
+  const csvPath = await csvDownload.path();
+  if (!csvPath) throw new Error("Company CSV export did not produce a downloadable file.");
+  const csvText = readFileSync(csvPath, "utf8");
+  if (!csvText.includes(importedName) || !csvText.includes(fixture.company.name)) {
+    throw new Error("Exported company CSV omitted the imported or pre-existing company record.");
+  }
+
+  const excelDownloadPromise = p.waitForEvent("download", { timeout: 12000 });
+  await p.getByRole("button", { name: /Excel workbook/ }).click();
+  const excelDownload = await excelDownloadPromise;
+  const excelPath = await excelDownload.path();
+  if (!excelPath) throw new Error("Company Excel export did not produce a downloadable file.");
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(readFileSync(excelPath));
+  const sheet = workbook.worksheets[0];
+  if (!sheet || !JSON.stringify(sheet.getSheetValues()).includes(importedName)) {
+    throw new Error("Exported XLSX workbook did not contain the imported company data.");
+  }
+
+  const jsonDownloadPromise = p.waitForEvent("download", { timeout: 12000 });
+  await p.getByRole("button", { name: "Full JSON backup", exact: true }).click();
+  const jsonDownload = await jsonDownloadPromise;
+  const jsonPath = await jsonDownload.path();
+  if (!jsonPath) throw new Error("Full JSON backup export did not produce a downloadable file.");
+  const backup = JSON.parse(readFileSync(jsonPath, "utf8"));
+  if (!Array.isArray(backup.companies) ||
+      !backup.companies.some(item => item.name === importedName) ||
+      !Array.isArray(backup.purchaseOrders) ||
+      !backup.moduleStores) {
+    throw new Error("Full JSON backup omitted required manufacturing or module-store data.");
+  }
+
+  await p.getByRole("tab", { name: /Import and validate/ }).click();
+  await p.getByLabel("Import type").selectOption("backup");
+  await fileInput.setInputFiles({
+    name: "AXIMACH-roundtrip-backup.json",
+    mimeType: "application/json",
+    buffer: readFileSync(jsonPath)
+  });
+  await p.getByRole("button", { name: "Validate & preview", exact: true }).click();
+  await visible(p.locator(".costing-table").filter({ hasText: importedName }), "AXIMACH backup import preview");
+  await p.getByRole("button", { name: "Commit import", exact: true }).click();
+  await visible(p.locator(".notice-banner").filter({ hasText: "AXIMACH backup merged by record ID" }), "AXIMACH JSON backup import result");
+  const roundTrip = await p.evaluate(({ key, name }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    return {
+      importedCount: (root.companies || []).filter(item => item.name === name && !item.deletedAt).length,
+      totalCompanies: (root.companies || []).filter(item => !item.deletedAt).length
+    };
+  }, { key: seedKey, name: importedName });
+  if (roundTrip.importedCount !== 1 || roundTrip.totalCompanies !== seededData.companies.length + 1) {
+    throw new Error("JSON backup merge did not remain ID-stable and duplicate-safe: " + JSON.stringify(roundTrip));
+  }
+
+  await finishScenario(s, "Data Exchange Centre validated import/export and JSON backup");
+}
+
 async function main() {
   await waitForServer();
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
@@ -628,6 +833,9 @@ async function main() {
   await dispatchStatusCrud();
   await qualityInspectionCrud();
   await costingQuoteCrud();
+  await productionJobLifecycleCrud();
+  await vendorNetworkFilterCrud();
+  await dataExchangeCrud();
   console.log("AXIMACH CRUD browser acceptance passed: " + scenarioCount + " isolated scenarios.");
 }
 try {
