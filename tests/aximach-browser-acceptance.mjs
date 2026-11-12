@@ -359,12 +359,18 @@ async function main() {
     visualModes.push(label);
   }
 
-  // Open an operation node's expanded record, launch its Edit dialog, and close both surfaces.
+  // Open the collapsed 3D route disclosure before selecting an operation node.
   await modeButtons.first().click();
+  const processUniverseDisclosure = page.locator("details.process-universe-collapsible").first();
+  await processUniverseDisclosure.waitFor({ state: "attached", timeout: 5000 });
+  const processUniverseIsOpen = await processUniverseDisclosure.evaluate(element => element.open);
+  if (!processUniverseIsOpen) await processUniverseDisclosure.locator("summary").click();
+  // Open an operation node's expanded record, launch its Edit dialog, and close both surfaces.
   const operationDetailButtons = page.locator('button[aria-label^="Open details for "]');
+  const operationDetailButton = operationDetailButtons.first();
+  await operationDetailButton.waitFor({ state: "visible", timeout: 7000 });
   const operationDetailCount = await operationDetailButtons.count();
   if (operationDetailCount < 1) throw new Error("Process Map did not render a selectable operation detail node.");
-  const operationDetailButton = operationDetailButtons.first();
   const operationLabel = await operationDetailButton.getAttribute("aria-label");
   await operationDetailButton.evaluate(element => element.click());
   const operationDetails = page.locator("#process-orbit-selected-details");
