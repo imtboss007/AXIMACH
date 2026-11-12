@@ -74,7 +74,8 @@ async function pick(page, id, query) {
   const input = page.locator("#" + id);
   await input.waitFor({ state: "visible", timeout: 8000 });
   await input.fill(query);
-  const option = page.getByRole("option").filter({ hasText: query }).first();
+  const picker = page.locator(".searchable-picker").filter({ has: input });
+  const option = picker.locator('[role="listbox"] [role="option"]').filter({ hasText: query }).first();
   await option.waitFor({ state: "visible", timeout: 6000 });
   await option.click();
   await page.waitForTimeout(100);
