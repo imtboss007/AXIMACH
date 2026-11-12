@@ -226,7 +226,7 @@ async function main() {
         throw new Error("Material popup lost part, BOM or process-operation identity: " + details);
       }
       visitedMaterialLinks.add(bomMatch[1] + ":" + operationMatch[1]);
-      await button.click();
+      await button.evaluate(element => element.click());
     }
     branchResults.push({ branch: branchName, visibleTransportIcons: branchLegCount, visibleMaterialLinks: branchMarkerCount });
   }
