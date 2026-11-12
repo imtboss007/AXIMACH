@@ -484,6 +484,115 @@ async function main() {
     if (!universeText.includes(expected)) throw new Error("Manufacturing Universe is missing " + expected);
   }
 
+  // Mutating acceptance: add one conditional relationship and a second carrier leg,
+  // then prove both survive a full reload and remain linked across workspaces.
+  const persistenceResults = [];
+  await openModule(page, "Route Flow & Relationships");
+  await chooseNativeScope(page, ".route-flow-scope-bar");
+
+  await page.locator(".route-flow-canvas-tools button").filter({ hasText: "Add relationship" }).click();
+  const relationshipEditor = page.locator(".route-flow-editor-panel").filter({ hasText: "Add a typed process relationship" });
+  await relationshipEditor.getByLabel("From process", { exact: true }).selectOption("mp-op-turn");
+  await relationshipEditor.getByLabel("To process", { exact: true }).selectOption("mp-op-grind");
+  await relationshipEditor.getByLabel("Relationship type", { exact: true }).selectOption("conditional");
+  await relationshipEditor.getByLabel("Link status", { exact: true }).selectOption("Conditional");
+  await relationshipEditor.getByLabel("Condition / rule", { exact: true }).fill("QA_PERSISTENCE_ROUTE_FANOUT_RULE");
+  await relationshipEditor.getByLabel("Notes", { exact: true }).fill("Browser persistence acceptance relationship");
+  await relationshipEditor.getByRole("button", { name: "Save relationship", exact: true }).click();
+
+  await page.locator(".route-flow-canvas-tools button").filter({ hasText: "Add transport leg" }).click();
+  const transportEditor = page.locator(".route-flow-editor-panel").filter({ hasText: "Add a transport leg between two process stages" });
+  await transportEditor.getByLabel("From process", { exact: true }).selectOption("mp-op-vmc");
+  await transportEditor.getByLabel("To process", { exact: true }).selectOption("mp-op-turn");
+  await transportEditor.getByLabel("Transport vendor", { exact: true }).selectOption("mp-vendor-material");
+  await transportEditor.getByLabel("Saved route", { exact: true }).selectOption("mp-route-12");
+  await transportEditor.getByRole("button", { name: "Save transport leg", exact: true }).click();
+  await page.waitForFunction(() => {
+    const state = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    return state.routeRelationships?.some(row => row.condition === "QA_PERSISTENCE_ROUTE_FANOUT_RULE")
+      && state.transportLegs?.some(row => row.routeId === "mp-route-12" && row.anchorOperationId === "mp-op-vmc" && row.targetOperationId === "mp-op-turn" && row.poLineId === "mp-line");
+  }, null, { timeout: 7000 });
+  const persistedBeforeReload = await page.evaluate(() => {
+    const state = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    return {
+      relationship: state.routeRelationships.find(row => row.condition === "QA_PERSISTENCE_ROUTE_FANOUT_RULE"),
+      transportLeg: state.transportLegs.find(row => row.routeId === "mp-route-12" && row.anchorOperationId === "mp-op-vmc" && row.targetOperationId === "mp-op-turn" && row.poLineId === "mp-line")
+    };
+  });
+  if (!persistedBeforeReload.relationship || !persistedBeforeReload.transportLeg) {
+    throw new Error("Route Flow did not save both new cross-branch records before reload.");
+  }
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await assertWorkspace(page, "reload after Route Flow relationship and transport save");
+  await openModule(page, "Route Flow & Relationships");
+  await chooseNativeScope(page, ".route-flow-scope-bar");
+  const shaftBranch = page.locator(".route-flow-scope-bar select").nth(3);
+  await shaftBranch.selectOption("Shaft branch");
+  const savedRelationship = page.locator(".route-flow-saved-link").filter({ hasText: "QA_PERSISTENCE_ROUTE_FANOUT_RULE" });
+  await savedRelationship.waitFor({ state: "visible", timeout: 5000 });
+  const persistedLegMarker = page.locator('button[aria-label="Open transport leg popup"][title="4-wheeler · VMC subcontractor → CNC shaft turning supplier"]');
+  await persistedLegMarker.waitFor({ state: "visible", timeout: 5000 });
+  await persistedLegMarker.click();
+  const persistedLegDialog = page.getByRole("dialog", { name: "Transport and directory record details" });
+  await persistedLegDialog.waitFor({ state: "visible", timeout: 5000 });
+  const persistedLegDetails = await persistedLegDialog.innerText();
+  if (!persistedLegDetails.includes("Transport leg: " + persistedBeforeReload.transportLeg.id)
+      || !persistedLegDetails.includes("VMC subcontractor → CNC shaft turning supplier")
+      || !persistedLegDetails.includes("mp-op-vmc")
+      || !persistedLegDetails.includes("mp-op-turn")) {
+    throw new Error("Reloaded Route Flow popup lost the saved carrier or exact sending/receiving operation IDs: " + persistedLegDetails);
+  }
+  await persistedLegDialog.getByRole("button", { name: "Close transport details" }).click();
+  await savedRelationship.getByRole("button", { name: "Disable", exact: true }).click();
+  await page.waitForFunction((condition) => {
+    const state = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    return state.routeRelationships?.some(row => row.condition === condition && row.status === "Disabled");
+  }, "QA_PERSISTENCE_ROUTE_FANOUT_RULE", { timeout: 7000 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await assertWorkspace(page, "reload after disabling a Route Flow relationship");
+  await openModule(page, "Route Flow & Relationships");
+  await chooseNativeScope(page, ".route-flow-scope-bar");
+  const disabledRelationship = page.locator(".route-flow-saved-link").filter({ hasText: "QA_PERSISTENCE_ROUTE_FANOUT_RULE" });
+  await disabledRelationship.waitFor({ state: "visible", timeout: 5000 });
+  if (!(await disabledRelationship.innerText()).includes("Disabled")) {
+    throw new Error("Disabled route relationship did not remain disabled after reload.");
+  }
+  persistenceResults.push({
+    relationshipId: persistedBeforeReload.relationship.id,
+    transportLegId: persistedBeforeReload.transportLeg.id,
+    secondCarrierRouteId: "mp-route-12",
+    savedAndReloaded: true,
+    relationshipDisableAndReload: true
+  });
+
+  await openModule(page, "Transport & Dispatch");
+  const dispatchText = await page.locator(".page-content").innerText();
+  if (!dispatchText.includes("VMC subcontractor → CNC shaft turning supplier")) {
+    throw new Error("Transport & Dispatch did not show the new VMC-to-shaft carrier leg after Route Flow reload.");
+  }
+
+  await openModule(page, "Manufacturing Universe");
+  await chooseNativeScope(page, ".manufacturing-universe-scope");
+  const universeFanoutMarker = page.locator('.process-universe-transport-marker[title="4-wheeler · VMC subcontractor → CNC shaft turning supplier"]');
+  await universeFanoutMarker.waitFor({ state: "visible", timeout: 7000 });
+  await universeFanoutMarker.click();
+  const universeFanoutDialog = page.getByRole("dialog", { name: "Transport and directory record details" });
+  await universeFanoutDialog.waitFor({ state: "visible", timeout: 5000 });
+  const universeFanoutDetails = await universeFanoutDialog.innerText();
+  if (!universeFanoutDetails.includes("Transport leg: " + persistedBeforeReload.transportLeg.id)) {
+    throw new Error("Manufacturing Universe did not reopen the exact persisted second-carrier leg: " + universeFanoutDetails);
+  }
+  await universeFanoutDialog.getByRole("button", { name: "Close transport details" }).click();
+  await page.locator(".manufacturing-universe-links-grid").getByRole("button", { name: /Route Flow & Relationships/ }).click();
+  await chooseNativeScope(page, ".route-flow-scope-bar");
+  const branchRelationAfterNavigation = page.locator(".route-flow-saved-link").filter({ hasText: "QA_PERSISTENCE_ROUTE_FANOUT_RULE" });
+  await branchRelationAfterNavigation.waitFor({ state: "visible", timeout: 5000 });
+  if (!(await branchRelationAfterNavigation.innerText()).includes("Disabled")) {
+    throw new Error("Manufacturing Universe → Route Flow navigation lost the saved PO-line route relationship.");
+  }
+  persistenceResults.push({ dispatchShowsLeg: true, universeReopensExactLeg: true, universeToRouteFlowContext: true });
+
   // Recheck key workspaces at Android phone dimensions in portrait and landscape.
   const responsiveResults = [];
   for (const size of [
