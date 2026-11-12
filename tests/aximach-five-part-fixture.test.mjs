@@ -1520,7 +1520,7 @@ test("390px mobile layout keeps the spherical command centre and Process Map con
   assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 38px"));
   assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 42px"));
   assert.ok(process.includes('<details className="surface-panel process-route-scope-panel">'));
-  assert.ok(process.includes('<details className="surface-panel linked-route-canvas">'));
+  assert.ok(process.includes('<details className="surface-panel linked-route-canvas" open={showEditor || routeOperations.length > 0}>'));
   assert.ok(!process.includes("<details open"));
 });
 
