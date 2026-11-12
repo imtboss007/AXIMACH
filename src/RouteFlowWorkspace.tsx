@@ -342,7 +342,10 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const rows:Array<{fromId:string;toId:string;type:RouteRelationshipType;status:string}>=[];
     const add=(fromId:string,toId:string,type:RouteRelationshipType,status:string)=>{
       if(!fromId||!toId||fromId===toId)return;
-      const existing=rows.findIndex(row=>row.fromId===fromId&&row.toId===toId);
+      // Different relationship types may legitimately connect the same two
+      // operations (for example, a rework path plus a parallel dependency).
+      // Preserve each typed edge; only collapse duplicate records of the same type.
+      const existing=rows.findIndex(row=>row.fromId===fromId&&row.toId===toId&&row.type===type);
       const next={fromId,toId,type,status};
       if(existing>=0)rows[existing]=next;else rows.push(next);
     };
