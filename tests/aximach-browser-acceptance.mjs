@@ -576,6 +576,68 @@ async function main() {
     ["AXIMACH · MANUFACTURING UNIVERSE", fixture.purchaseOrder.number, fixture.component.name]
   ));
 
+  // Global modal audit: Module Universe, Command Search and 3D Icon Studio.
+  const modalResults = [];
+
+  const moduleButton = page.locator(".command-deck .deck-action").filter({ hasText: "Modules" }).first();
+  await moduleButton.click();
+  const moduleUniverse = page.getByRole("dialog", { name: /Module universe/i });
+  await moduleUniverse.waitFor({ state: "visible", timeout: 5000 });
+  const moduleSearch = moduleUniverse.getByPlaceholder("Find any module or capability…");
+  await moduleSearch.fill("Vendor Directory");
+  const vendorModuleCard = moduleUniverse.locator(".universe-card").filter({ hasText: "Vendor Directory" });
+  await vendorModuleCard.waitFor({ state: "visible", timeout: 5000 });
+  if (await moduleUniverse.locator(".universe-card:visible").count() !== 1) {
+    throw new Error("Module Universe search did not narrow to the single Vendor Directory card.");
+  }
+  await vendorModuleCard.click();
+  await assertWorkspace(page, "Module Universe navigation to Vendor Directory");
+  modalResults.push({ modal: "Module Universe", search: "Vendor Directory", navigation: "Vendor Directory", closedAfterSelect: await moduleUniverse.count() === 0 });
+
+  await page.getByRole("button", { name: "Open command search", exact: true }).click();
+  const commandPalette = page.getByRole("dialog", { name: "Command search" });
+  await commandPalette.waitFor({ state: "visible", timeout: 5000 });
+  await commandPalette.getByPlaceholder("Search modules, vendors, contacts, jobs, references…").fill("Synthetic Material Logistics");
+  const vendorSearchResult = commandPalette.locator(".palette-results button").filter({ hasText: "Synthetic Material Logistics" }).first();
+  await vendorSearchResult.waitFor({ state: "visible", timeout: 5000 });
+  await vendorSearchResult.click();
+  await assertWorkspace(page, "Command Search navigation to Vendor Directory");
+  if (await page.locator(".command-palette").count()) throw new Error("Command Search remained open after selecting a vendor result.");
+  modalResults.push({ modal: "Command Search", query: "Synthetic Material Logistics", navigation: "Vendor Directory", closedAfterSelect: true });
+
+  const logoStudioButton = page.locator(".command-deck .deck-action").filter({ hasText: "Logo Studio" }).first();
+  await logoStudioButton.click();
+  const iconStudio = page.getByRole("dialog", { name: "3D Icon Studio" });
+  await iconStudio.waitFor({ state: "visible", timeout: 8000 });
+  const iconSearch = iconStudio.getByPlaceholder("Search mechanical process, machine, tool or transport logo…");
+  await iconSearch.fill("truck");
+  const iconOptions = iconStudio.locator(".ax-icon-option-main");
+  await iconOptions.first().waitFor({ state: "visible", timeout: 5000 });
+  const iconSearchCount = await iconOptions.count();
+  if (iconSearchCount < 1) throw new Error("3D Icon Studio search returned no truck icons.");
+  const selectedIconLabel = await iconOptions.first().getAttribute("aria-label");
+  await iconOptions.first().click();
+  if (!(await iconOptions.first().locator("xpath=ancestor::div[contains(@class,'ax-icon-option')]").getAttribute("class"))?.includes("selected")) {
+    throw new Error("3D Icon Studio did not select the requested preview icon.");
+  }
+  const iconTabs = iconStudio.locator(".ax-icon-tabs button");
+  for (const tabName of ["Saved favourites", "Assigned", "All icons"]) {
+    const tab = iconTabs.filter({ hasText: tabName }).first();
+    await tab.click();
+    if (!(await tab.getAttribute("class") || "").includes("active")) {
+      throw new Error("3D Icon Studio tab did not activate: " + tabName);
+    }
+  }
+  const iconPagination = iconStudio.locator(".ax-icon-pagination");
+  const pageLabel = (await iconPagination.innerText()).match(/(\d+)\s*\/\s*(\d+)/);
+  if (pageLabel && Number(pageLabel[2]) > 1) {
+    await iconStudio.getByRole("button", { name: "Next icons" }).click();
+    await iconStudio.getByRole("button", { name: "Previous icons" }).click();
+  }
+  await iconStudio.getByRole("button", { name: "Close icon studio", exact: true }).click();
+  await iconStudio.waitFor({ state: "detached", timeout: 5000 });
+  modalResults.push({ modal: "3D Icon Studio", search: "truck", matchingIcons: iconSearchCount, selectedIcon: selectedIconLabel, tabs: ["Saved favourites", "Assigned", "All icons"], closed: true });
+
   // Verify the Vendor Directory external action without opening WhatsApp.
   await openModule(page, "Vendor Directory");
   // Block the external request; the test checks that the intended WhatsApp URL opens.
@@ -624,6 +686,7 @@ async function main() {
     safeButtons: safeButtonResults,
     contactLinks: contactLinkResults,
     printPopups: printPopupResults,
+    globalModals: modalResults,
     responsive: responsiveResults,
     pageErrors
   }, null, 2));
