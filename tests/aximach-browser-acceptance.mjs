@@ -449,22 +449,15 @@ async function main() {
 
   // Verify the only off-site launch action with a synthetic contact and no message send.
   // Block the external request; the test checks that the intended WhatsApp URL opens.
-  const whatsappTarget = await page.evaluate(() => {
-    const key = "aximach.manufacturingData.v1";
-    const state = JSON.parse(localStorage.getItem(key) || "{}");
-    const vendor = (state.vendors || []).find(row => !row.deletedAt);
-    if (!vendor) throw new Error("No synthetic vendor is available for the WhatsApp link check.");
-    vendor.phone = "919876543210";
-    vendor.whatsappNumber = "919876543210";
-    localStorage.setItem(key, JSON.stringify(state));
-    return { id: vendor.id, company: vendor.company };
-  });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await assertWorkspace(page, "WhatsApp external-link check");
   await openModule(page, "Vendor Directory");
-  const vendorRow = page.locator(".vendor-record").filter({ hasText: whatsappTarget.company }).first();
+  const whatsappVendor = fixture.vendors[0];
+  const vendorRow = page.locator(".vendor-record").filter({ hasText: whatsappVendor.company }).first();
   await vendorRow.waitFor({ state: "visible", timeout: 5000 });
   await vendorRow.click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByLabel("Phone with country code").fill("919876543210");
+  await page.getByLabel("WhatsApp number").fill("919876543210");
+  await page.getByRole("button", { name: "Save vendor master", exact: true }).click();
   const whatsappButton = page.getByRole("button", { name: "Open WhatsApp", exact: true });
   await whatsappButton.waitFor({ state: "visible", timeout: 5000 });
   await page.evaluate(() => {
