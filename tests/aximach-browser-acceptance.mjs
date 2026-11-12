@@ -587,12 +587,16 @@ async function main() {
     await page.locator(".route-flow-relationship-panel").getByRole("button", { name: "Add selected relationship", exact: true }).click();
   }
   await relationshipEditor.waitFor({ state: "visible", timeout: 5000 });
-  await relationshipEditor.getByLabel("From process", { exact: true }).selectOption("mp-op-turn");
-  await relationshipEditor.getByLabel("To process", { exact: true }).selectOption("mp-op-grind");
-  await relationshipEditor.getByLabel("Relationship type", { exact: true }).selectOption("conditional");
-  await relationshipEditor.getByLabel("Link status", { exact: true }).selectOption("Conditional");
-  await relationshipEditor.getByLabel("Condition / rule", { exact: true }).fill("QA_PERSISTENCE_ROUTE_FANOUT_RULE");
-  await relationshipEditor.getByLabel("Notes", { exact: true }).fill("Browser persistence acceptance relationship");
+  // These native controls are wrapped in nested label elements; address them
+  // by their stable form order to avoid Chromium accessible-name differences.
+  const relationshipSelects = relationshipEditor.locator("select");
+  await relationshipSelects.nth(0).selectOption("mp-op-turn");
+  await relationshipSelects.nth(1).selectOption("mp-op-grind");
+  await relationshipSelects.nth(2).selectOption("conditional");
+  await relationshipSelects.nth(3).selectOption("Conditional");
+  const relationshipInputs = relationshipEditor.locator("input");
+  await relationshipInputs.nth(0).fill("QA_PERSISTENCE_ROUTE_FANOUT_RULE");
+  await relationshipInputs.nth(1).fill("Browser persistence acceptance relationship");
   await relationshipEditor.getByRole("button", { name: "Save relationship", exact: true }).click();
 
   const transportEditor = page.locator(".route-flow-editor-panel").filter({ hasText: "Add a transport leg between two process stages" });
@@ -600,10 +604,11 @@ async function main() {
     await page.locator(".route-flow-canvas-tools button").filter({ hasText: "Add transport leg" }).click();
   }
   await transportEditor.waitFor({ state: "visible", timeout: 5000 });
-  await transportEditor.getByLabel("From process", { exact: true }).selectOption("mp-op-vmc");
-  await transportEditor.getByLabel("To process", { exact: true }).selectOption("mp-op-turn");
-  await transportEditor.getByLabel("Transport vendor", { exact: true }).selectOption("mp-vendor-material");
-  await transportEditor.getByLabel("Saved route", { exact: true }).selectOption("mp-route-12");
+  const transportSelects = transportEditor.locator("select");
+  await transportSelects.nth(0).selectOption("mp-op-vmc");
+  await transportSelects.nth(2).selectOption("mp-op-turn");
+  await transportSelects.nth(3).selectOption("mp-vendor-material");
+  await transportSelects.nth(4).selectOption("mp-route-12");
   await transportEditor.getByRole("button", { name: "Save transport leg", exact: true }).click();
   await page.waitForFunction(() => {
     const state = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
