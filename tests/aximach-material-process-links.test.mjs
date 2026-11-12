@@ -349,7 +349,17 @@ test("the second-stage VMC-to-shaft process connection supports multiple indepen
     row.anchorOperationId === "mp-op-vmc" && row.targetOperationId === "mp-op-turn"
   );
   assert.ok(sameConnection.some(row => row.id === "mp-leg-09" && row.vehicleType === "2-wheeler"));
-  assert.ok(sameConnection.some(row => row.routeId === "mp-route-12" && row.vehicleType === "4-wheeler") === false,
-    "the fixture's base route fan-out remains one leg per part; the additional carrier is exercised by the browser CRUD round-trip");
+  const firstCarrier = fixture.transportRoutes.find(row => row.id === "mp-route-07");
+  const secondCarrier = fixture.transportRoutes.find(row => row.id === "mp-route-12");
+  assert.ok(firstCarrier && secondCarrier, "the same VMC-to-shaft transfer must have two saved Transport Directory options");
+  for (const route of [firstCarrier, secondCarrier]) {
+    assert.equal(route.fromLocation, "VMC subcontractor");
+    assert.equal(route.toLocation, "CNC shaft turning supplier");
+  }
+  assert.notEqual(firstCarrier.vehicleType, secondCarrier.vehicleType);
+  assert.notEqual(firstCarrier.vendorId, secondCarrier.vendorId);
+  assert.equal(secondCarrier.vehicleType, "4-wheeler");
+  assert.ok(!sameConnection.some(row => row.routeId === "mp-route-12"),
+    "the second carrier is deliberately a separate saved route option; browser acceptance creates and persists a distinct leg from it");
 });
 
