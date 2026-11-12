@@ -19,7 +19,7 @@
     "test:server": "node --test server/manufacturing-data.test.mjs server/index.test.mjs tests/aximach-five-part-fixture.test.mjs tests/aximach-transport-route-demo.test.mjs tests/aximach-material-process-links.test.mjs tests/aximach-landscape-orientation.test.mjs tests/aximach-module-navigation-audit.test.mjs",
     "start:scheduler": "node server/index.mjs",
     "start:whatsapp-web": "node server/whatsapp-web.mjs",
-    "test:browser": "node tests/aximach-browser-acceptance.mjs"
+    "test:browser": "node tests/aximach-browser-acceptance.mjs && node tests/aximach-crud-acceptance.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
