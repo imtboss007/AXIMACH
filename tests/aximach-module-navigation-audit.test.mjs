@@ -215,11 +215,11 @@ test("3D Command Centre exposes exactly the same 20 shortcuts as the main catalo
   const orb = read("../src/AXIMACHOrb.tsx");
   const dashboard = read("../src/DashboardWorkspace.tsx");
   const catalogueStart = app.indexOf("const modules: ModuleItem[] = [");
-  const catalogueEnd = app.indexOf("\\n];", catalogueStart);
-  const catalogueIds = [...app.slice(catalogueStart, catalogueEnd).matchAll(/\\{ id: \"([^\"]+)\"/g)].map(match => match[1]);
+  const catalogueEnd = app.indexOf("\n];", catalogueStart);
+  const catalogueIds = [...app.slice(catalogueStart, catalogueEnd).matchAll(/\{ id: "([^"]+)"/g)].map(match => match[1]);
   const sphereStart = orb.indexOf("const satellites = [");
-  const sphereEnd = orb.indexOf("\\n];", sphereStart);
-  const sphereIds = [...orb.slice(sphereStart, sphereEnd).matchAll(/id: \"([^\"]+)\"/g)].map(match => match[1]);
+  const sphereEnd = orb.indexOf("\n];", sphereStart);
+  const sphereIds = [...orb.slice(sphereStart, sphereEnd).matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual([...sphereIds].sort(), [...catalogueIds].sort(), "the sphere must contain every official module exactly once");
   assert.equal(new Set(sphereIds).size, 20);
   assert.ok(orb.includes('aria-label={`${satellites.length} clickable AXIMACH modules`}'));
