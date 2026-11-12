@@ -580,8 +580,13 @@ async function main() {
   await openModule(page, "Route Flow & Relationships");
   await chooseNativeScope(page, ".route-flow-scope-bar");
 
-  await page.locator(".route-flow-canvas-tools button").filter({ hasText: "Add relationship" }).click();
   const relationshipEditor = page.locator(".route-flow-editor-panel").filter({ hasText: "Add a typed process relationship" });
+  if (!(await relationshipEditor.isVisible().catch(() => false))) {
+    // The relationship-type test sweep may already have opened this editor.
+    // Use the idempotent "Add selected relationship" action instead of a toggle.
+    await page.locator(".route-flow-relationship-panel").getByRole("button", { name: "Add selected relationship", exact: true }).click();
+  }
+  await relationshipEditor.waitFor({ state: "visible", timeout: 5000 });
   await relationshipEditor.getByLabel("From process", { exact: true }).selectOption("mp-op-turn");
   await relationshipEditor.getByLabel("To process", { exact: true }).selectOption("mp-op-grind");
   await relationshipEditor.getByLabel("Relationship type", { exact: true }).selectOption("conditional");
@@ -590,8 +595,11 @@ async function main() {
   await relationshipEditor.getByLabel("Notes", { exact: true }).fill("Browser persistence acceptance relationship");
   await relationshipEditor.getByRole("button", { name: "Save relationship", exact: true }).click();
 
-  await page.locator(".route-flow-canvas-tools button").filter({ hasText: "Add transport leg" }).click();
   const transportEditor = page.locator(".route-flow-editor-panel").filter({ hasText: "Add a transport leg between two process stages" });
+  if (!(await transportEditor.isVisible().catch(() => false))) {
+    await page.locator(".route-flow-canvas-tools button").filter({ hasText: "Add transport leg" }).click();
+  }
+  await transportEditor.waitFor({ state: "visible", timeout: 5000 });
   await transportEditor.getByLabel("From process", { exact: true }).selectOption("mp-op-vmc");
   await transportEditor.getByLabel("To process", { exact: true }).selectOption("mp-op-turn");
   await transportEditor.getByLabel("Transport vendor", { exact: true }).selectOption("mp-vendor-material");
