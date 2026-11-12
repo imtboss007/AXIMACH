@@ -158,6 +158,9 @@ test("Manufacturing Universe exposes export formats, field visibility and a tran
   assert.ok(universe.includes("visibleUniverseFields"));
   assert.ok(universe.includes("TransportRecordInspector"));
   assert.ok(universe.includes("MaterialTransportRecordInspector"));
-  assert.ok(universe.includes('leg.placement==="start"'));
-  assert.ok(universe.includes("transportAtStart(operation.id)"));
+  assert.ok(graph.includes('leg.placement==="start"'));
+  assert.ok(graph.includes("transportAtStart(operation.id)"));
+  assert.ok(graph.includes('aria-label="All component transport records"'));
+  assert.ok(graph.includes('transportLegs.map(leg =>'));
+  assert.ok(graph.includes('renderTransportLeg(leg)'));
 });
