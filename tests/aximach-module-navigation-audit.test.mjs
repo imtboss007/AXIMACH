@@ -181,9 +181,9 @@ test("all shared route layout modes are declared, persisted and selectable in th
 test("20 modules remain the only visible catalogue and stale 18-module labels are absent", () => {
   const app = read("../src/App.tsx");
   const start = app.indexOf("const modules: ModuleItem[] = [");
-  const end = app.indexOf("\\n];", start);
+  const end = app.indexOf("\n];", start);
   const catalogue = app.slice(start, end);
-  const ids = [...catalogue.matchAll(/\\{ id: "([^"]+)"/g)].map(match => match[1]);
+  const ids = [...catalogue.matchAll(/\{ id: "([^"]+)"/g)].map(match => match[1]);
   assert.equal(ids.length, 20);
   assert.equal(new Set(ids).size, 20);
   assert.ok(app.includes("{filteredModules.length} of {modules.length} modules"));
