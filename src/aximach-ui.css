@@ -2924,7 +2924,10 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
    Full-screen is entered only by the corner expand control. */
 .app-shell:has(.route-flow-workspace),.app-shell:has(.manufacturing-universe-workspace){
   height:auto!important;min-height:100vh!important;min-height:100dvh!important;
-  padding:0 0 74px!important;overflow-x:clip!important;overflow-y:auto!important;
+  /* Reserve space for the fixed bottom command rail so the last saved-link actions
+     can scroll fully above it instead of being covered by the navigation. */
+  padding:0 0 120px!important;overflow-x:clip!important;overflow-y:auto!important;
+  scroll-padding-bottom:120px!important;
 }
 .app-shell:has(.route-flow-workspace) .command-deck,.app-shell:has(.manufacturing-universe-workspace) .command-deck{
   display:flex!important;position:sticky!important;top:0!important;height:76px!important;min-height:76px!important;
