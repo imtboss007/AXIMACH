@@ -269,7 +269,7 @@ test("component and purchase-order hard deletes remove dependent route, material
     assert.ok(purchaseDelete.includes(field), "purchase-order deletion must handle " + field);
   }
   assert.ok(componentDelete.includes("row.itemType===\"component\"&&targetIds.has(row.itemId)"));
-  assert.ok(componentDelete.includes("row.componentId?!targetIds.has(row.componentId)"));
+  assert.ok(componentDelete.includes("!row.componentId||!targetIds.has(row.componentId)"), "unlinked legacy planned-cost rows must be retained");
   assert.ok(componentDelete.includes("purchaseOrders:current.purchaseOrders.map"));
   assert.ok(!componentDelete.includes(".filter(po=>po.lines.length>0)"), "deleting the final component line must not silently delete the PO header");
   assert.ok(purchaseDelete.includes("plannedCosts:current.plannedCosts.filter"));
