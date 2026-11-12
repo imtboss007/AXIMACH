@@ -539,8 +539,8 @@ async function main() {
   const persistedLegDetails = await persistedLegDialog.innerText();
   if (!persistedLegDetails.includes("Transport leg: " + persistedBeforeReload.transportLeg.id)
       || !persistedLegDetails.includes("VMC subcontractor → CNC shaft turning supplier")
-      || !persistedLegDetails.includes("mp-op-vmc")
-      || !persistedLegDetails.includes("mp-op-turn")) {
+      || !persistedLegDetails.includes("VMC datum and port machining")
+      || !persistedLegDetails.includes("CNC shaft turning")) {
     throw new Error("Reloaded Route Flow popup lost the saved carrier or exact sending/receiving operation IDs: " + persistedLegDetails);
   }
   await persistedLegDialog.getByRole("button", { name: "Close transport details" }).click();
