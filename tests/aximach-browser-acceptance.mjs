@@ -183,7 +183,9 @@ async function main() {
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, acceptDownloads: true });
   await context.addInitScript(({ key, data }) => {
-    localStorage.setItem(key, JSON.stringify(data));
+    // Seed a clean isolated context only once. Re-seeding on every navigation
+    // or reload would erase the mutations that persistence acceptance must verify.
+    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data));
     localStorage.setItem("aximach.storage.mode", "local-only");
     localStorage.setItem("aximach.legacy-demo-cleanup.v2", "done");
   }, { key: "aximach.manufacturingData.v1", data: seededData });
