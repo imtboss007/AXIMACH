@@ -359,6 +359,29 @@ async function main() {
     visualModes.push(label);
   }
 
+  // Open an operation node's expanded record, launch its Edit dialog, and close both surfaces.
+  await modeButtons.first().click();
+  const operationDetailButtons = page.locator('button[aria-label^="Open details for "]');
+  const operationDetailCount = await operationDetailButtons.count();
+  if (operationDetailCount < 1) throw new Error("Process Map did not render a selectable operation detail node.");
+  const operationDetailButton = operationDetailButtons.first();
+  const operationLabel = await operationDetailButton.getAttribute("aria-label");
+  await operationDetailButton.evaluate(element => element.click());
+  const operationDetails = page.locator("#process-orbit-selected-details");
+  await operationDetails.waitFor({ state: "visible", timeout: 5000 });
+  const operationDetailsText = await operationDetails.innerText();
+  if (!operationDetailsText.includes("SELECTED PROCESS") || !operationDetailsText.includes("PART / PO LINE")) {
+    throw new Error("Expanded Process Map operation details omitted its saved record fields: " + operationDetailsText.slice(0, 500));
+  }
+  await operationDetails.getByRole("button", { name: /Edit process/ }).click();
+  const operationEditDialog = page.getByRole("dialog", { name: "Edit process operation" });
+  await operationEditDialog.waitFor({ state: "visible", timeout: 5000 });
+  await operationEditDialog.getByRole("button", { name: "Close editor" }).click();
+  await operationEditDialog.waitFor({ state: "detached", timeout: 5000 });
+  await operationDetails.getByRole("button", { name: /Collapse details/ }).click();
+  await operationDetails.waitFor({ state: "detached", timeout: 5000 });
+  const processOperationDetails = { node: operationLabel, opened: true, editDialogOpened: true, bothClosed: true };
+
   const materialMapMarkers = page.locator(".material-flow-marker-button");
   const processMapMaterialMarkerCount = await materialMapMarkers.count();
   if (processMapMaterialMarkerCount < 6) throw new Error("Process Map did not render the multi-part material links; found " + processMapMaterialMarkerCount);
@@ -687,6 +710,7 @@ async function main() {
     contactLinks: contactLinkResults,
     printPopups: printPopupResults,
     globalModals: modalResults,
+    processOperationDetails,
     responsive: responsiveResults,
     pageErrors
   }, null, 2));
