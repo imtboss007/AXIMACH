@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, useMotionValue, useReducedMotion } from "motion/react";
-import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, Layers3, MessageCircle, Package, Sparkles, Truck, Users, Wallet } from "lucide-react";
+import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, GitBranch, Layers3, MessageCircle, Network, Package, Sparkles, Truck, Users, Wallet } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
 import AXIMACHWebGLSphere from "./AXIMACHWebGLSphere";
 
@@ -25,6 +25,8 @@ const satellites = [
   { id: "vendor-capability", label: "Vendor Network", Icon: Users },
   { id: "inventory", label: "BOM & Inventory", Icon: Boxes },
   { id: "production", label: "Production Plan", Icon: Activity },
+  { id: "route-flow", label: "Route Flow", Icon: GitBranch },
+  { id: "manufacturing-universe", label: "Manufacturing Universe", Icon: Network },
   { id: "dispatch", label: "Dispatch", Icon: Truck },
   { id: "quality", label: "Quality", Icon: ClipboardCheck },
   { id: "costing", label: "Cost & Payment", Icon: Wallet },
@@ -189,10 +191,10 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
         <motion.div
           className="ax-orb-module-shell"
           style={{ transformStyle: "preserve-3d", scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1) }}
-          aria-label="18 clickable AXIMACH modules"
+          aria-label={`${satellites.length} clickable AXIMACH modules`}
         >
           {satellites.map(({ id, label, Icon }, index) => {
-            // Fibonacci-sphere placement distributes all 18 module controls
+            // Fibonacci-sphere placement distributes all module controls
             // over the complete spherical surface, not only a front-facing
             // ellipse. Each control's local face points out from the sphere;
             // backface-visibility hides nodes on the far side until the user
