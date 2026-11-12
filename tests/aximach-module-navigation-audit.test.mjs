@@ -239,3 +239,69 @@ test("3D Command Centre exposes exactly the same 20 shortcuts as the main catalo
   assert.ok(dashboard.includes("All {moduleCount} modules"));
   assert.ok(app.includes("moduleCount={modules.length}"));
 });
+
+test("master directories expose their actual Add, Edit, Save and archive/delete actions", () => {
+  const master = read("../src/ManufacturingMasterWorkspace.tsx");
+  const vendors = read("../src/App.tsx");
+  const transport = read("../src/TransportDirectoryWorkspace.tsx");
+  const contacts = read("../src/RelationshipWorkspaces.tsx");
+
+  for (const action of ["saveCompany", "saveFactory", "saveComponent", "savePO", "editCompany", "editFactory", "editComponent", "editPO", "deleteComponents", "deletePurchaseOrders"]) {
+    assert.ok(master.includes(action), "missing master-data CRUD handler: " + action);
+  }
+  assert.ok(master.includes('archive("companies", row.id)'));
+  assert.ok(master.includes('archive("factories", row.id)'));
+  assert.ok(vendors.includes("const beginNew=") && vendors.includes("const beginEdit=") && vendors.includes("const saveContact=") && vendors.includes("const archive="));
+  assert.ok(transport.includes("const save = () =>") && transport.includes("const edit = (route:") && transport.includes("const archive = (route:"));
+  assert.ok(contacts.includes("const beginNew=") && contacts.includes("const edit=(row:ContactRecord)") && contacts.includes("const save=()") && contacts.includes("const remove=(id:string)"));
+});
+
+test("component and purchase-order hard deletes remove dependent route, material, stock and history links safely", () => {
+  const master = read("../src/ManufacturingMasterWorkspace.tsx");
+  const componentStart = master.indexOf("const deleteComponents =");
+  const purchaseStart = master.indexOf("const deletePurchaseOrders =", componentStart);
+  const exportStart = master.indexOf("const exportComponentsExcel =", purchaseStart);
+  const componentDelete = master.slice(componentStart, purchaseStart);
+  const purchaseDelete = master.slice(purchaseStart, exportStart);
+
+  for (const field of ["routeRelationships", "materialProcessLinks", "inventoryTransactions", "followUpAssignments", "operations", "quotations", "transportLegs", "paymentTransactions", "inspectionMeasurements"]) {
+    assert.ok(componentDelete.includes(field), "component deletion must handle " + field);
+    assert.ok(purchaseDelete.includes(field), "purchase-order deletion must handle " + field);
+  }
+  assert.ok(componentDelete.includes("row.itemType===\"component\"&&targetIds.has(row.itemId)"));
+  assert.ok(componentDelete.includes("row.componentId?!targetIds.has(row.componentId)"));
+  assert.ok(componentDelete.includes("purchaseOrders:current.purchaseOrders.map"));
+  assert.ok(!componentDelete.includes(".filter(po=>po.lines.length>0)"), "deleting the final component line must not silently delete the PO header");
+  assert.ok(purchaseDelete.includes("plannedCosts:current.plannedCosts.filter"));
+  assert.ok(purchaseDelete.includes("operationIds.has(row.operationId)"));
+});
+
+test("Process Directory, Planned Cost, Material Directory and Process Map expose their update/archive pathways", () => {
+  const directories = read("../src/SpecializedDirectoryWorkspace.tsx");
+  const inventory = read("../src/InventoryWorkspace.tsx");
+  const processMap = read("../src/LinkedProcessWorkspace.tsx");
+
+  assert.ok(directories.includes("const save=()=>{") && directories.includes("const edit=(row:ProcessEntry)=>") && directories.includes("const remove=(id:string)=>"));
+  assert.ok(directories.includes("const save=()=>{\n  const primaryDefinition=") && directories.includes("const remove=(id:string)=>{if(!window.confirm(\"Delete this planned-cost record?\"))"));
+  for (const action of ["saveMaterial", "saveBom", "saveMaterialLink", "editMaterial", "editBom", "editMaterialLink", "archiveMaterial", "archiveBom", "archiveMaterialLink"]) {
+    assert.ok(inventory.includes(action), "missing Material Directory action: " + action);
+  }
+  for (const action of ["saveOperation", "updateOperation", "deleteOperation", "archiveOperation"]) {
+    assert.ok(processMap.includes(action), "missing Process Map action: " + action);
+  }
+});
+
+test("operational modules update their source records instead of creating duplicate module-local copies", () => {
+  const operations = read("../src/OperationsWorkspaces.tsx");
+  const costing = read("../src/LinkedCostingWorkspace.tsx");
+  const routeFlow = read("../src/RouteFlowWorkspace.tsx");
+  const followUps = read("../src/FollowUpAssignments.tsx");
+  const vendorApp = read("../src/App.tsx");
+
+  assert.ok(operations.includes("const updateProductionJob =") || vendorApp.includes("const updateProductionJob ="));
+  assert.ok(operations.includes("const updateStatus="));
+  assert.ok(operations.includes("const patch=(id:string,key:") && operations.includes("const saveMeasurement=()=>"));
+  assert.ok(costing.includes("const saveQuote =") && costing.includes("const selectQuote ="));
+  assert.ok(routeFlow.includes("const saveRelationship=") && routeFlow.includes("const saveTransportLeg="));
+  assert.ok(followUps.includes("const addContact =") && followUps.includes("const removeContact ="));
+});
