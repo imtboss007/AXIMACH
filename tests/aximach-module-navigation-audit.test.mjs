@@ -177,3 +177,35 @@ test("all shared route layout modes are declared, persisted and selectable in th
   assert.deepEqual([...options].sort(), [...declared].sort(), "all declared layouts must be selectable");
   assert.equal(new Set(options).size, options.length, "route layout option IDs must be unique");
 });
+
+test("20 modules remain the only visible catalogue and stale 18-module labels are absent", () => {
+  const app = read("../src/App.tsx");
+  const start = app.indexOf("const modules: ModuleItem[] = [");
+  const end = app.indexOf("\\n];", start);
+  const catalogue = app.slice(start, end);
+  const ids = [...catalogue.matchAll(/\\{ id: "([^"]+)"/g)].map(match => match[1]);
+  assert.equal(ids.length, 20);
+  assert.equal(new Set(ids).size, 20);
+  assert.ok(app.includes("{filteredModules.length} of {modules.length} modules"));
+  assert.ok(app.includes("View all {modules.length} modules"));
+  assert.ok(app.includes("Browse all {modules.length} modules"));
+  assert.doesNotMatch(app, /(?:of|all) 18 modules/i);
+});
+
+test("Factory management remains nested under Company Directory, not a 21st module", () => {
+  const master = read("../src/ManufacturingMasterWorkspace.tsx");
+  assert.ok(master.includes('{moduleId === "companies" && <div className="costing-tabs">'));
+  assert.ok(master.includes('tab === "companies" ? "Add Company" : "Add Factory"'));
+  assert.ok(master.includes("filteredFactories"));
+});
+
+test("Transport Directory is included in Data Exchange exports", () => {
+  const intelligence = read("../src/IntelligenceWorkspaces.tsx");
+  assert.ok(intelligence.includes('["transport-master","Transport Directory"]'));
+  assert.ok(intelligence.includes('if(moduleId==="transport-master")return activeRows(data.transportRoutes||[])'));
+});
+
+test("AI Insights joins PO context when evaluating completed process lines", () => {
+  const intelligence = read("../src/IntelligenceWorkspaces.tsx");
+  assert.ok(intelligence.includes('lines.filter(({po,line})=>line.jobStatus!=="Finished"&&ops.some(op=>op.poId===po.id&&op.poLineId===line.id&&op.status==="Complete"))'));
+});
