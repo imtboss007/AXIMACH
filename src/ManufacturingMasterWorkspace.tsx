@@ -264,7 +264,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     if(!window.confirm("Permanently delete "+targets.length+" purchase order(s), their component lines and linked process, route relationship, material-process, transport, costing, stock, payment, inspection and follow-up links? This cannot be undone."))return;
     const targetIds=new Set(targets.map(row=>row.id));
     const lineIds=new Set(targets.flatMap(po=>po.lines.map(line=>line.id)));
-    const operationIds=new Set(operations.filter(row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)).map(row=>row.id));
+    const operationIds=new Set(activeRows(data.operations).filter(row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)).map(row=>row.id));
     const stamp=nowIso();
     update(current=>({...current,
       purchaseOrders:current.purchaseOrders.filter(row=>!targetIds.has(row.id)),
