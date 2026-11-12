@@ -459,7 +459,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
           </div>
           <div id={lanePanelId} className="process-universe-lane-content" hidden={collapsed}>
             {lane.alternate && lane.branchRoot && <div className={"process-universe-branch-link " + (lane.branchRelation==="rework"?"is-rework":"is-alternate")} data-parent-id={lane.parent?.id||""} data-branch-root-id={lane.branchRoot?.id||""} aria-label={(lane.branchRelation==="rework"?"Rework":"Alternate")+" branch connection from "+(lane.parent?.name||"parent process")+" to "+(lane.branchRoot?.name||lane.name)}><span>OP-{String(lane.parent?.sequence||0).padStart(3,"0")} · {lane.parent?.name||"Parent operation"}</span>{showArrows && <ArrowRight size={16} style={{color:lane.branchRelation==="rework"?"#e38b45":"#4b95eb"}}/>}<strong>{lane.branchRoot?.name||lane.name}</strong><small>{lane.branchRelation==="rework"?"REWORK BRANCH":"ALTERNATE ROUTE"}</small></div>}
-            <div className="process-universe-node-track">{lane.rows.map((operation,index) => {
+            <div className="process-universe-node-track">{!lane.alternate&&lane.rows[0]&&(transportLegs||[]).filter(leg=>!leg.materialEntryId&&leg.placement==="start"&&(!leg.anchorOperationId||leg.anchorOperationId===lane.rows[0].id)).map(renderTransportLeg)}{lane.rows.map((operation,index) => {
               const globalIndex = displayOperations.findIndex(item => item.id === operation.id);
               const active = selectedOperationId === operation.id, current = simulationIndex === globalIndex, passed = simulationIndex > globalIndex;
               const childOperations = subprocessesFor(operation.id);
