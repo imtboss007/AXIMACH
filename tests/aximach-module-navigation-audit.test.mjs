@@ -209,3 +209,21 @@ test("AI Insights joins PO context when evaluating completed process lines", () 
   const intelligence = read("../src/IntelligenceWorkspaces.tsx");
   assert.ok(intelligence.includes('lines.filter(({po,line})=>line.jobStatus!=="Finished"&&ops.some(op=>op.poId===po.id&&op.poLineId===line.id&&op.status==="Complete"))'));
 });
+
+test("3D Command Centre exposes exactly the same 20 shortcuts as the main catalogue", () => {
+  const app = read("../src/App.tsx");
+  const orb = read("../src/AXIMACHOrb.tsx");
+  const dashboard = read("../src/DashboardWorkspace.tsx");
+  const catalogueStart = app.indexOf("const modules: ModuleItem[] = [");
+  const catalogueEnd = app.indexOf("\\n];", catalogueStart);
+  const catalogueIds = [...app.slice(catalogueStart, catalogueEnd).matchAll(/\\{ id: \"([^\"]+)\"/g)].map(match => match[1]);
+  const sphereStart = orb.indexOf("const satellites = [");
+  const sphereEnd = orb.indexOf("\\n];", sphereStart);
+  const sphereIds = [...orb.slice(sphereStart, sphereEnd).matchAll(/id: \"([^\"]+)\"/g)].map(match => match[1]);
+  assert.deepEqual([...sphereIds].sort(), [...catalogueIds].sort(), "the sphere must contain every official module exactly once");
+  assert.equal(new Set(sphereIds).size, 20);
+  assert.ok(orb.includes('aria-label={`${satellites.length} clickable AXIMACH modules`}'));
+  assert.ok(dashboard.includes("View all {moduleCount} modules"));
+  assert.ok(dashboard.includes("All {moduleCount} modules"));
+  assert.ok(app.includes("moduleCount={modules.length}"));
+});
