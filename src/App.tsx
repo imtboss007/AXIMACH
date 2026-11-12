@@ -359,7 +359,7 @@ function App() {
         </div>}
         <Suspense fallback={<div className="workspace-loading-state" role="status"><span className="workspace-loading-spinner" /> Loading AXIMACH workspace…</div>}>
         {activeModuleId === "dashboard" ? (
-          <DashboardWorkspace onSelectModule={selectModule} onOpenCommandCentre={() => selectModule("command-centre")} onOpenModules={openModuleExplorer} />
+          <DashboardWorkspace onSelectModule={selectModule} onOpenCommandCentre={() => selectModule("command-centre")} onOpenModules={openModuleExplorer} moduleCount={modules.length} />
         ) : activeModuleId === "command-centre" ? (
           <CommandCentre
             activeModule={activeModule}
