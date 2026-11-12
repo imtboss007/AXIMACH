@@ -678,16 +678,30 @@ async function main() {
 
   await openModule(page, "Manufacturing Universe");
   await chooseNativeScope(page, ".manufacturing-universe-scope");
-  const universeFanoutMarker = page.locator('.process-universe-transport-marker[title="4-wheeler · VMC subcontractor → CNC shaft turning supplier"]');
-  await universeFanoutMarker.waitFor({ state: "visible", timeout: 7000 });
-  await universeFanoutMarker.evaluate(element => element.click());
-  const universeFanoutDialog = page.getByRole("dialog", { name: "Transport and directory record details" });
-  await universeFanoutDialog.waitFor({ state: "visible", timeout: 5000 });
-  const universeFanoutDetails = await universeFanoutDialog.innerText();
-  if (!universeFanoutDetails.includes("Transport leg: " + persistedBeforeReload.transportLeg.id)) {
-    throw new Error("Manufacturing Universe did not reopen the exact persisted second-carrier leg: " + universeFanoutDetails);
+  // Sphere View intentionally hides rear-facing labels. Use Network View to
+  // acceptance-test every branch transport marker without relying on rotation.
+  await page.locator(".process-universe-layouts").getByRole("button", { name: "Network View", exact: true }).click();
+  const universeBranchTransfers = [
+    { title: "2-wheeler · VMC subcontractor → CNC shaft turning supplier", legId: "mp-leg-09", target: "CNC shaft turning" },
+    { title: "3-wheeler · VMC subcontractor → Body insert installation cell", legId: "mp-leg-10", target: "Insert installation" },
+    { title: "Light commercial vehicle · VMC subcontractor → Cover machining supplier", legId: "mp-leg-11", target: "Cover machining and assembly" },
+    { title: "4-wheeler · VMC subcontractor → CNC shaft turning supplier", legId: persistedBeforeReload.transportLeg.id, target: "CNC shaft turning" }
+  ];
+  for (const transfer of universeBranchTransfers) {
+    const exactMarker = page.locator('.process-universe-transport-marker[title="' + transfer.title.replaceAll('"', '\\"') + '"]');
+    await exactMarker.waitFor({ state: "visible", timeout: 7000 });
+    await exactMarker.click();
+    const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
+    await dialog.waitFor({ state: "visible", timeout: 5000 });
+    const details = await dialog.innerText();
+    if (!details.includes("Transport leg: " + transfer.legId)
+        || !details.includes("VMC datum and port machining → " + transfer.target)) {
+      throw new Error("Manufacturing Universe did not resolve the exact source/target branch for " + transfer.title + ": " + details);
+    }
+    await dialog.getByRole("button", { name: "Close transport details" }).click();
   }
-  await universeFanoutDialog.getByRole("button", { name: "Close transport details" }).click();
+  const universeFanoutDetails = "VMC step 2 → three part branches + independent second shaft carrier";
+  await page.waitForFunction(() => document.querySelectorAll(".process-universe-transport-marker").length >= 4, null, { timeout: 5000 });
   const persistedUniverseExportPromise = page.waitForEvent("download", { timeout: 15000 });
   await page.getByLabel("Universe export format", { exact: true }).selectOption("json");
   await page.locator(".manufacturing-universe-actions .route-flow-export-controls").getByRole("button", { name: "Download", exact: true }).click();
