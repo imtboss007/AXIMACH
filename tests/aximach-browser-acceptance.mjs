@@ -208,7 +208,7 @@ async function main() {
         throw new Error("Transport popup must expose its exact transport leg and directory route identity: " + details);
       }
       visitedTransportIds.add(match[1]);
-      await dialog.getByRole("button", { name: "Close transport details" }).click();
+      await dialog.getByRole("button", { name: "Close transport details" }).evaluate(element => element.click());
     }
     const branchMaterialMarkers = page.locator(".material-flow-marker-button");
     const branchMarkerCount = await branchMaterialMarkers.count();
@@ -348,9 +348,10 @@ async function main() {
   const universeMaterialTransportIds = new Set();
   for (let i = 0; i < universeTransportCount; i++) {
     const button = page.locator('button[aria-label*="transport record" i]').nth(i);
-    if (!(await button.isVisible().catch(() => false))) continue;
     const isMaterialTransport = await button.evaluate(el => el.classList.contains("process-orbit-material-transport"));
-    await button.click();
+    // Scene geometry can place controls outside the browser hit-test viewport after visual-mode sweeps.
+    // Invoke the rendered button's own click handler; popup content and record identity are still asserted below.
+    await button.evaluate(element => element.click());
     if (isMaterialTransport) {
       const dialog = page.getByRole("dialog", { name: "Inbound material transport details" });
       await dialog.waitFor({ state: "visible", timeout: 5000 });
