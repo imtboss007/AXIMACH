@@ -2,7 +2,7 @@ name: AXIMACH build and packages
 
 on:
   push:
-    branches: [main, "feat/**", "fix/**", "feature/**"]
+    branches: [main, "feat/**", "fix/**", "feature/**", "audit/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
