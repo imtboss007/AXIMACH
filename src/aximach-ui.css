@@ -2924,10 +2924,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
    Full-screen is entered only by the corner expand control. */
 .app-shell:has(.route-flow-workspace),.app-shell:has(.manufacturing-universe-workspace){
   height:auto!important;min-height:100vh!important;min-height:100dvh!important;
-  /* Reserve space for the fixed bottom command rail so the last saved-link actions
-     can scroll fully above it instead of being covered by the navigation. */
-  padding:0 0 120px!important;overflow-x:clip!important;overflow-y:auto!important;
-  scroll-padding-bottom:120px!important;
+  padding:0!important;overflow-x:clip!important;overflow-y:auto!important;
 }
 .app-shell:has(.route-flow-workspace) .command-deck,.app-shell:has(.manufacturing-universe-workspace) .command-deck{
   display:flex!important;position:sticky!important;top:0!important;height:76px!important;min-height:76px!important;
@@ -5715,3 +5712,58 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .linked-process-page .linked-route-canvas{width:100%;max-width:none!important;min-width:0}
 }
 
+/* Desktop immersive workspaces use a persistent left rail, not a floating
+   bottom dock that can cover the final Route Flow relationship controls. */
+@media(min-width:761px){
+  .app-shell:has(.route-flow-workspace) .command-rail,
+  .app-shell:has(.manufacturing-universe-workspace) .command-rail{
+    display:flex!important;position:fixed!important;left:0!important;right:auto!important;
+    top:108px!important;bottom:0!important;width:236px!important;max-width:236px!important;
+    height:auto!important;max-height:none!important;min-height:0!important;
+    transform:none!important;visibility:visible!important;pointer-events:auto!important;
+    flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;
+    gap:3px!important;padding:14px 10px 18px!important;overflow-x:hidden!important;overflow-y:auto!important;
+    border:0!important;border-right:1px solid #20374d!important;border-radius:0!important;
+    background:linear-gradient(180deg,#0b1a28,#07131f)!important;
+    box-shadow:8px 0 28px rgba(0,0,0,.12)!important;z-index:50!important;
+  }
+  .app-shell:has(.route-flow-workspace) .command-rail .rail-section-label,
+  .app-shell:has(.manufacturing-universe-workspace) .command-rail .rail-section-label{
+    display:block!important;flex:0 0 auto!important;padding:4px 11px 10px!important;
+    color:#7892ad!important;font:9px 'DM Mono'!important;letter-spacing:1.2px!important;
+  }
+  .app-shell:has(.route-flow-workspace) .command-rail>button,
+  .app-shell:has(.manufacturing-universe-workspace) .command-rail>button{
+    width:100%!important;min-width:0!important;max-width:none!important;min-height:36px!important;
+    height:auto!important;flex:0 0 auto!important;display:flex!important;flex-direction:row!important;
+    align-items:center!important;justify-content:flex-start!important;gap:11px!important;
+    padding:9px 11px!important;border:1px solid transparent!important;border-radius:7px!important;
+    background:transparent!important;color:#9cb0c7!important;text-align:left!important;white-space:nowrap!important;
+  }
+  .app-shell:has(.route-flow-workspace) .command-rail>button span,
+  .app-shell:has(.manufacturing-universe-workspace) .command-rail>button span{
+    display:block!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;
+    white-space:nowrap!important;font-size:11px!important;font-weight:600!important;
+  }
+  .app-shell:has(.route-flow-workspace) .command-rail>button svg,
+  .app-shell:has(.manufacturing-universe-workspace) .command-rail>button svg{
+    flex:0 0 17px!important;width:17px!important;height:17px!important;
+  }
+  .app-shell:has(.route-flow-workspace) .command-rail>button.rail-active,
+  .app-shell:has(.manufacturing-universe-workspace) .command-rail>button.rail-active{
+    background:linear-gradient(90deg,rgba(0,142,255,.24),rgba(0,142,255,.07))!important;
+    border-color:#126cb5!important;color:#eff8ff!important;
+  }
+  .app-shell:has(.route-flow-workspace) .status-ribbon,
+  .app-shell:has(.manufacturing-universe-workspace) .status-ribbon{
+    margin-left:236px!important;width:calc(100% - 236px)!important;
+  }
+  .app-shell:has(.route-flow-workspace) .page-content,
+  .app-shell:has(.manufacturing-universe-workspace) .page-content{
+    position:static!important;inset:auto!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
+    width:calc(100% - 236px)!important;max-width:none!important;height:auto!important;
+    margin:0 0 0 236px!important;padding:20px clamp(12px,2.5vw,36px) 28px!important;
+    overflow:visible!important;
+  }
+}
+\n
