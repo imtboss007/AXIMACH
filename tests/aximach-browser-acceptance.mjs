@@ -447,6 +447,37 @@ async function main() {
     safeButtonResults.push({ title, visibleButtons: count, safeButtonsClicked: clicked });
   }
 
+  // Verify the only off-site launch action with a synthetic contact and no message send.
+  // Block the external request; the test checks that the intended WhatsApp URL opens.
+  const whatsappTarget = await page.evaluate(() => {
+    const key = "aximach.manufacturingData.v1";
+    const state = JSON.parse(localStorage.getItem(key) || "{}");
+    const vendor = (state.vendors || []).find(row => !row.deletedAt);
+    if (!vendor) throw new Error("No synthetic vendor is available for the WhatsApp link check.");
+    vendor.phone = "919876543210";
+    vendor.whatsappNumber = "919876543210";
+    localStorage.setItem(key, JSON.stringify(state));
+    return { id: vendor.id, company: vendor.company };
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await assertWorkspace(page, "WhatsApp external-link check");
+  await openModule(page, "Vendor Directory");
+  const vendorRow = page.locator(".vendor-record").filter({ hasText: whatsappTarget.company }).first();
+  await vendorRow.waitFor({ state: "visible", timeout: 5000 });
+  await vendorRow.click();
+  const whatsappButton = page.getByRole("button", { name: "Open WhatsApp", exact: true });
+  await whatsappButton.waitFor({ state: "visible", timeout: 5000 });
+  await context.route("https://wa.me/**", route => route.abort());
+  const whatsappPopupPromise = page.waitForEvent("popup", { timeout: 5000 });
+  await whatsappButton.click();
+  const whatsappPopup = await whatsappPopupPromise;
+  await whatsappPopup.waitForURL(url => url.origin === "https://wa.me" && url.pathname === "/919876543210", { timeout: 5000 });
+  if (whatsappPopup.url() !== "https://wa.me/919876543210") {
+    throw new Error("Vendor WhatsApp action opened an unexpected URL: " + whatsappPopup.url());
+  }
+  await whatsappPopup.close();
+  await context.unroute("https://wa.me/**");
+
   if (pageErrors.length) throw new Error("Browser runtime exceptions: " + pageErrors.join(" | "));
   console.log(JSON.stringify({
     fixture: { parts: fixture.parts.length, materials: fixture.materials.length, operations: fixture.operations.length,
