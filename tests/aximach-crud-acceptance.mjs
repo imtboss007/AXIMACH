@@ -408,6 +408,13 @@ async function processMapOperationCrud() {
   await visible(job, "synthetic production job");
   await job.getByRole("button", { name: "Process Plan", exact: true }).click();
   await visible(p.locator("#route-company"), "Process Map company scope");
+  // Re-select the linked masters explicitly before creating an operation. This
+  // verifies the route selectors themselves and prevents a stale navigation
+  // context from making the add action appear to do nothing.
+  await pick(p, "route-company", fixture.company.name);
+  await pick(p, "route-po", fixture.purchaseOrder.number);
+  await pick(p, "route-component-line", fixture.component.partNumber);
+  await visible(p.locator(".linked-component-summary").filter({ hasText: fixture.component.partNumber }), "selected Process Map component summary");
   await p.locator('button[aria-label="Add operation ▾"]').first().click();
   const addMenu = p.locator(".process-add-menu-anchor").first().locator('[role="menu"]');
   await visible(addMenu, "Process Map add-operation menu");
