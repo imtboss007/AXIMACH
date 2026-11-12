@@ -310,6 +310,16 @@ async function main() {
   for (const type of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"]) {
     if (!matrixClasses.includes("route-flow-curve-" + type)) throw new Error("Route Flow relationship edge type is missing from the rendered matrix: " + type);
   }
+  const relationshipMatrixText = await matrixRows.allInnerTexts();
+  for (const [target, type] of [
+    ["CNC shaft turning", "Split route"],
+    ["Insert installation", "Parallel route"],
+    ["Cover machining and assembly", "Alternate route"]
+  ]) {
+    if (!relationshipMatrixText.some(row => row.includes("VMC datum and port machining") && row.includes(target) && row.includes(type))) {
+      throw new Error("Route Flow matrix is missing the second-stage VMC fan-out link to " + target + " (" + type + ").");
+    }
+  }
 
   const layoutPicker = page.getByLabel("Choose route flow layout", { exact: true });
   const routeLayouts = await layoutPicker.locator("option").evaluateAll(nodes => nodes.map(node => node.value).filter(Boolean));
@@ -533,7 +543,8 @@ async function main() {
   await savedRelationship.waitFor({ state: "visible", timeout: 5000 });
   const persistedLegMarker = page.locator('button[aria-label="Open transport leg popup"][title="4-wheeler · VMC subcontractor → CNC shaft turning supplier"]');
   await persistedLegMarker.waitFor({ state: "visible", timeout: 5000 });
-  await persistedLegMarker.click();
+  await scrollGraphNodeIntoView(page, persistedLegMarker);
+  await persistedLegMarker.evaluate(element => element.click());
   const persistedLegDialog = page.getByRole("dialog", { name: "Transport and directory record details" });
   await persistedLegDialog.waitFor({ state: "visible", timeout: 5000 });
   const persistedLegDetails = await persistedLegDialog.innerText();
@@ -576,7 +587,7 @@ async function main() {
   await chooseNativeScope(page, ".manufacturing-universe-scope");
   const universeFanoutMarker = page.locator('.process-universe-transport-marker[title="4-wheeler · VMC subcontractor → CNC shaft turning supplier"]');
   await universeFanoutMarker.waitFor({ state: "visible", timeout: 7000 });
-  await universeFanoutMarker.click();
+  await universeFanoutMarker.evaluate(element => element.click());
   const universeFanoutDialog = page.getByRole("dialog", { name: "Transport and directory record details" });
   await universeFanoutDialog.waitFor({ state: "visible", timeout: 5000 });
   const universeFanoutDetails = await universeFanoutDialog.innerText();
