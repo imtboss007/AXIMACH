@@ -105,7 +105,7 @@ test("Production Plan hides inactive transport routes and Transport Directory re
   assert.ok(!operations.includes("const openTransport=(poId:string,lineId:string)"));
   assert.ok(!operations.includes("route.vendorId===draft.vendorId&&route.active!==false"));
   assert.ok(!operations.includes("<th>Transport</th>"));
-  assert.ok(operations.includes('onSelectModule("transport-master")'));
+  assert.ok(operations.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(operations.includes("Attach a route before or after a process from Process Map"));
   assert.ok(transport.includes("!vendors.some(vendor => vendor.id === vendorId)"));
 });
@@ -137,7 +137,7 @@ test("Transport route ownership stays in Transport Directory and Process Plan re
   assert.ok(!production.includes("transportLine"));
   assert.ok(!production.includes("openTransport("));
   assert.ok(!production.includes("jobTransportLegs"));
-  assert.ok(production.includes('onSelectModule("transport-master")'));
+  assert.ok(production.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(processPlan.includes("selectedTransportDirectoryRoute.active===false"));
   assert.ok(processPlan.includes("route.active!==false"));
   assert.ok(processPlan.includes("componentTransportLegs"));
@@ -1428,7 +1428,7 @@ test("Production Plan no longer owns the component transport registry or inline 
   assert.ok(!production.includes("saveTransport"));
   assert.ok(!production.includes("jobTransportLegs"));
   assert.ok(!production.includes("<th>Transport</th>"));
-  assert.ok(production.includes('onSelectModule("transport-master")'));
+  assert.ok(production.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(production.includes('onSelectModule("process-map"'));
 });
 
