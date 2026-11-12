@@ -467,18 +467,25 @@ async function main() {
   await vendorRow.click();
   const whatsappButton = page.getByRole("button", { name: "Open WhatsApp", exact: true });
   await whatsappButton.waitFor({ state: "visible", timeout: 5000 });
-  await context.route("https://wa.me/**", route => route.abort());
-  // noopener/noreferrer intentionally severs the opener relationship, so
-  // observe the new tab at BrowserContext level instead of Page "popup".
-  const whatsappPopupPromise = context.waitForEvent("page", { timeout: 5000 });
+  await page.evaluate(() => {
+    const calls = [];
+    Object.defineProperty(window, "__aximachOpenCalls", { value: calls, configurable: true });
+    window.open = (url, target, features) => {
+      calls.push({ url: String(url || ""), target: String(target || ""), features: String(features || "") });
+      return null;
+    };
+  });
   await whatsappButton.click();
-  const whatsappPopup = await whatsappPopupPromise;
-  await whatsappPopup.waitForURL(url => url.origin === "https://wa.me" && url.pathname === "/919876543210", { timeout: 5000 });
-  if (whatsappPopup.url() !== "https://wa.me/919876543210") {
-    throw new Error("Vendor WhatsApp action opened an unexpected URL: " + whatsappPopup.url());
+  const whatsappOpenCalls = await page.evaluate(() => window.__aximachOpenCalls || []);
+  const whatsappCall = whatsappOpenCalls.find(call =>
+    call.url === "https://wa.me/919876543210" &&
+    call.target === "_blank" &&
+    call.features.includes("noopener") &&
+    call.features.includes("noreferrer")
+  );
+  if (!whatsappCall) {
+    throw new Error("Vendor WhatsApp action did not request the expected secure external URL: " + JSON.stringify(whatsappOpenCalls));
   }
-  await whatsappPopup.close();
-  await context.unroute("https://wa.me/**");
 
   if (pageErrors.length) throw new Error("Browser runtime exceptions: " + pageErrors.join(" | "));
   console.log(JSON.stringify({
