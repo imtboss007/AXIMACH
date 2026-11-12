@@ -826,6 +826,7 @@ async function main() {
     printPopups: printPopupResults,
     globalModals: modalResults,
     processOperationDetails,
+    persistence: persistenceResults,
     responsive: responsiveResults,
     pageErrors
   }, null, 2));
