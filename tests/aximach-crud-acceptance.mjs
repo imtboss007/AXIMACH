@@ -422,7 +422,14 @@ async function processMapOperationCrud() {
   await visible(addMenu, "Process Map add-operation menu");
   await addMenu.getByRole("menuitem", { name: "Blank process operation" }).click();
   const editor = p.getByRole("dialog", { name: "Add process operation" });
-  await visible(editor, "new Process Map operation editor");
+  try {
+    await editor.waitFor({ state: "visible", timeout: 8000 });
+  } catch {
+    const noticeText = await p.locator(".notice-banner").allTextContents();
+    const prerequisiteText = await p.locator(".process-add-prerequisite-note").allTextContents();
+    const menuVisible = await addMenu.isVisible().catch(() => false);
+    throw new Error("Process Map editor did not open. Notices: " + noticeText.join(" | ") + " Prerequisites: " + prerequisiteText.join(" | ") + " Add menu visible: " + menuVisible);
+  }
   await customPick(p, "operation-category", category);
   await customPick(p, "operation-process-type", processName);
   await pick(p, "operation-execution-type", "Internal");
