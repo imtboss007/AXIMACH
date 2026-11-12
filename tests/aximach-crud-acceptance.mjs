@@ -798,7 +798,7 @@ async function dataExchangeCrud() {
     buffer: readFileSync(jsonPath)
   });
   await p.getByRole("button", { name: "Validate & preview", exact: true }).click();
-  await visible(p.locator(".costing-table").filter({ hasText: importedName }), "AXIMACH backup import preview");
+  await visible(p.locator(".costing-table").filter({ hasText: "moduleStores" }), "AXIMACH backup collection summary preview");
   await p.getByRole("button", { name: "Commit import", exact: true }).click();
   await visible(p.locator(".notice-banner").filter({ hasText: "AXIMACH backup merged by record ID" }), "AXIMACH JSON backup import result");
   const roundTrip = await p.evaluate(({ key, name }) => {
