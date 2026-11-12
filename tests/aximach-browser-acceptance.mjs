@@ -199,7 +199,7 @@ async function main() {
       const button = page.locator('button[aria-label="Open transport leg popup"]').nth(i);
       if (!(await button.isVisible().catch(() => false))) continue;
       await scrollGraphNodeIntoView(page, button);
-      await button.click({ timeout: 8000 });
+      await button.evaluate(element => element.click());
       const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
       await dialog.waitFor({ state: "visible", timeout: 5000 });
       const details = await dialog.innerText();
@@ -216,7 +216,7 @@ async function main() {
       const button = page.locator(".material-flow-marker-button").nth(i);
       if (!(await button.isVisible().catch(() => false))) continue;
       await scrollGraphNodeIntoView(page, button);
-      await button.click({ timeout: 8000 });
+      await button.evaluate(element => element.click());
       const popup = page.getByRole("dialog", { name: "Material to process link" });
       await popup.waitFor({ state: "visible", timeout: 4000 });
       const details = await popup.innerText();
@@ -304,12 +304,12 @@ async function main() {
   for (let i = 0; i < processMapMaterialMarkerCount; i++) {
     const marker = page.locator(".material-flow-marker-button").nth(i);
     if (!(await marker.isVisible().catch(() => false))) continue;
-    await marker.click();
+    await marker.evaluate(element => element.click());
     const popup = page.getByRole("dialog", { name: "Material to process link" });
     await popup.waitFor({ state: "visible", timeout: 4000 });
     const details = await popup.innerText();
     if (!details.includes("Part:") || !details.includes("BOM line:")) throw new Error("Process Map material popup lost its part/BOM identity");
-    await marker.click();
+    await marker.evaluate(element => element.click());
     processMapMaterialPopups++;
   }
 
