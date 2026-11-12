@@ -181,7 +181,7 @@ async function scrollGraphNodeIntoView(page, locator) {
 async function main() {
   await waitForServer();
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1 });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, acceptDownloads: true });
   await context.addInitScript(({ key, data }) => {
     localStorage.setItem(key, JSON.stringify(data));
     localStorage.setItem("aximach.storage.mode", "local-only");
@@ -348,6 +348,40 @@ async function main() {
   const materialPopupsOpened = visitedMaterialLinks.size;
   if (legPopupsOpened !== fixture.transportLegs.length || materialPopupsOpened !== fixture.materialProcessLinks.length) {
     throw new Error("Route Flow did not verify every expected transport/material popup");
+  }
+
+  const routeExportResults = [];
+  await page.locator(".route-flow-scope-bar select").nth(3).selectOption("Main route");
+  const routeExportFormat = page.getByLabel("Route export format", { exact: true });
+  for (const format of ["svg","png","csv","json"]) {
+    await routeExportFormat.selectOption(format);
+    const downloadPromise = page.waitForEvent("download", { timeout: 15000 });
+    await page.locator(".route-flow-export-controls").getByRole("button", { name: "Download", exact: true }).click();
+    const download = await downloadPromise;
+    const filePath = await download.path();
+    if (!filePath) throw new Error("Route Flow " + format + " export did not produce a download.");
+    const bytes = readFileSync(filePath);
+    if (format === "svg") {
+      const svg = bytes.toString("utf8");
+      if (!svg.includes("<svg") || !svg.includes("Material saw cutting") || !svg.includes("VMC datum and port machining")) {
+        throw new Error("Route Flow SVG export omitted its selected branch process stages.");
+      }
+    } else if (format === "png") {
+      if (!bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw new Error("Route Flow PNG export has an invalid PNG signature.");
+    } else if (format === "csv") {
+      const csv = bytes.toString("utf8");
+      for (const expected of ["Material process link","Transport","Relationship","ASSY-MP-01-BODY","mp-bom-body-al"]) {
+        if (!csv.includes(expected)) throw new Error("Route Flow CSV export omitted " + expected);
+      }
+    } else {
+      const json = JSON.parse(bytes.toString("utf8"));
+      if (json.materialProcessLinks?.length !== fixture.materialProcessLinks.length
+          || json.relationships?.length !== fixture.routeRelationships.length
+          || !fixture.transportLegs.filter(row => row.anchorOperationId === "mp-op-vmc").every(row => json.transportLegs?.some(item => item.id === row.id))) {
+        throw new Error("Route Flow JSON export omitted the part links, typed relationships or VMC fan-out transport records.");
+      }
+    }
+    routeExportResults.push({ format, filename: await download.suggestedFilename(), bytes: bytes.length });
   }
 
   // Process Map: exercise every one of its nineteen selectable views against the same fixture.
