@@ -316,10 +316,10 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
       <div className="workspace-title-actions">
         {moduleId === "components" && <button className="button-quiet" disabled={!selectedComponentForNavigation} onClick={() => onSelectModule("costing",selectedComponentContext)}><CircleDollarSign size={15}/> Component costing</button>}
         {moduleId === "purchasing" && <button className="button-quiet" disabled={!selectedPOForNavigation} onClick={() => onSelectModule("process-map",selectedPOContext)}><ArrowRight size={15}/> Open Process Map</button>}
-        <button className="button-primary" onClick={beginAdd}><Plus size={15}/> {moduleId === "companies" ? "Add Company" : moduleId === "purchasing" ? "Create Purchase Order" : "Add Component"}</button>
+        <button className="button-primary" onClick={beginAdd}><Plus size={15}/> {moduleId === "companies" ? (tab === "companies" ? "Add Company" : "Add Factory") : moduleId === "purchasing" ? "Create Purchase Order" : "Add Component"}</button>
       </div>
     </div>
-    {false && moduleId === "companies" && <div className="costing-tabs">
+    {moduleId === "companies" && <div className="costing-tabs">
       <button className={tab === "companies" ? "costing-tab-active" : ""} onClick={() => { setTab("companies"); resetForms(); }}><Building2 size={15}/> Companies ({companies.length})</button>
       <button className={tab === "factories" ? "costing-tab-active" : ""} onClick={() => { setTab("factories"); resetForms(); }}><Factory size={15}/> Factories ({factories.length})</button>
     </div>}
