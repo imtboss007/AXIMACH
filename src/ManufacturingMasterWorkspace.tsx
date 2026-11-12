@@ -236,7 +236,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     const targetIds=new Set(targets.map(row=>row.id));
     const affectedLines=orders.flatMap(po=>po.lines.filter(line=>targetIds.has(line.componentId)).map(line=>({poId:po.id,lineId:line.id})));
     const lineIds=new Set(affectedLines.map(row=>row.lineId));
-    const operationIds=new Set(operations.filter(row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)).map(row=>row.id));
+    const operationIds=new Set(activeRows(data.operations).filter(row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)).map(row=>row.id));
     const stamp=nowIso();
     update(current=>({...current,
       components:current.components.filter(row=>!targetIds.has(row.id)),
