@@ -468,7 +468,9 @@ async function main() {
   const whatsappButton = page.getByRole("button", { name: "Open WhatsApp", exact: true });
   await whatsappButton.waitFor({ state: "visible", timeout: 5000 });
   await context.route("https://wa.me/**", route => route.abort());
-  const whatsappPopupPromise = page.waitForEvent("popup", { timeout: 5000 });
+  // noopener/noreferrer intentionally severs the opener relationship, so
+  // observe the new tab at BrowserContext level instead of Page "popup".
+  const whatsappPopupPromise = context.waitForEvent("page", { timeout: 5000 });
   await whatsappButton.click();
   const whatsappPopup = await whatsappPopupPromise;
   await whatsappPopup.waitForURL(url => url.origin === "https://wa.me" && url.pathname === "/919876543210", { timeout: 5000 });
