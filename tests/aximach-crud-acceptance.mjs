@@ -310,13 +310,35 @@ async function materialAndBomCrud() {
   await bomRow.getByRole("button", { name: /Archive/ }).click();
   await p.waitForTimeout(150);
   if (await p.locator("tr").filter({ hasText: suffix + "-BOM-REV" }).count()) throw new Error("Archived BOM line remains active.");
+  await p.getByRole("button", { name: /Stock ledger/ }).click();
+  await pick(p, "stock-item", code);
+  await p.getByLabel("Transaction type").selectOption("Receipt");
+  await p.getByLabel("Quantity *").fill("25");
+  await pick(p, "stock-company", fixture.company.name);
+  await pick(p, "stock-vendor", fixture.vendors[0].company);
+  const receiptRef = suffix + "-GRN";
+  await p.getByPlaceholder("Receipt, issue slip, challan, batch…").fill(receiptRef);
+  await p.getByRole("button", { name: "Post movement" }).click();
+  const movement = p.locator("tr").filter({ hasText: code }).filter({ hasText: receiptRef }).first();
+  await visible(movement, "posted material receipt transaction");
+  if (!(await movement.innerText()).includes("25")) throw new Error("Receipt quantity was not recorded in the stock ledger.");
+
   await p.getByRole("button", { name: /Material catalogue/ }).click();
   materialRow = p.locator("tr").filter({ hasText: code }).first();
   await visible(materialRow, "material row before archive");
   await materialRow.getByRole("button", { name: /Delete/ }).click();
   await p.waitForTimeout(150);
   if (await p.locator("tr").filter({ hasText: code }).count()) throw new Error("Archived material remains active.");
-  await finishScenario(s, "Material Directory and BOM Add/Edit/Save/Archive");
+  const ledgerAfterArchive = await p.evaluate(({ key, code, receiptRef }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    const material = (root.materials || []).find(item => item.code === code);
+    const receipt = (root.inventoryTransactions || []).find(item => item.reference === receiptRef);
+    return { archived: Boolean(material?.deletedAt), receiptQuantity: receipt?.quantity, receiptType: receipt?.transactionType };
+  }, { key: seedKey, code, receiptRef });
+  if (!ledgerAfterArchive.archived || ledgerAfterArchive.receiptQuantity !== 25 || ledgerAfterArchive.receiptType !== "Receipt") {
+    throw new Error("Material archive must retain its posted append-only stock receipt.");
+  }
+  await finishScenario(s, "Material Directory and BOM CRUD plus append-only Stock Receipt");
 }
 
 
