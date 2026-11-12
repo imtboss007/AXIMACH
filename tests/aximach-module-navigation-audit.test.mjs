@@ -192,6 +192,18 @@ test("20 modules remain the only visible catalogue and stale 18-module labels ar
   assert.doesNotMatch(app, /(?:of|all) 18 modules/i);
 });
 
+test("generic workspace profiles contain no retired destinations outside the 20-module catalogue", () => {
+  const app = read("../src/App.tsx");
+  const catalogueStart = app.indexOf("const modules: ModuleItem[] = [");
+  const catalogueEnd = app.indexOf("\n];", catalogueStart);
+  const profileStart = app.indexOf("const moduleProfiles: Record<string, ModuleProfile> = {");
+  const profileEnd = app.indexOf("\n};", profileStart);
+  const catalogueIds = new Set([...app.slice(catalogueStart, catalogueEnd).matchAll(/\{ id: "([^"]+)"/g)].map(match => match[1]));
+  const profileIds = [...app.slice(profileStart, profileEnd).matchAll(/^\s*"([^"]+)"\s*:/gm)].map(match => match[1]);
+  assert.ok(profileIds.length > 0);
+  assert.equal(profileIds.filter(id => !catalogueIds.has(id)).length, 0, "retired module profiles must not remain");
+});
+
 test("Factory management remains nested under Company Directory, not a 21st module", () => {
   const master = read("../src/ManufacturingMasterWorkspace.tsx");
   assert.ok(master.includes('{moduleId === "companies" && <div className="costing-tabs">'));
