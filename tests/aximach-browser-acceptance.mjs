@@ -12,7 +12,11 @@ const seededData = {
   factories: [fixture.factory],
   purchaseOrders: [fixture.purchaseOrder],
   components: [fixture.component],
-  vendors: fixture.vendors,
+  vendors: fixture.vendors.map((vendor,index)=>({
+    ...vendor,
+    phone:"91987654000"+(index+1),
+    whatsappNumber:"91987654000"+(index+1)
+  })),
   operations: fixture.operations,
   quotations: fixture.quotations || [],
   materials: fixture.materials,
@@ -102,6 +106,61 @@ async function chooseNativeScope(page, scopeSelector) {
   await page.waitForTimeout(450);
 }
 
+
+async function assertVendorContactLinks(dialog, vendorId, label) {
+  const vendor = seededData.vendors.find(row => row.id === vendorId);
+  if (!vendor) throw new Error(label + " references an unknown vendor ID: " + vendorId);
+  const links = await dialog.locator(".ax-transport-contact-links a").evaluateAll(nodes =>
+    nodes.map(node => ({
+      href: node.getAttribute("href") || "",
+      target: node.getAttribute("target") || "",
+      rel: node.getAttribute("rel") || ""
+    }))
+  );
+  const expected = [
+    "tel:" + vendor.phone,
+    "https://wa.me/" + vendor.whatsappNumber.replace(/[^0-9]/g, ""),
+    "mailto:" + vendor.email
+  ];
+  for (const href of expected) {
+    if (!links.some(link => link.href === href)) {
+      throw new Error(label + " is missing the expected contact link " + href + ": " + JSON.stringify(links));
+    }
+  }
+  const whatsapp = links.find(link => link.href === expected[1]);
+  const rel = new Set(whatsapp.rel.split(/\s+/).filter(Boolean));
+  if (whatsapp.target !== "_blank" || !rel.has("noopener") || !rel.has("noreferrer")) {
+    throw new Error(label + " WhatsApp link must open safely in a new tab: " + JSON.stringify(whatsapp));
+  }
+  return { label, vendorId, links: expected.length, whatsappTarget: whatsapp.target, rel: whatsapp.rel };
+}
+
+async function verifyPrintPopup(page, label, action, expectedTitle, expectedText) {
+  const popupPromise = page.context().waitForEvent("page", { timeout: 7000 });
+  await action();
+  const popup = await popupPromise;
+  try {
+    await popup.locator("body").waitFor({ state: "visible", timeout: 7000 });
+    await popup.waitForFunction(() =>
+      document.title.trim().length > 0 && document.body && document.body.textContent.trim().length > 0,
+      null,
+      { timeout: 7000 }
+    );
+    const result = await popup.evaluate(() => ({ title: document.title, body: document.body.textContent || "" }));
+    if (result.title !== expectedTitle) {
+      throw new Error(label + " opened the wrong print window title: " + result.title);
+    }
+    for (const phrase of expectedText) {
+      if (!result.body.includes(phrase)) {
+        throw new Error(label + " print window did not contain expected content " + phrase + ": " + result.body.slice(0, 600));
+      }
+    }
+    return { label, title: result.title, contentChecks: expectedText.length };
+  } finally {
+    await popup.close().catch(() => {});
+  }
+}
+
 async function scrollGraphNodeIntoView(page, locator) {
   await locator.evaluate(el => {
     const scroller = el.closest(".route-flow-stage-scroll");
@@ -185,6 +244,7 @@ async function main() {
   };
   const visitedTransportIds = new Set();
   const visitedMaterialLinks = new Set();
+  const contactLinkResults = [];
   const branchResults = [];
   for (const branchName of branchOptions) {
     await branchPicker.selectOption({ label: branchName }).catch(async () => branchPicker.selectOption(branchName));
@@ -207,6 +267,8 @@ async function main() {
       if (!details.includes("TRANSPORT RECORD") || !details.includes("TRANSPORT ROUTE") || !match) {
         throw new Error("Transport popup must expose its exact transport leg and directory route identity: " + details);
       }
+      const transportRecord = fixture.transportLegs.find(row => row.id === match[1]);
+      contactLinkResults.push(await assertVendorContactLinks(dialog, transportRecord?.vendorId, "Route Flow " + match[1]));
       visitedTransportIds.add(match[1]);
       await dialog.getByRole("button", { name: "Close transport details" }).evaluate(element => element.click());
     }
@@ -358,6 +420,8 @@ async function main() {
       const details = await dialog.innerText();
       const match = details.match(/Material allocation ID:\s*(mp-cost-[A-Za-z0-9-]+)/);
       if (!match || !details.includes("MATERIAL MOVEMENT ROUTE")) throw new Error("Inbound material transport popup lost its exact material allocation record: " + details);
+      const materialRecord = fixture.materialCostEntries.find(row => row.id === match[1]);
+      contactLinkResults.push(await assertVendorContactLinks(dialog, materialRecord?.vendorId, "Manufacturing Universe material " + match[1]));
       universeMaterialTransportIds.add(match[1]);
       await dialog.getByRole("button", { name: "Close transport details" }).click();
     } else {
@@ -421,7 +485,7 @@ async function main() {
   // Inventory unambiguously safe navigation/view buttons in all remaining modules. Buttons
   // that save, delete, archive, send, dispatch, import or export business data are not blindly
   // fired; those require their own isolated CRUD scenario rather than accidental data mutation.
-  const blocked = /\b(save|update|delete|remove|archive|submit|send|dispatch|approve|reject|complete|finish|import|export|download|upload|connect|disconnect|schedule|confirm|pay|post|create|add record|add vendor|add component|add company)\b/i;
+  const blocked = /\b(save|update|delete|remove|archive|submit|send|dispatch|approve|reject|complete|finish|import|export|download|upload|connect|disconnect|schedule|confirm|pay|post|create|add record|add vendor|add component|add company|pdf|print|whatsapp)\b/i;
   const safeButtonResults = [];
   for (const title of moduleTitles) {
     await openModule(page, title);
@@ -447,7 +511,73 @@ async function main() {
     safeButtonResults.push({ title, visibleButtons: count, safeButtonsClicked: clicked });
   }
 
-  // Verify the only off-site launch action with a synthetic contact and no message send.
+  // Verify each print/PDF popup by checking its real generated document, then close it.
+  const printPopupResults = [];
+  await openModule(page, "Data Exchange Centre");
+  printPopupResults.push(await verifyPrintPopup(
+    page, "Data Exchange Centre PDF",
+    () => page.getByRole("button", { name: "Print / Save PDF", exact: true }).click(),
+    "AXIMACH Export",
+    ["AXIMACH · Company Directory", fixture.company.name]
+  ));
+
+  await openModule(page, "Purchase Orders");
+  printPopupResults.push(await verifyPrintPopup(
+    page, "Purchase Orders PDF",
+    () => page.getByRole("button", { name: "All PDF", exact: true }).click(),
+    "AXIMACH Purchase Orders",
+    [fixture.purchaseOrder.number, fixture.company.name]
+  ));
+
+  await openModule(page, "Component Directory");
+  printPopupResults.push(await verifyPrintPopup(
+    page, "Component Directory PDF",
+    () => page.getByRole("button", { name: "All PDF", exact: true }).click(),
+    "AXIMACH Components",
+    [fixture.component.partNumber, fixture.component.name]
+  ));
+
+  await openModule(page, "Process Directory");
+  printPopupResults.push(await verifyPrintPopup(
+    page, "Process Directory PDF",
+    () => page.getByRole("button", { name: "All PDF", exact: true }).click(),
+    "AXIMACH Process Directory",
+    [fixture.processDefinitions[0].processType]
+  ));
+
+  await openModule(page, "3D Command Centre");
+  await page.getByRole("button", { name: /Open process universe/i }).click();
+  await page.waitForTimeout(250);
+  await chooseProcessMapScope(page);
+  printPopupResults.push(await verifyPrintPopup(
+    page, "Process Map diagram PDF",
+    () => page.getByRole("button", { name: "Diagram PDF", exact: true }).click(),
+    "AXIMACH Process Map",
+    [fixture.component.partNumber]
+  ));
+
+  await openModule(page, "Route Flow & Relationships");
+  await chooseNativeScope(page, ".route-flow-scope-bar");
+  await page.getByLabel("Route export format", { exact: true }).selectOption("pdf");
+  printPopupResults.push(await verifyPrintPopup(
+    page, "Route Flow PDF",
+    () => page.getByRole("button", { name: "Download", exact: true }).click(),
+    fixture.component.partNumber + " · " + fixture.component.name + " · " + fixture.purchaseOrder.number,
+    [fixture.component.partNumber, fixture.purchaseOrder.number]
+  ));
+
+  await openModule(page, "Manufacturing Universe");
+  await chooseNativeScope(page, ".manufacturing-universe-scope");
+  await page.getByLabel("Universe export format", { exact: true }).selectOption("pdf");
+  printPopupResults.push(await verifyPrintPopup(
+    page, "Manufacturing Universe PDF",
+    () => page.getByRole("button", { name: "Download", exact: true }).click(),
+    "AXIMACH Universe",
+    ["AXIMACH · MANUFACTURING UNIVERSE", fixture.purchaseOrder.number, fixture.component.name]
+  ));
+
+  // Verify the Vendor Directory external action without opening WhatsApp.
+  await openModule(page, "Vendor Directory");
   // Block the external request; the test checks that the intended WhatsApp URL opens.
   await openModule(page, "Vendor Directory");
   const whatsappVendor = fixture.vendors[0];
@@ -492,6 +622,8 @@ async function main() {
     relationships: relationshipResults,
     processMapViews: visualModes,
     safeButtons: safeButtonResults,
+    contactLinks: contactLinkResults,
+    printPopups: printPopupResults,
     responsive: responsiveResults,
     pageErrors
   }, null, 2));
