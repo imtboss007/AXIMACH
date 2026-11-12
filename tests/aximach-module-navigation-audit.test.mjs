@@ -322,3 +322,17 @@ test("Process Map archive and delete also archive dependent route and material l
     assert.ok(block.includes("inspection"));
   }
 });
+
+test("Component Planned Cost supports Add, Edit, Update and archive on the same stable record ID", () => {
+  const directories = read("../src/SpecializedDirectoryWorkspace.tsx");
+  const plannedStart = directories.indexOf("function PlannedCostDirectory");
+  const planned = directories.slice(plannedStart);
+  assert.ok(planned.includes("const [editingId,setEditingId]=useState(\"\")"));
+  assert.ok(planned.includes("const edit=(row:PlannedCostEntry)=>"));
+  assert.ok(planned.includes("id:old?.id||makeId(\"planned-cost\")"));
+  assert.ok(planned.includes("createdAt:old?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined"));
+  assert.ok(planned.includes("const savedIds=new Set(created.map(row=>row.id))"));
+  assert.ok(planned.includes("onClick={()=>edit(row)}>Edit</button>"));
+  assert.ok(planned.includes("editingId?\"Save changes\""));
+  assert.ok(planned.includes("Planned-cost record archived."));
+});
