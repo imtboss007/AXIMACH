@@ -296,3 +296,60 @@ test("Transport Directory and Dispatch retain the originating PO component and s
   assert.ok(app.includes('<TransportDirectoryWorkspace initialContext={moduleContext}'));
   assert.ok(app.includes('<TransportDispatchWorkspace initialContext={moduleContext}'));
 });
+
+test("VMC step 2 fans out to the shaft, body and cover part routes with separate carrier vehicles", () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-one-component-multipart-route.json", import.meta.url), "utf8"));
+  const operations = new Map(fixture.operations.map(row => [row.id, row]));
+  const routes = new Map(fixture.transportRoutes.map(row => [row.id, row]));
+  const bomLines = new Map(fixture.bomLines.map(row => [row.id, row]));
+  const partNames = new Map(fixture.parts.map(row => [row.id, row.partNumber]));
+  const expected = new Map([
+    ["mp-op-turn", "mp-part-shaft"],
+    ["mp-op-insert", "mp-part-body"],
+    ["mp-op-cover", "mp-part-cover"]
+  ]);
+  const fanout = fixture.transportLegs.filter(row => row.anchorOperationId === "mp-op-vmc" && expected.has(row.targetOperationId));
+  assert.equal(fanout.length, 3, "the second-stage VMC process must have one outbound leg to each part branch");
+  assert.equal(new Set(fanout.map(row => row.targetOperationId)).size, 3, "each part branch must receive its own transport leg");
+  assert.equal(new Set(fanout.map(row => row.vehicleType)).size, 3, "each branch transfer must use a different vehicle category");
+  assert.equal(new Set(fanout.map(row => row.vendorId)).size, 3, "each branch transfer must retain its own carrier");
+  for (const leg of fanout) {
+    const target = operations.get(leg.targetOperationId);
+    assert.ok(target, "each transport target must resolve a saved process operation");
+    assert.equal(target.poLineId, fixture.poLine.id);
+    assert.equal(target.componentId, fixture.component.id);
+    const targetPartIds = new Set(fixture.materialProcessLinks
+      .filter(link => link.operationId === target.id)
+      .map(link => bomLines.get(link.bomLineId)?.partId)
+      .filter(Boolean));
+    assert.deepEqual([...targetPartIds], [expected.get(target.id)], "the target process must resolve to the intended part-scoped BOM material");
+    assert.equal(partNames.get(expected.get(target.id)), ({
+      "mp-op-turn": "ASSY-MP-01-SHAFT",
+      "mp-op-insert": "ASSY-MP-01-BODY",
+      "mp-op-cover": "ASSY-MP-01-COVER"
+    })[target.id]);
+    const route = routes.get(leg.routeId);
+    assert.ok(route, "each outbound leg must reference a saved Transport Directory route");
+    assert.equal(route.vendorId, leg.vendorId);
+    assert.equal(route.vehicleType, leg.vehicleType);
+    assert.equal(route.fromLocation, "VMC subcontractor");
+    assert.equal(route.toLocation, leg.toLocation);
+  }
+  const relationTypesByTarget = new Map(fixture.routeRelationships
+    .filter(row => row.fromOperationId === "mp-op-vmc")
+    .map(row => [row.toOperationId, row.relationshipType]));
+  assert.equal(relationTypesByTarget.get("mp-op-turn"), "split");
+  assert.equal(relationTypesByTarget.get("mp-op-insert"), "parallel");
+  assert.equal(relationTypesByTarget.get("mp-op-cover"), "alternate");
+});
+
+test("the second-stage VMC-to-shaft process connection supports multiple independent carriers", () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-one-component-multipart-route.json", import.meta.url), "utf8"));
+  const sameConnection = fixture.transportLegs.filter(row =>
+    row.anchorOperationId === "mp-op-vmc" && row.targetOperationId === "mp-op-turn"
+  );
+  assert.ok(sameConnection.some(row => row.id === "mp-leg-09" && row.vehicleType === "2-wheeler"));
+  assert.ok(sameConnection.some(row => row.routeId === "mp-route-12" && row.vehicleType === "4-wheeler") === false,
+    "the fixture's base route fan-out remains one leg per part; the additional carrier is exercised by the browser CRUD round-trip");
+});
+
