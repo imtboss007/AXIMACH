@@ -4,13 +4,13 @@ import AXIMACHOrb from "./AXIMACHOrb";
 import { ComponentIcon } from "./IconStudio";
 
 type LinkedNavigationContext={companyId?:string;poId?:string;poLineId?:string;componentId?:string;operationId?:string;vendorId?:string};
-type Props = { onSelectModule:(id:string,context?:LinkedNavigationContext)=>void; onOpenCommandCentre:()=>void; onOpenModules:()=>void };
+type Props = { onSelectModule:(id:string,context?:LinkedNavigationContext)=>void; onOpenCommandCentre:()=>void; onOpenModules:()=>void; moduleCount:number };
 
 function Kpi({label,value,detail,icon:Icon}:{label:string;value:number;detail:string;icon:LucideIcon}) {
   return <article className="metric-card dashboard-metric-card"><div className="metric-card-top"><span>{label}</span><span className="metric-icon blue"><Icon size={18}/></span></div><strong className="metric-number">{value.toLocaleString("en-IN")}</strong><div className="metric-card-bottom"><span className="metric-trend"><ArrowUpRight size={13}/> Saved records</span><span>{detail}</span></div></article>;
 }
 
-export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,onOpenModules}:Props) {
+export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,onOpenModules,moduleCount}:Props) {
   const {data,syncStatus}=useManufacturingData();
   const companies=activeRows(data.companies), components=activeRows(data.components), pos=activeRows(data.purchaseOrders), vendors=activeRows(data.vendors), ops=activeRows(data.operations);
   const lines=pos.flatMap(po=>po.lines.filter(line=>!line.deletedAt).map(line=>({po,line})));
@@ -26,7 +26,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
       <div className="dashboard-welcome-copy"><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH / MANUFACTURING OPERATIONS</div>
         <h1>Manufacturing Dashboard<span>.</span></h1>
         <p>Live overview of companies, purchase orders, components, production operations, quality holds and delivery risks. Metrics are derived only from saved AXIMACH records.</p>
-        <div className="hero-actions"><button className="button-primary" onClick={onOpenCommandCentre}><Command size={16}/> Open 3D Command Centre <ArrowRight size={15}/></button><button className="button-quiet" onClick={onOpenModules}>View all 18 modules <ArrowRight size={15}/></button></div>
+        <div className="hero-actions"><button className="button-primary" onClick={onOpenCommandCentre}><Command size={16}/> Open 3D Command Centre <ArrowRight size={15}/></button><button className="button-quiet" onClick={onOpenModules}>View all {moduleCount} modules <ArrowRight size={15}/></button></div>
       </div>
       <div className="dashboard-welcome-orb"><AXIMACHOrb surface="dashboard" onSelectModule={onSelectModule}/></div>
     </section>
@@ -57,7 +57,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
         <div className="dashboard-job-summary"><div><strong>{pendingJobs.length}</strong><span>Jobs in progress</span></div><div><strong>{lines.length-pendingJobs.length}</strong><span>Jobs finished</span></div><div><strong>{ops.length}</strong><span>Process operations</span></div></div><button className="related-all" onClick={()=>onSelectModule("production")}>Open Production Plan <ArrowRight size={14}/></button>
       </div>
     </section>
-    <section className="module-shortcuts dashboard-shortcuts"><div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUICK ACCESS</div><h2>Open a module<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>All 18 modules <ArrowRight size={15}/></button></div>
+    <section className="module-shortcuts dashboard-shortcuts"><div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUICK ACCESS</div><h2>Open a module<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>All {moduleCount} modules <ArrowRight size={15}/></button></div>
       <div className="shortcut-grid">{[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["production","Production Plan & Process Plan"],["costing","Costing & Payment"],["inventory","BOM & Inventory"],["quality","Quality Inspection"]].map(([id,label])=><button className="shortcut-card" key={id} onClick={()=>onSelectModule(id)}><span className="shortcut-icon"><ArrowUpRight size={18}/></span><span><strong>{label}</strong><small>Open workspace</small></span><ArrowRight size={15}/></button>)}</div>
     </section>
     <div className="module-safety-note"><ShieldCheck size={15}/><span>Dashboard figures use saved local/shared AXIMACH records only. No sample jobs, simulated machine readings or fabricated financial metrics are displayed.</span></div>
