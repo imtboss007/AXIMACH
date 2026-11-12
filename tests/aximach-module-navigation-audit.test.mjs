@@ -336,3 +336,11 @@ test("Component Planned Cost supports Add, Edit, Update and archive on the same 
   assert.ok(planned.includes("editingId?\"Save changes\""));
   assert.ok(planned.includes("Planned-cost record archived."));
 });
+
+test("Manufacturing Universe renders start-placement transport legs in the primary route lane", () => {
+  const scene = read("../src/ProcessUniverse3D.tsx");
+  assert.ok(scene.includes('!lane.alternate&&lane.rows[0]'));
+  assert.ok(scene.includes('leg.placement==="start"'));
+  assert.ok(scene.includes('leg.anchorOperationId===lane.rows[0].id'));
+  assert.ok(scene.includes(".map(renderTransportLeg)"));
+});
