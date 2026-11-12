@@ -368,16 +368,108 @@ async function processMapOperationCrud() {
   const editDialog = p.getByRole("dialog", { name: "Edit process operation" });
   await visible(editDialog, "edit Process Map operation editor");
   await p.getByPlaceholder("Setup, process constraints, delivery instructions").fill("Updated synthetic operation record.");
+  await pick(p, "operation-payment-status", "Paid");
+  await p.getByLabel("Total amount paid (₹)").fill("125");
+  await p.getByPlaceholder("Voucher / UTR / receipt number").fill(suffix + "-PAYMENT");
   await editDialog.getByRole("button", { name: "Save changes", exact: true }).click();
   row = p.locator("tr.process-operation-row").filter({ hasText: processName }).first();
   await visible(row, "updated Process Map operation row");
   if (!(await row.innerText()).includes("Updated synthetic operation record.")) throw new Error("Process Map edit did not update the saved operation notes.");
+  const operationId = await p.evaluate(({ key, name }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    return (root.operations || []).find(item => item.name === name && !item.deletedAt)?.id || "";
+  }, { key: seedKey, name: processName });
+  if (!operationId) throw new Error("Updated operation was not persisted under its stable record ID.");
+  const recordedPayment = await p.evaluate(({ key, operationId }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    return (root.paymentTransactions || []).filter(item => item.operationId === operationId && !item.deletedAt)
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  }, { key: seedKey, operationId });
+  if (recordedPayment !== 125) throw new Error("Process Plan payment total did not append the exact 125-unit ledger entry; found " + recordedPayment);
   await row.locator('button[title="Delete process"]').click();
   await p.waitForTimeout(250);
   if (await p.locator("tr.process-operation-row").filter({ hasText: processName }).count()) {
     throw new Error("Archived Process Map operation remains in the active route register.");
   }
-  await finishScenario(s, "Process Map Add/Edit/Save/Archive operation");
+  const retainedHistory = await p.evaluate(({ key, operationId }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    return {
+      archived: Boolean((root.operations || []).find(item => item.id === operationId)?.deletedAt),
+      payment: (root.paymentTransactions || []).filter(item => item.operationId === operationId).reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    };
+  }, { key: seedKey, operationId });
+  if (!retainedHistory.archived || retainedHistory.payment !== 125) throw new Error("Process archive must retain its archived operation and immutable payment history.");
+  await finishScenario(s, "Process Map Add/Edit/Payment ledger/Delete with history retention");
+}
+
+
+async function dispatchStatusCrud() {
+  const s = await newScenario(), p = s.page;
+  await openModule(p, "Transport & Dispatch");
+  const row = p.locator("tr").filter({ hasText: fixture.purchaseOrder.number }).filter({ hasText: fixture.component.partNumber }).first();
+  await visible(row, "synthetic transport dispatch row");
+  const status = row.locator("select");
+  await status.selectOption("Running");
+  if (await status.inputValue() !== "Running") throw new Error("Dispatch status did not update to Running.");
+  await status.selectOption("Complete");
+  if (await status.inputValue() !== "Complete") throw new Error("Dispatch status did not update to Complete.");
+  await finishScenario(s, "Transport & Dispatch status Update");
+}
+async function qualityInspectionCrud() {
+  const s = await newScenario(), p = s.page;
+  const operation = fixture.operations[0];
+  const characteristic = suffix + " Bore diameter";
+  await openModule(p, "Quality Inspection");
+  await p.getByLabel("PO component / operation").selectOption(operation.id);
+  await p.getByPlaceholder("Bore diameter, flatness, length…").fill(characteristic);
+  await p.getByLabel("Nominal value").fill("10");
+  await p.getByLabel("Lower limit").fill("9.9");
+  await p.getByLabel("Upper limit").fill("10.1");
+  await p.getByPlaceholder("Actual reading").fill("10.02");
+  await p.getByRole("button", { name: "Save measurement" }).click();
+  const row = p.locator("tr").filter({ hasText: operation.name }).first();
+  await visible(row, "quality inspection operation row");
+  await visible(row.locator(".inspection-history-cell").filter({ hasText: characteristic }), "saved immutable inspection measurement");
+  if (!(await row.locator(".inspection-history-cell").innerText()).includes("Pass")) throw new Error("Tolerance pass result was not calculated for the saved measurement.");
+  const quantities = row.locator('input[type="number"]');
+  await quantities.nth(0).fill("3");
+  await quantities.nth(1).fill("2");
+  await quantities.nth(2).fill("1");
+  await row.locator("select").selectOption("Running");
+  if (await quantities.nth(0).inputValue() !== "3" || await quantities.nth(1).inputValue() !== "2" || await quantities.nth(2).inputValue() !== "1") {
+    throw new Error("Quality quantities did not update on the linked operation record.");
+  }
+  await finishScenario(s, "Quality Inspection measurement Add and linked operation Update");
+}
+async function costingQuoteCrud() {
+  const s = await newScenario(), p = s.page;
+  const quoteRef = suffix + "-QUOTE";
+  await openModule(p, "Costing & Payment");
+  await pick(p, "cost-company", fixture.company.name);
+  await pick(p, "cost-po", fixture.purchaseOrder.number);
+  await pick(p, "cost-po-line", fixture.component.partNumber);
+  await pick(p, "cost-operation", fixture.operations[0].name);
+  await p.getByRole("button", { name: "Add process quotation" }).click();
+  const form = p.locator(".linked-quote-form");
+  await visible(form, "new supplier quotation form");
+  await form.getByLabel("Vendor / supplier *").selectOption("mp-vendor-machining");
+  await form.getByPlaceholder("Supplier quote / email / RFQ reference").fill(quoteRef);
+  await form.getByPlaceholder("Enter quote received").fill("456");
+  await form.getByPlaceholder("Scope, exclusions, taxes, delivery terms, validity…").fill("Synthetic immutable quote history.");
+  await form.getByRole("button", { name: "Save quotation" }).click();
+  const row = p.locator("tr").filter({ hasText: quoteRef }).first();
+  await visible(row, "saved supplier quotation");
+  await row.getByRole("button", { name: "Use this rate" }).click();
+  await p.waitForTimeout(150);
+  if (!(await row.innerText()).includes("Selected")) throw new Error("Quotation was not marked Selected after applying its rate to the operation.");
+  const quoteHistory = await p.evaluate(({ key, quoteRef }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    return (root.quotations || []).find(item => item.quoteReference === quoteRef);
+  }, { key: seedKey, quoteRef });
+  if (!quoteHistory || quoteHistory.status !== "Selected" || quoteHistory.ratePerPart !== 456) {
+    throw new Error("Selected quotation was not persisted with the exact rate and status.");
+  }
+  await finishScenario(s, "Costing & Payment quotation Add/Save/Select");
 }
 
 async function main() {
@@ -394,6 +486,9 @@ async function main() {
   await materialAndBomCrud();
   await followUpAssignmentCrud();
   await processMapOperationCrud();
+  await dispatchStatusCrud();
+  await qualityInspectionCrud();
+  await costingQuoteCrud();
   console.log("AXIMACH CRUD browser acceptance passed: " + scenarioCount + " isolated scenarios.");
 }
 try {
