@@ -518,15 +518,59 @@ async function main() {
 
   const exportFormat = page.getByLabel("Universe export format", { exact: true });
   const exportFormats = await exportFormat.locator("option").evaluateAll(nodes => nodes.map(node => node.value).filter(Boolean));
+  const universeExportResults = [];
   for (const format of exportFormats) {
     await exportFormat.selectOption(format);
     await assertWorkspace(page, "Universe export format " + format);
+    if (format === "pdf") continue; // The PDF print popup is checked in the dedicated popup sweep.
+    const downloadPromise = page.waitForEvent("download", { timeout: 15000 });
+    await page.locator(".manufacturing-universe-actions .route-flow-export-controls").getByRole("button", { name: "Download", exact: true }).click();
+    const download = await downloadPromise;
+    const filePath = await download.path();
+    if (!filePath) throw new Error("Manufacturing Universe " + format + " export did not produce a download.");
+    const bytes = readFileSync(filePath);
+    if (format === "svg") {
+      const svg = bytes.toString("utf8");
+      if (!svg.includes("<svg") || !svg.includes("CNC shaft turning") || !svg.includes("Material saw cutting")) {
+        throw new Error("Manufacturing Universe SVG export omitted saved process stages.");
+      }
+    } else if (format === "png") {
+      if (!bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw new Error("Manufacturing Universe PNG export has an invalid PNG signature.");
+    } else if (format === "csv") {
+      const csv = bytes.toString("utf8");
+      for (const expected of ["Material process link","Transport leg","Relationship","ASSY-MP-01-SHAFT","mp-leg-09","mp-rel-12","EN24 shaft blank"]) {
+        if (!csv.includes(expected)) throw new Error("Manufacturing Universe CSV export omitted " + expected);
+      }
+    } else {
+      const json = JSON.parse(bytes.toString("utf8"));
+      if (json.stages?.length !== fixture.operations.length
+          || json.materials?.length !== fixture.materialCostEntries.length
+          || json.materialProcessLinks?.length !== fixture.materialProcessLinks.length
+          || json.transportLegs?.length !== fixture.transportLegs.length
+          || json.relationships?.length !== fixture.routeRelationships.length) {
+        throw new Error("Manufacturing Universe JSON export omitted one or more saved process, material, transport or relationship records.");
+      }
+    }
+    universeExportResults.push({ format, filename: await download.suggestedFilename(), bytes: bytes.length });
   }
   if (exportFormats.length !== 5) throw new Error("Expected SVG, PNG, PDF, CSV and JSON export format choices");
   const universeText = await page.locator(".page-content").innerText();
   for (const expected of ["Multi-part hydraulic control assembly", "Material saw cutting", "VMC datum and port machining"]) {
     if (!universeText.includes(expected)) throw new Error("Manufacturing Universe is missing " + expected);
   }
+
+  // Route simulation is a visual aid only; it must not mutate saved production data.
+  const simulationResults = [];
+  const operationsBeforeSimulation = await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}").operations || []));
+  await page.getByRole("button", { name: "Simulate route", exact: true }).click();
+  await page.waitForFunction(() => /STEP 2\//.test(document.body.innerText), null, { timeout: 5000 });
+  await page.getByRole("button", { name: "Pause simulation", exact: true }).click();
+  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  const operationsAfterSimulation = await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}").operations || []));
+  if (operationsAfterSimulation !== operationsBeforeSimulation) {
+    throw new Error("Manufacturing Universe visual route simulation changed saved operation records.");
+  }
+  simulationResults.push({ reachedStepTwo: true, paused: true, reset: true, persistedOperationsUnchanged: true });
 
   // Mutating acceptance: add one conditional relationship and a second carrier leg,
   // then prove both survive a full reload and remain linked across workspaces.
@@ -871,6 +915,9 @@ async function main() {
     printPopups: printPopupResults,
     globalModals: modalResults,
     processOperationDetails,
+    routeExports: routeExportResults,
+    universeExports: universeExportResults,
+    simulation: simulationResults,
     persistence: persistenceResults,
     responsive: responsiveResults,
     pageErrors
