@@ -437,6 +437,12 @@ async function processMapOperationCrud() {
   await editor.getByRole("button", { name: "Save operation", exact: true }).click();
   await p.waitForTimeout(250);
   let row = p.locator("tr.process-operation-row").filter({ hasText: processName }).first();
+  if (!(await row.isVisible().catch(() => false))) {
+    const notices = await p.locator(".notice-banner,[role=alert]").allTextContents();
+    const editorVisible = await editor.isVisible().catch(() => false);
+    const editorText = editorVisible ? (await editor.innerText()).slice(-1800) : "";
+    throw new Error("Process Map save did not create operation row. Notices: " + notices.join(" | ") + " Editor still open: " + editorVisible + " Editor content: " + editorText);
+  }
   await visible(row, "new saved process operation row");
   await row.locator('button[title="Edit process"]').click();
   const editDialog = p.getByRole("dialog", { name: "Edit process operation" });
