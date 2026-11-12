@@ -583,7 +583,7 @@ test("Delete process archives the selected node and all descendants without dest
   assert.ok(workspace.includes("while (frontier.length)"));
   assert.ok(workspace.includes("child.parentId === parentId"));
   assert.ok(workspace.includes("quotations: current.quotations.map(quote => ids.has(quote.operationId)"));
-  assert.ok(workspace.includes("payment, inspection and production history are retained for audit"));
+  assert.ok(workspace.includes("payment and inspection history was retained"));
   assert.ok(workspace.includes('title="Delete process"'));
   assert.ok(workspace.includes("Delete process</button>"));
 });
@@ -1066,7 +1066,7 @@ test("Icon Studio strips saved outline/filled prefixes before rendering Tabler c
 
 test("CI skips Electron binary download for frontend and Android jobs only", () => {
   const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
-  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 2);
+  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 3);
   const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
   assert.ok(!windows.includes("ELECTRON_SKIP_BINARY_DOWNLOAD"));
 });
