@@ -1415,7 +1415,7 @@
     {
       "id": "mp-route-12",
       "vendorId": "mp-vendor-material",
-      "fromLocation": "VMC shop",
+      "fromLocation": "VMC subcontractor",
       "toLocation": "CNC shaft turning supplier",
       "vehicleType": "4-wheeler",
       "fixedAmount": 650,
