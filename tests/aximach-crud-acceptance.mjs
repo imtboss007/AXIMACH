@@ -49,9 +49,13 @@ async function waitForServer() {
 async function newScenario() {
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1 });
   await context.addInitScript(({ key, data }) => {
+    // addInitScript executes again on every reload. Seed only once per tab so
+    // persistence acceptance never overwrites the records it is trying to verify.
+    if (sessionStorage.getItem("aximach.acceptance.seeded.v1") === "done") return;
     localStorage.setItem(key, JSON.stringify(data));
     localStorage.setItem("aximach.storage.mode", "local-only");
     localStorage.setItem("aximach.legacy-demo-cleanup.v2", "done");
+    sessionStorage.setItem("aximach.acceptance.seeded.v1", "done");
   }, { key: seedKey, data: seededData });
   const page = await context.newPage();
   const pageErrors = [];
