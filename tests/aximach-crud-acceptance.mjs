@@ -408,7 +408,7 @@ async function processMapOperationCrud() {
   await visible(job, "synthetic production job");
   await job.getByRole("button", { name: "Process Plan", exact: true }).click();
   await visible(p.locator("#route-company"), "Process Map company scope");
-  await p.locator('button[aria-label="Add operation ▾"]').click();
+  await p.locator('button[aria-label="Add operation ▾"]').first().click();
   await p.getByRole("menuitem", { name: "Blank process operation" }).click();
   const editor = p.getByRole("dialog", { name: "Add process operation" });
   await visible(editor, "new Process Map operation editor");
