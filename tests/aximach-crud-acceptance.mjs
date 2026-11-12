@@ -782,7 +782,9 @@ async function dataExchangeCrud() {
   const jsonDownload = await jsonDownloadPromise;
   const jsonPath = await jsonDownload.path();
   if (!jsonPath) throw new Error("Full JSON backup export did not produce a downloadable file.");
-  const backup = JSON.parse(readFileSync(jsonPath, "utf8"));
+  const backupText = readFileSync(jsonPath, "utf8");
+  if (backupText.charCodeAt(0) === 0xfeff) throw new Error("Full JSON backup must be exported without a UTF-8 BOM.");
+  const backup = JSON.parse(backupText);
   if (!Array.isArray(backup.companies) ||
       !backup.companies.some(item => item.name === importedName) ||
       !Array.isArray(backup.purchaseOrders) ||
@@ -795,7 +797,8 @@ async function dataExchangeCrud() {
   await fileInput.setInputFiles({
     name: "AXIMACH-roundtrip-backup.json",
     mimeType: "application/json",
-    buffer: readFileSync(jsonPath)
+    // Import a BOM-prefixed copy to verify the JSON parser accepts common UTF-8 backup files.
+    buffer: Buffer.concat([Buffer.from("\uFEFF", "utf8"), readFileSync(jsonPath)])
   });
   await p.getByRole("button", { name: "Validate & preview", exact: true }).click();
   await visible(p.locator(".costing-table").filter({ hasText: "moduleStores" }), "AXIMACH backup collection summary preview");
