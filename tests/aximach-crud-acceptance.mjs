@@ -319,6 +319,29 @@ async function materialAndBomCrud() {
   await finishScenario(s, "Material Directory and BOM Add/Edit/Save/Archive");
 }
 
+
+async function followUpAssignmentCrud() {
+  const s = await newScenario(), p = s.page;
+  await openModule(p, "Company Directory");
+  const dock = p.locator(".ax-followup-assignment-dock");
+  await visible(dock, "Follow-up assignment dock");
+  await dock.getByRole("button", { name: /Follow-up people/ }).click();
+  const panel = p.getByRole("dialog", { name: "Follow-up people for Company Directory" });
+  await visible(panel, "Follow-up assignment panel");
+  const selects = panel.locator("select");
+  await selects.nth(0).selectOption(fixture.company.id);
+  await selects.nth(1).selectOption("company:" + fixture.company.id);
+  await panel.getByRole("button", { name: "Add", exact: true }).click();
+  const person = panel.locator(".ax-followup-person").filter({ hasText: fixture.company.contactPerson }).first();
+  await visible(person, "assigned follow-up person");
+  await person.getByRole("button", { name: "Unlink " + fixture.company.contactPerson }).click();
+  await p.waitForTimeout(150);
+  if (await panel.locator(".ax-followup-person").filter({ hasText: fixture.company.contactPerson }).count()) {
+    throw new Error("Unlinked follow-up person remains assigned to the company.");
+  }
+  await finishScenario(s, "Follow-up people assignment Add/Unlink");
+}
+
 async function main() {
   await waitForServer();
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
@@ -331,6 +354,7 @@ async function main() {
   await processDirectoryCrud();
   await plannedCostCrud();
   await materialAndBomCrud();
+  await followUpAssignmentCrud();
   console.log("AXIMACH CRUD browser acceptance passed: " + scenarioCount + " isolated scenarios.");
 }
 try {
