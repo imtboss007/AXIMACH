@@ -1075,18 +1075,20 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     }
     const ids = new Set([target.id, ...descendants]);
     const count = ids.size;
-    if (!window.confirm("Delete process " + target.name + "? This will archive " + count + " process record(s), including linked sub-process / branch descendants. Quotations are archived; payment, inspection and production history are retained for audit.")) return;
+    if (!window.confirm("Delete process " + target.name + "? This will archive " + count + " process record(s), including linked sub-process / branch descendants. Route relationships, material-to-process links and quotations are archived; payment, inspection, production and transport history are retained for audit.")) return;
     const stamp = nowIso();
     update(current => ({
       ...current,
       operations: current.operations.map(item => ids.has(item.id) ? { ...item, deletedAt: stamp, updatedAt: stamp } : item),
+      routeRelationships: (current.routeRelationships || []).map(row => (ids.has(row.fromOperationId) || ids.has(row.toOperationId)) && !row.deletedAt ? { ...row, deletedAt: stamp, updatedAt: stamp } : row),
+      materialProcessLinks: (current.materialProcessLinks || []).map(row => ids.has(row.operationId) && !row.deletedAt ? { ...row, deletedAt: stamp, updatedAt: stamp } : row),
       quotations: current.quotations.map(quote => ids.has(quote.operationId) && !quote.deletedAt ? { ...quote, deletedAt: stamp, updatedAt: stamp } : quote)
     }));
     setSelectedOperationId("");
     setSelectedOperationIds(current => current.filter(id => !ids.has(id)));
     setShowEditor(false);
     setEditingId("");
-    onNotice("Deleted " + count + " process record(s). Related quotation history was archived; payment and inspection history was retained.");
+    onNotice("Deleted " + count + " process record(s). Route relationships, material-to-process links and quotations were archived; payment and inspection history was retained.");
   };
 
   const finishSelectedOperations = () => {
@@ -1221,10 +1223,16 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   };
 
   const archiveOperation = (op: OperationRecord) => {
-    if (!window.confirm("Archive this operation? Its history and quotations will be retained.")) return;
+    if (!window.confirm("Archive this operation? Its route relationships, material-to-process links and quotations will also be archived; payment, inspection and transport history will remain.")) return;
     const stamp = nowIso();
-    update(current => ({ ...current, operations: current.operations.map(item => item.id === op.id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item), quotations: current.quotations.map(q => q.operationId === op.id && !q.deletedAt ? { ...q, deletedAt: stamp, updatedAt: stamp } : q) }));
-    setSelectedOperationId(""); onNotice("Operation archived. Linked quotation history was retained as archived history.");
+    update(current => ({
+      ...current,
+      operations: current.operations.map(item => item.id === op.id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item),
+      routeRelationships: (current.routeRelationships || []).map(row => (row.fromOperationId === op.id || row.toOperationId === op.id) && !row.deletedAt ? { ...row, deletedAt: stamp, updatedAt: stamp } : row),
+      materialProcessLinks: (current.materialProcessLinks || []).map(row => row.operationId === op.id && !row.deletedAt ? { ...row, deletedAt: stamp, updatedAt: stamp } : row),
+      quotations: current.quotations.map(q => q.operationId === op.id && !q.deletedAt ? { ...q, deletedAt: stamp, updatedAt: stamp } : q)
+    }));
+    setSelectedOperationId(""); onNotice("Operation archived. Route relationships, material-to-process links and quotations were archived; payment, inspection and transport history were retained.");
   };
 
   const finishJob = () => {
