@@ -253,7 +253,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
       bomLines:current.bomLines.filter(row=>!targetIds.has(row.componentId)),
       componentParts:(current.componentParts||[]).filter(row=>!targetIds.has(row.componentId)),
       materialCostEntries:(current.materialCostEntries||[]).filter(row=>!targetIds.has(row.componentId)),
-      plannedCosts:current.plannedCosts.filter(row=>row.componentId?!targetIds.has(row.componentId):!targets.some(component=>row.componentNumber.trim().toLowerCase()===component.partNumber.trim().toLowerCase()||row.componentName.trim().toLowerCase()===component.name.trim().toLowerCase())),
+      plannedCosts:current.plannedCosts.filter(row=>!row.componentId||!targetIds.has(row.componentId)),
       followUpAssignments:(current.followUpAssignments||[]).map(row=>targetIds.has(row.recordId)||operationIds.has(row.recordId)?{...row,deletedAt:stamp,updatedAt:stamp}:row)
     }));
     setSelectedComponentIds(current=>current.filter(id=>!targetIds.has(id)));
