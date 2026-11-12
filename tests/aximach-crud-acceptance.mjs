@@ -415,7 +415,9 @@ async function processMapOperationCrud() {
   await pick(p, "route-po", fixture.purchaseOrder.number);
   await pick(p, "route-component-line", fixture.component.partNumber);
   await visible(p.locator(".linked-component-summary").filter({ hasText: fixture.component.partNumber }), "selected Process Map component summary");
-  await p.locator('button[aria-label="Add operation ▾"]').first().click();
+  // Open the menu from the toolbar that owns the rendered menu element;
+  // the title-row Add Operation button is a separate toggle without a menu slot.
+  await p.locator(".process-add-menu-anchor").first().locator('button[aria-label="Add operation ▾"]').click();
   const addMenu = p.locator(".process-add-menu-anchor").first().locator('[role="menu"]');
   await visible(addMenu, "Process Map add-operation menu");
   await addMenu.getByRole("menuitem", { name: "Blank process operation" }).click();
