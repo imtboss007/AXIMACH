@@ -342,6 +342,44 @@ async function followUpAssignmentCrud() {
   await finishScenario(s, "Follow-up people assignment Add/Unlink");
 }
 
+
+async function processMapOperationCrud() {
+  const s = await newScenario(), p = s.page;
+  const category = suffix + " Operation Category";
+  const processName = suffix + " Operation";
+  await openModule(p, "Production Plan & Process Plan");
+  const job = p.locator("tr").filter({ hasText: fixture.purchaseOrder.number }).filter({ hasText: fixture.component.partNumber }).first();
+  await visible(job, "synthetic production job");
+  await job.getByRole("button", { name: "Process Plan", exact: true }).click();
+  await visible(p.locator("#route-company"), "Process Map company scope");
+  await p.locator('button[aria-label="Add operation ▾"]').click();
+  await p.getByRole("menuitem", { name: "Blank process operation" }).click();
+  const editor = p.getByRole("dialog", { name: "Add process operation" });
+  await visible(editor, "new Process Map operation editor");
+  await customPick(p, "operation-category", category);
+  await customPick(p, "operation-process-type", processName);
+  await pick(p, "operation-execution-type", "Internal");
+  await p.getByPlaceholder("Setup, process constraints, delivery instructions").fill("Initial synthetic operation record.");
+  await editor.getByRole("button", { name: "Save operation", exact: true }).click();
+  await p.waitForTimeout(250);
+  let row = p.locator("tr.process-operation-row").filter({ hasText: processName }).first();
+  await visible(row, "new saved process operation row");
+  await row.locator('button[title="Edit process"]').click();
+  const editDialog = p.getByRole("dialog", { name: "Edit process operation" });
+  await visible(editDialog, "edit Process Map operation editor");
+  await p.getByPlaceholder("Setup, process constraints, delivery instructions").fill("Updated synthetic operation record.");
+  await editDialog.getByRole("button", { name: "Save changes", exact: true }).click();
+  row = p.locator("tr.process-operation-row").filter({ hasText: processName }).first();
+  await visible(row, "updated Process Map operation row");
+  if (!(await row.innerText()).includes("Updated synthetic operation record.")) throw new Error("Process Map edit did not update the saved operation notes.");
+  await row.locator('button[title="Delete process"]').click();
+  await p.waitForTimeout(250);
+  if (await p.locator("tr.process-operation-row").filter({ hasText: processName }).count()) {
+    throw new Error("Archived Process Map operation remains in the active route register.");
+  }
+  await finishScenario(s, "Process Map Add/Edit/Save/Archive operation");
+}
+
 async function main() {
   await waitForServer();
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
@@ -355,6 +393,7 @@ async function main() {
   await plannedCostCrud();
   await materialAndBomCrud();
   await followUpAssignmentCrud();
+  await processMapOperationCrud();
   console.log("AXIMACH CRUD browser acceptance passed: " + scenarioCount + " isolated scenarios.");
 }
 try {
