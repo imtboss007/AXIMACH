@@ -715,6 +715,29 @@ async function vendorNetworkFilterCrud() {
   await visible(machiningRow, "assigned machining vendor row");
   await machiningRow.getByRole("button", { name: "Vendor", exact: true }).click();
   await visible(p.locator(".vendor-detail-title").filter({ hasText: "Synthetic CNC & VMC" }), "vendor-specific drill-through from Vendor Network");
+
+  // Verify a real record-context round trip across Vendor Directory and Contact 360.
+  await p.getByRole("button", { name: "Manage in Contact 360", exact: true }).click();
+  const linkedVendorPicker = p.locator("#contact-linked-record");
+  await visible(linkedVendorPicker, "Contact 360 preselected vendor link");
+  if (await linkedVendorPicker.inputValue() !== "Synthetic CNC & VMC") {
+    throw new Error("Vendor Directory → Contact 360 lost the selected vendor ID; expected the exact Synthetic CNC & VMC record.");
+  }
+  if (await p.getByLabel("Relationship type").inputValue() !== "vendor") {
+    throw new Error("Vendor Directory → Contact 360 did not preserve the vendor relationship type.");
+  }
+
+  const crossModuleContact = suffix + " Cross-module vendor contact";
+  await p.getByPlaceholder("Full name").fill(crossModuleContact);
+  await p.getByRole("button", { name: "Save contact", exact: true }).click();
+  await visible(p.locator("article.contact360-row").filter({ hasText: crossModuleContact }), "new Contact 360 person linked to the selected vendor");
+
+  const generatedVendorContact = p.locator("article.contact360-row").filter({ hasText: fixture.vendors[0].contact }).first();
+  await visible(generatedVendorContact, "vendor master contact inside Contact 360");
+  await generatedVendorContact.getByRole("button", { name: "Open master", exact: true }).click();
+  await visible(p.locator(".vendor-detail-title").filter({ hasText: "Synthetic CNC & VMC" }), "Contact 360 → exact originating Vendor Directory record");
+  const selectedVendorCard = p.locator(".vendor-record-active");
+  await visible(selectedVendorCard.filter({ hasText: "Synthetic CNC & VMC" }), "same vendor remains selected after Contact 360 return");
   await finishScenario(s, "Vendor Network capability filtering and vendor drill-through");
 }
 
