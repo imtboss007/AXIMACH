@@ -474,6 +474,8 @@ async function followUpAssignmentCrud() {
   if (await panel.locator(".ax-followup-person").filter({ hasText: fixture.company.contactPerson }).count()) {
     throw new Error("Unlinked follow-up person remains assigned to the company.");
   }
+  await panel.getByRole("button", { name: "Close follow-up people" }).click();
+  await panel.waitFor({ state: "detached", timeout: 5000 });
   await finishScenario(s, "Follow-up people assignment Add/Unlink");
 }
 
@@ -720,9 +722,17 @@ async function vendorNetworkFilterCrud() {
   await p.getByRole("button", { name: "Manage in Contact 360", exact: true }).click();
   const linkedVendorPicker = p.locator("#contact-linked-record");
   await visible(linkedVendorPicker, "Contact 360 preselected vendor link");
-  if (await linkedVendorPicker.inputValue() !== "Synthetic CNC & VMC") {
-    throw new Error("Vendor Directory → Contact 360 lost the selected vendor ID; expected the exact Synthetic CNC & VMC record.");
+  const expectedVendorLabel = fixture.vendors[0].company + " · " + fixture.vendors[0].contact;
+  if (await linkedVendorPicker.inputValue() !== expectedVendorLabel) {
+    throw new Error("Vendor Directory → Contact 360 did not display the selected vendor's company and contact: " + await linkedVendorPicker.inputValue());
   }
+  await linkedVendorPicker.click();
+  const selectedVendorOption = p.getByRole("option", { name: expectedVendorLabel, exact: true });
+  await visible(selectedVendorOption, "exact selected vendor option in Contact 360");
+  if (await selectedVendorOption.getAttribute("aria-selected") !== "true") {
+    throw new Error("Vendor Directory → Contact 360 displayed the vendor label but did not select the matching stable vendor ID.");
+  }
+  await linkedVendorPicker.press("Escape");
   if (await p.getByLabel("Relationship type").inputValue() !== "vendor") {
     throw new Error("Vendor Directory → Contact 360 did not preserve the vendor relationship type.");
   }
