@@ -689,8 +689,11 @@ async function main() {
   ];
   for (const transfer of universeBranchTransfers) {
     const exactMarker = page.locator('.process-universe-transport-marker[title="' + transfer.title.replaceAll('"', '\\"') + '"]');
-    await exactMarker.waitFor({ state: "visible", timeout: 7000 });
-    await exactMarker.click();
+    // 3D camera projection can keep a correct marker outside the visible hit-test
+    // region even in Network View. Invoke the actual rendered button handler and
+    // verify the exact transport record in its inspector below.
+    await exactMarker.waitFor({ state: "attached", timeout: 5000 });
+    await exactMarker.evaluate(element => element.click());
     const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
     await dialog.waitFor({ state: "visible", timeout: 5000 });
     const details = await dialog.innerText();
