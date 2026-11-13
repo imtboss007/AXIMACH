@@ -243,6 +243,21 @@ async function main() {
   for (const phrase of ["One assembly", "three part routes", "ASSY-MP-01-BODY", "ASSY-MP-01-SHAFT", "ASSY-MP-01-COVER"]) {
     if (!(await multipartDemo.innerText()).includes(phrase)) throw new Error("Route Flow multipart demo omitted " + phrase);
   }
+  const partFilter = multipartDemo.getByLabel("Filter demo by part");
+  const expectedPartRoutes = [
+    ["ASSY-MP-01-BODY", "Insert installation", "Seal installation"],
+    ["ASSY-MP-01-SHAFT", "CNC shaft turning", "Shaft heat treatment", "Shaft cylindrical grinding"],
+    ["ASSY-MP-01-COVER", "Cover machining and assembly"]
+  ];
+  for (const [partNumber, ...expectedProcesses] of expectedPartRoutes) {
+    const option = partFilter.locator("option").filter({ hasText: partNumber }).first();
+    await partFilter.selectOption(await option.getAttribute("value"));
+    const partRouteText = await multipartDemo.innerText();
+    for (const processName of expectedProcesses) {
+      if (!partRouteText.includes(processName)) throw new Error(partNumber + " demo route omitted " + processName);
+    }
+  }
+  await partFilter.selectOption("all");
   await multipartDemo.getByRole("tab", { name: "Relationship types" }).click();
   const relationshipDemoText = await multipartDemo.innerText();
   for (const relationship of ["Main", "Alternate", "Rework", "Dependency", "Parallel", "Merge", "Split", "Follow-on", "Feedback", "Conditional", "Successor"]) {
