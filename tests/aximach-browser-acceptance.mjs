@@ -236,6 +236,27 @@ async function main() {
   // eleven relationship types, eight independently identified transport legs.
   await openModule(page, "Route Flow & Relationships");
   await chooseNativeScope(page, ".route-flow-scope-bar");
+  // The in-app demo must exercise the same multipart fixture in the actual Route Flow workspace.
+  await page.getByRole("button", { name: "Open multi-part demo" }).click();
+  const multipartDemo = page.getByRole("region", { name: "One component multi-part route and transport demonstration" });
+  await multipartDemo.waitFor({ state: "visible", timeout: 5000 });
+  for (const phrase of ["One assembly", "three part routes", "ASSY-MP-01-BODY", "ASSY-MP-01-SHAFT", "ASSY-MP-01-COVER"]) {
+    if (!(await multipartDemo.innerText()).includes(phrase)) throw new Error("Route Flow multipart demo omitted " + phrase);
+  }
+  await multipartDemo.getByRole("tab", { name: "Relationship types" }).click();
+  const relationshipDemoText = await multipartDemo.innerText();
+  for (const relationship of ["Main", "Alternate", "Rework", "Dependency", "Parallel", "Merge", "Split", "Follow-on", "Feedback", "Conditional", "Successor"]) {
+    if (!relationshipDemoText.includes(relationship)) throw new Error("Multipart demo omitted relationship type " + relationship);
+  }
+  await multipartDemo.getByRole("tab", { name: "Transport legs" }).click();
+  if (!(await multipartDemo.innerText()).includes("VMC subcontractor")) throw new Error("Multipart demo did not render VMC transport fan-out.");
+  await multipartDemo.getByRole("tab", { name: "Carrier options" }).click();
+  await multipartDemo.getByRole("button", { name: "Add alternative 4-wheeler carrier leg" }).click();
+  if (!(await multipartDemo.innerText()).includes("SIMULATED-ALT-CARRIER") && !(await multipartDemo.innerText()).includes("second carrier leg")) {
+    throw new Error("Multipart demo did not simulate the second carrier option.");
+  }
+  await page.getByRole("button", { name: "Close multi-part demo" }).click();
+  await chooseNativeScope(page, ".route-flow-scope-bar");
   const branchPicker = page.locator(".route-flow-scope-bar select").nth(3);
   const branchOptions = await branchPicker.locator("option").evaluateAll(nodes => nodes.map(node => node.value || node.textContent?.trim()).filter(Boolean));
   const expectedBranchOperations = {
