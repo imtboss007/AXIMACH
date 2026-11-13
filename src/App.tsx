@@ -293,7 +293,7 @@ function App() {
       <div className="status-ribbon">
         <span className="ribbon-dot" /> AXIMACH WORKSPACE
         <span className="ribbon-separator">/</span>
-        <span>No example records loaded · production metrics populate from saved records</span>
+        <span>Local records are saved on this device · connect shared sync or import a backup to use data on another device</span>
         <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
       </div>
 
