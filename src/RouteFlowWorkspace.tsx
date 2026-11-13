@@ -8,6 +8,7 @@ import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector
 import { transportPopupAnchor } from "./transportPopup";
 import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
+import TransportRoutingDemo from "./TransportRoutingDemo";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
 import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
@@ -86,6 +87,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [companyPick,setCompanyPick]=useState(initialContext?.companyId||"");
   const [poPick,setPoPick]=useState(initialContext?.poId||"");
   const [linePick,setLinePick]=useState(initialContext?.poLineId||"");
+  const [showMultipartDemo,setShowMultipartDemo]=useState(false);
   const appliedContextKey=useRef("");
   useEffect(()=>{
     const context=initialContext||{};
@@ -437,9 +439,10 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   return <section className="route-flow-workspace" data-workspace-theme={workspaceTheme}>
     <header className="route-flow-workspace-head">
       <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE ROUTE EDITOR</div><h1>Route Flow <span>&amp; Relationships</span></h1><p>Open this as a dedicated route canvas. Material, transport, process steps and saved relationship types stay linked to their original PO component line.</p></div>
-      <div className="route-flow-head-actions"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"route-flow-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncLabel}</span><div className="route-flow-export-controls"><select aria-label="Route export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportRouteFile}><FileDown size={14}/> Download</button></div><button className="button-quiet" onClick={openProcessMap}><Workflow size={15}/> Open Process Plan</button></div>
+      <div className="route-flow-head-actions"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"route-flow-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncLabel}</span><div className="route-flow-export-controls"><select aria-label="Route export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportRouteFile}><FileDown size={14}/> Download</button></div><button className="button-quiet" onClick={()=>setShowMultipartDemo(value=>!value)} aria-expanded={showMultipartDemo}><GitBranch size={15}/> {showMultipartDemo?"Close multi-part demo":"Open multi-part demo"}</button><button className="button-quiet" onClick={openProcessMap}><Workflow size={15}/> Open Process Plan</button></div>
     </header>
     {notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
+    {showMultipartDemo&&<TransportRoutingDemo onClose={()=>setShowMultipartDemo(false)}/>}
     {inspectedMaterialTransportEntry&&<MaterialTransportRecordInspector entry={inspectedMaterialTransportEntry} anchor={transportPopupPoint} vendor={inspectedMaterialTransportVendor} directoryRoute={inspectedMaterialTransportRoute} onClose={()=>setInspectedMaterialTransportId("")} onOpenDirectory={()=>{setInspectedMaterialTransportId("");onSelectModule("transport-master",{companyId,poId,poLineId,componentId});}}/>}
     {inspectedTransportLeg&&<TransportRecordInspector leg={inspectedTransportLeg} anchor={transportPopupPoint} materialEntry={routeMaterials.find(entry=>entry.id===inspectedTransportLeg.materialEntryId)} fromOperationName={processName(inspectedTransportLeg.anchorOperationId)} toOperationName={processName(inspectedTransportLeg.targetOperationId||"")} vendor={inspectedTransportVendor} directoryRoute={inspectedTransportRoute} legacyVendorRoute={inspectedLegacyVendorRoute} onClose={()=>setInspectedTransportId("")} onOpenDirectory={()=>{setInspectedTransportId("");onSelectModule("transport-master",{companyId,poId,poLineId,componentId});}}/>}
     <div className="route-flow-scope-bar">
