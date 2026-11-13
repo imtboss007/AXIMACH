@@ -87,6 +87,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [poPick,setPoPick]=useState(initialContext?.poId||"");
   const [linePick,setLinePick]=useState(initialContext?.poLineId||"");
   const appliedContextKey=useRef("");
+  const autoSelectedInitialRoute=useRef(false);
   useEffect(()=>{
     const context=initialContext||{};
     const contextKey=JSON.stringify({companyId:context.companyId,poId:context.poId,poLineId:context.poLineId,componentId:context.componentId,operationId:context.operationId});
@@ -161,6 +162,22 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const lineOptions=(order?.lines||[]).filter(line=>!line.deletedAt);
   const line=lineOptions.find(row=>row.id===linePick);
   const poLineId=line?.id||"";
+  // Match Process Map: when the workspace is opened without a linked context,
+  // surface the first saved company → PO → component line instead of an empty canvas.
+  useEffect(()=>{
+    const hasNavigationContext=Boolean(initialContext?.companyId||initialContext?.poId||initialContext?.poLineId||initialContext?.componentId||initialContext?.operationId);
+    if(hasNavigationContext||autoSelectedInitialRoute.current)return;
+    const firstCompany=companies.find(row=>row.id===companyPick)||companies[0];
+    if(!firstCompany)return;
+    const companyOrders=orders.filter(row=>row.companyId===firstCompany.id);
+    const selectedOrder=companyOrders.find(row=>row.id===poPick)||companyOrders[0];
+    const firstLine=selectedOrder?.lines.find(row=>!row.deletedAt);
+    setCompanyPick(firstCompany.id);
+    setPoPick(selectedOrder?.id||"");
+    setLinePick(firstLine?.id||"");
+    autoSelectedInitialRoute.current=true;
+  },[companies,orders,companyPick,poPick,initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.componentId,initialContext?.operationId]);
+
   const component=data.components.find(row=>row.id===line?.componentId);
   const componentId=component?.id||"";
   const componentLineCount=lineOptions.filter(row=>row.componentId===componentId).length;
