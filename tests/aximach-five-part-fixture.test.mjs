@@ -202,12 +202,15 @@ test("all 20 module shortcuts rotate with the manually draggable globe and the l
   const core = orb.indexOf('className="ax-orb-core"');
   assert.ok(core >= 0 && core < depthOpen, "the spherical WebGL globe must remain a sphere rather than rotate as a flat canvas plane");
   assert.ok(orb.includes('<AXIMACHWebGLSphere rotationX={rotateX} rotationY={rotateY} />'), "manual drag orientation must rotate the WebGL surface texture");
-  const lowerShell = orb.indexOf('<div className="ax-orb-lower-shell"');
+  const lowerShell = orb.indexOf('className={compactViewport ? "ax-orb-lower-shell-mobile" : "ax-orb-lower-shell"}');
   assert.ok(depthOpen >= 0 && depthOpen < moduleShell && moduleShell < moduleClose && moduleClose < depthClose,
     "module controls must be children of the same draggable 3D globe");
   assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the globe");
   assert.ok(orb.includes('aria-label={`${satellites.length} clickable AXIMACH modules`}'));
-  assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
+  assert.ok(orb.includes('aria-label="Separate rotating live record summary shell"'));
+  assert.ok(orb.includes('onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag} onPointerUp={endLowerDrag} onPointerCancel={endLowerDrag}'));
+  assert.ok(orb.includes('compactViewport ? {touchAction:"none",position:"relative"'));
+  assert.ok(orb.includes('className="ax-orb-lower-node"'));
   assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
   assert.ok(orb.includes('className="ax-orb-core"'));
   assert.ok(orb.includes("scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1)"));
@@ -1450,7 +1453,7 @@ test("Process Universe node offers real alternate and rework creation from the s
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(universe.includes("onAddAlternateRoute?: (parentId: string) => void"));
   assert.ok(universe.includes("onAddReworkRoute?: (parentId: string) => void"));
-  assert.ok(universe.includes("onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition, onNotice=()=>{} }: Props)"));
+  assert.ok(universe.includes('onNotice=()=>{}, sceneScopeLabel="PO-LINE" }: Props)'));
   assert.ok(universe.includes("onAddAlternateRoute(expandedOrbitOperation.id)"));
   assert.ok(universe.includes("onAddReworkRoute(expandedOrbitOperation.id)"));
   assert.ok(workspace.includes('onAddAlternateRoute={parentId=>startAddBranch("alternate",parentId)}'));
@@ -1920,7 +1923,9 @@ test("Dedicated full-screen Route Flow and Manufacturing Universe modules are wi
   assert.ok(route.includes('targetOperationId:to.id'));
   assert.ok(route.includes('<RouteCurve type={connector.type}'));
   assert.ok(universe.includes('<ProcessUniverse3D'));
-  assert.ok(universe.includes('routeRelationships={routeRelationships}'));
+  assert.ok(universe.includes('routeRelationships={sceneRouteRelationships}'));
+  assert.ok(universe.includes('universeScope==="enterprise"?operations:routeOperations'));
+  assert.ok(universe.includes('Enterprise-wide live universe'));
   assert.ok(universe.includes('onNavigate("route-flow"'));
   assert.ok(data.includes('routeRelationships: RouteRelationshipRecord[]'));
   assert.ok(data.includes('mergeRows(local.routeRelationships, remote.routeRelationships)'));
@@ -2227,7 +2232,7 @@ test("Multiple transport legs remain separate and visible for each source and ta
   assert.ok(scene.includes("transportLegs.map((leg,index)"));
   assert.ok(scene.includes("other.targetOperationId===leg.targetOperationId"));
   assert.ok(scene.includes("other.placement===leg.placement"));
-  assert.ok(universe.includes("routeLegs.map(leg=>"));
+  assert.ok(universe.includes("sceneRouteLegs.map(leg=>"));
 });
 
  
@@ -2247,10 +2252,10 @@ test("AXIMACH mobile 3D command centre keeps module reachability and non-overlap
   const orb=readFileSync(new URL("../src/AXIMACHOrb.tsx",import.meta.url),"utf8");
   const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
   assert.ok(orb.includes('const radius = compactViewport ? 116 : 132'));
-  assert.ok(orb.includes("ax-orb-lower-summary-grid"));
-  assert.ok(orb.includes("ax-orb-lower-summary-card"));
-  assert.ok(css.includes(".ax-orb-lower-summary-grid"));
-  assert.ok(css.includes(".ax-orb-lower-shell{display:none!important}"));
+  assert.ok(orb.includes('className={compactViewport ? "ax-orb-lower-shell-mobile" : "ax-orb-lower-shell"}'));
+  assert.ok(orb.includes('className="ax-orb-lower-node"'));
+  assert.ok(orb.includes("const startLowerDrag ="));
+  assert.ok(css.includes(".ax-orb-lower-shell{display:none!important}"), "desktop shell remains hidden only where the compact layout uses its separate mobile shell");
 });
 
 test("Route Flow and Process Universe expose independent canvas zoom and fit controls", () => {
