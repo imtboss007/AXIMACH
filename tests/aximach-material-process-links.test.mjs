@@ -81,14 +81,27 @@ test("synthetic route example has three materials linked to distinct process ope
   }
 });
 
-test("in-app transport demo displays material feeds, directory master links and connector legend", () => {
+test("in-app demo covers one assembly, three part routes, all relationship types and multi-carrier transport", () => {
   const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
-  assert.ok(demo.includes("MaterialFlowMarker"));
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-one-component-multipart-route.json", import.meta.url), "utf8"));
+  assert.ok(demo.includes("aximach-one-component-multipart-route.json"));
+  assert.ok(demo.includes("Part process routes"));
+  assert.ok(demo.includes("Relationship types"));
+  assert.ok(demo.includes("Transport legs"));
+  assert.ok(demo.includes("Carrier options"));
+  assert.ok(demo.includes("Add alternative 4-wheeler carrier leg"));
   assert.ok(demo.includes("RouteConnectorLegend"));
-  assert.ok(demo.includes("routeRecord={routes.get(leg.routeId)}"));
-  assert.ok(demo.includes("materialLinks.map(link"));
-  assert.ok(demo.includes("materialLinksAt(operation.id,\"before\")"));
-  assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
+  assert.ok(demo.includes("partProcessIds"));
+  assert.ok(demo.includes("showSecondCarrier"));
+  assert.ok(routeFlow.includes("Open multi-part demo"));
+  assert.ok(routeFlow.includes("<TransportRoutingDemo onClose"));
+  assert.equal(fixture.parts.length, 3);
+  assert.equal(fixture.operations.length, 9);
+  assert.equal(fixture.routeRelationships.length, 14);
+  assert.equal(new Set(fixture.routeRelationships.map((row:any)=>row.relationshipType)).size, 11);
+  assert.equal(fixture.transportLegs.length, 11);
+  assert.equal(fixture.transportRoutes.length, 10);
 });
 
 test("component parts retain multiple material master IDs with legacy single-material migration", () => {
