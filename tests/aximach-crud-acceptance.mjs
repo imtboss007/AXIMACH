@@ -729,7 +729,7 @@ async function vendorNetworkFilterCrud() {
     throw new Error("Vendor Directory → Contact 360 did not display the selected vendor's company and contact: " + await linkedVendorPicker.inputValue());
   }
   await linkedVendorPicker.click();
-  const selectedVendorOption = p.getByRole("option", { name: expectedVendorLabel, exact: true });
+  const selectedVendorOption = p.locator('[role="option"][aria-selected="true"]').filter({ hasText: expectedVendorLabel });
   await visible(selectedVendorOption, "exact selected vendor option in Contact 360");
   if (await selectedVendorOption.getAttribute("aria-selected") !== "true") {
     throw new Error("Vendor Directory → Contact 360 displayed the vendor label but did not select the matching stable vendor ID.");
