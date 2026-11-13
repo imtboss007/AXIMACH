@@ -722,7 +722,9 @@ async function vendorNetworkFilterCrud() {
   await p.getByRole("button", { name: "Manage in Contact 360", exact: true }).click();
   const linkedVendorPicker = p.locator("#contact-linked-record");
   await visible(linkedVendorPicker, "Contact 360 preselected vendor link");
-  const expectedVendorLabel = fixture.vendors[0].company + " · " + fixture.vendors[0].contact;
+  const selectedVendorFixture = fixture.vendors.find(vendor => vendor.company === "Synthetic CNC & VMC");
+  if (!selectedVendorFixture) throw new Error("Vendor Network fixture is missing the Synthetic CNC & VMC vendor.");
+  const expectedVendorLabel = selectedVendorFixture.company + " · " + selectedVendorFixture.contact;
   if (await linkedVendorPicker.inputValue() !== expectedVendorLabel) {
     throw new Error("Vendor Directory → Contact 360 did not display the selected vendor's company and contact: " + await linkedVendorPicker.inputValue());
   }
@@ -742,7 +744,7 @@ async function vendorNetworkFilterCrud() {
   await p.getByRole("button", { name: "Save contact", exact: true }).click();
   await visible(p.locator("article.contact360-row").filter({ hasText: crossModuleContact }), "new Contact 360 person linked to the selected vendor");
 
-  const generatedVendorContact = p.locator("article.contact360-row").filter({ hasText: fixture.vendors[0].contact }).first();
+  const generatedVendorContact = p.locator("article.contact360-row").filter({ hasText: selectedVendorFixture.contact }).first();
   await visible(generatedVendorContact, "vendor master contact inside Contact 360");
   await generatedVendorContact.getByRole("button", { name: "Open master", exact: true }).click();
   await visible(p.locator(".vendor-detail-title").filter({ hasText: "Synthetic CNC & VMC" }), "Contact 360 → exact originating Vendor Directory record");
