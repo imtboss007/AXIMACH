@@ -789,6 +789,26 @@ async function main() {
     }
   }
 
+  // The compact dashboard must show its separate rotating live-record shell.
+  // The legacy desktop shell is intentionally hidden on phones; the mobile shell
+  // must use its own class and remain visible and interactive at Android width.
+  await page.setViewportSize({ width: 393, height: 873 });
+  const dashboardTitle = moduleTitles.find(title => /dashboard/i.test(title));
+  if (!dashboardTitle) throw new Error("Dashboard navigation entry is missing.");
+  await openModule(page, dashboardTitle);
+  const mobileRecordShell = page.locator(".dashboard-welcome-orb .ax-orb-lower-shell-mobile");
+  await mobileRecordShell.waitFor({ state: "visible", timeout: 6000 });
+  const mobileShellMetrics = await mobileRecordShell.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return { display: style.display, pointerEvents: style.pointerEvents, width: rect.width, height: rect.height, buttons: element.querySelectorAll("button").length };
+  });
+  if (mobileShellMetrics.display === "none" || mobileShellMetrics.pointerEvents === "none" ||
+      mobileShellMetrics.width < 200 || mobileShellMetrics.height < 60 || mobileShellMetrics.buttons !== 6) {
+    throw new Error("Android dashboard live-record shell is missing, hidden or non-interactive: " + JSON.stringify(mobileShellMetrics));
+  }
+  responsiveResults.push({ name: "Android portrait", module: "Dashboard live-record shell", ...mobileShellMetrics });
+
   // Inventory unambiguously safe navigation/view buttons in all remaining modules. Buttons
   // that save, delete, archive, send, dispatch, import or export business data are not blindly
   // fired; those require their own isolated CRUD scenario rather than accidental data mutation.
