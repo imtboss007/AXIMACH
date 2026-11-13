@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Activity, CheckCircle2, GitBranch, RotateCcw, Truck, X } from "lucide-react";
 import fixtureJson from "../tests/fixtures/aximach-one-component-multipart-route.json";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
+import { VehicleBadge, VEHICLE_TYPES } from "./TransportVehicle";
 
 type Props = { onClose?: () => void };
 const fixture = fixtureJson as any;
@@ -110,6 +111,7 @@ export default function TransportRoutingDemo({onClose}:Props) {
       <small>This preview demonstrates two independent carriers on the same VMC-to-shaft connection. The simulation does not write to live records.</small>
     </div>}
     <RouteConnectorLegend/>
+    <div className="transport-demo-vehicle-legend"><strong>Vehicle identity</strong>{VEHICLE_TYPES.map(type=><VehicleBadge key={type} vehicleType={type}/>)}</div>
     <div className="transport-demo-safety"><strong>What this scenario verifies</strong><span>One component PO line → three separate part records → multiple BOM materials per part → shared VMC operation → split / parallel / alternate branch routes → multiple process destinations → distinct carriers and vehicle types → final inspection / merge.</span><span>All company, vendor, PO and material names in this scenario are synthetic. This is a read-only demo; use the live editors to create and save real records.</span></div>
   </section>;
 }
