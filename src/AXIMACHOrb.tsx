@@ -221,7 +221,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
         </motion.div>
         </motion.div>
       </motion.div>
-      {compactViewport ? <div className="ax-orb-lower-summary-grid" aria-label="Live record summaries">{shellStats.map(({id,label,value,Icon})=><button type="button" key={id} className="ax-orb-lower-summary-card" onClick={()=>onSelectModule(id)}><Icon size={16}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small></button>)}</div> : <div className="ax-orb-lower-shell" aria-label="Separate live record summary shell" onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag} onPointerUp={endLowerDrag} onPointerCancel={endLowerDrag} style={{touchAction:"none"}}>
+      <div className={compactViewport ? "ax-orb-lower-shell-mobile" : "ax-orb-lower-shell"} aria-label="Separate rotating live record summary shell" onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag} onPointerUp={endLowerDrag} onPointerCancel={endLowerDrag} style={compactViewport ? {touchAction:"none",position:"relative",left:"auto",bottom:"auto",transform:"none",width:"min(100%,330px)",height:"88px",flex:"0 0 88px",margin:"8px auto",perspective:"700px",pointerEvents:"auto"} : {touchAction:"none"}}>
         <motion.div className="ax-orb-lower-rotator" style={{rotateX:lowerRotateX,rotateY:lowerRotateY,transformStyle:"preserve-3d"}}>
           {shellStats.map(({ id, label, value, Icon }, index) => <button type="button" key={label} className="ax-orb-lower-node"
             style={{ transform: "translate(-50%,-50%) rotateY(" + (index * 60) + "deg) translateZ(" + (compactViewport ? 94 : 132) + "px) rotateY(-" + (index * 60) + "deg)" }}
@@ -233,7 +233,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
             <Icon size={13}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small>
           </button>)}
         </motion.div>
-      </div>}
+      </div>
       <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> AUTO ROTATION · {autoRotate && !reduceMotion && !reducedMotion ? "ON" : "PAUSED"} <i/> MODULE SHELL · {moduleRotationEnabled ? "DRAG ENABLED" : "LOCKED"} <i/> RECORD SHELL · {recordRotationEnabled ? "DRAG ENABLED" : "LOCKED"}</div>
       <div className="ax-orb-studio-actions">
         <button type="button" className="ax-orb-pause" aria-pressed={!autoRotate} onClick={() => setAutoRotate(value => !value)}>{autoRotate ? "Ⅱ Pause auto-rotation" : "▶ Resume auto-rotation"}</button>
