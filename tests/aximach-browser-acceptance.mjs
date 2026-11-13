@@ -308,9 +308,9 @@ async function main() {
   if (await matrixRows.count() < fixture.routeRelationships.length) {
     throw new Error("Route Flow relationship matrix did not render all seeded cross-route edges");
   }
-  const matrixClasses = await matrixRows.locator(".route-flow-matrix-arrow").evaluateAll(nodes => nodes.flatMap(node => [...node.classList]));
+  const matrixTypes = await matrixRows.locator(".route-flow-matrix-arrow").evaluateAll(nodes => nodes.map(node => node.getAttribute("data-relationship-type") || ""));
   for (const type of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"]) {
-    if (!matrixClasses.includes("route-flow-curve-" + type)) throw new Error("Route Flow relationship edge type is missing from the rendered matrix: " + type);
+    if (!matrixTypes.includes(type)) throw new Error("Route Flow relationship edge type is missing from the rendered matrix: " + type + ". Rendered types: " + matrixTypes.join(", ") + ". Rows: " + JSON.stringify(await matrixRows.allInnerTexts()));
   }
   const relationshipMatrixText = await matrixRows.allInnerTexts();
   for (const [target, type] of [
