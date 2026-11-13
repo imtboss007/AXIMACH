@@ -87,7 +87,6 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [poPick,setPoPick]=useState(initialContext?.poId||"");
   const [linePick,setLinePick]=useState(initialContext?.poLineId||"");
   const appliedContextKey=useRef("");
-  const autoSelectedInitialRoute=useRef(false);
   useEffect(()=>{
     const context=initialContext||{};
     const contextKey=JSON.stringify({companyId:context.companyId,poId:context.poId,poLineId:context.poLineId,componentId:context.componentId,operationId:context.operationId});
@@ -162,22 +161,6 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const lineOptions=(order?.lines||[]).filter(line=>!line.deletedAt);
   const line=lineOptions.find(row=>row.id===linePick);
   const poLineId=line?.id||"";
-  // Match Process Map: when the workspace is opened without a linked context,
-  // surface the first saved company → PO → component line instead of an empty canvas.
-  useEffect(()=>{
-    const hasNavigationContext=Boolean(initialContext?.companyId||initialContext?.poId||initialContext?.poLineId||initialContext?.componentId||initialContext?.operationId);
-    if(hasNavigationContext||autoSelectedInitialRoute.current)return;
-    const firstCompany=companies.find(row=>row.id===companyPick)||companies[0];
-    if(!firstCompany)return;
-    const companyOrders=orders.filter(row=>row.companyId===firstCompany.id);
-    const selectedOrder=companyOrders.find(row=>row.id===poPick)||companyOrders[0];
-    const firstLine=selectedOrder?.lines.find(row=>!row.deletedAt);
-    setCompanyPick(firstCompany.id);
-    setPoPick(selectedOrder?.id||"");
-    setLinePick(firstLine?.id||"");
-    autoSelectedInitialRoute.current=true;
-  },[companies,orders,companyPick,poPick,initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.componentId,initialContext?.operationId]);
-
   const component=data.components.find(row=>row.id===line?.componentId);
   const componentId=component?.id||"";
   const componentLineCount=lineOptions.filter(row=>row.componentId===componentId).length;
@@ -466,7 +449,10 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       <label>Route branch<select value={branch} onChange={e=>setBranchPick(e.target.value)}>{branches.map(value=><option key={value}>{value}</option>)}</select></label>
       <div className="route-flow-scope-stats"><strong>{routeNodes.length}</strong><span>ROUTE STAGES</span><strong>{routeLegs.length}</strong><span>TRANSPORT LEGS</span></div>
     </div>
+    {companies.length>0&&!company&&<div className="process-add-prerequisite-note" role="status"><strong>Select a company, purchase order and component line.</strong><span>Route Flow will load only the exact PO component route you choose; it will not guess between different jobs.</span></div>
+    }
     {!companies.length&&<div className="process-add-prerequisite-note" role="status"><strong>No company records are saved on this device.</strong><span>Route Flow needs a company, purchase order and component line. Add your master records or restore a backup from Data Exchange Centre.</span><div><button type="button" className="button-primary compact-button" onClick={()=>onSelectModule("companies")}>Add company</button><button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("export")}>Import / restore data</button></div></div>}
+    {company&&companyOrders.length>0&&!order&&<div className="process-add-prerequisite-note" role="status"><strong>Select a purchase order for {company.name}.</strong><span>Choose the correct PO before selecting its component line.</span></div>}
     {company&&!companyOrders.length&&<div className="process-add-prerequisite-note" role="status"><strong>No purchase orders found for {company.name}.</strong><span>Create a purchase order for this company before building its route.</span><div><button type="button" className="button-primary compact-button" onClick={()=>onSelectModule("purchasing",{companyId})}>Create purchase order</button><button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("export")}>Import / restore data</button></div></div>}
     {order&&!lineOptions.length&&<div className="process-add-prerequisite-note" role="status"><strong>{order.number} has no active component lines.</strong><span>Add one or more Component Master lines to this purchase order before creating manufacturing routes.</span><button type="button" className="button-primary compact-button" onClick={()=>onSelectModule("purchasing",{companyId,poId})}>Open purchase order</button></div>}
 
