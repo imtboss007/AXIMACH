@@ -185,16 +185,16 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     onSelectModule(moduleId,{companyId:targetPO?.companyId||companyId,poId:targetPO?.id||poId,poLineId:targetLine?.id||poLineId,componentId:operation?.componentId||componentId,operationId:operation?.id});
   };
   const stats=[
-    {label:"PROCESS STAGES",value:routeOperations.length,icon:Activity,module:"production"},
-    {label:"MATERIAL ALLOCATIONS",value:routeMaterials.length,icon:Package,module:"inventory"},
-    {label:"TRANSPORT LEGS",value:routeLegs.length,icon:Truck,module:"transport-master"},
+    {label:"PROCESS STAGES",value:sceneRouteOperations.filter(row=>row.relationType!=="subprocess").length,icon:Activity,module:"production"},
+    {label:"MATERIAL ALLOCATIONS",value:sceneRouteMaterials.length,icon:Package,module:"inventory"},
+    {label:"TRANSPORT LEGS",value:sceneRouteLegs.length,icon:Truck,module:"transport-master"},
     {label:"PROCESS DEFINITIONS",value:definitions.length,icon:Workflow,module:"process-master"},
     {label:"VENDORS",value:vendors.length,icon:Factory,module:"vendors"},
     {label:"CONTACTS",value:activeRows(data.contactProfiles||[]).length,icon:Users,module:"contact360"},
     {label:"PLANNED COSTS",value:activeRows(data.plannedCosts||[]).length,icon:CircleDollarSign,module:"planned-cost"},
     {label:"FOLLOW-UP LINKS",value:activeRows(data.followUpAssignments||[]).length,icon:MessageCircle,module:"communications"},
-    {label:"DISPATCH LEGS",value:routeLegs.length,icon:Truck,module:"dispatch"},
-    {label:"RELATIONSHIPS",value:routeRelationships.length,icon:GitBranch,module:"route-flow"}
+    {label:"DISPATCH LEGS",value:sceneRouteLegs.length,icon:Truck,module:"dispatch"},
+    {label:"RELATIONSHIPS",value:sceneRouteRelationships.length,icon:GitBranch,module:"route-flow"}
   ];
   const linkModules=[
     {id:"companies",title:"Company Directory",icon:Factory,meta:"Company and factory records"},
@@ -327,7 +327,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         onAddSubprocess={id=>{const op=sceneAllOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
         onAddAlternateRoute={id=>{const op=sceneAllOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
         onAddReworkRoute={id=>{const op=sceneAllOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
-        onAddProcessDefinition={()=>onNavigate("process-map",activeOperation)}
+        onAddProcessDefinition={()=>onNavigate("process-map")}
         onSelectTransportLeg={(id,anchor)=>{setInspectedTransportId(id);setInspectedMaterialTransportId("");if(anchor)setTransportPopupPoint(transportPopupAnchorFromPoint(anchor.x,anchor.y));}}
         onSelectMaterialTransport={(id,anchor)=>{setInspectedMaterialTransportId(id);setInspectedTransportId("");if(anchor)setTransportPopupPoint(transportPopupAnchorFromPoint(anchor.x,anchor.y));}}
       />:<div className="manufacturing-universe-empty"><Network size={34}/><strong>{universeScope==="enterprise"?"No saved manufacturing records to plot yet":"No saved manufacturing route for this PO line"}</strong><span>{universeScope==="enterprise"?"Add company, purchase-order, component, material, transport and process records in the source modules. The universe plots actual saved records only.":"Add material allocations and process steps first. The universe does not invent placeholder operations."}</span><div><button className="button-primary" onClick={()=>onNavigate("route-flow")}><Route size={14}/> Open Route Flow</button><button className="button-quiet" onClick={()=>onNavigate("process-map")}><Workflow size={14}/> Open Process Plan</button></div></div>}
@@ -338,7 +338,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
       vendor={inspectedMaterialTransportVendor}
       directoryRoute={inspectedMaterialTransportRoute}
       onClose={()=>setInspectedMaterialTransportId("")}
-      onOpenDirectory={()=>{setInspectedMaterialTransportId("");onNavigate("transport-master",activeOperation);}}
+      onOpenDirectory={()=>{setInspectedMaterialTransportId("");onNavigate("transport-master");}}
     />}
     {inspectedTransportLeg&&<TransportRecordInspector
       leg={inspectedTransportLeg}
@@ -350,7 +350,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
       directoryRoute={inspectedTransportRoute}
       legacyVendorRoute={inspectedLegacyVendorRoute}
       onClose={()=>setInspectedTransportId("")}
-      onOpenDirectory={()=>{setInspectedTransportId("");onNavigate("transport-master",activeOperation);}}
+      onOpenDirectory={()=>{setInspectedTransportId("");onNavigate("transport-master");}}
     />}
     {showAddOperation&&<OperationQuickCreate
       poId={poId} poLineId={poLineId} componentId={componentId}
