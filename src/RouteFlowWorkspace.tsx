@@ -486,7 +486,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         <div className="route-flow-relationship-matrix"><h4>RELATIONSHIP MATRIX · {relationshipMatrixRows.length}</h4>
           {relationshipMatrixRows.length?relationshipMatrixRows.map((link,index)=><div className="route-flow-matrix-row" key={link.fromId+"-"+link.toId+"-"+index}>
             <strong title={processName(link.fromId)}>{processName(link.fromId)}</strong>
-            <span className={"route-flow-matrix-arrow route-flow-curve-"+link.type} aria-label={relationLabel(link.type)}><i/></span>
+            <span className={"route-flow-matrix-arrow route-flow-curve-"+link.type} data-relationship-type={link.type} aria-label={relationLabel(link.type)}><i/></span>
             <strong title={processName(link.toId)}>{processName(link.toId)}</strong>
             <em title={relationLabel(link.type)}>{relationLabel(link.type)} · {link.status}</em>
           </div>):<div className="route-flow-matrix-empty">No saved route connections yet. Add process stages or select a relationship type above.</div>}
