@@ -217,8 +217,10 @@ test("Manufacturing Universe uses the incoming component context and never falls
   assert.ok(!universe.includes("||companyOrders[0]"));
   assert.ok(!universe.includes("||lines[0]"));
   assert.ok(universe.includes("lineComponent?.partNumber"));
-  assert.ok(universe.includes("materialPartLabels={materialProcessPartLabels}"));
-  assert.ok(universe.includes("poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)"));
+  assert.ok(universe.includes("materialPartLabels={sceneMaterialPartLabels}"));
+  assert.ok(universe.includes('universeScope==="enterprise"&&(sceneRouteOperations.length>0||sceneRouteMaterials.length>0||sceneRouteLegs.length>0)'));
+  assert.ok(universe.includes('universeScope==="po-line"&&!!poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)'));
+  assert.ok(universe.includes("const globalRouteLabels=useMemo"));
   assert.ok(app.includes('<ManufacturingUniverseWorkspace initialContext={moduleContext}'));
 });
 
