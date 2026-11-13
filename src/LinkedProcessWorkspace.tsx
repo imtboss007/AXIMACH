@@ -288,12 +288,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (!target) { onNotice("The Process Map route graph is not ready for full-screen mode."); return; }
     if (document.fullscreenElement === target) {
       try { await document.exitFullscreen(); } catch { /* browser may already have exited */ }
-      // The app-level landscape lock remains active until Process Map is closed.
+      // Full-screen exit does not change the device orientation.
       return;
     }
     try {
       await target.requestFullscreen({navigationUI:"hide"});
-      onNotice("Process Map route graph opened full-screen. Landscape orientation stays active until you leave Process Map.");
+      onNotice("Process Map route graph opened full-screen. Your device orientation remains unchanged.");
     } catch {
       onNotice("This browser did not allow full-screen mode. The route graph remains available in the landscape workspace.");
     }
@@ -1474,7 +1474,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     </details>
     <div className="linked-process-layout">
       <details className="surface-panel linked-route-canvas" open={showEditor || routeOperations.length > 0}>
-        <summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><div className="route-canvas-heading-actions"><span className="module-number">{routeOperations.length} OPS</span><button type="button" className="button-quiet compact-button" onClick={event=>{event.preventDefault();setShowTransportDemo(value=>!value);}} aria-expanded={showTransportDemo}>{showTransportDemo?"Close demo":"Preview multi-route demo"}</button><button type="button" className="button-quiet compact-button route-fullscreen-button" onClick={event=>{event.preventDefault();void toggleRouteFullscreen();}} aria-label={routeFullscreen?"Exit route full screen":"Open route in full-screen landscape"}>{routeFullscreen?<Minimize2 size={14}/>:<Maximize2 size={14}/>} {routeFullscreen?"Exit full screen":"Full screen · landscape"}</button></div></summary>
+        <summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><div className="route-canvas-heading-actions"><span className="module-number">{routeOperations.length} OPS</span><button type="button" className="button-quiet compact-button" onClick={event=>{event.preventDefault();setShowTransportDemo(value=>!value);}} aria-expanded={showTransportDemo}>{showTransportDemo?"Close demo":"Preview multi-route demo"}</button><button type="button" className="button-quiet compact-button route-fullscreen-button" onClick={event=>{event.preventDefault();void toggleRouteFullscreen();}} aria-label={routeFullscreen?"Exit route full screen":"Open route in full screen"}>{routeFullscreen?<Minimize2 size={14}/>:<Maximize2 size={14}/>} {routeFullscreen?"Exit full screen":"Full screen"}</button></div></summary>
         {showTransportDemo && <TransportRoutingDemo onClose={()=>setShowTransportDemo(false)}/>}
         
         <div className="process-export-panel">
