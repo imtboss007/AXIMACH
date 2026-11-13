@@ -5767,3 +5767,33 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   }
 }
 \n
+
+/* Multipart route demo: responsive, readable controls and distinct route / carrier rows. */
+.transport-demo-view-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0;padding-bottom:9px;border-bottom:1px solid var(--ax-border,#dce6f3)}
+.transport-demo-view-tabs button{border:1px solid var(--ax-border,#dce6f3);border-radius:8px;padding:8px 11px;background:var(--ax-panel,#fff);color:var(--ax-text,#334d70);font-size:11px;font-weight:700}
+.transport-demo-view-tabs button[aria-selected="true"]{background:var(--ax-accent-soft,#eaf2ff);border-color:var(--ax-accent,#76a7ee);color:var(--ax-accent-strong,#245eb4)}
+.transport-demo-toolbar label{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700}
+.transport-demo-toolbar select{max-width:min(100%,340px);min-width:0;border:1px solid var(--ax-border,#dce6f3);border-radius:8px;padding:7px;background:var(--ax-panel,#fff);color:var(--ax-text,#334d70)}
+.transport-demo-branches,.transport-demo-relationships,.transport-demo-transport,.transport-demo-carriers{display:grid;gap:10px;min-width:0}
+.transport-demo-relationship-row,.transport-demo-transport-row{display:grid;grid-template-columns:minmax(90px,.8fr) minmax(0,1.4fr) auto minmax(0,1.4fr) minmax(90px,.7fr);gap:9px;align-items:center;width:100%;min-width:0;padding:10px;border:1px solid var(--ax-border,#dce6f3);border-radius:9px;background:var(--ax-panel,#fff);color:var(--ax-text,#334d70);text-align:left;font-size:11px}
+.transport-demo-relationship-row>* ,.transport-demo-transport-row>*{min-width:0;overflow-wrap:anywhere}
+.transport-demo-relationship-row small,.transport-demo-transport-row small{color:var(--ax-muted,#7e8fa6)}
+.transport-demo-transport-row{grid-template-columns:minmax(100px,.7fr) minmax(0,1.7fr) minmax(100px,.8fr) auto;cursor:pointer}
+.transport-demo-transport-row.is-selected{border-color:var(--ax-accent,#76a7ee);box-shadow:0 0 0 2px var(--ax-accent-soft,#eaf2ff)}
+.transport-demo-transport-row>span{display:flex;align-items:center;gap:6px;font-weight:700}
+.transport-demo-transport-row em{font-style:normal;font-weight:800;white-space:nowrap}
+.transport-demo-carriers>small{color:var(--ax-muted,#7e8fa6)}
+.transport-demo-safety{display:grid;gap:5px;margin-top:12px;padding:12px;border:1px solid var(--ax-border,#dce6f3);border-radius:10px;background:var(--ax-panel,#fff);font-size:11px}
+@media(max-width:700px){
+ .transport-demo-toolbar{align-items:stretch;flex-wrap:wrap}
+ .transport-demo-toolbar label{width:100%;align-items:flex-start;flex-direction:column}
+ .transport-demo-toolbar select{width:100%;max-width:none}
+ .transport-demo-view-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ .transport-demo-view-tabs button{min-width:0;padding:8px 5px}
+ .transport-demo-relationship-row{grid-template-columns:minmax(0,1fr) auto;gap:5px 8px}
+ .transport-demo-relationship-row .route-flow-link-symbol{grid-column:1/-1}
+ .transport-demo-relationship-row small{grid-column:1/-1}
+ .transport-demo-transport-row{grid-template-columns:minmax(0,1fr) auto;gap:5px 8px}
+ .transport-demo-transport-row>strong,.transport-demo-transport-row>small{grid-column:1/-1}
+ .transport-demo-transport-row em{grid-column:2;grid-row:1}
+}
