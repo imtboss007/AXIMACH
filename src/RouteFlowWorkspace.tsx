@@ -52,7 +52,9 @@ function vehicleClassFor(value:string) { const type=(value||"").toLowerCase(); i
 function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,transportLegId,materialTransportId,layout="orthogonal",onTransportClick}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number;transportLegId?:string;materialTransportId?:string;layout?:RouteLayoutMode;onTransportClick?:(id:string,kind:"leg"|"material",element:HTMLElement)=>void}) {
   const style=transport?"transport":type;
 
-  const curvePath=layout==="orthogonal"?"M4 36 L54 36 L54 12 L88 12 L88 36 L132 36":layout==="horizontal"?"M4 36 L132 36":style==="feedback"?"M4 35 C20 -2 48 -5 68 28 C84 55 112 60 132 25"
+  // Layout controls arrange process cards; relationship identity controls connector geometry.
+  // Never flatten typed relationships into the same orthogonal or straight line.
+  const curvePath=style==="feedback"?"M4 35 C20 -2 48 -5 68 28 C84 55 112 60 132 25"
     :style==="rework"?"M4 37 C36 67 92 2 132 31"
     :style==="alternate"?"M4 36 C35 -15 93 -12 132 31"
     :style==="dependency"?"M4 36 C42 36 92 6 132 31"
