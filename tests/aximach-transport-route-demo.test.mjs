@@ -60,13 +60,20 @@ test("route views fit smaller cards, expose portrait step navigation and remain 
 test("multi-route example is visible and interactive in both Process Map and Transport Directory without live writes", () => {
   const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
   const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(processMap.includes("<TransportRoutingDemo onClose="));
+  assert.ok(routeFlow.includes("<TransportRoutingDemo onClose="));
+  assert.ok(routeFlow.includes("Open multi-part demo"));
   assert.ok(directory.includes("<TransportRoutingDemo onClose="));
-  assert.ok(demo.includes("Next process step"));
-  assert.ok(demo.includes("Activate alternate supplier route"));
-  assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
-  assert.ok(demo.includes("TransportLegMarker"));
+  assert.ok(demo.includes("Next process"));
+  assert.ok(demo.includes("Add alternative 4-wheeler carrier leg"));
+  assert.ok(demo.includes("One assembly"));
+  assert.ok(demo.includes("Part process routes"));
+  assert.ok(demo.includes("Relationship types"));
+  assert.ok(demo.includes("Transport legs"));
+  assert.ok(demo.includes("Carrier options"));
+  assert.ok(demo.includes("{VEHICLE_TYPES.map(type=><VehicleBadge"));
 });
 
 test("Module Universe cards remain compact and scroll within the viewport", () => {
