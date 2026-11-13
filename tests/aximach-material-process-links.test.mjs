@@ -99,7 +99,7 @@ test("in-app demo covers one assembly, three part routes, all relationship types
   assert.equal(fixture.parts.length, 3);
   assert.equal(fixture.operations.length, 9);
   assert.equal(fixture.routeRelationships.length, 14);
-  assert.equal(new Set(fixture.routeRelationships.map((row:any)=>row.relationshipType)).size, 11);
+  assert.equal(new Set(fixture.routeRelationships.map(row=>row.relationshipType)).size, 11);
   assert.equal(fixture.transportLegs.length, 11);
   assert.equal(fixture.transportRoutes.length, 10);
 });
