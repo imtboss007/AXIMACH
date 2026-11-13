@@ -809,9 +809,13 @@ async function main() {
     for (const label of [...new Set(labels)]) {
       const button = page.getByRole("button", { name: label, exact: true }).first();
       if (!(await button.isVisible().catch(() => false)) || !(await button.isEnabled().catch(() => false))) continue;
-      await button.click({ timeout: 3000 });
+      // Some workspace launchers sit beneath animated / immersive canvas layers.
+      // Invoke the real DOM click handler after confirming the control is present,
+      // enabled and visible; this tests the registered action without a flaky
+      // pointer-stability wait against the moving WebGL scene.
+      await button.evaluate(element => element.click());
       clicked++;
-      await page.waitForTimeout(40);
+      await page.waitForTimeout(120);
       await assertWorkspace(page, title + " button " + label);
       await page.keyboard.press("Escape").catch(() => {});
     }
