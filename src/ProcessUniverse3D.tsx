@@ -355,7 +355,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
       const from=lookupOperations.find(operation=>operation.id===link.fromOperationId);
       const to=lookupOperations.find(operation=>operation.id===link.toOperationId);
       if(!from||!to)continue;
-      if((from.poLineId||from.componentId)!==(to.poLineId||to.componentId))continue;
+      if(sceneScopeLabel!=="ENTERPRISE-WIDE"&&(from.poLineId||from.componentId)!==(to.poLineId||to.componentId))continue;
       if(!visibleIds.has(from.id)&&!visibleIds.has(to.id))continue;
       edges.push({id:"relationship-"+link.id,from,to,relation:link.relationshipType,color:relationshipColors[link.relationshipType]||"#4b95eb"});
     }
