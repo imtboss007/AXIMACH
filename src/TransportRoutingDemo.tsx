@@ -11,8 +11,13 @@ const relationshipLabels:Record<string,string> = {
   merge:"Merge",split:"Split", "follow-on":"Follow-on",feedback:"Feedback",conditional:"Conditional",successor:"Successor"
 };
 const partProcessIds = (partId:string) => {
+  const part = fixture.parts.find((row:any)=>row.id===partId);
+  const branchName = part?.partNumber?.endsWith("-SHAFT") ? "Shaft branch"
+    : part?.partNumber?.endsWith("-BODY") ? "Body branch" : "Cover branch";
   const bomIds = new Set(fixture.bomLines.filter((row:any)=>row.partId===partId).map((row:any)=>row.id));
-  return new Set(fixture.materialProcessLinks.filter((row:any)=>bomIds.has(row.bomLineId)).map((row:any)=>row.operationId));
+  const linked = fixture.materialProcessLinks.filter((row:any)=>bomIds.has(row.bomLineId)).map((row:any)=>row.operationId);
+  const sharedAndBranch = fixture.operations.filter((row:any)=>row.branch==="Main route"||row.branch===branchName).map((row:any)=>row.id);
+  return new Set([...linked,...sharedAndBranch]);
 };
 const partById = new Map(fixture.parts.map((row:any)=>[row.id,row]));
 const operationById = new Map(fixture.operations.map((row:any)=>[row.id,row]));
