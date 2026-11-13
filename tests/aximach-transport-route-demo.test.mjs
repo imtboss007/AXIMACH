@@ -37,7 +37,7 @@ test("vehicle classes have individual visual identities and separate transport p
   assert.ok(universe.includes('transportFor(operation.id,"after")'));
 });
 
-test("route views fit smaller cards, expose portrait step navigation and support landscape fullscreen", () => {
+test("route views fit smaller cards, expose portrait step navigation and remain orientation-neutral", () => {
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
@@ -46,13 +46,13 @@ test("route views fit smaller cards, expose portrait step navigation and support
   assert.match(css, /\.process-route-index\{position:sticky/);
   assert.match(css, /\.linked-route-canvas:fullscreen/);
   assert.match(css, /\.process-universe-stage\{width:100% !important;min-width:0 !important/);
-  // Device orientation is owned by the app module lifecycle, not the
-  // map-only fullscreen control inside LinkedProcessWorkspace.
+  // Phone orientation remains operator-controlled; route canvases must work in portrait.
   assert.ok(app.includes('activeModuleId === "process-map"'));
   assert.ok(app.includes('activeModuleId === "route-flow"'));
   assert.ok(app.includes('activeModuleId === "manufacturing-universe"'));
-  assert.ok(app.includes('CapacitorScreenOrientation.lock({ orientation: "landscape-primary" })'));
-  assert.ok(workspace.includes("The app-level landscape lock remains active until Process Map is closed."));
+  assert.ok(!app.includes("CapacitorScreenOrientation.lock"));
+  assert.ok(!workspace.includes("landscape lock"));
+  assert.ok(workspace.includes("Open route in full screen"));
   assert.ok(workspace.includes('className="process-route-index"'));
   assert.ok(universe.includes("process-universe-node-track"));
 });
