@@ -50,13 +50,14 @@ async function waitForServer() {
 async function newScenario() {
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, acceptDownloads: true });
   await context.addInitScript(({ key, data }) => {
-    // addInitScript executes again on every reload. Seed only once per tab so
-    // persistence acceptance never overwrites the records it is trying to verify.
-    if (sessionStorage.getItem("aximach.acceptance.seeded.v1") === "done") return;
+    // addInitScript runs in every tab and after every reload. Use an
+    // origin-scoped localStorage sentinel so a fresh tab never reseeds and
+    // overwrites the records whose persistence this scenario is verifying.
+    if (localStorage.getItem("aximach.acceptance.seeded.v1") === "done") return;
     localStorage.setItem(key, JSON.stringify(data));
     localStorage.setItem("aximach.storage.mode", "local-only");
     localStorage.setItem("aximach.legacy-demo-cleanup.v2", "done");
-    sessionStorage.setItem("aximach.acceptance.seeded.v1", "done");
+    localStorage.setItem("aximach.acceptance.seeded.v1", "done");
   }, { key: seedKey, data: seededData });
   const page = await context.newPage();
   const pageErrors = [];
@@ -147,16 +148,32 @@ async function finishScenario(s, label) {
   await s.page.reload({ waitUntil: "domcontentloaded" });
   await s.page.locator(".app-shell").waitFor({ state: "visible", timeout: 12000 });
   if (s.pageErrors.length) throw new Error(label + " browser runtime errors after reload: " + s.pageErrors.join(" | "));
-  const after = await readPersistenceSnapshot(s.page);
-  if (after.error) throw new Error(label + " persistence check after reload failed: " + after.error);
-  if (JSON.stringify(before.state) !== JSON.stringify(after.state)) {
+  const afterReload = await readPersistenceSnapshot(s.page);
+  if (afterReload.error) throw new Error(label + " persistence check after reload failed: " + afterReload.error);
+  if (JSON.stringify(before.state) !== JSON.stringify(afterReload.state)) {
     throw new Error(label + " data changed or disappeared after page reload; stable IDs and full record values must persist.");
   }
-  await openModule(s.page, moduleTitle);
+
+  // Close the original tab and reopen the app in a new tab in the same isolated
+  // browser context. This exercises origin storage rehydration independently
+  // of the original page's in-memory React state and per-tab sessionStorage.
+  await s.page.close();
+  const reopenedPage = await s.context.newPage();
+  reopenedPage.on("pageerror", error => s.pageErrors.push(error.message));
+  reopenedPage.on("dialog", dialog => dialog.accept());
+  await reopenedPage.goto(baseURL, { waitUntil: "domcontentloaded" });
+  await reopenedPage.locator(".app-shell").waitFor({ state: "visible", timeout: 12000 });
+  if (s.pageErrors.length) throw new Error(label + " browser runtime errors after fresh-tab reopen: " + s.pageErrors.join(" | "));
+  const afterFreshTab = await readPersistenceSnapshot(reopenedPage);
+  if (afterFreshTab.error) throw new Error(label + " fresh-tab persistence check failed: " + afterFreshTab.error);
+  if (JSON.stringify(before.state) !== JSON.stringify(afterFreshTab.state)) {
+    throw new Error(label + " data changed or disappeared after closing and reopening AXIMACH in a fresh tab.");
+  }
+  await openModule(reopenedPage, moduleTitle);
   if (s.pageErrors.length) throw new Error(label + " browser runtime errors after reopening " + moduleTitle + ": " + s.pageErrors.join(" | "));
   await s.context.close();
   scenarioCount++;
-  console.log("PASS CRUD + reload/reopen persistence: " + label + " → " + moduleTitle);
+  console.log("PASS CRUD + reload + fresh-tab persistence: " + label + " → " + moduleTitle);
 }
 async function companyCrud() {
   const s = await newScenario(), p = s.page;
