@@ -18,14 +18,14 @@ const partProcessIds = (partId:string) => {
   const bomIds = new Set(fixture.bomLines.filter((row:any)=>row.partId===partId).map((row:any)=>row.id));
   const linked = fixture.materialProcessLinks.filter((row:any)=>bomIds.has(row.bomLineId)).map((row:any)=>row.operationId);
   const sharedAndBranch = fixture.operations.filter((row:any)=>row.branch==="Main route"||row.branch===branchName).map((row:any)=>row.id);
-  return new Set([...linked,...sharedAndBranch]);
+  return new Set<string>([...linked,...sharedAndBranch]);
 };
-const partById = new Map(fixture.parts.map((row:any)=>[row.id,row]));
-const operationById = new Map(fixture.operations.map((row:any)=>[row.id,row]));
-const vendorById = new Map(fixture.vendors.map((row:any)=>[row.id,row.company]));
-const routeById = new Map(fixture.transportRoutes.map((row:any)=>[row.id,row]));
-const materialById = new Map(fixture.materials.map((row:any)=>[row.id,row]));
-const bomById = new Map(fixture.bomLines.map((row:any)=>[row.id,row]));
+const partById = new Map<string, any>(fixture.parts.map((row:any)=>[row.id,row]));
+const operationById = new Map<string, any>(fixture.operations.map((row:any)=>[row.id,row]));
+const vendorById = new Map<string, any>(fixture.vendors.map((row:any)=>[row.id,row.company]));
+const routeById = new Map<string, any>(fixture.transportRoutes.map((row:any)=>[row.id,row]));
+const materialById = new Map<string, any>(fixture.materials.map((row:any)=>[row.id,row]));
+const bomById = new Map<string, any>(fixture.bomLines.map((row:any)=>[row.id,row]));
 
 export default function TransportRoutingDemo({onClose}:Props) {
   const [partFilter,setPartFilter] = useState("all");
