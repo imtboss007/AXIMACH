@@ -4,6 +4,13 @@ import { readFileSync } from "node:fs";
 
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
+test("enterprise Manufacturing Universe preserves saved cross-PO relationship edges", () => {
+  const graph = read("../src/ProcessUniverse3D.tsx");
+  const universe = read("../src/ManufacturingUniverseWorkspace.tsx");
+  assert.ok(graph.includes('sceneScopeLabel!=="ENTERPRISE-WIDE"&&(from.poLineId||from.componentId)!==(to.poLineId||to.componentId)'), "cross-line relationship filtering must apply only to a selected PO-line scene");
+  assert.ok(universe.includes('universeScope==="enterprise"?relationships.filter(link=>link.status!=="Disabled"):routeRelationships'), "enterprise scene must receive every active saved relationship");
+});
+
 test("all 20 catalogue modules have a corresponding workspace render route", () => {
   const app = read("../src/App.tsx");
   const catalogueStart = app.indexOf("const modules: ModuleItem[] = [");
