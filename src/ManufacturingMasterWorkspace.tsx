@@ -162,7 +162,6 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const filteredCompanies = useMemo(() => companies.filter(c => {
     const people = companyContacts.filter(person => person.linkedId === c.id)
       .map(person => [person.name, person.role, person.group, person.phone, person.whatsapp, person.email, person.address, person.history].join(" ")).join(" ");
-    return (c.name + " " + c.gstin + " " + c.contactPerson + " " + c.phone + " " + c.email + " " + c.address + " " + people).toLowerCase().includes(search.toLowerCase().trim());
     return (c.name + " " + c.gstin + " " + c.contactPerson + " " + c.phone + " " + c.email + " " + c.address + " " + people).toLowerCase().includes(search.toLowerCase().trim())
       && (!companyNameFilters.length || companyNameFilters.includes(c.name))
       && (!companyGstinFilters.length || companyGstinFilters.includes(c.gstin || "—"))
