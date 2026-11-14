@@ -1017,17 +1017,19 @@ async function followUpSchedulerUiCrud() {
 async function routeFlowRelationshipCrud() {
   const s = await newScenario(), p = s.page;
   await openModule(p, "Route Flow & Relationships");
-  await chooseNativeScope(p, ".route-flow-scope-bar");
+  await pick(p, "route-flow-company", fixture.company.name);
+  await pick(p, "route-flow-po", fixture.purchaseOrder.number);
+  await pick(p, "route-flow-component-line", fixture.component.partNumber);
   await p.getByRole("button", { name: "Add relationship", exact: true }).click();
   const editor = p.locator(".route-flow-editor-panel");
   await visible(editor, "Route Flow relationship editor");
 
   const fromOperation = fixture.operations[0];
   const toOperation = fixture.operations[1];
-  await p.getByLabel("From process").selectOption(fromOperation.id);
-  await p.getByLabel("To process").selectOption(toOperation.id);
-  await p.getByLabel("Relationship type").selectOption("conditional");
-  await p.getByLabel("Link status").selectOption("Planned");
+  await pick(p, "route-flow-relationship-from", fromOperation.name);
+  await pick(p, "route-flow-relationship-to", toOperation.name);
+  await pick(p, "route-flow-relationship-type", "Conditional");
+  await pick(p, "route-flow-relationship-status", "Planned");
   const condition = suffix + " inspection accepted";
   await p.getByLabel("Condition / rule").fill(condition);
   const notes = suffix + " conditional route link";
