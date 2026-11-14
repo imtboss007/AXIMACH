@@ -37,8 +37,8 @@ The manufacturing workspaces use the canonical browser store `aximach.manufactur
 ## Automated acceptance inventory
 
 - The browser CRUD suite has isolated synthetic scenarios for Company, Factory, Component, Purchase Order, Vendor, Contact 360, Transport Directory, Process Directory, Planned Cost, Material/BOM/stock, Follow-up assignment, Process Plan operation/payment history, Dispatch, Quality, Costing, Production lifecycle, Vendor Network and Data Exchange.
-- This audit adds the two read-only modules that were not represented by CRUD scenarios: Reports & Analytics and AI Insights. Together, the CRUD/read-only suite now has **20 named workflows** and each workflow performs a local-storage snapshot comparison after reload and a fresh-tab reopen.
-- Separate browser acceptance covers all visible module navigation, safe control activation, Process Map visual modes, Route Flow and Manufacturing Universe layout/export paths, popups, contact links and responsive layouts.
+- This audit adds a direct Route Flow relationship-write scenario plus the two read-only module workflows for Reports & Analytics and AI Insights. The browser suite now has **21 named workflows** across the 20 visible modules (including the nested Factory tab and the supporting Process Plan editor); every named CRUD/read-only workflow performs a local-storage snapshot comparison after reload and a fresh-tab reopen.
+- Separate browser acceptance covers all visible module navigation, safe control activation, Process Map visual modes, Manufacturing Universe layout/export paths, Route Flow route export and responsive layouts. The Route Flow relationship Add/Disable path is now also exercised directly.
 - Structural tests check canonical module IDs, linked-navigation context, dependent-record cleanup, material/process mappings, transport-route fixtures and process-universe behavior.
 
 ## Remaining acceptance gates — not claimed as passed
