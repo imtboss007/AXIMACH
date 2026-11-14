@@ -809,6 +809,15 @@ async function main() {
   }
   responsiveResults.push({ name: "Android portrait", module: "Dashboard live-record shell", ...mobileShellMetrics });
 
+  // Exercise a real touch-style click, not just the shell's visibility.
+  // Companies is a read-only navigation target; this must open the matching
+  // workspace without creating or mutating any business records.
+  await mobileRecordShell.locator('button[title="Open Companies"]').click({ timeout: 5000 });
+  await page.locator(".page-content h1").filter({ hasText: "Company Directory" }).waitFor({ state: "visible", timeout: 6000 });
+  responsiveResults.push({ name: "Android portrait", module: "Dashboard live-record shell click", destination: "Company Directory", clickable: true });
+  await page.locator('button[aria-label="Open AXIMACH dashboard"]').click();
+  await mobileRecordShell.waitFor({ state: "visible", timeout: 6000 });
+
   // Inventory unambiguously safe navigation/view buttons in all remaining modules. Buttons
   // that save, delete, archive, send, dispatch, import or export business data are not blindly
   // fired; those require their own isolated CRUD scenario rather than accidental data mutation.
