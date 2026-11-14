@@ -1,0 +1,51 @@
+# AXIMACH — 20-module action, linkage and persistence audit
+
+**Scope:** canonical navigation branch `audit/cross-module-actions-and-context`  
+**Purpose:** record the actual workspace routed by each visible module, the source records it reads or writes, the stable-ID links that must survive navigation, and the automated acceptance evidence.
+
+## Persistence boundary
+
+The manufacturing workspaces use the canonical browser store `aximach.manufacturingData.v1`. It contains company/factory, component, purchase-order, vendor, operation, quotation, material, part, material-cost, BOM, material-process-link, stock-ledger, contact, process-definition, planned-cost, transport-route, transport-leg, payment-ledger, inspection-measurement, route-relationship and follow-up-assignment collections.
+
+`readManufacturingData()` normalises older backups and merges legacy Contact 360, Process Directory and Component Planned Cost stores by stable record ID. Browser reload and fresh-tab tests verify local persistence; they do **not** establish PC-to-Android sync. Shared sync is optional and requires a configured AXIMACH API endpoint and key. When no server is configured, the app correctly reports device-local storage. The acceptance suite uses an isolated synthetic browser fixture and does not seed live company data.
+
+## Canonical module map
+
+| # | Visible module | Actual workspace and key actions | Linked-record behavior | Persistence / acceptance evidence |
+|---:|---|---|---|---|
+| 1 | Company Directory | Company add, edit, save and archive; Factory management is a nested tab with its own add/edit/archive actions. | Factory records retain `companyId`; components and purchase orders retain their company relationship. | Company and Factory CRUD, parent-company check, reload and fresh-tab comparison. |
+| 2 | Component Directory | Component add/edit/save/delete, component identity and logo/export actions. | Component IDs are referenced by PO lines, parts, BOM rows, operations, costing and transport. | Component CRUD and dependent-record cleanup regression checks; export PDF/XLSX checks. |
+| 3 | Purchase Orders | PO and component-line add/edit/save/delete. | PO header and line IDs connect company, component, process operations, material allocations, transport, inspection and finance. | PO CRUD with linked component line; stable IDs and reload/fresh-tab persistence. |
+| 4 | Vendor Directory | Vendor add/edit/save/archive and vendor/contact drill-through. | Stable vendor IDs are used by process assignments, transport routes/legs, quotations and Contact 360. | Vendor CRUD; Vendor Network → Vendor Directory → Contact 360 round trip. |
+| 5 | Transport Directory | Route-rate add/edit/archive by vendor, vehicle, origin/destination and trip direction. | Transport legs retain `routeId`, `vendorId`, `poId`, `poLineId`, component and optional operation/material anchor. | Transport route CRUD; route export; multi-leg route fixture and link-integrity tests. |
+| 6 | Contact 360 | Contact add/edit/save/delete, relationship selection and master-record drill-through. | Contact profile keeps linked type and stable linked record ID rather than relying on display names. | Contact CRUD; vendor identity and relationship round-trip checks. |
+| 7 | Process Directory | Process category/type/subcategory creation, update and archive; process Logo Studio/export. | Stable process-definition and subcategory IDs are reused by route operations and vendor capability filters. | Process Directory CRUD and stable-ID/process-link regression checks. |
+| 8 | Component Planned Cost | Planned component/process cost add, edit, update and archive. | Cost rows are scoped to the relevant component/process and remain separate from actual quote, payment and production-cost records. | Planned-cost CRUD and stable-ID regression checks. |
+| 9 | Vendor Network | Search/filter capability network, filter assigned vendors, open vendor and Contact 360. | Joins vendor capabilities with Process Directory definitions and saved operation assignments using IDs. | Assigned-vendor filter and exact vendor/contact drill-through browser workflow. |
+| 10 | Material Directory | Material and component-part records, BOM create/edit/archive, material-process mapping and stock receipt/issue workflows. | BOM line, material-process link and inventory transaction remain separate; links carry PO line, component, material and operation IDs. | Material/BOM CRUD, append-only receipt check, multi-material/process-link fixture tests and reload persistence. |
+| 11 | Production Plan & Process Plan | Production job Finish/Reopen (single and bulk), route operation create/edit/status/delete/archive and operation-level payment entry. | PO-line job status is distinct from each operation status; operation IDs anchor quality, transport, route links, quotations and payments. | Individual/bulk Finish-Reopen; Process Plan add/edit/payment/delete history; exact operation navigation. |
+| 12 | Route Flow & Relationships | Interactive route graph; save relationship and transport-leg actions; route-scope filtering and export. | Main/alternate/rework/parallel/split/merge links use operation IDs; material links and transport legs keep distinct identities and anchors. | Route-flow multi-branch and export acceptance; transport/material link fixtures; route-scope regression checks. |
+| 13 | Manufacturing Universe | Dedicated large-format 3D view of the selected company/PO/component route and its related records. | Reads the same saved operation, material, relationship and transport-leg records; does not copy them into a separate graph database. | 3D route-context tests, multi-transport demo, PDF export and mobile layout acceptance. |
+| 14 | Transport & Dispatch | Dispatch search and transport status update, including completed-trip reconciliation. | Updates the linked transport leg when present; legacy logistics operations remain distinguishable. PO, component, vendor and line context is preserved. | Dispatch status update and exact PO-line drill-through tests. |
+| 15 | Quality Inspection | Select operation, record tolerance measurement, update completed/accepted/rejected quantities and inspection status. | Measurement history is a separate dated record with operation, PO, PO-line and component IDs; operation status/quantities update the source operation. | Measurement Add + linked operation Update; immutable measurement-history and context filtering checks. |
+| 16 | Costing & Payment | Add/save/select supplier quotation; payment and actual-cost records remain distinct. | Quote/payment rows reference the same operation and vendor IDs; planned cost is not overwritten by actual payment history. | Quotation save/select, exact rate/status check and reload persistence; operation payment-ledger tests. |
+| 17 | Follow-up Centre | Assign/unlink people and manage follow-up work/reminders. | Assignments use contact/vendor/operation references where supplied; scheduled follow-up data is preserved in the app's local module store and backup export. | Assignment Add/Unlink and JSON backup collection checks; live messaging delivery remains integration-dependent. |
+| 18 | Reports & Analytics | Read-only operational/financial KPIs, exception counts, PO/cost/quality report selection and CSV export. | Metrics are calculated from saved manufacturing records; drill-through opens Production Plan or Costing rather than duplicate report records. | **Added in this audit:** metric-to-fixture assertions, Production Plan drill-through, PO CSV content and reload/fresh-tab persistence. |
+| 19 | AI Insights | Deterministic evidence rules for overdue work, quality holds, missing vendors/delivery targets and incomplete job closure; no autonomous record mutation. | Each finding carries source PO/PO-line/component/operation IDs into its destination workspace. | **Added in this audit:** all five rule families triggered by isolated fixture evidence and exact Quality Inspection operation-context drill-through. |
+| 20 | Data Exchange Centre | Validate/preview/commit imports; CSV, XLSX, PDF/print and full JSON backup export. | Import/backup merge is ID-aware; row-level validation and duplicate handling must not silently overwrite unrelated records. | Invalid-import no-commit; valid CSV duplicate skipping; CSV/XLSX/JSON export and JSON backup import/round trip. |
+
+## Automated acceptance inventory
+
+- The browser CRUD suite has isolated synthetic scenarios for Company, Factory, Component, Purchase Order, Vendor, Contact 360, Transport Directory, Process Directory, Planned Cost, Material/BOM/stock, Follow-up assignment, Process Plan operation/payment history, Dispatch, Quality, Costing, Production lifecycle, Vendor Network and Data Exchange.
+- This audit adds the two read-only modules that were not represented by CRUD scenarios: Reports & Analytics and AI Insights. Together, the CRUD/read-only suite now has **20 named workflows** and each workflow performs a local-storage snapshot comparison after reload and a fresh-tab reopen.
+- Separate browser acceptance covers all visible module navigation, safe control activation, Process Map visual modes, Route Flow and Manufacturing Universe layout/export paths, popups, contact links and responsive layouts.
+- Structural tests check canonical module IDs, linked-navigation context, dependent-record cleanup, material/process mappings, transport-route fixtures and process-universe behavior.
+
+## Remaining acceptance gates — not claimed as passed
+
+1. Physical PC and Android click/touch, pointer capture, WebGL depth/hit-target behavior, real-device orientation and visual fallback.
+2. PC-to-Android shared-server round trip, offline queue/retry/duplicate/conflict handling and sync after app restart.
+3. Production authentication, tenant isolation, server-side role enforcement, audit trail, approved integrations and backup restoration.
+4. Live messaging delivery/reply webhooks and operational follow-up scheduling against a configured provider.
+
+A passing browser or packaging workflow is not evidence that these deployment, security, physical-device or production-readiness gates have passed.
