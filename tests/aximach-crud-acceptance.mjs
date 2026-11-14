@@ -120,7 +120,9 @@ const scenarioWorkspace = {
   "Costing & Payment quotation Add/Save/Select": "Costing & Payment",
   "Production Plan individual and bulk Finish/Reopen": "Production Plan & Process Plan",
   "Vendor Network capability filtering and vendor drill-through": "Vendor Network",
-  "Data Exchange Centre validated import/export and JSON backup": "Data Exchange Centre"
+  "Data Exchange Centre validated import/export and JSON backup": "Data Exchange Centre",
+  "Reports & Analytics saved-record metrics and CSV export": "Reports & Analytics",
+  "AI Insights evidence rules and exact quality drill-through": "AI Insights"
 };
 async function readPersistenceSnapshot(page) {
   return page.evaluate(({ key, collections }) => {
@@ -870,6 +872,113 @@ async function dataExchangeCrud() {
   await finishScenario(s, "Data Exchange Centre validated import/export and JSON backup");
 }
 
+async function reportsAnalyticsReadOnly() {
+  const s = await newScenario(), p = s.page;
+  await openModule(p, "Reports & Analytics");
+
+  const assertMetric = async (label, expected) => {
+    const card = p.locator("article.metric-card").filter({ hasText: label }).first();
+    await visible(card, "Reports & Analytics metric: " + label);
+    const actual = (await card.locator(".metric-number").innerText()).trim();
+    if (actual !== String(expected)) {
+      throw new Error("Reports & Analytics " + label + " should reflect " + expected + " saved record(s); found " + actual + ".");
+    }
+  };
+  await assertMetric("Companies", seededData.companies.length);
+  await assertMetric("Purchase orders", seededData.purchaseOrders.length);
+  await assertMetric("PO component lines", seededData.purchaseOrders.reduce((sum, po) => sum + po.lines.length, 0));
+  await assertMetric("Vendors", seededData.vendors.length);
+  await assertMetric("Process operations", seededData.operations.length);
+
+  // Reporting drill-through must open the live production register, not a
+  // generic module-local record list.
+  await p.getByRole("button", { name: /Open Production Plan/ }).click();
+  await p.locator(".page-content h1").filter({ hasText: "Production Plan" }).waitFor({ state: "visible", timeout: 8000 });
+  const job = p.locator("tr").filter({ hasText: fixture.purchaseOrder.number }).filter({ hasText: fixture.component.partNumber }).first();
+  await visible(job, "production job reached from Reports & Analytics");
+
+  await openModule(p, "Reports & Analytics");
+  await p.locator(".intelligence-export-row select").selectOption("purchaseOrders");
+  const csvPromise = p.waitForEvent("download", { timeout: 12000 });
+  await p.getByRole("button", { name: "Export CSV", exact: true }).click();
+  const csv = await csvPromise;
+  const csvPath = await csv.path();
+  if (!csvPath) throw new Error("Reports & Analytics did not produce a CSV download.");
+  const csvText = readFileSync(csvPath, "utf8");
+  if (!csvText.includes(fixture.purchaseOrder.number) || !csvText.includes(fixture.component.partNumber)) {
+    throw new Error("PO component report omitted its saved PO or component identity.");
+  }
+
+  await finishScenario(s, "Reports & Analytics saved-record metrics and CSV export");
+}
+
+async function aiInsightsEvidenceDrillThrough() {
+  const s = await newScenario(), p = s.page;
+  const qualityOperation = fixture.operations[0];
+  const unassignedOperation = fixture.operations[1];
+  const completedOperation = fixture.operations[2];
+
+  // Create isolated synthetic evidence for each deterministic insight rule.
+  // This changes only this browser context's local acceptance fixture.
+  await p.evaluate(({ key, qualityId, unassignedId, completedId, poId, lineId }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    const quality = (root.operations || []).find(row => row.id === qualityId);
+    const unassigned = (root.operations || []).find(row => row.id === unassignedId);
+    const completed = (root.operations || []).find(row => row.id === completedId);
+    const po = (root.purchaseOrders || []).find(row => row.id === poId);
+    const line = po?.lines?.find(row => row.id === lineId);
+    if (!quality || !unassigned || !completed || !po || !line) {
+      throw new Error("AI Insights synthetic fixture is missing a linked operation, PO or PO line.");
+    }
+    quality.status = "Quality hold";
+    unassigned.vendorId = "";
+    unassigned.transportVendorId = "";
+    completed.status = "Complete";
+    completed.actualEnd = "2026-01-08";
+    po.targetDelivery = "";
+    line.targetDelivery = "";
+    localStorage.setItem(key, JSON.stringify(root));
+  }, {
+    key: seedKey,
+    qualityId: qualityOperation.id,
+    unassignedId: unassignedOperation.id,
+    completedId: completedOperation.id,
+    poId: fixture.purchaseOrder.id,
+    lineId: fixture.poLine.id
+  });
+  await p.reload({ waitUntil: "domcontentloaded" });
+  await p.locator(".app-shell").waitFor({ state: "visible", timeout: 12000 });
+  await openModule(p, "AI Insights");
+
+  const findings = p.locator("article.specialized-record");
+  await visible(findings.filter({ hasText: "Operation is past its planned target" }).first(), "overdue-operation insight");
+  const qualityFinding = findings.filter({ hasText: "Quality hold requires disposition" }).first();
+  await visible(qualityFinding, "quality-hold insight");
+  await visible(findings.filter({ hasText: "Process operation has no vendor assigned" }).first(), "unassigned-vendor insight");
+  await visible(findings.filter({ hasText: "PO component line has no delivery target" }).first(), "missing-delivery-target insight");
+  await visible(findings.filter({ hasText: "All or some process steps are complete; job closure not confirmed" }).first(), "job-closure insight");
+
+  // The finding must preserve the exact PO-line and operation IDs into Quality.
+  await qualityFinding.getByRole("button", { name: /Open quality inspection/ }).click();
+  await p.locator(".page-content h1").filter({ hasText: "Quality Inspection" }).waitFor({ state: "visible", timeout: 8000 });
+  const operationPicker = p.getByLabel("PO component / operation");
+  await visible(operationPicker, "context-filtered quality operation picker");
+  if (await operationPicker.inputValue() !== qualityOperation.id) {
+    throw new Error("AI Insights → Quality Inspection did not retain the exact originating operation ID.");
+  }
+  const visibleOperations = p.locator(".operations-workspace .costing-table tbody tr");
+  if (await visibleOperations.count() !== 1) {
+    throw new Error("AI Insights → Quality Inspection should filter to the one originating operation; found " + await visibleOperations.count() + ".");
+  }
+  const operationRow = visibleOperations.first();
+  const rowText = await operationRow.innerText();
+  if (!rowText.includes(fixture.purchaseOrder.number) || !rowText.includes(fixture.component.partNumber) || !rowText.includes(qualityOperation.name)) {
+    throw new Error("AI Insights → Quality Inspection lost the source PO, component or operation identity.");
+  }
+
+  await finishScenario(s, "AI Insights evidence rules and exact quality drill-through");
+}
+
 async function main() {
   await waitForServer();
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
@@ -891,6 +1000,8 @@ async function main() {
   await productionJobLifecycleCrud();
   await vendorNetworkFilterCrud();
   await dataExchangeCrud();
+  await reportsAnalyticsReadOnly();
+  await aiInsightsEvidenceDrillThrough();
   console.log("AXIMACH CRUD browser acceptance passed: " + scenarioCount + " isolated scenarios.");
 }
 try {
