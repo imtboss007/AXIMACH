@@ -1208,9 +1208,13 @@ async function masterColumnFilterAcceptance() {
     await visible(menu, label + " filter menu");
     const search = menu.getByRole("textbox", { name: "Search " + label });
     await search.fill(excludedValue);
-    const option = menu.locator("label").filter({ hasText: excludedValue }).first();
-    await visible(option, label + " option " + excludedValue);
-    await option.locator('input[type="checkbox"]').uncheck();
+    const options = menu.locator("label").filter({ hasText: excludedValue });
+    const optionCount = await options.count();
+    if (!optionCount) throw new Error(label + " option not found: " + excludedValue);
+    for (let index = 0; index < optionCount; index++) {
+      const checkbox = options.nth(index).locator('input[type="checkbox"]');
+      if (await checkbox.isChecked()) await checkbox.uncheck();
+    }
     await menu.getByRole("button", { name: "Done", exact: true }).click();
     await p.waitForTimeout(100);
   }
