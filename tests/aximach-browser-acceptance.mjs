@@ -809,10 +809,13 @@ async function main() {
   }
   responsiveResults.push({ name: "Android portrait", module: "Dashboard live-record shell", ...mobileShellMetrics });
 
-  // Pause the record shell's idle rotation so the Android tap target is stable.
-  // Then exercise a real pointer click on a read-only navigation target.
-  await page.locator(".ax-orb-record-pause").click({ timeout: 5000 });
-  await page.waitForTimeout(250);
+  // Pause the shared idle rotation (the record-drag lock only disables manual
+  // dragging and does not stop the MotionValue animation). Confirm the shell
+  // reports PAUSED before attempting a real pointer click.
+  const pauseRotation = page.locator(".ax-orb-studio-actions button.ax-orb-pause").filter({ hasText: "Pause auto-rotation" });
+  await pauseRotation.click({ timeout: 5000 });
+  await page.getByText(/AUTO ROTATION · PAUSED/).waitFor({ state: "visible", timeout: 3000 });
+  await page.waitForTimeout(150);
   await mobileRecordShell.locator('button[title="Open Companies"]').click({ timeout: 5000 });
   await page.locator(".page-content h1").filter({ hasText: "Company Directory" }).waitFor({ state: "visible", timeout: 6000 });
   responsiveResults.push({ name: "Android portrait", module: "Dashboard live-record shell click", destination: "Company Directory", clickable: true });
