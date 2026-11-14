@@ -488,7 +488,10 @@ async function main() {
 
   // Manufacturing Universe: scope by exact company, PO and component line; cycle export formats.
   await openModule(page, "Manufacturing Universe");
-  await chooseNativeScope(page, ".manufacturing-universe-scope");
+  await chooseSearchablePicker(page, "universe-company", fixture.company.name);
+  await chooseSearchablePicker(page, "universe-purchase-order", fixture.purchaseOrder.number);
+  await chooseSearchablePicker(page, "universe-component-line", fixture.component.partNumber);
+  await page.waitForTimeout(450);
   const universeLayoutPicker = page.getByLabel("Choose route flow layout", { exact: true });
   const universeRouteLayouts = await universeLayoutPicker.locator("option").evaluateAll(nodes => nodes.map(node => node.value).filter(Boolean));
   if (universeRouteLayouts.length !== 9) throw new Error("Manufacturing Universe expected all nine shared route layouts");
