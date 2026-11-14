@@ -185,6 +185,27 @@ test("HTTP server persists and merges follow-up assignments across device update
     assert.equal(currentData.routeRelationships.length, 1, "saved route connectors must persist");
     assert.equal(currentData.materialProcessLinks.find(row => row.id === syntheticMaterialLink.id).operationId, syntheticOperation.id);
 
+    // Exercise the real HTTP endpoint with a shared baseline and a stale offline edit.
+    const syncBaseline = { ...currentData, companies: [{ ...currentData.companies[0] }] };
+    const sharedEdit = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({ data: {
+        companies: [{ ...syncBaseline.companies[0], name: "Company A - shared edit", updatedAt: "2026-11-04T11:00:00.000Z" }]
+      } })
+    });
+    assert.equal(sharedEdit.status, 200);
+    const offlineConflict = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({
+        baseData: syncBaseline,
+        data: { companies: [{ ...syncBaseline.companies[0], name: "Stale offline overwrite", updatedAt: "2026-11-05T11:00:00.000Z" }] }
+      })
+    });
+    assert.equal(offlineConflict.status, 200);
+    const conflictBody = await offlineConflict.json();
+    assert.equal(conflictBody.conflicts.length, 1);
+    assert.equal(conflictBody.conflicts[0].local.name, "Stale offline overwrite");
+    assert.equal(conflictBody.data.companies.find(row => row.id === syncBaseline.companies[0].id).name, "Company A - shared edit");
+    assert.equal(conflictBody.unresolvedConflictCount, 1);
+
     await stopServer(child);
     child = undefined;
     const persisted = JSON.parse(await readFile(dataFile, "utf8"));
