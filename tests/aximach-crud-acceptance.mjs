@@ -114,6 +114,7 @@ const persistenceCollections = [
   "transportLegs","paymentTransactions","inspectionMeasurements","routeRelationships","followUpAssignments"
 ];
 const scenarioWorkspace = {
+  "Company/Factory/Transport column filters": "Company Directory",
   "Company Directory Add/Edit/Save/Archive": "Company Directory",
   "Factory Directory Add/Edit/Save/Archive with parent company link": "Company Directory",
   "Component Directory Add/Edit/Save/Delete": "Component Directory",
@@ -1179,9 +1180,126 @@ async function aiInsightsEvidenceDrillThrough() {
   await finishScenario(s, "AI Insights evidence rules and exact quality drill-through");
 }
 
+async function masterColumnFilterAcceptance() {
+  const s = await newScenario(), p = s.page;
+  const companyName = suffix + " Filter Company";
+  const gstin = "29FILTER1234A1Z5";
+  const contactName = suffix + " Filter Contact";
+  const phone = "+91 9876501234";
+  const email = "filters@aximach.invalid";
+  const address = suffix + " Filter Address";
+  await openModule(p, "Company Directory");
+
+  await p.getByRole("button", { name: "Add Company" }).click();
+  await p.getByPlaceholder("Enter your actual registered company name").fill(companyName);
+  await p.getByPlaceholder("Optional").fill(gstin);
+  await p.getByPlaceholder("Primary contact person").fill(contactName);
+  await p.getByPlaceholder("Country code + number").fill(phone);
+  await p.getByPlaceholder("Accounts / contact email").fill(email);
+  await p.getByPlaceholder("Registered / business address").fill(address);
+  await p.getByRole("button", { name: "Save company" }).click();
+  await visible(p.locator(".module-record-card").filter({ hasText: companyName }), "second company for column-filter acceptance");
+
+  async function excludeMultiOption(id, label, excludedValue) {
+    const trigger = p.locator("#" + id);
+    await visible(trigger, label + " filter trigger");
+    await trigger.click();
+    const menu = p.locator(".ax-search-multi-menu").last();
+    await visible(menu, label + " filter menu");
+    const search = menu.getByRole("textbox", { name: "Search " + label });
+    await search.fill(excludedValue);
+    const option = menu.locator("label").filter({ hasText: excludedValue }).first();
+    await visible(option, label + " option " + excludedValue);
+    await option.locator('input[type="checkbox"]').uncheck();
+    await menu.getByRole("button", { name: "Done", exact: true }).click();
+    await p.waitForTimeout(100);
+  }
+  async function clearMultiOption(id, label) {
+    await p.locator("#" + id).click();
+    const menu = p.locator(".ax-search-multi-menu").last();
+    await visible(menu, label + " filter menu for clear");
+    await menu.getByRole("button", { name: "Clear", exact: true }).click();
+    await menu.getByRole("button", { name: "Done", exact: true }).click();
+    await p.waitForTimeout(100);
+  }
+  async function assertOnlyCard(expected, label) {
+    const cards = p.locator(".module-record-card");
+    const count = await cards.count();
+    if (count !== 1 || !(await cards.first().innerText()).includes(expected)) {
+      throw new Error(label + " did not isolate " + expected + "; found " + count + " record card(s).");
+    }
+  }
+
+  await excludeMultiOption("company-filter-name", "Company name", fixture.company.name);
+  await assertOnlyCard(companyName, "Company name filter");
+  await clearMultiOption("company-filter-name", "Company name");
+  await excludeMultiOption("company-filter-gstin", "GSTIN", "—");
+  await assertOnlyCard(companyName, "GSTIN filter");
+  await clearMultiOption("company-filter-gstin", "GSTIN");
+  await excludeMultiOption("company-filter-contact", "Contact person", fixture.company.contactPerson || "—");
+  await assertOnlyCard(companyName, "Company contact filter");
+  await clearMultiOption("company-filter-contact", "Contact person");
+  await excludeMultiOption("company-filter-phone", "Phone", "—");
+  await assertOnlyCard(companyName, "Company phone filter");
+  await clearMultiOption("company-filter-phone", "Phone");
+  await excludeMultiOption("company-filter-email", "Email", fixture.company.email || "—");
+  await assertOnlyCard(companyName, "Company email filter");
+  await clearMultiOption("company-filter-email", "Email");
+  await excludeMultiOption("company-filter-address", "Address", fixture.company.address || "—");
+  await assertOnlyCard(companyName, "Company address filter");
+  await clearMultiOption("company-filter-address", "Address");
+
+  await p.getByRole("button", { name: /Factories/ }).click();
+  const factoryName = suffix + " Filter Factory";
+  const factoryAddress = suffix + " Factory Address";
+  const factoryPhone = "+91 9876505678";
+  await p.getByRole("button", { name: "Add Factory" }).click();
+  await pick(p, "factory-parent-company", companyName);
+  await p.getByPlaceholder("Enter factory name").fill(factoryName);
+  await p.getByPlaceholder("Factory address").fill(factoryAddress);
+  await p.getByPlaceholder("Optional").last().fill(factoryPhone);
+  await p.getByRole("button", { name: "Save factory" }).click();
+  await visible(p.locator(".module-record-card").filter({ hasText: factoryName }), "second factory for column-filter acceptance");
+  await excludeMultiOption("factory-filter-name", "Factory name", fixture.factory.name);
+  await assertOnlyCard(factoryName, "Factory name filter");
+  await clearMultiOption("factory-filter-name", "Factory name");
+  await excludeMultiOption("factory-filter-company", "Parent company", fixture.company.name);
+  await assertOnlyCard(factoryName, "Factory parent-company filter");
+  await clearMultiOption("factory-filter-company", "Parent company");
+  await excludeMultiOption("factory-filter-address", "Address", fixture.factory.address || "—");
+  await assertOnlyCard(factoryName, "Factory address filter");
+  await clearMultiOption("factory-filter-address", "Address");
+  await excludeMultiOption("factory-filter-phone", "Contact phone", "—");
+  await assertOnlyCard(factoryName, "Factory contact-phone filter");
+  await clearMultiOption("factory-filter-phone", "Contact phone");
+
+  await openModule(p, "Transport Directory");
+  const routeOneFrom = suffix + " Route One Pickup", routeOneTo = suffix + " Route One Delivery";
+  const routeTwoFrom = suffix + " Route Two Pickup", routeTwoTo = suffix + " Route Two Delivery";
+  for (const [from, to, amount] of [[routeOneFrom, routeOneTo, "101"], [routeTwoFrom, routeTwoTo, "202"]]) {
+    await pick(p, "transport-route-vendor", fixture.vendors[5].company);
+    await p.getByPlaceholder("Pickup location").fill(from);
+    await p.getByPlaceholder("Delivery location").fill(to);
+    await p.getByPlaceholder("Enter agreed route rate").fill(amount);
+    await p.getByRole("button", { name: "Add route rate" }).click();
+    await visible(p.locator("tr").filter({ hasText: from }).filter({ hasText: to }), "saved route " + from);
+  }
+  await excludeMultiOption("transport-filter-route", "Route (from → to)", routeTwoFrom);
+  const routeRows = p.locator("table.costing-table tbody tr");
+  if (await routeRows.count() !== 1 || !(await routeRows.first().innerText()).includes(routeOneFrom)) {
+    throw new Error("Transport route selector did not isolate the selected from/to route.");
+  }
+  await clearMultiOption("transport-filter-route", "Route (from → to)");
+  if (await routeRows.count() !== 2) throw new Error("Clearing the route selector did not restore both saved transport routes.");
+
+  await openModule(p, "Company Directory");
+  await finishScenario(s, "Company/Factory/Transport column filters");
+}
+
 async function main() {
   await waitForServer();
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+  await masterColumnFilterAcceptance();
   await companyCrud();
   await factoryCrud();
   await componentCrud();
