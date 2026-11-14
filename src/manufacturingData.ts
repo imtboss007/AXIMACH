@@ -423,6 +423,7 @@ async function getRemote(cfg: { base: string; key: string }): Promise<Manufactur
   const response = await fetch(cfg.base + "/api/manufacturing-data", { headers: { "x-aximach-key": cfg.key } });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "Could not refresh shared manufacturing data.");
+  if (Array.isArray(body.conflicts)) saveSyncConflicts(body.conflicts);
   return normaliseData(body.data || emptyManufacturingData());
 }
 
