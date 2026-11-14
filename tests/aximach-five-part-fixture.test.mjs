@@ -319,10 +319,11 @@ test("Component Master supplies component-linked identity and PDF/Excel export f
 test("shared searchable pickers support exact, partial and numeric searches plus select-all and clear", () => {
   const picker = readFileSync(new URL("../src/SearchablePicker.tsx", import.meta.url), "utf8");
   const multi = readFileSync(new URL("../src/SearchableMultiSelect.tsx", import.meta.url), "utf8");
-  assert.ok(picker.includes("option.label.toLocaleLowerCase().includes(needle)"));
-  assert.ok(picker.includes("startsWith(needle)"));
+  assert.ok(picker.includes("item.label.includes(needle)"));
+  assert.ok(picker.includes("label === needle ? 0 : label.startsWith(needle) ? 1 : 2"));
   assert.ok(picker.includes("exact or partial match"));
-  assert.ok(multi.includes("option.label.toLocaleLowerCase().includes(needle)"));
+  assert.ok(multi.includes("item.label.includes(needle)"));
+  assert.ok(multi.includes("label === needle ? 0 : label.startsWith(needle) ? 1 : 2"));
   assert.ok(multi.includes('onChange(options.map(option => option.id))'));
   assert.ok(multi.includes("onChange([])"));
   assert.ok(multi.includes("Select all"));
@@ -1990,7 +1991,7 @@ test("3D route arrows stay enabled and narrow-screen process metadata is not hid
 test("Route Flow draws vehicle-specific transport icons on curved connectors and supports multiple vehicle types", () => {
   const route = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
-  assert.ok(route.includes('import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle"'));
+  assert.ok(route.includes('import { VehicleIcon as VehicleTypeIcon, VEHICLE_TYPES } from "./TransportVehicle"'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={vehicleType} size={17}/>'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.leg.vehicleType} size={20}/>'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.entry.transportVehicleType||""} size={20}/>'));
