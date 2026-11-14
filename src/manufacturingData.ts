@@ -413,7 +413,7 @@ export async function resolveManufacturingSyncConflict(
   if (!response.ok) throw new Error(result.error || "Could not resolve the sync conflict.");
   return result.conflict as ManufacturingSyncConflict;
 }
-function preserveConflictRemote(local: ManufacturingData, remote: ManufacturingData, conflicts: SyncConflict[]): ManufacturingData {
+function preserveConflictRemote(local: ManufacturingData, remote: ManufacturingData, conflicts: ManufacturingSyncConflict[]): ManufacturingData {
   const result = { ...local } as ManufacturingData;
   const wholeRows = new Map<string, Set<string>>();
   const lineConflicts = new Map<string, Set<string>>();
@@ -442,7 +442,7 @@ function preserveConflictRemote(local: ManufacturingData, remote: ManufacturingD
   }
   return result;
 }
-async function putRemote(data: ManufacturingData, baseData: ManufacturingData, cfg: { base: string; key: string }): Promise<{ data: ManufacturingData; conflicts: SyncConflict[] }> {
+async function putRemote(data: ManufacturingData, baseData: ManufacturingData, cfg: { base: string; key: string }): Promise<{ data: ManufacturingData; conflicts: ManufacturingSyncConflict[] }> {
   const response = await fetch(cfg.base + "/api/manufacturing-data", {
     method: "PUT",
     headers: { "content-type": "application/json", "x-aximach-key": cfg.key },
