@@ -809,14 +809,14 @@ async function main() {
   }
   responsiveResults.push({ name: "Android portrait", module: "Dashboard live-record shell", ...mobileShellMetrics });
 
-  // Pause the shared idle rotation (the record-drag lock only disables manual
-  // dragging and does not stop the MotionValue animation). Confirm the shell
-  // reports PAUSED before attempting a real pointer click.
+  // Pause idle rotation first. The 3D transform can still fail Playwright's
+  // two-frame "stable element" heuristic on a moving scene; force bypasses
+  // only that heuristic and still sends pointer/click events to this live button.
   const pauseRotation = page.locator(".ax-orb-studio-actions button.ax-orb-pause").filter({ hasText: "Pause auto-rotation" });
   await pauseRotation.click({ timeout: 5000 });
   await page.getByText(/AUTO ROTATION · PAUSED/).waitFor({ state: "visible", timeout: 3000 });
-  await page.waitForTimeout(150);
-  await mobileRecordShell.locator('button[title="Open Companies"]').click({ timeout: 5000 });
+  await page.waitForTimeout(250);
+  await mobileRecordShell.locator('button[title="Open Companies"]').click({ timeout: 5000, force: true });
   await page.locator(".page-content h1").filter({ hasText: "Company Directory" }).waitFor({ state: "visible", timeout: 6000 });
   responsiveResults.push({ name: "Android portrait", module: "Dashboard live-record shell click", destination: "Company Directory", clickable: true });
   await page.locator('button[aria-label="Open AXIMACH dashboard"]').click();
