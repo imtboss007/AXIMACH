@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 
 export const MANUFACTURING_DATA_KEY = "aximach.manufacturingData.v1";
+const SYNC_BASELINE_KEY = "aximach.syncBaseline.v1";
+const SYNC_CONFLICTS_KEY = "aximach.syncConflicts.v1";
 
-export type DataStatus = "local" | "syncing" | "synced" | "error";
+export type DataStatus = "local" | "syncing" | "synced" | "conflict" | "error";
 export type LifecycleStatus = "Planned" | "Queued" | "Running" | "Complete" | "Quality hold" | "Rejected" | "Delayed";
 
 export type CompanyRecord = {
@@ -362,15 +364,60 @@ function serverConfig() {
   }
   return { base, key };
 }
-async function putRemote(data: ManufacturingData, cfg: { base: string; key: string }): Promise<ManufacturingData> {
+type SyncConflict = { id: string; collection: string; recordId: string; lineId?: string; base: unknown; remote: unknown; local: unknown; detectedAt: string; status: string };
+function readSyncBaseline(): ManufacturingData | null {
+  try { const raw = window.localStorage.getItem(SYNC_BASELINE_KEY); return raw ? normaliseData(JSON.parse(raw)) : null; } catch { return null; }
+}
+function writeSyncBaseline(data: ManufacturingData) {
+  try { window.localStorage.setItem(SYNC_BASELINE_KEY, JSON.stringify(data)); } catch { /* storage may be unavailable */ }
+}
+function readSyncConflicts(): SyncConflict[] {
+  try { const value = JSON.parse(window.localStorage.getItem(SYNC_CONFLICTS_KEY) || "[]"); return Array.isArray(value) ? value : []; } catch { return []; }
+}
+function saveSyncConflicts(conflicts: SyncConflict[]) {
+  if (!conflicts.length) return;
+  const existing = readSyncConflicts();
+  const keys = new Set(existing.map(item => item.id));
+  try { window.localStorage.setItem(SYNC_CONFLICTS_KEY, JSON.stringify([...existing, ...conflicts.filter(item => !keys.has(item.id))].slice(-500))); } catch { /* preserve server-side conflict copy */ }
+}
+function preserveConflictRemote(local: ManufacturingData, remote: ManufacturingData, conflicts: SyncConflict[]): ManufacturingData {
+  const result = { ...local } as ManufacturingData;
+  const wholeRows = new Map<string, Set<string>>();
+  const lineConflicts = new Map<string, Set<string>>();
+  for (const conflict of conflicts) {
+    if (conflict.lineId) {
+      const ids = lineConflicts.get(conflict.recordId) || new Set<string>(); ids.add(conflict.lineId); lineConflicts.set(conflict.recordId, ids);
+    } else {
+      const ids = wholeRows.get(conflict.collection) || new Set<string>(); ids.add(conflict.recordId); wholeRows.set(conflict.collection, ids);
+    }
+  }
+  for (const collection of Object.keys(remote) as (keyof ManufacturingData)[]) {
+    if (!Array.isArray(remote[collection]) || !Array.isArray(result[collection])) continue;
+    const blocked = wholeRows.get(String(collection));
+    if (blocked?.size) {
+      const remoteById = new Map((remote[collection] as any[]).map(row => [row.id, row]));
+      (result as any)[collection] = (result[collection] as any[]).map(row => blocked.has(row.id) ? (remoteById.get(row.id) || row) : row);
+    }
+  }
+  if (lineConflicts.size) {
+    result.purchaseOrders = result.purchaseOrders.map(po => {
+      const ids = lineConflicts.get(po.id); if (!ids?.size) return po;
+      const remotePo = remote.purchaseOrders.find(item => item.id === po.id);
+      const remoteLines = new Map((remotePo?.lines || []).map(line => [line.id, line]));
+      return { ...po, lines: po.lines.map(line => ids.has(line.id) ? (remoteLines.get(line.id) || line) : line) };
+    });
+  }
+  return result;
+}
+async function putRemote(data: ManufacturingData, baseData: ManufacturingData, cfg: { base: string; key: string }): Promise<{ data: ManufacturingData; conflicts: SyncConflict[] }> {
   const response = await fetch(cfg.base + "/api/manufacturing-data", {
     method: "PUT",
     headers: { "content-type": "application/json", "x-aximach-key": cfg.key },
-    body: JSON.stringify({ data })
+    body: JSON.stringify({ data, baseData })
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "Manufacturing data sync failed.");
-  return normaliseData(body.data || data);
+  return { data: normaliseData(body.data || data), conflicts: Array.isArray(body.conflicts) ? body.conflicts : [] };
 }
 async function getRemote(cfg: { base: string; key: string }): Promise<ManufacturingData> {
   const response = await fetch(cfg.base + "/api/manufacturing-data", { headers: { "x-aximach-key": cfg.key } });
@@ -406,23 +453,31 @@ export function useManufacturingData() {
           // the next pass rather than being hidden by an older response.
           if (JSON.stringify(localAfterFetch) !== JSON.stringify(localBeforeFetch)) syncPending = true;
 
+          const baseline = readSyncBaseline() || remote;
+          if (!readSyncBaseline()) writeSyncBaseline(remote);
           const merged = mergeManufacturingData(localAfterFetch, remote);
           if (JSON.stringify(merged) !== JSON.stringify(remote)) {
             if (!cancelled) setSyncStatus("syncing");
-            const saved = await putRemote(merged, cfg);
+            const response = await putRemote(merged, baseline, cfg);
             if (!serverConfig()) { if (!cancelled) setSyncStatus("local"); return; }
             const localAfterPut = readManufacturingData();
             if (JSON.stringify(localAfterPut) !== JSON.stringify(localAfterFetch)) syncPending = true;
-            const finalData = mergeManufacturingData(localAfterPut, saved);
+            saveSyncConflicts(response.conflicts);
+            const combined = mergeManufacturingData(localAfterPut, response.data);
+            const finalData = preserveConflictRemote(combined, response.data, response.conflicts);
             writeLocal(finalData, false);
+            writeSyncBaseline(response.data);
             if (!cancelled) setData(finalData);
-          } else if (JSON.stringify(merged) !== JSON.stringify(localAfterFetch)) {
-            writeLocal(merged, false);
-            if (!cancelled) setData(merged);
+          } else {
+            if (JSON.stringify(merged) !== JSON.stringify(localAfterFetch)) {
+              writeLocal(merged, false);
+              if (!cancelled) setData(merged);
+            }
+            writeSyncBaseline(remote);
           }
         } while (syncPending && !cancelled);
 
-        if (!cancelled) setSyncStatus("synced");
+        if (!cancelled) setSyncStatus(readSyncConflicts().some(item => item.status === "unresolved") ? "conflict" : "synced");
       } catch {
         if (!cancelled) setSyncStatus("error");
       } finally {
