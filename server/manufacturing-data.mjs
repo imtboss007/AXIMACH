@@ -91,7 +91,7 @@ export function mergeManufacturingDataWithConflicts(existing, incoming, baseline
       const remoteRow = remoteRows.get(id);
       if (!baseRow || !remoteRow) continue;
       if (collection === "purchaseOrders") {
-        const stripLines = row => { const copy = { ...row }; delete copy.lines; return copy; };
+        const stripLines = row => { const copy = { ...row }; delete copy.lines; delete copy.updatedAt; return copy; };
         const parentConflict = !sameValue(stripLines(baseRow), stripLines(remoteRow))
           && !sameValue(stripLines(baseRow), stripLines(localRow))
           && !sameValue(stripLines(remoteRow), stripLines(localRow));
