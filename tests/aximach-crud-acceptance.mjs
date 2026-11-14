@@ -97,21 +97,15 @@ async function visible(locator, label) {
   await locator.waitFor({ state: "visible", timeout: 8000 }).catch(() => { throw new Error("Expected visible UI element: " + label); });
 }
 async function chooseNativeScope(page, selector) {
-  const scope = page.locator(selector);
-  await visible(scope, "Route Flow scope selectors");
-  const selects = scope.locator("select");
-  // The Route Flow scope is intentionally hierarchical: company → PO → PO line.
-  // Select each first available real record after the preceding selection filters it.
-  for (let index = 0; index < 3; index++) {
-    const select = selects.nth(index);
-    const value = await select.locator("option").evaluateAll(options => {
-      const option = options.find(item => item.value && !item.disabled);
-      return option?.value || "";
-    });
-    if (!value) throw new Error("Route Flow scope selector " + (index + 1) + " has no available record.");
-    await select.selectOption(value);
+  const values = [fixture.company.id, fixture.purchaseOrder.id, fixture.poLine.id];
+  const selects = page.locator(selector + " select:visible");
+  const count = await selects.count();
+  if (count < 3) throw new Error("Expected at least three linked native scope selectors in " + selector + "; found " + count);
+  for (let index = 0; index < values.length; index++) {
+    await selects.nth(index).selectOption(values[index], { timeout: 8000 });
     await page.waitForTimeout(100);
   }
+  await page.waitForTimeout(450);
 }
 const persistenceCollections = [
   "companies","factories","purchaseOrders","components","vendors","operations","quotations",
