@@ -149,7 +149,7 @@ const server = createServer(async (req, res) => {
   if (!authorized(req)) return json(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
   try {
     if (url.pathname === "/api/manufacturing-data" && req.method === "GET") {
-      return json(res, 200, { data: db.manufacturingData || null, updatedAt: db.manufacturingData?.updatedAt || null });
+      return json(res, 200, { data: db.manufacturingData || null, updatedAt: db.manufacturingData?.updatedAt || null, conflicts: (db.syncConflicts || []).filter(item => item.status === "unresolved") });
     }
     if (url.pathname === "/api/manufacturing-data" && req.method === "PUT") {
       const input = await body(req);
