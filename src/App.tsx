@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { ScreenOrientation as CapacitorScreenOrientation } from "@capacitor/screen-orientation";
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
@@ -184,53 +183,6 @@ function App() {
   const [notice, setNotice] = useState("");
   const [appearance, setAppearance] = useState<"light"|"dark"|"midnight"|"ocean">(() => { try { const saved=localStorage.getItem("aximach.ui.appearance"); return saved==="dark"||saved==="midnight"||saved==="ocean"?saved:"light"; } catch { return "light"; } });
   const [followUpSeed,setFollowUpSeed] = useState<{name:string;phone:string;company:string;vendorId:string;process:string;operationId:string}>({name:"",phone:"",company:"",vendorId:"",process:"",operationId:""});
-  const needsLandscapeOrientation = activeModuleId === "process-map" || activeModuleId === "route-flow" || activeModuleId === "manufacturing-universe";
-  const [orientationLockUnavailable,setOrientationLockUnavailable] = useState(false);
-  const [orientationHintDismissed,setOrientationHintDismissed] = useState(false);
-  const requestLandscapeOrientation = async ():Promise<boolean> => {
-    try {
-      await CapacitorScreenOrientation.lock({ orientation: "landscape-primary" });
-      return true;
-    } catch {
-      try {
-        const browserOrientation = window.screen?.orientation as unknown as { lock?: (orientation:"landscape-primary")=>Promise<void> };
-        if (!browserOrientation?.lock) return false;
-        await browserOrientation.lock("landscape-primary");
-        return true;
-      } catch {
-        return false;
-      }
-    }
-  };
-  useEffect(() => {
-    let disposed = false;
-    setOrientationHintDismissed(false);
-    if (!needsLandscapeOrientation || !window.matchMedia("(pointer: coarse) and (max-width: 900px)").matches) {
-      setOrientationLockUnavailable(false);
-      void CapacitorScreenOrientation.unlock().catch(() => undefined);
-      return;
-    }
-    setOrientationLockUnavailable(false);
-    void requestLandscapeOrientation().then(locked => {
-      if (disposed) {
-        // A slow native bridge must not re-apply landscape after the user
-        // has already left this workspace.
-        if (locked) void CapacitorScreenOrientation.unlock().catch(() => undefined);
-        return;
-      }
-      setOrientationLockUnavailable(!locked);
-    });
-    return () => {
-      disposed = true;
-      // Release the temporary landscape lock only when the user leaves all
-      // landscape-first manufacturing workspaces.
-      if (needsLandscapeOrientation) void CapacitorScreenOrientation.unlock().catch(() => undefined);
-    };
-  },[needsLandscapeOrientation]);
-  const retryLandscapeOrientation = async () => {
-    const locked = await requestLandscapeOrientation();
-    setOrientationLockUnavailable(!locked);
-  };
   const openVendorFollowUp = (vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string}, operationId="", processName="") => {
     setFollowUpSeed({name:vendor.contact,phone:vendor.whatsappNumber||vendor.phone,company:vendor.company,vendorId:vendor.id,process:processName||vendor.processes||"",operationId});
     selectModule("communications");
@@ -341,25 +293,14 @@ function App() {
       <div className="status-ribbon">
         <span className="ribbon-dot" /> AXIMACH WORKSPACE
         <span className="ribbon-separator">/</span>
-        <span>No example records loaded · production metrics populate from saved records</span>
+        <span>Local records are saved on this device · connect shared sync or import a backup to use data on another device</span>
         <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
       </div>
 
       <main className="page-content">
-        {needsLandscapeOrientation && orientationLockUnavailable && !orientationHintDismissed && <div className="ax-landscape-rotate-prompt" role="status">
-          <section>
-            <RotateCcw size={38}/>
-            <strong>Landscape view required</strong>
-            <p>This browser could not rotate the screen automatically. Enable auto-rotate and turn your phone sideways for the full route canvas.</p>
-            <div>
-              <button type="button" className="button-primary" onClick={() => void retryLandscapeOrientation()}>Try landscape again</button>
-              <button type="button" className="button-quiet" onClick={() => setOrientationHintDismissed(true)}>Continue in portrait</button>
-            </div>
-          </section>
-        </div>}
         <Suspense fallback={<div className="workspace-loading-state" role="status"><span className="workspace-loading-spinner" /> Loading AXIMACH workspace…</div>}>
         {activeModuleId === "dashboard" ? (
-          <DashboardWorkspace onSelectModule={selectModule} onOpenCommandCentre={() => selectModule("command-centre")} onOpenModules={openModuleExplorer} />
+          <DashboardWorkspace onSelectModule={selectModule} onOpenCommandCentre={() => selectModule("command-centre")} onOpenModules={openModuleExplorer} moduleCount={modules.length} />
         ) : activeModuleId === "command-centre" ? (
           <CommandCentre
             activeModule={activeModule}
@@ -401,7 +342,7 @@ function App() {
         ) : activeModuleId === "quality" ? (
           <QualityInspectionWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "contact360" ? (
-          <Contact360Workspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} initialVendorId={contactVendorSeed} onInitialVendorConsumed={()=>setContactVendorSeed("")} />
+          <Contact360Workspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} initialVendorId={moduleContext.vendorId||contactVendorSeed} onInitialVendorConsumed={()=>setContactVendorSeed("")} />
         ) : activeModuleId === "vendor-capability" ? (
           <VendorNetworkWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
@@ -464,7 +405,7 @@ function App() {
               })}
               {filteredModules.length === 0 && <div className="no-modules"><Search size={24} /><strong>No modules found</strong><span>Try another search or choose a different domain.</span><button onClick={() => { setQuery(""); setDomain("All domains"); }}>Clear filters</button></div>}
             </div>
-            <div className="universe-footer"><span><LayoutGrid size={14} /> {filteredModules.length} of 18 modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
+            <div className="universe-footer"><span><LayoutGrid size={14} /> {filteredModules.length} of {modules.length} modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
           </section>
         </div>
       )}
@@ -497,7 +438,7 @@ function App() {
 function CommandCentre(props: {
   activeModule: ModuleItem; aiPrompt: string; aiResponse: string; notice: string;
   onAiPromptChange: (value: string) => void; onRunCommand: () => void; onNotice: (value: string) => void;
-  onSelectModule: (id: string) => void; onOpenModules: () => void;
+  onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenModules: () => void;
 }) {
   const { aiPrompt, aiResponse, notice, onAiPromptChange, onRunCommand, onNotice, onSelectModule, onOpenModules } = props;
   const { data: actualData } = useManufacturingData();
@@ -509,7 +450,7 @@ function CommandCentre(props: {
           <div className="eyebrow"><span className="eyebrow-mark" /> 3D COMMAND CENTRE / 02</div>
           <h1>One sphere.<br /><em>Every command.</em></h1>
           <p>An interactive manufacturing command surface. Rotate the sphere, open workspaces and control the connected operating flow.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all 18 modules</button></div>
+          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all {modules.length} modules</button></div>
         </div>
         <div className="hero-graphic axim-hero-graphic" aria-label="Interactive AXIMACH 3D operations sphere">
           <div className="graphic-grid" />
@@ -543,7 +484,7 @@ function CommandCentre(props: {
               <span className="setup-step-icon"><Package size={21}/></span>
               <span className="setup-step-copy"><strong>PO lines</strong><b className="setup-step-quantity">{actualData.purchaseOrders.reduce((sum,po) => sum + po.lines.filter(line => !("deletedAt" in line && (line as any).deletedAt)).length,0)}</b><small>component lines</small></span>
             </button>
-            <button onClick={() => onSelectModule("vendors")} aria-label="Open Contact 360">
+            <button onClick={() => onSelectModule("contact360")} aria-label="Open Contact 360">
               <span className="setup-step-icon"><Users size={21}/></span>
               <span className="setup-step-copy"><strong>Contacts</strong><b className="setup-step-quantity">{activeRows(actualData.vendors).length}</b><small>Contact 360</small></span>
             </button>
@@ -559,12 +500,12 @@ function CommandCentre(props: {
         </div>
         <div className="surface-panel attention-panel">
           <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> REVIEW QUEUE</div><h3>Recorded risks</h3><p>No illustrative alerts are shown.</p></div><ShieldCheck size={18}/></div>
-          {activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).length ? activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).slice(0,5).map(op => <button className="attention-row" key={op.id} onClick={() => onSelectModule("process-map")}><span className="attention-symbol red-symbol"><ShieldAlert size={17}/></span><span className="attention-copy"><strong>{op.name}</strong><small>{op.status === "Quality hold" ? "Quality hold entered" : "Target date overdue"} · {op.plannedEnd || "No target date"}</small><em>Open linked Process Map</em></span><ArrowUpRight size={16}/></button>) : <div className="vendor-empty">No overdue operations or quality holds are recorded.</div>}
+          {activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).length ? activeRows(actualData.operations).filter(op => op.status === "Quality hold" || (op.plannedEnd && op.status !== "Complete" && op.plannedEnd < new Date().toISOString().slice(0,10))).slice(0,5).map(op => {const po=actualData.purchaseOrders.find(row=>row.id===op.poId);return <button className="attention-row" key={op.id} onClick={() => onSelectModule("process-map",{companyId:po?.companyId,poId:op.poId,poLineId:op.poLineId,componentId:op.componentId,operationId:op.id,vendorId:op.vendorId||undefined})}><span className="attention-symbol red-symbol"><ShieldAlert size={17}/></span><span className="attention-copy"><strong>{op.name}</strong><small>{op.status === "Quality hold" ? "Quality hold entered" : "Target date overdue"} · {op.plannedEnd || "No target date"}</small><em>Open linked Process Map</em></span><ArrowUpRight size={16}/></button>;}) : <div className="vendor-empty">No overdue operations or quality holds are recorded.</div>}
           <div className="attention-safety"><ShieldCheck size={14}/> Alerts are calculated from saved operation status and target dates.</div>
         </div>
       </section>
       <section className="module-shortcuts">
-        <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all 18 modules <ArrowRight size={15} /></button></div>
+        <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all {modules.length} modules <ArrowRight size={15} /></button></div>
         <div className="shortcut-grid">
           {modules.filter((item) => ["process-map", "production", "vendors", "quality", "costing", "inventory"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
         </div>
@@ -602,6 +543,9 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", initial
   const [capabilityCategoryFilters,setCapabilityCategoryFilters]=useState<string[]>([]);
   const [capabilityProcessFilters,setCapabilityProcessFilters]=useState<string[]>([]);
   const selected=contacts.find(v=>v.id===selectedId)||contacts[0];
+  const selectedVendorOperations=selected?activeRows(data.operations).filter(op=>op.vendorId===selected.id):[];
+  const selectedUniqueOperation=selectedVendorOperations.length===1?selectedVendorOperations[0]:undefined;
+  const selectedOperationPO=selectedUniqueOperation?activeRows(data.purchaseOrders).find(po=>po.id===selectedUniqueOperation.poId):undefined;
   const processDefinitions=activeRows(data.processDefinitions);
   const vendorTypeOptions=[...new Set(contacts.map(v=>v.vendorType||"").filter(Boolean))].sort();
   const processCategoryOptions=[...new Set(processDefinitions.map(definition=>definition.category).filter(Boolean))].sort();
@@ -682,16 +626,16 @@ function VendorWorkspace({ onBack, onNotice, notice, initialSearch = "", initial
             </div>            <label>Machines / capacity<input value={draft.machines} onChange={e=>setDraft({...draft,machines:e.target.value})} placeholder="Machine models, travel, capacity…"/></label>
             <label>Material capabilities<input value={draft.materials} onChange={e=>setDraft({...draft,materials:e.target.value})} placeholder="Steel grades, aluminium, plastics…"/></label>
             <SearchablePicker id="vendor-type-edit" label="Type of vendor" value={draft.vendorType||""} options={["Raw material","Milling","Plano milling","Horizontal milling","Turning","Grinding","Heat treatment","Surface treatment","Wire EDM","Welding","Laser cutting","Fabrication","Transport","Tooling","Inspection","Other"].map(type=>({id:type,label:type}))} onChange={value=>setDraft(current=>({...current,vendorType:value}))} placeholder="Search vendor category…"/>
-            {draft.vendorType==="Transport" && <div className="editor-wide vendor-transport-routes"><p>Transport route rates are maintained once in Transport Directory, not inside Vendor Directory.</p><button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("transport-master")}><Truck size={13}/> Manage routes in Transport Directory</button></div>
+            {draft.vendorType==="Transport" && <div className="editor-wide vendor-transport-routes"><p>Transport route rates are maintained once in Transport Directory, not inside Vendor Directory.</p><button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("transport-master",{vendorId:selected.id})}><Truck size={13}/> Manage routes in Transport Directory</button></div>
             }
             <label>Vendor status<select value={draft.status} onChange={e=>setDraft({...draft,status:e.target.value})}><option>Unverified contact — review</option><option>Review pending</option><option>Approved</option><option>Not approved</option><option>On hold</option></select></label>
             <label className="editor-wide">Notes / lead time / certificates<input value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} placeholder="Quotation notes, lead time, certifications, capacity"/></label>
             <div className="vendor-form-actions"><button className="button-primary" onClick={saveContact}><Check size={14}/> Save vendor master</button><button className="button-quiet" onClick={()=>setEditing(false)}>Cancel</button></div>
           </div>
         </>:selected?<><div className="vendor-detail-title"><span className="vendor-avatar vendor-avatar-large">{selected.company.slice(0,1).toUpperCase()}</span><div><h3>{selected.company}</h3><p>{selected.contact} · {selected.role||"Role not set"}</p><span className="record-state">{selected.status}</span></div><button className="button-quiet" onClick={()=>beginEdit(selected)}>Edit</button></div>
-          <div className="vendor-contact-grid"><div><small>PHONE</small><strong>{selected.phone||"Not added"}</strong></div><div><small>WHATSAPP</small><strong>{selected.whatsappNumber||selected.phone||"Not linked"}</strong></div><div><small>EMAIL</small><strong>{selected.email||"Not added"}</strong></div><div><small>ADDRESS</small><strong>{selected.address||"Not added"}</strong></div><div><small>VENDOR TYPE</small><strong>{selected.vendorType||"Not specified"}</strong></div>{selected.vendorType==="Transport"&&<div className="editor-wide"><small>TRANSPORT ROUTES</small><button className="button-quiet compact-button" onClick={()=>onSelectModule("transport-master")}><Truck size={13}/> Open Transport Directory route master</button></div>}<div className="editor-wide"><small>PROCESS CAPABILITIES</small><div className="vendor-process-logo-row">{processDefinitions.filter(definition=>(definition.vendorIds||[]).includes(selected.id)).map(definition=><span className="vendor-process-logo-chip" key={definition.id}><ProcessIcon processId={definition.id} processName={definition.processType} category={definition.category} fallback={<Wrench size={12}/>} /><small>{definition.processType}</small></span>)}</div><strong>{selected.processes||"Not recorded"}</strong></div><div><small>MACHINES / CAPACITY</small><strong>{selected.machines||"Not recorded"}</strong></div><div><small>MATERIAL CAPABILITIES</small><strong>{selected.materials||"Not recorded"}</strong></div><div><small>WHATSAPP SYNC</small><strong>{selected.whatsappSyncedAt?new Date(selected.whatsappSyncedAt).toLocaleString():"Not synced"}</strong></div><div className="editor-wide"><small>NOTES</small><strong>{selected.notes||"No notes entered"}</strong></div></div>
-          <section className="vendor-linked-people"><div className="panel-heading"><div><h4>Other contact persons</h4><p>{linkedPeople.filter(person=>person.linkedId===selected.id).length} linked people</p></div><div className="relationship-actions"><button className="button-primary compact-button" onClick={()=>onAddContactForVendor(selected.id)}><Plus size={12}/> Add person</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("contact360")}>Manage in Contact 360</button></div></div>{linkedPeople.filter(person=>person.linkedId===selected.id).map(person=><div className="vendor-linked-person" key={person.id}><strong>{person.name}</strong><span>{person.role||"Role not entered"} · {person.group||"No group"}</span><small>{person.phone||person.whatsapp||"No number"} · {person.email||"No email"}</small></div>)}{!linkedPeople.some(person=>person.linkedId===selected.id)&&<p className="field-hint">Add more people in Contact 360 and link them to this vendor company. Numbers remain attached to the individual contact.</p>}</section>
-          <div className="vendor-actions"><button className="button-primary" onClick={()=>{const phone=(selected.whatsappNumber||selected.phone).replace(/\D/g,"");if(!phone){onNotice("Add a phone / WhatsApp number first.");return;}window.open("https://wa.me/"+phone,"_blank","noopener,noreferrer");}}><MessageCircle size={15}/> Open WhatsApp</button><button className="button-quiet" onClick={()=>onSelectModule("costing")}><CircleDollarSign size={15}/> Quotes & costing</button><button className="button-quiet" onClick={()=>onSelectModule("process-map")}><Workflow size={15}/> Assign to operation</button><button className="button-quiet" onClick={()=>onScheduleVendor(selected)}><CalendarClock size={15}/> Schedule follow-up</button><button className="button-quiet" onClick={()=>archive(selected)}><X size={14}/> Archive vendor</button></div>
+          <div className="vendor-contact-grid"><div><small>PHONE</small><strong>{selected.phone||"Not added"}</strong></div><div><small>WHATSAPP</small><strong>{selected.whatsappNumber||selected.phone||"Not linked"}</strong></div><div><small>EMAIL</small><strong>{selected.email||"Not added"}</strong></div><div><small>ADDRESS</small><strong>{selected.address||"Not added"}</strong></div><div><small>VENDOR TYPE</small><strong>{selected.vendorType||"Not specified"}</strong></div>{selected.vendorType==="Transport"&&<div className="editor-wide"><small>TRANSPORT ROUTES</small><button className="button-quiet compact-button" onClick={()=>onSelectModule("transport-master",{vendorId:selected.id})}><Truck size={13}/> Open Transport Directory route master</button></div>}<div className="editor-wide"><small>PROCESS CAPABILITIES</small><div className="vendor-process-logo-row">{processDefinitions.filter(definition=>(definition.vendorIds||[]).includes(selected.id)).map(definition=><span className="vendor-process-logo-chip" key={definition.id}><ProcessIcon processId={definition.id} processName={definition.processType} category={definition.category} fallback={<Wrench size={12}/>} /><small>{definition.processType}</small></span>)}</div><strong>{selected.processes||"Not recorded"}</strong></div><div><small>MACHINES / CAPACITY</small><strong>{selected.machines||"Not recorded"}</strong></div><div><small>MATERIAL CAPABILITIES</small><strong>{selected.materials||"Not recorded"}</strong></div><div><small>WHATSAPP SYNC</small><strong>{selected.whatsappSyncedAt?new Date(selected.whatsappSyncedAt).toLocaleString():"Not synced"}</strong></div><div className="editor-wide"><small>NOTES</small><strong>{selected.notes||"No notes entered"}</strong></div></div>
+          <section className="vendor-linked-people"><div className="panel-heading"><div><h4>Other contact persons</h4><p>{linkedPeople.filter(person=>person.linkedId===selected.id).length} linked people</p></div><div className="relationship-actions"><button className="button-primary compact-button" onClick={()=>onAddContactForVendor(selected.id)}><Plus size={12}/> Add person</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("contact360",{vendorId:selected.id})}>Manage in Contact 360</button></div></div>{linkedPeople.filter(person=>person.linkedId===selected.id).map(person=><div className="vendor-linked-person" key={person.id}><strong>{person.name}</strong><span>{person.role||"Role not entered"} · {person.group||"No group"}</span><small>{person.phone||person.whatsapp||"No number"} · {person.email||"No email"}</small></div>)}{!linkedPeople.some(person=>person.linkedId===selected.id)&&<p className="field-hint">Add more people in Contact 360 and link them to this vendor company. Numbers remain attached to the individual contact.</p>}</section>
+          <div className="vendor-actions"><button className="button-primary" onClick={()=>{const phone=(selected.whatsappNumber||selected.phone).replace(/\D/g,"");if(!phone){onNotice("Add a phone / WhatsApp number first.");return;}window.open("https://wa.me/"+phone,"_blank","noopener,noreferrer");}}><MessageCircle size={15}/> Open WhatsApp</button><button className="button-quiet" onClick={()=>onSelectModule("costing",{vendorId:selected.id})}><CircleDollarSign size={15}/> Quotes & costing</button><button className="button-quiet" disabled={!selectedUniqueOperation||!selectedOperationPO} title={selectedUniqueOperation?"Open the exact PO-linked operation":"Select a vendor with exactly one assigned operation; AXIMACH will not guess between multiple routes"} onClick={()=>selectedUniqueOperation&&selectedOperationPO&&onSelectModule("process-map",{companyId:selectedOperationPO.companyId,poId:selectedUniqueOperation.poId,poLineId:selectedUniqueOperation.poLineId,componentId:selectedUniqueOperation.componentId,operationId:selectedUniqueOperation.id,vendorId:selected.id})}><Workflow size={15}/> Assign to operation</button><button className="button-quiet" onClick={()=>onScheduleVendor(selected)}><CalendarClock size={15}/> Schedule follow-up</button><button className="button-quiet" onClick={()=>archive(selected)}><X size={14}/> Archive vendor</button></div>
           <div className="module-safety-note"><ShieldCheck size={14}/><span>Operation assignments and quotations reference the vendor ID. QR-imported contacts stay unverified until you review them.</span></div>
         </>:<div className="module-empty-state"><Users size={25}/><h3>Select or add a vendor</h3><p>QR-synced contacts appear here after the WhatsApp bridge connects and returns contacts.</p><button className="button-primary" onClick={beginNew}><Plus size={14}/> Add vendor</button></div>}
       </section>
@@ -967,36 +911,19 @@ type ModuleProfile = { itemLabel: string; referenceLabel: string; ownerLabel: st
 const defaultProfile: ModuleProfile = { itemLabel: "Record name", referenceLabel: "Reference / identifier", ownerLabel: "Responsible person / company", notesLabel: "Notes / instructions", statuses: ["Open", "Planned", "In progress", "On hold", "Completed", "Cancelled"], workflow: ["Intake", "Review", "Work", "Verify", "Close"] };
 const moduleProfiles: Record<string, ModuleProfile> = {
   "companies": { itemLabel:"Company / factory name",referenceLabel:"Company code / site code",ownerLabel:"Site manager",notesLabel:"Address, shifts, scope and operating notes",statuses:["Draft","Active","Paused","Under review","Archived"],workflow:["Company","Factory","Shifts","Permissions","Review"] },
-  "customers": { itemLabel:"Customer / RFQ / sales order",referenceLabel:"RFQ / PO / order number",ownerLabel:"Customer owner / buyer",notesLabel:"Part, quantity, drawing revision, due date and commercial terms",statuses:["New RFQ","Costing","Quoted","Negotiation","Order confirmed","Lost","On hold"],workflow:["RFQ intake","Drawing review","Costing","Quotation","Order release"] },
   "purchasing": { itemLabel:"Purchase / subcontract order",referenceLabel:"PO / subcontract order number",ownerLabel:"Buyer / supplier",notesLabel:"Scope, quantity, rate, promised date and receipt evidence",statuses:["Draft","Approval pending","Sent","Acknowledged","Part received","Received","Closed","On hold"],workflow:["Requisition","Compare vendors","Approve","Send PO","Receive & reconcile"] },
   "components": { itemLabel:"Component / assembly name",referenceLabel:"Part number / drawing revision",ownerLabel:"Design owner",notesLabel:"Material, BOM, critical characteristics and drawing links",statuses:["Draft","Under engineering review","Released","Superseded","Obsolete","On hold"],workflow:["Part master","BOM","Drawing revision","Release","Impact review"] },
-  "process-map": { itemLabel:"Process route / job",referenceLabel:"Part number / route revision",ownerLabel:"Process engineer",notesLabel:"Routing assumptions, setup requirements and quality gates",statuses:["Draft","Engineering review","Released","Running","On hold","Superseded"],workflow:["Define route","Assign resources","Quality gates","Approve revision","Track execution"] },
   "process-master": { itemLabel:"Process definition",referenceLabel:"Process code / revision",ownerLabel:"Process owner",notesLabel:"Inputs, parameters, equipment, controls and acceptance criteria",statuses:["Draft","Validated","Released","Under review","Retired"],workflow:["Define","Set parameters","Validate","Approve","Publish"] },
   "vendors": { itemLabel:"Vendor / sub-vendor",referenceLabel:"Vendor code / GSTIN",ownerLabel:"Vendor contact / relationship owner",notesLabel:"Processes, capacity, rates, certifications and escalation path",statuses:["Prospect","Qualification pending","Approved","Conditional","Blocked","Inactive"],workflow:["Discover","Qualify","Capability check","Approve","Monitor"] },
   "vendor-capability": { itemLabel:"Vendor capability",referenceLabel:"Capability ID / vendor code",ownerLabel:"Technical evaluator",notesLabel:"Machine envelope, tolerances, material range, certificates and evidence",statuses:["Unverified","Evidence requested","Under evaluation","Approved","Expired","Rejected"],workflow:["Claim","Evidence","Audit","Approve","Renew"] },
-  "rates": { itemLabel:"Material / process rate",referenceLabel:"Rate code / supplier quote",ownerLabel:"Rate owner / source",notesLabel:"Grade, unit, currency, effective date, yield and source evidence",statuses:["Draft","Needs validation","Approved","Expired","Superseded"],workflow:["Capture","Validate source","Compare","Approve","Version"] },
   "inventory": { itemLabel:"Material lot / stock item",referenceLabel:"Item code / heat / lot number",ownerLabel:"Stores custodian",notesLabel:"Grade, location, quantity, reserved quantity and certificate",statuses:["Available","Reserved","Shortage","Quarantined","Scrap","Consumed"],workflow:["Receive","Inspect","Put away","Reserve","Issue / reconcile"] },
   "production": { itemLabel:"Production job / operation",referenceLabel:"Work order / operation number",ownerLabel:"Planner / cell lead",notesLabel:"Machine, shift, planned quantity, cycle time and constraints",statuses:["Planned","Ready","Running","Waiting","Blocked","Complete","Job Finished","On hold"],workflow:["Plan","Check capacity","Release","Execute","Report actuals"] },
-  "shop-floor": { itemLabel:"Shop-floor scan / job traveller",referenceLabel:"QR / traveller / lot ID",ownerLabel:"Operator / shift lead",notesLabel:"Operation, good quantity, scrap, timestamps and custody event",statuses:["Not started","In progress","Waiting","Blocked","Reported","Verified"],workflow:["Scan","Verify job","Record work","Record quantity","Confirm handoff"] },
   "dispatch": { itemLabel:"Dispatch / consignment",referenceLabel:"Challan / shipment number",ownerLabel:"Dispatch coordinator / carrier",notesLabel:"Packages, documents, carrier, handoff and confirmed receipt",statuses:["Packing","Ready to dispatch","Dispatched","In transit","Delivered pending confirmation","Received","Exception"],workflow:["Pack","Documents","Handoff","Track","Confirm receipt"] },
   "quality": { itemLabel:"Inspection / nonconformance",referenceLabel:"Inspection plan / NCR number",ownerLabel:"Quality engineer / inspector",notesLabel:"Characteristic, tolerance, actual reading, gauge ID and evidence",statuses:["Planned","Inspecting","Pass","Hold","Nonconforming","Corrective action","Released"],workflow:["Plan inspection","Measure","Record evidence","Disposition","Authorise release"] },
-  "tooling": { itemLabel:"Tool / fixture",referenceLabel:"Tool ID / asset number",ownerLabel:"Tool crib custodian",notesLabel:"Holder, offset, compatible machine, life limit and location",statuses:["Available","Issued","Near life limit","Under maintenance","Unavailable","Retired"],workflow:["Register","Verify compatibility","Issue","Track life","Return / inspect"] },
-  "maintenance": { itemLabel:"Maintenance work order",referenceLabel:"Machine / asset ID",ownerLabel:"Maintenance technician",notesLabel:"Fault, safety isolation, parts, downtime and verification",statuses:["Reported","Triaged","Scheduled","In progress","Waiting for parts","Verified","Closed"],workflow:["Report fault","Assess risk","Plan work","Repair","Verify safe return"] },
-  "workforce": { itemLabel:"Worker / skill qualification",referenceLabel:"Employee / qualification ID",ownerLabel:"Supervisor / trainer",notesLabel:"Skills, authorisations, expiry date, shift and training evidence",statuses:["Draft","Training required","Assessment pending","Qualified","Expired","Suspended"],workflow:["Define skill","Train","Assess","Authorise","Renew"] },
   "costing": { itemLabel:"Job cost estimate / cost sheet",referenceLabel:"Part / RFQ / cost revision",ownerLabel:"Estimator / finance reviewer",notesLabel:"Material, setup, cycle, tooling, outside services, yield, overhead and tax",statuses:["Draft","Estimating","Review pending","Approved estimate","Committed","Actuals reconciled","Closed"],workflow:["Estimate","Review assumptions","Approve","Capture actuals","Variance analysis"] },
-  "invoices": { itemLabel:"Invoice / payment / cash item",referenceLabel:"Invoice / transaction reference",ownerLabel:"Accounts owner / approver",notesLabel:"Counterparty, amount, tax, due date, reconciliation and proof",statuses:["Draft","Approval pending","Due","Part paid","Paid","Disputed","Reconciled","Cancelled"],workflow:["Capture","Match PO / receipt","Approve","Pay / receive","Reconcile"] },
   "communications": { itemLabel:"Follow-up / communication task",referenceLabel:"Contact / RFQ / job reference",ownerLabel:"Assigned coordinator",notesLabel:"Channel, approved message, due date, reply and outcome",statuses:["Draft","Scheduled locally","Ready to send","Sent manually","Reply received","Done","Cancelled"],workflow:["Select contact","Prepare message","Approve","Send","Record reply"] },
-  "risk": { itemLabel:"Risk / failure mode",referenceLabel:"Risk ID / affected job",ownerLabel:"Risk owner",notesLabel:"Cause, likelihood, impact, evidence, mitigation and trigger",statuses:["Identified","Assessing","Mitigation planned","Monitoring","Escalated","Closed"],workflow:["Identify","Score","Mitigate","Monitor trigger","Review outcome"] },
-  "engineering-change": { itemLabel:"Engineering change request",referenceLabel:"ECR / ECO / revision",ownerLabel:"Change owner / approver",notesLabel:"Reason, affected BOMs, open jobs, inventory, suppliers and inspections",statuses:["Draft","Impact assessment","Approval pending","Approved","Implementing","Verified","Rejected"],workflow:["Raise change","Impact analysis","Approve","Implement","Verify & close"] },
   "reports": { itemLabel:"Report / KPI definition",referenceLabel:"Report ID / period",ownerLabel:"Report owner",notesLabel:"Metric definition, source, filters, refresh time and caveats",statuses:["Draft","Validating","Ready","Published","Needs review","Retired"],workflow:["Define KPI","Select source","Validate","Publish","Review accuracy"] },
   "export": { itemLabel:"Export job",referenceLabel:"Export ID / dataset",ownerLabel:"Requester / approver",notesLabel:"Format, filters, access scope, redactions and retention",statuses:["Requested","Validating","Approval pending","Ready","Downloaded","Expired","Rejected"],workflow:["Choose data","Apply scope","Preview","Approve","Generate export"] },
-  "import": { itemLabel:"Import batch",referenceLabel:"Batch ID / source file",ownerLabel:"Data steward",notesLabel:"Mapping, duplicate policy, validation errors and reconciliation",statuses:["Uploaded","Mapping","Validation failed","Ready for review","Approved","Imported","Rolled back"],workflow:["Upload","Map columns","Validate","Preview changes","Commit / reconcile"] },
-  "customer-portal": { itemLabel:"Customer portal access / case",referenceLabel:"Customer / order ID",ownerLabel:"Account owner",notesLabel:"Visibility scope, documents, order status and access approval",statuses:["Requested","Approval pending","Active","Suspended","Expired","Closed"],workflow:["Verify customer","Set scope","Approve access","Share status","Review access"] },
-  "supplier-portal": { itemLabel:"Supplier portal access / submission",referenceLabel:"Supplier / PO ID",ownerLabel:"Supplier relationship owner",notesLabel:"RFQ response, acknowledgement, dispatch notice and certificates",statuses:["Invited","Awaiting response","Submitted","Under review","Accepted","Rejected","Suspended"],workflow:["Invite supplier","Receive submission","Validate","Accept / reject","Audit history"] },
-  "integrations": { itemLabel:"Integration / connector",referenceLabel:"Connector ID / endpoint",ownerLabel:"Technical owner",notesLabel:"Data scope, credentials reference, sync direction, retries and health",statuses:["Not configured","Testing","Healthy","Degraded","Disabled","Failed"],workflow:["Configure","Limit permissions","Test","Enable","Monitor / revoke"] },
-  "ai-policy": { itemLabel:"Automation / AI policy",referenceLabel:"Policy ID / version",ownerLabel:"Policy owner / approver",notesLabel:"Allowed actions, limits, stop conditions, evidence and escalation",statuses:["Draft","Review required","Approved","Active","Suspended","Retired"],workflow:["Define scope","Set limits","Test safely","Approve","Monitor / stop"] },
-  "admin-security": { itemLabel:"Access / governance review",referenceLabel:"Review ID / user / role",ownerLabel:"Security reviewer",notesLabel:"Tenant scope, role grants, session evidence and audit trail",statuses:["Requested","Under review","Approved","Denied","Expired","Revoked"],workflow:["Request","Verify identity","Review least privilege","Approve","Audit / revoke"] },
-  "continuity": { itemLabel:"Backup / recovery exercise",referenceLabel:"Run ID / incident ID",ownerLabel:"Recovery owner",notesLabel:"Backup point, RPO/RTO target, restore evidence and unresolved gaps",statuses:["Planned","Running","Passed","Failed","Remediation","Closed"],workflow:["Plan recovery","Verify backup","Restore","Validate integrity","Sign off"] }
 };
 
 type ModuleRecord = { id: string; title: string; reference: string; status: string; owner: string; linkedModule: string; notes: string; updatedAt: string; deletedAt?: string };
@@ -1024,7 +951,7 @@ function mergeModuleRecordSets(local: Record<string, ModuleRecord[]>, remote: Re
   }
   return merged;
 }
-function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModule }: { module: ModuleItem; onBack: () => void; onNotice: (value: string) => void; onOpenModules: () => void; onSelectModule: (id: string) => void }) {
+function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModule }: { module: ModuleItem; onBack: () => void; onNotice: (value: string) => void; onOpenModules: () => void; onSelectModule: (id: string, context?: LinkedNavigationContext) => void }) {
   const Icon = module.icon;
   const profile = moduleProfiles[module.id] ?? defaultProfile;
   const { data: linkedManufacturing, update: updateLinkedManufacturing } = useManufacturingData();
@@ -1182,7 +1109,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
         <button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> All modules</button>
       </div>
       {module.id === "production" && <section className="surface-panel production-job-register">
-        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PO-LINE JOB LIFECYCLE</div><h3>Production jobs ({productionJobRows.length})</h3><p>Job Finished / In Progress is tracked separately from every operation's Complete status.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={14}/> Open 3D process plan</button></div>
+        <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> PO-LINE JOB LIFECYCLE</div><h3>Production jobs ({productionJobRows.length})</h3><p>Job Finished / In Progress is tracked separately from every operation's Complete status.</p></div><button className="button-quiet compact-button" disabled={productionJobRows.length!==1} title={productionJobRows.length===1?"Open the only production job route":"Select a single PO component job to open its exact route"} onClick={() => {const row=productionJobRows[0];if(row)onSelectModule("process-map",{companyId:row.po.companyId,poId:row.po.id,poLineId:row.line.id,componentId:row.line.componentId});}}><Workflow size={14}/> Open 3D process plan</button></div>
         {productionJobRows.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Purchase order</th><th>Part / component</th><th>Quantity</th><th>Delivery target</th><th>Route steps</th><th>Job status</th><th>Action</th></tr></thead><tbody>
           {productionJobRows.map(({po,line,component,company,operationCount}) => {
             const finished = line.jobStatus === "Finished";
@@ -1193,7 +1120,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
               <td>{line.targetDelivery || po.targetDelivery || "—"}</td>
               <td>{operationCount} operations</td>
               <td><span className={"record-state " + (finished ? "state-selected" : "state-open")}>{finished ? "Job Finished" : "In Progress"}</span>{finished && line.jobFinishedAt && <small>{new Date(line.jobFinishedAt).toLocaleDateString("en-IN")}</small>}</td>
-              <td><div className="production-job-actions"><button className={finished ? "button-quiet compact-button" : "button-primary compact-button"} onClick={() => updateProductionJob(po.id,line.id,!finished)}>{finished ? <RotateCcw size={12}/> : <Check size={12}/>} {finished ? "Reopen job" : "Mark finished"}</button><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map")}><Workflow size={12}/> Route</button></div></td>
+              <td><div className="production-job-actions"><button className={finished ? "button-quiet compact-button" : "button-primary compact-button"} onClick={() => updateProductionJob(po.id,line.id,!finished)}>{finished ? <RotateCcw size={12}/> : <Check size={12}/>} {finished ? "Reopen job" : "Mark finished"}</button><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map",{companyId:po.companyId,poId:po.id,poLineId:line.id,componentId:line.componentId})}><Workflow size={12}/> Route</button></div></td>
             </tr>;
           })}
         </tbody></table></div> : <div className="module-empty-state"><Package size={24}/><h3>No production PO lines yet</h3><p>Real production jobs appear here after a component line is saved in Purchase Orders.</p><button className="button-primary" onClick={() => onSelectModule("purchasing")}><Plus size={14}/> Open purchase orders</button></div>}
@@ -1201,7 +1128,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
       {module.id === "production" && <section className="production-route-launcher surface-panel">
         <span className="production-route-launcher-icon"><Workflow size={21}/></span>
         <div><div className="eyebrow"><span className="eyebrow-mark"/> LIVE PO-LINKED PRODUCTION ROUTE</div><h3>3D process graph & job completion</h3><p>Open the actual PO component route to view interactive 3D operations, branches, quantities, simulation preview and the separate Job Finished / Reopen job control. This does not replace your Production & Capacity records.</p></div>
-        <button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={15}/> Open 3D process planning</button>
+        <button className="button-primary" disabled={productionJobRows.length!==1} title={productionJobRows.length===1?"Open the only production job route":"Select a single PO component job to open its exact route"} onClick={() => {const row=productionJobRows[0];if(row)onSelectModule("process-map",{companyId:row.po.companyId,poId:row.po.id,poLineId:row.line.id,componentId:row.line.componentId});}}><Workflow size={15}/> Open 3D process planning</button>
       </section>}
       <section className="module-workflow-strip surface-panel" aria-label={module.title + " workflow"}>
         <div className="module-workflow-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> MODULE-SPECIFIC WORKFLOW</div><strong>{profile.workflow[activeWorkflowStep]}</strong><small>Select a stage to start a record at that point in the workflow.</small></div><span className="module-number">STEP {activeWorkflowStep + 1} / {profile.workflow.length}</span></div>
@@ -1235,7 +1162,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
         </section>
         <aside className="surface-panel module-connection-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> CROSS-MODULE LINKS</div><h3>Connected workspaces</h3><p>{totalLinked} linked records across local modules</p></div></div>
           {related.map((item) => { const RelatedIcon = item.icon; return <button className="related-row" key={item.id} onClick={() => onSelectModule(item.id)}><span className="related-icon"><RelatedIcon size={16} /></span><span><strong>{item.title}</strong><small>{(allRecords[item.id] ?? []).length} local records · {item.group}</small></span><ArrowUpRight size={14} /></button>; })}
-          <button className="related-all" onClick={onOpenModules}>Browse all 18 modules <ArrowRight size={14} /></button>
+          <button className="related-all" onClick={onOpenModules}>Browse all {modules.length} modules <ArrowRight size={14} /></button>
         </aside>
       </div>
       <div className="module-safety-note"><ShieldCheck size={16} /><span>This workspace now supports local create, edit, delete, search, export and navigation links. It is not a production database; multi-user sync, server permissions, automated external actions and audit-grade persistence remain to be implemented.</span></div>

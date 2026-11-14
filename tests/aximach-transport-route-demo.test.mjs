@@ -37,7 +37,7 @@ test("vehicle classes have individual visual identities and separate transport p
   assert.ok(universe.includes('transportFor(operation.id,"after")'));
 });
 
-test("route views fit smaller cards, expose portrait step navigation and support landscape fullscreen", () => {
+test("route views fit smaller cards, expose portrait step navigation and remain orientation-neutral", () => {
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
@@ -46,13 +46,13 @@ test("route views fit smaller cards, expose portrait step navigation and support
   assert.match(css, /\.process-route-index\{position:sticky/);
   assert.match(css, /\.linked-route-canvas:fullscreen/);
   assert.match(css, /\.process-universe-stage\{width:100% !important;min-width:0 !important/);
-  // Device orientation is owned by the app module lifecycle, not the
-  // map-only fullscreen control inside LinkedProcessWorkspace.
+  // Phone orientation remains operator-controlled; route canvases must work in portrait.
   assert.ok(app.includes('activeModuleId === "process-map"'));
   assert.ok(app.includes('activeModuleId === "route-flow"'));
   assert.ok(app.includes('activeModuleId === "manufacturing-universe"'));
-  assert.ok(app.includes('CapacitorScreenOrientation.lock({ orientation: "landscape-primary" })'));
-  assert.ok(workspace.includes("The app-level landscape lock remains active until Process Map is closed."));
+  assert.ok(!app.includes("CapacitorScreenOrientation.lock"));
+  assert.ok(!workspace.includes("landscape lock"));
+  assert.ok(workspace.includes("Open route in full screen"));
   assert.ok(workspace.includes('className="process-route-index"'));
   assert.ok(universe.includes("process-universe-node-track"));
 });
@@ -60,13 +60,20 @@ test("route views fit smaller cards, expose portrait step navigation and support
 test("multi-route example is visible and interactive in both Process Map and Transport Directory without live writes", () => {
   const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
   const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(processMap.includes("<TransportRoutingDemo onClose="));
+  assert.ok(routeFlow.includes("<TransportRoutingDemo onClose="));
+  assert.ok(routeFlow.includes("Open multi-part demo"));
   assert.ok(directory.includes("<TransportRoutingDemo onClose="));
-  assert.ok(demo.includes("Next process step"));
-  assert.ok(demo.includes("Activate alternate supplier route"));
-  assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
-  assert.ok(demo.includes("TransportLegMarker"));
+  assert.ok(demo.includes("Next process"));
+  assert.ok(demo.includes("Add alternative 4-wheeler carrier leg"));
+  assert.ok(demo.includes("One assembly"));
+  assert.ok(demo.includes("Part process routes"));
+  assert.ok(demo.includes("Relationship types"));
+  assert.ok(demo.includes("Transport legs"));
+  assert.ok(demo.includes("Carrier options"));
+  assert.ok(demo.includes("{VEHICLE_TYPES.map(type=><VehicleBadge"));
 });
 
 test("Module Universe cards remain compact and scroll within the viewport", () => {

@@ -105,7 +105,7 @@ test("Production Plan hides inactive transport routes and Transport Directory re
   assert.ok(!operations.includes("const openTransport=(poId:string,lineId:string)"));
   assert.ok(!operations.includes("route.vendorId===draft.vendorId&&route.active!==false"));
   assert.ok(!operations.includes("<th>Transport</th>"));
-  assert.ok(operations.includes('onSelectModule("transport-master")'));
+  assert.ok(operations.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(operations.includes("Attach a route before or after a process from Process Map"));
   assert.ok(transport.includes("!vendors.some(vendor => vendor.id === vendorId)"));
 });
@@ -137,7 +137,7 @@ test("Transport route ownership stays in Transport Directory and Process Plan re
   assert.ok(!production.includes("transportLine"));
   assert.ok(!production.includes("openTransport("));
   assert.ok(!production.includes("jobTransportLegs"));
-  assert.ok(production.includes('onSelectModule("transport-master")'));
+  assert.ok(production.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(processPlan.includes("selectedTransportDirectoryRoute.active===false"));
   assert.ok(processPlan.includes("route.active!==false"));
   assert.ok(processPlan.includes("componentTransportLegs"));
@@ -180,20 +180,20 @@ test("additional planned-cost process rows cascade by category and stable defini
 });
 
 
-test("dashboard command globe exposes 18 unique, distinguishable module shortcuts", () => {
+test("dashboard command globe exposes 20 unique, distinguishable module shortcuts", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const satelliteBlock = orb.match(/const satellites = \[([\s\S]*?)\n\];/);
   assert.ok(satelliteBlock, "command globe satellite registry exists");
   const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
-  assert.equal(ids.length, 18);
-  assert.equal(new Set(ids).size, 18, "module shortcut IDs must be unique");
-  assert.equal(labels.length, 18);
-  assert.equal(new Set(labels).size, 18, "module shortcut labels must be distinguishable");
+  assert.equal(ids.length, 20);
+  assert.equal(new Set(ids).size, 20, "module shortcut IDs must be unique");
+  assert.equal(labels.length, 20);
+  assert.equal(new Set(labels).size, 20, "module shortcut labels must be distinguishable");
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
-test("all 18 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
+test("all 20 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const depthOpen = orb.indexOf('<motion.div className="ax-orb-depth"');
   const moduleShell = orb.indexOf('className="ax-orb-module-shell"');
@@ -202,12 +202,15 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   const core = orb.indexOf('className="ax-orb-core"');
   assert.ok(core >= 0 && core < depthOpen, "the spherical WebGL globe must remain a sphere rather than rotate as a flat canvas plane");
   assert.ok(orb.includes('<AXIMACHWebGLSphere rotationX={rotateX} rotationY={rotateY} />'), "manual drag orientation must rotate the WebGL surface texture");
-  const lowerShell = orb.indexOf('<div className="ax-orb-lower-shell"');
+  const lowerShell = orb.indexOf('className={compactViewport ? "ax-orb-lower-shell-mobile" : "ax-orb-lower-shell"}');
   assert.ok(depthOpen >= 0 && depthOpen < moduleShell && moduleShell < moduleClose && moduleClose < depthClose,
     "module controls must be children of the same draggable 3D globe");
   assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the globe");
-  assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
-  assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
+  assert.ok(orb.includes('aria-label={`${satellites.length} clickable AXIMACH modules`}'));
+  assert.ok(orb.includes('aria-label="Separate rotating live record summary shell"'));
+  assert.ok(orb.includes('onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag} onPointerUp={endLowerDrag} onPointerCancel={endLowerDrag}'));
+  assert.ok(orb.includes('compactViewport ? {touchAction:"none",position:"relative"'));
+  assert.ok(orb.includes('className="ax-orb-lower-node"'));
   assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
   assert.ok(orb.includes('className="ax-orb-core"'));
   assert.ok(orb.includes("scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1)"));
@@ -317,9 +320,10 @@ test("shared searchable pickers support exact, partial and numeric searches plus
   const picker = readFileSync(new URL("../src/SearchablePicker.tsx", import.meta.url), "utf8");
   const multi = readFileSync(new URL("../src/SearchableMultiSelect.tsx", import.meta.url), "utf8");
   assert.ok(picker.includes("option.label.toLocaleLowerCase().includes(needle)"));
-  assert.ok(picker.includes("startsWith(needle)"));
+  assert.ok(picker.includes("label===needle?0:label.startsWith(needle)?1:2"));
   assert.ok(picker.includes("exact or partial match"));
-  assert.ok(multi.includes("option.label.toLocaleLowerCase().includes(needle)"));
+  assert.ok(multi.includes("item.label.includes(needle)"));
+  assert.ok(multi.includes("label === needle ? 0 : label.startsWith(needle) ? 1 : 2"));
   assert.ok(multi.includes('onChange(options.map(option => option.id))'));
   assert.ok(multi.includes("onChange([])"));
   assert.ok(multi.includes("Select all"));
@@ -583,7 +587,7 @@ test("Delete process archives the selected node and all descendants without dest
   assert.ok(workspace.includes("while (frontier.length)"));
   assert.ok(workspace.includes("child.parentId === parentId"));
   assert.ok(workspace.includes("quotations: current.quotations.map(quote => ids.has(quote.operationId)"));
-  assert.ok(workspace.includes("payment, inspection and production history are retained for audit"));
+  assert.ok(workspace.includes("payment and inspection history was retained"));
   assert.ok(workspace.includes('title="Delete process"'));
   assert.ok(workspace.includes("Delete process</button>"));
 });
@@ -842,7 +846,7 @@ test("five synthetic component names resolve to the intended mechanical logo fam
 
 test("Main dashboard sphere uses native 3D module hit targets with stable transforms", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label={`${satellites.length} clickable AXIMACH modules`}'));
   assert.ok(orb.includes('return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"'));
   assert.ok(orb.includes('translate3d(" + x + "px," + y + "px," + z + "px)'));
   assert.ok(orb.includes("onPointerDown={startDrag}"));
@@ -938,7 +942,7 @@ test("Process Plan panels expose independent native expand/collapse sections", (
 });
 
 
-test("Main Dashboard and 3D Command Centre center the 18-module orb on mobile", () => {
+test("Main Dashboard and 3D Command Centre center the 20-module orb on mobile", () => {
   const dashboardStyles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   const appStyles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.ok(dashboardStyles.includes(".dashboard-welcome-orb .ax-orb-drag-zone"));
@@ -1066,7 +1070,7 @@ test("Icon Studio strips saved outline/filled prefixes before rendering Tabler c
 
 test("CI skips Electron binary download for frontend and Android jobs only", () => {
   const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
-  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 2);
+  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 3);
   const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
   assert.ok(!windows.includes("ELECTRON_SKIP_BINARY_DOWNLOAD"));
 });
@@ -1428,7 +1432,7 @@ test("Production Plan no longer owns the component transport registry or inline 
   assert.ok(!production.includes("saveTransport"));
   assert.ok(!production.includes("jobTransportLegs"));
   assert.ok(!production.includes("<th>Transport</th>"));
-  assert.ok(production.includes('onSelectModule("transport-master")'));
+  assert.ok(production.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(production.includes('onSelectModule("process-map"'));
 });
 
@@ -1450,7 +1454,7 @@ test("Process Universe node offers real alternate and rework creation from the s
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(universe.includes("onAddAlternateRoute?: (parentId: string) => void"));
   assert.ok(universe.includes("onAddReworkRoute?: (parentId: string) => void"));
-  assert.ok(universe.includes("onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition, onNotice=()=>{} }: Props)"));
+  assert.ok(universe.includes('onNotice=()=>{}, sceneScopeLabel="PO-LINE" }: Props)'));
   assert.ok(universe.includes("onAddAlternateRoute(expandedOrbitOperation.id)"));
   assert.ok(universe.includes("onAddReworkRoute(expandedOrbitOperation.id)"));
   assert.ok(workspace.includes('onAddAlternateRoute={parentId=>startAddBranch("alternate",parentId)}'));
@@ -1520,7 +1524,8 @@ test("390px mobile layout keeps the spherical command centre and Process Map con
   assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 38px"));
   assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 42px"));
   assert.ok(process.includes('<details className="surface-panel process-route-scope-panel">'));
-  assert.ok(process.includes('<details className="surface-panel linked-route-canvas">'));
+  assert.ok(process.includes('<details className="surface-panel linked-route-canvas" open={showEditor || routeOperations.length > 0}>'));
+  assert.ok(process.includes('<details className="surface-panel process-operation-table-panel" open={routeOperations.length > 0}>'));
   assert.ok(!process.includes("<details open"));
 });
 
@@ -1919,7 +1924,9 @@ test("Dedicated full-screen Route Flow and Manufacturing Universe modules are wi
   assert.ok(route.includes('targetOperationId:to.id'));
   assert.ok(route.includes('<RouteCurve type={connector.type}'));
   assert.ok(universe.includes('<ProcessUniverse3D'));
-  assert.ok(universe.includes('routeRelationships={routeRelationships}'));
+  assert.ok(universe.includes('routeRelationships={sceneRouteRelationships}'));
+  assert.ok(universe.includes('universeScope==="enterprise"?operations:routeOperations'));
+  assert.ok(universe.includes('Enterprise-wide live universe'));
   assert.ok(universe.includes('onNavigate("route-flow"'));
   assert.ok(data.includes('routeRelationships: RouteRelationshipRecord[]'));
   assert.ok(data.includes('mergeRows(local.routeRelationships, remote.routeRelationships)'));
@@ -1984,7 +1991,7 @@ test("3D route arrows stay enabled and narrow-screen process metadata is not hid
 test("Route Flow draws vehicle-specific transport icons on curved connectors and supports multiple vehicle types", () => {
   const route = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
-  assert.ok(route.includes('import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle"'));
+  assert.ok(route.includes('import { VehicleIcon as VehicleTypeIcon, VEHICLE_TYPES } from "./TransportVehicle"'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={vehicleType} size={17}/>'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.leg.vehicleType} size={20}/>'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.entry.transportVehicleType||""} size={20}/>'));
@@ -2226,7 +2233,7 @@ test("Multiple transport legs remain separate and visible for each source and ta
   assert.ok(scene.includes("transportLegs.map((leg,index)"));
   assert.ok(scene.includes("other.targetOperationId===leg.targetOperationId"));
   assert.ok(scene.includes("other.placement===leg.placement"));
-  assert.ok(universe.includes("routeLegs.map(leg=>"));
+  assert.ok(universe.includes("sceneRouteLegs.map(leg=>"));
 });
 
  
@@ -2246,10 +2253,10 @@ test("AXIMACH mobile 3D command centre keeps module reachability and non-overlap
   const orb=readFileSync(new URL("../src/AXIMACHOrb.tsx",import.meta.url),"utf8");
   const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
   assert.ok(orb.includes('const radius = compactViewport ? 116 : 132'));
-  assert.ok(orb.includes("ax-orb-lower-summary-grid"));
-  assert.ok(orb.includes("ax-orb-lower-summary-card"));
-  assert.ok(css.includes(".ax-orb-lower-summary-grid"));
-  assert.ok(css.includes(".ax-orb-lower-shell{display:none!important}"));
+  assert.ok(orb.includes('className={compactViewport ? "ax-orb-lower-shell-mobile" : "ax-orb-lower-shell"}'));
+  assert.ok(orb.includes('className="ax-orb-lower-node"'));
+  assert.ok(orb.includes("const startLowerDrag ="));
+  assert.ok(css.includes(".ax-orb-lower-shell{display:none!important}"), "desktop shell remains hidden only where the compact layout uses its separate mobile shell");
 });
 
 test("Route Flow and Process Universe expose independent canvas zoom and fit controls", () => {

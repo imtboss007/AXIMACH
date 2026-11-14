@@ -98,7 +98,21 @@ export default function PartMaterialCostingPanel({scope,companyId="",poId="",poL
     const additions=MATERIAL_SEEDS.map(item=>({
       id:"material-seed-"+item.grade.toLowerCase().replace(/[^a-z0-9]+/g,"-"),code:item.grade.toUpperCase().replace(/[^A-Z0-9]+/g,"-"),name:item.name,grade:item.grade,unit:"kg",specification:"Typical reference density; verify against material certificate and supplier data.",preferredVendorId:"",ratePerUnit:0,notes:"Reference density in kg/m³ only; verify actual grade against supplier material certificate.",materialType:item.type,densityKgM3:item.density,densityUnit:"kg/m3" as const,priceUnit:"kg" as const,createdAt:nowIso(),updatedAt:nowIso()
     }));
-    update(current=>{const keys=new Set(current.materials.map(item=>(item.name+"::"+item.grade).toLowerCase()));const missing=additions.filter(item=>!keys.has((item.name+"::"+item.grade).toLowerCase()));return missing.length?{...current,materials:[...missing,...current.materials]}:current;});
+    update(current=>{
+      // Seed IDs are derived from the grade. Deduplicate against saved rows and
+      // within this seed batch so repeated catalogue entries cannot create
+      // duplicate stable IDs on first mount.
+      const keys=new Set(current.materials.map(item=>(item.name+"::"+item.grade).toLowerCase()));
+      const ids=new Set(current.materials.map(item=>item.id).filter(Boolean));
+      const missing=additions.filter(item=>{
+        const key=(item.name+"::"+item.grade).toLowerCase();
+        if(keys.has(key)||ids.has(item.id)) return false;
+        keys.add(key);
+        ids.add(item.id);
+        return true;
+      });
+      return missing.length?{...current,materials:[...missing,...current.materials]}:current;
+    });
   // Seed once when the shared material catalogue is first opened.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);

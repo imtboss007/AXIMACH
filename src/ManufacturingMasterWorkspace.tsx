@@ -80,6 +80,16 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [selectedPoIds, setSelectedPoIds] = useState<string[]>([]);
   const [selectedComponentIds, setSelectedComponentIds] = useState<string[]>([]);
+  const [companyNameFilters, setCompanyNameFilters] = useState<string[]>([]);
+  const [companyGstinFilters, setCompanyGstinFilters] = useState<string[]>([]);
+  const [companyContactFilters, setCompanyContactFilters] = useState<string[]>([]);
+  const [companyPhoneFilters, setCompanyPhoneFilters] = useState<string[]>([]);
+  const [companyEmailFilters, setCompanyEmailFilters] = useState<string[]>([]);
+  const [companyAddressFilters, setCompanyAddressFilters] = useState<string[]>([]);
+  const [factoryNameFilters, setFactoryNameFilters] = useState<string[]>([]);
+  const [factoryCompanyFilters, setFactoryCompanyFilters] = useState<string[]>([]);
+  const [factoryAddressFilters, setFactoryAddressFilters] = useState<string[]>([]);
+  const [factoryPhoneFilters, setFactoryPhoneFilters] = useState<string[]>([]);
   const [componentCompanyFilters, setComponentCompanyFilters] = useState<string[]>([]);
   const [componentNumberFilters, setComponentNumberFilters] = useState<string[]>([]);
   const [componentNameFilters, setComponentNameFilters] = useState<string[]>([]);
@@ -152,9 +162,19 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const filteredCompanies = useMemo(() => companies.filter(c => {
     const people = companyContacts.filter(person => person.linkedId === c.id)
       .map(person => [person.name, person.role, person.group, person.phone, person.whatsapp, person.email, person.address, person.history].join(" ")).join(" ");
-    return (c.name + " " + c.gstin + " " + c.contactPerson + " " + c.phone + " " + c.email + " " + c.address + " " + people).toLowerCase().includes(search.toLowerCase().trim());
-  }), [companies, search, data.contactProfiles]);
-  const filteredFactories = useMemo(() => factories.filter(f => (f.name + " " + f.address + " " + companyName(f.companyId)).toLowerCase().includes(search.toLowerCase().trim())), [factories, search, data.companies]);
+    return (c.name + " " + c.gstin + " " + c.contactPerson + " " + c.phone + " " + c.email + " " + c.address + " " + people).toLowerCase().includes(search.toLowerCase().trim())
+      && (!companyNameFilters.length || companyNameFilters.includes(c.name))
+      && (!companyGstinFilters.length || companyGstinFilters.includes(c.gstin || "—"))
+      && (!companyContactFilters.length || companyContactFilters.includes(c.contactPerson || "—"))
+      && (!companyPhoneFilters.length || companyPhoneFilters.includes(c.phone || "—"))
+      && (!companyEmailFilters.length || companyEmailFilters.includes(c.email || "—"))
+      && (!companyAddressFilters.length || companyAddressFilters.includes(c.address || "—"));
+  }), [companies, search, data.contactProfiles, companyNameFilters, companyGstinFilters, companyContactFilters, companyPhoneFilters, companyEmailFilters, companyAddressFilters]);
+  const filteredFactories = useMemo(() => factories.filter(f => (f.name + " " + f.address + " " + companyName(f.companyId)).toLowerCase().includes(search.toLowerCase().trim())
+    && (!factoryNameFilters.length || factoryNameFilters.includes(f.name))
+    && (!factoryCompanyFilters.length || factoryCompanyFilters.includes(f.companyId || ""))
+    && (!factoryAddressFilters.length || factoryAddressFilters.includes(f.address || "—"))
+    && (!factoryPhoneFilters.length || factoryPhoneFilters.includes(f.contactPhone || "—"))), [factories, search, data.companies, factoryNameFilters, factoryCompanyFilters, factoryAddressFilters, factoryPhoneFilters]);
   const filteredComponents = useMemo(() => components.filter(c => (c.partNumber + " " + c.name + " " + c.drawingReference + " " + c.revision).toLowerCase().includes(search.toLowerCase().trim())
     &&(!componentCompanyFilters.length||componentCompanyFilters.includes(c.companyId||""))
     &&(!componentNumberFilters.length||componentNumberFilters.includes(c.partNumber))
@@ -232,34 +252,55 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const deleteComponents = (ids:string[]) => {
     const targets=components.filter(row=>ids.includes(row.id));
     if(!targets.length)return;
-    if(!window.confirm("Permanently delete "+targets.length+" component master record(s) and all linked PO lines, operations, transport legs, quotations, payments, inspections, BOM links and planned-cost records? This cannot be undone."))return;
+    if(!window.confirm("Permanently delete "+targets.length+" component master record(s), their PO lines and linked operations, route relationships, material-process links, transport, stock, quotations, payments, inspections, BOM and planned-cost records? Empty PO headers will be retained. This cannot be undone."))return;
     const targetIds=new Set(targets.map(row=>row.id));
     const affectedLines=orders.flatMap(po=>po.lines.filter(line=>targetIds.has(line.componentId)).map(line=>({poId:po.id,lineId:line.id})));
     const lineIds=new Set(affectedLines.map(row=>row.lineId));
+    const operationIds=new Set(activeRows(data.operations).filter(row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)).map(row=>row.id));
     const stamp=nowIso();
     update(current=>({...current,
       components:current.components.filter(row=>!targetIds.has(row.id)),
-      purchaseOrders:current.purchaseOrders.map(po=>({...po,lines:po.lines.filter(line=>!targetIds.has(line.componentId)),updatedAt:stamp})).filter(po=>po.lines.length>0),
+      // Keep the parent PO and its header/history even when this was its last component line.
+      purchaseOrders:current.purchaseOrders.map(po=>({...po,lines:po.lines.filter(line=>!targetIds.has(line.componentId)),updatedAt:stamp})),
       operations:current.operations.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
+      routeRelationships:(current.routeRelationships||[]).filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.fromOperationId)&&!operationIds.has(row.toOperationId)),
+      materialProcessLinks:(current.materialProcessLinks||[]).filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
       quotations:current.quotations.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
       transportLegs:current.transportLegs.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
       paymentTransactions:current.paymentTransactions.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
       inspectionMeasurements:current.inspectionMeasurements.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
+      inventoryTransactions:current.inventoryTransactions.filter(row=>!(row.itemType==="component"&&targetIds.has(row.itemId))&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
       bomLines:current.bomLines.filter(row=>!targetIds.has(row.componentId)),
       componentParts:(current.componentParts||[]).filter(row=>!targetIds.has(row.componentId)),
       materialCostEntries:(current.materialCostEntries||[]).filter(row=>!targetIds.has(row.componentId)),
-      plannedCosts:current.plannedCosts.filter(row=>!targets.some(component=>row.componentNumber.trim().toLowerCase()===component.partNumber.trim().toLowerCase()||row.componentName.trim().toLowerCase()===component.name.trim().toLowerCase()))
+      plannedCosts:current.plannedCosts.filter(row=>!row.componentId||!targetIds.has(row.componentId)),
+      followUpAssignments:(current.followUpAssignments||[]).map(row=>targetIds.has(row.recordId)||operationIds.has(row.recordId)?{...row,deletedAt:stamp,updatedAt:stamp}:row)
     }));
     setSelectedComponentIds(current=>current.filter(id=>!targetIds.has(id)));
-    onNotice(targets.length+" component(s) permanently deleted with their dependent manufacturing records.");
+    onNotice(targets.length+" component(s) permanently deleted. Dependent route, material, stock and operational links were removed; PO headers were retained.");
   };
   const deletePurchaseOrders = (ids:string[]) => {
     const targets=orders.filter(row=>ids.includes(row.id));if(!targets.length)return;
-    if(!window.confirm("Permanently delete "+targets.length+" purchase order(s), their component lines and linked process, transport, costing, payment and inspection records? This cannot be undone."))return;
+    if(!window.confirm("Permanently delete "+targets.length+" purchase order(s), their component lines and linked process, route relationship, material-process, transport, costing, stock, payment, inspection and follow-up links? This cannot be undone."))return;
     const targetIds=new Set(targets.map(row=>row.id));
     const lineIds=new Set(targets.flatMap(po=>po.lines.map(line=>line.id)));
-    update(current=>({...current,purchaseOrders:current.purchaseOrders.filter(row=>!targetIds.has(row.id)),operations:current.operations.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),quotations:current.quotations.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),transportLegs:current.transportLegs.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),paymentTransactions:current.paymentTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),materialCostEntries:(current.materialCostEntries||[]).filter(row=>(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))),inspectionMeasurements:current.inspectionMeasurements.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),inventoryTransactions:current.inventoryTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId))}));
-    setSelectedPoIds(current=>current.filter(id=>!targetIds.has(id)));setOpenedPoId("");onNotice(targets.length+" purchase order(s) and linked operational records permanently deleted.");
+    const operationIds=new Set(activeRows(data.operations).filter(row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)).map(row=>row.id));
+    const stamp=nowIso();
+    update(current=>({...current,
+      purchaseOrders:current.purchaseOrders.filter(row=>!targetIds.has(row.id)),
+      operations:current.operations.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
+      routeRelationships:(current.routeRelationships||[]).filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.fromOperationId)&&!operationIds.has(row.toOperationId)),
+      materialProcessLinks:(current.materialProcessLinks||[]).filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
+      quotations:current.quotations.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
+      transportLegs:current.transportLegs.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
+      paymentTransactions:current.paymentTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
+      materialCostEntries:(current.materialCostEntries||[]).filter(row=>(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))),
+      plannedCosts:current.plannedCosts.filter(row=>!row.poId||!targetIds.has(row.poId)),
+      inspectionMeasurements:current.inspectionMeasurements.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
+      inventoryTransactions:current.inventoryTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
+      followUpAssignments:(current.followUpAssignments||[]).map(row=>targetIds.has(row.recordId)||operationIds.has(row.recordId)?{...row,deletedAt:stamp,updatedAt:stamp}:row)
+    }));
+    setSelectedPoIds(current=>current.filter(id=>!targetIds.has(id)));setOpenedPoId("");onNotice(targets.length+" purchase order(s) and all linked operational records permanently deleted. Shared component, material and company masters were retained.");
   };
   const exportComponentsExcel = async (rows:ComponentRecord[],fileName="AXIMACH-Components.xlsx") => {
     if(!rows.length){onNotice("No component records selected for export.");return;}
@@ -316,14 +357,29 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
       <div className="workspace-title-actions">
         {moduleId === "components" && <button className="button-quiet" disabled={!selectedComponentForNavigation} onClick={() => onSelectModule("costing",selectedComponentContext)}><CircleDollarSign size={15}/> Component costing</button>}
         {moduleId === "purchasing" && <button className="button-quiet" disabled={!selectedPOForNavigation} onClick={() => onSelectModule("process-map",selectedPOContext)}><ArrowRight size={15}/> Open Process Map</button>}
-        <button className="button-primary" onClick={beginAdd}><Plus size={15}/> {moduleId === "companies" ? "Add Company" : moduleId === "purchasing" ? "Create Purchase Order" : "Add Component"}</button>
+        <button className="button-primary" onClick={beginAdd}><Plus size={15}/> {moduleId === "companies" ? (tab === "companies" ? "Add Company" : "Add Factory") : moduleId === "purchasing" ? "Create Purchase Order" : "Add Component"}</button>
       </div>
     </div>
-    {false && moduleId === "companies" && <div className="costing-tabs">
+    {moduleId === "companies" && <div className="costing-tabs">
       <button className={tab === "companies" ? "costing-tab-active" : ""} onClick={() => { setTab("companies"); resetForms(); }}><Building2 size={15}/> Companies ({companies.length})</button>
       <button className={tab === "factories" ? "costing-tab-active" : ""} onClick={() => { setTab("factories"); resetForms(); }}><Factory size={15}/> Factories ({factories.length})</button>
     </div>}
     <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder={"Search " + header.toLowerCase() + "…"}/></label><span className="module-number">{moduleId === "companies" ? tab === "companies" ? companies.length + " COMPANIES" : factories.length + " FACTORIES" : moduleId === "purchasing" ? orders.length + " ORDERS" : components.length + " COMPONENTS"}</span></div>
+    {moduleId === "companies" && <section className="surface-panel master-column-filters"><div className="panel-heading"><div><h3>{tab === "companies" ? "Company" : "Factory"} column filters</h3><p>Search and multi-select the actual values in each visible master-data column.</p></div><button className="button-quiet compact-button" onClick={()=>{setSearch("");setCompanyNameFilters([]);setCompanyGstinFilters([]);setCompanyContactFilters([]);setCompanyPhoneFilters([]);setCompanyEmailFilters([]);setCompanyAddressFilters([]);setFactoryNameFilters([]);setFactoryCompanyFilters([]);setFactoryAddressFilters([]);setFactoryPhoneFilters([]);}}>Clear all filters</button></div>
+      {tab === "companies" ? <div className="contact360-filter-grid ax-search-filter-columns">
+        <SearchableMultiSelect id="company-filter-name" label="Company name" options={[...new Set(companies.map(row=>row.name).filter(Boolean))].sort().map(value=>({id:value,label:value}))} selected={companyNameFilters} onChange={setCompanyNameFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="company-filter-gstin" label="GSTIN" options={[...new Set(companies.map(row=>row.gstin||"—"))].sort().map(value=>({id:value,label:value}))} selected={companyGstinFilters} onChange={setCompanyGstinFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="company-filter-contact" label="Contact person" options={[...new Set(companies.map(row=>row.contactPerson||"—"))].sort().map(value=>({id:value,label:value}))} selected={companyContactFilters} onChange={setCompanyContactFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="company-filter-phone" label="Phone" options={[...new Set(companies.map(row=>row.phone||"—"))].sort().map(value=>({id:value,label:value}))} selected={companyPhoneFilters} onChange={setCompanyPhoneFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="company-filter-email" label="Email" options={[...new Set(companies.map(row=>row.email||"—"))].sort().map(value=>({id:value,label:value}))} selected={companyEmailFilters} onChange={setCompanyEmailFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="company-filter-address" label="Address" options={[...new Set(companies.map(row=>row.address||"—"))].sort().map(value=>({id:value,label:value}))} selected={companyAddressFilters} onChange={setCompanyAddressFilters} emptyMeansAll/>
+      </div> : <div className="contact360-filter-grid ax-search-filter-columns">
+        <SearchableMultiSelect id="factory-filter-name" label="Factory name" options={[...new Set(factories.map(row=>row.name).filter(Boolean))].sort().map(value=>({id:value,label:value}))} selected={factoryNameFilters} onChange={setFactoryNameFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="factory-filter-company" label="Parent company" options={companies.map(row=>({id:row.id,label:row.name}))} selected={factoryCompanyFilters} onChange={setFactoryCompanyFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="factory-filter-address" label="Address" options={[...new Set(factories.map(row=>row.address||"—"))].sort().map(value=>({id:value,label:value}))} selected={factoryAddressFilters} onChange={setFactoryAddressFilters} emptyMeansAll/>
+        <SearchableMultiSelect id="factory-filter-phone" label="Contact phone" options={[...new Set(factories.map(row=>row.contactPhone||"—"))].sort().map(value=>({id:value,label:value}))} selected={factoryPhoneFilters} onChange={setFactoryPhoneFilters} emptyMeansAll/>
+      </div>}
+    </section>}
     {moduleId === "components" && <section className="surface-panel master-column-filters"><div className="panel-heading"><div><h3>Component Master filters</h3><p>Column-wise search and multi-select for the actual company, part number, component name, revision, drawing and unit values.</p></div><button className="button-quiet compact-button" onClick={()=>{setSearch("");setComponentCompanyFilters([]);setComponentNumberFilters([]);setComponentNameFilters([]);setComponentRevisionFilters([]);setComponentDrawingFilters([]);setComponentUnitFilters([]);}}>Clear all filters</button></div><div className="contact360-filter-grid ax-search-filter-columns"><SearchableMultiSelect id="component-master-company-filter" label="Company" options={companies.map(row=>({id:row.id,label:row.name}))} selected={componentCompanyFilters} onChange={setComponentCompanyFilters} emptyMeansAll/><SearchableMultiSelect id="component-master-number-filter" label="Component number" options={[...new Set(components.map(row=>row.partNumber).filter(Boolean))].sort().map(value=>({id:value,label:value}))} selected={componentNumberFilters} onChange={setComponentNumberFilters} emptyMeansAll/><SearchableMultiSelect id="component-master-name-filter" label="Component name" options={[...new Set(components.map(row=>row.name).filter(Boolean))].sort().map(value=>({id:value,label:value}))} selected={componentNameFilters} onChange={setComponentNameFilters} emptyMeansAll/><SearchableMultiSelect id="component-master-revision-filter" label="Revision" options={[...new Set(components.map(row=>row.revision||"—"))].sort().map(value=>({id:value,label:value}))} selected={componentRevisionFilters} onChange={setComponentRevisionFilters} emptyMeansAll/><SearchableMultiSelect id="component-master-drawing-filter" label="Drawing reference" options={[...new Set(components.map(row=>row.drawingReference||"—"))].sort().map(value=>({id:value,label:value}))} selected={componentDrawingFilters} onChange={setComponentDrawingFilters} emptyMeansAll/><SearchableMultiSelect id="component-master-unit-filter" label="Unit" options={["piece","set"].map(value=>({id:value,label:value==="piece"?"Per piece":"Per set"}))} selected={componentUnitFilters} onChange={setComponentUnitFilters} emptyMeansAll/></div></section>}
     {moduleId === "purchasing" && <section className="surface-panel master-column-filters"><div className="panel-heading"><div><h3>Purchase Orders filters</h3><p>Column-wise search and multi-select for PO number, company, issue date, target delivery, component and status.</p></div><button className="button-quiet compact-button" onClick={()=>{setSearch("");setPoCompanyFilters([]);setPoNumberFilters([]);setPoIssueDateFilters([]);setPoDeliveryFilters([]);setPoComponentFilters([]);setPoStatusFilters([]);}}>Clear all filters</button></div><div className="contact360-filter-grid ax-search-filter-columns"><SearchableMultiSelect id="purchase-order-number-filter" label="PO number" options={[...new Set(orders.map(row=>row.number).filter(Boolean))].sort().map(value=>({id:value,label:value}))} selected={poNumberFilters} onChange={setPoNumberFilters} emptyMeansAll/><SearchableMultiSelect id="purchase-order-company-filter" label="Company" options={companies.map(row=>({id:row.id,label:row.name}))} selected={poCompanyFilters} onChange={setPoCompanyFilters} emptyMeansAll/><SearchableMultiSelect id="purchase-order-issue-date-filter" label="Issue date" options={[...new Set(orders.map(row=>row.issueDate||"—"))].sort().map(value=>({id:value,label:value}))} selected={poIssueDateFilters} onChange={setPoIssueDateFilters} emptyMeansAll/><SearchableMultiSelect id="purchase-order-delivery-filter" label="Target delivery" options={[...new Set(orders.map(row=>row.targetDelivery||"—"))].sort().map(value=>({id:value,label:value}))} selected={poDeliveryFilters} onChange={setPoDeliveryFilters} emptyMeansAll/><SearchableMultiSelect id="purchase-order-component-filter" label="Component" options={components.map(row=>({id:row.id,label:row.partNumber+" · "+row.name}))} selected={poComponentFilters} onChange={setPoComponentFilters} emptyMeansAll/><SearchableMultiSelect id="purchase-order-status-filter" label="PO status" options={[...new Set(orders.map(row=>row.status).filter(Boolean))].sort().map(value=>({id:value,label:value}))} selected={poStatusFilters} onChange={setPoStatusFilters} emptyMeansAll/></div></section>}
     {moduleId === "components" && <div className="module-action-bar po-bulk-actions">
@@ -425,7 +481,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
       </section>}
     </section>
       <aside className="surface-panel module-connection-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> NEXT WORKFLOW</div><h3>Linked modules</h3><p>Use saved records to prevent duplicate typing.</p></div></div>
-        {moduleId === "companies" ? <><button className="related-row" onClick={() => onSelectModule("purchasing",{companyId:selectedCompanyId||(filteredCompanies.length===1?filteredCompanies[0].id:undefined)})}><Package size={16}/><span><strong>Purchase orders</strong><small>{orders.length} saved orders</small></span><ArrowRight size={14}/></button></> : moduleId === "components" ? <><button className="related-row" onClick={() => onSelectModule("purchasing",selectedComponentContext)}><FileText size={16}/><span><strong>PO components</strong><small>{orders.reduce((n,p) => n + p.lines.length, 0)} saved lines</small></span><ArrowRight size={14}/></button><button className="related-row" onClick={() => onSelectModule("process-map")}><Factory size={16}/><span><strong>Process Map</strong><small>Operations linked by component + PO line</small></span><ArrowRight size={14}/></button><button className="related-row" onClick={() => onSelectModule("costing")}><CircleDollarSign size={16}/><span><strong>Costing & quotations</strong><small>Supplier rates per component and process</small></span><ArrowRight size={14}/></button></> : <><button className="related-row" onClick={() => onSelectModule("process-map")}><Factory size={16}/><span><strong>Process Map</strong><small>Load a PO component line</small></span><ArrowRight size={14}/></button><button className="related-row" onClick={() => onSelectModule("costing")}><CircleDollarSign size={16}/><span><strong>Costing & quotations</strong><small>Compare rates for the PO component</small></span><ArrowRight size={14}/></button></>}
+        {moduleId === "companies" ? <><button className="related-row" onClick={() => onSelectModule("purchasing",{companyId:selectedCompanyId||(filteredCompanies.length===1?filteredCompanies[0].id:undefined)})}><Package size={16}/><span><strong>Purchase orders</strong><small>{orders.length} saved orders</small></span><ArrowRight size={14}/></button></> : moduleId === "components" ? <><button className="related-row" onClick={() => onSelectModule("purchasing",selectedComponentContext)}><FileText size={16}/><span><strong>PO components</strong><small>{orders.reduce((n,p) => n + p.lines.length, 0)} saved lines</small></span><ArrowRight size={14}/></button><button className="related-row" disabled={!selectedComponentForNavigation} onClick={() => onSelectModule("process-map",selectedComponentContext)}><Factory size={16}/><span><strong>Process Map</strong><small>Operations linked by component + PO line</small></span><ArrowRight size={14}/></button><button className="related-row" disabled={!selectedComponentForNavigation} onClick={() => onSelectModule("costing",selectedComponentContext)}><CircleDollarSign size={16}/><span><strong>Costing & quotations</strong><small>Supplier rates per component and process</small></span><ArrowRight size={14}/></button></> : <><button className="related-row" disabled={!selectedPOForNavigation} onClick={() => onSelectModule("process-map",selectedPOContext)}><Factory size={16}/><span><strong>Process Map</strong><small>Load a PO component line</small></span><ArrowRight size={14}/></button><button className="related-row" disabled={!selectedPOForNavigation} onClick={() => onSelectModule("costing",selectedPOContext)}><CircleDollarSign size={16}/><span><strong>Costing & quotations</strong><small>Compare rates for the PO component</small></span><ArrowRight size={14}/></button></>}
         <div className="module-safety-note"><CalendarClock size={14}/><span>Master data sync is {syncStatus === "synced" ? "connected to the configured server" : "local until the existing AXIMACH server URL/API key are configured in Communication & Follow-up"}. Store the server on persistent hosting for cross-device access.</span></div>
       </aside>
     </div>

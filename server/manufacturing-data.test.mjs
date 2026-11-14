@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { manufacturingCollections, mergeManufacturingData } from "./manufacturing-data.mjs";
+import { manufacturingCollections, mergeManufacturingData, mergeManufacturingDataWithConflicts } from "./manufacturing-data.mjs";
 
 const oldTime = "2026-11-01T09:00:00.000Z";
 const newTime = "2026-11-04T09:00:00.000Z";
@@ -112,4 +112,45 @@ test("material-to-process links sync independently by stable ID and preserve del
   assert.equal(merged.materialProcessLinks.find(row => row.id === first.id).operationId, "op-2");
   assert.equal(merged.materialProcessLinks.find(row => row.id === first.id).deletedAt, newTime);
   assert.equal(merged.materialProcessLinks.find(row => row.id === second.id).materialId, "material-2");
+});
+
+
+test("same-record offline edit is quarantined as a conflict and newer shared value remains canonical", () => {
+  const baseline = { companies: [{ id: "company-1", name: "Original", phone: "9000000000", updatedAt: oldTime }] };
+  const remote = { companies: [{ id: "company-1", name: "New shared edit", phone: "9000000000", updatedAt: newTime }] };
+  // Offline device edits its stale copy later, so its timestamp is misleadingly newer.
+  const offline = { companies: [{ id: "company-1", name: "Stale offline overwrite", phone: "9111111111", updatedAt: "2026-11-05T09:00:00.000Z" }] };
+  const result = mergeManufacturingDataWithConflicts(remote, offline, baseline);
+  assert.equal(result.data.companies[0].name, "New shared edit");
+  assert.equal(result.data.companies[0].phone, "9000000000");
+  assert.equal(result.conflicts.length, 1);
+  assert.equal(result.conflicts[0].local.name, "Stale offline overwrite");
+  assert.equal(result.conflicts[0].remote.name, "New shared edit");
+});
+
+test("independent records from offline devices still merge without conflicts", () => {
+  const baseline = { companies: [{ id: "company-1", name: "Original", updatedAt: oldTime }] };
+  const remote = { companies: [{ id: "company-1", name: "Original", updatedAt: oldTime }, { id: "company-2", name: "Device B", updatedAt: newTime }] };
+  const offline = { companies: [{ id: "company-1", name: "Original", updatedAt: oldTime }, { id: "company-3", name: "Device A", updatedAt: newTime }] };
+  const result = mergeManufacturingDataWithConflicts(remote, offline, baseline);
+  assert.equal(result.conflicts.length, 0);
+  assert.deepEqual(new Set(result.data.companies.map(row => row.id)), new Set(["company-1", "company-2", "company-3"]));
+});
+
+test("same purchase-order line edited on both devices is reported separately", () => {
+  const baseline = { purchaseOrders: [{ id: "po-1", number: "PO-1", updatedAt: oldTime, lines: [
+    { id: "line-1", quantity: 10, updatedAt: oldTime }, { id: "line-2", quantity: 5, updatedAt: oldTime }
+  ] }] };
+  const remote = { purchaseOrders: [{ id: "po-1", number: "PO-1", updatedAt: newTime, lines: [
+    { id: "line-1", quantity: 12, updatedAt: newTime }, { id: "line-2", quantity: 5, updatedAt: oldTime }
+  ] }] };
+  const offline = { purchaseOrders: [{ id: "po-1", number: "PO-1", updatedAt: "2026-11-05T09:00:00.000Z", lines: [
+    { id: "line-1", quantity: 15, updatedAt: "2026-11-05T09:00:00.000Z" }, { id: "line-2", quantity: 7, updatedAt: "2026-11-05T09:00:00.000Z" }
+  ] }] };
+  const result = mergeManufacturingDataWithConflicts(remote, offline, baseline);
+  const lines = result.data.purchaseOrders[0].lines;
+  assert.equal(lines.find(line => line.id === "line-1").quantity, 12);
+  assert.equal(lines.find(line => line.id === "line-2").quantity, 7, "unrelated line edit must still merge");
+  assert.equal(result.conflicts.length, 1);
+  assert.equal(result.conflicts[0].lineId, "line-1");
 });

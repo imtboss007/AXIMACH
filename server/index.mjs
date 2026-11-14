@@ -3,13 +3,13 @@ import { readFile, writeFile, mkdir, rename, unlink } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { networkInterfaces } from "node:os";
-import { manufacturingCollections, mergeManufacturingData } from "./manufacturing-data.mjs";
+import { manufacturingCollections, mergeManufacturingData, mergeManufacturingDataWithConflicts } from "./manufacturing-data.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
 const DB_PATH = resolve(process.env.AXIMACH_DATA_FILE || "./data/aximach.json");
 const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
-let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null };
+let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, syncConflicts: [], uiPreferences: null };
 let busy = false;
 let saveQueue = Promise.resolve();
 
@@ -149,7 +149,7 @@ const server = createServer(async (req, res) => {
   if (!authorized(req)) return json(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
   try {
     if (url.pathname === "/api/manufacturing-data" && req.method === "GET") {
-      return json(res, 200, { data: db.manufacturingData || null, updatedAt: db.manufacturingData?.updatedAt || null });
+      return json(res, 200, { data: db.manufacturingData || null, updatedAt: db.manufacturingData?.updatedAt || null, conflicts: (db.syncConflicts || []).filter(item => item.status === "unresolved") });
     }
     if (url.pathname === "/api/manufacturing-data" && req.method === "PUT") {
       const input = await body(req);
@@ -157,9 +157,21 @@ const server = createServer(async (req, res) => {
       for (const collection of manufacturingCollections) if (input.data[collection] !== undefined && !Array.isArray(input.data[collection])) return json(res, 400, { error: collection + " must be an array." });
       const encoded = JSON.stringify(input.data);
       if (encoded.length > 8_000_000) return json(res, 413, { error: "Manufacturing data exceeds the 8 MB limit." });
-      db.manufacturingData = mergeManufacturingData(db.manufacturingData, input.data);
+      const baseline = input.baseData && typeof input.baseData === "object" && !Array.isArray(input.baseData) ? input.baseData : null;
+      const result = baseline
+        ? mergeManufacturingDataWithConflicts(db.manufacturingData, input.data, baseline)
+        : { data: mergeManufacturingData(db.manufacturingData, input.data), conflicts: [] };
+      db.manufacturingData = result.data;
+      const detectedAt = new Date().toISOString();
+      const savedConflicts = result.conflicts.map(conflict => ({
+        id: randomUUID(), ...conflict, detectedAt, status: "unresolved"
+      }));
+      if (savedConflicts.length) db.syncConflicts = [...(db.syncConflicts || []), ...savedConflicts].slice(-500);
       await saveDb();
-      return json(res, 200, { ok: true, data: db.manufacturingData, updatedAt: db.manufacturingData.updatedAt });
+      return json(res, 200, {
+        ok: true, data: db.manufacturingData, updatedAt: db.manufacturingData.updatedAt,
+        conflicts: savedConflicts, unresolvedConflictCount: (db.syncConflicts || []).filter(item => item.status === "unresolved").length
+      });
     }
     if (url.pathname === "/api/records" && req.method === "GET") return json(res, 200, { records: db.records || {}, updatedAt: db.recordsUpdatedAt || null });
     if (url.pathname === "/api/records" && req.method === "PUT") {

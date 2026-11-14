@@ -1,89 +1,117 @@
 import { useMemo, useState } from "react";
-import { Activity, CheckCircle2, GitBranch, RotateCcw, X } from "lucide-react";
-import demoFixture from "../tests/fixtures/aximach-transport-routing-demo.json";
-import type { ComponentTransportLegRecord, MaterialProcessLinkRecord, MaterialRecord, TransportRouteRecord } from "./manufacturingData";
-import { TransportLegMarker, VehicleBadge, VEHICLE_TYPES } from "./TransportVehicle";
-import { MaterialFlowMarker } from "./MaterialFlowMarker";
+import { Activity, CheckCircle2, GitBranch, RotateCcw, Truck, X } from "lucide-react";
+import fixtureJson from "../tests/fixtures/aximach-one-component-multipart-route.json";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
+import { VehicleBadge, VEHICLE_TYPES } from "./TransportVehicle";
 
 type Props = { onClose?: () => void };
-type DemoOperation = { id:string; name:string; sequence:number; branch:string; relationType:string|null; parentId:string; quantity:number; costIncluded:boolean };
-
-const operations = demoFixture.operations as DemoOperation[];
-const legs = demoFixture.transportLegs as unknown as ComponentTransportLegRecord[];
-const materials = demoFixture.materials as unknown as MaterialRecord[];
-const materialLinks = demoFixture.materialProcessLinks as unknown as MaterialProcessLinkRecord[];
-const routes = new Map(demoFixture.transportRoutes.map(route=>[route.id,route as unknown as TransportRouteRecord]));
-const vendors = new Map(demoFixture.vendors.map(vendor=>[vendor.id,vendor.company]));
-const mainOperations = operations.filter(operation=>operation.branch==="Main route").sort((a,b)=>a.sequence-b.sequence);
-const alternateOperations = operations.filter(operation=>operation.branch!=="Main route").sort((a,b)=>a.sequence-b.sequence);
-const money = (value:number) => "₹"+value.toLocaleString("en-IN",{maximumFractionDigits:2});
+const fixture = fixtureJson as any;
+const money = (value:number) => "₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+const relationshipLabels:Record<string,string> = {
+  main:"Main",alternate:"Alternate",rework:"Rework",dependency:"Dependency",parallel:"Parallel",
+  merge:"Merge",split:"Split", "follow-on":"Follow-on",feedback:"Feedback",conditional:"Conditional",successor:"Successor"
+};
+const partProcessIds = (partId:string) => {
+  const part = fixture.parts.find((row:any)=>row.id===partId);
+  const branchName = part?.partNumber?.endsWith("-SHAFT") ? "Shaft branch"
+    : part?.partNumber?.endsWith("-BODY") ? "Body branch" : "Cover branch";
+  const bomIds = new Set(fixture.bomLines.filter((row:any)=>row.partId===partId).map((row:any)=>row.id));
+  const linked = fixture.materialProcessLinks.filter((row:any)=>bomIds.has(row.bomLineId)).map((row:any)=>row.operationId);
+  const sharedAndBranch = fixture.operations.filter((row:any)=>row.branch==="Main route"||row.branch===branchName).map((row:any)=>row.id);
+  return new Set<string>([...linked,...sharedAndBranch]);
+};
+const partById = new Map<string, any>(fixture.parts.map((row:any)=>[row.id,row]));
+const operationById = new Map<string, any>(fixture.operations.map((row:any)=>[row.id,row]));
+const vendorById = new Map<string, any>(fixture.vendors.map((row:any)=>[row.id,row.company]));
+const routeById = new Map<string, any>(fixture.transportRoutes.map((row:any)=>[row.id,row]));
+const materialById = new Map<string, any>(fixture.materials.map((row:any)=>[row.id,row]));
+const bomById = new Map<string, any>(fixture.bomLines.map((row:any)=>[row.id,row]));
 
 export default function TransportRoutingDemo({onClose}:Props) {
-  const [selectedLegId,setSelectedLegId] = useState("");
-  const [selectedMaterialLinkId,setSelectedMaterialLinkId] = useState("");
-  const [alternateEnabled,setAlternateEnabled] = useState(false);
-  const [simulationIndex,setSimulationIndex] = useState(-1);
-  const activeOperations = alternateEnabled ? [...mainOperations,...alternateOperations] : mainOperations;
-  const currentOperation = activeOperations[simulationIndex];
-  const startLegs = legs.filter(leg=>!leg.anchorOperationId||leg.placement==="start");
-  const legsAt = (operationId:string,placement:"before"|"after") =>
-    legs.filter(leg=>leg.anchorOperationId===operationId&&(leg.placement||"after")===placement);
-  const renderLeg = (leg:ComponentTransportLegRecord) => <TransportLegMarker key={leg.id} leg={leg}
-    vendorName={vendors.get(leg.vendorId)||"Demo vendor"} routeRecord={routes.get(leg.routeId)} selected={selectedLegId===leg.id}
-    onSelect={()=>setSelectedLegId(current=>current===leg.id?"":leg.id)}/>;
-  const materialLinksAt = (operationId:string,placement:"before"|"after") => materialLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
-  const renderMaterialLink = (link:MaterialProcessLinkRecord) => {const material=materials.find(row=>row.id===link.materialId);return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={demoFixture.component.quantity} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>:null;};
-  const mainTransportCost = useMemo(()=>legs.filter(leg=>!leg.anchorOperationId||mainOperations.some(operation=>operation.id===leg.anchorOperationId)).reduce((sum,leg)=>sum+leg.fixedAmount*leg.tripCount,0),[]);
-  const alternateTransportCost = useMemo(()=>legs.filter(leg=>alternateOperations.some(operation=>operation.id===leg.anchorOperationId)).reduce((sum,leg)=>sum+leg.fixedAmount*leg.tripCount,0),[]);
-  const activeTransportCost = mainTransportCost+(alternateEnabled?alternateTransportCost:0);
-  const processCost = demoFixture.component.processCostINR;
-  return <section className="transport-demo-panel surface-panel" aria-label="Multi-route and transport demonstration">
+  const [partFilter,setPartFilter] = useState("all");
+  const [view,setView] = useState("branches");
+  const [selectedLeg,setSelectedLeg] = useState("mp-leg-09");
+  const [showSecondCarrier,setShowSecondCarrier] = useState(false);
+  const [step,setStep] = useState(-1);
+  const selectedPart = fixture.parts.find((row:any)=>row.id===partFilter);
+  const visibleOperations = useMemo(()=>fixture.operations.filter((operation:any)=>{
+    if(partFilter==="all")return true;
+    return partProcessIds(partFilter).has(operation.id);
+  }),[partFilter]);
+  const visibleLinks = fixture.materialProcessLinks.filter((link:any)=>!selectedPart||bomById.get(link.bomLineId)?.partId===selectedPart.id);
+  const visibleLegs = fixture.transportLegs.filter((leg:any)=>!selectedPart||(()=>{
+    const target=operationById.get(leg.targetOperationId||leg.anchorOperationId);
+    return !target||partProcessIds(selectedPart.id).has(target.id);
+  })());
+  const selectedLegRow = fixture.transportLegs.find((row:any)=>row.id===selectedLeg);
+  const routeOptions = fixture.transportRoutes.filter((row:any)=>row.fromLocation==="VMC subcontractor"&&row.toLocation==="CNC shaft turning supplier");
+  const allRelationshipTypes = Object.keys(relationshipLabels);
+  const activeOperation = step>=0?visibleOperations[Math.min(step,visibleOperations.length-1)]:null;
+  const branchSummary = fixture.parts.map((part:any)=>({part,operations:[...partProcessIds(part.id)].map(id=>operationById.get(id)).filter(Boolean).sort((a:any,b:any)=>a.sequence-b.sequence)}));
+  const simulatedSecondLeg = showSecondCarrier?{id:"SIMULATED-ALT-CARRIER",routeId:"mp-route-12",vehicleType:"4-wheeler",vendorId:"mp-vendor-material",fromLocation:"VMC subcontractor",toLocation:"CNC shaft turning supplier",fixedAmount:650,tripCount:1,anchorOperationId:"mp-op-vmc",targetOperationId:"mp-op-turn"}:null;
+  return <section className="transport-demo-panel surface-panel" aria-label="One component multi-part route and transport demonstration">
     <div className="transport-demo-heading">
-      <div><span className="transport-demo-kicker"><Activity size={13}/> ISOLATED SIMULATION / NO LIVE RECORDS</span>
-        <h3>One component · multiple process and transport routes</h3>
-        <p>{demoFixture.component.partNumber} · {demoFixture.component.name} · {demoFixture.component.material} · {demoFixture.component.quantity} pcs</p>
+      <div><span className="transport-demo-kicker"><Activity size={13}/> SYNTHETIC END-TO-END DEMO · READ-ONLY PREVIEW</span>
+        <h3>One assembly · three part routes · multiple carriers</h3>
+        <p>{fixture.component.partNumber} · {fixture.component.name} · PO {fixture.purchaseOrder.number} · {fixture.poLine.quantity} assemblies</p>
       </div>
-      <div className="transport-demo-heading-actions"><span className="module-number">DEMO ONLY</span>{onClose&&<button type="button" className="icon-control" onClick={onClose} aria-label="Close transport demo"><X size={14}/></button>}</div>
+      <div className="transport-demo-heading-actions"><span className="module-number">DEMO ONLY</span>{onClose&&<button type="button" className="icon-control" onClick={onClose} aria-label="Close multi-part route demo"><X size={14}/></button>}</div>
     </div>
     <div className="transport-demo-toolbar">
-      <button type="button" className="button-primary compact-button" onClick={()=>setSimulationIndex(index=>Math.min(index+1,activeOperations.length-1))} disabled={simulationIndex>=activeOperations.length-1}><Activity size={13}/> Next process step</button>
-      <button type="button" className="button-quiet compact-button" onClick={()=>setSimulationIndex(-1)}><RotateCcw size={13}/> Reset simulation</button>
-      <label><input type="checkbox" checked={alternateEnabled} onChange={event=>{setAlternateEnabled(event.target.checked);setSimulationIndex(-1);}}/> Activate alternate supplier route</label>
-      <span>{simulationIndex<0?"Ready":simulationIndex>=activeOperations.length-1?"Simulation reached final active step": "Step "+(simulationIndex+1)+" of "+activeOperations.length}</span>
+      <label>View part <select aria-label="Filter demo by part" value={partFilter} onChange={event=>{setPartFilter(event.target.value);setStep(-1);}}><option value="all">Whole assembly · all parts</option>{fixture.parts.map((part:any)=><option key={part.id} value={part.id}>{part.partNumber} · {part.name}</option>)}</select></label>
+      <button type="button" className="button-primary compact-button" onClick={()=>setStep(value=>Math.min(value+1,visibleOperations.length-1))} disabled={step>=visibleOperations.length-1}><Activity size={13}/> Next process</button>
+      <button type="button" className="button-quiet compact-button" onClick={()=>setStep(-1)}><RotateCcw size={13}/> Reset</button>
+      <span>{step<0?"Ready to simulate": "Process "+(step+1)+" / "+visibleOperations.length}</span>
     </div>
-    {currentOperation&&<div className="transport-demo-current"><CheckCircle2 size={15}/><span>Current simulation step: <strong>OP-{String(currentOperation.sequence).padStart(3,"0")} · {currentOperation.name}</strong></span></div>}
-    <div className="transport-demo-lane">
-      <div className="transport-demo-lane-title"><strong>Main manufacturing route</strong><small>{mainOperations.length} process steps · all legs belong to the same component / PO line</small></div>
-      {startLegs.length>0&&<div className="transport-demo-start-legs">{startLegs.map(renderLeg)}</div>}
-      <div className="transport-demo-track">{mainOperations.map((operation,index)=><div className="transport-demo-step-wrap" key={operation.id}>
-        {materialLinksAt(operation.id,"before").map(renderMaterialLink)}
-        {legsAt(operation.id,"before").map(renderLeg)}
-        <div className={"transport-demo-operation"+(currentOperation?.id===operation.id?" is-current":"")}><small>OP-{String(operation.sequence).padStart(3,"0")}</small><strong>{operation.name}</strong><span>{operation.quantity} pcs · main route</span></div>
-        {legsAt(operation.id,"after").map(renderLeg)}
-        {materialLinksAt(operation.id,"after").map(renderMaterialLink)}
-        {index<mainOperations.length-1&&<span className="transport-demo-arrow route-connector route-connector-main">→</span>}
-      </div>)}</div>
+    {activeOperation&&<div className="transport-demo-current"><CheckCircle2 size={15}/><span>Highlighted process: <strong>{activeOperation.name}</strong> · {activeOperation.branch}</span></div>}
+    <div className="transport-demo-costs">
+      <div><small>ASSEMBLY QUANTITY</small><strong>{fixture.poLine.quantity.toLocaleString("en-IN")}</strong><span>One component PO line</span></div>
+      <div><small>PARTS</small><strong>{fixture.parts.length}</strong><span>Body · shaft · cover</span></div>
+      <div><small>PROCESS OPERATIONS</small><strong>{fixture.operations.length}</strong><span>Shared + branch-specific</span></div>
+      <div><small>RELATIONSHIPS</small><strong>{fixture.routeRelationships.length}</strong><span>{allRelationshipTypes.length} relationship types</span></div>
+      <div><small>TRANSPORT LEGS</small><strong>{fixture.transportLegs.length+(showSecondCarrier?1:0)}</strong><span>Multiple legs and destinations</span></div>
     </div>
-    <div className={"transport-demo-lane transport-demo-alternate"+(alternateEnabled?" is-enabled":"")}>
-      <div className="transport-demo-lane-title"><strong><GitBranch size={14}/> Alternate grinding supplier route</strong><small>{alternateEnabled?"Included in active route costing":"Available branch · excluded until activated"}</small></div>
-      <div className="transport-demo-track">{alternateOperations.map(operation=><div className="transport-demo-step-wrap" key={operation.id}>
-        {materialLinksAt(operation.id,"before").map(renderMaterialLink)}
-        {legsAt(operation.id,"before").map(renderLeg)}
-        <div className={"transport-demo-operation"+(currentOperation?.id===operation.id?" is-current":"")}><small>OP-{String(operation.sequence).padStart(3,"0")}</small><strong>{operation.name}</strong><span>{operation.quantity} pcs · alternate</span></div>
-        {legsAt(operation.id,"after").map(renderLeg)}
-        {materialLinksAt(operation.id,"after").map(renderMaterialLink)}
-      </div>)}</div>
+    <div className="transport-demo-view-tabs" role="tablist" aria-label="Demo scenario views">
+      <button type="button" role="tab" aria-selected={view==="branches"} onClick={()=>setView("branches")}>Part process routes</button>
+      <button type="button" role="tab" aria-selected={view==="relationships"} onClick={()=>setView("relationships")}>Relationship types</button>
+      <button type="button" role="tab" aria-selected={view==="transport"} onClick={()=>setView("transport")}>Transport legs</button>
+      <button type="button" role="tab" aria-selected={view==="carriers"} onClick={()=>setView("carriers")}>Carrier options</button>
     </div>
-    <div className="transport-demo-material-summary"><strong>Material feed links</strong>{materialLinks.map(link=>{const material=materials.find(row=>row.id===link.materialId);return <span key={link.id}>{material?.code||"Material"} → {demoFixture.operations.find(row=>row.id===link.operationId)?.name||"Process"} · {link.quantityPerPart} {link.unit}/part</span>;})}</div>
+    {view==="branches"&&<div className="transport-demo-branches">
+      {branchSummary.filter(({part}:any)=>partFilter==="all"||part.id===partFilter).map(({part,operations}:any)=><article className="transport-demo-lane" key={part.id}>
+        <div className="transport-demo-lane-title"><strong>{part.partNumber} · {part.name}</strong><small>{part.materialIds.length} material types · {operations.length} linked process steps</small></div>
+        <div className="transport-demo-track">{operations.map((operation:any,index:number)=><div className={"transport-demo-step-wrap"+(activeOperation?.id===operation.id?" is-current":"")} key={operation.id}>
+          <div className="transport-demo-operation"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><strong>{operation.name}</strong><span>{operation.branch} · {operation.quantity} pcs</span></div>
+          {index<operations.length-1&&<span className="transport-demo-arrow route-connector route-connector-main">→</span>}
+        </div>)}</div>
+        <div className="transport-demo-material-summary"><strong>Part BOM / process feed</strong>{visibleLinks.filter((link:any)=>operations.some((operation:any)=>operation.id===link.operationId)).map((link:any)=><span key={link.id}>{materialById.get(link.materialId)?.code} → {operationById.get(link.operationId)?.name} · {bomById.get(link.bomLineId)?.quantityPerPart} {materialById.get(link.materialId)?.unit}/part</span>)}</div>
+      </article>)}
+      <article className="transport-demo-lane"><div className="transport-demo-lane-title"><strong>Shared assembly stages</strong><small>Common operations before branch split and final inspection / merge</small></div><div className="transport-demo-track">{fixture.operations.filter((row:any)=>["mp-op-cut","mp-op-vmc","mp-op-inspect"].includes(row.id)).map((operation:any)=><div className="transport-demo-step-wrap" key={operation.id}><div className="transport-demo-operation"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><strong>{operation.name}</strong><span>Shared assembly route</span></div></div>)}</div></article>
+    </div>}
+    {view==="relationships"&&<div className="transport-demo-relationships">
+      <div className="transport-demo-lane-title"><strong>Saved process-to-process connections</strong><small>All 11 relationship types are represented in this one-component example</small></div>
+      {fixture.routeRelationships.map((link:any)=><div className="transport-demo-relationship-row" key={link.id}>
+        <span className={"route-flow-link-symbol route-flow-curve-"+link.relationshipType}>{relationshipLabels[link.relationshipType]||link.relationshipType}</span>
+        <strong>{operationById.get(link.fromOperationId)?.name}</strong><span>→</span><strong>{operationById.get(link.toOperationId)?.name}</strong>
+        <small>{link.condition||link.status}</small>
+      </div>)}
+    </div>}
+    {view==="transport"&&<div className="transport-demo-transport">
+      <div className="transport-demo-lane-title"><strong>Separate transport legs across multiple process destinations</strong><small>Each row retains its own route, carrier, vehicle, pickup and delivery</small></div>
+      {visibleLegs.map((leg:any)=><button type="button" className={"transport-demo-transport-row"+(selectedLeg===leg.id?" is-selected":"")} key={leg.id} onClick={()=>setSelectedLeg(leg.id)}>
+        <span><Truck size={15}/>{leg.vehicleType}</span><strong>{routeById.get(leg.routeId)?.fromLocation} → {routeById.get(leg.routeId)?.toLocation}</strong><small>{vendorById.get(leg.vendorId)} · {leg.id}</small><em>{money(leg.fixedAmount*leg.tripCount)}</em>
+      </button>)}
+      {selectedLegRow&&<div className="transport-demo-current"><CheckCircle2 size={15}/><span>Selected leg: <strong>{selectedLegRow.id}</strong> · {selectedLegRow.anchorOperationId?operationById.get(selectedLegRow.anchorOperationId)?.name:"Component start"} {selectedLegRow.targetOperationId?" → "+operationById.get(selectedLegRow.targetOperationId)?.name:""} · {selectedLegRow.vehicleType}</span></div>}
+    </div>}
+    {view==="carriers"&&<div className="transport-demo-carriers">
+      <div className="transport-demo-lane-title"><strong>Same process connection · different transport options</strong><small>VMC subcontractor → CNC shaft turning supplier</small></div>
+      {routeOptions.map((route:any)=><div className="transport-demo-transport-row" key={route.id}><span><Truck size={15}/>{route.vehicleType}</span><strong>{route.fromLocation} → {route.toLocation}</strong><small>{vendorById.get(route.vendorId)} · {route.id}</small><em>{money(route.fixedAmount)}</em></div>)}
+      {simulatedSecondLeg&&<div className="transport-demo-current"><CheckCircle2 size={15}/><span>Simulation added a second carrier leg: <strong>{simulatedSecondLeg.vehicleType}</strong> · {vendorById.get(simulatedSecondLeg.vendorId)} · {money(simulatedSecondLeg.fixedAmount)}</span></div>}
+      <button type="button" className="button-primary compact-button" onClick={()=>setShowSecondCarrier(value=>!value)}>{showSecondCarrier?"Remove simulated carrier leg":"Add alternative 4-wheeler carrier leg"}</button>
+      <small>This preview demonstrates two independent carriers on the same VMC-to-shaft connection. The simulation does not write to live records.</small>
+    </div>}
     <RouteConnectorLegend/>
     <div className="transport-demo-vehicle-legend"><strong>Vehicle identity</strong>{VEHICLE_TYPES.map(type=><VehicleBadge key={type} vehicleType={type}/>)}</div>
-    <div className="transport-demo-costs">
-      <div><small>PROCESS COST</small><strong>{money(processCost)}</strong><span>Kept separate from transport</span></div>
-      <div><small>MAIN ROUTE TRANSPORT</small><strong>{money(mainTransportCost)}</strong><span>{legs.filter(leg=>!leg.anchorOperationId||mainOperations.some(operation=>operation.id===leg.anchorOperationId)).reduce((sum,leg)=>sum+leg.tripCount,0)} trips</span></div>
-      <div><small>ALTERNATE TRANSPORT</small><strong>{money(alternateTransportCost)}</strong><span>{alternateEnabled?"Included":"Excluded until selected"}</span></div>
-      <div className="transport-demo-total"><small>PROCESS + ACTIVE TRANSPORT</small><strong>{money(processCost+activeTransportCost)}</strong><span>{alternateEnabled?"Main + alternate routes":"Main route only"}</span></div>
-    </div>
-    <p className="transport-demo-safety">Synthetic preview only. Clicking vehicle icons opens that individual transport record. Advancing the simulation highlights the active process; switching on the alternate branch changes only this preview. No company, PO, component, vendor, material, BOM, material-process link, operation, route, transport leg or inventory record is written to AXIMACH.</p>
+    <div className="transport-demo-safety"><strong>What this scenario verifies</strong><span>One component PO line → three separate part records → multiple BOM materials per part → shared VMC operation → split / parallel / alternate branch routes → multiple process destinations → distinct carriers and vehicle types → final inspection / merge.</span><span>All company, vendor, PO and material names in this scenario are synthetic. This is a read-only demo; use the live editors to create and save real records.</span></div>
   </section>;
 }
