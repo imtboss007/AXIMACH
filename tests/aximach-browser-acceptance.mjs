@@ -1028,6 +1028,32 @@ async function main() {
     throw new Error("Vendor WhatsApp action did not request the expected secure external URL: " + JSON.stringify(whatsappOpenCalls));
   }
 
+  const syntheticSyncConflict = {
+    id: "browser-sync-conflict-1",
+    collection: "companies",
+    recordId: "browser-company-1",
+    base: { id: "browser-company-1", name: "Baseline Company", phone: "9000000000" },
+    remote: { id: "browser-company-1", name: "Shared Company Edit", phone: "9000000000" },
+    local: { id: "browser-company-1", name: "Offline Device Edit", phone: "9111111111" },
+    detectedAt: new Date().toISOString(),
+    status: "unresolved"
+  };
+  await page.evaluate(conflict => {
+    localStorage.setItem("aximach.syncConflicts.v1", JSON.stringify([conflict]));
+  }, syntheticSyncConflict);
+  await openModule(page, "Data Exchange Centre");
+  await page.getByRole("heading", { name: "Resolve sync conflicts", exact: true }).waitFor({ state: "visible", timeout: 5000 });
+  await page.getByText("Shared Company Edit", { exact: true }).waitFor({ state: "visible", timeout: 5000 });
+  await page.getByText("Offline Device Edit", { exact: true }).waitFor({ state: "visible", timeout: 5000 });
+  await page.getByRole("button", { name: "Keep shared version", exact: true }).waitFor({ state: "visible", timeout: 5000 });
+  await page.getByRole("button", { name: "Use this device", exact: true }).waitFor({ state: "visible", timeout: 5000 });
+  await page.getByRole("button", { name: "Apply field choices", exact: true }).waitFor({ state: "visible", timeout: 5000 });
+  const syncConflictUiResults = {
+    headingVisible: true,
+    baselineVisible: await page.getByText("Baseline Company", { exact: true }).count() > 0,
+    sharedAndLocalVersionsVisible: true,
+    resolutionActions: ["Keep shared version", "Use this device", "Apply field choices"]
+  };
   if (pageErrors.length) throw new Error("Browser runtime exceptions: " + pageErrors.join(" | "));
   console.log(JSON.stringify({
     fixture: { parts: fixture.parts.length, materials: fixture.materials.length, operations: fixture.operations.length,
@@ -1046,6 +1072,7 @@ async function main() {
     processOperationDetails,
     routeExports: routeExportResults,
     universeExports: universeExportResults,
+    syncConflictReview: syncConflictUiResults,
     simulation: simulationResults,
     persistence: persistenceResults,
     responsive: responsiveResults,

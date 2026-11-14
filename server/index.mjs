@@ -13,6 +13,8 @@ let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData
 let busy = false;
 let saveQueue = Promise.resolve();
 
+function sameConflictValue(left, right) { return JSON.stringify(left ?? null) === JSON.stringify(right ?? null); }
+
 async function loadDb() {
   try { db = { ...db, ...JSON.parse(await readFile(DB_PATH, "utf8")) }; }
   catch (error) { if (error.code !== "ENOENT") console.error("Could not load data store:", error.message); }
@@ -173,6 +175,92 @@ const server = createServer(async (req, res) => {
         conflicts: savedConflicts, unresolvedConflictCount: (db.syncConflicts || []).filter(item => item.status === "unresolved").length
       });
     }
+    if (url.pathname === "/api/manufacturing-data/conflicts/resolve" && req.method === "POST") {
+      const input = await body(req);
+      const conflictId = typeof input.conflictId === "string" ? input.conflictId : "";
+      const choice = input.choice;
+      if (!conflictId || !["remote", "local", "merged"].includes(choice)) return json(res, 400, { error: "Choose a valid conflict and resolution." });
+      const conflictIndex = (db.syncConflicts || []).findIndex(item => item.id === conflictId && item.status === "unresolved");
+      if (conflictIndex < 0) return json(res, 404, { error: "This unresolved sync conflict no longer exists. Refresh the conflict list." });
+      const conflict = db.syncConflicts[conflictIndex];
+      if (!manufacturingCollections.includes(conflict.collection)) return json(res, 400, { error: "The conflict references an unsupported data collection." });
+      if (!db.manufacturingData || typeof db.manufacturingData !== "object") return json(res, 409, { error: "Shared manufacturing data is unavailable. Refresh the shared server." });
+
+      const rows = Array.isArray(db.manufacturingData[conflict.collection]) ? db.manufacturingData[conflict.collection] : [];
+      const currentRow = rows.find(row => row.id === conflict.recordId);
+      const currentValue = conflict.lineId
+        ? (conflict.collection === "purchaseOrders" ? (currentRow?.lines || []).find(line => line.id === conflict.lineId) : undefined)
+        : currentRow;
+      const comparable = value => {
+        if (!value || conflict.collection !== "purchaseOrders" || conflict.lineId) return value ?? null;
+        const copy = { ...value };
+        delete copy.lines;
+        delete copy.updatedAt;
+        return copy;
+      };
+      if (!sameConflictValue(comparable(currentValue), comparable(conflict.remote))) {
+        const refreshedAt = new Date().toISOString();
+        const refreshedConflict = { ...conflict, remote: currentValue ?? null, refreshedAt };
+        db.syncConflicts[conflictIndex] = refreshedConflict;
+        await saveDb();
+        return json(res, 409, {
+          error: "The shared record changed again after this conflict was detected. The shared version has been refreshed; review it and resolve again.",
+          conflict: refreshedConflict,
+          data: db.manufacturingData,
+          unresolvedConflictCount: db.syncConflicts.filter(item => item.status === "unresolved").length
+        });
+      }
+
+      if (conflict.lineId && conflict.collection !== "purchaseOrders") return json(res, 400, { error: "Only purchase-order lines support line-level conflict resolution." });
+      const selectedValue = choice === "local" ? conflict.local : choice === "remote" ? conflict.remote : input.value;
+      if (choice === "merged" && (!selectedValue || typeof selectedValue !== "object" || Array.isArray(selectedValue))) {
+        return json(res, 400, { error: "A merged record value is required." });
+      }
+      const expectedId = conflict.lineId || conflict.recordId;
+      if (selectedValue !== null && (typeof selectedValue !== "object" || Array.isArray(selectedValue) || selectedValue.id !== expectedId)) {
+        return json(res, 400, { error: "The selected record ID does not match this conflict." });
+      }
+      if (selectedValue === null && choice !== "remote") return json(res, 400, { error: "Only the current shared version can resolve a missing record." });
+
+      const stamp = new Date().toISOString();
+      let nextRows;
+      if (conflict.lineId) {
+        if (!currentRow) return json(res, 409, { error: "The parent purchase order no longer exists. Refresh the conflict list." });
+        const currentLines = Array.isArray(currentRow.lines) ? currentRow.lines : [];
+        const nextLines = selectedValue === null
+          ? currentLines.filter(line => line.id !== conflict.lineId)
+          : currentLines.some(line => line.id === conflict.lineId)
+            ? currentLines.map(line => line.id === conflict.lineId ? { ...selectedValue, updatedAt: stamp } : line)
+            : [...currentLines, { ...selectedValue, updatedAt: stamp }];
+        nextRows = rows.map(row => row.id === conflict.recordId ? { ...row, lines: nextLines, updatedAt: stamp } : row);
+      } else if (selectedValue === null) {
+        nextRows = rows.filter(row => row.id !== conflict.recordId);
+      } else {
+        const preservedLines = conflict.collection === "purchaseOrders"
+          ? (currentRow?.lines ?? selectedValue.lines ?? [])
+          : undefined;
+        const canonicalValue = {
+          ...selectedValue,
+          ...(conflict.collection === "purchaseOrders" ? { lines: preservedLines } : {}),
+          updatedAt: stamp
+        };
+        nextRows = currentRow
+          ? rows.map(row => row.id === conflict.recordId ? canonicalValue : row)
+          : [...rows, canonicalValue];
+      }
+
+      db.manufacturingData = { ...db.manufacturingData, [conflict.collection]: nextRows, updatedAt: stamp };
+      const resolvedConflict = { ...conflict, status: "resolved", resolutionChoice: choice, resolvedAt: stamp, resolution: selectedValue };
+      db.syncConflicts[conflictIndex] = resolvedConflict;
+      await saveDb();
+      return json(res, 200, {
+        ok: true,
+        conflict: resolvedConflict,
+        data: db.manufacturingData,
+        unresolvedConflictCount: db.syncConflicts.filter(item => item.status === "unresolved").length
+      });
+    }
+
     if (url.pathname === "/api/records" && req.method === "GET") return json(res, 200, { records: db.records || {}, updatedAt: db.recordsUpdatedAt || null });
     if (url.pathname === "/api/records" && req.method === "PUT") {
       const input = await body(req);

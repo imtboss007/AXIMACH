@@ -35,7 +35,7 @@ const RouteFlowWorkspace = lazy(() => import("./RouteFlowWorkspace"));
 const ManufacturingUniverseWorkspace = lazy(() => import("./ManufacturingUniverseWorkspace"));
 const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
 const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
-import { activeRows, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
+import { activeRows, makeId, mergeManufacturingData, nowIso, readManufacturingData, readManufacturingSyncConflicts, removeLegacyDemoData, resolveManufacturingSyncConflict, useManufacturingData, type ManufacturingSyncConflict, type SyncConflictResolutionChoice, type VendorRecord } from "./manufacturingData";
 import { AXIMACH_DEMO_ID_PREFIX, archiveAxMachTwoCompanyDemo, createAxMachTwoCompanyDemo } from "./aximachDemoData";
 
 function isAllowedAxMachServiceUrl(value: string) {
@@ -88,10 +88,61 @@ const modules: ModuleItem[] = [
 
 const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) => item.group)))];
 
+function conflictObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+function conflictFields(conflict: ManufacturingSyncConflict): string[] {
+  const base = conflictObject(conflict.base);
+  const remote = conflictObject(conflict.remote);
+  const local = conflictObject(conflict.local);
+  const keys = new Set([...Object.keys(base), ...Object.keys(remote), ...Object.keys(local)]);
+  return [...keys].filter(key => {
+    if (["id", "createdAt", "updatedAt"].includes(key)) return false;
+    if (conflict.collection === "purchaseOrders" && !conflict.lineId && key === "lines") return false;
+    return JSON.stringify(remote[key] ?? null) !== JSON.stringify(local[key] ?? null);
+  }).sort();
+}
+function conflictValueLabel(value: unknown): string {
+  if (value === undefined || value === null || value === "") return "—";
+  if (typeof value === "string") return value;
+  try { return JSON.stringify(value, null, 2) || "—"; } catch { return String(value); }
+}
+function conflictFieldLabel(value: string): string {
+  return value.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").replace(/^./, letter => letter.toUpperCase());
+}
+
 function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNotice:(value:string)=>void;notice:string}) {
   const [mode,setMode] = useState<"export"|"import">("export");
   const { data, update, syncStatus } = useManufacturingData();
   const [demoBusy,setDemoBusy] = useState(false);
+  const [syncConflicts, setSyncConflicts] = useState<ManufacturingSyncConflict[]>(() => readManufacturingSyncConflicts());
+  const [resolvingConflictId, setResolvingConflictId] = useState("");
+  const [conflictError, setConflictError] = useState("");
+  const [fieldChoices, setFieldChoices] = useState<Record<string, Record<string, "remote" | "local">>>({});
+  useEffect(() => {
+    const refresh = () => setSyncConflicts(readManufacturingSyncConflicts());
+    window.addEventListener("aximach-sync-conflicts-updated", refresh);
+    window.addEventListener("storage", refresh);
+    refresh();
+    return () => {
+      window.removeEventListener("aximach-sync-conflicts-updated", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+  const resolveConflict = async (conflict: ManufacturingSyncConflict, choice: SyncConflictResolutionChoice, value?: Record<string, unknown>) => {
+    setResolvingConflictId(conflict.id);
+    setConflictError("");
+    try {
+      await resolveManufacturingSyncConflict(conflict.id, choice, value);
+      setSyncConflicts(readManufacturingSyncConflicts());
+      onNotice(choice === "local" ? "This device's version is now the shared record." : choice === "remote" ? "The shared server version has been kept." : "Your selected field values have been saved as the shared record.");
+    } catch (error) {
+      setSyncConflicts(readManufacturingSyncConflicts());
+      setConflictError(error instanceof Error ? error.message : "Conflict resolution failed. The local and server copies were retained.");
+    } finally {
+      setResolvingConflictId("");
+    }
+  };
   const demoRows = Object.values(data).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX));
   const activeDemoCount = demoRows.filter(row => !row.deletedAt).length;
   const demoLoaded = activeDemoCount > 0;
@@ -152,6 +203,58 @@ function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNoti
         </div>
         <p className="muted-copy" style={{marginTop:10}}>Demo records are fictional test data, not real supplier offers, payments, inspections or production results. Delete archives only DEMO-prefixed records.</p>
       </section>
+      <section className="workspace-card sync-conflict-center" aria-labelledby="sync-conflict-heading">
+        <div className="sync-conflict-heading">
+          <div>
+            <div className="eyebrow"><span className="eyebrow-mark"/> OFFLINE SYNC / DATA INTEGRITY</div>
+            <h2 id="sync-conflict-heading">Resolve sync conflicts</h2>
+            <p>Review the original baseline, the latest shared-server version and this device's offline version. Choose one complete version or merge changed fields.</p>
+          </div>
+          <span className={"sync-conflict-count " + (syncConflicts.length ? "has-conflicts" : "")}>{syncConflicts.length} unresolved</span>
+        </div>
+        {conflictError && <div className="sync-conflict-error" role="alert"><ShieldAlert size={15}/><span>{conflictError}</span></div>}
+        {syncConflicts.length ? <div className="sync-conflict-list">
+          {syncConflicts.map(conflict => {
+            const base = conflictObject(conflict.base);
+            const remote = conflictObject(conflict.remote);
+            const local = conflictObject(conflict.local);
+            const fields = conflictFields(conflict);
+            const choices = fieldChoices[conflict.id] || {};
+            const mergedValue = { ...remote, ...Object.fromEntries(fields.map(field => [field, choices[field] === "local" ? local[field] : remote[field]])) };
+            const fieldsAreValid = typeof remote.id === "string" || typeof local.id === "string";
+            return <article className="sync-conflict-card" key={conflict.id}>
+              <div className="sync-conflict-card-head">
+                <div><strong>{conflict.collection.replace(/([A-Z])/g, " $1")} {conflict.lineId ? "· PO line" : "record"}</strong><small>Record: {conflict.recordId}{conflict.lineId ? " · Line: " + conflict.lineId : ""}</small></div>
+                <span>{conflict.refreshedAt ? "Shared version refreshed" : "Detected " + new Date(conflict.detectedAt).toLocaleString()}</span>
+              </div>
+              <div className="sync-conflict-snapshots">
+                <details><summary>Original baseline</summary><pre>{conflictValueLabel(conflict.base)}</pre></details>
+                <details><summary>Latest shared version</summary><pre>{conflictValueLabel(conflict.remote)}</pre></details>
+                <details><summary>This device's version</summary><pre>{conflictValueLabel(conflict.local)}</pre></details>
+              </div>
+              {fields.length ? <div className="sync-conflict-fields" aria-label="Field-by-field merge">
+                {fields.map(field => <div className="sync-conflict-field" key={field}>
+                  <div><strong>{conflictFieldLabel(field)}</strong><small><span>Shared:</span> {conflictValueLabel(remote[field])}</small><small><span>Device:</span> {conflictValueLabel(local[field])}</small></div>
+                  <label>Use value from
+                    <select aria-label={"Choose " + conflictFieldLabel(field) + " value"} value={choices[field] || "remote"} onChange={event => setFieldChoices(current => ({ ...current, [conflict.id]: { ...(current[conflict.id] || {}), [field]: event.target.value as "remote" | "local" } }))}>
+                      <option value="remote">Shared server</option>
+                      <option value="local">This device</option>
+                    </select>
+                  </label>
+                </div>)}
+              </div> : <p className="muted-copy">No separate editable fields were detected. You can still choose which complete version to keep.</p>}
+              {conflict.collection === "purchaseOrders" && !conflict.lineId && <p className="sync-conflict-note">Purchase-order lines are preserved independently; resolving these parent fields will not overwrite separately merged line changes.</p>}
+              <div className="sync-conflict-actions">
+                <button type="button" className="button-quiet compact-button" disabled={syncStatus === "local" || resolvingConflictId === conflict.id} onClick={() => void resolveConflict(conflict, "remote")}>Keep shared version</button>
+                <button type="button" className="button-quiet compact-button" disabled={syncStatus === "local" || resolvingConflictId === conflict.id} onClick={() => void resolveConflict(conflict, "local")}>Use this device</button>
+                <button type="button" className="button-primary compact-button" disabled={syncStatus === "local" || resolvingConflictId === conflict.id || !fieldsAreValid} onClick={() => void resolveConflict(conflict, "merged", mergedValue)}>Apply field choices</button>
+                {resolvingConflictId === conflict.id && <span className="muted-copy">Saving resolution…</span>}
+              </div>
+            </article>;
+          })}
+        </div> : <div className="sync-conflict-empty"><Check size={18}/><span>{syncStatus === "local" ? "No unresolved conflict is saved on this device. Connect both devices to the same shared AXIMACH server to enable cross-device conflict review." : "No unresolved offline sync conflicts. New conflicts will appear here for review."}</span></div>}
+      </section>
+
       <div className="linked-route-actions" role="tablist" aria-label="Data exchange mode">
         <button type="button" role="tab" aria-selected={mode==="export"} className={(mode==="export"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("export")}><FileDown size={14}/> Export records</button>
         <button type="button" role="tab" aria-selected={mode==="import"} className={(mode==="import"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("import")}><FileUp size={14}/> Import and validate</button>

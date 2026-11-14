@@ -211,6 +211,70 @@ test("HTTP server persists and merges follow-up assignments across device update
     assert.equal(refreshedConflicts.length, 1, "reconnecting devices must be able to retrieve unresolved conflict copies");
     assert.equal(refreshedConflicts[0].local.name, "Stale offline overwrite");
 
+    const resolveUrl = baseUrl + "/api/manufacturing-data/conflicts/resolve";
+    const unauthorizedResolve = await fetch(resolveUrl, {
+      method: "POST", body: JSON.stringify({ conflictId: refreshedConflicts[0].id, choice: "local" })
+    });
+    assert.equal(unauthorizedResolve.status, 401, "conflict resolution must require the shared API key");
+
+    const firstResolution = await fetch(resolveUrl, {
+      method: "POST", headers, body: JSON.stringify({ conflictId: refreshedConflicts[0].id, choice: "local" })
+    });
+    assert.equal(firstResolution.status, 200);
+    const firstResolutionBody = await firstResolution.json();
+    assert.equal(firstResolutionBody.conflict.status, "resolved");
+    assert.equal(firstResolutionBody.conflict.resolutionChoice, "local");
+    assert.equal(firstResolutionBody.data.companies.find(row => row.id === syncBaseline.companies[0].id).name, "Stale offline overwrite");
+
+    // A second offline conflict is deliberately made stale by a newer server edit.
+    // The first resolve attempt must refresh the server snapshot, not overwrite it.
+    const secondBaseline = JSON.parse(JSON.stringify(firstResolutionBody.data));
+    const sharedAt = new Date(Date.now() + 1000).toISOString();
+    const offlineAt = new Date(Date.now() + 2000).toISOString();
+    const newerServerAt = new Date(Date.now() + 3000).toISOString();
+    const baselineCompany = secondBaseline.companies.find(row => row.id === syncBaseline.companies[0].id);
+    const sharedEditAgain = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({ data: {
+        companies: [{ ...baselineCompany, name: "Shared edit after first resolution", updatedAt: sharedAt }]
+      } })
+    });
+    assert.equal(sharedEditAgain.status, 200);
+    const offlineConflictAgain = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({
+        baseData: secondBaseline,
+        data: { companies: [{ ...baselineCompany, name: "Second offline edit", updatedAt: offlineAt }] }
+      })
+    });
+    assert.equal(offlineConflictAgain.status, 200);
+    const secondConflict = (await offlineConflictAgain.json()).conflicts[0];
+    assert.ok(secondConflict?.id, "second conflict should be assigned a stable server ID");
+
+    const serverEditAfterDetection = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({ data: {
+        companies: [{ ...baselineCompany, name: "Newer server edit after conflict", updatedAt: newerServerAt }]
+      } })
+    });
+    assert.equal(serverEditAfterDetection.status, 200);
+
+    const staleResolution = await fetch(resolveUrl, {
+      method: "POST", headers, body: JSON.stringify({ conflictId: secondConflict.id, choice: "local" })
+    });
+    assert.equal(staleResolution.status, 409, "a conflict cannot overwrite a server edit made after detection");
+    const staleResolutionBody = await staleResolution.json();
+    assert.equal(staleResolutionBody.conflict.remote.name, "Newer server edit after conflict");
+    assert.match(staleResolutionBody.error, /refreshed/i);
+
+    const retryResolution = await fetch(resolveUrl, {
+      method: "POST", headers, body: JSON.stringify({ conflictId: secondConflict.id, choice: "local" })
+    });
+    assert.equal(retryResolution.status, 200, "the refreshed conflict can be resolved after review");
+    assert.equal(retryResolution.json ? true : false, true);
+    const retryResolutionBody = await retryResolution.json();
+    assert.equal(retryResolutionBody.data.companies.find(row => row.id === syncBaseline.companies[0].id).name, "Second offline edit");
+
+    const clearedConflicts = await fetch(baseUrl + "/api/manufacturing-data", { headers });
+    assert.equal((await clearedConflicts.json()).conflicts.length, 0, "resolved conflicts must disappear from the unresolved queue");
+
     await stopServer(child);
     child = undefined;
     const persisted = JSON.parse(await readFile(dataFile, "utf8"));
@@ -218,12 +282,17 @@ test("HTTP server persists and merges follow-up assignments across device update
     assert.equal(persisted.manufacturingData.materialProcessLinks.length, 2);
     assert.equal(persisted.manufacturingData.transportLegs.length, 2);
     assert.equal(persisted.manufacturingData.routeRelationships.length, 1);
+    assert.equal(persisted.syncConflicts.length, 2);
+    assert.equal(persisted.syncConflicts.every(item => item.status === "resolved"), true, "resolution decisions must persist across restart");
 
     child = startServer(port, dataFile);
     await waitForHealth(child, baseUrl);
     const afterRestart = await fetch(baseUrl + "/api/manufacturing-data", { headers });
     assert.equal(afterRestart.status, 200);
-    const restartedData = (await afterRestart.json()).data;
+    const afterRestartBody = await afterRestart.json();
+    assert.equal(afterRestartBody.conflicts.length, 0);
+    const restartedData = afterRestartBody.data;
+    assert.equal(restartedData.companies.find(row => row.id === syncBaseline.companies[0].id).name, "Second offline edit");
     assert.equal(restartedData.followUpAssignments.length, 2);
     assert.equal(restartedData.followUpAssignments.some(row => row.contactName === "Contact A"), true);
     assert.equal(restartedData.followUpAssignments.some(row => row.contactName === "Contact B"), true);

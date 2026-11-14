@@ -364,21 +364,54 @@ function serverConfig() {
   }
   return { base, key };
 }
-type SyncConflict = { id: string; collection: string; recordId: string; lineId?: string; base: unknown; remote: unknown; local: unknown; detectedAt: string; status: string };
+export type ManufacturingSyncConflict = { id: string; collection: string; recordId: string; lineId?: string; base: unknown; remote: unknown; local: unknown; detectedAt: string; status: string; refreshedAt?: string; resolvedAt?: string; resolutionChoice?: "remote" | "local" | "merged" };
+export type SyncConflictResolutionChoice = "remote" | "local" | "merged";
 function readSyncBaseline(): ManufacturingData | null {
   try { const raw = window.localStorage.getItem(SYNC_BASELINE_KEY); return raw ? normaliseData(JSON.parse(raw)) : null; } catch { return null; }
 }
 function writeSyncBaseline(data: ManufacturingData) {
   try { window.localStorage.setItem(SYNC_BASELINE_KEY, JSON.stringify(data)); } catch { /* storage may be unavailable */ }
 }
-function readSyncConflicts(): SyncConflict[] {
+function readSyncConflicts(): ManufacturingSyncConflict[] {
   try { const value = JSON.parse(window.localStorage.getItem(SYNC_CONFLICTS_KEY) || "[]"); return Array.isArray(value) ? value : []; } catch { return []; }
 }
-function saveSyncConflicts(conflicts: SyncConflict[]) {
+function writeSyncConflicts(conflicts: ManufacturingSyncConflict[]) {
+  try { window.localStorage.setItem(SYNC_CONFLICTS_KEY, JSON.stringify(conflicts.slice(-500))); } catch { /* preserve server-side conflict copy */ }
+  window.dispatchEvent(new Event("aximach-sync-conflicts-updated"));
+}
+function saveSyncConflicts(conflicts: ManufacturingSyncConflict[]) {
   if (!conflicts.length) return;
-  const existing = readSyncConflicts();
-  const keys = new Set(existing.map(item => item.id));
-  try { window.localStorage.setItem(SYNC_CONFLICTS_KEY, JSON.stringify([...existing, ...conflicts.filter(item => !keys.has(item.id))].slice(-500))); } catch { /* preserve server-side conflict copy */ }
+  const byId = new Map(readSyncConflicts().map(item => [item.id, item]));
+  conflicts.forEach(item => byId.set(item.id, item));
+  writeSyncConflicts([...byId.values()]);
+}
+export function readManufacturingSyncConflicts(): ManufacturingSyncConflict[] {
+  return readSyncConflicts().filter(item => item.status === "unresolved").sort((left, right) => Date.parse(right.refreshedAt || right.detectedAt || "") - Date.parse(left.refreshedAt || left.detectedAt || ""));
+}
+export async function resolveManufacturingSyncConflict(
+  conflictId: string,
+  choice: SyncConflictResolutionChoice,
+  value?: Record<string, unknown>
+): Promise<ManufacturingSyncConflict> {
+  const cfg = serverConfig();
+  if (!cfg) throw new Error("Connect this device to the shared AXIMACH server before resolving offline conflicts.");
+  const response = await fetch(cfg.base + "/api/manufacturing-data/conflicts/resolve", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-aximach-key": cfg.key },
+    body: JSON.stringify({ conflictId, choice, value })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (result.conflict && typeof result.conflict.id === "string") {
+    saveSyncConflicts([result.conflict as ManufacturingSyncConflict]);
+  }
+  if (result.data && typeof result.data === "object" && !Array.isArray(result.data)) {
+    const canonical = normaliseData(result.data);
+    writeLocal(canonical, false);
+    writeSyncBaseline(canonical);
+    window.dispatchEvent(new CustomEvent("aximach-manufacturing-data-updated", { detail: canonical }));
+  }
+  if (!response.ok) throw new Error(result.error || "Could not resolve the sync conflict.");
+  return result.conflict as ManufacturingSyncConflict;
 }
 function preserveConflictRemote(local: ManufacturingData, remote: ManufacturingData, conflicts: SyncConflict[]): ManufacturingData {
   const result = { ...local } as ManufacturingData;

@@ -5797,3 +5797,44 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .transport-demo-transport-row>strong,.transport-demo-transport-row>small{grid-column:1/-1}
  .transport-demo-transport-row em{grid-column:2;grid-row:1}
 }
+
+
+/* Shared-data conflict review: make all three versions and field choices usable on desktop and mobile. */
+.sync-conflict-center{display:grid;gap:14px;margin:18px 0 20px;padding:clamp(13px,2vw,22px);border:1px solid var(--ax-border,#dce6f3);border-radius:14px;background:var(--ax-panel,#fff);color:var(--ax-text,#334d70)}
+.sync-conflict-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.sync-conflict-heading h2{margin:5px 0;font-size:clamp(18px,2vw,24px)}
+.sync-conflict-heading p{max-width:760px;margin:0;color:var(--ax-muted,#7e8fa6);font-size:12px;line-height:1.6}
+.sync-conflict-count{flex:0 0 auto;border:1px solid var(--ax-border,#dce6f3);border-radius:999px;padding:7px 10px;color:var(--ax-muted,#7e8fa6);font-size:10px;font-weight:800}
+.sync-conflict-count.has-conflicts{border-color:#d49a45;background:rgba(212,154,69,.1);color:#9a5e12}
+.sync-conflict-list{display:grid;gap:12px}
+.sync-conflict-card{display:grid;gap:11px;min-width:0;padding:14px;border:1px solid var(--ax-border,#dce6f3);border-radius:11px;background:var(--ax-panel,#fff)}
+.sync-conflict-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.sync-conflict-card-head>div{display:grid;gap:4px;min-width:0}
+.sync-conflict-card-head strong{font-size:12px;text-transform:capitalize}
+.sync-conflict-card-head small,.sync-conflict-card-head>span{color:var(--ax-muted,#7e8fa6);font-size:10px;overflow-wrap:anywhere}
+.sync-conflict-snapshots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.sync-conflict-snapshots details{min-width:0;border:1px solid var(--ax-border,#dce6f3);border-radius:8px;background:var(--ax-surface,#f7f9fc)}
+.sync-conflict-snapshots summary{padding:8px 9px;cursor:pointer;font-size:10px;font-weight:800}
+.sync-conflict-snapshots pre{max-height:220px;overflow:auto;margin:0;padding:9px;border-top:1px solid var(--ax-border,#dce6f3);white-space:pre-wrap;overflow-wrap:anywhere;font:10px/1.5 ui-monospace,SFMono-Regular,monospace;color:var(--ax-text,#334d70)}
+.sync-conflict-fields{display:grid;gap:7px}
+.sync-conflict-field{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,.4fr);align-items:center;gap:12px;padding:9px 10px;border:1px solid var(--ax-border,#dce6f3);border-radius:8px}
+.sync-conflict-field>div{display:grid;gap:4px;min-width:0}
+.sync-conflict-field>div strong{font-size:10px}
+.sync-conflict-field small{font-size:10px;line-height:1.45;overflow-wrap:anywhere;color:var(--ax-muted,#7e8fa6)}
+.sync-conflict-field small span{font-weight:800;color:var(--ax-text,#334d70)}
+.sync-conflict-field label{display:grid;gap:4px;color:var(--ax-muted,#7e8fa6);font-size:9px;font-weight:700}
+.sync-conflict-field select{width:100%;min-width:0;border:1px solid var(--ax-border,#dce6f3);border-radius:7px;padding:7px;background:var(--ax-panel,#fff);color:var(--ax-text,#334d70);font-size:10px}
+.sync-conflict-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sync-conflict-error{display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid rgba(190,70,70,.3);border-radius:8px;background:rgba(190,70,70,.07);color:#a13e3e;font-size:11px;line-height:1.5}
+.sync-conflict-note{margin:0;padding:8px 10px;border-radius:8px;background:var(--ax-surface,#f7f9fc);color:var(--ax-muted,#7e8fa6);font-size:10px;line-height:1.5}
+.sync-conflict-empty{display:flex;align-items:flex-start;gap:9px;padding:13px;border:1px dashed var(--ax-border,#dce6f3);border-radius:9px;color:var(--ax-muted,#7e8fa6);font-size:11px;line-height:1.55}
+.sync-conflict-empty svg{flex:0 0 auto;color:#26936a}
+@media(max-width:700px){
+ .sync-conflict-heading{display:grid}
+ .sync-conflict-count{justify-self:start}
+ .sync-conflict-snapshots{grid-template-columns:1fr}
+ .sync-conflict-field{grid-template-columns:1fr}
+ .sync-conflict-card-head{display:grid}
+ .sync-conflict-actions{display:grid;grid-template-columns:1fr}
+ .sync-conflict-actions button{width:100%}
+}
