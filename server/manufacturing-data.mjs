@@ -92,12 +92,10 @@ export function mergeManufacturingDataWithConflicts(existing, incoming, baseline
       if (!baseRow || !remoteRow) continue;
       if (collection === "purchaseOrders") {
         const stripLines = row => { const copy = { ...row }; delete copy.lines; return copy; };
-        if (!sameValue(stripLines(baseRow), stripLines(remoteRow))
+        const parentConflict = !sameValue(stripLines(baseRow), stripLines(remoteRow))
           && !sameValue(stripLines(baseRow), stripLines(localRow))
-          && !sameValue(stripLines(remoteRow), stripLines(localRow))) {
-          blocked.add(id);
-          conflicts.push({ collection, recordId: id, base: baseRow, remote: remoteRow, local: localRow });
-        }
+          && !sameValue(stripLines(remoteRow), stripLines(localRow));
+        if (parentConflict) conflicts.push({ collection, recordId: id, base: baseRow, remote: remoteRow, local: localRow });
         const baseLines = byId(baseRow.lines), remoteLines = byId(remoteRow.lines), localLines = byId(localRow.lines);
         const safeLines = [];
         for (const [lineId, localLine] of localLines) {
@@ -109,7 +107,8 @@ export function mergeManufacturingDataWithConflicts(existing, incoming, baseline
         }
         const conflictingLineIds = new Set(conflicts.filter(item => item.collection === collection && item.recordId === id && item.lineId).map(item => item.lineId));
         safeIncoming[collection] = (safeIncoming[collection] || []).map(row => row.id !== id ? row : {
-          ...row, lines: (row.lines || []).filter(line => !conflictingLineIds.has(line.id))
+          ...(parentConflict ? remoteRow : row),
+          lines: [...(remoteRow.lines || []).filter(line => conflictingLineIds.has(line.id)), ...safeLines.filter(line => !conflictingLineIds.has(line.id))]
         });
       } else if (!sameValue(baseRow, remoteRow) && !sameValue(baseRow, localRow) && !sameValue(remoteRow, localRow)) {
         blocked.add(id);
