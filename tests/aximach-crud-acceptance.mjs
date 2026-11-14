@@ -1192,7 +1192,7 @@ async function masterColumnFilterAcceptance() {
 
   await p.getByRole("button", { name: "Add Company" }).click();
   await p.getByPlaceholder("Enter your actual registered company name").fill(companyName);
-  await p.getByPlaceholder("Optional").fill(gstin);
+  await p.getByPlaceholder("Optional", { exact: true }).fill(gstin);
   await p.getByPlaceholder("Primary contact person").fill(contactName);
   await p.getByPlaceholder("Country code + number").fill(phone);
   await p.getByPlaceholder("Accounts / contact email").fill(email);
@@ -1257,7 +1257,7 @@ async function masterColumnFilterAcceptance() {
   await pick(p, "factory-parent-company", companyName);
   await p.getByPlaceholder("Enter factory name").fill(factoryName);
   await p.getByPlaceholder("Factory address").fill(factoryAddress);
-  await p.getByPlaceholder("Optional").last().fill(factoryPhone);
+  await p.getByPlaceholder("Optional", { exact: true }).fill(factoryPhone);
   await p.getByRole("button", { name: "Save factory" }).click();
   await visible(p.locator(".module-record-card").filter({ hasText: factoryName }), "second factory for column-filter acceptance");
   await excludeMultiOption("factory-filter-name", "Factory name", fixture.factory.name);
