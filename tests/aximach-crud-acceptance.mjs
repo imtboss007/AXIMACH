@@ -1284,13 +1284,20 @@ async function masterColumnFilterAcceptance() {
     await p.getByRole("button", { name: "Add route rate" }).click();
     await visible(p.locator("tr").filter({ hasText: from }).filter({ hasText: to }), "saved route " + from);
   }
-  await excludeMultiOption("transport-filter-route", "Route (from → to)", routeTwoFrom);
   const routeRows = p.locator("table.costing-table tbody tr");
+  const initialRouteCount = await routeRows.count() - 2;
+  const excludedRoutes = [
+    ...fixture.transportRoutes.map(route => route.fromLocation + " → " + route.toLocation),
+    routeTwoFrom + " → " + routeTwoTo
+  ];
+  for (const routeLabel of excludedRoutes) {
+    await excludeMultiOption("transport-filter-route", "Route (from → to)", routeLabel);
+  }
   if (await routeRows.count() !== 1 || !(await routeRows.first().innerText()).includes(routeOneFrom)) {
-    throw new Error("Transport route selector did not isolate the selected from/to route.");
+    throw new Error("Transport route selector did not isolate the selected from/to route; found " + await routeRows.count() + " row(s).");
   }
   await clearMultiOption("transport-filter-route", "Route (from → to)");
-  if (await routeRows.count() !== 2) throw new Error("Clearing the route selector did not restore both saved transport routes.");
+  if (await routeRows.count() !== initialRouteCount + 2) throw new Error("Clearing the route selector did not restore all original and newly saved transport routes.");
 
   await openModule(p, "Company Directory");
   await finishScenario(s, "Company/Factory/Transport column filters");
