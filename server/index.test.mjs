@@ -211,3 +211,129 @@ test("HTTP server persists and merges follow-up assignments across device update
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+
+test("Follow-up Centre scheduler enforces opt-in and persists linked schedules through pause, resume and server restart", { timeout: 20000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-followup-scheduler-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  let child;
+
+  try {
+    child = startServer(port, dataFile);
+    await waitForHealth(child, baseUrl);
+    const headers = { "content-type": "application/json", "x-aximach-key": apiKey };
+
+    const unauthorized = await fetch(baseUrl + "/api/schedules");
+    assert.equal(unauthorized.status, 401, "scheduler reads must require the shared API key");
+
+    const nonOptedContact = await fetch(baseUrl + "/api/contacts", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        name: "Synthetic Contact Without Opt-in",
+        phone: "919000001111",
+        company: "Synthetic Test Vendor",
+        optedIn: false
+      })
+    });
+    assert.equal(nonOptedContact.status, 201);
+    const nonOpted = (await nonOptedContact.json()).contact;
+    assert.equal(nonOpted.optedIn, false);
+
+    const due = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    const refused = await fetch(baseUrl + "/api/schedules", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        to: nonOpted.phone,
+        message: "Synthetic acceptance message — must not be scheduled without consent.",
+        nextRunAt: due,
+        repeat: "weekly"
+      })
+    });
+    assert.equal(refused.status, 400, "a non-opted-in contact must not receive a schedule");
+    assert.match((await refused.json()).error, /opt-in/i);
+
+    const optedContactResponse = await fetch(baseUrl + "/api/contacts", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        name: "Synthetic Opted-in Contact",
+        phone: "919000001234",
+        company: "Synthetic Test Vendor",
+        optedIn: true
+      })
+    });
+    assert.equal(optedContactResponse.status, 201);
+    const optedContact = (await optedContactResponse.json()).contact;
+    assert.equal(optedContact.optedIn, true);
+
+    const scheduleResponse = await fetch(baseUrl + "/api/schedules", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        to: optedContact.phone,
+        message: "Synthetic AXIMACH operation status follow-up.",
+        nextRunAt: due,
+        repeat: "weekly",
+        vendorId: "vendor-synthetic-1",
+        operationId: "operation-synthetic-1",
+        process: "VMC datum machining",
+        company: "Synthetic Test Vendor"
+      })
+    });
+    assert.equal(scheduleResponse.status, 201);
+    const schedule = (await scheduleResponse.json()).schedule;
+    assert.ok(schedule.id);
+    assert.equal(schedule.to, optedContact.phone);
+    assert.equal(schedule.repeat, "weekly");
+    assert.equal(schedule.enabled, true);
+    assert.equal(schedule.vendorId, "vendor-synthetic-1");
+    assert.equal(schedule.operationId, "operation-synthetic-1");
+    assert.equal(schedule.process, "VMC datum machining");
+    assert.equal(schedule.company, "Synthetic Test Vendor");
+    assert.equal(schedule.lastRunAt, null, "future test schedules must not send during acceptance");
+    assert.equal(schedule.lastError, "");
+
+    const pauseResponse = await fetch(baseUrl + "/api/schedules/" + schedule.id, {
+      method: "PATCH", headers, body: JSON.stringify({ enabled: false })
+    });
+    assert.equal(pauseResponse.status, 200);
+    assert.equal((await pauseResponse.json()).schedule.enabled, false);
+
+    const resumeResponse = await fetch(baseUrl + "/api/schedules/" + schedule.id, {
+      method: "PATCH", headers, body: JSON.stringify({ enabled: true })
+    });
+    assert.equal(resumeResponse.status, 200);
+    assert.equal((await resumeResponse.json()).schedule.enabled, true);
+
+    const listResponse = await fetch(baseUrl + "/api/schedules", { headers });
+    assert.equal(listResponse.status, 200);
+    const listed = (await listResponse.json()).schedules;
+    assert.equal(listed.length, 1, "failed consent validation must not create a hidden schedule");
+    assert.equal(listed[0].id, schedule.id);
+
+    await stopServer(child);
+    child = undefined;
+    const persisted = JSON.parse(await readFile(dataFile, "utf8"));
+    assert.equal(persisted.contacts.length, 2);
+    assert.equal(persisted.schedules.length, 1);
+    assert.equal(persisted.schedules[0].operationId, "operation-synthetic-1");
+
+    child = startServer(port, dataFile);
+    await waitForHealth(child, baseUrl);
+    const afterRestart = await fetch(baseUrl + "/api/schedules", { headers });
+    assert.equal(afterRestart.status, 200);
+    const restartedSchedules = (await afterRestart.json()).schedules;
+    assert.equal(restartedSchedules.length, 1);
+    assert.deepEqual(restartedSchedules[0], schedule);
+    assert.equal(restartedSchedules[0].enabled, true);
+    assert.equal(restartedSchedules[0].vendorId, "vendor-synthetic-1");
+    assert.equal(restartedSchedules[0].operationId, "operation-synthetic-1");
+  } finally {
+    await stopServer(child);
+    await rm(folder, { recursive: true, force: true });
+  }
+});
