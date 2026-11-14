@@ -120,6 +120,7 @@ const scenarioWorkspace = {
   "Costing & Payment quotation Add/Save/Select": "Costing & Payment",
   "Production Plan individual and bulk Finish/Reopen": "Production Plan & Process Plan",
   "Vendor Network capability filtering and vendor drill-through": "Vendor Network",
+  "Route Flow typed relationship Add/Disable and PO-line persistence": "Route Flow & Relationships",
   "Data Exchange Centre validated import/export and JSON backup": "Data Exchange Centre",
   "Reports & Analytics saved-record metrics and CSV export": "Reports & Analytics",
   "AI Insights evidence rules and exact quality drill-through": "AI Insights"
@@ -872,6 +873,65 @@ async function dataExchangeCrud() {
   await finishScenario(s, "Data Exchange Centre validated import/export and JSON backup");
 }
 
+async function routeFlowRelationshipCrud() {
+  const s = await newScenario(), p = s.page;
+  await openModule(p, "Route Flow & Relationships");
+  await chooseNativeScope(p, ".route-flow-scope-bar");
+  await p.getByRole("button", { name: "Add relationship", exact: true }).click();
+  const editor = p.locator(".route-flow-editor-panel");
+  await visible(editor, "Route Flow relationship editor");
+
+  const fromOperation = fixture.operations[0];
+  const toOperation = fixture.operations[1];
+  await p.getByLabel("From process").selectOption(fromOperation.id);
+  await p.getByLabel("To process").selectOption(toOperation.id);
+  await p.getByLabel("Relationship type").selectOption("conditional");
+  await p.getByLabel("Link status").selectOption("Planned");
+  const condition = suffix + " inspection accepted";
+  await p.getByLabel("Condition / rule").fill(condition);
+  const notes = suffix + " conditional route link";
+  await p.getByLabel("Notes").fill(notes);
+  await editor.getByRole("button", { name: "Save relationship", exact: true }).click();
+
+  const savedLink = p.locator(".route-flow-saved-link")
+    .filter({ hasText: fromOperation.name })
+    .filter({ hasText: toOperation.name })
+    .filter({ hasText: condition })
+    .first();
+  await visible(savedLink, "saved conditional relationship in Route Flow");
+  const saved = await p.evaluate(({ key, fromId, toId }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    return (root.routeRelationships || []).find(row =>
+      row.fromOperationId === fromId &&
+      row.toOperationId === toId &&
+      row.relationshipType === "conditional" &&
+      row.notes.includes("conditional route link")
+    ) || null;
+  }, { key: seedKey, fromId: fromOperation.id, toId: toOperation.id });
+  if (!saved ||
+      saved.poId !== fixture.purchaseOrder.id ||
+      saved.poLineId !== fixture.poLine.id ||
+      saved.componentId !== fixture.component.id ||
+      saved.status !== "Planned" ||
+      saved.condition !== condition) {
+    throw new Error("Route Flow did not persist the typed relationship against the exact PO-line and operation IDs: " + JSON.stringify(saved));
+  }
+
+  await savedLink.getByRole("button", { name: "Disable", exact: true }).click();
+  const disabled = await p.evaluate(({ key, id }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    const row = (root.routeRelationships || []).find(item => item.id === id);
+    return row ? { id: row.id, status: row.status, fromOperationId: row.fromOperationId, toOperationId: row.toOperationId } : null;
+  }, { key: seedKey, id: saved.id });
+  if (!disabled || disabled.id !== saved.id || disabled.status !== "Disabled" ||
+      disabled.fromOperationId !== fromOperation.id || disabled.toOperationId !== toOperation.id) {
+    throw new Error("Disabling a Route Flow relationship must retain the same historical record ID and operation endpoints.");
+  }
+  await visible(savedLink.getByText(/Disabled/), "disabled relationship state retained in Route Flow");
+
+  await finishScenario(s, "Route Flow typed relationship Add/Disable and PO-line persistence");
+}
+
 async function reportsAnalyticsReadOnly() {
   const s = await newScenario(), p = s.page;
   await openModule(p, "Reports & Analytics");
@@ -999,6 +1059,7 @@ async function main() {
   await costingQuoteCrud();
   await productionJobLifecycleCrud();
   await vendorNetworkFilterCrud();
+  await routeFlowRelationshipCrud();
   await dataExchangeCrud();
   await reportsAnalyticsReadOnly();
   await aiInsightsEvidenceDrillThrough();
