@@ -320,7 +320,7 @@ test("shared searchable pickers support exact, partial and numeric searches plus
   const picker = readFileSync(new URL("../src/SearchablePicker.tsx", import.meta.url), "utf8");
   const multi = readFileSync(new URL("../src/SearchableMultiSelect.tsx", import.meta.url), "utf8");
   assert.ok(picker.includes("option.label.toLocaleLowerCase().includes(needle)"));
-  assert.ok(picker.includes("label === needle ? 0 : label.startsWith(needle) ? 1 : 2"));
+  assert.ok(picker.includes("label===needle?0:label.startsWith(needle)?1:2"));
   assert.ok(picker.includes("exact or partial match"));
   assert.ok(multi.includes("item.label.includes(needle)"));
   assert.ok(multi.includes("label === needle ? 0 : label.startsWith(needle) ? 1 : 2"));
