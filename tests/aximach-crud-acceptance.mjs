@@ -114,6 +114,7 @@ const scenarioWorkspace = {
   "Component Planned Cost Add/Edit/Update/Archive": "Component Planned Cost",
   "Material Directory and BOM CRUD plus append-only Stock Receipt": "Material Directory",
   "Follow-up people assignment Add/Unlink": "Follow-up Centre",
+  "Follow-up Centre server contact and schedule Create/Pause/Resume with opt-in": "Follow-up Centre",
   "Process Map Add/Edit/Payment ledger/Delete with history retention": "Production Plan & Process Plan",
   "Transport & Dispatch status Update": "Transport & Dispatch",
   "Quality Inspection measurement Add and linked operation Update": "Quality Inspection",
@@ -873,6 +874,134 @@ async function dataExchangeCrud() {
   await finishScenario(s, "Data Exchange Centre validated import/export and JSON backup");
 }
 
+async function followUpSchedulerUiCrud() {
+  const s = await newScenario(), p = s.page;
+  const base = baseURL;
+  const mockContacts = [
+    { id: "mock-contact-no-opt-in", name: "Synthetic Contact Without Consent", phone: "919000001111", company: "Synthetic Test Vendor", optedIn: false, createdAt: "2026-01-01T09:00:00.000Z" },
+    { id: "mock-contact-opted-in", name: "Synthetic Existing Opted-in Contact", phone: "919000001234", company: "Synthetic Test Vendor", optedIn: true, createdAt: "2026-01-01T09:00:00.000Z" }
+  ];
+  const mockSchedules = [];
+  let mockManufacturingData = seededData;
+  let scheduleCounter = 0;
+
+  // Use a same-origin mock scheduler API: this tests the real Follow-up Centre
+  // connection and form handlers without contacting Meta, WhatsApp or a real
+  // contact. Server persistence and consent are separately covered by the
+  // isolated server/index.test.mjs integration test.
+  await s.context.route("**/health", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, storage: "test" })
+  }));
+  await s.context.route("**/api/**", async route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const method = request.method();
+    const respond = (status, value) => route.fulfill({
+      status, contentType: "application/json", body: JSON.stringify(value)
+    });
+    if (url.pathname === "/api/manufacturing-data") {
+      if (method === "GET") return respond(200, { data: mockManufacturingData });
+      if (method === "PUT") {
+        const body = JSON.parse(request.postData() || "{}");
+        mockManufacturingData = body.data || mockManufacturingData;
+        return respond(200, { data: mockManufacturingData });
+      }
+    }
+    if (url.pathname === "/api/contacts" && method === "GET") return respond(200, { contacts: mockContacts });
+    if (url.pathname === "/api/contacts" && method === "POST") {
+      const body = JSON.parse(request.postData() || "{}");
+      const contact = {
+        id: "mock-contact-created-" + (mockContacts.length + 1),
+        name: body.name, phone: String(body.phone || "").replace(/\D/g, ""),
+        company: body.company || "", optedIn: body.optedIn === true,
+        createdAt: new Date().toISOString()
+      };
+      mockContacts.push(contact);
+      return respond(201, { contact });
+    }
+    if (url.pathname === "/api/schedules" && method === "GET") return respond(200, { schedules: mockSchedules, logs: [] });
+    if (url.pathname === "/api/schedules" && method === "POST") {
+      const body = JSON.parse(request.postData() || "{}");
+      const schedule = {
+        id: "mock-schedule-" + (++scheduleCounter),
+        to: String(body.to || "").replace(/\D/g, ""),
+        message: body.message || "", nextRunAt: body.nextRunAt || null,
+        repeat: body.repeat || "once", enabled: true, lastRunAt: null, lastError: "",
+        vendorId: body.vendorId || "", operationId: body.operationId || "",
+        process: body.process || "", company: body.company || ""
+      };
+      mockSchedules.unshift(schedule);
+      return respond(201, { schedule });
+    }
+    const scheduleMatch = url.pathname.match(/^\/api\/schedules\/([\w-]+)$/);
+    if (scheduleMatch && method === "PATCH") {
+      const schedule = mockSchedules.find(row => row.id === scheduleMatch[1]);
+      if (!schedule) return respond(404, { error: "Schedule not found." });
+      const body = JSON.parse(request.postData() || "{}");
+      if (typeof body.enabled === "boolean") schedule.enabled = body.enabled;
+      if (body.nextRunAt) schedule.nextRunAt = body.nextRunAt;
+      return respond(200, { schedule });
+    }
+    return route.continue();
+  });
+
+  await p.evaluate(({ base, key }) => {
+    localStorage.setItem("aximach.storage.mode", "shared-server");
+    localStorage.setItem("aximach.scheduler.url", base);
+    localStorage.setItem("aximach.scheduler.key", key);
+  }, { base, key: "synthetic-acceptance-key" });
+  await p.reload({ waitUntil: "domcontentloaded" });
+  await p.locator(".app-shell").waitFor({ state: "visible", timeout: 12000 });
+  await openModule(p, "Follow-up Centre");
+  const connect = p.getByRole("button", { name: "Connect / refresh shared data", exact: true });
+  await visible(connect, "Follow-up Centre scheduler connection action");
+  await connect.click();
+  await p.getByText("CONNECTED", { exact: true }).waitFor({ state: "visible", timeout: 8000 });
+
+  const addContactPanel = p.locator("section.scheduler-form-panel").filter({ hasText: "Add contact" }).first();
+  await visible(addContactPanel, "server contact form");
+  await addContactPanel.getByLabel("Contact name").fill("Synthetic New Opted-in Contact");
+  await addContactPanel.getByLabel("Phone with country code").fill("919000001555");
+  await addContactPanel.getByLabel("Company").fill("Synthetic Test Vendor");
+  const consent = addContactPanel.getByLabel("I have verified this person opted in to WhatsApp messages.");
+  const saveContact = addContactPanel.getByRole("button", { name: "Save server contact", exact: true });
+  if (await saveContact.isEnabled()) throw new Error("Follow-up Centre allowed saving a server contact before opt-in confirmation.");
+  await consent.check();
+  await saveContact.click();
+  await visible(addContactPanel.locator(".scheduler-contact").filter({ hasText: "Synthetic New Opted-in Contact" }), "saved opted-in server contact");
+
+  const automationPanel = p.locator("section.scheduler-form-panel").filter({ hasText: "Message automation" }).first();
+  await visible(automationPanel, "server-backed message automation form");
+  const recipient = automationPanel.getByLabel("Recipient");
+  const unconsented = recipient.locator("option").filter({ hasText: "Synthetic Contact Without Consent" });
+  if (await unconsented.count()) throw new Error("A contact without opt-in was offered as an individual schedule recipient.");
+  await recipient.selectOption("919000001555");
+  await automationPanel.getByPlaceholder("Write the message to send…").fill("Synthetic AXIMACH operation status check.");
+  const due = new Date(Date.now() + 48 * 60 * 60 * 1000);
+  const localDue = new Date(due.getTime() - due.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  await automationPanel.getByLabel("First send time").fill(localDue);
+  await automationPanel.getByLabel("Repeat").selectOption("weekly");
+  await automationPanel.getByRole("button", { name: "Save schedule on server", exact: true }).click();
+
+  const scheduleRow = p.locator(".followup-table tbody tr").filter({ hasText: "919000001555" }).first();
+  await visible(scheduleRow, "created weekly follow-up schedule");
+  if (!(await scheduleRow.innerText()).includes("weekly") ||
+      !(await scheduleRow.innerText()).includes("Synthetic AXIMACH operation status check.")) {
+    throw new Error("Follow-up Centre did not display the saved schedule recurrence and message.");
+  }
+  const savedSchedule = mockSchedules.find(row => row.to === "919000001555");
+  if (!savedSchedule || savedSchedule.enabled !== true || savedSchedule.repeat !== "weekly") {
+    throw new Error("Follow-up Centre schedule create action did not POST the expected recipient, recurrence and enabled state.");
+  }
+
+  await scheduleRow.getByRole("button", { name: "Pause", exact: true }).click();
+  if (mockSchedules[0].enabled !== false) throw new Error("Follow-up Centre Pause action did not update the scheduler API.");
+  await scheduleRow.getByRole("button", { name: "Enable", exact: true }).click();
+  if (mockSchedules[0].enabled !== true) throw new Error("Follow-up Centre Enable action did not resume the scheduler API.");
+
+  await finishScenario(s, "Follow-up Centre server contact and schedule Create/Pause/Resume with opt-in");
+}
+
 async function routeFlowRelationshipCrud() {
   const s = await newScenario(), p = s.page;
   await openModule(p, "Route Flow & Relationships");
@@ -1059,6 +1188,7 @@ async function main() {
   await costingQuoteCrud();
   await productionJobLifecycleCrud();
   await vendorNetworkFilterCrud();
+  await followUpSchedulerUiCrud();
   await routeFlowRelationshipCrud();
   await dataExchangeCrud();
   await reportsAnalyticsReadOnly();
