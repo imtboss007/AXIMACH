@@ -500,6 +500,7 @@ async function main() {
 
   // Manufacturing Universe: scope by exact company, PO and component line; cycle export formats.
   await openModule(page, "Manufacturing Universe");
+  await page.getByRole("button", { name: "Selected PO-line route", exact: true }).click();
   await chooseSearchablePicker(page, "universe-company", fixture.company.name);
   await chooseSearchablePicker(page, "universe-purchase-order", fixture.purchaseOrder.number);
   await chooseSearchablePicker(page, "universe-component-line", fixture.component.partNumber);
