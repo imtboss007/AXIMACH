@@ -1257,7 +1257,7 @@ async function masterColumnFilterAcceptance() {
   await pick(p, "factory-parent-company", companyName);
   await p.getByPlaceholder("Enter factory name").fill(factoryName);
   await p.getByPlaceholder("Factory address").fill(factoryAddress);
-  await p.getByPlaceholder("Optional", { exact: true }).fill(factoryPhone);
+  await p.getByRole("textbox", { name: "Factory contact phone" }).fill(factoryPhone);
   await p.getByRole("button", { name: "Save factory" }).click();
   await visible(p.locator(".module-record-card").filter({ hasText: factoryName }), "second factory for column-filter acceptance");
   await excludeMultiOption("factory-filter-name", "Factory name", fixture.factory.name);
