@@ -94,6 +94,20 @@ async function chooseProcessMapScope(page) {
   await page.waitForTimeout(450);
 }
 
+async function chooseRouteFlowScope(page) {
+  await chooseSearchablePicker(page, "route-flow-company", fixture.company.name);
+  await chooseSearchablePicker(page, "route-flow-po", fixture.purchaseOrder.number);
+  await chooseSearchablePicker(page, "route-flow-component-line", fixture.component.partNumber);
+  await page.waitForTimeout(450);
+}
+
+async function chooseUniverseScope(page) {
+  await chooseSearchablePicker(page, "universe-company", fixture.company.name);
+  await chooseSearchablePicker(page, "universe-purchase-order", fixture.purchaseOrder.number);
+  await chooseSearchablePicker(page, "universe-component-line", fixture.component.partNumber);
+  await page.waitForTimeout(450);
+}
+
 async function chooseNativeScope(page, scopeSelector) {
   const values = [fixture.company.id, fixture.purchaseOrder.id, fixture.poLine.id];
   const selects = page.locator(scopeSelector + " select:visible");
@@ -235,7 +249,7 @@ async function main() {
   // Route Flow: one component, three part records, five materials, nine material/process links,
   // eleven relationship types, eight independently identified transport legs.
   await openModule(page, "Route Flow & Relationships");
-  await chooseNativeScope(page, ".route-flow-scope-bar");
+  await chooseRouteFlowScope(page);
   // The in-app demo must exercise the same multipart fixture in the actual Route Flow workspace.
   await page.getByRole("button", { name: "Open multi-part demo" }).click();
   const multipartDemo = page.getByRole("region", { name: "One component multi-part route and transport demonstration" });
@@ -271,9 +285,7 @@ async function main() {
     throw new Error("Multipart demo did not simulate the second carrier option.");
   }
   await page.getByRole("button", { name: "Close multi-part demo" }).click();
-  await chooseNativeScope(page, ".route-flow-scope-bar");
-  const branchPicker = page.locator(".route-flow-scope-bar select").nth(3);
-  const branchOptions = await branchPicker.locator("option").evaluateAll(nodes => nodes.map(node => node.value || node.textContent?.trim()).filter(Boolean));
+  await chooseRouteFlowScope(page);
   const expectedBranchOperations = {
     "Main route": ["Material saw cutting", "VMC datum and port machining", "Final CMM and pressure inspection"],
     "Shaft branch": ["CNC shaft turning", "Shaft heat treatment", "Shaft cylindrical grinding"],
@@ -284,8 +296,8 @@ async function main() {
   const visitedMaterialLinks = new Set();
   const contactLinkResults = [];
   const branchResults = [];
-  for (const branchName of branchOptions) {
-    await branchPicker.selectOption({ label: branchName }).catch(async () => branchPicker.selectOption(branchName));
+  for (const branchName of Object.keys(expectedBranchOperations)) {
+    await chooseSearchablePicker(page, "route-flow-branch", branchName);
     await page.waitForTimeout(200);
     const branchText = await page.locator(".page-content").innerText();
     for (const expected of expectedBranchOperations[branchName] || []) {
@@ -389,7 +401,7 @@ async function main() {
   }
 
   const routeExportResults = [];
-  await page.locator(".route-flow-scope-bar select").nth(3).selectOption("Main route");
+  await chooseSearchablePicker(page, "route-flow-branch", "Main route");
   const routeExportFormat = page.getByLabel("Route export format", { exact: true });
   for (const format of ["svg","png","csv","json"]) {
     await routeExportFormat.selectOption(format);
@@ -617,7 +629,7 @@ async function main() {
   // then prove both survive a full reload and remain linked across workspaces.
   const persistenceResults = [];
   await openModule(page, "Route Flow & Relationships");
-  await chooseNativeScope(page, ".route-flow-scope-bar");
+  await chooseRouteFlowScope(page);
 
   const relationshipEditor = page.locator(".route-flow-editor-panel").filter({ hasText: "Add a typed process relationship" });
   if (!(await relationshipEditor.isVisible().catch(() => false))) {
@@ -628,14 +640,12 @@ async function main() {
   await relationshipEditor.waitFor({ state: "visible", timeout: 5000 });
   // These native controls are wrapped in nested label elements; address them
   // by their stable form order to avoid Chromium accessible-name differences.
-  const relationshipSelects = relationshipEditor.locator("select");
-  await relationshipSelects.nth(0).selectOption("mp-op-turn");
-  await relationshipSelects.nth(1).selectOption("mp-op-grind");
-  await relationshipSelects.nth(2).selectOption("conditional");
-  await relationshipSelects.nth(3).selectOption("Conditional");
-  const relationshipInputs = relationshipEditor.locator("input");
-  await relationshipInputs.nth(0).fill("QA_PERSISTENCE_ROUTE_FANOUT_RULE");
-  await relationshipInputs.nth(1).fill("Browser persistence acceptance relationship");
+  await chooseSearchablePicker(page, "route-flow-relationship-from", "CNC shaft turning");
+  await chooseSearchablePicker(page, "route-flow-relationship-to", "Shaft cylindrical grinding");
+  await chooseSearchablePicker(page, "route-flow-relationship-type", "Conditional");
+  await chooseSearchablePicker(page, "route-flow-relationship-status", "Conditional");
+  await relationshipEditor.getByPlaceholder("Example: continue only if inspection result is accepted").fill("QA_PERSISTENCE_ROUTE_FANOUT_RULE");
+  await relationshipEditor.getByPlaceholder("Why these process steps are linked…").fill("Browser persistence acceptance relationship");
   await relationshipEditor.getByRole("button", { name: "Save relationship", exact: true }).click();
 
   const transportEditor = page.locator(".route-flow-editor-panel").filter({ hasText: "Add a transport leg between two process stages" });
@@ -643,11 +653,10 @@ async function main() {
     await page.locator(".route-flow-canvas-tools button").filter({ hasText: "Add transport leg" }).click();
   }
   await transportEditor.waitFor({ state: "visible", timeout: 5000 });
-  const transportSelects = transportEditor.locator("select");
-  await transportSelects.nth(0).selectOption("mp-op-vmc");
-  await transportSelects.nth(2).selectOption("mp-op-turn");
-  await transportSelects.nth(3).selectOption("mp-vendor-material");
-  await transportSelects.nth(4).selectOption("mp-route-12");
+  await chooseSearchablePicker(page, "route-flow-transport-from-process", "VMC datum and port machining");
+  await chooseSearchablePicker(page, "route-flow-transport-to-process", "CNC shaft turning");
+  await chooseSearchablePicker(page, "route-flow-transport-vendor", "Synthetic Material Logistics");
+  await chooseSearchablePicker(page, "route-flow-transport-saved-route", "VMC subcontractor → CNC shaft turning supplier");
   await transportEditor.getByRole("button", { name: "Save transport leg", exact: true }).click();
   await page.waitForFunction(() => {
     const state = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
@@ -668,9 +677,8 @@ async function main() {
   await page.reload({ waitUntil: "domcontentloaded" });
   await assertWorkspace(page, "reload after Route Flow relationship and transport save");
   await openModule(page, "Route Flow & Relationships");
-  await chooseNativeScope(page, ".route-flow-scope-bar");
-  const shaftBranch = page.locator(".route-flow-scope-bar select").nth(3);
-  await shaftBranch.selectOption("Shaft branch");
+  await chooseRouteFlowScope(page);
+  await chooseSearchablePicker(page, "route-flow-branch", "Shaft branch");
   const savedRelationship = page.locator(".route-flow-saved-link").filter({ hasText: "QA_PERSISTENCE_ROUTE_FANOUT_RULE" });
   await savedRelationship.waitFor({ state: "visible", timeout: 5000 });
   const persistedLegMarker = page.locator('button[aria-label="Open transport leg popup"][title="4-wheeler · VMC subcontractor → CNC shaft turning supplier"]');
@@ -695,7 +703,7 @@ async function main() {
   await page.reload({ waitUntil: "domcontentloaded" });
   await assertWorkspace(page, "reload after disabling a Route Flow relationship");
   await openModule(page, "Route Flow & Relationships");
-  await chooseNativeScope(page, ".route-flow-scope-bar");
+  await chooseRouteFlowScope(page);
   const disabledRelationship = page.locator(".route-flow-saved-link").filter({ hasText: "QA_PERSISTENCE_ROUTE_FANOUT_RULE" });
   await disabledRelationship.waitFor({ state: "visible", timeout: 5000 });
   if (!(await disabledRelationship.innerText()).includes("Disabled")) {
@@ -716,7 +724,7 @@ async function main() {
   }
 
   await openModule(page, "Manufacturing Universe");
-  await chooseNativeScope(page, ".manufacturing-universe-scope");
+  await chooseUniverseScope(page);
   // Sphere View intentionally hides rear-facing labels. Use Network View to
   // acceptance-test every branch transport marker without relying on rotation.
   await page.locator(".process-universe-layouts").getByRole("button", { name: "Network View", exact: true }).click();
@@ -757,7 +765,7 @@ async function main() {
   }
   universeExportResults.push({ format: "json-after-persistence", transportLegId: exportedSecondCarrier.id, vehicle: exportedSecondCarrier.vehicleType });
   await page.locator(".manufacturing-universe-links-grid").getByRole("button", { name: /Route Flow & Relationships/ }).click();
-  await chooseNativeScope(page, ".route-flow-scope-bar");
+  await chooseRouteFlowScope(page);
   const branchRelationAfterNavigation = page.locator(".route-flow-saved-link").filter({ hasText: "QA_PERSISTENCE_ROUTE_FANOUT_RULE" });
   await branchRelationAfterNavigation.waitFor({ state: "visible", timeout: 5000 });
   if (!(await branchRelationAfterNavigation.innerText()).includes("Disabled")) {
@@ -904,7 +912,7 @@ async function main() {
   ));
 
   await openModule(page, "Route Flow & Relationships");
-  await chooseNativeScope(page, ".route-flow-scope-bar");
+  await chooseRouteFlowScope(page);
   await page.getByLabel("Route export format", { exact: true }).selectOption("pdf");
   printPopupResults.push(await verifyPrintPopup(
     page, "Route Flow PDF",
@@ -914,7 +922,7 @@ async function main() {
   ));
 
   await openModule(page, "Manufacturing Universe");
-  await chooseNativeScope(page, ".manufacturing-universe-scope");
+  await chooseUniverseScope(page);
   await page.getByLabel("Universe export format", { exact: true }).selectOption("pdf");
   printPopupResults.push(await verifyPrintPopup(
     page, "Manufacturing Universe PDF",
