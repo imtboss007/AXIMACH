@@ -205,6 +205,11 @@ test("HTTP server persists and merges follow-up assignments across device update
     assert.equal(conflictBody.conflicts[0].local.name, "Stale offline overwrite");
     assert.equal(conflictBody.data.companies.find(row => row.id === syncBaseline.companies[0].id).name, "Company A - shared edit");
     assert.equal(conflictBody.unresolvedConflictCount, 1);
+    const conflictRefresh = await fetch(baseUrl + "/api/manufacturing-data", { headers });
+    assert.equal(conflictRefresh.status, 200);
+    const refreshedConflicts = (await conflictRefresh.json()).conflicts;
+    assert.equal(refreshedConflicts.length, 1, "reconnecting devices must be able to retrieve unresolved conflict copies");
+    assert.equal(refreshedConflicts[0].local.name, "Stale offline overwrite");
 
     await stopServer(child);
     child = undefined;
