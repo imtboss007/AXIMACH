@@ -629,7 +629,7 @@ async function costingQuoteCrud() {
   await p.getByRole("button", { name: "Add process quotation" }).click();
   const form = p.locator(".linked-quote-form");
   await visible(form, "new supplier quotation form");
-  await form.getByLabel("Vendor / supplier *").selectOption("mp-vendor-machining");
+  await pick(p, "quote-actual-vendor", fixture.vendors.find(v => v.id === "mp-vendor-machining")?.company || "");
   await form.getByPlaceholder("Supplier quote / email / RFQ reference").fill(quoteRef);
   await form.getByPlaceholder("Enter quote received").fill("456");
   await form.getByPlaceholder("Scope, exclusions, taxes, delivery terms, validity…").fill("Synthetic immutable quote history.");
