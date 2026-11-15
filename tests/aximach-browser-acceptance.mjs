@@ -433,8 +433,14 @@ async function main() {
   const expectedInboundCount = fixture.materialCostEntries.length;
   const expectedUniverseTransportCount = fixture.transportLegs.length + expectedInboundCount;
   if (universeTransportCount !== expectedUniverseTransportCount) {
-    throw new Error("Manufacturing Universe enterprise scope did not expose all outbound legs and inbound material transport records; expected " +
-      expectedUniverseTransportCount + ", found " + universeTransportCount);
+    const markerDiagnostics = await universeTransportButtons.evaluateAll(nodes => nodes.map((node,index) => ({
+      index,
+      ariaLabel: node.getAttribute("aria-label") || "",
+      title: node.getAttribute("title") || "",
+      className: typeof node.className === "string" ? node.className : ""
+    })));
+    throw new Error("Manufacturing Universe enterprise scope did not expose the exact fixture transport set; expected " +
+      expectedUniverseTransportCount + ", found " + universeTransportCount + ". Markers: " + JSON.stringify(markerDiagnostics));
   }
   const universeTransportIds = new Set();
   const universeMaterialTransportIds = new Set();
