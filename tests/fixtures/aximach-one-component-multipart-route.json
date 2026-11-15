@@ -377,7 +377,7 @@
       "preferredVendorId": "mp-vendor-material",
       "notes": "Synthetic material",
       "materialType": "Synthetic",
-      "densityKgM3": 2700,
+      "densityKgM3": 8000,
       "densityUnit": "kg/m3",
       "priceUnit": "kg",
       "createdAt": "2026-01-01T09:00:00.000Z",
@@ -394,7 +394,7 @@
       "preferredVendorId": "mp-vendor-material",
       "notes": "Synthetic material",
       "materialType": "Synthetic",
-      "densityKgM3": 2700,
+      "densityKgM3": 1200,
       "densityUnit": "kg/m3",
       "priceUnit": "kg",
       "createdAt": "2026-01-01T09:00:00.000Z",
@@ -428,7 +428,7 @@
       "preferredVendorId": "mp-vendor-material",
       "notes": "Synthetic material",
       "materialType": "Synthetic",
-      "densityKgM3": 2700,
+      "densityKgM3": 7850,
       "densityUnit": "kg/m3",
       "priceUnit": "kg",
       "createdAt": "2026-01-01T09:00:00.000Z",
@@ -495,7 +495,7 @@
       "name": "Precision spindle sleeve",
       "revision": "A",
       "drawingReference": "AX-1001.pdf",
-      "shapeType": "round",
+      "shapeType": "round-bar",
       "dimensions": {
         "diameter": 48,
         "length": 180,
@@ -623,7 +623,7 @@
       "name": "Ground transmission gear shaft",
       "revision": "A",
       "drawingReference": "AX-1003.pdf",
-      "shapeType": "round",
+      "shapeType": "round-bar",
       "dimensions": {
         "diameter": 42,
         "length": 240,
@@ -684,7 +684,7 @@
       "name": "Hydraulic manifold block",
       "revision": "C",
       "drawingReference": "AX-1004.pdf",
-      "shapeType": "block",
+      "shapeType": "plate",
       "dimensions": {
         "length": 180,
         "width": 110,
@@ -3668,7 +3668,7 @@
     },
     {
       "id": "mp-route-vehicle-03",
-      "vendorId": "mp-vendor-haul",
+      "vendorId": "mp-vendor-heat",
       "fromLocation": "Process supplier",
       "toLocation": "Heat treatment centre",
       "tripDirection": "One-way",
@@ -3724,7 +3724,7 @@
     },
     {
       "id": "mp-route-vehicle-07",
-      "vendorId": "mp-vendor-haul",
+      "vendorId": "mp-vendor-heat",
       "fromLocation": "Process supplier",
       "toLocation": "Heat treatment centre",
       "tripDirection": "One-way",
@@ -3780,7 +3780,7 @@
     },
     {
       "id": "mp-route-vehicle-11",
-      "vendorId": "mp-vendor-haul",
+      "vendorId": "mp-vendor-heat",
       "fromLocation": "Process supplier",
       "toLocation": "Heat treatment centre",
       "tripDirection": "One-way",
@@ -3836,7 +3836,7 @@
     },
     {
       "id": "mp-route-vehicle-15",
-      "vendorId": "mp-vendor-haul",
+      "vendorId": "mp-vendor-heat",
       "fromLocation": "Process supplier",
       "toLocation": "Heat treatment centre",
       "tripDirection": "One-way",
@@ -4821,7 +4821,7 @@
       "materialId": "mp-mat-fastener",
       "materialName": "High tensile fastener",
       "materialGrade": "High tensile fastener",
-      "densityKgM3": 2700,
+      "densityKgM3": 7850,
       "shapeType": "round",
       "dimensions": {
         "diameter": 48,
@@ -4933,7 +4933,7 @@
       "materialId": "mp-mat-fastener",
       "materialName": "High tensile fastener",
       "materialGrade": "High tensile fastener",
-      "densityKgM3": 2700,
+      "densityKgM3": 7850,
       "shapeType": "plate",
       "dimensions": {
         "length": 160,
@@ -5045,7 +5045,7 @@
       "materialId": "mp-mat-fastener",
       "materialName": "High tensile fastener",
       "materialGrade": "High tensile fastener",
-      "densityKgM3": 2700,
+      "densityKgM3": 7850,
       "shapeType": "round",
       "dimensions": {
         "diameter": 42,
@@ -5157,7 +5157,7 @@
       "materialId": "mp-mat-ss",
       "materialName": "SS316 threaded insert",
       "materialGrade": "SS316 threaded insert",
-      "densityKgM3": 2700,
+      "densityKgM3": 8000,
       "shapeType": "block",
       "dimensions": {
         "length": 180,
@@ -5213,7 +5213,7 @@
       "materialId": "mp-mat-nbr",
       "materialName": "NBR 70 seal",
       "materialGrade": "NBR 70 seal",
-      "densityKgM3": 2700,
+      "densityKgM3": 1200,
       "shapeType": "block",
       "dimensions": {
         "length": 180,
@@ -5325,7 +5325,7 @@
       "materialId": "mp-mat-fastener",
       "materialName": "High tensile fastener",
       "materialGrade": "High tensile fastener",
-      "densityKgM3": 2700,
+      "densityKgM3": 7850,
       "shapeType": "plate",
       "dimensions": {
         "length": 300,
