@@ -263,7 +263,7 @@ test("master directories expose their actual Add, Edit, Save and archive/delete 
   assert.ok(contacts.includes("const beginNew=") && contacts.includes("const edit=(row:ContactRecord)") && contacts.includes("const save=()") && contacts.includes("const remove=(id:string)"));
 });
 
-test("component and purchase-order hard deletes remove dependent route, material, stock and history links safely", () => {
+test("component archival and purchase-order deletion preserve their distinct history rules", () => {
   const master = read("../src/ManufacturingMasterWorkspace.tsx");
   const componentStart = master.indexOf("const deleteComponents =");
   const purchaseStart = master.indexOf("const deletePurchaseOrders =", componentStart);
@@ -271,16 +271,21 @@ test("component and purchase-order hard deletes remove dependent route, material
   const componentDelete = master.slice(componentStart, purchaseStart);
   const purchaseDelete = master.slice(purchaseStart, exportStart);
 
-  for (const field of ["routeRelationships", "materialProcessLinks", "inventoryTransactions", "followUpAssignments", "operations", "quotations", "transportLegs", "paymentTransactions", "inspectionMeasurements"]) {
-    assert.ok(componentDelete.includes(field), "component deletion must handle " + field);
+  for (const field of ["routeRelationships", "materialProcessLinks", "followUpAssignments", "operations", "quotations", "transportLegs", "paymentTransactions", "inspectionMeasurements"]) {
+    assert.ok(componentDelete.includes(field), "component archival must deactivate " + field);
     assert.ok(purchaseDelete.includes(field), "purchase-order deletion must handle " + field);
   }
-  assert.ok(componentDelete.includes("row.itemType===\"component\"&&targetIds.has(row.itemId)"));
-  assert.ok(componentDelete.includes("!row.componentId||!targetIds.has(row.componentId)"), "unlinked legacy planned-cost rows must be retained");
-  assert.ok(componentDelete.includes("purchaseOrders:current.purchaseOrders.map"));
-  assert.ok(!componentDelete.includes(".filter(po=>po.lines.length>0)"), "deleting the final component line must not silently delete the PO header");
+  for (const field of ["operations", "routeRelationships", "materialProcessLinks", "quotations", "transportLegs", "paymentTransactions", "inspectionMeasurements", "bomLines", "componentParts", "materialCostEntries", "plannedCosts"]) {
+    assert.ok(componentDelete.includes(field + ":deactivate("), field + " must receive a component archival tombstone");
+  }
+  assert.ok(componentDelete.includes("purchaseOrders:current.purchaseOrders.map"), "component archival must preserve PO headers");
+  assert.ok(componentDelete.includes("// Inventory transactions are immutable stock history"));
+  assert.ok(!componentDelete.includes("inventoryTransactions:"), "component archival must preserve append-only stock transactions");
+  assert.ok(!componentDelete.includes(".filter(po=>po.lines.length>0)"), "archiving the final component line must not silently delete the PO header");
   assert.ok(purchaseDelete.includes("plannedCosts:current.plannedCosts.filter"));
   assert.ok(purchaseDelete.includes("operationIds.has(row.operationId)"));
+  assert.ok(purchaseDelete.includes("inventoryTransactions:current.inventoryTransactions.filter"), "PO deletion must remove PO-specific stock movements");
+  assert.ok(!purchaseDelete.includes("componentParts:"), "PO deletion must retain component-owned part masters");
 });
 
 test("Process Directory, Planned Cost, Material Directory and Process Map expose their update/archive pathways", () => {
