@@ -484,6 +484,40 @@
       "priceUnit": "kg",
       "createdAt": "2026-11-15T09:00:00.000Z",
       "updatedAt": "2026-11-15T09:00:00.000Z"
+    },
+    {
+      "id": "mp-mat-i-beam",
+      "code": "MP-IS2062-I-BEAM",
+      "name": "IS2062 I-beam section",
+      "unit": "kg",
+      "ratePerUnit": 92,
+      "grade": "IS2062 E250",
+      "specification": "Synthetic rolled I-section test stock",
+      "preferredVendorId": "mp-vendor-material",
+      "notes": "Synthetic shape-calculator coverage",
+      "materialType": "Steel",
+      "densityKgM3": 7850,
+      "densityUnit": "kg/m3",
+      "priceUnit": "kg",
+      "createdAt": "2026-11-15T09:00:00.000Z",
+      "updatedAt": "2026-11-15T09:00:00.000Z"
+    },
+    {
+      "id": "mp-mat-t-section",
+      "code": "MP-IS2062-T-SECTION",
+      "name": "IS2062 T-section stock",
+      "unit": "kg",
+      "ratePerUnit": 95,
+      "grade": "IS2062 E250",
+      "specification": "Synthetic rolled T-section test stock",
+      "preferredVendorId": "mp-vendor-material",
+      "notes": "Synthetic shape-calculator coverage",
+      "materialType": "Steel",
+      "densityKgM3": 7850,
+      "densityUnit": "kg/m3",
+      "priceUnit": "kg",
+      "createdAt": "2026-11-15T09:00:00.000Z",
+      "updatedAt": "2026-11-15T09:00:00.000Z"
     }
   ],
   "parts": [
@@ -770,7 +804,9 @@
       "materialId": "mp-mat-en8",
       "materialIds": [
         "mp-mat-en8",
-        "mp-mat-fastener"
+        "mp-mat-fastener",
+        "mp-mat-i-beam",
+        "mp-mat-t-section"
       ],
       "vendorIds": [],
       "notes": "Synthetic part record; process chain from acceptance catalogue. No live production data.",
@@ -952,6 +988,32 @@
       "unit": "pcs",
       "scrapPercent": 0,
       "notes": "Synthetic AX-1005 BOM allocation.",
+      "createdAt": "2026-11-15T09:00:00.000Z",
+      "updatedAt": "2026-11-15T09:00:00.000Z"
+    },
+    {
+      "id": "mp-bom-i-beam",
+      "componentId": "mp-component",
+      "partId": "mp-part-ax-1005",
+      "materialId": "mp-mat-i-beam",
+      "revision": "A",
+      "quantityPerPart": 2,
+      "unit": "kg",
+      "scrapPercent": 2,
+      "notes": "Synthetic rolled section BOM line for calculator shape coverage.",
+      "createdAt": "2026-11-15T09:00:00.000Z",
+      "updatedAt": "2026-11-15T09:00:00.000Z"
+    },
+    {
+      "id": "mp-bom-t-section",
+      "componentId": "mp-component",
+      "partId": "mp-part-ax-1005",
+      "materialId": "mp-mat-t-section",
+      "revision": "A",
+      "quantityPerPart": 2,
+      "unit": "kg",
+      "scrapPercent": 2,
+      "notes": "Synthetic rolled section BOM line for calculator shape coverage.",
       "createdAt": "2026-11-15T09:00:00.000Z",
       "updatedAt": "2026-11-15T09:00:00.000Z"
     }
@@ -2783,6 +2845,40 @@
       "notes": "Part-scoped material feed into Drilling and tapping — Mounting hole pattern.",
       "createdAt": "2026-11-15T09:00:00.000Z",
       "updatedAt": "2026-11-15T09:00:00.000Z"
+    },
+    {
+      "id": "mp-link-i-beam",
+      "companyId": "mp-company",
+      "poId": "mp-po",
+      "poLineId": "mp-line-ax-1005",
+      "componentId": "mp-component",
+      "bomLineId": "mp-bom-i-beam",
+      "materialId": "mp-mat-i-beam",
+      "operationId": "mp-op-ax-1005-01",
+      "quantityPerPart": 2,
+      "unit": "kg",
+      "flowType": "Material input",
+      "placement": "before",
+      "notes": "Synthetic part-specific profile stock feed for calculator coverage.",
+      "createdAt": "2026-11-15T09:00:00.000Z",
+      "updatedAt": "2026-11-15T09:00:00.000Z"
+    },
+    {
+      "id": "mp-link-t-section",
+      "companyId": "mp-company",
+      "poId": "mp-po",
+      "poLineId": "mp-line-ax-1005",
+      "componentId": "mp-component",
+      "bomLineId": "mp-bom-t-section",
+      "materialId": "mp-mat-t-section",
+      "operationId": "mp-op-ax-1005-01",
+      "quantityPerPart": 2,
+      "unit": "kg",
+      "flowType": "Material input",
+      "placement": "before",
+      "notes": "Synthetic part-specific profile stock feed for calculator coverage.",
+      "createdAt": "2026-11-15T09:00:00.000Z",
+      "updatedAt": "2026-11-15T09:00:00.000Z"
     }
   ],
   "routeRelationships": [
@@ -4274,9 +4370,9 @@
     "componentCount": 2,
     "partCount": 5,
     "poLineCount": 5,
-    "materialCount": 8,
-    "bomCount": 11,
-    "materialProcessLinkCount": 11,
+    "materialCount": 10,
+    "bomCount": 13,
+    "materialProcessLinkCount": 13,
     "operationCount": 37,
     "relationshipTypeCount": 11,
     "relationshipRecordCount": 57,
@@ -4771,16 +4867,16 @@
       "materialName": "EN24 shaft blank",
       "materialGrade": "EN24 shaft blank",
       "densityKgM3": 2700,
-      "shapeType": "round",
+      "shapeType": "plate",
       "dimensions": {
-        "diameter": 48,
-        "length": 180,
-        "boreDiameter": 24
+        "length": 160,
+        "width": 90,
+        "thickness": 8
       },
       "dimensionUnits": {
-        "diameter": "mm",
         "length": "mm",
-        "boreDiameter": "mm"
+        "width": "mm",
+        "thickness": "mm"
       },
       "quantity": 120,
       "weightPerPieceKg": 0.95,
@@ -4827,16 +4923,16 @@
       "materialName": "High tensile fastener",
       "materialGrade": "High tensile fastener",
       "densityKgM3": 7850,
-      "shapeType": "round",
+      "shapeType": "flat-bar",
       "dimensions": {
-        "diameter": 48,
-        "length": 180,
-        "boreDiameter": 24
+        "length": 140,
+        "width": 35,
+        "thickness": 6
       },
       "dimensionUnits": {
-        "diameter": "mm",
         "length": "mm",
-        "boreDiameter": "mm"
+        "width": "mm",
+        "thickness": "mm"
       },
       "quantity": 120,
       "weightPerPieceKg": 0.95,
@@ -4883,16 +4979,14 @@
       "materialName": "IS 2062 structural mild-steel plate",
       "materialGrade": "IS 2062 E250",
       "densityKgM3": 7850,
-      "shapeType": "plate",
+      "shapeType": "round-bar",
       "dimensions": {
-        "length": 160,
-        "width": 90,
-        "thickness": 8
+        "length": 180,
+        "diameter": 48
       },
       "dimensionUnits": {
         "length": "mm",
-        "width": "mm",
-        "thickness": "mm"
+        "diameter": "mm"
       },
       "quantity": 120,
       "weightPerPieceKg": 1.25,
@@ -4939,16 +5033,14 @@
       "materialName": "High tensile fastener",
       "materialGrade": "High tensile fastener",
       "densityKgM3": 7850,
-      "shapeType": "plate",
+      "shapeType": "square-bar",
       "dimensions": {
-        "length": 160,
-        "width": 90,
-        "thickness": 8
+        "length": 150,
+        "width": 20
       },
       "dimensionUnits": {
         "length": "mm",
-        "width": "mm",
-        "thickness": "mm"
+        "width": "mm"
       },
       "quantity": 120,
       "weightPerPieceKg": 1.25,
@@ -4995,16 +5087,14 @@
       "materialName": "20MnCr5 carburising steel bar",
       "materialGrade": "20MnCr5",
       "densityKgM3": 7850,
-      "shapeType": "round",
+      "shapeType": "hex-bar",
       "dimensions": {
-        "diameter": 42,
-        "length": 240,
-        "gearWidth": 28
+        "length": 90,
+        "acrossFlats": 16
       },
       "dimensionUnits": {
-        "diameter": "mm",
         "length": "mm",
-        "gearWidth": "mm"
+        "acrossFlats": "mm"
       },
       "quantity": 120,
       "weightPerPieceKg": 0.95,
@@ -5051,16 +5141,16 @@
       "materialName": "High tensile fastener",
       "materialGrade": "High tensile fastener",
       "densityKgM3": 7850,
-      "shapeType": "round",
+      "shapeType": "round-tube",
       "dimensions": {
-        "diameter": 42,
-        "length": 240,
-        "gearWidth": 28
+        "length": 200,
+        "outerDiameter": 25,
+        "innerDiameter": 15
       },
       "dimensionUnits": {
-        "diameter": "mm",
         "length": "mm",
-        "gearWidth": "mm"
+        "outerDiameter": "mm",
+        "innerDiameter": "mm"
       },
       "quantity": 120,
       "weightPerPieceKg": 0.95,
@@ -5107,16 +5197,16 @@
       "materialName": "Aluminium 6082-T6 billet",
       "materialGrade": "Aluminium 6082-T6 billet",
       "densityKgM3": 2700,
-      "shapeType": "block",
+      "shapeType": "square-tube",
       "dimensions": {
-        "length": 180,
-        "width": 110,
-        "thickness": 45
+        "length": 300,
+        "outerWidth": 30,
+        "wallThickness": 2
       },
       "dimensionUnits": {
         "length": "mm",
-        "width": "mm",
-        "thickness": "mm"
+        "outerWidth": "mm",
+        "wallThickness": "mm"
       },
       "quantity": 120,
       "weightPerPieceKg": 1.85,
@@ -5163,16 +5253,18 @@
       "materialName": "SS316 threaded insert",
       "materialGrade": "SS316 threaded insert",
       "densityKgM3": 8000,
-      "shapeType": "block",
+      "shapeType": "rectangular-tube",
       "dimensions": {
-        "length": 180,
-        "width": 110,
-        "thickness": 45
+        "length": 300,
+        "outerWidth": 40,
+        "outerHeight": 20,
+        "wallThickness": 2
       },
       "dimensionUnits": {
         "length": "mm",
-        "width": "mm",
-        "thickness": "mm"
+        "outerWidth": "mm",
+        "outerHeight": "mm",
+        "wallThickness": "mm"
       },
       "quantity": 120,
       "weightPerPieceKg": 1.85,
@@ -5219,15 +5311,17 @@
       "materialName": "NBR 70 seal",
       "materialGrade": "NBR 70 seal",
       "densityKgM3": 1200,
-      "shapeType": "block",
+      "shapeType": "angle",
       "dimensions": {
-        "length": 180,
-        "width": 110,
-        "thickness": 45
+        "length": 150,
+        "legA": 30,
+        "legB": 30,
+        "thickness": 3
       },
       "dimensionUnits": {
         "length": "mm",
-        "width": "mm",
+        "legA": "mm",
+        "legB": "mm",
         "thickness": "mm"
       },
       "quantity": 120,
@@ -5275,16 +5369,20 @@
       "materialName": "EN8 fixture plate stock",
       "materialGrade": "EN8",
       "densityKgM3": 7850,
-      "shapeType": "plate",
+      "shapeType": "channel",
       "dimensions": {
-        "length": 300,
-        "width": 220,
-        "thickness": 25
+        "length": 200,
+        "width": 40,
+        "height": 20,
+        "webThickness": 3,
+        "flangeThickness": 3
       },
       "dimensionUnits": {
         "length": "mm",
         "width": "mm",
-        "thickness": "mm"
+        "height": "mm",
+        "webThickness": "mm",
+        "flangeThickness": "mm"
       },
       "quantity": 120,
       "weightPerPieceKg": 1.25,
@@ -5331,16 +5429,14 @@
       "materialName": "High tensile fastener",
       "materialGrade": "High tensile fastener",
       "densityKgM3": 7850,
-      "shapeType": "plate",
+      "shapeType": "custom-profile",
       "dimensions": {
-        "length": 300,
-        "width": 220,
-        "thickness": 25
+        "length": 500,
+        "crossSectionArea": 200
       },
       "dimensionUnits": {
         "length": "mm",
-        "width": "mm",
-        "thickness": "mm"
+        "crossSectionArea": "mm"
       },
       "quantity": 120,
       "weightPerPieceKg": 1.25,
@@ -5366,6 +5462,126 @@
       "transportFrom": "Synthetic supplier",
       "transportTo": "Synthetic plant",
       "transportVehicleType": "Inland waterway vessel",
+      "transportCost": 250,
+      "transportPickupAt": "2026-11-02T08:00",
+      "transportDeliveryAt": "2026-11-03T08:00",
+      "transportStatus": "Planned",
+      "createdAt": "2026-11-15T09:00:00.000Z",
+      "updatedAt": "2026-11-15T09:00:00.000Z"
+    },
+    {
+      "id": "mp-cost-i-beam",
+      "scope": "process-map",
+      "companyId": "mp-company",
+      "poId": "mp-po",
+      "poLineId": "mp-line-ax-1005",
+      "componentId": "mp-component",
+      "partId": "mp-part-ax-1005",
+      "partNumber": "AX-1005",
+      "partName": "Standard fixture base plate",
+      "materialId": "mp-mat-i-beam",
+      "materialName": "IS2062 I-beam section",
+      "materialGrade": "IS2062 E250",
+      "densityKgM3": 7850,
+      "shapeType": "i-beam",
+      "dimensions": {
+        "length": 500,
+        "flangeWidth": 50,
+        "height": 100,
+        "webThickness": 4,
+        "flangeThickness": 6
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "flangeWidth": "mm",
+        "height": "mm",
+        "webThickness": "mm",
+        "flangeThickness": "mm"
+      },
+      "quantity": 120,
+      "weightPerPieceKg": 3.7366,
+      "totalWeightKg": 457.35984,
+      "priceUnit": "kg",
+      "materialRate": 92,
+      "materialCost": 41252.064,
+      "cuttingType": "Bandsaw",
+      "cuttingBasis": "Per piece",
+      "cuttingRate": 0,
+      "cutsPerPiece": 1,
+      "cuttingHours": 0,
+      "cuttingCost": 0,
+      "wastagePercent": 2,
+      "vendorId": "mp-vendor-material",
+      "givenDate": "2026-11-02",
+      "deliveryDate": "2026-11-08",
+      "actualDeliveryDate": "",
+      "poReference": "MP-DEMO-2026-001",
+      "notes": "Synthetic all-shapes calculator material cost row.",
+      "currency": "INR",
+      "transportVendorId": "mp-vendor-courier",
+      "transportFrom": "Synthetic supplier",
+      "transportTo": "Synthetic plant",
+      "transportVehicleType": "2-wheeler",
+      "transportCost": 250,
+      "transportPickupAt": "2026-11-02T08:00",
+      "transportDeliveryAt": "2026-11-03T08:00",
+      "transportStatus": "Planned",
+      "createdAt": "2026-11-15T09:00:00.000Z",
+      "updatedAt": "2026-11-15T09:00:00.000Z"
+    },
+    {
+      "id": "mp-cost-t-section",
+      "scope": "process-map",
+      "companyId": "mp-company",
+      "poId": "mp-po",
+      "poLineId": "mp-line-ax-1005",
+      "componentId": "mp-component",
+      "partId": "mp-part-ax-1005",
+      "partNumber": "AX-1005",
+      "partName": "Standard fixture base plate",
+      "materialId": "mp-mat-t-section",
+      "materialName": "IS2062 T-section stock",
+      "materialGrade": "IS2062 E250",
+      "densityKgM3": 7850,
+      "shapeType": "t-section",
+      "dimensions": {
+        "length": 300,
+        "flangeWidth": 40,
+        "height": 60,
+        "webThickness": 4,
+        "flangeThickness": 5
+      },
+      "dimensionUnits": {
+        "length": "mm",
+        "flangeWidth": "mm",
+        "height": "mm",
+        "webThickness": "mm",
+        "flangeThickness": "mm"
+      },
+      "quantity": 120,
+      "weightPerPieceKg": 0.9891,
+      "totalWeightKg": 121.06584,
+      "priceUnit": "kg",
+      "materialRate": 95,
+      "materialCost": 11275.74,
+      "cuttingType": "Bandsaw",
+      "cuttingBasis": "Per piece",
+      "cuttingRate": 0,
+      "cutsPerPiece": 1,
+      "cuttingHours": 0,
+      "cuttingCost": 0,
+      "wastagePercent": 2,
+      "vendorId": "mp-vendor-material",
+      "givenDate": "2026-11-02",
+      "deliveryDate": "2026-11-08",
+      "actualDeliveryDate": "",
+      "poReference": "MP-DEMO-2026-001",
+      "notes": "Synthetic all-shapes calculator material cost row.",
+      "currency": "INR",
+      "transportVendorId": "mp-vendor-courier",
+      "transportFrom": "Synthetic supplier",
+      "transportTo": "Synthetic plant",
+      "transportVehicleType": "2-wheeler",
       "transportCost": 250,
       "transportPickupAt": "2026-11-02T08:00",
       "transportDeliveryAt": "2026-11-03T08:00",
