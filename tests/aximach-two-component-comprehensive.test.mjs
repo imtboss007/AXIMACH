@@ -120,6 +120,18 @@ test("all sixteen supported vehicle categories are present together in Transport
   assert.equal(new Set(fixture.transportLegs.map(leg=>leg.poLineId)).size,5,"all five part routes must carry transport");
 });
 
+test("all thirteen material calculator stock-shape options are saved against exact part and PO-line records", () => {
+  const shapes=["plate","flat-bar","round-bar","square-bar","hex-bar","round-tube","square-tube","rectangular-tube","angle","channel","i-beam","t-section","custom-profile"];
+  assert.deepEqual(new Set(fixture.materialCostEntries.map(row=>row.shapeType)),new Set(shapes));
+  for(const row of fixture.materialCostEntries){
+    assert.ok(row.partId&&partsById.has(row.partId));
+    assert.ok(linesById.has(row.poLineId));
+    assert.equal(linesByPartId.get(row.partId)?.id,row.poLineId);
+    assert.ok(row.dimensions&&Object.values(row.dimensions).every(value=>Number.isFinite(Number(value))&&Number(value)>0));
+    assert.ok(row.weightPerPieceKg>0&&row.totalWeightKg>0&&row.materialRate>0&&row.materialCost>0);
+  }
+});
+
 test("part materials, BOM, process feeds and material costing retain exact component and PO-line identity", () => {
   assert.ok(fixture.bomLines.length>=fixture.parts.length);
   for(const part of fixture.parts){
