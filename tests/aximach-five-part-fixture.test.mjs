@@ -1547,8 +1547,15 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   }
   const partKeys = [...demo.matchAll(/key:"(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
   assert.equal(partKeys.length, 5, "bundled demo must include exactly five component examples");
-  assert.equal(new Set(partKeys).size, 5, "demo component IDs must be unique");
-  for (const collection of ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
+  assert.equal(new Set(partKeys).size, 5, "child part IDs must be unique");
+  assert.ok(demo.includes('const componentId=id("COMPONENT",p.co+"-ASSEMBLY")'), "five part records must resolve to only two parent Component Master IDs");
+  assert.ok(demo.includes('if(!components.some(row=>row.id===componentId))'), "each parent Component Master is created only once");
+  assert.ok(demo.includes('componentParts.push({id:partId'), "each part is saved as a child ComponentPart record");
+  assert.ok(demo.includes('allocationLevel:"part",partId'), "every part has its own part-level PO line");
+  assert.ok(demo.includes('const relationshipTypes=["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"]'), "all eleven route relationship kinds are generated");
+  assert.ok(demo.includes('const vehicleTypes=["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery","Air freight","Rail freight","Sea freight / container vessel","Inland waterway vessel","Multimodal freight"]'), "all sixteen vehicle categories are generated together");
+  assert.ok(demo.includes('routeRelationships,followUpAssignments'), "the generated demo persists typed route relationships");
+  for (const collection of ["companies", "factories", "purchaseOrders", "components", "componentParts", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "routeRelationships", "followUpAssignments"]) {
     assert.ok(demo.includes(collection), "demo dataset must include " + collection);
   }
   assert.ok(demo.includes('processSubcategoryId:def.subcategoryIds?.[def.subcategories.indexOf(s.sub)]'));
