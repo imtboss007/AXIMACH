@@ -1040,6 +1040,10 @@ async function main() {
   };
   await page.evaluate(conflict => {
     localStorage.setItem("aximach.syncConflicts.v1", JSON.stringify([conflict]));
+    // The Data Exchange workspace may already be mounted while another module is active.
+    // A same-tab localStorage write does not emit the browser "storage" event, so notify
+    // the app through the same event used by the sync-conflict persistence layer.
+    window.dispatchEvent(new Event("aximach-sync-conflicts-updated"));
   }, syntheticSyncConflict);
   await openModule(page, "Data Exchange Centre");
   await page.getByRole("heading", { name: "Resolve sync conflicts", exact: true }).waitFor({ state: "visible", timeout: 5000 });
