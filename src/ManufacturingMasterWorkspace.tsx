@@ -330,7 +330,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
       transportLegs:deactivate(current.transportLegs,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
       paymentTransactions:deactivate(current.paymentTransactions,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
       materialCostEntries:deactivate(current.materialCostEntries||[],row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
-      plannedCosts:deactivate(current.plannedCosts,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
+      plannedCosts:deactivate(current.plannedCosts,row=>Boolean(row.poId&&targetIds.has(row.poId))),
       inspectionMeasurements:deactivate(current.inspectionMeasurements,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
       // Inventory transactions are an append-only stock ledger: never erase them when a PO is archived.
       followUpAssignments:deactivate(current.followUpAssignments||[],row=>targetIds.has(row.recordId)||operationIds.has(row.recordId))
