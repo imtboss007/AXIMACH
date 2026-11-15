@@ -362,3 +362,19 @@ test("Process Directory bulk archive preserves records and their stable IDs for 
   assert.ok(processDirectory.includes("processDefinitions:current.processDefinitions.map(row=>ids.has(row.id)?{...row,deletedAt:stamp,updatedAt:stamp}:row)"));
   assert.ok(processDirectory.includes("Historical operations were retained."));
 });
+
+
+test("Transport Directory and Route Flow offer road, air, rail, sea and multimodal freight choices", () => {
+  const vehicles = read("../src/TransportVehicle.tsx");
+  const directory = read("../src/TransportDirectoryWorkspace.tsx");
+  const routeFlow = read("../src/RouteFlowWorkspace.tsx");
+  for (const mode of ["Air freight", "Rail freight", "Sea freight / container vessel", "Inland waterway vessel", "Multimodal freight"]) {
+    assert.ok(vehicles.includes('"'+mode+'"'), "missing shared transport option: " + mode);
+  }
+  for (const icon of ["Plane", "TrainFront", "Ship"]) {
+    assert.ok(vehicles.includes(icon), "missing transport-mode icon: " + icon);
+  }
+  assert.ok(directory.includes("...VEHICLE_TYPES"), "Transport Directory must inherit the shared transport catalogue");
+  assert.ok(routeFlow.includes("...VEHICLE_TYPES"), "Route Flow must inherit the shared transport catalogue");
+  assert.ok(routeFlow.includes("allowCustom"), "Route Flow must continue to allow custom vehicle labels");
+});
