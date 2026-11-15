@@ -109,6 +109,8 @@ The fixture declares record coverage for the complete canonical 20-module catalo
 
 The in-app read-only demonstration is implemented in `src/TransportRoutingDemo.tsx` and is surfaced by Process Map, Route Flow, Transport Directory and Transport & Dispatch. It has seven review views: assembly/part hierarchy, individual part routes, relationship links, transport legs, all vehicle categories, material feeds and 20-module record coverage. It does not write fixture data into the live workspace.
 
+The optional two-company demo generator in `src/aximachDemoData.ts` is aligned to the same hierarchy: two parent Component Master assemblies, five `componentParts` child records, five part-level PO lines, separate main/alternate/rework chains, all eleven typed relationship kinds on each part route, and all sixteen transport vehicle categories represented in saved route masters and legs. Its opt-in load/remove controls are retained; removal archives both the parent assemblies and their child part records.
+
 ### Automated acceptance
 
 - `tests/aximach-two-component-comprehensive.test.mjs` validates parent/child identity, all five part-level PO lines, separate operation routes, stable Process Directory references, all eleven relationship kinds per line, all sixteen route/vehicle categories, exact material/BOM/process links, all twenty module record domains and major option sets.
