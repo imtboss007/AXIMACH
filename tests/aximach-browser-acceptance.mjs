@@ -513,7 +513,7 @@ async function main() {
           || json.materials?.length !== fixture.materialCostEntries.length
           || json.materialProcessLinks?.length !== fixture.materialProcessLinks.length
           || json.transportLegs?.length !== fixture.transportLegs.length
-          || json.relationships?.length !== fixture.routeRelationships.length) {
+          || json.relationships?.length !== fixture.routeRelationships.filter(row => row.status !== "Disabled").length) {
         throw new Error("Manufacturing Universe JSON export omitted one or more saved process, material, transport or relationship records.");
       }
     }
