@@ -367,7 +367,12 @@ async function main() {
 
   const materialMapMarkers = page.locator(".material-flow-marker-button");
   const processMapMaterialMarkerCount = await materialMapMarkers.count();
-  if (processMapMaterialMarkerCount < 6) throw new Error("Process Map did not render the multi-part material links; found " + processMapMaterialMarkerCount);
+  // Process Map is intentionally scoped to the selected PO line (AX-1001), not
+  // every sibling part in the same parent assembly. Each selected-line material
+  // link is represented in both the route node and the process detail surface.
+  const selectedLineMaterialLinks = fixture.materialProcessLinks.filter(link => link.poLineId === fixture.poLine.id);
+  const expectedProcessMapMaterialMarkers = selectedLineMaterialLinks.length * 2;
+  if (processMapMaterialMarkerCount < expectedProcessMapMaterialMarkers) throw new Error("Process Map did not render both views of every selected-part material link; expected at least " + expectedProcessMapMaterialMarkers + ", found " + processMapMaterialMarkerCount);
   let processMapMaterialPopups = 0;
   for (let i = 0; i < processMapMaterialMarkerCount; i++) {
     const marker = page.locator(".material-flow-marker-button").nth(i);
