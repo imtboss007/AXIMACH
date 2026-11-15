@@ -552,7 +552,8 @@
           "subProcess": "Roundness, runout and bore measurement",
           "toleranceClass": "Ultra Precision"
         }
-      ]
+      ],
+      "precisionClass": "Ultra Precision"
     },
     {
       "id": "mp-part-ax-1002",
@@ -613,7 +614,8 @@
           "subProcess": "Hole pattern and visual check",
           "toleranceClass": "Standard"
         }
-      ]
+      ],
+      "precisionClass": "Standard"
     },
     {
       "id": "mp-part-ax-1003",
@@ -674,7 +676,8 @@
           "subProcess": "Tooth profile and runout verification",
           "toleranceClass": "Precision"
         }
-      ]
+      ],
+      "precisionClass": "Precision"
     },
     {
       "id": "mp-part-ax-1004",
@@ -742,7 +745,8 @@
           "subProcess": "Bore, thread and leak verification",
           "toleranceClass": "Precision"
         }
-      ]
+      ],
+      "precisionClass": "Precision"
     },
     {
       "id": "mp-part-ax-1005",
@@ -803,7 +807,8 @@
           "subProcess": "Flatness and hole-location check",
           "toleranceClass": "Standard"
         }
-      ]
+      ],
+      "precisionClass": "Standard"
     }
   ],
   "bomLines": [
