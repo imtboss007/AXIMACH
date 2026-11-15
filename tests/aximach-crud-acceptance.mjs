@@ -12,7 +12,7 @@ const seededData = {
   companies: [fixture.company],
   factories: [fixture.factory],
   purchaseOrders: [fixture.purchaseOrder],
-  components: [fixture.component],
+  components: fixture.components || [fixture.component],
   vendors: fixture.vendors,
   operations: fixture.operations,
   quotations: fixture.quotations || [],
