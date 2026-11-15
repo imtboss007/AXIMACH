@@ -125,8 +125,8 @@ test("every transport category keeps a unique stable colour in Process Map, Rout
   const materialInspector = readFileSync(new URL("../src/MaterialTransportRecordInspector.tsx", import.meta.url), "utf8");
   const visualBlock = visuals.slice(visuals.indexOf("export function getVehicleVisual"), visuals.indexOf("export function VehicleIcon"));
   const colors = [...visualBlock.matchAll(/color: "(#[A-Fa-f0-9]+)"/g)].map(match => match[1]);
-  assert.equal(colors.length, 12, "11 supported vehicle categories plus one fallback identity must have colours");
-  assert.equal(new Set(colors).size, 12, "every vehicle category and fallback must have a distinct identity colour");
+  assert.equal(colors.length, 16, "15 supported vehicle categories plus one fallback identity must have colours");
+  assert.equal(new Set(colors).size, 16, "every vehicle category and fallback must have a distinct identity colour");
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={leg.vehicleType}"));
   assert.ok(scene.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
