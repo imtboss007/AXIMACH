@@ -681,7 +681,7 @@ async function dispatchStatusCrud() {
 }
 async function qualityInspectionCrud() {
   const s = await newScenario(), p = s.page;
-  const operation = fixture.operations[0];
+  const operation = fixture.operations.find(item => item.status === "Planned" && !fixture.inspectionMeasurements.some(measurement => measurement.operationId === item.id)) || fixture.operations[0];
   const characteristic = suffix + " Bore diameter";
   await openModule(p, "Quality Inspection");
   await p.getByLabel("PO component / operation").selectOption(operation.id);
