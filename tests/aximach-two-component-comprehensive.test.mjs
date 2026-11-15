@@ -50,7 +50,7 @@ test("every child part owns one separate part-level PO line and independent proc
     assert.ok(route.some(operation=>operation.branch==="Rework route"&&operation.relationType==="rework"));
     assert.equal(new Set(route.map(operation=>operation.id)).size,route.length);
   }
-  assert.deepEqual(new Set(fixture.parts.map(part=>part.precisionClass)),new Set(["Standard","Precision","Ultra Precision"]));
+  assert.deepEqual(new Set(fixture.parts.map(part=>part.toleranceClass)),new Set(["Standard","Precision","Ultra Precision"]));
 });
 
 test("Process Directory definitions and stable subcategory IDs resolve every saved operation", () => {
@@ -169,6 +169,7 @@ test("the full dataset contains live-linked records for all twenty catalogue mod
     operations:fixture.operations,routeRelationships:fixture.routeRelationships,transportLegs:fixture.transportLegs,
     inspectionMeasurements:fixture.inspectionMeasurements,quotations:fixture.quotations,
     payments:fixture.paymentTransactions,paymentTransactions:fixture.paymentTransactions,
+    materialCostEntries:fixture.materialCostEntries,materialProcessLinks:fixture.materialProcessLinks,
     quotes:fixture.quotations,inspections:fixture.inspectionMeasurements,followUpAssignments:fixture.followUpAssignments
   };
   for(const id of moduleIds){
@@ -183,7 +184,7 @@ test("the full dataset contains live-linked records for all twenty catalogue mod
 });
 
 test("all major manufacturing option sets are represented together, without fabricated live data", () => {
-  assert.deepEqual(new Set(fixture.parts.map(part=>part.precisionClass)),new Set(["Standard","Precision","Ultra Precision"]));
+  assert.deepEqual(new Set(fixture.parts.map(part=>part.toleranceClass)),new Set(["Standard","Precision","Ultra Precision"]));
   assert.deepEqual(new Set(fixture.quotations.map(row=>row.status)),new Set(["Received","Selected","Rejected","Expired"]));
   assert.deepEqual(new Set(fixture.inventoryTransactions.map(row=>row.transactionType)),new Set(["Opening balance","Receipt","Issue to production","WIP transfer","Return","Rejected","Scrap","Finished goods receipt","Dispatch","Adjustment"]));
   assert.deepEqual(new Set(fixture.inspectionMeasurements.map(row=>row.result)),new Set(["Pass","Fail","Not assessed"]));
