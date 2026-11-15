@@ -585,25 +585,30 @@ async function main() {
   await chooseSearchablePicker(page, "route-flow-transport-vendor", fixture.vendors.find(row => row.id === persistenceTransportRoute.vendorId).company);
   await chooseSearchablePicker(page, "route-flow-transport-saved-route", persistenceTransportRouteLabel);
   await transportEditor.getByRole("button", { name: "Save transport leg", exact: true }).click();
-  await page.waitForFunction(() => {
+  await page.waitForFunction(({ routeId, fromOperationId, toOperationId, poLineId }) => {
     const state = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
     return state.routeRelationships?.some(row => row.condition === "QA_PERSISTENCE_ROUTE_FANOUT_RULE")
-      && state.transportLegs?.some(row => row.routeId === arguments[0].routeId && row.anchorOperationId === arguments[0].fromOperationId
-        && row.targetOperationId === arguments[0].toOperationId && row.poLineId === arguments[0].poLineId);
+      && state.transportLegs?.some(row => row.routeId === routeId && row.anchorOperationId === fromOperationId
+        && row.targetOperationId === toOperationId && row.poLineId === poLineId);
   }, {
     routeId: persistenceTransportRoute.id,
     fromOperationId: persistenceFromOperation.id,
     toOperationId: persistenceToOperation.id,
     poLineId: fixture.poLine.id
   }, { timeout: 7000 });
-  const persistedBeforeReload = await page.evaluate(() => {
+  const persistedBeforeReload = await page.evaluate(({ routeId, fromOperationId, toOperationId, poLineId }) => {
     const state = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
     return {
       relationship: state.routeRelationships.find(row => row.condition === "QA_PERSISTENCE_ROUTE_FANOUT_RULE"),
-      transportLeg: state.transportLegs.find(row => row.routeId === persistenceTransportRoute.id
-        && row.anchorOperationId === persistenceFromOperation.id && row.targetOperationId === persistenceToOperation.id
-        && row.poLineId === fixture.poLine.id)
+      transportLeg: state.transportLegs.find(row => row.routeId === routeId
+        && row.anchorOperationId === fromOperationId && row.targetOperationId === toOperationId
+        && row.poLineId === poLineId)
     };
+  }, {
+    routeId: persistenceTransportRoute.id,
+    fromOperationId: persistenceFromOperation.id,
+    toOperationId: persistenceToOperation.id,
+    poLineId: fixture.poLine.id
   });
   if (!persistedBeforeReload.relationship || !persistedBeforeReload.transportLeg) {
     throw new Error("Route Flow did not save both new cross-branch records before reload.");
