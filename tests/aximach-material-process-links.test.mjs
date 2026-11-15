@@ -51,6 +51,7 @@ test("Process Map node, Route Flow and Manufacturing Universe render material an
   assert.ok(universe.includes('transportFor(operation.id,"before")'));
   assert.ok(universe.includes('materialLinksAt(operation.id,"after")'));
   assert.ok(universe.includes('transportFor(operation.id,"after")'));
+  assert.ok(universe.includes('leg.poLineId===lane.rows[0].poLineId'), "unanchored start transport legs must stay in their own PO-line lane");
   assert.ok(universe.includes("<RouteConnectorLegend/>"));
   assert.ok(flow.includes("<RouteConnectorLegend/>"));
 });
