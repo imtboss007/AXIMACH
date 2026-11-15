@@ -1546,7 +1546,7 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
     assert.ok(demo.includes(company), "missing demo company: " + company);
   }
   const partKeys = [...demo.matchAll(/key:"(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
-  assert.equal(partKeys.length, 5, "bundled demo must include exactly five component examples");
+  assert.equal(partKeys.length, 5, "bundled demo must include exactly five child part examples");
   assert.equal(new Set(partKeys).size, 5, "child part IDs must be unique");
   assert.ok(demo.includes('const componentId=id("COMPONENT",p.co+"-ASSEMBLY")'), "five part records must resolve to only two parent Component Master IDs");
   assert.ok(demo.includes('if(!components.some(row=>row.id===componentId))'), "each parent Component Master is created only once");
@@ -1567,7 +1567,8 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   assert.ok(demo.includes('materialCostEntries.push({id:id("MATERIAL-ALLOCATION"'));
   assert.ok(demo.includes('scope:"process-map"'));
   assert.ok(demo.includes('transportVendorId:id("VENDOR","LOG")'));
-  assert.ok(demo.includes('return {updatedAt:stamp,companies,factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
+  assert.ok(demo.includes('return {updatedAt:stamp,companies,factories,purchaseOrders,components,componentParts,vendors,operations,quotations,materials,materialCostEntries,bomLines'));
+  assert.ok(demo.includes('componentParts:archive(current.componentParts)'), "removing the optional demo must archive its five child parts as well as both parent components");
   assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
   assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
   assert.ok(importer.includes('onClick={loadTwoCompanyDemo}'));
