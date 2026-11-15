@@ -778,12 +778,17 @@ async function productionJobLifecycleCrud() {
     const line = po?.lines.find(item => item.id === lineId);
     return {
       jobStatus: line?.jobStatus,
-      operationStatuses: (root.operations || []).filter(item => item.poId === poId && item.poLineId === lineId).map(item => item.status)
+      operationStatuses: (root.operations || []).filter(item => item.poId === poId && item.poLineId === lineId).map(item => ({ id: item.id, status: item.status }))
     };
   }, { key: seedKey, poId: fixture.purchaseOrder.id, lineId: fixture.poLine.id });
   if (lifecycle.jobStatus !== "In progress") throw new Error("Final job lifecycle status was not persisted as In progress.");
-  if (!lifecycle.operationStatuses.length || lifecycle.operationStatuses.some(status => status !== "Planned")) {
-    throw new Error("Finishing/reopening the PO-line job must not rewrite individual process-operation statuses.");
+  const expectedOperationStatuses = fixture.operations
+    .filter(item => item.poId === fixture.purchaseOrder.id && item.poLineId === fixture.poLine.id)
+    .map(item => ({ id: item.id, status: item.status }));
+  if (!lifecycle.operationStatuses.length ||
+      JSON.stringify([...lifecycle.operationStatuses].sort((a,b)=>a.id.localeCompare(b.id))) !==
+      JSON.stringify([...expectedOperationStatuses].sort((a,b)=>a.id.localeCompare(b.id)))) {
+    throw new Error("Finishing/reopening the PO-line job must preserve each process operation's original independent status.");
   }
   await finishScenario(s, "Production Plan individual and bulk Finish/Reopen");
 }
