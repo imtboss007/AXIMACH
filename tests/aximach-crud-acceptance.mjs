@@ -138,6 +138,7 @@ const scenarioWorkspace = {
   "Data Exchange Centre validated import/export and JSON backup": "Data Exchange Centre",
   "Reports & Analytics saved-record metrics and CSV export": "Reports & Analytics",
   "AI Insights evidence rules and exact quality drill-through": "AI Insights"
+  ,"Two-component all-module linked acceptance": "Component Directory"
 };
 async function readPersistenceSnapshot(page) {
   return page.evaluate(({ key, collections }) => {
@@ -1395,6 +1396,59 @@ async function masterColumnFilterAcceptance() {
   await finishScenario(s, "Company/Factory/Transport column filters");
 }
 
+async function twoComponentAllModuleAcceptance() {
+  const s = await newScenario(), p = s.page;
+  const moduleTitles = [
+    "Company Directory","Component Directory","Purchase Orders","Vendor Directory",
+    "Transport Directory","Contact 360","Process Directory","Component Planned Cost",
+    "Vendor Network","Material Directory","Production Plan & Process Plan",
+    "Route Flow & Relationships","Manufacturing Universe","Transport & Dispatch",
+    "Quality Inspection","Costing & Payment","Follow-up Centre","Reports & Analytics",
+    "AI Insights","Data Exchange Centre"
+  ];
+  const snapshot = await p.evaluate(({ key }) => {
+    const data = JSON.parse(localStorage.getItem(key) || "{}");
+    const relationships = data.routeRelationships || [];
+    const vehicles = data.transportLegs || [];
+    return {
+      components: data.components?.length || 0,
+      parts: data.componentParts?.length || 0,
+      partLines: (data.purchaseOrders || []).flatMap(po => po.lines || []).filter(line => line.partId && !line.deletedAt).length,
+      operations: data.operations?.length || 0,
+      relationshipTypes: new Set(relationships.map(row => row.relationshipType)).size,
+      vehicles: new Set(vehicles.map(row => row.vehicleType)).size,
+      transportRoutes: data.transportRoutes?.length || 0,
+      transportLegs: vehicles.length,
+      bomLines: data.bomLines?.length || 0,
+      materialProcessLinks: data.materialProcessLinks?.length || 0,
+      quotations: data.quotations?.length || 0,
+      paymentTransactions: data.paymentTransactions?.length || 0,
+      inspections: data.inspectionMeasurements?.length || 0,
+      stockKinds: new Set((data.inventoryTransactions || []).map(row => row.transactionType)).size,
+      contacts: data.contactProfiles?.length || 0,
+      processDefinitions: data.processDefinitions?.length || 0,
+      plannedCosts: data.plannedCosts?.length || 0,
+      followUps: data.followUpAssignments?.length || 0
+    };
+  }, { key: seedKey });
+  const expected = {
+    components: 2, parts: 5, partLines: 5, operations: 37, relationshipTypes: 11,
+    vehicles: 16, transportRoutes: 16, transportLegs: 16, bomLines: 11,
+    materialProcessLinks: 11, quotations: 5, paymentTransactions: 5,
+    inspections: 5, stockKinds: 10, contacts: 4, processDefinitions: 24,
+    plannedCosts: 16, followUps: 2
+  };
+  for (const [field, value] of Object.entries(expected)) {
+    if (snapshot[field] !== value) throw new Error("Two-component fixture " + field + " expected " + value + " but found " + snapshot[field]);
+  }
+  for (const title of moduleTitles) {
+    await openModule(p, title);
+    if (s.pageErrors.length) throw new Error("Two-component linked dataset caused a browser error in " + title + ": " + s.pageErrors.join(" | "));
+    console.log("PASS two-component all-module render: " + title);
+  }
+  await finishScenario(s, "Two-component all-module linked acceptance");
+}
+
 async function main() {
   await waitForServer();
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
@@ -1421,6 +1475,7 @@ async function main() {
   await dataExchangeCrud();
   await reportsAnalyticsReadOnly();
   await aiInsightsEvidenceDrillThrough();
+  await twoComponentAllModuleAcceptance();
   console.log("AXIMACH CRUD browser acceptance passed: " + scenarioCount + " isolated scenarios.");
 }
 try {
