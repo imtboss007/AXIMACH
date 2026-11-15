@@ -1686,7 +1686,7 @@ test("purchase-order deletion retains stand-alone material budgets but removes e
   const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(master.includes("(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))"));
   assert.ok(!master.includes("componentParts:(current.componentParts||[]).filter"), "component-part master records must survive PO deletion because they belong to the component master");
-  assert.ok(master.includes("materialCostEntries:(current.materialCostEntries||[]).filter(row=>!targetIds.has(row.componentId))"));
+  assert.ok(master.includes("materialCostEntries:(current.materialCostEntries||[]).filter(row=>(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId)))"), "PO deletion must remove only material-cost entries linked to the deleted PO or its lines and retain standalone budgets");
 });
 
 
