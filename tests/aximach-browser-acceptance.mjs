@@ -1047,14 +1047,18 @@ async function main() {
   }, syntheticSyncConflict);
   await openModule(page, "Data Exchange Centre");
   await page.getByRole("heading", { name: "Resolve sync conflicts", exact: true }).waitFor({ state: "visible", timeout: 5000 });
-  await page.getByText("Shared Company Edit", { exact: true }).waitFor({ state: "visible", timeout: 5000 });
-  await page.getByText("Offline Device Edit", { exact: true }).waitFor({ state: "visible", timeout: 5000 });
+  // Snapshot values are rendered inside a complete JSON <pre>; exact text matching
+  // incorrectly expects each value to be a standalone DOM text node.
+  const conflictSnapshots = page.locator(".sync-conflict-snapshots");
+  await conflictSnapshots.filter({ hasText: "Baseline Company" }).waitFor({ state: "visible", timeout: 5000 });
+  await conflictSnapshots.filter({ hasText: "Shared Company Edit" }).waitFor({ state: "visible", timeout: 5000 });
+  await conflictSnapshots.filter({ hasText: "Offline Device Edit" }).waitFor({ state: "visible", timeout: 5000 });
   await page.getByRole("button", { name: "Keep shared version", exact: true }).waitFor({ state: "visible", timeout: 5000 });
   await page.getByRole("button", { name: "Use this device", exact: true }).waitFor({ state: "visible", timeout: 5000 });
   await page.getByRole("button", { name: "Apply field choices", exact: true }).waitFor({ state: "visible", timeout: 5000 });
   const syncConflictUiResults = {
     headingVisible: true,
-    baselineVisible: await page.getByText("Baseline Company", { exact: true }).count() > 0,
+    baselineVisible: await conflictSnapshots.filter({ hasText: "Baseline Company" }).count() > 0,
     sharedAndLocalVersionsVisible: true,
     resolutionActions: ["Keep shared version", "Use this device", "Apply field choices"]
   };
