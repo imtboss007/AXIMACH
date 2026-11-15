@@ -230,11 +230,42 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   };
   const savePO = () => {
     if (!poDraft.number.trim() || !poDraft.companyId) { onNotice("Select a company and enter the purchase-order number."); return; }
-    if (!poLines.length || poLines.some(line => !line.componentId || line.quantity <= 0 || (line.allocationLevel === "part" && !componentParts.some(part => part.id === line.partId && part.componentId === line.componentId)))) { onNotice("Add valid PO lines. Every line needs a component and positive quantity; part-level lines must select a saved part belonging to that component. Add separate lines for component-level and part-level quantities when needed."); return; }
+    if (!poLines.length || poLines.some(line => !line.componentId || !Number.isFinite(Number(line.quantity)) || Number(line.quantity) <= 0 || (line.allocationLevel === "part" && !componentParts.some(part => part.id === line.partId && part.componentId === line.componentId)))) { onNotice("Add valid PO lines. Every line needs a component and positive quantity; part-level lines must select a saved part belonging to that component. Add separate lines for component-level and part-level quantities when needed."); return; }
     const stamp = nowIso(); const id = poEditingId || makeId("po");
-    const lines = poLines.map(line => { const clean = { ...line }; delete clean.unitPrice; return { ...clean, id: line.id || makeId("line"), targetDelivery: line.targetDelivery || poDraft.targetDelivery }; });
-    update(current => ({ ...current, purchaseOrders: [...current.purchaseOrders.filter(x => x.id !== id), { ...poDraft, number: poDraft.number.trim(), id, lines, createdAt: current.purchaseOrders.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
-    resetForms(); onNotice("Purchase order saved. Each PO line now points to a component record ID; the Process Map can load the selected line, quantity and delivery target automatically.");
+    const existing = orders.find(order => order.id === id);
+    const retiredLineIds = new Set((existing?.lines || []).filter(oldLine => {
+      const edited = poLines.find(line => line.id === oldLine.id);
+      return !oldLine.deletedAt && (!edited || edited.componentId !== oldLine.componentId || (edited.allocationLevel || "component") !== (oldLine.allocationLevel || "component") || (edited.partId || "") !== (oldLine.partId || ""));
+    }).map(line => line.id));
+    const operationIds = new Set(data.operations.filter(row => retiredLineIds.has(row.poLineId)).map(row => row.id));
+    const cleanLines = poLines.map(line => {
+      const clean = { ...line }; delete clean.unitPrice;
+      const identityChanged = Boolean(existing?.lines.some(oldLine => oldLine.id === line.id && retiredLineIds.has(oldLine.id)));
+      return { ...clean, id: !line.id || identityChanged ? makeId("line") : line.id, targetDelivery: line.targetDelivery || poDraft.targetDelivery, updatedAt: stamp, deletedAt: undefined };
+    });
+    update(current => {
+      const retired = (current.purchaseOrders.find(order => order.id === id)?.lines || [])
+        .filter(line => line.deletedAt || retiredLineIds.has(line.id))
+        .map(line => retiredLineIds.has(line.id) ? { ...line, deletedAt: stamp, updatedAt: stamp } : line);
+      const deactivate = <T extends { deletedAt?: string; updatedAt?: string }>(rows: T[], matches: (row: T) => boolean) => rows.map(row => matches(row) ? { ...row, deletedAt: stamp, updatedAt: stamp } : row);
+      return {
+        ...current,
+        purchaseOrders: [...current.purchaseOrders.filter(order => order.id !== id), {
+          ...poDraft, number: poDraft.number.trim(), id, lines: [...retired, ...cleanLines],
+          createdAt: existing?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined
+        }],
+        operations: deactivate(current.operations, row => retiredLineIds.has(row.poLineId)),
+        routeRelationships: deactivate(current.routeRelationships || [], row => retiredLineIds.has(row.poLineId) || operationIds.has(row.fromOperationId) || operationIds.has(row.toOperationId)),
+        materialProcessLinks: deactivate(current.materialProcessLinks || [], row => retiredLineIds.has(row.poLineId) || operationIds.has(row.operationId)),
+        quotations: deactivate(current.quotations, row => retiredLineIds.has(row.poLineId)),
+        transportLegs: deactivate(current.transportLegs, row => retiredLineIds.has(row.poLineId)),
+        materialCostEntries: deactivate(current.materialCostEntries || [], row => retiredLineIds.has(row.poLineId)),
+        paymentTransactions: deactivate(current.paymentTransactions, row => retiredLineIds.has(row.poLineId)),
+        inspectionMeasurements: deactivate(current.inspectionMeasurements, row => retiredLineIds.has(row.poLineId)),
+        followUpAssignments: deactivate(current.followUpAssignments || [], row => retiredLineIds.has(row.recordId) || operationIds.has(row.recordId))
+      };
+    });
+    resetForms(); onNotice("Purchase order saved. Removed or re-identified PO lines and their linked operations were retained as history; new lines receive stable IDs.");
   };
 
   const editCompany = (row: CompanyRecord) => { resetForms(); setCompanyDraft({ name: row.name, gstin: row.gstin, contactPerson: row.contactPerson || "", phone: row.phone, email: row.email, address: row.address || "", notes: row.notes }); setCompanyEditingId(row.id); setShowForm(true); };
@@ -283,26 +314,28 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   };
   const deletePurchaseOrders = (ids:string[]) => {
     const targets=orders.filter(row=>ids.includes(row.id));if(!targets.length)return;
-    if(!window.confirm("Permanently delete "+targets.length+" purchase order(s), their component lines and linked process, route relationship, material-process, transport, costing, stock, payment, inspection and follow-up links? This cannot be undone."))return;
+    if(!window.confirm("Archive "+targets.length+" purchase order(s), their component lines and linked operational records? Shared company, component and material masters plus immutable inventory transaction history will be retained. The archived records remain in history and can be reviewed from backup; continue?"))return;
     const targetIds=new Set(targets.map(row=>row.id));
     const lineIds=new Set(targets.flatMap(po=>po.lines.map(line=>line.id)));
-    const operationIds=new Set(activeRows(data.operations).filter(row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)).map(row=>row.id));
+    const operationIds=new Set(data.operations.filter(row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)).map(row=>row.id));
     const stamp=nowIso();
+    const deactivate=<T extends {deletedAt?:string;updatedAt?:string}>(rows:T[],matches:(row:T)=>boolean)=>rows.map(row=>matches(row)?{...row,deletedAt:stamp,updatedAt:stamp}:row);
     update(current=>({...current,
-      purchaseOrders:current.purchaseOrders.filter(row=>!targetIds.has(row.id)),
-      operations:current.operations.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
-      routeRelationships:(current.routeRelationships||[]).filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.fromOperationId)&&!operationIds.has(row.toOperationId)),
-      materialProcessLinks:(current.materialProcessLinks||[]).filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
-      quotations:current.quotations.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
-      transportLegs:current.transportLegs.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
-      paymentTransactions:current.paymentTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
-      materialCostEntries:(current.materialCostEntries||[]).filter(row=>(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))),
-      plannedCosts:current.plannedCosts.filter(row=>!row.poId||!targetIds.has(row.poId)),
-      inspectionMeasurements:current.inspectionMeasurements.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)),
-      inventoryTransactions:current.inventoryTransactions.filter(row=>!targetIds.has(row.poId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
-      followUpAssignments:(current.followUpAssignments||[]).map(row=>targetIds.has(row.recordId)||operationIds.has(row.recordId)?{...row,deletedAt:stamp,updatedAt:stamp}:row)
+      // Keep a sync-safe PO tombstone; physically removing it would allow an older server copy to resurrect it.
+      purchaseOrders:current.purchaseOrders.map(row=>targetIds.has(row.id)?{...row,deletedAt:stamp,updatedAt:stamp,lines:row.lines.map(line=>({...line,deletedAt:stamp,updatedAt:stamp}))}:row),
+      operations:deactivate(current.operations,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
+      routeRelationships:deactivate(current.routeRelationships||[],row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)||operationIds.has(row.fromOperationId)||operationIds.has(row.toOperationId)),
+      materialProcessLinks:deactivate(current.materialProcessLinks||[],row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)||operationIds.has(row.operationId)),
+      quotations:deactivate(current.quotations,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
+      transportLegs:deactivate(current.transportLegs,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
+      paymentTransactions:deactivate(current.paymentTransactions,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
+      materialCostEntries:deactivate(current.materialCostEntries||[],row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
+      plannedCosts:deactivate(current.plannedCosts,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
+      inspectionMeasurements:deactivate(current.inspectionMeasurements,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
+      // Inventory transactions are an append-only stock ledger: never erase them when a PO is archived.
+      followUpAssignments:deactivate(current.followUpAssignments||[],row=>targetIds.has(row.recordId)||operationIds.has(row.recordId))
     }));
-    setSelectedPoIds(current=>current.filter(id=>!targetIds.has(id)));setOpenedPoId("");onNotice(targets.length+" purchase order(s) and all linked operational records permanently deleted. Shared component, material and company masters were retained.");
+    setSelectedPoIds(current=>current.filter(id=>!targetIds.has(id)));setOpenedPoId("");onNotice(targets.length+" purchase order(s) archived with sync-safe tombstones. Linked operational records are inactive; shared masters and immutable stock history are retained.");
   };
   const exportComponentsExcel = async (rows:ComponentRecord[],fileName="AXIMACH-Components.xlsx") => {
     if(!rows.length){onNotice("No component records selected for export.");return;}
