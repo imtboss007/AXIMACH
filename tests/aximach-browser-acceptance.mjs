@@ -488,14 +488,23 @@ async function main() {
     const bytes = readFileSync(filePath);
     if (format === "svg") {
       const svg = bytes.toString("utf8");
-      if (!svg.includes("<svg") || !svg.includes("CNC shaft turning") || !svg.includes("Material saw cutting")) {
+      const firstProcessName = fixture.operations[0].name;
+      const sawProcessName = fixture.operations.find(row => row.name.startsWith("Band saw cutting"))?.name;
+      if (!svg.includes("<svg") || !svg.includes(firstProcessName) || !sawProcessName || !svg.includes(sawProcessName)) {
         throw new Error("Manufacturing Universe SVG export omitted saved process stages.");
       }
     } else if (format === "png") {
       if (!bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw new Error("Manufacturing Universe PNG export has an invalid PNG signature.");
     } else if (format === "csv") {
       const csv = bytes.toString("utf8");
-      for (const expected of ["Material allocation","Material inbound transport","Material process link","Transport leg","Relationship","ASSY-MP-01-SHAFT","mp-leg-09","mp-rel-12","EN24 shaft blank"]) {
+      const csvExpected = [
+        "Material allocation","Material inbound transport","Material process link","Transport leg","Relationship",
+        fixture.parts[0].partNumber,
+        fixture.transportLegs[8].id,
+        fixture.routeRelationships.find(row => row.status !== "Disabled")?.id,
+        fixture.materialCostEntries[0].materialName
+      ].filter(Boolean);
+      for (const expected of csvExpected) {
         if (!csv.includes(expected)) throw new Error("Manufacturing Universe CSV export omitted " + expected);
       }
     } else {
@@ -512,7 +521,12 @@ async function main() {
   }
   if (exportFormats.length !== 5) throw new Error("Expected SVG, PNG, PDF, CSV and JSON export format choices");
   const universeText = await page.locator(".page-content").innerText();
-  for (const expected of ["Multi-part hydraulic control assembly", "Material saw cutting", "VMC datum and port machining"]) {
+  const universeExpected = [
+    fixture.components[1].name,
+    fixture.operations.find(row => row.name.startsWith("Band saw cutting"))?.name,
+    fixture.operations.find(row => row.name.startsWith("CNC face milling"))?.name
+  ].filter(Boolean);
+  for (const expected of universeExpected) {
     if (!universeText.includes(expected)) throw new Error("Manufacturing Universe is missing " + expected);
   }
 
@@ -532,6 +546,15 @@ async function main() {
   // Mutating acceptance: add one conditional relationship and a second carrier leg,
   // then prove both survive a full reload and remain linked across workspaces.
   const persistenceResults = [];
+  const persistenceLineOperations = fixture.operations.filter(row => row.poLineId === fixture.poLine.id && row.branch === "Main route");
+  const persistenceFromOperation = persistenceLineOperations[0];
+  const persistenceToOperation = persistenceLineOperations[persistenceLineOperations.length - 1];
+  const persistenceTransportRoute = fixture.transportRoutes.find(row => row.vendorId === "mp-vendor-material");
+  if (!persistenceFromOperation || !persistenceToOperation || !persistenceTransportRoute) {
+    throw new Error("Persistence acceptance fixture is missing its selected-line processes or carrier route.");
+  }
+  const persistenceTransportRouteLabel = persistenceTransportRoute.fromLocation + " → " + persistenceTransportRoute.toLocation;
+  const persistenceTransportTitle = persistenceTransportRoute.vehicleType + " · " + persistenceTransportRouteLabel;
   await openModule(page, "Route Flow & Relationships");
   await chooseRouteFlowScope(page);
 
@@ -544,8 +567,8 @@ async function main() {
   await relationshipEditor.waitFor({ state: "visible", timeout: 5000 });
   // These native controls are wrapped in nested label elements; address them
   // by their stable form order to avoid Chromium accessible-name differences.
-  await chooseSearchablePicker(page, "route-flow-relationship-from", "CNC shaft turning");
-  await chooseSearchablePicker(page, "route-flow-relationship-to", "Shaft cylindrical grinding");
+  await chooseSearchablePicker(page, "route-flow-relationship-from", persistenceFromOperation.name);
+  await chooseSearchablePicker(page, "route-flow-relationship-to", persistenceToOperation.name);
   await chooseSearchablePicker(page, "route-flow-relationship-type", "Conditional");
   await chooseSearchablePicker(page, "route-flow-relationship-status", "Conditional");
   await relationshipEditor.getByPlaceholder("Example: continue only if inspection result is accepted").fill("QA_PERSISTENCE_ROUTE_FANOUT_RULE");
@@ -557,21 +580,29 @@ async function main() {
     await page.locator(".route-flow-canvas-tools button").filter({ hasText: "Add transport leg" }).click();
   }
   await transportEditor.waitFor({ state: "visible", timeout: 5000 });
-  await chooseSearchablePicker(page, "route-flow-transport-from-process", "VMC datum and port machining");
-  await chooseSearchablePicker(page, "route-flow-transport-to-process", "CNC shaft turning");
-  await chooseSearchablePicker(page, "route-flow-transport-vendor", "Synthetic Material Logistics");
-  await chooseSearchablePicker(page, "route-flow-transport-saved-route", "VMC subcontractor → CNC shaft turning supplier");
+  await chooseSearchablePicker(page, "route-flow-transport-from-process", persistenceFromOperation.name);
+  await chooseSearchablePicker(page, "route-flow-transport-to-process", persistenceToOperation.name);
+  await chooseSearchablePicker(page, "route-flow-transport-vendor", fixture.vendors.find(row => row.id === persistenceTransportRoute.vendorId).company);
+  await chooseSearchablePicker(page, "route-flow-transport-saved-route", persistenceTransportRouteLabel);
   await transportEditor.getByRole("button", { name: "Save transport leg", exact: true }).click();
   await page.waitForFunction(() => {
     const state = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
     return state.routeRelationships?.some(row => row.condition === "QA_PERSISTENCE_ROUTE_FANOUT_RULE")
-      && state.transportLegs?.some(row => row.routeId === "mp-route-12" && row.anchorOperationId === "mp-op-vmc" && row.targetOperationId === "mp-op-turn" && row.poLineId === "mp-line");
-  }, null, { timeout: 7000 });
+      && state.transportLegs?.some(row => row.routeId === arguments[0].routeId && row.anchorOperationId === arguments[0].fromOperationId
+        && row.targetOperationId === arguments[0].toOperationId && row.poLineId === arguments[0].poLineId);
+  }, {
+    routeId: persistenceTransportRoute.id,
+    fromOperationId: persistenceFromOperation.id,
+    toOperationId: persistenceToOperation.id,
+    poLineId: fixture.poLine.id
+  }, { timeout: 7000 });
   const persistedBeforeReload = await page.evaluate(() => {
     const state = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
     return {
       relationship: state.routeRelationships.find(row => row.condition === "QA_PERSISTENCE_ROUTE_FANOUT_RULE"),
-      transportLeg: state.transportLegs.find(row => row.routeId === "mp-route-12" && row.anchorOperationId === "mp-op-vmc" && row.targetOperationId === "mp-op-turn" && row.poLineId === "mp-line")
+      transportLeg: state.transportLegs.find(row => row.routeId === persistenceTransportRoute.id
+        && row.anchorOperationId === persistenceFromOperation.id && row.targetOperationId === persistenceToOperation.id
+        && row.poLineId === fixture.poLine.id)
     };
   });
   if (!persistedBeforeReload.relationship || !persistedBeforeReload.transportLeg) {
@@ -582,10 +613,10 @@ async function main() {
   await assertWorkspace(page, "reload after Route Flow relationship and transport save");
   await openModule(page, "Route Flow & Relationships");
   await chooseRouteFlowScope(page);
-  await chooseSearchablePicker(page, "route-flow-branch", "Shaft branch");
+  await chooseSearchablePicker(page, "route-flow-branch", "Main route");
   const savedRelationship = page.locator(".route-flow-saved-link").filter({ hasText: "QA_PERSISTENCE_ROUTE_FANOUT_RULE" });
   await savedRelationship.waitFor({ state: "visible", timeout: 5000 });
-  const persistedLegMarker = page.locator('button[aria-label="Open transport leg popup"][title="4-wheeler · VMC subcontractor → CNC shaft turning supplier"]');
+  const persistedLegMarker = page.locator('button[aria-label="Open transport leg popup"][title="' + persistenceTransportTitle.replaceAll('"', '\\"') + '"]');
   await persistedLegMarker.waitFor({ state: "visible", timeout: 5000 });
   await scrollGraphNodeIntoView(page, persistedLegMarker);
   await persistedLegMarker.evaluate(element => element.click());
@@ -593,9 +624,9 @@ async function main() {
   await persistedLegDialog.waitFor({ state: "visible", timeout: 5000 });
   const persistedLegDetails = await persistedLegDialog.innerText();
   if (!persistedLegDetails.includes("Transport leg: " + persistedBeforeReload.transportLeg.id)
-      || !persistedLegDetails.includes("VMC subcontractor → CNC shaft turning supplier")
-      || !persistedLegDetails.includes("VMC datum and port machining")
-      || !persistedLegDetails.includes("CNC shaft turning")) {
+      || !persistedLegDetails.includes(persistenceTransportRouteLabel)
+      || !persistedLegDetails.includes(persistenceFromOperation.name)
+      || !persistedLegDetails.includes(persistenceToOperation.name)) {
     throw new Error("Reloaded Route Flow popup lost the saved carrier or exact sending/receiving operation IDs: " + persistedLegDetails);
   }
   await persistedLegDialog.getByRole("button", { name: "Close transport details" }).click();
@@ -616,27 +647,42 @@ async function main() {
   persistenceResults.push({
     relationshipId: persistedBeforeReload.relationship.id,
     transportLegId: persistedBeforeReload.transportLeg.id,
-    secondCarrierRouteId: "mp-route-12",
+    secondCarrierRouteId: persistenceTransportRoute.id,
     savedAndReloaded: true,
     relationshipDisableAndReload: true
   });
 
   await openModule(page, "Transport & Dispatch");
   const dispatchText = await page.locator(".page-content").innerText();
-  if (!dispatchText.includes("VMC subcontractor → CNC shaft turning supplier")) {
-    throw new Error("Transport & Dispatch did not show the new VMC-to-shaft carrier leg after Route Flow reload.");
+  if (!dispatchText.includes(persistenceTransportRouteLabel)) {
+    throw new Error("Transport & Dispatch did not show the new saved carrier leg after Route Flow reload: " + persistenceTransportRouteLabel);
   }
 
   await openModule(page, "Manufacturing Universe");
   await chooseUniverseScope(page);
+  await page.getByRole("button", { name: "Enterprise-wide live universe", exact: true }).click();
   // Sphere View intentionally hides rear-facing labels. Use Network View to
-  // acceptance-test every branch transport marker without relying on rotation.
+  // acceptance-test exact saved source/target transport connectors across branches.
   await page.locator(".process-universe-layouts").getByRole("button", { name: "Network View", exact: true }).click();
+  const branchLeg = fixture.transportLegs.find(leg => {
+    const from = fixture.operations.find(row => row.id === leg.anchorOperationId);
+    const to = fixture.operations.find(row => row.id === leg.targetOperationId);
+    return from && to && (from.branch || "Main route") !== (to.branch || "Main route");
+  });
+  if (!branchLeg) throw new Error("Fixture must include at least one transport leg crossing a main/alternate/rework branch.");
+  const branchFromOperation = fixture.operations.find(row => row.id === branchLeg.anchorOperationId);
+  const branchToOperation = fixture.operations.find(row => row.id === branchLeg.targetOperationId);
   const universeBranchTransfers = [
-    { title: "2-wheeler · VMC subcontractor → CNC shaft turning supplier", legId: "mp-leg-09", target: "CNC shaft turning" },
-    { title: "3-wheeler · VMC subcontractor → Body insert installation cell", legId: "mp-leg-10", target: "Insert installation" },
-    { title: "Light commercial vehicle · VMC subcontractor → Cover machining supplier", legId: "mp-leg-11", target: "Cover machining and assembly" },
-    { title: "4-wheeler · VMC subcontractor → CNC shaft turning supplier", legId: persistedBeforeReload.transportLeg.id, target: "CNC shaft turning" }
+    {
+      title: branchLeg.vehicleType + " · " + branchLeg.fromLocation + " → " + branchLeg.toLocation,
+      legId: branchLeg.id,
+      handoff: branchFromOperation.name + " → " + branchToOperation.name
+    },
+    {
+      title: persistenceTransportTitle,
+      legId: persistedBeforeReload.transportLeg.id,
+      handoff: persistenceFromOperation.name + " → " + persistenceToOperation.name
+    }
   ];
   for (const transfer of universeBranchTransfers) {
     const exactMarker = page.locator('.process-universe-transport-marker[title="' + transfer.title.replaceAll('"', '\\"') + '"]');
@@ -648,9 +694,8 @@ async function main() {
     const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
     await dialog.waitFor({ state: "visible", timeout: 5000 });
     const details = await dialog.innerText();
-    if (!details.includes("Transport leg: " + transfer.legId)
-        || !details.includes("VMC datum and port machining → " + transfer.target)) {
-      throw new Error("Manufacturing Universe did not resolve the exact source/target branch for " + transfer.title + ": " + details);
+    if (!details.includes("Transport leg: " + transfer.legId) || !details.includes(transfer.handoff)) {
+      throw new Error("Manufacturing Universe did not resolve the exact source/target handoff for " + transfer.title + ": " + details);
     }
     await dialog.getByRole("button", { name: "Close transport details" }).click();
   }
@@ -664,7 +709,7 @@ async function main() {
   if (!persistedUniversePath) throw new Error("Manufacturing Universe could not export the persisted second carrier.");
   const persistedUniverseJson = JSON.parse(readFileSync(persistedUniversePath, "utf8"));
   const exportedSecondCarrier = persistedUniverseJson.transportLegs?.find(row => row.id === persistedBeforeReload.transportLeg.id);
-  if (!exportedSecondCarrier || exportedSecondCarrier.vehicleType !== "4-wheeler" || exportedSecondCarrier.routeId !== "mp-route-12") {
+  if (!exportedSecondCarrier || exportedSecondCarrier.vehicleType !== persistenceTransportRoute.vehicleType || exportedSecondCarrier.routeId !== persistenceTransportRoute.id) {
     throw new Error("Manufacturing Universe JSON export omitted the persisted 4-wheeler second carrier.");
   }
   universeExportResults.push({ format: "json-after-persistence", transportLegId: exportedSecondCarrier.id, vehicle: exportedSecondCarrier.vehicleType });
