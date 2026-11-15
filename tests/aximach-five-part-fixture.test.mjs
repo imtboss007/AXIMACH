@@ -466,7 +466,7 @@ test("Purchase Orders exposes column-wise searchable filters and guarded delete-
   assert.ok(workspace.includes("poNumberFilters.includes(p.number)"));
   assert.ok(workspace.includes("poIssueDateFilters.includes(p.issueDate||\"—\")"));
   assert.ok(workspace.includes("poDeliveryFilters.includes(p.targetDelivery||\"—\")"));
-  assert.ok(workspace.includes("p.lines.some(line=>poComponentFilters.includes(line.componentId))"));
+  assert.ok(workspace.includes("p.lines.some(line=>!line.deletedAt&&poComponentFilters.includes(line.componentId))"));
   assert.ok(workspace.includes("Delete all Purchase Orders"));
   assert.ok(workspace.includes("Delete all components"));
 });
@@ -1682,11 +1682,13 @@ test("client-side shared data merge keeps saved parts and both cost scopes by re
   assert.ok(data.includes("materialCostEntries: Array.isArray(value?.materialCostEntries)"));
 });
 
-test("purchase-order deletion retains stand-alone material budgets but removes entries attached to that PO", () => {
+test("purchase-order archival tombstones PO-linked material budgets and retains standalone budgets and stock history", () => {
   const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(master.includes("(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))"));
-  assert.ok(!master.includes("componentParts:(current.componentParts||[]).filter"), "component-part master records must survive PO deletion because they belong to the component master");
-  assert.ok(master.includes("materialCostEntries:(current.materialCostEntries||[]).filter(row=>(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId)))"), "PO deletion must remove only material-cost entries linked to the deleted PO or its lines and retain standalone budgets");
+  assert.ok(master.includes("materialCostEntries:deactivate(current.materialCostEntries||[],row=>targetIds.has(row.poId)||lineIds.has(row.poLineId))"), "PO-linked material-cost entries must be tombstoned while standalone budgets remain active");
+  assert.ok(master.includes("plannedCosts:deactivate(current.plannedCosts,row=>Boolean(row.poId&&targetIds.has(row.poId)))"));
+  assert.ok(!master.includes("componentParts:"), "component-part master records must survive PO archival because they belong to the component master");
+  assert.ok(master.includes("// Inventory transactions are an append-only stock ledger: never erase them when a PO is archived."));
+  assert.ok(!master.includes("inventoryTransactions:current.inventoryTransactions.filter"), "PO archival must preserve immutable stock transactions");
 });
 
 
