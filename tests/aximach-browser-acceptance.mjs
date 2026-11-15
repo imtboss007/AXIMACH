@@ -444,6 +444,7 @@ async function main() {
   }
   const universeTransportIds = new Set();
   const universeMaterialTransportIds = new Set();
+  const contactLinkResults = [];
   for (let i = 0; i < universeTransportCount; i++) {
     const button = page.locator('button[aria-label*="transport record" i]').nth(i);
     const isMaterialTransport = await button.evaluate(el => el.classList.contains("process-orbit-material-transport"));
