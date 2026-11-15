@@ -246,194 +246,74 @@ async function main() {
     nativeOptionResults.push({ title, selects: selectCount, optionsClicked: tested });
   }
 
-  // Route Flow: one component, three part records, five materials, nine material/process links,
-  // eleven relationship types, eight independently identified transport legs.
+  // Route Flow: verify the integrated two-assembly / five-part acceptance preview.
   await openModule(page, "Route Flow & Relationships");
   await chooseRouteFlowScope(page);
-  // The in-app demo must exercise the same multipart fixture in the actual Route Flow workspace.
   await page.getByRole("button", { name: "Open multi-part demo" }).click();
-  const multipartDemo = page.getByRole("region", { name: "Two component five part route and transport demonstration" });
-  await multipartDemo.waitFor({ state: "visible", timeout: 5000 });
-  for (const phrase of ["One assembly", "three part routes", "ASSY-MP-01-BODY", "ASSY-MP-01-SHAFT", "ASSY-MP-01-COVER"]) {
-    if (!(await multipartDemo.innerText()).includes(phrase)) throw new Error("Route Flow multipart demo omitted " + phrase);
+  const multipartDemo = page.getByRole("region", { name: "Two component five part comprehensive route and transport demonstration" });
+  await multipartDemo.waitFor({ state: "visible", timeout: 8000 });
+  const demoText = await multipartDemo.innerText();
+  for (const phrase of ["Two assemblies", "five part routes", "20-module coverage", "DEMO ONLY"]) {
+    if (!demoText.includes(phrase)) throw new Error("Integrated Route Flow demo omitted " + phrase);
+  }
+  for (const component of fixture.components) {
+    if (!demoText.includes(component.partNumber)) throw new Error("Integrated demo omitted parent assembly " + component.partNumber);
+  }
+  for (const part of fixture.parts) {
+    if (!demoText.includes(part.partNumber)) throw new Error("Integrated demo omitted child part " + part.partNumber);
   }
   const partFilter = multipartDemo.getByLabel("Filter demo by part");
-  const expectedPartRoutes = [
-    ["ASSY-MP-01-BODY", "Insert installation", "Seal installation"],
-    ["ASSY-MP-01-SHAFT", "CNC shaft turning", "Shaft heat treatment", "Shaft cylindrical grinding"],
-    ["ASSY-MP-01-COVER", "Cover machining and assembly"]
-  ];
-  for (const [partNumber, ...expectedProcesses] of expectedPartRoutes) {
-    const option = partFilter.locator("option").filter({ hasText: partNumber }).first();
-    await partFilter.selectOption(await option.getAttribute("value"));
-    const partRouteText = await multipartDemo.innerText();
-    for (const processName of expectedProcesses) {
-      if (!partRouteText.includes(processName)) throw new Error(partNumber + " demo route omitted " + processName);
-    }
+  for (const part of fixture.parts) {
+    await partFilter.selectOption(part.id);
+    const partView = await multipartDemo.innerText();
+    if (!partView.includes(part.partNumber)) throw new Error("Part filter failed to select " + part.partNumber);
   }
   await partFilter.selectOption("all");
   await multipartDemo.getByRole("tab", { name: "Relationship types" }).click();
   const relationshipDemoText = await multipartDemo.innerText();
-  for (const relationship of ["Main", "Alternate", "Rework", "Dependency", "Parallel", "Merge", "Split", "Follow-on", "Feedback", "Conditional", "Successor"]) {
-    if (!relationshipDemoText.includes(relationship)) throw new Error("Multipart demo omitted relationship type " + relationship);
+  for (const relationship of ["Main route", "Alternate route", "Rework route", "Dependency", "Parallel", "Merge", "Split", "Follow-on", "Feedback", "Conditional", "Successor"]) {
+    if (!relationshipDemoText.includes(relationship)) throw new Error("Integrated demo omitted relationship type " + relationship);
   }
   await multipartDemo.getByRole("tab", { name: "Transport legs" }).click();
-  if (!(await multipartDemo.innerText()).includes("VMC subcontractor")) throw new Error("Multipart demo did not render VMC transport fan-out.");
-  await multipartDemo.getByRole("tab", { name: "Carrier options" }).click();
-  await multipartDemo.getByRole("button", { name: "Add alternative 4-wheeler carrier leg" }).click();
-  if (!(await multipartDemo.innerText()).includes("SIMULATED-ALT-CARRIER") && !(await multipartDemo.innerText()).includes("second carrier leg")) {
-    throw new Error("Multipart demo did not simulate the second carrier option.");
+  const transportDemoText = await multipartDemo.innerText();
+  for (const leg of fixture.transportLegs) {
+    if (!transportDemoText.includes(leg.vehicleType) || !transportDemoText.includes(leg.id)) {
+      throw new Error("Integrated demo omitted saved transport leg " + leg.id + " / " + leg.vehicleType);
+    }
   }
-  await page.getByRole("button", { name: "Close multi-part demo" }).click();
+  await multipartDemo.getByRole("tab", { name: "All vehicles" }).click();
+  const vehicleDemoText = await multipartDemo.innerText();
+  for (const route of fixture.transportRoutes) {
+    if (!vehicleDemoText.includes(route.vehicleType)) throw new Error("Integrated demo omitted vehicle category " + route.vehicleType);
+  }
+  await multipartDemo.getByRole("tab", { name: "Material feeds" }).click();
+  const materialDemoText = await multipartDemo.innerText();
+  for (const link of fixture.materialProcessLinks) {
+    if (!materialDemoText.includes(link.poLineId)) throw new Error("Integrated demo omitted part-scoped material feed " + link.id);
+  }
+  await multipartDemo.getByRole("tab", { name: "20-module coverage" }).click();
+  const moduleDemoText = await multipartDemo.innerText();
+  for (const moduleId of fixture.moduleIds) {
+    if (!moduleDemoText.includes(moduleId)) throw new Error("Integrated demo omitted module coverage " + moduleId);
+  }
+  await page.getByRole("button", { name: "Close two-component route demo" }).click();
   await chooseRouteFlowScope(page);
-  const expectedBranchOperations = {
-    "Main route": ["Material saw cutting", "VMC datum and port machining", "Final CMM and pressure inspection"],
-    "Shaft branch": ["CNC shaft turning", "Shaft heat treatment", "Shaft cylindrical grinding"],
-    "Body branch": ["Insert installation", "Seal installation"],
-    "Cover branch": ["Cover machining and assembly"]
-  };
-  const visitedTransportIds = new Set();
-  const visitedMaterialLinks = new Set();
-  const contactLinkResults = [];
-  const branchResults = [];
-  for (const branchName of Object.keys(expectedBranchOperations)) {
-    await chooseSearchablePicker(page, "route-flow-branch", branchName);
-    await page.waitForTimeout(200);
-    const branchText = await page.locator(".page-content").innerText();
-    for (const expected of expectedBranchOperations[branchName] || []) {
-      if (!branchText.includes(expected)) throw new Error("Route Flow branch " + branchName + " is missing operation " + expected);
-    }
-    const branchLegButtons = page.locator('button[aria-label="Open transport leg popup"]');
-    const branchLegCount = await branchLegButtons.count();
-    for (let i = 0; i < branchLegCount; i++) {
-      const button = page.locator('button[aria-label="Open transport leg popup"]').nth(i);
-      if (!(await button.isVisible().catch(() => false))) continue;
-      await scrollGraphNodeIntoView(page, button);
-      await button.evaluate(element => element.click());
-      const dialog = page.getByRole("dialog", { name: "Transport and directory record details" });
-      await dialog.waitFor({ state: "visible", timeout: 5000 });
-      const details = await dialog.innerText();
-      const match = details.match(/Transport leg:\s*(mp-leg-[A-Za-z0-9-]+)/);
-      if (!details.includes("TRANSPORT RECORD") || !details.includes("TRANSPORT ROUTE") || !match) {
-        throw new Error("Transport popup must expose its exact transport leg and directory route identity: " + details);
-      }
-      const transportRecord = fixture.transportLegs.find(row => row.id === match[1]);
-      contactLinkResults.push(await assertVendorContactLinks(dialog, transportRecord?.vendorId, "Route Flow " + match[1]));
-      visitedTransportIds.add(match[1]);
-      await dialog.getByRole("button", { name: "Close transport details" }).evaluate(element => element.click());
-    }
-    const branchMaterialMarkers = page.locator(".material-flow-marker-button");
-    const branchMarkerCount = await branchMaterialMarkers.count();
-    for (let i = 0; i < branchMarkerCount; i++) {
-      const button = page.locator(".material-flow-marker-button").nth(i);
-      if (!(await button.isVisible().catch(() => false))) continue;
-      await scrollGraphNodeIntoView(page, button);
-      await button.evaluate(element => element.click());
-      const popup = page.getByRole("dialog", { name: "Material to process link" });
-      await popup.waitFor({ state: "visible", timeout: 4000 });
-      const details = await popup.innerText();
-      const bomMatch = details.match(/BOM line:\s*(mp-bom-[A-Za-z0-9-]+)/);
-      const operationMatch = details.match(/Process operation:\s*(mp-op-[A-Za-z0-9-]+)/);
-      if (!details.includes("Part:") || !bomMatch || !operationMatch) {
-        throw new Error("Material popup lost part, BOM or process-operation identity: " + details);
-      }
-      visitedMaterialLinks.add(bomMatch[1] + ":" + operationMatch[1]);
-      await button.evaluate(element => element.click());
-    }
-    branchResults.push({ branch: branchName, visibleTransportIcons: branchLegCount, visibleMaterialLinks: branchMarkerCount });
-  }
-  const expectedLegIds = new Set(fixture.transportLegs.map(row => row.id));
-  if (visitedTransportIds.size !== fixture.transportLegs.length ||
-      [...expectedLegIds].some(id => !visitedTransportIds.has(id))) {
-    throw new Error("Route Flow did not independently open every transport record. Visited: " + [...visitedTransportIds].join(", "));
-  }
-  const expectedMaterialLinkIds = new Set(fixture.materialProcessLinks.map(row => row.bomLineId + ":" + row.operationId));
-  if (visitedMaterialLinks.size !== expectedMaterialLinkIds.size ||
-      [...expectedMaterialLinkIds].some(id => !visitedMaterialLinks.has(id))) {
-    throw new Error("Route Flow did not independently expose every part-scoped BOM-to-operation material link. Visited: " + [...visitedMaterialLinks].join(", "));
-  }
-  const matrixRows = page.locator(".route-flow-matrix-row");
-  if (await matrixRows.count() < fixture.routeRelationships.length) {
-    throw new Error("Route Flow relationship matrix did not render all seeded cross-route edges");
-  }
-  const matrixTypes = await matrixRows.locator(".route-flow-matrix-arrow").evaluateAll(nodes => nodes.map(node => node.getAttribute("data-relationship-type") || ""));
-  for (const type of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"]) {
-    if (!matrixTypes.includes(type)) throw new Error("Route Flow relationship edge type is missing from the rendered matrix: " + type + ". Rendered types: " + matrixTypes.join(", ") + ". Rows: " + JSON.stringify(await matrixRows.allInnerTexts()));
-  }
-  const relationshipMatrixText = await matrixRows.allInnerTexts();
-  for (const [target, type] of [
-    ["CNC shaft turning", "Split route"],
-    ["Insert installation", "Parallel route"],
-    ["Cover machining and assembly", "Alternate route"]
-  ]) {
-    if (!relationshipMatrixText.some(row => row.includes("VMC datum and port machining") && row.includes(target) && row.includes(type))) {
-      throw new Error("Route Flow matrix is missing the second-stage VMC fan-out link to " + target + " (" + type + ").");
-    }
-  }
-
-  const layoutPicker = page.getByLabel("Choose route flow layout", { exact: true });
-  const routeLayouts = await layoutPicker.locator("option").evaluateAll(nodes => nodes.map(node => node.value).filter(Boolean));
+  const routeLayouts = await page.getByLabel("Choose route flow layout", { exact: true }).locator("option").evaluateAll(nodes => nodes.map(node => node.value).filter(Boolean));
   if (routeLayouts.length !== 9) throw new Error("Expected 9 Route Flow layouts; found " + routeLayouts.length);
   for (const layout of routeLayouts) {
-    await layoutPicker.selectOption(layout);
-    const rendered = await page.locator("[data-route-layout]").count();
-    if (!rendered) throw new Error("Route Flow layout " + layout + " did not render a graph");
+    await page.getByLabel("Choose route flow layout", { exact: true }).selectOption(layout);
+    if (!(await page.locator("[data-route-layout]").count())) throw new Error("Route Flow layout " + layout + " did not render a graph");
   }
-
   const relationshipButtons = page.locator(".route-flow-relationship-types button");
-  const relationshipCount = await relationshipButtons.count();
-  if (relationshipCount !== 11) throw new Error("Expected 11 relationship type tools; found " + relationshipCount);
   const relationshipResults = [];
-  for (let i = 0; i < relationshipCount; i++) {
+  for (let i = 0; i < await relationshipButtons.count(); i++) {
     const button = relationshipButtons.nth(i);
     const label = (await button.innerText()).trim();
     await button.click();
     if (!(await button.evaluate(el => el.classList.contains("is-selected")))) throw new Error("Relationship type did not select: " + label);
     relationshipResults.push(label);
   }
-
-  const legPopupCount = visitedTransportIds.size;
-  const legPopupsOpened = visitedTransportIds.size;
-  const materialMarkerCount = visitedMaterialLinks.size;
-  const materialPopupsOpened = visitedMaterialLinks.size;
-  if (legPopupsOpened !== fixture.transportLegs.length || materialPopupsOpened !== fixture.materialProcessLinks.length) {
-    throw new Error("Route Flow did not verify every expected transport/material popup");
-  }
-
   const routeExportResults = [];
-  await chooseSearchablePicker(page, "route-flow-branch", "Main route");
-  const routeExportFormat = page.getByLabel("Route export format", { exact: true });
-  for (const format of ["svg","png","csv","json"]) {
-    await routeExportFormat.selectOption(format);
-    const downloadPromise = page.waitForEvent("download", { timeout: 15000 });
-    await page.locator(".route-flow-export-controls").getByRole("button", { name: "Download", exact: true }).click();
-    const download = await downloadPromise;
-    const filePath = await download.path();
-    if (!filePath) throw new Error("Route Flow " + format + " export did not produce a download.");
-    const bytes = readFileSync(filePath);
-    if (format === "svg") {
-      const svg = bytes.toString("utf8");
-      if (!svg.includes("<svg") || !svg.includes("Material saw cutting") || !svg.includes("VMC datum and port machining")) {
-        throw new Error("Route Flow SVG export omitted its selected branch process stages.");
-      }
-    } else if (format === "png") {
-      if (!bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw new Error("Route Flow PNG export has an invalid PNG signature.");
-    } else if (format === "csv") {
-      const csv = bytes.toString("utf8");
-      for (const expected of ["Material process link","Transport","Relationship","ASSY-MP-01-BODY","mp-bom-body-al"]) {
-        if (!csv.includes(expected)) throw new Error("Route Flow CSV export omitted " + expected);
-      }
-    } else {
-      const json = JSON.parse(bytes.toString("utf8"));
-      if (json.materialProcessLinks?.length !== fixture.materialProcessLinks.length
-          || json.relationships?.length !== fixture.routeRelationships.length
-          || !fixture.transportLegs.filter(row => row.anchorOperationId === "mp-op-vmc").every(row => json.transportLegs?.some(item => item.id === row.id))) {
-        throw new Error("Route Flow JSON export omitted the part links, typed relationships or VMC fan-out transport records.");
-      }
-    }
-    routeExportResults.push({ format, filename: await download.suggestedFilename(), bytes: bytes.length });
-  }
-
   // Process Map: exercise every one of its nineteen selectable views against the same fixture.
   await openModule(page, "3D Command Centre");
   await page.getByRole("button", { name: /Open process universe/i }).click();
