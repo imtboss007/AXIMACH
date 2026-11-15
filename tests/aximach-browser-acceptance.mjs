@@ -252,7 +252,7 @@ async function main() {
   await chooseRouteFlowScope(page);
   // The in-app demo must exercise the same multipart fixture in the actual Route Flow workspace.
   await page.getByRole("button", { name: "Open multi-part demo" }).click();
-  const multipartDemo = page.getByRole("region", { name: "One component multi-part route and transport demonstration" });
+  const multipartDemo = page.getByRole("region", { name: "Two component five part route and transport demonstration" });
   await multipartDemo.waitFor({ state: "visible", timeout: 5000 });
   for (const phrase of ["One assembly", "three part routes", "ASSY-MP-01-BODY", "ASSY-MP-01-SHAFT", "ASSY-MP-01-COVER"]) {
     if (!(await multipartDemo.innerText()).includes(phrase)) throw new Error("Route Flow multipart demo omitted " + phrase);
