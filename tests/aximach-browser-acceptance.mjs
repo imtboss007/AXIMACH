@@ -262,11 +262,15 @@ async function main() {
   for (const part of fixture.parts) {
     if (!demoText.includes(part.partNumber)) throw new Error("Integrated demo omitted child part " + part.partNumber);
   }
+  await multipartDemo.getByRole("tab", { name: "Part process routes" }).click();
   const partFilter = multipartDemo.getByLabel("Filter demo by part");
   for (const part of fixture.parts) {
     await partFilter.selectOption(part.id);
     const partView = await multipartDemo.innerText();
     if (!partView.includes(part.partNumber)) throw new Error("Part filter failed to select " + part.partNumber);
+    for (const otherPart of fixture.parts.filter(row => row.id !== part.id)) {
+      if (partView.includes(otherPart.partNumber)) throw new Error("Part filter leaked another part route: " + otherPart.partNumber);
+    }
   }
   await partFilter.selectOption("all");
   await multipartDemo.getByRole("tab", { name: "Relationship types" }).click();
@@ -277,8 +281,8 @@ async function main() {
   await multipartDemo.getByRole("tab", { name: "Transport legs" }).click();
   const transportDemoText = await multipartDemo.innerText();
   for (const leg of fixture.transportLegs) {
-    if (!transportDemoText.includes(leg.vehicleType) || !transportDemoText.includes(leg.id)) {
-      throw new Error("Integrated demo omitted saved transport leg " + leg.id + " / " + leg.vehicleType);
+    if (!transportDemoText.includes(leg.vehicleType) || !transportDemoText.includes(leg.fromLocation) || !transportDemoText.includes(leg.toLocation)) {
+      throw new Error("Integrated demo omitted saved transport leg route " + leg.id + " / " + leg.vehicleType);
     }
   }
   await multipartDemo.getByRole("tab", { name: "All vehicles" }).click();
@@ -289,7 +293,7 @@ async function main() {
   await multipartDemo.getByRole("tab", { name: "Material feeds" }).click();
   const materialDemoText = await multipartDemo.innerText();
   for (const link of fixture.materialProcessLinks) {
-    if (!materialDemoText.includes(link.poLineId)) throw new Error("Integrated demo omitted part-scoped material feed " + link.id);
+    if (!materialDemoText.includes(link.bomLineId)) throw new Error("Integrated demo omitted part-scoped material feed " + link.id);
   }
   await multipartDemo.getByRole("tab", { name: "20-module coverage" }).click();
   const moduleDemoText = await multipartDemo.innerText();
