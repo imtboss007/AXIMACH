@@ -1419,8 +1419,11 @@ async function twoComponentAllModuleAcceptance() {
       vehicles: new Set(vehicles.map(row => row.vehicleType)).size,
       transportRoutes: data.transportRoutes?.length || 0,
       transportLegs: vehicles.length,
+      materials: data.materials?.length || 0,
       bomLines: data.bomLines?.length || 0,
       materialProcessLinks: data.materialProcessLinks?.length || 0,
+      materialCosts: data.materialCostEntries?.length || 0,
+      materialShapes: new Set((data.materialCostEntries || []).map(row => row.shapeType)).size,
       quotations: data.quotations?.length || 0,
       paymentTransactions: data.paymentTransactions?.length || 0,
       inspections: data.inspectionMeasurements?.length || 0,
@@ -1433,8 +1436,8 @@ async function twoComponentAllModuleAcceptance() {
   }, { key: seedKey });
   const expected = {
     components: 2, parts: 5, partLines: 5, operations: 37, relationshipTypes: 11,
-    vehicles: 16, transportRoutes: 16, transportLegs: 16, bomLines: 11,
-    materialProcessLinks: 11, quotations: 5, paymentTransactions: 5,
+    vehicles: 16, transportRoutes: 16, transportLegs: 16, materials: 10, bomLines: 13,
+    materialProcessLinks: 13, materialCosts: 13, materialShapes: 13, quotations: 5, paymentTransactions: 5,
     inspections: 5, stockKinds: 10, contacts: 4, processDefinitions: 24,
     plannedCosts: 16, followUps: 2
   };
