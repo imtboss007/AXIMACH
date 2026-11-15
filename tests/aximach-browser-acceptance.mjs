@@ -458,7 +458,7 @@ async function main() {
       const match = details.match(/Material allocation ID:\s*(mp-cost-[A-Za-z0-9-]+)/);
       if (!match || !details.includes("MATERIAL MOVEMENT ROUTE")) throw new Error("Inbound material transport popup lost its exact material allocation record: " + details);
       const materialRecord = fixture.materialCostEntries.find(row => row.id === match[1]);
-      contactLinkResults.push(await assertVendorContactLinks(dialog, materialRecord?.vendorId, "Manufacturing Universe material " + match[1]));
+      contactLinkResults.push(await assertVendorContactLinks(dialog, materialRecord?.transportVendorId, "Manufacturing Universe material transport " + match[1]));
       universeMaterialTransportIds.add(match[1]);
       await dialog.getByRole("button", { name: "Close transport details" }).click();
     } else {
