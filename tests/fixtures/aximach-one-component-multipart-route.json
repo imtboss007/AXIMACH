@@ -3917,7 +3917,7 @@
     {
       "id": "mp-leg-vehicle-03",
       "routeId": "mp-route-vehicle-03",
-      "vendorId": "mp-vendor-haul",
+      "vendorId": "mp-vendor-heat",
       "componentId": "mp-component-02",
       "poId": "mp-po",
       "poLineId": "mp-line-ax-1002",
@@ -4017,7 +4017,7 @@
     {
       "id": "mp-leg-vehicle-07",
       "routeId": "mp-route-vehicle-07",
-      "vendorId": "mp-vendor-haul",
+      "vendorId": "mp-vendor-heat",
       "componentId": "mp-component-02",
       "poId": "mp-po",
       "poLineId": "mp-line-ax-1004",
@@ -4117,7 +4117,7 @@
     {
       "id": "mp-leg-vehicle-11",
       "routeId": "mp-route-vehicle-11",
-      "vendorId": "mp-vendor-haul",
+      "vendorId": "mp-vendor-heat",
       "componentId": "mp-component",
       "poId": "mp-po",
       "poLineId": "mp-line-ax-1001",
@@ -4217,7 +4217,7 @@
     {
       "id": "mp-leg-vehicle-15",
       "routeId": "mp-route-vehicle-15",
-      "vendorId": "mp-vendor-haul",
+      "vendorId": "mp-vendor-heat",
       "componentId": "mp-component",
       "poId": "mp-po",
       "poLineId": "mp-line-ax-1003",
