@@ -128,3 +128,19 @@ The optional two-company demo generator in `src/aximachDemoData.ts` is aligned t
 - Inspection rows are explicitly synthetic and are not physical measurement results or proof of a part passing inspection.
 - All example company, component, supplier, PO, material, quote, payment, quality, stock and follow-up records are synthetic test data. `liveSeed:false`; never auto-import this dataset into a user's production records.
 - Physical PC/Android round-trip sync, real touch hit-targets, WebGL depth ordering, print/PDF rendering and spreadsheet image rendering remain separate device acceptance checks. CI source tests or browser emulation do not certify these physical-device behaviours.
+
+## Two-component / five-part comprehensive acceptance scenario
+
+The canonical integrated fixture is `tests/fixtures/aximach-one-component-multipart-route.json`. Its historical filename is retained for compatibility; the fixture now contains exactly two parent Component Master assemblies and five distinct child part records. Each child part has its own part-level PO line, independent process chain, BOM/material allocations, material-to-process links, route relationships and transport legs. It is synthetic and is never automatically loaded into live workspace data.
+
+The in-app preview is shared by Process Map, Route Flow, Transport Directory and Transport & Dispatch. It has seven views: Assemblies & parts, Part process routes, Relationship types, Transport legs, All vehicles, Material feeds and 20-module coverage. The fixture contains:
+- 2 parent assemblies, 5 child parts and 5 distinct part-level PO lines.
+- 37 process operations, including independent main, alternate and rework branches for each part.
+- All 11 route relationship types on every part-level route, with valid same-line endpoints and lifecycle states.
+- All 16 configured vehicle categories in saved Transport Directory route masters and saved component transport legs at the same time.
+- Multi-material BOMs, material input/consumable/WIP/output feeds, both before/after placements and material cost rows for every part.
+- Cross-module quote, payment, inspection, inventory, vendor, contact, follow-up and planned-cost records, with declared coverage for all 20 modules.
+- Representative process, quotation, inspection, job and transport lifecycle options, including planned, queued, running, complete, delayed, quality hold and rejected states.
+
+Automated coverage is in `tests/aximach-two-component-comprehensive.test.mjs`, with the existing five-part, material-link and transport-route test suites. The browser acceptance seed now inserts both parent components and the five part-level lines into the isolated browser test profile only. This is a synthetic coverage scenario, not a production-ready certification; visual, touch, orientation and device-specific acceptance still require the configured PC and Android devices.
+
