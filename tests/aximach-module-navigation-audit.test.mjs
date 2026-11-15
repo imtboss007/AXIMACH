@@ -378,3 +378,20 @@ test("Transport Directory and Route Flow offer road, air, rail, sea and multimod
   assert.ok(routeFlow.includes("...VEHICLE_TYPES"), "Route Flow must inherit the shared transport catalogue");
   assert.ok(routeFlow.includes("allowCustom"), "Route Flow must continue to allow custom vehicle labels");
 });
+
+test("Component Master deletion preserves sync-safe tombstones, linked record history and immutable stock transactions", () => {
+  const master = read("../src/ManufacturingMasterWorkspace.tsx");
+  const data = read("../src/manufacturingData.ts");
+  const start = master.indexOf("const deleteComponents =");
+  const end = master.indexOf("const deletePurchaseOrders =", start);
+  const deletion = master.slice(start, end);
+  assert.ok(deletion.includes("components:deactivate(current.components"), "component deletion must write a tombstone, not physically remove the master row");
+  assert.ok(deletion.includes("purchaseOrders:current.purchaseOrders.map"), "parent purchase orders must remain available");
+  assert.ok(deletion.includes("lines:deactivate(po.lines"), "linked PO component lines must retain their own tombstones");
+  for (const collection of ["operations", "routeRelationships", "materialProcessLinks", "quotations", "transportLegs", "paymentTransactions", "inspectionMeasurements", "bomLines", "componentParts", "materialCostEntries", "plannedCosts"]) {
+    assert.ok(deletion.includes(collection + ":deactivate("), collection + " must be deactivated using a sync-safe tombstone");
+  }
+  assert.ok(deletion.includes("// Inventory transactions are immutable stock history"), "stock ledger history must not be erased when a component master is archived");
+  assert.ok(!deletion.includes("inventoryTransactions:"), "component deletion must not mutate the append-only inventory transaction ledger");
+  assert.ok(data.includes("if (!old || localTime >= remoteTime) rows.set(row.id, row)"), "the newer local tombstone must win over an older remote active record during merge");
+});
