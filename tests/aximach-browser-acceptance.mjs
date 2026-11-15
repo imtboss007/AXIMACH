@@ -415,11 +415,26 @@ async function main() {
     universeModeResults.push(label);
   }
 
+  // This navigation opens the exact selected PO-line route. First prove its
+  // transport markers are isolated to that PO line, then switch to enterprise
+  // scope before checking every fixture transport record across all five parts.
+  const selectedLineTransportButtons = page.locator('button[aria-label*="transport record" i]');
+  const selectedLineTransportCount = await selectedLineTransportButtons.count();
+  const selectedLineOutboundCount = fixture.transportLegs.filter(row => row.poLineId === fixture.poLine.id).length;
+  const selectedLineInboundEntries = fixture.materialCostEntries.filter(row => row.poLineId === fixture.poLine.id);
+  if (selectedLineTransportCount !== selectedLineOutboundCount + selectedLineInboundEntries.length) {
+    throw new Error("Manufacturing Universe selected PO-line scope exposed " + selectedLineTransportCount +
+      " transport records; expected " + selectedLineOutboundCount + " outbound legs + " + selectedLineInboundEntries.length + " inbound material movements.");
+  }
+  await page.getByRole("button", { name: "Enterprise-wide live universe", exact: true }).click();
+  await page.waitForTimeout(300);
   const universeTransportButtons = page.locator('button[aria-label*="transport record" i]');
   const universeTransportCount = await universeTransportButtons.count();
   const expectedInboundCount = fixture.materialCostEntries.length;
-  if (universeTransportCount < fixture.transportLegs.length + expectedInboundCount) {
-    throw new Error("Manufacturing Universe did not expose all outbound legs and inbound material transport records; found " + universeTransportCount);
+  const expectedUniverseTransportCount = fixture.transportLegs.length + expectedInboundCount;
+  if (universeTransportCount !== expectedUniverseTransportCount) {
+    throw new Error("Manufacturing Universe enterprise scope did not expose all outbound legs and inbound material transport records; expected " +
+      expectedUniverseTransportCount + ", found " + universeTransportCount);
   }
   const universeTransportIds = new Set();
   const universeMaterialTransportIds = new Set();
