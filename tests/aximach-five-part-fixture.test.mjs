@@ -614,7 +614,7 @@ test("Five fixture parts create independent multi-process routes linked by stabl
     }));
   });
   for (const part of fixture.parts) {
-    const route = linked.filter(row => row.componentId === part.componentId);
+    const route = linked.filter(row => row.componentId === part.componentId && row.poLineId === "line:" + part.partNumber);
     assert.equal(route.length, part.processes.length);
     assert.ok(route.length >= 4);
     assert.ok(route.every(row => row.poId === "po:two-assembly-acceptance" && row.poLineId === "line:" + part.partNumber));
