@@ -263,7 +263,39 @@ async function componentCrud() {
   await row.getByRole("button", { name: "Delete", exact: true }).click();
   await p.waitForTimeout(250);
   if (await p.locator(".module-record-card").filter({ hasText: partNo }).count()) throw new Error("Deleted component remains in the active directory.");
-  await finishScenario(s, "Component Directory Add/Edit/Save/Delete");
+
+  // Delete the linked fixture component to verify sync-safe tombstones and retained stock history.
+  const linkedRow = p.locator(".module-record-card").filter({ hasText: fixture.component.partNumber }).first();
+  await visible(linkedRow, "linked fixture component");
+  await p.evaluate(({ key, componentId }) => {
+    const data = JSON.parse(localStorage.getItem(key) || "{}");
+    data.inventoryTransactions = [...(data.inventoryTransactions || []), {
+      id: "test-component-stock-history", itemType: "component", itemId: componentId,
+      transactionType: "Receipt", direction: "in", quantity: 7, occurredAt: new Date().toISOString(),
+      reference: "COMPONENT-TOMBSTONE-TEST", notes: "Immutable stock history regression",
+      companyId: "", factoryId: "", poId: "", poLineId: "", operationId: "", vendorId: "",
+      reversalOfId: "", createdAt: new Date().toISOString(), createdBy: "acceptance-test"
+    }];
+    localStorage.setItem(key, JSON.stringify(data));
+    window.dispatchEvent(new CustomEvent("aximach-manufacturing-data-updated", { detail: data }));
+  }, { key: seedKey, componentId: fixture.component.id });
+  await linkedRow.getByRole("button", { name: "Delete", exact: true }).click();
+  await p.waitForTimeout(300);
+  const deletion = await p.evaluate(({ key, componentId, poLineId }) => {
+    const data = JSON.parse(localStorage.getItem(key) || "{}");
+    return {
+      component: data.components.find(row => row.id === componentId),
+      line: data.purchaseOrders.flatMap(po => po.lines || []).find(row => row.id === poLineId),
+      activeOperations: data.operations.filter(row => row.componentId === componentId && !row.deletedAt).length,
+      activeTransportLegs: data.transportLegs.filter(row => row.componentId === componentId && !row.deletedAt).length,
+      stockHistory: data.inventoryTransactions.find(row => row.id === "test-component-stock-history")
+    };
+  }, { key: seedKey, componentId: fixture.component.id, poLineId: fixture.poLine.id });
+  if (!deletion.component?.deletedAt || !deletion.component?.updatedAt) throw new Error("Component deletion must retain a timestamped sync tombstone.");
+  if (!deletion.line?.deletedAt || !deletion.line?.updatedAt) throw new Error("Linked PO component line must retain its own deletion tombstone.");
+  if (deletion.activeOperations || deletion.activeTransportLegs) throw new Error("Linked operations and transport legs must be inactive after component deletion.");
+  if (deletion.stockHistory?.quantity !== 7 || deletion.stockHistory?.deletedAt) throw new Error("Component deletion must retain immutable inventory transaction history.");
+  await finishScenario(s, "Component Directory Add/Edit/Save/Delete with linked sync tombstones and stock history");
 }
 async function purchaseOrderCrud() {
   const s = await newScenario(), p = s.page;
