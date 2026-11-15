@@ -135,6 +135,10 @@ test("all thirteen material calculator stock-shape options are saved against exa
     assert.ok(linesById.has(row.poLineId));
     assert.equal(linesByPartId.get(row.partId)?.id,row.poLineId);
     assert.ok(row.dimensions&&Object.values(row.dimensions).every(value=>Number.isFinite(Number(value))&&Number(value)>0));
+    const material=materialsById.get(row.materialId);
+    assert.ok(material);
+    assert.equal(row.priceUnit,material.priceUnit);
+    assert.equal(row.densityKgM3,material.densityUnit==="g/cm3"?material.densityKgM3*1000:material.densityKgM3);
     assert.ok(row.weightPerPieceKg>0&&row.totalWeightKg>0&&row.materialRate>0&&row.materialCost>0);
   }
 });
