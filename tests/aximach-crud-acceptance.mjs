@@ -309,19 +309,72 @@ async function purchaseOrderCrud() {
   await componentPicker.waitFor({ state: "visible", timeout: 8000 });
   await componentPicker.fill(fixture.component.partNumber);
   await p.getByRole("option").filter({ hasText: fixture.component.partNumber }).first().click();
-  const quantity = p.locator(".po-line-form input[type='number']").first();
-  await quantity.fill("4");
+  await p.locator(".po-line-form input[type='number']").first().fill("4");
+  await p.getByRole("button", { name: "Add component line" }).click();
+  const secondPicker = p.locator('input[id^="po-line-component-"]').nth(1);
+  await secondPicker.fill(fixture.component.partNumber);
+  await p.getByRole("option").filter({ hasText: fixture.component.partNumber }).last().click();
+  await p.locator(".po-line-form input[type='number']").nth(1).fill("6");
   await p.getByRole("button", { name: "Save purchase order" }).click();
   let row = p.locator(".module-record-card").filter({ hasText: poNo }).first();
   await visible(row, "new PO row");
+  const initialIds = await p.evaluate(({ key, number }) => {
+    const po = (JSON.parse(localStorage.getItem(key) || "{}").purchaseOrders || []).find(item => item.number === number);
+    return { poId: po?.id, firstLineId: po?.lines?.[0]?.id, secondLineId: po?.lines?.[1]?.id };
+  }, { key: seedKey, number: poNo });
+  if (!initialIds.poId || !initialIds.secondLineId) throw new Error("PO must persist two independent stable component-line IDs.");
+  await p.evaluate(({ key, poId, lineId }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}"), stamp = new Date().toISOString();
+    root.operations = [...(root.operations || []), { id: "test-po-retired-line-operation", poId, poLineId: lineId, componentId: "", name: "Retired line operation", status: "Queued", updatedAt: stamp }];
+    localStorage.setItem(key, JSON.stringify(root));
+    window.dispatchEvent(new CustomEvent("aximach-manufacturing-data-updated", { detail: root }));
+  }, { key: seedKey, poId: initialIds.poId, lineId: initialIds.secondLineId });
   await row.getByRole("button", { name: "Edit", exact: true }).click();
   await p.getByPlaceholder("Enter the customer's actual PO number").fill(poNo + "-UPDATED");
+  await p.getByRole("button", { name: "Remove line 2" }).click();
   await p.getByRole("button", { name: "Save purchase order" }).click();
   row = p.locator(".module-record-card").filter({ hasText: poNo + "-UPDATED" }).first();
   await visible(row, "updated PO row");
+  const lineRetirement = await p.evaluate(({ key, lineId }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    return {
+      line: root.purchaseOrders.flatMap(po => po.lines || []).find(line => line.id === lineId),
+      operation: (root.operations || []).find(item => item.id === "test-po-retired-line-operation")
+    };
+  }, { key: seedKey, lineId: initialIds.secondLineId });
+  if (!lineRetirement.line?.deletedAt || !lineRetirement.operation?.deletedAt) {
+    throw new Error("Removing a saved PO line must tombstone that line and its linked operation rather than leave an active orphan.");
+  }
+  await p.evaluate(({ key, poId, lineId }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}"), stamp = new Date().toISOString();
+    root.operations = [...(root.operations || []), { id: "test-po-delete-operation", poId, poLineId: lineId, componentId: "", name: "PO delete operation", status: "Queued", updatedAt: stamp }];
+    root.inventoryTransactions = [...(root.inventoryTransactions || []), {
+      id: "test-po-stock-history", itemType: "component", itemId: "fixture-component", transactionType: "Receipt",
+      direction: "in", quantity: 9, occurredAt: stamp, reference: "PO-DELETE-IMMUTABLE-LEDGER", notes: "Retain stock history",
+      companyId: "", factoryId: "", poId, poLineId: lineId, operationId: "", vendorId: "", reversalOfId: "",
+      createdAt: stamp, createdBy: "acceptance-test"
+    }];
+    localStorage.setItem(key, JSON.stringify(root));
+    window.dispatchEvent(new CustomEvent("aximach-manufacturing-data-updated", { detail: root }));
+  }, { key: seedKey, poId: initialIds.poId, lineId: initialIds.firstLineId });
   await row.getByRole("button", { name: "Delete", exact: true }).click();
   await p.waitForTimeout(250);
-  if (await p.locator(".module-record-card").filter({ hasText: poNo + "-UPDATED" }).count()) throw new Error("Deleted PO remains in the active directory.");
+  if (await p.locator(".module-record-card").filter({ hasText: poNo + "-UPDATED" }).count()) throw new Error("Archived PO remains in the active directory.");
+  const deletion = await p.evaluate(({ key, poId, lineId }) => {
+    const root = JSON.parse(localStorage.getItem(key) || "{}");
+    return {
+      po: root.purchaseOrders.find(item => item.id === poId),
+      line: root.purchaseOrders.flatMap(po => po.lines || []).find(item => item.id === lineId),
+      operation: (root.operations || []).find(item => item.id === "test-po-delete-operation"),
+      stock: (root.inventoryTransactions || []).find(item => item.id === "test-po-stock-history")
+    };
+  }, { key: seedKey, poId: initialIds.poId, lineId: initialIds.firstLineId });
+  if (!deletion.po?.deletedAt || !deletion.line?.deletedAt || !deletion.operation?.deletedAt) {
+    throw new Error("PO deletion must preserve timestamped tombstones for the PO, its lines and linked operations.");
+  }
+  if (deletion.stock?.quantity !== 9 || deletion.stock?.deletedAt) {
+    throw new Error("PO deletion must retain immutable inventory transaction history.");
+  }
   await finishScenario(s, "Purchase Orders Add/Edit/Save/Delete with component line");
 }
 async function vendorCrud() {
