@@ -259,7 +259,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
         materialProcessLinks: deactivate(current.materialProcessLinks || [], row => retiredLineIds.has(row.poLineId) || operationIds.has(row.operationId)),
         quotations: deactivate(current.quotations, row => retiredLineIds.has(row.poLineId)),
         transportLegs: deactivate(current.transportLegs, row => retiredLineIds.has(row.poLineId)),
-        materialCostEntries: deactivate(current.materialCostEntries || [], row => retiredLineIds.has(row.poLineId)),
+        materialCostEntries: deactivate(current.materialCostEntries || [], row => Boolean(row.poLineId && retiredLineIds.has(row.poLineId))),
         paymentTransactions: deactivate(current.paymentTransactions, row => retiredLineIds.has(row.poLineId)),
         inspectionMeasurements: deactivate(current.inspectionMeasurements, row => retiredLineIds.has(row.poLineId)),
         followUpAssignments: deactivate(current.followUpAssignments || [], row => retiredLineIds.has(row.recordId) || operationIds.has(row.recordId))
@@ -329,7 +329,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
       quotations:deactivate(current.quotations,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
       transportLegs:deactivate(current.transportLegs,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
       paymentTransactions:deactivate(current.paymentTransactions,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
-      materialCostEntries:deactivate(current.materialCostEntries||[],row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
+      materialCostEntries:deactivate(current.materialCostEntries||[],row=>Boolean((row.poId&&targetIds.has(row.poId))||(row.poLineId&&lineIds.has(row.poLineId)))),
       plannedCosts:deactivate(current.plannedCosts,row=>Boolean(row.poId&&targetIds.has(row.poId))),
       inspectionMeasurements:deactivate(current.inspectionMeasurements,row=>targetIds.has(row.poId)||lineIds.has(row.poLineId)),
       // Inventory transactions are an append-only stock ledger: never erase them when a PO is archived.
