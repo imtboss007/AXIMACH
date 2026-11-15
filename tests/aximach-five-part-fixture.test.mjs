@@ -1687,7 +1687,7 @@ test("purchase-order archival tombstones PO-linked material budgets and retains 
   const purchaseStart = master.indexOf("const deletePurchaseOrders =");
   const exportStart = master.indexOf("const exportComponentsExcel =", purchaseStart);
   const purchaseDelete = master.slice(purchaseStart, exportStart);
-  assert.ok(purchaseDelete.includes("materialCostEntries:deactivate(current.materialCostEntries||[],row=>targetIds.has(row.poId)||lineIds.has(row.poLineId))"), "PO-linked material-cost entries must be tombstoned while standalone budgets remain active");
+  assert.ok(purchaseDelete.includes("materialCostEntries:deactivate(current.materialCostEntries||[],row=>Boolean((row.poId&&targetIds.has(row.poId))||(row.poLineId&&lineIds.has(row.poLineId))))"), "PO-linked material-cost entries must be tombstoned while standalone budgets remain active");
   assert.ok(purchaseDelete.includes("plannedCosts:deactivate(current.plannedCosts,row=>Boolean(row.poId&&targetIds.has(row.poId)))"));
   assert.ok(!purchaseDelete.includes("componentParts:"), "component-part master records must survive PO archival because they belong to the component master");
   assert.ok(purchaseDelete.includes("// Inventory transactions are an append-only stock ledger: never erase them when a PO is archived."));
