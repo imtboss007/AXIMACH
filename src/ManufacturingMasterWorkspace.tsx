@@ -252,32 +252,34 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const deleteComponents = (ids:string[]) => {
     const targets=components.filter(row=>ids.includes(row.id));
     if(!targets.length)return;
-    if(!window.confirm("Permanently delete "+targets.length+" component master record(s), their PO lines and linked operations, route relationships, material-process links, transport, stock, quotations, payments, inspections, BOM and planned-cost records? Empty PO headers will be retained. This cannot be undone."))return;
+    if(!window.confirm("Archive "+targets.length+" component master record(s) and deactivate their linked PO lines, operations, route relationships, material links, transport, quotations, payments, inspections, BOM and planned-cost records? PO headers and immutable inventory transaction history will be retained. This can be reviewed from backup/history; continue?"))return;
     const targetIds=new Set(targets.map(row=>row.id));
     const affectedLines=orders.flatMap(po=>po.lines.filter(line=>targetIds.has(line.componentId)).map(line=>({poId:po.id,lineId:line.id})));
     const lineIds=new Set(affectedLines.map(row=>row.lineId));
-    const operationIds=new Set(activeRows(data.operations).filter(row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)).map(row=>row.id));
+    const operationIds=new Set(data.operations.filter(row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)).map(row=>row.id));
     const stamp=nowIso();
+    const deactivate=<T extends {deletedAt?:string;updatedAt?:string}>(rows:T[],matches:(row:T)=>boolean)=>rows.map(row=>matches(row)?{...row,deletedAt:stamp,updatedAt:stamp}:row);
     update(current=>({...current,
-      components:current.components.filter(row=>!targetIds.has(row.id)),
-      // Keep the parent PO and its header/history even when this was its last component line.
-      purchaseOrders:current.purchaseOrders.map(po=>({...po,lines:po.lines.filter(line=>!targetIds.has(line.componentId)),updatedAt:stamp})),
-      operations:current.operations.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
-      routeRelationships:(current.routeRelationships||[]).filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.fromOperationId)&&!operationIds.has(row.toOperationId)),
-      materialProcessLinks:(current.materialProcessLinks||[]).filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
-      quotations:current.quotations.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
-      transportLegs:current.transportLegs.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
-      paymentTransactions:current.paymentTransactions.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
-      inspectionMeasurements:current.inspectionMeasurements.filter(row=>!targetIds.has(row.componentId)&&!lineIds.has(row.poLineId)),
-      inventoryTransactions:current.inventoryTransactions.filter(row=>!(row.itemType==="component"&&targetIds.has(row.itemId))&&!lineIds.has(row.poLineId)&&!operationIds.has(row.operationId)),
-      bomLines:current.bomLines.filter(row=>!targetIds.has(row.componentId)),
-      componentParts:(current.componentParts||[]).filter(row=>!targetIds.has(row.componentId)),
-      materialCostEntries:(current.materialCostEntries||[]).filter(row=>!targetIds.has(row.componentId)),
-      plannedCosts:current.plannedCosts.filter(row=>!row.componentId||!targetIds.has(row.componentId)),
-      followUpAssignments:(current.followUpAssignments||[]).map(row=>targetIds.has(row.recordId)||operationIds.has(row.recordId)?{...row,deletedAt:stamp,updatedAt:stamp}:row)
+      // Preserve a timestamped tombstone so another synced device cannot resurrect the deleted master.
+      components:deactivate(current.components,row=>targetIds.has(row.id)),
+      // Keep PO headers and line history; hide affected lines using their own tombstones.
+      purchaseOrders:current.purchaseOrders.map(po=>({...po,updatedAt:stamp,lines:deactivate(po.lines,line=>targetIds.has(line.componentId))})),
+      operations:deactivate(current.operations,row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)),
+      routeRelationships:deactivate(current.routeRelationships||[],row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)||operationIds.has(row.fromOperationId)||operationIds.has(row.toOperationId)),
+      materialProcessLinks:deactivate(current.materialProcessLinks||[],row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)||operationIds.has(row.operationId)),
+      quotations:deactivate(current.quotations,row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)),
+      transportLegs:deactivate(current.transportLegs,row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)),
+      paymentTransactions:deactivate(current.paymentTransactions,row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)),
+      inspectionMeasurements:deactivate(current.inspectionMeasurements,row=>targetIds.has(row.componentId)||lineIds.has(row.poLineId)),
+      // Inventory transactions are immutable stock history and must not be erased with a master record.
+      bomLines:deactivate(current.bomLines,row=>targetIds.has(row.componentId)),
+      componentParts:deactivate(current.componentParts||[],row=>targetIds.has(row.componentId)),
+      materialCostEntries:deactivate(current.materialCostEntries||[],row=>targetIds.has(row.componentId)),
+      plannedCosts:deactivate(current.plannedCosts,row=>Boolean(row.componentId&&targetIds.has(row.componentId))),
+      followUpAssignments:deactivate(current.followUpAssignments||[],row=>targetIds.has(row.recordId)||operationIds.has(row.recordId))
     }));
     setSelectedComponentIds(current=>current.filter(id=>!targetIds.has(id)));
-    onNotice(targets.length+" component(s) permanently deleted. Dependent route, material, stock and operational links were removed; PO headers were retained.");
+    onNotice(targets.length+" component(s) archived with sync-safe tombstones. Linked PO lines and operational records are inactive; PO headers and immutable inventory history are retained.");
   };
   const deletePurchaseOrders = (ids:string[]) => {
     const targets=orders.filter(row=>ids.includes(row.id));if(!targets.length)return;
