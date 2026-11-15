@@ -67,13 +67,17 @@ test("multi-route example is visible and interactive in both Process Map and Tra
   assert.ok(routeFlow.includes("Open multi-part demo"));
   assert.ok(directory.includes("<TransportRoutingDemo onClose="));
   assert.ok(demo.includes("Next process"));
-  assert.ok(demo.includes("Add alternative 4-wheeler carrier leg"));
-  assert.ok(demo.includes("One assembly"));
+  assert.ok(demo.includes("All vehicles"));
+  assert.ok(demo.includes("Two assemblies"));
   assert.ok(demo.includes("Part process routes"));
   assert.ok(demo.includes("Relationship types"));
   assert.ok(demo.includes("Transport legs"));
-  assert.ok(demo.includes("Carrier options"));
-  assert.ok(demo.includes("{VEHICLE_TYPES.map(type=><VehicleBadge"));
+  assert.ok(demo.includes("All vehicles"));
+  assert.ok(demo.includes("Material feeds"));
+  assert.ok(demo.includes("20-module coverage"));
+  assert.ok(demo.includes("fixture.transportRoutes.map((route:any)=><VehicleBadge"));
+  const fixture=JSON.parse(readFileSync(new URL("./fixtures/aximach-one-component-multipart-route.json",import.meta.url),"utf8"));
+  assert.equal(new Set(fixture.transportLegs.map(row=>row.vehicleType)).size,16);
 });
 
 test("Module Universe cards remain compact and scroll within the viewport", () => {
@@ -104,7 +108,7 @@ test("every supported vehicle category is displayed with a permanent visual iden
   const visuals = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
   const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
   assert.ok(visuals.includes('if (/heavy.?duty/.test(value))'));
-  assert.ok(demo.includes("{VEHICLE_TYPES.map(type=><VehicleBadge"));
+  assert.ok(demo.includes("fixture.transportRoutes.map((route:any)=><VehicleBadge"));
   for (const type of ["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery"]) assert.ok(visuals.includes(type));
 });
 
