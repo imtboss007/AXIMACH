@@ -1,117 +1,159 @@
 import { useMemo, useState } from "react";
-import { Activity, CheckCircle2, GitBranch, RotateCcw, Truck, X } from "lucide-react";
+import { Activity, CheckCircle2, Package, Route, Truck, X } from "lucide-react";
 import fixtureJson from "../tests/fixtures/aximach-one-component-multipart-route.json";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
-import { VehicleBadge, VEHICLE_TYPES } from "./TransportVehicle";
+import { VehicleBadge } from "./TransportVehicle";
 
 type Props = { onClose?: () => void };
 const fixture = fixtureJson as any;
 const money = (value:number) => "₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 const relationshipLabels:Record<string,string> = {
-  main:"Main",alternate:"Alternate",rework:"Rework",dependency:"Dependency",parallel:"Parallel",
-  merge:"Merge",split:"Split", "follow-on":"Follow-on",feedback:"Feedback",conditional:"Conditional",successor:"Successor"
+  main:"Main route",alternate:"Alternate route",rework:"Rework route",dependency:"Dependency",parallel:"Parallel",
+  merge:"Merge",split:"Split","follow-on":"Follow-on",feedback:"Feedback",conditional:"Conditional",successor:"Successor"
 };
-const partProcessIds = (partId:string) => {
-  const part = fixture.parts.find((row:any)=>row.id===partId);
-  const branchName = part?.partNumber?.endsWith("-SHAFT") ? "Shaft branch"
-    : part?.partNumber?.endsWith("-BODY") ? "Body branch" : "Cover branch";
-  const bomIds = new Set(fixture.bomLines.filter((row:any)=>row.partId===partId).map((row:any)=>row.id));
-  const linked = fixture.materialProcessLinks.filter((row:any)=>bomIds.has(row.bomLineId)).map((row:any)=>row.operationId);
-  const sharedAndBranch = fixture.operations.filter((row:any)=>row.branch==="Main route"||row.branch===branchName).map((row:any)=>row.id);
-  return new Set<string>([...linked,...sharedAndBranch]);
+const moduleLabels:Record<string,string> = {
+  companies:"Company Directory",components:"Component Directory",purchasing:"Purchase Orders",vendors:"Vendor Directory",
+  "transport-master":"Transport Directory",contact360:"Contact 360","process-master":"Process Directory",
+  "planned-cost":"Component Planned Cost","vendor-capability":"Vendor Network",inventory:"Material Directory",
+  production:"Production Plan & Process Plan","route-flow":"Route Flow & Relationships",
+  "manufacturing-universe":"Manufacturing Universe",dispatch:"Transport & Dispatch",quality:"Quality Inspection",
+  costing:"Costing & Payment",communications:"Follow-up Centre",reports:"Reports & Analytics",
+  "ai-insights":"AI Insights",export:"Data Exchange Centre"
 };
 const partById = new Map<string, any>(fixture.parts.map((row:any)=>[row.id,row]));
+const componentById = new Map<string, any>(fixture.components.map((row:any)=>[row.id,row]));
 const operationById = new Map<string, any>(fixture.operations.map((row:any)=>[row.id,row]));
-const vendorById = new Map<string, any>(fixture.vendors.map((row:any)=>[row.id,row.company]));
 const routeById = new Map<string, any>(fixture.transportRoutes.map((row:any)=>[row.id,row]));
+const vendorById = new Map<string, any>(fixture.vendors.map((row:any)=>[row.id,row.company]));
 const materialById = new Map<string, any>(fixture.materials.map((row:any)=>[row.id,row]));
 const bomById = new Map<string, any>(fixture.bomLines.map((row:any)=>[row.id,row]));
+const lineByPartId = new Map<string, any>(fixture.purchaseOrder.lines.filter((row:any)=>row.partId).map((row:any)=>[row.partId,row]));
 
 export default function TransportRoutingDemo({onClose}:Props) {
   const [partFilter,setPartFilter] = useState("all");
-  const [view,setView] = useState("branches");
-  const [selectedLeg,setSelectedLeg] = useState("mp-leg-09");
-  const [showSecondCarrier,setShowSecondCarrier] = useState(false);
+  const [view,setView] = useState("assemblies");
+  const [selectedLeg,setSelectedLeg] = useState(fixture.transportLegs[0]?.id || "");
   const [step,setStep] = useState(-1);
-  const selectedPart = fixture.parts.find((row:any)=>row.id===partFilter);
-  const visibleOperations = useMemo(()=>fixture.operations.filter((operation:any)=>{
-    if(partFilter==="all")return true;
-    return partProcessIds(partFilter).has(operation.id);
-  }),[partFilter]);
-  const visibleLinks = fixture.materialProcessLinks.filter((link:any)=>!selectedPart||bomById.get(link.bomLineId)?.partId===selectedPart.id);
-  const visibleLegs = fixture.transportLegs.filter((leg:any)=>!selectedPart||(()=>{
-    const target=operationById.get(leg.targetOperationId||leg.anchorOperationId);
-    return !target||partProcessIds(selectedPart.id).has(target.id);
-  })());
+  const selectedPart = partById.get(partFilter);
+  const visibleLineIds = useMemo(()=>partFilter==="all"
+    ? new Set(fixture.purchaseOrder.lines.map((line:any)=>line.id))
+    : new Set([lineByPartId.get(partFilter)?.id].filter(Boolean)),[partFilter]);
+  const visibleOperations = fixture.operations.filter((operation:any)=>visibleLineIds.has(operation.poLineId))
+    .sort((a:any,b:any)=>a.sequence-b.sequence);
+  const visibleLinks = fixture.materialProcessLinks.filter((link:any)=>visibleLineIds.has(link.poLineId));
+  const visibleRelationships = fixture.routeRelationships.filter((link:any)=>visibleLineIds.has(link.poLineId));
+  const visibleLegs = fixture.transportLegs.filter((leg:any)=>visibleLineIds.has(leg.poLineId));
   const selectedLegRow = fixture.transportLegs.find((row:any)=>row.id===selectedLeg);
-  const routeOptions = fixture.transportRoutes.filter((row:any)=>row.fromLocation==="VMC subcontractor"&&row.toLocation==="CNC shaft turning supplier");
-  const allRelationshipTypes = Object.keys(relationshipLabels);
   const activeOperation = step>=0?visibleOperations[Math.min(step,visibleOperations.length-1)]:null;
-  const branchSummary = fixture.parts.map((part:any)=>({part,operations:[...partProcessIds(part.id)].map(id=>operationById.get(id)).filter(Boolean).sort((a:any,b:any)=>a.sequence-b.sequence)}));
-  const simulatedSecondLeg = showSecondCarrier?{id:"SIMULATED-ALT-CARRIER",routeId:"mp-route-12",vehicleType:"4-wheeler",vendorId:"mp-vendor-material",fromLocation:"VMC subcontractor",toLocation:"CNC shaft turning supplier",fixedAmount:650,tripCount:1,anchorOperationId:"mp-op-vmc",targetOperationId:"mp-op-turn"}:null;
-  return <section className="transport-demo-panel surface-panel" aria-label="One component multi-part route and transport demonstration">
+  const componentSummaries = fixture.components.map((component:any)=>({
+    component,
+    parts:fixture.parts.filter((part:any)=>part.componentId===component.id)
+  }));
+  const relationshipCounts = Object.keys(relationshipLabels).map(type=>({
+    type,count:visibleRelationships.filter((row:any)=>row.relationshipType===type).length
+  }));
+  const moduleCoverage = fixture.moduleIds.map((id:string)=>({
+    id,label:moduleLabels[id]||id,collections:fixture.moduleCoverage[id]||[]
+  }));
+  const partSummary = fixture.parts.map((part:any)=>({
+    part,line:lineByPartId.get(part.id),
+    operations:fixture.operations.filter((op:any)=>op.poLineId===lineByPartId.get(part.id)?.id)
+      .sort((a:any,b:any)=>a.sequence-b.sequence)
+  }));
+  const allVehicles = fixture.transportRoutes.map((route:any)=>route.vehicleType);
+  const partLabel = (id:string) => {
+    const part=partById.get(id);
+    return part ? part.partNumber+" · "+part.name : "Unassigned part";
+  };
+  return <section className="transport-demo-panel surface-panel" aria-label="Two component five part comprehensive route and transport demonstration">
     <div className="transport-demo-heading">
       <div><span className="transport-demo-kicker"><Activity size={13}/> SYNTHETIC END-TO-END DEMO · READ-ONLY PREVIEW</span>
-        <h3>One assembly · three part routes · multiple carriers</h3>
-        <p>{fixture.component.partNumber} · {fixture.component.name} · PO {fixture.purchaseOrder.number} · {fixture.poLine.quantity} assemblies</p>
+        <h3>Two assemblies · five part routes · all carriers</h3>
+        <p>{fixture.components.length} parent components · {fixture.parts.length} child parts · PO {fixture.purchaseOrder.number} · {fixture.purchaseOrder.lines.length} part-level PO lines</p>
       </div>
-      <div className="transport-demo-heading-actions"><span className="module-number">DEMO ONLY</span>{onClose&&<button type="button" className="icon-control" onClick={onClose} aria-label="Close multi-part route demo"><X size={14}/></button>}</div>
+      <div className="transport-demo-heading-actions"><span className="module-number">DEMO ONLY</span>{onClose&&<button type="button" className="icon-control" onClick={onClose} aria-label="Close two-component route demo"><X size={14}/></button>}</div>
     </div>
     <div className="transport-demo-toolbar">
-      <label>View part <select aria-label="Filter demo by part" value={partFilter} onChange={event=>{setPartFilter(event.target.value);setStep(-1);}}><option value="all">Whole assembly · all parts</option>{fixture.parts.map((part:any)=><option key={part.id} value={part.id}>{part.partNumber} · {part.name}</option>)}</select></label>
+      <label>View part <select aria-label="Filter demo by part" value={partFilter} onChange={event=>{setPartFilter(event.target.value);setStep(-1);}}>
+        <option value="all">Both assemblies · all five parts</option>
+        {fixture.components.map((component:any)=><optgroup key={component.id} label={component.partNumber+" · "+component.name}>
+          {fixture.parts.filter((part:any)=>part.componentId===component.id).map((part:any)=><option key={part.id} value={part.id}>{part.partNumber} · {part.name}</option>)}
+        </optgroup>)}
+      </select></label>
       <button type="button" className="button-primary compact-button" onClick={()=>setStep(value=>Math.min(value+1,visibleOperations.length-1))} disabled={step>=visibleOperations.length-1}><Activity size={13}/> Next process</button>
-      <button type="button" className="button-quiet compact-button" onClick={()=>setStep(-1)}><RotateCcw size={13}/> Reset</button>
+      <button type="button" className="button-quiet compact-button" onClick={()=>setStep(-1)}>Reset</button>
       <span>{step<0?"Ready to simulate": "Process "+(step+1)+" / "+visibleOperations.length}</span>
     </div>
-    {activeOperation&&<div className="transport-demo-current"><CheckCircle2 size={15}/><span>Highlighted process: <strong>{activeOperation.name}</strong> · {activeOperation.branch}</span></div>}
+    {activeOperation&&<div className="transport-demo-current"><CheckCircle2 size={15}/><span>Highlighted process: <strong>{activeOperation.name}</strong> · {partLabel(activeOperation.poLineId)}</span></div>}
     <div className="transport-demo-costs">
-      <div><small>ASSEMBLY QUANTITY</small><strong>{fixture.poLine.quantity.toLocaleString("en-IN")}</strong><span>One component PO line</span></div>
-      <div><small>PARTS</small><strong>{fixture.parts.length}</strong><span>Body · shaft · cover</span></div>
-      <div><small>PROCESS OPERATIONS</small><strong>{fixture.operations.length}</strong><span>Shared + branch-specific</span></div>
-      <div><small>RELATIONSHIPS</small><strong>{fixture.routeRelationships.length}</strong><span>{allRelationshipTypes.length} relationship types</span></div>
-      <div><small>TRANSPORT LEGS</small><strong>{fixture.transportLegs.length+(showSecondCarrier?1:0)}</strong><span>Multiple legs and destinations</span></div>
+      <div><small>PARENT COMPONENTS</small><strong>{fixture.components.length}</strong><span>Two saved assembly masters</span></div>
+      <div><small>CHILD PARTS</small><strong>{fixture.parts.length}</strong><span>Part-level identity retained</span></div>
+      <div><small>PROCESS OPERATIONS</small><strong>{visibleOperations.length}</strong><span>Main + alternate + rework</span></div>
+      <div><small>RELATIONSHIP TYPES</small><strong>{relationshipCounts.filter((row:any)=>row.count>0).length}/11</strong><span>All typed route links represented</span></div>
+      <div><small>VEHICLE CATEGORIES</small><strong>{new Set(visibleLegs.map((leg:any)=>leg.vehicleType)).size}/16</strong><span>Saved master routes + leg snapshots</span></div>
     </div>
-    <div className="transport-demo-view-tabs" role="tablist" aria-label="Demo scenario views">
-      <button type="button" role="tab" aria-selected={view==="branches"} onClick={()=>setView("branches")}>Part process routes</button>
+    <div className="transport-demo-view-tabs" role="tablist" aria-label="Two-component acceptance views">
+      <button type="button" role="tab" aria-selected={view==="assemblies"} onClick={()=>setView("assemblies")}>Assemblies & parts</button>
+      <button type="button" role="tab" aria-selected={view==="routes"} onClick={()=>setView("routes")}>Part process routes</button>
       <button type="button" role="tab" aria-selected={view==="relationships"} onClick={()=>setView("relationships")}>Relationship types</button>
       <button type="button" role="tab" aria-selected={view==="transport"} onClick={()=>setView("transport")}>Transport legs</button>
-      <button type="button" role="tab" aria-selected={view==="carriers"} onClick={()=>setView("carriers")}>Carrier options</button>
+      <button type="button" role="tab" aria-selected={view==="vehicles"} onClick={()=>setView("vehicles")}>All vehicles</button>
+      <button type="button" role="tab" aria-selected={view==="materials"} onClick={()=>setView("materials")}>Material feeds</button>
+      <button type="button" role="tab" aria-selected={view==="modules"} onClick={()=>setView("modules")}>20-module coverage</button>
     </div>
-    {view==="branches"&&<div className="transport-demo-branches">
-      {branchSummary.filter(({part}:any)=>partFilter==="all"||part.id===partFilter).map(({part,operations}:any)=><article className="transport-demo-lane" key={part.id}>
-        <div className="transport-demo-lane-title"><strong>{part.partNumber} · {part.name}</strong><small>{part.materialIds.length} material types · {operations.length} linked process steps</small></div>
+    {view==="assemblies"&&<div className="transport-demo-branches">
+      {componentSummaries.map(({component,parts}:any)=><article className="transport-demo-lane" key={component.id}>
+        <div className="transport-demo-lane-title"><strong>{component.partNumber} · {component.name}</strong><small>{parts.length} saved child parts · PO {fixture.purchaseOrder.number}</small></div>
+        <div className="transport-demo-track">{parts.map((part:any)=><div className="transport-demo-step-wrap" key={part.id}>
+          <div className="transport-demo-operation"><small>{part.partNumber}</small><strong>{part.name}</strong><span>{part.revision} · {part.precisionClass} · {part.processes.length} main process stages</span></div>
+        </div>)}</div>
+      </article>)}
+    </div>}
+    {view==="routes"&&<div className="transport-demo-branches">
+      {partSummary.filter(({part}:any)=>partFilter==="all"||part.id===partFilter).map(({part,line,operations}:any)=><article className="transport-demo-lane" key={part.id}>
+        <div className="transport-demo-lane-title"><strong>{part.partNumber} · {part.name}</strong><small>{componentById.get(part.componentId)?.partNumber} · {line?.id} · {operations.length} linked process / branch steps</small></div>
         <div className="transport-demo-track">{operations.map((operation:any,index:number)=><div className={"transport-demo-step-wrap"+(activeOperation?.id===operation.id?" is-current":"")} key={operation.id}>
-          <div className="transport-demo-operation"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><strong>{operation.name}</strong><span>{operation.branch} · {operation.quantity} pcs</span></div>
+          <div className="transport-demo-operation"><small>OP-{String(operation.sequence).padStart(3,"0")} · {operation.branch}</small><strong>{operation.name}</strong><span>{operation.status} · {operation.quantity} pcs · {operation.toleranceCategory||"No class"}</span></div>
           {index<operations.length-1&&<span className="transport-demo-arrow route-connector route-connector-main">→</span>}
         </div>)}</div>
-        <div className="transport-demo-material-summary"><strong>Part BOM / process feed</strong>{visibleLinks.filter((link:any)=>operations.some((operation:any)=>operation.id===link.operationId)).map((link:any)=><span key={link.id}>{materialById.get(link.materialId)?.code} → {operationById.get(link.operationId)?.name} · {bomById.get(link.bomLineId)?.quantityPerPart} {materialById.get(link.materialId)?.unit}/part</span>)}</div>
+        <div className="transport-demo-material-summary"><strong>Part BOM / process feed</strong>{visibleLinks.filter((link:any)=>link.poLineId===line?.id).map((link:any)=><span key={link.id}>{materialById.get(link.materialId)?.code} → {operationById.get(link.operationId)?.name} · {link.flowType} · {link.quantityPerPart} {link.unit}</span>)}</div>
       </article>)}
-      <article className="transport-demo-lane"><div className="transport-demo-lane-title"><strong>Shared assembly stages</strong><small>Common operations before branch split and final inspection / merge</small></div><div className="transport-demo-track">{fixture.operations.filter((row:any)=>["mp-op-cut","mp-op-vmc","mp-op-inspect"].includes(row.id)).map((operation:any)=><div className="transport-demo-step-wrap" key={operation.id}><div className="transport-demo-operation"><small>OP-{String(operation.sequence).padStart(3,"0")}</small><strong>{operation.name}</strong><span>Shared assembly route</span></div></div>)}</div></article>
     </div>}
     {view==="relationships"&&<div className="transport-demo-relationships">
-      <div className="transport-demo-lane-title"><strong>Saved process-to-process connections</strong><small>All 11 relationship types are represented in this one-component example</small></div>
-      {fixture.routeRelationships.map((link:any)=><div className="transport-demo-relationship-row" key={link.id}>
+      <div className="transport-demo-lane-title"><strong>Saved process-to-process relationship links</strong><small>All 11 types are saved; filter by part to see the exact PO-line route</small></div>
+      <div className="transport-demo-costs">{relationshipCounts.map((row:any)=><div key={row.type}><small>{relationshipLabels[row.type]}</small><strong>{row.count}</strong><span>Saved relationship(s)</span></div>)}</div>
+      {visibleRelationships.map((link:any)=><div className="transport-demo-relationship-row" key={link.id}>
         <span className={"route-flow-link-symbol route-flow-curve-"+link.relationshipType}>{relationshipLabels[link.relationshipType]||link.relationshipType}</span>
         <strong>{operationById.get(link.fromOperationId)?.name}</strong><span>→</span><strong>{operationById.get(link.toOperationId)?.name}</strong>
-        <small>{link.condition||link.status}</small>
+        <small>{partLabel(link.poLineId)} · {link.status}{link.condition?" · "+link.condition:""}</small>
       </div>)}
     </div>}
     {view==="transport"&&<div className="transport-demo-transport">
-      <div className="transport-demo-lane-title"><strong>Separate transport legs across multiple process destinations</strong><small>Each row retains its own route, carrier, vehicle, pickup and delivery</small></div>
+      <div className="transport-demo-lane-title"><strong>All saved transport legs across the selected assemblies</strong><small>Every leg retains route, vendor, PO line, process anchor, vehicle, trips and rate snapshot</small></div>
       {visibleLegs.map((leg:any)=><button type="button" className={"transport-demo-transport-row"+(selectedLeg===leg.id?" is-selected":"")} key={leg.id} onClick={()=>setSelectedLeg(leg.id)}>
-        <span><Truck size={15}/>{leg.vehicleType}</span><strong>{routeById.get(leg.routeId)?.fromLocation} → {routeById.get(leg.routeId)?.toLocation}</strong><small>{vendorById.get(leg.vendorId)} · {leg.id}</small><em>{money(leg.fixedAmount*leg.tripCount)}</em>
+        <span><VehicleBadge vehicleType={leg.vehicleType}/></span><strong>{leg.fromLocation} → {leg.toLocation}</strong><small>{vendorById.get(leg.vendorId)} · {partLabel(leg.poLineId)} · {leg.placement}</small><em>{leg.tripCount} × {money(leg.fixedAmount)} = {money(leg.fixedAmount*leg.tripCount)}</em>
       </button>)}
-      {selectedLegRow&&<div className="transport-demo-current"><CheckCircle2 size={15}/><span>Selected leg: <strong>{selectedLegRow.id}</strong> · {selectedLegRow.anchorOperationId?operationById.get(selectedLegRow.anchorOperationId)?.name:"Component start"} {selectedLegRow.targetOperationId?" → "+operationById.get(selectedLegRow.targetOperationId)?.name:""} · {selectedLegRow.vehicleType}</span></div>}
+      {selectedLegRow&&<div className="transport-demo-current"><CheckCircle2 size={15}/><span>Selected leg: <strong>{selectedLegRow.id}</strong> · {selectedLegRow.anchorOperationId?operationById.get(selectedLegRow.anchorOperationId)?.name:"Component start"}{selectedLegRow.targetOperationId?" → "+operationById.get(selectedLegRow.targetOperationId)?.name:""} · {selectedLegRow.status} · {selectedLegRow.tripDirection}</span></div>}
     </div>}
-    {view==="carriers"&&<div className="transport-demo-carriers">
-      <div className="transport-demo-lane-title"><strong>Same process connection · different transport options</strong><small>VMC subcontractor → CNC shaft turning supplier</small></div>
-      {routeOptions.map((route:any)=><div className="transport-demo-transport-row" key={route.id}><span><Truck size={15}/>{route.vehicleType}</span><strong>{route.fromLocation} → {route.toLocation}</strong><small>{vendorById.get(route.vendorId)} · {route.id}</small><em>{money(route.fixedAmount)}</em></div>)}
-      {simulatedSecondLeg&&<div className="transport-demo-current"><CheckCircle2 size={15}/><span>Simulation added a second carrier leg: <strong>{simulatedSecondLeg.vehicleType}</strong> · {vendorById.get(simulatedSecondLeg.vendorId)} · {money(simulatedSecondLeg.fixedAmount)}</span></div>}
-      <button type="button" className="button-primary compact-button" onClick={()=>setShowSecondCarrier(value=>!value)}>{showSecondCarrier?"Remove simulated carrier leg":"Add alternative 4-wheeler carrier leg"}</button>
-      <small>This preview demonstrates two independent carriers on the same VMC-to-shaft connection. The simulation does not write to live records.</small>
+    {view==="vehicles"&&<div className="transport-demo-carriers">
+      <div className="transport-demo-lane-title"><strong>Every supported vehicle category is represented in saved route masters and component legs</strong><small>All 16 categories are present together in this single acceptance dataset</small></div>
+      <div className="transport-demo-vehicle-legend">{fixture.transportRoutes.map((route:any)=><div className="transport-demo-transport-row" key={route.id}><VehicleBadge vehicleType={route.vehicleType}/><strong>{route.fromLocation} → {route.toLocation}</strong><small>{vendorById.get(route.vendorId)} · {route.tripDirection}</small><em>{money(route.fixedAmount)}</em></div>)}</div>
+    </div>}
+    {view==="materials"&&<div className="transport-demo-relationships">
+      <div className="transport-demo-lane-title"><strong>Multi-material BOM and material-to-process flows</strong><small>Part, BOM, material, PO line and operation IDs are independently linked</small></div>
+      {visibleLinks.map((link:any)=><div className="transport-demo-relationship-row" key={link.id}>
+        <strong>{partLabel(link.poLineId)}</strong><span>→</span><strong>{materialById.get(link.materialId)?.name}</strong><small>{bomById.get(link.bomLineId)?.id} · {link.flowType} · {link.placement} · {link.quantityPerPart} {link.unit} · {operationById.get(link.operationId)?.name}</small>
+      </div>)}
+    </div>}
+    {view==="modules"&&<div className="transport-demo-relationships">
+      <div className="transport-demo-lane-title"><strong>All 20 modules have connected records in this synthetic acceptance dataset</strong><small>Module coverage is derived from saved records; empty live customer data is not modified</small></div>
+      {moduleCoverage.map((module:any)=><div className="transport-demo-relationship-row" key={module.id}><strong>{module.label}</strong><span>{module.id}</span><small>{module.collections.join(" · ")}</small><CheckCircle2 size={15}/></div>)}
     </div>}
     <RouteConnectorLegend/>
-    <div className="transport-demo-vehicle-legend"><strong>Vehicle identity</strong>{VEHICLE_TYPES.map(type=><VehicleBadge key={type} vehicleType={type}/>)}</div>
-    <div className="transport-demo-safety"><strong>What this scenario verifies</strong><span>One component PO line → three separate part records → multiple BOM materials per part → shared VMC operation → split / parallel / alternate branch routes → multiple process destinations → distinct carriers and vehicle types → final inspection / merge.</span><span>All company, vendor, PO and material names in this scenario are synthetic. This is a read-only demo; use the live editors to create and save real records.</span></div>
+    <div className="transport-demo-vehicle-legend"><strong>Vehicle identities · all {allVehicles.length} saved master categories</strong>{fixture.transportRoutes.map((route:any)=><VehicleBadge key={route.id} vehicleType={route.vehicleType}/>)}</div>
+    <div className="transport-demo-safety"><strong>What this scenario verifies</strong>
+      <span>Two Component Master assemblies → five child parts → five part-level PO lines → independent main / alternate / rework operation chains → 11 typed relationship kinds → multi-material BOM and process feeds → all 16 transport categories → quotes, payments, inspections, stock ledger, contacts and follow-up assignments → all 20 module data domains.</span>
+      <span>All company, supplier, PO, material and process values are synthetic. This is a read-only fixture preview and does not write to live AXIMACH records.</span>
+    </div>
   </section>;
 }
