@@ -122,8 +122,15 @@ test("all sixteen supported vehicle categories are present together in Transport
 
 test("all thirteen material calculator stock-shape options are saved against exact part and PO-line records", () => {
   const shapes=["plate","flat-bar","round-bar","square-bar","hex-bar","round-tube","square-tube","rectangular-tube","angle","channel","i-beam","t-section","custom-profile"];
-  assert.deepEqual(new Set(fixture.materialCostEntries.map(row=>row.shapeType)),new Set(shapes));
-  for(const row of fixture.materialCostEntries){
+  const entries=fixture.materialCostEntries;
+  assert.deepEqual(new Set(entries.map(row=>row.shapeType)),new Set(shapes));
+  assert.equal(new Set(entries.map(row=>row.cuttingType)).size,13);
+  assert.deepEqual(new Set(entries.map(row=>row.cuttingBasis)),new Set(["Per piece","Per cut","Per kg","Per metre","Per hour","Fixed job"]));
+  assert.deepEqual(new Set(entries.flatMap(row=>Object.values(row.dimensionUnits))),new Set(["mm","cm","m","ft","inch"]));
+  assert.deepEqual(new Set(entries.map(row=>row.priceUnit)),new Set(["kg","lb"]));
+  assert.equal(new Set(entries.map(row=>row.transportStatus)).size,5);
+  assert.deepEqual(new Set(fixture.materials.map(row=>row.densityUnit)),new Set(["kg/m3","g/cm3"]));
+  for(const row of entries){
     assert.ok(row.partId&&partsById.has(row.partId));
     assert.ok(linesById.has(row.poLineId));
     assert.equal(linesByPartId.get(row.partId)?.id,row.poLineId);
