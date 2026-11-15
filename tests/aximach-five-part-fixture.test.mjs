@@ -4,9 +4,16 @@ import { readFileSync } from "node:fs";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-five-part-process-catalog.json", import.meta.url), "utf8"));
 
-test("five-part AXIMACH fixture has five unique component records", () => {
+test("two parent AXIMACH assemblies contain five unique linked child parts", () => {
+  assert.equal(fixture.components.length, 2);
   assert.equal(fixture.parts.length, 5);
   assert.equal(new Set(fixture.parts.map(part => part.partNumber)).size, 5);
+  assert.equal(new Set(fixture.parts.map(part => part.componentId)).size, 2);
+  for (const component of fixture.components) {
+    const children = fixture.parts.filter(part => part.componentId === component.id);
+    assert.ok(children.length >= 2, component.partNumber + " must contain multiple child parts");
+    assert.deepEqual(new Set(component.partNumbers), new Set(children.map(part => part.partNumber)));
+  }
 });
 
 test("each example part has linked category, process, sub-process and tolerance data", () => {
@@ -597,8 +604,8 @@ test("Five fixture parts create independent multi-process routes linked by stabl
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.equal(fixture.parts.length, 5);
   const linked = fixture.parts.flatMap(part => {
-    const componentId = "component:" + part.partNumber;
-    const poId = "po:" + part.partNumber;
+    const componentId = part.componentId;
+    const poId = "po:two-assembly-acceptance";
     const poLineId = "line:" + part.partNumber;
     return part.processes.map((process, index) => ({
       id: "operation:" + part.partNumber + ":" + index,
@@ -613,7 +620,8 @@ test("Five fixture parts create independent multi-process routes linked by stabl
     assert.ok(route.every(row => row.poId === "po:" + part.partNumber && row.poLineId === "line:" + part.partNumber));
     assert.equal(new Set(route.map(row => row.id)).size, route.length);
   }
-  assert.equal(new Set(linked.map(row => row.componentId)).size, 5);
+  assert.equal(new Set(linked.map(row => row.componentId)).size, 2);
+  assert.ok(fixture.components.every(component => linked.some(row => row.componentId === component.id)));
   assert.ok(workspace.includes("const effectivePoLineId = old?.poLineId || parentOperation?.poLineId || selectedLine.id"));
   assert.ok(workspace.includes("id: operationId, poId: effectivePoId, poLineId: effectivePoLineId, componentId: effectiveComponentId"));
   assert.ok(workspace.includes("op.poId === poId && op.poLineId === selectedLine?.id && op.componentId === selectedLine?.componentId"));
