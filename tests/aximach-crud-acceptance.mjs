@@ -137,8 +137,8 @@ const scenarioWorkspace = {
   "Route Flow typed relationship Add/Disable and PO-line persistence": "Route Flow & Relationships",
   "Data Exchange Centre validated import/export and JSON backup": "Data Exchange Centre",
   "Reports & Analytics saved-record metrics and CSV export": "Reports & Analytics",
-  "AI Insights evidence rules and exact quality drill-through": "AI Insights"
-  ,"Two-component all-module linked acceptance": "Component Directory"
+  "AI Insights evidence rules and exact quality drill-through": "AI Insights",
+  "Two-component all-module linked acceptance": "Component Directory"
 };
 async function readPersistenceSnapshot(page) {
   return page.evaluate(({ key, collections }) => {
