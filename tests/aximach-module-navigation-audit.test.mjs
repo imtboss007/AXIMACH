@@ -242,6 +242,9 @@ test("3D Command Centre exposes exactly the same 20 shortcuts as the main catalo
   assert.deepEqual([...sphereIds].sort(), [...catalogueIds].sort(), "the sphere must contain every official module exactly once");
   assert.equal(new Set(sphereIds).size, 20);
   assert.ok(orb.includes('aria-label={`${satellites.length} clickable AXIMACH modules`}'));
+  assert.ok(orb.includes("AXIMACHWebGLSphere"), "the shared module shell must render the true WebGL sphere surface");
+  assert.ok(dashboard.includes('<AXIMACHOrb surface="dashboard" onSelectModule={onSelectModule}/>'), "Main Dashboard must mount the shared full 3D sphere");
+  assert.ok(app.includes('<AXIMACHOrb surface="command-centre" onSelectModule={onSelectModule} />'), "3D Command Centre must mount the same full 3D sphere");
   assert.ok(dashboard.includes("View all {moduleCount} modules"));
   assert.ok(dashboard.includes("All {moduleCount} modules"));
   assert.ok(app.includes("moduleCount={modules.length}"));
