@@ -118,6 +118,7 @@ const scenarioWorkspace = {
   "Company Directory Add/Edit/Save/Archive": "Company Directory",
   "Factory Directory Add/Edit/Save/Archive with parent company link": "Company Directory",
   "Component Directory Add/Edit/Save/Delete": "Component Directory",
+  "Component Directory Add/Edit/Save/Delete with linked sync tombstones and stock history": "Component Directory",
   "Purchase Orders Add/Edit/Save/Delete with component line": "Purchase Orders",
   "Vendor Directory Add/Edit/Save/Archive": "Vendor Directory",
   "Contact 360 Add/Edit/Save/Delete": "Contact 360",
