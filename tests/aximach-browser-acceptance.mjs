@@ -266,11 +266,10 @@ async function main() {
   const partFilter = multipartDemo.getByLabel("Filter demo by part");
   for (const part of fixture.parts) {
     await partFilter.selectOption(part.id);
-    const partView = await multipartDemo.innerText();
-    if (!partView.includes(part.partNumber)) throw new Error("Part filter failed to select " + part.partNumber);
-    for (const otherPart of fixture.parts.filter(row => row.id !== part.id)) {
-      if (partView.includes(otherPart.partNumber)) throw new Error("Part filter leaked another part route: " + otherPart.partNumber);
-    }
+    const selectedLanes = multipartDemo.locator(".transport-demo-lane");
+    if (await selectedLanes.count() !== 1) throw new Error("Part filter must render exactly one route lane for " + part.partNumber);
+    const selectedHeading = await selectedLanes.first().locator(".transport-demo-lane-title strong").innerText();
+    if (!selectedHeading.includes(part.partNumber)) throw new Error("Part filter selected the wrong route lane for " + part.partNumber + ": " + selectedHeading);
   }
   await partFilter.selectOption("all");
   await multipartDemo.getByRole("tab", { name: "Relationship types" }).click();
