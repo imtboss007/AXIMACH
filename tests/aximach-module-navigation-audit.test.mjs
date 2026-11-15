@@ -282,9 +282,12 @@ test("component archival and purchase-order deletion preserve their distinct his
   assert.ok(componentDelete.includes("// Inventory transactions are immutable stock history"));
   assert.ok(!componentDelete.includes("inventoryTransactions:"), "component archival must preserve append-only stock transactions");
   assert.ok(!componentDelete.includes(".filter(po=>po.lines.length>0)"), "archiving the final component line must not silently delete the PO header");
-  assert.ok(purchaseDelete.includes("plannedCosts:current.plannedCosts.filter"));
+  assert.ok(purchaseDelete.includes("purchaseOrders:current.purchaseOrders.map"), "PO deletion must retain a sync-safe header tombstone");
+  assert.ok(purchaseDelete.includes("deletedAt:stamp") && purchaseDelete.includes("lines:row.lines.map"), "PO and every saved line must receive timestamped tombstones");
+  assert.ok(purchaseDelete.includes("plannedCosts:deactivate(current.plannedCosts,row=>Boolean(row.poId&&targetIds.has(row.poId)))"));
   assert.ok(purchaseDelete.includes("operationIds.has(row.operationId)"));
-  assert.ok(purchaseDelete.includes("inventoryTransactions:current.inventoryTransactions.filter"), "PO deletion must remove PO-specific stock movements");
+  assert.ok(purchaseDelete.includes("// Inventory transactions are an append-only stock ledger"));
+  assert.ok(!purchaseDelete.includes("inventoryTransactions:"), "PO deletion must retain immutable stock movements");
   assert.ok(!purchaseDelete.includes("componentParts:"), "PO deletion must retain component-owned part masters");
 });
 
