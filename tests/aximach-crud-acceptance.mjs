@@ -814,10 +814,14 @@ async function vendorNetworkFilterCrud() {
   await search.fill("");
   await p.getByLabel("Assigned vendors only").check();
   await p.waitForTimeout(100);
+  const assignedVendorIds = new Set(fixture.operations.map(operation => operation.vendorId).filter(Boolean));
+  const expectedAssignedVendors = fixture.vendors.filter(vendor => assignedVendorIds.has(vendor.id));
   const assignedRows = await table.locator("tbody tr").count();
-  if (assignedRows !== 1 ||
-      !(await table.locator("tbody tr").first().innerText()).includes("Synthetic CNC & VMC")) {
-    throw new Error("Assigned vendors only must show the vendor with the fixture's linked Process Plan assignments.");
+  const assignedText = await table.locator("tbody").innerText();
+  if (assignedRows !== expectedAssignedVendors.length ||
+      expectedAssignedVendors.some(vendor => !assignedText.includes(vendor.company)) ||
+      fixture.vendors.filter(vendor => !assignedVendorIds.has(vendor.id)).some(vendor => assignedText.includes(vendor.company))) {
+    throw new Error("Assigned vendors only must show exactly the vendors linked to the fixture's saved process operations.");
   }
 
   await p.getByRole("button", { name: "Clear filters", exact: true }).click();
