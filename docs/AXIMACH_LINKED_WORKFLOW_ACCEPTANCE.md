@@ -103,7 +103,7 @@ The primary comprehensive acceptance dataset is now `tests/fixtures/aximach-one-
 - **8 material masters, 11 part-scoped BOM rows, 11 material-to-process feed links and 11 process-map material cost rows**, retaining material, BOM, part, operation and PO-line identity.
 - Additional records for **16 planned-cost rows, 5 quotations, 5 payment entries, 5 inspection measurements, 10 stock transaction kinds, 4 contact profiles and 2 follow-up assignments**. The records deliberately span quote statuses, inspection results, stock movement types, operation statuses, contact linkage and one-way/two-way transport.
 
-The material calculator fixture now covers all thirteen configured raw-stock profiles (plate, flat bar, round bar, square bar, hex bar, round tube, square tube, rectangular tube, angle, channel, I-beam, T-section and custom profile) through part-scoped BOM/material cost entries. Each entry has positive dimensions, calculated weight and rate/cost data.
+The material calculator fixture now covers all thirteen configured raw-stock profiles (plate, flat bar, round bar, square bar, hex bar, round tube, square tube, rectangular tube, angle, channel, I-beam, T-section and custom profile) through part-scoped BOM/material cost entries. Each entry has positive dimensions, recalculated volume/weight, normalized density, price-rate and cost data. The same fixture spans all five dimension units (mm, cm, m, ft, inch), both price units (kg/lb), all 13 cutting methods, all six cutting charge bases (per piece, per cut, per kg, per metre, per hour and fixed job), both density entry units (kg/m³ and g/cm³), and all five material transport lifecycle states (Planned, Queued, Running, Complete and Delayed).
 
 ### Module coverage
 
