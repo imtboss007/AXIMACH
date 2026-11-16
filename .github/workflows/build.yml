@@ -204,6 +204,21 @@ jobs:
             echo "Gradle build failed; retrying after transient download/build error (attempt $attempt of 3)."
             sleep $((attempt * 15))
           done
+      - name: Install and launch-test APK in Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb logcat -c
+            adb shell monkey -p com.aximach.manufacturingos 1
+            sleep 25
+            adb shell dumpsys activity activities | grep -q "com.aximach.manufacturingos" || { adb logcat -d; exit 1; }
+            adb logcat -d | grep -E "FATAL EXCEPTION|Process: com.aximach.manufacturingos" && exit 1 || true
+            echo "PASS: AXIMACH APK installed and launched in Android emulator."
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
