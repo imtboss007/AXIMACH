@@ -28,8 +28,8 @@ export function getVehicleVisual(vehicleType: string): VehicleVisual {
   if (/multimodal/.test(value)) return { Icon: Workflow, color: "#8B6BCB" };
   if (/inland waterway/.test(value)) return { Icon: Ship, color: "#247F9E" };
   if (/sea freight|container vessel/.test(value)) return { Icon: Ship, color: "#2C6F9F" };
-  if (/rail freight|\\brail\\b/.test(value)) return { Icon: TrainFront, color: "#A15B35" };
-  if (/air freight|\\bair\\b/.test(value)) return { Icon: Plane, color: "#3A8FC1" };
+  if (/rail freight|\brail\b/.test(value)) return { Icon: TrainFront, color: "#A15B35" };
+  if (/air freight|\bair\b/.test(value)) return { Icon: Plane, color: "#3A8FC1" };
   if (/courier|delivery/.test(value)) return { Icon: Bike, color: "#B56BC5" };
   if (/2.?wheel|bike|motorcycle|scooter/.test(value)) return { Icon: Bike, color: "#D49A2D" };
   if (/3.?wheel|auto|rickshaw/.test(value)) return { Icon: Bus, color: "#16A6A0" };
