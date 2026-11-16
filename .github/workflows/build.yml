@@ -39,6 +39,10 @@ jobs:
         run: npm run test:server
       - name: Build application
         run: npm run build
+      - name: Install Chromium for browser interaction tests
+        run: npx playwright install --with-deps chromium
+      - name: Test desktop and mobile module interactions
+        run: npm run test:browser
       - name: Verify packaged frontend entrypoint
         run: |
           node <<'NODE'
