@@ -334,3 +334,17 @@ test("Planned Cost records are scoped to the exact child-part PO line and do not
   assert.ok(demo.includes("poLineId: lineId, partId, componentId"));
   assert.ok(costing.includes('const lineMatches=row.poLineId ? row.poLineId===line.id : row.partId ? row.partId===line.partId : line.allocationLevel!=="part";'));
 });
+
+test("Costing BOM, material allocations and independent Planned Cost remain scoped to the selected part PO line", () => {
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  for (const part of fixture.parts) {
+    const line = fixture.purchaseOrder.lines.find(row => row.partId === part.id);
+    assert.ok(line);
+    assert.ok(fixture.bomLines.filter(row => row.partId === part.id && row.componentId === part.componentId).length >= 2);
+    assert.ok(fixture.materialCostEntries.filter(row => row.poLineId === line.id && row.partId === part.id).length >= 2);
+    assert.ok(fixture.plannedCosts.some(row => row.poLineId === line.id && row.partId === part.id));
+  }
+  assert.ok(costing.includes("!bom.partId||(Boolean(line.partId)&&bom.partId===line.partId)"));
+  assert.ok(costing.includes("entry.poLineId?entry.poLineId===line.id:entry.partId?entry.partId===line.partId:line.allocationLevel!==\\"part\\""));
+  assert.ok(costing.includes("row.poLineId ? row.poLineId === selectedLine?.lineId : row.partId ? row.partId === selectedLine?.partId : selectedLine?.allocationLevel !== \\"part\\""));
+});
