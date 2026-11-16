@@ -85,13 +85,13 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
     });
     const plannedProcess=costedLinkedOperations.reduce((sum,op)=>sum+op.quantity*Math.max(0,Number(op.ratePerPart)||0),0);
     const plannedProcessCost=plannedRows.length?plannedRows.reduce((sum,row)=>sum+row.plannedQty*row.plannedRate,0):plannedProcess;
-    const bomLines=data.bomLines.filter(bom=>bom.componentId===line.componentId&&!bom.deletedAt);
+    const bomLines=data.bomLines.filter(bom=>bom.componentId===line.componentId&&!bom.deletedAt&&(!bom.partId||(Boolean(line.partId)&&bom.partId===line.partId)));
     const bomMaterialQtyPerPart=bomLines.reduce((sum,bom)=>sum+bom.quantityPerPart*(1+bom.scrapPercent/100),0);
     const bomMaterialRate=bomMaterialQtyPerPart>0?bomLines.reduce((sum,bom)=>sum+bom.quantityPerPart*(1+bom.scrapPercent/100)*(data.materials.find(material=>material.id===bom.materialId)?.ratePerUnit||0),0)/bomMaterialQtyPerPart:0;
     const materialQty=line.materialQty??((component?.materialQty||0)>0?(component?.materialQty||0)*line.quantity:bomMaterialQtyPerPart*line.quantity);
     const materialRate=line.materialRate??((component?.materialRate||0)>0?(component?.materialRate||0):bomMaterialRate);
     const materialCost=materialQty*materialRate;
-    const materialCostRows=activeRows(data.materialCostEntries||[]).filter(entry=>entry.componentId===line.componentId&&entry.poId===po.id&&(entry.poLineId?entry.poLineId===line.id:(line.allocationLevel!=="part"&&!entry.partId)));
+    const materialCostRows=activeRows(data.materialCostEntries||[]).filter(entry=>entry.componentId===line.componentId&&entry.poId===po.id&&(entry.poLineId?entry.poLineId===line.id:entry.partId?entry.partId===line.partId:line.allocationLevel!=="part"));
     const plannedMaterialCostEntries=materialCostRows.filter(entry=>entry.scope==="planned-cost");
     const processMapMaterialCostEntries=materialCostRows.filter(entry=>entry.scope==="process-map");
     const plannedMaterialCost=plannedMaterialCostEntries.reduce((sum,entry)=>sum+Math.max(0,Number(entry.materialCost)||0),0);
@@ -286,7 +286,8 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
       : row.componentNumber.trim().toLowerCase() === selectedComponent.partNumber.trim().toLowerCase()
         || row.componentName.trim().toLowerCase() === selectedComponent.name.trim().toLowerCase();
     const poMatches = !row.poId || row.poId === selectedLine?.poId;
-    return componentMatches && poMatches;
+    const lineMatches = row.poLineId ? row.poLineId === selectedLine?.lineId : row.partId ? row.partId === selectedLine?.partId : selectedLine?.allocationLevel !== "part";
+    return componentMatches && poMatches && lineMatches;
   }) : [];
   const independentPlannedTotal = independentPlannedCosts.reduce((sum,row) =>
     sum + row.plannedQty * row.plannedRate, 0
