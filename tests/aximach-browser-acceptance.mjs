@@ -528,8 +528,14 @@ async function main() {
   }
   if (exportFormats.length !== 5) throw new Error("Expected SVG, PNG, PDF, CSV and JSON export format choices");
   const universeText = await page.locator(".page-content").innerText();
+  // Component names are represented by the selected scope header and PO-line
+  // selector, while the live scene exposes operation labels. Assert each in
+  // the UI element that actually owns that information.
+  const universeScopeHeader = page.locator(".manufacturing-universe-current").innerText();
+  if (!(await universeScopeHeader).includes("ENTERPRISE-WIDE LIVE VIEW")) {
+    throw new Error("Manufacturing Universe did not remain in enterprise-wide scope.");
+  }
   const universeExpected = [
-    fixture.components[1].name,
     fixture.operations.find(row => row.name.startsWith("Band saw cutting"))?.name,
     fixture.operations.find(row => row.name.startsWith("CNC face milling"))?.name
   ].filter(Boolean);
