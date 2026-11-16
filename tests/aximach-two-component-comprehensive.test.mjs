@@ -218,3 +218,30 @@ test("Demo Factory generator builds exactly two parent components, five child pa
   assert.ok(demo.includes("materialProcessLinks.push"));
   assert.ok(demo.includes("bomLines.push"));
 });
+
+
+test("Production, Quality and Dispatch retain child-part identity for every part-level PO line", () => {
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const production = operations.slice(operations.indexOf("export function ProductionPlanWorkspace"), operations.indexOf("export function TransportDispatchWorkspace"));
+  const dispatch = operations.slice(operations.indexOf("export function TransportDispatchWorkspace"), operations.indexOf("export function QualityInspectionWorkspace"));
+  const quality = operations.slice(operations.indexOf("export function QualityInspectionWorkspace"));
+  assert.ok(production.includes("part:parts.find(part=>part.id===line.partId)"));
+  assert.ok(production.includes("row.part?.partNumber") && production.includes("row.part?.name"));
+  assert.ok(production.includes('line.partId?"pieces"'));
+  assert.ok(dispatch.includes("part:parts.find(part=>part.id===pos.find(po=>po.id===leg.poId)?.lines.find(line=>line.id===leg.poLineId)?.partId)"));
+  assert.ok(dispatch.includes("row.part?.partNumber") && dispatch.includes("row.part?.name"));
+  assert.ok(quality.includes("parts=activeRows(data.componentParts||[])"));
+  assert.ok(quality.includes("const childPart=operationLine?.partId?parts.find(part=>part.id===operationLine.partId):undefined"));
+  assert.ok(quality.includes("childPart.partNumber") && quality.includes("childPart.name"));
+});
+
+test("Quality and Dispatch expose every typed operation lifecycle status supported by AXIMACH", () => {
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const statuses = ["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"];
+  const quality = operations.slice(operations.indexOf("export function QualityInspectionWorkspace"));
+  const dispatch = operations.slice(operations.indexOf("export function TransportDispatchWorkspace"), operations.indexOf("export function QualityInspectionWorkspace"));
+  for (const status of statuses) {
+    assert.ok(quality.includes("<option>" + status + "</option>"), "Quality status selector missing " + status);
+    assert.ok(dispatch.includes("<option>" + status + "</option>"), "Dispatch status selector missing " + status);
+  }
+});
