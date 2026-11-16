@@ -245,3 +245,31 @@ test("Quality and Dispatch expose every typed operation lifecycle status support
     assert.ok(dispatch.includes("<option>" + status + "</option>"), "Dispatch status selector missing " + status);
   }
 });
+
+
+test("all twenty registered AXIMACH modules route to dedicated functional workspaces", () => {
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const routes = [
+    ['activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components"', "ManufacturingMasterWorkspace"],
+    ['activeModuleId === "vendors"', "VendorWorkspace"],
+    ['activeModuleId === "transport-master"', "TransportDirectoryWorkspace"],
+    ['activeModuleId === "contact360"', "Contact360Workspace"],
+    ['activeModuleId === "process-master" || activeModuleId === "planned-cost"', "SpecializedDirectoryWorkspace"],
+    ['activeModuleId === "vendor-capability"', "VendorNetworkWorkspace"],
+    ['activeModuleId === "inventory"', "InventoryWorkspace"],
+    ['activeModuleId === "production"', "ProductionPlanWorkspace"],
+    ['activeModuleId === "route-flow"', "RouteFlowWorkspace"],
+    ['activeModuleId === "manufacturing-universe"', "ManufacturingUniverseWorkspace"],
+    ['activeModuleId === "dispatch"', "TransportDispatchWorkspace"],
+    ['activeModuleId === "quality"', "QualityInspectionWorkspace"],
+    ['activeModuleId === "costing"', "LinkedCostingWorkspace"],
+    ['activeModuleId === "communications"', "FollowUpWorkspace"],
+    ['activeModuleId === "reports"', "ReportsAnalyticsWorkspace"],
+    ['activeModuleId === "ai-insights"', "AIInsightsWorkspace"],
+    ['activeModuleId === "export"', "DataExchangeWorkspace"]
+  ];
+  for (const [condition, workspace] of routes) {
+    assert.ok(app.includes(condition), "App route is missing " + condition);
+    assert.ok(app.includes("<" + workspace), "App route does not render " + workspace);
+  }
+});
