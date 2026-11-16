@@ -34,7 +34,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
   const [showUniverseSettings,setShowUniverseSettings]=useState(false);
   const [visibleUniverseFields,setVisibleUniverseFields]=useState<string[]>(["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]);
-  const [visibleUniverseModules,setVisibleUniverseModules]=useState<string[]>(["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"]);
+  const [visibleUniverseModules,setVisibleUniverseModules]=useState<string[]>(["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","process-map","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"]);
   const appliedContextKey=useRef("");
   useEffect(()=>{
     const context=initialContext||{};
@@ -160,6 +160,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const onNavigate=(moduleId:string,operation?:OperationRecord)=>onSelectModule(moduleId,{companyId,poId,poLineId,componentId,operationId:operation?.id});
   const stats=[
     {label:"PROCESS STAGES",value:routeOperations.length,icon:Activity,module:"production"},
+    {label:"PROCESS MAP",value:routeOperations.length,icon:Workflow,module:"process-map"},
     {label:"MATERIAL ALLOCATIONS",value:routeMaterials.length,icon:Package,module:"inventory"},
     {label:"TRANSPORT LEGS",value:routeLegs.length,icon:Truck,module:"transport-master"},
     {label:"PROCESS DEFINITIONS",value:definitions.length,icon:Workflow,module:"process-master"},
@@ -182,6 +183,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     {id:"planned-cost",title:"Component Planned Cost",icon:CircleDollarSign,meta:"Component and process cost plans"},
     {id:"vendor-capability",title:"Vendor Network",icon:Network,meta:"Vendor process capabilities and categories"},
     {id:"production",title:"Production Plan",icon:Activity,meta:"PO-wise production state and quantities"},
+    {id:"process-map",title:"Process Map",icon:Workflow,meta:"PO-line processes, branches and editable stages"},
     {id:"dispatch",title:"Transport & Dispatch",icon:Truck,meta:"Dispatch legs, pickups and deliveries"},
     {id:"quality",title:"Quality Inspection",icon:ClipboardCheck,meta:"Measurements, QC and acceptance"},
     {id:"costing",title:"Costing & Payment",icon:CheckCircle2,meta:"Material, process, transport and payment"},
