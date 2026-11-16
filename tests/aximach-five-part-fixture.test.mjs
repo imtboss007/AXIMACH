@@ -1532,22 +1532,27 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   for (const company of ["ASTER MOTION COMPONENTS PVT LTD", "MERIDIAN FLUID SYSTEMS PVT LTD"]) {
     assert.ok(demo.includes(company), "missing demo company: " + company);
   }
-  const partKeys = [...demo.matchAll(/key:"(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
-  assert.equal(partKeys.length, 5, "bundled demo must include exactly five component examples");
-  assert.equal(new Set(partKeys).size, 5, "demo component IDs must be unique");
+  const parentBlock = demo.match(/const parentSpecs = \[([\s\S]*?)\n  \];/)?.[1] ?? "";
+  const parentKeys = [...parentBlock.matchAll(/code: "(ASTER|MERIDIAN)"/g)].map(match => match[1]);
+  const partKeys = [...demo.matchAll(/key: "(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
+  assert.equal(parentKeys.length, 2, "bundled demo must include exactly two parent component examples");
+  assert.equal(new Set(parentKeys).size, 2, "parent component records must be unique");
+  assert.equal(partKeys.length, 5, "bundled demo must include exactly five child part examples");
+  assert.equal(new Set(partKeys).size, 5, "child part IDs must be unique");
   for (const collection of ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
     assert.ok(demo.includes(collection), "demo dataset must include " + collection);
   }
   assert.ok(demo.includes('processSubcategoryId:def.subcategoryIds?.[def.subcategories.indexOf(s.sub)]'));
-  assert.ok(demo.includes('relationType:"alternate"'));
-  assert.ok(demo.includes('relationType:"rework"'));
-  assert.ok(demo.includes('branch:"Main route"'));
-  assert.ok(demo.includes('branch:"Alternate route"'));
-  assert.ok(demo.includes('branch:"Rework route"'));
-  assert.ok(demo.includes('materialCostEntries.push({id:id("MATERIAL-ALLOCATION"'));
-  assert.ok(demo.includes('scope:"process-map"'));
-  assert.ok(demo.includes('transportVendorId:id("VENDOR","LOG")'));
-  assert.ok(demo.includes('return {updatedAt:stamp,companies,factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
+  assert.ok(demo.includes('relationType: branch === "Alternate route" ? "alternate" : "rework"'));
+  assert.ok(demo.includes('branch: "Main route"'));
+  assert.ok(demo.includes('addBranch("Alternate route"'));
+  assert.ok(demo.includes('addBranch("Rework route"'));
+  assert.ok(demo.includes('materialCostEntries.push({'));
+  assert.ok(demo.includes('scope: "process-map"'));
+  assert.ok(demo.includes('transportVendorId: id("VENDOR", "LOG")'));
+  assert.ok(demo.includes('componentParts, materialCostEntries, bomLines, materialProcessLinks'));
+  assert.ok(demo.includes('routeRelationships, followUpAssignments'));
+  assert.equal((demo.match(/VEHICLE_TYPES.map\(/g) || []).length, 2, "all transport types must be represented in the demo directory and PO transport legs");
   assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
   assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
   assert.ok(importer.includes('onClick={loadTwoCompanyDemo}'));
