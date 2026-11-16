@@ -5088,6 +5088,7 @@
     "vendor-capability",
     "inventory",
     "production",
+    "process-map",
     "route-flow",
     "manufacturing-universe",
     "dispatch",
@@ -5195,6 +5196,11 @@
       "purchaseOrder",
       "operations",
       "transportLegs"
+    ],
+    "process-map": [
+      "operations",
+      "materials",
+      "materialProcessLinks"
     ]
   },
   "expected": {
