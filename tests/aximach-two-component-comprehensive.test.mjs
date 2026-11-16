@@ -404,6 +404,12 @@ test("Process Map is reachable through the module registry and linked from both 
   assert.ok(universe.includes('id:"process-map",title:"Process Map"'));
   assert.ok(universe.includes('module:"process-map"'));
   assert.ok(routeFlow.includes('id:"process-map",title:"Process Map"'));
+  assert.ok(processMap.includes('tab("route-flow","Route Flow",GitBranch)'));
+  assert.ok(processMap.includes('tab("manufacturing-universe","Manufacturing Universe",Network)'));
+  assert.ok(processMap.includes("const nextSequence = old && !branchChanged"));
+  assert.ok(app.includes("const goBack = () =>"));
+  assert.ok(app.includes("onBack={goBack}"));
+  assert.ok(app.includes("{modules.length} modules"));
   assert.ok(processMap.includes('const draftRouteType ='));
   assert.ok(processMap.includes('(draft.branch || "Main route") === "Main route" ? ""'));
   assert.ok(processMap.includes('(draft.branch || "Main route") === "Main route" ? undefined'));
