@@ -120,7 +120,8 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const companyOrders = orders.filter(po => po.companyId === companyId && (!factoryId || po.factoryId === factoryId));
   const poLineOptions = companyOrders.flatMap(po => po.lines.map(line => {
     const component = components.find(c => c.id === line.componentId);
-    return { id: po.id + "::" + line.id, po, line, label: po.number + " · " + (component?.partNumber || "Component") + " · " + line.quantity.toLocaleString("en-IN") + " pcs" };
+    const part = line.partId ? (data.componentParts || []).find(row => row.id === line.partId) : undefined;
+    return { id: po.id + "::" + line.id, po, line, label: po.number + " · " + (component?.partNumber || "Component") + (part ? " · " + part.partNumber + " " + part.name : "") + " · " + line.quantity.toLocaleString("en-IN") + " pcs" };
   }));
   const selectedPoLine = poLineOptions.find(row => row.id === poLineKey);
   const bomIssuePoLineOptions = orders.flatMap(po => po.lines.filter(line => !line.deletedAt).map(line => {
@@ -131,7 +132,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       po,
       line,
       component,
-      label: (company?.name || "Company") + " · " + po.number + " · " + (component?.partNumber || "Component") + " · " + line.quantity.toLocaleString("en-IN") + " pcs"
+      label: (company?.name || "Company") + " · " + po.number + " · " + (component?.partNumber || "Component") + (line.partId ? " · " + ((data.componentParts || []).find(part => part.id === line.partId)?.partNumber || "Part") + " " + ((data.componentParts || []).find(part => part.id === line.partId)?.name || "") : "") + " · " + line.quantity.toLocaleString("en-IN") + " pcs"
     };
   }));
   const bomIssueSelection = bomIssuePoLineOptions.find(row => row.id === bomIssuePoLineKey);
