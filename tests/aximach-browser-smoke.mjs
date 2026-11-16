@@ -82,7 +82,7 @@ try {
   if (pageErrors.length) throw new Error("Browser runtime errors: " + pageErrors.join(" | "));
   console.log("PASS responsive mobile navigation and Purchase Orders workspace");
 
-  // Verify the Process Map, Route Flow and Manufacturing Universe links in both directions.
+  // Verify every route workspace link and the navigation-history Back path.
   await page.getByRole("button", { name: "Open navigation menu" }).click();
   await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Process Map"]').click();
   await page.locator("h1").filter({ hasText: "Process Map" }).waitFor({ timeout: 15000 });
