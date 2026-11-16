@@ -303,8 +303,9 @@ test("part-level purchase-order quantities are treated as pieces, not inherited 
 
 
 test("part-level PO prices persist, export per piece, and remain separate from parent component set pricing", () => {
-  for (const line of fixture.purchaseOrder.lines) {
-    assert.equal(line.allocationLevel, "part");
+  const partLines = fixture.purchaseOrder.lines.filter(line => line.allocationLevel === "part" && line.partId);
+  assert.equal(partLines.length, 5, "fixture must retain five separately priced child-part PO lines");
+  for (const line of partLines) {
     assert.ok(Number.isFinite(line.unitPrice) && line.unitPrice >= 0, "each part-level PO line must retain its own per-piece unit price");
   }
   const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
