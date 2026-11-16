@@ -172,7 +172,7 @@ test("the full dataset contains live-linked records for all twenty catalogue mod
     purchaseOrder:fixture.purchaseOrder,vendors:fixture.vendors,transportRoutes:fixture.transportRoutes,
     contactProfiles:fixture.contactProfiles,processDefinitions:fixture.processDefinitions,plannedCosts:fixture.plannedCosts,
     materials:fixture.materials,bomLines:fixture.bomLines,inventoryTransactions:fixture.inventoryTransactions,
-    operations:fixture.operations,routeRelationships:fixture.routeRelationships,transportLegs:fixture.transportLegs,
+    operations:fixture.operations,routeRelationships:fixture.routeRelationships,transportLegs:fixture.transportLegs,materialProcessLinks:fixture.materialProcessLinks,
     inspectionMeasurements:fixture.inspectionMeasurements,quotations:fixture.quotations,
     payments:fixture.paymentTransactions,followUpAssignments:fixture.followUpAssignments
   };
