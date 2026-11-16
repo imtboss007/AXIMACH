@@ -174,7 +174,7 @@ test("the full dataset contains live-linked records for all twenty catalogue mod
     materials:fixture.materials,bomLines:fixture.bomLines,materialCostEntries:fixture.materialCostEntries,inventoryTransactions:fixture.inventoryTransactions,
     operations:fixture.operations,routeRelationships:fixture.routeRelationships,transportLegs:fixture.transportLegs,materialProcessLinks:fixture.materialProcessLinks,
     inspectionMeasurements:fixture.inspectionMeasurements,quotations:fixture.quotations,
-    payments:fixture.paymentTransactions,followUpAssignments:fixture.followUpAssignments
+    payments:fixture.paymentTransactions,paymentTransactions:fixture.paymentTransactions,followUpAssignments:fixture.followUpAssignments
   };
   for(const id of moduleIds){
     const collections=fixture.moduleCoverage[id];
