@@ -317,3 +317,20 @@ test("part-level PO prices persist, export per piece, and remain separate from p
   assert.ok(costing.includes("unitPrice: line.unitPrice"));
   assert.ok(costing.includes("if (selectedLine?.partId)"));
 });
+
+
+test("Planned Cost records are scoped to the exact child-part PO line and do not cross-contaminate sibling parts", () => {
+  for (const part of fixture.parts) {
+    const line = fixture.purchaseOrder.lines.find(row => row.partId === part.id);
+    assert.ok(line);
+    const matches = fixture.plannedCosts.filter(row => row.poLineId === line.id && row.partId === part.id);
+    assert.ok(matches.length > 0, part.partNumber + " needs independently scoped planned cost records");
+    assert.ok(matches.every(row => row.componentId === part.componentId && row.poId === fixture.purchaseOrder.id));
+  }
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  const demo = readFileSync(new URL("../src/aximachDemoData.ts", import.meta.url), "utf8");
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(data.includes("poLineId?: string; partId?: string;"), "planned cost schema must support PO-line and part scoping");
+  assert.ok(demo.includes("poLineId: lineId, partId, componentId"));
+  assert.ok(costing.includes('const lineMatches=row.poLineId ? row.poLineId===line.id : row.partId ? row.partId===line.partId : line.allocationLevel!=="part";'));
+});
