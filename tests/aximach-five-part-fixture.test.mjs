@@ -257,7 +257,7 @@ test("new PO lines do not copy Component Master selling prices into editable lin
   assert.ok(master.includes('const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quantity: 0, targetDelivery: "", notes: "", allocationLevel: "component", partId: "" })'));
   assert.ok(master.includes("line.unitPrice === undefined") && master.includes("unitPrice:row.allocationLevel===\"part\"?undefined"));
   assert.ok(data.includes("unitPrice?: number"));
-  assert.ok(costing.includes("const sellingRate = selectedComponent?.salePrice ?? 0"));
+  assert.ok(costing.includes("const sellingRate = selectedLine?.partId ? (selectedLine.unitPrice ?? 0) : (selectedComponent?.salePrice ?? 0);"));
   assert.ok(costing.includes("unitPrice: line.unitPrice") && costing.includes("line.partId?(line.unitPrice||0)"));
   assert.ok(costing.includes("if (key === \"salePrice\")"));
   assert.ok(costing.includes("components: current.components.map(component => component.id === selectedComponent.id ? { ...component, salePrice: amount, updatedAt } : component)"));
@@ -1542,7 +1542,7 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   for (const collection of ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
     assert.ok(demo.includes(collection), "demo dataset must include " + collection);
   }
-  assert.ok(demo.includes('processSubcategoryId:def.subcategoryIds?.[def.subcategories.indexOf(s.sub)]'));
+  assert.ok(demo.includes('processSubcategoryId: definition.subcategoryIds?.[definition.subcategories.indexOf(step.sub)]'));
   assert.ok(demo.includes('relationType: branch === "Alternate route" ? "alternate" : "rework"'));
   assert.ok(demo.includes('branch: "Main route"'));
   assert.ok(demo.includes('addBranch("Alternate route"'));
@@ -1659,7 +1659,7 @@ test("PO lines support component-only, part-only and mixed component-plus-part a
   assert.ok(purchasing.includes('value="component">Component-level'));
   assert.ok(purchasing.includes('value="part">Part-level'));
   assert.ok(purchasing.includes("componentParts.filter(part=>part.componentId===line.componentId)"));
-  assert.ok(purchasing.includes('line.allocationLevel === "part" && !componentParts.some'));
+  assert.ok(purchasing.includes('line.allocationLevel === "part" && (!componentParts.some') && purchasing.includes("line.unitPrice === undefined"));
   assert.ok(processMap.includes("selectedPart?.id"));
 });
 
