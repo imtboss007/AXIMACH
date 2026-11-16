@@ -34,7 +34,9 @@ test("integrated acceptance fixture is synthetic and contains exactly two parent
 });
 
 test("every child part owns one separate part-level PO line and independent process route", () => {
-  assert.equal(fixture.purchaseOrder.lines.length,5);
+  assert.equal(fixture.purchaseOrder.lines.filter(row=>row.partId).length,5);
+  assert.equal(fixture.purchaseOrder.lines.filter(row=>row.allocationLevel==="component").length,2);
+  assert.equal(fixture.purchaseOrder.lines.length,7);
   for(const part of fixture.parts){
     const line=linesByPartId.get(part.id);
     assert.ok(line,part.partNumber+" needs a part-level purchase-order line");
@@ -368,4 +370,23 @@ test("Inventory, Route Flow and Manufacturing Universe distinguish child-part PO
   assert.ok(routeFlow.includes('{line?.partId&&data.componentParts.find(part=>part.id===line.partId)? " · "+data.componentParts.find(part=>part.id===line.partId)?.partNumber'));
   assert.ok(universe.includes('const part=item.partId?data.componentParts.find(row=>row.id===item.partId):undefined'));
   assert.ok(universe.includes('(part?" · "+part.partNumber+" "+part.name:"")'));
+});
+
+test("the same purchase order supports component-only and part-level PO lines together", () => {
+  const componentLines = fixture.purchaseOrder.lines.filter(line => line.allocationLevel === "component");
+  const partLines = fixture.purchaseOrder.lines.filter(line => line.allocationLevel === "part");
+  assert.equal(componentLines.length, 2);
+  assert.equal(partLines.length, 5);
+  assert.equal(fixture.purchaseOrder.lines.length, 7);
+  for (const parent of fixture.components) {
+    const componentLine = componentLines.find(line => line.componentId === parent.id);
+    assert.ok(componentLine, parent.partNumber + " needs a component-level set line");
+    assert.equal(componentLine.partId, undefined);
+    assert.ok(Number.isFinite(parent.salePrice) && parent.salePrice > 0);
+    assert.equal(parent.salePriceUnit, "set");
+    const childLines = partLines.filter(line => line.componentId === parent.id);
+    assert.ok(childLines.length >= 2, parent.partNumber + " needs multiple separate part-level lines");
+    assert.ok(childLines.every(line => line.partId && Number.isFinite(line.unitPrice) && line.unitPrice >= 0));
+  }
+  assert.ok(fixture.expected.mixedComponentAndPartAllocation);
 });
