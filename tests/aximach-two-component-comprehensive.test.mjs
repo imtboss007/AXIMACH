@@ -5,7 +5,7 @@ import test from "node:test";
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-two-component-multipart-route.json", import.meta.url), "utf8"));
 const relationshipTypes = ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"];
 const vehicleTypes = ["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery","Air freight","Rail freight","Sea freight / container vessel","Inland waterway vessel","Multimodal freight"];
-const moduleIds = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"];
+const moduleIds = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","process-map","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"];
 
 const partsById = new Map(fixture.parts.map(row => [row.id,row]));
 const componentsById = new Map(fixture.components.map(row => [row.id,row]));
@@ -161,14 +161,14 @@ test("part materials, BOM, process feeds and material costing retain exact compo
   assert.deepEqual(new Set(fixture.materialProcessLinks.map(row=>row.placement)),new Set(["before","after"]));
 });
 
-test("the full dataset contains live-linked records for all twenty catalogue modules", () => {
+test("the full dataset contains live-linked records for all twenty-one catalogue modules", () => {
   const app=readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
   const start=app.indexOf("const modules: ModuleItem[] = [");
   const end=app.indexOf("\n];",start);
   const appIds=[...app.slice(start,end).matchAll(/\{ id: "([^"]+)"/g)].map(match=>match[1]);
   assert.deepEqual(fixture.moduleIds,moduleIds);
   assert.deepEqual([...appIds].sort(),[...moduleIds].sort());
-  assert.equal(new Set(fixture.moduleIds).size,20);
+  assert.equal(new Set(fixture.moduleIds).size,21);
   const domains={
     company:fixture.company,factory:fixture.factory,components:fixture.components,parts:fixture.parts,
     purchaseOrder:fixture.purchaseOrder,vendors:fixture.vendors,transportRoutes:fixture.transportRoutes,
@@ -249,7 +249,7 @@ test("Quality and Dispatch expose every typed operation lifecycle status support
 });
 
 
-test("all twenty registered AXIMACH modules route to dedicated functional workspaces", () => {
+test("all twenty-one registered AXIMACH modules route to dedicated functional workspaces", () => {
   const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
   const routes = [
     ['activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components"', "ManufacturingMasterWorkspace"],
@@ -260,6 +260,7 @@ test("all twenty registered AXIMACH modules route to dedicated functional worksp
     ['activeModuleId === "vendor-capability"', "VendorNetworkWorkspace"],
     ['activeModuleId === "inventory"', "InventoryWorkspace"],
     ['activeModuleId === "production"', "ProductionPlanWorkspace"],
+    ['activeModuleId === "process-map"', "LinkedProcessWorkspace"],
     ['activeModuleId === "route-flow"', "RouteFlowWorkspace"],
     ['activeModuleId === "manufacturing-universe"', "ManufacturingUniverseWorkspace"],
     ['activeModuleId === "dispatch"', "TransportDispatchWorkspace"],
@@ -390,4 +391,20 @@ test("the same purchase order supports component-only and part-level PO lines to
     assert.ok(childLines.every(line => line.partId && Number.isFinite(line.unitPrice) && line.unitPrice >= 0));
   }
   assert.ok(fixture.expected.mixedComponentAndPartAllocation);
+});
+
+
+test("Process Map is reachable through the module registry and linked from both route visualizers", () => {
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(app.includes('{ id: "process-map", title: "Process Map"'));
+  assert.ok(app.includes('activeModuleId === "process-map"'));
+  assert.ok(universe.includes('id:"process-map",title:"Process Map"'));
+  assert.ok(universe.includes('module:"process-map"'));
+  assert.ok(routeFlow.includes('id:"process-map",title:"Process Map"'));
+  assert.ok(processMap.includes('const draftRouteType ='));
+  assert.ok(processMap.includes('(draft.branch || "Main route") === "Main route" ? ""'));
+  assert.ok(processMap.includes('(draft.branch || "Main route") === "Main route" ? undefined'));
 });
