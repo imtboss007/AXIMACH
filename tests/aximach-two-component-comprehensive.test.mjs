@@ -273,3 +273,18 @@ test("all twenty registered AXIMACH modules route to dedicated functional worksp
     assert.ok(app.includes("<" + workspace), "App route does not render " + workspace);
   }
 });
+
+
+test("Demo Factory dashboard reports parent components, child parts, PO lines, relationships and transport coverage separately", () => {
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const dataExchange = app.slice(app.indexOf("function DataExchangeWorkspace"), app.indexOf("type LinkedNavigationContext"));
+  for (const key of ["parts:","poLines:","relationships:","transportRoutes:","transportLegs:"]) {
+    assert.ok(dataExchange.includes(key), "Demo Factory dashboard count missing " + key);
+  }
+  for (const label of ["Parent components","Child parts","PO lines","Route relationships","Transport routes","Transport legs"]) {
+    assert.ok(dataExchange.includes("<small>" + label + "</small>"), "Demo Factory dashboard tile missing " + label);
+  }
+  assert.ok(dataExchange.includes("componentParts:mergeById"));
+  assert.ok(dataExchange.includes("routeRelationships:mergeById"));
+  assert.ok(dataExchange.includes("transportLegs:mergeById"));
+});
