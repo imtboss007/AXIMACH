@@ -107,10 +107,11 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const targetLine=targetPO?.lines.find(row=>row.id===context.poLineId)
       || (context.operationId?targetPO?.lines.find(row=>row.id===operations.find(op=>op.id===context.operationId)?.poLineId):undefined)
       || uniqueComponentLine;
+    const contextOperation=context.operationId?operations.find(row=>row.id===context.operationId&&row.poId===targetPO?.id&&row.poLineId===targetLine?.id):undefined;
     setCompanyPick(targetPO?.companyId||context.companyId||targetComponent?.companyId||"");
     setPoPick(targetPO?.id||"");
     setLinePick(targetLine?.id||"");
-    setBranchPick("Main route");
+    setBranchPick(contextOperation?.branch||"Main route");
     setInspectedTransportId("");setInspectedMaterialTransportId("");setSelectedMaterialLinkId("");
     setShowRelationshipEditor(false);setShowTransportEditor(false);setShowAddOperation(false);
     appliedContextKey.current=contextKey;
