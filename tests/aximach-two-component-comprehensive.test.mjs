@@ -204,17 +204,17 @@ test("all major manufacturing option sets are represented together, without fabr
 
 test("Demo Factory generator builds exactly two parent components, five child parts, complete route branches and all registered vehicle types", () => {
   const demo = readFileSync(new URL("../src/aximachDemoData.ts", import.meta.url), "utf8");
-  const parentBlock = demo.match(/const parentSpecs = \\[([\\s\\S]*?)\\n  \\];/)?.[1] ?? "";
-  const partBlock = demo.match(/const parts: Part\\[\\] = \\[([\\s\\S]*?)\\n  \\];/)?.[1] ?? "";
-  assert.equal([...parentBlock.matchAll(/\\{ code:/g)].length, 2, "Demo Factory must contain exactly two parent component specifications");
-  assert.equal([...partBlock.matchAll(/\\{ key:/g)].length, 5, "Demo Factory must contain five child part specifications");
-  assert.ok(demo.includes("const components: ManufacturingData[\"components\"] = parentSpecs.map"));
-  assert.ok(demo.includes("const componentParts: ManufacturingData[\"componentParts\"] = []"));
+  const parentBlock = demo.match(/const parentSpecs = \[([\s\S]*?)\n  \];/)?.[1] ?? "";
+  const partBlock = demo.match(/const parts: Part\[\] = \[([\s\S]*?)\n  \];/)?.[1] ?? "";
+  assert.equal([...parentBlock.matchAll(/\{ code:/g)].length, 2, "Demo Factory must contain exactly two parent component specifications");
+  assert.equal([...partBlock.matchAll(/\{ key:/g)].length, 5, "Demo Factory must contain five child part specifications");
+  assert.ok(demo.includes("const components: ManufacturingData[\\"components\\"] = parentSpecs.map"));
+  assert.ok(demo.includes("const componentParts: ManufacturingData[\\"componentParts\\"] = []"));
   assert.ok(demo.includes("componentParts.push({"));
   assert.ok(demo.includes('allocationLevel: "part"'));
   assert.ok(demo.includes("relationshipTypes.forEach") && demo.includes("routeRelationships.push"));
   assert.ok(demo.includes('addBranch("Alternate route"') && demo.includes('addBranch("Rework route"'));
-  assert.equal((demo.match(/VEHICLE_TYPES.map\\(/g) || []).length, 2, "all registered vehicle types must be saved as both directory routes and component legs");
+  assert.equal((demo.match(/VEHICLE_TYPES.map\(/g) || []).length, 2, "all registered vehicle types must be saved as both directory routes and component legs");
   assert.ok(demo.includes("materialProcessLinks.push"));
   assert.ok(demo.includes("bomLines.push"));
 });
