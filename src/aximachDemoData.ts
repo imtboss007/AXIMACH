@@ -241,7 +241,7 @@ export function createAxMachTwoCompanyDemo(): ManufacturingData {
       mainIds.push(operationId);
       previousId = operationId;
       plannedCosts.push({
-        id: id("PLANNED-COST", part.key + "-" + (stepIndex + 1)), companyId: company.id, poId, componentId,
+        id: id("PLANNED-COST", part.key + "-" + (stepIndex + 1)), companyId: company.id, poId, poLineId: lineId, partId, componentId,
         processDefinitionId: definition.id, processSubcategoryId: definition.subcategoryIds?.[definition.subcategories.indexOf(step.sub)],
         companyName: company.name, poNumber: po.number, componentName: part.name, componentNumber: part.key,
         processType: step.name, processCategory: step.category, processSubcategory: step.sub, plannedQty: part.qty,
