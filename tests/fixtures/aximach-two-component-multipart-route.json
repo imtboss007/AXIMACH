@@ -4879,7 +4879,9 @@
       "plannedRate": 10,
       "notes": "Synthetic planned cost",
       "createdAt": "2026-11-16T00:00:00.000Z",
-      "updatedAt": "2026-11-16T00:00:00.000Z"
+      "updatedAt": "2026-11-16T00:00:00.000Z",
+      "partId": "PART-A1",
+      "poLineId": "POL-1"
     },
     {
       "id": "PC-2",
@@ -4900,7 +4902,9 @@
       "plannedRate": 10,
       "notes": "Synthetic planned cost",
       "createdAt": "2026-11-16T00:00:00.000Z",
-      "updatedAt": "2026-11-16T00:00:00.000Z"
+      "updatedAt": "2026-11-16T00:00:00.000Z",
+      "partId": "PART-A2",
+      "poLineId": "POL-2"
     },
     {
       "id": "PC-3",
@@ -4921,7 +4925,9 @@
       "plannedRate": 10,
       "notes": "Synthetic planned cost",
       "createdAt": "2026-11-16T00:00:00.000Z",
-      "updatedAt": "2026-11-16T00:00:00.000Z"
+      "updatedAt": "2026-11-16T00:00:00.000Z",
+      "partId": "PART-A3",
+      "poLineId": "POL-3"
     },
     {
       "id": "PC-4",
@@ -4942,7 +4948,9 @@
       "plannedRate": 10,
       "notes": "Synthetic planned cost",
       "createdAt": "2026-11-16T00:00:00.000Z",
-      "updatedAt": "2026-11-16T00:00:00.000Z"
+      "updatedAt": "2026-11-16T00:00:00.000Z",
+      "partId": "PART-B1",
+      "poLineId": "POL-4"
     },
     {
       "id": "PC-5",
@@ -4963,7 +4971,9 @@
       "plannedRate": 10,
       "notes": "Synthetic planned cost",
       "createdAt": "2026-11-16T00:00:00.000Z",
-      "updatedAt": "2026-11-16T00:00:00.000Z"
+      "updatedAt": "2026-11-16T00:00:00.000Z",
+      "partId": "PART-B2",
+      "poLineId": "POL-5"
     }
   ],
   "followUpAssignments": [
