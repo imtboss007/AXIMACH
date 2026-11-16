@@ -37,7 +37,7 @@
       "partNumber": "ASM-B",
       "name": "Hydraulic control assembly",
       "revision": "A",
-      "companyId": "CO-B"
+      "companyId": "CO-A"
     }
   ],
   "parts": [
@@ -3727,7 +3727,7 @@
     },
     {
       "id": "MPL-PART-B1-IN",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-4",
       "componentId": "COMP-B",
@@ -3744,7 +3744,7 @@
     },
     {
       "id": "MPL-PART-B1-CONS",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-4",
       "componentId": "COMP-B",
@@ -3761,7 +3761,7 @@
     },
     {
       "id": "MPL-PART-B1-WIP",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-4",
       "componentId": "COMP-B",
@@ -3778,7 +3778,7 @@
     },
     {
       "id": "MPL-PART-B1-OUT",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-4",
       "componentId": "COMP-B",
@@ -3795,7 +3795,7 @@
     },
     {
       "id": "MPL-PART-B2-IN",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-5",
       "componentId": "COMP-B",
@@ -3812,7 +3812,7 @@
     },
     {
       "id": "MPL-PART-B2-CONS",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-5",
       "componentId": "COMP-B",
@@ -3829,7 +3829,7 @@
     },
     {
       "id": "MPL-PART-B2-WIP",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-5",
       "componentId": "COMP-B",
@@ -3846,7 +3846,7 @@
     },
     {
       "id": "MPL-PART-B2-OUT",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-5",
       "componentId": "COMP-B",
@@ -4142,7 +4142,7 @@
     {
       "id": "MCE-PART-B1-1",
       "scope": "process-map",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-4",
       "componentId": "COMP-B",
@@ -4188,7 +4188,7 @@
     {
       "id": "MCE-PART-B1-2",
       "scope": "process-map",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-4",
       "componentId": "COMP-B",
@@ -4234,7 +4234,7 @@
     {
       "id": "MCE-PART-B2-1",
       "scope": "process-map",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-5",
       "componentId": "COMP-B",
@@ -4280,7 +4280,7 @@
     {
       "id": "MCE-PART-B2-2",
       "scope": "process-map",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "poLineId": "POL-5",
       "componentId": "COMP-B",
@@ -4925,12 +4925,12 @@
     },
     {
       "id": "PC-4",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "componentId": "COMP-B",
       "processDefinitionId": "DEF-PART-B1-1",
       "processSubcategoryId": "SUB-PART-B1-1",
-      "companyName": "Synthetic Company B",
+      "companyName": "Synthetic Company A",
       "poNumber": "DEMO-PO-ACCEPT-01",
       "componentName": "Hydraulic manifold block",
       "componentNumber": "B-01",
@@ -4946,12 +4946,12 @@
     },
     {
       "id": "PC-5",
-      "companyId": "CO-B",
+      "companyId": "CO-A",
       "poId": "PO-ACCEPT-01",
       "componentId": "COMP-B",
       "processDefinitionId": "DEF-PART-B2-1",
       "processSubcategoryId": "SUB-PART-B2-1",
-      "companyName": "Synthetic Company B",
+      "companyName": "Synthetic Company A",
       "poNumber": "DEMO-PO-ACCEPT-01",
       "componentName": "Fixture base plate",
       "componentNumber": "B-02",
