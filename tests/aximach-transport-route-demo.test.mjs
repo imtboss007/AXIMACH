@@ -98,7 +98,7 @@ test("every supported vehicle category is displayed with a permanent visual iden
   const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
   assert.ok(visuals.includes('if (/heavy.?duty/.test(value))'));
   assert.ok(demo.includes("{VEHICLE_TYPES.map(type=><VehicleBadge"));
-  for (const type of ["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery"]) assert.ok(visuals.includes(type));
+  for (const type of ["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery","Air freight","Rail freight","Sea freight / container vessel","Inland waterway vessel","Multimodal freight"]) assert.ok(visuals.includes(type));
 });
 
 test("courier/delivery and 2-wheeler use separate vehicle colours", () => {
@@ -118,8 +118,8 @@ test("every transport category keeps a unique stable colour in Process Map, Rout
   const materialInspector = readFileSync(new URL("../src/MaterialTransportRecordInspector.tsx", import.meta.url), "utf8");
   const visualBlock = visuals.slice(visuals.indexOf("export function getVehicleVisual"), visuals.indexOf("export function VehicleIcon"));
   const colors = [...visualBlock.matchAll(/color: "(#[A-Fa-f0-9]+)"/g)].map(match => match[1]);
-  assert.equal(colors.length, 12, "11 supported vehicle categories plus one fallback identity must have colours");
-  assert.equal(new Set(colors).size, 12, "every vehicle category and fallback must have a distinct identity colour");
+  assert.equal(colors.length, 17, "16 supported vehicle categories plus one fallback identity must have colours");
+  assert.equal(new Set(colors).size, 17, "every vehicle category and fallback must have a distinct identity colour");
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={leg.vehicleType}"));
   assert.ok(scene.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));

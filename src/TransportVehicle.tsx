@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Bike, Bus, Boxes, Car, Package, Truck, type LucideIcon } from "lucide-react";
+import { Bike, Bus, Boxes, Car, Package, Truck, Plane, TrainFront, Ship, Workflow, type LucideIcon } from "lucide-react";
 import type { ComponentTransportLegRecord, TransportRouteRecord } from "./manufacturingData";
 
 export const VEHICLE_TYPES = [
@@ -13,13 +13,23 @@ export const VEHICLE_TYPES = [
   "Container truck",
   "Trailer / tractor",
   "Bus / staff vehicle",
-  "Courier / delivery"
+  "Courier / delivery",
+  "Air freight",
+  "Rail freight",
+  "Sea freight / container vessel",
+  "Inland waterway vessel",
+  "Multimodal freight"
 ] as const;
 
 type VehicleVisual = { Icon: LucideIcon; color: string };
 
 export function getVehicleVisual(vehicleType: string): VehicleVisual {
   const value = (vehicleType || "").toLowerCase();
+  if (/multimodal/.test(value)) return { Icon: Workflow, color: "#8B6BCB" };
+  if (/inland waterway/.test(value)) return { Icon: Ship, color: "#247F9E" };
+  if (/sea freight|container vessel/.test(value)) return { Icon: Ship, color: "#2C6F9F" };
+  if (/rail freight|\brail\b/.test(value)) return { Icon: TrainFront, color: "#A15B35" };
+  if (/air freight|\bair\b/.test(value)) return { Icon: Plane, color: "#3A8FC1" };
   if (/courier|delivery/.test(value)) return { Icon: Bike, color: "#B56BC5" };
   if (/2.?wheel|bike|motorcycle|scooter/.test(value)) return { Icon: Bike, color: "#D49A2D" };
   if (/3.?wheel|auto|rickshaw/.test(value)) return { Icon: Bus, color: "#16A6A0" };

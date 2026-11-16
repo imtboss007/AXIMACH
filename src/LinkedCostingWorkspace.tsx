@@ -7,7 +7,7 @@ import { ComponentIcon, ProcessIcon } from "./IconStudio";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void };
-type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; componentId: string; partId?: string; allocationLevel?: "component" | "part"; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
+type ComponentLineRef = { key: string; poId: string; poNumber: string; lineId: string; quantity: number; targetDelivery: string; componentId: string; partId?: string; unitPrice?: number; allocationLevel?: "component" | "part"; materialQty?: number; materialRate?: number; benchmarkMaterialRate?: number; overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number };
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const stamp = () => new Date().toISOString().slice(0,10);
 
@@ -60,7 +60,7 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
     const component=components.find(item=>item.id===line.componentId);
     const linkedOperations=operations.filter(op=>op.poId===po.id&&op.poLineId===line.id&&op.componentId===line.componentId);
     const costedLinkedOperations=linkedOperations.filter(op=>op.costIncluded!==false);
-    const revenue=line.quantity*(component?.salePrice||0);
+    const revenue=line.quantity*(line.partId?(line.unitPrice||0):(component?.salePrice||0));
     const processCost=costedLinkedOperations.reduce((sum,op)=>sum+op.quantity*(op.actualRatePerPart||0),0);
     const includedTransportLegs=(data.transportLegs||[]).filter(leg=>!leg.deletedAt&&leg.poId===po.id&&leg.poLineId===line.id&&leg.componentId===line.componentId&&(!leg.anchorOperationId||linkedOperations.find(op=>op.id===leg.anchorOperationId)?.costIncluded!==false));
     // A legacy operation transport entry and a new transport leg can represent the same saved route.
@@ -80,24 +80,26 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
       const poMatches=row.poId
         ? row.poId===po.id
         : (!row.poNumber || row.poNumber.trim().toLowerCase()===po.number.trim().toLowerCase());
-      return componentMatches && companyMatches && poMatches;
+      const lineMatches=row.poLineId ? row.poLineId===line.id : row.partId ? row.partId===line.partId : line.allocationLevel!=="part";
+      return componentMatches && companyMatches && poMatches && lineMatches;
     });
     const plannedProcess=costedLinkedOperations.reduce((sum,op)=>sum+op.quantity*Math.max(0,Number(op.ratePerPart)||0),0);
     const plannedProcessCost=plannedRows.length?plannedRows.reduce((sum,row)=>sum+row.plannedQty*row.plannedRate,0):plannedProcess;
-    const bomLines=data.bomLines.filter(bom=>bom.componentId===line.componentId&&!bom.deletedAt);
+    const bomLines=data.bomLines.filter(bom=>bom.componentId===line.componentId&&!bom.deletedAt&&(!bom.partId||(Boolean(line.partId)&&bom.partId===line.partId)));
     const bomMaterialQtyPerPart=bomLines.reduce((sum,bom)=>sum+bom.quantityPerPart*(1+bom.scrapPercent/100),0);
     const bomMaterialRate=bomMaterialQtyPerPart>0?bomLines.reduce((sum,bom)=>sum+bom.quantityPerPart*(1+bom.scrapPercent/100)*(data.materials.find(material=>material.id===bom.materialId)?.ratePerUnit||0),0)/bomMaterialQtyPerPart:0;
     const materialQty=line.materialQty??((component?.materialQty||0)>0?(component?.materialQty||0)*line.quantity:bomMaterialQtyPerPart*line.quantity);
     const materialRate=line.materialRate??((component?.materialRate||0)>0?(component?.materialRate||0):bomMaterialRate);
     const materialCost=materialQty*materialRate;
-    const materialCostRows=activeRows(data.materialCostEntries||[]).filter(entry=>entry.componentId===line.componentId&&entry.poId===po.id&&(entry.poLineId?entry.poLineId===line.id:(line.allocationLevel!=="part"&&!entry.partId)));
+    const materialCostRows=activeRows(data.materialCostEntries||[]).filter(entry=>entry.componentId===line.componentId&&entry.poId===po.id&&(entry.poLineId?entry.poLineId===line.id:entry.partId?entry.partId===line.partId:line.allocationLevel!=="part"));
     const plannedMaterialCostEntries=materialCostRows.filter(entry=>entry.scope==="planned-cost");
     const processMapMaterialCostEntries=materialCostRows.filter(entry=>entry.scope==="process-map");
     const plannedMaterialCost=plannedMaterialCostEntries.reduce((sum,entry)=>sum+Math.max(0,Number(entry.materialCost)||0),0);
     const plannedCuttingCost=plannedMaterialCostEntries.reduce((sum,entry)=>sum+Math.max(0,Number(entry.cuttingCost)||0),0);
     const processMapMaterialCost=processMapMaterialCostEntries.reduce((sum,entry)=>sum+Math.max(0,Number(entry.materialCost)||0),0);
     const processMapCuttingCost=processMapMaterialCostEntries.reduce((sum,entry)=>sum+Math.max(0,Number(entry.cuttingCost)||0),0);
-    const extras=(line.overhead??component?.overhead??0)+(line.toolingCost??component?.toolingCost??0)+(line.reworkCost??component?.reworkCost??0)+(line.scrapCost??component?.scrapCost??0);
+    const partScoped=line.allocationLevel==="part"||Boolean(line.partId);
+    const extras=(line.overhead??(partScoped?0:component?.overhead??0))+(line.toolingCost??(partScoped?0:component?.toolingCost??0))+(line.reworkCost??(partScoped?0:component?.reworkCost??0))+(line.scrapCost??(partScoped?0:component?.scrapCost??0));
     const actualExtras=(line.overhead??0)+(line.toolingCost??0)+(line.reworkCost??0)+(line.scrapCost??0);
     const materialCostExplicitlyEntered=line.materialQty!==undefined&&line.materialRate!==undefined;
     const actualMaterialCost=materialCostExplicitlyEntered?materialCost:0;
@@ -200,7 +202,7 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   const selectedPO = companyOrders.find(po => po.id === poId);
   const componentLines: ComponentLineRef[] = useMemo(() => (selectedPO?.lines || []).filter(line => !("deletedAt" in line && (line as any).deletedAt)).map(line => ({
     key: selectedPO!.id + "::" + line.id, poId: selectedPO!.id, poNumber: selectedPO!.number, lineId: line.id, quantity: line.quantity,
-    targetDelivery: line.targetDelivery || selectedPO!.targetDelivery, componentId: line.componentId, partId: line.partId, allocationLevel: line.allocationLevel, materialQty: line.materialQty,
+    targetDelivery: line.targetDelivery || selectedPO!.targetDelivery, componentId: line.componentId, partId: line.partId, unitPrice: line.unitPrice, allocationLevel: line.allocationLevel, materialQty: line.materialQty,
     materialRate: line.materialRate, benchmarkMaterialRate: line.benchmarkMaterialRate, overhead: line.overhead, toolingCost: line.toolingCost,
     reworkCost: line.reworkCost, scrapCost: line.scrapCost, rejectedQty: line.rejectedQty, gstRate: line.gstRate
   })), [selectedPO]);
@@ -244,20 +246,21 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
     .filter(q => (q.quoteReference + " " + (vendors.find(v=>v.id===q.vendorId)?.company||"") + " " + q.status + " " + (routeOperations.find(op=>op.id===q.operationId)?.name||"")).toLowerCase().includes(quoteSearch.toLowerCase().trim()))
     .sort((a,b) => (b.quotedAt || "").localeCompare(a.quotedAt || ""));
   // PO-line overrides isolate material/cost/rejection inputs between different orders for the same component.
-  const componentBomLines = data.bomLines.filter(line => line.componentId === selectedComponent?.id && !line.deletedAt);
+  const partScoped = selectedLine?.allocationLevel === "part" || Boolean(selectedLine?.partId);
+  const componentBomLines = data.bomLines.filter(line => line.componentId === selectedComponent?.id && !line.deletedAt && (!line.partId || (Boolean(selectedLine?.partId) && line.partId === selectedLine?.partId)));
   const bomMaterialQtyPerPart = componentBomLines.reduce((sum,line) => sum + line.quantityPerPart * (1 + line.scrapPercent / 100), 0);
   const bomMaterialCostPerPart = componentBomLines.reduce((sum,line) => sum + line.quantityPerPart * (1 + line.scrapPercent / 100) * (data.materials.find(material => material.id === line.materialId)?.ratePerUnit || 0), 0);
   const bomWeightedMaterialRate = bomMaterialQtyPerPart > 0 ? bomMaterialCostPerPart / bomMaterialQtyPerPart : 0;
   const masterMaterialQty = selectedComponent?.materialQty || 0;
   const masterMaterialRate = selectedComponent?.materialRate || 0;
-  const materialQty = selectedLine?.materialQty ?? (masterMaterialQty > 0 ? masterMaterialQty : bomMaterialQtyPerPart * (selectedLine?.quantity || 0));
-  const materialRate = selectedLine?.materialRate ?? (masterMaterialRate > 0 ? masterMaterialRate : bomWeightedMaterialRate);
-  const materialCostSource = selectedLine?.materialQty !== undefined || selectedLine?.materialRate !== undefined ? "PO-line cost override" : masterMaterialQty > 0 && masterMaterialRate > 0 ? "Component master default" : bomMaterialQtyPerPart > 0 ? "Linked BOM estimate" : "No material rate / BOM entered";
-  const overhead = selectedLine?.overhead ?? selectedComponent?.overhead ?? 0;
-  const toolingCost = selectedLine?.toolingCost ?? selectedComponent?.toolingCost ?? 0;
-  const reworkCost = selectedLine?.reworkCost ?? selectedComponent?.reworkCost ?? 0;
-  const scrapCost = selectedLine?.scrapCost ?? selectedComponent?.scrapCost ?? 0;
-  const rejectedQty = selectedLine?.rejectedQty ?? selectedComponent?.rejectedQty ?? 0;
+  const materialQty = selectedLine?.materialQty ?? (!partScoped && masterMaterialQty > 0 ? masterMaterialQty : bomMaterialQtyPerPart * (selectedLine?.quantity || 0));
+  const materialRate = selectedLine?.materialRate ?? (!partScoped && masterMaterialRate > 0 ? masterMaterialRate : bomWeightedMaterialRate);
+  const materialCostSource = selectedLine?.materialQty !== undefined || selectedLine?.materialRate !== undefined ? "PO-line cost override" : !partScoped && masterMaterialQty > 0 && masterMaterialRate > 0 ? "Component master default" : bomMaterialQtyPerPart > 0 ? "Linked BOM estimate" : "No material rate / BOM entered";
+  const overhead = selectedLine?.overhead ?? (partScoped ? 0 : selectedComponent?.overhead ?? 0);
+  const toolingCost = selectedLine?.toolingCost ?? (partScoped ? 0 : selectedComponent?.toolingCost ?? 0);
+  const reworkCost = selectedLine?.reworkCost ?? (partScoped ? 0 : selectedComponent?.reworkCost ?? 0);
+  const scrapCost = selectedLine?.scrapCost ?? (partScoped ? 0 : selectedComponent?.scrapCost ?? 0);
+  const rejectedQty = selectedLine?.rejectedQty ?? (partScoped ? 0 : selectedComponent?.rejectedQty ?? 0);
   const gstRate = selectedLine?.gstRate ?? selectedComponent?.gstRate ?? 0;
   const materialCost = materialQty * materialRate;
   const costedRouteOperations = routeOperations.filter(op => op.costIncluded !== false);
@@ -274,7 +277,7 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   const operationActual = actualProcessTotal;
   const extraCharges = overhead + toolingCost + reworkCost + scrapCost;
   const actualExtraCharges = (selectedLine?.overhead??0)+(selectedLine?.toolingCost??0)+(selectedLine?.reworkCost??0)+(selectedLine?.scrapCost??0);
-  const sellingRate = selectedComponent?.salePrice ?? 0;
+  const sellingRate = selectedLine?.partId ? (selectedLine.unitPrice ?? 0) : (selectedComponent?.salePrice ?? 0);
   const revenue = (selectedLine?.quantity || 0) * sellingRate;
   const gstEstimate = revenue * gstRate / 100;
   const finalOperation = routeOperations[routeOperations.length - 1];
@@ -285,7 +288,8 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
       : row.componentNumber.trim().toLowerCase() === selectedComponent.partNumber.trim().toLowerCase()
         || row.componentName.trim().toLowerCase() === selectedComponent.name.trim().toLowerCase();
     const poMatches = !row.poId || row.poId === selectedLine?.poId;
-    return componentMatches && poMatches;
+    const lineMatches = row.poLineId ? row.poLineId === selectedLine?.lineId : row.partId ? row.partId === selectedLine?.partId : selectedLine?.allocationLevel !== "part";
+    return componentMatches && poMatches && lineMatches;
   }) : [];
   const independentPlannedTotal = independentPlannedCosts.reduce((sum,row) =>
     sum + row.plannedQty * row.plannedRate, 0
@@ -359,7 +363,14 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
     const amount = Math.max(0, value);
     const updatedAt = nowIso();
     if (key === "salePrice") {
-      update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, salePrice: amount, updatedAt } : component) }));
+      if (selectedLine?.partId) {
+        update(current => ({ ...current, purchaseOrders: current.purchaseOrders.map(po => po.id !== selectedLine.poId ? po : {
+          ...po, updatedAt,
+          lines: po.lines.map(line => line.id === selectedLine.lineId ? { ...line, unitPrice: amount } : line)
+        }) }));
+      } else {
+        update(current => ({ ...current, components: current.components.map(component => component.id === selectedComponent.id ? { ...component, salePrice: amount, updatedAt } : component) }));
+      }
       return;
     }
     if (selectedLine) {
@@ -425,12 +436,12 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
       <div className="linked-master-selectors linked-cost-selectors">
         <SearchablePicker id="cost-company" label="Company" value={companyId} placeholder="Select company…" options={companies.map(c=>({id:c.id,label:c.name}))} onChange={id=>{setCompanyId(id);setPoId("");setLineKey("");setOperationId("");setShowQuoteForm(false);}}/>
         <SearchablePicker id="cost-po" label="Purchase order" value={poId} placeholder="Select PO…" options={companyOrders.map(po=>({id:po.id,label:po.number+" · "+po.status}))} onChange={id=>{setPoId(id);setLineKey("");setOperationId("");setShowQuoteForm(false);}}/>
-        <SearchablePicker id="cost-po-line" label="PO component line" value={selectedLine?.key||""} placeholder="Select component line…" options={componentLines.map(line=>({id:line.key,label:(components.find(c=>c.id===line.componentId)?.partNumber||"Part missing")+" · "+(components.find(c=>c.id===line.componentId)?.name||"")+" · "+(line.partId?((componentParts.find(part=>part.id===line.partId)?.partNumber||"")+" "+(componentParts.find(part=>part.id===line.partId)?.name||"")):"Component-level")+" · "+line.quantity+" "+(components.find(c=>c.id===line.componentId)?.salePriceUnit==="set"?"sets":"pieces")}))} onChange={key=>{setLineKey(key);setOperationId("");}}/>
+        <SearchablePicker id="cost-po-line" label="PO component line" value={selectedLine?.key||""} placeholder="Select component line…" options={componentLines.map(line=>({id:line.key,label:(components.find(c=>c.id===line.componentId)?.partNumber||"Part missing")+" · "+(components.find(c=>c.id===line.componentId)?.name||"")+" · "+(line.partId?((componentParts.find(part=>part.id===line.partId)?.partNumber||"")+" "+(componentParts.find(part=>part.id===line.partId)?.name||"")):"Component-level")+" · "+line.quantity+" "+(line.partId?"pieces":(components.find(c=>c.id===line.componentId)?.salePriceUnit==="set"?"sets":"pieces"))}))} onChange={key=>{setLineKey(key);setOperationId("");}}/>
         <SearchablePicker id="cost-operation" label="Process operation" value={selectedOperation?.id||""} placeholder="Select operation…" options={routeOperations.map(op=>({id:op.id,label:op.name+" · OP-"+op.sequence}))} onChange={setOperationId}/>
       </div>
       {!componentLines.length && <div className="module-safety-note"><FileText size={14}/><span>This component is not yet linked to a PO line. Create or edit the actual order in Purchase Orders; quotes will then be stored against that order line.</span><button className="button-quiet compact-button" onClick={() => onSelectModule("purchasing")}>Open purchase orders</button></div>}
-      <div className="linked-component-summary"><div className="linked-component-identity"><ComponentIcon componentId={selectedComponent?.id} componentName={(selectedComponent?.name||"")+" "+(selectedComponent?.partNumber||"")}/><span><small>COMPONENT</small><strong>{selectedComponent?.partNumber} · {selectedComponent?.name}</strong><span>Revision {selectedComponent?.revision || "—"} · Drawing {selectedComponent?.drawingReference || "—"}</span></span></div><div><small>MATERIAL BUDGET / ESTIMATE</small><strong>{money(materialCost)}</strong><span>{materialQty.toLocaleString("en-IN")} units × {money(materialRate)} · {materialCostSource}{actualMaterialCost>0?" · explicitly entered actual":" · excluded from actual cost"}</span></div><div><small>PLANNED PROCESS COST</small><strong>{money(plannedProcessTotal)}</strong><span>Transport cost kept separate below: {money(operationTransportTotal)}</span></div><div><small>PLANNED COST / ACCEPTED PART</small><strong>{money(costPerAccepted)}</strong><span>Uses the selected PO quantity and entered rejects</span></div></div>
-      <div className="linked-kpis linked-cost-kpis"><div className="route-kpi kpi-cost"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PLANNED COST</small><strong>{money(plannedTotal)}</strong><em>Material + independent planned process + transport + entered extras</em></span></div><div className="route-kpi kpi-quality"><span className="kpi-icon"><Check size={19}/></span><span><small>ACTUAL COST</small><strong>{money(actualTotal)}</strong><em>Explicit PO-line material and other costs + actual process + transport; master defaults remain estimates</em></span></div><div className="route-kpi kpi-delivery"><span className="kpi-icon"><Package size={19}/></span><span><small>ORDER VALUE</small><strong>{money(revenue)}</strong><em>{selectedLine?.quantity || 0} {selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces"} × {money(sellingRate)}</em></span></div><div className="route-kpi kpi-risk"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>RECORDED PROFIT / LOSS</small><strong>{money(profit)}</strong><em>Component-master defaults and unentered material are excluded from actual cost; missing costs remain excluded</em></span></div></div>
+      <div className="linked-component-summary"><div className="linked-component-identity"><ComponentIcon componentId={selectedComponent?.id} componentName={(selectedComponent?.name||"")+" "+(selectedComponent?.partNumber||"")}/><span><small>{selectedLine?.partId?"COMPONENT / PART":"COMPONENT"}</small><strong>{selectedComponent?.partNumber} · {selectedComponent?.name}</strong>{selectedLine?.partId&&<span>Part: {componentParts.find(part=>part.id===selectedLine.partId)?.partNumber} · {componentParts.find(part=>part.id===selectedLine.partId)?.name}</span>}<span>Revision {selectedComponent?.revision || "—"} · Drawing {selectedComponent?.drawingReference || "—"}</span></span></div><div><small>MATERIAL BUDGET / ESTIMATE</small><strong>{money(materialCost)}</strong><span>{materialQty.toLocaleString("en-IN")} units × {money(materialRate)} · {materialCostSource}{actualMaterialCost>0?" · explicitly entered actual":" · excluded from actual cost"}</span></div><div><small>PLANNED PROCESS COST</small><strong>{money(plannedProcessTotal)}</strong><span>Transport cost kept separate below: {money(operationTransportTotal)}</span></div><div><small>PLANNED COST / ACCEPTED PART</small><strong>{money(costPerAccepted)}</strong><span>Uses the selected PO quantity and entered rejects</span></div></div>
+      <div className="linked-kpis linked-cost-kpis"><div className="route-kpi kpi-cost"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PLANNED COST</small><strong>{money(plannedTotal)}</strong><em>Material + independent planned process + transport + entered extras</em></span></div><div className="route-kpi kpi-quality"><span className="kpi-icon"><Check size={19}/></span><span><small>ACTUAL COST</small><strong>{money(actualTotal)}</strong><em>Explicit PO-line material and other costs + actual process + transport; master defaults remain estimates</em></span></div><div className="route-kpi kpi-delivery"><span className="kpi-icon"><Package size={19}/></span><span><small>ORDER VALUE</small><strong>{money(revenue)}</strong><em>{selectedLine?.quantity || 0} {selectedLine?.partId ? "pieces" : (selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces")} × {money(sellingRate)}</em></span></div><div className="route-kpi kpi-risk"><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>RECORDED PROFIT / LOSS</small><strong>{money(profit)}</strong><em>Component-master defaults and unentered material are excluded from actual cost; missing costs remain excluded</em></span></div></div>
       {independentPlannedCosts.length > 0 && <section className="surface-panel planned-cost-comparison">
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> INDEPENDENT PLANNED COST REGISTER</div><h3>Planned vs actual process cost</h3><p>Matched by component number or name. This independent register provides the planned process-cost baseline; actual process costs and transport remain separate.</p></div><span className="module-number">{independentPlannedCosts.length} PLANNED PROCESS RATES</span></div>
         <div className="dashboard-job-summary">
@@ -482,7 +493,7 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
         <div className="module-record-form">
           <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Package size={15}/></span>Material quantity</span><input type="number" min="0" step="0.001" value={materialQty} onChange={e=>setExtra("materialQty",Number(e.target.value)||0)}/></label>
           <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><CircleDollarSign size={15}/></span>Material rate per unit (₹)</span><input type="number" min="0" step="0.01" value={materialRate} onChange={e=>setExtra("materialRate",Number(e.target.value)||0)}/></label>
-                    <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Wallet size={15}/></span>Selling rate per part (₹)</span><input type="number" min="0" step="0.01" value={sellingRate} onChange={e=>setExtra("salePrice",Number(e.target.value)||0)}/></label>
+                    <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Wallet size={15}/></span>{selectedLine?.partId?"Part selling rate (₹ / piece)":"Component selling rate (₹ / "+(selectedComponent?.salePriceUnit||"piece")+")"}</span><input type="number" min="0" step="0.01" value={sellingRate} onChange={e=>setExtra("salePrice",Number(e.target.value)||0)}/></label>
           <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Activity size={15}/></span>Overhead (₹)</span><input type="number" min="0" step="0.01" value={overhead} onChange={e=>setExtra("overhead",Number(e.target.value)||0)}/></label>
           <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Wrench size={15}/></span>Tooling / fixture (₹)</span><input type="number" min="0" step="0.01" value={toolingCost} onChange={e=>setExtra("toolingCost",Number(e.target.value)||0)}/></label>
           <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><RotateCcw size={15}/></span>Rework cost (₹)</span><input type="number" min="0" step="0.01" value={reworkCost} onChange={e=>setExtra("reworkCost",Number(e.target.value)||0)}/></label>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord, type RouteRelationshipRecord } from "./manufacturingData";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 import OperationInlineEditor from "./OperationInlineEditor";
@@ -34,7 +34,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
   const [showUniverseSettings,setShowUniverseSettings]=useState(false);
   const [visibleUniverseFields,setVisibleUniverseFields]=useState<string[]>(["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]);
-  const [visibleUniverseModules,setVisibleUniverseModules]=useState<string[]>(["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"]);
+  const [visibleUniverseModules,setVisibleUniverseModules]=useState<string[]>(["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","process-map","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"]);
   const appliedContextKey=useRef("");
   useEffect(()=>{
     const context=initialContext||{};
@@ -99,7 +99,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     setSelectedOperationId(simulatedOperationId);
   },[simulationActive,simulationIndex,simulatedOperationId]);
 
-  const routeLabels=useMemo(()=>Object.fromEntries(lines.map(item=>{const itemComponent=components.find(row=>row.id===item.componentId);return [item.id,(itemComponent?.partNumber?itemComponent.partNumber+" · ":"")+(itemComponent?.name||"Component")+" · Qty "+item.quantity];})),[lines,components]);
+  const routeLabels=useMemo(()=>Object.fromEntries(lines.map(item=>{const itemComponent=components.find(row=>row.id===item.componentId);const part=item.partId?data.componentParts.find(row=>row.id===item.partId):undefined;return [item.id,(itemComponent?.partNumber?itemComponent.partNumber+" · ":"")+(itemComponent?.name||"Component")+(part?" · "+part.partNumber+" "+part.name:"")+" · Qty "+item.quantity];})),[lines,components,data.componentParts]);
   const componentLineCount=lines.filter(item=>item.componentId===componentId).length;
   const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.poId===poId&&entry.componentId===componentId&&(entry.poLineId===poLineId||(!entry.poLineId&&componentLineCount===1))&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&leg.componentId===componentId);
@@ -160,6 +160,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const onNavigate=(moduleId:string,operation?:OperationRecord)=>onSelectModule(moduleId,{companyId,poId,poLineId,componentId,operationId:operation?.id});
   const stats=[
     {label:"PROCESS STAGES",value:routeOperations.length,icon:Activity,module:"production"},
+    {label:"PROCESS MAP",value:routeOperations.length,icon:Workflow,module:"process-map"},
     {label:"MATERIAL ALLOCATIONS",value:routeMaterials.length,icon:Package,module:"inventory"},
     {label:"TRANSPORT LEGS",value:routeLegs.length,icon:Truck,module:"transport-master"},
     {label:"PROCESS DEFINITIONS",value:definitions.length,icon:Workflow,module:"process-master"},
@@ -182,6 +183,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     {id:"planned-cost",title:"Component Planned Cost",icon:CircleDollarSign,meta:"Component and process cost plans"},
     {id:"vendor-capability",title:"Vendor Network",icon:Network,meta:"Vendor process capabilities and categories"},
     {id:"production",title:"Production Plan",icon:Activity,meta:"PO-wise production state and quantities"},
+    {id:"process-map",title:"Process Map",icon:Workflow,meta:"PO-line processes, branches and editable stages"},
     {id:"dispatch",title:"Transport & Dispatch",icon:Truck,meta:"Dispatch legs, pickups and deliveries"},
     {id:"quality",title:"Quality Inspection",icon:ClipboardCheck,meta:"Measurements, QC and acceptance"},
     {id:"costing",title:"Costing & Payment",icon:CheckCircle2,meta:"Material, process, transport and payment"},
@@ -234,7 +236,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   return <section className="manufacturing-universe-workspace" data-workspace-theme={workspaceTheme}>
     <header className="manufacturing-universe-head">
       <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE CONNECTED OPERATIONS</div><h1>Manufacturing <span>Universe</span></h1><p>A dedicated large-format 3D view of live material, transport, process, quality and delivery records. Select a PO line to see its live route.</p></div>
-      <div className="manufacturing-universe-actions"><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="manufacturing-universe-simulation-controls">{simulationActive?<button className="button-quiet compact-button" onClick={()=>setSimulationActive(false)}><Activity size={14}/> Pause simulation</button>:<button className="button-quiet compact-button" onClick={startRouteSimulation} disabled={!simulationOperations.length}><Activity size={14}/> Simulate route</button>}<button className="button-quiet compact-button" onClick={()=>{setSimulationActive(false);setSimulationIndex(-1);}} disabled={simulationIndex<0}><CheckCircle2 size={14}/> Reset</button>{simulationIndex>=0&&<small>STEP {simulationIndex+1}/{simulationOperations.length} · VISUAL ONLY</small>}</div><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div></div>
+      <div className="manufacturing-universe-actions"><button type="button" className="button-quiet compact-button" onClick={onBack}><ArrowLeft size={14}/> Back</button><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="manufacturing-universe-simulation-controls">{simulationActive?<button className="button-quiet compact-button" onClick={()=>setSimulationActive(false)}><Activity size={14}/> Pause simulation</button>:<button className="button-quiet compact-button" onClick={startRouteSimulation} disabled={!simulationOperations.length}><Activity size={14}/> Simulate route</button>}<button className="button-quiet compact-button" onClick={()=>{setSimulationActive(false);setSimulationIndex(-1);}} disabled={simulationIndex<0}><CheckCircle2 size={14}/> Reset</button>{simulationIndex>=0&&<small>STEP {simulationIndex+1}/{simulationOperations.length} · VISUAL ONLY</small>}</div><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div></div>
     </header>
     {notice&&<div className="notice-banner"><CheckCircle2 size={15}/><span>{notice}</span></div>}
     <div className="manufacturing-universe-scope">

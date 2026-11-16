@@ -180,20 +180,26 @@ test("additional planned-cost process rows cascade by category and stable defini
 });
 
 
-test("dashboard command globe exposes 18 unique, distinguishable module shortcuts", () => {
+test("dashboard command globe exposes 21 unique, distinguishable module shortcuts", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const satelliteBlock = orb.match(/const satellites = \[([\s\S]*?)\n\];/);
   assert.ok(satelliteBlock, "command globe satellite registry exists");
   const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
-  assert.equal(ids.length, 18);
-  assert.equal(new Set(ids).size, 18, "module shortcut IDs must be unique");
-  assert.equal(labels.length, 18);
-  assert.equal(new Set(labels).size, 18, "module shortcut labels must be distinguishable");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const moduleBlock = app.match(/const modules: ModuleItem\[\] = \[([\s\S]*?)\n\];/);
+  assert.ok(moduleBlock, "main module registry exists");
+  const registeredIds = [...moduleBlock[1].matchAll(/\{ id: "([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual([...ids].sort(), [...registeredIds].sort(), "the command globe must expose every registered module exactly once");
+  assert.equal(ids.length, 21);
+  assert.equal(new Set(ids).size, 21, "module shortcut IDs must be unique");
+  assert.equal(labels.length, 21);
+  assert.equal(new Set(labels).size, 21, "module shortcut labels must be distinguishable");
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
+  assert.ok(ids.includes("process-map") && ids.includes("route-flow") && ids.includes("manufacturing-universe"));
 });
 
-test("all 18 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
+test("all 21 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const depthOpen = orb.indexOf('<motion.div className="ax-orb-depth"');
   const moduleShell = orb.indexOf('className="ax-orb-module-shell"');
@@ -206,7 +212,7 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(depthOpen >= 0 && depthOpen < moduleShell && moduleShell < moduleClose && moduleClose < depthClose,
     "module controls must be children of the same draggable 3D globe");
   assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the globe");
-  assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label="21 clickable AXIMACH modules"'));
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
   assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
   assert.ok(orb.includes('className="ax-orb-core"'));
@@ -255,10 +261,10 @@ test("new PO lines do not copy Component Master selling prices into editable lin
   const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
   const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(master.includes('const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quantity: 0, targetDelivery: "", notes: "", allocationLevel: "component", partId: "" })'));
-  assert.ok(master.includes("delete clean.unitPrice"));
+  assert.ok(master.includes("line.unitPrice === undefined") && master.includes("unitPrice:row.allocationLevel===\"part\"?undefined"));
   assert.ok(data.includes("unitPrice?: number"));
-  assert.ok(costing.includes("const sellingRate = selectedComponent?.salePrice ?? 0"));
-  assert.ok(!costing.includes("unitPrice"), "Costing must not read or write retired PO-line selling prices");
+  assert.ok(costing.includes("const sellingRate = selectedLine?.partId ? (selectedLine.unitPrice ?? 0) : (selectedComponent?.salePrice ?? 0);"));
+  assert.ok(costing.includes("unitPrice: line.unitPrice") && costing.includes("line.partId?(line.unitPrice||0)"));
   assert.ok(costing.includes("if (key === \"salePrice\")"));
   assert.ok(costing.includes("components: current.components.map(component => component.id === selectedComponent.id ? { ...component, salePrice: amount, updatedAt } : component)"));
 });
@@ -842,7 +848,7 @@ test("five synthetic component names resolve to the intended mechanical logo fam
 
 test("Main dashboard sphere uses native 3D module hit targets with stable transforms", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label="21 clickable AXIMACH modules"'));
   assert.ok(orb.includes('return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"'));
   assert.ok(orb.includes('translate3d(" + x + "px," + y + "px," + z + "px)'));
   assert.ok(orb.includes("onPointerDown={startDrag}"));
@@ -1532,22 +1538,27 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   for (const company of ["ASTER MOTION COMPONENTS PVT LTD", "MERIDIAN FLUID SYSTEMS PVT LTD"]) {
     assert.ok(demo.includes(company), "missing demo company: " + company);
   }
-  const partKeys = [...demo.matchAll(/key:"(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
-  assert.equal(partKeys.length, 5, "bundled demo must include exactly five component examples");
-  assert.equal(new Set(partKeys).size, 5, "demo component IDs must be unique");
+  const parentBlock = demo.match(/const parentSpecs = \[([\s\S]*?)\n  \];/)?.[1] ?? "";
+  const parentKeys = [...parentBlock.matchAll(/code: "(ASTER|MERIDIAN)"/g)].map(match => match[1]);
+  const partKeys = [...demo.matchAll(/key: "(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
+  assert.equal(parentKeys.length, 2, "bundled demo must include exactly two parent component examples");
+  assert.equal(new Set(parentKeys).size, 2, "parent component records must be unique");
+  assert.equal(partKeys.length, 5, "bundled demo must include exactly five child part examples");
+  assert.equal(new Set(partKeys).size, 5, "child part IDs must be unique");
   for (const collection of ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
     assert.ok(demo.includes(collection), "demo dataset must include " + collection);
   }
-  assert.ok(demo.includes('processSubcategoryId:def.subcategoryIds?.[def.subcategories.indexOf(s.sub)]'));
-  assert.ok(demo.includes('relationType:"alternate"'));
-  assert.ok(demo.includes('relationType:"rework"'));
-  assert.ok(demo.includes('branch:"Main route"'));
-  assert.ok(demo.includes('branch:"Alternate route"'));
-  assert.ok(demo.includes('branch:"Rework route"'));
-  assert.ok(demo.includes('materialCostEntries.push({id:id("MATERIAL-ALLOCATION"'));
-  assert.ok(demo.includes('scope:"process-map"'));
-  assert.ok(demo.includes('transportVendorId:id("VENDOR","LOG")'));
-  assert.ok(demo.includes('return {updatedAt:stamp,companies,factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
+  assert.ok(demo.includes('processSubcategoryId: definition.subcategoryIds?.[definition.subcategories.indexOf(step.sub)]'));
+  assert.ok(demo.includes('relationType: branch === "Alternate route" ? "alternate" : "rework"'));
+  assert.ok(demo.includes('branch: "Main route"'));
+  assert.ok(demo.includes('addBranch("Alternate route"'));
+  assert.ok(demo.includes('addBranch("Rework route"'));
+  assert.ok(demo.includes('materialCostEntries.push({'));
+  assert.ok(demo.includes('scope: "process-map"'));
+  assert.ok(demo.includes('transportVendorId: id("VENDOR", "LOG")'));
+  assert.ok(demo.includes('componentParts, materialCostEntries, bomLines, materialProcessLinks'));
+  assert.ok(demo.includes('routeRelationships, followUpAssignments'));
+  assert.equal((demo.match(/VEHICLE_TYPES.map\(/g) || []).length, 2, "all transport types must be represented in the demo directory and PO transport legs");
   assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
   assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
   assert.ok(importer.includes('onClick={loadTwoCompanyDemo}'));
@@ -1654,7 +1665,7 @@ test("PO lines support component-only, part-only and mixed component-plus-part a
   assert.ok(purchasing.includes('value="component">Component-level'));
   assert.ok(purchasing.includes('value="part">Part-level'));
   assert.ok(purchasing.includes("componentParts.filter(part=>part.componentId===line.componentId)"));
-  assert.ok(purchasing.includes('line.allocationLevel === "part" && !componentParts.some'));
+  assert.ok(purchasing.includes('line.allocationLevel === "part" && (!componentParts.some') && purchasing.includes("line.unitPrice === undefined"));
   assert.ok(processMap.includes("selectedPart?.id"));
 });
 
@@ -2015,9 +2026,9 @@ test("Manufacturing Universe exposes every AXIMACH module and renders material-f
   const moduleBlock = universe.match(/const linkModules=\[([\s\S]*?)\n  \];/);
   assert.ok(moduleBlock, "missing Manufacturing Universe module directory");
   const ids = [...moduleBlock[1].matchAll(/id:"([^"]+)"/g)].map(match => match[1]);
-  const expected = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"];
+  const expected = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","process-map","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"];
   assert.deepEqual([...new Set(ids)].sort(), [...expected].sort());
-  assert.equal(ids.length, 20, "module shortcuts must not contain duplicate entries");
+  assert.equal(ids.length, 21, "module shortcuts must not contain duplicate entries");
   assert.ok(universe.includes('poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)'));
   assert.ok(universe.includes('materialRoutes={materialRouteNodes}'));
 });

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-one-component-multipart-route.json", import.meta.url), "utf8"));
+const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-two-component-multipart-route.json", import.meta.url), "utf8"));
 const relationshipTypes = ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"];
 const vehicleTypes = ["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery","Air freight","Rail freight","Sea freight / container vessel","Inland waterway vessel","Multimodal freight"];
-const moduleIds = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"];
+const moduleIds = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","process-map","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"];
 
 const partsById = new Map(fixture.parts.map(row => [row.id,row]));
 const componentsById = new Map(fixture.components.map(row => [row.id,row]));
@@ -34,7 +34,9 @@ test("integrated acceptance fixture is synthetic and contains exactly two parent
 });
 
 test("every child part owns one separate part-level PO line and independent process route", () => {
-  assert.equal(fixture.purchaseOrder.lines.length,5);
+  assert.equal(fixture.purchaseOrder.lines.filter(row=>row.partId).length,5);
+  assert.equal(fixture.purchaseOrder.lines.filter(row=>row.allocationLevel==="component").length,2);
+  assert.equal(fixture.purchaseOrder.lines.length,7);
   for(const part of fixture.parts){
     const line=linesByPartId.get(part.id);
     assert.ok(line,part.partNumber+" needs a part-level purchase-order line");
@@ -93,7 +95,13 @@ test("every part-level route contains all eleven typed relationship kinds with v
   assert.deepEqual(new Set(fixture.routeRelationships.map(row=>row.status)),new Set(["Active","Planned","Conditional","Disabled"]));
 });
 
-test("all sixteen supported vehicle categories are present together in Transport Directory and saved component legs", () => {
+test("all sixteen vehicle categories are registered in the application and present together in saved component legs", () => {
+  const vehicleSource = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
+  const directorySource = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const registry = vehicleSource.match(/export const VEHICLE_TYPES = \[([\s\S]*?)\] as const;/)?.[1] ?? "";
+  const registeredVehicleTypes = [...registry.matchAll(/"([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(new Set(registeredVehicleTypes), new Set(vehicleTypes), "Transport Directory must expose all sixteen approved vehicle categories");
+  assert.ok(directorySource.includes("...VEHICLE_TYPES") && directorySource.includes("vehicleOptions.map"), "Transport Directory must build its selectable vehicle options from the shared vehicle registry");
   assert.deepEqual(new Set(fixture.transportRoutes.map(row=>row.vehicleType)),new Set(vehicleTypes));
   assert.deepEqual(new Set(fixture.transportLegs.map(row=>row.vehicleType)),new Set(vehicleTypes));
   assert.equal(fixture.transportRoutes.length,16);
@@ -153,22 +161,22 @@ test("part materials, BOM, process feeds and material costing retain exact compo
   assert.deepEqual(new Set(fixture.materialProcessLinks.map(row=>row.placement)),new Set(["before","after"]));
 });
 
-test("the full dataset contains live-linked records for all twenty catalogue modules", () => {
+test("the full dataset contains live-linked records for all twenty-one catalogue modules", () => {
   const app=readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
   const start=app.indexOf("const modules: ModuleItem[] = [");
   const end=app.indexOf("\n];",start);
   const appIds=[...app.slice(start,end).matchAll(/\{ id: "([^"]+)"/g)].map(match=>match[1]);
   assert.deepEqual(fixture.moduleIds,moduleIds);
   assert.deepEqual([...appIds].sort(),[...moduleIds].sort());
-  assert.equal(new Set(fixture.moduleIds).size,20);
+  assert.equal(new Set(fixture.moduleIds).size,21);
   const domains={
     company:fixture.company,factory:fixture.factory,components:fixture.components,parts:fixture.parts,
     purchaseOrder:fixture.purchaseOrder,vendors:fixture.vendors,transportRoutes:fixture.transportRoutes,
     contactProfiles:fixture.contactProfiles,processDefinitions:fixture.processDefinitions,plannedCosts:fixture.plannedCosts,
-    materials:fixture.materials,bomLines:fixture.bomLines,inventoryTransactions:fixture.inventoryTransactions,
-    operations:fixture.operations,routeRelationships:fixture.routeRelationships,transportLegs:fixture.transportLegs,
+    materials:fixture.materials,bomLines:fixture.bomLines,materialCostEntries:fixture.materialCostEntries,inventoryTransactions:fixture.inventoryTransactions,
+    operations:fixture.operations,routeRelationships:fixture.routeRelationships,transportLegs:fixture.transportLegs,materialProcessLinks:fixture.materialProcessLinks,
     inspectionMeasurements:fixture.inspectionMeasurements,quotations:fixture.quotations,
-    payments:fixture.paymentTransactions,followUpAssignments:fixture.followUpAssignments
+    payments:fixture.paymentTransactions,paymentTransactions:fixture.paymentTransactions,followUpAssignments:fixture.followUpAssignments
   };
   for(const id of moduleIds){
     const collections=fixture.moduleCoverage[id];
@@ -193,4 +201,223 @@ test("all major manufacturing option sets are represented together, without fabr
   assert.ok(fixture.expected.allPartsHaveIndependentOperationChains);
   assert.ok(fixture.expected.allTransportVehiclesPersisted);
   assert.equal(fixture.liveSeed,false,"the synthetic acceptance fixture must never auto-seed live customer records");
+});
+
+
+test("Demo Factory generator builds exactly two parent components, five child parts, complete route branches and all registered vehicle types", () => {
+  const demo = readFileSync(new URL("../src/aximachDemoData.ts", import.meta.url), "utf8");
+  const parentBlock = demo.match(/const parentSpecs = \[([\s\S]*?)\n  \];/)?.[1] ?? "";
+  const partBlock = demo.match(/const parts: Part\[\] = \[([\s\S]*?)\n  \];/)?.[1] ?? "";
+  assert.equal([...parentBlock.matchAll(/\{ code:/g)].length, 2, "Demo Factory must contain exactly two parent component specifications");
+  assert.equal([...partBlock.matchAll(/\{ key:/g)].length, 5, "Demo Factory must contain five child part specifications");
+  assert.ok(demo.includes('const components: ManufacturingData["components"] = parentSpecs.map'));
+  assert.ok(demo.includes('const componentParts: ManufacturingData["componentParts"] = []'));
+  assert.ok(demo.includes("componentParts.push({"));
+  assert.ok(demo.includes('allocationLevel: "part"'));
+  assert.ok(demo.includes("relationshipTypes.forEach") && demo.includes("routeRelationships.push"));
+  assert.ok(demo.includes('addBranch("Alternate route"') && demo.includes('addBranch("Rework route"'));
+  assert.equal((demo.match(/VEHICLE_TYPES.map\(/g) || []).length, 2, "all registered vehicle types must be saved as both directory routes and component legs");
+  assert.ok(demo.includes("materialProcessLinks.push"));
+  assert.ok(demo.includes("bomLines.push"));
+});
+
+
+test("Production, Quality and Dispatch retain child-part identity for every part-level PO line", () => {
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const production = operations.slice(operations.indexOf("export function ProductionPlanWorkspace"), operations.indexOf("export function TransportDispatchWorkspace"));
+  const dispatch = operations.slice(operations.indexOf("export function TransportDispatchWorkspace"), operations.indexOf("export function QualityInspectionWorkspace"));
+  const quality = operations.slice(operations.indexOf("export function QualityInspectionWorkspace"));
+  assert.ok(production.includes("part:parts.find(part=>part.id===line.partId)"));
+  assert.ok(production.includes("row.part?.partNumber") && production.includes("row.part?.name"));
+  assert.ok(production.includes('line.partId?"pieces"'));
+  assert.ok(dispatch.includes("part:parts.find(part=>part.id===pos.find(po=>po.id===leg.poId)?.lines.find(line=>line.id===leg.poLineId)?.partId)"));
+  assert.ok(dispatch.includes("row.part?.partNumber") && dispatch.includes("row.part?.name"));
+  assert.ok(quality.includes("parts=activeRows(data.componentParts||[])"));
+  assert.ok(quality.includes("const childPart=operationLine?.partId?parts.find(part=>part.id===operationLine.partId):undefined"));
+  assert.ok(quality.includes("childPart.partNumber") && quality.includes("childPart.name"));
+});
+
+test("Quality and Dispatch expose every typed operation lifecycle status supported by AXIMACH", () => {
+  const operations = readFileSync(new URL("../src/OperationsWorkspaces.tsx", import.meta.url), "utf8");
+  const statuses = ["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"];
+  const quality = operations.slice(operations.indexOf("export function QualityInspectionWorkspace"));
+  const dispatch = operations.slice(operations.indexOf("export function TransportDispatchWorkspace"), operations.indexOf("export function QualityInspectionWorkspace"));
+  for (const status of statuses) {
+    assert.ok(quality.includes("<option>" + status + "</option>"), "Quality status selector missing " + status);
+    assert.ok(dispatch.includes("<option>" + status + "</option>"), "Dispatch status selector missing " + status);
+  }
+});
+
+
+test("all twenty-one registered AXIMACH modules route to dedicated functional workspaces", () => {
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const routes = [
+    ['activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components"', "ManufacturingMasterWorkspace"],
+    ['activeModuleId === "vendors"', "VendorWorkspace"],
+    ['activeModuleId === "transport-master"', "TransportDirectoryWorkspace"],
+    ['activeModuleId === "contact360"', "Contact360Workspace"],
+    ['activeModuleId === "process-master" || activeModuleId === "planned-cost"', "SpecializedDirectoryWorkspace"],
+    ['activeModuleId === "vendor-capability"', "VendorNetworkWorkspace"],
+    ['activeModuleId === "inventory"', "InventoryWorkspace"],
+    ['activeModuleId === "production"', "ProductionPlanWorkspace"],
+    ['activeModuleId === "process-map"', "LinkedProcessWorkspace"],
+    ['activeModuleId === "route-flow"', "RouteFlowWorkspace"],
+    ['activeModuleId === "manufacturing-universe"', "ManufacturingUniverseWorkspace"],
+    ['activeModuleId === "dispatch"', "TransportDispatchWorkspace"],
+    ['activeModuleId === "quality"', "QualityInspectionWorkspace"],
+    ['activeModuleId === "costing"', "LinkedCostingWorkspace"],
+    ['activeModuleId === "communications"', "FollowUpWorkspace"],
+    ['activeModuleId === "reports"', "ReportsAnalyticsWorkspace"],
+    ['activeModuleId === "ai-insights"', "AIInsightsWorkspace"],
+    ['activeModuleId === "export"', "DataExchangeWorkspace"]
+  ];
+  for (const [condition, workspace] of routes) {
+    assert.ok(app.includes(condition), "App route is missing " + condition);
+    assert.ok(app.includes("<" + workspace), "App route does not render " + workspace);
+  }
+});
+
+
+test("Demo Factory dashboard reports parent components, child parts, PO lines, relationships and transport coverage separately", () => {
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const dataExchange = app.slice(app.indexOf("function DataExchangeWorkspace"), app.indexOf("type LinkedNavigationContext"));
+  for (const key of ["parts:","poLines:","relationships:","transportRoutes:","transportLegs:"]) {
+    assert.ok(dataExchange.includes(key), "Demo Factory dashboard count missing " + key);
+  }
+  for (const label of ["Parent components","Child parts","PO lines","Route relationships","Transport routes","Transport legs"]) {
+    assert.ok(dataExchange.includes("<small>" + label + "</small>"), "Demo Factory dashboard tile missing " + label);
+  }
+  assert.ok(dataExchange.includes("componentParts:mergeById"));
+  assert.ok(dataExchange.includes("routeRelationships:mergeById"));
+  assert.ok(dataExchange.includes("transportLegs:mergeById"));
+});
+
+
+test("part-level purchase-order quantities are treated as pieces, not inherited parent-set units", () => {
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(master.includes("partLevel = false"));
+  assert.ok(master.includes('partLevel ? "piece" : componentUnit(componentId)'));
+  assert.ok(master.includes('line.partId?"piece":componentUnit(line.componentId)'));
+  assert.ok(master.includes("quantityLabel(line.quantity,line.componentId,!!line.partId)"));
+  assert.ok(master.includes('quantityLabel(line.quantity, line.componentId||"",!!line.partId)'));
+});
+
+
+test("part-level PO prices persist, export per piece, and remain separate from parent component set pricing", () => {
+  const partLines = fixture.purchaseOrder.lines.filter(line => line.allocationLevel === "part" && line.partId);
+  assert.equal(partLines.length, 5, "fixture must retain five separately priced child-part PO lines");
+  for (const line of partLines) {
+    assert.ok(Number.isFinite(line.unitPrice) && line.unitPrice >= 0, "each part-level PO line must retain its own per-piece unit price");
+  }
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(master.includes("const lines = poLines.map(line => ({ ...line, id: line.id || makeId(\"line\"), targetDelivery: line.targetDelivery || poDraft.targetDelivery }));"));
+  assert.ok(master.includes("line.unitPrice === undefined"));
+  assert.ok(master.includes('Part unit price (₹ / piece) *'));
+  assert.ok(master.includes('line.partId ? (line.unitPrice ?? 0) : (part?.salePrice || 0)'));
+  assert.ok(master.includes('price:line.partId?(line.unitPrice??0):(component?.salePrice||0)'));
+  assert.ok(costing.includes("const revenue=line.quantity*(line.partId?(line.unitPrice||0):(component?.salePrice||0));"));
+  assert.ok(costing.includes("const sellingRate = selectedLine?.partId ? (selectedLine.unitPrice ?? 0) : (selectedComponent?.salePrice ?? 0);"));
+  assert.ok(costing.includes("unitPrice: line.unitPrice"));
+  assert.ok(costing.includes("if (selectedLine?.partId)"));
+});
+
+
+test("Planned Cost records are scoped to the exact child-part PO line and do not cross-contaminate sibling parts", () => {
+  for (const part of fixture.parts) {
+    const line = fixture.purchaseOrder.lines.find(row => row.partId === part.id);
+    assert.ok(line);
+    const matches = fixture.plannedCosts.filter(row => row.poLineId === line.id && row.partId === part.id);
+    assert.ok(matches.length > 0, part.partNumber + " needs independently scoped planned cost records");
+    assert.ok(matches.every(row => row.componentId === part.componentId && row.poId === fixture.purchaseOrder.id));
+  }
+  const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  const demo = readFileSync(new URL("../src/aximachDemoData.ts", import.meta.url), "utf8");
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(data.includes("poLineId?: string; partId?: string;"), "planned cost schema must support PO-line and part scoping");
+  assert.ok(demo.includes("poLineId: lineId, partId, componentId"));
+  assert.ok(costing.includes('const lineMatches=row.poLineId ? row.poLineId===line.id : row.partId ? row.partId===line.partId : line.allocationLevel!=="part";'));
+});
+
+test("Costing BOM, material allocations and independent Planned Cost remain scoped to the selected part PO line", () => {
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  for (const part of fixture.parts) {
+    const line = fixture.purchaseOrder.lines.find(row => row.partId === part.id);
+    assert.ok(line);
+    assert.ok(fixture.bomLines.filter(row => row.partId === part.id && row.componentId === part.componentId).length >= 2);
+    assert.ok(fixture.materialCostEntries.filter(row => row.poLineId === line.id && row.partId === part.id).length >= 2);
+    assert.ok(fixture.plannedCosts.some(row => row.poLineId === line.id && row.partId === part.id));
+  }
+  assert.ok(costing.includes("!bom.partId||(Boolean(line.partId)&&bom.partId===line.partId)"));
+  assert.ok(costing.includes('entry.poLineId?entry.poLineId===line.id:entry.partId?entry.partId===line.partId:line.allocationLevel!=="part"'));
+  assert.ok(costing.includes('row.poLineId ? row.poLineId === selectedLine?.lineId : row.partId ? row.partId === selectedLine?.partId : selectedLine?.allocationLevel !== "part"'));
+});
+
+test("Part-level Costing ignores inherited parent-assembly material and overhead defaults unless a PO-line override exists", () => {
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(costing.includes("!partScoped && masterMaterialQty > 0 ? masterMaterialQty : bomMaterialQtyPerPart"));
+  assert.ok(costing.includes("!partScoped && masterMaterialRate > 0 ? masterMaterialRate : bomWeightedMaterialRate"));
+  for (const field of ["overhead","toolingCost","reworkCost","scrapCost","rejectedQty"]) {
+    assert.ok(costing.includes("selectedLine?." + field + " ?? (partScoped ? 0 : selectedComponent?." + field + " ?? 0)"), "parent default must not repeat for part field " + field);
+  }
+  assert.ok(costing.includes("(!line.partId || (Boolean(selectedLine?.partId) && line.partId === selectedLine?.partId))"), "shared component BOM rows remain available alongside the selected part BOM");
+});
+
+test("Inventory, Route Flow and Manufacturing Universe distinguish child-part PO lines in selectors and route headings", () => {
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes('part ? " · " + part.partNumber + " " + part.name : ""'));
+  assert.ok(inventory.includes('(line.partId ? " · " + ((data.componentParts || []).find(part => part.id === line.partId)?.partNumber || "Part")'));
+  assert.ok(routeFlow.includes('{line?.partId&&data.componentParts.find(part=>part.id===line.partId)? " · "+data.componentParts.find(part=>part.id===line.partId)?.partNumber'));
+  assert.ok(universe.includes('const part=item.partId?data.componentParts.find(row=>row.id===item.partId):undefined'));
+  assert.ok(universe.includes('(part?" · "+part.partNumber+" "+part.name:"")'));
+});
+
+test("the same purchase order supports component-only and part-level PO lines together", () => {
+  const componentLines = fixture.purchaseOrder.lines.filter(line => line.allocationLevel === "component");
+  const partLines = fixture.purchaseOrder.lines.filter(line => line.allocationLevel === "part");
+  assert.equal(componentLines.length, 2);
+  assert.equal(partLines.length, 5);
+  assert.equal(fixture.purchaseOrder.lines.length, 7);
+  for (const parent of fixture.components) {
+    const componentLine = componentLines.find(line => line.componentId === parent.id);
+    assert.ok(componentLine, parent.partNumber + " needs a component-level set line");
+    assert.equal(componentLine.partId, undefined);
+    assert.ok(Number.isFinite(parent.salePrice) && parent.salePrice > 0);
+    assert.equal(parent.salePriceUnit, "set");
+    const childLines = partLines.filter(line => line.componentId === parent.id);
+    assert.ok(childLines.length >= 2, parent.partNumber + " needs multiple separate part-level lines");
+    assert.ok(childLines.every(line => line.partId && Number.isFinite(line.unitPrice) && line.unitPrice >= 0));
+  }
+  assert.ok(fixture.expected.mixedComponentAndPartAllocation);
+});
+
+
+test("Process Map is reachable through the module registry and linked from both route visualizers", () => {
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(app.includes('{ id: "process-map", title: "Process Map"'));
+  assert.ok(app.includes('activeModuleId === "process-map"'));
+  assert.ok(universe.includes('id:"process-map",title:"Process Map"'));
+  assert.ok(universe.includes('module:"process-map"'));
+  assert.ok(routeFlow.includes('id:"process-map",title:"Process Map"'));
+  assert.ok(routeFlow.includes("setBranchPick(contextOperation?.branch||\"Main route\")"));
+  assert.ok(routeFlow.includes("operationId:lane[0]?.id"));
+  assert.ok(processMap.includes('tab("route-flow","Route Flow",GitBranch)'));
+  assert.ok(processMap.includes('tab("manufacturing-universe","Manufacturing Universe",Network)'));
+  assert.ok(processMap.includes("const nextSequence = old && !branchChanged"));
+  assert.ok(processMap.includes("operation.id!==editingId"));
+  assert.ok(processMap.includes("parentId:routeParent.id"));
+  assert.ok(!processMap.includes('draft.relationType === "subprocess" || old?.relationType === "subprocess"'));
+  assert.ok(processMap.includes("if(!routeParent)"));
+  assert.ok(!processMap.includes("parentId:activeOperation.id,relationType"));
+  assert.ok(app.includes("const goBack = () =>"));
+  assert.ok(app.includes("onBack={goBack}"));
+  assert.ok(app.includes("{modules.length} modules"));
+  assert.ok(processMap.includes('const draftRouteType ='));
+  assert.ok(processMap.includes('(draft.branch || "Main route") === "Main route" ? ""'));
+  assert.ok(processMap.includes('(draft.branch || "Main route") === "Main route" ? undefined'));
 });

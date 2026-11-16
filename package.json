@@ -16,9 +16,11 @@
     "cap:sync": "cap sync android",
     "cap:android": "cap open android",
     "package:windows": "npm run build && electron-builder --win nsis --x64 --publish never",
-    "test:server": "node --test server/manufacturing-data.test.mjs server/index.test.mjs tests/aximach-five-part-fixture.test.mjs tests/aximach-transport-route-demo.test.mjs tests/aximach-material-process-links.test.mjs tests/aximach-landscape-orientation.test.mjs",
+    "test:server": "node --test server/manufacturing-data.test.mjs server/index.test.mjs tests/aximach-five-part-fixture.test.mjs tests/aximach-transport-route-demo.test.mjs tests/aximach-material-process-links.test.mjs tests/aximach-landscape-orientation.test.mjs tests/aximach-two-component-comprehensive.test.mjs",
     "start:scheduler": "node server/index.mjs",
-    "start:whatsapp-web": "node server/whatsapp-web.mjs"
+    "start:whatsapp-web": "node server/whatsapp-web.mjs",
+    "test:acceptance": "node --test tests/aximach-two-component-comprehensive.test.mjs",
+    "test:browser": "node tests/aximach-browser-smoke.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
@@ -43,7 +45,8 @@
     "electron": "^37.2.6",
     "electron-builder": "^26.0.12",
     "typescript": "^5.7.3",
-    "vite": "^6.1.0"
+    "vite": "^6.1.0",
+    "playwright": "^1.56.1"
   },
   "build": {
     "appId": "com.aximach.manufacturingos",

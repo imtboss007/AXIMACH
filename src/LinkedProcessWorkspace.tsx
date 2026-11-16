@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
+import { Activity, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Network, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type MaterialCostEntryRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine, type TransportRouteRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
@@ -1012,6 +1012,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const effectivePoLineId = old?.poLineId || parentOperation?.poLineId || selectedLine.id;
       const effectiveComponentId = old?.componentId || parentOperation?.componentId || selectedComponent.id;
       const currentRoute = current.operations.filter(op => op.poLineId === effectivePoLineId && op.poId === effectivePoId && op.componentId === effectiveComponentId && (op.branch||"Main route")===(draft.branch||"Main route") && !op.deletedAt);
+      const previousBranch = old?.branch || "Main route";
+      const nextBranch = draft.branch || "Main route";
+      const branchChanged = Boolean(old && previousBranch !== nextBranch);
+      const nextSequence = old && !branchChanged ? old.sequence : Math.max(0, ...currentRoute.filter(op => op.id !== operationId).map(op => op.sequence)) + 10;
       const currentDefinitions = activeRows(current.processDefinitions);
       const resolvedDefinition = selectedProcessDefinition || resolveProcessDefinition(currentDefinitions, draft.processDefinitionId, draft.name.trim(), draft.category.trim());
       const processDefinition: ProcessDefinitionRecord | undefined = resolvedDefinition || (draft.name.trim() && draft.category.trim() ? {
@@ -1028,12 +1032,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         : current.processDefinitions;
       const next: OperationRecord = {
         id: operationId, poId: effectivePoId, poLineId: effectivePoLineId, componentId: effectiveComponentId,
-        sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
+        sequence: nextSequence,
         ...draft, processDefinitionId: processDefinition?.id || undefined,
         processSubcategoryId: draft.processSubcategoryId || processSubcategoryIdFor(processDefinition, draft.subcategory) || undefined,
         actualEnd: draft.status === "Complete" ? (draft.actualEnd || stamp.slice(0,10)) : draft.actualEnd, paidAmount: nextPaidTotal, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
-        parentId: draft.parentId || old?.parentId || (draft.branch !== "Main route" ? activeOperation?.id || "" : ""), relationType: draft.relationType || old?.relationType
+        parentId: draft.relationType === "subprocess" ? (draft.parentId || old?.parentId || "") : (draft.branch || "Main route") === "Main route" ? "" : (draft.parentId || old?.parentId || activeOperation?.id || ""), relationType: draft.relationType === "subprocess" ? "subprocess" : (draft.branch || "Main route") === "Main route" ? undefined : (draft.relationType || old?.relationType)
       };
       const existingPayments = current.paymentTransactions.filter(payment=>payment.operationId===operationId&&!payment.deletedAt);
       const ledgerTotal = existingPayments.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0);
@@ -1261,11 +1265,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (activeOperation?.id && selectedOperationPanelRef.current) selectedOperationPanelRef.current.open = true;
   }, [activeOperation?.id]);
   const deliveryState = !finalDelivery ? "No delivery date" : allDone ? "Route complete" : lateOps.length ? "At risk" : "Scheduled";
-  const tab = (id: string, title: string, Icon: typeof Workflow) => <button key={id} className={"route-tab " + (id === "process-map" ? "route-tab-current" : "")} onClick={() => id === "process-map" ? undefined : onSelectModule(id === "components" ? "components" : id === "purchasing" ? "purchasing" : id === "inventory" ? "inventory" : id === "costing" ? "costing" : id === "documents" ? "engineering-change" : id === "history" ? "reports" : "quality",{companyId,poId,poLineId,componentId:selectedLine?.componentId,operationId:selectedOperationId||undefined})}><Icon size={14}/>{title}</button>;
+  const tab = (id: string, title: string, Icon: typeof Workflow) => {
+    const targetModuleId = id === "documents" ? "export" : id === "history" ? "reports" : id;
+    return <button key={id} className={"route-tab " + (id === "process-map" ? "route-tab-current" : "")} onClick={() => { if (id !== "process-map") onSelectModule(targetModuleId,{companyId,poId,poLineId,componentId:selectedLine?.componentId,operationId:selectedOperationId||undefined}); }}><Icon size={14}/>{title}</button>;
+  };
 
   return <section className="workspace-page linked-process-page">
     {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
-    <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/> {syncStatus === "synced" ? "SHARED DATA CONNECTED" : syncStatus === "syncing" ? "SYNCING" : syncStatus === "error" ? "SYNC ERROR · LOCAL COPY KEPT" : "NO DEMO DATA · LOCAL UNTIL SERVER SYNC"}</span></div>
+    <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowLeft size={15}/> Back</button><span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/> {syncStatus === "synced" ? "SHARED DATA CONNECTED" : syncStatus === "syncing" ? "SYNCING" : syncStatus === "error" ? "SYNC ERROR · LOCAL COPY KEPT" : "NO DEMO DATA · LOCAL UNTIL SERVER SYNC"}</span></div>
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> ENGINEERING / LINKED PROCESS ROUTE</div><h1>Process Map<span>.</span></h1><p>Choose existing master records once; operation schedules, rates, vendor assignments, quality and quotations attach to the selected PO component line.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("inventory",{companyId,poId,poLineId,componentId:selectedLine?.componentId,subtab:"materials"})}><Package size={15}/> Material Directory</button><button className="button-quiet" onClick={() => onSelectModule("inventory",{companyId,poId,poLineId,componentId:selectedLine?.componentId,operationId:selectedOperationId,subtab:"process-links"})}><Boxes size={15}/> Material → process links</button><button className="button-quiet" onClick={() => onSelectModule("vendors",{companyId,poId,poLineId,componentId:selectedLine?.componentId,operationId:selectedOperationId})}><Users size={15}/> Vendors</button><button type="button" className="button-primary" aria-label="Add operation ▾" aria-haspopup="menu" aria-expanded={showAddMenu} onClick={toggleAddMenu}><Plus size={15}/> Add Operation <span aria-hidden="true">▾</span></button></div></div>
     <div className="linked-master-selectors">
       <SearchablePicker id="route-company" label="Company" value={companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name+(c.gstin?" · "+c.gstin:"")}))} onChange={changeSelection}/>
@@ -1327,6 +1334,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       {tab("costing","Costing",CircleDollarSign)}
       {tab("documents","Documents",FileText)}
       {tab("history","History",Activity)}
+      {tab("route-flow","Route Flow",GitBranch)}
+      {tab("manufacturing-universe","Manufacturing Universe",Network)}
     </nav>
     <div className="linked-route-toolbar">
       <div className="linked-route-actions">
@@ -1497,9 +1506,13 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             <SearchablePicker id="operation-status" label="Status" value={draft.status} options={["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"].map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,status:value as LifecycleStatus})}/>
             <SearchablePicker id="operation-route-type" label="Route type *" value={draftRouteType} options={[{id:"Main route",label:"Main route · primary manufacturing flow"},{id:"Alternate route",label:"Alternate route · optional path"},{id:"Rework route",label:"Rework route · corrective path"}]} onChange={value=>{
               if(value==="Main route"){setDraft({...draft,branch:"Main route",parentId:"",relationType:undefined,costIncluded:true});return;}
-              if(!activeOperation){onNotice("Select the process node that this alternate or rework route branches from, then choose the route type.");return;}
+              const preferredParent=routeOperations.find(operation=>operation.id===draft.parentId&&operation.id!==editingId)
+                || routeOperations.find(operation=>operation.id===selectedOperationId&&operation.id!==editingId);
+              const mainRouteCandidates=routeOperations.filter(operation=>operation.id!==editingId&&(operation.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence);
+              const routeParent=preferredParent||mainRouteCandidates[mainRouteCandidates.length-1]||routeOperations.find(operation=>operation.id!==editingId);
+              if(!routeParent){onNotice("Another process stage is required as the parent of an alternate or rework route. Add or select a different process stage first.");return;}
               const relationType=value==="Rework route"?"rework" as const:"alternate" as const;
-              setDraft({...draft,branch:(value==="Rework route"?"Rework":"Alternate route")+" · OP-"+String(activeOperation.sequence).padStart(3,"0")+" · "+activeOperation.name,parentId:activeOperation.id,relationType,costIncluded:false});
+              setDraft({...draft,branch:(value==="Rework route"?"Rework":"Alternate route")+" · OP-"+String(routeParent.sequence).padStart(3,"0")+" · "+routeParent.name,parentId:routeParent.id,relationType,costIncluded:false});
             }}/>
             <SearchablePicker id="operation-transport-vendor-picker" label="Legacy operation transport vendor (older records)" value={draft.transportVendorId} placeholder="Type transporter name or phone…" options={vendors.filter(v=>transportRouteOptions.some(route=>route.vendorId===v.id)).map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")}))} onChange={transportVendorId=>setDraft({...draft,transportVendorId,transportRouteId:"",transportFrom:"",transportTo:"",transportVehicleType:"",transportCost:0})}/>
             <label>Legacy / Transport Directory saved route<select value={selectedLegacyDraftRoute?.id||""} onChange={e=>{const route=selectedTransportRoutes.find(item=>item.id===e.target.value);setDraft({...draft,transportVendorId:route?.vendorId||draft.transportVendorId,transportRouteId:route?(route.legacy?(route.sourceRouteId||route.id):route.id):"",transportFrom:route?.fromLocation||"",transportTo:route?.toLocation||"",transportVehicleType:route?.vehicleType||"",transportTripDirection:route?.tripDirection||"One-way",transportCost:route?.fixedAmount||0});}}><option value="">Select saved route…</option>{selectedTransportRoutes.map(route=><option key={route.id} value={route.id}>{route.fromLocation} → {route.toLocation} · {route.tripDirection||"One-way"} · ₹{route.fixedAmount.toLocaleString("en-IN")} · {route.vehicleType||"Vehicle not set"} · {vendors.find(v=>v.id===route.vendorId)?.company||"Vendor unavailable"} · {route.legacy?"Legacy":"Transport Directory"}</option>)}</select></label>
