@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
+import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Network, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type MaterialCostEntryRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine, type TransportRouteRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
@@ -1012,6 +1012,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const effectivePoLineId = old?.poLineId || parentOperation?.poLineId || selectedLine.id;
       const effectiveComponentId = old?.componentId || parentOperation?.componentId || selectedComponent.id;
       const currentRoute = current.operations.filter(op => op.poLineId === effectivePoLineId && op.poId === effectivePoId && op.componentId === effectiveComponentId && (op.branch||"Main route")===(draft.branch||"Main route") && !op.deletedAt);
+      const previousBranch = old?.branch || "Main route";
+      const nextBranch = draft.branch || "Main route";
+      const branchChanged = Boolean(old && previousBranch !== nextBranch);
+      const nextSequence = old && !branchChanged ? old.sequence : Math.max(0, ...currentRoute.filter(op => op.id !== operationId).map(op => op.sequence)) + 10;
       const currentDefinitions = activeRows(current.processDefinitions);
       const resolvedDefinition = selectedProcessDefinition || resolveProcessDefinition(currentDefinitions, draft.processDefinitionId, draft.name.trim(), draft.category.trim());
       const processDefinition: ProcessDefinitionRecord | undefined = resolvedDefinition || (draft.name.trim() && draft.category.trim() ? {
@@ -1028,7 +1032,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         : current.processDefinitions;
       const next: OperationRecord = {
         id: operationId, poId: effectivePoId, poLineId: effectivePoLineId, componentId: effectiveComponentId,
-        sequence: old?.sequence ?? (Math.max(0, ...currentRoute.map(op => op.sequence)) + 10),
+        sequence: nextSequence,
         ...draft, processDefinitionId: processDefinition?.id || undefined,
         processSubcategoryId: draft.processSubcategoryId || processSubcategoryIdFor(processDefinition, draft.subcategory) || undefined,
         actualEnd: draft.status === "Complete" ? (draft.actualEnd || stamp.slice(0,10)) : draft.actualEnd, paidAmount: nextPaidTotal, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
@@ -1261,7 +1265,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (activeOperation?.id && selectedOperationPanelRef.current) selectedOperationPanelRef.current.open = true;
   }, [activeOperation?.id]);
   const deliveryState = !finalDelivery ? "No delivery date" : allDone ? "Route complete" : lateOps.length ? "At risk" : "Scheduled";
-  const tab = (id: string, title: string, Icon: typeof Workflow) => <button key={id} className={"route-tab " + (id === "process-map" ? "route-tab-current" : "")} onClick={() => id === "process-map" ? undefined : onSelectModule(id === "components" ? "components" : id === "purchasing" ? "purchasing" : id === "inventory" ? "inventory" : id === "costing" ? "costing" : id === "documents" ? "engineering-change" : id === "history" ? "reports" : "quality",{companyId,poId,poLineId,componentId:selectedLine?.componentId,operationId:selectedOperationId||undefined})}><Icon size={14}/>{title}</button>;
+  const tab = (id: string, title: string, Icon: typeof Workflow) => {
+    const targetModuleId = id === "documents" ? "export" : id === "history" ? "reports" : id;
+    return <button key={id} className={"route-tab " + (id === "process-map" ? "route-tab-current" : "")} onClick={() => { if (id !== "process-map") onSelectModule(targetModuleId,{companyId,poId,poLineId,componentId:selectedLine?.componentId,operationId:selectedOperationId||undefined}); }}><Icon size={14}/>{title}</button>;
+  };
 
   return <section className="workspace-page linked-process-page">
     {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
@@ -1327,6 +1334,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       {tab("costing","Costing",CircleDollarSign)}
       {tab("documents","Documents",FileText)}
       {tab("history","History",Activity)}
+      {tab("route-flow","Route Flow",GitBranch)}
+      {tab("manufacturing-universe","Manufacturing Universe",Network)}
     </nav>
     <div className="linked-route-toolbar">
       <div className="linked-route-actions">
