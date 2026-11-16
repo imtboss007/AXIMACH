@@ -405,6 +405,7 @@ test("Process Map is reachable through the module registry and linked from both 
   assert.ok(universe.includes('module:"process-map"'));
   assert.ok(routeFlow.includes('id:"process-map",title:"Process Map"'));
   assert.ok(routeFlow.includes("setBranchPick(contextOperation?.branch||\"Main route\")"));
+  assert.ok(routeFlow.includes("operationId:lane[0]?.id"));
   assert.ok(processMap.includes('tab("route-flow","Route Flow",GitBranch)'));
   assert.ok(processMap.includes('tab("manufacturing-universe","Manufacturing Universe",Network)'));
   assert.ok(processMap.includes("const nextSequence = old && !branchChanged"));
