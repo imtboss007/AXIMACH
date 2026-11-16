@@ -75,7 +75,8 @@ const modules: ModuleItem[] = [
   { id: "planned-cost", title: "Component Planned Cost", group: "Finance", description: "Independent planned component and process costs for comparison in costing.", icon: CircleDollarSign, action: "Open planned costs" },
   { id: "vendor-capability", title: "Vendor Network", group: "Supply Network", description: "Filter vendors by process category and supported processes.", icon: Workflow, action: "Open vendor network" },
   { id: "inventory", title: "Material Directory", group: "Operations", description: "Material grades, shapes, dimensions, density, supplier rates, BOM links and stock ledger.", icon: Boxes, action: "Open Material Directory" },
-  { id: "production", title: "Production Plan & Process Plan", group: "Operations", description: "PO-wise component production, process assignments, transport and job completion.", icon: Activity, action: "Open production and process plans" },
+  { id: "production", title: "Production Plan", group: "Operations", description: "PO-line job lifecycle, production quantities and completion status.", icon: Activity, action: "Open production plan" },
+  { id: "process-map", title: "Process Map", group: "Manufacturing", description: "PO-line process planning, editable operation stages, alternate and rework routes, materials and linked transport.", icon: Workflow, action: "Open Process Map" },
   { id: "route-flow", title: "Route Flow & Relationships", group: "Manufacturing", description: "Full-screen editable material, transport and process route with 11 persisted relationship types.", icon: GitBranch, action: "Open full-screen route flow" },
   { id: "manufacturing-universe", title: "Manufacturing Universe", group: "Manufacturing", description: "Dedicated large-format live 3D manufacturing universe connected to all AXIMACH modules.", icon: Network, action: "Open live manufacturing universe" },
   { id: "dispatch", title: "Transport & Dispatch", group: "Operations", description: "Transport vendors, pickup, delivery, cost and dispatch status.", icon: Truck, action: "Open transport and dispatch" },
@@ -170,6 +171,7 @@ function App() {
   useState(() => { removeLegacyDemoData(); return true; });
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
   const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>({});
+  const [navigationStack, setNavigationStack] = useState<Array<{id:string;context:LinkedNavigationContext}>>([]);
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
@@ -275,8 +277,21 @@ function App() {
   }, []);
 
   const selectModule = (id: string, context: LinkedNavigationContext = {}) => {
+    if (id !== activeModuleId) setNavigationStack(stack => [...stack.slice(-29), { id: activeModuleId, context: moduleContext }]);
     setModuleContext(context);
     setActiveModuleId(id);
+    setModuleExplorerOpen(false);
+    setMobileNavOpen(false);
+    setCommandOpen(false);
+    setQuery("");
+    setNotice("");
+  };
+
+  const goBack = () => {
+    const previous = navigationStack[navigationStack.length - 1];
+    setNavigationStack(stack => stack.slice(0, -1));
+    setActiveModuleId(previous?.id || "command-centre");
+    setModuleContext(previous?.context || {});
     setModuleExplorerOpen(false);
     setMobileNavOpen(false);
     setCommandOpen(false);
@@ -373,43 +388,43 @@ function App() {
             onOpenModules={openModuleExplorer}
           />
         ) : activeModuleId === "manufacturing-universe" ? (
-          <ManufacturingUniverseWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <ManufacturingUniverseWorkspace initialContext={moduleContext} onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "route-flow" ? (
-          <RouteFlowWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <RouteFlowWorkspace initialContext={moduleContext} onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-map" ? (
-          <LinkedProcessWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
+          <LinkedProcessWorkspace initialContext={moduleContext} onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
-          <ManufacturingMasterWorkspace navigationContext={moduleContext} moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(componentId)=>{setIconStudioTarget(componentId?{targetType:"component",targetRecordId:componentId}:null);setIconStudioOpen(true);}} />
+          <ManufacturingMasterWorkspace navigationContext={moduleContext} moduleId={activeModuleId} onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(componentId)=>{setIconStudioTarget(componentId?{targetType:"component",targetRecordId:componentId}:null);setIconStudioOpen(true);}} />
         ) : activeModuleId === "inventory" ? (
-          <InventoryWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <InventoryWorkspace initialContext={moduleContext} onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "costing" ? (
-          <LinkedCostingWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <LinkedCostingWorkspace initialContext={moduleContext} onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" || activeModuleId === "planned-cost" ? (
-          <SpecializedDirectoryWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} />
+          <SpecializedDirectoryWorkspace moduleId={activeModuleId} onBack={goBack} onNotice={setNotice} notice={notice} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} />
         ) : activeModuleId === "transport-master" ? (
-          <TransportDirectoryWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenContact360={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
+          <TransportDirectoryWorkspace initialContext={moduleContext} onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenContact360={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
         ) : activeModuleId === "reports" ? (
-          <ReportsAnalyticsWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <ReportsAnalyticsWorkspace onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "ai-insights" ? (
-          <AIInsightsWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <AIInsightsWorkspace onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "export" ? (
-          <DataExchangeWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <DataExchangeWorkspace onBack={goBack} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "production" ? (
-          <ProductionPlanWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <ProductionPlanWorkspace initialContext={moduleContext} onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "dispatch" ? (
-          <TransportDispatchWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <TransportDispatchWorkspace initialContext={moduleContext} onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "quality" ? (
-          <QualityInspectionWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <QualityInspectionWorkspace initialContext={moduleContext} onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "contact360" ? (
-          <Contact360Workspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} initialVendorId={contactVendorSeed} onInitialVendorConsumed={()=>setContactVendorSeed("")} />
+          <Contact360Workspace onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} initialVendorId={contactVendorSeed} onInitialVendorConsumed={()=>setContactVendorSeed("")} />
         ) : activeModuleId === "vendor-capability" ? (
-          <VendorNetworkWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
+          <VendorNetworkWorkspace onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
-          <VendorWorkspace initialSearch={vendorSearchJump} initialVendorId={moduleContext.vendorId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onScheduleVendor={openVendorFollowUp} onAddContactForVendor={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
+          <VendorWorkspace initialSearch={vendorSearchJump} initialVendorId={moduleContext.vendorId} onBack={goBack} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onScheduleVendor={openVendorFollowUp} onAddContactForVendor={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
         ) : activeModuleId === "communications" ? (
-          <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} initialRecipient={followUpSeed} />
+          <FollowUpWorkspace onBack={goBack} onNotice={setNotice} notice={notice} initialRecipient={followUpSeed} />
         ) : (
-          <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
+          <ModuleWorkspace module={activeModule} onBack={goBack} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         )}
         </Suspense>
       </main>
@@ -464,7 +479,7 @@ function App() {
               })}
               {filteredModules.length === 0 && <div className="no-modules"><Search size={24} /><strong>No modules found</strong><span>Try another search or choose a different domain.</span><button onClick={() => { setQuery(""); setDomain("All domains"); }}>Clear filters</button></div>}
             </div>
-            <div className="universe-footer"><span><LayoutGrid size={14} /> {filteredModules.length} of 18 modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
+            <div className="universe-footer"><span><LayoutGrid size={14} /> {filteredModules.length} of {modules.length} modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
           </section>
         </div>
       )}
@@ -509,7 +524,7 @@ function CommandCentre(props: {
           <div className="eyebrow"><span className="eyebrow-mark" /> 3D COMMAND CENTRE / 02</div>
           <h1>One sphere.<br /><em>Every command.</em></h1>
           <p>An interactive manufacturing command surface. Rotate the sphere, open workspaces and control the connected operating flow.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all 18 modules</button></div>
+          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all {modules.length} modules</button></div>
         </div>
         <div className="hero-graphic axim-hero-graphic" aria-label="Interactive AXIMACH 3D operations sphere">
           <div className="graphic-grid" />
@@ -564,7 +579,7 @@ function CommandCentre(props: {
         </div>
       </section>
       <section className="module-shortcuts">
-        <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all 18 modules <ArrowRight size={15} /></button></div>
+        <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all {modules.length} modules <ArrowRight size={15} /></button></div>
         <div className="shortcut-grid">
           {modules.filter((item) => ["process-map", "production", "vendors", "quality", "costing", "inventory"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
         </div>
@@ -1235,7 +1250,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
         </section>
         <aside className="surface-panel module-connection-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> CROSS-MODULE LINKS</div><h3>Connected workspaces</h3><p>{totalLinked} linked records across local modules</p></div></div>
           {related.map((item) => { const RelatedIcon = item.icon; return <button className="related-row" key={item.id} onClick={() => onSelectModule(item.id)}><span className="related-icon"><RelatedIcon size={16} /></span><span><strong>{item.title}</strong><small>{(allRecords[item.id] ?? []).length} local records · {item.group}</small></span><ArrowUpRight size={14} /></button>; })}
-          <button className="related-all" onClick={onOpenModules}>Browse all 18 modules <ArrowRight size={14} /></button>
+          <button className="related-all" onClick={onOpenModules}>Browse all {modules.length} modules <ArrowRight size={14} /></button>
         </aside>
       </div>
       <div className="module-safety-note"><ShieldCheck size={16} /><span>This workspace now supports local create, edit, delete, search, export and navigation links. It is not a production database; multi-user sync, server permissions, automated external actions and audit-grade persistence remain to be implemented.</span></div>
