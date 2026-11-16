@@ -345,8 +345,8 @@ test("Costing BOM, material allocations and independent Planned Cost remain scop
     assert.ok(fixture.plannedCosts.some(row => row.poLineId === line.id && row.partId === part.id));
   }
   assert.ok(costing.includes("!bom.partId||(Boolean(line.partId)&&bom.partId===line.partId)"));
-  assert.ok(costing.includes("entry.poLineId?entry.poLineId===line.id:entry.partId?entry.partId===line.partId:line.allocationLevel!==\\"part\\""));
-  assert.ok(costing.includes("row.poLineId ? row.poLineId === selectedLine?.lineId : row.partId ? row.partId === selectedLine?.partId : selectedLine?.allocationLevel !== \\"part\\""));
+  assert.ok(costing.includes('entry.poLineId?entry.poLineId===line.id:entry.partId?entry.partId===line.partId:line.allocationLevel!=="part"'));
+  assert.ok(costing.includes('row.poLineId ? row.poLineId === selectedLine?.lineId : row.partId ? row.partId === selectedLine?.partId : selectedLine?.allocationLevel !== "part"'));
 });
 
 test("Part-level Costing ignores inherited parent-assembly material and overhead defaults unless a PO-line override exists", () => {
