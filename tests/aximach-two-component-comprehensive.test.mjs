@@ -411,6 +411,7 @@ test("Process Map is reachable through the module registry and linked from both 
   assert.ok(processMap.includes("const nextSequence = old && !branchChanged"));
   assert.ok(processMap.includes("operation.id!==editingId"));
   assert.ok(processMap.includes("parentId:routeParent.id"));
+  assert.ok(!processMap.includes('draft.relationType === "subprocess" || old?.relationType === "subprocess"'));
   assert.ok(processMap.includes("if(!routeParent)"));
   assert.ok(!processMap.includes("parentId:activeOperation.id,relationType"));
   assert.ok(app.includes("const goBack = () =>"));
