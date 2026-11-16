@@ -80,7 +80,8 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
       const poMatches=row.poId
         ? row.poId===po.id
         : (!row.poNumber || row.poNumber.trim().toLowerCase()===po.number.trim().toLowerCase());
-      return componentMatches && companyMatches && poMatches;
+      const lineMatches=row.poLineId ? row.poLineId===line.id : row.partId ? row.partId===line.partId : line.allocationLevel!=="part";
+      return componentMatches && companyMatches && poMatches && lineMatches;
     });
     const plannedProcess=costedLinkedOperations.reduce((sum,op)=>sum+op.quantity*Math.max(0,Number(op.ratePerPart)||0),0);
     const plannedProcessCost=plannedRows.length?plannedRows.reduce((sum,row)=>sum+row.plannedQty*row.plannedRate,0):plannedProcess;
