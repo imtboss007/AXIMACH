@@ -1,0 +1,41 @@
+name: AXIMACH acceptance
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "server/**"
+      - "tests/**"
+      - "package.json"
+      - ".github/workflows/aximach-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run two-component acceptance
+        run: npm run test:acceptance
+
+      - name: Run server and cross-module regression suite
+        run: npm run test:server
+
+      - name: Type-check and build web application
+        run: npm run build
