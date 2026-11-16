@@ -358,3 +358,14 @@ test("Part-level Costing ignores inherited parent-assembly material and overhead
   }
   assert.ok(costing.includes("(!line.partId || (Boolean(selectedLine?.partId) && line.partId === selectedLine?.partId))"), "shared component BOM rows remain available alongside the selected part BOM");
 });
+
+test("Inventory, Route Flow and Manufacturing Universe distinguish child-part PO lines in selectors and route headings", () => {
+  const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const universe = readFileSync(new URL("../src/ManufacturingUniverseWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(inventory.includes('part ? " · " + part.partNumber + " " + part.name : ""'));
+  assert.ok(inventory.includes('(line.partId ? " · " + ((data.componentParts || []).find(part => part.id === line.partId)?.partNumber || "Part")'));
+  assert.ok(routeFlow.includes('{line?.partId&&data.componentParts.find(part=>part.id===line.partId)? " · "+data.componentParts.find(part=>part.id===line.partId)?.partNumber'));
+  assert.ok(universe.includes('const part=item.partId?data.componentParts.find(row=>row.id===item.partId):undefined'));
+  assert.ok(universe.includes('(part?" · "+part.partNumber+" "+part.name:"")'));
+});
