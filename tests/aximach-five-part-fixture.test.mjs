@@ -188,8 +188,8 @@ test("dashboard command globe exposes 21 unique, distinguishable module shortcut
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
   assert.equal(ids.length, 21);
   assert.equal(new Set(ids).size, 21, "module shortcut IDs must be unique");
-  assert.equal(labels.length, 18);
-  assert.equal(new Set(labels).size, 18, "module shortcut labels must be distinguishable");
+  assert.equal(labels.length, 21);
+  assert.equal(new Set(labels).size, 21, "module shortcut labels must be distinguishable");
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
   assert.ok(ids.includes("process-map") && ids.includes("route-flow") && ids.includes("manufacturing-universe"));
 });
