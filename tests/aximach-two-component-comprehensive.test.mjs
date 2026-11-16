@@ -93,7 +93,13 @@ test("every part-level route contains all eleven typed relationship kinds with v
   assert.deepEqual(new Set(fixture.routeRelationships.map(row=>row.status)),new Set(["Active","Planned","Conditional","Disabled"]));
 });
 
-test("all sixteen supported vehicle categories are present together in Transport Directory and saved component legs", () => {
+test("all sixteen vehicle categories are registered in the application and present together in saved component legs", () => {
+  const vehicleSource = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
+  const directorySource = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const registry = vehicleSource.match(/export const VEHICLE_TYPES = \\[([\\s\\S]*?)\\] as const;/)?.[1] ?? "";
+  const registeredVehicleTypes = [...registry.matchAll(/"([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(new Set(registeredVehicleTypes), new Set(vehicleTypes), "Transport Directory must expose all sixteen approved vehicle categories");
+  assert.ok(directorySource.includes("VEHICLE_TYPES.map"), "Transport Directory must render its vehicle selector from the shared vehicle registry");
   assert.deepEqual(new Set(fixture.transportRoutes.map(row=>row.vehicleType)),new Set(vehicleTypes));
   assert.deepEqual(new Set(fixture.transportLegs.map(row=>row.vehicleType)),new Set(vehicleTypes));
   assert.equal(fixture.transportRoutes.length,16);
