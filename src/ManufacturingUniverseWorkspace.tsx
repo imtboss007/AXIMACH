@@ -99,7 +99,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     setSelectedOperationId(simulatedOperationId);
   },[simulationActive,simulationIndex,simulatedOperationId]);
 
-  const routeLabels=useMemo(()=>Object.fromEntries(lines.map(item=>{const itemComponent=components.find(row=>row.id===item.componentId);return [item.id,(itemComponent?.partNumber?itemComponent.partNumber+" · ":"")+(itemComponent?.name||"Component")+" · Qty "+item.quantity];})),[lines,components]);
+  const routeLabels=useMemo(()=>Object.fromEntries(lines.map(item=>{const itemComponent=components.find(row=>row.id===item.componentId);const part=item.partId?data.componentParts.find(row=>row.id===item.partId):undefined;return [item.id,(itemComponent?.partNumber?itemComponent.partNumber+" · ":"")+(itemComponent?.name||"Component")+(part?" · "+part.partNumber+" "+part.name:"")+" · Qty "+item.quantity];})),[lines,components,data.componentParts]);
   const componentLineCount=lines.filter(item=>item.componentId===componentId).length;
   const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.poId===poId&&entry.componentId===componentId&&(entry.poLineId===poLineId||(!entry.poLineId&&componentLineCount===1))&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&leg.componentId===componentId);
