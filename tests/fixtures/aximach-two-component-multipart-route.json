@@ -30,14 +30,20 @@
       "partNumber": "ASM-A",
       "name": "Precision drive assembly",
       "revision": "A",
-      "companyId": "CO-A"
+      "companyId": "CO-A",
+      "salePrice": 8500,
+      "salePriceUnit": "set",
+      "orderUnit": "Set"
     },
     {
       "id": "COMP-B",
       "partNumber": "ASM-B",
       "name": "Hydraulic control assembly",
       "revision": "A",
-      "companyId": "CO-A"
+      "companyId": "CO-A",
+      "salePrice": 12000,
+      "salePriceUnit": "set",
+      "orderUnit": "Set"
     }
   ],
   "parts": [
@@ -137,6 +143,26 @@
     "status": "Open",
     "notes": "Synthetic acceptance purchase order for two parent components and five child parts",
     "lines": [
+      {
+        "id": "POL-COMP-A",
+        "componentId": "COMP-A",
+        "allocationLevel": "component",
+        "quantity": 20,
+        "targetDelivery": "2026-12-16",
+        "notes": "Synthetic parent component-level set line",
+        "jobStatus": "In progress",
+        "updatedAt": "2026-11-16T00:00:00.000Z"
+      },
+      {
+        "id": "POL-COMP-B",
+        "componentId": "COMP-B",
+        "allocationLevel": "component",
+        "quantity": 12,
+        "targetDelivery": "2026-12-16",
+        "notes": "Synthetic parent component-level set line",
+        "jobStatus": "In progress",
+        "updatedAt": "2026-11-16T00:00:00.000Z"
+      },
       {
         "id": "POL-1",
         "componentId": "COMP-A",
@@ -5173,6 +5199,7 @@
   },
   "expected": {
     "allPartsHaveIndependentOperationChains": true,
-    "allTransportVehiclesPersisted": true
+    "allTransportVehiclesPersisted": true,
+    "mixedComponentAndPartAllocation": true
   }
 }
