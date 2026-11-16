@@ -99,7 +99,7 @@ test("all sixteen vehicle categories are registered in the application and prese
   const registry = vehicleSource.match(/export const VEHICLE_TYPES = \\[([\\s\\S]*?)\\] as const;/)?.[1] ?? "";
   const registeredVehicleTypes = [...registry.matchAll(/"([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(new Set(registeredVehicleTypes), new Set(vehicleTypes), "Transport Directory must expose all sixteen approved vehicle categories");
-  assert.ok(directorySource.includes("VEHICLE_TYPES.map"), "Transport Directory must render its vehicle selector from the shared vehicle registry");
+  assert.ok(directorySource.includes("...VEHICLE_TYPES") && directorySource.includes("vehicleOptions.map"), "Transport Directory must build its selectable vehicle options from the shared vehicle registry");
   assert.deepEqual(new Set(fixture.transportRoutes.map(row=>row.vehicleType)),new Set(vehicleTypes));
   assert.deepEqual(new Set(fixture.transportLegs.map(row=>row.vehicleType)),new Set(vehicleTypes));
   assert.equal(fixture.transportRoutes.length,16);
