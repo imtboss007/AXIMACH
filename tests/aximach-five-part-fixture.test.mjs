@@ -186,6 +186,11 @@ test("dashboard command globe exposes 21 unique, distinguishable module shortcut
   assert.ok(satelliteBlock, "command globe satellite registry exists");
   const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const moduleBlock = app.match(/const modules: ModuleItem\[\] = \[([\s\S]*?)\n\];/);
+  assert.ok(moduleBlock, "main module registry exists");
+  const registeredIds = [...moduleBlock[1].matchAll(/\{ id: "([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual([...ids].sort(), [...registeredIds].sort(), "the command globe must expose every registered module exactly once");
   assert.equal(ids.length, 21);
   assert.equal(new Set(ids).size, 21, "module shortcut IDs must be unique");
   assert.equal(labels.length, 21);
