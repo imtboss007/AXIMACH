@@ -96,7 +96,7 @@ test("every part-level route contains all eleven typed relationship kinds with v
 test("all sixteen vehicle categories are registered in the application and present together in saved component legs", () => {
   const vehicleSource = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
   const directorySource = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
-  const registry = vehicleSource.match(/export const VEHICLE_TYPES = \\[([\\s\\S]*?)\\] as const;/)?.[1] ?? "";
+  const registry = vehicleSource.match(/export const VEHICLE_TYPES = \[([\s\S]*?)\] as const;/)?.[1] ?? "";
   const registeredVehicleTypes = [...registry.matchAll(/"([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(new Set(registeredVehicleTypes), new Set(vehicleTypes), "Transport Directory must expose all sixteen approved vehicle categories");
   assert.ok(directorySource.includes("...VEHICLE_TYPES") && directorySource.includes("vehicleOptions.map"), "Transport Directory must build its selectable vehicle options from the shared vehicle registry");
@@ -208,8 +208,8 @@ test("Demo Factory generator builds exactly two parent components, five child pa
   const partBlock = demo.match(/const parts: Part\[\] = \[([\s\S]*?)\n  \];/)?.[1] ?? "";
   assert.equal([...parentBlock.matchAll(/\{ code:/g)].length, 2, "Demo Factory must contain exactly two parent component specifications");
   assert.equal([...partBlock.matchAll(/\{ key:/g)].length, 5, "Demo Factory must contain five child part specifications");
-  assert.ok(demo.includes("const components: ManufacturingData[\\"components\\"] = parentSpecs.map"));
-  assert.ok(demo.includes("const componentParts: ManufacturingData[\\"componentParts\\"] = []"));
+  assert.ok(demo.includes('const components: ManufacturingData["components"] = parentSpecs.map'));
+  assert.ok(demo.includes('const componentParts: ManufacturingData["componentParts"] = []'));
   assert.ok(demo.includes("componentParts.push({"));
   assert.ok(demo.includes('allocationLevel: "part"'));
   assert.ok(demo.includes("relationshipTypes.forEach") && demo.includes("routeRelationships.push"));
