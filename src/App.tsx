@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ScreenOrientation as CapacitorScreenOrientation } from "@capacitor/screen-orientation";
 import {
-  Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
+  Activity, ArrowLeft, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
   ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge, GitBranch, Network, Route,
   HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
