@@ -288,3 +288,13 @@ test("Demo Factory dashboard reports parent components, child parts, PO lines, r
   assert.ok(dataExchange.includes("routeRelationships:mergeById"));
   assert.ok(dataExchange.includes("transportLegs:mergeById"));
 });
+
+
+test("part-level purchase-order quantities are treated as pieces, not inherited parent-set units", () => {
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(master.includes("partLevel = false"));
+  assert.ok(master.includes('partLevel ? "piece" : componentUnit(componentId)'));
+  assert.ok(master.includes('line.partId?"piece":componentUnit(line.componentId)'));
+  assert.ok(master.includes("quantityLabel(line.quantity,line.componentId,!!line.partId)"));
+  assert.ok(master.includes('quantityLabel(line.quantity, line.componentId||"",!!line.partId)'));
+});
