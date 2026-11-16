@@ -98,7 +98,8 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
     const plannedCuttingCost=plannedMaterialCostEntries.reduce((sum,entry)=>sum+Math.max(0,Number(entry.cuttingCost)||0),0);
     const processMapMaterialCost=processMapMaterialCostEntries.reduce((sum,entry)=>sum+Math.max(0,Number(entry.materialCost)||0),0);
     const processMapCuttingCost=processMapMaterialCostEntries.reduce((sum,entry)=>sum+Math.max(0,Number(entry.cuttingCost)||0),0);
-    const extras=(line.overhead??component?.overhead??0)+(line.toolingCost??component?.toolingCost??0)+(line.reworkCost??component?.reworkCost??0)+(line.scrapCost??component?.scrapCost??0);
+    const partScoped=line.allocationLevel==="part"||Boolean(line.partId);
+    const extras=(line.overhead??(partScoped?0:component?.overhead??0))+(line.toolingCost??(partScoped?0:component?.toolingCost??0))+(line.reworkCost??(partScoped?0:component?.reworkCost??0))+(line.scrapCost??(partScoped?0:component?.scrapCost??0));
     const actualExtras=(line.overhead??0)+(line.toolingCost??0)+(line.reworkCost??0)+(line.scrapCost??0);
     const materialCostExplicitlyEntered=line.materialQty!==undefined&&line.materialRate!==undefined;
     const actualMaterialCost=materialCostExplicitlyEntered?materialCost:0;
@@ -245,20 +246,21 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
     .filter(q => (q.quoteReference + " " + (vendors.find(v=>v.id===q.vendorId)?.company||"") + " " + q.status + " " + (routeOperations.find(op=>op.id===q.operationId)?.name||"")).toLowerCase().includes(quoteSearch.toLowerCase().trim()))
     .sort((a,b) => (b.quotedAt || "").localeCompare(a.quotedAt || ""));
   // PO-line overrides isolate material/cost/rejection inputs between different orders for the same component.
-  const componentBomLines = data.bomLines.filter(line => line.componentId === selectedComponent?.id && !line.deletedAt);
+  const partScoped = selectedLine?.allocationLevel === "part" || Boolean(selectedLine?.partId);
+  const componentBomLines = data.bomLines.filter(line => line.componentId === selectedComponent?.id && !line.deletedAt && (!line.partId || (Boolean(selectedLine?.partId) && line.partId === selectedLine?.partId)));
   const bomMaterialQtyPerPart = componentBomLines.reduce((sum,line) => sum + line.quantityPerPart * (1 + line.scrapPercent / 100), 0);
   const bomMaterialCostPerPart = componentBomLines.reduce((sum,line) => sum + line.quantityPerPart * (1 + line.scrapPercent / 100) * (data.materials.find(material => material.id === line.materialId)?.ratePerUnit || 0), 0);
   const bomWeightedMaterialRate = bomMaterialQtyPerPart > 0 ? bomMaterialCostPerPart / bomMaterialQtyPerPart : 0;
   const masterMaterialQty = selectedComponent?.materialQty || 0;
   const masterMaterialRate = selectedComponent?.materialRate || 0;
-  const materialQty = selectedLine?.materialQty ?? (masterMaterialQty > 0 ? masterMaterialQty : bomMaterialQtyPerPart * (selectedLine?.quantity || 0));
-  const materialRate = selectedLine?.materialRate ?? (masterMaterialRate > 0 ? masterMaterialRate : bomWeightedMaterialRate);
-  const materialCostSource = selectedLine?.materialQty !== undefined || selectedLine?.materialRate !== undefined ? "PO-line cost override" : masterMaterialQty > 0 && masterMaterialRate > 0 ? "Component master default" : bomMaterialQtyPerPart > 0 ? "Linked BOM estimate" : "No material rate / BOM entered";
-  const overhead = selectedLine?.overhead ?? selectedComponent?.overhead ?? 0;
-  const toolingCost = selectedLine?.toolingCost ?? selectedComponent?.toolingCost ?? 0;
-  const reworkCost = selectedLine?.reworkCost ?? selectedComponent?.reworkCost ?? 0;
-  const scrapCost = selectedLine?.scrapCost ?? selectedComponent?.scrapCost ?? 0;
-  const rejectedQty = selectedLine?.rejectedQty ?? selectedComponent?.rejectedQty ?? 0;
+  const materialQty = selectedLine?.materialQty ?? (!partScoped && masterMaterialQty > 0 ? masterMaterialQty : bomMaterialQtyPerPart * (selectedLine?.quantity || 0));
+  const materialRate = selectedLine?.materialRate ?? (!partScoped && masterMaterialRate > 0 ? masterMaterialRate : bomWeightedMaterialRate);
+  const materialCostSource = selectedLine?.materialQty !== undefined || selectedLine?.materialRate !== undefined ? "PO-line cost override" : !partScoped && masterMaterialQty > 0 && masterMaterialRate > 0 ? "Component master default" : bomMaterialQtyPerPart > 0 ? "Linked BOM estimate" : "No material rate / BOM entered";
+  const overhead = selectedLine?.overhead ?? (partScoped ? 0 : selectedComponent?.overhead ?? 0);
+  const toolingCost = selectedLine?.toolingCost ?? (partScoped ? 0 : selectedComponent?.toolingCost ?? 0);
+  const reworkCost = selectedLine?.reworkCost ?? (partScoped ? 0 : selectedComponent?.reworkCost ?? 0);
+  const scrapCost = selectedLine?.scrapCost ?? (partScoped ? 0 : selectedComponent?.scrapCost ?? 0);
+  const rejectedQty = selectedLine?.rejectedQty ?? (partScoped ? 0 : selectedComponent?.rejectedQty ?? 0);
   const gstRate = selectedLine?.gstRate ?? selectedComponent?.gstRate ?? 0;
   const materialCost = materialQty * materialRate;
   const costedRouteOperations = routeOperations.filter(op => op.costIncluded !== false);
