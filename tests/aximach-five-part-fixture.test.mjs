@@ -255,10 +255,10 @@ test("new PO lines do not copy Component Master selling prices into editable lin
   const data = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
   const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(master.includes('const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quantity: 0, targetDelivery: "", notes: "", allocationLevel: "component", partId: "" })'));
-  assert.ok(master.includes("delete clean.unitPrice"));
+  assert.ok(master.includes("line.unitPrice === undefined") && master.includes("unitPrice:row.allocationLevel===\"part\"?undefined"));
   assert.ok(data.includes("unitPrice?: number"));
   assert.ok(costing.includes("const sellingRate = selectedComponent?.salePrice ?? 0"));
-  assert.ok(!costing.includes("unitPrice"), "Costing must not read or write retired PO-line selling prices");
+  assert.ok(costing.includes("unitPrice: line.unitPrice") && costing.includes("line.partId?(line.unitPrice||0)"));
   assert.ok(costing.includes("if (key === \"salePrice\")"));
   assert.ok(costing.includes("components: current.components.map(component => component.id === selectedComponent.id ? { ...component, salePrice: amount, updatedAt } : component)"));
 });
