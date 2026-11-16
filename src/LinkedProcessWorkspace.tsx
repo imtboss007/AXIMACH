@@ -1037,7 +1037,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         processSubcategoryId: draft.processSubcategoryId || processSubcategoryIdFor(processDefinition, draft.subcategory) || undefined,
         actualEnd: draft.status === "Complete" ? (draft.actualEnd || stamp.slice(0,10)) : draft.actualEnd, paidAmount: nextPaidTotal, vendorId: draft.vendorId || "", actualRatePerPart: draft.actualRatePerPart || 0, transportVendorId: draft.transportVendorId || "",
         createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined,
-        parentId: draft.relationType === "subprocess" || old?.relationType === "subprocess" ? (draft.parentId || old?.parentId || "") : (draft.branch || "Main route") === "Main route" ? "" : (draft.parentId || old?.parentId || activeOperation?.id || ""), relationType: draft.relationType === "subprocess" || old?.relationType === "subprocess" ? "subprocess" : (draft.branch || "Main route") === "Main route" ? undefined : (draft.relationType || old?.relationType)
+        parentId: draft.relationType === "subprocess" ? (draft.parentId || old?.parentId || "") : (draft.branch || "Main route") === "Main route" ? "" : (draft.parentId || old?.parentId || activeOperation?.id || ""), relationType: draft.relationType === "subprocess" ? "subprocess" : (draft.branch || "Main route") === "Main route" ? undefined : (draft.relationType || old?.relationType)
       };
       const existingPayments = current.paymentTransactions.filter(payment=>payment.operationId===operationId&&!payment.deletedAt);
       const ledgerTotal = existingPayments.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0);
