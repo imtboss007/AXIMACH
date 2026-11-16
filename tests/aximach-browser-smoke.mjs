@@ -83,10 +83,16 @@ try {
   console.log("PASS responsive mobile navigation and Purchase Orders workspace");
 
   // Verify the Process Map, Route Flow and Manufacturing Universe links in both directions.
+  await page.getByRole("button", { name: "Open navigation menu" }).click();
   await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Process Map"]').click();
   await page.locator("h1").filter({ hasText: "Process Map" }).waitFor({ timeout: 15000 });
   const processTabs = page.locator('nav[aria-label="Linked component workspaces"]');
   await processTabs.getByRole("button", { name: "Route Flow" }).click();
+  await page.locator("h1").filter({ hasText: "Route Flow" }).waitFor({ timeout: 15000 });
+  const routeModuleLinks = page.locator(".route-flow-module-link-grid");
+  await routeModuleLinks.getByRole("button", { name: /Process Map/ }).click();
+  await page.locator("h1").filter({ hasText: "Process Map" }).waitFor({ timeout: 15000 });
+  await page.getByRole("button", { name: "Back" }).click();
   await page.locator("h1").filter({ hasText: "Route Flow" }).waitFor({ timeout: 15000 });
   await page.getByRole("button", { name: "Back" }).click();
   await page.locator("h1").filter({ hasText: "Process Map" }).waitFor({ timeout: 15000 });
