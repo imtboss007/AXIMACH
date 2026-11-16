@@ -298,3 +298,22 @@ test("part-level purchase-order quantities are treated as pieces, not inherited 
   assert.ok(master.includes("quantityLabel(line.quantity,line.componentId,!!line.partId)"));
   assert.ok(master.includes('quantityLabel(line.quantity, line.componentId||"",!!line.partId)'));
 });
+
+
+test("part-level PO prices persist, export per piece, and remain separate from parent component set pricing", () => {
+  for (const line of fixture.purchaseOrder.lines) {
+    assert.equal(line.allocationLevel, "part");
+    assert.ok(Number.isFinite(line.unitPrice) && line.unitPrice >= 0, "each part-level PO line must retain its own per-piece unit price");
+  }
+  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(master.includes("const lines = poLines.map(line => ({ ...line, id: line.id || makeId(\"line\"), targetDelivery: line.targetDelivery || poDraft.targetDelivery }));"));
+  assert.ok(master.includes("line.unitPrice === undefined"));
+  assert.ok(master.includes('Part unit price (₹ / piece) *'));
+  assert.ok(master.includes('line.partId ? (line.unitPrice ?? 0) : (part?.salePrice || 0)'));
+  assert.ok(master.includes('price:line.partId?(line.unitPrice??0):(component?.salePrice||0)'));
+  assert.ok(costing.includes("const revenue=line.quantity*(line.partId?(line.unitPrice||0):(component?.salePrice||0));"));
+  assert.ok(costing.includes("const sellingRate = selectedLine?.partId ? (selectedLine.unitPrice ?? 0) : (selectedComponent?.salePrice ?? 0);"));
+  assert.ok(costing.includes("unitPrice: line.unitPrice"));
+  assert.ok(costing.includes("if (selectedLine?.partId)"));
+});
