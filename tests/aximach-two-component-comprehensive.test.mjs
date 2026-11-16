@@ -348,3 +348,13 @@ test("Costing BOM, material allocations and independent Planned Cost remain scop
   assert.ok(costing.includes("entry.poLineId?entry.poLineId===line.id:entry.partId?entry.partId===line.partId:line.allocationLevel!==\\"part\\""));
   assert.ok(costing.includes("row.poLineId ? row.poLineId === selectedLine?.lineId : row.partId ? row.partId === selectedLine?.partId : selectedLine?.allocationLevel !== \\"part\\""));
 });
+
+test("Part-level Costing ignores inherited parent-assembly material and overhead defaults unless a PO-line override exists", () => {
+  const costing = readFileSync(new URL("../src/LinkedCostingWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(costing.includes("!partScoped && masterMaterialQty > 0 ? masterMaterialQty : bomMaterialQtyPerPart"));
+  assert.ok(costing.includes("!partScoped && masterMaterialRate > 0 ? masterMaterialRate : bomWeightedMaterialRate"));
+  for (const field of ["overhead","toolingCost","reworkCost","scrapCost","rejectedQty"]) {
+    assert.ok(costing.includes("selectedLine?." + field + " ?? (partScoped ? 0 : selectedComponent?." + field + " ?? 0)"), "parent default must not repeat for part field " + field);
+  }
+  assert.ok(costing.includes("(!line.partId || (Boolean(selectedLine?.partId) && line.partId === selectedLine?.partId))"), "shared component BOM rows remain available alongside the selected part BOM");
+});
