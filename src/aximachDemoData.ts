@@ -71,6 +71,31 @@ export function createAxMachTwoCompanyDemo(): ManufacturingData {
   const companyByCode = new Map(companies.map(c => [c.name.startsWith("ASTER") ? "ASTER" : "MERIDIAN", c]));
   const factoryByCompany = new Map(factories.map(f => [f.companyId, f]));
   const vendorByCode = new Map(vendorSpecs.map(([code], i) => [code, vendors[i]]));
+  const defs = new Map<string, ProcessDefinitionRecord>();
+  for (const part of parts) {
+    for (const step of part.steps) {
+      const key = step.category + "::" + step.name;
+      const vendor = vendorByCode.get(step.vendor)!;
+      const existing = defs.get(key);
+      const subcategoryId = id("SUB", key + "::" + step.sub);
+      if (existing) {
+        if (!existing.subcategories.includes(step.sub)) {
+          existing.subcategories.push(step.sub);
+          existing.subcategoryIds = [...(existing.subcategoryIds || []), subcategoryId];
+        }
+        if (!existing.vendorIds.includes(vendor.id)) existing.vendorIds.push(vendor.id);
+      } else {
+        defs.set(key, {
+          id: id("PROCESS", key), processType: step.name, category: step.category,
+          subcategories: [step.sub], subcategoryIds: [subcategoryId], vendorIds: [vendor.id],
+          displayColor: "#4b95eb", notes: "Synthetic DEMO process definition; verify before live production.",
+          createdAt: stamp, updatedAt: stamp
+        });
+      }
+    }
+  }
+  const processDefinitions = [...defs.values()];
+  vendors.forEach(v => v.processDefinitionIds = processDefinitions.filter(definition => definition.vendorIds.includes(v.id)).map(definition => definition.id));
   const parentSpecs = [
     { code: "ASTER" as const, key: "ASTER-DRIVE-ASSEMBLY", partNumber: "ASM-A-001", name: "Precision drive assembly" },
     { code: "MERIDIAN" as const, key: "MERIDIAN-FLUID-ASSEMBLY", partNumber: "ASM-B-001", name: "Hydraulic control assembly" }
@@ -195,18 +220,19 @@ export function createAxMachTwoCompanyDemo(): ManufacturingData {
       const definition = defs.get(step.category + "::" + step.name)!;
       const vendor = vendorByCode.get(step.vendor)!;
       const operationId = id("OPERATION", part.key + "-" + String(stepIndex + 1).padStart(2, "0"));
-      const completed = stepIndex === 0 ? part.qty : stepIndex === 1 ? Math.max(1, Math.floor(part.qty * 0.4)) : 0;
-      const accepted = stepIndex === 0 ? part.qty : stepIndex === 1 ? Math.floor(completed * 0.95) : 0;
-      const status = stepIndex === 0 ? "Complete" : stepIndex === 1 ? "Running" : "Planned";
+      const operationStatuses = ["Complete", "Queued", "Running", "Planned", "Quality hold", "Rejected", "Delayed"] as const;
+      const status = operationStatuses[(partIndex + stepIndex) % operationStatuses.length];
+      const completed = status === "Complete" ? part.qty : status === "Running" ? Math.max(1, Math.floor(part.qty * 0.4)) : status === "Rejected" ? Math.max(1, Math.floor(part.qty * 0.1)) : 0;
+      const accepted = status === "Complete" ? part.qty : status === "Running" ? Math.floor(completed * 0.95) : 0;
       operations.push({
         id: operationId, poId, poLineId: lineId, componentId, processDefinitionId: definition.id, sequence: stepIndex + 1,
         name: step.name, category: step.category, machine: step.machine, vendorId: vendor.id, status,
-        plannedStart: date(stepIndex + 1), plannedEnd: date(stepIndex + 2), actualStart: stepIndex < 2 ? date() : "",
-        actualEnd: stepIndex === 0 ? date() : "", quantity: part.qty, completed, accepted, rejected: completed - accepted,
+        plannedStart: date(stepIndex + 1), plannedEnd: date(stepIndex + 2), actualStart: status === "Complete" || status === "Running" ? date() : "",
+        actualEnd: status === "Complete" ? date() : "", quantity: part.qty, completed, accepted, rejected: completed - accepted,
         ratePerPart: step.planned, actualRatePerPart: step.actual, transportVendorId: "", transportPickup: "", transportDelivery: "",
         transportCost: 0, qualityNotes: step.inspect ? "DEMO sample inspection required." : "", inspectionResult: "Not assessed",
-        notes: "DEMO ONLY — not actual shop-floor execution.", paymentStatus: stepIndex === 0 ? "Paid" : "Unpaid",
-        paidAmount: stepIndex === 0 ? step.actual * part.qty : 0, paymentReference: stepIndex === 0 ? "DEMO-PAY-" + part.key : "",
+        notes: "DEMO ONLY — not actual shop-floor execution.", paymentStatus: status === "Complete" ? "Paid" : "Unpaid",
+        paidAmount: status === "Complete" ? step.actual * part.qty : 0, paymentReference: status === "Complete" ? "DEMO-PAY-" + part.key : "",
         subcategory: step.sub, processSubcategoryId: definition.subcategoryIds?.[definition.subcategories.indexOf(step.sub)],
         executionType: vendor.id === vendors[0].id ? "Internal" : "Outsourced", toleranceCategory: step.tol,
         inspectionRequired: !!step.inspect, transportFrom: "", transportTo: "", transportVehicleType: "", transportRouteId: "",
@@ -270,8 +296,8 @@ export function createAxMachTwoCompanyDemo(): ManufacturingData {
         relationType: branch === "Alternate route" ? "alternate" : "rework", costIncluded: false, createdAt: stamp, updatedAt: stamp
       });
     };
-    addBranch("Alternate route", alternateDefinition, "GRIND", "ALT-01", "Planned", part.steps.length + 1);
-    addBranch("Rework route", reworkDefinition, "QA", "REWORK-01", "Quality hold", part.steps.length + 2);
+    addBranch("Alternate route", alternateDefinition, alternateStep.vendor, "ALT-01", "Planned", part.steps.length + 1);
+    addBranch("Rework route", reworkDefinition, reworkStep.vendor, "REWORK-01", "Quality hold", part.steps.length + 2);
 
     const partOperations = operations.filter(row => row.poLineId === lineId);
     relationshipTypes.forEach((relationshipType, relationIndex) => {
@@ -305,9 +331,10 @@ export function createAxMachTwoCompanyDemo(): ManufacturingData {
     const part = parts[index % parts.length];
     const link = lineByPart.get(part.key)!;
     const inDirection = ["Opening balance", "Receipt", "Return", "Finished goods receipt"].includes(transactionType);
+    const isComponentTransaction = ["Finished goods receipt", "Dispatch"].includes(transactionType);
     inventoryTransactions.push({
-      id: id("STOCK", "DEMO-" + transactionType), itemType: transactionType === "Dispatch" ? "component" : "material",
-      itemId: id("MATERIAL", part.key + "-PRIMARY"), transactionType, direction: inDirection ? "in" : "out",
+      id: id("STOCK", "DEMO-" + transactionType), itemType: isComponentTransaction ? "component" : "material",
+      itemId: isComponentTransaction ? link.componentId : id("MATERIAL", part.key + "-PRIMARY"), transactionType, direction: inDirection ? "in" : "out",
       quantity: Math.max(1, Math.round(part.qty * 0.1)), occurredAt: date(), reference: "DEMO-STOCK-" + transactionType,
       notes: "SYNTHETIC DEMO inventory transaction.", companyId: link.companyId, factoryId: link.factoryId,
       poId: link.poId, poLineId: link.poLineId, operationId: id("OPERATION", part.key + "-01"),
