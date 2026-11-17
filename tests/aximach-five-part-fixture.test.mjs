@@ -4,9 +4,16 @@ import { readFileSync } from "node:fs";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-five-part-process-catalog.json", import.meta.url), "utf8"));
 
-test("five-part AXIMACH fixture has five unique component records", () => {
+test("two parent AXIMACH assemblies contain five unique linked child parts", () => {
+  assert.equal(fixture.components.length, 2);
   assert.equal(fixture.parts.length, 5);
   assert.equal(new Set(fixture.parts.map(part => part.partNumber)).size, 5);
+  assert.equal(new Set(fixture.parts.map(part => part.componentId)).size, 2);
+  for (const component of fixture.components) {
+    const children = fixture.parts.filter(part => part.componentId === component.id);
+    assert.ok(children.length >= 2, component.partNumber + " must contain multiple child parts");
+    assert.deepEqual(new Set(component.partNumbers), new Set(children.map(part => part.partNumber)));
+  }
 });
 
 test("each example part has linked category, process, sub-process and tolerance data", () => {
@@ -105,7 +112,7 @@ test("Production Plan hides inactive transport routes and Transport Directory re
   assert.ok(!operations.includes("const openTransport=(poId:string,lineId:string)"));
   assert.ok(!operations.includes("route.vendorId===draft.vendorId&&route.active!==false"));
   assert.ok(!operations.includes("<th>Transport</th>"));
-  assert.ok(operations.includes('onSelectModule("transport-master")'));
+  assert.ok(operations.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(operations.includes("Attach a route before or after a process from Process Map"));
   assert.ok(transport.includes("!vendors.some(vendor => vendor.id === vendorId)"));
 });
@@ -137,7 +144,7 @@ test("Transport route ownership stays in Transport Directory and Process Plan re
   assert.ok(!production.includes("transportLine"));
   assert.ok(!production.includes("openTransport("));
   assert.ok(!production.includes("jobTransportLegs"));
-  assert.ok(production.includes('onSelectModule("transport-master")'));
+  assert.ok(production.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(processPlan.includes("selectedTransportDirectoryRoute.active===false"));
   assert.ok(processPlan.includes("route.active!==false"));
   assert.ok(processPlan.includes("componentTransportLegs"));
@@ -180,20 +187,20 @@ test("additional planned-cost process rows cascade by category and stable defini
 });
 
 
-test("dashboard command globe exposes 18 unique, distinguishable module shortcuts", () => {
+test("dashboard command globe exposes 20 unique, distinguishable module shortcuts", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const satelliteBlock = orb.match(/const satellites = \[([\s\S]*?)\n\];/);
   assert.ok(satelliteBlock, "command globe satellite registry exists");
   const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
-  assert.equal(ids.length, 18);
-  assert.equal(new Set(ids).size, 18, "module shortcut IDs must be unique");
-  assert.equal(labels.length, 18);
-  assert.equal(new Set(labels).size, 18, "module shortcut labels must be distinguishable");
+  assert.equal(ids.length, 20);
+  assert.equal(new Set(ids).size, 20, "module shortcut IDs must be unique");
+  assert.equal(labels.length, 20);
+  assert.equal(new Set(labels).size, 20, "module shortcut labels must be distinguishable");
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
-test("all 18 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
+test("all 20 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const depthOpen = orb.indexOf('<motion.div className="ax-orb-depth"');
   const moduleShell = orb.indexOf('className="ax-orb-module-shell"');
@@ -202,12 +209,15 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   const core = orb.indexOf('className="ax-orb-core"');
   assert.ok(core >= 0 && core < depthOpen, "the spherical WebGL globe must remain a sphere rather than rotate as a flat canvas plane");
   assert.ok(orb.includes('<AXIMACHWebGLSphere rotationX={rotateX} rotationY={rotateY} />'), "manual drag orientation must rotate the WebGL surface texture");
-  const lowerShell = orb.indexOf('<div className="ax-orb-lower-shell"');
+  const lowerShell = orb.indexOf('className={compactViewport ? "ax-orb-lower-shell-mobile" : "ax-orb-lower-shell"}');
   assert.ok(depthOpen >= 0 && depthOpen < moduleShell && moduleShell < moduleClose && moduleClose < depthClose,
     "module controls must be children of the same draggable 3D globe");
   assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the globe");
-  assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
-  assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
+  assert.ok(orb.includes('aria-label={`${satellites.length} clickable AXIMACH modules`}'));
+  assert.ok(orb.includes('aria-label="Separate rotating live record summary shell"'));
+  assert.ok(orb.includes('onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag} onPointerUp={endLowerDrag} onPointerCancel={endLowerDrag}'));
+  assert.ok(orb.includes('compactViewport ? {touchAction:"none",position:"relative"'));
+  assert.ok(orb.includes('className="ax-orb-lower-node"'));
   assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
   assert.ok(orb.includes('className="ax-orb-core"'));
   assert.ok(orb.includes("scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1)"));
@@ -317,9 +327,10 @@ test("shared searchable pickers support exact, partial and numeric searches plus
   const picker = readFileSync(new URL("../src/SearchablePicker.tsx", import.meta.url), "utf8");
   const multi = readFileSync(new URL("../src/SearchableMultiSelect.tsx", import.meta.url), "utf8");
   assert.ok(picker.includes("option.label.toLocaleLowerCase().includes(needle)"));
-  assert.ok(picker.includes("startsWith(needle)"));
+  assert.ok(picker.includes("label===needle?0:label.startsWith(needle)?1:2"));
   assert.ok(picker.includes("exact or partial match"));
-  assert.ok(multi.includes("option.label.toLocaleLowerCase().includes(needle)"));
+  assert.ok(multi.includes("item.label.includes(needle)"));
+  assert.ok(multi.includes("label === needle ? 0 : label.startsWith(needle) ? 1 : 2"));
   assert.ok(multi.includes('onChange(options.map(option => option.id))'));
   assert.ok(multi.includes("onChange([])"));
   assert.ok(multi.includes("Select all"));
@@ -462,7 +473,7 @@ test("Purchase Orders exposes column-wise searchable filters and guarded delete-
   assert.ok(workspace.includes("poNumberFilters.includes(p.number)"));
   assert.ok(workspace.includes("poIssueDateFilters.includes(p.issueDate||\"—\")"));
   assert.ok(workspace.includes("poDeliveryFilters.includes(p.targetDelivery||\"—\")"));
-  assert.ok(workspace.includes("p.lines.some(line=>poComponentFilters.includes(line.componentId))"));
+  assert.ok(workspace.includes("p.lines.some(line=>!line.deletedAt&&poComponentFilters.includes(line.componentId))"));
   assert.ok(workspace.includes("Delete all Purchase Orders"));
   assert.ok(workspace.includes("Delete all components"));
 });
@@ -583,7 +594,7 @@ test("Delete process archives the selected node and all descendants without dest
   assert.ok(workspace.includes("while (frontier.length)"));
   assert.ok(workspace.includes("child.parentId === parentId"));
   assert.ok(workspace.includes("quotations: current.quotations.map(quote => ids.has(quote.operationId)"));
-  assert.ok(workspace.includes("payment, inspection and production history are retained for audit"));
+  assert.ok(workspace.includes("payment and inspection history was retained"));
   assert.ok(workspace.includes('title="Delete process"'));
   assert.ok(workspace.includes("Delete process</button>"));
 });
@@ -593,8 +604,8 @@ test("Five fixture parts create independent multi-process routes linked by stabl
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.equal(fixture.parts.length, 5);
   const linked = fixture.parts.flatMap(part => {
-    const componentId = "component:" + part.partNumber;
-    const poId = "po:" + part.partNumber;
+    const componentId = part.componentId;
+    const poId = "po:two-assembly-acceptance";
     const poLineId = "line:" + part.partNumber;
     return part.processes.map((process, index) => ({
       id: "operation:" + part.partNumber + ":" + index,
@@ -603,13 +614,14 @@ test("Five fixture parts create independent multi-process routes linked by stabl
     }));
   });
   for (const part of fixture.parts) {
-    const route = linked.filter(row => row.componentId === "component:" + part.partNumber);
+    const route = linked.filter(row => row.componentId === part.componentId && row.poLineId === "line:" + part.partNumber);
     assert.equal(route.length, part.processes.length);
     assert.ok(route.length >= 4);
-    assert.ok(route.every(row => row.poId === "po:" + part.partNumber && row.poLineId === "line:" + part.partNumber));
+    assert.ok(route.every(row => row.poId === "po:two-assembly-acceptance" && row.poLineId === "line:" + part.partNumber));
     assert.equal(new Set(route.map(row => row.id)).size, route.length);
   }
-  assert.equal(new Set(linked.map(row => row.componentId)).size, 5);
+  assert.equal(new Set(linked.map(row => row.componentId)).size, 2);
+  assert.ok(fixture.components.every(component => linked.some(row => row.componentId === component.id)));
   assert.ok(workspace.includes("const effectivePoLineId = old?.poLineId || parentOperation?.poLineId || selectedLine.id"));
   assert.ok(workspace.includes("id: operationId, poId: effectivePoId, poLineId: effectivePoLineId, componentId: effectiveComponentId"));
   assert.ok(workspace.includes("op.poId === poId && op.poLineId === selectedLine?.id && op.componentId === selectedLine?.componentId"));
@@ -842,7 +854,7 @@ test("five synthetic component names resolve to the intended mechanical logo fam
 
 test("Main dashboard sphere uses native 3D module hit targets with stable transforms", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label={`${satellites.length} clickable AXIMACH modules`}'));
   assert.ok(orb.includes('return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"'));
   assert.ok(orb.includes('translate3d(" + x + "px," + y + "px," + z + "px)'));
   assert.ok(orb.includes("onPointerDown={startDrag}"));
@@ -938,7 +950,7 @@ test("Process Plan panels expose independent native expand/collapse sections", (
 });
 
 
-test("Main Dashboard and 3D Command Centre center the 18-module orb on mobile", () => {
+test("Main Dashboard and 3D Command Centre center the 20-module orb on mobile", () => {
   const dashboardStyles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   const appStyles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.ok(dashboardStyles.includes(".dashboard-welcome-orb .ax-orb-drag-zone"));
@@ -1066,7 +1078,7 @@ test("Icon Studio strips saved outline/filled prefixes before rendering Tabler c
 
 test("CI skips Electron binary download for frontend and Android jobs only", () => {
   const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
-  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 2);
+  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 3);
   const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
   assert.ok(!windows.includes("ELECTRON_SKIP_BINARY_DOWNLOAD"));
 });
@@ -1428,7 +1440,7 @@ test("Production Plan no longer owns the component transport registry or inline 
   assert.ok(!production.includes("saveTransport"));
   assert.ok(!production.includes("jobTransportLegs"));
   assert.ok(!production.includes("<th>Transport</th>"));
-  assert.ok(production.includes('onSelectModule("transport-master")'));
+  assert.ok(production.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(production.includes('onSelectModule("process-map"'));
 });
 
@@ -1450,7 +1462,7 @@ test("Process Universe node offers real alternate and rework creation from the s
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(universe.includes("onAddAlternateRoute?: (parentId: string) => void"));
   assert.ok(universe.includes("onAddReworkRoute?: (parentId: string) => void"));
-  assert.ok(universe.includes("onAddAlternateRoute, onAddReworkRoute, onAddProcessDefinition, onNotice=()=>{} }: Props)"));
+  assert.ok(universe.includes('onNotice=()=>{}, sceneScopeLabel="PO-LINE" }: Props)'));
   assert.ok(universe.includes("onAddAlternateRoute(expandedOrbitOperation.id)"));
   assert.ok(universe.includes("onAddReworkRoute(expandedOrbitOperation.id)"));
   assert.ok(workspace.includes('onAddAlternateRoute={parentId=>startAddBranch("alternate",parentId)}'));
@@ -1520,7 +1532,8 @@ test("390px mobile layout keeps the spherical command centre and Process Map con
   assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 38px"));
   assert.ok(uiCss.includes(".process-visual-style-buttons button { min-height: 42px"));
   assert.ok(process.includes('<details className="surface-panel process-route-scope-panel">'));
-  assert.ok(process.includes('<details className="surface-panel linked-route-canvas">'));
+  assert.ok(process.includes('<details className="surface-panel linked-route-canvas" open={showEditor || routeOperations.length > 0}>'));
+  assert.ok(process.includes('<details className="surface-panel process-operation-table-panel" open={routeOperations.length > 0}>'));
   assert.ok(!process.includes("<details open"));
 });
 
@@ -1533,9 +1546,16 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
     assert.ok(demo.includes(company), "missing demo company: " + company);
   }
   const partKeys = [...demo.matchAll(/key:"(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
-  assert.equal(partKeys.length, 5, "bundled demo must include exactly five component examples");
-  assert.equal(new Set(partKeys).size, 5, "demo component IDs must be unique");
-  for (const collection of ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
+  assert.equal(partKeys.length, 5, "bundled demo must include exactly five child part examples");
+  assert.equal(new Set(partKeys).size, 5, "child part IDs must be unique");
+  assert.ok(demo.includes('const componentId=id("COMPONENT",p.co+"-ASSEMBLY")'), "five part records must resolve to only two parent Component Master IDs");
+  assert.ok(demo.includes('if(!components.some(row=>row.id===componentId))'), "each parent Component Master is created only once");
+  assert.ok(demo.includes('componentParts.push({id:partId'), "each part is saved as a child ComponentPart record");
+  assert.ok(demo.includes('allocationLevel:"part",partId'), "every part has its own part-level PO line");
+  assert.ok(demo.includes('const relationshipTypes=["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"]'), "all eleven route relationship kinds are generated");
+  assert.ok(demo.includes('const vehicleTypes=["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery","Air freight","Rail freight","Sea freight / container vessel","Inland waterway vessel","Multimodal freight"]'), "all sixteen vehicle categories are generated together");
+  assert.ok(demo.includes('routeRelationships,followUpAssignments'), "the generated demo persists typed route relationships");
+  for (const collection of ["companies", "factories", "purchaseOrders", "components", "componentParts", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "routeRelationships", "followUpAssignments"]) {
     assert.ok(demo.includes(collection), "demo dataset must include " + collection);
   }
   assert.ok(demo.includes('processSubcategoryId:def.subcategoryIds?.[def.subcategories.indexOf(s.sub)]'));
@@ -1547,7 +1567,8 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   assert.ok(demo.includes('materialCostEntries.push({id:id("MATERIAL-ALLOCATION"'));
   assert.ok(demo.includes('scope:"process-map"'));
   assert.ok(demo.includes('transportVendorId:id("VENDOR","LOG")'));
-  assert.ok(demo.includes('return {updatedAt:stamp,companies,factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
+  assert.ok(demo.includes('return {updatedAt:stamp,companies,factories,purchaseOrders,components,componentParts,vendors,operations,quotations,materials,materialCostEntries,bomLines'));
+  assert.ok(demo.includes('componentParts:archive(current.componentParts)'), "removing the optional demo must archive its five child parts as well as both parent components");
   assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
   assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
   assert.ok(importer.includes('onClick={loadTwoCompanyDemo}'));
@@ -1677,11 +1698,16 @@ test("client-side shared data merge keeps saved parts and both cost scopes by re
   assert.ok(data.includes("materialCostEntries: Array.isArray(value?.materialCostEntries)"));
 });
 
-test("purchase-order deletion retains stand-alone material budgets but removes entries attached to that PO", () => {
+test("purchase-order archival tombstones PO-linked material budgets and retains standalone budgets and stock history", () => {
   const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(master.includes("(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))"));
-  assert.ok(master.includes("componentParts:(current.componentParts||[]).filter(row=>!targetIds.has(row.componentId))"));
-  assert.ok(master.includes("materialCostEntries:(current.materialCostEntries||[]).filter(row=>!targetIds.has(row.componentId))"));
+  const purchaseStart = master.indexOf("const deletePurchaseOrders =");
+  const exportStart = master.indexOf("const exportComponentsExcel =", purchaseStart);
+  const purchaseDelete = master.slice(purchaseStart, exportStart);
+  assert.ok(purchaseDelete.includes("materialCostEntries:deactivate(current.materialCostEntries||[],row=>Boolean((row.poId&&targetIds.has(row.poId))||(row.poLineId&&lineIds.has(row.poLineId))))"), "PO-linked material-cost entries must be tombstoned while standalone budgets remain active");
+  assert.ok(purchaseDelete.includes("plannedCosts:deactivate(current.plannedCosts,row=>Boolean(row.poId&&targetIds.has(row.poId)))"));
+  assert.ok(!purchaseDelete.includes("componentParts:"), "component-part master records must survive PO archival because they belong to the component master");
+  assert.ok(purchaseDelete.includes("// Inventory transactions are an append-only stock ledger: never erase them when a PO is archived."));
+  assert.ok(!purchaseDelete.includes("inventoryTransactions:current.inventoryTransactions.filter"), "PO archival must preserve immutable stock transactions");
 });
 
 
@@ -1919,7 +1945,9 @@ test("Dedicated full-screen Route Flow and Manufacturing Universe modules are wi
   assert.ok(route.includes('targetOperationId:to.id'));
   assert.ok(route.includes('<RouteCurve type={connector.type}'));
   assert.ok(universe.includes('<ProcessUniverse3D'));
-  assert.ok(universe.includes('routeRelationships={routeRelationships}'));
+  assert.ok(universe.includes('routeRelationships={sceneRouteRelationships}'));
+  assert.ok(universe.includes('universeScope==="enterprise"?operations:routeOperations'));
+  assert.ok(universe.includes('Enterprise-wide live universe'));
   assert.ok(universe.includes('onNavigate("route-flow"'));
   assert.ok(data.includes('routeRelationships: RouteRelationshipRecord[]'));
   assert.ok(data.includes('mergeRows(local.routeRelationships, remote.routeRelationships)'));
@@ -1984,7 +2012,7 @@ test("3D route arrows stay enabled and narrow-screen process metadata is not hid
 test("Route Flow draws vehicle-specific transport icons on curved connectors and supports multiple vehicle types", () => {
   const route = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
-  assert.ok(route.includes('import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle"'));
+  assert.ok(route.includes('import { VehicleIcon as VehicleTypeIcon, VEHICLE_TYPES } from "./TransportVehicle"'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={vehicleType} size={17}/>'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.leg.vehicleType} size={20}/>'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.entry.transportVehicleType||""} size={20}/>'));
@@ -2226,7 +2254,7 @@ test("Multiple transport legs remain separate and visible for each source and ta
   assert.ok(scene.includes("transportLegs.map((leg,index)"));
   assert.ok(scene.includes("other.targetOperationId===leg.targetOperationId"));
   assert.ok(scene.includes("other.placement===leg.placement"));
-  assert.ok(universe.includes("routeLegs.map(leg=>"));
+  assert.ok(universe.includes("sceneRouteLegs.map(leg=>"));
 });
 
  
@@ -2246,10 +2274,10 @@ test("AXIMACH mobile 3D command centre keeps module reachability and non-overlap
   const orb=readFileSync(new URL("../src/AXIMACHOrb.tsx",import.meta.url),"utf8");
   const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
   assert.ok(orb.includes('const radius = compactViewport ? 116 : 132'));
-  assert.ok(orb.includes("ax-orb-lower-summary-grid"));
-  assert.ok(orb.includes("ax-orb-lower-summary-card"));
-  assert.ok(css.includes(".ax-orb-lower-summary-grid"));
-  assert.ok(css.includes(".ax-orb-lower-shell{display:none!important}"));
+  assert.ok(orb.includes('className={compactViewport ? "ax-orb-lower-shell-mobile" : "ax-orb-lower-shell"}'));
+  assert.ok(orb.includes('className="ax-orb-lower-node"'));
+  assert.ok(orb.includes("const startLowerDrag ="));
+  assert.ok(css.includes(".ax-orb-lower-shell{display:none!important}"), "desktop shell remains hidden only where the compact layout uses its separate mobile shell");
 });
 
 test("Route Flow and Process Universe expose independent canvas zoom and fit controls", () => {

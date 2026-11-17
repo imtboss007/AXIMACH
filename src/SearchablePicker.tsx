@@ -13,7 +13,7 @@ export default function SearchablePicker({ id, label, value, options, onChange, 
   const matches = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
     if (!needle) return options.slice(0, maxResults);
-    return options.filter(option => option.label.toLocaleLowerCase().includes(needle)).sort((a, b) => Number(!a.label.toLocaleLowerCase().startsWith(needle)) - Number(!b.label.toLocaleLowerCase().startsWith(needle))).slice(0, maxResults);
+    return options.filter(option => option.label.toLocaleLowerCase().includes(needle)).sort((a, b) => { const left=a.label.trim().toLocaleLowerCase(), right=b.label.trim().toLocaleLowerCase(); const rank=(label:string)=>label===needle?0:label.startsWith(needle)?1:2; return rank(left)-rank(right)||left.localeCompare(right); }).slice(0, maxResults);
   }, [options, query, maxResults]);
   useEffect(() => { if (!open) setQuery(""); }, [value, open]);
   const select = (option: SearchableOption) => { onChange(option.id); setQuery(""); setOpen(false); };

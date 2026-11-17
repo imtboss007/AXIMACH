@@ -37,7 +37,7 @@ test("vehicle classes have individual visual identities and separate transport p
   assert.ok(universe.includes('transportFor(operation.id,"after")'));
 });
 
-test("route views fit smaller cards, expose portrait step navigation and support landscape fullscreen", () => {
+test("route views fit smaller cards, expose portrait step navigation and remain orientation-neutral", () => {
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
@@ -46,13 +46,13 @@ test("route views fit smaller cards, expose portrait step navigation and support
   assert.match(css, /\.process-route-index\{position:sticky/);
   assert.match(css, /\.linked-route-canvas:fullscreen/);
   assert.match(css, /\.process-universe-stage\{width:100% !important;min-width:0 !important/);
-  // Device orientation is owned by the app module lifecycle, not the
-  // map-only fullscreen control inside LinkedProcessWorkspace.
+  // Phone orientation remains operator-controlled; route canvases must work in portrait.
   assert.ok(app.includes('activeModuleId === "process-map"'));
   assert.ok(app.includes('activeModuleId === "route-flow"'));
   assert.ok(app.includes('activeModuleId === "manufacturing-universe"'));
-  assert.ok(app.includes('CapacitorScreenOrientation.lock({ orientation: "landscape-primary" })'));
-  assert.ok(workspace.includes("The app-level landscape lock remains active until Process Map is closed."));
+  assert.ok(!app.includes("CapacitorScreenOrientation.lock"));
+  assert.ok(!workspace.includes("landscape lock"));
+  assert.ok(workspace.includes("Open route in full screen"));
   assert.ok(workspace.includes('className="process-route-index"'));
   assert.ok(universe.includes("process-universe-node-track"));
 });
@@ -60,13 +60,24 @@ test("route views fit smaller cards, expose portrait step navigation and support
 test("multi-route example is visible and interactive in both Process Map and Transport Directory without live writes", () => {
   const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
   const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(processMap.includes("<TransportRoutingDemo onClose="));
+  assert.ok(routeFlow.includes("<TransportRoutingDemo onClose="));
+  assert.ok(routeFlow.includes("Open multi-part demo"));
   assert.ok(directory.includes("<TransportRoutingDemo onClose="));
-  assert.ok(demo.includes("Next process step"));
-  assert.ok(demo.includes("Activate alternate supplier route"));
-  assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
-  assert.ok(demo.includes("TransportLegMarker"));
+  assert.ok(demo.includes("Next process"));
+  assert.ok(demo.includes("All vehicles"));
+  assert.ok(demo.includes("Two assemblies"));
+  assert.ok(demo.includes("Part process routes"));
+  assert.ok(demo.includes("Relationship types"));
+  assert.ok(demo.includes("Transport legs"));
+  assert.ok(demo.includes("All vehicles"));
+  assert.ok(demo.includes("Material feeds"));
+  assert.ok(demo.includes("20-module coverage"));
+  assert.ok(demo.includes("fixture.transportRoutes.map((route:any)=><VehicleBadge"));
+  const fixture=JSON.parse(readFileSync(new URL("./fixtures/aximach-one-component-multipart-route.json",import.meta.url),"utf8"));
+  assert.equal(new Set(fixture.transportLegs.map(row=>row.vehicleType)).size,16);
 });
 
 test("Module Universe cards remain compact and scroll within the viewport", () => {
@@ -97,7 +108,7 @@ test("every supported vehicle category is displayed with a permanent visual iden
   const visuals = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
   const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
   assert.ok(visuals.includes('if (/heavy.?duty/.test(value))'));
-  assert.ok(demo.includes("{VEHICLE_TYPES.map(type=><VehicleBadge"));
+  assert.ok(demo.includes("fixture.transportRoutes.map((route:any)=><VehicleBadge"));
   for (const type of ["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery"]) assert.ok(visuals.includes(type));
 });
 
@@ -118,8 +129,8 @@ test("every transport category keeps a unique stable colour in Process Map, Rout
   const materialInspector = readFileSync(new URL("../src/MaterialTransportRecordInspector.tsx", import.meta.url), "utf8");
   const visualBlock = visuals.slice(visuals.indexOf("export function getVehicleVisual"), visuals.indexOf("export function VehicleIcon"));
   const colors = [...visualBlock.matchAll(/color: "(#[A-Fa-f0-9]+)"/g)].map(match => match[1]);
-  assert.equal(colors.length, 12, "11 supported vehicle categories plus one fallback identity must have colours");
-  assert.equal(new Set(colors).size, 12, "every vehicle category and fallback must have a distinct identity colour");
+  assert.equal(colors.length, 16, "15 supported vehicle categories plus one fallback identity must have colours");
+  assert.equal(new Set(colors).size, 16, "every vehicle category and fallback must have a distinct identity colour");
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={leg.vehicleType}"));
   assert.ok(scene.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));

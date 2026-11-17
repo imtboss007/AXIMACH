@@ -3,15 +3,17 @@ import { readFile, writeFile, mkdir, rename, unlink } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { networkInterfaces } from "node:os";
-import { manufacturingCollections, mergeManufacturingData } from "./manufacturing-data.mjs";
+import { manufacturingCollections, mergeManufacturingData, mergeManufacturingDataWithConflicts } from "./manufacturing-data.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
 const DB_PATH = resolve(process.env.AXIMACH_DATA_FILE || "./data/aximach.json");
 const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
-let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null };
+let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, syncConflicts: [], uiPreferences: null };
 let busy = false;
 let saveQueue = Promise.resolve();
+
+function sameConflictValue(left, right) { return JSON.stringify(left ?? null) === JSON.stringify(right ?? null); }
 
 async function loadDb() {
   try { db = { ...db, ...JSON.parse(await readFile(DB_PATH, "utf8")) }; }
@@ -149,7 +151,7 @@ const server = createServer(async (req, res) => {
   if (!authorized(req)) return json(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
   try {
     if (url.pathname === "/api/manufacturing-data" && req.method === "GET") {
-      return json(res, 200, { data: db.manufacturingData || null, updatedAt: db.manufacturingData?.updatedAt || null });
+      return json(res, 200, { data: db.manufacturingData || null, updatedAt: db.manufacturingData?.updatedAt || null, conflicts: (db.syncConflicts || []).filter(item => item.status === "unresolved") });
     }
     if (url.pathname === "/api/manufacturing-data" && req.method === "PUT") {
       const input = await body(req);
@@ -157,10 +159,108 @@ const server = createServer(async (req, res) => {
       for (const collection of manufacturingCollections) if (input.data[collection] !== undefined && !Array.isArray(input.data[collection])) return json(res, 400, { error: collection + " must be an array." });
       const encoded = JSON.stringify(input.data);
       if (encoded.length > 8_000_000) return json(res, 413, { error: "Manufacturing data exceeds the 8 MB limit." });
-      db.manufacturingData = mergeManufacturingData(db.manufacturingData, input.data);
+      const baseline = input.baseData && typeof input.baseData === "object" && !Array.isArray(input.baseData) ? input.baseData : null;
+      const result = baseline
+        ? mergeManufacturingDataWithConflicts(db.manufacturingData, input.data, baseline)
+        : { data: mergeManufacturingData(db.manufacturingData, input.data), conflicts: [] };
+      db.manufacturingData = result.data;
+      const detectedAt = new Date().toISOString();
+      const savedConflicts = result.conflicts.map(conflict => ({
+        id: randomUUID(), ...conflict, detectedAt, status: "unresolved"
+      }));
+      if (savedConflicts.length) db.syncConflicts = [...(db.syncConflicts || []), ...savedConflicts].slice(-500);
       await saveDb();
-      return json(res, 200, { ok: true, data: db.manufacturingData, updatedAt: db.manufacturingData.updatedAt });
+      return json(res, 200, {
+        ok: true, data: db.manufacturingData, updatedAt: db.manufacturingData.updatedAt,
+        conflicts: savedConflicts, unresolvedConflictCount: (db.syncConflicts || []).filter(item => item.status === "unresolved").length
+      });
     }
+    if (url.pathname === "/api/manufacturing-data/conflicts/resolve" && req.method === "POST") {
+      const input = await body(req);
+      const conflictId = typeof input.conflictId === "string" ? input.conflictId : "";
+      const choice = input.choice;
+      if (!conflictId || !["remote", "local", "merged"].includes(choice)) return json(res, 400, { error: "Choose a valid conflict and resolution." });
+      const conflictIndex = (db.syncConflicts || []).findIndex(item => item.id === conflictId && item.status === "unresolved");
+      if (conflictIndex < 0) return json(res, 404, { error: "This unresolved sync conflict no longer exists. Refresh the conflict list." });
+      const conflict = db.syncConflicts[conflictIndex];
+      if (!manufacturingCollections.includes(conflict.collection)) return json(res, 400, { error: "The conflict references an unsupported data collection." });
+      if (!db.manufacturingData || typeof db.manufacturingData !== "object") return json(res, 409, { error: "Shared manufacturing data is unavailable. Refresh the shared server." });
+
+      const rows = Array.isArray(db.manufacturingData[conflict.collection]) ? db.manufacturingData[conflict.collection] : [];
+      const currentRow = rows.find(row => row.id === conflict.recordId);
+      const currentValue = conflict.lineId
+        ? (conflict.collection === "purchaseOrders" ? (currentRow?.lines || []).find(line => line.id === conflict.lineId) : undefined)
+        : currentRow;
+      const comparable = value => {
+        if (!value || conflict.collection !== "purchaseOrders" || conflict.lineId) return value ?? null;
+        const copy = { ...value };
+        delete copy.lines;
+        delete copy.updatedAt;
+        return copy;
+      };
+      if (!sameConflictValue(comparable(currentValue), comparable(conflict.remote))) {
+        const refreshedAt = new Date().toISOString();
+        const refreshedConflict = { ...conflict, remote: currentValue ?? null, refreshedAt };
+        db.syncConflicts[conflictIndex] = refreshedConflict;
+        await saveDb();
+        return json(res, 409, {
+          error: "The shared record changed again after this conflict was detected. The shared version has been refreshed; review it and resolve again.",
+          conflict: refreshedConflict,
+          data: db.manufacturingData,
+          unresolvedConflictCount: db.syncConflicts.filter(item => item.status === "unresolved").length
+        });
+      }
+
+      if (conflict.lineId && conflict.collection !== "purchaseOrders") return json(res, 400, { error: "Only purchase-order lines support line-level conflict resolution." });
+      const selectedValue = choice === "local" ? conflict.local : choice === "remote" ? conflict.remote : input.value;
+      if (choice === "merged" && (!selectedValue || typeof selectedValue !== "object" || Array.isArray(selectedValue))) {
+        return json(res, 400, { error: "A merged record value is required." });
+      }
+      const expectedId = conflict.lineId || conflict.recordId;
+      if (selectedValue !== null && (typeof selectedValue !== "object" || Array.isArray(selectedValue) || selectedValue.id !== expectedId)) {
+        return json(res, 400, { error: "The selected record ID does not match this conflict." });
+      }
+      if (selectedValue === null && choice !== "remote") return json(res, 400, { error: "Only the current shared version can resolve a missing record." });
+
+      const stamp = new Date().toISOString();
+      let nextRows;
+      if (conflict.lineId) {
+        if (!currentRow) return json(res, 409, { error: "The parent purchase order no longer exists. Refresh the conflict list." });
+        const currentLines = Array.isArray(currentRow.lines) ? currentRow.lines : [];
+        const nextLines = selectedValue === null
+          ? currentLines.filter(line => line.id !== conflict.lineId)
+          : currentLines.some(line => line.id === conflict.lineId)
+            ? currentLines.map(line => line.id === conflict.lineId ? { ...selectedValue, updatedAt: stamp } : line)
+            : [...currentLines, { ...selectedValue, updatedAt: stamp }];
+        nextRows = rows.map(row => row.id === conflict.recordId ? { ...row, lines: nextLines, updatedAt: stamp } : row);
+      } else if (selectedValue === null) {
+        nextRows = rows.filter(row => row.id !== conflict.recordId);
+      } else {
+        const preservedLines = conflict.collection === "purchaseOrders"
+          ? (currentRow?.lines ?? selectedValue.lines ?? [])
+          : undefined;
+        const canonicalValue = {
+          ...selectedValue,
+          ...(conflict.collection === "purchaseOrders" ? { lines: preservedLines } : {}),
+          updatedAt: stamp
+        };
+        nextRows = currentRow
+          ? rows.map(row => row.id === conflict.recordId ? canonicalValue : row)
+          : [...rows, canonicalValue];
+      }
+
+      db.manufacturingData = { ...db.manufacturingData, [conflict.collection]: nextRows, updatedAt: stamp };
+      const resolvedConflict = { ...conflict, status: "resolved", resolutionChoice: choice, resolvedAt: stamp, resolution: selectedValue };
+      db.syncConflicts[conflictIndex] = resolvedConflict;
+      await saveDb();
+      return json(res, 200, {
+        ok: true,
+        conflict: resolvedConflict,
+        data: db.manufacturingData,
+        unresolvedConflictCount: db.syncConflicts.filter(item => item.status === "unresolved").length
+      });
+    }
+
     if (url.pathname === "/api/records" && req.method === "GET") return json(res, 200, { records: db.records || {}, updatedAt: db.recordsUpdatedAt || null });
     if (url.pathname === "/api/records" && req.method === "PUT") {
       const input = await body(req);

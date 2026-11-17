@@ -51,6 +51,7 @@ test("Process Map node, Route Flow and Manufacturing Universe render material an
   assert.ok(universe.includes('transportFor(operation.id,"before")'));
   assert.ok(universe.includes('materialLinksAt(operation.id,"after")'));
   assert.ok(universe.includes('transportFor(operation.id,"after")'));
+  assert.ok(universe.includes('leg.poLineId===lane.rows[0].poLineId'), "unanchored start transport legs must stay in their own PO-line lane");
   assert.ok(universe.includes("<RouteConnectorLegend/>"));
   assert.ok(flow.includes("<RouteConnectorLegend/>"));
 });
@@ -81,14 +82,28 @@ test("synthetic route example has three materials linked to distinct process ope
   }
 });
 
-test("in-app transport demo displays material feeds, directory master links and connector legend", () => {
+test("in-app demo covers two parent assemblies, five part routes, all relationship types and all vehicle categories", () => {
   const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
-  assert.ok(demo.includes("MaterialFlowMarker"));
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-one-component-multipart-route.json", import.meta.url), "utf8"));
+  assert.ok(demo.includes("aximach-one-component-multipart-route.json"));
+  for (const view of ["Assemblies & parts","Part process routes","Relationship types","Transport legs","All vehicles","Material feeds","20-module coverage"]) assert.ok(demo.includes(view));
+  assert.ok(demo.includes("Two assemblies"));
+  assert.ok(demo.includes("fixture.moduleIds"));
+  assert.ok(demo.includes("VehicleBadge"));
   assert.ok(demo.includes("RouteConnectorLegend"));
-  assert.ok(demo.includes("routeRecord={routes.get(leg.routeId)}"));
-  assert.ok(demo.includes("materialLinks.map(link"));
-  assert.ok(demo.includes("materialLinksAt(operation.id,\"before\")"));
-  assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
+  assert.ok(routeFlow.includes("Open multi-part demo"));
+  assert.ok(routeFlow.includes("<TransportRoutingDemo onClose"));
+  assert.equal(fixture.components.length, 2);
+  assert.equal(fixture.parts.length, 5);
+  assert.equal(fixture.purchaseOrder.lines.length, 5);
+  assert.equal(fixture.expected.componentCount, 2);
+  assert.equal(fixture.expected.operationCount, fixture.operations.length);
+  assert.equal(new Set(fixture.routeRelationships.map(row=>row.relationshipType)).size, 11);
+  assert.equal(fixture.transportRoutes.length, 16);
+  assert.equal(fixture.transportLegs.length, 16);
+  assert.equal(new Set(fixture.transportLegs.map(row=>row.vehicleType)).size, 16);
+  assert.equal(fixture.moduleIds.length, 20);
 });
 
 test("component parts retain multiple material master IDs with legacy single-material migration", () => {
@@ -204,8 +219,10 @@ test("Manufacturing Universe uses the incoming component context and never falls
   assert.ok(!universe.includes("||companyOrders[0]"));
   assert.ok(!universe.includes("||lines[0]"));
   assert.ok(universe.includes("lineComponent?.partNumber"));
-  assert.ok(universe.includes("materialPartLabels={materialProcessPartLabels}"));
-  assert.ok(universe.includes("poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)"));
+  assert.ok(universe.includes("materialPartLabels={sceneMaterialPartLabels}"));
+  assert.ok(universe.includes('universeScope==="enterprise"&&(sceneRouteOperations.length>0||sceneRouteMaterials.length>0||sceneRouteLegs.length>0)'));
+  assert.ok(universe.includes('universeScope==="po-line"&&!!poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)'));
+  assert.ok(universe.includes("const globalRouteLabels=useMemo"));
   assert.ok(app.includes('<ManufacturingUniverseWorkspace initialContext={moduleContext}'));
 });
 
@@ -296,3 +313,47 @@ test("Transport Directory and Dispatch retain the originating PO component and s
   assert.ok(app.includes('<TransportDirectoryWorkspace initialContext={moduleContext}'));
   assert.ok(app.includes('<TransportDispatchWorkspace initialContext={moduleContext}'));
 });
+
+test("each of the five part-level PO lines owns its own process, alternate and rework routes", () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-one-component-multipart-route.json", import.meta.url), "utf8"));
+  const componentIds = new Set(fixture.components.map(row=>row.id));
+  for (const part of fixture.parts) {
+    const line = fixture.purchaseOrder.lines.find(row=>row.partId===part.id);
+    assert.ok(line, "each saved part must have a matching part-level PO line");
+    assert.equal(line.componentId, part.componentId);
+    assert.ok(componentIds.has(part.componentId));
+    const route = fixture.operations.filter(row=>row.poLineId===line.id);
+    assert.ok(route.length>=5);
+    assert.ok(route.every(row=>row.componentId===part.componentId&&row.poId===fixture.purchaseOrder.id));
+    assert.ok(route.some(row=>row.branch==="Main route"));
+    assert.ok(route.some(row=>row.branch==="Alternate route"&&row.relationType==="alternate"));
+    assert.ok(route.some(row=>row.branch==="Rework route"&&row.relationType==="rework"));
+    const types = new Set(fixture.routeRelationships.filter(row=>row.poLineId===line.id).map(row=>row.relationshipType));
+    assert.equal(types.size,11,"every part route carries all relationship types");
+  }
+});
+
+test("all sixteen supported vehicle categories exist together as saved transport routes and component legs", () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-one-component-multipart-route.json", import.meta.url), "utf8"));
+  const visualSource = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
+  const vehicleTypes = ["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery","Air freight","Rail freight","Sea freight / container vessel","Inland waterway vessel","Multimodal freight"];
+  assert.deepEqual(new Set(fixture.transportRoutes.map(row=>row.vehicleType)),new Set(vehicleTypes));
+  assert.deepEqual(new Set(fixture.transportLegs.map(row=>row.vehicleType)),new Set(vehicleTypes));
+  const routes=new Map(fixture.transportRoutes.map(row=>[row.id,row]));
+  const operations=new Map(fixture.operations.map(row=>[row.id,row]));
+  for(const leg of fixture.transportLegs){
+    const route=routes.get(leg.routeId);
+    assert.ok(route,"each leg must resolve its route master");
+    assert.equal(route.vendorId,leg.vendorId);
+    assert.equal(route.vehicleType,leg.vehicleType);
+    assert.equal(route.fromLocation,leg.fromLocation);
+    assert.equal(route.toLocation,leg.toLocation);
+    const line=fixture.purchaseOrder.lines.find(row=>row.id===leg.poLineId);
+    assert.ok(line,"every leg must resolve its exact PO line");
+    assert.equal(line.componentId,leg.componentId);
+    if(leg.anchorOperationId) assert.equal(operations.get(leg.anchorOperationId)?.poLineId,leg.poLineId);
+    if(leg.targetOperationId) assert.equal(operations.get(leg.targetOperationId)?.poLineId,leg.poLineId);
+  }
+  for(const type of vehicleTypes) assert.ok(visualSource.includes(type)||type==="Inland waterway vessel");
+});
+

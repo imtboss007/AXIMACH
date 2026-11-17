@@ -194,6 +194,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       ? purchaseOrders.flatMap(po => po.lines.filter(line => line.componentId === initialContext.componentId && !line.deletedAt).map(line => ({ po, line })))
       : [];
     const componentOnlyLine = componentLines.length === 1 ? componentLines[0] : undefined;
+    const vendorOperations = initialContext.vendorId ? operations.filter(op => op.vendorId === initialContext.vendorId
+      && (!initialContext.componentId || op.componentId === initialContext.componentId)
+      && (!initialContext.poLineId || op.poLineId === initialContext.poLineId)) : [];
+    const vendorOnlyOperation = vendorOperations.length === 1 ? vendorOperations[0] : undefined;
     const targetPO = (initialContext.poId
       ? purchaseOrders.find(po => po.id === initialContext.poId)
       : undefined)
@@ -203,8 +207,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       || (initialContext.operationId
         ? purchaseOrders.find(po => po.id === operations.find(op => op.id === initialContext.operationId)?.poId)
         : undefined)
-      || (initialContext.vendorId
-        ? purchaseOrders.find(po => po.lines.some(line => operations.some(op => op.vendorId === initialContext.vendorId && op.poId === po.id && op.poLineId === line.id)))
+      || (vendorOnlyOperation
+        ? purchaseOrders.find(po => po.id === vendorOnlyOperation.poId)
         : undefined)
       || (!initialContext.poId && !initialContext.poLineId && !initialContext.operationId && !initialContext.vendorId
         ? componentOnlyLine?.po
@@ -216,8 +220,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (targetPO) {
       setCompanyId(targetPO.companyId);
       setPoId(targetPO.id);
+      const matchingVendorOperations = initialContext.vendorId ? operations.filter(op => op.vendorId === initialContext.vendorId && op.poId === targetPO.id
+        && (!initialContext.poLineId || op.poLineId === initialContext.poLineId)
+        && (!initialContext.componentId || op.componentId === initialContext.componentId)) : [];
       const targetOperation = (initialContext.operationId ? operations.find(op => op.id === initialContext.operationId && op.poId === targetPO.id) : undefined)
-        || (initialContext.vendorId ? operations.find(op => op.vendorId === initialContext.vendorId && op.poId === targetPO.id) : undefined);
+        || (matchingVendorOperations.length === 1 ? matchingVendorOperations[0] : undefined);
       const targetComponentLines = initialContext.componentId ? targetPO.lines.filter(line => line.componentId === initialContext.componentId && !line.deletedAt) : [];
       const uniqueComponentLine = targetComponentLines.length === 1 ? targetComponentLines[0] : undefined;
       const targetLine = targetPO.lines.find(line => line.id === targetOperation?.poLineId)
@@ -281,12 +288,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (!target) { onNotice("The Process Map route graph is not ready for full-screen mode."); return; }
     if (document.fullscreenElement === target) {
       try { await document.exitFullscreen(); } catch { /* browser may already have exited */ }
-      // The app-level landscape lock remains active until Process Map is closed.
+      // Full-screen exit does not change the device orientation.
       return;
     }
     try {
       await target.requestFullscreen({navigationUI:"hide"});
-      onNotice("Process Map route graph opened full-screen. Landscape orientation stays active until you leave Process Map.");
+      onNotice("Process Map route graph opened full-screen. Your device orientation remains unchanged.");
     } catch {
       onNotice("This browser did not allow full-screen mode. The route graph remains available in the landscape workspace.");
     }
@@ -1068,18 +1075,20 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     }
     const ids = new Set([target.id, ...descendants]);
     const count = ids.size;
-    if (!window.confirm("Delete process " + target.name + "? This will archive " + count + " process record(s), including linked sub-process / branch descendants. Quotations are archived; payment, inspection and production history are retained for audit.")) return;
+    if (!window.confirm("Delete process " + target.name + "? This will archive " + count + " process record(s), including linked sub-process / branch descendants. Route relationships, material-to-process links and quotations are archived; payment, inspection, production and transport history are retained for audit.")) return;
     const stamp = nowIso();
     update(current => ({
       ...current,
       operations: current.operations.map(item => ids.has(item.id) ? { ...item, deletedAt: stamp, updatedAt: stamp } : item),
+      routeRelationships: (current.routeRelationships || []).map(row => (ids.has(row.fromOperationId) || ids.has(row.toOperationId)) && !row.deletedAt ? { ...row, deletedAt: stamp, updatedAt: stamp } : row),
+      materialProcessLinks: (current.materialProcessLinks || []).map(row => ids.has(row.operationId) && !row.deletedAt ? { ...row, deletedAt: stamp, updatedAt: stamp } : row),
       quotations: current.quotations.map(quote => ids.has(quote.operationId) && !quote.deletedAt ? { ...quote, deletedAt: stamp, updatedAt: stamp } : quote)
     }));
     setSelectedOperationId("");
     setSelectedOperationIds(current => current.filter(id => !ids.has(id)));
     setShowEditor(false);
     setEditingId("");
-    onNotice("Deleted " + count + " process record(s). Related quotation history was archived; payment and inspection history was retained.");
+    onNotice("Deleted " + count + " process record(s). Route relationships, material-to-process links and quotations were archived; payment and inspection history was retained.");
   };
 
   const finishSelectedOperations = () => {
@@ -1214,10 +1223,16 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   };
 
   const archiveOperation = (op: OperationRecord) => {
-    if (!window.confirm("Archive this operation? Its history and quotations will be retained.")) return;
+    if (!window.confirm("Archive this operation? Its route relationships, material-to-process links and quotations will also be archived; payment, inspection and transport history will remain.")) return;
     const stamp = nowIso();
-    update(current => ({ ...current, operations: current.operations.map(item => item.id === op.id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item), quotations: current.quotations.map(q => q.operationId === op.id && !q.deletedAt ? { ...q, deletedAt: stamp, updatedAt: stamp } : q) }));
-    setSelectedOperationId(""); onNotice("Operation archived. Linked quotation history was retained as archived history.");
+    update(current => ({
+      ...current,
+      operations: current.operations.map(item => item.id === op.id ? { ...item, deletedAt: stamp, updatedAt: stamp } : item),
+      routeRelationships: (current.routeRelationships || []).map(row => (row.fromOperationId === op.id || row.toOperationId === op.id) && !row.deletedAt ? { ...row, deletedAt: stamp, updatedAt: stamp } : row),
+      materialProcessLinks: (current.materialProcessLinks || []).map(row => row.operationId === op.id && !row.deletedAt ? { ...row, deletedAt: stamp, updatedAt: stamp } : row),
+      quotations: current.quotations.map(q => q.operationId === op.id && !q.deletedAt ? { ...q, deletedAt: stamp, updatedAt: stamp } : q)
+    }));
+    setSelectedOperationId(""); onNotice("Operation archived. Route relationships, material-to-process links and quotations were archived; payment, inspection and transport history were retained.");
   };
 
   const finishJob = () => {
@@ -1318,7 +1333,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           {!routeOperations.length&&<p className="field-hint">Add process operations to populate the per-process production histogram.</p>}
         </div>
       </section>
-    </> : <section className="surface-panel linked-empty-master"><Package size={30}/><div><h3>Start with your real master records</h3><p>No company, PO or component is preloaded. Add each master record once; then select a real purchase-order line and AXIMACH will load the component, quantity and delivery date for its route.</p><div className="linked-empty-actions"><button className="button-primary" onClick={() => onSelectModule("companies")}><Plus size={14}/> Add company</button><button className="button-quiet" onClick={() => onSelectModule("components")}><Package size={14}/> Add component</button><button className="button-quiet" onClick={() => onSelectModule("purchasing")}><FileText size={14}/> Create PO</button></div></div></section>}
+    </> : <section className="surface-panel linked-empty-master"><Package size={30}/><div><h3>Start with your real master records</h3><p>No company, PO or component is preloaded. Add each master record once; then select a real purchase-order line and AXIMACH will load the component, quantity and delivery date for its route.</p><div className="linked-empty-actions"><button className="button-primary" onClick={() => onSelectModule("companies")}><Plus size={14}/> Add company</button><button className="button-quiet" onClick={() => onSelectModule("components")}><Package size={14}/> Add component</button><button className="button-quiet" onClick={() => onSelectModule("purchasing")}><FileText size={14}/> Create PO</button><button className="button-quiet" onClick={() => onSelectModule("export")}><FileDown size={14}/> Import / restore data</button></div></div></section>}
     <nav className="linked-route-tabs" aria-label="Linked component workspaces">
       {tab("process-map","Process Map",Workflow)}
       {tab("components","Component Details",Package)}
@@ -1375,6 +1390,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             {id:"horizontal",label:"Horizontal Flow"},
             {id:"vertical",label:"Vertical Flow"},
             {id:"nodes",label:"Connected Nodes"},
+            {id:"digital-mesh",label:"◇ Digital Mesh"},
             {id:"branch",label:"Branch / Rework"}
           ] as const).map(option=><button key={option.id} type="button" aria-pressed={visualStyle===option.id}
             className={(visualStyle===option.id?"button-primary":"button-quiet")+" compact-button"}
@@ -1420,7 +1436,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     </section>}
     <details className="surface-panel component-transport-map-strip">
       <summary className="panel-heading"><div><div className="eyebrow"><Truck size={12}/> ROUTE TRANSPORT NODES</div><h3>Transport legs · {componentTransportLegs.length}</h3><p>Transport is displayed as route nodes here; the master rates remain in Transport Directory and dispatch execution remains in Transport &amp; Dispatch.</p></div><div className="relationship-actions"><button className="button-quiet compact-button" onClick={event=>{event.preventDefault();event.stopPropagation();onSelectModule("transport-master",{companyId,poId,poLineId,componentId:selectedLine?.componentId});}}>Transport Directory</button><button className="button-primary compact-button" disabled={!selectedLine} onClick={event=>{event.preventDefault();event.stopPropagation();openTransportEditor();}}><Plus size={13}/> Add transport node</button></div></summary>
-      {componentTransportLegs.length?<div className="component-transport-node-track"><div className="component-transport-node component-transport-start"><Truck size={15}/><strong>Component start</strong></div>{componentTransportLegs.map(leg=>{const anchor=routeOperations.find(op=>op.id===leg.anchorOperationId);const vendor=vendors.find(v=>v.id===leg.vendorId);return <div className="component-transport-node" key={leg.id}><Truck size={15}/><strong>{leg.placement==="before"?"Before":leg.placement==="after"?"After": "At start"} {anchor?"OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:""}</strong><span>{leg.fromLocation} → {leg.toLocation}</span><small>{vendor?.company||"Vendor"} · {leg.vehicleType} · {leg.tripDirection} · {leg.tripCount} trip(s) · {money(leg.fixedAmount*leg.tripCount)}</small><span className="component-transport-node-actions"><button type="button" onClick={()=>editTransportLeg(leg)}>Edit</button><button type="button" onClick={()=>archiveTransportLeg(leg)}>Archive</button></span></div>;})}<button className="component-transport-node component-transport-add" onClick={()=>onSelectModule("transport-dispatch",{companyId,poId,poLineId,componentId:selectedLine?.componentId})}><Truck size={15}/><strong>Dispatch status</strong><small>Open Transport &amp; Dispatch</small></button></div>:<div className="module-empty-state"><Truck size={22}/><p>No transport nodes added for this PO component. Add a route in Transport Directory, then add its usage here.</p></div>}
+      {componentTransportLegs.length?<div className="component-transport-node-track"><div className="component-transport-node component-transport-start"><Truck size={15}/><strong>Component start</strong></div>{componentTransportLegs.map(leg=>{const anchor=routeOperations.find(op=>op.id===leg.anchorOperationId);const vendor=vendors.find(v=>v.id===leg.vendorId);return <div className="component-transport-node" key={leg.id}><Truck size={15}/><strong>{leg.placement==="before"?"Before":leg.placement==="after"?"After": "At start"} {anchor?"OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:""}</strong><span>{leg.fromLocation} → {leg.toLocation}</span><small>{vendor?.company||"Vendor"} · {leg.vehicleType} · {leg.tripDirection} · {leg.tripCount} trip(s) · {money(leg.fixedAmount*leg.tripCount)}</small><span className="component-transport-node-actions"><button type="button" onClick={()=>editTransportLeg(leg)}>Edit</button><button type="button" onClick={()=>archiveTransportLeg(leg)}>Archive</button></span></div>;})}<button className="component-transport-node component-transport-add" onClick={()=>onSelectModule("dispatch",{companyId,poId,poLineId,componentId:selectedLine?.componentId})}><Truck size={15}/><strong>Dispatch status</strong><small>Open Transport &amp; Dispatch</small></button></div>:<div className="module-empty-state"><Truck size={22}/><p>No transport nodes added for this PO component. Add a route in Transport Directory, then add its usage here.</p></div>}
     </details>
     <details className="surface-panel process-map-filter-panel">
       <summary className="panel-heading"><div><div className="eyebrow">ROUTE FILTERS / SAVED OPERATIONS</div><h3>Filter this PO component route</h3><p>Process category, process type and subcategory are linked to Process Directory stable references.</p></div></summary>
@@ -1457,8 +1473,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       {!exportOperations.length && <div className="module-empty-state"><Workflow size={22}/><strong>No processes in this route scope</strong><p>Choose another scope, clear filters, or select saved process operations.</p><button className="button-quiet compact-button" onClick={()=>setExportScope("all")}>Show all routes</button></div>}
     </details>
     <div className="linked-process-layout">
-      <details className="surface-panel linked-route-canvas">
-        <summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><div className="route-canvas-heading-actions"><span className="module-number">{routeOperations.length} OPS</span><button type="button" className="button-quiet compact-button" onClick={event=>{event.preventDefault();setShowTransportDemo(value=>!value);}} aria-expanded={showTransportDemo}>{showTransportDemo?"Close demo":"Preview multi-route demo"}</button><button type="button" className="button-quiet compact-button route-fullscreen-button" onClick={event=>{event.preventDefault();void toggleRouteFullscreen();}} aria-label={routeFullscreen?"Exit route full screen":"Open route in full-screen landscape"}>{routeFullscreen?<Minimize2 size={14}/>:<Maximize2 size={14}/>} {routeFullscreen?"Exit full screen":"Full screen · landscape"}</button></div></summary>
+      <details className="surface-panel linked-route-canvas" open={showEditor || routeOperations.length > 0}>
+        <summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> OPERATIONS / LIVE RECORDS</div><h3>{selectedLine ? (selectedComponent?.partNumber || "Component") + " · Route graph" : "Route graph"}</h3><p>{routeOperations.length} saved operations · branches and rework remain attached to this PO line</p></div><div className="route-canvas-heading-actions"><span className="module-number">{routeOperations.length} OPS</span><button type="button" className="button-quiet compact-button" onClick={event=>{event.preventDefault();setShowTransportDemo(value=>!value);}} aria-expanded={showTransportDemo}>{showTransportDemo?"Close demo":"Preview multi-route demo"}</button><button type="button" className="button-quiet compact-button route-fullscreen-button" onClick={event=>{event.preventDefault();void toggleRouteFullscreen();}} aria-label={routeFullscreen?"Exit route full screen":"Open route in full screen"}>{routeFullscreen?<Minimize2 size={14}/>:<Maximize2 size={14}/>} {routeFullscreen?"Exit full screen":"Full screen"}</button></div></summary>
         {showTransportDemo && <TransportRoutingDemo onClose={()=>setShowTransportDemo(false)}/>}
         
         <div className="process-export-panel">
@@ -1502,7 +1518,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
               setDraft({...draft,branch:(value==="Rework route"?"Rework":"Alternate route")+" · OP-"+String(activeOperation.sequence).padStart(3,"0")+" · "+activeOperation.name,parentId:activeOperation.id,relationType,costIncluded:false});
             }}/>
             <SearchablePicker id="operation-transport-vendor-picker" label="Legacy operation transport vendor (older records)" value={draft.transportVendorId} placeholder="Type transporter name or phone…" options={vendors.filter(v=>transportRouteOptions.some(route=>route.vendorId===v.id)).map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")}))} onChange={transportVendorId=>setDraft({...draft,transportVendorId,transportRouteId:"",transportFrom:"",transportTo:"",transportVehicleType:"",transportCost:0})}/>
-            <label>Legacy / Transport Directory saved route<select value={selectedLegacyDraftRoute?.id||""} onChange={e=>{const route=selectedTransportRoutes.find(item=>item.id===e.target.value);setDraft({...draft,transportVendorId:route?.vendorId||draft.transportVendorId,transportRouteId:route?(route.legacy?(route.sourceRouteId||route.id):route.id):"",transportFrom:route?.fromLocation||"",transportTo:route?.toLocation||"",transportVehicleType:route?.vehicleType||"",transportTripDirection:route?.tripDirection||"One-way",transportCost:route?.fixedAmount||0});}}><option value="">Select saved route…</option>{selectedTransportRoutes.map(route=><option key={route.id} value={route.id}>{route.fromLocation} → {route.toLocation} · {route.tripDirection||"One-way"} · ₹{route.fixedAmount.toLocaleString("en-IN")} · {route.vehicleType||"Vehicle not set"} · {vendors.find(v=>v.id===route.vendorId)?.company||"Vendor unavailable"} · {route.legacy?"Legacy":"Transport Directory"}</option>)}</select></label>
+            <SearchablePicker id="legacy-operation-transport-route" label="Legacy / Transport Directory saved route" value={selectedLegacyDraftRoute?.id||""} placeholder="Search route, vehicle or vendor…" options={selectedTransportRoutes.map(route=>({id:route.id,label:route.fromLocation+" → "+route.toLocation+" · "+(route.tripDirection||"One-way")+" · ₹"+route.fixedAmount.toLocaleString("en-IN")+" · "+(route.vehicleType||"Vehicle not set")+" · "+(vendors.find(v=>v.id===route.vendorId)?.company||"Vendor unavailable")+" · "+(route.legacy?"Legacy":"Transport Directory")}))} onChange={value=>{const route=selectedTransportRoutes.find(item=>item.id===value);setDraft({...draft,transportVendorId:route?.vendorId||draft.transportVendorId,transportRouteId:route?(route.legacy?(route.sourceRouteId||route.id):route.id):"",transportFrom:route?.fromLocation||"",transportTo:route?.toLocation||"",transportVehicleType:route?.vehicleType||"",transportTripDirection:route?.tripDirection||"One-way",transportCost:route?.fixedAmount||0});}} />
             <label>From location<input readOnly value={draft.transportFrom||""}/></label>
             <label>To location<input readOnly value={draft.transportTo||""}/></label>
             <label>Vehicle type<input readOnly value={draft.transportVehicleType||""}/></label>
@@ -1711,12 +1727,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         })}</div></div> : routeOperations.length ? <div className="module-empty-state"><Workflow size={24}/><h3>No process records in the selected route scope</h3><p>Choose another route scope or reset the filters.</p></div> : <div className="module-empty-state linked-no-operations"><Workflow size={28}/><h3>No operations saved for this component</h3><p>Add only the operations this part actually requires. There is no fixed stage limit and no sample CNC or heat-treatment data.</p><button className="button-primary" disabled={!selectedLine || !selectedComponent} onClick={openAddMenu}><Plus size={14}/> Add first operation ▾</button></div>}
         <div className="route-legend"><span><i className="legend-done"/> Complete</span><span><i className="legend-live"/> Running</span><span><i className="legend-queued"/> Queued</span><span><i className="legend-hold"/> Quality hold</span><span className="route-scroll-note">Select any operation to inspect its schedule, vendor, quality and cost.</span></div>
       </details>
-      <details className="surface-panel process-operation-table-panel">
+      <details className="surface-panel process-operation-table-panel" open={routeOperations.length > 0}>
         <summary className="panel-heading"><div><div className="eyebrow">PROCESS EXECUTION REGISTER</div><h3>Process operations</h3><p>Selected route scope · {exportOperations.length} of {routeOperations.length} operation(s).</p></div><button className="button-primary compact-button" disabled={!selectedLine} onClick={event=>{event.preventDefault();event.stopPropagation();openAddMenu();}}><Plus size={13}/> Add process ▾</button></summary>
         <div className="process-table-bulkbar">
           <label><input type="checkbox" checked={exportOperations.length>0&&exportOperations.every(op=>selectedOperationIds.includes(op.id))} onChange={e=>selectVisibleOperations(e.target.checked)}/> Select all visible</label>
-          <select value={bulkStatus} onChange={e=>setBulkStatus(e.target.value)}><option value="">Bulk status…</option>{["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"].map(value=><option key={value}>{value}</option>)}</select>
-          <select value={bulkVendorId} onChange={e=>setBulkVendorId(e.target.value)}><option value="">Bulk vendor…</option>{vendors.map(v=><option key={v.id} value={v.id}>{v.company} · {v.contact}</option>)}</select>
+          <SearchablePicker id="bulk-process-status" label="Bulk status" value={bulkStatus} placeholder="Search status…" options={["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"].map(value=>({id:value,label:value}))} onChange={setBulkStatus} />
+          <SearchablePicker id="bulk-process-vendor" label="Bulk vendor" value={bulkVendorId} placeholder="Search vendor name or contact…" options={vendors.map(v=>({id:v.id,label:v.company+" · "+v.contact}))} onChange={setBulkVendorId} />
           <label>Start <input type="datetime-local" value={bulkStart} onChange={e=>setBulkStart(e.target.value)}/></label>
           <label>Due <input type="datetime-local" value={bulkEnd} onChange={e=>setBulkEnd(e.target.value)}/></label>
           <button className="button-primary compact-button" disabled={!selectedVisibleOperations.length||(!bulkStatus&&!bulkVendorId&&!bulkStart&&!bulkEnd)} onClick={applyBulkUpdate}>Apply to {selectedVisibleOperations.length}</button>

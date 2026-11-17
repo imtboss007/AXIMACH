@@ -120,6 +120,29 @@ test("all sixteen supported vehicle categories are present together in Transport
   assert.equal(new Set(fixture.transportLegs.map(leg=>leg.poLineId)).size,5,"all five part routes must carry transport");
 });
 
+test("all thirteen material calculator stock-shape options are saved against exact part and PO-line records", () => {
+  const shapes=["plate","flat-bar","round-bar","square-bar","hex-bar","round-tube","square-tube","rectangular-tube","angle","channel","i-beam","t-section","custom-profile"];
+  const entries=fixture.materialCostEntries;
+  assert.deepEqual(new Set(entries.map(row=>row.shapeType)),new Set(shapes));
+  assert.equal(new Set(entries.map(row=>row.cuttingType)).size,13);
+  assert.deepEqual(new Set(entries.map(row=>row.cuttingBasis)),new Set(["Per piece","Per cut","Per kg","Per metre","Per hour","Fixed job"]));
+  assert.deepEqual(new Set(entries.flatMap(row=>Object.values(row.dimensionUnits))),new Set(["mm","cm","m","ft","inch"]));
+  assert.deepEqual(new Set(entries.map(row=>row.priceUnit)),new Set(["kg","lb"]));
+  assert.equal(new Set(entries.map(row=>row.transportStatus)).size,5);
+  assert.deepEqual(new Set(fixture.materials.map(row=>row.densityUnit)),new Set(["kg/m3","g/cm3"]));
+  for(const row of entries){
+    assert.ok(row.partId&&partsById.has(row.partId));
+    assert.ok(linesById.has(row.poLineId));
+    assert.equal(linesByPartId.get(row.partId)?.id,row.poLineId);
+    assert.ok(row.dimensions&&Object.values(row.dimensions).every(value=>Number.isFinite(Number(value))&&Number(value)>0));
+    const material=materialsById.get(row.materialId);
+    assert.ok(material);
+    assert.equal(row.priceUnit,material.priceUnit);
+    assert.equal(row.densityKgM3,material.densityUnit==="g/cm3"?material.densityKgM3*1000:material.densityKgM3);
+    assert.ok(row.weightPerPieceKg>0&&row.totalWeightKg>0&&row.materialRate>0&&row.materialCost>0);
+  }
+});
+
 test("part materials, BOM, process feeds and material costing retain exact component and PO-line identity", () => {
   assert.ok(fixture.bomLines.length>=fixture.parts.length);
   for(const part of fixture.parts){
@@ -168,7 +191,9 @@ test("the full dataset contains live-linked records for all twenty catalogue mod
     materials:fixture.materials,bomLines:fixture.bomLines,inventoryTransactions:fixture.inventoryTransactions,
     operations:fixture.operations,routeRelationships:fixture.routeRelationships,transportLegs:fixture.transportLegs,
     inspectionMeasurements:fixture.inspectionMeasurements,quotations:fixture.quotations,
-    payments:fixture.paymentTransactions,followUpAssignments:fixture.followUpAssignments
+    payments:fixture.paymentTransactions,paymentTransactions:fixture.paymentTransactions,
+    materialCostEntries:fixture.materialCostEntries,materialProcessLinks:fixture.materialProcessLinks,
+    quotes:fixture.quotations,inspections:fixture.inspectionMeasurements,followUpAssignments:fixture.followUpAssignments
   };
   for(const id of moduleIds){
     const collections=fixture.moduleCoverage[id];
