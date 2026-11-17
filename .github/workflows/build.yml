@@ -207,3 +207,24 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+  browser-acceptance:
+    name: Browser interaction and responsive acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install application and browser test dependencies
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-save --no-audit --no-fund playwright
+          npx playwright install chromium
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - name: Run module, selector, safe-button and responsive browser sweep
+        run: npm run test:browser
