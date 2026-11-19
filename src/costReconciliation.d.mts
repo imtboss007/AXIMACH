@@ -38,4 +38,4 @@ export type CostReconciliationRow = {
   crossScopeDuplicateCandidateCount: number;
   warnings: string[];
 };
-export function reconcilePurchaseOrderCosts(data?: Record<string, unknown>): CostReconciliationRow[];
+export function reconcilePurchaseOrderCosts(data?: unknown): CostReconciliationRow[];
