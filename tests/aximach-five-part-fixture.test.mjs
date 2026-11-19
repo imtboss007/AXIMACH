@@ -2420,5 +2420,5 @@ test("transport dispatch does not auto-count planned trips as completed actual t
   assert.ok(workspace.includes("completedTrips:leg.completedTrips||0"));
   assert.ok(workspace.includes("record every completed trip first"));
   assert.ok(workspace.includes("Actual completed"));
-  assert.ok(workspace.includes("Number.isSafeInteger(value)&&value>=0&&value<=row.trips"));
+  assert.ok(workspace.includes("if(!Number.isSafeInteger(value)||value<0||value>row.trips)return"));
 });
