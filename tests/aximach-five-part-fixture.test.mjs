@@ -2413,3 +2413,6 @@ test("manufacturing storage offers persistent local-only and explicit shared PC-
   assert.ok(electron.includes("localStorage.getItem('aximach.storage.mode') === 'local-only'"));
   assert.ok(electron.includes("localStorage.setItem('aximach.storage.mode', 'shared-server')"));
 });
+
+
+test("transport dispatch does not auto-count planned trips as completed actual trips",()=>{\n  const workspace=readFileSync(new URL("../src/OperationsWorkspaces.tsx",import.meta.url),"utf8");\n  assert.ok(workspace.includes("completedTrips:leg.completedTrips||0"));\n  assert.ok(workspace.includes("record every completed trip first"));\n  assert.ok(workspace.includes("Actual completed"));\n  assert.ok(workspace.includes("Number.isSafeInteger(value)&&value>=0&&value<=row.trips"));\n});\n
