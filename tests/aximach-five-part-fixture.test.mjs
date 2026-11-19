@@ -2429,11 +2429,24 @@ test("transport dispatch links to existing ledger rows and confirms delivery wit
   const schema=readFileSync(new URL("../src/manufacturingData.ts",import.meta.url),"utf8");
   assert.ok(schema.includes("dispatchTransactionId?: string; deliveryConfirmedAt?: string; deliveryReference?: string;"));
   assert.ok(workspace.includes('tx.transactionType==="Dispatch"&&tx.direction==="out"'));
-  assert.ok(workspace.includes('tx.itemId===row.componentId&&tx.poId===row.poId&&tx.poLineId===row.poLineId'));
+  assert.ok(workspace.includes("tx.itemId===row.componentId"));
+  assert.ok(workspace.includes("tx.poId===row.poId"));
+  assert.ok(workspace.includes("tx.poLineId===row.poLineId"));
   assert.ok(workspace.includes('tx.companyId===po.companyId&&tx.factoryId===po.factoryId'));
   assert.ok(workspace.includes('!inventoryTransactions.some(reversal=>reversal.reversalOfId===tx.id)'));
   assert.ok(workspace.includes("Link existing Dispatch entry"));
   assert.ok(workspace.includes("Enter the delivery challan, proof-of-delivery number or signed receiver reference."));
   assert.ok(workspace.includes("deliveryConfirmedAt:stamp,deliveryReference:proof"));
   assert.ok(workspace.includes("no duplicate inventory transaction was posted"));
+});
+
+
+test("dispatch exports include modern transport legs, linked POD details and unlinked stock dispatch rows",()=>{
+  const exports=readFileSync(new URL("../src/IntelligenceWorkspaces.tsx",import.meta.url),"utf8");
+  assert.ok(exports.includes('const transportLegs=activeRows(data.transportLegs||[])'));
+  assert.ok(exports.includes('recordType:"transport-leg"'));
+  assert.ok(exports.includes('dispatchTransactionId:leg.dispatchTransactionId||""'));
+  assert.ok(exports.includes('deliveryConfirmedAt:leg.deliveryConfirmedAt||""'));
+  assert.ok(exports.includes('recordType:"unlinked-dispatch-ledger-entry"'));
+  assert.ok(exports.includes('recordType:"legacy-transport-operation"'));
 });
