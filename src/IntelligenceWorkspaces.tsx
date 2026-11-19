@@ -39,6 +39,20 @@ function rowsFor(moduleId:string,data:ManufacturingData):Record<string,unknown>[
  }
  if(moduleId==="quality")return ops.map(x=>({poId:x.poId,poLineId:x.poLineId,componentId:x.componentId,operation:x.name,quantity:x.quantity,completed:x.completed,accepted:x.accepted,rejected:x.rejected,status:x.status,inspectionResult:x.inspectionResult,qualityNotes:x.qualityNotes,measurementHistory:activeRows(data.inspectionMeasurements).filter(item=>item.operationId===x.id).map(item=>[item.inspectedAt,item.characteristic,item.nominalValue,item.lowerLimit,item.upperLimit,item.measuredValue,item.unit,item.result,item.notes].join(" | ")).join(" ; ")}));
  if(moduleId==="costing")return ops.map(x=>({poId:x.poId,poLineId:x.poLineId,operation:x.name,vendorId:x.vendorId,quantity:x.quantity,plannedRate:x.ratePerPart,actualRate:x.actualRatePerPart,transportCost:x.transportCost,paymentStatus:x.paymentStatus||"Unpaid",paidAmount:x.paidAmount||0,paymentReference:x.paymentReference||"",paymentHistory:activeRows(data.paymentTransactions).filter(payment=>payment.operationId===x.id).map(payment=>[payment.paidAt,payment.amount,payment.reference,payment.notes].join(" | ")).join(" ; ")}));
+ if(moduleId==="payments"){
+  const allOperations=data.operations||[],allOrders=data.purchaseOrders||[],allComponents=data.components||[],allVendors=data.vendors||[];
+  const transactions=activeRows(data.paymentTransactions||[]);
+  const transactionRows=transactions.map(tx=>{
+   const operation=allOperations.find(row=>row.id===tx.operationId),po=allOrders.find(row=>row.id===tx.poId),component=allComponents.find(row=>row.id===tx.componentId),vendor=allVendors.find(row=>row.id===(tx.vendorId||operation?.vendorId));
+   return {recordType:"payment-transaction",sourceRecord:"PaymentTransactionRecord",paymentTransactionId:tx.id,companyId:po?.companyId||"",companyName:companies.find(row=>row.id===po?.companyId)?.name||"",factoryId:po?.factoryId||"",poId:tx.poId,poNumber:po?.number||"",poLineId:tx.poLineId,componentId:tx.componentId,componentNumber:component?.partNumber||"",componentName:component?.name||"",operationId:tx.operationId,operationName:operation?.name||"",operationArchived:Boolean(operation?.deletedAt),vendorId:tx.vendorId||operation?.vendorId||"",vendorName:vendor?.company||"",amount:tx.amount,currency:"INR",paymentDate:tx.paidAt,reference:tx.reference,notes:tx.notes,createdAt:tx.createdAt,updatedAt:tx.updatedAt};
+  });
+  const operationsWithLedger=new Set(transactions.map(tx=>tx.operationId));
+  const legacyRows=allOperations.filter(op=>!operationsWithLedger.has(op.id)&&Number(op.paidAmount)>0).map(op=>{
+   const po=allOrders.find(row=>row.id===op.poId),component=allComponents.find(row=>row.id===op.componentId),vendor=allVendors.find(row=>row.id===op.vendorId);
+   return {recordType:"legacy-payment-total",sourceRecord:"legacy OperationRecord.paidAmount",paymentTransactionId:"",companyId:po?.companyId||"",companyName:companies.find(row=>row.id===po?.companyId)?.name||"",factoryId:po?.factoryId||"",poId:op.poId,poNumber:po?.number||"",poLineId:op.poLineId,componentId:op.componentId,componentNumber:component?.partNumber||"",componentName:component?.name||"",operationId:op.id,operationName:op.name,operationArchived:Boolean(op.deletedAt),vendorId:op.vendorId||"",vendorName:vendor?.company||"",amount:op.paidAmount,currency:"INR",paymentDate:"",reference:op.paymentReference||"",notes:"Legacy aggregate payment total; original individual payment dates and entries were not retained.",createdAt:op.createdAt,updatedAt:op.updatedAt};
+  });
+  return [...transactionRows,...legacyRows];
+ }
  if(moduleId==="inventory")return [...activeRows(data.materials||[]),...activeRows(data.bomLines||[]),...activeRows(data.inventoryTransactions||[])].map(x=>({...x}));
  if(moduleId==="process-master")return activeRows(data.processDefinitions).map(x=>({...x}));
  if(moduleId==="planned-cost")return activeRows(data.plannedCosts).map(x=>({...x}));
@@ -113,7 +127,7 @@ export function AIInsightsWorkspace({onBack,onSelectModule}:Props){
 
 export function ExportCentreWorkspace({onBack,onNotice}:Props){
  const {data}=useManufacturingData();const [moduleId,setModuleId]=useState("companies");
- const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
+ const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["payments","Payment Ledger"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
  const rows=rowsFor(moduleId,data);
  const exportCsv=()=>{if(!rows.length){onNotice("There are no saved records to export for this selection.");return;}downloadFile("AXIMACH-"+moduleId+"-"+new Date().toISOString().slice(0,10)+".csv",toCsv(rows));onNotice("Excel-compatible CSV exported.");};
  const exportExcel=async()=>{
