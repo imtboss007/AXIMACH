@@ -20,6 +20,7 @@ export type DispatchLedgerTransaction = {
   poLineId: string;
   companyId: string;
   factoryId: string;
+  quantity: number;
   reversalOfId?: string;
 };
 export function getEligibleDispatchTransactions(
