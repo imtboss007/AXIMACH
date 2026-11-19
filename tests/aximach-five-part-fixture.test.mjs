@@ -2507,4 +2507,6 @@ test("delivery confirmation requires completed transport, one valid unreversed d
   assert.match(validateDeliveryConfirmation({...base,transportLegs:[leg,{...leg,id:"leg-2"}]}),/missing, reversed, reused/);
   assert.match(validateDeliveryConfirmation({...base,leg:{...leg,deliveryConfirmedAt:"2026-11-19T10:00:00Z"}}),/Link a valid Dispatch/);
   assert.match(validateDeliveryConfirmation({...base,dispatchTransaction:{...dispatch,poLineId:"other-line"}}),/missing, reversed, reused/);
+  const alternateDispatch={...dispatch,id:"alternate-dispatch"};
+  assert.match(validateDeliveryConfirmation({...base,dispatchTransaction:alternateDispatch,inventoryTransactions:[dispatch,alternateDispatch]}),/missing, reversed, reused/);
 });
