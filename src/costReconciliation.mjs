@@ -79,7 +79,6 @@ export function reconcilePurchaseOrderCosts(data = {}) {
       warnings.push("Legacy operation transport amounts are excluded because modern transport legs exist on this PO line; reconcile the legacy amount manually.");
     }
 
-    const plannedTrips = sum(lineTransportLegs, (leg) => leg.tripCount);
     let completedTripCost = 0;
     let plannedTripCost = 0;
     for (const leg of lineTransportLegs) {
