@@ -1047,11 +1047,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const legacyTotal = existingPayments.length?0:Math.max(0,Number(old?.paidAmount)||0);
       const paymentRecords = [...current.paymentTransactions];
       if (!existingPayments.length && legacyTotal>0) {
-        paymentRecords.push({id:makeId("payment"),operationId,poId:effectivePoId,poLineId:effectivePoLineId,componentId:effectiveComponentId,amount:legacyTotal,paidAt:old?.updatedAt||stamp,reference:old?.paymentReference||"",notes:"Opening balance carried forward from the earlier operation payment total.",createdAt:stamp,updatedAt:stamp});
+        paymentRecords.push({id:makeId("payment"),operationId,poId:effectivePoId,poLineId:effectivePoLineId,componentId:effectiveComponentId,vendorId:old?.vendorId||draft.vendorId||"",amount:legacyTotal,paidAt:old?.updatedAt||stamp,reference:old?.paymentReference||"",notes:"Opening balance carried forward from the earlier operation payment total.",createdAt:stamp,updatedAt:stamp});
       }
       const recordedTotal=ledgerTotal+legacyTotal;
       const paymentDelta=Math.max(0,nextPaidTotal-recordedTotal);
-      if(paymentDelta>0) paymentRecords.push({id:makeId("payment"),operationId,poId:effectivePoId,poLineId:effectivePoLineId,componentId:effectiveComponentId,amount:paymentDelta,paidAt:stamp,reference:draft.paymentReference.trim(),notes:"Additional payment recorded from Process Plan.",createdAt:stamp,updatedAt:stamp});
+      if(paymentDelta>0) paymentRecords.push({id:makeId("payment"),operationId,poId:effectivePoId,poLineId:effectivePoLineId,componentId:effectiveComponentId,vendorId:draft.vendorId||old?.vendorId||"",amount:paymentDelta,paidAt:stamp,reference:draft.paymentReference.trim(),notes:"Additional payment recorded from Process Plan.",createdAt:stamp,updatedAt:stamp});
       return { ...current, operations: [...current.operations.filter(op => op.id !== next.id), next], processDefinitions: nextProcessDefinitions, paymentTransactions: paymentRecords };
     });
     setSelectedOperationId(operationId);
