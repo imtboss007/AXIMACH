@@ -56,6 +56,8 @@ test("Inventory ledger enforces transaction direction, source references and liv
   assert.ok(workspace.includes("const requiredDirection = fixedStockDirections[transactionType]"));
   assert.ok(workspace.includes('if (!reference.trim())'));
   assert.ok(workspace.includes("The selected operation does not belong to the chosen PO line"));
+  assert.ok(workspace.includes('(!scope.companyId || row.companyId === scope.companyId) && (!scope.factoryId || row.factoryId === scope.factoryId)'), "stock balances must isolate company and factory");
+  assert.ok(workspace.includes('stockBalance("material", materialId, { companyId: bomIssueSelection.po.companyId, factoryId: bomIssueSelection.po.factoryId })'), "BOM issue shortage preview must use the owning PO factory balance");
   assert.ok(workspace.includes("op.id === bomIssueOperationId && op.poId === po.id && op.poLineId === line.id && !op.deletedAt"));
 });
 test("BOM and material masters reject invalid quantities, scrap limits and inactive links", () => {
