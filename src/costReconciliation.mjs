@@ -93,10 +93,17 @@ export function reconcilePurchaseOrderCosts(data = {}) {
       if (validCompleted) completedTripCost += number(leg.fixedAmount) * completedRaw;
     }
 
-    const operationsWithLedger = new Set(linePayments.map((tx) => tx.operationId));
-    const legacyPaidAmount = sum(includedOperations.filter((op) =>
+    const operationsWithLedger = new Set(paymentTransactions.map((tx) => tx.operationId));
+    const legacyPaidAmount = sum(lineOperations.filter((op) =>
       !operationsWithLedger.has(op.id)
     ), (op) => op.paidAmount);
+    const mismatchedOperationPayments = paymentTransactions.filter((tx) =>
+      lineOperations.some((op) => op.id === tx.operationId) &&
+      (tx.poId !== po.id || tx.poLineId !== line.id || tx.componentId !== line.componentId)
+    );
+    if (mismatchedOperationPayments.length) {
+      warnings.push("A payment transaction references a line operation but carries a different PO, PO-line or component reference; it is excluded from this line's payment total.");
+    }
     if (legacyPaidAmount > 0) {
       warnings.push("Legacy aggregate paid amounts are included separately; original payment dates and individual entries may not exist.");
     }
