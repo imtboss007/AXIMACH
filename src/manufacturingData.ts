@@ -110,7 +110,7 @@ export type QuotationRecord = {
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type PaymentTransactionRecord = {
-  id: string; operationId: string; poId: string; poLineId: string; componentId: string;
+  id: string; operationId: string; poId: string; poLineId: string; componentId: string; vendorId?: string;
   amount: number; paidAt: string; reference: string; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type InspectionMeasurementRecord = {
