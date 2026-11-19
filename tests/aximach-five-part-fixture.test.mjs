@@ -2419,7 +2419,9 @@ test("manufacturing storage offers persistent local-only and explicit shared PC-
 test("transport dispatch does not auto-count planned trips as completed actual trips",()=>{
   const workspace=readFileSync(new URL("../src/OperationsWorkspaces.tsx",import.meta.url),"utf8");
   assert.ok(workspace.includes("completedTrips:leg.completedTrips||0"));
-  assert.ok(workspace.includes("record every completed trip first"));
+  assert.ok(workspace.includes("validateTransportCompletion(leg)"));
+  const reconciliation=readFileSync(new URL("../src/transportReconciliation.mjs",import.meta.url),"utf8");
+  assert.ok(reconciliation.includes("record every planned trip as actually completed first"));
   assert.ok(workspace.includes("Actual completed"));
   assert.ok(workspace.includes("if(!Number.isSafeInteger(value)||value<0||value>row.trips)return"));
 });
@@ -2428,19 +2430,24 @@ test("transport dispatch does not auto-count planned trips as completed actual t
 test("transport dispatch links to existing ledger rows and confirms delivery with proof without reposting stock",()=>{
   const workspace=readFileSync(new URL("../src/OperationsWorkspaces.tsx",import.meta.url),"utf8");
   const schema=readFileSync(new URL("../src/manufacturingData.ts",import.meta.url),"utf8");
+  const reconciliation=readFileSync(new URL("../src/transportReconciliation.mjs",import.meta.url),"utf8");
   assert.ok(schema.includes("dispatchTransactionId?: string; deliveryConfirmedAt?: string; deliveryReference?: string;"));
-  assert.ok(workspace.includes('tx.transactionType==="Dispatch"&&tx.direction==="out"'));
-  assert.ok(workspace.includes("tx.itemId===row.componentId"));
-  assert.ok(workspace.includes("tx.poId===row.poId"));
-  assert.ok(workspace.includes("tx.poLineId===row.poLineId"));
-  assert.ok(workspace.includes('tx.companyId===po.companyId&&tx.factoryId===po.factoryId'));
-  assert.ok(workspace.includes('!inventoryTransactions.some(reversal=>reversal.reversalOfId===tx.id)'));
+  assert.ok(workspace.includes("getEligibleDispatchTransactions(leg,po,inventoryTransactions,legs)"));
+  assert.ok(workspace.includes("validateDeliveryConfirmation({leg,purchaseOrder:po"));
+  assert.ok(workspace.includes("validateTransportCompletion(leg)"));
+  assert.ok(reconciliation.includes('transaction.transactionType === "Dispatch"'));
+  assert.ok(reconciliation.includes('transaction.direction === "out"'));
+  assert.ok(reconciliation.includes("transaction.itemId === leg.componentId"));
+  assert.ok(reconciliation.includes("transaction.poId === leg.poId"));
+  assert.ok(reconciliation.includes("transaction.poLineId === leg.poLineId"));
+  assert.ok(reconciliation.includes("transaction.companyId === purchaseOrder.companyId"));
+  assert.ok(reconciliation.includes("transaction.factoryId === purchaseOrder.factoryId"));
+  assert.ok(reconciliation.includes("reversal.reversalOfId === transaction.id"));
   assert.ok(workspace.includes("Link existing Dispatch entry"));
-  assert.ok(workspace.includes("Enter the delivery challan, proof-of-delivery number or signed receiver reference."));
+  assert.ok(reconciliation.includes("Enter the delivery challan, proof-of-delivery number or signed receiver reference."));
   assert.ok(workspace.includes("deliveryConfirmedAt:stamp,deliveryReference:proof"));
   assert.ok(workspace.includes("no duplicate inventory transaction was posted"));
 });
-
 
 test("dispatch exports include modern transport legs, linked POD details and unlinked stock dispatch rows",()=>{
   const exports=readFileSync(new URL("../src/IntelligenceWorkspaces.tsx",import.meta.url),"utf8");
