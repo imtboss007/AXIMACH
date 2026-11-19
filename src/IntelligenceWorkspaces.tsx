@@ -2,6 +2,7 @@ import { useMemo, useState, type ChangeEvent } from "react";
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, Download, FileDown, FileUp, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
 import { archiveAxMachTwoCompanyDemo, AXIMACH_DEMO_ID_PREFIX, createAxMachTwoCompanyDemo } from "./aximachDemoData";
 import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord, type ContactProfileRecord, type ProcessDefinitionRecord, type PlannedCostEntry, type VendorTransportRoute, type ManufacturingData, type PurchaseOrderRecord, type PurchaseOrderLine, type OperationRecord } from "./manufacturingData";
+import { reconcilePurchaseOrderCosts } from "./costReconciliation.mjs";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
@@ -38,6 +39,7 @@ function rowsFor(moduleId:string,data:ManufacturingData):Record<string,unknown>[
   return [...transportRows,...legacyRows,...unlinkedDispatchRows];
  }
  if(moduleId==="quality")return ops.map(x=>({poId:x.poId,poLineId:x.poLineId,componentId:x.componentId,operation:x.name,quantity:x.quantity,completed:x.completed,accepted:x.accepted,rejected:x.rejected,status:x.status,inspectionResult:x.inspectionResult,qualityNotes:x.qualityNotes,measurementHistory:activeRows(data.inspectionMeasurements).filter(item=>item.operationId===x.id).map(item=>[item.inspectedAt,item.characteristic,item.nominalValue,item.lowerLimit,item.upperLimit,item.measuredValue,item.unit,item.result,item.notes].join(" | ")).join(" ; ")}));
+ if(moduleId==="cost-reconciliation")return reconcilePurchaseOrderCosts(data).map(row=>({...row,warnings:row.warnings.join(" | ")}));
  if(moduleId==="costing")return ops.map(x=>({poId:x.poId,poLineId:x.poLineId,operation:x.name,vendorId:x.vendorId,quantity:x.quantity,plannedRate:x.ratePerPart,actualRate:x.actualRatePerPart,transportCost:x.transportCost,paymentStatus:x.paymentStatus||"Unpaid",paidAmount:x.paidAmount||0,paymentReference:x.paymentReference||"",paymentHistory:activeRows(data.paymentTransactions).filter(payment=>payment.operationId===x.id).map(payment=>[payment.paidAt,payment.amount,payment.reference,payment.notes].join(" | ")).join(" ; ")}));
  if(moduleId==="payments"){
   const allOperations=data.operations||[],allOrders=data.purchaseOrders||[],allComponents=data.components||[],allVendors=data.vendors||[];
@@ -76,6 +78,8 @@ function header(row:Record<string,string>,...keys:string[]){for(const key of key
 
 export function ReportsAnalyticsWorkspace({onBack,notice,onSelectModule}:Props){
  const {data}=useManufacturingData();const companies=activeRows(data.companies),pos=activeRows(data.purchaseOrders),lines=pos.flatMap(po=>po.lines.filter(line=>!line.deletedAt)),components=activeRows(data.components),vendors=activeRows(data.vendors),ops=activeRows(data.operations);
+ const costRows=reconcilePurchaseOrderCosts(data);
+ const costTotal=(key:keyof (typeof costRows)[number])=>costRows.reduce((total,row)=>total+(typeof row[key]==="number"?row[key] as number:0),0);
  const overdue=ops.filter(op=>op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<new Date().toISOString().slice(0,10));
  const qualityHold=ops.filter(op=>op.status==="Quality hold");const finished=lines.filter(line=>line.jobStatus==="Finished");
  const orderValue=lines.reduce((sum,line)=>sum+line.quantity*(components.find(component=>component.id===line.componentId)?.salePrice ?? line.unitPrice ?? 0),0);
@@ -84,7 +88,7 @@ export function ReportsAnalyticsWorkspace({onBack,notice,onSelectModule}:Props){
  const max=Math.max(1,pos.length,ops.length,lines.length);
  const onTime=ops.filter(op=>op.status==="Complete"&&(!op.plannedEnd||!op.actualEnd||op.actualEnd<=op.plannedEnd)).length;
  const [report,setReport]=useState("operations");
- const exportReport=()=>{const rows=report==="purchaseOrders"?rowsFor("purchasing",data):report==="costs"?rowsFor("costing",data):report==="quality"?rowsFor("quality",data):rowsFor("reports",data);downloadFile("AXIMACH-"+report+"-report.csv",toCsv(rows));};
+ const exportReport=()=>{const rows=report==="purchaseOrders"?rowsFor("purchasing",data):report==="costs"?rowsFor("costing",data):report==="cost-reconciliation"?rowsFor("cost-reconciliation",data):report==="quality"?rowsFor("quality",data):rowsFor("reports",data);downloadFile("AXIMACH-"+report+"-report.csv",toCsv(rows));};
  return <section className="workspace-page intelligence-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> LIVE RECORD ANALYTICS</span></div>{notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> BUSINESS INTELLIGENCE / REPORTING</div><h1>Reports &amp; Analytics<span>.</span></h1><p>Operational and financial indicators calculated from saved AXIMACH records. Empty datasets remain zero.</p></div></div>
   <div className="metric-grid dashboard-metric-grid">
@@ -95,11 +99,11 @@ export function ReportsAnalyticsWorkspace({onBack,notice,onSelectModule}:Props){
    <small>*Includes completed records with no dates as not classed overdue; interpret only where actual/target dates exist.</small>
    <button className="related-all" onClick={()=>onSelectModule("production")}>Open Production Plan <ArrowRight size={14}/></button>
   </div><div className="surface-panel"><div className="panel-heading"><div><h3>Financial overview</h3><p>Uses entered rates and PO line values; not an audited ledger.</p></div><Wallet size={18}/></div>
-   <div className="linked-cost-row"><span>Purchase order line value</span><strong>{money(orderValue)}</strong></div><div className="linked-cost-row"><span>Entered planned process + transport</span><strong>{money(plannedCost)}</strong></div><div className="linked-cost-row"><span>Entered actual process + transport</span><strong>{money(actualCost)}</strong></div><div className="linked-cost-row linked-cost-total"><span>Actual minus planned</span><strong>{money(actualCost-plannedCost)}</strong></div>
+   <div className="linked-cost-row"><span>PO line selling / order value (reference)</span><strong>{money(orderValue)}</strong></div><div className="linked-cost-row"><span>Planned process cost</span><strong>{money(costTotal("plannedProcessCost"))}</strong></div><div className="linked-cost-row"><span>Entered actual-rate process cost</span><strong>{money(costTotal("enteredActualProcessCost"))}</strong></div><div className="linked-cost-row"><span>Process Map material + cutting + material transport</span><strong>{money(costTotal("processMapMaterialCost")+costTotal("processMapCuttingCost")+costTotal("processMapMaterialTransportCost"))}</strong></div><div className="linked-cost-row"><span>Completed modern transport trips</span><strong>{money(costTotal("transportRouteCompletedTripCost"))}</strong></div><div className="linked-cost-row"><span>Payment transactions (settlement, separate)</span><strong>{money(costTotal("paymentTransactionTotal")+costTotal("legacyPaidAmount"))}</strong></div><div className="linked-cost-row linked-cost-total"><span>PO lines with reconciliation warnings</span><strong>{costRows.filter(row=>row.warnings.length>0).length}</strong></div>
    <button className="related-all" onClick={()=>onSelectModule("costing")}>Open Costing &amp; Payment <ArrowRight size={14}/></button>
   </div></section>
   <section className="surface-panel"><div className="panel-heading"><div><h3>Report export</h3><p>Download editable CSV reports, openable in Excel.</p></div><FileDown size={18}/></div>
-   <div className="intelligence-export-row"><select value={report} onChange={e=>setReport(e.target.value)}><option value="operations">Process operations</option><option value="purchaseOrders">PO component lines</option><option value="costs">Costing and payment status</option><option value="quality">Quality inspection records</option></select><button className="button-primary" onClick={exportReport}><Download size={14}/> Export CSV</button></div>
+   <div className="intelligence-export-row"><select value={report} onChange={e=>setReport(e.target.value)}><option value="operations">Process operations</option><option value="purchaseOrders">PO component lines</option><option value="costs">Costing and payment status</option><option value="cost-reconciliation">PO-line cost reconciliation</option><option value="quality">Quality inspection records</option></select><button className="button-primary" onClick={exportReport}><Download size={14}/> Export CSV</button></div>
   </section>
  </section>;
 }
@@ -127,7 +131,7 @@ export function AIInsightsWorkspace({onBack,onSelectModule}:Props){
 
 export function ExportCentreWorkspace({onBack,onNotice}:Props){
  const {data}=useManufacturingData();const [moduleId,setModuleId]=useState("companies");
- const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["payments","Payment Ledger"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
+ const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["cost-reconciliation","PO-line Cost Reconciliation"],["payments","Payment Ledger"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
  const rows=rowsFor(moduleId,data);
  const exportCsv=()=>{if(!rows.length){onNotice("There are no saved records to export for this selection.");return;}downloadFile("AXIMACH-"+moduleId+"-"+new Date().toISOString().slice(0,10)+".csv",toCsv(rows));onNotice("Excel-compatible CSV exported.");};
  const exportExcel=async()=>{
