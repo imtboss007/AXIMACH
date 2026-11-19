@@ -414,8 +414,39 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     if (vendorId && !vendors.some(vendor => vendor.id === vendorId)) { onNotice("The selected stock vendor is missing or archived."); return; }
     if (operationId && !operations.some(op => op.id === operationId && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)))) { onNotice("The selected operation does not belong to the chosen PO line or is no longer active."); return; }
     if (selectedPoLine && selectedPoLine.line.componentId && itemType === "component" && selectedPoLine.line.componentId !== itemId) { onNotice("The selected component stock item does not match the chosen PO line. Choose the matching part number."); return; }
+    if (transactionType === "Finished goods receipt" || transactionType === "Dispatch") {
+      if (itemType !== "component" || !selectedPoLine) { onNotice("Finished-goods receipt and dispatch require the exact component item and PO line."); return; }
+      const { po, line } = selectedPoLine;
+      if (companyId !== po.companyId || factoryId !== po.factoryId) { onNotice("Finished-goods movements must use the company and factory recorded on the selected PO."); return; }
+      if (line.componentId !== itemId) { onNotice("Finished-goods item must match the component on the selected PO line."); return; }
+      const lineOperations = operations.filter(op => op.poId === po.id && op.poLineId === line.id && !op.deletedAt);
+      const finalOperation = [...lineOperations].filter(op => (op.branch || "Main route") === "Main route").sort((a,b)=>a.sequence-b.sequence).at(-1);
+      if (!lineOperations.length || lineOperations.some(op => op.status !== "Complete" || !Number.isSafeInteger(Number(op.completed)) || Number(op.completed) !== Number(op.quantity))) {
+        onNotice("Finished goods cannot be received until every saved operation on this PO line is Complete with its actual completed quantity equal to its required quantity."); return;
+      }
+      if (!finalOperation || !Number.isSafeInteger(Number(finalOperation.accepted)) || Number(finalOperation.accepted) <= 0 || Number(finalOperation.accepted) + Number(finalOperation.rejected || 0) > Number(finalOperation.completed)) {
+        onNotice("Finished goods cannot be released: the final main-route operation must have a valid accepted quantity and balanced accepted/rejected quantities."); return;
+      }
+      const inspectionOperations = lineOperations.filter(op => op.inspectionRequired);
+      for (const op of inspectionOperations) {
+        const inspectionRows = activeRows(data.inspectionMeasurements || []).filter(row => row.operationId === op.id);
+        if (!inspectionRows.length || inspectionRows.some(row => row.result !== "Pass")) {
+          onNotice("Finished goods are blocked: every inspection-required operation must have recorded measurements and every measurement must Pass. Check " + op.name + "."); return;
+        }
+      }
+      if (transactionType === "Finished goods receipt") {
+        const alreadyReceived = inventoryTransactions.filter(row => row.itemType === "component" && row.itemId === itemId && row.transactionType === "Finished goods receipt" && row.direction === "in" && row.poId === po.id && row.poLineId === line.id && row.companyId === po.companyId && row.factoryId === po.factoryId && !row.deletedAt).reduce((sum,row)=>sum+row.quantity,0);
+        const remainingAccepted = Math.max(0, Math.min(Number(line.quantity), Number(finalOperation.accepted)) - alreadyReceived);
+        if (q > remainingAccepted) { onNotice("Finished-goods receipt exceeds the unreconciled accepted output. Remaining receivable quantity: " + remainingAccepted + "."); return; }
+      }
+      if (transactionType === "Dispatch") {
+        const lineFinishedBalance = stockBalance("component", itemId, { companyId: po.companyId, factoryId: po.factoryId });
+        if (q > lineFinishedBalance) { onNotice("Dispatch quantity exceeds available company/factory component stock. Available: " + lineFinishedBalance + "."); return; }
+      }
+    }
     const currentBalance = stockBalance(itemType, itemId);
     const nextBalance = currentBalance + (direction === "in" ? q : -q);
+    if (direction === "out" && nextBalance < 0 && (transactionType === "Finished goods receipt" || transactionType === "Dispatch")) { onNotice("Finished-goods dispatch cannot create a negative stock balance."); return; }
     if (direction === "out" && nextBalance < 0 && !window.confirm("This issue will make the calculated balance negative (" + nextBalance.toLocaleString("en-IN") + "). Post anyway? Check the opening balance/receipts first.")) return;
     if (transactionType === "Receipt" && !vendorId && !reference.trim()) { onNotice("For a receipt, enter the supplier/vendor or a source reference such as a delivery challan."); return; }
     const stamp = nowIso();
