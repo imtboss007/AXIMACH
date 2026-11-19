@@ -209,14 +209,14 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       const issued = inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === materialId && row.poId === bomIssueSelection.po.id && row.poLineId === bomIssueSelection.line.id)
         .reduce((sum, row) => sum + (row.transactionType === "Issue to production" && row.direction === "out" ? row.quantity : row.transactionType === "Return" && row.direction === "in" ? -row.quantity : 0), 0);
       const pending = Math.max(0, total.required - Math.max(0, issued));
-      const available = stockBalance("material", materialId);
+      const available = stockBalance("material", materialId, { companyId: bomIssueSelection.po.companyId, factoryId: bomIssueSelection.po.factoryId });
       return { material, bomLineIds: total.bomLineIds, required: total.required, issued: Math.max(0, issued), pending, available, shortage: Math.max(0, pending - available) };
     }).filter((row): row is BomIssuePreviewRow => Boolean(row));
   }, [bomIssuePoLineKey, bomIssueSelection, bomLines, materials, inventoryTransactions]);
   const operationOptions = operations.filter(op => !op.deletedAt && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)));
   const itemOptions = itemType === "material" ? materials.map(m => ({ id: m.id, label: m.code + " · " + m.name + " · " + m.grade })) : components.map(c => ({ id: c.id, label: c.partNumber + " · " + c.name + " · Rev " + (c.revision || "—") }));
   const selectedItem = itemType === "material" ? materials.find(m => m.id === itemId) : components.find(c => c.id === itemId);
-  const stockBalance = (type: "material" | "component", id: string) => inventoryTransactions.reduce((total, row) => row.itemType === type && row.itemId === id ? total + (row.direction === "in" ? row.quantity : -row.quantity) : total, 0);
+  const stockBalance = (type: "material" | "component", id: string, scope: { companyId?: string; factoryId?: string } = { companyId, factoryId }) => inventoryTransactions.reduce((total, row) => row.itemType === type && row.itemId === id && (!scope.companyId || row.companyId === scope.companyId) && (!scope.factoryId || row.factoryId === scope.factoryId) ? total + (row.direction === "in" ? row.quantity : -row.quantity) : total, 0);
   const visibleMaterials = useMemo(() => materials.filter(m => {
     const query = search.toLowerCase().trim();
     const textMatch = !query || (m.code + " " + m.name + " " + m.grade + " " + m.materialType + " " + m.shapeType + " " + m.specification + " " + m.notes + " " + Object.entries(m.dimensions||{}).map(([key,value])=>key+" "+value).join(" ")).toLowerCase().includes(query);
