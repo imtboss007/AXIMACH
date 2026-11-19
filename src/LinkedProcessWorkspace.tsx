@@ -455,12 +455,19 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       return Boolean(nextStart && nextEnd && nextEnd < nextStart);
     });
     if (scheduleConflict) { onNotice("Bulk dates would put the due date before the planned start for " + scheduleConflict.name + ". No records were changed."); return; }
+    if (bulkStatus === "Complete") {
+      const quantityMismatch = selected.find(op => !Number.isSafeInteger(Number(op.completed)) || Number(op.completed) !== Number(op.quantity));
+      if (quantityMismatch) {
+        onNotice("Cannot complete " + quantityMismatch.name + ": recorded completed quantity must equal its required operation quantity. Record actual production quantities first. No records were changed.");
+        return;
+      }
+    }
     const stamp = nowIso();
     update(current => {
       const nextOperations = current.operations.map(op => !ids.has(op.id) ? op : ({
         ...op,
         ...(bulkStatus ? { status: bulkStatus as LifecycleStatus } : {}),
-        ...(bulkStatus === "Complete" ? { completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp } : {}),
+        ...(bulkStatus === "Complete" ? { actualEnd: op.actualEnd || stamp } : {}),
         ...(bulkVendorId ? { vendorId: bulkVendorId } : {}),
         ...(bulkStart ? { plannedStart: bulkStart } : {}),
         ...(bulkEnd ? { plannedEnd: bulkEnd } : {}),
@@ -489,7 +496,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       }));
       return { ...current, operations: nextOperations, purchaseOrders: nextPurchaseOrders };
     });
-    onNotice("Bulk update applied to " + ids.size + " selected operation(s)." + (bulkStatus === "Complete" ? " Completed quantities and actual end dates were recorded; eligible PO jobs were finished only when their saved route operations were all Complete." : bulkStatus ? " Affected finished PO jobs were reopened where an active route operation is no longer Complete." : ""));
+    onNotice("Bulk update applied to " + ids.size + " selected operation(s)." + (bulkStatus === "Complete" ? " Existing actual completed quantities were preserved; eligible PO jobs were finished only when their saved route operations were all Complete." : bulkStatus ? " Affected finished PO jobs were reopened where an active route operation is no longer Complete." : ""));
     setBulkStatus(""); setBulkVendorId(""); setBulkStart(""); setBulkEnd("");
   };
 
@@ -1085,9 +1092,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const finishSelectedOperations = () => {
     const ids = new Set(selectedVisibleOperations.map(op => op.id));
     if (!ids.size) { onNotice("Select one or more visible operations to finish."); return; }
+    const quantityMismatch = selectedVisibleOperations.find(op => !Number.isSafeInteger(Number(op.completed)) || Number(op.completed) !== Number(op.quantity));
+    if (quantityMismatch) {
+      onNotice("Cannot complete " + quantityMismatch.name + ": recorded completed quantity must equal its required operation quantity. Record actual production quantities first. No records were changed.");
+      return;
+    }
     const stamp = nowIso();
     update(current => {
-      const nextOperations = current.operations.map(op => ids.has(op.id) ? { ...op, status: "Complete" as LifecycleStatus, completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp, updatedAt: stamp } : op);
+      const nextOperations = current.operations.map(op => ids.has(op.id) ? { ...op, status: "Complete" as LifecycleStatus, actualEnd: op.actualEnd || stamp, updatedAt: stamp } : op);
       const touchedLines = new Set(selectedVisibleOperations.map(op => op.poId + "::" + op.poLineId));
       const nextPurchaseOrders = current.purchaseOrders.map(order => ({
         ...order,
