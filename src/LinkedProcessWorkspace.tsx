@@ -455,12 +455,19 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       return Boolean(nextStart && nextEnd && nextEnd < nextStart);
     });
     if (scheduleConflict) { onNotice("Bulk dates would put the due date before the planned start for " + scheduleConflict.name + ". No records were changed."); return; }
+    if (bulkStatus === "Complete") {
+      const incomplete = selected.filter(op => op.completed !== op.quantity);
+      if (incomplete.length) {
+        onNotice("Cannot mark operations Complete until each actual completed quantity equals its planned operation quantity. Update the recorded quantities first; no records were changed.");
+        return;
+      }
+    }
     const stamp = nowIso();
     update(current => {
       const nextOperations = current.operations.map(op => !ids.has(op.id) ? op : ({
         ...op,
         ...(bulkStatus ? { status: bulkStatus as LifecycleStatus } : {}),
-        ...(bulkStatus === "Complete" ? { completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp } : {}),
+        ...(bulkStatus === "Complete" ? { actualEnd: op.actualEnd || stamp } : {}),
         ...(bulkVendorId ? { vendorId: bulkVendorId } : {}),
         ...(bulkStart ? { plannedStart: bulkStart } : {}),
         ...(bulkEnd ? { plannedEnd: bulkEnd } : {}),
@@ -1085,9 +1092,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const finishSelectedOperations = () => {
     const ids = new Set(selectedVisibleOperations.map(op => op.id));
     if (!ids.size) { onNotice("Select one or more visible operations to finish."); return; }
+    const incomplete = selectedVisibleOperations.filter(op => op.completed !== op.quantity);
+    if (incomplete.length) {
+      onNotice("Cannot finish selected operations until each actual completed quantity equals its planned operation quantity. Update the recorded quantities first; no records were changed.");
+      return;
+    }
     const stamp = nowIso();
     update(current => {
-      const nextOperations = current.operations.map(op => ids.has(op.id) ? { ...op, status: "Complete" as LifecycleStatus, completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp, updatedAt: stamp } : op);
+      const nextOperations = current.operations.map(op => ids.has(op.id) ? { ...op, status: "Complete" as LifecycleStatus, actualEnd: op.actualEnd || stamp, updatedAt: stamp } : op);
       const touchedLines = new Set(selectedVisibleOperations.map(op => op.poId + "::" + op.poLineId));
       const nextPurchaseOrders = current.purchaseOrders.map(order => ({
         ...order,
