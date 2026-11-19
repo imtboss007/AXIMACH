@@ -48,7 +48,7 @@ export function validateDeliveryConfirmation({
     return "The linked Dispatch entry is missing, reversed, reused or does not match this transport leg. Reconcile the stock ledger first.";
   }
   const eligible = getEligibleDispatchTransactions(leg, purchaseOrder, inventoryTransactions, transportLegs);
-  if (!eligible.some((transaction) => transaction.id === dispatchTransaction.id)) {
+  if (!eligible.includes(dispatchTransaction)) {
     return "The linked Dispatch entry is missing, reversed, reused or does not match this transport leg. Reconcile the stock ledger first.";
   }
   if (!(proof || "").trim()) {
