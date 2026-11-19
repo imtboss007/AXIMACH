@@ -6,6 +6,7 @@ import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon } from "./IconStudio";
 import { VehicleBadge } from "./TransportVehicle";
 import TransportRoutingDemo from "./TransportRoutingDemo";
+import { getEligibleDispatchTransactions, validateDeliveryConfirmation, validateTransportCompletion } from "./transportReconciliation.mjs";
 
 type LinkedNavigationContext={companyId?:string;poId?:string;poLineId?:string;componentId?:string;operationId?:string;vendorId?:string;routeId?:string};
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string,context?:LinkedNavigationContext)=>void;initialContext?:LinkedNavigationContext};
@@ -123,8 +124,8 @@ export function TransportDispatchWorkspace({onBack,onNotice,notice,onSelectModul
  });
  const dispatchOptionsFor=(row:{id:string;kind:"transport-leg"|"legacy-operation";poId:string;poLineId:string;componentId:string})=>{
   if(row.kind!=="transport-leg")return [];
-  const po=pos.find(item=>item.id===row.poId);if(!po)return [];
-  return inventoryTransactions.filter(tx=>tx.itemType==="component"&&tx.itemId===row.componentId&&tx.transactionType==="Dispatch"&&tx.direction==="out"&&tx.poId===row.poId&&tx.poLineId===row.poLineId&&tx.companyId===po.companyId&&tx.factoryId===po.factoryId&&!inventoryTransactions.some(reversal=>reversal.reversalOfId===tx.id)&&!legs.some(other=>other.id!==row.id&&other.dispatchTransactionId===tx.id));
+  const po=pos.find(item=>item.id===row.poId),leg=legs.find(item=>item.id===row.id);if(!po||!leg)return [];
+  return getEligibleDispatchTransactions(leg,po,inventoryTransactions,legs);
  };
  const linkDispatchTransaction=(row:{id:string;kind:"transport-leg"|"legacy-operation";poId:string;poLineId:string;componentId:string;deliveryConfirmedAt?:string},transactionId:string)=>{
   if(row.kind!=="transport-leg"||row.deliveryConfirmedAt){onNotice("A confirmed delivery cannot be relinked. Preserve the original dispatch and proof references.");return;}
@@ -137,19 +138,17 @@ export function TransportDispatchWorkspace({onBack,onNotice,notice,onSelectModul
   if(row.kind!=="transport-leg"){onNotice("Delivery proof can be recorded only against a modern PO transport leg.");return;}
   const leg=legs.find(item=>item.id===row.id);const po=leg?pos.find(item=>item.id===leg.poId):undefined;
   const tx=leg?.dispatchTransactionId?inventoryTransactions.find(item=>item.id===leg.dispatchTransactionId):undefined;
-  if(!leg||!po||!tx||leg.deliveryConfirmedAt){onNotice("Link a valid Dispatch stock-ledger entry before confirming delivery.");return;}
-  if(leg.status!=="Complete"||Number(leg.completedTrips)!==Number(leg.tripCount)){onNotice("Delivery cannot be confirmed until every planned transport trip is recorded complete.");return;}
-  const dispatchValid=tx.itemType==="component"&&tx.itemId===leg.componentId&&tx.transactionType==="Dispatch"&&tx.direction==="out"&&tx.poId===leg.poId&&tx.poLineId===leg.poLineId&&tx.companyId===po.companyId&&tx.factoryId===po.factoryId&&!inventoryTransactions.some(reversal=>reversal.reversalOfId===tx.id)&&!legs.some(other=>other.id!==leg.id&&other.dispatchTransactionId===tx.id);
-  if(!dispatchValid){onNotice("The linked Dispatch entry is missing, reversed, reused or does not match this transport leg. Reconcile the stock ledger first.");return;}
-  const proof=(deliveryProofByLeg[leg.id]||leg.deliveryReference||"").trim();
-  if(!proof){onNotice("Enter the delivery challan, proof-of-delivery number or signed receiver reference.");return;}
+  const proof=(deliveryProofByLeg[row.id]||leg?.deliveryReference||"").trim();
+  const reason=validateDeliveryConfirmation({leg,purchaseOrder:po,dispatchTransaction:tx,inventoryTransactions,transportLegs:legs,proof});
+  if(reason){onNotice(reason);return;}
+  if(!leg||!tx)return;
   const stamp=nowIso();update(current=>({...current,transportLegs:(current.transportLegs||[]).map(item=>item.id===leg.id&&!item.deliveryConfirmedAt?{...item,deliveryConfirmedAt:stamp,deliveryReference:proof,updatedAt:stamp}:item)}));
   onNotice("Delivery confirmed in full against Dispatch "+tx.reference+" ("+tx.quantity+" pcs). The existing stock entry was referenced; no duplicate inventory transaction was posted.");
  };
  const updateStatus=(row:{id:string;kind:"transport-leg"|"legacy-operation";deliveryConfirmedAt?:string},status:LifecycleStatus)=>{
   const stamp=nowIso();
   if(row.kind==="transport-leg"&&row.deliveryConfirmedAt&&status!=="Complete"){onNotice("A delivery-confirmed transport leg cannot be moved back to an earlier status.");return;}
-  if(row.kind==="transport-leg"&&status==="Complete"){const leg=legs.find(item=>item.id===row.id);if(!leg||Math.max(0,Number(leg.completedTrips)||0)!==leg.tripCount){onNotice("Cannot complete this transport leg: record every completed trip first. Planned trips are not treated as actual trips.");return;}}
+  if(row.kind==="transport-leg"&&status==="Complete"){const leg=legs.find(item=>item.id===row.id);const reason=validateTransportCompletion(leg);if(reason){onNotice(reason);return;}}
   if(row.kind==="transport-leg"){update(current=>({...current,transportLegs:(current.transportLegs||[]).map(leg=>leg.id===row.id?{...leg,status,completedTrips:status==="Complete"?leg.tripCount:Math.min(leg.completedTrips||0,leg.tripCount),updatedAt:stamp}:leg)}));onNotice("Transport-leg status updated in the Transport Directory-linked dispatch record.");}
   else{update(current=>({...current,operations:current.operations.map(op=>op.id===row.id?{...op,status,actualEnd:status==="Complete"?(op.actualEnd||stamp.slice(0,10)):op.actualEnd,updatedAt:stamp}:op)}));onNotice("Legacy transport-operation status updated; existing process history was retained.");}
  };
