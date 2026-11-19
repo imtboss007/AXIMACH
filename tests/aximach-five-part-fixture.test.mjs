@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { getEligibleDispatchTransactions, validateDeliveryConfirmation, validateTransportCompletion } from "../src/transportReconciliation.mjs";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-five-part-process-catalog.json", import.meta.url), "utf8"));
 
@@ -2464,4 +2465,46 @@ test("payment ledger export preserves transaction-level identity and legacy tota
   assert.ok(exports.includes('sourceRecord:"PaymentTransactionRecord"'));
   assert.ok(exports.includes('recordType:"legacy-payment-total"'));
   assert.ok(exports.includes('["payments","Payment Ledger"]'));
+});
+
+
+test("transport dispatch selection matches the exact component, PO line, company and factory",()=>{
+  const leg={id:"leg-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",tripCount:2,completedTrips:2};
+  const po={id:"po-1",companyId:"company-1",factoryId:"factory-1"};
+  const dispatch=(overrides={})=>({id:"dispatch-1",itemType:"component",itemId:"component-1",transactionType:"Dispatch",direction:"out",poId:"po-1",poLineId:"line-1",companyId:"company-1",factoryId:"factory-1",...overrides});
+  const valid=dispatch();
+  const wrongLine=dispatch({id:"wrong-line",poLineId:"line-2"});
+  const wrongCompany=dispatch({id:"wrong-company",companyId:"company-2"});
+  const wrongFactory=dispatch({id:"wrong-factory",factoryId:"factory-2"});
+  const wrongPart=dispatch({id:"wrong-part",itemId:"component-2"});
+  const wrongDirection=dispatch({id:"wrong-direction",direction:"in"});
+  const wrongKind=dispatch({id:"wrong-kind",transactionType:"Receipt"});
+  const reversed=dispatch({id:"reversed"});
+  const used=dispatch({id:"already-used"});
+  const rows=[valid,wrongLine,wrongCompany,wrongFactory,wrongPart,wrongDirection,wrongKind,reversed,used];
+  const eligible=getEligibleDispatchTransactions(leg,po,rows.concat([{id:"rev-1",reversalOfId:"reversed"}]),[
+    leg,{id:"leg-2",poId:"po-1",poLineId:"line-1",componentId:"component-1",tripCount:1,dispatchTransactionId:"already-used"}
+  ]);
+  assert.deepEqual(eligible.map(row=>row.id),["dispatch-1"]);
+});
+
+test("transport completion requires a positive whole planned trip count and exact actual trips",()=>{
+  assert.equal(validateTransportCompletion({tripCount:3,completedTrips:3}),null);
+  assert.match(validateTransportCompletion({tripCount:3,completedTrips:2}),/every planned trip/);
+  assert.match(validateTransportCompletion({tripCount:3,completedTrips:3.5}),/every planned trip/);
+  assert.match(validateTransportCompletion({tripCount:0,completedTrips:0}),/positive whole number/);
+});
+
+test("delivery confirmation requires completed transport, one valid unreversed dispatch and a proof reference",()=>{
+  const leg={id:"leg-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",tripCount:2,completedTrips:2,status:"Complete",dispatchTransactionId:"dispatch-1"};
+  const po={id:"po-1",companyId:"company-1",factoryId:"factory-1"};
+  const dispatch={id:"dispatch-1",itemType:"component",itemId:"component-1",transactionType:"Dispatch",direction:"out",poId:"po-1",poLineId:"line-1",companyId:"company-1",factoryId:"factory-1",quantity:120,reference:"DC-120"};
+  const base={leg,purchaseOrder:po,dispatchTransaction:dispatch,inventoryTransactions:[dispatch],transportLegs:[leg],proof:"POD-120"};
+  assert.equal(validateDeliveryConfirmation(base),null);
+  assert.match(validateDeliveryConfirmation({...base,proof:"  "}),/delivery challan/);
+  assert.match(validateDeliveryConfirmation({...base,leg:{...leg,status:"Running"}}),/every planned transport trip/);
+  assert.match(validateDeliveryConfirmation({...base,inventoryTransactions:[dispatch,{id:"rev-1",reversalOfId:"dispatch-1"}]}),/missing, reversed, reused/);
+  assert.match(validateDeliveryConfirmation({...base,transportLegs:[leg,{...leg,id:"leg-2"}]}),/missing, reversed, reused/);
+  assert.match(validateDeliveryConfirmation({...base,leg:{...leg,deliveryConfirmedAt:"2026-11-19T10:00:00Z"}}),/Link a valid Dispatch/);
+  assert.match(validateDeliveryConfirmation({...base,dispatchTransaction:{...dispatch,poLineId:"other-line"}}),/missing, reversed, reused/);
 });
