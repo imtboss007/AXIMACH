@@ -83,8 +83,6 @@ export function ReportsAnalyticsWorkspace({onBack,notice,onSelectModule}:Props){
  const overdue=ops.filter(op=>op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<new Date().toISOString().slice(0,10));
  const qualityHold=ops.filter(op=>op.status==="Quality hold");const finished=lines.filter(line=>line.jobStatus==="Finished");
  const orderValue=lines.reduce((sum,line)=>sum+line.quantity*(components.find(component=>component.id===line.componentId)?.salePrice ?? line.unitPrice ?? 0),0);
- const plannedCost=ops.reduce((sum,op)=>sum+op.quantity*op.ratePerPart+op.transportCost,0);
- const actualCost=ops.reduce((sum,op)=>sum+op.quantity*(op.actualRatePerPart||0)+op.transportCost,0);
  const max=Math.max(1,pos.length,ops.length,lines.length);
  const onTime=ops.filter(op=>op.status==="Complete"&&(!op.plannedEnd||!op.actualEnd||op.actualEnd<=op.plannedEnd)).length;
  const [report,setReport]=useState("operations");
