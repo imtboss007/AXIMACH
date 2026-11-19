@@ -3,9 +3,10 @@
  * These functions deliberately never create or mutate inventory transactions.
  */
 export function getEligibleDispatchTransactions(leg, purchaseOrder, inventoryTransactions, transportLegs) {
-  if (!leg || !purchaseOrder) return [];
+  if (!leg || !purchaseOrder || purchaseOrder.id !== leg.poId) return [];
   return (inventoryTransactions || []).filter((transaction) =>
     transaction.itemType === "component" &&
+    Number.isFinite(Number(transaction.quantity)) && Number(transaction.quantity) > 0 &&
     transaction.itemId === leg.componentId &&
     transaction.transactionType === "Dispatch" &&
     transaction.direction === "out" &&
@@ -37,7 +38,7 @@ export function validateDeliveryConfirmation({
   transportLegs,
   proof
 }) {
-  if (!leg || !purchaseOrder || !dispatchTransaction || leg.deliveryConfirmedAt) {
+  if (!leg || !purchaseOrder || purchaseOrder.id !== leg.poId || !dispatchTransaction || leg.deliveryConfirmedAt) {
     return "Link a valid Dispatch stock-ledger entry before confirming delivery.";
   }
   if (leg.status !== "Complete" || validateTransportCompletion(leg)) {
