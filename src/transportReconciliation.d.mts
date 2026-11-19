@@ -21,6 +21,8 @@ export type DispatchLedgerTransaction = {
   companyId: string;
   factoryId: string;
   quantity: number;
+  reference: string;
+  occurredAt: string;
   reversalOfId?: string;
 };
 export function getEligibleDispatchTransactions(
