@@ -89,6 +89,9 @@ test("Process Plan bulk update validates dates and vendor capabilities, and sync
   assert.ok(!workspace.includes('completed: Math.max(op.completed || 0, op.quantity || 0)'));
   assert.ok(workspace.includes('Existing actual completed quantities were preserved'));
   assert.ok(workspace.includes('jobStatus: "In progress" as const, jobFinishedAt: undefined'));
+  assert.ok(workspace.includes("Number(finalRouteOperation?.accepted)||0"), "zero accepted output must not fall back to completed quantity");
+  assert.ok(workspace.includes("const totalAccepted = finalCompletedQty;"), "accepted output must count final-route good parts once, not once per operation");
+  assert.ok(!workspace.includes("routeOperations.reduce((sum, op) => sum + op.accepted, 0)"));
 });
 test("Process Plan rejects archived vendors, reversed actual dates and incomplete Complete status", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
