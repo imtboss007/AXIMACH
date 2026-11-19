@@ -2478,7 +2478,7 @@ test("payment ledger export preserves transaction-level identity and legacy tota
 test("transport dispatch selection matches the exact component, PO line, company and factory",()=>{
   const leg={id:"leg-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",tripCount:2,completedTrips:2};
   const po={id:"po-1",companyId:"company-1",factoryId:"factory-1"};
-  const dispatch=(overrides={})=>({id:"dispatch-1",itemType:"component",itemId:"component-1",transactionType:"Dispatch",direction:"out",poId:"po-1",poLineId:"line-1",companyId:"company-1",factoryId:"factory-1",...overrides});
+  const dispatch=(overrides={})=>({id:"dispatch-1",itemType:"component",itemId:"component-1",transactionType:"Dispatch",direction:"out",poId:"po-1",poLineId:"line-1",companyId:"company-1",factoryId:"factory-1",quantity:10,...overrides});
   const valid=dispatch();
   const wrongLine=dispatch({id:"wrong-line",poLineId:"line-2"});
   const wrongCompany=dispatch({id:"wrong-company",companyId:"company-2"});
@@ -2486,13 +2486,15 @@ test("transport dispatch selection matches the exact component, PO line, company
   const wrongPart=dispatch({id:"wrong-part",itemId:"component-2"});
   const wrongDirection=dispatch({id:"wrong-direction",direction:"in"});
   const wrongKind=dispatch({id:"wrong-kind",transactionType:"Receipt"});
+  const zeroQuantity=dispatch({id:"zero-quantity",quantity:0});
   const reversed=dispatch({id:"reversed"});
   const used=dispatch({id:"already-used"});
-  const rows=[valid,wrongLine,wrongCompany,wrongFactory,wrongPart,wrongDirection,wrongKind,reversed,used];
+  const rows=[valid,wrongLine,wrongCompany,wrongFactory,wrongPart,wrongDirection,wrongKind,zeroQuantity,reversed,used];
   const eligible=getEligibleDispatchTransactions(leg,po,rows.concat([{id:"rev-1",reversalOfId:"reversed"}]),[
     leg,{id:"leg-2",poId:"po-1",poLineId:"line-1",componentId:"component-1",tripCount:1,dispatchTransactionId:"already-used"}
   ]);
   assert.deepEqual(eligible.map(row=>row.id),["dispatch-1"]);
+  assert.deepEqual(getEligibleDispatchTransactions(leg,{...po,id:"other-po"},rows,[leg]),[]);
 });
 
 test("transport completion requires a positive whole planned trip count and exact actual trips",()=>{
@@ -2513,6 +2515,7 @@ test("delivery confirmation requires completed transport, one valid unreversed d
   assert.match(validateDeliveryConfirmation({...base,inventoryTransactions:[dispatch,{id:"rev-1",reversalOfId:"dispatch-1"}]}),/missing, reversed, reused/);
   assert.match(validateDeliveryConfirmation({...base,transportLegs:[leg,{...leg,id:"leg-2"}]}),/missing, reversed, reused/);
   assert.match(validateDeliveryConfirmation({...base,leg:{...leg,deliveryConfirmedAt:"2026-11-19T10:00:00Z"}}),/Link a valid Dispatch/);
+  assert.match(validateDeliveryConfirmation({...base,purchaseOrder:{...po,id:"other-po"}}),/Link a valid Dispatch/);
   assert.match(validateDeliveryConfirmation({...base,dispatchTransaction:{...dispatch,poLineId:"other-line"}}),/missing, reversed, reused/);
   const alternateDispatch={...dispatch,id:"alternate-dispatch"};
   assert.match(validateDeliveryConfirmation({...base,dispatchTransaction:alternateDispatch,inventoryTransactions:[dispatch,alternateDispatch]}),/missing, reversed, reused/);
