@@ -83,9 +83,22 @@ test("Process Plan bulk update validates dates and vendor capabilities, and sync
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("const scheduleConflict = selected.find(op =>"));
   assert.ok(workspace.includes("definition?.vendorIds?.length && !definition.vendorIds.includes(bulkVendorId)"));
-  assert.ok(workspace.includes('bulkStatus === "Complete" ? { completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp }'));
+  assert.ok(workspace.includes('bulkStatus === "Complete" ? { actualEnd: op.actualEnd || stamp } : {}'));
+  assert.ok(!workspace.includes('completed: Math.max(op.completed || 0, op.quantity || 0)'));
+  assert.ok(workspace.includes('const incomplete = selected.filter(op => op.completed !== op.quantity)'));
+  assert.ok(workspace.includes('const incomplete = selectedVisibleOperations.filter(op => op.completed !== op.quantity)'));
   assert.ok(workspace.includes('jobStatus: "In progress" as const, jobFinishedAt: undefined'));
 });
+
+test("bulk completion never fabricates production quantity and rejects incomplete actuals", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('const incomplete = selected.filter(op => op.completed !== op.quantity)'));
+  assert.ok(workspace.includes('const incomplete = selectedVisibleOperations.filter(op => op.completed !== op.quantity)'));
+  assert.ok(workspace.includes('Cannot mark operations Complete until each actual completed quantity equals its planned operation quantity.'));
+  assert.ok(workspace.includes('Cannot finish selected operations until each actual completed quantity equals its planned operation quantity.'));
+  assert.ok(!workspace.includes('completed: Math.max(op.completed || 0, op.quantity || 0)'));
+});
+
 test("Process Plan rejects archived vendors, reversed actual dates and incomplete Complete status", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("draft.vendorId && !vendors.some(vendor => vendor.id === draft.vendorId)"));
