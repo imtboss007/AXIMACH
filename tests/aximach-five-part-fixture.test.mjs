@@ -83,7 +83,11 @@ test("Process Plan bulk update validates dates and vendor capabilities, and sync
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("const scheduleConflict = selected.find(op =>"));
   assert.ok(workspace.includes("definition?.vendorIds?.length && !definition.vendorIds.includes(bulkVendorId)"));
-  assert.ok(workspace.includes('bulkStatus === "Complete" ? { completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp }'));
+  assert.ok(workspace.includes('bulkStatus === "Complete" ? { actualEnd: op.actualEnd || stamp } : {}'));
+  assert.ok(workspace.includes('const quantityMismatch = selected.find(op => !Number.isSafeInteger(Number(op.completed)) || Number(op.completed) !== Number(op.quantity))'));
+  assert.ok(workspace.includes('const quantityMismatch = selectedVisibleOperations.find(op => !Number.isSafeInteger(Number(op.completed)) || Number(op.completed) !== Number(op.quantity))'));
+  assert.ok(!workspace.includes('completed: Math.max(op.completed || 0, op.quantity || 0)'));
+  assert.ok(workspace.includes('Existing actual completed quantities were preserved'));
   assert.ok(workspace.includes('jobStatus: "In progress" as const, jobFinishedAt: undefined'));
 });
 test("Process Plan rejects archived vendors, reversed actual dates and incomplete Complete status", () => {
