@@ -95,6 +95,17 @@ test("Process Plan bulk update validates dates and vendor capabilities, and sync
   assert.ok(workspace.includes("const totalAccepted = finalCompletedQty;"), "accepted output must count final-route good parts once, not once per operation");
   assert.ok(!workspace.includes("routeOperations.reduce((sum, op) => sum + op.accepted, 0)"));
 });
+test("Finished goods receipt and dispatch require completed accepted production and passing required inspections", () => {
+  const workspace = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('transactionType === "Finished goods receipt" || transactionType === "Dispatch"'));
+  assert.ok(workspace.includes('companyId !== po.companyId || factoryId !== po.factoryId'));
+  assert.ok(workspace.includes('lineOperations.some(op => op.status !== "Complete"'));
+  assert.ok(workspace.includes('inspectionRows.some(row => row.result !== "Pass")'));
+  assert.ok(workspace.includes('remainingAccepted'));
+  assert.ok(workspace.includes('q > lineFinishedBalance'));
+  assert.ok(workspace.includes('Finished-goods dispatch cannot create a negative stock balance'));
+  assert.ok(workspace.includes('transactionType === "Finished goods receipt" && row.direction === "in"'));
+});
 test("Process Plan rejects archived vendors, reversed actual dates and incomplete Complete status", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("draft.vendorId && !vendors.some(vendor => vendor.id === draft.vendorId)"));
