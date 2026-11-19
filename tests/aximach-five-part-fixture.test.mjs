@@ -2450,3 +2450,18 @@ test("dispatch exports include modern transport legs, linked POD details and unl
   assert.ok(exports.includes('recordType:"unlinked-dispatch-ledger-entry"'));
   assert.ok(exports.includes('recordType:"legacy-transport-operation"'));
 });
+
+
+test("payment ledger export preserves transaction-level identity and legacy totals",()=>{
+  const schema=readFileSync(new URL("../src/manufacturingData.ts",import.meta.url),"utf8");
+  const processMap=readFileSync(new URL("../src/LinkedProcessWorkspace.tsx",import.meta.url),"utf8");
+  const exports=readFileSync(new URL("../src/IntelligenceWorkspaces.tsx",import.meta.url),"utf8");
+  assert.ok(schema.includes("componentId: string; vendorId?: string;"));
+  assert.ok(processMap.includes("vendorId:old?.vendorId||draft.vendorId||\"\""));
+  assert.ok(processMap.includes("vendorId:draft.vendorId||old?.vendorId||\"\""));
+  assert.ok(exports.includes('if(moduleId==="payments")'));
+  assert.ok(exports.includes('recordType:"payment-transaction"'));
+  assert.ok(exports.includes('sourceRecord:"PaymentTransactionRecord"'));
+  assert.ok(exports.includes('recordType:"legacy-payment-total"'));
+  assert.ok(exports.includes('["payments","Payment Ledger"]'));
+});
