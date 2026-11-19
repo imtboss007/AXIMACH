@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { getEligibleDispatchTransactions, validateDeliveryConfirmation, validateTransportCompletion } from "../src/transportReconciliation.mjs";
+import { reconcilePurchaseOrderCosts } from "../src/costReconciliation.mjs";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-five-part-process-catalog.json", import.meta.url), "utf8"));
 
@@ -2519,4 +2520,80 @@ test("delivery confirmation requires completed transport, one valid unreversed d
   assert.match(validateDeliveryConfirmation({...base,dispatchTransaction:{...dispatch,poLineId:"other-line"}}),/missing, reversed, reused/);
   const alternateDispatch={...dispatch,id:"alternate-dispatch"};
   assert.match(validateDeliveryConfirmation({...base,dispatchTransaction:alternateDispatch,inventoryTransactions:[dispatch,alternateDispatch]}),/missing, reversed, reused/);
+});
+
+
+test("PO-line cost reconciliation separates estimates, entered costs, executed transport and cash payments", () => {
+  const data = {
+    companies: [{id:"co-1",name:"Factory Co"}],
+    factories: [{id:"factory-1",name:"Plant 1"}],
+    components: [{id:"component-1",partNumber:"AX-100",name:"Precision shaft"}],
+    purchaseOrders: [{
+      id:"po-1",number:"PO-100",companyId:"co-1",factoryId:"factory-1",
+      lines:[{id:"line-1",componentId:"component-1",quantity:10},{id:"line-2",componentId:"component-2",quantity:5}]
+    }],
+    operations: [
+      {id:"op-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",quantity:10,ratePerPart:2,actualRatePerPart:3,transportCost:40,paidAmount:50,costIncluded:true},
+      {id:"op-2",poId:"po-1",poLineId:"line-1",componentId:"component-1",quantity:10,ratePerPart:100,actualRatePerPart:90,transportCost:20,paidAmount:10,costIncluded:false},
+      {id:"op-wrong-line",poId:"po-1",poLineId:"line-2",componentId:"component-2",quantity:5,ratePerPart:99,actualRatePerPart:99}
+    ],
+    materialCostEntries: [
+      {id:"pm-1",scope:"process-map",poId:"po-1",poLineId:"line-1",componentId:"component-1",partId:"part-1",materialId:"steel",quantity:2,materialCost:100,cuttingCost:10,transportCost:5},
+      {id:"pc-1",scope:"planned-cost",poId:"po-1",poLineId:"line-1",componentId:"component-1",partId:"part-1",materialId:"steel",quantity:2,materialCost:100,cuttingCost:10,transportCost:5},
+      {id:"wrong-line",scope:"process-map",poId:"po-1",poLineId:"line-2",componentId:"component-2",materialCost:999,cuttingCost:0,transportCost:0},
+      {id:"archived",scope:"process-map",poId:"po-1",poLineId:"line-1",componentId:"component-1",materialCost:999,deletedAt:"2026-11-19T00:00:00Z"}
+    ],
+    plannedCosts: [{id:"benchmark-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",plannedQty:10,plannedRate:4}],
+    transportLegs: [{id:"leg-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",tripCount:2,completedTrips:1,fixedAmount:50}],
+    paymentTransactions: [{id:"pay-1",operationId:"op-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",amount:50}]
+  };
+  const result = reconcilePurchaseOrderCosts(data);
+  assert.equal(result.length,2);
+  const line = result.find(row => row.poLineId === "line-1");
+  assert.ok(line);
+  assert.equal(line.plannedProcessCost,20);
+  assert.equal(line.enteredActualProcessCost,30);
+  assert.equal(line.excludedRoutePlannedProcessCost,1000);
+  assert.equal(line.processMapMaterialCost,100);
+  assert.equal(line.processMapCuttingCost,10);
+  assert.equal(line.processMapMaterialTransportCost,5);
+  assert.equal(line.plannedScopeMaterialCost,100);
+  assert.equal(line.componentPlannedProcessBenchmarkCost,40);
+  assert.equal(line.transportRoutePlannedCost,100);
+  assert.equal(line.transportRouteCompletedTripCost,50);
+  assert.equal(line.legacyTransportCost,0);
+  assert.equal(line.legacyTransportExcludedAmount,60);
+  assert.equal(line.paymentTransactionTotal,50);
+  assert.equal(line.legacyPaidAmount,10);
+  assert.equal(line.crossScopeDuplicateCandidateCount,1);
+  assert.ok(line.warnings.some(value => value.includes("not combined")));
+  assert.ok(line.warnings.some(value => value.includes("Legacy operation transport")));
+  assert.equal(result.find(row => row.poLineId === "line-2").processMapMaterialCost,999);
+});
+
+test("PO-line cost reconciliation suppresses duplicate legacy paid totals and rejects mismatched payment links", () => {
+  const base = {
+    purchaseOrders:[{id:"po",companyId:"co",factoryId:"factory",lines:[{id:"line",componentId:"part",quantity:1}]}],
+    operations:[{id:"op",poId:"po",poLineId:"line",componentId:"part",quantity:1,paidAmount:75,ratePerPart:0,actualRatePerPart:0}],
+    paymentTransactions:[{id:"payment",operationId:"op",poId:"po",poLineId:"another-line",componentId:"part",amount:75}],
+    components:[],companies:[],factories:[]
+  };
+  const [line] = reconcilePurchaseOrderCosts(base);
+  assert.equal(line.paymentTransactionTotal,0);
+  assert.equal(line.legacyPaidAmount,0);
+  assert.ok(line.warnings.some(value => value.includes("different PO, PO-line or component")));
+});
+
+test("PO-line cost reconciliation ignores archived sources and invalid actual trip counts", () => {
+  const data = {
+    purchaseOrders:[{id:"po",companyId:"co",factoryId:"factory",lines:[{id:"line",componentId:"part",quantity:1}]}],
+    operations:[],components:[],companies:[],factories:[],
+    transportLegs:[{id:"leg",poId:"po",poLineId:"line",componentId:"part",tripCount:2,completedTrips:3,fixedAmount:25}],
+    materialCostEntries:[{id:"old",scope:"process-map",poId:"po",poLineId:"line",componentId:"part",materialCost:100,deletedAt:"2026-11-19"}]
+  };
+  const [line] = reconcilePurchaseOrderCosts(data);
+  assert.equal(line.transportRoutePlannedCost,50);
+  assert.equal(line.transportRouteCompletedTripCost,0);
+  assert.equal(line.processMapMaterialCost,0);
+  assert.ok(line.warnings.some(value => value.includes("invalid actual completed-trip count")));
 });
