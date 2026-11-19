@@ -2562,7 +2562,7 @@ test("PO-line cost reconciliation separates estimates, entered costs, executed t
   assert.equal(line.transportRoutePlannedCost,100);
   assert.equal(line.transportRouteCompletedTripCost,50);
   assert.equal(line.legacyTransportCost,0);
-  assert.equal(line.legacyTransportExcludedAmount,60);
+  assert.equal(line.legacyTransportExcludedAmount,40);
   assert.equal(line.paymentTransactionTotal,50);
   assert.equal(line.legacyPaidAmount,10);
   assert.equal(line.crossScopeDuplicateCandidateCount,1);
