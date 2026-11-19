@@ -40,8 +40,11 @@ export function validateDeliveryConfirmation({
   if (!leg || !purchaseOrder || !dispatchTransaction || leg.deliveryConfirmedAt) {
     return "Link a valid Dispatch stock-ledger entry before confirming delivery.";
   }
-  if (leg.status !== "Complete" || Number(leg.completedTrips) !== Number(leg.tripCount)) {
+  if (leg.status !== "Complete" || validateTransportCompletion(leg)) {
     return "Delivery cannot be confirmed until every planned transport trip is recorded complete.";
+  }
+  if (leg.dispatchTransactionId !== dispatchTransaction.id) {
+    return "The linked Dispatch entry is missing, reversed, reused or does not match this transport leg. Reconcile the stock ledger first.";
   }
   const eligible = getEligibleDispatchTransactions(leg, purchaseOrder, inventoryTransactions, transportLegs);
   if (!eligible.some((transaction) => transaction.id === dispatchTransaction.id)) {
