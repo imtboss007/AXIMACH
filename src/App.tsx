@@ -793,6 +793,17 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
   },[initialRecipient?.vendorId,initialRecipient?.operationId,contacts.length]);
 
   const waBase=waUrl.trim().replace(/\/+$/,"");
+  const isScopedUser = authMode==="users" && serverSession?.user.role!=="admin";
+  const clearUserLocalCache = () => {
+    updateManufacturingData(()=>emptyManufacturingData());
+    setAllModuleRecords({});
+    window.dispatchEvent(new Event("aximach-module-records-updated"));
+    window.localStorage.removeItem("aximach.manufacturing.user-scope");
+    window.localStorage.removeItem("aximach.module-records.user-scope");
+    setContacts([]);setSchedules([]);setLogs([]);
+    setWaContacts([]);setWaGroups([]);setWaSchedules([]);
+    setWaConnected(false);setWaQr("");setWaUser("");
+  };
   const waApiKey=apiKey;
   const waRequest=async(path:string,init:RequestInit={})=>{const response=await fetch(waBase+path,{...init,headers:{"content-type":"application/json","x-aximach-key":waApiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"WhatsApp bridge returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
   const verifiedWhatsAppPhone=(value:unknown)=>{
@@ -806,7 +817,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     for(const candidate of candidates){const number=verifiedWhatsAppPhone(candidate);if(number)return number;}
     return "";
   };
-  const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{
+  const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{if(isScopedUser)return {added:0,updated:0};
     if(!incoming.length)return {added:0,updated:0};
     const current=readManufacturingData();
     const next=[...current.vendors];
@@ -850,14 +861,14 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     if(added||updated)updateManufacturingData(currentData=>({...currentData,vendors:next}));
     return {added,updated};
   };
-  const refreshWhatsApp=async()=>{setBusy(true);setWaError("");try{if(!waApiKey.trim())throw new Error("AXIMACH shared API key is missing.");if(!isAllowedAxMachServiceUrl(waBase))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");const contactRows:WhatsAppContact[]=co.contacts||[];setWaContacts(contactRows);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);const synced=syncWhatsAppContactsToVendors(contactRows);window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; "+synced.added+" new contacts added to the AXIMACH vendor master and "+synced.updated+" existing records refreshed. They stay unverified until reviewed; cross-device persistence depends on the scheduler data server being connected.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
+  const refreshWhatsApp=async()=>{if(isScopedUser){clearUserLocalCache();setWaError("WhatsApp bridge access is restricted to AXIMACH administrators.");return;}setBusy(true);setWaError("");try{if(!waApiKey.trim())throw new Error("AXIMACH shared API key is missing.");if(!isAllowedAxMachServiceUrl(waBase))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");const contactRows:WhatsAppContact[]=co.contacts||[];setWaContacts(contactRows);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);const synced=syncWhatsAppContactsToVendors(contactRows);window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; "+synced.added+" new contacts added to the AXIMACH vendor master and "+synced.updated+" existing records refreshed. They stay unverified until reviewed; cross-device persistence depends on the scheduler data server being connected.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
   const addWhatsAppSchedule=async()=>{setBusy(true);setWaError("");try{if(!waOptIn)throw new Error("Confirm you have permission to message this recipient.");const d=await waRequest("/api/whatsapp/schedules",{method:"POST",body:JSON.stringify({to:waTarget,message:waMessage,nextRunAt:new Date(waDue).toISOString(),repeat:waRepeat,optedIn:true,vendorId:initialRecipient?.vendorId||"",operationId:initialRecipient?.operationId||"",process:initialRecipient?.process||"",company:initialRecipient?.company||""})});setWaSchedules(prev=>[d.schedule,...prev]);setWaMessage("");onNotice("WhatsApp automation saved to the bridge server.");}catch(e){setWaError(e instanceof Error?e.message:"Could not save WhatsApp automation.");}finally{setBusy(false);}};
   const toggleWhatsAppSchedule=async(task:{id:string;enabled:boolean})=>{setBusy(true);setWaError("");try{const d=await waRequest("/api/whatsapp/schedules/"+task.id,{method:"PATCH",body:JSON.stringify({enabled:!task.enabled})});setWaSchedules(prev=>prev.map(x=>x.id===task.id?d.schedule:x));}catch(e){setWaError(e instanceof Error?e.message:"Could not update WhatsApp schedule.");}finally{setBusy(false);}};
   const visibleWaContacts=waContacts.filter(c=>(c.name+" "+c.notify+" "+whatsappContactPhone(c)).toLowerCase().includes(waSearch.toLowerCase().trim()));
   const visibleWaGroups=waGroups.filter(group=>(group.name+" "+group.id+" "+group.participants).toLowerCase().includes(waSearch.toLowerCase().trim()));
-  const importWhatsAppContactsToVendors=()=>{if(!waContacts.length){setWaError("No WhatsApp contacts are synced yet. Link WhatsApp and refresh contacts first.");return;}const result=syncWhatsAppContactsToVendors(waContacts);const withoutNumber=waContacts.filter(c=>!whatsappContactPhone(c)).length;onNotice("Contact 360 sync complete: "+result.added+" new contacts added, "+result.updated+" existing records refreshed. "+withoutNumber+" contacts did not have a phone number shared by WhatsApp and were not assigned a fabricated number.");};
-  useEffect(()=>{if((window.location.protocol==="file:"||window.location.protocol==="aximach:")){if(apiUrl)window.localStorage.setItem("aximach.scheduler.url",apiUrl);if(apiKey)window.localStorage.setItem("aximach.scheduler.key",apiKey);if(waUrl)window.localStorage.setItem("aximach.whatsapp.url",waUrl);const timer=window.setTimeout(()=>{void refreshWhatsApp();},1800);return()=>window.clearTimeout(timer);}if(window.localStorage.getItem("aximach.scheduler.key"))void refreshWhatsApp();},[]);
-  useEffect(()=>{const local=(window.location.protocol==="file:"||window.location.protocol==="aximach:");const pollBase=local?"http://127.0.0.1:8789":waBase;const pollKey=apiKey;if(!pollKey.trim())return;let cancelled=false;const poll=async()=>{try{const headers={"x-aximach-key":pollKey};const statusResponse=await fetch(pollBase+"/api/whatsapp/status",{headers});if(!statusResponse.ok)return;const status=await statusResponse.json();if(cancelled)return;setWaConnected(Boolean(status.connected));setWaQr(status.qrDataUrl||"");setWaUser(status.user||"");if(!status.connected)return;const [co,gr,sc]=await Promise.all([fetch(pollBase+"/api/whatsapp/contacts",{headers}),fetch(pollBase+"/api/whatsapp/groups",{headers}),fetch(pollBase+"/api/whatsapp/schedules",{headers})]);if(cancelled)return;if(co.ok){const rows:WhatsAppContact[]=(await co.json()).contacts||[];setWaContacts(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);syncWhatsAppContactsToVendors(rows);}if(gr.ok){const rows=(await gr.json()).groups||[];setWaGroups(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}if(sc.ok){const rows=(await sc.json()).schedules||[];setWaSchedules(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}}catch{/* bridge may be unavailable while starting */}};void poll();const timer=window.setInterval(()=>void poll(),3000);return()=>{cancelled=true;window.clearInterval(timer);};},[waBase,apiKey]);
+  const importWhatsAppContactsToVendors=()=>{if(isScopedUser){setWaError("WhatsApp contact import is administrator-only.");return;}if(!waContacts.length){setWaError("No WhatsApp contacts are synced yet. Link WhatsApp and refresh contacts first.");return;}const result=syncWhatsAppContactsToVendors(waContacts);const withoutNumber=waContacts.filter(c=>!whatsappContactPhone(c)).length;onNotice("Contact 360 sync complete: "+result.added+" new contacts added, "+result.updated+" existing records refreshed. "+withoutNumber+" contacts did not have a phone number shared by WhatsApp and were not assigned a fabricated number.");};
+  useEffect(()=>{if(isScopedUser){clearUserLocalCache();return;}if((window.location.protocol==="file:"||window.location.protocol==="aximach:")){if(apiUrl)window.localStorage.setItem("aximach.scheduler.url",apiUrl);if(apiKey)window.localStorage.setItem("aximach.scheduler.key",apiKey);if(waUrl)window.localStorage.setItem("aximach.whatsapp.url",waUrl);const timer=window.setTimeout(()=>{void refreshWhatsApp();},1800);return()=>window.clearTimeout(timer);}if(window.localStorage.getItem("aximach.scheduler.key"))void refreshWhatsApp();},[]);
+  useEffect(()=>{if(isScopedUser){clearUserLocalCache();return;}const local=(window.location.protocol==="file:"||window.location.protocol==="aximach:");const pollBase=local?"http://127.0.0.1:8789":waBase;const pollKey=apiKey;if(!pollKey.trim())return;let cancelled=false;const poll=async()=>{try{const headers={"x-aximach-key":pollKey};const statusResponse=await fetch(pollBase+"/api/whatsapp/status",{headers});if(!statusResponse.ok)return;const status=await statusResponse.json();if(cancelled)return;setWaConnected(Boolean(status.connected));setWaQr(status.qrDataUrl||"");setWaUser(status.user||"");if(!status.connected)return;const [co,gr,sc]=await Promise.all([fetch(pollBase+"/api/whatsapp/contacts",{headers}),fetch(pollBase+"/api/whatsapp/groups",{headers}),fetch(pollBase+"/api/whatsapp/schedules",{headers})]);if(cancelled)return;if(co.ok){const rows:WhatsAppContact[]=(await co.json()).contacts||[];setWaContacts(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);syncWhatsAppContactsToVendors(rows);}if(gr.ok){const rows=(await gr.json()).groups||[];setWaGroups(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}if(sc.ok){const rows=(await sc.json()).schedules||[];setWaSchedules(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}}catch{/* bridge may be unavailable while starting */}};void poll();const timer=window.setInterval(()=>void poll(),3000);return()=>{cancelled=true;window.clearInterval(timer);};},[waBase,apiKey,isScopedUser]);
 
   const base=apiUrl.trim().replace(/\/+$/,"");
   const visibleContacts=contacts.filter(c=>(c.name+" "+c.company+" "+c.phone).toLowerCase().includes(contactSearch.toLowerCase().trim()));
@@ -884,6 +895,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
           }else{clearServerSession();setServerSessionState(null);session=null;}
         }
         if(!session){
+          clearUserLocalCache();
           if(!username.trim()||!password)throw new Error("This server uses individual accounts. Enter your username and password, then connect again.");
           const loginResponse=await fetch(base+"/api/auth/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({username:username.trim(),password})});
           const loginData=await loginResponse.json().catch(()=>({}));
@@ -940,9 +952,9 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
         if(health.authMode==="users"){
           setAuthMode("users");setServerAuthMode("users");
           const session=readServerSession(target);
-          if(!session){if(!cancelled){setServerSessionState(null);setConnected(false);}return;}
+          if(!session){if(!cancelled){setServerSessionState(null);setConnected(false);clearUserLocalCache();}return;}
           const response=await fetch(target+"/api/auth/session",{headers:{authorization:"Bearer "+session.token},cache:"no-store"});
-          if(!response.ok){clearServerSession();if(!cancelled){setServerSessionState(null);setConnected(false);}return;}
+          if(!response.ok){clearServerSession();if(!cancelled){setServerSessionState(null);setConnected(false);clearUserLocalCache();}return;}
           const identity=await response.json();
           const refreshed={...session,user:identity.user,expiresAt:identity.expiresAt};
           saveServerSession(refreshed,target);
@@ -979,7 +991,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
   const signOut=async()=>{
     const session=readServerSession(base);
     if(session){try{await fetch(base+"/api/auth/logout",{method:"POST",headers:{authorization:"Bearer "+session.token}});}catch{/* local token is still cleared when server is unreachable */}}
-    clearServerSession();setServerSessionState(null);setConnected(false);setAuthMode("users");setServerAuthMode("users");setContacts([]);setSchedules([]);setLogs([]);
+    clearServerSession();setServerSessionState(null);setConnected(false);setAuthMode("users");setServerAuthMode("users");clearUserLocalCache();
     onNotice("Signed out of the AXIMACH account on this device. The local bearer token has been cleared.");
   };
   const useLocalOnly=()=>{

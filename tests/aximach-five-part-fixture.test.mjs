@@ -2608,3 +2608,13 @@ test("scoped account sessions do not import legacy browser-local global director
   assert.ok(specialized.includes('"aximach.componentPlannedCost.v1"'));
   assert.ok(relationships.includes('readContacts()'));
 });
+
+
+test("scoped user sessions stop WhatsApp bridge polling and clear shared-device caches", () => {
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.ok(app.includes('const isScopedUser = authMode==="users" && serverSession?.user.role!=="admin";'));
+  assert.ok(app.includes('if(isScopedUser){clearUserLocalCache();return;}const local='));
+  assert.ok(app.includes('if(isScopedUser)return {added:0,updated:0};'));
+  assert.ok(app.includes('setServerAuthMode("users");clearUserLocalCache();'));
+  assert.ok(app.includes('window.dispatchEvent(new Event("aximach-module-records-updated"));'));
+});
