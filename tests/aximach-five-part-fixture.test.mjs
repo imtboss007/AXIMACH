@@ -402,7 +402,8 @@ test("PC-hosted shared data exposes a protected LAN endpoint and Android permits
   assert.ok(client.includes('window.localStorage.getItem("aximach.scheduler.key")'));
   assert.ok(client.includes('window.setInterval(() => { void syncOnce(); }, 2500)'));
   assert.ok(followUp.includes("PC → Android private Wi-Fi connection"));
-  assert.ok(followUp.includes("Use one shared server URL and API key on both devices"));
+  assert.ok(followUp.includes("A Windows-installed AXIMACH can host the private server"));
+  assert.ok(followUp.includes("Sign in with your assigned AXIMACH user account when user authentication is enabled"));
 });
 
 
