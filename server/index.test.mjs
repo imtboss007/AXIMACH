@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { request as httpRequest } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { once } from "node:events";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -47,6 +48,21 @@ async function waitForHealth(child, baseUrl) {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   throw new Error("AXIMACH server did not become healthy within 8 seconds.");
+}
+
+function beginDelayedJsonRequest(baseUrl, path, headers, firstChunk) {
+  const target = new URL(baseUrl);
+  const request = httpRequest({ hostname: target.hostname, port: target.port, path, method: "PUT", headers: { ...headers, "transfer-encoding": "chunked" } });
+  const responsePromise = new Promise((resolve, reject) => {
+    request.once("error", reject);
+    request.once("response", response => {
+      const chunks = [];
+      response.on("data", chunk => chunks.push(chunk));
+      response.on("end", () => resolve({ status: response.statusCode, body: Buffer.concat(chunks).toString("utf8") }));
+    });
+  });
+  request.write(firstChunk);
+  return { finish: finalChunk => request.end(finalChunk), response: responsePromise };
 }
 
 async function stopServer(child) {
@@ -304,6 +320,43 @@ test("authenticated backup and restore verifies integrity and preserves a pre-re
 
     const persistedAfterRestore = JSON.parse(await readFile(dataFile, "utf8"));
     assert.equal(persistedAfterRestore.manufacturingData.companies.find(row => row.id === "backup-company-1").name, "Post-restore update", "writes completed after restore must persist on the restored generation");
+  } finally {
+    await stopServer(child);
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("a write whose body finishes after restore is rejected by the captured generation", { timeout: 20000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-restore-race-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  const headers = { "content-type": "application/json", "x-aximach-key": apiKey };
+  let child;
+
+  try {
+    child = startServer(port, dataFile);
+    await waitForHealth(child, baseUrl);
+    const backupResponse = await fetch(baseUrl + "/api/backup", { headers });
+    assert.equal(backupResponse.status, 200);
+    const backup = await backupResponse.json();
+
+    const delayed = beginDelayedJsonRequest(baseUrl, "/api/ui-preferences", headers, '{"preferences":');
+    await new Promise(resolve => setTimeout(resolve, 75));
+
+    const restored = await fetch(baseUrl + "/api/restore", {
+      method: "POST", headers,
+      body: JSON.stringify({ backup, confirmation: "RESTORE_AXIMACH_BACKUP" })
+    });
+    assert.equal(restored.status, 200);
+    const restoreResult = await restored.json();
+    assert.equal(restoreResult.restoreGeneration, 1);
+
+    delayed.finish('{"theme":"stale-after-restore","updatedAt":"2026-11-20T02:30:00.000Z"}}');
+    const delayedResult = await delayed.response;
+    assert.equal(delayedResult.status, 409, "pre-restore writes that finish after the restore must not mutate the recovered database");
+    const preferences = await fetch(baseUrl + "/api/ui-preferences", { headers });
+    assert.equal((await preferences.json()).preferences, null);
   } finally {
     await stopServer(child);
     await rm(folder, { recursive: true, force: true });
