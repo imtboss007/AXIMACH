@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const serverEntry = fileURLToPath(new URL("./index.mjs", import.meta.url));
+const { hashPassword } = await import("./auth.mjs");
 const apiKey = "aximach-integration-test-key-0123456789abcdef";
 
 async function freePort() {
@@ -24,16 +25,10 @@ async function freePort() {
   return address.port;
 }
 
-function startServer(port, dataFile) {
+function startServer(port, dataFile, extraEnv = {}) {
   return spawn(process.execPath, [serverEntry], {
     cwd: process.cwd(),
-    env: {
-      ...process.env,
-      PORT: String(port),
-      AXIMACH_API_KEY: apiKey,
-      AXIMACH_DATA_FILE: dataFile,
-      AXIMACH_ALLOWED_ORIGINS: "http://localhost"
-    },
+    env: { ...process.env, PORT: String(port), AXIMACH_API_KEY: apiKey, AXIMACH_AUTH_USERS: "", AXIMACH_DATA_FILE: dataFile, AXIMACH_ALLOWED_ORIGINS: "http://localhost", ...extraEnv },
     stdio: "ignore"
   });
 }
@@ -357,6 +352,66 @@ test("a write whose body finishes after restore is rejected by the captured gene
     assert.equal(delayedResult.status, 409, "pre-restore writes that finish after the restore must not mutate the recovered database");
     const preferences = await fetch(baseUrl + "/api/ui-preferences", { headers });
     assert.equal((await preferences.json()).preferences, null);
+  } finally {
+    await stopServer(child);
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+
+test("server user authentication issues expiring bearer sessions and enforces role permissions", { timeout: 30000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-user-auth-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  const users = [
+    { id: "auth-admin", username: "admin", passwordHash: await hashPassword("AXIMACH-admin-Password-2026!"), role: "admin", active: true },
+    { id: "auth-operator", username: "operator", passwordHash: await hashPassword("AXIMACH-operator-Password-2026!"), role: "operator", active: true },
+    { id: "auth-viewer", username: "viewer", passwordHash: await hashPassword("AXIMACH-viewer-Password-2026!"), role: "viewer", active: true }
+  ];
+  let child;
+  try {
+    child = startServer(port, dataFile, { AXIMACH_AUTH_USERS: JSON.stringify(users), AXIMACH_SESSION_TTL_MS: String(30 * 60 * 1000) });
+    const health = await (await waitForHealth(child, baseUrl)).json();
+    assert.equal(health.authMode, "users");
+    const sharedKeyBypass = await fetch(baseUrl + "/api/manufacturing-data", { headers: { "x-aximach-key": apiKey } });
+    assert.equal(sharedKeyBypass.status, 401, "legacy shared key must not bypass user mode");
+    assert.equal((await fetch(baseUrl + "/api/auth/session")).status, 401);
+
+    const badLogin = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "operator", password: "incorrect-password" }) });
+    assert.equal(badLogin.status, 401);
+    const login = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "operator", password: "AXIMACH-operator-Password-2026!" }) });
+    assert.equal(login.status, 200);
+    const operatorSession = await login.json();
+    assert.match(operatorSession.token, /^[A-Za-z0-9_-]{40,60}$/);
+    assert.equal(operatorSession.user.role, "operator");
+    const operatorHeaders = { authorization: "Bearer " + operatorSession.token, "content-type": "application/json" };
+    const whoAmI = await fetch(baseUrl + "/api/auth/session", { headers: operatorHeaders });
+    assert.equal(whoAmI.status, 200);
+    assert.equal((await whoAmI.json()).user.username, "operator");
+    assert.equal((await fetch(baseUrl + "/api/manufacturing-data", { headers: operatorHeaders })).status, 200);
+    const operatorWrite = await fetch(baseUrl + "/api/manufacturing-data", { method: "PUT", headers: operatorHeaders, body: JSON.stringify({ data: { companies: [{ id: "auth-company", name: "Operator company", updatedAt: "2026-11-20T04:00:00.000Z" }] } }) });
+    assert.equal(operatorWrite.status, 200);
+    assert.equal((await fetch(baseUrl + "/api/backup", { headers: operatorHeaders })).status, 403);
+
+    const viewerLogin = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "viewer", password: "AXIMACH-viewer-Password-2026!" }) });
+    assert.equal(viewerLogin.status, 200);
+    const viewer = await viewerLogin.json();
+    const viewerHeaders = { authorization: "Bearer " + viewer.token, "content-type": "application/json" };
+    assert.equal((await fetch(baseUrl + "/api/records", { headers: viewerHeaders })).status, 200);
+    const blockedWrite = await fetch(baseUrl + "/api/records", { method: "PUT", headers: viewerHeaders, body: JSON.stringify({ records: { companies: [{ id: "viewer-write" }] } }) });
+    assert.equal(blockedWrite.status, 403);
+
+    const adminLogin = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: "AXIMACH-admin-Password-2026!" }) });
+    assert.equal(adminLogin.status, 200);
+    const admin = await adminLogin.json(), adminHeaders = { authorization: "Bearer " + admin.token };
+    assert.equal((await fetch(baseUrl + "/api/backup", { headers: adminHeaders })).status, 200);
+    const info = await (await fetch(baseUrl + "/api/connection-info")).json();
+    assert.equal(info.authMode, "users");
+    assert.equal(Object.hasOwn(info, "apiKey"), false);
+
+    assert.equal((await fetch(baseUrl + "/api/auth/logout", { method: "POST", headers: adminHeaders })).status, 200);
+    assert.equal((await fetch(baseUrl + "/api/manufacturing-data", { headers: adminHeaders })).status, 401);
   } finally {
     await stopServer(child);
     await rm(folder, { recursive: true, force: true });

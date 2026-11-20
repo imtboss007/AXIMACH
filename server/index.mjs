@@ -4,9 +4,11 @@ import { dirname, resolve } from "node:path";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { networkInterfaces } from "node:os";
 import { manufacturingCollections, mergeManufacturingData } from "./manufacturing-data.mjs";
+import { bearerToken, createAuthService, getRequiredPermission, hasPermission } from "./auth.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
+const authService = createAuthService(process.env.AXIMACH_AUTH_USERS, { sessionTtlMs: Number(process.env.AXIMACH_SESSION_TTL_MS || 12 * 60 * 60 * 1000) });
 const DB_PATH = resolve(process.env.AXIMACH_DATA_FILE || "./data/aximach.json");
 const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
 let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null, restoreGeneration: 0 };
@@ -59,7 +61,7 @@ function applyCors(req, res) {
   const origin = String(req.headers.origin || "");
   res.setHeader("vary", "Origin");
   if (origin && allowedOrigins.has(origin)) res.setHeader("access-control-allow-origin", origin);
-  res.setHeader("access-control-allow-headers", "content-type,x-aximach-key");
+  res.setHeader("access-control-allow-headers", "content-type,x-aximach-key,authorization");
   res.setHeader("access-control-allow-methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
 }
 function json(res, status, data) {
@@ -75,6 +77,10 @@ function authorized(req) {
   const provided = Buffer.from(String(req.headers["x-aximach-key"] || ""), "utf8");
   const expected = Buffer.from(API_KEY, "utf8");
   return provided.length === expected.length && timingSafeEqual(provided, expected);
+}
+function principalFromRequest(req) {
+  if (authService) { const token = bearerToken(req); const session = authService.authenticate(token); return session ? { ...session.user, sessionExpiresAt: session.expiresAt } : null; }
+  return authorized(req) ? { id: "legacy-api-key", username: "legacy-api-key", role: "admin", legacy: true } : null;
 }
 function isLoopbackAddress(value) {
   const address = String(value || "").replace(/^::ffff:/, "");
@@ -150,18 +156,43 @@ const server = createServer(async (req, res) => {
   applyCors(req, res);
   if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-max-age": "86400" }); return res.end(); }
   const url = new URL(req.url, "http://localhost");
-  if (url.pathname === "/health" && req.method === "GET") return json(res, 200, { ok: true, service: "AXIMACH shared-data and scheduler server", credentialsConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID), storage: "local-file" });
+  if (url.pathname === "/health" && req.method === "GET") return json(res, 200, { ok: true, service: "AXIMACH shared-data and scheduler server", credentialsConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID), storage: "local-file", authMode: authService ? "users" : "api-key" });
   if (url.pathname === "/api/connection-info" && req.method === "GET") {
     if (!isLoopbackAddress(req.socket.remoteAddress)) return json(res, 403, { error: "Connection information is available only to the AXIMACH PC itself." });
     return json(res, 200, {
       service: "AXIMACH local shared-data server",
       port: PORT,
-      apiKey: API_KEY,
-      addresses: privateLanAddresses().map(ip => "http://" + ip + ":" + PORT),
-      note: "Connect other AXIMACH devices to the same Wi-Fi and use one of these private LAN addresses with this API key."
+      ...(authService ? { authMode: "users" } : { apiKey: API_KEY, note: "Connect other AXIMACH devices to the same Wi-Fi and use one of these private LAN addresses with this API key." }),
+      addresses: privateLanAddresses().map(ip => "http://" + ip + ":" + PORT)
     });
   }
-  if (!authorized(req)) return json(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
+  if (url.pathname.startsWith("/api/auth/")) {
+    if (!authService) return json(res, 404, { error: "User authentication is not configured on this server." });
+    try {
+      if (url.pathname === "/api/auth/login" && req.method === "POST") {
+        const input = await body(req, 64_000);
+        const result = await authService.login(input.username, input.password, req.socket.remoteAddress);
+        if (!result.ok) return json(res, result.rateLimited ? 429 : 401, { error: result.rateLimited ? "Too many sign-in attempts. Try again in 15 minutes." : "Invalid username or password." });
+        return json(res, 200, result);
+      }
+      if (url.pathname === "/api/auth/session" && req.method === "GET") {
+        const principal = principalFromRequest(req);
+        if (!principal) return json(res, 401, { error: "A valid user session is required." });
+        return json(res, 200, { user: { id: principal.id, username: principal.username, role: principal.role }, expiresAt: principal.sessionExpiresAt });
+      }
+      if (url.pathname === "/api/auth/logout" && req.method === "POST") {
+        const token = bearerToken(req);
+        if (!principalFromRequest(req)) return json(res, 401, { error: "A valid user session is required." });
+        authService.logout(token);
+        return json(res, 200, { ok: true });
+      }
+      return json(res, 404, { error: "Authentication route not found." });
+    } catch (error) { return json(res, 400, { error: error.message || "Authentication request failed." }); }
+  }
+  const principal = principalFromRequest(req);
+  if (!principal) return json(res, 401, { error: "User session or valid AXIMACH API credentials are required." });
+  const requiredPermission = getRequiredPermission(url.pathname, req.method);
+  if (requiredPermission && !hasPermission(principal, requiredPermission)) return json(res, 403, { error: "Your account role does not permit this action." });
   if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry after it completes." });
   try {
     if (url.pathname === "/api/backup" && req.method === "GET") {

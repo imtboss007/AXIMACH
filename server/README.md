@@ -4,7 +4,9 @@ This optional Node.js service runs scheduled WhatsApp **individual** messages in
 
 ## Required environment variables
 
-- `AXIMACH_API_KEY`: strong random secret used by the UI/API caller.
+- `AXIMACH_API_KEY`: strong random secret used by the legacy shared-key connector. It is ignored when `AXIMACH_AUTH_USERS` is configured.
+- `AXIMACH_AUTH_USERS`: optional JSON array of account records containing `id`, `username`, `passwordHash`, `role` and optional `active`. Setting this variable enables bearer-session authentication and disables shared-key access to the scheduler API.
+- `AXIMACH_SESSION_TTL_MS`: optional bearer-session lifetime in milliseconds (5 minutes to 7 days; default 12 hours). Sessions are held in memory and are revoked when the server restarts.
 - `WHATSAPP_ACCESS_TOKEN`: Meta WhatsApp Cloud API access token.
 - `WHATSAPP_PHONE_NUMBER_ID`: phone-number ID from the Meta WhatsApp Business platform.
 - `AXIMACH_DATA_FILE`: persistent file path, e.g. `/data/aximach.json` on a host with a persistent disk.
@@ -15,9 +17,17 @@ This optional Node.js service runs scheduled WhatsApp **individual** messages in
 
 Run with Node.js 20.18+: `node server/index.mjs`.
 
+Create a password-hashed account in an interactive terminal (the password is masked and is not written to a file):
+
+```sh
+node server/create-auth-user.mjs --username=admin --role=admin
+```
+
+Use the emitted JSON as the value of `AXIMACH_AUTH_USERS` in the server secret manager. Add one object per account to the JSON array. Supported roles are `admin`, `manager`, `operator` and `viewer`. The API exposes `POST /api/auth/login` with username/password, `GET /api/auth/session` and `POST /api/auth/logout`; authenticated API calls use `Authorization: Bearer <token>`. Sessions expire and are stored only in server memory. When `AXIMACH_AUTH_USERS` is set, `x-aximach-key` is not accepted by the scheduler API and the loopback connection-info endpoint does not return the legacy API key.
+
 ## API
 
-All routes except `GET /health` require header `x-aximach-key: <AXIMACH_API_KEY>`.
+In legacy mode (no `AXIMACH_AUTH_USERS`), routes require `x-aximach-key: <AXIMACH_API_KEY>`. In user mode, routes require a valid bearer session. Role permissions are enforced server-side: admins can administer and restore; managers can read backups and manage operational data; operators can manage operational data but cannot export or restore full backups; viewers are read-only.
 
 - `GET /api/manufacturing-data` — read the linked company/factory/PO/component/vendor/operation/quotation collections and the current `restoreGeneration` value.
 
@@ -65,7 +75,7 @@ For the QR-paired bridge, build the separate container from the repository root 
 
 ## Frontend connection and security
 
-The Communication & Follow-up screen configures the shared AXIMACH data server. Enter the same deployed HTTPS URL and the same `AXIMACH_API_KEY` on every Windows and Android install; settings are stored separately on each device. Do not use `localhost` for cross-device sync because it resolves to the device itself. Linked manufacturing records and general module records refresh immediately after local edits and when the app regains focus/connection, with a four-second safety poll. CORS preflight must allow `PUT` and the exact client origins. The screen can also add contacts with explicit opt-in, create one-time/daily/weekly individual schedules, pause/resume schedules, refresh records and export contacts as CSV. Generic module records sync to `/api/records`; linked manufacturing master records sync separately to `/api/manufacturing-data`. The browser keeps a local cache for continuity. The API key and server URL are stored in this browser/device local storage, so protect the device and do not use this single shared key as a production multi-user permission system. This is a connector prototype, **not a multi-user security boundary**: anyone allowed to use the UI can potentially inspect/use that key. Do not expose this configuration to untrusted users or deploy it publicly without adding real user authentication, per-user authorization and a server-side session/proxy.
+The existing Communication & Follow-up client still uses the legacy shared-key connector. The new account/session API is a server-side capability and is not yet wired into the Windows/Android/web login UI or automatic sync clients. Do not enable `AXIMACH_AUTH_USERS` for an existing live client deployment until the client has been migrated to bearer sessions; otherwise its shared-key requests will be rejected. The role checks in this increment are endpoint-level permissions only. The current shared JSON store and several legacy module records do not consistently carry company/factory ownership references, so this increment does **not** provide company/factory tenant isolation. Do not treat non-admin user mode as production-ready multi-tenant isolation until ownership tagging, relationship-aware filtering, and client migration are completed and tested.
 
 The current scheduler does not sync a phone's WhatsApp address book, pair via QR/linked devices, send to WhatsApp groups, or stop repeated messages on a reply. Those require supported provider capabilities and additional webhook/state handling. Do not configure repeat messages without appropriate recipient consent and a clear stop/pause process.
 
