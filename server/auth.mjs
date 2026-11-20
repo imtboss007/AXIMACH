@@ -4,9 +4,9 @@ const LOGIN_WINDOW_MS=15*60*1000, MAX_LOGIN_FAILURES=8;
 const VALID_ROLES=new Set(["admin","manager","operator","viewer"]);
 const ROLE_PERMISSIONS=Object.freeze({
  admin:["*"],
- manager:["data:read","data:write","records:read","records:write","contacts:read","contacts:write","schedules:read","schedules:write","logs:read","preferences:read","preferences:write","backup:read"],
- operator:["data:read","data:write","records:read","records:write","contacts:read","schedules:read","schedules:write","logs:read","preferences:read"],
- viewer:["data:read","records:read","contacts:read","schedules:read","logs:read","preferences:read"]
+ manager:["data:read","data:write"],
+ operator:["data:read","data:write"],
+ viewer:["data:read"]
 });
 function derive(password,salt){return new Promise((resolve,reject)=>scrypt(password,salt,KEY_LENGTH,{N:SCRYPT_N,r:SCRYPT_R,p:SCRYPT_P,maxmem:64*1024*1024},(err,key)=>err?reject(err):resolve(key)));}
 export async function hashPassword(password){
@@ -26,7 +26,7 @@ async function verifyPassword(password,encoded){
  const parsed=parsePasswordHash(encoded);if(!parsed||typeof password!=="string"||password.length>256)return false;
  const actual=await derive(password,parsed.salt);return actual.length===parsed.key.length&&timingSafeEqual(actual,parsed.key);
 }
-function safeUser(user){return {id:user.id,username:user.username,role:user.role};}
+function safeUser(user){return {id:user.id,username:user.username,role:user.role,companyIds:user.companyIds||[],factoryIds:user.factoryIds||[]};}
 function parseUsers(usersJson){
  if(typeof usersJson!=="string"||!usersJson.trim())return [];
  let rows;try{rows=JSON.parse(usersJson);}catch{throw new Error("AXIMACH_AUTH_USERS must be valid JSON.");}
@@ -40,9 +40,11 @@ function parseUsers(usersJson){
   if(!VALID_ROLES.has(role))throw new Error(`Auth user ${id} has an invalid role.`);
   if(!parsePasswordHash(row.passwordHash))throw new Error(`Auth user ${id} must have a valid scrypt passwordHash; plaintext passwords are not accepted.`);
   if(row.active!==undefined&&typeof row.active!=="boolean")throw new Error(`Auth user ${id} has an invalid active flag.`);
+  const validateScopeIds=(value,label)=>{if(value===undefined)return [];if(!Array.isArray(value)||value.length>1000||value.some(item=>typeof item!=="string"||!/^[A-Za-z0-9_-]{1,128}$/.test(item)))throw new Error(`Auth user ${id} has invalid ${label}.`);return [...new Set(value)];};
+  const companyIds=validateScopeIds(row.companyIds,"companyIds"),factoryIds=validateScopeIds(row.factoryIds,"factoryIds");
   if(ids.has(id)||usernames.has(username))throw new Error("AXIMACH_AUTH_USERS contains duplicate IDs or usernames.");
   ids.add(id);usernames.add(username);
-  return {id,username,role,passwordHash:row.passwordHash,active:row.active!==false};
+  return {id,username,role,passwordHash:row.passwordHash,active:row.active!==false,companyIds,factoryIds};
  });
 }
 export function createAuthService(usersJson,options={}){

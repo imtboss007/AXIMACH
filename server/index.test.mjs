@@ -366,8 +366,8 @@ test("server user authentication issues expiring bearer sessions and enforces ro
   const baseUrl = "http://127.0.0.1:" + port;
   const users = [
     { id: "auth-admin", username: "admin", passwordHash: await hashPassword("AXIMACH-admin-Password-2026!"), role: "admin", active: true },
-    { id: "auth-operator", username: "operator", passwordHash: await hashPassword("AXIMACH-operator-Password-2026!"), role: "operator", active: true },
-    { id: "auth-viewer", username: "viewer", passwordHash: await hashPassword("AXIMACH-viewer-Password-2026!"), role: "viewer", active: true }
+    { id: "auth-operator", username: "operator", passwordHash: await hashPassword("AXIMACH-operator-Password-2026!"), role: "operator", companyIds: ["auth-company"], active: true },
+    { id: "auth-viewer", username: "viewer", passwordHash: await hashPassword("AXIMACH-viewer-Password-2026!"), role: "viewer", companyIds: ["auth-company"], active: true }
   ];
   let child;
   try {
@@ -390,7 +390,7 @@ test("server user authentication issues expiring bearer sessions and enforces ro
     assert.equal(whoAmI.status, 200);
     assert.equal((await whoAmI.json()).user.username, "operator");
     assert.equal((await fetch(baseUrl + "/api/manufacturing-data", { headers: operatorHeaders })).status, 200);
-    const operatorWrite = await fetch(baseUrl + "/api/manufacturing-data", { method: "PUT", headers: operatorHeaders, body: JSON.stringify({ data: { companies: [{ id: "auth-company", name: "Operator company", updatedAt: "2026-11-20T04:00:00.000Z" }] } }) });
+    const operatorWrite = await fetch(baseUrl + "/api/manufacturing-data", { method: "PUT", headers: operatorHeaders, body: JSON.stringify({ data: { components: [{ id: "auth-component", companyId: "auth-company", name: "Operator component", updatedAt: "2026-11-20T04:00:00.000Z" }] } }) });
     assert.equal(operatorWrite.status, 200);
     assert.equal((await fetch(baseUrl + "/api/backup", { headers: operatorHeaders })).status, 403);
 
@@ -427,5 +427,104 @@ test("server user authentication issues expiring bearer sessions and enforces ro
   } finally {
     await stopServer(child);
     await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("tenant-scoped user reads and writes only its assigned company and related manufacturing records", { timeout: 30000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-tenant-scope-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  const users = [
+    { id: "tenant-admin", username: "admin", passwordHash: await hashPassword("AXIMACH-tenant-admin-Password!"), role: "admin" },
+    { id: "tenant-a-user", username: "companya", passwordHash: await hashPassword("AXIMACH-companya-Password!"), role: "operator", companyIds: ["company-a"] },
+    { id: "tenant-a-viewer", username: "viewera", passwordHash: await hashPassword("AXIMACH-viewera-Password!"), role: "viewer", companyIds: ["company-a"] },
+    { id: "tenant-unassigned", username: "unassigned", passwordHash: await hashPassword("AXIMACH-unassigned-Password!"), role: "operator" }
+  ];
+  let child;
+  try {
+    child = startServer(port, dataFile, { AXIMACH_AUTH_USERS: JSON.stringify(users) });
+    await waitForHealth(child, baseUrl);
+    const login = async (username, password) => {
+      const response = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username, password }) });
+      assert.equal(response.status, 200);
+      const session = await response.json();
+      return { authorization: "Bearer " + session.token, "content-type": "application/json" };
+    };
+    const adminHeaders = await login("admin","AXIMACH-tenant-admin-Password!");
+    const seed = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers: adminHeaders,
+      body: JSON.stringify({ data: {
+        companies: [
+          { id:"company-a", name:"Company A", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"company-b", name:"Company B", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        factories: [
+          { id:"factory-a", companyId:"company-a", name:"Factory A", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"factory-b", companyId:"company-b", name:"Factory B", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        components: [
+          { id:"component-a", companyId:"company-a", name:"Component A", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"component-b", companyId:"company-b", name:"Component B", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        purchaseOrders: [
+          { id:"po-a", companyId:"company-a", factoryId:"factory-a", lines:[{id:"line-a",componentId:"component-a",quantity:10}], updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"po-b", companyId:"company-b", factoryId:"factory-b", lines:[{id:"line-b",componentId:"component-b",quantity:20}], updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        operations: [
+          { id:"operation-a", poId:"po-a", poLineId:"line-a", componentId:"component-a", vendorId:"vendor-a", processDefinitionId:"process-a", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"operation-b", poId:"po-b", poLineId:"line-b", componentId:"component-b", vendorId:"vendor-b", processDefinitionId:"process-b", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        vendors: [
+          { id:"vendor-a", company:"A subcontractor", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"vendor-b", company:"B subcontractor", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        processDefinitions: [
+          { id:"process-a", processType:"Machining", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"process-b", processType:"Grinding", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ]
+      } })
+    });
+    assert.equal(seed.status,200);
+
+    const companyHeaders = await login("companya","AXIMACH-companya-Password!");
+    const response = await fetch(baseUrl + "/api/manufacturing-data", { headers: companyHeaders });
+    assert.equal(response.status,200);
+    const scoped = (await response.json()).data;
+    assert.deepEqual(scoped.companies.map(row=>row.id),["company-a"]);
+    assert.deepEqual(scoped.factories.map(row=>row.id),["factory-a"]);
+    assert.deepEqual(scoped.purchaseOrders.map(row=>row.id),["po-a"]);
+    assert.deepEqual(scoped.components.map(row=>row.id),["component-a"]);
+    assert.deepEqual(scoped.operations.map(row=>row.id),["operation-a"]);
+    assert.deepEqual(scoped.vendors.map(row=>row.id),["vendor-a"]);
+    assert.deepEqual(scoped.processDefinitions.map(row=>row.id),["process-a"]);
+
+    const foreignWrite = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:companyHeaders,
+      body:JSON.stringify({data:{purchaseOrders:[{id:"po-b",companyId:"company-b",factoryId:"factory-b",lines:[{id:"line-b",componentId:"component-b",quantity:999}]}]}})
+    });
+    assert.equal(foreignWrite.status,403,"cross-company PO update must be blocked");
+
+    const validWrite = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:companyHeaders,
+      body:JSON.stringify({data:{components:[{id:"component-a",companyId:"company-a",name:"Component A updated",updatedAt:"2026-11-20T06:00:00.000Z"}]}})
+    });
+    assert.equal(validWrite.status,200,"assigned-company component edits remain available");
+
+    const viewerHeaders = await login("viewera","AXIMACH-viewera-Password!");
+    const viewerWrite = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:viewerHeaders,
+      body:JSON.stringify({data:{components:[{id:"component-a",companyId:"company-a",name:"Viewer overwrite"}]}})
+    });
+    assert.equal(viewerWrite.status,403,"read-only role cannot write scoped company records");
+
+    const unassignedHeaders = await login("unassigned","AXIMACH-unassigned-Password!");
+    const unassignedRead = await fetch(baseUrl + "/api/manufacturing-data", {headers:unassignedHeaders});
+    assert.equal(unassignedRead.status,403,"unassigned users cannot access manufacturing records");
+    const genericRecords = await fetch(baseUrl + "/api/records", {headers:companyHeaders});
+    assert.equal(genericRecords.status,403,"generic legacy module records remain admin-only until ownership is modeled");
+  } finally {
+    await stopServer(child);
+    await rm(folder,{recursive:true,force:true});
   }
 });

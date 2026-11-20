@@ -5,6 +5,7 @@ import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { networkInterfaces } from "node:os";
 import { manufacturingCollections, mergeManufacturingData } from "./manufacturing-data.mjs";
 import { bearerToken, createAuthService, getRequiredPermission, hasPermission } from "./auth.mjs";
+import { filterManufacturingData, filterModuleRecords, hasTenantScope, validateManufacturingWrite } from "./tenant-scope.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
@@ -193,6 +194,7 @@ const server = createServer(async (req, res) => {
   if (!principal) return json(res, 401, { error: "User session or valid AXIMACH API credentials are required." });
   const requiredPermission = getRequiredPermission(url.pathname, req.method);
   if (requiredPermission && !hasPermission(principal, requiredPermission)) return json(res, 403, { error: "Your account role does not permit this action." });
+  if (!principal.legacy && principal.role !== "admin" && ["data:read","data:write"].includes(requiredPermission) && !hasTenantScope(principal)) return json(res, 403, { error: "Assign at least one company or factory to this account before accessing manufacturing data." });
   if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry after it completes." });
   try {
     if (url.pathname === "/api/backup" && req.method === "GET") {
@@ -261,7 +263,8 @@ const server = createServer(async (req, res) => {
       }
     }
     if (url.pathname === "/api/manufacturing-data" && req.method === "GET") {
-      return json(res, 200, { data: db.manufacturingData || null, updatedAt: db.manufacturingData?.updatedAt || null, restoreGeneration: Number(db.restoreGeneration || 0) });
+      const data = principal.legacy || principal.role === "admin" ? (db.manufacturingData || null) : filterManufacturingData(db.manufacturingData || {}, principal);
+      return json(res, 200, { data, updatedAt: db.manufacturingData?.updatedAt || null, restoreGeneration: Number(db.restoreGeneration || 0) });
     }
     if (url.pathname === "/api/manufacturing-data" && req.method === "PUT") {
       const requestGeneration = Number(db.restoreGeneration || 0);
@@ -273,14 +276,17 @@ const server = createServer(async (req, res) => {
         return json(res, 409, { error: "The server was restored since this device last synced. Refresh shared data before writing.", restoreGeneration: currentGeneration });
       }
       if (!input.data || typeof input.data !== "object" || Array.isArray(input.data)) return json(res, 400, { error: "data must be an AXIMACH manufacturing data object." });
+      const scopeValidation = validateManufacturingWrite(db.manufacturingData || {}, input.data, principal);
+      if (!scopeValidation.ok) return json(res, 403, { error: scopeValidation.error });
       for (const collection of manufacturingCollections) if (input.data[collection] !== undefined && !Array.isArray(input.data[collection])) return json(res, 400, { error: collection + " must be an array." });
       const encoded = JSON.stringify(input.data);
       if (encoded.length > 8_000_000) return json(res, 413, { error: "Manufacturing data exceeds the 8 MB limit." });
       db.manufacturingData = mergeManufacturingData(db.manufacturingData, input.data);
       await saveDb();
-      return json(res, 200, { ok: true, data: db.manufacturingData, updatedAt: db.manufacturingData.updatedAt, restoreGeneration: Number(db.restoreGeneration || 0) });
+      const visibleData = principal.legacy || principal.role === "admin" ? db.manufacturingData : filterManufacturingData(db.manufacturingData, principal);
+      return json(res, 200, { ok: true, data: visibleData, updatedAt: db.manufacturingData.updatedAt, restoreGeneration: Number(db.restoreGeneration || 0) });
     }
-    if (url.pathname === "/api/records" && req.method === "GET") return json(res, 200, { records: db.records || {}, updatedAt: db.recordsUpdatedAt || null, restoreGeneration: Number(db.restoreGeneration || 0) });
+    if (url.pathname === "/api/records" && req.method === "GET") return json(res, 200, { records: filterModuleRecords(db.records || {}, principal), updatedAt: db.recordsUpdatedAt || null, restoreGeneration: Number(db.restoreGeneration || 0) });
     if (url.pathname === "/api/records" && req.method === "PUT") {
       const requestGeneration = Number(db.restoreGeneration || 0);
       const input = await body(req);
