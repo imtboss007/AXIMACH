@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ProcessIcon } from "./IconStudio";
+import { clearServerSession, getServerAuthHeaders, getServerAuthMode, hasServerCredentials, readServerSession, saveServerSession, setServerAuthMode, type ServerSession } from "./serverAuth";
 import FollowUpAssignmentsLauncher from "./FollowUpAssignments";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import SearchablePicker from "./SearchablePicker";
@@ -703,11 +704,15 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
   type ApiContact = { id: string; name: string; phone: string; company: string; optedIn: boolean; createdAt: string };
   type ApiSchedule = { id: string; to: string; message: string; nextRunAt: string | null; repeat: "once" | "daily" | "weekly"; enabled: boolean; lastRunAt: string | null; lastError: string; vendorId?: string; operationId?: string; process?: string; company?: string };
   type ApiLog = { id: string; scheduleId: string; at: string; status: string; detail: string; providerMessageId?: string };
-  const [storageMode,setStorageMode]=useState<"local-only"|"shared-server">(()=>window.localStorage.getItem("aximach.storage.mode")==="local-only"?"local-only":(window.localStorage.getItem("aximach.scheduler.url")&&window.localStorage.getItem("aximach.scheduler.key")?"shared-server":"local-only"));
+  const [storageMode,setStorageMode]=useState<"local-only"|"shared-server">(()=>window.localStorage.getItem("aximach.storage.mode")==="local-only"?"local-only":(window.localStorage.getItem("aximach.scheduler.url")&&hasServerCredentials(window.localStorage.getItem("aximach.scheduler.key")||"",window.localStorage.getItem("aximach.scheduler.url")||"")?"shared-server":"local-only"));
   const [apiUrl,setApiUrl]=useState(()=>window.localStorage.getItem("aximach.storage.mode")==="local-only"?"":window.localStorage.getItem("aximach.scheduler.url")||((window.location.protocol==="file:"||window.location.protocol==="aximach:")?"http://127.0.0.1:8787":""));
   const [apiKey,setApiKey]=useState(()=>window.localStorage.getItem("aximach.scheduler.key")||"");
+  const [authMode,setAuthMode]=useState<"api-key"|"users"|null>(()=>getServerAuthMode());
+  const [serverSession,setServerSessionState]=useState<ServerSession|null>(()=>readServerSession(window.localStorage.getItem("aximach.scheduler.url")||undefined));
+  const [username,setUsername]=useState("");
+  const [password,setPassword]=useState("");
   const [connected,setConnected]=useState(false);
-  const [lanInfo,setLanInfo]=useState<{addresses:string[];apiKey:string;port:number}|null>(null);
+  const [lanInfo,setLanInfo]=useState<{addresses:string[];apiKey?:string;port:number;authMode?:"users"|"api-key"}|null>(null);
   useEffect(()=>{
     if(window.location.protocol!=="file:"&&window.location.protocol!=="aximach:")return;
     if(window.localStorage.getItem("aximach.storage.mode")==="local-only")return;
@@ -719,7 +724,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
         const response=await fetch("http://127.0.0.1:8787/api/connection-info",{cache:"no-store"});
         if(!response.ok)throw new Error("Local server unavailable");
         const info=await response.json();
-        if(!cancelled&&window.localStorage.getItem("aximach.storage.mode")!=="local-only"){setLanInfo(info);setApiKey(info.apiKey||"");setApiUrl("http://127.0.0.1:8787");setStorageMode("shared-server");}
+        if(!cancelled&&window.localStorage.getItem("aximach.storage.mode")!=="local-only"){setLanInfo(info);if(info.apiKey)setApiKey(info.apiKey);const mode=info.authMode==="users"?"users":"api-key";setAuthMode(mode);setServerAuthMode(mode);setApiUrl("http://127.0.0.1:8787");setStorageMode("shared-server");}
       }catch{
         attempts++;
         if(!cancelled&&attempts<12)timer=window.setTimeout(loadLanInfo,1000);
@@ -856,7 +861,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
 
   const base=apiUrl.trim().replace(/\/+$/,"");
   const visibleContacts=contacts.filter(c=>(c.name+" "+c.company+" "+c.phone).toLowerCase().includes(contactSearch.toLowerCase().trim()));
-  const request=async(path:string,init:RequestInit={})=>{const response=await fetch(base+path,{...init,headers:{"content-type":"application/json","x-aximach-key":apiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"The service returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
+  const request=async(path:string,init:RequestInit={},tokenOverride?:string,forceUserMode=authMode==="users")=>{const response=await fetch(base+path,{...init,headers:{"content-type":"application/json",...getServerAuthHeaders(forceUserMode?"":apiKey,base,tokenOverride,forceUserMode),...(init.headers||{})}});const data=await response.json().catch(()=>({error:"The service returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
   const connect=async()=>{const hadSavedSharedConnection=Boolean(window.localStorage.getItem("aximach.scheduler.url")&&window.localStorage.getItem("aximach.scheduler.key")&&window.localStorage.getItem("aximach.storage.mode")!=="local-only");setBusy(true);setApiError("");try{if(!isAllowedAxMachServiceUrl(base))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("AXIMACH shared-data server health check failed.");const [manufacturing,c,s,records]=await Promise.all([request("/api/manufacturing-data"),request("/api/contacts"),request("/api/schedules"),request("/api/records")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);window.localStorage.setItem("aximach.storage.mode","shared-server");setStorageMode("shared-server");if(base.startsWith("http://")){const bridge=new URL(base);bridge.port="8789";const bridgeUrl=bridge.toString().replace(/\/$/,"");setWaUrl(bridgeUrl);window.localStorage.setItem("aximach.whatsapp.url",bridgeUrl);}const manufacturingGeneration=Number.isSafeInteger(manufacturing.restoreGeneration)?manufacturing.restoreGeneration:0;const savedManufacturingGeneration=window.localStorage.getItem("aximach.manufacturing.restore-generation");const replaceManufacturing=savedManufacturingGeneration!==null?Number(savedManufacturingGeneration)!==manufacturingGeneration:(hadSavedSharedConnection&&manufacturingGeneration>0);window.localStorage.setItem("aximach.manufacturing.restore-generation",String(manufacturingGeneration));if(manufacturing.data&&typeof manufacturing.data==="object"){updateManufacturingData(replaceManufacturing?()=>manufacturing.data:currentData=>mergeManufacturingData(currentData,manufacturing.data));}else if(replaceManufacturing){updateManufacturingData(()=>emptyManufacturingData());}else{updateManufacturingData(currentData=>({...currentData}));}const recordsGeneration=Number.isSafeInteger(records.restoreGeneration)?records.restoreGeneration:0;const savedRecordsGeneration=window.localStorage.getItem("aximach.module-records.restore-generation");const replaceModuleRecords=savedRecordsGeneration!==null?Number(savedRecordsGeneration)!==recordsGeneration:(hadSavedSharedConnection&&recordsGeneration>0);if(replaceModuleRecords)setAllModuleRecords((records.records||{}) as Record<string,ModuleRecord[]>);window.localStorage.setItem("aximach.module-records.restore-generation",String(recordsGeneration));const synced=readManufacturingData();setConnected(true);setApiError("");onNotice("AXIMACH PC shared data connected and manufacturing records fetched: "+activeRows(synced.companies).length+" companies, "+activeRows(synced.purchaseOrders).length+" POs, "+activeRows(synced.components).length+" components and "+activeRows(synced.operations).length+" process operations. Shared sync is now active on this device.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
   useEffect(()=>{
     if(!apiKey.trim()||!isAllowedAxMachServiceUrl(apiUrl))return;
