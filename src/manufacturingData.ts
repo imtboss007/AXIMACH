@@ -419,8 +419,8 @@ export function useManufacturingData() {
           // the next pass rather than being hidden by an older response.
           if (JSON.stringify(localAfterFetch) !== JSON.stringify(localBeforeFetch)) syncPending = true;
 
-          const merged = mergeManufacturingData(localAfterFetch, remote);
-          if (JSON.stringify(merged) !== JSON.stringify(remote)) {
+          const merged = mergeManufacturingData(localAfterFetch, remote.data);
+          if (JSON.stringify(merged) !== JSON.stringify(remote.data)) {
             if (!cancelled) setSyncStatus("syncing");
             const saved = await putRemote(merged, cfg, remote.restoreGeneration);
             if (!serverConfig()) { if (!cancelled) setSyncStatus("local"); return; }

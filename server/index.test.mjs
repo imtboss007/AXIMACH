@@ -292,6 +292,10 @@ test("authenticated backup and restore verifies integrity and preserves a pre-re
     assert.equal(currentGenerationWrite.status, 200, "current-generation clients must continue syncing");
     const moduleState = await fetch(baseUrl + "/api/records", { headers });
     assert.equal((await moduleState.json()).restoreGeneration, 1);
+    const currentGenerationRecordsWrite = await fetch(baseUrl + "/api/records", {
+      method: "PUT", headers, body: JSON.stringify({ restoreGeneration: 1, records: { companies: [{ id: "restored-record", title: "Current-generation record", updatedAt: "2026-11-20T03:10:00.000Z" }] } })
+    });
+    assert.equal(currentGenerationRecordsWrite.status, 200, "current-generation module-record clients must continue syncing");
 
     const files = await (await import("node:fs/promises")).readdir(folder);
     assert.ok(files.includes(restoreResult.preRestoreBackup), "restore must preserve the pre-restore database snapshot");

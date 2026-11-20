@@ -128,11 +128,11 @@ export function AIInsightsWorkspace({onBack,onSelectModule}:Props){
 
 
 function sharedBackupConfig() {
- const base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim().replace(/\\/+$/,"");
+ const base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim().replace(/\/+$/,"");
  const key=window.localStorage.getItem("aximach.scheduler.key")||"";
  if(window.localStorage.getItem("aximach.storage.mode")==="local-only"||!base||!key)throw new Error("Connect the shared AXIMACH data server in Follow-up Centre before using server backup and restore.");
  let parsed:URL;try{parsed=new URL(base);}catch{throw new Error("The saved AXIMACH server URL is invalid.");}
- const host=parsed.hostname.replace(/^\\[|\\]$/g,""),octets=host.split(".").map(Number);
+ const host=parsed.hostname.replace(/^\[|\]$/g,""),octets=host.split(".").map(Number);
  const privateIpv4=octets.length===4&&octets.every(n=>Number.isInteger(n)&&n>=0&&n<=255)&&(octets[0]===10||(octets[0]===192&&octets[1]===168)||(octets[0]===172&&octets[1]>=16&&octets[1]<=31));
  if(parsed.protocol!=="https:"&&!(parsed.protocol==="http:"&&(host==="localhost"||host==="127.0.0.1"||privateIpv4)))throw new Error("Use HTTPS, localhost or a private LAN address for the shared AXIMACH server.");
  return {base,key};
@@ -170,7 +170,7 @@ function ServerBackupPanel({onNotice}:{onNotice:(value:string)=>void}) {
   const file=event.target.files?.[0];if(!file)return;
   setError("");setSelected(null);
   try{
-   const raw=(await file.text()).replace(/^\\uFEFF/,"");
+   const raw=(await file.text()).replace(/^\uFEFF/,"");
    const backup=validateServerBackup(JSON.parse(raw));
    setSelected({name:file.name,backup});
   }catch(e){setError(e instanceof Error?e.message:"Could not read backup file.");}
