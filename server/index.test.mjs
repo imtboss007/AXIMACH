@@ -211,3 +211,77 @@ test("HTTP server persists and merges follow-up assignments across device update
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test("authenticated backup and restore verifies integrity and preserves a pre-restore snapshot", { timeout: 20000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-backup-restore-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  const headers = { "content-type": "application/json", "x-aximach-key": apiKey };
+  let child;
+
+  try {
+    child = startServer(port, dataFile);
+    await waitForHealth(child, baseUrl);
+
+    const unauthorizedBackup = await fetch(baseUrl + "/api/backup");
+    assert.equal(unauthorizedBackup.status, 401, "backup export must require the API key");
+
+    const seed = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({ data: {
+        companies: [{ id: "backup-company-1", name: "Original Company", updatedAt: "2026-11-20T01:00:00.000Z" }]
+      } })
+    });
+    assert.equal(seed.status, 200);
+
+    const backupResponse = await fetch(baseUrl + "/api/backup", { headers });
+    assert.equal(backupResponse.status, 200);
+    const backup = await backupResponse.json();
+    assert.equal(backup.format, "aximach-backup");
+    assert.equal(backup.version, 1);
+    assert.equal(
+      backup.sha256,
+      (await import("node:crypto")).createHash("sha256").update(JSON.stringify(backup.data)).digest("hex")
+    );
+
+    const missingConfirmation = await fetch(baseUrl + "/api/restore", {
+      method: "POST", headers, body: JSON.stringify({ backup })
+    });
+    assert.equal(missingConfirmation.status, 400);
+
+    const tamperedBackup = { ...backup, data: { ...backup.data, contacts: [{ id: "tampered" }] } };
+    const rejectedTamper = await fetch(baseUrl + "/api/restore", {
+      method: "POST", headers,
+      body: JSON.stringify({ backup: tamperedBackup, confirmation: "RESTORE_AXIMACH_BACKUP" })
+    });
+    assert.equal(rejectedTamper.status, 400);
+    assert.match((await rejectedTamper.json()).error, /integrity check failed/i);
+
+    const changed = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({ data: {
+        companies: [{ id: "backup-company-1", name: "Changed Company", updatedAt: "2026-11-20T02:00:00.000Z" }]
+      } })
+    });
+    assert.equal(changed.status, 200);
+
+    const restored = await fetch(baseUrl + "/api/restore", {
+      method: "POST", headers,
+      body: JSON.stringify({ backup, confirmation: "RESTORE_AXIMACH_BACKUP" })
+    });
+    assert.equal(restored.status, 200);
+    const restoreResult = await restored.json();
+    assert.ok(restoreResult.preRestoreBackup.startsWith("aximach.json.pre-restore-"));
+
+    const current = await fetch(baseUrl + "/api/manufacturing-data", { headers });
+    const currentData = (await current.json()).data;
+    assert.equal(currentData.companies.find(row => row.id === "backup-company-1").name, "Original Company");
+
+    const files = await (await import("node:fs/promises")).readdir(folder);
+    assert.ok(files.includes(restoreResult.preRestoreBackup), "restore must preserve the pre-restore database snapshot");
+    const preRestore = JSON.parse(await readFile(join(folder, restoreResult.preRestoreBackup), "utf8"));
+    assert.equal(preRestore.manufacturingData.companies.find(row => row.id === "backup-company-1").name, "Changed Company");
+  } finally {
+    await stopServer(child);
+    await rm(folder, { recursive: true, force: true });
+  }
+});

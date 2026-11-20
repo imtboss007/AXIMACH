@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { readFile, writeFile, mkdir, rename, unlink } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { networkInterfaces } from "node:os";
 import { manufacturingCollections, mergeManufacturingData } from "./manufacturing-data.mjs";
 
@@ -12,28 +12,43 @@ const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
 let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null };
 let busy = false;
 let saveQueue = Promise.resolve();
+let restoreInProgress = false;
 
 async function loadDb() {
   try { db = { ...db, ...JSON.parse(await readFile(DB_PATH, "utf8")) }; }
   catch (error) { if (error.code !== "ENOENT") console.error("Could not load data store:", error.message); }
 }
+async function writeSnapshot(filePath, snapshot) {
+  await mkdir(dirname(filePath), { recursive: true });
+  const temp = filePath + "." + randomUUID() + ".tmp";
+  try {
+    await writeFile(temp, JSON.stringify(snapshot, null, 2), { mode: 0o600, flag: "wx" });
+    await rename(temp, filePath);
+  } catch (error) {
+    try { await unlink(temp); } catch { /* temp may not have been created */ }
+    throw error;
+  }
+}
 function saveDb() {
-  const persist = async () => {
-    await mkdir(dirname(DB_PATH), { recursive: true });
-    const temp = DB_PATH + "." + randomUUID() + ".tmp";
-    try {
-      await writeFile(temp, JSON.stringify(db, null, 2), { mode: 0o600 });
-      await rename(temp, DB_PATH);
-    } catch (error) {
-      try { await unlink(temp); } catch { /* temp may not have been created */ }
-      throw error;
-    }
-  };
+  const persist = () => writeSnapshot(DB_PATH, db);
   // Serialize writes so overlapping API requests cannot race on one temp file
   // or let an older snapshot replace a newer complete data store.
   const next = saveQueue.then(persist, persist);
   saveQueue = next.catch(() => {});
   return next;
+}
+function validBackupData(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  if (!Array.isArray(data.contacts) || !Array.isArray(data.schedules) || !Array.isArray(data.logs)) return false;
+  if (!data.records || typeof data.records !== "object" || Array.isArray(data.records)) return false;
+  if (data.uiPreferences != null && (typeof data.uiPreferences !== "object" || Array.isArray(data.uiPreferences))) return false;
+  if (data.manufacturingData != null) {
+    if (typeof data.manufacturingData !== "object" || Array.isArray(data.manufacturingData)) return false;
+    for (const collection of manufacturingCollections) {
+      if (data.manufacturingData[collection] !== undefined && !Array.isArray(data.manufacturingData[collection])) return false;
+    }
+  }
+  return Object.values(data.records).every(value => Array.isArray(value));
 }
 const allowedOrigins = new Set([
   "http://localhost:5173", "http://localhost", "https://localhost", "capacitor://localhost",
@@ -51,8 +66,8 @@ function json(res, status, data) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(JSON.stringify(data));
 }
-async function body(req) {
-  let raw = ""; for await (const chunk of req) { raw += chunk; if (raw.length > 8_500_000) throw new Error("Request too large"); }
+async function body(req, maxBytes = 8_500_000) {
+  let raw = ""; for await (const chunk of req) { raw += chunk; if (raw.length > maxBytes) throw new Error("Request too large"); }
   return raw ? JSON.parse(raw) : {};
 }
 function authorized(req) {
@@ -147,7 +162,66 @@ const server = createServer(async (req, res) => {
     });
   }
   if (!authorized(req)) return json(res, 401, { error: "Set AXIMACH_API_KEY on the server and send it in x-aximach-key." });
+  if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry after it completes." });
   try {
+    if (url.pathname === "/api/backup" && req.method === "GET") {
+      const snapshot = JSON.parse(JSON.stringify(db));
+      const serialized = JSON.stringify(snapshot);
+      return json(res, 200, {
+        format: "aximach-backup",
+        version: 1,
+        createdAt: new Date().toISOString(),
+        sha256: createHash("sha256").update(serialized).digest("hex"),
+        data: snapshot
+      });
+    }
+    if (url.pathname === "/api/restore" && req.method === "POST") {
+      const input = await body(req, 20_000_000);
+      const backup = input.backup;
+      if (input.confirmation !== "RESTORE_AXIMACH_BACKUP") {
+        return json(res, 400, { error: "Explicit restore confirmation is required." });
+      }
+      if (!backup || backup.format !== "aximach-backup" || backup.version !== 1 || !validBackupData(backup.data)) {
+        return json(res, 400, { error: "Unsupported or invalid AXIMACH backup format." });
+      }
+      const serialized = JSON.stringify(backup.data);
+      const digest = createHash("sha256").update(serialized).digest("hex");
+      const suppliedDigest = String(backup.sha256 || "");
+      const digestBytes = Buffer.from(digest, "hex");
+      const suppliedBytes = Buffer.from(suppliedDigest, "hex");
+      if (suppliedBytes.length !== digestBytes.length || !timingSafeEqual(digestBytes, suppliedBytes)) {
+        return json(res, 400, { error: "Backup integrity check failed; the current data was not changed." });
+      }
+      restoreInProgress = true;
+      const previous = db;
+      try {
+        await saveQueue;
+        const preRestorePath = DB_PATH + ".pre-restore-" + Date.now() + "-" + randomUUID() + ".json";
+        await writeSnapshot(preRestorePath, previous);
+        db = {
+          contacts: backup.data.contacts,
+          schedules: backup.data.schedules,
+          logs: backup.data.logs,
+          records: backup.data.records,
+          recordsUpdatedAt: backup.data.recordsUpdatedAt || null,
+          manufacturingData: backup.data.manufacturingData || null,
+          uiPreferences: backup.data.uiPreferences || null
+        };
+        try {
+          await saveDb();
+        } catch (error) {
+          db = previous;
+          throw error;
+        }
+        return json(res, 200, {
+          ok: true,
+          restoredAt: new Date().toISOString(),
+          preRestoreBackup: preRestorePath.split(/[\\/]/).at(-1)
+        });
+      } finally {
+        restoreInProgress = false;
+      }
+    }
     if (url.pathname === "/api/manufacturing-data" && req.method === "GET") {
       return json(res, 200, { data: db.manufacturingData || null, updatedAt: db.manufacturingData?.updatedAt || null });
     }
