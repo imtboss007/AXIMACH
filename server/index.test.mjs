@@ -301,6 +301,9 @@ test("authenticated backup and restore verifies integrity and preserves a pre-re
     assert.ok(files.includes(restoreResult.preRestoreBackup), "restore must preserve the pre-restore database snapshot");
     const preRestore = JSON.parse(await readFile(join(folder, restoreResult.preRestoreBackup), "utf8"));
     assert.equal(preRestore.manufacturingData.companies.find(row => row.id === "backup-company-1").name, "Changed Company");
+
+    const persistedAfterRestore = JSON.parse(await readFile(dataFile, "utf8"));
+    assert.equal(persistedAfterRestore.manufacturingData.companies.find(row => row.id === "backup-company-1").name, "Post-restore update", "writes completed after restore must persist on the restored generation");
   } finally {
     await stopServer(child);
     await rm(folder, { recursive: true, force: true });

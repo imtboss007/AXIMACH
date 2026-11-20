@@ -177,6 +177,7 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === "/api/restore" && req.method === "POST") {
       const input = await body(req, 20_000_000);
+      if (restoreInProgress) return json(res, 503, { error: "Another restore is already in progress; retry after it completes." });
       const backup = input.backup;
       if (input.confirmation !== "RESTORE_AXIMACH_BACKUP") {
         return json(res, 400, { error: "Explicit restore confirmation is required." });
@@ -193,6 +194,7 @@ const server = createServer(async (req, res) => {
         return json(res, 400, { error: "Backup integrity check failed; the current data was not changed." });
       }
       if (busy) return json(res, 503, { error: "The scheduler is processing a task; retry restore after that task completes." });
+      if (restoreInProgress) return json(res, 503, { error: "Another restore is already in progress; retry after it completes." });
       restoreInProgress = true;
       const previous = db;
       try {
@@ -230,6 +232,7 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === "/api/manufacturing-data" && req.method === "PUT") {
       const input = await body(req);
+      if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry this write after it completes." });
       const currentGeneration = Number(db.restoreGeneration || 0);
       if ((currentGeneration > 0 || input.restoreGeneration !== undefined) && (!Number.isSafeInteger(input.restoreGeneration) || input.restoreGeneration !== currentGeneration)) {
         return json(res, 409, { error: "The server was restored since this device last synced. Refresh shared data before writing.", restoreGeneration: currentGeneration });
@@ -245,6 +248,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/records" && req.method === "GET") return json(res, 200, { records: db.records || {}, updatedAt: db.recordsUpdatedAt || null, restoreGeneration: Number(db.restoreGeneration || 0) });
     if (url.pathname === "/api/records" && req.method === "PUT") {
       const input = await body(req);
+      if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry this write after it completes." });
       const currentGeneration = Number(db.restoreGeneration || 0);
       if ((currentGeneration > 0 || input.restoreGeneration !== undefined) && (!Number.isSafeInteger(input.restoreGeneration) || input.restoreGeneration !== currentGeneration)) {
         return json(res, 409, { error: "The server was restored since this device last synced. Refresh module records before writing.", restoreGeneration: currentGeneration });
@@ -263,6 +267,7 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === "/api/ui-preferences" && req.method === "PUT") {
       const input = await body(req);
+      if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry this write after it completes." });
       if (!input.preferences || typeof input.preferences !== "object" || Array.isArray(input.preferences)) {
         return json(res, 400, { error: "preferences must be a UI preference object." });
       }
@@ -278,13 +283,16 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === "/api/contacts" && req.method === "GET") return json(res, 200, { contacts: db.contacts });
     if (url.pathname === "/api/contacts" && req.method === "POST") {
-      const input = await body(req); if (!String(input.name || "").trim() || !normalisePhone(input.phone)) return json(res, 400, { error: "Contact name and international phone number are required." });
+      const input = await body(req);
+      if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry this write after it completes." });
+      if (!String(input.name || "").trim() || !normalisePhone(input.phone)) return json(res, 400, { error: "Contact name and international phone number are required." });
       const contact = { id: randomUUID(), name: String(input.name).trim(), phone: normalisePhone(input.phone), company: String(input.company || ""), optedIn: input.optedIn === true, createdAt: new Date().toISOString() };
       db.contacts.push(contact); await saveDb(); return json(res, 201, { contact });
     }
     if (url.pathname === "/api/schedules" && req.method === "GET") return json(res, 200, { schedules: db.schedules, logs: db.logs });
     if (url.pathname === "/api/schedules" && req.method === "POST") {
       const input = await body(req);
+      if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry this write after it completes." });
       const to = normalisePhone(input.to); const message = String(input.message || "").trim(); const due = Date.parse(input.nextRunAt);
       if (!to || !message || !Number.isFinite(due) || due <= Date.now()) return json(res, 400, { error: "A valid international phone number, message and future nextRunAt are required." });
       const contact = db.contacts.find(item => item.phone === to);
@@ -303,7 +311,9 @@ const server = createServer(async (req, res) => {
     const match = url.pathname.match(/^\/api\/schedules\/([\w-]+)$/);
     if (match && req.method === "PATCH") {
       const task = db.schedules.find(item => item.id === match[1]); if (!task) return json(res, 404, { error: "Schedule not found." });
-      const input = await body(req); if (typeof input.enabled === "boolean") task.enabled = input.enabled;
+      const input = await body(req);
+      if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry this write after it completes." });
+      if (typeof input.enabled === "boolean") task.enabled = input.enabled;
       if (input.nextRunAt && Number.isFinite(Date.parse(input.nextRunAt))) task.nextRunAt = new Date(input.nextRunAt).toISOString();
       await saveDb(); return json(res, 200, { schedule: task });
     }
