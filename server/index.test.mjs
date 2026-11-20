@@ -475,6 +475,7 @@ test("tenant-scoped user reads and writes only its assigned company and related 
         ],
         operations: [
           { id:"operation-a", poId:"po-a", poLineId:"line-a", componentId:"component-a", vendorId:"vendor-a", processDefinitionId:"process-a", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"operation-a-cross-vendor", poId:"po-a", poLineId:"line-a", componentId:"component-a", vendorId:"vendor-b", processDefinitionId:"process-a", updatedAt:"2026-11-20T05:00:00.000Z" },
           { id:"operation-b", poId:"po-b", poLineId:"line-b", componentId:"component-b", vendorId:"vendor-b", processDefinitionId:"process-b", updatedAt:"2026-11-20T05:00:00.000Z" }
         ],
         vendors: [
@@ -520,6 +521,7 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     assert.deepEqual(scoped.purchaseOrders.map(row=>row.id),["po-a"]);
     assert.deepEqual(scoped.components.map(row=>row.id),["component-a"]);
     assert.deepEqual(scoped.operations.map(row=>row.id),["operation-a"]);
+    assert.equal(scoped.vendors.some(row=>row.id==="vendor-b"),false,"vendor referenced across companies is not exposed through a forged operation link");
     assert.deepEqual(scoped.vendors.map(row=>row.id),["vendor-a"]);
     assert.deepEqual(scoped.processDefinitions.map(row=>row.id),["process-a"]);
     assert.deepEqual(scoped.plannedCosts,[],"tenant scope excludes a company-tagged cost row linked to a foreign PO/component/process");

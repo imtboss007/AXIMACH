@@ -52,19 +52,44 @@ function resolveAccess(data, user) {
  );
  const purchaseOrderIds = ids(purchaseOrders);
  const lineIds = new Set(purchaseOrders.flatMap(po => rows(po,"lines").map(line => line.id).filter(Boolean)));
+ const allPurchaseOrdersById = new Map(rows(data,"purchaseOrders").map(po=>[po.id,po]));
+ const allComponentsById = new Map(rows(data,"components").map(component=>[component.id,component]));
+ const vendorOwners = new Map();
+ const unknownVendorOwners = new Set();
+ const addVendorReference = (vendorId,row) => {
+  if(typeof vendorId!=="string"||!vendorId)return;
+  const ownerCompanyId=row.companyId ||
+   allPurchaseOrdersById.get(row.poId)?.companyId ||
+   allComponentsById.get(row.componentId)?.companyId || "";
+  if(!ownerCompanyId){unknownVendorOwners.add(vendorId);return;}
+  if(!vendorOwners.has(vendorId))vendorOwners.set(vendorId,new Set());
+  vendorOwners.get(vendorId).add(ownerCompanyId);
+ };
+ for(const field of ["operations","quotations","transportLegs","materialCostEntries","inventoryTransactions","componentParts"]){
+  for(const row of rows(data,field)){
+   addVendorReference(row.vendorId,row);
+   addVendorReference(row.transportVendorId,row);
+   if(Array.isArray(row.vendorIds))for(const vendorId of row.vendorIds)addVendorReference(vendorId,row);
+  }
+ }
+ const vendorIds = new Set([...vendorOwners.entries()]
+  .filter(([id,owners])=>!unknownVendorOwners.has(id)&&owners.size>0&&[...owners].every(companyAllowed))
+  .map(([id])=>id));
  const operations = rows(data,"operations").filter(operation =>
   purchaseOrderIds.has(operation.poId) &&
   lineIds.has(operation.poLineId) &&
-  componentIds.has(operation.componentId)
+  componentIds.has(operation.componentId) &&
+  (!operation.vendorId || vendorIds.has(operation.vendorId)) &&
+  (!operation.transportVendorId || vendorIds.has(operation.transportVendorId))
  );
  const operationIds = ids(operations);
  const quotations = rows(data,"quotations").filter(row =>
   purchaseOrderIds.has(row.poId) && lineIds.has(row.poLineId) && componentIds.has(row.componentId) &&
-  operationIds.has(row.operationId)
+  operationIds.has(row.operationId) && (!row.vendorId || vendorIds.has(row.vendorId))
  );
  const transportLegs = rows(data,"transportLegs").filter(row =>
   purchaseOrderIds.has(row.poId) && lineIds.has(row.poLineId) && componentIds.has(row.componentId) &&
-  operationIds.has(row.anchorOperationId) && (!row.targetOperationId || operationIds.has(row.targetOperationId))
+  operationIds.has(row.anchorOperationId) && (!row.targetOperationId || operationIds.has(row.targetOperationId)) && vendorIds.has(row.vendorId)
  );
  const routeRelationships = rows(data,"routeRelationships").filter(row =>
   purchaseOrderIds.has(row.poId) && lineIds.has(row.poLineId) && componentIds.has(row.componentId) &&
@@ -72,7 +97,7 @@ function resolveAccess(data, user) {
  );
  const paymentTransactions = rows(data,"paymentTransactions").filter(row =>
   purchaseOrderIds.has(row.poId) && lineIds.has(row.poLineId) && componentIds.has(row.componentId) &&
-  operationIds.has(row.operationId)
+  operationIds.has(row.operationId) && (!row.vendorId || vendorIds.has(row.vendorId))
  );
  const inspectionMeasurements = rows(data,"inspectionMeasurements").filter(row =>
   purchaseOrderIds.has(row.poId) && lineIds.has(row.poLineId) && componentIds.has(row.componentId) &&
@@ -110,13 +135,6 @@ function resolveAccess(data, user) {
   ...inventoryTransactions.filter(row => row.itemType === "material").map(row => row.itemId)
  ]);
  const materials = rows(data,"materials").filter(row => materialIds.has(row.id));
- const vendorIds = new Set([
-  ...operations.flatMap(row => [row.vendorId,row.transportVendorId]).filter(Boolean),
-  ...quotations.map(row => row.vendorId).filter(Boolean),
-  ...transportLegs.map(row => row.vendorId).filter(Boolean),
-  ...inventoryTransactions.map(row => row.vendorId).filter(Boolean),
-  ...materials.map(row => row.preferredVendorId).filter(Boolean)
- ]);
  const vendors = rows(data,"vendors").filter(row => vendorIds.has(row.id));
  const processDefinitionIds = ids(operations.map(row => ({id:row.processDefinitionId})).filter(row => row.id));
  const processDefinitions = rows(data,"processDefinitions").filter(row => processDefinitionIds.has(row.id));
