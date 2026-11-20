@@ -484,6 +484,18 @@ test("tenant-scoped user reads and writes only its assigned company and related 
           { id:"process-a", processType:"Machining", updatedAt:"2026-11-20T05:00:00.000Z" },
           { id:"process-b", processType:"Grinding", updatedAt:"2026-11-20T05:00:00.000Z" }
         ],
+        quotations: [
+          { id:"cross-tenant-quote-hidden", poId:"po-a", poLineId:"line-a", componentId:"component-a", operationId:"operation-b", vendorId:"vendor-b", ratePerPart:999, updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        transportLegs: [
+          { id:"cross-tenant-leg-hidden", poId:"po-a", poLineId:"line-a", componentId:"component-a", anchorOperationId:"operation-b", targetOperationId:"operation-a", routeId:"route-b", vendorId:"vendor-b", tripCount:1, updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        paymentTransactions: [
+          { id:"cross-tenant-payment-hidden", poId:"po-a", poLineId:"line-a", componentId:"component-a", operationId:"operation-b", vendorId:"vendor-b", amount:999999, updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        inspectionMeasurements: [
+          { id:"cross-tenant-inspection-hidden", poId:"po-a", poLineId:"line-a", componentId:"component-a", operationId:"operation-b", characteristic:"Secret", measuredValue:999, result:"Fail", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
         plannedCosts: [
           { id:"cross-tenant-plan-hidden", companyId:"company-a", poId:"po-b", componentId:"component-b", processDefinitionId:"process-b", updatedAt:"2026-11-20T05:00:00.000Z" }
         ],
@@ -511,6 +523,10 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     assert.deepEqual(scoped.plannedCosts,[],"tenant scope excludes a company-tagged cost row linked to a foreign PO/component/process");
     assert.deepEqual(scoped.materialCostEntries,[],"tenant scope excludes material costing linked to a foreign PO/component");
     assert.deepEqual(scoped.inventoryTransactions,[],"tenant scope excludes stock records for another factory");
+    assert.deepEqual(scoped.quotations,[],"quotes linked to a foreign operation are not exposed even when PO identifiers are forged");
+    assert.deepEqual(scoped.transportLegs,[],"transport legs with foreign anchor/target operations are not exposed");
+    assert.deepEqual(scoped.paymentTransactions,[],"payments with foreign operation references are not exposed");
+    assert.deepEqual(scoped.inspectionMeasurements,[],"inspections with foreign operation references are not exposed");
 
     const foreignWrite = await fetch(baseUrl + "/api/manufacturing-data", {
       method:"PUT", headers:companyHeaders,
