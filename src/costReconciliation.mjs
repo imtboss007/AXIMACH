@@ -82,14 +82,20 @@ export function reconcilePurchaseOrderCosts(data = {}) {
     let completedTripCost = 0;
     let plannedTripCost = 0;
     for (const leg of lineTransportLegs) {
-      const planned = number(leg.tripCount);
+      const plannedRaw = Number(leg.tripCount);
+      const validPlanned = Number.isSafeInteger(plannedRaw) && plannedRaw >= 1;
       const completedRaw = Number(leg.completedTrips || 0);
-      const validCompleted = Number.isSafeInteger(completedRaw) && completedRaw >= 0 && completedRaw <= planned;
+      if (!validPlanned) {
+        warnings.push("A transport leg has an invalid planned trip count; its planned and completed-trip costs are excluded.");
+        continue;
+      }
+      plannedTripCost += number(leg.fixedAmount) * plannedRaw;
+      const validCompleted = Number.isSafeInteger(completedRaw) && completedRaw >= 0 && completedRaw <= plannedRaw;
       if (!validCompleted) {
         warnings.push("A transport leg has an invalid actual completed-trip count; its completed-trip cost is excluded.");
+        continue;
       }
-      plannedTripCost += number(leg.fixedAmount) * planned;
-      if (validCompleted) completedTripCost += number(leg.fixedAmount) * completedRaw;
+      completedTripCost += number(leg.fixedAmount) * completedRaw;
     }
 
     const operationsWithLedger = new Set(paymentTransactions.map((tx) => tx.operationId));
