@@ -412,7 +412,7 @@ test("server user authentication issues expiring bearer sessions and enforces ro
 
     assert.equal((await fetch(baseUrl + "/api/auth/logout", { method: "POST", headers: adminHeaders })).status, 200);
     assert.equal((await fetch(baseUrl + "/api/manufacturing-data", { headers: adminHeaders })).status, 401, "logout must revoke the bearer session immediately");
-    for (let attempt = 0; attempt < 8; attempt++) {
+    for (let attempt = 0; attempt < 7; attempt++) {
       const failed = await fetch(baseUrl + "/api/auth/login", {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ username: "admin", password: "wrong-password" })

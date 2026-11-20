@@ -39,6 +39,7 @@ function parseUsers(usersJson){
   if(!/^[a-z0-9._-]{3,64}$/.test(username))throw new Error(`Auth user ${id} has an invalid username.`);
   if(!VALID_ROLES.has(role))throw new Error(`Auth user ${id} has an invalid role.`);
   if(!parsePasswordHash(row.passwordHash))throw new Error(`Auth user ${id} must have a valid scrypt passwordHash; plaintext passwords are not accepted.`);
+  if(row.active!==undefined&&typeof row.active!=="boolean")throw new Error(`Auth user ${id} has an invalid active flag.`);
   if(ids.has(id)||usernames.has(username))throw new Error("AXIMACH_AUTH_USERS contains duplicate IDs or usernames.");
   ids.add(id);usernames.add(username);
   return {id,username,role,passwordHash:row.passwordHash,active:row.active!==false};
