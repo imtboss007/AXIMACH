@@ -116,12 +116,10 @@ function resolveAccess(data, user) {
  );
  const componentParts = rows(data,"componentParts").filter(row =>
   componentIds.has(row.componentId) && (!row.companyId || companyAllowed(row.companyId)) &&
-  (!row.materialId || materialIds.has(row.materialId)) &&
-  (Array.isArray(row.materialIds) ? row.materialIds.every(id=>materialIds.has(id)) : true) &&
   (Array.isArray(row.vendorIds) ? row.vendorIds.every(id=>vendorIds.has(id)) : true)
  );
  const componentPartIds = ids(componentParts);
- const bomLines = rows(data,"bomLines").filter(row => componentIds.has(row.componentId) && materialIds.has(row.materialId) && (!row.partId || componentPartIds.has(row.partId)));
+ const bomLines = rows(data,"bomLines").filter(row => componentIds.has(row.componentId) && (!row.partId || componentPartIds.has(row.partId)));
  const materialCostEntries = rows(data,"materialCostEntries").filter(row =>
   (row.companyId ? companyAllowed(row.companyId) : row.poId ? purchaseOrderIds.has(row.poId) : componentIds.has(row.componentId)) &&
   (!row.poId || purchaseOrderIds.has(row.poId)) &&
