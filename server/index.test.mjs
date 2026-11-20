@@ -469,6 +469,15 @@ test("tenant-scoped user reads and writes only its assigned company and related 
           { id:"component-a", companyId:"company-a", name:"Component A", updatedAt:"2026-11-20T05:00:00.000Z" },
           { id:"component-b", companyId:"company-b", name:"Component B", updatedAt:"2026-11-20T05:00:00.000Z" }
         ],
+        materials: [
+          { id:"material-a", code:"MAT-A", name:"Material A", preferredVendorId:"vendor-a", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        componentParts: [
+          { id:"part-a", componentId:"component-a", materialId:"material-a", materialIds:["material-a"], vendorIds:["vendor-a","vendor-b"], updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        bomLines: [
+          { id:"bom-cross-part", componentId:"component-a", materialId:"material-a", partId:"part-b", quantityPerPart:1, updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
         purchaseOrders: [
           { id:"po-a", companyId:"company-a", factoryId:"factory-a", lines:[{id:"line-a",componentId:"component-a",quantity:10}], updatedAt:"2026-11-20T05:00:00.000Z" },
           { id:"po-b", companyId:"company-b", factoryId:"factory-b", lines:[{id:"line-b",componentId:"component-b",quantity:20}], updatedAt:"2026-11-20T05:00:00.000Z" }
@@ -522,6 +531,9 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     assert.deepEqual(scoped.components.map(row=>row.id),["component-a"]);
     assert.deepEqual(scoped.operations.map(row=>row.id),["operation-a"]);
     assert.equal(scoped.vendors.some(row=>row.id==="vendor-b"),false,"vendor referenced across companies is not exposed through a forged operation link");
+    assert.deepEqual(scoped.componentParts,[],"component parts referencing an out-of-scope vendor are excluded");
+    assert.deepEqual(scoped.bomLines,[],"BOM lines referencing an out-of-scope component part are excluded");
+    assert.equal(scoped.materials[0]?.preferredVendorId,"","foreign preferred-vendor identifiers are removed from material master records");
     assert.deepEqual(scoped.vendors.map(row=>row.id),["vendor-a"]);
     assert.deepEqual(scoped.processDefinitions.map(row=>row.id),["process-a"]);
     assert.deepEqual(scoped.plannedCosts,[],"tenant scope excludes a company-tagged cost row linked to a foreign PO/component/process");

@@ -115,17 +115,22 @@ function resolveAccess(data, user) {
   (row.itemType !== "component" || componentIds.has(row.itemId))
  );
  const componentParts = rows(data,"componentParts").filter(row =>
-  componentIds.has(row.componentId) && (!row.companyId || companyAllowed(row.companyId))
+  componentIds.has(row.componentId) && (!row.companyId || companyAllowed(row.companyId)) &&
+  (!row.materialId || materialIds.has(row.materialId)) &&
+  (Array.isArray(row.materialIds) ? row.materialIds.every(id=>materialIds.has(id)) : true) &&
+  (Array.isArray(row.vendorIds) ? row.vendorIds.every(id=>vendorIds.has(id)) : true)
  );
- const bomLines = rows(data,"bomLines").filter(row => componentIds.has(row.componentId));
  const componentPartIds = ids(componentParts);
+ const bomLines = rows(data,"bomLines").filter(row => componentIds.has(row.componentId) && materialIds.has(row.materialId) && (!row.partId || componentPartIds.has(row.partId)));
  const materialCostEntries = rows(data,"materialCostEntries").filter(row =>
   (row.companyId ? companyAllowed(row.companyId) : row.poId ? purchaseOrderIds.has(row.poId) : componentIds.has(row.componentId)) &&
   (!row.poId || purchaseOrderIds.has(row.poId)) &&
   (!row.poLineId || lineIds.has(row.poLineId)) &&
   (!row.componentId || componentIds.has(row.componentId)) &&
   (!row.partId || componentPartIds.has(row.partId)) &&
-  (!row.anchorOperationId || operationIds.has(row.anchorOperationId))
+  (!row.anchorOperationId || operationIds.has(row.anchorOperationId)) &&
+  (!row.vendorId || vendorIds.has(row.vendorId)) &&
+  (!row.transportVendorId || vendorIds.has(row.transportVendorId))
  );
  const materialIds = new Set([
   ...componentParts.flatMap(row => [...(Array.isArray(row.materialIds) ? row.materialIds : []),row.materialId].filter(Boolean)),
@@ -134,12 +139,12 @@ function resolveAccess(data, user) {
   ...materialProcessLinks.map(row => row.materialId).filter(Boolean),
   ...inventoryTransactions.filter(row => row.itemType === "material").map(row => row.itemId)
  ]);
- const materials = rows(data,"materials").filter(row => materialIds.has(row.id));
+ const materials = rows(data,"materials").filter(row => materialIds.has(row.id)).map(row => ({...row,preferredVendorId:vendorIds.has(row.preferredVendorId)?row.preferredVendorId:""}));
  const vendors = rows(data,"vendors").filter(row => vendorIds.has(row.id));
  const processDefinitionIds = ids(operations.map(row => ({id:row.processDefinitionId})).filter(row => row.id));
- const processDefinitions = rows(data,"processDefinitions").filter(row => processDefinitionIds.has(row.id));
+ const processDefinitions = rows(data,"processDefinitions").filter(row => processDefinitionIds.has(row.id)).map(row => ({...row,vendorIds:(Array.isArray(row.vendorIds)?row.vendorIds:[]).filter(id=>vendorIds.has(id))}));
  const transportRouteIds = ids(transportLegs.map(row => ({id:row.routeId})).filter(row => row.id));
- const transportRoutes = rows(data,"transportRoutes").filter(row => transportRouteIds.has(row.id));
+ const transportRoutes = rows(data,"transportRoutes").filter(row => transportRouteIds.has(row.id) && vendorIds.has(row.vendorId));
  const companies = rows(data,"companies").filter(row => companyAllowed(row.id));
  const factories = factoryRows.filter(row => factoryIds.has(row.id) && companyAllowed(row.companyId));
  const plannedCosts = rows(data,"plannedCosts").filter(row =>
