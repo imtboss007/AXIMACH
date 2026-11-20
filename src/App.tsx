@@ -862,20 +862,99 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
   const base=apiUrl.trim().replace(/\/+$/,"");
   const visibleContacts=contacts.filter(c=>(c.name+" "+c.company+" "+c.phone).toLowerCase().includes(contactSearch.toLowerCase().trim()));
   const request=async(path:string,init:RequestInit={},tokenOverride?:string,forceUserMode=authMode==="users")=>{const response=await fetch(base+path,{...init,headers:{"content-type":"application/json",...getServerAuthHeaders(forceUserMode?"":apiKey,base,tokenOverride,forceUserMode),...(init.headers||{})}});const data=await response.json().catch(()=>({error:"The service returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
-  const connect=async()=>{const hadSavedSharedConnection=Boolean(window.localStorage.getItem("aximach.scheduler.url")&&window.localStorage.getItem("aximach.scheduler.key")&&window.localStorage.getItem("aximach.storage.mode")!=="local-only");setBusy(true);setApiError("");try{if(!isAllowedAxMachServiceUrl(base))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("AXIMACH shared-data server health check failed.");const [manufacturing,c,s,records]=await Promise.all([request("/api/manufacturing-data"),request("/api/contacts"),request("/api/schedules"),request("/api/records")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);window.localStorage.setItem("aximach.storage.mode","shared-server");setStorageMode("shared-server");if(base.startsWith("http://")){const bridge=new URL(base);bridge.port="8789";const bridgeUrl=bridge.toString().replace(/\/$/,"");setWaUrl(bridgeUrl);window.localStorage.setItem("aximach.whatsapp.url",bridgeUrl);}const manufacturingGeneration=Number.isSafeInteger(manufacturing.restoreGeneration)?manufacturing.restoreGeneration:0;const savedManufacturingGeneration=window.localStorage.getItem("aximach.manufacturing.restore-generation");const replaceManufacturing=savedManufacturingGeneration!==null?Number(savedManufacturingGeneration)!==manufacturingGeneration:(hadSavedSharedConnection&&manufacturingGeneration>0);window.localStorage.setItem("aximach.manufacturing.restore-generation",String(manufacturingGeneration));if(manufacturing.data&&typeof manufacturing.data==="object"){updateManufacturingData(replaceManufacturing?()=>manufacturing.data:currentData=>mergeManufacturingData(currentData,manufacturing.data));}else if(replaceManufacturing){updateManufacturingData(()=>emptyManufacturingData());}else{updateManufacturingData(currentData=>({...currentData}));}const recordsGeneration=Number.isSafeInteger(records.restoreGeneration)?records.restoreGeneration:0;const savedRecordsGeneration=window.localStorage.getItem("aximach.module-records.restore-generation");const replaceModuleRecords=savedRecordsGeneration!==null?Number(savedRecordsGeneration)!==recordsGeneration:(hadSavedSharedConnection&&recordsGeneration>0);if(replaceModuleRecords)setAllModuleRecords((records.records||{}) as Record<string,ModuleRecord[]>);window.localStorage.setItem("aximach.module-records.restore-generation",String(recordsGeneration));const synced=readManufacturingData();setConnected(true);setApiError("");onNotice("AXIMACH PC shared data connected and manufacturing records fetched: "+activeRows(synced.companies).length+" companies, "+activeRows(synced.purchaseOrders).length+" POs, "+activeRows(synced.components).length+" components and "+activeRows(synced.operations).length+" process operations. Shared sync is now active on this device.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
+  const connect=async()=>{
+    const hadSavedSharedConnection=Boolean(window.localStorage.getItem("aximach.scheduler.url")&&window.localStorage.getItem("aximach.storage.mode")!=="local-only");
+    setBusy(true);setApiError("");
+    try{
+      if(!isAllowedAxMachServiceUrl(base))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");
+      const healthResponse=await fetch(base+"/health",{cache:"no-store"});
+      if(!healthResponse.ok)throw new Error("AXIMACH shared-data server health check failed.");
+      const health=await healthResponse.json().catch(()=>({}));
+      const userMode=health.authMode==="users";
+      let session=userMode?readServerSession(base):null;
+      let bearer="";
+      if(userMode){
+        setAuthMode("users");setServerAuthMode("users");
+        if(session){
+          const verified=await fetch(base+"/api/auth/session",{headers:{authorization:"Bearer "+session.token},cache:"no-store"});
+          if(verified.ok){
+            const identity=await verified.json();
+            session={...session,user:identity.user,expiresAt:identity.expiresAt};
+            saveServerSession(session,base);setServerSessionState(session);
+          }else{clearServerSession();setServerSessionState(null);session=null;}
+        }
+        if(!session){
+          if(!username.trim()||!password)throw new Error("This server uses individual accounts. Enter your username and password, then connect again.");
+          const loginResponse=await fetch(base+"/api/auth/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({username:username.trim(),password})});
+          const loginData=await loginResponse.json().catch(()=>({}));
+          if(!loginResponse.ok)throw new Error(loginData.error||"User sign-in failed.");
+          session={token:loginData.token,expiresAt:loginData.expiresAt,user:loginData.user,serverUrl:base} as ServerSession;
+          saveServerSession(session,base);setServerSessionState(session);setPassword("");
+        }
+        bearer=session.token;
+      }else{
+        clearServerSession();setServerSessionState(null);setAuthMode("api-key");setServerAuthMode("api-key");
+        if(!apiKey.trim())throw new Error("This server uses legacy API-key authentication. Enter the server API key and connect again.");
+      }
+      const adminAccess=!userMode||session?.user.role==="admin";
+      const manufacturing=await request("/api/manufacturing-data",{},bearer,userMode);
+      let c:any={contacts:[]},s:any={schedules:[],logs:[]},records:any={records:{},restoreGeneration:0};
+      if(adminAccess)[c,s,records]=await Promise.all([request("/api/contacts",{},bearer,userMode),request("/api/schedules",{},bearer,userMode),request("/api/records",{},bearer,userMode)]);
+      setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);
+      window.localStorage.setItem("aximach.scheduler.url",base);
+      if(!userMode&&apiKey)window.localStorage.setItem("aximach.scheduler.key",apiKey);
+      window.localStorage.setItem("aximach.storage.mode","shared-server");setStorageMode("shared-server");
+      if(base.startsWith("http://")){const bridge=new URL(base);bridge.port="8789";const bridgeUrl=bridge.toString().replace(/\/$/,"");setWaUrl(bridgeUrl);window.localStorage.setItem("aximach.whatsapp.url",bridgeUrl);}
+      const manufacturingGeneration=Number.isSafeInteger(manufacturing.restoreGeneration)?manufacturing.restoreGeneration:0;
+      const savedManufacturingGeneration=window.localStorage.getItem("aximach.manufacturing.restore-generation");
+      const replaceManufacturing=(userMode&&session?.user.role!=="admin")||(savedManufacturingGeneration!==null?Number(savedManufacturingGeneration)!==manufacturingGeneration:(hadSavedSharedConnection&&manufacturingGeneration>0));
+      window.localStorage.setItem("aximach.manufacturing.restore-generation",String(manufacturingGeneration));
+      if(manufacturing.data&&typeof manufacturing.data==="object"){
+        updateManufacturingData((userMode&&session?.user.role!=="admin")||replaceManufacturing?()=>manufacturing.data:currentData=>mergeManufacturingData(currentData,manufacturing.data));
+      }else if(replaceManufacturing){updateManufacturingData(()=>emptyManufacturingData());}
+      else{updateManufacturingData(currentData=>({...currentData}));}
+      if(adminAccess){
+        const recordsGeneration=Number.isSafeInteger(records.restoreGeneration)?records.restoreGeneration:0;
+        const savedRecordsGeneration=window.localStorage.getItem("aximach.module-records.restore-generation");
+        const replaceModuleRecords=savedRecordsGeneration!==null?Number(savedRecordsGeneration)!==recordsGeneration:(hadSavedSharedConnection&&recordsGeneration>0);
+        if(replaceModuleRecords)setAllModuleRecords((records.records||{}) as Record<string,ModuleRecord[]>);
+        window.localStorage.setItem("aximach.module-records.restore-generation",String(recordsGeneration));
+      }
+      window.dispatchEvent(new Event("aximach-server-session-updated"));
+      const synced=readManufacturingData();setConnected(true);setApiError("");
+      onNotice(userMode
+        ? session?.user.username+" signed in as "+session?.user.role+". Manufacturing records are limited to the assigned company/factory scope. Generic records, contacts, schedules and WhatsApp controls remain administrator-only."
+        : "AXIMACH PC shared data connected and manufacturing records fetched: "+activeRows(synced.companies).length+" companies, "+activeRows(synced.purchaseOrders).length+" POs, "+activeRows(synced.components).length+" components and "+activeRows(synced.operations).length+" process operations. Shared sync is now active on this device.");
+    }catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}
+    finally{setBusy(false);}
+  };
   useEffect(()=>{
-    if(!apiKey.trim()||!isAllowedAxMachServiceUrl(apiUrl))return;
+    if(!isAllowedAxMachServiceUrl(apiUrl))return;
     let cancelled=false;
     const verify=async()=>{
       try{
-        const health=await fetch(apiUrl.trim().replace(/\/+$/,"")+"/health",{cache:"no-store"});
-        if(!health.ok)throw new Error("Server unavailable");
-        const response=await fetch(apiUrl.trim().replace(/\/+$/,"")+"/api/contacts",{headers:{"x-aximach-key":apiKey}});
-        if(!response.ok)throw new Error("Server authentication failed");
-        if(!cancelled)setConnected(true);
-      }catch{
-        if(!cancelled)setConnected(false);
-      }
+        const target=apiUrl.trim().replace(/\/+$/,"");
+        const healthResponse=await fetch(target+"/health",{cache:"no-store"});
+        if(!healthResponse.ok)throw new Error("Server unavailable");
+        const health=await healthResponse.json().catch(()=>({}));
+        if(health.authMode==="users"){
+          setAuthMode("users");setServerAuthMode("users");
+          const session=readServerSession(target);
+          if(!session){if(!cancelled){setServerSessionState(null);setConnected(false);}return;}
+          const response=await fetch(target+"/api/auth/session",{headers:{authorization:"Bearer "+session.token},cache:"no-store"});
+          if(!response.ok){clearServerSession();if(!cancelled){setServerSessionState(null);setConnected(false);}return;}
+          const identity=await response.json();
+          const refreshed={...session,user:identity.user,expiresAt:identity.expiresAt};
+          saveServerSession(refreshed,target);
+          if(!cancelled){setServerSessionState(refreshed);setConnected(true);}
+        }else{
+          setAuthMode("api-key");setServerAuthMode("api-key");
+          if(!apiKey.trim()){if(!cancelled)setConnected(false);return;}
+          const response=await fetch(target+"/api/contacts",{headers:{"x-aximach-key":apiKey},cache:"no-store"});
+          if(!response.ok)throw new Error("Server authentication failed");
+          if(!cancelled)setConnected(true);
+        }
+      }catch{if(!cancelled)setConnected(false);}
     };
     void verify();
     const timer=window.setInterval(()=>void verify(),10000);
