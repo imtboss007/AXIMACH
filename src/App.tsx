@@ -709,7 +709,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
   const [apiKey,setApiKey]=useState(()=>window.localStorage.getItem("aximach.scheduler.key")||"");
   const [authMode,setAuthMode]=useState<"api-key"|"users"|null>(()=>getServerAuthMode());
   const [serverSession,setServerSessionState]=useState<ServerSession|null>(()=>readServerSession(window.localStorage.getItem("aximach.scheduler.url")||undefined));
-  const [username,setUsername]=useState("");
+  const [username,setUsername]=useState(()=>readServerSession(window.localStorage.getItem("aximach.scheduler.url")||undefined)?.user.username||"");
   const [password,setPassword]=useState("");
   const [connected,setConnected]=useState(false);
   const [lanInfo,setLanInfo]=useState<{addresses:string[];apiKey?:string;port:number;authMode?:"users"|"api-key"}|null>(null);
@@ -1010,7 +1010,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
           <label>AXIMACH password<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your account password"/></label>
           {serverSession?.user.role==="admin"&&<label>WhatsApp bridge key (optional; not used for AXIMACH data login)<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Separate WhatsApp bridge shared key"/></label>}
         </>:<label>Server API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label>}
-        <button className="button-primary" disabled={busy||!apiUrl.trim()||(authMode==="users"?(!username.trim()||!password):!apiKey.trim())} onClick={connect}>{busy?"Connecting…":authMode==="users"?"Sign in / refresh manufacturing data":"Connect / refresh shared data"}</button>
+        <button className="button-primary" disabled={busy||!apiUrl.trim()||(authMode==="users"?(!username.trim()||(!password&&!serverSession)):!apiKey.trim())} onClick={connect}>{busy?"Connecting…":authMode==="users"?"Sign in / refresh manufacturing data":"Connect / refresh shared data"}</button>
         {serverSession&&<button type="button" className="button-quiet" disabled={busy} onClick={()=>void signOut()}>Sign out {serverSession.user.username}</button>}
         <button type="button" className="button-quiet" disabled={busy||storageMode==="local-only"} onClick={useLocalOnly}>Use local-only on this device</button>
       </div>
