@@ -1148,10 +1148,12 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
       if (busy) { syncPending = true; return; }
       const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
       const key = window.localStorage.getItem("aximach.scheduler.key") || "";
-      if (!base || !key) { if (!cancelled) setRecordSync("local"); return; }
+      const session = readServerSession(base);
+      const userMode = getServerAuthMode() === "users";
+      if (!base || (userMode ? !session : !key && !session) || (session && session.user.role !== "admin")) { if (!cancelled) setRecordSync("local"); return; }
 
       busy = true;
-      const headers = { "content-type": "application/json", "x-aximach-key": key };
+      const headers = { "content-type": "application/json", ...getServerAuthHeaders(key,base,undefined,userMode) };
       try {
         do {
           syncPending = false;
@@ -1165,7 +1167,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
           const generationKey = "aximach.module-records.restore-generation";
           const savedGeneration = window.localStorage.getItem(generationKey);
           const receivedGeneration = Number.isSafeInteger(data.restoreGeneration) ? data.restoreGeneration : 0;
-          const hasPreviouslySavedConnection = Boolean(window.localStorage.getItem("aximach.scheduler.url") && window.localStorage.getItem("aximach.scheduler.key") && window.localStorage.getItem("aximach.storage.mode") !== "local-only");
+          const hasPreviouslySavedConnection = Boolean(window.localStorage.getItem("aximach.scheduler.url") && (window.localStorage.getItem("aximach.scheduler.key") || readServerSession(base)) && window.localStorage.getItem("aximach.storage.mode") !== "local-only");
           const generationChanged = savedGeneration !== null && Number(savedGeneration) !== receivedGeneration;
           const restoredBeforeThisDeviceWasUpgraded = savedGeneration === null && hasPreviouslySavedConnection && receivedGeneration > 0;
           if (generationChanged || restoredBeforeThisDeviceWasUpgraded) {
@@ -1217,6 +1219,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
     window.addEventListener("storage", refreshLocal);
     window.addEventListener("focus", syncWhenActive);
     window.addEventListener("online", syncWhenActive);
+    window.addEventListener("aximach-server-session-updated", syncWhenActive);
     document.addEventListener("visibilitychange", syncWhenActive);
     void sync();
     const timer = window.setInterval(() => { void sync(); }, 2500)
@@ -1227,6 +1230,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
       window.removeEventListener("storage", refreshLocal);
       window.removeEventListener("focus", syncWhenActive);
       window.removeEventListener("online", syncWhenActive);
+      window.removeEventListener("aximach-server-session-updated", syncWhenActive);
       document.removeEventListener("visibilitychange", syncWhenActive);
     };
   }, []);
