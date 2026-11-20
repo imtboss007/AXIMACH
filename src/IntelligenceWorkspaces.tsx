@@ -1,4 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from "react";
+import { getServerAuthHeaders, getServerAuthMode, readServerSession } from "./serverAuth";
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, Download, FileDown, FileUp, RotateCcw, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
 import { archiveAxMachTwoCompanyDemo, AXIMACH_DEMO_ID_PREFIX, createAxMachTwoCompanyDemo } from "./aximachDemoData";
 import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord, type ContactProfileRecord, type ProcessDefinitionRecord, type PlannedCostEntry, type VendorTransportRoute, type ManufacturingData, type PurchaseOrderRecord, type PurchaseOrderLine, type OperationRecord } from "./manufacturingData";
@@ -130,12 +131,13 @@ export function AIInsightsWorkspace({onBack,onSelectModule}:Props){
 function sharedBackupConfig() {
  const base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim().replace(/\/+$/,"");
  const key=window.localStorage.getItem("aximach.scheduler.key")||"";
- if(window.localStorage.getItem("aximach.storage.mode")==="local-only"||!base||!key)throw new Error("Connect the shared AXIMACH data server in Follow-up Centre before using server backup and restore.");
+ const userMode=getServerAuthMode()==="users",session=readServerSession(base);
+ if(window.localStorage.getItem("aximach.storage.mode")==="local-only"||!base||(userMode?(!session||session.user.role!=="admin"):!key))throw new Error("Server backup and restore require an administrator account on the shared AXIMACH server.");
  let parsed:URL;try{parsed=new URL(base);}catch{throw new Error("The saved AXIMACH server URL is invalid.");}
  const host=parsed.hostname.replace(/^\[|\]$/g,""),octets=host.split(".").map(Number);
  const privateIpv4=octets.length===4&&octets.every(n=>Number.isInteger(n)&&n>=0&&n<=255)&&(octets[0]===10||(octets[0]===192&&octets[1]===168)||(octets[0]===172&&octets[1]>=16&&octets[1]<=31));
  if(parsed.protocol!=="https:"&&!(parsed.protocol==="http:"&&(host==="localhost"||host==="127.0.0.1"||privateIpv4)))throw new Error("Use HTTPS, localhost or a private LAN address for the shared AXIMACH server.");
- return {base,key};
+ return {base,key,headers:getServerAuthHeaders(key,base,undefined,userMode)};
 }
 type AxMachServerBackup={format:"aximach-backup";version:1;createdAt:string;sha256:string;data:{contacts:unknown[];schedules:unknown[];logs:unknown[];records:Record<string,unknown[]>;manufacturingData?:unknown;[key:string]:unknown}};
 function validateServerBackup(value:unknown):AxMachServerBackup {
@@ -150,12 +152,12 @@ function validateServerBackup(value:unknown):AxMachServerBackup {
 function ServerBackupPanel({onNotice}:{onNotice:(value:string)=>void}) {
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const [selected,setSelected]=useState<{name:string;backup:AxMachServerBackup}|null>(null);
- const [configured]=useState(()=>Boolean(window.localStorage.getItem("aximach.scheduler.url")&&window.localStorage.getItem("aximach.scheduler.key")&&window.localStorage.getItem("aximach.storage.mode")!=="local-only"));
+ const [configured]=useState(()=>{const base=window.localStorage.getItem("aximach.scheduler.url")||"";const key=window.localStorage.getItem("aximach.scheduler.key")||"";const session=readServerSession(base);return window.localStorage.getItem("aximach.storage.mode")!=="local-only"&&Boolean(base&&(session?.user.role==="admin"||(getServerAuthMode()!=="users"&&key)));});
  const downloadBackup=async()=>{
   setBusy(true);setError("");
   try{
-   const {base,key}=sharedBackupConfig();
-   const response=await fetch(base+"/api/backup",{headers:{"x-aximach-key":key},cache:"no-store"});
+   const {base,headers}=sharedBackupConfig();
+   const response=await fetch(base+"/api/backup",{headers,cache:"no-store"});
    const payload=await response.json().catch(()=>null);
    if(!response.ok)throw new Error(payload?.error||"Shared-server backup request failed (HTTP "+response.status+").");
    const backup=validateServerBackup(payload);
@@ -180,14 +182,14 @@ function ServerBackupPanel({onNotice}:{onNotice:(value:string)=>void}) {
   if(!selected)return;
   setBusy(true);setError("");
   try{
-   const {base,key}=sharedBackupConfig();
+   const {base,headers}=sharedBackupConfig();
    const manufacturing=selected.backup.data.manufacturingData as {companies?:unknown[]}|null|undefined;
    const companyCount=Array.isArray(manufacturing?.companies)?manufacturing.companies.length:0;
    const accepted=window.confirm("RESTORE WILL REPLACE THE SHARED AXIMACH SERVER DATABASE.\n\nFile: "+selected.name+"\nCompanies in manufacturing snapshot: "+companyCount+"\nContacts: "+selected.backup.data.contacts.length+"\nSchedules: "+selected.backup.data.schedules.length+"\n\nThe server creates a protected pre-restore snapshot automatically. Connected devices refresh their local shared-data caches on their next sync. Continue?");
    if(!accepted){setBusy(false);return;}
    const phrase=window.prompt("For explicit approval, type exactly: RESTORE_AXIMACH_BACKUP");
    if(phrase!=="RESTORE_AXIMACH_BACKUP"){setBusy(false);return;}
-   const response=await fetch(base+"/api/restore",{method:"POST",headers:{"content-type":"application/json","x-aximach-key":key},body:JSON.stringify({backup:selected.backup,confirmation:phrase})});
+   const response=await fetch(base+"/api/restore",{method:"POST",headers:{"content-type":"application/json",...headers},body:JSON.stringify({backup:selected.backup,confirmation:phrase})});
    const result=await response.json().catch(()=>({}));
    if(!response.ok)throw new Error(result.error||"Shared-server restore failed (HTTP "+response.status+").");
    window.localStorage.removeItem("aximach.manufacturing.restore-generation");
