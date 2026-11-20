@@ -505,6 +505,12 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     });
     assert.equal(foreignWrite.status,403,"cross-company PO update must be blocked");
 
+    const foreignVendorLink = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:companyHeaders,
+      body:JSON.stringify({data:{operations:[{id:"operation-a",poId:"po-a",poLineId:"line-a",componentId:"component-a",vendorId:"vendor-b",processDefinitionId:"process-a"}]}})
+    });
+    assert.equal(foreignVendorLink.status,403,"a scoped operation cannot be linked to a vendor visible only through another company's PO");
+
     const validWrite = await fetch(baseUrl + "/api/manufacturing-data", {
       method:"PUT", headers:companyHeaders,
       body:JSON.stringify({data:{components:[{id:"component-a",companyId:"company-a",name:"Component A updated",updatedAt:"2026-11-20T06:00:00.000Z"}]}})

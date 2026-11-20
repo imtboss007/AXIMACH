@@ -80,9 +80,7 @@ function resolveAccess(data, user) {
  );
  const bomLines = rows(data,"bomLines").filter(row => componentIds.has(row.componentId));
  const materialCostEntries = rows(data,"materialCostEntries").filter(row =>
-  (row.companyId && companyAllowed(row.companyId)) ||
-  (row.poId && purchaseOrderIds.has(row.poId)) ||
-  (row.componentId && componentIds.has(row.componentId))
+  row.companyId ? companyAllowed(row.companyId) : row.poId ? purchaseOrderIds.has(row.poId) : componentIds.has(row.componentId)
  );
  const materialIds = new Set([
   ...componentParts.flatMap(row => [...(Array.isArray(row.materialIds) ? row.materialIds : []),row.materialId].filter(Boolean)),
@@ -108,9 +106,7 @@ function resolveAccess(data, user) {
  const companies = rows(data,"companies").filter(row => companyAllowed(row.id));
  const factories = factoryRows.filter(row => factoryIds.has(row.id) && companyAllowed(row.companyId));
  const plannedCosts = rows(data,"plannedCosts").filter(row =>
-  (row.companyId && companyAllowed(row.companyId)) ||
-  (row.poId && purchaseOrderIds.has(row.poId)) ||
-  (row.componentId && componentIds.has(row.componentId))
+  row.companyId ? companyAllowed(row.companyId) : row.poId ? purchaseOrderIds.has(row.poId) : componentIds.has(row.componentId)
  );
  const contactProfiles = rows(data,"contactProfiles").filter(row =>
   (row.linkedType === "company" && companyAllowed(row.linkedId)) ||
@@ -205,10 +201,12 @@ export function validateManufacturingWrite(currentData, incoming, user) {
     case "factories": allowed=companyIds.has(row.companyId) && (!assignedFactories.size || assignedFactories.has(row.id)); break;
     case "purchaseOrders": allowed=Boolean(poAllowed(row)); break;
     case "components": allowed=(row.companyId && companyIds.has(row.companyId)) || currentVisibleComponents.has(row.id); break;
-    case "operations": allowed=allowedPOIds.has(row.poId) && lines.has(row.poLineId) && componentIds.has(row.componentId); break;
+    case "operations": allowed=allowedPOIds.has(row.poId) && lines.has(row.poLineId) && componentIds.has(row.componentId) && (!row.vendorId || vendorIds.has(row.vendorId)) && (!row.transportVendorId || vendorIds.has(row.transportVendorId)) && (!row.processDefinitionId || processIds.has(row.processDefinitionId)); break;
     case "quotations": case "transportLegs": case "paymentTransactions": case "inspectionMeasurements":
      allowed=allowedChild(row,allowedPOById,{purchaseOrderIds:allowedPOIds,lineIds:lines,componentIds,operationIds},
-       {requireOperation:collection==="paymentTransactions"||collection==="inspectionMeasurements"}); break;
+       {requireOperation:collection==="quotations"||collection==="paymentTransactions"||collection==="inspectionMeasurements"}) &&
+       (!row.vendorId || vendorIds.has(row.vendorId)) &&
+       (collection!=="transportLegs" || (operationIds.has(row.anchorOperationId) && (!row.targetOperationId || operationIds.has(row.targetOperationId)) && transportRouteIds.has(row.routeId))); break;
     case "routeRelationships":
      allowed=allowedChild(row,allowedPOById,{purchaseOrderIds:allowedPOIds,lineIds:lines,componentIds,operationIds}) &&
        operationIds.has(row.fromOperationId) && operationIds.has(row.toOperationId); break;
@@ -219,14 +217,14 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      allowed=companyIds.has(row.companyId) && factoryAllowed(row.factoryId) &&
        (!row.poId || allowedPOIds.has(row.poId)) && (!row.poLineId || lines.has(row.poLineId)) &&
        (row.itemType==="component" ? componentIds.has(row.itemId) : materialIds.has(row.itemId)); break;
-    case "componentParts": allowed=componentIds.has(row.componentId) && (!row.companyId || companyIds.has(row.companyId)); break;
+    case "componentParts": allowed=componentIds.has(row.componentId) && (!row.companyId || companyIds.has(row.companyId)) && (!row.materialId || materialIds.has(row.materialId)) && (Array.isArray(row.materialIds) ? row.materialIds.every(id=>materialIds.has(id)) : true); break;
     case "materialCostEntries":
-     allowed=((row.companyId && companyIds.has(row.companyId)) || (row.poId && allowedPOIds.has(row.poId)) || (row.componentId && componentIds.has(row.componentId))) && materialIds.has(row.materialId); break;
+     allowed=(row.companyId ? companyIds.has(row.companyId) : row.poId ? allowedPOIds.has(row.poId) : componentIds.has(row.componentId)) && materialIds.has(row.materialId) && (!row.vendorId || vendorIds.has(row.vendorId)) && (!row.transportVendorId || vendorIds.has(row.transportVendorId)); break;
     case "bomLines": allowed=componentIds.has(row.componentId) && materialIds.has(row.materialId); break;
     case "contactProfiles":
      allowed=(row.linkedType==="company" && companyIds.has(row.linkedId)) || (row.linkedType==="vendor" && vendorIds.has(row.linkedId)); break;
     case "plannedCosts":
-     allowed=(row.companyId && companyIds.has(row.companyId)) || (row.poId && allowedPOIds.has(row.poId)) || (row.componentId && componentIds.has(row.componentId)); break;
+     allowed=row.companyId ? companyIds.has(row.companyId) : row.poId ? allowedPOIds.has(row.poId) : componentIds.has(row.componentId); break;
     case "followUpAssignments": allowed=scopeIds.has(row.recordId) || scopeIds.has(row.contactId); break;
     case "vendors": case "materials": case "processDefinitions": case "transportRoutes": allowed=false; break;
     default: allowed=false;
