@@ -2598,3 +2598,13 @@ test("PO-line cost reconciliation ignores archived sources and invalid actual tr
   assert.equal(line.processMapMaterialCost,0);
   assert.ok(line.warnings.some(value => value.includes("invalid actual completed-trip count")));
 });
+
+
+test("scoped account sessions do not import legacy browser-local global directories", () => {
+  const specialized = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const relationships = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(specialized.includes('if(getServerAuthMode()==="users"&&session?.user.role!=="admin")return;'));
+  assert.ok(relationships.includes('if(getServerAuthMode()==="users"&&session?.user.role!=="admin")return;'));
+  assert.ok(specialized.includes('"aximach.componentPlannedCost.v1"'));
+  assert.ok(relationships.includes('readContacts()'));
+});

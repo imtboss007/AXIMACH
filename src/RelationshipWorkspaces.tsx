@@ -4,6 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type ContactProfileRe
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import SearchablePicker from "./SearchablePicker";
 import { ProcessIcon } from "./IconStudio";
+import { getServerAuthMode, readServerSession } from "./serverAuth";
 
 type LinkedNavigationContext={companyId?:string;poId?:string;poLineId?:string;componentId?:string;operationId?:string;vendorId?:string};
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string,context?:LinkedNavigationContext)=>void};
@@ -26,7 +27,26 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
  const [categoryFilters,setCategoryFilters]=useState<string[]>([]);
  const [subcategoryFilters,setSubcategoryFilters]=useState<string[]>([]);
  const [onlyWhatsApp,setOnlyWhatsApp]=useState(false);
- useEffect(()=>{const legacy=readContacts();if(!legacy.length)return;update(current=>{const byId=new Map(current.contactProfiles.map(row=>[row.id,row]));let changed=false;for(const row of legacy){const old=byId.get(row.id);if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){byId.set(row.id,{...row,group:row.group||""});changed=true;}}return changed?{...current,contactProfiles:[...byId.values()]}:current;});},[update]);
+ useEffect(()=>{
+  const migrate=()=>{
+   const session=readServerSession(window.localStorage.getItem("aximach.scheduler.url")||"");
+   if(getServerAuthMode()==="users"&&session?.user.role!=="admin")return;
+   const legacy=readContacts();if(!legacy.length)return;
+   update(current=>{
+    const byId=new Map(current.contactProfiles.map(row=>[row.id,row]));let changed=false;
+    for(const row of legacy){
+     const old=byId.get(row.id);
+     if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){
+      byId.set(row.id,{...row,group:row.group||""});changed=true;
+     }
+    }
+    return changed?{...current,contactProfiles:[...byId.values()]}:current;
+   });
+  };
+  migrate();
+  window.addEventListener("aximach-server-session-updated",migrate);
+  return()=>window.removeEventListener("aximach-server-session-updated",migrate);
+ },[update]);
  useEffect(()=>{if(!initialVendorId)return;setEditingId("");setDraft({...blank(),linkedType:"vendor",linkedId:initialVendorId});setShowForm(true);onInitialVendorConsumed?.();},[initialVendorId]);
  const relatedLabel=(row:ContactRecord)=>row.linkedType==="company"?companies.find(x=>x.id===row.linkedId)?.name||"Company record missing":vendors.find(x=>x.id===row.linkedId)?.company||"Vendor record missing";
  const generated=[

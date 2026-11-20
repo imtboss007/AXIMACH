@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import ExcelJS from "exceljs";
 import { ArrowRight, Check, CircleDollarSign, Layers3, Plus, Search, ShieldCheck, Trash2, Users, Edit3, FileDown, FileText, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type PlannedCostEntry, type ProcessDefinitionRecord } from "./manufacturingData";
+import { getServerAuthMode, readServerSession } from "./serverAuth";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
@@ -35,19 +36,26 @@ function ProcessDirectory({onNotice,onBack,onOpenIconStudio}:Pick<Props,"onNotic
  const vendors=activeRows(data.vendors);
  const rows=activeRows(data.processDefinitions);
  useEffect(()=>{
-  const legacy=readRows<ProcessEntry>(PROCESS_KEY);
-  if(!legacy.length)return;
-  update(current=>{
-   const byId=new Map(current.processDefinitions.map(row=>[row.id,row]));
-   let changed=false;
-   for(const row of legacy){
-    const old=byId.get(row.id);
-    if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){
-     byId.set(row.id,row);changed=true;
+  const migrate=()=>{
+   const session=readServerSession(window.localStorage.getItem("aximach.scheduler.url")||"");
+   if(getServerAuthMode()==="users"&&session?.user.role!=="admin")return;
+   const legacy=readRows<ProcessEntry>(PROCESS_KEY);
+   if(!legacy.length)return;
+   update(current=>{
+    const byId=new Map(current.processDefinitions.map(row=>[row.id,row]));
+    let changed=false;
+    for(const row of legacy){
+     const old=byId.get(row.id);
+     if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){
+      byId.set(row.id,row);changed=true;
+     }
     }
-   }
-   return changed?{...current,processDefinitions:[...byId.values()]}:current;
-  });
+    return changed?{...current,processDefinitions:[...byId.values()]}:current;
+   });
+  };
+  migrate();
+  window.addEventListener("aximach-server-session-updated",migrate);
+  return()=>window.removeEventListener("aximach-server-session-updated",migrate);
  },[update]);
  useEffect(()=>{
   const needsIds=data.processDefinitions.some(row=>row.subcategories.length>0&&(!Array.isArray(row.subcategoryIds)||row.subcategoryIds.length!==row.subcategories.length||row.subcategoryIds.some(id=>!id)));
@@ -210,17 +218,24 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
  const purchaseOrders=activeRows(data.purchaseOrders);
  const components=activeRows(data.components);
  useEffect(()=>{
-  const legacy=readRows<PlannedCostEntry>("aximach.componentPlannedCost.v1");
-  if(!legacy.length)return;
-  update(current=>{
-   const byId=new Map(current.plannedCosts.map(row=>[row.id,row]));
-   let changed=false;
-   for(const row of legacy){
-    const old=byId.get(row.id);
-    if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){byId.set(row.id,row);changed=true;}
-   }
-   return changed?{...current,plannedCosts:[...byId.values()]}:current;
-  });
+  const migrate=()=>{
+   const session=readServerSession(window.localStorage.getItem("aximach.scheduler.url")||"");
+   if(getServerAuthMode()==="users"&&session?.user.role!=="admin")return;
+   const legacy=readRows<PlannedCostEntry>("aximach.componentPlannedCost.v1");
+   if(!legacy.length)return;
+   update(current=>{
+    const byId=new Map(current.plannedCosts.map(row=>[row.id,row]));
+    let changed=false;
+    for(const row of legacy){
+     const old=byId.get(row.id);
+     if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){byId.set(row.id,row);changed=true;}
+    }
+    return changed?{...current,plannedCosts:[...byId.values()]}:current;
+   });
+  };
+  migrate();
+  window.addEventListener("aximach-server-session-updated",migrate);
+  return()=>window.removeEventListener("aximach-server-session-updated",migrate);
  },[update]);
  const [search,setSearch]=useState("");
  const [companyFilters,setCompanyFilters]=useState<string[]>([]);
