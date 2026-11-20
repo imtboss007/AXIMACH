@@ -969,11 +969,18 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     try{
       const response=await fetch("http://127.0.0.1:8787/api/connection-info",{cache:"no-store"});
       const info=await response.json();
-      if(!response.ok||!info.apiKey||!Array.isArray(info.addresses))throw new Error("The PC shared-data server is not ready. Keep AXIMACH running on the PC and try again.");
-      setLanInfo(info);setApiUrl("http://127.0.0.1:8787");setApiKey(info.apiKey);
-      onNotice("PC shared-server details loaded. Use a displayed LAN address and this API key on Android, then press Connect / refresh shared data.");
+      if(!response.ok||!Array.isArray(info.addresses))throw new Error("The PC shared-data server is not ready. Keep AXIMACH running on the PC and try again.");
+      setLanInfo(info);setApiUrl("http://127.0.0.1:8787");
+      const mode=info.authMode==="users"?"users":"api-key";setAuthMode(mode);setServerAuthMode(mode);if(info.apiKey)setApiKey(info.apiKey);
+      onNotice(mode==="users"?"PC shared server uses individual accounts. Enter your AXIMACH username and password, then connect from this device.":"PC shared-server details loaded. Use a displayed LAN address and the server API key on Android, then connect.");
     }catch(error){setApiError(error instanceof Error?error.message:"Could not load the PC shared-server details.");}
     finally{setBusy(false);}
+  };
+  const signOut=async()=>{
+    const session=readServerSession(base);
+    if(session){try{await fetch(base+"/api/auth/logout",{method:"POST",headers:{authorization:"Bearer "+session.token}});}catch{/* local token is still cleared when server is unreachable */}}
+    clearServerSession();setServerSessionState(null);setConnected(false);setAuthMode("users");setServerAuthMode("users");setContacts([]);setSchedules([]);setLogs([]);
+    onNotice("Signed out of the AXIMACH account on this device. The local bearer token has been cleared.");
   };
   const useLocalOnly=()=>{
     window.localStorage.setItem("aximach.storage.mode","local-only");
@@ -996,17 +1003,28 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> SERVER-BACKED SCHEDULER CONNECTOR</span></div>
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMMUNICATION / CRM</div><h1>Follow-up centre<span>.</span></h1><p>Contacts, one-time and recurring individual messages, server schedules and send logs.</p></div><button className="button-quiet" onClick={downloadContacts} disabled={!contacts.length}><FileDown size={15}/> Export contacts CSV</button></div>
     <section className="surface-panel followup-list-panel scheduler-connect-panel"><div className="panel-heading"><div><h3><Plug size={17}/> Scheduler connection</h3><p>Connect to your PC-hosted private Wi-Fi server or a deployed AXIMACH server.</p></div><span className={"module-number "+(connected?"scheduler-connected":"")}>{connected?"CONNECTED":"NOT CONNECTED"}</span></div>
-      <div className="scheduler-connect-form"><label>Shared AXIMACH data server URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="http://192.168.x.x:8787 (same Wi-Fi) or HTTPS server"/></label><label>API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label><button className="button-primary" disabled={busy||!apiUrl.trim()||!apiKey.trim()} onClick={connect}>{busy?"Connecting…":"Connect / refresh shared data"}</button><button type="button" className="button-quiet" disabled={busy||storageMode==="local-only"} onClick={useLocalOnly}>Use local-only on this device</button></div>
-      <div className="module-safety-note"><ShieldCheck size={15}/><span><strong>Manufacturing storage mode: {storageMode==="local-only"?"LOCAL ONLY · THIS DEVICE":connected?"SHARED SERVER · CONNECTED":"SHARED SERVER · NOT CONNECTED"}.</strong> Local-only data is saved on this device and does not synchronize. Shared mode synchronizes devices using the same server URL and API key. This build does not include a cloud account/login service; cloud account sync needs a separately configured account backend.</span>{storageMode==="local-only"&&<button type="button" className="button-quiet compact-button" onClick={()=>void prepareSharedPcServer()}>Set up shared sync</button>}</div>
+      <div className="scheduler-connect-form">
+        <label>Shared AXIMACH data server URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="http://192.168.x.x:8787 (same Wi-Fi) or HTTPS server"/></label>
+        {authMode==="users"?<>
+          <label>AXIMACH username<input autoComplete="username" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Your assigned username"/></label>
+          <label>AXIMACH password<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your account password"/></label>
+          {serverSession?.user.role==="admin"&&<label>WhatsApp bridge key (optional; not used for AXIMACH data login)<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Separate WhatsApp bridge shared key"/></label>}
+        </>:<label>Server API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label>}
+        <button className="button-primary" disabled={busy||!apiUrl.trim()||(authMode==="users"?(!username.trim()||!password):!apiKey.trim())} onClick={connect}>{busy?"Connecting…":authMode==="users"?"Sign in / refresh manufacturing data":"Connect / refresh shared data"}</button>
+        {serverSession&&<button type="button" className="button-quiet" disabled={busy} onClick={()=>void signOut()}>Sign out {serverSession.user.username}</button>}
+        <button type="button" className="button-quiet" disabled={busy||storageMode==="local-only"} onClick={useLocalOnly}>Use local-only on this device</button>
+      </div>
+      <div className="module-safety-note"><ShieldCheck size={15}/><span><strong>Manufacturing storage mode: {storageMode==="local-only"?"LOCAL ONLY · THIS DEVICE":connected?"SHARED SERVER · CONNECTED":"SHARED SERVER · NOT CONNECTED"}.</strong> {authMode==="users"?"Named accounts use a temporary bearer session scoped to assigned companies/factories.":"Legacy mode uses a shared API key; restrict it to trusted devices."} Local-only data stays on this device.</span>{storageMode==="local-only"&&<button type="button" className="button-quiet compact-button" onClick={()=>void prepareSharedPcServer()}>Set up shared sync</button>}</div>
       {apiError&&<div className="scheduler-error"><ShieldAlert size={15}/>{apiError}</div>}
-      <div className="module-safety-note"><ShieldCheck size={15}/><span>Use one shared server URL and API key on both devices. A Windows-installed AXIMACH can host the private server: keep the PC and this Android device on the same Wi-Fi, keep AXIMACH running on the PC, then enter one of the PC LAN addresses below on Android (not localhost). Public HTTP is blocked; HTTPS and private LAN HTTP only are allowed. Keep the API key private.</span></div>
+      <div className="module-safety-note"><ShieldCheck size={15}/><span>A Windows-installed AXIMACH can host the private server. Keep the PC and Android device on the same Wi-Fi and enter the PC LAN address on Android, not localhost. Public HTTP is blocked; use HTTPS or private LAN HTTP.</span></div>
       {lanInfo&&<div className="aximach-lan-share">
         <div className="aximach-lan-share-heading"><strong>PC → Android private Wi-Fi connection</strong><span>LOCAL SERVER READY</span></div>
-        <p>On Android, enter one of these URLs as the Shared AXIMACH data server. Use the same API key shown below.</p>
+        <p>On Android, enter one of these URLs as the Shared AXIMACH data server. Sign in with your assigned AXIMACH user account when user authentication is enabled.</p>
         <div className="aximach-lan-share-values">
           {lanInfo.addresses.map(address=><div className="aximach-lan-share-row" key={address}><code>{address}</code><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(address);}}>Copy data URL</button><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(address.replace(/:8787$/,":8789"));}}>Copy WhatsApp URL</button></div>)}
           {!lanInfo.addresses.length&&<small>No private Wi-Fi IPv4 address detected. Connect the PC to Wi-Fi/Ethernet and reopen this section.</small>}
-          <div className="aximach-lan-share-row"><code>{lanInfo.apiKey}</code><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(lanInfo.apiKey);}}>Copy API key</button></div>
+          {lanInfo.apiKey&&<div className="aximach-lan-share-row"><code>{lanInfo.apiKey}</code><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(lanInfo.apiKey||"");}}>Copy API key</button></div>}
+          {lanInfo.authMode==="users"&&!lanInfo.apiKey&&<small>Individual AXIMACH account sign-in is required; no shared data key is exposed.</small>}
         </div>
         <small>WhatsApp bridge (optional): use the same LAN address with port 8789, for example http://192.168.x.x:8789. The data server uses port 8787.</small>
       </div>}
