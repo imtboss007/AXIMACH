@@ -1029,6 +1029,10 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
         <small>WhatsApp bridge (optional): use the same LAN address with port 8789, for example http://192.168.x.x:8789. The data server uses port 8787.</small>
       </div>}
     </section>
+    {authMode==="users"&&serverSession?.user.role!=="admin"?(
+      <section className="surface-panel followup-list-panel"><div className="panel-heading"><div><h3><ShieldCheck size={17}/> Scoped manufacturing access</h3><p>Signed in as {serverSession?.user.username||"user"} · {serverSession?.user.role||"not signed in"}</p></div></div><div className="module-safety-note"><ShieldCheck size={15}/><span>This account can access linked manufacturing records only within its assigned company/factory scope. Contacts, schedules, WhatsApp controls, generic legacy module records, and server backup/restore are administrator-only.</span></div></section>
+    ):(
+      <>
     <section className="surface-panel followup-list-panel scheduler-connect-panel">
       <div className="panel-heading"><div><h3><ScanLine size={17}/> QR-paired WhatsApp account</h3><p>Link your WhatsApp account once. Keep this service running on an always-on host with persistent disk.</p></div><span className={"module-number "+(waConnected?"scheduler-connected":"")}>{waConnected?"LINKED":"NOT LINKED"}</span></div>
       <div className="scheduler-connect-form"><label>WhatsApp bridge URL<input value={waUrl} onChange={e=>setWaUrl(e.target.value)} placeholder="http://192.168.x.x:8788 (PC Wi-Fi bridge) or HTTPS bridge"/></label><button className="button-primary" disabled={busy||!waUrl.trim()||!apiKey.trim()} onClick={refreshWhatsApp}>{busy?"Connecting…":"Connect / refresh QR"}</button><button className="button-quiet" disabled={busy||!waConnected} onClick={()=>{setWaQr("");refreshWhatsApp();}}>Refresh status</button></div>
@@ -1061,6 +1065,8 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
       {schedules.length===0?<div className="vendor-empty">No server schedules loaded yet.</div>:<div className="followup-table-wrap"><table className="followup-table"><thead><tr><th>Recipient</th><th>Vendor / process link</th><th>Next run</th><th>Repeat</th><th>Message</th><th>State</th><th>Action</th></tr></thead><tbody>{schedules.map(t=><tr key={t.id}><td>+{t.to}</td><td>{t.company||"—"}<small>{t.process||"No process link"}{t.operationId?" · OP "+t.operationId.slice(0,8):""}</small></td><td>{t.nextRunAt?new Date(t.nextRunAt).toLocaleString():"—"}</td><td>{t.repeat}</td><td>{t.message}</td><td>{t.lastError?"Paused · error":t.enabled?"Enabled":"Paused"}</td><td><button className="button-quiet compact-button" disabled={busy} onClick={()=>toggleSchedule(t)}>{t.enabled?<Pause size={13}/>:<Play size={13}/>} {t.enabled?"Pause":"Enable"}</button></td></tr>)}</tbody></table></div>}
     </section>
     <section className="surface-panel followup-list-panel"><div className="panel-heading"><div><h3><Activity size={17}/> Send log</h3><p>Provider acceptance/failure log. Delivery and replies require webhooks.</p></div><span className="module-number">{logs.length} EVENTS</span></div>{logs.length===0?<div className="vendor-empty">No send attempts logged by the scheduler yet.</div>:<div className="followup-table-wrap"><table className="followup-table"><thead><tr><th>Time</th><th>Schedule</th><th>Status</th><th>Details</th></tr></thead><tbody>{logs.slice(0,100).map(l=><tr key={l.id}><td>{new Date(l.at).toLocaleString()}</td><td>{l.scheduleId.slice(0,8)}</td><td>{l.status}</td><td>{l.detail}</td></tr>)}</tbody></table></div>}</section>
+      </>
+    )}
   </section>;
 }
 
