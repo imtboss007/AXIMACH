@@ -439,6 +439,7 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     { id: "tenant-admin", username: "admin", passwordHash: await hashPassword("AXIMACH-tenant-admin-Password!"), role: "admin" },
     { id: "tenant-a-user", username: "companya", passwordHash: await hashPassword("AXIMACH-companya-Password!"), role: "operator", companyIds: ["company-a"] },
     { id: "tenant-a-viewer", username: "viewera", passwordHash: await hashPassword("AXIMACH-viewera-Password!"), role: "viewer", companyIds: ["company-a"] },
+    { id: "tenant-a-factory-user", username: "factorya", passwordHash: await hashPassword("AXIMACH-factorya-Password!"), role: "operator", factoryIds: ["factory-a"] },
     { id: "tenant-unassigned", username: "unassigned", passwordHash: await hashPassword("AXIMACH-unassigned-Password!"), role: "operator" }
   ];
   let child;
@@ -510,6 +511,23 @@ test("tenant-scoped user reads and writes only its assigned company and related 
       body:JSON.stringify({data:{operations:[{id:"operation-a",poId:"po-a",poLineId:"line-a",componentId:"component-a",vendorId:"vendor-b",processDefinitionId:"process-a"}]}})
     });
     assert.equal(foreignVendorLink.status,403,"a scoped operation cannot be linked to a vendor visible only through another company's PO");
+
+    const foreignComponentPo = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:companyHeaders,
+      body:JSON.stringify({data:{purchaseOrders:[{id:"new-cross-tenant-po",companyId:"company-a",factoryId:"factory-a",lines:[{id:"cross-tenant-line",componentId:"component-b",quantity:5}]}]}})
+    });
+    assert.equal(foreignComponentPo.status,403,"an assigned-company PO cannot reference another company's component");
+
+    const crossTenantPlan = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:companyHeaders,
+      body:JSON.stringify({data:{plannedCosts:[{id:"cross-tenant-cost",companyId:"company-a",poId:"po-b",componentId:"component-b",plannedQty:1,plannedRate:1}]}})
+    });
+    assert.equal(crossTenantPlan.status,403,"a company-owned cost row cannot reference a foreign PO or component");
+
+    const factoryHeaders = await login("factorya","AXIMACH-factorya-Password!");
+    const factoryRead = await fetch(baseUrl + "/api/manufacturing-data", {headers:factoryHeaders});
+    assert.equal(factoryRead.status,200);
+    assert.deepEqual((await factoryRead.json()).data.purchaseOrders.map(row=>row.id),["po-a"],"factory-only assignment resolves only its parent company and factory's POs");
 
     const validWrite = await fetch(baseUrl + "/api/manufacturing-data", {
       method:"PUT", headers:companyHeaders,
