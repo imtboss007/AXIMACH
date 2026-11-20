@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { getServerAuthHeaders, getServerAuthMode, readServerSession } from "./serverAuth";
 
 export const MANUFACTURING_DATA_KEY = "aximach.manufacturingData.v1";
 
@@ -346,7 +347,9 @@ function serverConfig() {
   if (window.localStorage.getItem("aximach.storage.mode") === "local-only") return null;
   const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
   const key = window.localStorage.getItem("aximach.scheduler.key") || "";
-  if (!base || !key) return null;
+  const userMode = getServerAuthMode() === "users";
+  const session = readServerSession(base);
+  if (!base || (userMode ? !session : !key && !session)) return null;
   try {
     const parsed = new URL(base);
     const host = parsed.hostname.replace(/^\[|\]$/g, "");
@@ -360,20 +363,20 @@ function serverConfig() {
   } catch {
     return null;
   }
-  return { base, key };
+  return { base, key, headers: getServerAuthHeaders(key, base, undefined, userMode) };
 }
-async function putRemote(data: ManufacturingData, cfg: { base: string; key: string }, restoreGeneration: number): Promise<{ data: ManufacturingData; restoreGeneration: number }> {
+async function putRemote(data: ManufacturingData, cfg: { base: string; key: string; headers: Record<string,string> }, restoreGeneration: number): Promise<{ data: ManufacturingData; restoreGeneration: number }> {
   const response = await fetch(cfg.base + "/api/manufacturing-data", {
     method: "PUT",
-    headers: { "content-type": "application/json", "x-aximach-key": cfg.key },
+    headers: { "content-type": "application/json", ...cfg.headers },
     body: JSON.stringify({ data, restoreGeneration })
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "Manufacturing data sync failed.");
   return { data: normaliseData(body.data || data), restoreGeneration: Number.isSafeInteger(body.restoreGeneration) ? body.restoreGeneration : restoreGeneration };
 }
-async function getRemote(cfg: { base: string; key: string }): Promise<{ data: ManufacturingData; restoreGeneration: number }> {
-  const response = await fetch(cfg.base + "/api/manufacturing-data", { headers: { "x-aximach-key": cfg.key } });
+async function getRemote(cfg: { base: string; key: string; headers: Record<string,string> }): Promise<{ data: ManufacturingData; restoreGeneration: number }> {
+  const response = await fetch(cfg.base + "/api/manufacturing-data", { headers: cfg.headers });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "Could not refresh shared manufacturing data.");
   return { data: normaliseData(body.data || emptyManufacturingData()), restoreGeneration: Number.isSafeInteger(body.restoreGeneration) ? body.restoreGeneration : 0 };
@@ -402,10 +405,17 @@ export function useManufacturingData() {
           if (!serverConfig()) { if (!cancelled) setSyncStatus("local"); return; }
           const generationKey = "aximach.manufacturing.restore-generation";
           const savedGeneration = window.localStorage.getItem(generationKey);
-          const hasPreviouslySavedConnection = Boolean(window.localStorage.getItem("aximach.scheduler.url") && window.localStorage.getItem("aximach.scheduler.key") && window.localStorage.getItem("aximach.storage.mode") !== "local-only");
+          const hasPreviouslySavedConnection = Boolean(window.localStorage.getItem("aximach.scheduler.url") && (window.localStorage.getItem("aximach.scheduler.key") || readServerSession(cfg.base)) && window.localStorage.getItem("aximach.storage.mode") !== "local-only");
           const generationChanged = savedGeneration !== null && Number(savedGeneration) !== remote.restoreGeneration;
           const restoredBeforeThisDeviceWasUpgraded = savedGeneration === null && hasPreviouslySavedConnection && remote.restoreGeneration > 0;
-          if (generationChanged || restoredBeforeThisDeviceWasUpgraded) {
+          const currentSession = readServerSession(cfg.base);
+          const scopedUserSession = Boolean(currentSession && currentSession.user.role !== "admin");
+          const scopeMarkerKey = "aximach.manufacturing.user-scope";
+          const scopeMarker = scopedUserSession ? JSON.stringify({ id: currentSession!.user.id, companyIds: [...(currentSession!.user.companyIds || [])].sort(), factoryIds: [...(currentSession!.user.factoryIds || [])].sort() }) : "";
+          const tenantScopeChanged = scopedUserSession && window.localStorage.getItem(scopeMarkerKey) !== scopeMarker;
+          if (scopedUserSession) window.localStorage.setItem(scopeMarkerKey, scopeMarker);
+          else window.localStorage.removeItem(scopeMarkerKey);
+          if (tenantScopeChanged || generationChanged || restoredBeforeThisDeviceWasUpgraded) {
             window.localStorage.setItem(generationKey, String(remote.restoreGeneration));
             writeLocal(remote.data, false);
             if (!cancelled) setData(remote.data);
@@ -458,6 +468,7 @@ export function useManufacturingData() {
 
     window.addEventListener("aximach-manufacturing-data-updated", refreshLocal as EventListener);
     window.addEventListener("aximach-storage-mode-change", syncWhenModeChanges);
+    window.addEventListener("aximach-server-session-updated", syncWhenModeChanges);
     window.addEventListener("storage", refreshLocal);
     window.addEventListener("focus", syncWhenActive);
     window.addEventListener("online", syncWhenActive);
@@ -470,6 +481,7 @@ export function useManufacturingData() {
       window.clearInterval(timer);
       window.removeEventListener("aximach-manufacturing-data-updated", refreshLocal as EventListener);
       window.removeEventListener("aximach-storage-mode-change", syncWhenModeChanges);
+      window.removeEventListener("aximach-server-session-updated", syncWhenModeChanges);
       window.removeEventListener("storage", refreshLocal);
       window.removeEventListener("focus", syncWhenActive);
       window.removeEventListener("online", syncWhenActive);
