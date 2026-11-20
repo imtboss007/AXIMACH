@@ -9,7 +9,7 @@ const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
 const DB_PATH = resolve(process.env.AXIMACH_DATA_FILE || "./data/aximach.json");
 const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
-let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null };
+let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null, restoreGeneration: 0 };
 let busy = false;
 let saveQueue = Promise.resolve();
 let restoreInProgress = false;
@@ -124,7 +124,7 @@ async function sendWhatsApp(to, message) {
   return result;
 }
 async function tick() {
-  if (busy) return; busy = true;
+  if (busy || restoreInProgress) return; busy = true;
   try {
     const now = Date.now();
     for (const task of db.schedules) {
@@ -192,6 +192,7 @@ const server = createServer(async (req, res) => {
       if (suppliedBytes.length !== digestBytes.length || !timingSafeEqual(digestBytes, suppliedBytes)) {
         return json(res, 400, { error: "Backup integrity check failed; the current data was not changed." });
       }
+      if (busy) return json(res, 503, { error: "The scheduler is processing a task; retry restore after that task completes." });
       restoreInProgress = true;
       const previous = db;
       try {
@@ -205,7 +206,8 @@ const server = createServer(async (req, res) => {
           records: backup.data.records,
           recordsUpdatedAt: backup.data.recordsUpdatedAt || null,
           manufacturingData: backup.data.manufacturingData || null,
-          uiPreferences: backup.data.uiPreferences || null
+          uiPreferences: backup.data.uiPreferences || null,
+          restoreGeneration: Number(previous.restoreGeneration || 0) + 1
         };
         try {
           await saveDb();
@@ -216,28 +218,37 @@ const server = createServer(async (req, res) => {
         return json(res, 200, {
           ok: true,
           restoredAt: new Date().toISOString(),
-          preRestoreBackup: preRestorePath.split(/[\\/]/).at(-1)
+          preRestoreBackup: preRestorePath.split(/[\\/]/).at(-1),
+          restoreGeneration: db.restoreGeneration
         });
       } finally {
         restoreInProgress = false;
       }
     }
     if (url.pathname === "/api/manufacturing-data" && req.method === "GET") {
-      return json(res, 200, { data: db.manufacturingData || null, updatedAt: db.manufacturingData?.updatedAt || null });
+      return json(res, 200, { data: db.manufacturingData || null, updatedAt: db.manufacturingData?.updatedAt || null, restoreGeneration: Number(db.restoreGeneration || 0) });
     }
     if (url.pathname === "/api/manufacturing-data" && req.method === "PUT") {
       const input = await body(req);
+      const currentGeneration = Number(db.restoreGeneration || 0);
+      if ((currentGeneration > 0 || input.restoreGeneration !== undefined) && (!Number.isSafeInteger(input.restoreGeneration) || input.restoreGeneration !== currentGeneration)) {
+        return json(res, 409, { error: "The server was restored since this device last synced. Refresh shared data before writing.", restoreGeneration: currentGeneration });
+      }
       if (!input.data || typeof input.data !== "object" || Array.isArray(input.data)) return json(res, 400, { error: "data must be an AXIMACH manufacturing data object." });
       for (const collection of manufacturingCollections) if (input.data[collection] !== undefined && !Array.isArray(input.data[collection])) return json(res, 400, { error: collection + " must be an array." });
       const encoded = JSON.stringify(input.data);
       if (encoded.length > 8_000_000) return json(res, 413, { error: "Manufacturing data exceeds the 8 MB limit." });
       db.manufacturingData = mergeManufacturingData(db.manufacturingData, input.data);
       await saveDb();
-      return json(res, 200, { ok: true, data: db.manufacturingData, updatedAt: db.manufacturingData.updatedAt });
+      return json(res, 200, { ok: true, data: db.manufacturingData, updatedAt: db.manufacturingData.updatedAt, restoreGeneration: Number(db.restoreGeneration || 0) });
     }
-    if (url.pathname === "/api/records" && req.method === "GET") return json(res, 200, { records: db.records || {}, updatedAt: db.recordsUpdatedAt || null });
+    if (url.pathname === "/api/records" && req.method === "GET") return json(res, 200, { records: db.records || {}, updatedAt: db.recordsUpdatedAt || null, restoreGeneration: Number(db.restoreGeneration || 0) });
     if (url.pathname === "/api/records" && req.method === "PUT") {
       const input = await body(req);
+      const currentGeneration = Number(db.restoreGeneration || 0);
+      if ((currentGeneration > 0 || input.restoreGeneration !== undefined) && (!Number.isSafeInteger(input.restoreGeneration) || input.restoreGeneration !== currentGeneration)) {
+        return json(res, 409, { error: "The server was restored since this device last synced. Refresh module records before writing.", restoreGeneration: currentGeneration });
+      }
       if (!input.records || typeof input.records !== "object" || Array.isArray(input.records)) return json(res, 400, { error: "records must be an object keyed by module ID." });
       if (Object.values(input.records).some(rows => !Array.isArray(rows))) return json(res, 400, { error: "Each module ID must contain a records array." });
       const encoded = JSON.stringify(input.records);
@@ -245,7 +256,7 @@ const server = createServer(async (req, res) => {
       db.records = mergeModuleRecords(db.records, input.records);
       db.recordsUpdatedAt = new Date().toISOString();
       await saveDb();
-      return json(res, 200, { ok: true, records: db.records, updatedAt: db.recordsUpdatedAt });
+      return json(res, 200, { ok: true, records: db.records, updatedAt: db.recordsUpdatedAt, restoreGeneration: Number(db.restoreGeneration || 0) });
     }
     if (url.pathname === "/api/ui-preferences" && req.method === "GET") {
       return json(res, 200, { preferences: db.uiPreferences || null, updatedAt: db.uiPreferences?.updatedAt || null });

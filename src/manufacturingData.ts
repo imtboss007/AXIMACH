@@ -362,21 +362,21 @@ function serverConfig() {
   }
   return { base, key };
 }
-async function putRemote(data: ManufacturingData, cfg: { base: string; key: string }): Promise<ManufacturingData> {
+async function putRemote(data: ManufacturingData, cfg: { base: string; key: string }, restoreGeneration: number): Promise<{ data: ManufacturingData; restoreGeneration: number }> {
   const response = await fetch(cfg.base + "/api/manufacturing-data", {
     method: "PUT",
     headers: { "content-type": "application/json", "x-aximach-key": cfg.key },
-    body: JSON.stringify({ data })
+    body: JSON.stringify({ data, restoreGeneration })
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "Manufacturing data sync failed.");
-  return normaliseData(body.data || data);
+  return { data: normaliseData(body.data || data), restoreGeneration: Number.isSafeInteger(body.restoreGeneration) ? body.restoreGeneration : restoreGeneration };
 }
-async function getRemote(cfg: { base: string; key: string }): Promise<ManufacturingData> {
+async function getRemote(cfg: { base: string; key: string }): Promise<{ data: ManufacturingData; restoreGeneration: number }> {
   const response = await fetch(cfg.base + "/api/manufacturing-data", { headers: { "x-aximach-key": cfg.key } });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "Could not refresh shared manufacturing data.");
-  return normaliseData(body.data || emptyManufacturingData());
+  return { data: normaliseData(body.data || emptyManufacturingData()), restoreGeneration: Number.isSafeInteger(body.restoreGeneration) ? body.restoreGeneration : 0 };
 }
 
 export function useManufacturingData() {
@@ -400,6 +400,19 @@ export function useManufacturingData() {
           const localBeforeFetch = readManufacturingData();
           const remote = await getRemote(cfg);
           if (!serverConfig()) { if (!cancelled) setSyncStatus("local"); return; }
+          const generationKey = "aximach.manufacturing.restore-generation";
+          const savedGeneration = window.localStorage.getItem(generationKey);
+          const hasPreviouslySavedConnection = Boolean(window.localStorage.getItem("aximach.scheduler.url") && window.localStorage.getItem("aximach.scheduler.key") && window.localStorage.getItem("aximach.storage.mode") !== "local-only");
+          const generationChanged = savedGeneration !== null && Number(savedGeneration) !== remote.restoreGeneration;
+          const restoredBeforeThisDeviceWasUpgraded = savedGeneration === null && hasPreviouslySavedConnection && remote.restoreGeneration > 0;
+          if (generationChanged || restoredBeforeThisDeviceWasUpgraded) {
+            window.localStorage.setItem(generationKey, String(remote.restoreGeneration));
+            writeLocal(remote.data, false);
+            if (!cancelled) setData(remote.data);
+            syncPending = false;
+            break;
+          }
+          if (savedGeneration === null) window.localStorage.setItem(generationKey, String(remote.restoreGeneration));
           const localAfterFetch = readManufacturingData();
 
           // An edit made while the network request was in flight must be sent on
@@ -409,11 +422,11 @@ export function useManufacturingData() {
           const merged = mergeManufacturingData(localAfterFetch, remote);
           if (JSON.stringify(merged) !== JSON.stringify(remote)) {
             if (!cancelled) setSyncStatus("syncing");
-            const saved = await putRemote(merged, cfg);
+            const saved = await putRemote(merged, cfg, remote.restoreGeneration);
             if (!serverConfig()) { if (!cancelled) setSyncStatus("local"); return; }
             const localAfterPut = readManufacturingData();
             if (JSON.stringify(localAfterPut) !== JSON.stringify(localAfterFetch)) syncPending = true;
-            const finalData = mergeManufacturingData(localAfterPut, saved);
+            const finalData = mergeManufacturingData(localAfterPut, saved.data);
             writeLocal(finalData, false);
             if (!cancelled) setData(finalData);
           } else if (JSON.stringify(merged) !== JSON.stringify(localAfterFetch)) {

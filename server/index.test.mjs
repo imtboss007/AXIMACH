@@ -273,8 +273,25 @@ test("authenticated backup and restore verifies integrity and preserves a pre-re
     assert.ok(restoreResult.preRestoreBackup.startsWith("aximach.json.pre-restore-"));
 
     const current = await fetch(baseUrl + "/api/manufacturing-data", { headers });
-    const currentData = (await current.json()).data;
+    const currentBody = await current.json();
+    const currentData = currentBody.data;
     assert.equal(currentData.companies.find(row => row.id === "backup-company-1").name, "Original Company");
+    assert.equal(restoreResult.restoreGeneration, 1, "restore must advance the server generation");
+    assert.equal(currentBody.restoreGeneration, 1);
+    const staleManufacturingWrite = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({ data: { companies: [{ id: "stale", name: "Stale client write" }] } })
+    });
+    assert.equal(staleManufacturingWrite.status, 409, "pre-restore clients without a generation must be blocked");
+    const staleRecordsWrite = await fetch(baseUrl + "/api/records", {
+      method: "PUT", headers, body: JSON.stringify({ records: { companies: [{ id: "stale", title: "Stale record" }] } })
+    });
+    assert.equal(staleRecordsWrite.status, 409, "pre-restore module-record clients must be blocked");
+    const currentGenerationWrite = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({ restoreGeneration: 1, data: { companies: [{ id: "backup-company-1", name: "Post-restore update", updatedAt: "2026-11-20T03:00:00.000Z" }] } })
+    });
+    assert.equal(currentGenerationWrite.status, 200, "current-generation clients must continue syncing");
+    const moduleState = await fetch(baseUrl + "/api/records", { headers });
+    assert.equal((await moduleState.json()).restoreGeneration, 1);
 
     const files = await (await import("node:fs/promises")).readdir(folder);
     assert.ok(files.includes(restoreResult.preRestoreBackup), "restore must preserve the pre-restore database snapshot");

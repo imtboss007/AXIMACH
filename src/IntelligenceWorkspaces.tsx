@@ -126,6 +126,90 @@ export function AIInsightsWorkspace({onBack,onSelectModule}:Props){
  </section>;
 }
 
+
+function sharedBackupConfig() {
+ const base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim().replace(/\\/+$/,"");
+ const key=window.localStorage.getItem("aximach.scheduler.key")||"";
+ if(window.localStorage.getItem("aximach.storage.mode")==="local-only"||!base||!key)throw new Error("Connect the shared AXIMACH data server in Follow-up Centre before using server backup and restore.");
+ let parsed:URL;try{parsed=new URL(base);}catch{throw new Error("The saved AXIMACH server URL is invalid.");}
+ const host=parsed.hostname.replace(/^\\[|\\]$/g,""),octets=host.split(".").map(Number);
+ const privateIpv4=octets.length===4&&octets.every(n=>Number.isInteger(n)&&n>=0&&n<=255)&&(octets[0]===10||(octets[0]===192&&octets[1]===168)||(octets[0]===172&&octets[1]>=16&&octets[1]<=31));
+ if(parsed.protocol!=="https:"&&!(parsed.protocol==="http:"&&(host==="localhost"||host==="127.0.0.1"||privateIpv4)))throw new Error("Use HTTPS, localhost or a private LAN address for the shared AXIMACH server.");
+ return {base,key};
+}
+type AxMachServerBackup={format:"aximach-backup";version:1;createdAt:string;sha256:string;data:{contacts:unknown[];schedules:unknown[];logs:unknown[];records:Record<string,unknown[]>;manufacturingData?:unknown;[key:string]:unknown}};
+function validateServerBackup(value:unknown):AxMachServerBackup {
+ if(!value||typeof value!=="object")throw new Error("Select a valid AXIMACH server backup JSON file.");
+ const backup=value as Partial<AxMachServerBackup>;
+ if(backup.format!=="aximach-backup"||backup.version!==1||!backup.data||typeof backup.data!=="object")throw new Error("This is not a supported version-1 shared-server backup. Local module JSON exports cannot be restored to the server.");
+ const data=backup.data as AxMachServerBackup["data"];
+ if(!Array.isArray(data.contacts)||!Array.isArray(data.schedules)||!Array.isArray(data.logs)||!data.records||typeof data.records!=="object"||Array.isArray(data.records)||!Object.values(data.records).every(Array.isArray))throw new Error("The backup is missing required shared-server data collections.");
+ if(typeof backup.sha256!=="string"||! /^[a-f0-9]{64}$/i.test(backup.sha256))throw new Error("The backup has no valid SHA-256 integrity digest.");
+ return backup as AxMachServerBackup;
+}
+function ServerBackupPanel({onNotice}:{onNotice:(value:string)=>void}) {
+ const [busy,setBusy]=useState(false),[error,setError]=useState("");
+ const [selected,setSelected]=useState<{name:string;backup:AxMachServerBackup}|null>(null);
+ const [configured]=useState(()=>Boolean(window.localStorage.getItem("aximach.scheduler.url")&&window.localStorage.getItem("aximach.scheduler.key")&&window.localStorage.getItem("aximach.storage.mode")!=="local-only"));
+ const downloadBackup=async()=>{
+  setBusy(true);setError("");
+  try{
+   const {base,key}=sharedBackupConfig();
+   const response=await fetch(base+"/api/backup",{headers:{"x-aximach-key":key},cache:"no-store"});
+   const payload=await response.json().catch(()=>null);
+   if(!response.ok)throw new Error(payload?.error||"Shared-server backup request failed (HTTP "+response.status+").");
+   const backup=validateServerBackup(payload);
+   const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json;charset=utf-8"});
+   const url=URL.createObjectURL(blob),anchor=document.createElement("a");
+   anchor.href=url;anchor.download="AXIMACH-server-backup-"+new Date().toISOString().slice(0,10)+".json";anchor.click();URL.revokeObjectURL(url);
+   onNotice("Full shared-server snapshot downloaded. The SHA-256 digest is included and will be rechecked by the server during restore.");
+  }catch(e){setError(e instanceof Error?e.message:"Could not download shared-server backup.");}
+  finally{setBusy(false);}
+ };
+ const loadBackup=async(event:ChangeEvent<HTMLInputElement>)=>{
+  const file=event.target.files?.[0];if(!file)return;
+  setError("");setSelected(null);
+  try{
+   const raw=(await file.text()).replace(/^\\uFEFF/,"");
+   const backup=validateServerBackup(JSON.parse(raw));
+   setSelected({name:file.name,backup});
+  }catch(e){setError(e instanceof Error?e.message:"Could not read backup file.");}
+  finally{event.target.value="";}
+ };
+ const restoreBackup=async()=>{
+  if(!selected)return;
+  setBusy(true);setError("");
+  try{
+   const {base,key}=sharedBackupConfig();
+   const manufacturing=selected.backup.data.manufacturingData as {companies?:unknown[]}|null|undefined;
+   const companyCount=Array.isArray(manufacturing?.companies)?manufacturing.companies.length:0;
+   const accepted=window.confirm("RESTORE WILL REPLACE THE SHARED AXIMACH SERVER DATABASE.\n\nFile: "+selected.name+"\nCompanies in manufacturing snapshot: "+companyCount+"\nContacts: "+selected.backup.data.contacts.length+"\nSchedules: "+selected.backup.data.schedules.length+"\n\nThe server creates a protected pre-restore snapshot automatically. Connected devices refresh their local shared-data caches on their next sync. Continue?");
+   if(!accepted){setBusy(false);return;}
+   const phrase=window.prompt("For explicit approval, type exactly: RESTORE_AXIMACH_BACKUP");
+   if(phrase!=="RESTORE_AXIMACH_BACKUP"){setBusy(false);return;}
+   const response=await fetch(base+"/api/restore",{method:"POST",headers:{"content-type":"application/json","x-aximach-key":key},body:JSON.stringify({backup:selected.backup,confirmation:phrase})});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(result.error||"Shared-server restore failed (HTTP "+response.status+").");
+   window.localStorage.removeItem("aximach.manufacturing.restore-generation");
+   window.localStorage.removeItem("aximach.module-records.restore-generation");
+   window.alert("AXIMACH shared-server data restored successfully.\nPre-restore snapshot: "+String(result.preRestoreBackup||"created") +"\nThis app will reload from the restored server state.");
+   window.location.reload();
+  }catch(e){setError(e instanceof Error?e.message:"Could not restore the shared-server backup.");setBusy(false);}
+ };
+ return <section className="surface-panel" aria-label="Shared server backup and restore" style={{marginBottom:18}}>
+  <div className="panel-heading"><div><h3>Shared-server backup &amp; recovery</h3><p>Versioned snapshot of the central AXIMACH service database—not just this device’s browser cache.</p></div><ShieldCheck size={18}/></div>
+  <div className="linked-route-actions" style={{alignItems:"center",flexWrap:"wrap"}}>
+   <button type="button" className="button-primary compact-button" disabled={busy||!configured} onClick={()=>void downloadBackup()}><Download size={14}/>{busy?"Working…":"Download server snapshot"}</button>
+   <label className="button-quiet compact-button" style={{display:"inline-flex",alignItems:"center",gap:7,cursor:busy?"wait":"pointer"}}><Upload size={14}/>Choose server backup<input type="file" accept=".json,application/json" disabled={busy} onChange={event=>void loadBackup(event)} style={{display:"none"}}/></label>
+   {selected&&<span className="muted-copy">Selected: {selected.name} · SHA-256 present · {selected.backup.data.contacts.length} contacts · {selected.backup.data.schedules.length} schedules</span>}
+   <button type="button" className="button-quiet compact-button" disabled={busy||!selected||!configured} onClick={()=>void restoreBackup()}><RotateCcw size={14}/>Restore shared server</button>
+  </div>
+  {!configured&&<p className="muted-copy" style={{marginTop:10}}>Connect the shared server first: Follow-up Centre → PC ↔ Android shared data settings.</p>}
+  {error&&<p role="alert" className="module-safety-note" style={{marginTop:10,borderColor:"var(--danger, #b42318)"}}>{error}</p>}
+  <p className="muted-copy" style={{marginTop:10}}>Restore replaces shared contacts, schedules, logs, module records, manufacturing collections and preferences. The server verifies the backup digest and schema, creates a pre-restore snapshot and advances a restore-generation marker so stale device caches cannot silently overwrite the recovered state. Keep exported files encrypted and access-controlled.</p>
+ </section>;
+}
+
 export function ExportCentreWorkspace({onBack,onNotice}:Props){
  const {data}=useManufacturingData();const [moduleId,setModuleId]=useState("companies");
  const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["cost-reconciliation","PO-line Cost Reconciliation"],["payments","Payment Ledger"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
@@ -150,6 +234,7 @@ export function ExportCentreWorkspace({onBack,onNotice}:Props){
  const exportPdf=()=>{const w=window.open("","_blank");if(!w){onNotice("Allow pop-ups to use Print / Save PDF.");return;}const table=rows.length?'<table><thead><tr>'+Object.keys(rows[0]).map(x=>'<th>'+x+'</th>').join("")+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+Object.values(row).map(v=>'<td>'+String(v??"").replace(/[&<>]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch]!))+'</td>').join("")+'</tr>').join("")+'</tbody></table>':'<p>No saved records.</p>';w.document.write('<!doctype html><html><head><title>AXIMACH Export</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:6px;text-align:left}th{background:#eee}</style></head><body><h1>AXIMACH · '+options.find(x=>x[0]===moduleId)?.[1]+'</h1>'+table+'</body></html>');w.document.close();w.focus();w.print();};
  return <section className="workspace-page intelligence-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> DATA EXPORT</span></div>
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> DATA EXCHANGE / DOWNLOADS</div><h1>Export Centre<span>.</span></h1><p>Export saved module records and individual operation datasets to editable CSV, print/PDF or full JSON backup.</p></div></div>
+  <ServerBackupPanel onNotice={onNotice}/>
   <section className="surface-panel"><div className="module-record-form specialized-form"><label>Module to export<select value={moduleId} onChange={e=>setModuleId(e.target.value)}>{options.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select></label><label>Matching saved records<input readOnly value={String(rows.length)}/></label><div className="module-form-actions"><button className="button-primary" onClick={exportExcel}><FileDown size={14}/> Excel workbook (.xlsx)</button><button className="button-quiet" onClick={exportCsv}>CSV</button><button className="button-quiet" onClick={exportPdf}>Print / Save PDF</button><button className="button-quiet" onClick={exportJson}><Download size={14}/> Full JSON backup</button></div></div></section>
   <div className="module-safety-note"><ShieldCheck size={15}/><span>CSV files are editable in Excel; PDF is generated through the device print dialog. Full JSON backup preserves the manufacturing data model. Specialized records held in browser-local module stores are exported when their matching module is selected.</span></div>
  </section>;

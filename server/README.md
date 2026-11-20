@@ -19,10 +19,12 @@ Run with Node.js 20.18+: `node server/index.mjs`.
 
 All routes except `GET /health` require header `x-aximach-key: <AXIMACH_API_KEY>`.
 
-- `GET /api/manufacturing-data` — read the linked company/factory/PO/component/vendor/operation/quotation collections.
+- `GET /api/manufacturing-data` — read the linked company/factory/PO/component/vendor/operation/quotation collections and the current `restoreGeneration` value.
+
+- `GET /api/records` — read module records and the current `restoreGeneration` value. Both manufacturing-data and module-record PUT requests must send that generation after a restore; stale devices receive HTTP 409 and must refresh from the server before writing.
 
 - `GET /api/backup` — authenticated full JSON backup of the local service database, including manufacturing collections, general module records, contacts, schedules, logs and UI preferences. The response includes a SHA-256 integrity digest.
-- `POST /api/restore` — authenticated restore of a version-1 AXIMACH backup. Send `{"backup":{...the complete /api/backup response...},"confirmation":"RESTORE_AXIMACH_BACKUP"}`. The service verifies the digest and schema, writes a protected pre-restore snapshot beside the database file, then atomically replaces the database. Invalid/tampered backups and missing confirmation are rejected without changing current data. Keep downloaded backups encrypted and access-controlled; this endpoint does not replace off-host backup retention or disaster-recovery testing.
+- `POST /api/restore` — authenticated restore of a version-1 AXIMACH backup. Send `{"backup":{...the complete /api/backup response...},"confirmation":"RESTORE_AXIMACH_BACKUP"}`. The service verifies the digest and schema, writes a protected pre-restore snapshot beside the database file, then atomically replaces the database. Invalid/tampered backups and missing confirmation are rejected without changing current data. Each successful restore increments `restoreGeneration`; manufacturing-data and module-record sync endpoints expose it and reject stale/missing generation writes with HTTP 409 so old device caches cannot resurrect pre-restore records. Keep downloaded backups encrypted and access-controlled; this endpoint does not replace off-host backup retention or disaster-recovery testing.
 
 - `PUT /api/manufacturing-data` — merge linked manufacturing records by stable record ID and `updatedAt` into the persistent JSON store (maximum 8 MB per payload; archive records with a `deletedAt` timestamp to retain history).
 - `GET /api/records` — read all generic module records by module ID.
