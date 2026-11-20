@@ -398,7 +398,7 @@ test("server user authentication issues expiring bearer sessions and enforces ro
     assert.equal(viewerLogin.status, 200);
     const viewer = await viewerLogin.json();
     const viewerHeaders = { authorization: "Bearer " + viewer.token, "content-type": "application/json" };
-    assert.equal((await fetch(baseUrl + "/api/records", { headers: viewerHeaders })).status, 200);
+    assert.equal((await fetch(baseUrl + "/api/records", { headers: viewerHeaders })).status, 403, "generic legacy module records remain admin-only until tenant ownership is modeled");
     const blockedWrite = await fetch(baseUrl + "/api/records", { method: "PUT", headers: viewerHeaders, body: JSON.stringify({ records: { companies: [{ id: "viewer-write" }] } }) });
     assert.equal(blockedWrite.status, 403);
 
