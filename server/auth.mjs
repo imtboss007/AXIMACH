@@ -91,7 +91,7 @@ export function getRequiredPermission(pathname,method){
  if(pathname==="/api/schedules")return verb==="GET"?"schedules:read":"schedules:write";
  if(/^\/api\/schedules\/[\w-]+$/.test(pathname)&&verb==="PATCH")return "schedules:write";
  if(pathname==="/api/logs"&&verb==="GET")return "logs:read";
- return null;
+ return "admin:only";
 }
 export function hasPermission(user,permission){
  if(user?.legacy===true)return true;const granted=ROLE_PERMISSIONS[user?.role]||[];

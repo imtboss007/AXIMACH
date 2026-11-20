@@ -393,6 +393,7 @@ test("server user authentication issues expiring bearer sessions and enforces ro
     const operatorWrite = await fetch(baseUrl + "/api/manufacturing-data", { method: "PUT", headers: operatorHeaders, body: JSON.stringify({ data: { components: [{ id: "auth-component", companyId: "auth-company", name: "Operator component", updatedAt: "2026-11-20T04:00:00.000Z" }] } }) });
     assert.equal(operatorWrite.status, 200);
     assert.equal((await fetch(baseUrl + "/api/backup", { headers: operatorHeaders })).status, 403);
+    assert.equal((await fetch(baseUrl + "/api/not-yet-classified", { headers: operatorHeaders })).status, 403, "unclassified routes must fail closed for non-admin users");
 
     const viewerLogin = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "viewer", password: "AXIMACH-viewer-Password-2026!" }) });
     assert.equal(viewerLogin.status, 200);
