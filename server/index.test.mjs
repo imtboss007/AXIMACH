@@ -500,7 +500,8 @@ test("tenant-scoped user reads and writes only its assigned company and related 
           { id:"cross-tenant-plan-hidden", companyId:"company-a", poId:"po-b", componentId:"component-b", processDefinitionId:"process-b", updatedAt:"2026-11-20T05:00:00.000Z" }
         ],
         materialCostEntries: [
-          { id:"cross-tenant-material-hidden", companyId:"company-a", poId:"po-b", componentId:"component-b", materialId:"material-b", updatedAt:"2026-11-20T05:00:00.000Z" }
+          { id:"cross-tenant-material-hidden", companyId:"company-a", poId:"po-b", componentId:"component-b", materialId:"material-b", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"cross-tenant-anchor-cost-hidden", companyId:"company-a", poId:"po-a", poLineId:"line-a", componentId:"component-a", anchorOperationId:"operation-b", materialId:"material-a", vendorId:"vendor-b", updatedAt:"2026-11-20T05:00:00.000Z" }
         ],
         inventoryTransactions: [
           { id:"cross-tenant-stock-hidden", companyId:"company-a", factoryId:"factory-b", itemType:"component", itemId:"component-b", transactionType:"Receipt", direction:"in", quantity:1, updatedAt:"2026-11-20T05:00:00.000Z" }
