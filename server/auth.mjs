@@ -1,4 +1,4 @@
-import { createHash, randomBytes, scrypt } from "node:crypto";
+import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 const SCRYPT_N=16384, SCRYPT_R=8, SCRYPT_P=1, KEY_LENGTH=64, SALT_LENGTH=16;
 const LOGIN_WINDOW_MS=15*60*1000, MAX_LOGIN_FAILURES=8;
 const VALID_ROLES=new Set(["admin","manager","operator","viewer"]);
@@ -24,7 +24,7 @@ function parsePasswordHash(value){
 }
 async function verifyPassword(password,encoded){
  const parsed=parsePasswordHash(encoded);if(!parsed||typeof password!=="string"||password.length>256)return false;
- const actual=await derive(password,parsed.salt);return actual.length===parsed.key.length&&actual.equals(parsed.key);
+ const actual=await derive(password,parsed.salt);return actual.length===parsed.key.length&&timingSafeEqual(actual,parsed.key);
 }
 function safeUser(user){return {id:user.id,username:user.username,role:user.role};}
 function parseUsers(usersJson){
