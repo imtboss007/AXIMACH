@@ -1238,10 +1238,14 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState({ title: "", reference: "", status: "Open", owner: "", linkedModule: "", notes: "" });
-  const records = (allRecords[module.id] ?? []).filter(record => !record.deletedAt);
+  const currentServerUrl=(window.localStorage.getItem("aximach.scheduler.url")||"").trim();
+  const currentUserSession=readServerSession(currentServerUrl);
+  const restrictedModuleRecords=getServerAuthMode()==="users"&&currentUserSession?.user.role!=="admin";
+  const records = restrictedModuleRecords?[]:(allRecords[module.id] ?? []).filter(record => !record.deletedAt);
   const related = modules.filter((item) => item.id !== module.id && [module.group, "Engineering", "Operations", "Governance", "Supply Network", "Commercial", "Finance", "Connections"].includes(item.group)).slice(0, 8);
   const filtered = records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(search.toLowerCase()));
   const persist = (next: Record<string, ModuleRecord[]>) => {
+    if(restrictedModuleRecords){onNotice("Generic module records are administrator-only until their company/factory ownership is defined. Use the linked manufacturing records for your assigned scope.");return;}
     const latestLocal = getAllModuleRecords();
     const updated = mergeModuleRecordSets(latestLocal, next);
     setAllRecords(updated);
@@ -1249,7 +1253,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
     window.dispatchEvent(new Event("aximach-module-records-updated"));
     const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
     const key = window.localStorage.getItem("aximach.scheduler.key") || "";
-    setRecordSync(base && key ? "syncing" : "local");
+    setRecordSync(base && key && !restrictedModuleRecords ? "syncing" : "local");
   };
   const resetForm = () => { setDraft({ title: "", reference: "", status: "Open", owner: "", linkedModule: "", notes: "" }); setEditingId(""); setShowForm(false); };
   const saveRecord = () => {
