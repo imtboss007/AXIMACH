@@ -92,7 +92,9 @@ function resolveAccess(data, user) {
  );
  const bomLines = rows(data,"bomLines").filter(row => componentIds.has(row.componentId));
  const materialCostEntries = rows(data,"materialCostEntries").filter(row =>
-  row.companyId ? companyAllowed(row.companyId) : row.poId ? purchaseOrderIds.has(row.poId) : componentIds.has(row.componentId)
+  (row.companyId ? companyAllowed(row.companyId) : row.poId ? purchaseOrderIds.has(row.poId) : componentIds.has(row.componentId)) &&
+  (!row.poId || purchaseOrderIds.has(row.poId)) &&
+  (!row.componentId || componentIds.has(row.componentId))
  );
  const materialIds = new Set([
   ...componentParts.flatMap(row => [...(Array.isArray(row.materialIds) ? row.materialIds : []),row.materialId].filter(Boolean)),
@@ -106,7 +108,6 @@ function resolveAccess(data, user) {
   ...operations.flatMap(row => [row.vendorId,row.transportVendorId]).filter(Boolean),
   ...quotations.map(row => row.vendorId).filter(Boolean),
   ...transportLegs.map(row => row.vendorId).filter(Boolean),
-  ...materialCostEntries.flatMap(row => [row.vendorId,row.transportVendorId]).filter(Boolean),
   ...inventoryTransactions.map(row => row.vendorId).filter(Boolean),
   ...materials.map(row => row.preferredVendorId).filter(Boolean)
  ]);
@@ -118,7 +119,10 @@ function resolveAccess(data, user) {
  const companies = rows(data,"companies").filter(row => companyAllowed(row.id));
  const factories = factoryRows.filter(row => factoryIds.has(row.id) && companyAllowed(row.companyId));
  const plannedCosts = rows(data,"plannedCosts").filter(row =>
-  row.companyId ? companyAllowed(row.companyId) : row.poId ? purchaseOrderIds.has(row.poId) : componentIds.has(row.componentId)
+  (row.companyId ? companyAllowed(row.companyId) : row.poId ? purchaseOrderIds.has(row.poId) : componentIds.has(row.componentId)) &&
+  (!row.poId || purchaseOrderIds.has(row.poId)) &&
+  (!row.componentId || componentIds.has(row.componentId)) &&
+  (!row.processDefinitionId || processDefinitionIds.has(row.processDefinitionId))
  );
  const contactProfiles = rows(data,"contactProfiles").filter(row =>
   (row.linkedType === "company" && companyAllowed(row.linkedId)) ||

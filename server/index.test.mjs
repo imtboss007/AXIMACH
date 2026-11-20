@@ -483,6 +483,15 @@ test("tenant-scoped user reads and writes only its assigned company and related 
         processDefinitions: [
           { id:"process-a", processType:"Machining", updatedAt:"2026-11-20T05:00:00.000Z" },
           { id:"process-b", processType:"Grinding", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        plannedCosts: [
+          { id:"cross-tenant-plan-hidden", companyId:"company-a", poId:"po-b", componentId:"component-b", processDefinitionId:"process-b", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        materialCostEntries: [
+          { id:"cross-tenant-material-hidden", companyId:"company-a", poId:"po-b", componentId:"component-b", materialId:"material-b", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        inventoryTransactions: [
+          { id:"cross-tenant-stock-hidden", companyId:"company-a", factoryId:"factory-b", itemType:"component", itemId:"component-b", transactionType:"Receipt", direction:"in", quantity:1, updatedAt:"2026-11-20T05:00:00.000Z" }
         ]
       } })
     });
@@ -499,6 +508,9 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     assert.deepEqual(scoped.operations.map(row=>row.id),["operation-a"]);
     assert.deepEqual(scoped.vendors.map(row=>row.id),["vendor-a"]);
     assert.deepEqual(scoped.processDefinitions.map(row=>row.id),["process-a"]);
+    assert.deepEqual(scoped.plannedCosts,[],"tenant scope excludes a company-tagged cost row linked to a foreign PO/component/process");
+    assert.deepEqual(scoped.materialCostEntries,[],"tenant scope excludes material costing linked to a foreign PO/component");
+    assert.deepEqual(scoped.inventoryTransactions,[],"tenant scope excludes stock records for another factory");
 
     const foreignWrite = await fetch(baseUrl + "/api/manufacturing-data", {
       method:"PUT", headers:companyHeaders,
