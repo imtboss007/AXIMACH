@@ -209,9 +209,9 @@ test("dashboard command globe exposes 21 unique, distinguishable module shortcut
   const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
   assert.equal(ids.length, 21);
-  assert.equal(new Set(ids).size, 20, "module shortcut IDs must be unique");
+  assert.equal(new Set(ids).size, 21, "module shortcut IDs must be unique");
   assert.equal(labels.length, 21);
-  assert.equal(new Set(labels).size, 20, "module shortcut labels must be distinguishable");
+  assert.equal(new Set(labels).size, 21, "module shortcut labels must be distinguishable");
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
@@ -961,7 +961,7 @@ test("Process Plan panels expose independent native expand/collapse sections", (
 });
 
 
-test("Main Dashboard and 3D Command Centre center the 20-module orb on mobile", () => {
+test("Main Dashboard and 3D Command Centre center the 21-module orb on mobile", () => {
   const dashboardStyles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   const appStyles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.ok(dashboardStyles.includes(".dashboard-welcome-orb .ax-orb-drag-zone"));
