@@ -60,6 +60,7 @@ export function createAuthService(usersJson,options={}){
  }
  return {
   mode:"users",
+  activeUserIds(){return users.filter(user=>user.active).map(user=>user.id);},
   async login(usernameInput,password,address="unknown"){
    const now=Date.now();cleanExpired(now);const client=String(address||"unknown").slice(0,128);
    const failures=failuresByAddress.get(client)||[];if(failures.length>=MAX_LOGIN_FAILURES)return {ok:false,rateLimited:true};
