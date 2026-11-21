@@ -350,7 +350,9 @@ export function validateManufacturingWrite(currentData, incoming, user) {
     }
     case "supplierFinanceApprovals": {
      const target=row.targetType==="invoice"?allInvoices.get(row.targetId):row.targetType==="payment"?allSupplierPayments.get(row.targetId):undefined;
-     const prior=latestApproval(row.targetType,row.targetId);
+     const prior=rows(currentData,"supplierFinanceApprovals")
+      .filter(value=>value.targetType===row.targetType&&value.targetId===row.targetId&&!value.deletedAt)
+      .sort((a,b)=>(Date.parse(b.decidedAt||"")||0)-(Date.parse(a.decidedAt||"")||0))[0];
      const creator=target?.createdBy||"";
      const approver=String(user?.id||"");
      const oldApproval=rows(currentData,"supplierFinanceApprovals").find(value=>value.id===row.id);
