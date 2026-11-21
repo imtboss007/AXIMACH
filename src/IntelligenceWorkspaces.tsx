@@ -217,7 +217,7 @@ type ServerAuditEvent = {
  id:string;occurredAt:string;actorId:string;actorUsername:string;actorRole:string;method:string;path:string;action:string;
  targetId?:string;recordCount?:number;collectionCounts?:Record<string,number>;moduleCounts?:Record<string,number>;
  repeat?:string;operationId?:string;vendorId?:string;enabled?:boolean;optedIn?:boolean;providerAccepted?:boolean;
- preferenceKeys?:string[];restoreGeneration?:number;
+ preferenceKeys?:string[];restoreGeneration?:number;requiredPermission?:string;rateLimited?:boolean;
 };
 function ServerAuditPanel({onNotice}:{onNotice:(value:string)=>void}) {
  const [events,setEvents]=useState<ServerAuditEvent[]>([]);
@@ -267,6 +267,8 @@ function ServerAuditPanel({onNotice}:{onNotice:(value:string)=>void}) {
   if(event.targetId)return "Record reference "+event.targetId;
   if(event.providerAccepted!==undefined)return event.providerAccepted?"Accepted by messaging provider":"Messaging attempt failed";
   if(event.optedIn!==undefined)return event.optedIn?"Recipient opt-in recorded":"Opt-in not recorded";
+  if(event.requiredPermission)return "Access denied · required permission: "+event.requiredPermission;
+  if(event.rateLimited!==undefined)return event.rateLimited?"Sign-in blocked by rate limit":"Sign-in credentials rejected";
   if(event.enabled!==undefined)return event.enabled?"Schedule enabled":"Schedule paused";
   return "Server-side action recorded";
  };
