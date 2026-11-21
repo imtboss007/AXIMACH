@@ -13,8 +13,10 @@ const cache = join(root, "npm-cache");
 const { mkdir } = await import("node:fs/promises");
 await Promise.all([mkdir(home), mkdir(cache)]);
 
-const baseFetch = spawnSync("git", ["fetch", "--depth", "100", "origin", "stage6/p0-production-quantity-integrity"], { cwd, encoding: "utf8", timeout: 120_000 });
+const baseFetch = spawnSync("git", ["fetch", "--depth", "100", "origin", "stage6/p0-production-quantity-integrity:refs/remotes/origin/stage6/p0-production-quantity-integrity"], { cwd, encoding: "utf8", timeout: 120_000 });
 if (baseFetch.status !== 0) throw new Error("Could not fetch AXIMACH base branch: " + (baseFetch.stderr || baseFetch.error?.message || "git fetch failed"));
+const baseRef = spawnSync("git", ["rev-parse", "--verify", "refs/remotes/origin/stage6/p0-production-quantity-integrity^{commit}"], { cwd, encoding: "utf8", timeout: 15_000 });
+if (baseRef.status !== 0) throw new Error("AXIMACH base ref was not resolved; refusing to accept an empty diff as a passing review.");
 
 let child;
 let stdoutBuffer = "";
@@ -135,7 +137,7 @@ try {
   const review = await request("tools/call", {
     name: "analyze_diff",
     arguments: {
-      ref: "stage6/p0-production-quantity-integrity..HEAD",
+      ref: "origin/stage6/p0-production-quantity-integrity..HEAD",
       includeFileRisks: true,
       includeReviewers: true,
       useRuVector: false,
