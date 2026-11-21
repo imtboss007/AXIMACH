@@ -9,7 +9,7 @@ import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 import { MechanicalIconGlyph, MECHANICAL_ICON_INVENTORY, mechanicalOperationSvgForName } from "./MechanicalOperationIcon";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 
-type SpecializedNavigationContext={companyId?:string;poId?:string;componentId?:string};
+type SpecializedNavigationContext={companyId?:string;poId?:string;componentId?:string;searchText?:string};
 type Props={moduleId:"process-master"|"planned-cost";onBack:()=>void;onNotice:(value:string)=>void;notice:string;onOpenIconStudio?:(processDefinitionId?:string)=>void;initialContext?:SpecializedNavigationContext};
 type ProcessEntry=ProcessDefinitionRecord;
 const PROCESS_KEY="aximach.processDirectory.v1";
@@ -32,7 +32,7 @@ async function processLogoPngBase64(process: Pick<ProcessEntry, "id" | "processT
  context.drawImage(image,4,4,88,88);return canvas.toDataURL("image/png").split(",")[1];
 }
 
-function ProcessDirectory({onNotice,onBack,onOpenIconStudio}:Pick<Props,"onNotice"|"onBack"|"onOpenIconStudio">){
+function ProcessDirectory({onNotice,onBack,onOpenIconStudio,initialContext}:Pick<Props,"onNotice"|"onBack"|"onOpenIconStudio"|"initialContext">){
  const {data,update}=useManufacturingData();
  const vendors=activeRows(data.vendors);
  const rows=activeRows(data.processDefinitions);
@@ -80,6 +80,7 @@ function ProcessDirectory({onNotice,onBack,onOpenIconStudio}:Pick<Props,"onNotic
  const [selectedVendorFilters,setSelectedVendorFilters]=useState<string[]>([]);
  const [notes,setNotes]=useState("");
  const [processColor,setProcessColor]=useState("#4b95eb");
+ useEffect(()=>setSearch(initialContext?.searchText||""),[initialContext?.searchText]);
  const filtered=useMemo(()=>rows.filter(row=>(row.processType+" "+row.category+" "+row.subcategories.join(" ")+" "+row.notes+" "+row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(" ")).toLowerCase().includes(search.toLowerCase().trim())
   &&(!selectedCategoryFilters.length||selectedCategoryFilters.includes(row.category))
   &&(!selectedTypeFilters.length||selectedTypeFilters.includes(row.processType))
