@@ -23,7 +23,7 @@ test("the main module catalogue and 3D command sphere expose the same 21 unique 
 
   assert.equal(moduleIds.length, 21, "the main catalogue must contain 21 modules");
   assert.equal(new Set(moduleIds).size, 21, "main module IDs must be unique");
-  assert.equal(satelliteIds.length, 20, "the 3D sphere must expose all 20 module controls");
+  assert.equal(satelliteIds.length, 21, "the 3D sphere must expose all 21 module controls");
   assert.equal(new Set(satelliteIds).size, 21, "3D sphere module IDs must be unique");
   assert.deepEqual([...satelliteIds].sort(), [...moduleIds].sort(), "the 3D sphere and navigation rail must expose identical module IDs");
 });
