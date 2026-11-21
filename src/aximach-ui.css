@@ -6059,3 +6059,10 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .manufacturing-universe-workspace[data-workspace-theme="dark"] .ax-ecosystem-view-toggle button.is-active{background:#244660;color:#e8f5ff}
 @media(max-width:760px){.ax-ecosystem-stage{min-height:570px}.ax-ecosystem-node{width:clamp(94px,25vw,125px);min-height:40px;padding:6px}.ax-ecosystem-node span{font-size:8px}.ax-ecosystem-node small{font-size:6px}.ax-ecosystem-hub{width:88px;height:88px}.ax-ecosystem-graph-head{align-items:flex-start;flex-direction:column}.ax-ecosystem-graph-foot{align-items:stretch;flex-direction:column}.ax-ecosystem-selected{width:100%;box-sizing:border-box}}
 @media(max-width:520px){.ax-ecosystem-graph{padding:7px}.ax-ecosystem-stage{min-height:530px}.ax-ecosystem-filters{gap:4px}.ax-ecosystem-filters button{font-size:7px;padding:4px 5px}.ax-ecosystem-node{width:94px;min-height:36px;padding:5px}.ax-ecosystem-node span{font-size:7px}.ax-ecosystem-node small{font-size:5px}.ax-ecosystem-hub{width:72px;height:72px}.ax-ecosystem-hub strong{font-size:12px}}
+
+
+.ax-ecosystem-export{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.ax-ecosystem-export select{height:30px;padding:0 7px;border:1px solid #d7e4ef;border-radius:6px;background:#fff;color:#58738c;font-size:8px}
+.ax-ecosystem-export button{display:flex;align-items:center;gap:5px;height:30px;padding:0 9px;border:1px solid #c9ddec;border-radius:6px;background:#eaf4fb;color:#176b9e;font-size:8px;font-weight:750;cursor:pointer}
+.ax-ecosystem-export button:hover{background:#dceefa}
+@media(max-width:760px){.ax-ecosystem-export{width:100%}.ax-ecosystem-export select,.ax-ecosystem-export button{flex:1}}
