@@ -401,7 +401,8 @@ export function validateManufacturingWrite(currentData, incoming, user) {
       payment.companyId===invoice.companyId&&payment.vendorId===invoice.vendorId&&
       Number.isFinite(Number(row.amount))&&Number(row.amount)>0&&
       invoiceAllocated+Number(row.amount)<=Number(invoice.totalAmount)+0.01&&
-      paymentAllocated+Number(row.amount)<=Number(payment.amount)+0.01&&!duplicatePair;
+      paymentAllocated+Number(row.amount)<=Number(payment.amount)+0.01&&!duplicatePair&&
+      typeof row.createdBy==="string"&&Boolean(row.createdBy);
      break;
     }
     case "followUpAssignments": allowed=scopeIds.has(row.recordId) || scopeIds.has(row.contactId); break;
