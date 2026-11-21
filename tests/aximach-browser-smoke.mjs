@@ -113,6 +113,14 @@ try {
   if (await page.locator(".ax-ecosystem-filters button").count() !== 12) {
     throw new Error("Manufacturing ecosystem graph does not expose all 12 entity filters.");
   }
+  await page.locator('select[aria-label="Ecosystem export format"]').selectOption("csv");
+  const ecosystemDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export graph" }).click();
+  const ecosystemDownload = await ecosystemDownloadPromise;
+  if (ecosystemDownload.suggestedFilename() !== "aximach-manufacturing-ecosystem.csv") {
+    throw new Error("Manufacturing ecosystem CSV export returned an unexpected filename: " + ecosystemDownload.suggestedFilename());
+  }
+  console.log("PASS Manufacturing Universe CSV graph export");
   const companiesFilter = page.locator(".ax-ecosystem-filters button").filter({ hasText: "Companies" });
   await companiesFilter.click();
   if (await companiesFilter.getAttribute("aria-pressed") !== "false") {
