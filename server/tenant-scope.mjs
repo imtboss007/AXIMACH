@@ -2,7 +2,7 @@ const ARRAY_FIELDS = Object.freeze([
  "companies","factories","purchaseOrders","components","vendors","operations","quotations","materials",
  "componentParts","materialCostEntries","bomLines","materialProcessLinks","inventoryTransactions",
  "contactProfiles","processDefinitions","plannedCosts","transportRoutes","transportLegs",
- "paymentTransactions","inspectionMeasurements","routeRelationships","followUpAssignments"
+ "paymentTransactions","inspectionMeasurements","supplierInvoices","supplierPayments","supplierFinanceApprovals","supplierPaymentAllocations","routeRelationships","followUpAssignments"
 ]);
 const MASTER_FIELDS = new Set(["vendors","materials","processDefinitions","transportRoutes"]);
 const setOf = values => new Set(Array.isArray(values) ? values.filter(value => typeof value === "string" && value) : []);
@@ -155,12 +155,28 @@ function resolveAccess(data, user) {
   (row.linkedType === "company" && companyAllowed(row.linkedId)) ||
   (row.linkedType === "vendor" && vendorIds.has(row.linkedId))
  );
+ const supplierInvoices = rows(data,"supplierInvoices").filter(row =>
+  companyAllowed(row.companyId) && factoryAllowed(row.factoryId) && vendorIds.has(row.vendorId) &&
+  (!row.poId || (purchaseOrderIds.has(row.poId) && rows(data,"purchaseOrders").some(po=>po.id===row.poId&&po.companyId===row.companyId&&po.factoryId===row.factoryId))) &&
+  (!row.poLineId || lineIds.has(row.poLineId))
+ );
+ const supplierPayments = rows(data,"supplierPayments").filter(row =>
+  companyAllowed(row.companyId) && factoryAllowed(row.factoryId) && vendorIds.has(row.vendorId)
+ );
+ const invoiceIds = ids(supplierInvoices), supplierPaymentIds = ids(supplierPayments);
+ const supplierFinanceApprovals = rows(data,"supplierFinanceApprovals").filter(row =>
+  row.targetType==="invoice" ? invoiceIds.has(row.targetId) : row.targetType==="payment" && supplierPaymentIds.has(row.targetId)
+ );
+ const supplierPaymentAllocations = rows(data,"supplierPaymentAllocations").filter(row =>
+  invoiceIds.has(row.invoiceId) && supplierPaymentIds.has(row.paymentId)
+ );
  const entityIds = new Set([
   ...ids(companies),...ids(factories),...purchaseOrderIds,...lineIds,...componentIds,
   ...operationIds,...ids(quotations),...ids(transportLegs),...ids(routeRelationships),
   ...ids(paymentTransactions),...ids(inspectionMeasurements),...ids(materialProcessLinks),
   ...ids(inventoryTransactions),...ids(componentParts),...ids(bomLines),...ids(materialCostEntries),
-  ...ids(contactProfiles),...ids(vendors),...ids(materials),...ids(processDefinitions),...ids(transportRoutes)
+  ...ids(contactProfiles),...ids(supplierInvoices),...ids(supplierPayments),...ids(supplierFinanceApprovals),...ids(supplierPaymentAllocations),
+  ...ids(vendors),...ids(materials),...ids(processDefinitions),...ids(transportRoutes)
  ]);
  const contactProfileIds = ids(contactProfiles);
  const followUpAssignments = rows(data,"followUpAssignments").filter(row =>
@@ -172,7 +188,7 @@ function resolveAccess(data, user) {
   companies,factories,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
   paymentTransactions,inspectionMeasurements,materialProcessLinks,inventoryTransactions,
   componentParts,bomLines,materialCostEntries,materials,vendors,processDefinitions,transportRoutes,
-  plannedCosts,contactProfiles,followUpAssignments
+  plannedCosts,contactProfiles,supplierInvoices,supplierPayments,supplierFinanceApprovals,supplierPaymentAllocations,followUpAssignments
  };
 }
 
@@ -227,6 +243,17 @@ export function validateManufacturingWrite(currentData, incoming, user) {
  );
  const operationIds = new Set([...currentOperationIds,...incomingOperations.map(row=>row.id)]);
  const vendorIds = access.vendorIds;
+ const combinedById = (collection) => new Map([...rows(currentData,collection),...rows(incoming,collection)].filter(row=>row?.id).map(row=>[row.id,row]));
+ const allInvoices = combinedById("supplierInvoices");
+ const allSupplierPayments = combinedById("supplierPayments");
+ const allFinanceApprovals = [...rows(currentData,"supplierFinanceApprovals"),...rows(incoming,"supplierFinanceApprovals")];
+ const latestApproval = (targetType,targetId) => allFinanceApprovals
+  .filter(row=>row.targetType===targetType&&row.targetId===targetId&&!row.deletedAt)
+  .sort((a,b)=>(Date.parse(b.decidedAt||"")||0)-(Date.parse(a.decidedAt||"")||0))[0];
+ const approvalIsCurrent = (targetType,targetId) => latestApproval(targetType,targetId)?.decision==="Approved";
+ const invoiceAllocations = [...rows(currentData,"supplierPaymentAllocations"),...rows(incoming,"supplierPaymentAllocations")].filter(row=>!row.deletedAt);
+ const validMoney = value => Number.isFinite(Number(value)) && Number(value)>=0;
+
  const materialIds = access.materialIds;
  const processIds = access.processDefinitionIds;
  const transportRouteIds = access.transportRouteIds;
@@ -280,6 +307,51 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      allowed=(row.companyId ? companyIds.has(row.companyId) : row.poId ? allowedPOIds.has(row.poId) : componentIds.has(row.componentId)) &&
       (!row.poId || allowedPOIds.has(row.poId)) && (!row.componentId || componentIds.has(row.componentId)) &&
       (!row.processDefinitionId || processIds.has(row.processDefinitionId)); break;
+    case "supplierInvoices": {
+     const linkedPO=row.poId?allowedPOById.get(row.poId):undefined;
+     const duplicateNumber=[...rows(currentData,"supplierInvoices"),...rows(incoming,"supplierInvoices")]
+      .some(other=>other.id!==row.id&&!other.deletedAt&&other.companyId===row.companyId&&other.vendorId===row.vendorId&&String(other.invoiceNumber||"").trim().toLowerCase()===String(row.invoiceNumber||"").trim().toLowerCase());
+     allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorIds.has(row.vendorId)&&
+      (!row.poId||(Boolean(linkedPO)&&linkedPO.companyId===row.companyId&&linkedPO.factoryId===row.factoryId))&&
+      (!row.poLineId||(Boolean(linkedPO)&&lines.has(row.poLineId)&&rows(linkedPO,"lines").some(line=>line.id===row.poLineId)))&&
+      typeof row.invoiceNumber==="string"&&Boolean(row.invoiceNumber.trim())&&!duplicateNumber&&
+      ["Draft","Submitted","Voided"].includes(row.status)&&
+      validMoney(row.subtotal)&&validMoney(row.taxAmount)&&Number(row.totalAmount)>0&&
+      Math.abs(Number(row.totalAmount)-(Number(row.subtotal)+Number(row.taxAmount)))<=0.02&&
+      typeof row.createdBy==="string"&&Boolean(row.createdBy);
+     break;
+    }
+    case "supplierPayments":
+     allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorIds.has(row.vendorId)&&
+      ["Draft","Submitted","Voided"].includes(row.status)&&Number.isFinite(Date.parse(row.paymentDate||""))&&
+      Number.isFinite(Number(row.amount))&&Number(row.amount)>0&&typeof row.createdBy==="string"&&Boolean(row.createdBy);
+     break;
+    case "supplierFinanceApprovals": {
+     const target=row.targetType==="invoice"?allInvoices.get(row.targetId):row.targetType==="payment"?allSupplierPayments.get(row.targetId):undefined;
+     const prior=latestApproval(row.targetType,row.targetId);
+     const creator=target?.createdBy||"";
+     const approver=String(user?.id||"");
+     allowed=(user?.role==="admin"||user?.role==="manager")&&Boolean(target)&&target.status==="Submitted"&&
+      typeof row.id==="string"&&["Approved","Rejected","Returned"].includes(row.decision)&&
+      (user?.legacy===true||creator!==approver)&&
+      (!prior||prior.decision!=="Approved")&&
+      (!prior||(Date.parse(target.updatedAt||"")||0)>(Date.parse(prior.decidedAt||"")||0));
+     break;
+    }
+    case "supplierPaymentAllocations": {
+     const payment=allSupplierPayments.get(row.paymentId),invoice=allInvoices.get(row.invoiceId);
+     const duplicatePair=invoiceAllocations.some(other=>other.id!==row.id&&!other.deletedAt&&other.paymentId===row.paymentId&&other.invoiceId===row.invoiceId);
+     const invoiceAllocated=invoiceAllocations.filter(other=>other.id!==row.id&&other.invoiceId===row.invoiceId).reduce((sum,other)=>sum+Number(other.amount||0),0);
+     const paymentAllocated=invoiceAllocations.filter(other=>other.id!==row.id&&other.paymentId===row.paymentId).reduce((sum,other)=>sum+Number(other.amount||0),0);
+     const immutable=rows(currentData,"supplierPaymentAllocations").find(other=>other.id===row.id);
+     allowed=!immutable&&Boolean(payment&&invoice)&&payment.status==="Submitted"&&invoice.status==="Submitted"&&
+      approvalIsCurrent("payment",payment.id)&&approvalIsCurrent("invoice",invoice.id)&&
+      payment.companyId===invoice.companyId&&payment.vendorId===invoice.vendorId&&
+      Number.isFinite(Number(row.amount))&&Number(row.amount)>0&&
+      invoiceAllocated+Number(row.amount)<=Number(invoice.totalAmount)+0.01&&
+      paymentAllocated+Number(row.amount)<=Number(payment.amount)+0.01&&!duplicatePair;
+     break;
+    }
     case "followUpAssignments": allowed=scopeIds.has(row.recordId) || scopeIds.has(row.contactId); break;
     case "vendors": case "materials": case "processDefinitions": case "transportRoutes": allowed=false; break;
     default: allowed=false;
