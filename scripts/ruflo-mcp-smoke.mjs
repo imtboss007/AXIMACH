@@ -120,12 +120,20 @@ try {
   const names = tools.map((tool) => tool.name).filter(Boolean).sort();
   if (new Set(names).size !== names.length) fail("MCP tool inventory contains duplicate tool names");
 
+  const inspectNames = new Set(["agent_execute","agent_list","agent_health","analyze_diff","analyze_diff-risk","analyze_file-risk","browser_act","browser_cookie_use","config_get","config_set","github_repo_analyze","guidance_recommend","memory_search","memory_retrieve","performance_bottleneck","performance_report","system_health","terminal_execute","workflow_execute"]);
+  const inspectedTools = tools.filter((tool) => inspectNames.has(tool.name)).map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+  }));
+
   console.log(JSON.stringify({
     result: "PASS",
     pinnedPackage: "claude-flow@" + VERSION,
     server: initialized.serverInfo,
     protocolVersion: initialized.protocolVersion,
     toolCount: names.length,
+    inspectedTools,
     toolNames: names,
     executedToolCalls: 0,
     projectFilesExposed: false,
