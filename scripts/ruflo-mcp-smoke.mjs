@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,7 +11,7 @@ const home = join(root, "home");
 const cwd = join(root, "workspace");
 const cache = join(root, "npm-cache");
 const { mkdir } = await import("node:fs/promises");
-await Promise.all([mkdir(home), mkdir(cwd), mkdir(cache)]);
+await Promise.all([mkdir(home), mkdir(cache)]);\n\nconst clone = spawnSync("git", ["clone", "--depth", "100", "--branch", "integrate/35-toolkit-ui-audit", "https://github.com/imtboss007/AXIMACH.git", cwd], { cwd: root, encoding: "utf8", timeout: 120_000 });\nif (clone.status !== 0) throw new Error("Could not create disposable AXIMACH clone: " + (clone.stderr || clone.error?.message || "git clone failed"));\nconst baseFetch = spawnSync("git", ["fetch", "--depth", "100", "origin", "stage6/p0-production-quantity-integrity"], { cwd, encoding: "utf8", timeout: 120_000 });\nif (baseFetch.status !== 0) throw new Error("Could not fetch AXIMACH base branch: " + (baseFetch.stderr || baseFetch.error?.message || "git fetch failed"));
 
 let child;
 let stdoutBuffer = "";
@@ -127,6 +127,23 @@ try {
     inputSchema: tool.inputSchema,
   }));
 
+  const reviewTool = tools.find((tool) => tool.name === "analyze_diff");
+  if (!reviewTool) fail("Read-only analyze_diff tool is not registered");
+  const review = await request("tools/call", {
+    name: "analyze_diff",
+    arguments: {
+      ref: "stage6/p0-production-quantity-integrity..HEAD",
+      includeFileRisks: true,
+      includeReviewers: true,
+      useRuVector: false,
+    },
+  });
+  if (review.isError) fail("Ruflo analyze_diff tool returned an error");
+  const reviewText = review.content?.find((item) => item.type === "text")?.text ?? "";
+  let reviewData;
+  try { reviewData = JSON.parse(reviewText); } catch { reviewData = { raw: reviewText.slice(0, 4000) }; }
+  if (reviewData.error) fail("Ruflo analyze_diff reported an error: " + reviewData.message);
+
   console.log(JSON.stringify({
     result: "PASS",
     pinnedPackage: "claude-flow@" + VERSION,
@@ -135,8 +152,16 @@ try {
     toolCount: names.length,
     inspectedTools,
     toolNames: names,
-    executedToolCalls: 0,
-    projectFilesExposed: false,
+    pilotToolCall: "analyze_diff",
+    pilotAnalysis: {
+      summary: reviewData.summary,
+      risk: reviewData.risk,
+      classification: reviewData.classification,
+      fileCount: Array.isArray(reviewData.files) ? reviewData.files.length : undefined,
+      fileRisks: Array.isArray(reviewData.fileRisks) ? reviewData.fileRisks.slice(0, 20) : undefined,
+    },
+    executedToolCalls: 1,
+    projectFilesExposed: true,
     credentialsProvided: false,
     transport: "stdio",
   }, null, 2));
