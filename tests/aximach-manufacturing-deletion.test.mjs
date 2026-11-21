@@ -5,11 +5,12 @@ import { removeComponentDependents, removePurchaseOrderDependents } from "../src
 const row = (id, extra = {}) => ({ id, ...extra });
 const base = () => ({
   updatedAt: "2026-11-21T00:00:00.000Z",
-  companies: [row("co-1")],
+  companies: [row("co-1"), row("co-2")],
   factories: [row("factory-1")],
   components: [
     row("component-1", { companyId: "co-1", partNumber: "P-100", name: "Housing" }),
-    row("component-2", { companyId: "co-1", partNumber: "P-200", name: "Cover" })
+    row("component-2", { companyId: "co-1", partNumber: "P-200", name: "Cover" }),
+    row("component-3", { companyId: "co-2", partNumber: "P-100", name: "Housing" })
   ],
   purchaseOrders: [
     row("po-1", { lines: [row("line-1", { componentId: "component-1" }), row("line-2", { componentId: "component-2" })] }),
@@ -58,7 +59,7 @@ const base = () => ({
 
 test("component deletion removes all dependent PO, route, material and stock links without touching other components", () => {
   const result = removeComponentDependents(base(), ["component-1"]);
-  assert.deepEqual(result.components.map((item) => item.id), ["component-2"]);
+  assert.deepEqual(result.components.map((item) => item.id), ["component-2", "component-3"]);
   assert.deepEqual(result.purchaseOrders.map((po) => [po.id, po.lines.map((line) => line.id)]), [
     ["po-1", ["line-2"]]
   ]);
@@ -67,7 +68,7 @@ test("component deletion removes all dependent PO, route, material and stock lin
   }
   assert.deepEqual(result.inventoryTransactions.map((item) => item.id), ["stock-3"]);
   assert.deepEqual(result.plannedCosts.map((item) => item.id), ["planned-2", "legacy-ambiguous"]);
-  assert.deepEqual(result.followUpAssignments.map((item) => item.id), ["follow-3"]);
+  assert.deepEqual(result.followUpAssignments.map((item) => item.id), ["follow-2", "follow-3"]);
   assert.deepEqual(result.materials.map((item) => item.id), ["material-1"]);
   assert.deepEqual(result.vendors.map((item) => item.id), ["vendor-1"]);
   assert.deepEqual(result.processDefinitions.map((item) => item.id), ["process-1"]);
