@@ -4,7 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, t
 import SearchablePicker from "./SearchablePicker";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 
-type InventoryNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; subtab?:string };
+type InventoryNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; materialId?:string; subtab?:string; searchText?:string };
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: InventoryNavigationContext) => void; initialContext?: InventoryNavigationContext };
 type Tab = "materials" | "bom" | "stock" | "process-links";
 type MaterialDraft = Omit<MaterialRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
@@ -69,7 +69,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const vendors = activeRows(data.vendors);
   const inventoryTransactions = activeRows(data.inventoryTransactions);
   const operations = activeRows(data.operations);
-  const [tab, setTab] = useState<Tab>(() => initialContext?.subtab === "process-links" ? "process-links" : "materials");
+  const [tab, setTab] = useState<Tab>(() => initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
   const [materialLinkPoLineKey, setMaterialLinkPoLineKey] = useState(() => initialContext?.poId && initialContext?.poLineId ? initialContext.poId+"::"+initialContext.poLineId : "");
   const [materialLinkBomLineId, setMaterialLinkBomLineId] = useState("");
   const [materialLinkOperationId, setMaterialLinkOperationId] = useState(initialContext?.operationId || "");
@@ -78,7 +78,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const [materialLinkPlacement, setMaterialLinkPlacement] = useState<"before"|"after">("before");
   const [materialLinkNotes, setMaterialLinkNotes] = useState("");
   const [materialLinkEditingId, setMaterialLinkEditingId] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => materials.find(row=>row.id===initialContext?.materialId)?.code || "");
   const [directoryCompanyId, setDirectoryCompanyId] = useState("");
   const [directoryPoId, setDirectoryPoId] = useState("");
   const [directoryComponentId, setDirectoryComponentId] = useState("");
@@ -108,11 +108,12 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     // empty case, so a new module visit cannot inherit a stale component/PO.
     setMaterialLinkPoLineKey(initialContext?.poId && initialContext?.poLineId ? initialContext.poId+"::"+initialContext.poLineId : "");
     setMaterialLinkOperationId(initialContext?.operationId || "");
-    setTab(initialContext?.subtab === "process-links" ? "process-links" : "materials");
+    setTab(initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
+    setSearch(initialContext?.searchText || materials.find(row=>row.id===initialContext?.materialId)?.code || "");
     setDirectoryCompanyId(initialContext?.companyId || "");
     setDirectoryPoId(initialContext?.poId || "");
     setDirectoryComponentId(initialContext?.componentId || "");
-  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.operationId, initialContext?.subtab, initialContext?.companyId, initialContext?.componentId]);
+  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.operationId, initialContext?.materialId, initialContext?.searchText, initialContext?.subtab, initialContext?.companyId, initialContext?.componentId, materials.length]);
   const directoryPoOptions = orders.filter(po => !directoryCompanyId || po.companyId === directoryCompanyId);
   const directoryComponentOptions = components.filter(component => (!directoryPoId || orders.some(po => po.id === directoryPoId && po.lines.some(line => line.componentId === component.id))) && (!directoryCompanyId || component.companyId === directoryCompanyId || orders.some(po => po.companyId === directoryCompanyId && po.lines.some(line => line.componentId === component.id))));
   const directoryDimensionFields = MATERIAL_DIMENSIONS_BY_SHAPE[materialDraft.shapeType || "Round bar"] || MATERIAL_DIMENSIONS;
@@ -209,14 +210,14 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       const issued = inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === materialId && row.poId === bomIssueSelection.po.id && row.poLineId === bomIssueSelection.line.id)
         .reduce((sum, row) => sum + (row.transactionType === "Issue to production" && row.direction === "out" ? row.quantity : row.transactionType === "Return" && row.direction === "in" ? -row.quantity : 0), 0);
       const pending = Math.max(0, total.required - Math.max(0, issued));
-      const available = stockBalance("material", materialId);
+      const available = stockBalance("material", materialId, { companyId: bomIssueSelection.po.companyId, factoryId: bomIssueSelection.po.factoryId });
       return { material, bomLineIds: total.bomLineIds, required: total.required, issued: Math.max(0, issued), pending, available, shortage: Math.max(0, pending - available) };
     }).filter((row): row is BomIssuePreviewRow => Boolean(row));
   }, [bomIssuePoLineKey, bomIssueSelection, bomLines, materials, inventoryTransactions]);
   const operationOptions = operations.filter(op => !op.deletedAt && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)));
   const itemOptions = itemType === "material" ? materials.map(m => ({ id: m.id, label: m.code + " · " + m.name + " · " + m.grade })) : components.map(c => ({ id: c.id, label: c.partNumber + " · " + c.name + " · Rev " + (c.revision || "—") }));
   const selectedItem = itemType === "material" ? materials.find(m => m.id === itemId) : components.find(c => c.id === itemId);
-  const stockBalance = (type: "material" | "component", id: string) => inventoryTransactions.reduce((total, row) => row.itemType === type && row.itemId === id ? total + (row.direction === "in" ? row.quantity : -row.quantity) : total, 0);
+  const stockBalance = (type: "material" | "component", id: string, scope: { companyId?: string; factoryId?: string } = { companyId, factoryId }) => inventoryTransactions.reduce((total, row) => row.itemType === type && row.itemId === id && (!scope.companyId || row.companyId === scope.companyId) && (!scope.factoryId || row.factoryId === scope.factoryId) ? total + (row.direction === "in" ? row.quantity : -row.quantity) : total, 0);
   const visibleMaterials = useMemo(() => materials.filter(m => {
     const query = search.toLowerCase().trim();
     const textMatch = !query || (m.code + " " + m.name + " " + m.grade + " " + m.materialType + " " + m.shapeType + " " + m.specification + " " + m.notes + " " + Object.entries(m.dimensions||{}).map(([key,value])=>key+" "+value).join(" ")).toLowerCase().includes(query);
@@ -256,7 +257,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     const companyMatch=!directoryCompanyId||(row.companyId?row.companyId===directoryCompanyId:po?.companyId?po.companyId===directoryCompanyId:linkedPOs.some(order=>order.companyId===directoryCompanyId)||[...linkedComponentIds].some(id=>components.find(component=>component.id===id)?.companyId===directoryCompanyId));
     const poMatch=!directoryPoId||row.poId===directoryPoId||(!row.poId&&linkedPOs.some(order=>order.id===directoryPoId));
     const componentMatch=!directoryComponentId||linkedComponentIds.has(directoryComponentId)||poLine?.componentId===directoryComponentId;
-    const query=(item?.name+" "+("code" in (item||{})?(item as MaterialRecord).code:(item as any)?.partNumber)+" "+row.transactionType+" "+row.reference+" "+row.notes+" "+row.occurredAt+" "+row.quantity).toLowerCase();
+    const query=(row.id+" "+item?.name+" "+("code" in (item||{})?(item as MaterialRecord).code:(item as any)?.partNumber)+" "+row.transactionType+" "+row.reference+" "+row.notes+" "+row.occurredAt+" "+row.quantity).toLowerCase();
     return companyMatch&&poMatch&&componentMatch&&(!search.trim()||query.includes(search.toLowerCase().trim()));
   }).slice().sort((a,b) => b.occurredAt.localeCompare(a.occurredAt) || b.createdAt.localeCompare(a.createdAt)), [inventoryTransactions, materials, components, orders, bomLines, data.componentParts, search, directoryCompanyId, directoryPoId, directoryComponentId]);
   const linkedMaterialContexts = (materialId: string) => {
@@ -414,8 +415,39 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     if (vendorId && !vendors.some(vendor => vendor.id === vendorId)) { onNotice("The selected stock vendor is missing or archived."); return; }
     if (operationId && !operations.some(op => op.id === operationId && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)))) { onNotice("The selected operation does not belong to the chosen PO line or is no longer active."); return; }
     if (selectedPoLine && selectedPoLine.line.componentId && itemType === "component" && selectedPoLine.line.componentId !== itemId) { onNotice("The selected component stock item does not match the chosen PO line. Choose the matching part number."); return; }
+    if (transactionType === "Finished goods receipt" || transactionType === "Dispatch") {
+      if (itemType !== "component" || !selectedPoLine) { onNotice("Finished-goods receipt and dispatch require the exact component item and PO line."); return; }
+      const { po, line } = selectedPoLine;
+      if (companyId !== po.companyId || factoryId !== po.factoryId) { onNotice("Finished-goods movements must use the company and factory recorded on the selected PO."); return; }
+      if (line.componentId !== itemId) { onNotice("Finished-goods item must match the component on the selected PO line."); return; }
+      const lineOperations = operations.filter(op => op.poId === po.id && op.poLineId === line.id && !op.deletedAt);
+      const finalOperation = [...lineOperations].filter(op => (op.branch || "Main route") === "Main route").sort((a,b)=>a.sequence-b.sequence).at(-1);
+      if (!lineOperations.length || lineOperations.some(op => op.status !== "Complete" || !Number.isSafeInteger(Number(op.completed)) || Number(op.completed) !== Number(op.quantity))) {
+        onNotice("Finished goods cannot be received until every saved operation on this PO line is Complete with its actual completed quantity equal to its required quantity."); return;
+      }
+      if (!finalOperation || !Number.isSafeInteger(Number(finalOperation.accepted)) || Number(finalOperation.accepted) <= 0 || Number(finalOperation.accepted) + Number(finalOperation.rejected || 0) > Number(finalOperation.completed)) {
+        onNotice("Finished goods cannot be released: the final main-route operation must have a valid accepted quantity and balanced accepted/rejected quantities."); return;
+      }
+      const inspectionOperations = lineOperations.filter(op => op.inspectionRequired);
+      for (const op of inspectionOperations) {
+        const inspectionRows = activeRows(data.inspectionMeasurements || []).filter(row => row.operationId === op.id);
+        if (!inspectionRows.length || inspectionRows.some(row => row.result !== "Pass")) {
+          onNotice("Finished goods are blocked: every inspection-required operation must have recorded measurements and every measurement must Pass. Check " + op.name + "."); return;
+        }
+      }
+      if (transactionType === "Finished goods receipt") {
+        const alreadyReceived = inventoryTransactions.filter(row => row.itemType === "component" && row.itemId === itemId && row.transactionType === "Finished goods receipt" && row.direction === "in" && row.poId === po.id && row.poLineId === line.id && row.companyId === po.companyId && row.factoryId === po.factoryId && !row.deletedAt).reduce((sum,row)=>sum+row.quantity,0);
+        const remainingAccepted = Math.max(0, Math.min(Number(line.quantity), Number(finalOperation.accepted)) - alreadyReceived);
+        if (q > remainingAccepted) { onNotice("Finished-goods receipt exceeds the unreconciled accepted output. Remaining receivable quantity: " + remainingAccepted + "."); return; }
+      }
+      if (transactionType === "Dispatch") {
+        const lineFinishedBalance = stockBalance("component", itemId, { companyId: po.companyId, factoryId: po.factoryId });
+        if (q > lineFinishedBalance) { onNotice("Dispatch quantity exceeds available company/factory component stock. Available: " + lineFinishedBalance + "."); return; }
+      }
+    }
     const currentBalance = stockBalance(itemType, itemId);
     const nextBalance = currentBalance + (direction === "in" ? q : -q);
+    if (direction === "out" && nextBalance < 0 && (transactionType === "Finished goods receipt" || transactionType === "Dispatch")) { onNotice("Finished-goods dispatch cannot create a negative stock balance."); return; }
     if (direction === "out" && nextBalance < 0 && !window.confirm("This issue will make the calculated balance negative (" + nextBalance.toLocaleString("en-IN") + "). Post anyway? Check the opening balance/receipts first.")) return;
     if (transactionType === "Receipt" && !vendorId && !reference.trim()) { onNotice("For a receipt, enter the supplier/vendor or a source reference such as a delivery challan."); return; }
     const stamp = nowIso();

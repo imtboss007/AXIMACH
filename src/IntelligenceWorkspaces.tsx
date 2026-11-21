@@ -1,7 +1,9 @@
 import { useMemo, useState, type ChangeEvent } from "react";
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, Download, FileDown, FileUp, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
+import { getServerAuthHeaders, getServerAuthMode, readServerSession } from "./serverAuth";
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, Download, FileDown, FileUp, RotateCcw, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
 import { archiveAxMachTwoCompanyDemo, AXIMACH_DEMO_ID_PREFIX, createAxMachTwoCompanyDemo } from "./aximachDemoData";
 import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord, type ContactProfileRecord, type ProcessDefinitionRecord, type PlannedCostEntry, type VendorTransportRoute, type ManufacturingData, type PurchaseOrderRecord, type PurchaseOrderLine, type OperationRecord } from "./manufacturingData";
+import { reconcilePurchaseOrderCosts } from "./costReconciliation.mjs";
 
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string)=>void};
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
@@ -19,9 +21,41 @@ function rowsFor(moduleId:string,data:ManufacturingData):Record<string,unknown>[
  if(moduleId==="purchasing")return pos.flatMap(po=>po.lines.filter((line:any)=>!line.deletedAt).map((line:any)=>{const component=components.find(c=>c.id===line.componentId);return {company:companies.find(c=>c.id===po.companyId)?.name||"",poNumber:po.number,poDate:po.issueDate,dueDate:line.targetDelivery||po.targetDelivery,component:component?.name||"",componentNumber:component?.partNumber||"",quantity:line.quantity,quantityUnit:component?.salePriceUnit||"piece",unitPrice:component?.salePrice??line.unitPrice,jobStatus:line.jobStatus||"In progress"};}));
  if(moduleId==="vendors"||moduleId==="vendor-capability")return vendors.map(x=>({...x}));
  if(moduleId==="production"||moduleId==="process-map"||moduleId==="reports"||moduleId==="ai-insights")return ops.map(x=>({...x,poNumber:pos.find(po=>po.id===x.poId)?.number||"",componentNumber:components.find(c=>c.id===x.componentId)?.partNumber||"",vendorName:vendors.find(v=>v.id===x.vendorId)?.company||""}));
- if(moduleId==="dispatch")return ops.filter(x=>x.transportVendorId||x.category==="Logistics").map(x=>({...x,poNumber:pos.find(po=>po.id===x.poId)?.number||"",componentNumber:components.find(c=>c.id===x.componentId)?.partNumber||"",transportVendor:vendors.find(v=>v.id===x.transportVendorId)?.company||""}));
+ if(moduleId==="dispatch"){
+  const transportLegs=activeRows(data.transportLegs||[]);
+  const inventory=activeRows(data.inventoryTransactions||[]);
+  const dispatches=inventory.filter(tx=>tx.itemType==="component"&&tx.transactionType==="Dispatch"&&tx.direction==="out");
+  const transportRows=transportLegs.map(leg=>{
+   const po=pos.find(item=>item.id===leg.poId),component=components.find(item=>item.id===leg.componentId),vendor=vendors.find(item=>item.id===leg.vendorId);
+   const dispatch=dispatches.find(tx=>tx.id===leg.dispatchTransactionId);
+   const reversed=Boolean(dispatch&&inventory.some(tx=>tx.reversalOfId===dispatch.id));
+   return {recordType:"transport-leg",transportLegId:leg.id,companyId:po?.companyId||"",companyName:companies.find(item=>item.id===po?.companyId)?.name||"",factoryId:po?.factoryId||"",factoryName:activeRows(data.factories||[]).find(item=>item.id===po?.factoryId)?.name||"",poId:leg.poId,poNumber:po?.number||"",poLineId:leg.poLineId,componentId:leg.componentId,componentNumber:component?.partNumber||"",componentName:component?.name||"",vendorId:leg.vendorId,transportVendor:vendor?.company||"",fromLocation:leg.fromLocation,toLocation:leg.toLocation,tripDirection:leg.tripDirection,vehicleType:leg.vehicleType,plannedTrips:leg.tripCount,completedTrips:leg.completedTrips||0,pickupAt:leg.pickupAt||"",scheduledDeliveryAt:leg.deliveryAt||"",transportStatus:leg.status||"Queued",transportCost:leg.fixedAmount*leg.tripCount,dispatchTransactionId:leg.dispatchTransactionId||"",dispatchEntryStatus:dispatch?(reversed?"Reversed":"Linked"):(leg.dispatchTransactionId?"Linked entry missing":"Not linked"),dispatchReference:dispatch?.reference||"",dispatchQuantity:dispatch?.quantity??"",dispatchDate:dispatch?.occurredAt||"",dispatchNotes:dispatch?.notes||"",deliveryConfirmedAt:leg.deliveryConfirmedAt||"",deliveryReference:leg.deliveryReference||""};
+  });
+  const legacyRows=ops.filter(x=>x.transportVendorId||x.category==="Logistics").map(x=>({...x,recordType:"legacy-transport-operation",poNumber:pos.find(po=>po.id===x.poId)?.number||"",componentNumber:components.find(c=>c.id===x.componentId)?.partNumber||"",transportVendor:vendors.find(v=>v.id===x.transportVendorId)?.company||""}));
+  const linkedIds=new Set<string>(transportLegs.flatMap(leg=>leg.dispatchTransactionId?[leg.dispatchTransactionId]:[]));
+  const unlinkedDispatchRows=dispatches.filter(tx=>!linkedIds.has(tx.id)).map(tx=>{
+   const po=pos.find(item=>item.id===tx.poId),component=components.find(item=>item.id===tx.itemId),vendor=vendors.find(item=>item.id===tx.vendorId);
+   return {recordType:"unlinked-dispatch-ledger-entry",dispatchTransactionId:tx.id,companyId:tx.companyId,companyName:companies.find(item=>item.id===tx.companyId)?.name||"",factoryId:tx.factoryId,factoryName:activeRows(data.factories||[]).find(item=>item.id===tx.factoryId)?.name||"",poId:tx.poId,poNumber:po?.number||"",poLineId:tx.poLineId,componentId:tx.itemId,componentNumber:component?.partNumber||"",componentName:component?.name||"",vendorId:tx.vendorId,transportVendor:vendor?.company||"",dispatchReference:tx.reference,dispatchQuantity:tx.quantity,dispatchDate:tx.occurredAt,dispatchNotes:tx.notes,dispatchReversed:inventory.some(row=>row.reversalOfId===tx.id)};
+  });
+  return [...transportRows,...legacyRows,...unlinkedDispatchRows];
+ }
  if(moduleId==="quality")return ops.map(x=>({poId:x.poId,poLineId:x.poLineId,componentId:x.componentId,operation:x.name,quantity:x.quantity,completed:x.completed,accepted:x.accepted,rejected:x.rejected,status:x.status,inspectionResult:x.inspectionResult,qualityNotes:x.qualityNotes,measurementHistory:activeRows(data.inspectionMeasurements).filter(item=>item.operationId===x.id).map(item=>[item.inspectedAt,item.characteristic,item.nominalValue,item.lowerLimit,item.upperLimit,item.measuredValue,item.unit,item.result,item.notes].join(" | ")).join(" ; ")}));
+ if(moduleId==="cost-reconciliation")return reconcilePurchaseOrderCosts(data).map(row=>({...row,warnings:row.warnings.join(" | ")}));
  if(moduleId==="costing")return ops.map(x=>({poId:x.poId,poLineId:x.poLineId,operation:x.name,vendorId:x.vendorId,quantity:x.quantity,plannedRate:x.ratePerPart,actualRate:x.actualRatePerPart,transportCost:x.transportCost,paymentStatus:x.paymentStatus||"Unpaid",paidAmount:x.paidAmount||0,paymentReference:x.paymentReference||"",paymentHistory:activeRows(data.paymentTransactions).filter(payment=>payment.operationId===x.id).map(payment=>[payment.paidAt,payment.amount,payment.reference,payment.notes].join(" | ")).join(" ; ")}));
+ if(moduleId==="payments"){
+  const allOperations=data.operations||[],allOrders=data.purchaseOrders||[],allComponents=data.components||[],allVendors=data.vendors||[];
+  const transactions=activeRows(data.paymentTransactions||[]);
+  const transactionRows=transactions.map(tx=>{
+   const operation=allOperations.find(row=>row.id===tx.operationId),po=allOrders.find(row=>row.id===tx.poId),component=allComponents.find(row=>row.id===tx.componentId),vendor=allVendors.find(row=>row.id===(tx.vendorId||operation?.vendorId));
+   return {recordType:"payment-transaction",sourceRecord:"PaymentTransactionRecord",paymentTransactionId:tx.id,companyId:po?.companyId||"",companyName:companies.find(row=>row.id===po?.companyId)?.name||"",factoryId:po?.factoryId||"",poId:tx.poId,poNumber:po?.number||"",poLineId:tx.poLineId,componentId:tx.componentId,componentNumber:component?.partNumber||"",componentName:component?.name||"",operationId:tx.operationId,operationName:operation?.name||"",operationArchived:Boolean(operation?.deletedAt),vendorId:tx.vendorId||operation?.vendorId||"",vendorName:vendor?.company||"",amount:tx.amount,currency:"INR",paymentDate:tx.paidAt,reference:tx.reference,notes:tx.notes,createdAt:tx.createdAt,updatedAt:tx.updatedAt};
+  });
+  const operationsWithLedger=new Set(transactions.map(tx=>tx.operationId));
+  const legacyRows=allOperations.filter(op=>!operationsWithLedger.has(op.id)&&Number(op.paidAmount)>0).map(op=>{
+   const po=allOrders.find(row=>row.id===op.poId),component=allComponents.find(row=>row.id===op.componentId),vendor=allVendors.find(row=>row.id===op.vendorId);
+   return {recordType:"legacy-payment-total",sourceRecord:"legacy OperationRecord.paidAmount",paymentTransactionId:"",companyId:po?.companyId||"",companyName:companies.find(row=>row.id===po?.companyId)?.name||"",factoryId:po?.factoryId||"",poId:op.poId,poNumber:po?.number||"",poLineId:op.poLineId,componentId:op.componentId,componentNumber:component?.partNumber||"",componentName:component?.name||"",operationId:op.id,operationName:op.name,operationArchived:Boolean(op.deletedAt),vendorId:op.vendorId||"",vendorName:vendor?.company||"",amount:op.paidAmount,currency:"INR",paymentDate:"",reference:op.paymentReference||"",notes:"Legacy aggregate payment total; original individual payment dates and entries were not retained.",createdAt:op.createdAt,updatedAt:op.updatedAt};
+  });
+  return [...transactionRows,...legacyRows];
+ }
  if(moduleId==="inventory")return [...activeRows(data.materials||[]),...activeRows(data.bomLines||[]),...activeRows(data.inventoryTransactions||[])].map(x=>({...x}));
  if(moduleId==="process-master")return activeRows(data.processDefinitions).map(x=>({...x}));
  if(moduleId==="planned-cost")return activeRows(data.plannedCosts).map(x=>({...x}));
@@ -45,15 +79,14 @@ function header(row:Record<string,string>,...keys:string[]){for(const key of key
 
 export function ReportsAnalyticsWorkspace({onBack,notice,onSelectModule}:Props){
  const {data}=useManufacturingData();const companies=activeRows(data.companies),pos=activeRows(data.purchaseOrders),lines=pos.flatMap(po=>po.lines.filter(line=>!line.deletedAt)),components=activeRows(data.components),vendors=activeRows(data.vendors),ops=activeRows(data.operations);
+ const costRows=reconcilePurchaseOrderCosts(data);
+ const costTotal=(key:keyof (typeof costRows)[number])=>costRows.reduce((total,row)=>total+(typeof row[key]==="number"?row[key] as number:0),0);
  const overdue=ops.filter(op=>op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<new Date().toISOString().slice(0,10));
  const qualityHold=ops.filter(op=>op.status==="Quality hold");const finished=lines.filter(line=>line.jobStatus==="Finished");
  const orderValue=lines.reduce((sum,line)=>sum+line.quantity*(components.find(component=>component.id===line.componentId)?.salePrice ?? line.unitPrice ?? 0),0);
- const plannedCost=ops.reduce((sum,op)=>sum+op.quantity*op.ratePerPart+op.transportCost,0);
- const actualCost=ops.reduce((sum,op)=>sum+op.quantity*(op.actualRatePerPart||0)+op.transportCost,0);
- const max=Math.max(1,pos.length,ops.length,lines.length);
  const onTime=ops.filter(op=>op.status==="Complete"&&(!op.plannedEnd||!op.actualEnd||op.actualEnd<=op.plannedEnd)).length;
  const [report,setReport]=useState("operations");
- const exportReport=()=>{const rows=report==="purchaseOrders"?rowsFor("purchasing",data):report==="costs"?rowsFor("costing",data):report==="quality"?rowsFor("quality",data):rowsFor("reports",data);downloadFile("AXIMACH-"+report+"-report.csv",toCsv(rows));};
+ const exportReport=()=>{const rows=report==="purchaseOrders"?rowsFor("purchasing",data):report==="costs"?rowsFor("costing",data):report==="cost-reconciliation"?rowsFor("cost-reconciliation",data):report==="quality"?rowsFor("quality",data):rowsFor("reports",data);downloadFile("AXIMACH-"+report+"-report.csv",toCsv(rows));};
  return <section className="workspace-page intelligence-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> LIVE RECORD ANALYTICS</span></div>{notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> BUSINESS INTELLIGENCE / REPORTING</div><h1>Reports &amp; Analytics<span>.</span></h1><p>Operational and financial indicators calculated from saved AXIMACH records. Empty datasets remain zero.</p></div></div>
   <div className="metric-grid dashboard-metric-grid">
@@ -64,11 +97,11 @@ export function ReportsAnalyticsWorkspace({onBack,notice,onSelectModule}:Props){
    <small>*Includes completed records with no dates as not classed overdue; interpret only where actual/target dates exist.</small>
    <button className="related-all" onClick={()=>onSelectModule("production")}>Open Production Plan <ArrowRight size={14}/></button>
   </div><div className="surface-panel"><div className="panel-heading"><div><h3>Financial overview</h3><p>Uses entered rates and PO line values; not an audited ledger.</p></div><Wallet size={18}/></div>
-   <div className="linked-cost-row"><span>Purchase order line value</span><strong>{money(orderValue)}</strong></div><div className="linked-cost-row"><span>Entered planned process + transport</span><strong>{money(plannedCost)}</strong></div><div className="linked-cost-row"><span>Entered actual process + transport</span><strong>{money(actualCost)}</strong></div><div className="linked-cost-row linked-cost-total"><span>Actual minus planned</span><strong>{money(actualCost-plannedCost)}</strong></div>
+   <div className="linked-cost-row"><span>PO line selling / order value (reference)</span><strong>{money(orderValue)}</strong></div><div className="linked-cost-row"><span>Planned process cost</span><strong>{money(costTotal("plannedProcessCost"))}</strong></div><div className="linked-cost-row"><span>Entered actual-rate process cost</span><strong>{money(costTotal("enteredActualProcessCost"))}</strong></div><div className="linked-cost-row"><span>Process Map material + cutting + material transport</span><strong>{money(costTotal("processMapMaterialCost")+costTotal("processMapCuttingCost")+costTotal("processMapMaterialTransportCost"))}</strong></div><div className="linked-cost-row"><span>Component planned process benchmark (separate)</span><strong>{money(costTotal("componentPlannedProcessBenchmarkCost"))}</strong></div><div className="linked-cost-row"><span>Planned-scope material / cutting / transport benchmark</span><strong>{money(costTotal("plannedScopeMaterialCost")+costTotal("plannedScopeCuttingCost")+costTotal("plannedScopeMaterialTransportCost"))}</strong></div><div className="linked-cost-row"><span>Modern transport scheduled cost</span><strong>{money(costTotal("transportRoutePlannedCost"))}</strong></div><div className="linked-cost-row"><span>Modern transport completed-trip cost</span><strong>{money(costTotal("transportRouteCompletedTripCost"))}</strong></div><div className="linked-cost-row"><span>Legacy operation transport (without modern legs)</span><strong>{money(costTotal("legacyTransportCost"))}</strong></div><div className="linked-cost-row"><span>Payment transactions (settlement, separate)</span><strong>{money(costTotal("paymentTransactionTotal")+costTotal("legacyPaidAmount"))}</strong></div><div className="linked-cost-row linked-cost-total"><span>PO lines with reconciliation warnings</span><strong>{costRows.filter(row=>row.warnings.length>0).length}</strong></div>
    <button className="related-all" onClick={()=>onSelectModule("costing")}>Open Costing &amp; Payment <ArrowRight size={14}/></button>
   </div></section>
   <section className="surface-panel"><div className="panel-heading"><div><h3>Report export</h3><p>Download editable CSV reports, openable in Excel.</p></div><FileDown size={18}/></div>
-   <div className="intelligence-export-row"><select value={report} onChange={e=>setReport(e.target.value)}><option value="operations">Process operations</option><option value="purchaseOrders">PO component lines</option><option value="costs">Costing and payment status</option><option value="quality">Quality inspection records</option></select><button className="button-primary" onClick={exportReport}><Download size={14}/> Export CSV</button></div>
+   <div className="intelligence-export-row"><select value={report} onChange={e=>setReport(e.target.value)}><option value="operations">Process operations</option><option value="purchaseOrders">PO component lines</option><option value="costs">Costing and payment status</option><option value="cost-reconciliation">PO-line cost reconciliation</option><option value="quality">Quality inspection records</option></select><button className="button-primary" onClick={exportReport}><Download size={14}/> Export CSV</button></div>
   </section>
  </section>;
 }
@@ -94,9 +127,94 @@ export function AIInsightsWorkspace({onBack,onSelectModule}:Props){
  </section>;
 }
 
+
+function sharedBackupConfig() {
+ const base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim().replace(/\/+$/,"");
+ const key=window.localStorage.getItem("aximach.scheduler.key")||"";
+ const userMode=getServerAuthMode()==="users",session=readServerSession(base);
+ if(window.localStorage.getItem("aximach.storage.mode")==="local-only"||!base||(userMode?(!session||session.user.role!=="admin"):!key))throw new Error("Server backup and restore require an administrator account on the shared AXIMACH server.");
+ let parsed:URL;try{parsed=new URL(base);}catch{throw new Error("The saved AXIMACH server URL is invalid.");}
+ const host=parsed.hostname.replace(/^\[|\]$/g,""),octets=host.split(".").map(Number);
+ const privateIpv4=octets.length===4&&octets.every(n=>Number.isInteger(n)&&n>=0&&n<=255)&&(octets[0]===10||(octets[0]===192&&octets[1]===168)||(octets[0]===172&&octets[1]>=16&&octets[1]<=31));
+ if(parsed.protocol!=="https:"&&!(parsed.protocol==="http:"&&(host==="localhost"||host==="127.0.0.1"||privateIpv4)))throw new Error("Use HTTPS, localhost or a private LAN address for the shared AXIMACH server.");
+ return {base,key,headers:getServerAuthHeaders(key,base,undefined,userMode)};
+}
+type AxMachServerBackup={format:"aximach-backup";version:1;createdAt:string;sha256:string;data:{contacts:unknown[];schedules:unknown[];logs:unknown[];records:Record<string,unknown[]>;manufacturingData?:unknown;[key:string]:unknown}};
+function validateServerBackup(value:unknown):AxMachServerBackup {
+ if(!value||typeof value!=="object")throw new Error("Select a valid AXIMACH server backup JSON file.");
+ const backup=value as Partial<AxMachServerBackup>;
+ if(backup.format!=="aximach-backup"||backup.version!==1||!backup.data||typeof backup.data!=="object")throw new Error("This is not a supported version-1 shared-server backup. Local module JSON exports cannot be restored to the server.");
+ const data=backup.data as AxMachServerBackup["data"];
+ if(!Array.isArray(data.contacts)||!Array.isArray(data.schedules)||!Array.isArray(data.logs)||!data.records||typeof data.records!=="object"||Array.isArray(data.records)||!Object.values(data.records).every(Array.isArray))throw new Error("The backup is missing required shared-server data collections.");
+ if(typeof backup.sha256!=="string"||! /^[a-f0-9]{64}$/i.test(backup.sha256))throw new Error("The backup has no valid SHA-256 integrity digest.");
+ return backup as AxMachServerBackup;
+}
+function ServerBackupPanel({onNotice}:{onNotice:(value:string)=>void}) {
+ const [busy,setBusy]=useState(false),[error,setError]=useState("");
+ const [selected,setSelected]=useState<{name:string;backup:AxMachServerBackup}|null>(null);
+ const [configured]=useState(()=>{const base=window.localStorage.getItem("aximach.scheduler.url")||"";const key=window.localStorage.getItem("aximach.scheduler.key")||"";const session=readServerSession(base);return window.localStorage.getItem("aximach.storage.mode")!=="local-only"&&Boolean(base&&(session?.user.role==="admin"||(getServerAuthMode()!=="users"&&key)));});
+ const downloadBackup=async()=>{
+  setBusy(true);setError("");
+  try{
+   const {base,headers}=sharedBackupConfig();
+   const response=await fetch(base+"/api/backup",{headers,cache:"no-store"});
+   const payload=await response.json().catch(()=>null);
+   if(!response.ok)throw new Error(payload?.error||"Shared-server backup request failed (HTTP "+response.status+").");
+   const backup=validateServerBackup(payload);
+   const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json;charset=utf-8"});
+   const url=URL.createObjectURL(blob),anchor=document.createElement("a");
+   anchor.href=url;anchor.download="AXIMACH-server-backup-"+new Date().toISOString().slice(0,10)+".json";anchor.click();URL.revokeObjectURL(url);
+   onNotice("Full shared-server snapshot downloaded. The SHA-256 digest is included and will be rechecked by the server during restore.");
+  }catch(e){setError(e instanceof Error?e.message:"Could not download shared-server backup.");}
+  finally{setBusy(false);}
+ };
+ const loadBackup=async(event:ChangeEvent<HTMLInputElement>)=>{
+  const file=event.target.files?.[0];if(!file)return;
+  setError("");setSelected(null);
+  try{
+   const raw=(await file.text()).replace(/^\uFEFF/,"");
+   const backup=validateServerBackup(JSON.parse(raw));
+   setSelected({name:file.name,backup});
+  }catch(e){setError(e instanceof Error?e.message:"Could not read backup file.");}
+  finally{event.target.value="";}
+ };
+ const restoreBackup=async()=>{
+  if(!selected)return;
+  setBusy(true);setError("");
+  try{
+   const {base,headers}=sharedBackupConfig();
+   const manufacturing=selected.backup.data.manufacturingData as {companies?:unknown[]}|null|undefined;
+   const companyCount=Array.isArray(manufacturing?.companies)?manufacturing.companies.length:0;
+   const accepted=window.confirm("RESTORE WILL REPLACE THE SHARED AXIMACH SERVER DATABASE.\n\nFile: "+selected.name+"\nCompanies in manufacturing snapshot: "+companyCount+"\nContacts: "+selected.backup.data.contacts.length+"\nSchedules: "+selected.backup.data.schedules.length+"\n\nThe server creates a protected pre-restore snapshot automatically. Connected devices refresh their local shared-data caches on their next sync. Continue?");
+   if(!accepted){setBusy(false);return;}
+   const phrase=window.prompt("For explicit approval, type exactly: RESTORE_AXIMACH_BACKUP");
+   if(phrase!=="RESTORE_AXIMACH_BACKUP"){setBusy(false);return;}
+   const response=await fetch(base+"/api/restore",{method:"POST",headers:{"content-type":"application/json",...headers},body:JSON.stringify({backup:selected.backup,confirmation:phrase})});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(result.error||"Shared-server restore failed (HTTP "+response.status+").");
+   window.localStorage.removeItem("aximach.manufacturing.restore-generation");
+   window.localStorage.removeItem("aximach.module-records.restore-generation");
+   window.alert("AXIMACH shared-server data restored successfully.\nPre-restore snapshot: "+String(result.preRestoreBackup||"created") +"\nThis app will reload from the restored server state.");
+   window.location.reload();
+  }catch(e){setError(e instanceof Error?e.message:"Could not restore the shared-server backup.");setBusy(false);}
+ };
+ return <section className="surface-panel" aria-label="Shared server backup and restore" style={{marginBottom:18}}>
+  <div className="panel-heading"><div><h3>Shared-server backup &amp; recovery</h3><p>Versioned snapshot of the central AXIMACH service database—not just this device’s browser cache.</p></div><ShieldCheck size={18}/></div>
+  <div className="linked-route-actions" style={{alignItems:"center",flexWrap:"wrap"}}>
+   <button type="button" className="button-primary compact-button" disabled={busy||!configured} onClick={()=>void downloadBackup()}><Download size={14}/>{busy?"Working…":"Download server snapshot"}</button>
+   <label className="button-quiet compact-button" style={{display:"inline-flex",alignItems:"center",gap:7,cursor:busy?"wait":"pointer"}}><Upload size={14}/>Choose server backup<input type="file" accept=".json,application/json" disabled={busy} onChange={event=>void loadBackup(event)} style={{display:"none"}}/></label>
+   {selected&&<span className="muted-copy">Selected: {selected.name} · SHA-256 present · {selected.backup.data.contacts.length} contacts · {selected.backup.data.schedules.length} schedules</span>}
+   <button type="button" className="button-quiet compact-button" disabled={busy||!selected||!configured} onClick={()=>void restoreBackup()}><RotateCcw size={14}/>Restore shared server</button>
+  </div>
+  {!configured&&<p className="muted-copy" style={{marginTop:10}}>Connect the shared server first: Follow-up Centre → PC ↔ Android shared data settings.</p>}
+  {error&&<p role="alert" className="module-safety-note" style={{marginTop:10,borderColor:"var(--danger, #b42318)"}}>{error}</p>}
+  <p className="muted-copy" style={{marginTop:10}}>Restore replaces shared contacts, schedules, logs, module records, manufacturing collections and preferences. The server verifies the backup digest and schema, creates a pre-restore snapshot and advances a restore-generation marker so stale device caches cannot silently overwrite the recovered state. Keep exported files encrypted and access-controlled.</p>
+ </section>;
+}
+
 export function ExportCentreWorkspace({onBack,onNotice}:Props){
  const {data}=useManufacturingData();const [moduleId,setModuleId]=useState("companies");
- const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
+ const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["cost-reconciliation","PO-line Cost Reconciliation"],["payments","Payment Ledger"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
  const rows=rowsFor(moduleId,data);
  const exportCsv=()=>{if(!rows.length){onNotice("There are no saved records to export for this selection.");return;}downloadFile("AXIMACH-"+moduleId+"-"+new Date().toISOString().slice(0,10)+".csv",toCsv(rows));onNotice("Excel-compatible CSV exported.");};
  const exportExcel=async()=>{
@@ -118,6 +236,7 @@ export function ExportCentreWorkspace({onBack,onNotice}:Props){
  const exportPdf=()=>{const w=window.open("","_blank");if(!w){onNotice("Allow pop-ups to use Print / Save PDF.");return;}const table=rows.length?'<table><thead><tr>'+Object.keys(rows[0]).map(x=>'<th>'+x+'</th>').join("")+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+Object.values(row).map(v=>'<td>'+String(v??"").replace(/[&<>]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch]!))+'</td>').join("")+'</tr>').join("")+'</tbody></table>':'<p>No saved records.</p>';w.document.write('<!doctype html><html><head><title>AXIMACH Export</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:6px;text-align:left}th{background:#eee}</style></head><body><h1>AXIMACH · '+options.find(x=>x[0]===moduleId)?.[1]+'</h1>'+table+'</body></html>');w.document.close();w.focus();w.print();};
  return <section className="workspace-page intelligence-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> DATA EXPORT</span></div>
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> DATA EXCHANGE / DOWNLOADS</div><h1>Export Centre<span>.</span></h1><p>Export saved module records and individual operation datasets to editable CSV, print/PDF or full JSON backup.</p></div></div>
+  <ServerBackupPanel onNotice={onNotice}/>
   <section className="surface-panel"><div className="module-record-form specialized-form"><label>Module to export<select value={moduleId} onChange={e=>setModuleId(e.target.value)}>{options.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select></label><label>Matching saved records<input readOnly value={String(rows.length)}/></label><div className="module-form-actions"><button className="button-primary" onClick={exportExcel}><FileDown size={14}/> Excel workbook (.xlsx)</button><button className="button-quiet" onClick={exportCsv}>CSV</button><button className="button-quiet" onClick={exportPdf}>Print / Save PDF</button><button className="button-quiet" onClick={exportJson}><Download size={14}/> Full JSON backup</button></div></div></section>
   <div className="module-safety-note"><ShieldCheck size={15}/><span>CSV files are editable in Excel; PDF is generated through the device print dialog. Full JSON backup preserves the manufacturing data model. Specialized records held in browser-local module stores are exported when their matching module is selected.</span></div>
  </section>;
