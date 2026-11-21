@@ -688,6 +688,16 @@ test("tenant-scoped user reads and writes only its assigned company and related 
       method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierPaymentAllocations:[allocation]}})
     });
     assert.equal(allocate.status,200,"approved supplier payment can be allocated to the matching approved invoice");
+    const apAuditResponse=await fetch(baseUrl+"/api/audit-events",{headers:adminHeaders});
+    assert.equal(apAuditResponse.status,200);
+    const apAuditEvents=(await apAuditResponse.json()).events;
+    for (const action of ["supplier-invoice.created","supplier-payment.created","supplier-finance.approval","supplier-payment.allocated"]) {
+      assert.equal(apAuditEvents.some(event=>event.action===action),true,"administrator audit trail captures "+action);
+    }
+    const apAuditJson=JSON.stringify(apAuditEvents.filter(event=>event.action.startsWith("supplier-")));
+    for (const secret of ["SUP-2026-001","UTR-AX-001","Checked against PO and supplier invoice","118"]) {
+      assert.equal(apAuditJson.includes(secret),false,"AP audit events do not expose invoice numbers, bank references, reviewer comments or amounts");
+    }
 
     const secondPayment={...supplierPayment,id:"ap-payment-b",bankReference:"UTR-AX-002",amount:50,createdAt:apStamp,updatedAt:apStamp};
     const createSecondPayment=await fetch(baseUrl+"/api/manufacturing-data",{
