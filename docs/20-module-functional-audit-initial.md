@@ -1,6 +1,6 @@
 # AXIMACH 20-module audit — initial evidence and implementation plan
 
-**Audit snapshot:** 2026-11-21  
+**Audit snapshot:** 2026-11-21 (post toolkit and ecosystem-graph pass)  
 **Repository:** `imtboss007/AXIMACH`  
 **Branch:** `integrate/35-toolkit-ui-audit`  
 **Evidence standard:** source inspection plus repository tests. This document does not claim a manual end-to-end acceptance test for every button, record, export and device.
@@ -10,9 +10,9 @@
 - The canonical navigation catalogue in `src/App.tsx`, the 3D navigation sphere in `src/AXIMACHOrb.tsx`, and the navigation regression test contain **20 unique module IDs**. The task text's “18 modules” in the dashboard specification is treated as a legacy count; AXIMACH's actual canonical catalogue remains 20.
 - The browser smoke test attempts all 20 module routes, checks the Company/Factory tabs, Module Explorer, global command search and mobile navigation. Its current run is being checked against the latest header/rail stacking correction.
 - The 5-part fixture suite contains 196 Node test cases. There is a separate 12-test transport-route suite. The feature branch CI has already passed the 196-case manufacturing functional suite and TypeScript/Vite build on the prior implementation commit; the refreshed CI must validate the latest CSS/count changes.
-- The app uses a shared manufacturing data store with stable record IDs. It has an optional JSON-backed local/shared PC service; without configuring a persistent server, the app remains local-first. This is not proof of a deployed multi-tenant production database.
+- The app uses a shared manufacturing data store with stable record IDs and an optional JSON-backed local/shared PC service. Server-side bearer sessions, role checks and company/factory-scoped reads/writes now exist, with regression tests for cross-tenant references. Without configuring a persistent always-on server, the app remains local-first; the JSON file service is not a relational production database.
 - Dashboard navigation uses a real WebGL shaded sphere and 3D Fibonacci module placement. The lower six record nodes rotate in a separate 3D shell on desktop and a compact 3D shell on mobile. The new five dashboard data spheres also use live saved records and linked navigation; their CI run is pending.
-- Manufacturing Universe is a dedicated large-format 3D workspace backed by saved manufacturing records and a selected PO component-line route. It is not yet a truly global network view of all customers, suppliers, companies, machines, all components and every module record simultaneously.
+- Manufacturing Universe now has a saved-record ecosystem graph with 12 selectable entity groups, ID-derived relationships, record navigation and SVG/CSV/JSON exports, while retaining the selected PO-line scene. The graph is currently a bounded visual sample per group, not an exhaustive graph of every record, and visibility/layout preferences are not yet persisted.
 - Mechanical Icon Inventory / Logo Studio already exist as supporting workspaces and are not a twenty-first canonical business module.
 - The app already has shared searchable single/multi-select controls, stable-ID process references, selected/all component PDF/Excel exports, Process Directory PDF/Excel exports, ExcelJS and PowerPoint export dependencies, and route export implementations.
 
@@ -54,7 +54,7 @@
 - A reusable cross-module browser test harness with seeded identifiable data and create → read in linked module → edit → refresh → delete/archive → dependent record verification.
 - Browser coverage for every action/filter, not just source-string assertions or a page rendering check.
 - Per-module PDF/Excel/export file-content acceptance, and exact route-scope output acceptance for PNG, CSV, SVG, PPTX, Excel, PDF and diagrams.
-- Server-side authentication, user roles, tenant/company/factory boundaries, durable database, audit history, backup/restore and production sync acceptance.
+- Production acceptance of authentication, role policy and tenant/company/factory boundaries; migration from the optional JSON file store to a production relational database; formal audit retention/tamper evidence; backup/restore exercises and multi-device sync acceptance. A bounded operational audit trail and integrity-checked backup/restore API now exist.
 - Structured accounts payable/invoice/payment allocations and approval controls.
 - File-backed POD and split-delivery workflow.
 - Lot/serial traceability, formal quality disposition/release and machine-derived output reconciliation.
@@ -64,7 +64,7 @@
 
 1. Preserve the existing WebGL main globe and 20 clickable module nodes; do not replace it with a 2D illustration.
 2. Build a common reusable 3D shell component using current WebGL/Motion code first. Consider React Three Fiber/Drei only when a missing interaction, scene complexity or performance requirement justifies the extra runtime.
-3. **Implemented on this feature branch; CI pending:** five separately rotating dashboard data visualisations now cover Recent Operations, Records, Exceptions, Master Records and Production Status. The six existing lower summary record categories remain Companies, Purchase Orders, PO Component Lines, Components, Vendors and Open Operations. The new shells use saved shared-store data and module navigation; browser visual/accessibility testing remains required.
+3. **Implemented on this feature branch; latest CI passed:** five separately rotating dashboard data visualisations now cover Recent Operations, Records, Exceptions, Master Records and Production Status. The six existing lower summary record categories remain Companies, Purchase Orders, PO Component Lines, Components, Vendors and Open Operations. The new shells use saved shared-store data and module navigation; browser visual/accessibility testing remains required.
 4. On mobile, evaluate a compact, touch-friendly 3D lower shell rather than silently replacing it with 2D cards; only keep the 2D fallback if GPU/performance or accessibility testing demonstrates the need and the user can still open a 3D view.
 5. Extend Manufacturing Universe from a selected-PO-line scene to a full data-driven ecosystem graph with selectable entity classes and edge types, persistent visibility/layout settings, record detail panels and safe edit actions.
 
