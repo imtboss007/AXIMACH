@@ -908,3 +908,37 @@ test("server audit trail records durable mutation metadata without copying sensi
   }
 });
 
+
+
+test("integration catalogue is admin-scoped and returns readiness metadata without secret values", { timeout: 20000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-integration-catalog-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  let child;
+  try {
+    child = startServer(port, dataFile, {
+      AXIMACH_SEARXNG_URL: "https://search.example.test",
+      APOLLO_API_KEY: "integration-test-secret-that-must-not-leak"
+    });
+    await waitForHealth(child, baseUrl);
+    const denied = await fetch(baseUrl + "/api/integrations/catalog");
+    assert.equal(denied.status, 401);
+    const response = await fetch(baseUrl + "/api/integrations/catalog", {
+      headers: { "x-aximach-key": apiKey },
+      cache: "no-store"
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.ok(Array.isArray(payload.items));
+    assert.equal(payload.total, payload.items.length);
+    const search = payload.items.find(item => item.id === "searxng");
+    assert.equal(search.configured, true);
+    assert.equal(search.status, "configured-unverified");
+    assert.equal(JSON.stringify(payload).includes("integration-test-secret-that-must-not-leak"), false);
+    assert.equal(JSON.stringify(payload).includes("AXIMACH_SEARXNG_URL"), true);
+  } finally {
+    await stopServer(child);
+    await rm(folder, { recursive: true, force: true });
+  }
+});
