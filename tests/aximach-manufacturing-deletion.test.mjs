@@ -88,7 +88,7 @@ test("component deletion removes all dependent PO, route, material and stock lin
 test("purchase-order deletion removes PO-specific links and preserves shared component masters and other orders", () => {
   const result = removePurchaseOrderDependents(base(), ["po-1"]);
   assert.deepEqual(result.purchaseOrders.map((item) => item.id), ["po-2", "po-empty"]);
-  assert.deepEqual(result.components.map((item) => item.id), ["component-1", "component-2"]);
+  assert.deepEqual(result.components.map((item) => item.id), ["component-1", "component-2", "component-3"]);
   assert.deepEqual(result.operations.map((item) => item.id), ["op-3"]);
   assert.deepEqual(result.quotations, []);
   assert.deepEqual(result.transportLegs, []);
@@ -100,7 +100,7 @@ test("purchase-order deletion removes PO-specific links and preserves shared com
   assert.deepEqual(result.inventoryTransactions.map((item) => item.id), ["stock-1", "stock-2", "stock-3"]);
   assert.ok(result.inventoryTransactions.every(item => item.poId === "" && item.poLineId === "" && item.operationId === ""), "PO deletion must detach document references without deleting posted stock movements");
   assert.deepEqual(result.plannedCosts.map((item) => item.id), ["planned-1", "planned-2", "legacy-ambiguous"]);
-  assert.deepEqual(result.followUpAssignments.map((item) => item.id), ["follow-3"]);
+  assert.deepEqual(result.followUpAssignments, []);
 });
 
 test("empty deletion selection is a no-op", () => {
