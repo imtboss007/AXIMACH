@@ -635,6 +635,14 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     assert.equal(savedApproval.decidedBy,"tenant-a-manager","server stamps the authenticated approver");
     assert.equal(savedApproval.decidedByRole,"manager","client cannot forge administrator approval");
 
+    const managerSnapshotResponse=await fetch(baseUrl+"/api/manufacturing-data",{headers:managerHeaders});
+    assert.equal(managerSnapshotResponse.status,200);
+    const managerSnapshot=(await managerSnapshotResponse.json()).data;
+    const repeatSync=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,body:JSON.stringify({data:managerSnapshot})
+    });
+    assert.equal(repeatSync.status,200,"a full scoped-device sync must preserve existing AP approvals and unchanged shared masters");
+
     const editApprovedInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
       method:"PUT",headers:companyHeaders,
       body:JSON.stringify({data:{supplierInvoices:[{...storedInvoice,totalAmount:200,updatedAt:"2026-11-20T08:00:00.000Z"}]}})
