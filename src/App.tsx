@@ -465,7 +465,7 @@ function App() {
               })}
               {filteredModules.length === 0 && <div className="no-modules"><Search size={24} /><strong>No modules found</strong><span>Try another search or choose a different domain.</span><button onClick={() => { setQuery(""); setDomain("All domains"); }}>Clear filters</button></div>}
             </div>
-            <div className="universe-footer"><span><LayoutGrid size={14} /> {filteredModules.length} of 18 modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
+            <div className="universe-footer"><span><LayoutGrid size={14} /> {filteredModules.length} of {modules.length} modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
           </section>
         </div>
       )}
@@ -1377,7 +1377,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
         </section>
         <aside className="surface-panel module-connection-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> CROSS-MODULE LINKS</div><h3>Connected workspaces</h3><p>{totalLinked} linked records across local modules</p></div></div>
           {related.map((item) => { const RelatedIcon = item.icon; return <button className="related-row" key={item.id} onClick={() => onSelectModule(item.id)}><span className="related-icon"><RelatedIcon size={16} /></span><span><strong>{item.title}</strong><small>{(allRecords[item.id] ?? []).length} local records · {item.group}</small></span><ArrowUpRight size={14} /></button>; })}
-          <button className="related-all" onClick={onOpenModules}>Browse all 18 modules <ArrowRight size={14} /></button>
+          <button className="related-all" onClick={onOpenModules}>Browse all {modules.length} modules <ArrowRight size={14} /></button>
         </aside>
       </div>
       <div className="module-safety-note"><ShieldCheck size={16} /><span>This workspace now supports local create, edit, delete, search, export and navigation links. It is not a production database; multi-user sync, server permissions, automated external actions and audit-grade persistence remain to be implemented.</span></div>
