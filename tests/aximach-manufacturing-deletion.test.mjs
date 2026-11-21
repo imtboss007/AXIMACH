@@ -66,7 +66,16 @@ test("component deletion removes all dependent PO, route, material and stock lin
   for (const collection of ["operations", "quotations", "transportLegs", "paymentTransactions", "inspectionMeasurements", "bomLines", "componentParts", "materialCostEntries", "materialProcessLinks", "routeRelationships"]) {
     assert.deepEqual(result[collection].map((item) => item.id), collection === "operations" ? ["op-2"] : collection === "quotations" ? ["quote-2"] : collection === "transportLegs" ? ["leg-2"] : collection === "paymentTransactions" ? ["payment-2"] : collection === "inspectionMeasurements" ? ["inspection-2"] : collection === "bomLines" ? ["bom-2"] : collection === "componentParts" ? ["part-2"] : collection === "materialCostEntries" ? ["cost-2"] : collection === "materialProcessLinks" ? ["material-link-2"] : ["route-link-2"]);
   }
-  assert.deepEqual(result.inventoryTransactions.map((item) => item.id), ["stock-3"]);
+  assert.deepEqual(result.inventoryTransactions.map((item) => item.id), ["stock-1", "stock-2", "stock-3"]);
+  const retainedStock = new Map(result.inventoryTransactions.map(item => [item.id, item]));
+  assert.equal(retainedStock.get("stock-1").itemId, "component-1");
+  assert.equal(retainedStock.get("stock-1").poId, "po-1");
+  assert.equal(retainedStock.get("stock-1").poLineId, "");
+  assert.equal(retainedStock.get("stock-1").operationId, "");
+  assert.equal(retainedStock.get("stock-2").itemId, "material-1");
+  assert.equal(retainedStock.get("stock-2").poLineId, "");
+  assert.equal(retainedStock.get("stock-2").operationId, "");
+  assert.equal(retainedStock.get("stock-3").poLineId, "line-2");
   assert.deepEqual(result.plannedCosts.map((item) => item.id), ["planned-2", "legacy-ambiguous"]);
   assert.deepEqual(result.followUpAssignments.map((item) => item.id), ["follow-2", "follow-3"]);
   assert.deepEqual(result.materials.map((item) => item.id), ["material-1"]);
@@ -87,7 +96,8 @@ test("purchase-order deletion removes PO-specific links and preserves shared com
   assert.deepEqual(result.materialCostEntries, []);
   assert.deepEqual(result.materialProcessLinks, []);
   assert.deepEqual(result.routeRelationships, []);
-  assert.deepEqual(result.inventoryTransactions, []);
+  assert.deepEqual(result.inventoryTransactions.map((item) => item.id), ["stock-1", "stock-2", "stock-3"]);
+  assert.ok(result.inventoryTransactions.every(item => item.poId === "" && item.poLineId === "" && item.operationId === ""), "PO deletion must detach document references without deleting posted stock movements");
   assert.deepEqual(result.plannedCosts.map((item) => item.id), ["planned-1", "planned-2", "legacy-ambiguous"]);
   assert.deepEqual(result.followUpAssignments.map((item) => item.id), ["follow-3"]);
 });
