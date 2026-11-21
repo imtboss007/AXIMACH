@@ -64,7 +64,7 @@ function notify(method, params = {}) {
 }
 
 try {
-  child = spawn("npx", ["--yes", "claude-flow@" + VERSION, "mcp", "start"], {
+  child = spawn(process.execPath, [join(cwd, "scripts/aximach-ruflo-mcp.mjs")], {
     cwd,
     env: {
       PATH: process.env.PATH ?? "",
@@ -120,12 +120,12 @@ try {
   notify("notifications/initialized");
   const listed = await request("tools/list");
   const tools = Array.isArray(listed?.tools) ? listed.tools : [];
-  if (!tools.length) fail("MCP handshake succeeded but no tools were listed");
+  if (tools.length !== 3) fail("AXIMACH wrapper must expose exactly three allowlisted tools; received " + tools.length);
 
   const names = tools.map((tool) => tool.name).filter(Boolean).sort();
   if (new Set(names).size !== names.length) fail("MCP tool inventory contains duplicate tool names");
 
-  const inspectNames = new Set(["agent_execute","agent_list","agent_health","analyze_diff","analyze_diff-risk","analyze_file-risk","browser_act","browser_cookie_use","config_get","config_set","github_repo_analyze","guidance_recommend","memory_search","memory_retrieve","performance_bottleneck","performance_report","system_health","terminal_execute","workflow_execute"]);
+  const inspectNames = new Set(["analyze_diff","analyze_diff-risk","analyze_file-risk"]);
   const inspectedTools = tools.filter((tool) => inspectNames.has(tool.name)).map((tool) => ({
     name: tool.name,
     description: tool.description,
@@ -150,12 +150,21 @@ try {
   if (reviewData.error) fail("Ruflo analyze_diff reported an error: " + reviewData.message);
   if (!Array.isArray(reviewData.files) || reviewData.files.length === 0) fail("Ruflo analyze_diff returned an empty diff for a non-empty AXIMACH feature branch.");
 
+  let blockedToolCalls = 0;
+  try {
+    await request("tools/call", { name: "terminal_execute", arguments: { command: "echo AXIMACH_RUFLO_SHOULD_NOT_RUN" } });
+  } catch (error) {
+    if (String(error).includes("blocked by AXIMACH Ruflo allowlist")) blockedToolCalls = 1;
+    else throw error;
+  }
+  if (blockedToolCalls !== 1) fail("AXIMACH wrapper did not reject terminal_execute");
+
   console.log(JSON.stringify({
     result: "PASS",
     pinnedPackage: "claude-flow@" + VERSION,
     server: initialized.serverInfo,
     protocolVersion: initialized.protocolVersion,
-    toolCount: names.length,
+    exposedToolCount: names.length,
     inspectedTools,
     toolNames: names,
     pilotToolCall: "analyze_diff",
@@ -167,6 +176,7 @@ try {
       fileRisks: Array.isArray(reviewData.fileRisks) ? reviewData.fileRisks.slice(0, 20) : undefined,
     },
     executedToolCalls: 1,
+    blockedToolCalls,
     projectFilesExposed: true,
     credentialsProvided: false,
     transport: "stdio",
