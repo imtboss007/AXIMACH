@@ -102,7 +102,13 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     const visibleIds=new Set(visibleNodes.map(node=>node.id));
     const visibleEdges=filteredEdges.filter(item=>visibleIds.has(item.from)&&visibleIds.has(item.to));
     const groupIndex=new Map(GROUPS.map((group,index)=>[group.kind,index]));
-    const totals=GROUPS.map(group=>({...group,count:nodes.filter(node=>node.kind===group.kind).length}));
+    const availableCounts:Record<NodeKind,number>={
+      company:companies.length,factory:factories.length,order:orders.length,component:components.length,
+      vendor:vendors.length,process:definitions.length,operation:operations.length,material:allocations.length,
+      quality:inspections.length,transport:legs.length,finance:payments.length,contact:contacts.length
+    };
+    const totals=GROUPS.map(group=>({...group,count:availableCounts[group.kind]||0,renderedCount:nodes.filter(node=>node.kind===group.kind).length}));
+    const totalAvailable=Object.values(availableCounts).reduce((sum,count)=>sum+count,0);
     const visible=visibleNodes.map(node=>{
       const index=groupIndex.get(node.kind)||0;
       const same=visibleNodes.filter(item=>item.kind===node.kind);
@@ -111,7 +117,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       const radius=34+(local%2)*5;
       return {...node,x:50+Math.cos(angle)*radius,y:50+Math.sin(angle)*radius};
     });
-    return {nodes:visible,edges:visibleEdges,totals};
+    return {nodes:visible,edges:visibleEdges,totals,totalAvailable};
   },[data,visibleKinds]);
   const byId=new Map(graph.nodes.map(node=>[node.id,node]));
   const selected=graph.nodes.find(node=>node.id===selectedId);
@@ -139,7 +145,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
   return <section className="ax-ecosystem-graph" aria-label="Live manufacturing ecosystem graph">
     <header className="ax-ecosystem-graph-head">
       <div><span className="eyebrow">CROSS-MODULE RELATIONSHIP MAP</span><h3>Connected manufacturing ecosystem</h3><p>Live links are derived from saved company, PO, component, vendor, process, material, quality, dispatch and payment records. Missing references are not fabricated.</p></div>
-      <div className="ax-ecosystem-graph-count"><Network size={15}/><strong>{graph.nodes.length}</strong><small>visible records</small><span>{graph.edges.length} verified links</span></div><div className="ax-ecosystem-export"><select aria-label="Ecosystem export format" value={exportFormat} onChange={event=>setExportFormat(event.target.value as typeof exportFormat)}><option value="svg">SVG</option><option value="csv">CSV</option><option value="json">JSON</option></select><button type="button" onClick={exportGraph}><FileDown size={13}/> Export graph</button></div>
+      <div className="ax-ecosystem-graph-count"><Network size={15}/><strong>{graph.nodes.length}</strong><small>nodes shown</small><span>{graph.totalAvailable} saved records in these groups</span></div><div className="ax-ecosystem-export"><select aria-label="Ecosystem export format" value={exportFormat} onChange={event=>setExportFormat(event.target.value as typeof exportFormat)}><option value="svg">SVG</option><option value="csv">CSV</option><option value="json">JSON</option></select><button type="button" onClick={exportGraph}><FileDown size={13}/> Export graph</button></div>
     </header>
     <div className="ax-ecosystem-filters" aria-label="Show or hide entity groups">
       {graph.totals.map(group=><button type="button" key={group.kind} aria-pressed={visibleKinds.includes(group.kind)} onClick={()=>setVisibleKinds(current=>current.includes(group.kind)?current.filter(kind=>kind!==group.kind):[...current,group.kind])}><i style={{background:group.color}}/><span>{group.title}</span><b>{group.count}</b></button>)}
@@ -153,6 +159,6 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       {graph.nodes.map(node=>{const group=GROUPS.find(item=>item.kind===node.kind)!;return <button type="button" key={node.id} className={"ax-ecosystem-node kind-"+node.kind+(selectedId===node.id?" is-selected":"")} style={{left:node.x+"%",top:node.y+"%", "--node-accent":group.color} as CSSProperties} onClick={()=>setSelectedId(current=>current===node.id?"":node.id)} title={node.detail}><span>{node.label}</span><small>{group.title.replace(" & allocations","")}</small></button>;})}
     </div>
     <div className="ax-ecosystem-graph-foot"><span><i/> Solid lines represent saved ID relationships · dashed hub lines indicate membership in the live graph</span>{selected&&<div className="ax-ecosystem-selected"><div><strong>{selected.label}</strong><small>{selected.detail}</small></div><button type="button" onClick={()=>onNavigate(selected.moduleId,selected.context)}>Open source record <Activity size={13}/></button></div>}</div>
-    <p className="ax-ecosystem-help">Select a node to inspect it, then use “Open source record” to jump to its owning module. Group filters change visibility only, never source data.</p>
+    <p className="ax-ecosystem-help">Select a node to inspect it, then use “Open source record” to jump to its owning module. Group filters change visibility only, never source data.</p><p className="ax-ecosystem-sample-note">Graph preview limit: up to 6 records per group (8 operations) are drawn to keep the network readable. Filter counts show the full saved-record totals; open the source module to inspect records outside this visual sample.</p>
   </section>;
 }
