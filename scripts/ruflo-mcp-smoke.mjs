@@ -8,13 +8,11 @@ const VERSION = "3.80.0";
 const RESPONSE_TIMEOUT_MS = 120_000;
 const root = await mkdtemp(join(tmpdir(), "aximach-ruflo-pilot-"));
 const home = join(root, "home");
-const cwd = join(root, "workspace");
+const cwd = process.cwd();
 const cache = join(root, "npm-cache");
 const { mkdir } = await import("node:fs/promises");
 await Promise.all([mkdir(home), mkdir(cache)]);
 
-const clone = spawnSync("git", ["clone", "--depth", "100", "--branch", "integrate/35-toolkit-ui-audit", "https://github.com/imtboss007/AXIMACH.git", cwd], { cwd: root, encoding: "utf8", timeout: 120_000 });
-if (clone.status !== 0) throw new Error("Could not create disposable AXIMACH clone: " + (clone.stderr || clone.error?.message || "git clone failed"));
 const baseFetch = spawnSync("git", ["fetch", "--depth", "100", "origin", "stage6/p0-production-quantity-integrity"], { cwd, encoding: "utf8", timeout: 120_000 });
 if (baseFetch.status !== 0) throw new Error("Could not fetch AXIMACH base branch: " + (baseFetch.stderr || baseFetch.error?.message || "git fetch failed"));
 
