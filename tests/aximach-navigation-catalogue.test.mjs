@@ -46,3 +46,17 @@ test("Data Exchange import and export workspaces forward real cross-module navig
   assert.doesNotMatch(source, /<ExportCentreWorkspace[^>]*onSelectModule=\{\(\)\s*=>\s*\{\}\}/);
   assert.doesNotMatch(source, /<ImportCentreWorkspace[^>]*onSelectModule=\{\(\)\s*=>\s*\{\}\}/);
 });
+
+
+test("shared searchable dropdown menus use a responsive column layout", async () => {
+  const source = await readSource("src/aximach-ui.css");
+  assert.match(source, /\.ax-search-multi-options\s*\{[^}]*display:\s*grid\s*!important/s);
+  assert.match(source, /\.ax-search-multi-options\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit/s);
+  assert.match(source, /\.searchable-picker-menu\s*\{[^}]*display:\s*grid/s);
+  assert.match(source, /\.searchable-picker-menu\s*\{[^}]*grid-template-columns:/s);
+});
+
+test("immersive workspace command header stays above the navigation rail", async () => {
+  const source = await readSource("src/aximach-ui.css");
+  assert.match(source, /\.command-deck\s*\{[^}]*z-index:\s*80\s*!important/s);
+});
