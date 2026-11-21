@@ -7,7 +7,7 @@ Use all 35 candidates as an evaluated toolkit, but do **not** install 35 package
 ## Current repository baseline inspected
 
 - Canonical catalogue: 20 unique module IDs in `src/App.tsx`; `src/AXIMACHOrb.tsx` exposes the same 20 IDs and the navigation-catalogue test enforces parity.
-- Main dashboard and 3D command centre share `AXIMACHOrb`; the existing sphere uses a WebGL sphere shader plus interactive CSS 3D satellite placement, Motion rotation/drag and six live lower summary nodes (Companies, Purchase Orders, PO Component Lines, Components, Vendors and Open Operations).
+- Main dashboard and 3D command centre share `AXIMACHOrb`; the existing sphere uses a WebGL sphere shader plus interactive CSS 3D satellite placement, Motion rotation/drag and six live lower summary nodes (Companies, Purchase Orders, PO Component Lines, Components, Vendors and Open Operations). The feature branch now retains this lower rotating 3D shell on mobile and adds five more live rotating dashboard data spheres.
 - Manufacturing Universe and Route Flow are already separate workspaces backed by `useManufacturingData`; the route editor supports eleven relationship types and transport records/vehicle markers.
 - A Mechanical Icon Inventory and Logo Studio already exist in `MechanicalOperationIcon.tsx` and `IconStudio.tsx`.
 - Shared searchable controls already exist: `SearchablePicker` (single-select) and `SearchableMultiSelect` (multi-select, search, Select all, Clear and Done).
