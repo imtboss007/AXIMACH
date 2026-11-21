@@ -1701,10 +1701,10 @@ test("client-side shared data merge keeps saved parts and both cost scopes by re
 });
 
 test("purchase-order deletion retains stand-alone material budgets but removes entries attached to that PO", () => {
-  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(master.includes("(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))"));
-  assert.ok(master.includes("componentParts:(current.componentParts||[]).filter(row=>!targetIds.has(row.componentId))"));
-  assert.ok(master.includes("materialCostEntries:(current.materialCostEntries||[]).filter(row=>!targetIds.has(row.componentId))"));
+  const deletion = readFileSync(new URL("../src/manufacturingDeletion.mjs", import.meta.url), "utf8");
+  assert.ok(deletion.includes("array(data.materialCostEntries).filter((row) => targets.has(row.poId) || (row.poLineId && lineIds.has(row.poLineId)))"));
+  assert.ok(deletion.includes("materialCostEntries: array(data.materialCostEntries).filter((row) => !materialCostIds.has(row.id))"));
+  assert.ok(deletion.includes("componentParts: array(data.componentParts).filter((row) => !removedPartIds.has(row.id))"));
 });
 
 
