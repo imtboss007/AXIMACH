@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { motion, useMotionValue, useReducedMotion } from "motion/react";
 import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, GitBranch, Layers3, MessageCircle, Network, Package, Plug, Sparkles, Truck, Users, Wallet } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
+import NumberTicker from "./visuals/NumberTicker";
 import AXIMACHWebGLSphere from "./AXIMACHWebGLSphere";
 
 type Props = { onSelectModule: (id: string) => void; surface: "dashboard" | "command-centre" };
@@ -231,7 +232,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
             onPointerUp={event=>{event.stopPropagation();endLowerDrag();}}
             onPointerCancel={event=>{event.stopPropagation();endLowerDrag();}}
             onClick={() => { if (!lowerDragMoved.current) onSelectModule(id); }} title={"Open " + label}>
-            <Icon size={13}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small>
+            <Icon size={13}/><strong><NumberTicker value={value} /></strong><small>{label}</small>
           </button>)}
         </motion.div>
       </div>
