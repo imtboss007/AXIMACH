@@ -4,6 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type QuotationRecord 
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
+import SupplierAccountsPayablePanel from "./SupplierAccountsPayablePanel";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void };
@@ -379,6 +380,7 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
     {notice && <div className="notice-banner"><ShieldCheck size={16}/><span>{notice}</span><button onClick={() => onNotice("")} aria-label="Dismiss notice"><X size={15}/></button></div>}
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className={"demo-pill " + (syncStatus === "synced" ? "scheduler-connected" : "")}><i/> {syncStatus === "synced" ? "SHARED SERVER DATA" : syncStatus === "syncing" ? "SYNCING" : syncStatus === "error" ? "SYNC ERROR · LOCAL COPY KEPT" : "NO DEMO DATA · LOCAL UNTIL SERVER SYNC"}</span></div>
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> FINANCE / COMPONENT + PROCESS RATE HISTORY</div><h1>Costing &amp; Payment<span>.</span></h1><p>Store every supplier rate against the exact component, PO line and operation; compare quotations without treating them as actual invoices.</p></div><div className="workspace-title-actions"><button className="button-quiet" onClick={() => onSelectModule("vendors")}><Users size={15}/> Vendor directory</button><button className="button-primary" onClick={() => openQuote()} disabled={!selectedComponent}><Plus size={15}/> Add process quotation</button></div></div>
+    <SupplierAccountsPayablePanel data={data} update={update} onNotice={onNotice}/>
     {!components.length ? <section className="surface-panel linked-empty-master"><Package size={30}/><div><h3>No component master records yet</h3><p>There are no sample components. Add your actual part number once; then create a PO line, add the required operations and record supplier quotations per operation.</p><button className="button-primary" onClick={() => onSelectModule("components")}><Plus size={14}/> Create component master</button></div></section> : <>
       <section className="surface-panel company-cost-rollup">
         <div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMPANY-WIDE FINANCIAL ANALYSIS</div><h3>Company, PO & component profitability</h3><p>Aggregates all companies and purchase orders. Use the company, PO, component, quantity and vendor filters to narrow the analysis.</p></div><span className="module-number">{visibleCompanyRollup.length} COMPONENT LINES</span></div>
@@ -451,6 +453,7 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   </div>
   <button className="button-quiet compact-button" onClick={() => onSelectModule("process-map",{companyId:selectedPO?.companyId,poId:selectedPO?.id,poLineId:selectedLine?.lineId,componentId:selectedComponent?.id,operationId:selectedOperation?.id,vendorId:selectedOperation?.vendorId})}><Wallet size={14}/> Update operation payments</button>
 </section>
+      
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUOTE-TO-OPERATION LINK</div><h3>Process costs for {selectedComponent?.partNumber}</h3><p>Each row references a specific operation ID and PO component line.</p></div><button className="button-quiet compact-button" onClick={() => onSelectModule("process-map",{companyId:selectedPO?.companyId,poId:selectedPO?.id,poLineId:selectedLine?.lineId,componentId:selectedComponent?.id,operationId:selectedOperation?.id,vendorId:selectedOperation?.vendorId})}><ArrowRight size={14}/> Manage operations</button></div>
         {routeOperations.length ? <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Operation</th><th>Vendor</th><th>Qty</th><th>Selected quote / rate</th><th>Actual rate / part</th><th>Legacy transport (separate)</th><th>Planned process cost (transport excluded)</th><th>Payment ledger</th><th>Quotes</th></tr></thead><tbody>{routeOperations.map(op => {
           const quoteCount = quotations.filter(q => q.operationId === op.id && !q.deletedAt).length;

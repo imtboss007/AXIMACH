@@ -2,9 +2,9 @@ name: AXIMACH build and packages
 
 on:
   push:
-    branches: [main, "feat/**", "fix/**", "feature/**"]
+    branches: [main, "feat/**", "fix/**", "feature/**", "integrate/**"]
   pull_request:
-    branches: [main]
+    branches: [main, "stage6/p0-production-quantity-integrity"]
   workflow_dispatch:
 
 permissions:

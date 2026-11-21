@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, useMotionValue, useReducedMotion } from "motion/react";
-import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, GitBranch, Layers3, MessageCircle, Network, Package, Sparkles, Truck, Users, Wallet } from "lucide-react";
+import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, GitBranch, Layers3, MessageCircle, Network, Package, Plug, Sparkles, Truck, Users, Wallet } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
+import NumberTicker from "./visuals/NumberTicker";
 import AXIMACHWebGLSphere from "./AXIMACHWebGLSphere";
 
 type Props = { onSelectModule: (id: string) => void; surface: "dashboard" | "command-centre" };
@@ -34,6 +35,7 @@ const satellites = [
   { id: "reports", label: "Reports", Icon: BarChart3 },
   { id: "ai-insights", label: "AI Insights", Icon: Sparkles },
   { id: "export", label: "Import / Export", Icon: FileDown },
+  { id: "integrations", label: "Integrations & API", Icon: Plug },
 ];
 
 export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
@@ -191,10 +193,10 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
         <motion.div
           className="ax-orb-module-shell"
           style={{ transformStyle: "preserve-3d", scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1) }}
-          aria-label="20 clickable AXIMACH modules"
+          aria-label="21 clickable AXIMACH modules"
         >
           {satellites.map(({ id, label, Icon }, index) => {
-            // Fibonacci-sphere placement distributes all 18 module controls
+            // Fibonacci-sphere placement distributes all 20 module controls
             // over the complete spherical surface, not only a front-facing
             // ellipse. Each control's local face points out from the sphere;
             // backface-visibility hides nodes on the far side until the user
@@ -221,7 +223,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
         </motion.div>
         </motion.div>
       </motion.div>
-      {compactViewport ? <div className="ax-orb-lower-summary-grid" aria-label="Live record summaries">{shellStats.map(({id,label,value,Icon})=><button type="button" key={label} className="ax-orb-lower-summary-card" onClick={()=>onSelectModule(id)}><Icon size={16}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small></button>)}</div> : <div className="ax-orb-lower-shell" aria-label="Separate live record summary shell" onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag} onPointerUp={endLowerDrag} onPointerCancel={endLowerDrag} style={{touchAction:"none"}}>
+      <div className="ax-orb-lower-shell" aria-label="Separate live record summary shell" onPointerDown={startLowerDrag} onPointerMove={moveLowerDrag} onPointerUp={endLowerDrag} onPointerCancel={endLowerDrag} style={{touchAction:"none"}}>
         <motion.div className="ax-orb-lower-rotator" style={{rotateX:lowerRotateX,rotateY:lowerRotateY,transformStyle:"preserve-3d"}}>
           {shellStats.map(({ id, label, value, Icon }, index) => <button type="button" key={label} className="ax-orb-lower-node"
             style={{ transform: "translate(-50%,-50%) rotateY(" + (index * 60) + "deg) translateZ(" + (compactViewport ? 94 : 132) + "px) rotateY(-" + (index * 60) + "deg)" }}
@@ -230,10 +232,11 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
             onPointerUp={event=>{event.stopPropagation();endLowerDrag();}}
             onPointerCancel={event=>{event.stopPropagation();endLowerDrag();}}
             onClick={() => { if (!lowerDragMoved.current) onSelectModule(id); }} title={"Open " + label}>
-            <Icon size={13}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small>
+            <Icon size={13}/><strong><NumberTicker value={value} /></strong><small>{label}</small>
           </button>)}
         </motion.div>
-      </div>}
+      </div>
+      <div className="ax-orb-lower-summary-grid" aria-label="Live record summaries">{shellStats.map(({id,label,value,Icon})=><button type="button" key={label} className="ax-orb-lower-summary-card" onClick={()=>onSelectModule(id)}><Icon size={16}/><strong>{value.toLocaleString("en-IN")}</strong><small>{label}</small></button>)}</div>
       <div className="ax-orb-status ax-orb-status-bottom"><span className="ax-orb-grip">↔</span> AUTO ROTATION · {autoRotate && !reduceMotion && !reducedMotion ? "ON" : "PAUSED"} <i/> MODULE SHELL · {moduleRotationEnabled ? "DRAG ENABLED" : "LOCKED"} <i/> RECORD SHELL · {recordRotationEnabled ? "DRAG ENABLED" : "LOCKED"}</div>
       <div className="ax-orb-studio-actions">
         <button type="button" className="ax-orb-pause" aria-pressed={!autoRotate} onClick={() => setAutoRotate(value => !value)}>{autoRotate ? "Ⅱ Pause auto-rotation" : "▶ Resume auto-rotation"}</button>

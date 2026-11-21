@@ -413,6 +413,15 @@ test("server user authentication issues expiring bearer sessions and enforces ro
 
     assert.equal((await fetch(baseUrl + "/api/auth/logout", { method: "POST", headers: adminHeaders })).status, 200);
     assert.equal((await fetch(baseUrl + "/api/manufacturing-data", { headers: adminHeaders })).status, 401, "logout must revoke the bearer session immediately");
+    const reLogin = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: "AXIMACH-admin-Password-2026!" }) });
+    assert.equal(reLogin.status, 200);
+    const reAuthenticatedAdmin = await reLogin.json();
+    const securityAudit = await fetch(baseUrl + "/api/audit-events", { headers: { authorization: "Bearer " + reAuthenticatedAdmin.token } });
+    assert.equal(securityAudit.status, 200);
+    const securityActions = (await securityAudit.json()).events.map(event => event.action);
+    assert.equal(securityActions.includes("auth.login.rejected"), true, "failed sign-ins must be audited");
+    assert.equal(securityActions.includes("auth.login.success"), true, "successful sign-ins must be audited");
+    assert.equal(securityActions.includes("auth.logout"), true, "sign-outs must be audited");
     for (let attempt = 0; attempt < 8; attempt++) {
       const failed = await fetch(baseUrl + "/api/auth/login", {
         method: "POST", headers: { "content-type": "application/json" },
@@ -439,6 +448,7 @@ test("tenant-scoped user reads and writes only its assigned company and related 
   const users = [
     { id: "tenant-admin", username: "admin", passwordHash: await hashPassword("AXIMACH-tenant-admin-Password!"), role: "admin" },
     { id: "tenant-a-user", username: "companya", passwordHash: await hashPassword("AXIMACH-companya-Password!"), role: "operator", companyIds: ["company-a"] },
+    { id: "tenant-a-manager", username: "managera", passwordHash: await hashPassword("AXIMACH-managera-Password!"), role: "manager", companyIds: ["company-a"] },
     { id: "tenant-a-viewer", username: "viewera", passwordHash: await hashPassword("AXIMACH-viewera-Password!"), role: "viewer", companyIds: ["company-a"] },
     { id: "tenant-a-factory-user", username: "factorya", passwordHash: await hashPassword("AXIMACH-factorya-Password!"), role: "operator", factoryIds: ["factory-a"] },
     { id: "tenant-unassigned", username: "unassigned", passwordHash: await hashPassword("AXIMACH-unassigned-Password!"), role: "operator" }
@@ -489,7 +499,11 @@ test("tenant-scoped user reads and writes only its assigned company and related 
         ],
         vendors: [
           { id:"vendor-a", company:"A subcontractor", updatedAt:"2026-11-20T05:00:00.000Z" },
-          { id:"vendor-b", company:"B subcontractor", updatedAt:"2026-11-20T05:00:00.000Z" }
+          { id:"vendor-b", company:"B subcontractor", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"vendor-ap-only", company:"AP-only supplier", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        supplierInvoices: [
+          { id:"ap-only-invoice", companyId:"company-a", factoryId:"factory-a", vendorId:"vendor-ap-only", invoiceNumber:"AP-ONLY-001", invoiceDate:"2026-11-20", dueDate:"2026-12-20", currency:"INR", subtotal:100, taxAmount:18, totalAmount:118, status:"Draft", notes:"", createdBy:"tenant-admin", createdAt:"2026-11-20T05:00:00.000Z", updatedAt:"2026-11-20T05:00:00.000Z" }
         ],
         processDefinitions: [
           { id:"process-a", processType:"Machining", updatedAt:"2026-11-20T05:00:00.000Z" },
@@ -521,7 +535,12 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     });
     assert.equal(seed.status,200);
 
+    assert.equal((await fetch(baseUrl + "/api/audit-events", { headers: adminHeaders })).status, 200, "administrators can read the shared audit trail");
     const companyHeaders = await login("companya","AXIMACH-companya-Password!");
+    assert.equal((await fetch(baseUrl + "/api/audit-events", { headers: companyHeaders })).status, 403, "scoped operators cannot read the global audit trail");
+    const deniedAudit = await fetch(baseUrl + "/api/audit-events", { headers: adminHeaders });
+    const deniedAuditEvents = (await deniedAudit.json()).events;
+    assert.equal(deniedAuditEvents.some(event => event.action === "authorization.denied" && event.actorUsername === "companya" && event.requiredPermission === "audit:read"), true, "failed audit access is itself recorded for administrators");
     const response = await fetch(baseUrl + "/api/manufacturing-data", { headers: companyHeaders });
     assert.equal(response.status,200);
     const scoped = (await response.json()).data;
@@ -534,7 +553,18 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     assert.deepEqual(scoped.componentParts,[],"component parts referencing an out-of-scope vendor are excluded");
     assert.deepEqual(scoped.bomLines,[],"BOM lines referencing an out-of-scope component part are excluded");
     assert.equal(scoped.materials[0]?.preferredVendorId,"","foreign preferred-vendor identifiers are removed from material master records");
-    assert.deepEqual(scoped.vendors.map(row=>row.id),["vendor-a"]);
+    assert.deepEqual(scoped.vendors.map(row=>row.id),["vendor-a","vendor-ap-only"],"supplier is visible through its AP invoice even without any operation/transport reference");
+    assert.deepEqual(scoped.supplierInvoices.map(row=>row.id),["ap-only-invoice"],"tenant-scoped AP invoice remains visible with its supplier master");
+    const apOnlyVendorInvoiceWrite=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierInvoices:[{
+        id:"ap-only-invoice-2",companyId:"company-a",factoryId:"factory-a",vendorId:"vendor-ap-only",
+        invoiceNumber:"AP-ONLY-002",invoiceDate:"2026-11-21",dueDate:"2026-12-21",currency:"INR",
+        subtotal:50,taxAmount:9,totalAmount:59,status:"Draft",notes:"",createdBy:"client",
+        createdAt:"2026-11-21T05:30:00.000Z",updatedAt:"2026-11-21T05:30:00.000Z"
+      }]}})
+    });
+    assert.equal(apOnlyVendorInvoiceWrite.status,200,"scoped user can create another AP invoice for a supplier visible only through AP history");
     assert.deepEqual(scoped.processDefinitions.map(row=>row.id),["process-a"]);
     assert.deepEqual(scoped.plannedCosts,[],"tenant scope excludes a company-tagged cost row linked to a foreign PO/component/process");
     assert.deepEqual(scoped.materialCostEntries,[],"tenant scope excludes material costing linked to a foreign PO/component");
@@ -578,6 +608,189 @@ test("tenant-scoped user reads and writes only its assigned company and related 
       body:JSON.stringify({data:{components:[{id:"component-a",companyId:"company-a",name:"Component A updated",updatedAt:"2026-11-20T06:00:00.000Z"}]}})
     });
     assert.equal(validWrite.status,200,"assigned-company component edits remain available");
+    const apStamp = "2026-11-20T07:00:00.000Z";
+    const invoice = {
+      id:"ap-invoice-a",companyId:"company-a",factoryId:"factory-a",vendorId:"vendor-a",
+      poId:"po-a",poLineId:"line-a",invoiceNumber:"SUP-2026-001",invoiceDate:"2026-11-20",dueDate:"2026-12-20",
+      currency:"INR",subtotal:100,taxAmount:18,totalAmount:118,status:"Submitted",notes:"First supplier invoice",
+      createdBy:"client-supplied-creator",createdAt:apStamp,updatedAt:apStamp
+    };
+    const createdInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierInvoices:[invoice]}})
+    });
+    assert.equal(createdInvoice.status,200,"scoped supplier invoice can be created and submitted");
+    const storedInvoice=(await createdInvoice.json()).data.supplierInvoices.find(row=>row.id===invoice.id);
+    assert.equal(storedInvoice.createdBy,"tenant-a-user","server, not client payload, sets the invoice creator");
+
+    const duplicateInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierInvoices:[{...invoice,id:"ap-invoice-duplicate",createdAt:apStamp,updatedAt:apStamp}]}})
+    });
+    assert.equal(duplicateInvoice.status,403,"duplicate supplier invoice number for the same company/vendor is rejected");
+
+    const operatorApproval=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-operator-approval",targetType:"invoice",targetId:invoice.id,decision:"Approved",
+        decidedBy:"forged-actor",decidedByRole:"admin",comments:"Operator attempt",decidedAt:apStamp,createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(operatorApproval.status,403,"operator cannot approve supplier invoices");
+
+    const managerHeaders=await login("managera","AXIMACH-managera-Password!");
+    const managerApproval=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-manager-approval",targetType:"invoice",targetId:invoice.id,decision:"Approved",
+        decidedBy:"forged-actor",decidedByRole:"admin",comments:"Checked against PO and supplier invoice",decidedAt:apStamp,createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(managerApproval.status,200,"a different scoped manager can approve the invoice");
+    const savedApproval=(await managerApproval.json()).data.supplierFinanceApprovals.find(row=>row.id==="ap-manager-approval");
+    assert.equal(savedApproval.decidedBy,"tenant-a-manager","server stamps the authenticated approver");
+    assert.equal(savedApproval.decidedByRole,"manager","client cannot forge administrator approval");
+
+    const managerSnapshotResponse=await fetch(baseUrl+"/api/manufacturing-data",{headers:managerHeaders});
+    assert.equal(managerSnapshotResponse.status,200);
+    const managerSnapshot=(await managerSnapshotResponse.json()).data;
+    const repeatSync=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,body:JSON.stringify({data:managerSnapshot})
+    });
+    assert.equal(repeatSync.status,200,"a full scoped-device sync must preserve existing AP approvals and unchanged shared masters");
+
+    const editApprovedInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierInvoices:[{...storedInvoice,totalAmount:200,updatedAt:"2026-11-20T08:00:00.000Z"}]}})
+    });
+    assert.equal(editApprovedInvoice.status,403,"an approved supplier invoice is immutable");
+
+    const selfInvoice={...invoice,id:"ap-self-invoice",invoiceNumber:"SUP-2026-SELF",createdBy:"client",createdAt:apStamp,updatedAt:apStamp};
+    const managerCreatedInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,body:JSON.stringify({data:{supplierInvoices:[selfInvoice]}})
+    });
+    assert.equal(managerCreatedInvoice.status,200);
+    const managerStoredInvoice=(await managerCreatedInvoice.json()).data.supplierInvoices.find(row=>row.id===selfInvoice.id);
+    assert.equal(managerStoredInvoice.createdBy,"tenant-a-manager");
+    const selfApproval=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-self-approval",targetType:"invoice",targetId:selfInvoice.id,decision:"Approved",
+        comments:"Self approval attempt",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(selfApproval.status,403,"invoice creator cannot approve their own invoice");
+
+    const returnedInvoice={...invoice,id:"ap-return-invoice",invoiceNumber:"SUP-2026-RETURN",createdAt:apStamp,updatedAt:apStamp};
+    const createReturnedInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierInvoices:[returnedInvoice]}})
+    });
+    assert.equal(createReturnedInvoice.status,200);
+    const returnDecision=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-return-decision",targetType:"invoice",targetId:returnedInvoice.id,decision:"Returned",
+        comments:"Please correct tax reference",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(returnDecision.status,200,"manager can return an invoice for correction");
+    const revisedInvoice={...returnedInvoice,status:"Submitted",subtotal:110,taxAmount:19.8,totalAmount:129.8,updatedAt:"2026-11-20T09:30:00.000Z"};
+    const resubmitInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierInvoices:[revisedInvoice]}})
+    });
+    assert.equal(resubmitInvoice.status,200,"creator can submit a corrected invoice revision");
+    const approveRevisedInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-return-decision-2",targetType:"invoice",targetId:returnedInvoice.id,decision:"Approved",
+        comments:"Corrected invoice checked",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(approveRevisedInvoice.status,200,"a revised invoice can receive a new approval without deleting its earlier returned decision");
+
+    const supplierPayment={
+      id:"ap-payment-a",companyId:"company-a",factoryId:"factory-a",vendorId:"vendor-a",
+      paymentDate:"2026-11-21",method:"Bank transfer",bankReference:"UTR-AX-001",amount:80,currency:"INR",
+      status:"Submitted",notes:"Part payment",createdBy:"client",createdAt:apStamp,updatedAt:apStamp
+    };
+    const createPayment=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierPayments:[supplierPayment]}})
+    });
+    assert.equal(createPayment.status,200,"supplier payment can be entered separately from process-operation payments");
+    const duplicateBankReference=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierPayments:[{...supplierPayment,id:"ap-payment-duplicate",createdAt:apStamp,updatedAt:apStamp}]}})
+    });
+    assert.equal(duplicateBankReference.status,403,"supplier payment bank references cannot be duplicated for the same company and vendor");
+    const paymentApproval=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-payment-approval",targetType:"payment",targetId:supplierPayment.id,decision:"Approved",
+        comments:"Payment details verified",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(paymentApproval.status,200,"manager can approve a submitted supplier payment");
+
+    const allocation={id:"ap-payment-allocation-a",paymentId:supplierPayment.id,invoiceId:invoice.id,amount:80,notes:"Partial settlement",createdBy:"tenant-a-user",createdAt:apStamp,updatedAt:apStamp};
+    const allocate=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierPaymentAllocations:[allocation]}})
+    });
+    assert.equal(allocate.status,200,"approved supplier payment can be allocated to the matching approved invoice");
+    const apAuditResponse=await fetch(baseUrl+"/api/audit-events",{headers:adminHeaders});
+    assert.equal(apAuditResponse.status,200);
+    const apAuditEvents=(await apAuditResponse.json()).events;
+    for (const action of ["supplier-invoice.created","supplier-payment.created","supplier-finance.approval","supplier-payment.allocated"]) {
+      assert.equal(apAuditEvents.some(event=>event.action===action),true,"administrator audit trail captures "+action);
+    }
+    const apAuditJson=JSON.stringify(apAuditEvents.filter(event=>event.action.startsWith("supplier-")));
+    for (const secret of ["SUP-2026-001","UTR-AX-001","Checked against PO and supplier invoice"]) {
+      assert.equal(apAuditJson.includes(secret),false,"AP audit events do not expose invoice numbers, bank references or reviewer comments");
+    }
+    assert.equal(apAuditEvents.some(event=>event.action.startsWith("supplier-")&&Object.hasOwn(event,"amount")),false,"AP audit events do not expose financial amounts");
+
+    const secondPayment={...supplierPayment,id:"ap-payment-b",bankReference:"UTR-AX-002",amount:50,createdAt:apStamp,updatedAt:apStamp};
+    const createSecondPayment=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierPayments:[secondPayment]}})
+    });
+    assert.equal(createSecondPayment.status,200);
+    const approveSecondPayment=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-payment-approval-b",targetType:"payment",targetId:secondPayment.id,decision:"Approved",
+        comments:"Second payment verified",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(approveSecondPayment.status,200);
+    const overAllocateInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierPaymentAllocations:[{
+        id:"ap-over-invoice",paymentId:secondPayment.id,invoiceId:invoice.id,amount:50,
+        notes:"Would exceed invoice balance",createdBy:"tenant-a-user",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(overAllocateInvoice.status,403,"invoice allocations cannot exceed the remaining invoice balance");
+
+    const secondInvoice={...invoice,id:"ap-invoice-b",invoiceNumber:"SUP-2026-002",totalAmount:90,subtotal:90,taxAmount:0,createdAt:apStamp,updatedAt:apStamp};
+    const createSecondInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierInvoices:[secondInvoice]}})
+    });
+    assert.equal(createSecondInvoice.status,200);
+    const approveSecondInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-invoice-approval-b",targetType:"invoice",targetId:secondInvoice.id,decision:"Approved",
+        comments:"Second invoice verified",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(approveSecondInvoice.status,200);
+    const overAllocatePayment=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierPaymentAllocations:[{
+        id:"ap-over-payment",paymentId:supplierPayment.id,invoiceId:secondInvoice.id,amount:1,
+        notes:"Would exceed payment value",createdBy:"tenant-a-user",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(overAllocatePayment.status,403,"allocations cannot exceed the remaining payment amount");
+
 
     const viewerHeaders = await login("viewera","AXIMACH-viewera-Password!");
     const viewerWrite = await fetch(baseUrl + "/api/manufacturing-data", {
@@ -594,5 +807,138 @@ test("tenant-scoped user reads and writes only its assigned company and related 
   } finally {
     await stopServer(child);
     await rm(folder,{recursive:true,force:true});
+  }
+});
+
+test("server audit trail records durable mutation metadata without copying sensitive contact or message content", { timeout: 20000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-audit-trail-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  const headers = { "content-type": "application/json", "x-aximach-key": apiKey };
+  let child;
+
+  try {
+    child = startServer(port, dataFile);
+    await waitForHealth(child, baseUrl);
+
+    assert.equal((await fetch(baseUrl + "/api/audit-events")).status, 401, "audit history must require authentication");
+    const write = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ data: {
+        companies: [{ id: "audit-company-1", name: "Confidential Company Name", updatedAt: "2026-11-21T07:00:00.000Z" }]
+      } })
+    });
+    assert.equal(write.status, 200);
+
+    const contact = await fetch(baseUrl + "/api/contacts", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Confidential Contact Name", phone: "919876543210", company: "Confidential Company Name", optedIn: true })
+    });
+    assert.equal(contact.status, 201);
+
+    const schedule = await fetch(baseUrl + "/api/schedules", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        to: "919876543210",
+        message: "Confidential approved message body",
+        nextRunAt: new Date(Date.now() + 86400000).toISOString(),
+        repeat: "once",
+        operationId: "audit-operation-1"
+      })
+    });
+    assert.equal(schedule.status, 201);
+
+    const beforeRestoreResponse = await fetch(baseUrl + "/api/audit-events", { headers });
+    assert.equal(beforeRestoreResponse.status, 200);
+    const beforeRestore = await beforeRestoreResponse.json();
+    assert.equal(beforeRestore.retentionLimit, 10000);
+    assert.deepEqual(beforeRestore.events.map(event => event.action), [
+      "manufacturing-data.sync",
+      "whatsapp-contact.create",
+      "whatsapp-schedule.create"
+    ]);
+    const serialized = JSON.stringify(beforeRestore.events);
+    for (const secret of ["Confidential Company Name", "Confidential Contact Name", "919876543210", "Confidential approved message body"]) {
+      assert.equal(serialized.includes(secret), false, "audit metadata must not copy sensitive payload value: " + secret);
+    }
+    assert.equal(beforeRestore.events[0].actorUsername, "legacy-api-key");
+    assert.deepEqual(beforeRestore.events[0].collectionCounts, { companies: 1 });
+    assert.equal(beforeRestore.events[1].optedIn, true);
+    assert.equal(beforeRestore.events[2].operationId, "audit-operation-1");
+
+    const backupResponse = await fetch(baseUrl + "/api/backup", { headers });
+    assert.equal(backupResponse.status, 200);
+    const backup = await backupResponse.json();
+    assert.equal(Array.isArray(backup.data.auditEvents), true, "full backup must include the audit history");
+
+    const restored = await fetch(baseUrl + "/api/restore", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ backup, confirmation: "RESTORE_AXIMACH_BACKUP" })
+    });
+    assert.equal(restored.status, 200);
+    const afterRestoreResponse = await fetch(baseUrl + "/api/audit-events", { headers });
+    const afterRestore = await afterRestoreResponse.json();
+    assert.equal(afterRestore.events.length, 4);
+    assert.equal(afterRestore.events.at(-1).action, "backup.restore");
+    assert.equal(afterRestore.events.filter(event => event.action === "manufacturing-data.sync").length, 1);
+
+    await stopServer(child);
+    child = undefined;
+
+    child = startServer(port, dataFile);
+    await waitForHealth(child, baseUrl);
+    const afterRestart = await fetch(baseUrl + "/api/audit-events", { headers });
+    assert.equal(afterRestart.status, 200);
+    const persisted = await afterRestart.json();
+    assert.equal(persisted.events.length, 4, "audit history must persist across server restart");
+    assert.deepEqual(persisted.events.map(event => event.action), [
+      "manufacturing-data.sync",
+      "whatsapp-contact.create",
+      "whatsapp-schedule.create",
+      "backup.restore"
+    ]);
+  } finally {
+    await stopServer(child);
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+
+
+test("integration catalogue is admin-scoped and returns readiness metadata without secret values", { timeout: 20000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-integration-catalog-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  let child;
+  try {
+    child = startServer(port, dataFile, {
+      AXIMACH_SEARXNG_URL: "https://search.example.test",
+      APOLLO_API_KEY: "integration-test-secret-that-must-not-leak"
+    });
+    await waitForHealth(child, baseUrl);
+    const denied = await fetch(baseUrl + "/api/integrations/catalog");
+    assert.equal(denied.status, 401);
+    const response = await fetch(baseUrl + "/api/integrations/catalog", {
+      headers: { "x-aximach-key": apiKey },
+      cache: "no-store"
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.ok(Array.isArray(payload.items));
+    assert.equal(payload.total, payload.items.length);
+    const search = payload.items.find(item => item.id === "searxng");
+    assert.equal(search.configured, true);
+    assert.equal(search.status, "configured-unverified");
+    assert.equal(JSON.stringify(payload).includes("integration-test-secret-that-must-not-leak"), false);
+    assert.equal(JSON.stringify(payload).includes("AXIMACH_SEARXNG_URL"), true);
+  } finally {
+    await stopServer(child);
+    await rm(folder, { recursive: true, force: true });
   }
 });

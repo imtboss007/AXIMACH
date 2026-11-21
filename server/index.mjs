@@ -6,13 +6,15 @@ import { networkInterfaces } from "node:os";
 import { manufacturingCollections, mergeManufacturingData } from "./manufacturing-data.mjs";
 import { bearerToken, createAuthService, getRequiredPermission, hasPermission } from "./auth.mjs";
 import { filterManufacturingData, filterModuleRecords, hasTenantScope, validateManufacturingWrite } from "./tenant-scope.mjs";
+import { getIntegrationCatalog } from "./integrations/catalog.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
 const authService = createAuthService(process.env.AXIMACH_AUTH_USERS, { sessionTtlMs: Number(process.env.AXIMACH_SESSION_TTL_MS || 12 * 60 * 60 * 1000) });
 const DB_PATH = resolve(process.env.AXIMACH_DATA_FILE || "./data/aximach.json");
 const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || "v23.0";
-let db = { contacts: [], schedules: [], logs: [], records: {}, manufacturingData: null, uiPreferences: null, restoreGeneration: 0 };
+const AUDIT_RETENTION_LIMIT = 10000;
+let db = { contacts: [], schedules: [], logs: [], auditEvents: [], records: {}, manufacturingData: null, uiPreferences: null, restoreGeneration: 0 };
 let busy = false;
 let saveQueue = Promise.resolve();
 let restoreInProgress = false;
@@ -20,6 +22,7 @@ let restoreInProgress = false;
 async function loadDb() {
   try { db = { ...db, ...JSON.parse(await readFile(DB_PATH, "utf8")) }; }
   catch (error) { if (error.code !== "ENOENT") console.error("Could not load data store:", error.message); }
+  if (!Array.isArray(db.auditEvents)) db.auditEvents = [];
 }
 async function writeSnapshot(filePath, snapshot) {
   await mkdir(dirname(filePath), { recursive: true });
@@ -45,6 +48,7 @@ function validBackupData(data) {
   if (!Array.isArray(data.contacts) || !Array.isArray(data.schedules) || !Array.isArray(data.logs)) return false;
   if (!data.records || typeof data.records !== "object" || Array.isArray(data.records)) return false;
   if (data.uiPreferences != null && (typeof data.uiPreferences !== "object" || Array.isArray(data.uiPreferences))) return false;
+  if (data.auditEvents !== undefined && !Array.isArray(data.auditEvents)) return false;
   if (data.manufacturingData != null) {
     if (typeof data.manufacturingData !== "object" || Array.isArray(data.manufacturingData)) return false;
     for (const collection of manufacturingCollections) {
@@ -69,6 +73,43 @@ function json(res, status, data) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(JSON.stringify(data));
 }
+function mergeAuditEvents(...groups) {
+  const unique = new Map();
+  for (const group of groups) {
+    for (const event of Array.isArray(group) ? group : []) {
+      if (event && typeof event.id === "string" && event.id) unique.set(event.id, event);
+    }
+  }
+  return [...unique.values()]
+    .sort((left, right) => (Date.parse(left.occurredAt || "") || 0) - (Date.parse(right.occurredAt || "") || 0))
+    .slice(-AUDIT_RETENTION_LIMIT);
+}
+function appendAuditEvent(req, principal, action, details = {}) {
+  const event = {
+    id: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    actorId: String(principal?.id || "system:scheduler"),
+    actorUsername: String(principal?.username || "scheduler"),
+    actorRole: String(principal?.role || "system"),
+    method: String(req?.method || "SYSTEM"),
+    path: new URL(req?.url || "/scheduler", "http://localhost").pathname,
+    action,
+    ...details
+  };
+  db.auditEvents = [...(Array.isArray(db.auditEvents) ? db.auditEvents : []), event].slice(-AUDIT_RETENTION_LIMIT);
+  return event;
+}
+function auditCollectionCounts(payload, allowedCollections) {
+  const counts = {};
+  let recordCount = 0;
+  for (const collection of allowedCollections) {
+    const value = payload?.[collection];
+    if (!Array.isArray(value) || value.length === 0) continue;
+    counts[collection] = value.length;
+    recordCount += value.length;
+  }
+  return { collectionCounts: counts, recordCount };
+}
 async function body(req, maxBytes = 8_500_000) {
   let raw = ""; for await (const chunk of req) { raw += chunk; if (raw.length > maxBytes) throw new Error("Request too large"); }
   return raw ? JSON.parse(raw) : {};
@@ -80,7 +121,11 @@ function authorized(req) {
   return provided.length === expected.length && timingSafeEqual(provided, expected);
 }
 function principalFromRequest(req) {
-  if (authService) { const token = bearerToken(req); const session = authService.authenticate(token); return session ? { ...session.user, sessionExpiresAt: session.expiresAt } : null; }
+  if (authService) {
+    const token = bearerToken(req);
+    const session = authService.authenticate(token);
+    return session ? { ...session.user, sessionExpiresAt: session.expiresAt, namedUserIds: authService.activeUserIds() } : null;
+  }
   return authorized(req) ? { id: "legacy-api-key", username: "legacy-api-key", role: "admin", legacy: true } : null;
 }
 function isLoopbackAddress(value) {
@@ -139,11 +184,13 @@ async function tick() {
       try {
         const result = await sendWhatsApp(task.to, task.message);
         db.logs.unshift({ id: randomUUID(), scheduleId: task.id, at: new Date().toISOString(), status: "sent", providerMessageId: result.messages?.[0]?.id || "", detail: "Accepted by WhatsApp Cloud API" });
+        appendAuditEvent(null, null, "whatsapp-schedule.sent", { targetId: task.id, providerAccepted: true });
         task.lastRunAt = new Date().toISOString();
         if (task.repeat === "daily" || task.repeat === "weekly") { const period = task.repeat === "daily" ? 86400000 : 604800000; let next = Date.parse(task.nextRunAt) + period; while (next <= Date.now()) next += period; task.nextRunAt = new Date(next).toISOString(); }
         else { task.enabled = false; task.nextRunAt = null; }
       } catch (error) {
         db.logs.unshift({ id: randomUUID(), scheduleId: task.id, at: new Date().toISOString(), status: "failed", detail: error.message });
+        appendAuditEvent(null, null, "whatsapp-schedule.failed", { targetId: task.id });
         task.lastError = error.message;
         // Prevent a rapid retry loop. A failed task is paused for operator review.
         task.enabled = false;
@@ -173,7 +220,13 @@ const server = createServer(async (req, res) => {
       if (url.pathname === "/api/auth/login" && req.method === "POST") {
         const input = await body(req, 64_000);
         const result = await authService.login(input.username, input.password, req.socket.remoteAddress);
-        if (!result.ok) return json(res, result.rateLimited ? 429 : 401, { error: result.rateLimited ? "Too many sign-in attempts. Try again in 15 minutes." : "Invalid username or password." });
+        if (!result.ok) {
+          appendAuditEvent(req, { id: "anonymous", username: "unauthenticated", role: "unauthenticated" }, "auth.login.rejected", { rateLimited: Boolean(result.rateLimited) });
+          await saveDb();
+          return json(res, result.rateLimited ? 429 : 401, { error: result.rateLimited ? "Too many sign-in attempts. Try again in 15 minutes." : "Invalid username or password." });
+        }
+        appendAuditEvent(req, result.user, "auth.login.success", { expiresAt: result.expiresAt });
+        await saveDb();
         return json(res, 200, result);
       }
       if (url.pathname === "/api/auth/session" && req.method === "GET") {
@@ -183,8 +236,11 @@ const server = createServer(async (req, res) => {
       }
       if (url.pathname === "/api/auth/logout" && req.method === "POST") {
         const token = bearerToken(req);
-        if (!principalFromRequest(req)) return json(res, 401, { error: "A valid user session is required." });
+        const principal = principalFromRequest(req);
+        if (!principal) return json(res, 401, { error: "A valid user session is required." });
         authService.logout(token);
+        appendAuditEvent(req, principal, "auth.logout");
+        await saveDb();
         return json(res, 200, { ok: true });
       }
       return json(res, 404, { error: "Authentication route not found." });
@@ -193,10 +249,21 @@ const server = createServer(async (req, res) => {
   const principal = principalFromRequest(req);
   if (!principal) return json(res, 401, { error: "User session or valid AXIMACH API credentials are required." });
   const requiredPermission = getRequiredPermission(url.pathname, req.method);
-  if (requiredPermission && !hasPermission(principal, requiredPermission)) return json(res, 403, { error: "Your account role does not permit this action." });
-  if (!principal.legacy && principal.role !== "admin" && ["data:read","data:write"].includes(requiredPermission) && !hasTenantScope(principal)) return json(res, 403, { error: "Assign at least one company or factory to this account before accessing manufacturing data." });
+  if (requiredPermission && !hasPermission(principal, requiredPermission)) {
+    appendAuditEvent(req, principal, "authorization.denied", { requiredPermission });
+    await saveDb();
+    return json(res, 403, { error: "Your account role does not permit this action." });
+  }
+  if (!principal.legacy && principal.role !== "admin" && ["data:read","data:write"].includes(requiredPermission) && !hasTenantScope(principal)) {
+    appendAuditEvent(req, principal, "authorization.denied", { requiredPermission, reason: "missing-company-or-factory-scope" });
+    await saveDb();
+    return json(res, 403, { error: "Assign at least one company or factory to this account before accessing manufacturing data." });
+  }
   if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry after it completes." });
   try {
+    if (url.pathname === "/api/integrations/catalog" && req.method === "GET") {
+      return json(res, 200, getIntegrationCatalog(process.env));
+    }
     if (url.pathname === "/api/backup" && req.method === "GET") {
       const snapshot = JSON.parse(JSON.stringify(db));
       const serialized = JSON.stringify(snapshot);
@@ -244,8 +311,10 @@ const server = createServer(async (req, res) => {
           recordsUpdatedAt: backup.data.recordsUpdatedAt || null,
           manufacturingData: backup.data.manufacturingData || null,
           uiPreferences: backup.data.uiPreferences || null,
+          auditEvents: mergeAuditEvents(previous.auditEvents, backup.data.auditEvents),
           restoreGeneration: Number(previous.restoreGeneration || 0) + 1
         };
+        appendAuditEvent(req, principal, "backup.restore", { restoreGeneration: db.restoreGeneration });
         try {
           await saveDb();
         } catch (error) {
@@ -276,12 +345,75 @@ const server = createServer(async (req, res) => {
         return json(res, 409, { error: "The server was restored since this device last synced. Refresh shared data before writing.", restoreGeneration: currentGeneration });
       }
       if (!input.data || typeof input.data !== "object" || Array.isArray(input.data)) return json(res, 400, { error: "data must be an AXIMACH manufacturing data object." });
-      const scopeValidation = validateManufacturingWrite(db.manufacturingData || {}, input.data, principal);
-      if (!scopeValidation.ok) return json(res, 403, { error: scopeValidation.error });
       for (const collection of manufacturingCollections) if (input.data[collection] !== undefined && !Array.isArray(input.data[collection])) return json(res, 400, { error: collection + " must be an array." });
+      const currentManufacturing = db.manufacturingData || {};
+      const currentInvoices = new Map((currentManufacturing.supplierInvoices || []).filter(row=>row?.id).map(row=>[row.id,row]));
+      const currentSupplierPayments = new Map((currentManufacturing.supplierPayments || []).filter(row=>row?.id).map(row=>[row.id,row]));
+      if (Array.isArray(input.data.supplierInvoices)) {
+        input.data.supplierInvoices = input.data.supplierInvoices.map(row => {
+          const prior = currentInvoices.get(row.id);
+          const createdBy = prior?.createdBy || (authService ? principal.id : "legacy-api-key");
+          return { ...row, createdBy };
+        });
+      }
+      if (Array.isArray(input.data.supplierPayments)) {
+        input.data.supplierPayments = input.data.supplierPayments.map(row => {
+          const prior = currentSupplierPayments.get(row.id);
+          const createdBy = prior?.createdBy || (authService ? principal.id : (row.createdBy || "local-user"));
+          return { ...row, createdBy };
+        });
+      }
+      if (Array.isArray(input.data.supplierPaymentAllocations)) {
+        const existingAPAllocations = new Map((currentManufacturing.supplierPaymentAllocations || []).filter(row=>row?.id).map(row=>[row.id,row]));
+        input.data.supplierPaymentAllocations = input.data.supplierPaymentAllocations.map(row => {
+          const prior = existingAPAllocations.get(row.id);
+          return { ...row, createdBy: prior?.createdBy || (authService ? principal.id : (row.createdBy || "local-user")) };
+        });
+      }
+      if (Array.isArray(input.data.supplierFinanceApprovals)) {
+        const currentApprovals = new Map((currentManufacturing.supplierFinanceApprovals || []).filter(row=>row?.id).map(row=>[row.id,row]));
+        input.data.supplierFinanceApprovals = input.data.supplierFinanceApprovals.map(row => {
+          const prior = currentApprovals.get(row.id);
+          if (prior) return prior;
+          const target = row.targetType === "invoice" ? currentInvoices.get(row.targetId) : currentSupplierPayments.get(row.targetId);
+          return {
+            ...row,
+            decidedBy: principal.id,
+            decidedByRole: principal.role === "manager" ? "manager" : "admin",
+            decidedAt: new Date().toISOString(),
+            targetUpdatedAt: target?.updatedAt || ""
+          };
+        });
+      }
+      const scopeValidation = validateManufacturingWrite(currentManufacturing, input.data, principal);
+      if (!scopeValidation.ok) return json(res, 403, { error: scopeValidation.error });
       const encoded = JSON.stringify(input.data);
       if (encoded.length > 8_000_000) return json(res, 413, { error: "Manufacturing data exceeds the 8 MB limit." });
+      const currentRowsById = collection => new Map((currentManufacturing[collection] || []).filter(row=>row?.id).map(row=>[row.id,row]));
+      const financeAuditEvents = [];
+      const currentAllocationRows = currentRowsById("supplierPaymentAllocations");
+      const currentApprovalRows = currentRowsById("supplierFinanceApprovals");
+      const currentInvoiceRows = currentRowsById("supplierInvoices");
+      const currentPaymentRows = currentRowsById("supplierPayments");
+      for (const invoice of input.data.supplierInvoices || []) {
+        const prior = currentInvoiceRows.get(invoice.id);
+        if (!prior) financeAuditEvents.push({ action:"supplier-invoice.created", details:{ targetId:invoice.id, companyId:invoice.companyId, vendorId:invoice.vendorId, status:invoice.status } });
+        else if (prior.status !== invoice.status) financeAuditEvents.push({ action:"supplier-invoice.status-changed", details:{ targetId:invoice.id, fromStatus:prior.status, toStatus:invoice.status } });
+      }
+      for (const payment of input.data.supplierPayments || []) {
+        const prior = currentPaymentRows.get(payment.id);
+        if (!prior) financeAuditEvents.push({ action:"supplier-payment.created", details:{ targetId:payment.id, companyId:payment.companyId, vendorId:payment.vendorId, method:payment.method, status:payment.status } });
+        else if (prior.status !== payment.status) financeAuditEvents.push({ action:"supplier-payment.status-changed", details:{ targetId:payment.id, fromStatus:prior.status, toStatus:payment.status } });
+      }
+      for (const approval of input.data.supplierFinanceApprovals || []) {
+        if (!currentApprovalRows.has(approval.id)) financeAuditEvents.push({ action:"supplier-finance.approval", details:{ approvalId:approval.id, targetType:approval.targetType, targetId:approval.targetId, decision:approval.decision } });
+      }
+      for (const allocation of input.data.supplierPaymentAllocations || []) {
+        if (!currentAllocationRows.has(allocation.id)) financeAuditEvents.push({ action:"supplier-payment.allocated", details:{ allocationId:allocation.id, paymentId:allocation.paymentId, invoiceId:allocation.invoiceId } });
+      }
       db.manufacturingData = mergeManufacturingData(db.manufacturingData, input.data);
+      appendAuditEvent(req, principal, "manufacturing-data.sync", auditCollectionCounts(input.data, manufacturingCollections));
+      for (const event of financeAuditEvents) appendAuditEvent(req, principal, event.action, event.details);
       await saveDb();
       const visibleData = principal.legacy || principal.role === "admin" ? db.manufacturingData : filterManufacturingData(db.manufacturingData, principal);
       return json(res, 200, { ok: true, data: visibleData, updatedAt: db.manufacturingData.updatedAt, restoreGeneration: Number(db.restoreGeneration || 0) });
@@ -302,6 +434,8 @@ const server = createServer(async (req, res) => {
       if (encoded.length > 8_000_000) return json(res, 413, { error: "Record payload exceeds the 8 MB limit. Export/archive older records first." });
       db.records = mergeModuleRecords(db.records, input.records);
       db.recordsUpdatedAt = new Date().toISOString();
+      const moduleCounts = Object.fromEntries(Object.entries(input.records).filter(([moduleId, rows]) => /^[a-z0-9][a-z0-9-]{0,63}$/i.test(moduleId) && rows.length).map(([moduleId, rows]) => [moduleId, rows.length]));
+      appendAuditEvent(req, principal, "module-records.sync", { moduleCounts, recordCount: Object.values(moduleCounts).reduce((sum, count) => sum + count, 0) });
       await saveDb();
       return json(res, 200, { ok: true, records: db.records, updatedAt: db.recordsUpdatedAt, restoreGeneration: Number(db.restoreGeneration || 0) });
     }
@@ -322,6 +456,7 @@ const server = createServer(async (req, res) => {
       const currentAt = Date.parse(db.uiPreferences?.updatedAt || "") || 0;
       if (!db.uiPreferences || incomingAt >= currentAt) {
         db.uiPreferences = { ...input.preferences, updatedAt: input.preferences.updatedAt || new Date().toISOString() };
+        appendAuditEvent(req, principal, "ui-preferences.update", { preferenceKeys: Object.keys(input.preferences).slice(0, 40) });
         await saveDb();
       }
       return json(res, 200, { ok: true, preferences: db.uiPreferences, updatedAt: db.uiPreferences?.updatedAt || null });
@@ -334,7 +469,7 @@ const server = createServer(async (req, res) => {
       if (requestGeneration !== Number(db.restoreGeneration || 0)) return json(res, 409, { error: "The server was restored while this request was uploading. Refresh before retrying.", restoreGeneration: Number(db.restoreGeneration || 0) });
       if (!String(input.name || "").trim() || !normalisePhone(input.phone)) return json(res, 400, { error: "Contact name and international phone number are required." });
       const contact = { id: randomUUID(), name: String(input.name).trim(), phone: normalisePhone(input.phone), company: String(input.company || ""), optedIn: input.optedIn === true, createdAt: new Date().toISOString() };
-      db.contacts.push(contact); await saveDb(); return json(res, 201, { contact });
+      db.contacts.push(contact); appendAuditEvent(req, principal, "whatsapp-contact.create", { targetId: contact.id, optedIn: contact.optedIn }); await saveDb(); return json(res, 201, { contact });
     }
     if (url.pathname === "/api/schedules" && req.method === "GET") return json(res, 200, { schedules: db.schedules, logs: db.logs });
     if (url.pathname === "/api/schedules" && req.method === "POST") {
@@ -355,7 +490,7 @@ const server = createServer(async (req, res) => {
         company: String(input.company || "").trim().slice(0, 160),
         createdAt: new Date().toISOString(), lastRunAt: null, lastError: ""
       };
-      db.schedules.push(task); await saveDb(); return json(res, 201, { schedule: task });
+      db.schedules.push(task); appendAuditEvent(req, principal, "whatsapp-schedule.create", { targetId: task.id, repeat: task.repeat, operationId: task.operationId || "", vendorId: task.vendorId || "" }); await saveDb(); return json(res, 201, { schedule: task });
     }
     const match = url.pathname.match(/^\/api\/schedules\/([\w-]+)$/);
     if (match && req.method === "PATCH") {
@@ -366,8 +501,10 @@ const server = createServer(async (req, res) => {
       if (requestGeneration !== Number(db.restoreGeneration || 0)) return json(res, 409, { error: "The server was restored while this request was uploading. Refresh before retrying.", restoreGeneration: Number(db.restoreGeneration || 0) });
       if (typeof input.enabled === "boolean") task.enabled = input.enabled;
       if (input.nextRunAt && Number.isFinite(Date.parse(input.nextRunAt))) task.nextRunAt = new Date(input.nextRunAt).toISOString();
+      appendAuditEvent(req, principal, "whatsapp-schedule.update", { targetId: task.id, enabled: task.enabled });
       await saveDb(); return json(res, 200, { schedule: task });
     }
+    if (url.pathname === "/api/audit-events" && req.method === "GET") return json(res, 200, { events: db.auditEvents || [], retentionLimit: AUDIT_RETENTION_LIMIT });
     if (url.pathname === "/api/logs" && req.method === "GET") return json(res, 200, { logs: db.logs });
     return json(res, 404, { error: "Route not found." });
   } catch (error) { return json(res, 400, { error: error.message || "Request failed." }); }

@@ -120,6 +120,29 @@ export type InspectionMeasurementRecord = {
   measuredValue: number; unit: string; result: "Pass" | "Fail" | "Not assessed"; notes: string;
   inspectedAt: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type SupplierInvoiceRecord = {
+  id: string; companyId: string; factoryId: string; vendorId: string; poId: string; poLineId: string;
+  invoiceNumber: string; invoiceDate: string; dueDate: string; currency: "INR";
+  subtotal: number; taxAmount: number; totalAmount: number;
+  status: "Draft" | "Submitted" | "Voided"; notes: string; createdBy: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type SupplierPaymentRecord = {
+  id: string; companyId: string; factoryId: string; vendorId: string;
+  paymentDate: string; method: "Bank transfer" | "UPI" | "Cheque" | "Cash" | "Other";
+  bankReference: string; amount: number; currency: "INR";
+  status: "Draft" | "Submitted" | "Voided"; notes: string; createdBy: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type SupplierFinanceApprovalRecord = {
+  id: string; targetType: "invoice" | "payment"; targetId: string;
+  decision: "Approved" | "Rejected" | "Returned"; decidedBy: string; decidedByRole: "admin" | "manager";
+  comments: string; decidedAt: string; targetUpdatedAt?: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type SupplierPaymentAllocationRecord = {
+  id: string; paymentId: string; invoiceId: string; amount: number; notes: string;
+  createdBy: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type MaterialRecord = {
   id: string; code: string; name: string; grade: string; unit: string; specification: string;
   preferredVendorId: string; ratePerUnit: number; notes: string;
@@ -179,6 +202,8 @@ export type ManufacturingData = {
   contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
   transportRoutes: TransportRouteRecord[]; transportLegs: ComponentTransportLegRecord[];
   paymentTransactions: PaymentTransactionRecord[]; inspectionMeasurements: InspectionMeasurementRecord[];
+  supplierInvoices: SupplierInvoiceRecord[]; supplierPayments: SupplierPaymentRecord[];
+  supplierFinanceApprovals: SupplierFinanceApprovalRecord[]; supplierPaymentAllocations: SupplierPaymentAllocationRecord[];
   routeRelationships: RouteRelationshipRecord[]; followUpAssignments: FollowUpAssignmentRecord[];
 };
 
@@ -193,6 +218,7 @@ export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
   operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
+  supplierInvoices: [], supplierPayments: [], supplierFinanceApprovals: [], supplierPaymentAllocations: [],
   routeRelationships: [], followUpAssignments: []
 });
 
@@ -232,6 +258,10 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     transportLegs: Array.isArray(value?.transportLegs) ? value.transportLegs : empty.transportLegs,
     paymentTransactions: Array.isArray(value?.paymentTransactions) ? value.paymentTransactions : empty.paymentTransactions,
     inspectionMeasurements: Array.isArray(value?.inspectionMeasurements) ? value.inspectionMeasurements : empty.inspectionMeasurements,
+    supplierInvoices: Array.isArray(value?.supplierInvoices) ? value.supplierInvoices : empty.supplierInvoices,
+    supplierPayments: Array.isArray(value?.supplierPayments) ? value.supplierPayments : empty.supplierPayments,
+    supplierFinanceApprovals: Array.isArray(value?.supplierFinanceApprovals) ? value.supplierFinanceApprovals : empty.supplierFinanceApprovals,
+    supplierPaymentAllocations: Array.isArray(value?.supplierPaymentAllocations) ? value.supplierPaymentAllocations : empty.supplierPaymentAllocations,
     routeRelationships: Array.isArray(value?.routeRelationships) ? value.routeRelationships : empty.routeRelationships,
     followUpAssignments: Array.isArray(value?.followUpAssignments) ? value.followUpAssignments : empty.followUpAssignments
   };
@@ -337,6 +367,10 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     transportLegs: mergeRows(local.transportLegs, remote.transportLegs),
     paymentTransactions: mergeRows(local.paymentTransactions, remote.paymentTransactions),
     inspectionMeasurements: mergeRows(local.inspectionMeasurements, remote.inspectionMeasurements),
+    supplierInvoices: mergeRows(local.supplierInvoices, remote.supplierInvoices),
+    supplierPayments: mergeRows(local.supplierPayments, remote.supplierPayments),
+    supplierFinanceApprovals: mergeRows(local.supplierFinanceApprovals, remote.supplierFinanceApprovals),
+    supplierPaymentAllocations: mergeRows(local.supplierPaymentAllocations, remote.supplierPaymentAllocations),
     routeRelationships: mergeRows(local.routeRelationships, remote.routeRelationships),
     followUpAssignments: mergeRows(local.followUpAssignments, remote.followUpAssignments)
   };

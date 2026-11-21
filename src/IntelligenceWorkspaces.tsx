@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from "react";
 import { getServerAuthHeaders, getServerAuthMode, readServerSession } from "./serverAuth";
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, Download, FileDown, FileUp, RotateCcw, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, ClipboardList, Download, FileDown, FileUp, RefreshCw, RotateCcw, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
 import { archiveAxMachTwoCompanyDemo, AXIMACH_DEMO_ID_PREFIX, createAxMachTwoCompanyDemo } from "./aximachDemoData";
 import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord, type ContactProfileRecord, type ProcessDefinitionRecord, type PlannedCostEntry, type VendorTransportRoute, type ManufacturingData, type PurchaseOrderRecord, type PurchaseOrderLine, type OperationRecord } from "./manufacturingData";
 import { reconcilePurchaseOrderCosts } from "./costReconciliation.mjs";
@@ -55,6 +55,25 @@ function rowsFor(moduleId:string,data:ManufacturingData):Record<string,unknown>[
    return {recordType:"legacy-payment-total",sourceRecord:"legacy OperationRecord.paidAmount",paymentTransactionId:"",companyId:po?.companyId||"",companyName:companies.find(row=>row.id===po?.companyId)?.name||"",factoryId:po?.factoryId||"",poId:op.poId,poNumber:po?.number||"",poLineId:op.poLineId,componentId:op.componentId,componentNumber:component?.partNumber||"",componentName:component?.name||"",operationId:op.id,operationName:op.name,operationArchived:Boolean(op.deletedAt),vendorId:op.vendorId||"",vendorName:vendor?.company||"",amount:op.paidAmount,currency:"INR",paymentDate:"",reference:op.paymentReference||"",notes:"Legacy aggregate payment total; original individual payment dates and entries were not retained.",createdAt:op.createdAt,updatedAt:op.updatedAt};
   });
   return [...transactionRows,...legacyRows];
+ }
+ if(moduleId==="supplier-ap"){
+  const invoiceRows=activeRows(data.supplierInvoices||[]).map(row=>{
+   const vendor=(data.vendors||[]).find(item=>item.id===row.vendorId);
+   const company=(data.companies||[]).find(item=>item.id===row.companyId);
+   const po=(data.purchaseOrders||[]).find(item=>item.id===row.poId);
+   const paid=activeRows(data.supplierPaymentAllocations||[]).filter(item=>item.invoiceId===row.id).reduce((sum,item)=>sum+Number(item.amount||0),0);
+   const decision=activeRows(data.supplierFinanceApprovals||[]).filter(item=>item.targetType==="invoice"&&item.targetId===row.id).sort((a,b)=>(b.decidedAt||"").localeCompare(a.decidedAt||""))[0];
+   return {recordType:"supplier-invoice",invoiceId:row.id,company:company?.name||"",factoryId:row.factoryId,vendor:vendor?.company||"",invoiceNumber:row.invoiceNumber,invoiceDate:row.invoiceDate,dueDate:row.dueDate,poNumber:po?.number||"",subtotal:row.subtotal,taxAmount:row.taxAmount,totalAmount:row.totalAmount,paidAmount:paid,balance:Math.max(0,row.totalAmount-paid),invoiceStatus:row.status,approvalDecision:decision?.decision||"Pending",approvalBy:decision?.decidedBy||"",approvalAt:decision?.decidedAt||"",notes:row.notes,createdAt:row.createdAt,updatedAt:row.updatedAt};
+  });
+  const paymentRows=activeRows(data.supplierPayments||[]).map(row=>{
+   const vendor=(data.vendors||[]).find(item=>item.id===row.vendorId),company=(data.companies||[]).find(item=>item.id===row.companyId);
+   const allocated=activeRows(data.supplierPaymentAllocations||[]).filter(item=>item.paymentId===row.id).reduce((sum,item)=>sum+Number(item.amount||0),0);
+   const decision=activeRows(data.supplierFinanceApprovals||[]).filter(item=>item.targetType==="payment"&&item.targetId===row.id).sort((a,b)=>(b.decidedAt||"").localeCompare(a.decidedAt||""))[0];
+   return {recordType:"supplier-payment",paymentId:row.id,company:company?.name||"",vendor:vendor?.company||"",paymentDate:row.paymentDate,method:row.method,bankReference:row.bankReference,amount:row.amount,allocatedAmount:allocated,unallocatedAmount:Math.max(0,row.amount-allocated),paymentStatus:row.status,approvalDecision:decision?.decision||"Pending",approvalBy:decision?.decidedBy||"",approvalAt:decision?.decidedAt||"",notes:row.notes,createdAt:row.createdAt,updatedAt:row.updatedAt};
+  });
+  const allocationRows=activeRows(data.supplierPaymentAllocations||[]).map(row=>({recordType:"supplier-payment-allocation",...row,invoiceNumber:activeRows(data.supplierInvoices||[]).find(invoice=>invoice.id===row.invoiceId)?.invoiceNumber||"",paymentReference:activeRows(data.supplierPayments||[]).find(payment=>payment.id===row.paymentId)?.bankReference||""}));
+  const approvalRows=activeRows(data.supplierFinanceApprovals||[]).map(row=>({recordType:"supplier-finance-approval",...row}));
+  return [...invoiceRows,...paymentRows,...allocationRows,...approvalRows];
  }
  if(moduleId==="inventory")return [...activeRows(data.materials||[]),...activeRows(data.bomLines||[]),...activeRows(data.inventoryTransactions||[])].map(x=>({...x}));
  if(moduleId==="process-master")return activeRows(data.processDefinitions).map(x=>({...x}));
@@ -212,9 +231,90 @@ function ServerBackupPanel({onNotice}:{onNotice:(value:string)=>void}) {
  </section>;
 }
 
+
+type ServerAuditEvent = {
+ id:string;occurredAt:string;actorId:string;actorUsername:string;actorRole:string;method:string;path:string;action:string;
+ targetId?:string;recordCount?:number;collectionCounts?:Record<string,number>;moduleCounts?:Record<string,number>;
+ repeat?:string;operationId?:string;vendorId?:string;enabled?:boolean;optedIn?:boolean;providerAccepted?:boolean;
+ preferenceKeys?:string[];restoreGeneration?:number;requiredPermission?:string;rateLimited?:boolean;
+};
+function ServerAuditPanel({onNotice}:{onNotice:(value:string)=>void}) {
+ const [events,setEvents]=useState<ServerAuditEvent[]>([]);
+ const [filter,setFilter]=useState("");
+ const [busy,setBusy]=useState(false);
+ const [loaded,setLoaded]=useState(false);
+ const [error,setError]=useState("");
+ const [configured]=useState(()=>{
+  let base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim();
+  while(base.endsWith("/"))base=base.slice(0,-1);
+  const key=window.localStorage.getItem("aximach.scheduler.key")||"";
+  const session=readServerSession(base);
+  return window.localStorage.getItem("aximach.storage.mode")!=="local-only"&&Boolean(base&&(session?.user.role==="admin"||(getServerAuthMode()!=="users"&&key)));
+ });
+ const refresh=async()=>{
+  setBusy(true);setError("");
+  try{
+   const {base,headers}=sharedBackupConfig();
+   const response=await fetch(base+"/api/audit-events",{headers,cache:"no-store"});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(result.error||"Audit history request failed (HTTP "+response.status+").");
+   if(!Array.isArray(result.events))throw new Error("The server returned an invalid audit history response.");
+   setEvents(result.events as ServerAuditEvent[]);setLoaded(true);
+   onNotice("Loaded "+result.events.length.toLocaleString("en-IN")+" administrator audit events from the shared AXIMACH server.");
+  }catch(e){setError(e instanceof Error?e.message:"Could not load the shared audit trail.");}
+  finally{setBusy(false);}
+ };
+ const visible=[...events].reverse().filter(event=>(event.actorUsername+" "+event.action+" "+event.path+" "+event.actorRole).toLowerCase().includes(filter.trim().toLowerCase())).slice(0,100);
+ const exportCsv=()=>{
+  const quote=(value:unknown)=>'"'+String(value??"").replace(/"/g,'""')+'"';
+  const rows:unknown[][]=[["occurred_at","actor","role","action","method","path","target_id","record_count","collection_counts","module_counts","restore_generation"]];
+  for(const event of [...events].reverse())rows.push([
+   event.occurredAt,event.actorUsername,event.actorRole,event.action,event.method,event.path,event.targetId||"",
+   event.recordCount??"",JSON.stringify(event.collectionCounts||{}),JSON.stringify(event.moduleCounts||{}),event.restoreGeneration??""
+  ]);
+  const blob=new Blob([String.fromCharCode(0xfeff)+rows.map(row=>row.map(quote).join(",")).join(String.fromCharCode(13,10))],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob),anchor=document.createElement("a");
+  anchor.href=url;anchor.download="AXIMACH-server-audit-"+new Date().toISOString().slice(0,10)+".csv";anchor.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+ };
+ if(!configured)return null;
+ const describe=(event:ServerAuditEvent)=>{
+  if(event.collectionCounts)return Object.entries(event.collectionCounts).map(([key,value])=>key+": "+value).join(" · ")||"No collection rows";
+  if(event.moduleCounts)return Object.entries(event.moduleCounts).map(([key,value])=>key+": "+value).join(" · ")||"No module rows";
+  if(event.preferenceKeys)return "Updated preferences: "+event.preferenceKeys.join(", ");
+  if(event.restoreGeneration!==undefined)return "Restore generation "+event.restoreGeneration;
+  if(event.targetId)return "Record reference "+event.targetId;
+  if(event.providerAccepted!==undefined)return event.providerAccepted?"Accepted by messaging provider":"Messaging attempt failed";
+  if(event.optedIn!==undefined)return event.optedIn?"Recipient opt-in recorded":"Opt-in not recorded";
+  if(event.requiredPermission)return "Access denied · required permission: "+event.requiredPermission;
+  if(event.rateLimited!==undefined)return event.rateLimited?"Sign-in blocked by rate limit":"Sign-in credentials rejected";
+  if(event.enabled!==undefined)return event.enabled?"Schedule enabled":"Schedule paused";
+  return "Server-side action recorded";
+ };
+ return <section className="surface-panel" aria-label="Administrator audit trail" style={{marginBottom:18}}>
+  <div className="panel-heading"><div><h3><ClipboardList size={17} style={{verticalAlign:"-3px",marginRight:7}}/>Server audit trail</h3><p>Administrator-only record of successful server mutations and scheduler outcomes. Payload content and contact details are intentionally excluded.</p></div><ShieldCheck size={18}/></div>
+  <div className="linked-route-actions" style={{alignItems:"center",flexWrap:"wrap"}}>
+   <button type="button" className="button-primary compact-button" disabled={busy} onClick={()=>void refresh()}><RefreshCw size={14}/>{busy?"Loading…":"Refresh audit trail"}</button>
+   <button type="button" className="button-quiet compact-button" disabled={!loaded||events.length===0} onClick={exportCsv}><Download size={14}/>Download CSV</button>
+   <label style={{display:"flex",alignItems:"center",gap:8,minWidth:220,flex:"1 1 240px"}}><Search size={14}/><input type="search" value={filter} onChange={event=>setFilter(event.target.value)} placeholder="Filter by actor, action or route" aria-label="Filter audit events"/></label>
+   {loaded&&<span className="muted-copy">{events.length.toLocaleString("en-IN")} events retained · showing up to 100</span>}
+  </div>
+  {error&&<p role="alert" className="module-safety-note" style={{marginTop:10,borderColor:"var(--danger, #b42318)"}}>{error}</p>}
+  {!loaded&&<p className="muted-copy" style={{marginTop:10}}>Refresh to load the shared server's audit history. Only administrators can retrieve these events.</p>}
+  {loaded&&<div style={{display:"grid",gap:8,marginTop:14}}>
+   {visible.length===0?<p className="muted-copy">No matching audit events.</p>:visible.map(event=><article key={event.id} className="ax-audit-event">
+    <div><strong style={{display:"block",fontSize:12}}>{event.action}</strong><small className="muted-copy">{new Date(event.occurredAt).toLocaleString()}</small></div>
+    <div><strong style={{display:"block",fontSize:12}}>{event.actorUsername}</strong><small className="muted-copy">{event.actorRole} · {event.method} {event.path}</small></div>
+    <small className="muted-copy">{describe(event)}</small>
+   </article>)}
+  </div>}
+  <p className="muted-copy" style={{marginTop:12}}>The shared JSON store retains the latest 10,000 events and includes them in server backups. For regulated or production use, forward events to separately controlled append-only storage; this local audit stream is not a cryptographically tamper-proof ledger.</p>
+ </section>;
+}
+
 export function ExportCentreWorkspace({onBack,onNotice}:Props){
  const {data}=useManufacturingData();const [moduleId,setModuleId]=useState("companies");
- const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["cost-reconciliation","PO-line Cost Reconciliation"],["payments","Payment Ledger"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
+ const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["cost-reconciliation","PO-line Cost Reconciliation"],["payments","Process Payment Ledger"],["supplier-ap","Supplier Invoices & Accounts Payable"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
  const rows=rowsFor(moduleId,data);
  const exportCsv=()=>{if(!rows.length){onNotice("There are no saved records to export for this selection.");return;}downloadFile("AXIMACH-"+moduleId+"-"+new Date().toISOString().slice(0,10)+".csv",toCsv(rows));onNotice("Excel-compatible CSV exported.");};
  const exportExcel=async()=>{
@@ -236,7 +336,7 @@ export function ExportCentreWorkspace({onBack,onNotice}:Props){
  const exportPdf=()=>{const w=window.open("","_blank");if(!w){onNotice("Allow pop-ups to use Print / Save PDF.");return;}const table=rows.length?'<table><thead><tr>'+Object.keys(rows[0]).map(x=>'<th>'+x+'</th>').join("")+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+Object.values(row).map(v=>'<td>'+String(v??"").replace(/[&<>]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch]!))+'</td>').join("")+'</tr>').join("")+'</tbody></table>':'<p>No saved records.</p>';w.document.write('<!doctype html><html><head><title>AXIMACH Export</title><style>body{font:12px Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aaa;padding:6px;text-align:left}th{background:#eee}</style></head><body><h1>AXIMACH · '+options.find(x=>x[0]===moduleId)?.[1]+'</h1>'+table+'</body></html>');w.document.close();w.focus();w.print();};
  return <section className="workspace-page intelligence-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> DATA EXPORT</span></div>
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> DATA EXCHANGE / DOWNLOADS</div><h1>Export Centre<span>.</span></h1><p>Export saved module records and individual operation datasets to editable CSV, print/PDF or full JSON backup.</p></div></div>
-  <ServerBackupPanel onNotice={onNotice}/>
+  <ServerBackupPanel onNotice={onNotice}/>\n  <ServerAuditPanel onNotice={onNotice}/>
   <section className="surface-panel"><div className="module-record-form specialized-form"><label>Module to export<select value={moduleId} onChange={e=>setModuleId(e.target.value)}>{options.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select></label><label>Matching saved records<input readOnly value={String(rows.length)}/></label><div className="module-form-actions"><button className="button-primary" onClick={exportExcel}><FileDown size={14}/> Excel workbook (.xlsx)</button><button className="button-quiet" onClick={exportCsv}>CSV</button><button className="button-quiet" onClick={exportPdf}>Print / Save PDF</button><button className="button-quiet" onClick={exportJson}><Download size={14}/> Full JSON backup</button></div></div></section>
   <div className="module-safety-note"><ShieldCheck size={15}/><span>CSV files are editable in Excel; PDF is generated through the device print dialog. Full JSON backup preserves the manufacturing data model. Specialized records held in browser-local module stores are exported when their matching module is selected.</span></div>
  </section>;
