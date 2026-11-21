@@ -4,7 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, t
 import SearchablePicker from "./SearchablePicker";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 
-type InventoryNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; subtab?:string };
+type InventoryNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; materialId?:string; subtab?:string };
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: InventoryNavigationContext) => void; initialContext?: InventoryNavigationContext };
 type Tab = "materials" | "bom" | "stock" | "process-links";
 type MaterialDraft = Omit<MaterialRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
@@ -69,7 +69,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const vendors = activeRows(data.vendors);
   const inventoryTransactions = activeRows(data.inventoryTransactions);
   const operations = activeRows(data.operations);
-  const [tab, setTab] = useState<Tab>(() => initialContext?.subtab === "process-links" ? "process-links" : "materials");
+  const [tab, setTab] = useState<Tab>(() => initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
   const [materialLinkPoLineKey, setMaterialLinkPoLineKey] = useState(() => initialContext?.poId && initialContext?.poLineId ? initialContext.poId+"::"+initialContext.poLineId : "");
   const [materialLinkBomLineId, setMaterialLinkBomLineId] = useState("");
   const [materialLinkOperationId, setMaterialLinkOperationId] = useState(initialContext?.operationId || "");
@@ -78,7 +78,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const [materialLinkPlacement, setMaterialLinkPlacement] = useState<"before"|"after">("before");
   const [materialLinkNotes, setMaterialLinkNotes] = useState("");
   const [materialLinkEditingId, setMaterialLinkEditingId] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => materials.find(row=>row.id===initialContext?.materialId)?.code || "");
   const [directoryCompanyId, setDirectoryCompanyId] = useState("");
   const [directoryPoId, setDirectoryPoId] = useState("");
   const [directoryComponentId, setDirectoryComponentId] = useState("");
@@ -108,11 +108,12 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     // empty case, so a new module visit cannot inherit a stale component/PO.
     setMaterialLinkPoLineKey(initialContext?.poId && initialContext?.poLineId ? initialContext.poId+"::"+initialContext.poLineId : "");
     setMaterialLinkOperationId(initialContext?.operationId || "");
-    setTab(initialContext?.subtab === "process-links" ? "process-links" : "materials");
+    setTab(initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
+    setSearch(materials.find(row=>row.id===initialContext?.materialId)?.code || "");
     setDirectoryCompanyId(initialContext?.companyId || "");
     setDirectoryPoId(initialContext?.poId || "");
     setDirectoryComponentId(initialContext?.componentId || "");
-  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.operationId, initialContext?.subtab, initialContext?.companyId, initialContext?.componentId]);
+  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.operationId, initialContext?.materialId, initialContext?.subtab, initialContext?.companyId, initialContext?.componentId]);
   const directoryPoOptions = orders.filter(po => !directoryCompanyId || po.companyId === directoryCompanyId);
   const directoryComponentOptions = components.filter(component => (!directoryPoId || orders.some(po => po.id === directoryPoId && po.lines.some(line => line.componentId === component.id))) && (!directoryCompanyId || component.companyId === directoryCompanyId || orders.some(po => po.companyId === directoryCompanyId && po.lines.some(line => line.componentId === component.id))));
   const directoryDimensionFields = MATERIAL_DIMENSIONS_BY_SHAPE[materialDraft.shapeType || "Round bar"] || MATERIAL_DIMENSIONS;
