@@ -510,7 +510,7 @@ function CommandCentre(props: {
           <div className="eyebrow"><span className="eyebrow-mark" /> 3D COMMAND CENTRE / 02</div>
           <h1>One sphere.<br /><em>Every command.</em></h1>
           <p>An interactive manufacturing command surface. Rotate the sphere, open workspaces and control the connected operating flow.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all 18 modules</button></div>
+          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all {modules.length} modules</button></div>
         </div>
         <div className="hero-graphic axim-hero-graphic" aria-label="Interactive AXIMACH 3D operations sphere">
           <div className="graphic-grid" />
@@ -565,7 +565,7 @@ function CommandCentre(props: {
         </div>
       </section>
       <section className="module-shortcuts">
-        <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all 18 modules <ArrowRight size={15} /></button></div>
+        <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all {modules.length} modules <ArrowRight size={15} /></button></div>
         <div className="shortcut-grid">
           {modules.filter((item) => ["process-map", "production", "vendors", "quality", "costing", "inventory"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
         </div>
