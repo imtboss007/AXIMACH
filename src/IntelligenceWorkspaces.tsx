@@ -226,7 +226,8 @@ function ServerAuditPanel({onNotice}:{onNotice:(value:string)=>void}) {
  const [loaded,setLoaded]=useState(false);
  const [error,setError]=useState("");
  const [configured]=useState(()=>{
-  const base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim().replace(/\\/+$/,"");
+  let base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim();
+  while(base.endsWith("/"))base=base.slice(0,-1);
   const key=window.localStorage.getItem("aximach.scheduler.key")||"";
   const session=readServerSession(base);
   return window.localStorage.getItem("aximach.storage.mode")!=="local-only"&&Boolean(base&&(session?.user.role==="admin"||(getServerAuthMode()!=="users"&&key)));
@@ -247,12 +248,12 @@ function ServerAuditPanel({onNotice}:{onNotice:(value:string)=>void}) {
  const visible=[...events].reverse().filter(event=>(event.actorUsername+" "+event.action+" "+event.path+" "+event.actorRole).toLowerCase().includes(filter.trim().toLowerCase())).slice(0,100);
  const exportCsv=()=>{
   const quote=(value:unknown)=>'"'+String(value??"").replace(/"/g,'""')+'"';
-  const rows=[["occurred_at","actor","role","action","method","path","target_id","record_count","collection_counts","module_counts","restore_generation"]];
+  const rows:unknown[][]=[["occurred_at","actor","role","action","method","path","target_id","record_count","collection_counts","module_counts","restore_generation"]];
   for(const event of [...events].reverse())rows.push([
    event.occurredAt,event.actorUsername,event.actorRole,event.action,event.method,event.path,event.targetId||"",
    event.recordCount??"",JSON.stringify(event.collectionCounts||{}),JSON.stringify(event.moduleCounts||{}),event.restoreGeneration??""
   ]);
-  const blob=new Blob(["\\uFEFF"+rows.map(row=>row.map(quote).join(",")).join("\\r\\n")],{type:"text/csv;charset=utf-8"});
+  const blob=new Blob([String.fromCharCode(0xfeff)+rows.map(row=>row.map(quote).join(",")).join(String.fromCharCode(13,10))],{type:"text/csv;charset=utf-8"});
   const url=URL.createObjectURL(blob),anchor=document.createElement("a");
   anchor.href=url;anchor.download="AXIMACH-server-audit-"+new Date().toISOString().slice(0,10)+".csv";anchor.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
