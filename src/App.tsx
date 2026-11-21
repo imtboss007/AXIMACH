@@ -117,7 +117,12 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
           contactProfiles:mergeById(current.contactProfiles,sample.contactProfiles), processDefinitions:mergeById(current.processDefinitions,sample.processDefinitions),
           plannedCosts:mergeById(current.plannedCosts,sample.plannedCosts), transportRoutes:mergeById(current.transportRoutes,sample.transportRoutes),
           transportLegs:mergeById(current.transportLegs,sample.transportLegs), paymentTransactions:mergeById(current.paymentTransactions,sample.paymentTransactions),
-          inspectionMeasurements:mergeById(current.inspectionMeasurements,sample.inspectionMeasurements), followUpAssignments:mergeById(current.followUpAssignments,sample.followUpAssignments)
+          inspectionMeasurements:mergeById(current.inspectionMeasurements,sample.inspectionMeasurements),
+          supplierInvoices:mergeById(current.supplierInvoices,sample.supplierInvoices),
+          supplierPayments:mergeById(current.supplierPayments,sample.supplierPayments),
+          supplierFinanceApprovals:mergeById(current.supplierFinanceApprovals,sample.supplierFinanceApprovals),
+          supplierPaymentAllocations:mergeById(current.supplierPaymentAllocations,sample.supplierPaymentAllocations),
+          followUpAssignments:mergeById(current.followUpAssignments,sample.followUpAssignments)
         };
       });
       onNotice("Demo Factory imported. Synthetic records are isolated with DEMO IDs; actual factory records were preserved.");
