@@ -10,6 +10,7 @@ test("server merge covers every manufacturing collection, including follow-up as
     "companies", "factories", "purchaseOrders", "components", "vendors", "operations",
     "quotations", "materials", "componentParts", "materialCostEntries", "bomLines", "materialProcessLinks", "inventoryTransactions", "contactProfiles",
     "processDefinitions", "plannedCosts", "paymentTransactions", "inspectionMeasurements",
+    "supplierInvoices", "supplierPayments", "supplierFinanceApprovals", "supplierPaymentAllocations",
     "routeRelationships", "followUpAssignments", "transportRoutes", "transportLegs"
   ]);
 });
@@ -112,4 +113,33 @@ test("material-to-process links sync independently by stable ID and preserve del
   assert.equal(merged.materialProcessLinks.find(row => row.id === first.id).operationId, "op-2");
   assert.equal(merged.materialProcessLinks.find(row => row.id === first.id).deletedAt, newTime);
   assert.equal(merged.materialProcessLinks.find(row => row.id === second.id).materialId, "material-2");
+});
+
+
+test("supplier invoices, finance approvals, supplier payments and allocations sync by stable ID and preserve tombstones", () => {
+  const invoice = { id:"invoice-1", companyId:"company-1", vendorId:"vendor-1", invoiceNumber:"SUP-001", totalAmount:118, status:"Submitted", updatedAt:newTime };
+  const payment = { id:"supplier-payment-1", companyId:"company-1", vendorId:"vendor-1", amount:80, status:"Submitted", updatedAt:newTime };
+  const approval = { id:"finance-approval-1", targetType:"invoice", targetId:"invoice-1", decision:"Approved", decidedBy:"manager-1", decidedAt:newTime, updatedAt:newTime };
+  const allocation = { id:"ap-allocation-1", paymentId:"supplier-payment-1", invoiceId:"invoice-1", amount:80, updatedAt:newTime };
+  const first = mergeManufacturingData({}, {
+    supplierInvoices:[invoice],supplierPayments:[payment],
+    supplierFinanceApprovals:[approval],supplierPaymentAllocations:[allocation],updatedAt:newTime
+  });
+  assert.equal(first.supplierInvoices[0].invoiceNumber,"SUP-001");
+  assert.equal(first.supplierPayments[0].amount,80);
+  assert.equal(first.supplierFinanceApprovals[0].decision,"Approved");
+  assert.equal(first.supplierPaymentAllocations[0].amount,80);
+
+  const deletedAt = "2026-11-05T09:00:00.000Z";
+  const second = mergeManufacturingData(first, {
+    supplierInvoices:[{...invoice,notes:"Corrected reference",updatedAt:deletedAt,deletedAt}],
+    supplierPaymentAllocations:[{...allocation,updatedAt:deletedAt,deletedAt}],
+    updatedAt:deletedAt
+  });
+  assert.equal(second.supplierInvoices.length,1);
+  assert.equal(second.supplierInvoices[0].notes,"Corrected reference");
+  assert.equal(second.supplierInvoices[0].deletedAt,deletedAt);
+  assert.equal(second.supplierPaymentAllocations[0].deletedAt,deletedAt);
+  assert.equal(second.supplierPayments.length,1);
+  assert.equal(second.supplierFinanceApprovals.length,1);
 });
