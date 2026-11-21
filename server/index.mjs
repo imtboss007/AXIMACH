@@ -355,6 +355,13 @@ const server = createServer(async (req, res) => {
           return { ...row, createdBy };
         });
       }
+      if (Array.isArray(input.data.supplierPaymentAllocations)) {
+        const existingAPAllocations = new Map((currentManufacturing.supplierPaymentAllocations || []).filter(row=>row?.id).map(row=>[row.id,row]));
+        input.data.supplierPaymentAllocations = input.data.supplierPaymentAllocations.map(row => {
+          const prior = existingAPAllocations.get(row.id);
+          return { ...row, createdBy: prior?.createdBy || (authService ? principal.id : (row.createdBy || "local-user")) };
+        });
+      }
       if (Array.isArray(input.data.supplierFinanceApprovals)) {
         const currentApprovals = new Map((currentManufacturing.supplierFinanceApprovals || []).filter(row=>row?.id).map(row=>[row.id,row]));
         input.data.supplierFinanceApprovals = input.data.supplierFinanceApprovals.map(row => {
