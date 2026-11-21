@@ -555,6 +555,16 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     assert.equal(scoped.materials[0]?.preferredVendorId,"","foreign preferred-vendor identifiers are removed from material master records");
     assert.deepEqual(scoped.vendors.map(row=>row.id),["vendor-a","vendor-ap-only"],"supplier is visible through its AP invoice even without any operation/transport reference");
     assert.deepEqual(scoped.supplierInvoices.map(row=>row.id),["ap-only-invoice"],"tenant-scoped AP invoice remains visible with its supplier master");
+    const apOnlyVendorInvoiceWrite=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierInvoices:[{
+        id:"ap-only-invoice-2",companyId:"company-a",factoryId:"factory-a",vendorId:"vendor-ap-only",
+        invoiceNumber:"AP-ONLY-002",invoiceDate:"2026-11-21",dueDate:"2026-12-21",currency:"INR",
+        subtotal:50,taxAmount:9,totalAmount:59,status:"Draft",notes:"",createdBy:"client",
+        createdAt:"2026-11-21T05:30:00.000Z",updatedAt:"2026-11-21T05:30:00.000Z"
+      }]}})
+    });
+    assert.equal(apOnlyVendorInvoiceWrite.status,200,"scoped user can create another AP invoice for a supplier visible only through AP history");
     assert.deepEqual(scoped.processDefinitions.map(row=>row.id),["process-a"]);
     assert.deepEqual(scoped.plannedCosts,[],"tenant scope excludes a company-tagged cost row linked to a foreign PO/component/process");
     assert.deepEqual(scoped.materialCostEntries,[],"tenant scope excludes material costing linked to a foreign PO/component");
