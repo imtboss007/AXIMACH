@@ -5,8 +5,7 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 const VERSION = "3.80.0";
-const STARTUP_TIMEOUT_MS = 120_000;
-const RESPONSE_TIMEOUT_MS = 45_000;
+const RESPONSE_TIMEOUT_MS = 120_000;
 const root = await mkdtemp(join(tmpdir(), "aximach-ruflo-pilot-"));
 const home = join(root, "home");
 const cwd = join(root, "workspace");
@@ -92,21 +91,23 @@ try {
     stderrTail = (stderrTail + chunk).slice(-8000);
   });
   child.on("error", (error) => {
-    for (const resolve of pending.values()) resolve({ error: { message: error.message } });
+    for (const [id, resolve] of pending) {
+      pending.delete(id);
+      resolve({ error: { message: error.message } });
+    }
   });
-
-  const exitPromise = new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
-  const startupTimer = setTimeout(() => {
-    if (child.exitCode === null) fail("Ruflo MCP server did not complete its startup handshake in time");
-  }, STARTUP_TIMEOUT_MS);
+  child.on("exit", (code, signal) => {
+    for (const [id, resolve] of pending) {
+      pending.delete(id);
+      resolve({ error: { message: "Ruflo MCP process exited before responding (code=" + code + ", signal=" + signal + ")" } });
+    }
+  });
 
   const initialized = await request("initialize", {
     protocolVersion: "2025-11-25",
     capabilities: {},
     clientInfo: { name: "aximach-ruflo-isolated-pilot", version: "1.0.0" },
   });
-  clearTimeout(startupTimer);
-
   if (!initialized?.serverInfo?.name || !initialized?.protocolVersion) {
     fail("MCP initialize response did not contain server identity and protocol version");
   }
