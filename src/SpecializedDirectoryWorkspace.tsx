@@ -9,7 +9,8 @@ import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 import { MechanicalIconGlyph, MECHANICAL_ICON_INVENTORY, mechanicalOperationSvgForName } from "./MechanicalOperationIcon";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 
-type Props={moduleId:"process-master"|"planned-cost";onBack:()=>void;onNotice:(value:string)=>void;notice:string;onOpenIconStudio?:(processDefinitionId?:string)=>void};
+type SpecializedNavigationContext={companyId?:string;poId?:string;componentId?:string};
+type Props={moduleId:"process-master"|"planned-cost";onBack:()=>void;onNotice:(value:string)=>void;notice:string;onOpenIconStudio?:(processDefinitionId?:string)=>void;initialContext?:SpecializedNavigationContext};
 type ProcessEntry=ProcessDefinitionRecord;
 const PROCESS_KEY="aximach.processDirectory.v1";
 function readRows<T>(key:string):T[]{try{const value=JSON.parse(localStorage.getItem(key)||"[]");return Array.isArray(value)?value as T[]:[];}catch{return[];}}
@@ -210,7 +211,7 @@ function ProcessDirectory({onNotice,onBack,onOpenIconStudio}:Pick<Props,"onNotic
 }
 
 
-function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
+function PlannedCostDirectory({onNotice,onBack,initialContext}:Pick<Props,"onNotice"|"onBack"|"initialContext">){
  const {data,update}=useManufacturingData();
  const rows=activeRows(data.plannedCosts);
  const definitions=activeRows(data.processDefinitions);
@@ -260,6 +261,12 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
  const [plannedRate,setPlannedRate]=useState("");
  const [notes,setNotes]=useState("");
  const [extraProcesses,setExtraProcesses]=useState<Array<{id:string;processDefinitionId:string;processType:string;processCategory:string;processSubcategory:string;processSubcategoryId:string;plannedQty:string;unit:"piece"|"set";plannedRate:string}>>([]);
+ useEffect(()=>{
+  setSearch("");
+  setCompanyFilters(initialContext?.companyId?[initialContext.companyId]:[]);
+  setPoFilters(initialContext?.poId?[initialContext.poId]:[]);
+  setComponentFilters(initialContext?.componentId?[initialContext.componentId]:[]);
+ },[initialContext?.companyId,initialContext?.poId,initialContext?.componentId]);
  const filtered=useMemo(()=>rows.filter(row=>{
   const companyMatch=!companyFilters.length||companyFilters.includes(row.companyId||companies.find(item=>item.name.trim().toLowerCase()===(row.companyName||"").trim().toLowerCase())?.id||"");
   const poMatch=!poFilters.length||poFilters.includes(row.poId||purchaseOrders.find(item=>item.number.trim().toLowerCase()===(row.poNumber||"").trim().toLowerCase())?.id||"");
