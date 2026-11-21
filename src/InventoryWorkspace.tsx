@@ -4,7 +4,7 @@ import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, t
 import SearchablePicker from "./SearchablePicker";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 
-type InventoryNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; materialId?:string; subtab?:string };
+type InventoryNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; materialId?:string; subtab?:string; searchText?:string };
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: InventoryNavigationContext) => void; initialContext?: InventoryNavigationContext };
 type Tab = "materials" | "bom" | "stock" | "process-links";
 type MaterialDraft = Omit<MaterialRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
@@ -109,11 +109,11 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     setMaterialLinkPoLineKey(initialContext?.poId && initialContext?.poLineId ? initialContext.poId+"::"+initialContext.poLineId : "");
     setMaterialLinkOperationId(initialContext?.operationId || "");
     setTab(initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
-    setSearch(materials.find(row=>row.id===initialContext?.materialId)?.code || "");
+    setSearch(initialContext?.searchText || materials.find(row=>row.id===initialContext?.materialId)?.code || "");
     setDirectoryCompanyId(initialContext?.companyId || "");
     setDirectoryPoId(initialContext?.poId || "");
     setDirectoryComponentId(initialContext?.componentId || "");
-  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.operationId, initialContext?.materialId, initialContext?.subtab, initialContext?.companyId, initialContext?.componentId, materials.length]);
+  }, [initialContext?.poId, initialContext?.poLineId, initialContext?.operationId, initialContext?.materialId, initialContext?.searchText, initialContext?.subtab, initialContext?.companyId, initialContext?.componentId, materials.length]);
   const directoryPoOptions = orders.filter(po => !directoryCompanyId || po.companyId === directoryCompanyId);
   const directoryComponentOptions = components.filter(component => (!directoryPoId || orders.some(po => po.id === directoryPoId && po.lines.some(line => line.componentId === component.id))) && (!directoryCompanyId || component.companyId === directoryCompanyId || orders.some(po => po.companyId === directoryCompanyId && po.lines.some(line => line.componentId === component.id))));
   const directoryDimensionFields = MATERIAL_DIMENSIONS_BY_SHAPE[materialDraft.shapeType || "Round bar"] || MATERIAL_DIMENSIONS;
