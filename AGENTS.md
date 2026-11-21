@@ -2,6 +2,8 @@
 
 Before making any AXIMACH code change, read and follow [the AXIMACH Engineering Cycle skill](.agents/skills/aximach-engineering-cycle/SKILL.md).
 
+For work involving external UI, graphics, AI, data or developer-tool repositories, also read [the AXIMACH Toolkit Router skill](.agents/skills/aximach-toolkit-router/SKILL.md) and follow [the consolidated fast-track adoption decision](docs/36-toolkit-fast-track.md). Batch overlapping candidates by capability; do not review or install every repository sequentially.
+
 Core rules:
 
 - Preserve the existing application and its manufacturing workflows; do not rebuild modules or replace the architecture to accommodate a tool.
