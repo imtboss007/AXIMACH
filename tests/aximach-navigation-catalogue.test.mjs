@@ -56,7 +56,7 @@ test("shared searchable dropdown menus use a responsive column layout", async ()
   assert.match(source, /\.searchable-picker-menu\s*\{[^}]*grid-template-columns:/s);
 });
 
-test("immersive workspace command header stays above the navigation rail", async () => {
+test("immersive workspace command header stays above the raised navigation rail", async () => {
   const source = await readSource("src/aximach-ui.css");
-  assert.match(source, /\.command-deck\s*\{[^}]*z-index:\s*80\s*!important/s);
+  assert.match(source, /\.app-shell:has\(\.route-flow-workspace\) \.command-deck,[\s\S]*?z-index:\s*60\s*!important/);
 });
