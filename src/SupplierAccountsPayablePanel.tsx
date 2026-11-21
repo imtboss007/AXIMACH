@@ -13,8 +13,9 @@ const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en
 const today = () => new Date().toISOString().slice(0, 10);
 type Decision = SupplierFinanceApprovalRecord["decision"];
 
-function latestDecision(approvals: SupplierFinanceApprovalRecord[], type: "invoice" | "payment", id: string) {
-  return approvals.filter(row => !row.deletedAt && row.targetType === type && row.targetId === id)
+function latestDecision(approvals: SupplierFinanceApprovalRecord[], type: "invoice" | "payment", id: string, targetUpdatedAt: string) {
+  return approvals.filter(row => !row.deletedAt && row.targetType === type && row.targetId === id &&
+    (!row.targetUpdatedAt || row.targetUpdatedAt === targetUpdatedAt))
     .sort((a, b) => (Date.parse(b.decidedAt || "") || 0) - (Date.parse(a.decidedAt || "") || 0))[0];
 }
 
@@ -84,8 +85,8 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
     .reduce((sum, row) => sum + Math.max(0, Number(row.amount) || 0), 0);
   const paymentAllocated = (paymentId: string) => allocations.filter(row => row.paymentId === paymentId)
     .reduce((sum, row) => sum + Math.max(0, Number(row.amount) || 0), 0);
-  const invoiceApproval = (invoice: SupplierInvoiceRecord) => latestDecision(approvals, "invoice", invoice.id);
-  const paymentApproval = (payment: SupplierPaymentRecord) => latestDecision(approvals, "payment", payment.id);
+  const invoiceApproval = (invoice: SupplierInvoiceRecord) => latestDecision(approvals, "invoice", invoice.id, invoice.updatedAt);
+  const paymentApproval = (payment: SupplierPaymentRecord) => latestDecision(approvals, "payment", payment.id, payment.updatedAt);
   const invoiceState = (invoice: SupplierInvoiceRecord) => {
     if (invoice.status === "Voided") return "Voided";
     const decision = invoiceApproval(invoice);
