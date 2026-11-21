@@ -499,7 +499,11 @@ test("tenant-scoped user reads and writes only its assigned company and related 
         ],
         vendors: [
           { id:"vendor-a", company:"A subcontractor", updatedAt:"2026-11-20T05:00:00.000Z" },
-          { id:"vendor-b", company:"B subcontractor", updatedAt:"2026-11-20T05:00:00.000Z" }
+          { id:"vendor-b", company:"B subcontractor", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"vendor-ap-only", company:"AP-only supplier", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        supplierInvoices: [
+          { id:"ap-only-invoice", companyId:"company-a", factoryId:"factory-a", vendorId:"vendor-ap-only", invoiceNumber:"AP-ONLY-001", invoiceDate:"2026-11-20", dueDate:"2026-12-20", currency:"INR", subtotal:100, taxAmount:18, totalAmount:118, status:"Draft", notes:"", createdBy:"tenant-admin", createdAt:"2026-11-20T05:00:00.000Z", updatedAt:"2026-11-20T05:00:00.000Z" }
         ],
         processDefinitions: [
           { id:"process-a", processType:"Machining", updatedAt:"2026-11-20T05:00:00.000Z" },
@@ -549,7 +553,8 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     assert.deepEqual(scoped.componentParts,[],"component parts referencing an out-of-scope vendor are excluded");
     assert.deepEqual(scoped.bomLines,[],"BOM lines referencing an out-of-scope component part are excluded");
     assert.equal(scoped.materials[0]?.preferredVendorId,"","foreign preferred-vendor identifiers are removed from material master records");
-    assert.deepEqual(scoped.vendors.map(row=>row.id),["vendor-a"]);
+    assert.deepEqual(scoped.vendors.map(row=>row.id),["vendor-a","vendor-ap-only"],"supplier is visible through its AP invoice even without any operation/transport reference");
+    assert.deepEqual(scoped.supplierInvoices.map(row=>row.id),["ap-only-invoice"],"tenant-scoped AP invoice remains visible with its supplier master");
     assert.deepEqual(scoped.processDefinitions.map(row=>row.id),["process-a"]);
     assert.deepEqual(scoped.plannedCosts,[],"tenant scope excludes a company-tagged cost row linked to a foreign PO/component/process");
     assert.deepEqual(scoped.materialCostEntries,[],"tenant scope excludes material costing linked to a foreign PO/component");
