@@ -202,20 +202,20 @@ test("additional planned-cost process rows cascade by category and stable defini
 });
 
 
-test("dashboard command globe exposes 20 unique, distinguishable module shortcuts", () => {
+test("dashboard command globe exposes 21 unique, distinguishable module shortcuts", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const satelliteBlock = orb.match(/const satellites = \[([\s\S]*?)\n\];/);
   assert.ok(satelliteBlock, "command globe satellite registry exists");
   const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
-  assert.equal(ids.length, 20);
+  assert.equal(ids.length, 21);
   assert.equal(new Set(ids).size, 20, "module shortcut IDs must be unique");
-  assert.equal(labels.length, 20);
+  assert.equal(labels.length, 21);
   assert.equal(new Set(labels).size, 20, "module shortcut labels must be distinguishable");
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
-test("all 20 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
+test("all 21 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const depthOpen = orb.indexOf('<motion.div className="ax-orb-depth"');
   const moduleShell = orb.indexOf('className="ax-orb-module-shell"');
@@ -228,7 +228,7 @@ test("all 20 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(depthOpen >= 0 && depthOpen < moduleShell && moduleShell < moduleClose && moduleClose < depthClose,
     "module controls must be children of the same draggable 3D globe");
   assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the globe");
-  assert.ok(orb.includes('aria-label="20 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label="21 clickable AXIMACH modules"'));
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
   assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
   assert.ok(orb.includes('className="ax-orb-core"'));
@@ -865,7 +865,7 @@ test("five synthetic component names resolve to the intended mechanical logo fam
 
 test("Main dashboard sphere uses native 3D module hit targets with stable transforms", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  assert.ok(orb.includes('aria-label="20 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label="21 clickable AXIMACH modules"'));
   assert.ok(orb.includes('return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"'));
   assert.ok(orb.includes('translate3d(" + x + "px," + y + "px," + z + "px)'));
   assert.ok(orb.includes("onPointerDown={startDrag}"));
@@ -2038,9 +2038,9 @@ test("Manufacturing Universe exposes every AXIMACH module and renders material-f
   const moduleBlock = universe.match(/const linkModules=\[([\s\S]*?)\n  \];/);
   assert.ok(moduleBlock, "missing Manufacturing Universe module directory");
   const ids = [...moduleBlock[1].matchAll(/id:"([^"]+)"/g)].map(match => match[1]);
-  const expected = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"];
+  const expected = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export","integrations"];
   assert.deepEqual([...new Set(ids)].sort(), [...expected].sort());
-  assert.equal(ids.length, 20, "module shortcuts must not contain duplicate entries");
+  assert.equal(ids.length, 21, "module shortcuts must not contain duplicate entries");
   assert.ok(universe.includes('poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)'));
   assert.ok(universe.includes('materialRoutes={materialRouteNodes}'));
 });
