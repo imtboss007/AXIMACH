@@ -29,6 +29,9 @@ try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.getByRole("navigation", { name: "AXIMACH navigation" }).waitFor();
   await page.getByRole("heading", { name: /main dashboard/i }).waitFor({ timeout: 15000 }).catch(() => {});
+  const sphereModules = page.locator(".ax-orb-module-shell .ax-orb-satellite");
+  await page.waitForFunction(() => document.querySelectorAll(".ax-orb-module-shell .ax-orb-satellite").length === 20, null, { timeout: 15000 });
+  if (await sphereModules.count() !== 20) throw new Error("The 3D command sphere does not expose all 20 module controls.");
   if (await page.locator("[data-aximach-startup-error='true']").count()) {
     throw new Error("AXIMACH renderer startup error: " + await page.locator("[data-aximach-startup-error='true']").innerText());
   }
