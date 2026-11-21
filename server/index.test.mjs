@@ -665,6 +665,33 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     });
     assert.equal(selfApproval.status,403,"invoice creator cannot approve their own invoice");
 
+    const returnedInvoice={...invoice,id:"ap-return-invoice",invoiceNumber:"SUP-2026-RETURN",createdAt:apStamp,updatedAt:apStamp};
+    const createReturnedInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierInvoices:[returnedInvoice]}})
+    });
+    assert.equal(createReturnedInvoice.status,200);
+    const returnDecision=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-return-decision",targetType:"invoice",targetId:returnedInvoice.id,decision:"Returned",
+        comments:"Please correct tax reference",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(returnDecision.status,200,"manager can return an invoice for correction");
+    const revisedInvoice={...returnedInvoice,status:"Submitted",subtotal:110,taxAmount:19.8,totalAmount:129.8,updatedAt:"2026-11-20T09:30:00.000Z"};
+    const resubmitInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierInvoices:[revisedInvoice]}})
+    });
+    assert.equal(resubmitInvoice.status,200,"creator can submit a corrected invoice revision");
+    const approveRevisedInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-return-decision-2",targetType:"invoice",targetId:returnedInvoice.id,decision:"Approved",
+        comments:"Corrected invoice checked",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(approveRevisedInvoice.status,200,"a revised invoice can receive a new approval without deleting its earlier returned decision");
+
     const supplierPayment={
       id:"ap-payment-a",companyId:"company-a",factoryId:"factory-a",vendorId:"vendor-a",
       paymentDate:"2026-11-21",method:"Bank transfer",bankReference:"UTR-AX-001",amount:80,currency:"INR",
@@ -674,6 +701,11 @@ test("tenant-scoped user reads and writes only its assigned company and related 
       method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierPayments:[supplierPayment]}})
     });
     assert.equal(createPayment.status,200,"supplier payment can be entered separately from process-operation payments");
+    const duplicateBankReference=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierPayments:[{...supplierPayment,id:"ap-payment-duplicate",createdAt:apStamp,updatedAt:apStamp}]}})
+    });
+    assert.equal(duplicateBankReference.status,403,"supplier payment bank references cannot be duplicated for the same company and vendor");
     const paymentApproval=await fetch(baseUrl+"/api/manufacturing-data",{
       method:"PUT",headers:managerHeaders,
       body:JSON.stringify({data:{supplierFinanceApprovals:[{
