@@ -11,3 +11,6 @@ Core rules:
 - Keep `main` untouched. Work on the existing feature branch/PR unless an explicitly approved alternative is needed.
 - Never merge, deploy, publish, or incur paid-service costs without explicit approval.
 - Run the relevant tests and build gates; report exact evidence and clearly mark skipped or unverified checks.
+
+- If using Ruflo during development, launch only through `node scripts/aximach-ruflo-mcp.mjs` from the repository root. Never connect the raw Ruflo MCP server; the wrapper exposes only three read-only diff-risk tools and blocks other tool calls.
+- The Ruflo wrapper is optional developer tooling, pinned to 3.80.0. Do not add Ruflo to production dependencies or run its full project `init`/hook installation.
