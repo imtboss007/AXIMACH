@@ -6092,3 +6092,10 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .supplier-ap-actions .compact-button{white-space:nowrap}
 @media(max-width:900px){.supplier-ap-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.supplier-ap-form{grid-template-columns:minmax(0,1fr)}.supplier-ap-actions{min-width:150px}}
+
+
+.supplier-ap-decision-note{display:block;margin-top:4px;color:var(--muted,#697586);font-size:10px;line-height:1.35;overflow-wrap:anywhere}
+.supplier-ap-decision-detail{display:block;margin-top:4px;color:var(--muted,#697586);font-size:10px;line-height:1.35;max-width:260px;overflow-wrap:anywhere}
+.supplier-ap-approval-note{display:grid;gap:6px;max-width:680px;margin-bottom:8px}
+.supplier-ap-approval-history{margin-top:4px}
+.supplier-ap-approval-history td small{display:block;color:var(--muted,#697586);font-size:10px;margin-top:2px}
