@@ -211,22 +211,3 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
-
-  ruflo-pilot:
-    name: Isolated Ruflo MCP handshake (explicit pilot commit only)
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'integrate/35-toolkit-ui-audit'
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout without persisted credentials
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Verify pinned Ruflo MCP handshake and list tools (no tools executed)
-        run: node scripts/ruflo-mcp-smoke.mjs
