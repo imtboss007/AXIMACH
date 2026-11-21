@@ -18,7 +18,7 @@ jobs:
   frontend:
     name: Type-check and build web app
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,6 +51,10 @@ jobs:
           }
           console.log("Verified AXIMACH module entrypoint and JavaScript bundle:", assets.filter(name => name.endsWith(".js")));
           NODE
+      - name: Install Chromium for browser smoke tests
+        run: npx playwright install --with-deps chromium
+      - name: Smoke-test all module routes and navigation
+        run: node tests/aximach-browser-smoke.mjs
       - name: Upload frontend build
         uses: actions/upload-artifact@v4
         with:
