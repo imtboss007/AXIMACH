@@ -400,7 +400,11 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      break;
     }
     case "followUpAssignments": allowed=scopeIds.has(row.recordId) || scopeIds.has(row.contactId); break;
-    case "vendors": case "materials": case "processDefinitions": case "transportRoutes": allowed=false; break;
+    case "vendors": case "materials": case "processDefinitions": case "transportRoutes": {
+     const prior=rows(currentData,collection).find(value=>value.id===row.id);
+     allowed=privileged||Boolean(prior&&JSON.stringify(prior)===JSON.stringify(row));
+     break;
+    }
     default: allowed=false;
    }
    if (!allowed) return deny(collection);
