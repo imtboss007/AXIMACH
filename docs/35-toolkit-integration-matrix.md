@@ -6,7 +6,7 @@ Use all 35 candidates as an evaluated toolkit, but do **not** install 35 package
 
 ## Current repository baseline inspected
 
-- Canonical catalogue: 20 unique module IDs in `src/App.tsx`; `src/AXIMACHOrb.tsx` exposes the same 20 IDs and the navigation-catalogue test enforces parity.
+- Canonical catalogue: 21 unique module IDs in `src/App.tsx`; `src/AXIMACHOrb.tsx` exposes the same 21 IDs and the navigation-catalogue test enforces parity. Integrations & API is the newly added 21st workspace.
 - Main dashboard and 3D command centre share `AXIMACHOrb`; the existing sphere uses a WebGL sphere shader plus interactive CSS 3D satellite placement, Motion rotation/drag and six live lower summary nodes (Companies, Purchase Orders, PO Component Lines, Components, Vendors and Open Operations). The feature branch now retains this lower rotating 3D shell on mobile and adds five more live rotating dashboard data spheres.
 - Manufacturing Universe and Route Flow are already separate workspaces backed by `useManufacturingData`; the route editor supports eleven relationship types and transport records/vehicle markers.
 - A Mechanical Icon Inventory and Logo Studio already exist in `MechanicalOperationIcon.tsx` and `IconStudio.tsx`.
@@ -57,7 +57,7 @@ Use all 35 candidates as an evaluated toolkit, but do **not** install 35 package
 
 ## Mapping to the requested AXIMACH scope
 
-- **Dashboard and 3D Command Centre:** preserve the existing WebGL sphere and 20-module navigation parity; use Unslop, Impeccable, Taste Skill and the animation skills for visual review. ECharts is a candidate for analytical panels, not a replacement for the sphere.
+- **Dashboard and 3D Command Centre:** preserve the existing WebGL sphere and 21-module navigation parity; use Unslop, Impeccable, Taste Skill and the animation skills for visual review. ECharts is now an installed analytics/coverage visualisation dependency, not a replacement for the sphere.
 - **Component Master, Purchase Orders, Vendor Directory, Transport Directory, Contact 360, Process Directory, Planned Cost, Vendor Network and Costing:** standardise the existing search, filter, multi-select, bulk-action and export patterns. TanStack Table/Virtual, React Hook Form and Zod are the main candidates after a measured compatibility review.
 - **Production Plan and Process Map:** retain the persisted route model and existing eleven relationship types. Evaluate React Flow only for graph editing needs; keep transport legs as linked master records, not duplicated ad-hoc data.
 - **Transport & Dispatch:** continue using the transport directory, route, vehicle and leg IDs as shared sources. Do not add a second transport model.
@@ -81,7 +81,7 @@ Before adapting third-party source, record the exact upstream URL, commit/tag, l
 
 ## Work still requiring dedicated implementation and acceptance
 
-This branch is a focused toolkit-foundation correction, not a claim that the full 20-module audit is complete. The following still require a systematic record-by-record browser audit and, where appropriate, schema/API work: exhaustive CRUD and dependency handling in every module; every individual/selected/all export variant; all Route Scope and Process Operations export formats; fully configurable Manufacturing Universe entity/edge visibility; comprehensive independent filter coverage on every register; formal AP/invoice and payment allocation records; signed POD attachment and split-delivery workflow; lot disposition/serialized QC; server-side identity, roles and tenant isolation; persistent production database, backups and restore drills; and physical machine/OPC-UA telemetry integration. These cannot be certified by a frontend build or static source inspection.
+This branch is a focused toolkit-foundation correction, not a claim that the full 21-module audit is complete. The following still require a systematic record-by-record browser audit and, where appropriate, schema/API work: exhaustive CRUD and dependency handling in every module; every individual/selected/all export variant; all Route Scope and Process Operations export formats; fully configurable Manufacturing Universe entity/edge visibility; comprehensive independent filter coverage on every register; formal AP/invoice and payment allocation records; signed POD attachment and split-delivery workflow; lot disposition/serialized QC; server-side identity, roles and tenant isolation; persistent production database, backups and restore drills; and physical machine/OPC-UA telemetry integration. These cannot be certified by a frontend build or static source inspection.
 
 ## Verification policy
 
@@ -89,3 +89,12 @@ This branch is a focused toolkit-foundation correction, not a claim that the ful
 - For live-data features, add integration tests using persisted, identifiable fixture records and verify create/edit/archive propagation across every linked view.
 - Do not describe an action as tested unless the relevant test actually ran and passed.
 - Keep all work on feature branches. Do not merge, deploy or publish without explicit approval.
+
+
+## Follow-on integration implementation
+
+- Added the 21st **Integrations & API** navigation workspace and matching command-sphere satellite.
+- Added an admin-scoped `GET /api/integrations/catalog` endpoint. It returns 120 named catalogue entries, intended role, maturity stage and required environment-variable *names* only. It never returns secret values.
+- Added ECharts 6.1.0 for interactive capability-family visualisation and Zod 4.6.7 for runtime validation of the catalog response.
+- Added registry unit tests and an API test for admin authentication and secret redaction.
+- Connector readiness values are deliberately conservative: a configured endpoint variable is shown as **configured — not health-tested**. No provider is claimed connected until a real adapter health test succeeds.
