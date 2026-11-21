@@ -64,7 +64,7 @@
 
 1. Preserve the existing WebGL main globe and 20 clickable module nodes; do not replace it with a 2D illustration.
 2. Build a common reusable 3D shell component using current WebGL/Motion code first. Consider React Three Fiber/Drei only when a missing interaction, scene complexity or performance requirement justifies the extra runtime.
-3. Add the five separately rotating dashboard data visualisations: Recent Operations, Records, Exceptions, Master Records and Production Status. Keep the six existing lower summary record categories: Companies, Purchase Orders, PO Component Lines, Components, Vendors and Open Operations.
+3. **Implemented on this feature branch; CI pending:** five separately rotating dashboard data visualisations now cover Recent Operations, Records, Exceptions, Master Records and Production Status. The six existing lower summary record categories remain Companies, Purchase Orders, PO Component Lines, Components, Vendors and Open Operations. The new shells use saved shared-store data and module navigation; browser visual/accessibility testing remains required.
 4. On mobile, evaluate a compact, touch-friendly 3D lower shell rather than silently replacing it with 2D cards; only keep the 2D fallback if GPU/performance or accessibility testing demonstrates the need and the user can still open a 3D view.
 5. Extend Manufacturing Universe from a selected-PO-line scene to a full data-driven ecosystem graph with selectable entity classes and edge types, persistent visibility/layout settings, record detail panels and safe edit actions.
 
