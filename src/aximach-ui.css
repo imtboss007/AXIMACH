@@ -6081,3 +6081,14 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .ax-audit-event{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(150px,1fr) minmax(180px,1.4fr);gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line,#dce4ed);border-radius:10px;background:var(--surface,#fff);min-width:0}
 .ax-audit-event>div,.ax-audit-event>small{min-width:0;overflow-wrap:anywhere}
 @media(max-width:760px){.ax-audit-event{grid-template-columns:minmax(0,1fr);gap:5px;padding:10px}.ax-audit-event>small{font-size:11px}}
+
+
+/* Supplier accounts payable register */
+.supplier-ap-panel{display:grid;gap:18px;margin:18px 0}
+.supplier-ap-subsection{border-top:1px solid var(--line,#dce4ed);padding-top:14px;display:grid;gap:12px;min-width:0}
+.supplier-ap-subsection .panel-heading{align-items:flex-start}
+.supplier-ap-form{grid-template-columns:repeat(3,minmax(0,1fr))}
+.supplier-ap-actions{display:flex;gap:5px;flex-wrap:wrap;min-width:190px}
+.supplier-ap-actions .compact-button{white-space:nowrap}
+@media(max-width:900px){.supplier-ap-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.supplier-ap-form{grid-template-columns:minmax(0,1fr)}.supplier-ap-actions{min-width:150px}}
