@@ -148,6 +148,7 @@ try {
   let reviewData;
   try { reviewData = JSON.parse(reviewText); } catch { reviewData = { raw: reviewText.slice(0, 4000) }; }
   if (reviewData.error) fail("Ruflo analyze_diff reported an error: " + reviewData.message);
+  if (!Array.isArray(reviewData.files) || reviewData.files.length === 0) fail("Ruflo analyze_diff returned an empty diff for a non-empty AXIMACH feature branch.");
 
   console.log(JSON.stringify({
     result: "PASS",
