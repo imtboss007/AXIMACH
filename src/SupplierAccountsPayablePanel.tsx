@@ -330,6 +330,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
           const vendor=vendors.find(row=>row.id===invoice.vendorId),company=companies.find(row=>row.id===invoice.companyId);
           const paid=invoicePaid(invoice.id),balance=Math.max(0,invoice.totalAmount-paid),state=invoiceState(invoice),decision=invoiceApproval(invoice);
           const canSelfApprove=invoice.createdBy===actorId;
+          const hasNamedCreator=Boolean(invoice.createdBy)&&!["legacy-api-key","local-user"].includes(invoice.createdBy);
           return <tr key={invoice.id}>
             <td><strong>{invoice.invoiceNumber}</strong><small>{invoice.poId?orders.find(row=>row.id===invoice.poId)?.number||"Archived PO":"No PO linked"}</small></td>
             <td>{vendor?.company||"Archived supplier"}<small>{company?.name||"Archived company"}</small></td>
@@ -338,7 +339,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
             <td><span className={statusClass(state)}>{state}</span>{decision&&<small className="supplier-ap-decision-detail">{decision.decision} by {decision.decidedBy} · {new Date(decision.decidedAt).toLocaleString("en-IN")}{decision.comments?" · "+decision.comments:""}</small>}</td>
             <td><div className="supplier-ap-actions">
               {invoice.status==="Draft"&&<button type="button" className="button-quiet compact-button" onClick={()=>update(current=>({...current,supplierInvoices:current.supplierInvoices.map(row=>row.id===invoice.id?{...row,status:"Submitted",updatedAt:nowIso()}:row)}))}>Submit</button>}
-              {invoice.status==="Submitted"&&canApprove&&!decision&&<><button type="button" className="button-primary compact-button" disabled={canSelfApprove} title={canSelfApprove?"Creator cannot approve their own invoice":""} onClick={()=>decideInvoice(invoice,"Approved")}><Check size={12}/> Approve</button><button type="button" className="button-quiet compact-button" disabled={canSelfApprove} onClick={()=>decideInvoice(invoice,"Rejected")}>Reject</button><button type="button" className="button-quiet compact-button" disabled={canSelfApprove} onClick={()=>decideInvoice(invoice,"Returned")}>Return</button></>}
+              {invoice.status==="Submitted"&&canApprove&&!decision&&<><button type="button" className="button-primary compact-button" disabled={canSelfApprove||!hasNamedCreator} title={canSelfApprove?"Creator cannot approve their own invoice":!hasNamedCreator?"A named creator account is required for finance approval":""} onClick={()=>decideInvoice(invoice,"Approved")}><Check size={12}/> Approve</button><button type="button" className="button-quiet compact-button" disabled={canSelfApprove||!hasNamedCreator} onClick={()=>decideInvoice(invoice,"Rejected")}>Reject</button><button type="button" className="button-quiet compact-button" disabled={canSelfApprove||!hasNamedCreator} onClick={()=>decideInvoice(invoice,"Returned")}>Return</button></>}
               {(invoice.status==="Draft"||decision?.decision==="Rejected"||decision?.decision==="Returned")&&invoice.status!=="Voided"&&<button type="button" className="button-quiet compact-button" onClick={()=>editInvoice(invoice)}>Edit</button>}
             </div></td>
           </tr>;
@@ -372,13 +373,14 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
         <tbody>{payments.map(payment=>{
           const vendor=vendors.find(row=>row.id===payment.vendorId),allocated=paymentAllocated(payment.id),balance=Math.max(0,payment.amount-allocated),state=paymentState(payment),decision=paymentApproval(payment);
           const self=payment.createdBy===actorId;
+          const hasNamedCreator=Boolean(payment.createdBy)&&!["legacy-api-key","local-user"].includes(payment.createdBy);
           return <tr key={payment.id}>
             <td><strong>{payment.paymentDate}</strong><small>{payment.bankReference||"No transaction reference"}</small></td>
             <td>{vendor?.company||"Archived supplier"}</td><td>{payment.method}</td><td>{money(payment.amount)}</td><td>{money(allocated)}</td><td>{money(balance)}</td>
             <td><span className={statusClass(state)}>{state}</span>{decision&&<small className="supplier-ap-decision-detail">{decision.decision} by {decision.decidedBy} · {new Date(decision.decidedAt).toLocaleString("en-IN")}{decision.comments?" · "+decision.comments:""}</small>}</td>
             <td><div className="supplier-ap-actions">
               {payment.status==="Draft"&&<button type="button" className="button-quiet compact-button" onClick={()=>update(current=>({...current,supplierPayments:current.supplierPayments.map(row=>row.id===payment.id?{...row,status:"Submitted",updatedAt:nowIso()}:row)}))}>Submit</button>}
-              {payment.status==="Submitted"&&canApprove&&!decision&&<><button type="button" className="button-primary compact-button" disabled={self} onClick={()=>decidePayment(payment,"Approved")}><Check size={12}/> Approve</button><button type="button" className="button-quiet compact-button" disabled={self} onClick={()=>decidePayment(payment,"Rejected")}>Reject</button><button type="button" className="button-quiet compact-button" disabled={self} onClick={()=>decidePayment(payment,"Returned")}>Return</button></>}
+              {payment.status==="Submitted"&&canApprove&&!decision&&<><button type="button" className="button-primary compact-button" disabled={self||!hasNamedCreator} onClick={()=>decidePayment(payment,"Approved")}><Check size={12}/> Approve</button><button type="button" className="button-quiet compact-button" disabled={self||!hasNamedCreator} onClick={()=>decidePayment(payment,"Rejected")}>Reject</button><button type="button" className="button-quiet compact-button" disabled={self||!hasNamedCreator} onClick={()=>decidePayment(payment,"Returned")}>Return</button></>}
               {(payment.status==="Draft"||decision?.decision==="Rejected"||decision?.decision==="Returned")&&allocated===0&&<button type="button" className="button-quiet compact-button" onClick={()=>editPayment(payment)}>Edit</button>}
             </div></td>
           </tr>;
@@ -414,6 +416,6 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
       </tbody></table></div>
     </section>
     {!session&&<div className="module-safety-note"><ShieldAlert size={15}/><span>Supplier finance approvals are disabled until the shared server is configured for named user accounts. API-key and local-only sessions do not provide an individual approver identity.</span></div>}
-    <div className="module-safety-note"><ShieldAlert size={15}/><span>Approval history is append-only and the shared server enforces manager/admin approval, different-person approval, approved-record locking, supplier/company matching and invoice/payment balance limits. This first AP release records invoice headers and one optional PO/PO-line association; line-level multi-PO invoice splitting and uploaded invoice documents require the later document-storage/line-allocation stage. Local-only mode is a convenience workflow, not a security boundary.</span></div>
+    <div className="module-safety-note"><ShieldAlert size={15}/><span>Approval history is append-only and the shared server enforces manager/admin approval, different-person approval by active named accounts, approved-record locking, supplier/company matching and invoice/payment balance limits. Legacy shared-key records need a named creator before they can enter the approval workflow. This first AP release records invoice headers and one optional PO/PO-line association; line-level multi-PO invoice splitting and uploaded invoice documents require the later document-storage/line-allocation stage. Local-only mode is a convenience workflow, not a security boundary.</span></div>
   </section>;
 }
