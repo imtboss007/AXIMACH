@@ -52,34 +52,57 @@ export function removeComponentDependents(data, componentIds) {
   const removedMaterialCostIds = new Set(
     array(data.materialCostEntries).filter((row) => targets.has(row.componentId)).map((row) => row.id)
   );
+  const removedMaterialLinkIds = new Set(
+    array(data.materialProcessLinks).filter((row) =>
+      targets.has(row.componentId) || lineIds.has(row.poLineId) || removedOperationIds.has(row.operationId)
+    ).map((row) => row.id)
+  );
+  const removedRouteRelationshipIds = new Set(
+    array(data.routeRelationships).filter((row) =>
+      targets.has(row.componentId) || lineIds.has(row.poLineId) ||
+      removedOperationIds.has(row.fromOperationId) || removedOperationIds.has(row.toOperationId)
+    ).map((row) => row.id)
+  );
+  const removedInventoryIds = new Set(
+    array(data.inventoryTransactions).filter((row) =>
+      (row.itemType === "component" && targets.has(row.itemId)) ||
+      lineIds.has(row.poLineId) || removedOperationIds.has(row.operationId)
+    ).map((row) => row.id)
+  );
 
-  // Legacy planned-cost rows without componentId are removed only when their
-  // part number resolves uniquely. Ambiguous text-only rows are preserved.
+  // Legacy planned-cost rows without componentId are removed only when the
+  // part number resolves uniquely in their known company scope (or globally
+  // when the legacy row has no company reference).
   const components = array(data.components);
-  const uniqueLegacyNumbers = new Set();
+  const uniqueLegacyGlobalNumbers = new Set();
+  const uniqueLegacyCompanyNumbers = new Set();
   for (const target of components.filter((row) => targets.has(row.id))) {
-    const matches = components.filter((row) =>
-      row.partNumber.trim().toLowerCase() === target.partNumber.trim().toLowerCase() &&
-      (!target.companyId || row.companyId === target.companyId)
-    );
-    if (matches.length === 1) uniqueLegacyNumbers.add(target.partNumber.trim().toLowerCase());
+    const number = target.partNumber.trim().toLowerCase();
+    if (components.filter((row) => row.partNumber.trim().toLowerCase() === number).length === 1) {
+      uniqueLegacyGlobalNumbers.add(number);
+    }
+    if (target.companyId && components.filter((row) =>
+      row.partNumber.trim().toLowerCase() === number && row.companyId === target.companyId
+    ).length === 1) {
+      uniqueLegacyCompanyNumbers.add(target.companyId + "::" + number);
+    }
   }
 
   const relatedIds = new Set([
-    ...targets, ...poIds, ...lineIds, ...removedOperationIds, ...removedQuoteIds,
+    ...targets, ...lineIds, ...removedOperationIds, ...removedQuoteIds,
     ...removedTransportIds, ...removedPaymentIds, ...removedInspectionIds,
-    ...removedBomIds, ...removedPartIds, ...removedMaterialCostIds
+    ...removedBomIds, ...removedPartIds, ...removedMaterialCostIds,
+    ...removedMaterialLinkIds, ...removedRouteRelationshipIds, ...removedInventoryIds
   ]);
 
   return {
     ...data,
     components: components.filter((row) => !targets.has(row.id)),
     purchaseOrders: array(data.purchaseOrders)
-      .map((po) => ({
-        ...po,
-        lines: array(po.lines).filter((line) => !targets.has(line.componentId)),
-        updatedAt: lineIds.size ? new Date().toISOString() : po.updatedAt
-      }))
+      .map((po) => {
+        const lines = array(po.lines).filter((line) => !targets.has(line.componentId));
+        return lines.length === array(po.lines).length ? po : { ...po, lines, updatedAt: new Date().toISOString() };
+      })
       .filter((po) => po.lines.length > 0),
     operations: array(data.operations).filter((row) => !removedOperationIds.has(row.id)),
     quotations: array(data.quotations).filter((row) => !removedQuoteIds.has(row.id)),
@@ -103,7 +126,10 @@ export function removeComponentDependents(data, componentIds) {
     plannedCosts: array(data.plannedCosts).filter((row) => {
       if (row.componentId) return !targets.has(row.componentId);
       const partNumber = (row.componentNumber || "").trim().toLowerCase();
-      return !partNumber || !uniqueLegacyNumbers.has(partNumber);
+      if (!partNumber) return true;
+      return row.companyId
+        ? !uniqueLegacyCompanyNumbers.has(row.companyId + "::" + partNumber)
+        : !uniqueLegacyGlobalNumbers.has(partNumber);
     }),
     followUpAssignments: array(data.followUpAssignments).filter((row) => !relatedIds.has(row.recordId)),
   };
