@@ -6066,3 +6066,12 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .ax-ecosystem-export button{display:flex;align-items:center;gap:5px;height:30px;padding:0 9px;border:1px solid #c9ddec;border-radius:6px;background:#eaf4fb;color:#176b9e;font-size:8px;font-weight:750;cursor:pointer}
 .ax-ecosystem-export button:hover{background:#dceefa}
 @media(max-width:760px){.ax-ecosystem-export{width:100%}.ax-ecosystem-export select,.ax-ecosystem-export button{flex:1}}
+
+
+.ax-ecosystem-sample-note {
+  margin: 7px 0 0;
+  color: var(--muted, #64748b);
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: .01em;
+}
