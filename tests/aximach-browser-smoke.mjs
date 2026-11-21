@@ -111,6 +111,7 @@ try {
   // Verify the mobile Dashboard keeps its separate live six-record 3D shell visible.
   const mobileRecordShell = page.locator(".ax-orb-lower-shell");
   await mobileRecordShell.waitFor({ state: "attached", timeout: 10000 });
+  await mobileRecordShell.scrollIntoViewIfNeeded();
   const mobileRecordShellState = await mobileRecordShell.evaluate(element => {
     const bounds = element.getBoundingClientRect();
     const style = window.getComputedStyle(element);
