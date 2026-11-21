@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, ClipboardCheck, FileText, Plus, RefreshCw, ShieldAlert, Wallet } from "lucide-react";
 import { activeRows, makeId, nowIso, type ManufacturingData, type SupplierFinanceApprovalRecord, type SupplierInvoiceRecord, type SupplierPaymentAllocationRecord, type SupplierPaymentRecord } from "./manufacturingData";
 import { getServerAuthMode, readServerSession } from "./serverAuth";
@@ -37,7 +37,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
   const actorRole: "admin" | "manager" | "operator" | "viewer" =
     session?.user.role || (apiKeyMode || localOnly ? "admin" : "operator");
   const canWrite = actorRole !== "viewer";
-  const canApprove = actorRole === "admin" || actorRole === "manager";
+  const canApprove = Boolean(session && (actorRole === "admin" || actorRole === "manager"));
 
   const [invoiceCompanyId, setInvoiceCompanyId] = useState(companies[0]?.id || "");
   const [invoiceFactoryId, setInvoiceFactoryId] = useState("");
@@ -67,6 +67,11 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
   const [allocationInvoiceId, setAllocationInvoiceId] = useState("");
   const [allocationAmount, setAllocationAmount] = useState("");
   const [allocationNotes, setAllocationNotes] = useState("");
+
+  useEffect(() => {
+    if (!invoiceCompanyId && companies[0]?.id) setInvoiceCompanyId(companies[0].id);
+    if (!paymentCompanyId && companies[0]?.id) setPaymentCompanyId(companies[0].id);
+  }, [companies, invoiceCompanyId, paymentCompanyId]);
 
   const invoiceFactories = factories.filter(row => row.companyId === invoiceCompanyId);
   const paymentFactories = factories.filter(row => row.companyId === paymentCompanyId);
@@ -101,9 +106,9 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
     return payment.status === "Submitted" ? "Pending approval" : "Draft";
   };
 
-  const outstandingTotal = invoices.filter(row => invoiceState(row) !== "Voided")
+  const outstandingTotal = invoices.filter(row => ["Approved", "Partially paid"].includes(invoiceState(row)))
     .reduce((sum, row) => sum + Math.max(0, row.totalAmount - invoicePaid(row.id)), 0);
-  const overdueTotal = invoices.filter(row => invoiceState(row) !== "Voided" && invoiceState(row) !== "Paid" && row.dueDate && row.dueDate < today())
+  const overdueTotal = invoices.filter(row => ["Approved", "Partially paid"].includes(invoiceState(row)) && row.dueDate && row.dueDate < today())
     .reduce((sum, row) => sum + Math.max(0, row.totalAmount - invoicePaid(row.id)), 0);
   const pendingApprovalCount = invoices.filter(row => invoiceState(row) === "Pending approval").length + payments.filter(row => paymentState(row) === "Pending approval").length;
   const unappliedTotal = payments.filter(row => paymentState(row) !== "Voided")
@@ -392,6 +397,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
       </tbody></table></div>
     </section>
 
+    {!session&&<div className="module-safety-note"><ShieldAlert size={15}/><span>Supplier finance approvals are disabled until the shared server is configured for named user accounts. API-key and local-only sessions do not provide an individual approver identity.</span></div>}
     <div className="module-safety-note"><ShieldAlert size={15}/><span>Approval history is append-only and the shared server enforces manager/admin approval, different-person approval, approved-record locking, supplier/company matching and invoice/payment balance limits. This first AP release records invoice headers and one optional PO/PO-line association; line-level multi-PO invoice splitting and uploaded invoice documents require the later document-storage/line-allocation stage. Local-only mode is a convenience workflow, not a security boundary.</span></div>
   </section>;
 }
