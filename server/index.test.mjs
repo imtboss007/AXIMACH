@@ -596,3 +596,102 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     await rm(folder,{recursive:true,force:true});
   }
 });
+
+test("server audit trail records durable mutation metadata without copying sensitive contact or message content", { timeout: 20000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-audit-trail-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  const headers = { "content-type": "application/json", "x-aximach-key": apiKey };
+  let child;
+
+  try {
+    child = startServer(port, dataFile);
+    await waitForHealth(child, baseUrl);
+
+    assert.equal((await fetch(baseUrl + "/api/audit-events")).status, 401, "audit history must require authentication");
+    const write = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ data: {
+        companies: [{ id: "audit-company-1", name: "Confidential Company Name", updatedAt: "2026-11-21T07:00:00.000Z" }]
+      } })
+    });
+    assert.equal(write.status, 200);
+
+    const contact = await fetch(baseUrl + "/api/contacts", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Confidential Contact Name", phone: "919876543210", company: "Confidential Company Name", optedIn: true })
+    });
+    assert.equal(contact.status, 201);
+
+    const schedule = await fetch(baseUrl + "/api/schedules", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        to: "919876543210",
+        message: "Confidential approved message body",
+        nextRunAt: new Date(Date.now() + 86400000).toISOString(),
+        repeat: "once",
+        operationId: "audit-operation-1"
+      })
+    });
+    assert.equal(schedule.status, 201);
+
+    const beforeRestoreResponse = await fetch(baseUrl + "/api/audit-events", { headers });
+    assert.equal(beforeRestoreResponse.status, 200);
+    const beforeRestore = await beforeRestoreResponse.json();
+    assert.equal(beforeRestore.retentionLimit, 10000);
+    assert.deepEqual(beforeRestore.events.map(event => event.action), [
+      "manufacturing-data.sync",
+      "whatsapp-contact.create",
+      "whatsapp-schedule.create"
+    ]);
+    const serialized = JSON.stringify(beforeRestore.events);
+    for (const secret of ["Confidential Company Name", "Confidential Contact Name", "919876543210", "Confidential approved message body"]) {
+      assert.equal(serialized.includes(secret), false, "audit metadata must not copy sensitive payload value: " + secret);
+    }
+    assert.equal(beforeRestore.events[0].actorUsername, "legacy-api-key");
+    assert.deepEqual(beforeRestore.events[0].collectionCounts, { companies: 1 });
+    assert.equal(beforeRestore.events[1].optedIn, true);
+    assert.equal(beforeRestore.events[2].operationId, "audit-operation-1");
+
+    const backupResponse = await fetch(baseUrl + "/api/backup", { headers });
+    assert.equal(backupResponse.status, 200);
+    const backup = await backupResponse.json();
+    assert.equal(Array.isArray(backup.data.auditEvents), true, "full backup must include the audit history");
+
+    const restored = await fetch(baseUrl + "/api/restore", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ backup, confirmation: "RESTORE_AXIMACH_BACKUP" })
+    });
+    assert.equal(restored.status, 200);
+    const afterRestoreResponse = await fetch(baseUrl + "/api/audit-events", { headers });
+    const afterRestore = await afterRestoreResponse.json();
+    assert.equal(afterRestore.events.length, 4);
+    assert.equal(afterRestore.events.at(-1).action, "backup.restore");
+    assert.equal(afterRestore.events.filter(event => event.action === "manufacturing-data.sync").length, 1);
+
+    await stopServer(child);
+    child = undefined;
+
+    child = startServer(port, dataFile);
+    await waitForHealth(child, baseUrl);
+    const afterRestart = await fetch(baseUrl + "/api/audit-events", { headers });
+    assert.equal(afterRestart.status, 200);
+    const persisted = await afterRestart.json();
+    assert.equal(persisted.events.length, 4, "audit history must persist across server restart");
+    assert.deepEqual(persisted.events.map(event => event.action), [
+      "manufacturing-data.sync",
+      "whatsapp-contact.create",
+      "whatsapp-schedule.create",
+      "backup.restore"
+    ]);
+  } finally {
+    await stopServer(child);
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
