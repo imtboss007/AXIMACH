@@ -961,7 +961,7 @@ test("Process Plan panels expose independent native expand/collapse sections", (
 });
 
 
-test("Main Dashboard and 3D Command Centre center the 18-module orb on mobile", () => {
+test("Main Dashboard and 3D Command Centre center the 20-module orb on mobile", () => {
   const dashboardStyles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   const appStyles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.ok(dashboardStyles.includes(".dashboard-welcome-orb .ax-orb-drag-zone"));
