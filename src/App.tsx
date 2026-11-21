@@ -90,7 +90,7 @@ const modules: ModuleItem[] = [
 
 const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) => item.group)))];
 
-function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNotice:(value:string)=>void;notice:string}) {
+function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string,context?:LinkedNavigationContext)=>void}) {
   const [mode,setMode] = useState<"export"|"import">("export");
   const { data, update, syncStatus } = useManufacturingData();
   const [demoBusy,setDemoBusy] = useState(false);
@@ -159,8 +159,8 @@ function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNoti
         <button type="button" role="tab" aria-selected={mode==="import"} className={(mode==="import"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("import")}><FileUp size={14}/> Import and validate</button>
       </div>
       {mode==="export"
-        ? <ExportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={()=>{}} />
-        : <ImportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={()=>{}} />}
+        ? <ExportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={onSelectModule} />
+        : <ImportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={onSelectModule} />}
     </section>
   );
 }
@@ -415,7 +415,7 @@ function App() {
         ) : activeModuleId === "ai-insights" ? (
           <AIInsightsWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "export" ? (
-          <DataExchangeWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <DataExchangeWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" ? (
           <ProductionPlanWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "dispatch" ? (
