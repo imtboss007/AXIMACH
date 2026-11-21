@@ -208,10 +208,10 @@ test("dashboard command globe exposes 20 unique, distinguishable module shortcut
   assert.ok(satelliteBlock, "command globe satellite registry exists");
   const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
-  assert.equal(ids.length, 18);
-  assert.equal(new Set(ids).size, 18, "module shortcut IDs must be unique");
-  assert.equal(labels.length, 18);
-  assert.equal(new Set(labels).size, 18, "module shortcut labels must be distinguishable");
+  assert.equal(ids.length, 20);
+  assert.equal(new Set(ids).size, 20, "module shortcut IDs must be unique");
+  assert.equal(labels.length, 20);
+  assert.equal(new Set(labels).size, 20, "module shortcut labels must be distinguishable");
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
