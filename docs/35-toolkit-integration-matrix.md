@@ -74,9 +74,10 @@ Before adapting third-party source, record the exact upstream URL, commit/tag, l
 ## Immediate changes in this branch
 
 1. Put shared multi-select and single-select option menus into responsive columns, as required by the UX specification.
-2. Raise the application command header above the fixed/immersive navigation rail while keeping modal overlays above the header; this addresses the current browser smoke-test hit-target failure.
-3. Correct the stale source comment that says 18 sphere controls; the canonical module catalogue, sphere and regression test all define 20.
-4. Add a regression assertion for the column-wise dropdown menu style.
+2. Raise the application command header above the fixed/immersive navigation rail while keeping modal overlays above the header; the first generic CSS attempt did not fix the specific selector conflict, so the branch now overrides the exact Route Flow / Manufacturing Universe selector.
+3. Correct stale 18-module descriptions; the canonical module catalogue, sphere and regression test all define 20.
+4. Add regression assertions for the column-wise dropdown menu style and scoped header stacking.
+5. Add five separate rotating 3D dashboard data shells (Recent Operations, Records, Exceptions, Master Records and Production Status) using the shared saved-data store, linked module navigation and reduced-motion support.
 
 ## Work still requiring dedicated implementation and acceptance
 
