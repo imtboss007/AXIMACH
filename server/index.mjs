@@ -360,11 +360,13 @@ const server = createServer(async (req, res) => {
         input.data.supplierFinanceApprovals = input.data.supplierFinanceApprovals.map(row => {
           const prior = currentApprovals.get(row.id);
           if (prior) return prior;
+          const target = row.targetType === "invoice" ? currentInvoices.get(row.targetId) : currentSupplierPayments.get(row.targetId);
           return {
             ...row,
             decidedBy: principal.id,
             decidedByRole: principal.role === "manager" ? "manager" : "admin",
-            decidedAt: new Date().toISOString()
+            decidedAt: new Date().toISOString(),
+            targetUpdatedAt: target?.updatedAt || ""
           };
         });
       }
