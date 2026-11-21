@@ -62,7 +62,8 @@ test("component deletion removes all dependent PO, route, material and stock lin
   const result = removeComponentDependents(base(), ["component-1"]);
   assert.deepEqual(result.components.map((item) => item.id), ["component-2", "component-3"]);
   assert.deepEqual(result.purchaseOrders.map((po) => [po.id, po.lines.map((line) => line.id)]), [
-    ["po-1", ["line-2"]]
+    ["po-1", ["line-2"]],
+    ["po-empty", []]
   ]);
   for (const collection of ["operations", "quotations", "transportLegs", "paymentTransactions", "inspectionMeasurements", "bomLines", "componentParts", "materialCostEntries", "materialProcessLinks", "routeRelationships"]) {
     assert.deepEqual(result[collection].map((item) => item.id), collection === "operations" ? ["op-2"] : collection === "quotations" ? ["quote-2"] : collection === "transportLegs" ? ["leg-2"] : collection === "paymentTransactions" ? ["payment-2"] : collection === "inspectionMeasurements" ? ["inspection-2"] : collection === "bomLines" ? ["bom-2"] : collection === "componentParts" ? ["part-2"] : collection === "materialCostEntries" ? ["cost-2"] : collection === "materialProcessLinks" ? ["material-link-2"] : ["route-link-2"]);
