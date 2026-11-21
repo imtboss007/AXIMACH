@@ -257,7 +257,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     const companyMatch=!directoryCompanyId||(row.companyId?row.companyId===directoryCompanyId:po?.companyId?po.companyId===directoryCompanyId:linkedPOs.some(order=>order.companyId===directoryCompanyId)||[...linkedComponentIds].some(id=>components.find(component=>component.id===id)?.companyId===directoryCompanyId));
     const poMatch=!directoryPoId||row.poId===directoryPoId||(!row.poId&&linkedPOs.some(order=>order.id===directoryPoId));
     const componentMatch=!directoryComponentId||linkedComponentIds.has(directoryComponentId)||poLine?.componentId===directoryComponentId;
-    const query=(item?.name+" "+("code" in (item||{})?(item as MaterialRecord).code:(item as any)?.partNumber)+" "+row.transactionType+" "+row.reference+" "+row.notes+" "+row.occurredAt+" "+row.quantity).toLowerCase();
+    const query=(row.id+" "+item?.name+" "+("code" in (item||{})?(item as MaterialRecord).code:(item as any)?.partNumber)+" "+row.transactionType+" "+row.reference+" "+row.notes+" "+row.occurredAt+" "+row.quantity).toLowerCase();
     return companyMatch&&poMatch&&componentMatch&&(!search.trim()||query.includes(search.toLowerCase().trim()));
   }).slice().sort((a,b) => b.occurredAt.localeCompare(a.occurredAt) || b.createdAt.localeCompare(a.createdAt)), [inventoryTransactions, materials, components, orders, bomLines, data.componentParts, search, directoryCompanyId, directoryPoId, directoryComponentId]);
   const linkedMaterialContexts = (materialId: string) => {
