@@ -326,6 +326,8 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      const linkedPO=row.poId?allowedPOById.get(row.poId):undefined;
      const duplicateNumber=[...rows(currentData,"supplierInvoices"),...rows(incoming,"supplierInvoices")]
       .some(other=>other.id!==row.id&&!other.deletedAt&&other.companyId===row.companyId&&other.vendorId===row.vendorId&&String(other.invoiceNumber||"").trim().toLowerCase()===String(row.invoiceNumber||"").trim().toLowerCase());
+     const priorInvoice=rows(currentData,"supplierInvoices").find(other=>other.id===row.id);
+     const isApproved=approvalIsCurrent("invoice",row.id);
      allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorIds.has(row.vendorId)&&
       (!row.poId||(Boolean(linkedPO)&&linkedPO.companyId===row.companyId&&linkedPO.factoryId===row.factoryId))&&
       (!row.poLineId||(Boolean(linkedPO)&&lines.has(row.poLineId)&&rows(linkedPO,"lines").some(line=>line.id===row.poLineId)))&&
@@ -333,14 +335,19 @@ export function validateManufacturingWrite(currentData, incoming, user) {
       ["Draft","Submitted","Voided"].includes(row.status)&&
       validMoney(row.subtotal)&&validMoney(row.taxAmount)&&Number(row.totalAmount)>0&&
       Math.abs(Number(row.totalAmount)-(Number(row.subtotal)+Number(row.taxAmount)))<=0.02&&
-      typeof row.createdBy==="string"&&Boolean(row.createdBy);
+      typeof row.createdBy==="string"&&Boolean(row.createdBy)&&
+      (!priorInvoice||!isApproved||JSON.stringify(priorInvoice)===JSON.stringify(row));
      break;
     }
-    case "supplierPayments":
+    case "supplierPayments": {
+     const priorPayment=rows(currentData,"supplierPayments").find(other=>other.id===row.id);
+     const isApproved=approvalIsCurrent("payment",row.id);
      allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorIds.has(row.vendorId)&&
       ["Draft","Submitted","Voided"].includes(row.status)&&Number.isFinite(Date.parse(row.paymentDate||""))&&
-      Number.isFinite(Number(row.amount))&&Number(row.amount)>0&&typeof row.createdBy==="string"&&Boolean(row.createdBy);
+      Number.isFinite(Number(row.amount))&&Number(row.amount)>0&&typeof row.createdBy==="string"&&Boolean(row.createdBy)&&
+      (!priorPayment||!isApproved||JSON.stringify(priorPayment)===JSON.stringify(row));
      break;
+    }
     case "supplierFinanceApprovals": {
      const target=row.targetType==="invoice"?allInvoices.get(row.targetId):row.targetType==="payment"?allSupplierPayments.get(row.targetId):undefined;
      const prior=latestApproval(row.targetType,row.targetId);
@@ -361,7 +368,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      const invoiceAllocated=invoiceAllocations.filter(other=>other.id!==row.id&&other.invoiceId===row.invoiceId).reduce((sum,other)=>sum+Number(other.amount||0),0);
      const paymentAllocated=invoiceAllocations.filter(other=>other.id!==row.id&&other.paymentId===row.paymentId).reduce((sum,other)=>sum+Number(other.amount||0),0);
      const immutable=rows(currentData,"supplierPaymentAllocations").find(other=>other.id===row.id);
-     allowed=!immutable&&Boolean(payment&&invoice)&&payment.status==="Submitted"&&invoice.status==="Submitted"&&
+     allowed=(!immutable||JSON.stringify(immutable)===JSON.stringify(row))&&Boolean(payment&&invoice)&&payment.status==="Submitted"&&invoice.status==="Submitted"&&
       approvalIsCurrent("payment",payment.id)&&approvalIsCurrent("invoice",invoice.id)&&
       payment.companyId===invoice.companyId&&payment.vendorId===invoice.vendorId&&
       Number.isFinite(Number(row.amount))&&Number(row.amount)>0&&
