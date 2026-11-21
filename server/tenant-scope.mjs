@@ -380,6 +380,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
       .sort((a,b)=>(Date.parse(b.decidedAt||"")||0)-(Date.parse(a.decidedAt||"")||0))[0];
      const creator=target?.createdBy||"";
      const approver=String(user?.id||"");
+     const creatorIsNamedUser=Array.isArray(user?.namedUserIds)&&user.namedUserIds.includes(creator);
      const oldApproval=rows(currentData,"supplierFinanceApprovals").find(value=>value.id===row.id);
      const unchangedApproval=Boolean(oldApproval&&JSON.stringify(oldApproval)===JSON.stringify(row));
      const isNewTargetVersion=prior?(
@@ -390,7 +391,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      const mayCreateDecision=(!prior||prior.decision!=="Approved")&&isNewTargetVersion;
      allowed=!user?.legacy&&(privileged||user?.role==="manager")&&Boolean(target)&&target.status==="Submitted"&&
       typeof row.id==="string"&&["Approved","Rejected","Returned"].includes(row.decision)&&
-      creator!==approver&&(unchangedApproval||mayCreateDecision)&&
+      creatorIsNamedUser&&creator!==approver&&(unchangedApproval||mayCreateDecision)&&
       (!oldApproval||unchangedApproval);
      break;
     }
