@@ -364,7 +364,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
        other.id!==row.id&&!other.deletedAt&&other.status!=="Voided"&&other.companyId===row.companyId&&
        other.vendorId===row.vendorId&&String(other.bankReference||"").trim().toLowerCase()===String(row.bankReference||"").trim().toLowerCase()
       );
-     allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorIds.has(row.vendorId)&&
+     allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorAllowedForCompany(row.vendorId,row.companyId)&&
       ["Draft","Submitted","Voided"].includes(row.status)&&validIsoDate(row.paymentDate)&&
       ["Bank transfer","UPI","Cheque","Cash","Other"].includes(row.method)&&
       (!["Bank transfer","UPI","Cheque"].includes(row.method)||Boolean(String(row.bankReference||"").trim()))&&
