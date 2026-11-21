@@ -6075,3 +6075,9 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   line-height: 1.5;
   letter-spacing: .01em;
 }
+
+
+/* Administrator audit trail */
+.ax-audit-event{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(150px,1fr) minmax(180px,1.4fr);gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line,#dce4ed);border-radius:10px;background:var(--surface,#fff);min-width:0}
+.ax-audit-event>div,.ax-audit-event>small{min-width:0;overflow-wrap:anywhere}
+@media(max-width:760px){.ax-audit-event{grid-template-columns:minmax(0,1fr);gap:5px;padding:10px}.ax-audit-event>small{font-size:11px}}
