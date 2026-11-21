@@ -281,7 +281,7 @@ function ServerAuditPanel({onNotice}:{onNotice:(value:string)=>void}) {
   {error&&<p role="alert" className="module-safety-note" style={{marginTop:10,borderColor:"var(--danger, #b42318)"}}>{error}</p>}
   {!loaded&&<p className="muted-copy" style={{marginTop:10}}>Refresh to load the shared server's audit history. Only administrators can retrieve these events.</p>}
   {loaded&&<div style={{display:"grid",gap:8,marginTop:14}}>
-   {visible.length===0?<p className="muted-copy">No matching audit events.</p>:visible.map(event=><article key={event.id} style={{display:"grid",gridTemplateColumns:"minmax(150px,1.1fr) minmax(150px,1fr) minmax(180px,1.4fr)",gap:12,alignItems:"center",padding:"10px 12px",border:"1px solid var(--line,#dce4ed)",borderRadius:10}}>
+   {visible.length===0?<p className="muted-copy">No matching audit events.</p>:visible.map(event=><article key={event.id} className="ax-audit-event">
     <div><strong style={{display:"block",fontSize:12}}>{event.action}</strong><small className="muted-copy">{new Date(event.occurredAt).toLocaleString()}</small></div>
     <div><strong style={{display:"block",fontSize:12}}>{event.actorUsername}</strong><small className="muted-copy">{event.actorRole} · {event.method} {event.path}</small></div>
     <small className="muted-copy">{describe(event)}</small>
