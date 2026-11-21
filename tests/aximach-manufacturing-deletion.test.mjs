@@ -50,7 +50,8 @@ const base = () => ({
   followUpAssignments: [
     row("follow-1", { recordId: "op-1" }),
     row("follow-2", { recordId: "po-1" }),
-    row("follow-3", { recordId: "op-2" })
+    row("follow-3", { recordId: "op-2" }),
+    row("follow-4", { recordId: "po-2" })
   ],
   materials: [row("material-1")],
   vendors: [row("vendor-1")],
@@ -101,7 +102,7 @@ test("purchase-order deletion removes PO-specific links and preserves shared com
   assert.deepEqual(result.inventoryTransactions.map((item) => item.id), ["stock-1", "stock-2", "stock-3"]);
   assert.ok(result.inventoryTransactions.every(item => item.poId === "" && item.poLineId === "" && item.operationId === ""), "PO deletion must detach document references without deleting posted stock movements");
   assert.deepEqual(result.plannedCosts.map((item) => item.id), ["planned-1", "planned-2", "legacy-ambiguous"]);
-  assert.deepEqual(result.followUpAssignments, []);
+  assert.deepEqual(result.followUpAssignments.map((item) => item.id), ["follow-4"]);
 });
 
 test("empty deletion selection is a no-op", () => {
