@@ -372,8 +372,31 @@ const server = createServer(async (req, res) => {
       if (!scopeValidation.ok) return json(res, 403, { error: scopeValidation.error });
       const encoded = JSON.stringify(input.data);
       if (encoded.length > 8_000_000) return json(res, 413, { error: "Manufacturing data exceeds the 8 MB limit." });
+      const currentRowsById = collection => new Map((currentManufacturing[collection] || []).filter(row=>row?.id).map(row=>[row.id,row]));
+      const financeAuditEvents = [];
+      const currentAllocationRows = currentRowsById("supplierPaymentAllocations");
+      const currentApprovalRows = currentRowsById("supplierFinanceApprovals");
+      const currentInvoiceRows = currentRowsById("supplierInvoices");
+      const currentPaymentRows = currentRowsById("supplierPayments");
+      for (const invoice of input.data.supplierInvoices || []) {
+        const prior = currentInvoiceRows.get(invoice.id);
+        if (!prior) financeAuditEvents.push({ action:"supplier-invoice.created", details:{ targetId:invoice.id, companyId:invoice.companyId, vendorId:invoice.vendorId, status:invoice.status } });
+        else if (prior.status !== invoice.status) financeAuditEvents.push({ action:"supplier-invoice.status-changed", details:{ targetId:invoice.id, fromStatus:prior.status, toStatus:invoice.status } });
+      }
+      for (const payment of input.data.supplierPayments || []) {
+        const prior = currentPaymentRows.get(payment.id);
+        if (!prior) financeAuditEvents.push({ action:"supplier-payment.created", details:{ targetId:payment.id, companyId:payment.companyId, vendorId:payment.vendorId, method:payment.method, status:payment.status } });
+        else if (prior.status !== payment.status) financeAuditEvents.push({ action:"supplier-payment.status-changed", details:{ targetId:payment.id, fromStatus:prior.status, toStatus:payment.status } });
+      }
+      for (const approval of input.data.supplierFinanceApprovals || []) {
+        if (!currentApprovalRows.has(approval.id)) financeAuditEvents.push({ action:"supplier-finance.approval", details:{ approvalId:approval.id, targetType:approval.targetType, targetId:approval.targetId, decision:approval.decision } });
+      }
+      for (const allocation of input.data.supplierPaymentAllocations || []) {
+        if (!currentAllocationRows.has(allocation.id)) financeAuditEvents.push({ action:"supplier-payment.allocated", details:{ allocationId:allocation.id, paymentId:allocation.paymentId, invoiceId:allocation.invoiceId } });
+      }
       db.manufacturingData = mergeManufacturingData(db.manufacturingData, input.data);
       appendAuditEvent(req, principal, "manufacturing-data.sync", auditCollectionCounts(input.data, manufacturingCollections));
+      for (const event of financeAuditEvents) appendAuditEvent(req, principal, event.action, event.details);
       await saveDb();
       const visibleData = principal.legacy || principal.role === "admin" ? db.manufacturingData : filterManufacturingData(db.manufacturingData, principal);
       return json(res, 200, { ok: true, data: visibleData, updatedAt: db.manufacturingData.updatedAt, restoreGeneration: Number(db.restoreGeneration || 0) });
