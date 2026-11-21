@@ -30,8 +30,8 @@ try {
   await page.getByRole("navigation", { name: "AXIMACH navigation" }).waitFor();
   await page.getByRole("heading", { name: /main dashboard/i }).waitFor({ timeout: 15000 }).catch(() => {});
   const sphereModules = page.locator(".ax-orb-module-shell .ax-orb-satellite");
-  await page.waitForFunction(() => document.querySelectorAll(".ax-orb-module-shell .ax-orb-satellite").length === 20, null, { timeout: 15000 });
-  if (await sphereModules.count() !== 20) throw new Error("The 3D command sphere does not expose all 20 module controls.");
+  await page.waitForFunction(() => document.querySelectorAll(".ax-orb-module-shell .ax-orb-satellite").length === 21, null, { timeout: 15000 });
+  if (await sphereModules.count() !== 21) throw new Error("The 3D command sphere does not expose all 21 module controls.");
   if (await page.locator("[data-aximach-startup-error='true']").count()) {
     throw new Error("AXIMACH renderer startup error: " + await page.locator("[data-aximach-startup-error='true']").innerText());
   }
@@ -56,7 +56,8 @@ try {
     ["Follow-up Centre", "communications"],
     ["Reports & Analytics", "reports"],
     ["AI Insights", "ai-insights"],
-    ["Data Exchange Centre", "export"]
+    ["Data Exchange Centre", "export"],
+    ["Integrations & API", "integrations"]
   ];
 
   for (const [title, id] of modules) {
@@ -101,8 +102,8 @@ try {
   // Verify both module discovery surfaces open exact workspaces.
   await page.locator(".deck-action").filter({ hasText: "Modules" }).click();
   await page.getByRole("heading", { name: /module universe/i }).waitFor();
-  if (!(await page.locator(".universe-footer").innerText()).includes("20 of 20 modules")) {
-    throw new Error("Module Universe does not report all 20 modules.");
+  if (!(await page.locator(".universe-footer").innerText()).includes("21 of 21 modules")) {
+    throw new Error("Module Universe does not report all 21 modules.");
   }
   await page.locator(".universe-search input").fill("Route Flow");
   await page.locator(".universe-card").filter({ hasText: "Route Flow & Relationships" }).click();
@@ -176,7 +177,7 @@ try {
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Purchase Orders");
   if (pageErrors.length) throw new Error("Browser runtime errors: " + pageErrors.join(" | "));
   console.log("PASS responsive mobile navigation and Purchase Orders workspace");
-  console.log("PASS browser smoke: 20 module routes, Company/Factory tabs, module explorer, global search, desktop and mobile navigation, no renderer page errors");
+  console.log("PASS browser smoke: 21 module routes, Company/Factory tabs, module explorer, global search, desktop and mobile navigation, no renderer page errors");
 } finally {
   if (browser) await browser.close();
   preview.kill("SIGTERM");
