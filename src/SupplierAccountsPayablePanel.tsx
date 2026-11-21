@@ -335,7 +335,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
             <td>{vendor?.company||"Archived supplier"}<small>{company?.name||"Archived company"}</small></td>
             <td>{invoice.invoiceDate}<small>Due {invoice.dueDate}</small></td>
             <td>{money(invoice.totalAmount)}</td><td>{money(paid)}</td><td><strong>{money(balance)}</strong></td>
-            <td><span className={statusClass(state)}>{state}</span></td>
+            <td><span className={statusClass(state)}>{state}</span>{decision&&<small className="supplier-ap-decision-detail">{decision.decision} by {decision.decidedBy} · {new Date(decision.decidedAt).toLocaleString("en-IN")}{decision.comments?" · "+decision.comments:""}</small>}</td>
             <td><div className="supplier-ap-actions">
               {invoice.status==="Draft"&&<button type="button" className="button-quiet compact-button" onClick={()=>update(current=>({...current,supplierInvoices:current.supplierInvoices.map(row=>row.id===invoice.id?{...row,status:"Submitted",updatedAt:nowIso()}:row)}))}>Submit</button>}
               {invoice.status==="Submitted"&&canApprove&&!decision&&<><button type="button" className="button-primary compact-button" disabled={canSelfApprove} title={canSelfApprove?"Creator cannot approve their own invoice":""} onClick={()=>decideInvoice(invoice,"Approved")}><Check size={12}/> Approve</button><button type="button" className="button-quiet compact-button" disabled={canSelfApprove} onClick={()=>decideInvoice(invoice,"Rejected")}>Reject</button><button type="button" className="button-quiet compact-button" disabled={canSelfApprove} onClick={()=>decideInvoice(invoice,"Returned")}>Return</button></>}
@@ -375,7 +375,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
           return <tr key={payment.id}>
             <td><strong>{payment.paymentDate}</strong><small>{payment.bankReference||"No transaction reference"}</small></td>
             <td>{vendor?.company||"Archived supplier"}</td><td>{payment.method}</td><td>{money(payment.amount)}</td><td>{money(allocated)}</td><td>{money(balance)}</td>
-            <td><span className={statusClass(state)}>{state}</span></td>
+            <td><span className={statusClass(state)}>{state}</span>{decision&&<small className="supplier-ap-decision-detail">{decision.decision} by {decision.decidedBy} · {new Date(decision.decidedAt).toLocaleString("en-IN")}{decision.comments?" · "+decision.comments:""}</small>}</td>
             <td><div className="supplier-ap-actions">
               {payment.status==="Draft"&&<button type="button" className="button-quiet compact-button" onClick={()=>update(current=>({...current,supplierPayments:current.supplierPayments.map(row=>row.id===payment.id?{...row,status:"Submitted",updatedAt:nowIso()}:row)}))}>Submit</button>}
               {payment.status==="Submitted"&&canApprove&&!decision&&<><button type="button" className="button-primary compact-button" disabled={self} onClick={()=>decidePayment(payment,"Approved")}><Check size={12}/> Approve</button><button type="button" className="button-quiet compact-button" disabled={self} onClick={()=>decidePayment(payment,"Rejected")}>Reject</button><button type="button" className="button-quiet compact-button" disabled={self} onClick={()=>decidePayment(payment,"Returned")}>Return</button></>}
@@ -402,6 +402,17 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
       </tbody></table></div>
     </section>
 
+    <section className="supplier-ap-subsection supplier-ap-approval-history">
+      <div className="panel-heading"><div><h4>Finance approval history ({approvals.length})</h4><p>Append-only decisions are retained when an invoice or payment is returned and re-submitted.</p></div></div>
+      <div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Record</th><th>Type</th><th>Decision</th><th>Reviewer</th><th>Decided at</th><th>Comment</th></tr></thead><tbody>
+        {[...approvals].sort((a,b)=>(Date.parse(b.decidedAt||"")||0)-(Date.parse(a.decidedAt||"")||0)).map(row=>{
+          const target=row.targetType==="invoice"?invoices.find(invoice=>invoice.id===row.targetId):payments.find(payment=>payment.id===row.targetId);
+          const targetLabel=row.targetType==="invoice"?(target as SupplierInvoiceRecord|undefined)?.invoiceNumber||row.targetId:(target as SupplierPaymentRecord|undefined)?.bankReference||row.targetId;
+          return <tr key={row.id}><td>{targetLabel}</td><td>{row.targetType==="invoice"?"Supplier invoice":"Supplier payment"}</td><td><strong>{row.decision}</strong></td><td>{row.decidedBy}<small>{row.decidedByRole}</small></td><td>{row.decidedAt?new Date(row.decidedAt).toLocaleString("en-IN"):"—"}</td><td>{row.comments||"—"}</td></tr>;
+        })}
+        {approvals.length===0&&<tr><td colSpan={6}>No supplier finance decisions recorded.</td></tr>}
+      </tbody></table></div>
+    </section>
     {!session&&<div className="module-safety-note"><ShieldAlert size={15}/><span>Supplier finance approvals are disabled until the shared server is configured for named user accounts. API-key and local-only sessions do not provide an individual approver identity.</span></div>}
     <div className="module-safety-note"><ShieldAlert size={15}/><span>Approval history is append-only and the shared server enforces manager/admin approval, different-person approval, approved-record locking, supplier/company matching and invoice/payment balance limits. This first AP release records invoice headers and one optional PO/PO-line association; line-level multi-PO invoice splitting and uploaded invoice documents require the later document-storage/line-allocation stage. Local-only mode is a convenience workflow, not a security boundary.</span></div>
   </section>;
