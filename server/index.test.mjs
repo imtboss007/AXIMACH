@@ -521,7 +521,9 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     });
     assert.equal(seed.status,200);
 
+    assert.equal((await fetch(baseUrl + "/api/audit-events", { headers: adminHeaders })).status, 200, "administrators can read the shared audit trail");
     const companyHeaders = await login("companya","AXIMACH-companya-Password!");
+    assert.equal((await fetch(baseUrl + "/api/audit-events", { headers: companyHeaders })).status, 403, "scoped operators cannot read the global audit trail");
     const response = await fetch(baseUrl + "/api/manufacturing-data", { headers: companyHeaders });
     assert.equal(response.status,200);
     const scoped = (await response.json()).data;
