@@ -215,7 +215,13 @@ const server = createServer(async (req, res) => {
       if (url.pathname === "/api/auth/login" && req.method === "POST") {
         const input = await body(req, 64_000);
         const result = await authService.login(input.username, input.password, req.socket.remoteAddress);
-        if (!result.ok) return json(res, result.rateLimited ? 429 : 401, { error: result.rateLimited ? "Too many sign-in attempts. Try again in 15 minutes." : "Invalid username or password." });
+        if (!result.ok) {
+          appendAuditEvent(req, { id: "anonymous", username: "unauthenticated", role: "unauthenticated" }, "auth.login.rejected", { rateLimited: Boolean(result.rateLimited) });
+          await saveDb();
+          return json(res, result.rateLimited ? 429 : 401, { error: result.rateLimited ? "Too many sign-in attempts. Try again in 15 minutes." : "Invalid username or password." });
+        }
+        appendAuditEvent(req, result.user, "auth.login.success", { expiresAt: result.expiresAt });
+        await saveDb();
         return json(res, 200, result);
       }
       if (url.pathname === "/api/auth/session" && req.method === "GET") {
@@ -227,6 +233,8 @@ const server = createServer(async (req, res) => {
         const token = bearerToken(req);
         if (!principalFromRequest(req)) return json(res, 401, { error: "A valid user session is required." });
         authService.logout(token);
+        appendAuditEvent(req, principalFromRequest(req) || { id: "revoked-session", username: "revoked-session", role: "unknown" }, "auth.logout");
+        await saveDb();
         return json(res, 200, { ok: true });
       }
       return json(res, 404, { error: "Authentication route not found." });
@@ -235,8 +243,16 @@ const server = createServer(async (req, res) => {
   const principal = principalFromRequest(req);
   if (!principal) return json(res, 401, { error: "User session or valid AXIMACH API credentials are required." });
   const requiredPermission = getRequiredPermission(url.pathname, req.method);
-  if (requiredPermission && !hasPermission(principal, requiredPermission)) return json(res, 403, { error: "Your account role does not permit this action." });
-  if (!principal.legacy && principal.role !== "admin" && ["data:read","data:write"].includes(requiredPermission) && !hasTenantScope(principal)) return json(res, 403, { error: "Assign at least one company or factory to this account before accessing manufacturing data." });
+  if (requiredPermission && !hasPermission(principal, requiredPermission)) {
+    appendAuditEvent(req, principal, "authorization.denied", { requiredPermission });
+    await saveDb();
+    return json(res, 403, { error: "Your account role does not permit this action." });
+  }
+  if (!principal.legacy && principal.role !== "admin" && ["data:read","data:write"].includes(requiredPermission) && !hasTenantScope(principal)) {
+    appendAuditEvent(req, principal, "authorization.denied", { requiredPermission, reason: "missing-company-or-factory-scope" });
+    await saveDb();
+    return json(res, 403, { error: "Assign at least one company or factory to this account before accessing manufacturing data." });
+  }
   if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry after it completes." });
   try {
     if (url.pathname === "/api/backup" && req.method === "GET") {
