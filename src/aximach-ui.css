@@ -1084,7 +1084,7 @@
 .dashboard-exception-list .attention-row{width:100%;text-align:left}
 @media(max-width:860px){.dashboard-welcome{align-items:flex-start}.dashboard-welcome-orbit{flex-basis:145px;width:145px;height:145px;margin:8px 0}.dashboard-orbit-core{width:92px;height:92px}.dashboard-orbit-core strong{font-size:17px}.dashboard-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.dashboard-home{gap:12px}.dashboard-welcome{padding:18px;min-height:0}.dashboard-welcome-orbit{display:none}.dashboard-welcome h1{font-size:27px}.dashboard-welcome p{font-size:12px}.dashboard-metric-grid,.dashboard-live-panels{grid-template-columns:minmax(0,1fr)}.dashboard-job-summary{gap:6px}.dashboard-job-summary>div{padding:9px}.dashboard-job-summary strong{font-size:19px}}
-/* Eighteen accessible orbit nodes, kept legible on touch displays */
+/* Twenty accessible orbit nodes, kept legible on touch displays */
 .ax-orb-satellite{max-width:72px}
 .ax-orb-satellite>span{width:35px;height:35px;border-radius:11px}
 .ax-orb-satellite small{max-width:76px;text-align:center;white-space:normal;font-size:7px;line-height:1.15;padding:3px 4px}
