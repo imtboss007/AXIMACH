@@ -8,14 +8,14 @@ import { getServerAuthMode, readServerSession } from "./serverAuth";
 
 type LinkedNavigationContext={companyId?:string;poId?:string;poLineId?:string;componentId?:string;operationId?:string;vendorId?:string};
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string,context?:LinkedNavigationContext)=>void};
-type Contact360Props=Props & {initialVendorId?:string;onInitialVendorConsumed?:()=>void};
+type Contact360Props=Props & {initialVendorId?:string;initialSearch?:string;onInitialVendorConsumed?:()=>void};
 type ContactRecord=ContactProfileRecord;
 type ContactDraft=Omit<ContactRecord,"id"|"createdAt"|"updatedAt">;
 const CONTACT_KEY="aximach.contact360.v1";
 const blank=():ContactDraft=>({linkedType:"company",linkedId:"",name:"",role:"",group:"",phone:"",whatsapp:"",additionalPhones:[],email:"",address:"",followUpDate:"",history:"",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[],machineCapabilities:[],materialCapabilities:[]});
 function readContacts():ContactRecord[]{try{const value=JSON.parse(localStorage.getItem(CONTACT_KEY)||"[]");return Array.isArray(value)?value as ContactRecord[]:[];}catch{return[];}}
 
-export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initialVendorId,onInitialVendorConsumed}:Contact360Props){
+export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initialVendorId,initialSearch,onInitialVendorConsumed}:Contact360Props){
  const {data,update}=useManufacturingData();const companies=activeRows(data.companies),vendors=activeRows(data.vendors);
  const rows=data.contactProfiles||[];const [search,setSearch]=useState("");const [editingId,setEditingId]=useState("");const [showForm,setShowForm]=useState(false);const [draft,setDraft]=useState<ContactDraft>(blank());
  const [typeFilter,setTypeFilter]=useState("All");
@@ -47,7 +47,8 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
   window.addEventListener("aximach-server-session-updated",migrate);
   return()=>window.removeEventListener("aximach-server-session-updated",migrate);
  },[update]);
- useEffect(()=>{if(!initialVendorId)return;setEditingId("");setDraft({...blank(),linkedType:"vendor",linkedId:initialVendorId});setShowForm(true);onInitialVendorConsumed?.();},[initialVendorId]);
+ useEffect(()=>{if(!initialVendorId)return;setEditingId("");setSearch("");setDraft({...blank(),linkedType:"vendor",linkedId:initialVendorId});setShowForm(true);onInitialVendorConsumed?.();},[initialVendorId]);
+ useEffect(()=>{if(initialSearch){setShowForm(false);setSearch(initialSearch);}},[initialSearch]);
  const relatedLabel=(row:ContactRecord)=>row.linkedType==="company"?companies.find(x=>x.id===row.linkedId)?.name||"Company record missing":vendors.find(x=>x.id===row.linkedId)?.company||"Vendor record missing";
  const generated=[
   ...companies.filter(c=>c.contactPerson?.trim()).map(c=>({id:"company:"+c.id,linkedId:c.id,name:c.contactPerson||"",role:"Company contact",group:"",phone:c.phone,whatsapp:c.phone,additionalPhones:[],email:c.email,address:c.address||"",followUpDate:"",history:"",relationship:c.name,source:"Company Directory",linkedType:"company",vendorType:"Company",processes:"",machines:"",materials:"",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[],machineCapabilities:[],materialCapabilities:[]})),
