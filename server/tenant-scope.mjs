@@ -201,8 +201,8 @@ export function filterManufacturingData(data, user) {
  ]);
 }
 
-function resolveFullAccess(data) {
- const all=field=>rows(data,field);
+function resolveFullAccess(data,incoming={}) {
+ const all=field=>[...new Map([...rows(data,field),...rows(incoming,field)].filter(row=>row?.id).map(row=>[row.id,row])).values()];
  const purchaseOrders=all("purchaseOrders"),companies=all("companies"),factories=all("factories"),components=all("components"),operations=all("operations");
  const idsInRows=field=>ids(all(field));
  const purchaseOrderIds=ids(purchaseOrders),componentIds=ids(components);
@@ -229,7 +229,7 @@ function allowedChild(row, poById, access, {requireOperation=false} = {}) {
 export function validateManufacturingWrite(currentData, incoming, user) {
  const privileged = user?.legacy === true || user?.role === "admin";
  if (!privileged && !hasTenantScope(user)) return {ok:false,error:"This account has no company or factory scope assigned."};
- const access = privileged ? resolveFullAccess(currentData) : resolveAccess(currentData,user);
+ const access = privileged ? resolveFullAccess(currentData,incoming) : resolveAccess(currentData,user);
  const companyIds = access.companyIds;
  const assignedFactories = setOf(user?.factoryIds);
  const incomingFactories = rows(incoming,"factories");
