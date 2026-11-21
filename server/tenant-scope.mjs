@@ -65,7 +65,7 @@ function resolveAccess(data, user) {
   if(!vendorOwners.has(vendorId))vendorOwners.set(vendorId,new Set());
   vendorOwners.get(vendorId).add(ownerCompanyId);
  };
- for(const field of ["operations","quotations","transportLegs","materialCostEntries","inventoryTransactions","componentParts"]){
+ for(const field of ["operations","quotations","transportLegs","materialCostEntries","inventoryTransactions","componentParts","plannedCosts","supplierInvoices","supplierPayments"]){
   for(const row of rows(data,field)){
    addVendorReference(row.vendorId,row);
    addVendorReference(row.transportVendorId,row);
