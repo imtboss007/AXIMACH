@@ -60,3 +60,24 @@ test("immersive workspace command header stays above the raised navigation rail"
   const source = await readSource("src/aximach-ui.css");
   assert.match(source, /\.app-shell:has\(\.route-flow-workspace\) \.command-deck,[\s\S]*?z-index:\s*60\s*!important/);
 });
+
+
+test("Dashboard has five separate live 3D data shells with real module navigation", async () => {
+  const dashboard = await readSource("src/DashboardWorkspace.tsx");
+  const orb = await readSource("src/DashboardDataOrb.tsx");
+  const styles = await readSource("src/aximach-ui.css");
+  for (const title of ["Recent Operations","Records","Exceptions","Master Records","Production Status"]) {
+    assert.ok(dashboard.includes('title="' + title + '"'), "missing live dashboard sphere: " + title);
+  }
+  for (const source of ["recent.map(op=>","companies.length","pos.length","lines.length","overdue.slice","holds.slice","activeRows(data.processDefinitions)","openOps.length","completeOps.length","pendingJobs.length"]) {
+    assert.ok(dashboard.includes(source), "dashboard sphere must be derived from saved data: " + source);
+  }
+  assert.ok(orb.includes("useReducedMotion()"));
+  assert.ok(orb.includes("rotateY: 360"));
+  assert.ok(orb.includes("preserve-3d"));
+  assert.ok(orb.includes("onClick={() => onSelectModule(item.moduleId)}"));
+  assert.ok(styles.includes(".dashboard-data-orb-grid"));
+  assert.ok(styles.includes(".dashboard-data-orb-node"));
+  assert.ok(styles.includes("perspective:700px"));
+  assert.ok(styles.includes("backface-visibility:hidden"));
+});
