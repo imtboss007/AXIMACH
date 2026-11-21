@@ -236,6 +236,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
  const factoryById = new Map([...rows(currentData,"factories"),...incomingFactories].map(row => [row.id,row]));
  const factoryAllowed = id => {
   if (!id) return false;
+  if (privileged) return companyIds.has(factoryById.get(id)?.companyId);
   if (assignedFactories.size) return assignedFactories.has(id);
   return companyIds.has(factoryById.get(id)?.companyId);
  };
@@ -281,7 +282,12 @@ export function validateManufacturingWrite(currentData, incoming, user) {
  const deny = collection => ({ok:false,error:collection+" contains a record outside this user's assigned company/factory scope."});
  for (const collection of ARRAY_FIELDS) {
   const values=rows(incoming,collection);
-  if (MASTER_FIELDS.has(collection) && values.length && !privileged) return {ok:false,error:collection+" is a shared master directory and can only be changed by an administrator."};
+  if (MASTER_FIELDS.has(collection) && values.length && !privileged) {
+   const currentById=new Map(rows(currentData,collection).map(item=>[item.id,item]));
+   if(values.some(row=>!currentById.has(row?.id)||JSON.stringify(currentById.get(row.id))!==JSON.stringify(row))) {
+    return {ok:false,error:collection+" is a shared master directory and can only be changed by an administrator."};
+   }
+  }
   for (const row of values) {
    if (!row || typeof row.id!=="string" || !row.id || !safeId(collection,row)) return deny(collection);
    let allowed=false;
@@ -356,12 +362,12 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      const creator=target?.createdBy||"";
      const approver=String(user?.id||"");
      const oldApproval=rows(currentData,"supplierFinanceApprovals").find(value=>value.id===row.id);
-     allowed=(privileged||user?.role==="manager")&&Boolean(target)&&target.status==="Submitted"&&
+     const unchangedApproval=Boolean(oldApproval&&JSON.stringify(oldApproval)===JSON.stringify(row));
+     const mayCreateDecision=(!prior||prior.decision!=="Approved")&&(!prior||(Date.parse(target?.updatedAt||"")||0)>(Date.parse(prior.decidedAt||"")||0));
+     allowed=!user?.legacy&&(privileged||user?.role==="manager")&&Boolean(target)&&target.status==="Submitted"&&
       typeof row.id==="string"&&["Approved","Rejected","Returned"].includes(row.decision)&&
-      creator!==approver&&
-      (!prior||prior.decision!=="Approved")&&
-      (!prior||(Date.parse(target.updatedAt||"")||0)>(Date.parse(prior.decidedAt||"")||0))&&
-      (!oldApproval||JSON.stringify(oldApproval)===JSON.stringify(row));
+      creator!==approver&&(unchangedApproval||mayCreateDecision)&&
+      (!oldApproval||unchangedApproval);
      break;
     }
     case "supplierPaymentAllocations": {
