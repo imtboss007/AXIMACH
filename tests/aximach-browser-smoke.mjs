@@ -106,6 +106,27 @@ try {
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Quality Inspection");
   console.log("PASS module universe and global command-search navigation");
 
+  // Verify the new cross-module Manufacturing Universe graph and its preserved PO route mode.
+  await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Manufacturing Universe"]').click();
+  await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Manufacturing Universe");
+  await page.locator(".ax-ecosystem-graph").waitFor({ timeout: 15000 });
+  if (await page.locator(".ax-ecosystem-filters button").count() !== 12) {
+    throw new Error("Manufacturing ecosystem graph does not expose all 12 entity filters.");
+  }
+  const companiesFilter = page.locator(".ax-ecosystem-filters button").filter({ hasText: "Companies" });
+  await companiesFilter.click();
+  if (await companiesFilter.getAttribute("aria-pressed") !== "false") {
+    throw new Error("Manufacturing ecosystem entity filter did not toggle off.");
+  }
+  await companiesFilter.click();
+  await page.getByRole("button", { name: /PO route/i }).click();
+  if (await page.locator(".manufacturing-universe-empty").count() !== 1 && await page.locator(".process-universe-3d").count() !== 1) {
+    throw new Error("Manufacturing Universe did not preserve its PO route scene.");
+  }
+  await page.getByRole("button", { name: /Ecosystem/i }).click();
+  await page.locator(".ax-ecosystem-graph").waitFor();
+  console.log("PASS Manufacturing Universe ecosystem graph, 12 filters and preserved PO route view");
+
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "networkidle" });
   // Verify the mobile Dashboard keeps its separate live six-record 3D shell visible.
