@@ -33,7 +33,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
   const userMode = getServerAuthMode() === "users";
   const apiKeyMode = typeof window !== "undefined" && Boolean(window.localStorage.getItem("aximach.scheduler.key") && baseUrl && !userMode && window.localStorage.getItem("aximach.storage.mode") !== "local-only");
   const localOnly = typeof window === "undefined" || window.localStorage.getItem("aximach.storage.mode") === "local-only" || (!baseUrl && !apiKeyMode && !userMode);
-  const actorId = session?.user.id || (apiKeyMode ? "legacy-api-key" : "local-user");
+  const actorId = session?.user.id || "local-user";
   const actorRole: "admin" | "manager" | "operator" | "viewer" =
     session?.user.role || (apiKeyMode || localOnly ? "admin" : "operator");
   const canWrite = actorRole !== "viewer";
