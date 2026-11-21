@@ -37,6 +37,7 @@ const RouteFlowWorkspace = lazy(() => import("./RouteFlowWorkspace"));
 const ManufacturingUniverseWorkspace = lazy(() => import("./ManufacturingUniverseWorkspace"));
 const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
 const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
+const IntegrationHubWorkspace = lazy(() => import("./IntegrationHubWorkspace"));
 import { activeRows, emptyManufacturingData, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 import { AXIMACH_DEMO_ID_PREFIX, archiveAxMachTwoCompanyDemo, createAxMachTwoCompanyDemo } from "./aximachDemoData";
 
@@ -85,7 +86,8 @@ const modules: ModuleItem[] = [
   { id: "communications", title: "Follow-up Centre", group: "Connections", description: "Contact follow-ups, reminders, WhatsApp-related communication and history.", icon: MessageCircle, action: "Open follow-up centre" },
   { id: "reports", title: "Reports & Analytics", group: "Insights", description: "PO, component, process, vendor, production, delivery and financial reporting.", icon: BarChart3, action: "Open reports and analytics" },
   { id: "ai-insights", title: "AI Insights", group: "Insights", description: "Evidence-based insights from saved AXIMACH operational and financial data.", icon: Sparkles, action: "Open AI insights" },
-  { id: "export", title: "Data Exchange Centre", group: "Data", description: "Import and export records, validate files, review duplicates and create full backups.", icon: FileDown, action: "Open data exchange centre" }
+  { id: "export", title: "Data Exchange Centre", group: "Data", description: "Import and export records, validate files, review duplicates and create full backups.", icon: FileDown, action: "Open data exchange centre" },
+  { id: "integrations", title: "Integrations & API", group: "Platform", description: "Governed integration directory, server connector readiness and external service catalogue.", icon: Plug, action: "Open integrations and API" }
 ];
 
 const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) => item.group)))];
@@ -435,6 +437,8 @@ function App() {
           <VendorWorkspace initialSearch={vendorSearchJump} initialVendorId={moduleContext.vendorId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onScheduleVendor={openVendorFollowUp} onAddContactForVendor={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
         ) : activeModuleId === "communications" ? (
           <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} initialRecipient={followUpSeed} />
+        ) : activeModuleId === "integrations" ? (
+          <IntegrationHubWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : (
           <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         )}
