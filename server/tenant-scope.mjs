@@ -155,13 +155,14 @@ function resolveAccess(data, user) {
   (row.linkedType === "company" && companyAllowed(row.linkedId)) ||
   (row.linkedType === "vendor" && vendorIds.has(row.linkedId))
  );
+ const vendorLinkedToCompany = (vendorId,companyId) => vendorIds.has(vendorId) && Boolean(vendorOwners.get(vendorId)?.has(companyId));
  const supplierInvoices = rows(data,"supplierInvoices").filter(row =>
-  companyAllowed(row.companyId) && factoryAllowed(row.factoryId) && vendorIds.has(row.vendorId) &&
+  companyAllowed(row.companyId) && factoryAllowed(row.factoryId) && vendorLinkedToCompany(row.vendorId,row.companyId) &&
   (!row.poId || (purchaseOrderIds.has(row.poId) && rows(data,"purchaseOrders").some(po=>po.id===row.poId&&po.companyId===row.companyId&&po.factoryId===row.factoryId))) &&
   (!row.poLineId || lineIds.has(row.poLineId))
  );
  const supplierPayments = rows(data,"supplierPayments").filter(row =>
-  companyAllowed(row.companyId) && factoryAllowed(row.factoryId) && vendorIds.has(row.vendorId)
+  companyAllowed(row.companyId) && factoryAllowed(row.factoryId) && vendorLinkedToCompany(row.vendorId,row.companyId)
  );
  const invoiceIds = ids(supplierInvoices), supplierPaymentIds = ids(supplierPayments);
  const supplierFinanceApprovals = rows(data,"supplierFinanceApprovals").filter(row =>
@@ -183,7 +184,7 @@ function resolveAccess(data, user) {
   entityIds.has(row.recordId) && (!row.contactId || contactProfileIds.has(row.contactId))
  );
  return {
-  companyIds, factoryIds, purchaseOrderIds, lineIds, componentIds, operationIds, vendorIds,
+  companyIds, factoryIds, purchaseOrderIds, lineIds, componentIds, operationIds, vendorIds, vendorOwners,
   materialIds, processDefinitionIds, transportRouteIds, entityIds,
   companies,factories,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
   paymentTransactions,inspectionMeasurements,materialProcessLinks,inventoryTransactions,
@@ -274,6 +275,8 @@ export function validateManufacturingWrite(currentData, incoming, user) {
  };
  const invoiceAllocations = [...combinedById("supplierPaymentAllocations").values()].filter(row=>!row.deletedAt);
  const validMoney = value => Number.isFinite(Number(value)) && Number(value)>=0;
+ const vendorAllowedForCompany = (vendorId,companyId) => vendorIds.has(vendorId) &&
+  (privileged || Boolean(access.vendorOwners?.get(vendorId)?.has(companyId)));
  const validIsoDate = value => typeof value==="string"&&/^\\d{4}-\\d{2}-\\d{2}$/.test(value)&&
   Number.isFinite(Date.parse(value+"T00:00:00.000Z"))&&new Date(value+"T00:00:00.000Z").toISOString().slice(0,10)===value;
 
@@ -341,7 +344,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
       .some(other=>other.id!==row.id&&!other.deletedAt&&other.companyId===row.companyId&&other.vendorId===row.vendorId&&String(other.invoiceNumber||"").trim().toLowerCase()===String(row.invoiceNumber||"").trim().toLowerCase());
      const priorInvoice=rows(currentData,"supplierInvoices").find(other=>other.id===row.id);
      const isApproved=approvalIsCurrent("invoice",row.id);
-     allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorIds.has(row.vendorId)&&
+     allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorAllowedForCompany(row.vendorId,row.companyId)&&
       (!row.poId||(Boolean(linkedPO)&&linkedPO.companyId===row.companyId&&linkedPO.factoryId===row.factoryId))&&
       (!row.poLineId||(Boolean(linkedPO)&&lines.has(row.poLineId)&&rows(linkedPO,"lines").some(line=>line.id===row.poLineId)))&&
       typeof row.invoiceNumber==="string"&&Boolean(row.invoiceNumber.trim())&&row.invoiceNumber.trim().length<=128&&!duplicateNumber&&
