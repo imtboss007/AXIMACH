@@ -6,6 +6,8 @@ AXIMACH is being developed as an AI-native manufacturing operating system for pr
 
 ## Current state
 
+The follow-on feature branch now also exposes a 21st **Integrations & API** workspace: an administrator-scoped registry of 120 tools/frameworks/providers from the requested ecosystem. It uses Zod to validate the returned catalogue and Apache ECharts to visualise capability coverage. Endpoint configuration is shown without exposing secret values, and an environment variable being present is explicitly not treated as a successful service health check.
+
 The GitHub repository is the canonical source of truth for AXIMACH code, configuration, issue tracking, build workflows and release artifacts. Work should be committed here rather than maintained in a disconnected copy.
 
 The repository now includes **linked manufacturing master workflows and an optional persistent JSON-backed server API**. It is still a work in progress—not a production-ready ERP, deployed multi-tenant system, or live factory telemetry platform.
