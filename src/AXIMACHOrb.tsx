@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, useMotionValue, useReducedMotion } from "motion/react";
-import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, GitBranch, Layers3, MessageCircle, Network, Package, Sparkles, Truck, Users, Wallet } from "lucide-react";
+import { Activity, BarChart3, Box, Boxes, Building2, CircleDollarSign, ClipboardCheck, FileDown, GitBranch, Layers3, MessageCircle, Network, Package, Plug, Sparkles, Truck, Users, Wallet } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
 import AXIMACHWebGLSphere from "./AXIMACHWebGLSphere";
 
@@ -34,6 +34,7 @@ const satellites = [
   { id: "reports", label: "Reports", Icon: BarChart3 },
   { id: "ai-insights", label: "AI Insights", Icon: Sparkles },
   { id: "export", label: "Import / Export", Icon: FileDown },
+  { id: "integrations", label: "Integrations & API", Icon: Plug },
 ];
 
 export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
@@ -191,7 +192,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
         <motion.div
           className="ax-orb-module-shell"
           style={{ transformStyle: "preserve-3d", scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1) }}
-          aria-label="20 clickable AXIMACH modules"
+          aria-label="21 clickable AXIMACH modules"
         >
           {satellites.map(({ id, label, Icon }, index) => {
             // Fibonacci-sphere placement distributes all 20 module controls
