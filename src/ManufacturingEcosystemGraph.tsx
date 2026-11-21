@@ -125,7 +125,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       const rows=[["record_type","id","label","entity_type","module","detail","from_id","to_id","relationship"]];
       graph.nodes.forEach(node=>rows.push(["node",node.id,node.label,node.kind,node.moduleId,node.detail,"","",""]));
       graph.edges.forEach(edge=>rows.push(["relationship",edge.id,"","", "", "",edge.from,edge.to,edge.kind]));
-      body=rows.map(row=>row.map(quote).join(",")).join("\\r\\n");
+      body=rows.map(row=>row.map(quote).join(",")).join("\r\n");
       mime="text/csv;charset=utf-8";
     }else{
       const lines=graph.edges.map(edge=>{const from=graph.nodes.find(node=>node.id===edge.from),to=graph.nodes.find(node=>node.id===edge.to);return from&&to?'<line x1="'+(from.x*10)+'" y1="'+(from.y*7)+'" x2="'+(to.x*10)+'" y2="'+(to.y*7)+'"/>':"";}).join("");
