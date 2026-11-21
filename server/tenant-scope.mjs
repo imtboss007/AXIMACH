@@ -288,8 +288,8 @@ export function validateManufacturingWrite(currentData, incoming, user) {
  for (const collection of ARRAY_FIELDS) {
   const values=rows(incoming,collection);
   if (MASTER_FIELDS.has(collection) && values.length && !privileged) {
-   const currentById=new Map(rows(currentData,collection).map(item=>[item.id,item]));
-   if(values.some(row=>!currentById.has(row?.id)||JSON.stringify(currentById.get(row.id))!==JSON.stringify(row))) {
+   const visibleMasterById=new Map(rows(access,collection).map(item=>[item.id,item]));
+   if(values.some(row=>!visibleMasterById.has(row?.id)||JSON.stringify(visibleMasterById.get(row.id))!==JSON.stringify(row))) {
     return {ok:false,error:collection+" is a shared master directory and can only be changed by an administrator."};
    }
   }
