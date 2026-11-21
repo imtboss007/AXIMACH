@@ -349,7 +349,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
       (!row.poLineId||(Boolean(linkedPO)&&lines.has(row.poLineId)&&rows(linkedPO,"lines").some(line=>line.id===row.poLineId)))&&
       typeof row.invoiceNumber==="string"&&Boolean(row.invoiceNumber.trim())&&row.invoiceNumber.trim().length<=128&&!duplicateNumber&&
       validIsoDate(row.invoiceDate)&&validIsoDate(row.dueDate)&&row.dueDate>=row.invoiceDate&&
-      ["Draft","Submitted","Voided"].includes(row.status)&&
+      ["Draft","Submitted","Voided"].includes(row.status)&&row.currency==="INR"&&
       validMoney(row.subtotal)&&validMoney(row.taxAmount)&&Number(row.totalAmount)>0&&
       Math.abs(Number(row.totalAmount)-(Number(row.subtotal)+Number(row.taxAmount)))<=0.02&&
       typeof row.createdBy==="string"&&Boolean(row.createdBy)&&
@@ -366,7 +366,8 @@ export function validateManufacturingWrite(currentData, incoming, user) {
       );
      allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorAllowedForCompany(row.vendorId,row.companyId)&&
       ["Draft","Submitted","Voided"].includes(row.status)&&validIsoDate(row.paymentDate)&&
-      ["Bank transfer","UPI","Cheque","Cash","Other"].includes(row.method)&&
+      ["Bank transfer","UPI","Cheque","Cash","Other"].includes(row.method)&&row.currency==="INR"&&
+      String(row.bankReference||"").length<=128&&
       (!["Bank transfer","UPI","Cheque"].includes(row.method)||Boolean(String(row.bankReference||"").trim()))&&
       Number.isFinite(Number(row.amount))&&Number(row.amount)>0&&!duplicateReference&&typeof row.createdBy==="string"&&Boolean(row.createdBy)&&
       (!priorPayment||!isApproved||JSON.stringify(priorPayment)===JSON.stringify(row));
