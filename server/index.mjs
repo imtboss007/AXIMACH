@@ -337,9 +337,39 @@ const server = createServer(async (req, res) => {
         return json(res, 409, { error: "The server was restored since this device last synced. Refresh shared data before writing.", restoreGeneration: currentGeneration });
       }
       if (!input.data || typeof input.data !== "object" || Array.isArray(input.data)) return json(res, 400, { error: "data must be an AXIMACH manufacturing data object." });
-      const scopeValidation = validateManufacturingWrite(db.manufacturingData || {}, input.data, principal);
-      if (!scopeValidation.ok) return json(res, 403, { error: scopeValidation.error });
       for (const collection of manufacturingCollections) if (input.data[collection] !== undefined && !Array.isArray(input.data[collection])) return json(res, 400, { error: collection + " must be an array." });
+      const currentManufacturing = db.manufacturingData || {};
+      const currentInvoices = new Map((currentManufacturing.supplierInvoices || []).filter(row=>row?.id).map(row=>[row.id,row]));
+      const currentSupplierPayments = new Map((currentManufacturing.supplierPayments || []).filter(row=>row?.id).map(row=>[row.id,row]));
+      if (Array.isArray(input.data.supplierInvoices)) {
+        input.data.supplierInvoices = input.data.supplierInvoices.map(row => {
+          const prior = currentInvoices.get(row.id);
+          const createdBy = prior?.createdBy || (authService ? principal.id : (row.createdBy || "local-user"));
+          return { ...row, createdBy };
+        });
+      }
+      if (Array.isArray(input.data.supplierPayments)) {
+        input.data.supplierPayments = input.data.supplierPayments.map(row => {
+          const prior = currentSupplierPayments.get(row.id);
+          const createdBy = prior?.createdBy || (authService ? principal.id : (row.createdBy || "local-user"));
+          return { ...row, createdBy };
+        });
+      }
+      if (Array.isArray(input.data.supplierFinanceApprovals)) {
+        const currentApprovals = new Map((currentManufacturing.supplierFinanceApprovals || []).filter(row=>row?.id).map(row=>[row.id,row]));
+        input.data.supplierFinanceApprovals = input.data.supplierFinanceApprovals.map(row => {
+          const prior = currentApprovals.get(row.id);
+          if (prior) return prior;
+          return {
+            ...row,
+            decidedBy: principal.id,
+            decidedByRole: principal.role === "manager" ? "manager" : "admin",
+            decidedAt: new Date().toISOString()
+          };
+        });
+      }
+      const scopeValidation = validateManufacturingWrite(currentManufacturing, input.data, principal);
+      if (!scopeValidation.ok) return json(res, 403, { error: scopeValidation.error });
       const encoded = JSON.stringify(input.data);
       if (encoded.length > 8_000_000) return json(res, 413, { error: "Manufacturing data exceeds the 8 MB limit." });
       db.manufacturingData = mergeManufacturingData(db.manufacturingData, input.data);
