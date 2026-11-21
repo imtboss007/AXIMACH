@@ -313,7 +313,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
         <button className="button-primary" onClick={beginAdd}><Plus size={15}/> {moduleId === "companies" ? "Add Company" : moduleId === "purchasing" ? "Create Purchase Order" : "Add Component"}</button>
       </div>
     </div>
-    {false && moduleId === "companies" && <div className="costing-tabs">
+    {moduleId === "companies" && <div className="costing-tabs">
       <button className={tab === "companies" ? "costing-tab-active" : ""} onClick={() => { setTab("companies"); resetForms(); }}><Building2 size={15}/> Companies ({companies.length})</button>
       <button className={tab === "factories" ? "costing-tab-active" : ""} onClick={() => { setTab("factories"); resetForms(); }}><Factory size={15}/> Factories ({factories.length})</button>
     </div>}
