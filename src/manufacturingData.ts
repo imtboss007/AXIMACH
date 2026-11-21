@@ -137,7 +137,7 @@ export type SupplierPaymentRecord = {
 export type SupplierFinanceApprovalRecord = {
   id: string; targetType: "invoice" | "payment"; targetId: string;
   decision: "Approved" | "Rejected" | "Returned"; decidedBy: string; decidedByRole: "admin" | "manager";
-  comments: string; decidedAt: string; createdAt: string; updatedAt: string; deletedAt?: string;
+  comments: string; decidedAt: string; targetUpdatedAt?: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type SupplierPaymentAllocationRecord = {
   id: string; paymentId: string; invoiceId: string; amount: number; notes: string;
