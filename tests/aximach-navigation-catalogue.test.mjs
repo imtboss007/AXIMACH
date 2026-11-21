@@ -92,3 +92,23 @@ test("mobile dashboard preserves the six live record nodes in the rotating 3D sh
   assert.match(styles, /@media\(max-width:620px\)[\s\S]*?\.ax-orb-lower-summary-grid\s*\{\s*display:none!important/);
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
 });
+
+
+test("Manufacturing Universe defaults to a live cross-module ecosystem graph and preserves PO route mode", async () => {
+  const workspace = await readSource("src/ManufacturingUniverseWorkspace.tsx");
+  const graph = await readSource("src/ManufacturingEcosystemGraph.tsx");
+  const styles = await readSource("src/aximach-ui.css");
+  assert.ok(workspace.includes('useState<"ecosystem"|"route">("ecosystem")'));
+  assert.ok(workspace.includes('<ManufacturingEcosystemGraph data={data}'));
+  assert.ok(workspace.includes('universeView==="route"'));
+  for (const source of ["data.companies","data.factories","data.purchaseOrders","data.components","data.vendors","data.processDefinitions","data.operations","data.materialCostEntries","data.inspectionMeasurements","data.transportLegs","data.paymentTransactions","data.contactProfiles"]) {
+    assert.ok(graph.includes(source), "ecosystem graph must read live source records: "+source);
+  }
+  for (const relation of ['"placed by"','"orders"','"performed by"','"supplied by"','"inspects"','"carried by"','"paid to"','"contact for"']) {
+    assert.ok(graph.includes(relation), "ecosystem graph is missing saved-ID relationship: "+relation);
+  }
+  assert.ok(graph.includes('visibleKinds'));
+  assert.ok(graph.includes('onNavigate(selected.moduleId,selected.context)'));
+  assert.ok(styles.includes(".ax-ecosystem-stage"));
+  assert.ok(styles.includes(".ax-ecosystem-node"));
+});
