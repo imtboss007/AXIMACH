@@ -81,3 +81,14 @@ test("Dashboard has five separate live 3D data shells with real module navigatio
   assert.ok(styles.includes("perspective:700px"));
   assert.ok(styles.includes("backface-visibility:hidden"));
 });
+
+
+test("mobile dashboard preserves the six live record nodes in the rotating 3D shell", async () => {
+  const orb = await readSource("src/AXIMACHOrb.tsx");
+  const styles = await readSource("src/aximach-ui.css");
+  assert.ok(orb.includes('className="ax-orb-lower-shell"'));
+  assert.ok(orb.includes('className="ax-orb-lower-summary-grid"'));
+  assert.match(styles, /@media\(max-width:620px\)[\s\S]*?\.ax-orb-lower-shell\s*\{[^}]*display:block!important/);
+  assert.match(styles, /@media\(max-width:620px\)[\s\S]*?\.ax-orb-lower-summary-grid\s*\{\s*display:none!important/);
+  assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
+});
