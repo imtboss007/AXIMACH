@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
-import { Activity, Network } from "lucide-react";
+import { Activity, FileDown, Network } from "lucide-react";
 import { activeRows, type ManufacturingData } from "./manufacturingData";
 
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
@@ -26,6 +26,7 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
 export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
   const [visibleKinds,setVisibleKinds]=useState<NodeKind[]>(GROUPS.map(group=>group.kind));
   const [selectedId,setSelectedId]=useState("");
+  const [exportFormat,setExportFormat]=useState<"svg"|"csv"|"json">("svg");
   const graph=useMemo(()=>{
     const nodes:GraphNode[]=[];
     const edges:GraphEdge[]=[];
@@ -114,10 +115,31 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
   },[data,visibleKinds]);
   const byId=new Map(graph.nodes.map(node=>[node.id,node]));
   const selected=graph.nodes.find(node=>node.id===selectedId);
+  const exportGraph=()=>{
+    const escapeXml=(value:string)=>value.replace(/[<>&"']/g,char=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&apos;"}[char]||char));
+    let body="",mime="application/json",extension=exportFormat;
+    if(exportFormat==="json"){
+      body=JSON.stringify({generatedAt:new Date().toISOString(),nodes:graph.nodes,relationships:graph.edges},null,2);
+    }else if(exportFormat==="csv"){
+      const quote=(value:unknown)=>'"'+String(value??"").replace(/"/g,'""')+'"';
+      const rows=[["record_type","id","label","entity_type","module","detail","from_id","to_id","relationship"]];
+      graph.nodes.forEach(node=>rows.push(["node",node.id,node.label,node.kind,node.moduleId,node.detail,"","",""]));
+      graph.edges.forEach(edge=>rows.push(["relationship",edge.id,"","", "", "",edge.from,edge.to,edge.kind]));
+      body=rows.map(row=>row.map(quote).join(",")).join("\\r\\n");
+      mime="text/csv;charset=utf-8";
+    }else{
+      const lines=graph.edges.map(edge=>{const from=graph.nodes.find(node=>node.id===edge.from),to=graph.nodes.find(node=>node.id===edge.to);return from&&to?'<line x1="'+(from.x*10)+'" y1="'+(from.y*7)+'" x2="'+(to.x*10)+'" y2="'+(to.y*7)+'"/>':"";}).join("");
+      const nodes=graph.nodes.map(node=>'<g><rect x="'+(node.x*10-72)+'" y="'+(node.y*7-20)+'" width="144" height="40" rx="7" fill="#fff" stroke="'+(GROUPS.find(group=>group.kind===node.kind)?.color||"#789")+'"/><text x="'+(node.x*10)+'" y="'+(node.y*7+4)+'" text-anchor="middle" font-family="Arial" font-size="12" fill="#24445f">'+escapeXml(node.label.slice(0,24))+'</text></g>').join("");
+      body='<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700"><rect width="1000" height="700" fill="#edf4fb"/>'+lines+nodes+'<circle cx="500" cy="350" r="54" fill="#cce7f7" stroke="#2875bd"/><text x="500" y="354" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="17" fill="#17618f">AXIMACH</text></svg>';
+      mime="image/svg+xml;charset=utf-8";
+    }
+    const blob=new Blob([body],{type:mime}),url=URL.createObjectURL(blob),anchor=document.createElement("a");
+    anchor.href=url;anchor.download="aximach-manufacturing-ecosystem."+extension;document.body.appendChild(anchor);anchor.click();anchor.remove();URL.revokeObjectURL(url);
+  };
   return <section className="ax-ecosystem-graph" aria-label="Live manufacturing ecosystem graph">
     <header className="ax-ecosystem-graph-head">
       <div><span className="eyebrow">CROSS-MODULE RELATIONSHIP MAP</span><h3>Connected manufacturing ecosystem</h3><p>Live links are derived from saved company, PO, component, vendor, process, material, quality, dispatch and payment records. Missing references are not fabricated.</p></div>
-      <div className="ax-ecosystem-graph-count"><Network size={15}/><strong>{graph.nodes.length}</strong><small>visible records</small><span>{graph.edges.length} verified links</span></div>
+      <div className="ax-ecosystem-graph-count"><Network size={15}/><strong>{graph.nodes.length}</strong><small>visible records</small><span>{graph.edges.length} verified links</span></div><div className="ax-ecosystem-export"><select aria-label="Ecosystem export format" value={exportFormat} onChange={event=>setExportFormat(event.target.value as typeof exportFormat)}><option value="svg">SVG</option><option value="csv">CSV</option><option value="json">JSON</option></select><button type="button" onClick={exportGraph}><FileDown size={13}/> Export graph</button></div>
     </header>
     <div className="ax-ecosystem-filters" aria-label="Show or hide entity groups">
       {graph.totals.map(group=><button type="button" key={group.kind} aria-pressed={visibleKinds.includes(group.kind)} onClick={()=>setVisibleKinds(current=>current.includes(group.kind)?current.filter(kind=>kind!==group.kind):[...current,group.kind])}><i style={{background:group.color}}/><span>{group.title}</span><b>{group.count}</b></button>)}
