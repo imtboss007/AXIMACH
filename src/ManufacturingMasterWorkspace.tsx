@@ -95,6 +95,12 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const [poStatusFilters, setPoStatusFilters] = useState<string[]>([]);
   const [openedPoId, setOpenedPoId] = useState("");
   useEffect(() => {
+    if (moduleId === "companies") {
+      const target=navigationContext?.companyId?companies.find(row=>row.id===navigationContext.companyId):undefined;
+      setTab("companies");
+      setSelectedCompanyId(target?.id||"");
+      setSearch(target?.name||"");
+    }
     if (moduleId === "purchasing") {
       setPoCompanyFilters(navigationContext?.companyId ? [navigationContext.companyId] : []);
       setSearch("");
@@ -113,7 +119,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
         setComponentNumberFilters([]);
       }
     }
-  }, [moduleId, navigationContext?.companyId, navigationContext?.poId, navigationContext?.componentId, components.length]);
+  }, [moduleId, navigationContext?.companyId, navigationContext?.poId, navigationContext?.componentId, companies.length, components.length]);
   const openedOrder = orders.find(order => order.id === openedPoId);
   useEffect(() => {
     if (openedPoId) document.getElementById("po-open-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
