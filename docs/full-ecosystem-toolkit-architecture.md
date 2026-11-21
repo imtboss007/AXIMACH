@@ -15,7 +15,7 @@ No merge to main, deployment, production connection, paid subscription, public r
 Inspected on branch integrate/35-toolkit-ui-audit:
 
 - React 19, Vite, TypeScript, custom AXIMACH CSS, Motion, Lucide and Tabler icons.
-- Existing 20-module navigation catalogue and dashboard/3D command-centre surfaces.
+- Initial baseline was the 20-module navigation catalogue and dashboard/3D command-centre surfaces; the follow-on implementation adds Integrations & API as workspace 21.
 - Existing Manufacturing Universe graph and Route Flow workspace.
 - Existing local-first manufacturing data with an optional JSON-backed API.
 - Existing ExcelJS and PptxGenJS export dependencies.
@@ -362,3 +362,8 @@ A candidate is not “integrated” merely because it appears in this document. 
 - **Rejected:** licence, security, maintenance, data-rights or architecture concerns make it unsuitable.
 
 Keep this status, upstream version, licence, owner and test evidence in the integration registry. Do not claim completion until the relevant tests pass.
+
+
+## Implementation delivered after this architecture baseline
+
+The first execution slice adds a 21st Integrations & API workspace, a protected server catalogue endpoint containing 120 entries from the submitted list, ECharts 6.1.0 and Zod 4.6.7. The UI validates the catalogue response with Zod and displays ecosystem categories with ECharts. Server readiness checks disclose only whether selected endpoint variables are present; they do not claim that the service is reachable or healthy. Automated unit/API/browser/build verification is required before the slice is considered accepted.
