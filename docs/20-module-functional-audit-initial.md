@@ -39,7 +39,7 @@
 | 17 | Follow-up Centre | Contact follow-up assignments and linked records exist; optional WhatsApp-related integration workspace. | Validate reminders, due dates, assignments and history. Provider credentials, delivery webhooks, reply state and messaging consent are not guaranteed by the UI or by local source. |
 | 18 | Reports & Analytics | Dashboard summaries/recent operations/exceptions/master records/production status are derived from saved data; existing export utilities are present. | Add richer analytic dashboards (ECharts is a candidate), audit report definitions, date/tenant filters, source drilldowns and file-content tests. |
 | 19 | AI Insights | Module entry and evidence-based insight workspace exist in the catalogue. | A connected production AI model/tool endpoint is not established simply by the UI. Add constrained agent actions, evidence links, permissions, human approvals, audit events and fallback behaviour. A2UI/CopilotKit/AI SDK are candidates, not yet integrated. |
-| 20 | Data Exchange Centre | Import/export workspace, synthetic isolated Demo Factory, Excel/PPTX dependencies and backup/data merge flows exist. | End-to-end test each file format, schema validation, dry-run, duplicate/error report, idempotency, rollback, backup restore and real cross-device server mode. |
+| 20 | Data Exchange Centre | Import/export workspace, synthetic isolated Demo Factory, Excel/PPTX dependencies, server backup/restore, integrity validation, pre-restore snapshots, generation guards and an administrator-only audit viewer/export. | End-to-end test all file formats, schema validation, dry-run, duplicate/error report, idempotency, rollback and real cross-device server mode. |
 
 ## Cross-module and global requirements
 
@@ -54,7 +54,7 @@
 - A reusable cross-module browser test harness with seeded identifiable data and create → read in linked module → edit → refresh → delete/archive → dependent record verification.
 - Browser coverage for every action/filter, not just source-string assertions or a page rendering check.
 - Per-module PDF/Excel/export file-content acceptance, and exact route-scope output acceptance for PNG, CSV, SVG, PPTX, Excel, PDF and diagrams.
-- Production acceptance of authentication, role policy and tenant/company/factory boundaries; migration from the optional JSON file store to a production relational database; formal audit retention/tamper evidence; backup/restore exercises and multi-device sync acceptance. A bounded operational audit trail and integrity-checked backup/restore API now exist.
+- Production acceptance of authentication, role policy and tenant/company/factory boundaries; migration from the optional JSON file store to a production relational database; external tamper-evident retention; backup/restore exercises and multi-device sync acceptance. The metadata-only audit trail is implemented in the shared server, persists up to 10,000 events, is included in backup/restore, and is exposed through an administrator-only UI/API.
 - Structured accounts payable/invoice/payment allocations and approval controls.
 - File-backed POD and split-delivery workflow.
 - Lot/serial traceability, formal quality disposition/release and machine-derived output reconciliation.
