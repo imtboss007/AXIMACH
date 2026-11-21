@@ -274,6 +274,8 @@ export function validateManufacturingWrite(currentData, incoming, user) {
  };
  const invoiceAllocations = [...combinedById("supplierPaymentAllocations").values()].filter(row=>!row.deletedAt);
  const validMoney = value => Number.isFinite(Number(value)) && Number(value)>=0;
+ const validIsoDate = value => typeof value==="string"&&/^\\d{4}-\\d{2}-\\d{2}$/.test(value)&&
+  Number.isFinite(Date.parse(value+"T00:00:00.000Z"))&&new Date(value+"T00:00:00.000Z").toISOString().slice(0,10)===value;
 
  const materialIds = access.materialIds;
  const processIds = access.processDefinitionIds;
@@ -342,7 +344,8 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorIds.has(row.vendorId)&&
       (!row.poId||(Boolean(linkedPO)&&linkedPO.companyId===row.companyId&&linkedPO.factoryId===row.factoryId))&&
       (!row.poLineId||(Boolean(linkedPO)&&lines.has(row.poLineId)&&rows(linkedPO,"lines").some(line=>line.id===row.poLineId)))&&
-      typeof row.invoiceNumber==="string"&&Boolean(row.invoiceNumber.trim())&&!duplicateNumber&&
+      typeof row.invoiceNumber==="string"&&Boolean(row.invoiceNumber.trim())&&row.invoiceNumber.trim().length<=128&&!duplicateNumber&&
+      validIsoDate(row.invoiceDate)&&validIsoDate(row.dueDate)&&row.dueDate>=row.invoiceDate&&
       ["Draft","Submitted","Voided"].includes(row.status)&&
       validMoney(row.subtotal)&&validMoney(row.taxAmount)&&Number(row.totalAmount)>0&&
       Math.abs(Number(row.totalAmount)-(Number(row.subtotal)+Number(row.taxAmount)))<=0.02&&
@@ -359,7 +362,9 @@ export function validateManufacturingWrite(currentData, incoming, user) {
        other.vendorId===row.vendorId&&String(other.bankReference||"").trim().toLowerCase()===String(row.bankReference||"").trim().toLowerCase()
       );
      allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorIds.has(row.vendorId)&&
-      ["Draft","Submitted","Voided"].includes(row.status)&&Number.isFinite(Date.parse(row.paymentDate||""))&&
+      ["Draft","Submitted","Voided"].includes(row.status)&&validIsoDate(row.paymentDate)&&
+      ["Bank transfer","UPI","Cheque","Cash","Other"].includes(row.method)&&
+      (!["Bank transfer","UPI","Cheque"].includes(row.method)||Boolean(String(row.bankReference||"").trim()))&&
       Number.isFinite(Number(row.amount))&&Number(row.amount)>0&&!duplicateReference&&typeof row.createdBy==="string"&&Boolean(row.createdBy)&&
       (!priorPayment||!isApproved||JSON.stringify(priorPayment)===JSON.stringify(row));
      break;
