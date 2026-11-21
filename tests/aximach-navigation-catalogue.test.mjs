@@ -36,3 +36,13 @@ test("Company Directory exposes both company and factory registers", async () =>
   assert.match(source, /setTab\("factories"\)/);
   assert.doesNotMatch(source, /\{false && moduleId === "companies"/);
 });
+
+
+test("Data Exchange import and export workspaces forward real cross-module navigation", async () => {
+  const source = await readSource("src/App.tsx");
+  assert.match(source, /<ExportCentreWorkspace[^>]*onSelectModule=\{onSelectModule\}/);
+  assert.match(source, /<ImportCentreWorkspace[^>]*onSelectModule=\{onSelectModule\}/);
+  assert.match(source, /<DataExchangeWorkspace[^>]*onSelectModule=\{selectModule\}/);
+  assert.doesNotMatch(source, /<ExportCentreWorkspace[^>]*onSelectModule=\{\(\)\s*=>\s*\{\}\}/);
+  assert.doesNotMatch(source, /<ImportCentreWorkspace[^>]*onSelectModule=\{\(\)\s*=>\s*\{\}\}/);
+});
