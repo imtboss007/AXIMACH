@@ -76,6 +76,13 @@ try {
     console.log("PASS module navigation:", id);
   }
 
+  // Verify supplier AP is available even when no component master has been created yet.
+  await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Costing & Payment"]').click();
+  await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Costing & Payment");
+  await page.getByRole("heading", { name: "Supplier invoices & accounts payable" }).waitFor({ timeout: 10000 });
+  await page.getByLabel("Supplier invoice number").waitFor({ timeout: 10000 });
+  console.log("PASS supplier AP register is visible without component master records");
+
   // Exercise Company Directory's factory tab, which was previously hidden.
   await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Company Directory"]').click();
   await page.locator(".costing-tabs").waitFor();
