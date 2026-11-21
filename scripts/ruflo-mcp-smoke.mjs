@@ -1,0 +1,152 @@
+import { spawn } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+
+const VERSION = "3.80.0";
+const STARTUP_TIMEOUT_MS = 120_000;
+const RESPONSE_TIMEOUT_MS = 45_000;
+const root = await mkdtemp(join(tmpdir(), "aximach-ruflo-pilot-"));
+const home = join(root, "home");
+const cwd = join(root, "workspace");
+const cache = join(root, "npm-cache");
+const { mkdir } = await import("node:fs/promises");
+await Promise.all([mkdir(home), mkdir(cwd), mkdir(cache)]);
+
+let child;
+let stdoutBuffer = "";
+let stderrTail = "";
+const pending = new Map();
+let nextId = 1;
+
+function fail(message) {
+  throw new Error(message + (stderrTail ? "\nRuflo stderr (tail):\n" + stderrTail.slice(-4000) : ""));
+}
+
+function onLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("{")) return;
+  try {
+    const message = JSON.parse(trimmed);
+    if (message.id !== undefined && pending.has(message.id)) {
+      const resolve = pending.get(message.id);
+      pending.delete(message.id);
+      resolve(message);
+    }
+  } catch {
+    // Ignore non-protocol stdout lines; only matching JSON-RPC responses count.
+  }
+}
+
+function request(method, params = {}) {
+  const id = nextId++;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error("Timed out waiting for MCP response to " + method));
+    }, RESPONSE_TIMEOUT_MS);
+    pending.set(id, (message) => {
+      clearTimeout(timer);
+      if (message.error) reject(new Error(method + " returned MCP error: " + JSON.stringify(message.error)));
+      else resolve(message.result);
+    });
+    child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n");
+  });
+}
+
+function notify(method, params = {}) {
+  child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method, params }) + "\n");
+}
+
+try {
+  child = spawn("npx", ["--yes", "claude-flow@" + VERSION, "mcp", "start"], {
+    cwd,
+    env: {
+      PATH: process.env.PATH ?? "",
+      HOME: home,
+      XDG_CONFIG_HOME: join(home, ".config"),
+      XDG_CACHE_HOME: cache,
+      npm_config_cache: cache,
+      TMPDIR: root,
+      CI: "true",
+      DO_NOT_TRACK: "1",
+      NODE_ENV: "test",
+    },
+    stdio: ["pipe", "pipe", "pipe"],
+    detached: process.platform !== "win32",
+  });
+
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdoutBuffer += chunk;
+    let newline;
+    while ((newline = stdoutBuffer.indexOf("\n")) >= 0) {
+      const line = stdoutBuffer.slice(0, newline);
+      stdoutBuffer = stdoutBuffer.slice(newline + 1);
+      onLine(line);
+    }
+  });
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk) => {
+    stderrTail = (stderrTail + chunk).slice(-8000);
+  });
+  child.on("error", (error) => {
+    for (const resolve of pending.values()) resolve({ error: { message: error.message } });
+  });
+
+  const exitPromise = new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
+  const startupTimer = setTimeout(() => {
+    if (child.exitCode === null) fail("Ruflo MCP server did not complete its startup handshake in time");
+  }, STARTUP_TIMEOUT_MS);
+
+  const initialized = await request("initialize", {
+    protocolVersion: "2025-11-25",
+    capabilities: {},
+    clientInfo: { name: "aximach-ruflo-isolated-pilot", version: "1.0.0" },
+  });
+  clearTimeout(startupTimer);
+
+  if (!initialized?.serverInfo?.name || !initialized?.protocolVersion) {
+    fail("MCP initialize response did not contain server identity and protocol version");
+  }
+
+  notify("notifications/initialized");
+  const listed = await request("tools/list");
+  const tools = Array.isArray(listed?.tools) ? listed.tools : [];
+  if (!tools.length) fail("MCP handshake succeeded but no tools were listed");
+
+  const names = tools.map((tool) => tool.name).filter(Boolean).sort();
+  if (new Set(names).size !== names.length) fail("MCP tool inventory contains duplicate tool names");
+
+  console.log(JSON.stringify({
+    result: "PASS",
+    pinnedPackage: "claude-flow@" + VERSION,
+    server: initialized.serverInfo,
+    protocolVersion: initialized.protocolVersion,
+    toolCount: names.length,
+    toolNames: names,
+    executedToolCalls: 0,
+    projectFilesExposed: false,
+    credentialsProvided: false,
+    transport: "stdio",
+  }, null, 2));
+} catch (error) {
+  console.error("RUFLO_PILOT_FAIL:", error instanceof Error ? error.stack : String(error));
+  process.exitCode = 1;
+} finally {
+  if (child && child.exitCode === null) {
+    try {
+      if (process.platform !== "win32" && child.pid) process.kill(-child.pid, "SIGTERM");
+      else child.kill("SIGTERM");
+    } catch {}
+    await Promise.race([delay(3000), new Promise((resolve) => child.once("exit", resolve))]);
+    if (child.exitCode === null) {
+      try {
+        if (process.platform !== "win32" && child.pid) process.kill(-child.pid, "SIGKILL");
+        else child.kill("SIGKILL");
+      } catch {}
+    }
+  }
+  await rm(root, { recursive: true, force: true });
+}
