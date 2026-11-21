@@ -6,6 +6,7 @@ import { networkInterfaces } from "node:os";
 import { manufacturingCollections, mergeManufacturingData } from "./manufacturing-data.mjs";
 import { bearerToken, createAuthService, getRequiredPermission, hasPermission } from "./auth.mjs";
 import { filterManufacturingData, filterModuleRecords, hasTenantScope, validateManufacturingWrite } from "./tenant-scope.mjs";
+import { getIntegrationCatalog } from "./integrations/catalog.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
@@ -260,6 +261,9 @@ const server = createServer(async (req, res) => {
   }
   if (restoreInProgress) return json(res, 503, { error: "A restore is in progress; retry after it completes." });
   try {
+    if (url.pathname === "/api/integrations/catalog" && req.method === "GET") {
+      return json(res, 200, getIntegrationCatalog(process.env));
+    }
     if (url.pathname === "/api/backup" && req.method === "GET") {
       const snapshot = JSON.parse(JSON.stringify(db));
       const serialized = JSON.stringify(snapshot);
