@@ -413,6 +413,15 @@ test("server user authentication issues expiring bearer sessions and enforces ro
 
     assert.equal((await fetch(baseUrl + "/api/auth/logout", { method: "POST", headers: adminHeaders })).status, 200);
     assert.equal((await fetch(baseUrl + "/api/manufacturing-data", { headers: adminHeaders })).status, 401, "logout must revoke the bearer session immediately");
+    const reLogin = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: "AXIMACH-admin-Password-2026!" }) });
+    assert.equal(reLogin.status, 200);
+    const reAuthenticatedAdmin = await reLogin.json();
+    const securityAudit = await fetch(baseUrl + "/api/audit-events", { headers: { authorization: "Bearer " + reAuthenticatedAdmin.token } });
+    assert.equal(securityAudit.status, 200);
+    const securityActions = (await securityAudit.json()).events.map(event => event.action);
+    assert.equal(securityActions.includes("auth.login.rejected"), true, "failed sign-ins must be audited");
+    assert.equal(securityActions.includes("auth.login.success"), true, "successful sign-ins must be audited");
+    assert.equal(securityActions.includes("auth.logout"), true, "sign-outs must be audited");
     for (let attempt = 0; attempt < 8; attempt++) {
       const failed = await fetch(baseUrl + "/api/auth/login", {
         method: "POST", headers: { "content-type": "application/json" },
@@ -524,6 +533,9 @@ test("tenant-scoped user reads and writes only its assigned company and related 
     assert.equal((await fetch(baseUrl + "/api/audit-events", { headers: adminHeaders })).status, 200, "administrators can read the shared audit trail");
     const companyHeaders = await login("companya","AXIMACH-companya-Password!");
     assert.equal((await fetch(baseUrl + "/api/audit-events", { headers: companyHeaders })).status, 403, "scoped operators cannot read the global audit trail");
+    const deniedAudit = await fetch(baseUrl + "/api/audit-events", { headers: adminHeaders });
+    const deniedAuditEvents = (await deniedAudit.json()).events;
+    assert.equal(deniedAuditEvents.some(event => event.action === "authorization.denied" && event.actorUsername === "companya" && event.requiredPermission === "audit:read"), true, "failed audit access is itself recorded for administrators");
     const response = await fetch(baseUrl + "/api/manufacturing-data", { headers: companyHeaders });
     assert.equal(response.status,200);
     const scoped = (await response.json()).data;
