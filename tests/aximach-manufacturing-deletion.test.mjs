@@ -14,7 +14,8 @@ const base = () => ({
   ],
   purchaseOrders: [
     row("po-1", { lines: [row("line-1", { componentId: "component-1" }), row("line-2", { componentId: "component-2" })] }),
-    row("po-2", { lines: [row("line-3", { componentId: "component-1" })] })
+    row("po-2", { lines: [row("line-3", { componentId: "component-1" })] }),
+    row("po-empty", { lines: [] })
   ],
   operations: [
     row("op-1", { componentId: "component-1", poId: "po-1", poLineId: "line-1" }),
@@ -86,7 +87,7 @@ test("component deletion removes all dependent PO, route, material and stock lin
 
 test("purchase-order deletion removes PO-specific links and preserves shared component masters and other orders", () => {
   const result = removePurchaseOrderDependents(base(), ["po-1"]);
-  assert.deepEqual(result.purchaseOrders.map((item) => item.id), ["po-2"]);
+  assert.deepEqual(result.purchaseOrders.map((item) => item.id), ["po-2", "po-empty"]);
   assert.deepEqual(result.components.map((item) => item.id), ["component-1", "component-2"]);
   assert.deepEqual(result.operations.map((item) => item.id), ["op-3"]);
   assert.deepEqual(result.quotations, []);
