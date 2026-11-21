@@ -448,6 +448,7 @@ test("tenant-scoped user reads and writes only its assigned company and related 
   const users = [
     { id: "tenant-admin", username: "admin", passwordHash: await hashPassword("AXIMACH-tenant-admin-Password!"), role: "admin" },
     { id: "tenant-a-user", username: "companya", passwordHash: await hashPassword("AXIMACH-companya-Password!"), role: "operator", companyIds: ["company-a"] },
+    { id: "tenant-a-manager", username: "managera", passwordHash: await hashPassword("AXIMACH-managera-Password!"), role: "manager", companyIds: ["company-a"] },
     { id: "tenant-a-viewer", username: "viewera", passwordHash: await hashPassword("AXIMACH-viewera-Password!"), role: "viewer", companyIds: ["company-a"] },
     { id: "tenant-a-factory-user", username: "factorya", passwordHash: await hashPassword("AXIMACH-factorya-Password!"), role: "operator", factoryIds: ["factory-a"] },
     { id: "tenant-unassigned", username: "unassigned", passwordHash: await hashPassword("AXIMACH-unassigned-Password!"), role: "operator" }
@@ -592,6 +593,138 @@ test("tenant-scoped user reads and writes only its assigned company and related 
       body:JSON.stringify({data:{components:[{id:"component-a",companyId:"company-a",name:"Component A updated",updatedAt:"2026-11-20T06:00:00.000Z"}]}})
     });
     assert.equal(validWrite.status,200,"assigned-company component edits remain available");
+    const apStamp = "2026-11-20T07:00:00.000Z";
+    const invoice = {
+      id:"ap-invoice-a",companyId:"company-a",factoryId:"factory-a",vendorId:"vendor-a",
+      poId:"po-a",poLineId:"line-a",invoiceNumber:"SUP-2026-001",invoiceDate:"2026-11-20",dueDate:"2026-12-20",
+      currency:"INR",subtotal:100,taxAmount:18,totalAmount:118,status:"Submitted",notes:"First supplier invoice",
+      createdBy:"client-supplied-creator",createdAt:apStamp,updatedAt:apStamp
+    };
+    const createdInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierInvoices:[invoice]}})
+    });
+    assert.equal(createdInvoice.status,200,"scoped supplier invoice can be created and submitted");
+    const storedInvoice=(await createdInvoice.json()).data.supplierInvoices.find(row=>row.id===invoice.id);
+    assert.equal(storedInvoice.createdBy,"tenant-a-user","server, not client payload, sets the invoice creator");
+
+    const duplicateInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierInvoices:[{...invoice,id:"ap-invoice-duplicate",createdAt:apStamp,updatedAt:apStamp}]}})
+    });
+    assert.equal(duplicateInvoice.status,403,"duplicate supplier invoice number for the same company/vendor is rejected");
+
+    const operatorApproval=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-operator-approval",targetType:"invoice",targetId:invoice.id,decision:"Approved",
+        decidedBy:"forged-actor",decidedByRole:"admin",comments:"Operator attempt",decidedAt:apStamp,createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(operatorApproval.status,403,"operator cannot approve supplier invoices");
+
+    const managerHeaders=await login("managera","AXIMACH-managera-Password!");
+    const managerApproval=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-manager-approval",targetType:"invoice",targetId:invoice.id,decision:"Approved",
+        decidedBy:"forged-actor",decidedByRole:"admin",comments:"Checked against PO and supplier invoice",decidedAt:apStamp,createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(managerApproval.status,200,"a different scoped manager can approve the invoice");
+    const savedApproval=(await managerApproval.json()).data.supplierFinanceApprovals.find(row=>row.id==="ap-manager-approval");
+    assert.equal(savedApproval.decidedBy,"tenant-a-manager","server stamps the authenticated approver");
+    assert.equal(savedApproval.decidedByRole,"manager","client cannot forge administrator approval");
+
+    const editApprovedInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierInvoices:[{...storedInvoice,totalAmount:200,updatedAt:"2026-11-20T08:00:00.000Z"}]}})
+    });
+    assert.equal(editApprovedInvoice.status,403,"an approved supplier invoice is immutable");
+
+    const selfInvoice={...invoice,id:"ap-self-invoice",invoiceNumber:"SUP-2026-SELF",createdBy:"client",createdAt:apStamp,updatedAt:apStamp};
+    const managerCreatedInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,body:JSON.stringify({data:{supplierInvoices:[selfInvoice]}})
+    });
+    assert.equal(managerCreatedInvoice.status,200);
+    const managerStoredInvoice=(await managerCreatedInvoice.json()).data.supplierInvoices.find(row=>row.id===selfInvoice.id);
+    assert.equal(managerStoredInvoice.createdBy,"tenant-a-manager");
+    const selfApproval=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-self-approval",targetType:"invoice",targetId:selfInvoice.id,decision:"Approved",
+        comments:"Self approval attempt",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(selfApproval.status,403,"invoice creator cannot approve their own invoice");
+
+    const supplierPayment={
+      id:"ap-payment-a",companyId:"company-a",factoryId:"factory-a",vendorId:"vendor-a",
+      paymentDate:"2026-11-21",method:"Bank transfer",bankReference:"UTR-AX-001",amount:80,currency:"INR",
+      status:"Submitted",notes:"Part payment",createdBy:"client",createdAt:apStamp,updatedAt:apStamp
+    };
+    const createPayment=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierPayments:[supplierPayment]}})
+    });
+    assert.equal(createPayment.status,200,"supplier payment can be entered separately from process-operation payments");
+    const paymentApproval=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-payment-approval",targetType:"payment",targetId:supplierPayment.id,decision:"Approved",
+        comments:"Payment details verified",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(paymentApproval.status,200,"manager can approve a submitted supplier payment");
+
+    const allocation={id:"ap-payment-allocation-a",paymentId:supplierPayment.id,invoiceId:invoice.id,amount:80,notes:"Partial settlement",createdBy:"tenant-a-user",createdAt:apStamp,updatedAt:apStamp};
+    const allocate=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierPaymentAllocations:[allocation]}})
+    });
+    assert.equal(allocate.status,200,"approved supplier payment can be allocated to the matching approved invoice");
+
+    const secondPayment={...supplierPayment,id:"ap-payment-b",bankReference:"UTR-AX-002",amount:50,createdAt:apStamp,updatedAt:apStamp};
+    const createSecondPayment=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierPayments:[secondPayment]}})
+    });
+    assert.equal(createSecondPayment.status,200);
+    const approveSecondPayment=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-payment-approval-b",targetType:"payment",targetId:secondPayment.id,decision:"Approved",
+        comments:"Second payment verified",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(approveSecondPayment.status,200);
+    const overAllocateInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierPaymentAllocations:[{
+        id:"ap-over-invoice",paymentId:secondPayment.id,invoiceId:invoice.id,amount:50,
+        notes:"Would exceed invoice balance",createdBy:"tenant-a-user",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(overAllocateInvoice.status,403,"invoice allocations cannot exceed the remaining invoice balance");
+
+    const secondInvoice={...invoice,id:"ap-invoice-b",invoiceNumber:"SUP-2026-002",totalAmount:90,subtotal:90,taxAmount:0,createdAt:apStamp,updatedAt:apStamp};
+    const createSecondInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,body:JSON.stringify({data:{supplierInvoices:[secondInvoice]}})
+    });
+    assert.equal(createSecondInvoice.status,200);
+    const approveSecondInvoice=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:managerHeaders,
+      body:JSON.stringify({data:{supplierFinanceApprovals:[{
+        id:"ap-invoice-approval-b",targetType:"invoice",targetId:secondInvoice.id,decision:"Approved",
+        comments:"Second invoice verified",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(approveSecondInvoice.status,200);
+    const overAllocatePayment=await fetch(baseUrl+"/api/manufacturing-data",{
+      method:"PUT",headers:companyHeaders,
+      body:JSON.stringify({data:{supplierPaymentAllocations:[{
+        id:"ap-over-payment",paymentId:supplierPayment.id,invoiceId:secondInvoice.id,amount:1,
+        notes:"Would exceed payment value",createdBy:"tenant-a-user",createdAt:apStamp,updatedAt:apStamp
+      }]}})
+    });
+    assert.equal(overAllocatePayment.status,403,"allocations cannot exceed the remaining payment amount");
+
 
     const viewerHeaders = await login("viewera","AXIMACH-viewera-Password!");
     const viewerWrite = await fetch(baseUrl + "/api/manufacturing-data", {
