@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ClipboardCheck, FileText, Plus, RefreshCw, ShieldAlert, Wallet } from "lucide-react";
+import { Check, FileText, Plus, ShieldAlert, Wallet } from "lucide-react";
 import { activeRows, makeId, nowIso, type ManufacturingData, type SupplierFinanceApprovalRecord, type SupplierInvoiceRecord, type SupplierPaymentAllocationRecord, type SupplierPaymentRecord } from "./manufacturingData";
 import { getServerAuthMode, readServerSession } from "./serverAuth";
 
@@ -67,6 +67,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
   const [allocationInvoiceId, setAllocationInvoiceId] = useState("");
   const [allocationAmount, setAllocationAmount] = useState("");
   const [allocationNotes, setAllocationNotes] = useState("");
+  const [approvalComment, setApprovalComment] = useState("");
 
   useEffect(() => {
     if (!invoiceCompanyId && companies[0]?.id) setInvoiceCompanyId(companies[0].id);
@@ -170,9 +171,10 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
     const approval: SupplierFinanceApprovalRecord = {
       id: makeId("supplier-approval"), targetType: "invoice", targetId: invoice.id,
       decision, decidedBy: actorId, decidedByRole: actorRole === "manager" ? "manager" : "admin",
-      comments: "", decidedAt: now, createdAt: now, updatedAt: now
+      comments: approvalComment.trim(), decidedAt: now, createdAt: now, updatedAt: now
     };
     update(current => ({ ...current, supplierFinanceApprovals: [...current.supplierFinanceApprovals, approval] }));
+    setApprovalComment("");
     onNotice("Invoice " + decision.toLowerCase() + " decision recorded in the approval history.");
   };
 
@@ -233,6 +235,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
       comments: "", decidedAt: now, createdAt: now, updatedAt: now
     };
     update(current => ({ ...current, supplierFinanceApprovals: [...current.supplierFinanceApprovals, approval] }));
+    setApprovalComment("");
     onNotice("Supplier payment " + decision.toLowerCase() + " decision recorded.");
   };
 
@@ -312,6 +315,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
     </section>
 
     <section className="supplier-ap-subsection">
+      <label className="supplier-ap-approval-note">Approval comment (used for the next invoice/payment decision)<input value={approvalComment} onChange={event=>setApprovalComment(event.target.value)} placeholder="Reason, PO / invoice check, payment reference…" /></label>
       <div className="panel-heading">
         <div><h4>Supplier invoice register ({invoices.length})</h4><p>Paid balance is calculated only from approved supplier-payment allocations, not from process-operation payment totals.</p></div>
         <select aria-label="Filter supplier invoices" value={invoiceFilter} onChange={event=>setInvoiceFilter(event.target.value)}>
@@ -333,7 +337,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
             <td><span className={statusClass(state)}>{state}</span></td>
             <td><div className="supplier-ap-actions">
               {invoice.status==="Draft"&&<button type="button" className="button-quiet compact-button" onClick={()=>update(current=>({...current,supplierInvoices:current.supplierInvoices.map(row=>row.id===invoice.id?{...row,status:"Submitted",updatedAt:nowIso()}:row)}))}>Submit</button>}
-              {invoice.status==="Submitted"&&canApprove&&decision?.decision!=="Approved"&&<><button type="button" className="button-primary compact-button" disabled={canSelfApprove} title={canSelfApprove?"Creator cannot approve their own invoice":""} onClick={()=>decideInvoice(invoice,"Approved")}><Check size={12}/> Approve</button><button type="button" className="button-quiet compact-button" disabled={canSelfApprove} onClick={()=>decideInvoice(invoice,"Rejected")}>Reject</button><button type="button" className="button-quiet compact-button" disabled={canSelfApprove} onClick={()=>decideInvoice(invoice,"Returned")}>Return</button></>}
+              {invoice.status==="Submitted"&&canApprove&&!decision&&<><button type="button" className="button-primary compact-button" disabled={canSelfApprove} title={canSelfApprove?"Creator cannot approve their own invoice":""} onClick={()=>decideInvoice(invoice,"Approved")}><Check size={12}/> Approve</button><button type="button" className="button-quiet compact-button" disabled={canSelfApprove} onClick={()=>decideInvoice(invoice,"Rejected")}>Reject</button><button type="button" className="button-quiet compact-button" disabled={canSelfApprove} onClick={()=>decideInvoice(invoice,"Returned")}>Return</button></>}
               {(invoice.status==="Draft"||decision?.decision==="Rejected"||decision?.decision==="Returned")&&invoice.status!=="Voided"&&<button type="button" className="button-quiet compact-button" onClick={()=>editInvoice(invoice)}>Edit</button>}
             </div></td>
           </tr>;
@@ -373,7 +377,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
             <td><span className={statusClass(state)}>{state}</span></td>
             <td><div className="supplier-ap-actions">
               {payment.status==="Draft"&&<button type="button" className="button-quiet compact-button" onClick={()=>update(current=>({...current,supplierPayments:current.supplierPayments.map(row=>row.id===payment.id?{...row,status:"Submitted",updatedAt:nowIso()}:row)}))}>Submit</button>}
-              {payment.status==="Submitted"&&canApprove&&decision?.decision!=="Approved"&&<><button type="button" className="button-primary compact-button" disabled={self} onClick={()=>decidePayment(payment,"Approved")}><Check size={12}/> Approve</button><button type="button" className="button-quiet compact-button" disabled={self} onClick={()=>decidePayment(payment,"Rejected")}>Reject</button><button type="button" className="button-quiet compact-button" disabled={self} onClick={()=>decidePayment(payment,"Returned")}>Return</button></>}
+              {payment.status==="Submitted"&&canApprove&&!decision&&<><button type="button" className="button-primary compact-button" disabled={self} onClick={()=>decidePayment(payment,"Approved")}><Check size={12}/> Approve</button><button type="button" className="button-quiet compact-button" disabled={self} onClick={()=>decidePayment(payment,"Rejected")}>Reject</button><button type="button" className="button-quiet compact-button" disabled={self} onClick={()=>decidePayment(payment,"Returned")}>Return</button></>}
               {(payment.status==="Draft"||decision?.decision==="Rejected"||decision?.decision==="Returned")&&allocated===0&&<button type="button" className="button-quiet compact-button" onClick={()=>editPayment(payment)}>Edit</button>}
             </div></td>
           </tr>;
