@@ -113,6 +113,13 @@ try {
   if (await page.locator(".ax-ecosystem-filters button").count() !== 12) {
     throw new Error("Manufacturing ecosystem graph does not expose all 12 entity filters.");
   }
+  const sampleNote = await page.locator(".ax-ecosystem-sample-note").innerText();
+  if (!sampleNote.includes("up to 6 records per group") || !sampleNote.includes("full saved-record totals")) {
+    throw new Error("Manufacturing ecosystem graph must disclose its visual sample cap and full record counts.");
+  }
+  if (!(await page.locator(".ax-ecosystem-graph-count").innerText()).includes("saved records in these groups")) {
+    throw new Error("Manufacturing ecosystem graph header must distinguish rendered nodes from saved-record totals.");
+  }
   await page.locator('select[aria-label="Ecosystem export format"]').selectOption("csv");
   const ecosystemDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export graph" }).click();
