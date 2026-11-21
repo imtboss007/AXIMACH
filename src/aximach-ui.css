@@ -5984,3 +5984,24 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .dashboard-data-orb-rotator { will-change:auto; }
   .dashboard-data-orb-node { scroll-behavior:auto; }
 }
+
+
+/* Keep the lower six live record nodes in a compact rotating 3D shell on phones. */
+@media(max-width:620px) {
+  .ax-orb-lower-shell {
+    display:block!important;
+    bottom:8px!important;
+    width:228px!important;
+    height:38px!important;
+  }
+  .ax-orb-lower-node {
+    min-width:64px!important;
+    max-width:72px!important;
+    padding:3px 4px!important;
+    gap:1px 3px!important;
+    border-radius:6px!important;
+  }
+  .ax-orb-lower-node strong { font-size:7px!important; }
+  .ax-orb-lower-node small { font-size:5px!important; }
+  .ax-orb-lower-summary-grid { display:none!important; }
+}
