@@ -56,6 +56,25 @@ function rowsFor(moduleId:string,data:ManufacturingData):Record<string,unknown>[
   });
   return [...transactionRows,...legacyRows];
  }
+ if(moduleId==="supplier-ap"){
+  const invoiceRows=activeRows(data.supplierInvoices||[]).map(row=>{
+   const vendor=(data.vendors||[]).find(item=>item.id===row.vendorId);
+   const company=(data.companies||[]).find(item=>item.id===row.companyId);
+   const po=(data.purchaseOrders||[]).find(item=>item.id===row.poId);
+   const paid=activeRows(data.supplierPaymentAllocations||[]).filter(item=>item.invoiceId===row.id).reduce((sum,item)=>sum+Number(item.amount||0),0);
+   const decision=activeRows(data.supplierFinanceApprovals||[]).filter(item=>item.targetType==="invoice"&&item.targetId===row.id).sort((a,b)=>(b.decidedAt||"").localeCompare(a.decidedAt||""))[0];
+   return {recordType:"supplier-invoice",invoiceId:row.id,company:company?.name||"",factoryId:row.factoryId,vendor:vendor?.company||"",invoiceNumber:row.invoiceNumber,invoiceDate:row.invoiceDate,dueDate:row.dueDate,poNumber:po?.number||"",subtotal:row.subtotal,taxAmount:row.taxAmount,totalAmount:row.totalAmount,paidAmount:paid,balance:Math.max(0,row.totalAmount-paid),invoiceStatus:row.status,approvalDecision:decision?.decision||"Pending",approvalBy:decision?.decidedBy||"",approvalAt:decision?.decidedAt||"",notes:row.notes,createdAt:row.createdAt,updatedAt:row.updatedAt};
+  });
+  const paymentRows=activeRows(data.supplierPayments||[]).map(row=>{
+   const vendor=(data.vendors||[]).find(item=>item.id===row.vendorId),company=(data.companies||[]).find(item=>item.id===row.companyId);
+   const allocated=activeRows(data.supplierPaymentAllocations||[]).filter(item=>item.paymentId===row.id).reduce((sum,item)=>sum+Number(item.amount||0),0);
+   const decision=activeRows(data.supplierFinanceApprovals||[]).filter(item=>item.targetType==="payment"&&item.targetId===row.id).sort((a,b)=>(b.decidedAt||"").localeCompare(a.decidedAt||""))[0];
+   return {recordType:"supplier-payment",paymentId:row.id,company:company?.name||"",vendor:vendor?.company||"",paymentDate:row.paymentDate,method:row.method,bankReference:row.bankReference,amount:row.amount,allocatedAmount:allocated,unallocatedAmount:Math.max(0,row.amount-allocated),paymentStatus:row.status,approvalDecision:decision?.decision||"Pending",approvalBy:decision?.decidedBy||"",approvalAt:decision?.decidedAt||"",notes:row.notes,createdAt:row.createdAt,updatedAt:row.updatedAt};
+  });
+  const allocationRows=activeRows(data.supplierPaymentAllocations||[]).map(row=>({recordType:"supplier-payment-allocation",...row,invoiceNumber:activeRows(data.supplierInvoices||[]).find(invoice=>invoice.id===row.invoiceId)?.invoiceNumber||"",paymentReference:activeRows(data.supplierPayments||[]).find(payment=>payment.id===row.paymentId)?.bankReference||""}));
+  const approvalRows=activeRows(data.supplierFinanceApprovals||[]).map(row=>({recordType:"supplier-finance-approval",...row}));
+  return [...invoiceRows,...paymentRows,...allocationRows,...approvalRows];
+ }
  if(moduleId==="inventory")return [...activeRows(data.materials||[]),...activeRows(data.bomLines||[]),...activeRows(data.inventoryTransactions||[])].map(x=>({...x}));
  if(moduleId==="process-master")return activeRows(data.processDefinitions).map(x=>({...x}));
  if(moduleId==="planned-cost")return activeRows(data.plannedCosts).map(x=>({...x}));
@@ -295,7 +314,7 @@ function ServerAuditPanel({onNotice}:{onNotice:(value:string)=>void}) {
 
 export function ExportCentreWorkspace({onBack,onNotice}:Props){
  const {data}=useManufacturingData();const [moduleId,setModuleId]=useState("companies");
- const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["cost-reconciliation","PO-line Cost Reconciliation"],["payments","Payment Ledger"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
+ const options=[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["contact360","Contact 360"],["process-master","Process Directory"],["planned-cost","Component Planned Cost"],["vendor-capability","Vendor Network"],["inventory","BOM & Inventory"],["production","Production Plan & Process Plan"],["dispatch","Transport & Dispatch"],["quality","Quality Inspection"],["costing","Costing & Payment"],["cost-reconciliation","PO-line Cost Reconciliation"],["payments","Process Payment Ledger"],["supplier-ap","Supplier Invoices & Accounts Payable"],["communications","Follow-up Centre"],["reports","Reports & Analytics"],["ai-insights","AI Insights"]];
  const rows=rowsFor(moduleId,data);
  const exportCsv=()=>{if(!rows.length){onNotice("There are no saved records to export for this selection.");return;}downloadFile("AXIMACH-"+moduleId+"-"+new Date().toISOString().slice(0,10)+".csv",toCsv(rows));onNotice("Excel-compatible CSV exported.");};
  const exportExcel=async()=>{
