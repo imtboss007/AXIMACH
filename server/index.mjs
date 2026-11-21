@@ -120,7 +120,11 @@ function authorized(req) {
   return provided.length === expected.length && timingSafeEqual(provided, expected);
 }
 function principalFromRequest(req) {
-  if (authService) { const token = bearerToken(req); const session = authService.authenticate(token); return session ? { ...session.user, sessionExpiresAt: session.expiresAt } : null; }
+  if (authService) {
+    const token = bearerToken(req);
+    const session = authService.authenticate(token);
+    return session ? { ...session.user, sessionExpiresAt: session.expiresAt, namedUserIds: authService.activeUserIds() } : null;
+  }
   return authorized(req) ? { id: "legacy-api-key", username: "legacy-api-key", role: "admin", legacy: true } : null;
 }
 function isLoopbackAddress(value) {
@@ -344,7 +348,7 @@ const server = createServer(async (req, res) => {
       if (Array.isArray(input.data.supplierInvoices)) {
         input.data.supplierInvoices = input.data.supplierInvoices.map(row => {
           const prior = currentInvoices.get(row.id);
-          const createdBy = prior?.createdBy || (authService ? principal.id : (row.createdBy || "local-user"));
+          const createdBy = prior?.createdBy || (authService ? principal.id : "legacy-api-key");
           return { ...row, createdBy };
         });
       }
