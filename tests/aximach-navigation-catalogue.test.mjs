@@ -42,7 +42,7 @@ test("Data Exchange import and export workspaces forward real cross-module navig
   const source = await readSource("src/App.tsx");
   assert.match(source, /<ExportCentreWorkspace[^>]*onSelectModule=\{onSelectModule\}/);
   assert.match(source, /<ImportCentreWorkspace[^>]*onSelectModule=\{onSelectModule\}/);
-  assert.match(source, /<DataExchangeWorkspace[^>]*onSelectModule=\{selectModule\}/);
+  assert.ok(source.includes('<DataExchangeWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />'));
   assert.doesNotMatch(source, /<ExportCentreWorkspace[^>]*onSelectModule=\{\(\)\s*=>\s*\{\}\}/);
   assert.doesNotMatch(source, /<ImportCentreWorkspace[^>]*onSelectModule=\{\(\)\s*=>\s*\{\}\}/);
 });
