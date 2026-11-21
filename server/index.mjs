@@ -231,9 +231,10 @@ const server = createServer(async (req, res) => {
       }
       if (url.pathname === "/api/auth/logout" && req.method === "POST") {
         const token = bearerToken(req);
-        if (!principalFromRequest(req)) return json(res, 401, { error: "A valid user session is required." });
+        const principal = principalFromRequest(req);
+        if (!principal) return json(res, 401, { error: "A valid user session is required." });
         authService.logout(token);
-        appendAuditEvent(req, principalFromRequest(req) || { id: "revoked-session", username: "revoked-session", role: "unknown" }, "auth.logout");
+        appendAuditEvent(req, principal, "auth.logout");
         await saveDb();
         return json(res, 200, { ok: true });
       }
