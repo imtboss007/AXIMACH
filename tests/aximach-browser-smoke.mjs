@@ -108,6 +108,25 @@ try {
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "networkidle" });
+  // Verify the mobile Dashboard keeps its separate live six-record 3D shell visible.
+  const mobileRecordShell = page.locator(".ax-orb-lower-shell");
+  await mobileRecordShell.waitFor({ state: "attached", timeout: 10000 });
+  const mobileRecordShellState = await mobileRecordShell.evaluate(element => {
+    const bounds = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    return {
+      display: style.display,
+      width: bounds.width,
+      height: bounds.height,
+      bottomGap: window.innerHeight - bounds.bottom,
+      nodeCount: element.querySelectorAll(".ax-orb-lower-node").length
+    };
+  });
+  if (mobileRecordShellState.display === "none" || mobileRecordShellState.width <= 0 || mobileRecordShellState.height <= 0 || mobileRecordShellState.nodeCount !== 6 || mobileRecordShellState.bottomGap < 0) {
+    throw new Error("Mobile live 3D record shell is not visible or does not expose all six nodes: " + JSON.stringify(mobileRecordShellState));
+  }
+  console.log("PASS mobile live 3D record shell:", JSON.stringify(mobileRecordShellState));
+
   await page.getByRole("button", { name: "Open navigation menu" }).click();
   await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Purchase Orders"]').click();
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Purchase Orders");
