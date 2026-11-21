@@ -201,6 +201,21 @@ export function filterManufacturingData(data, user) {
  ]);
 }
 
+function resolveFullAccess(data) {
+ const all=field=>rows(data,field);
+ const purchaseOrders=all("purchaseOrders"),companies=all("companies"),factories=all("factories"),components=all("components"),operations=all("operations");
+ const idsInRows=field=>ids(all(field));
+ const purchaseOrderIds=ids(purchaseOrders),componentIds=ids(components);
+ const lineIds=new Set(purchaseOrders.flatMap(po=>rows(po,"lines").map(line=>line.id).filter(Boolean)));
+ const operationIds=ids(operations);
+ const entityIds=new Set(ARRAY_FIELDS.flatMap(field=>[...idsInRows(field)]));
+ return {
+  ...Object.fromEntries(ARRAY_FIELDS.map(field=>[field,all(field)])),
+  companyIds:ids(companies),factoryIds:ids(factories),purchaseOrderIds,lineIds,componentIds,operationIds,
+  vendorIds:idsInRows("vendors"),materialIds:idsInRows("materials"),processDefinitionIds:idsInRows("processDefinitions"),
+  transportRouteIds:idsInRows("transportRoutes"),entityIds
+ };
+}
 function visibleIds(access, field) { return ids(access[field] || []); }
 function allowedChild(row, poById, access, {requireOperation=false} = {}) {
  const po = poById.get(row.poId);
@@ -212,9 +227,9 @@ function allowedChild(row, poById, access, {requireOperation=false} = {}) {
 }
 
 export function validateManufacturingWrite(currentData, incoming, user) {
- if (user?.legacy === true || user?.role === "admin") return {ok:true};
- if (!hasTenantScope(user)) return {ok:false,error:"This account has no company or factory scope assigned."};
- const access = resolveAccess(currentData,user);
+ const privileged = user?.legacy === true || user?.role === "admin";
+ if (!privileged && !hasTenantScope(user)) return {ok:false,error:"This account has no company or factory scope assigned."};
+ const access = privileged ? resolveFullAccess(currentData) : resolveAccess(currentData,user);
  const companyIds = access.companyIds;
  const assignedFactories = setOf(user?.factoryIds);
  const incomingFactories = rows(incoming,"factories");
@@ -251,7 +266,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   .filter(row=>row.targetType===targetType&&row.targetId===targetId&&!row.deletedAt)
   .sort((a,b)=>(Date.parse(b.decidedAt||"")||0)-(Date.parse(a.decidedAt||"")||0))[0];
  const approvalIsCurrent = (targetType,targetId) => latestApproval(targetType,targetId)?.decision==="Approved";
- const invoiceAllocations = [...rows(currentData,"supplierPaymentAllocations"),...rows(incoming,"supplierPaymentAllocations")].filter(row=>!row.deletedAt);
+ const invoiceAllocations = [...combinedById("supplierPaymentAllocations").values()].filter(row=>!row.deletedAt);
  const validMoney = value => Number.isFinite(Number(value)) && Number(value)>=0;
 
  const materialIds = access.materialIds;
@@ -266,7 +281,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
  const deny = collection => ({ok:false,error:collection+" contains a record outside this user's assigned company/factory scope."});
  for (const collection of ARRAY_FIELDS) {
   const values=rows(incoming,collection);
-  if (MASTER_FIELDS.has(collection) && values.length) return {ok:false,error:collection+" is a shared master directory and can only be changed by an administrator."};
+  if (MASTER_FIELDS.has(collection) && values.length && !privileged) return {ok:false,error:collection+" is a shared master directory and can only be changed by an administrator."};
   for (const row of values) {
    if (!row || typeof row.id!=="string" || !row.id || !safeId(collection,row)) return deny(collection);
    let allowed=false;
@@ -331,11 +346,13 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      const prior=latestApproval(row.targetType,row.targetId);
      const creator=target?.createdBy||"";
      const approver=String(user?.id||"");
-     allowed=(user?.role==="admin"||user?.role==="manager")&&Boolean(target)&&target.status==="Submitted"&&
+     const oldApproval=rows(currentData,"supplierFinanceApprovals").find(value=>value.id===row.id);
+     allowed=(privileged||user?.role==="manager")&&Boolean(target)&&target.status==="Submitted"&&
       typeof row.id==="string"&&["Approved","Rejected","Returned"].includes(row.decision)&&
-      (user?.legacy===true||creator!==approver)&&
+      creator!==approver&&
       (!prior||prior.decision!=="Approved")&&
-      (!prior||(Date.parse(target.updatedAt||"")||0)>(Date.parse(prior.decidedAt||"")||0));
+      (!prior||(Date.parse(target.updatedAt||"")||0)>(Date.parse(prior.decidedAt||"")||0))&&
+      (!oldApproval||JSON.stringify(oldApproval)===JSON.stringify(row));
      break;
     }
     case "supplierPaymentAllocations": {
