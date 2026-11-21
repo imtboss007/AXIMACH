@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Activity, Boxes, Building2, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, GitBranch, Layers3, Network, Package, Truck, Users, Workflow } from "lucide-react";
+import { useMemo, useState, type CSSProperties } from "react";
+import { Activity, Network } from "lucide-react";
 import { activeRows, type ManufacturingData } from "./manufacturingData";
 
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
@@ -48,13 +48,13 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     const inventory=activeRows(data.inventoryTransactions||[]);
     const nodeIds=new Set<string>();
     const edge=(from:string,to:string,kind:string)=>{if(from&&to&&from!==to)edges.push({id:from+"|"+to+"|"+kind,from,to,kind});};
-    companies.slice(0,8).forEach(row=>{add("company:"+row.id,row.name,"Company · "+(row.gstin||"GSTIN not recorded"),"company","companies",{companyId:row.id});nodeIds.add(row.id);});
-    factories.slice(0,8).forEach(row=>{add("factory:"+row.id,row.name,"Factory · "+(row.address||"Address not recorded"),"factory","companies",{companyId:row.companyId});edge("factory:"+row.id,"company:"+row.companyId,"owns");});
-    orders.slice(0,8).forEach(row=>{add("order:"+row.id,row.number,"Purchase order · "+row.status,"order","purchasing",{companyId:row.companyId,poId:row.id});edge("order:"+row.id,"company:"+row.companyId,"placed by");});
-    components.slice(0,8).forEach(row=>add("component:"+row.id,row.partNumber||row.name,"Component · "+row.name+" · Rev "+(row.revision||"—"),"component","components",{companyId:row.companyId}));
-    vendors.slice(0,8).forEach(row=>add("vendor:"+row.id,row.company,"Vendor · "+(row.vendorType||row.role||"Supplier"),"vendor","vendors"));
-    definitions.slice(0,8).forEach(row=>add("process:"+row.id,row.processType,"Process definition · "+row.category,"process","process-master"));
-    operations.slice(0,10).forEach(row=>{
+    companies.slice(0,6).forEach(row=>{add("company:"+row.id,row.name,"Company · "+(row.gstin||"GSTIN not recorded"),"company","companies",{companyId:row.id});nodeIds.add(row.id);});
+    factories.slice(0,6).forEach(row=>{add("factory:"+row.id,row.name,"Factory · "+(row.address||"Address not recorded"),"factory","companies",{companyId:row.companyId});edge("factory:"+row.id,"company:"+row.companyId,"owns");});
+    orders.slice(0,6).forEach(row=>{add("order:"+row.id,row.number,"Purchase order · "+row.status,"order","purchasing",{companyId:row.companyId,poId:row.id});edge("order:"+row.id,"company:"+row.companyId,"placed by");row.lines.filter(line=>!line.deletedAt).forEach(line=>edge("order:"+row.id,"component:"+line.componentId,"orders"));});
+    components.slice(0,6).forEach(row=>add("component:"+row.id,row.partNumber||row.name,"Component · "+row.name+" · Rev "+(row.revision||"—"),"component","components",{companyId:row.companyId}));
+    vendors.slice(0,6).forEach(row=>add("vendor:"+row.id,row.company,"Vendor · "+(row.vendorType||row.role||"Supplier"),"vendor","vendors"));
+    definitions.slice(0,6).forEach(row=>{add("process:"+row.id,row.processType,"Process definition · "+row.category,"process","process-master");(row.vendorIds||[]).forEach(vendorId=>edge("process:"+row.id,"vendor:"+vendorId,"capable vendor"));});
+    operations.slice(0,8).forEach(row=>{
       const context={poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.id};
       add("operation:"+row.id,row.sequence+". "+row.name,"Operation · "+row.status+" · "+row.machine,"operation","production",context);
       edge("operation:"+row.id,"order:"+row.poId,"belongs to");
@@ -62,7 +62,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       edge("operation:"+row.id,"vendor:"+row.vendorId,"performed by");
       edge("operation:"+row.id,"process:"+row.processDefinitionId,"defined by");
     });
-    allocations.slice(0,8).forEach(row=>{
+    allocations.slice(0,6).forEach(row=>{
       const context={companyId:row.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.componentId};
       add("material:"+row.id,row.materialName||"Material allocation","Material · "+(row.materialGrade||"Grade not set")+" · "+(row.totalWeightKg||0)+" kg","material","inventory",context);
       edge("material:"+row.id,"order:"+row.poId,"procured for");
@@ -70,24 +70,24 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       edge("material:"+row.id,"vendor:"+row.vendorId,"supplied by");
       edge("material:"+row.id,"operation:"+row.anchorOperationId,"feeds operation");
     });
-    inspections.slice(0,8).forEach(row=>{
+    inspections.slice(0,6).forEach(row=>{
       const context={poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.operationId};
       add("quality:"+row.id,row.characteristic,"Inspection · "+row.result+" · "+row.measuredValue+" "+row.unit,"quality","quality",context);
       edge("quality:"+row.id,"operation:"+row.operationId,"inspects");
     });
-    legs.slice(0,8).forEach(row=>{
+    legs.slice(0,6).forEach(row=>{
       const context={poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.anchorOperationId};
       add("transport:"+row.id,(row.fromLocation||"Origin")+" → "+(row.toLocation||"Destination"),"Dispatch leg · "+(row.status||"Planned")+" · "+row.vehicleType,"transport","dispatch",context);
       edge("transport:"+row.id,"operation:"+row.anchorOperationId,"moves between");
       edge("transport:"+row.id,"vendor:"+row.vendorId,"carried by");
       edge("transport:"+row.id,"order:"+row.poId,"serves");
     });
-    payments.slice(0,8).forEach(row=>{
+    payments.slice(0,6).forEach(row=>{
       add("finance:"+row.id,"₹"+Number(row.amount||0).toLocaleString("en-IN"),"Payment · "+(row.reference||"No reference"),"finance","costing",{poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.operationId});
       edge("finance:"+row.id,"operation:"+row.operationId,"settles");
       edge("finance:"+row.id,"vendor:"+row.vendorId,"paid to");
     });
-    contacts.slice(0,8).forEach(row=>{
+    contacts.slice(0,6).forEach(row=>{
       add("contact:"+row.id,row.name,"Contact · "+row.role,"contact","contact360",row.linkedType==="company"?{companyId:row.linkedId}:{});
       edge("contact:"+row.id,(row.linkedType==="company"?"company:":"vendor:")+row.linkedId,"contact for");
     });
@@ -128,9 +128,9 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
         {graph.nodes.map(node=><line key={"hub:"+node.id} className="ax-ecosystem-hub-link" x1="500" y1="350" x2={node.x*10} y2={node.y*7}/> )}
       </svg>
       <div className="ax-ecosystem-hub"><Network size={23}/><strong>AXIMACH</strong><small>MANUFACTURING OS</small></div>
-      {graph.nodes.map(node=>{const group=GROUPS.find(item=>item.kind===node.kind)!;return <button type="button" key={node.id} className={"ax-ecosystem-node kind-"+node.kind+(selectedId===node.id?" is-selected":"")} style={{left:node.x+"%",top:node.y+"%", "--node-accent":group.color} as React.CSSProperties} onClick={()=>setSelectedId(current=>current===node.id?"":node.id)} onDoubleClick={()=>onNavigate(node.moduleId,node.context)} title={node.detail}><span>{node.label}</span><small>{group.title.replace(" & allocations","")}</small></button>;})}
+      {graph.nodes.map(node=>{const group=GROUPS.find(item=>item.kind===node.kind)!;return <button type="button" key={node.id} className={"ax-ecosystem-node kind-"+node.kind+(selectedId===node.id?" is-selected":"")} style={{left:node.x+"%",top:node.y+"%", "--node-accent":group.color} as CSSProperties} onClick={()=>setSelectedId(current=>current===node.id?"":node.id)} title={node.detail}><span>{node.label}</span><small>{group.title.replace(" & allocations","")}</small></button>;})}
     </div>
     <div className="ax-ecosystem-graph-foot"><span><i/> Solid lines represent saved ID relationships · dashed hub lines indicate membership in the live graph</span>{selected&&<div className="ax-ecosystem-selected"><div><strong>{selected.label}</strong><small>{selected.detail}</small></div><button type="button" onClick={()=>onNavigate(selected.moduleId,selected.context)}>Open source record <Activity size={13}/></button></div>}</div>
-    <p className="ax-ecosystem-help">Select a node to inspect it; double-tap a node or use “Open source record” to jump to its owning module. Group filters change visibility only, never source data.</p>
+    <p className="ax-ecosystem-help">Select a node to inspect it, then use “Open source record” to jump to its owning module. Group filters change visibility only, never source data.</p>
   </section>;
 }
