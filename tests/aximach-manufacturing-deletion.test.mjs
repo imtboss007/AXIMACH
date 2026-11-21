@@ -28,7 +28,7 @@ const base = () => ({
   inspectionMeasurements: [row("inspection-1", { componentId: "component-1", poLineId: "line-1" }), row("inspection-2", { componentId: "component-2", poLineId: "line-2" })],
   bomLines: [row("bom-1", { componentId: "component-1" }), row("bom-2", { componentId: "component-2" })],
   componentParts: [row("part-1", { componentId: "component-1" }), row("part-2", { componentId: "component-2" })],
-  materialCostEntries: [row("cost-1", { componentId: "component-1", poId: "po-1", poLineId: "line-1" }), row("cost-2", { componentId: "component-2", poId: "po-1", poLineId: "line-2" })],
+  materialCostEntries: [row("cost-1", { componentId: "component-1", poId: "po-1", poLineId: "line-1" }), row("cost-2", { componentId: "component-2", poId: "po-1", poLineId: "line-2" }), row("standalone-material-budget", { scope: "planned-cost", componentId: "component-1", poId: "", poLineId: "" })],
   materialProcessLinks: [
     row("material-link-1", { componentId: "component-1", poId: "po-1", poLineId: "line-1", operationId: "op-1", bomLineId: "bom-1" }),
     row("material-link-2", { componentId: "component-2", poId: "po-1", poLineId: "line-2", operationId: "op-2", bomLineId: "bom-2" })
