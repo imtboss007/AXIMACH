@@ -5993,6 +5993,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
     bottom:8px!important;
     width:228px!important;
     height:38px!important;
+    flex:0 0 38px!important;
   }
   .ax-orb-lower-node {
     min-width:64px!important;
