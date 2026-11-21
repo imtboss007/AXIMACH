@@ -27,3 +27,12 @@ test("the main module catalogue and 3D command sphere expose the same 20 unique 
   assert.equal(new Set(satelliteIds).size, 20, "3D sphere module IDs must be unique");
   assert.deepEqual([...satelliteIds].sort(), [...moduleIds].sort(), "the 3D sphere and navigation rail must expose identical module IDs");
 });
+
+
+test("Company Directory exposes both company and factory registers", async () => {
+  const source = await readSource("src/ManufacturingMasterWorkspace.tsx");
+  assert.match(source, /\{moduleId === "companies" && <div className="costing-tabs">/);
+  assert.match(source, /setTab\("companies"\)/);
+  assert.match(source, /setTab\("factories"\)/);
+  assert.doesNotMatch(source, /\{false && moduleId === "companies"/);
+});
