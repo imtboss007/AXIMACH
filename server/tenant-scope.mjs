@@ -353,9 +353,14 @@ export function validateManufacturingWrite(currentData, incoming, user) {
     case "supplierPayments": {
      const priorPayment=rows(currentData,"supplierPayments").find(other=>other.id===row.id);
      const isApproved=approvalIsCurrent("payment",row.id);
+     const duplicateReference=Boolean(String(row.bankReference||"").trim())&&
+      [...rows(currentData,"supplierPayments"),...rows(incoming,"supplierPayments")].some(other=>
+       other.id!==row.id&&!other.deletedAt&&other.status!=="Voided"&&other.companyId===row.companyId&&
+       other.vendorId===row.vendorId&&String(other.bankReference||"").trim().toLowerCase()===String(row.bankReference||"").trim().toLowerCase()
+      );
      allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&vendorIds.has(row.vendorId)&&
       ["Draft","Submitted","Voided"].includes(row.status)&&Number.isFinite(Date.parse(row.paymentDate||""))&&
-      Number.isFinite(Number(row.amount))&&Number(row.amount)>0&&typeof row.createdBy==="string"&&Boolean(row.createdBy)&&
+      Number.isFinite(Number(row.amount))&&Number(row.amount)>0&&!duplicateReference&&typeof row.createdBy==="string"&&Boolean(row.createdBy)&&
       (!priorPayment||!isApproved||JSON.stringify(priorPayment)===JSON.stringify(row));
      break;
     }
