@@ -5712,3 +5712,61 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .linked-process-page .linked-route-canvas{width:100%;max-width:none!important;min-width:0}
 }
 
+
+
+/* AXIMACH shared searchable dropdown refinement.
+   Keep dense manufacturing filters searchable and column-wise on desktop,
+   while allowing a single readable column on narrow touch screens. */
+.ax-search-multi-menu {
+  width: min(480px, calc(100vw - 24px));
+  min-width: min(280px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: min(340px, calc(100dvh - 120px));
+}
+.ax-search-multi-options {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 142px), 1fr));
+  align-content: start;
+  gap: 3px 6px;
+}
+.ax-search-multi-options > label {
+  min-width: 0;
+  align-items: flex-start;
+  overflow-wrap: anywhere;
+}
+.searchable-picker-menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 142px), 1fr));
+  align-content: start;
+  gap: 4px;
+  width: min(480px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: min(340px, calc(100dvh - 120px));
+  overflow: auto;
+}
+.searchable-picker-menu > button {
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.searchable-picker-empty,
+.searchable-picker-hint {
+  grid-column: 1 / -1;
+}
+@media (max-width: 560px) {
+  .ax-search-multi-menu,
+  .searchable-picker-menu {
+    width: min(360px, calc(100vw - 24px));
+    min-width: min(260px, calc(100vw - 24px));
+  }
+  .ax-search-multi-options,
+  .searchable-picker-menu {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Keep the command header hit targets above the fixed navigation rail.
+   Dialogs remain above the header through the existing overlay z-index. */
+.command-deck {
+  z-index: 80 !important;
+}
