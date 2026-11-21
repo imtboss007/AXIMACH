@@ -94,7 +94,7 @@ test("purchase-order deletion removes PO-specific links and preserves shared com
   assert.deepEqual(result.transportLegs, []);
   assert.deepEqual(result.paymentTransactions, []);
   assert.deepEqual(result.inspectionMeasurements, []);
-  assert.deepEqual(result.materialCostEntries, []);
+  assert.deepEqual(result.materialCostEntries.map(item => item.id), ["standalone-material-budget"]);
   assert.deepEqual(result.materialProcessLinks, []);
   assert.deepEqual(result.routeRelationships, []);
   assert.deepEqual(result.inventoryTransactions.map((item) => item.id), ["stock-1", "stock-2", "stock-3"]);
