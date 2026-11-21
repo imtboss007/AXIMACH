@@ -105,8 +105,9 @@ export default function IntegrationHubWorkspace({ onBack, notice }: Props) {
   }), [items]);
 
   useEffect(() => {
-    if (!chartRef.current || !items.length) return;
-    const chart = echarts.init(chartRef.current);
+    const container = chartRef.current;
+    if (!container || !items.length) return;
+    const chart = echarts.init(container);
     const categoryData = Array.from(new Set(items.map(item => item.family))).sort().map(name => ({
       name,
       value: items.filter(item => item.family === name).length
@@ -130,7 +131,7 @@ export default function IntegrationHubWorkspace({ onBack, notice }: Props) {
     const resize = () => chart.resize();
     window.addEventListener("resize", resize);
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
-    if (observer) observer.observe(chartRef.current);
+    if (observer) observer.observe(container);
     return () => {
       observer?.disconnect();
       window.removeEventListener("resize", resize);
