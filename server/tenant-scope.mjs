@@ -266,7 +266,12 @@ export function validateManufacturingWrite(currentData, incoming, user) {
  const latestApproval = (targetType,targetId) => allFinanceApprovals
   .filter(row=>row.targetType===targetType&&row.targetId===targetId&&!row.deletedAt)
   .sort((a,b)=>(Date.parse(b.decidedAt||"")||0)-(Date.parse(a.decidedAt||"")||0))[0];
- const approvalIsCurrent = (targetType,targetId) => latestApproval(targetType,targetId)?.decision==="Approved";
+ const approvalIsCurrent = (targetType,targetId) => {
+  const target=targetType==="invoice"?allInvoices.get(targetId):allSupplierPayments.get(targetId);
+  const approval=latestApproval(targetType,targetId);
+  return approval?.decision==="Approved"&&Boolean(target)&&
+   (!approval.targetUpdatedAt||approval.targetUpdatedAt===target.updatedAt);
+ };
  const invoiceAllocations = [...combinedById("supplierPaymentAllocations").values()].filter(row=>!row.deletedAt);
  const validMoney = value => Number.isFinite(Number(value)) && Number(value)>=0;
 
@@ -363,7 +368,12 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      const approver=String(user?.id||"");
      const oldApproval=rows(currentData,"supplierFinanceApprovals").find(value=>value.id===row.id);
      const unchangedApproval=Boolean(oldApproval&&JSON.stringify(oldApproval)===JSON.stringify(row));
-     const mayCreateDecision=(!prior||prior.decision!=="Approved")&&(!prior||(Date.parse(target?.updatedAt||"")||0)>(Date.parse(prior.decidedAt||"")||0));
+     const isNewTargetVersion=prior?(
+      prior.targetUpdatedAt!==undefined
+       ? prior.targetUpdatedAt!==target?.updatedAt
+       : (Date.parse(target?.updatedAt||"")||0)>(Date.parse(prior.decidedAt||"")||0)
+     ):true;
+     const mayCreateDecision=(!prior||prior.decision!=="Approved")&&isNewTargetVersion;
      allowed=!user?.legacy&&(privileged||user?.role==="manager")&&Boolean(target)&&target.status==="Submitted"&&
       typeof row.id==="string"&&["Approved","Rejected","Returned"].includes(row.decision)&&
       creator!==approver&&(unchangedApproval||mayCreateDecision)&&
