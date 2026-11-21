@@ -194,7 +194,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
           aria-label="20 clickable AXIMACH modules"
         >
           {satellites.map(({ id, label, Icon }, index) => {
-            // Fibonacci-sphere placement distributes all 18 module controls
+            // Fibonacci-sphere placement distributes all 20 module controls
             // over the complete spherical surface, not only a front-facing
             // ellipse. Each control's local face points out from the sphere;
             // backface-visibility hides nodes on the far side until the user
