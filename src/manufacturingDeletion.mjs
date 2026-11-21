@@ -63,13 +63,6 @@ export function removeComponentDependents(data, componentIds) {
       removedOperationIds.has(row.fromOperationId) || removedOperationIds.has(row.toOperationId)
     ).map((row) => row.id)
   );
-  const removedInventoryIds = new Set(
-    array(data.inventoryTransactions).filter((row) =>
-      (row.itemType === "component" && targets.has(row.itemId)) ||
-      lineIds.has(row.poLineId) || removedOperationIds.has(row.operationId)
-    ).map((row) => row.id)
-  );
-
   // Legacy planned-cost rows without componentId are removed only when the
   // part number resolves uniquely in their known company scope (or globally
   // when the legacy row has no company reference).
@@ -92,7 +85,7 @@ export function removeComponentDependents(data, componentIds) {
     ...targets, ...lineIds, ...removedOperationIds, ...removedQuoteIds,
     ...removedTransportIds, ...removedPaymentIds, ...removedInspectionIds,
     ...removedBomIds, ...removedPartIds, ...removedMaterialCostIds,
-    ...removedMaterialLinkIds, ...removedRouteRelationshipIds, ...removedInventoryIds
+    ...removedMaterialLinkIds, ...removedRouteRelationshipIds
   ]);
 
   return {
@@ -100,10 +93,12 @@ export function removeComponentDependents(data, componentIds) {
     components: components.filter((row) => !targets.has(row.id)),
     purchaseOrders: array(data.purchaseOrders)
       .map((po) => {
-        const lines = array(po.lines).filter((line) => !targets.has(line.componentId));
-        return lines.length === array(po.lines).length ? po : { ...po, lines, updatedAt: new Date().toISOString() };
+        const originalLines = array(po.lines);
+        const lines = originalLines.filter((line) => !targets.has(line.componentId));
+        if (originalLines.length > 0 && lines.length === 0) return null;
+        return lines.length === originalLines.length ? po : { ...po, lines, updatedAt: new Date().toISOString() };
       })
-      .filter((po) => po.lines.length > 0),
+      .filter(Boolean),
     operations: array(data.operations).filter((row) => !removedOperationIds.has(row.id)),
     quotations: array(data.quotations).filter((row) => !removedQuoteIds.has(row.id)),
     transportLegs: array(data.transportLegs).filter((row) => !removedTransportIds.has(row.id)),
@@ -119,10 +114,18 @@ export function removeComponentDependents(data, componentIds) {
       !targets.has(row.componentId) && !lineIds.has(row.poLineId) &&
       !removedOperationIds.has(row.fromOperationId) && !removedOperationIds.has(row.toOperationId)
     ),
-    inventoryTransactions: array(data.inventoryTransactions).filter((row) =>
-      !(row.itemType === "component" && targets.has(row.itemId)) &&
-      !lineIds.has(row.poLineId) && !removedOperationIds.has(row.operationId)
-    ),
+    // Physical stock movements are accounting/quantity history, not disposable
+    // master links. Keep every movement and clear only references that this
+    // deletion actually removes. Old component IDs remain visible as archived
+    // items in the ledger so the historical balance is not silently lost.
+    inventoryTransactions: array(data.inventoryTransactions).map((row) => ({
+      ...row,
+      ...(lineIds.has(row.poLineId) ? { poLineId: "" } : {}),
+      ...(removedOperationIds.has(row.operationId) ? { operationId: "" } : {}),
+      ...(array(data.purchaseOrders).some(po => po.id === row.poId && array(po.lines).length > 0 && array(po.lines).every(line => targets.has(line.componentId)))
+        ? { poId: "" }
+        : {})
+    })),
     plannedCosts: array(data.plannedCosts).filter((row) => {
       if (row.componentId) return !targets.has(row.componentId);
       const partNumber = (row.componentNumber || "").trim().toLowerCase();
@@ -182,9 +185,14 @@ export function removePurchaseOrderDependents(data, purchaseOrderIds) {
       !targets.has(row.poId) && !lineIds.has(row.poLineId) &&
       !operationIds.has(row.fromOperationId) && !operationIds.has(row.toOperationId)
     ),
-    inventoryTransactions: array(data.inventoryTransactions).filter((row) =>
-      !targets.has(row.poId) && !lineIds.has(row.poLineId) && !operationIds.has(row.operationId)
-    ),
+    // Preserve posted stock movements after a PO is deleted. Remove only
+    // obsolete document and operation references; retain the actual ledger row.
+    inventoryTransactions: array(data.inventoryTransactions).map((row) => ({
+      ...row,
+      ...(targets.has(row.poId) ? { poId: "" } : {}),
+      ...(lineIds.has(row.poLineId) ? { poLineId: "" } : {}),
+      ...(operationIds.has(row.operationId) ? { operationId: "" } : {})
+    })),
     plannedCosts: array(data.plannedCosts).filter((row) =>
       !(row.poId && targets.has(row.poId)) && !(row.poLineId && lineIds.has(row.poLineId))
     ),
