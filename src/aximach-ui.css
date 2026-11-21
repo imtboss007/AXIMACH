@@ -5765,8 +5765,9 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   }
 }
 
-/* Keep the command header hit targets above the fixed navigation rail.
-   Dialogs remain above the header through the existing overlay z-index. */
-.command-deck {
-  z-index: 80 !important;
+/* Route Flow and Manufacturing Universe raise the fixed rail to z-index 50.
+   Keep the corresponding command header above it; modal overlays stay above both. */
+.app-shell:has(.route-flow-workspace) .command-deck,
+.app-shell:has(.manufacturing-universe-workspace) .command-deck {
+  z-index: 60 !important;
 }
