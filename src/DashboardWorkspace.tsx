@@ -1,6 +1,7 @@
 import { Activity, ArrowRight, ArrowUpRight, Boxes, Building2, CalendarClock, CheckCircle2, CircleAlert, Command, Factory, Package, ShieldCheck, Users, Workflow, type LucideIcon } from "lucide-react";
 import { activeRows, useManufacturingData } from "./manufacturingData";
 import AXIMACHOrb from "./AXIMACHOrb";
+import DashboardDataOrb from "./DashboardDataOrb";
 import { ComponentIcon } from "./IconStudio";
 
 type DashboardNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; vendorId?:string };
@@ -57,6 +58,60 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
       <div className="surface-panel jobs-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> JOB LIFECYCLE</div><h3>Production status</h3><p>PO component jobs, separate from process status.</p></div><span className="attention-count">{pendingJobs.length}</span></div>
         <div className="dashboard-job-summary"><div><strong>{pendingJobs.length}</strong><span>Jobs in progress</span></div><div><strong>{lines.length-pendingJobs.length}</strong><span>Jobs finished</span></div><div><strong>{ops.length}</strong><span>Process operations</span></div></div><button className="related-all" onClick={()=>onSelectModule("production")}>Open Production Plan <ArrowRight size={14}/></button>
       </div>
+    </section>
+    <section className="dashboard-data-orb-grid" aria-label="Five live rotating 3D dashboard data visualisations">
+      <DashboardDataOrb
+        title="Recent Operations"
+        subtitle="Latest saved shop-floor operations"
+        onSelectModule={onSelectModule}
+        items={recent.length ? recent.map(op=>({id:op.id,label:op.name,value:op.status,moduleId:"production",Icon:Activity})) : [{id:"no-recent-operations",label:"No operations recorded",value:0,moduleId:"production",Icon:Workflow}]}
+      />
+      <DashboardDataOrb
+        title="Records"
+        subtitle="Live totals across master data"
+        onSelectModule={onSelectModule}
+        items={[
+          {id:"record-companies",label:"Companies",value:companies.length,moduleId:"companies",Icon:Building2},
+          {id:"record-pos",label:"Purchase Orders",value:pos.length,moduleId:"purchasing",Icon:Package},
+          {id:"record-lines",label:"PO Component Lines",value:lines.length,moduleId:"purchasing",Icon:Boxes},
+          {id:"record-components",label:"Components",value:components.length,moduleId:"components",Icon:Factory},
+          {id:"record-vendors",label:"Vendors",value:vendors.length,moduleId:"vendors",Icon:Users},
+          {id:"record-operations",label:"Operations",value:ops.length,moduleId:"production",Icon:Activity}
+        ]}
+      />
+      <DashboardDataOrb
+        title="Exceptions"
+        subtitle="Overdue work and quality holds"
+        onSelectModule={onSelectModule}
+        items={[...overdue.slice(0,4).map(op=>({id:"overdue-"+op.id,label:op.name,value:"Overdue",moduleId:"production",Icon:CalendarClock})),...holds.slice(0,4).map(op=>({id:"hold-"+op.id,label:op.name,value:"Quality hold",moduleId:"quality",Icon:CircleAlert}))].length
+          ? [...overdue.slice(0,4).map(op=>({id:"overdue-"+op.id,label:op.name,value:"Overdue",moduleId:"production",Icon:CalendarClock})),...holds.slice(0,4).map(op=>({id:"hold-"+op.id,label:op.name,value:"Quality hold",moduleId:"quality",Icon:CircleAlert}))]
+          : [{id:"no-recorded-exceptions",label:"No recorded exceptions",value:0,moduleId:"quality",Icon:CheckCircle2}]}
+      />
+      <DashboardDataOrb
+        title="Master Records"
+        subtitle="Core manufacturing reference data"
+        onSelectModule={onSelectModule}
+        items={[
+          {id:"master-companies",label:"Companies",value:companies.length,moduleId:"companies",Icon:Building2},
+          {id:"master-components",label:"Components",value:components.length,moduleId:"components",Icon:Boxes},
+          {id:"master-vendors",label:"Vendors",value:vendors.length,moduleId:"vendors",Icon:Users},
+          {id:"master-processes",label:"Process Definitions",value:activeRows(data.processDefinitions).length,moduleId:"process-master",Icon:Workflow},
+          {id:"master-materials",label:"Materials",value:activeRows(data.materials).length,moduleId:"inventory",Icon:Factory},
+          {id:"master-transport",label:"Transport Routes",value:activeRows(data.transportRoutes).length,moduleId:"transport-master",Icon:Package}
+        ]}
+      />
+      <DashboardDataOrb
+        title="Production Status"
+        subtitle="Current saved job and operation states"
+        onSelectModule={onSelectModule}
+        items={[
+          {id:"status-open",label:"Open Operations",value:openOps.length,moduleId:"production",Icon:Activity},
+          {id:"status-complete",label:"Completed Operations",value:completeOps.length,moduleId:"production",Icon:CheckCircle2},
+          {id:"status-pending",label:"Jobs In Progress",value:pendingJobs.length,moduleId:"production",Icon:Workflow},
+          {id:"status-finished",label:"Jobs Finished",value:lines.length-pendingJobs.length,moduleId:"production",Icon:CheckCircle2},
+          {id:"status-holds",label:"Quality Holds",value:holds.length,moduleId:"quality",Icon:CircleAlert}
+        ]}
+      />
     </section>
     <section className="module-shortcuts dashboard-shortcuts"><div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark"/> QUICK ACCESS</div><h2>Open a module<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>All {moduleCount} modules <ArrowRight size={15}/></button></div>
       <div className="shortcut-grid">{[["companies","Company Directory"],["components","Component Directory"],["purchasing","Purchase Orders"],["vendors","Vendor Directory"],["production","Production Plan & Process Plan"],["costing","Costing & Payment"],["inventory","BOM & Inventory"],["quality","Quality Inspection"]].map(([id,label])=><button className="shortcut-card" key={id} onClick={()=>onSelectModule(id)}><span className="shortcut-icon"><ArrowUpRight size={18}/></span><span><strong>{label}</strong><small>Open workspace</small></span><ArrowRight size={15}/></button>)}</div>
