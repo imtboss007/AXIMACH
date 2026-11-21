@@ -2473,7 +2473,10 @@ test("payment ledger export preserves transaction-level identity and legacy tota
   assert.ok(exports.includes('recordType:"payment-transaction"'));
   assert.ok(exports.includes('sourceRecord:"PaymentTransactionRecord"'));
   assert.ok(exports.includes('recordType:"legacy-payment-total"'));
-  assert.ok(exports.includes('["payments","Payment Ledger"]'));
+  assert.ok(exports.includes('["payments","Process Payment Ledger"]'));
+  assert.ok(exports.includes('["supplier-ap","Supplier Invoices & Accounts Payable"]'));
+  assert.ok(exports.includes('recordType:"supplier-invoice"'));
+  assert.ok(exports.includes('recordType:"supplier-payment-allocation"'));
 });
 
 
