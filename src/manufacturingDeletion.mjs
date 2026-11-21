@@ -17,7 +17,11 @@ export function removeComponentDependents(data, componentIds) {
       .map((line) => ({ poId: po.id, lineId: line.id }))
   );
   const lineIds = new Set(affectedLines.map((row) => row.lineId));
-  const poIds = new Set(affectedLines.map((row) => row.poId));
+  const removedPurchaseOrderIds = new Set(
+    array(data.purchaseOrders)
+      .filter((po) => array(po.lines).length > 0 && array(po.lines).every((line) => targets.has(line.componentId)))
+      .map((po) => po.id)
+  );
   const removedOperationIds = new Set(
     array(data.operations)
       .filter((row) => targets.has(row.componentId) || lineIds.has(row.poLineId))
@@ -82,7 +86,7 @@ export function removeComponentDependents(data, componentIds) {
   }
 
   const relatedIds = new Set([
-    ...targets, ...lineIds, ...removedOperationIds, ...removedQuoteIds,
+    ...targets, ...removedPurchaseOrderIds, ...lineIds, ...removedOperationIds, ...removedQuoteIds,
     ...removedTransportIds, ...removedPaymentIds, ...removedInspectionIds,
     ...removedBomIds, ...removedPartIds, ...removedMaterialCostIds,
     ...removedMaterialLinkIds, ...removedRouteRelationshipIds
@@ -95,7 +99,7 @@ export function removeComponentDependents(data, componentIds) {
       .map((po) => {
         const originalLines = array(po.lines);
         const lines = originalLines.filter((line) => !targets.has(line.componentId));
-        if (originalLines.length > 0 && lines.length === 0) return null;
+        if (removedPurchaseOrderIds.has(po.id)) return null;
         return lines.length === originalLines.length ? po : { ...po, lines, updatedAt: new Date().toISOString() };
       })
       .filter(Boolean),
@@ -122,9 +126,7 @@ export function removeComponentDependents(data, componentIds) {
       ...row,
       ...(lineIds.has(row.poLineId) ? { poLineId: "" } : {}),
       ...(removedOperationIds.has(row.operationId) ? { operationId: "" } : {}),
-      ...(array(data.purchaseOrders).some(po => po.id === row.poId && array(po.lines).length > 0 && array(po.lines).every(line => targets.has(line.componentId)))
-        ? { poId: "" }
-        : {})
+      ...(removedPurchaseOrderIds.has(row.poId) ? { poId: "" } : {})
     })),
     plannedCosts: array(data.plannedCosts).filter((row) => {
       if (row.componentId) return !targets.has(row.componentId);
