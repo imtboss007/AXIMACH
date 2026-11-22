@@ -499,7 +499,15 @@ try {
   };
   await assertCollisionFreeScene("desktop Process Map");
   await page.setViewportSize({ width: 844, height: 390 });
-  await page.waitForTimeout(350);
+  await page.waitForFunction(() => {
+    const scene = document.querySelector(".ax-full3d-scene");
+    if (!scene) return false;
+    const measuredWidth = Number(scene.getAttribute("data-scene-layout-width"));
+    const measuredHeight = Number(scene.getAttribute("data-scene-layout-height"));
+    return Math.abs(measuredWidth - scene.clientWidth) <= 1 &&
+      Math.abs(measuredHeight - scene.clientHeight) <= 1;
+  }, null, { timeout: 5000 });
+  await page.waitForTimeout(100);
   await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
   await assertCollisionFreeScene("short-landscape mobile-sized Process Map");
   await page.setViewportSize({ width: 390, height: 844 });
