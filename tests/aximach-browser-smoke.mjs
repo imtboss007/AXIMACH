@@ -504,8 +504,10 @@ try {
     if (!scene) return false;
     const measuredWidth = Number(scene.getAttribute("data-scene-layout-width"));
     const measuredHeight = Number(scene.getAttribute("data-scene-layout-height"));
+    const content = scene.querySelector(".ax-full3d-label-content");
     return Math.abs(measuredWidth - scene.clientWidth) <= 1 &&
-      Math.abs(measuredHeight - scene.clientHeight) <= 1;
+      Math.abs(measuredHeight - scene.clientHeight) <= 1 &&
+      !!content && content.clientHeight >= scene.clientHeight;
   }, null, { timeout: 5000 });
   await page.waitForTimeout(100);
   await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
