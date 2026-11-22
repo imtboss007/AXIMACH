@@ -38,35 +38,36 @@ function overlapScore(candidate, bounds, placed) {
   return score;
 }
 
-function findNearestFreeSlot(anchor, bounds, placed, width, height, step) {
-  let winner = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  const test = raw => {
-    const candidate = clampCenter(raw.x, raw.y, bounds, width, height);
-    if (!isFree(candidate, bounds, placed)) return;
-    const dx = candidate.x - anchor.x;
-    const dy = candidate.y - anchor.y;
-    const distance = dx * dx + dy * dy;
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      winner = candidate;
+function* squareSpiral(step, maximumRing) {
+  yield [0, 0];
+  for (let ring = 1; ring <= maximumRing; ring += 1) {
+    for (let column = -ring; column <= ring; column += 1) {
+      yield [column * step, -ring * step];
+      yield [column * step, ring * step];
     }
-  };
+    for (let row = -ring + 1; row < ring; row += 1) {
+      yield [-ring * step, row * step];
+      yield [ring * step, row * step];
+    }
+  }
+}
 
-  test(anchor);
+function findNearestFreeSlot(anchor, bounds, placed, width, height, step) {
+  const origin = clampCenter(anchor.x, anchor.y, bounds, width, height);
   const minX = Math.min(bounds.width / 2 + 7, width / 2);
   const maxX = Math.max(minX, width - bounds.width / 2 - 7);
   const minY = Math.min(bounds.height / 2 + 24, height / 2);
   const maxY = Math.max(minY, height - bounds.height / 2 - 42);
+  const maximumRing = Math.ceil(Math.max(width, height) / step) + 2;
 
-  // Scan the whole usable canvas, not only a clamped spiral around the anchor.
-  // Clamping many spiral points to the same edge can hide free interior slots.
-  for (let y = minY; y <= maxY; y += step) {
-    for (let x = minX; x <= maxX; x += step) {
-      test({ x, y });
-    }
+  // Generate un-clamped candidate points so off-canvas spiral points cannot
+  // collapse onto an edge and hide free positions elsewhere in the viewport.
+  for (const [dx, dy] of squareSpiral(step, maximumRing)) {
+    const candidate = { x: origin.x + dx, y: origin.y + dy };
+    if (candidate.x < minX || candidate.x > maxX || candidate.y < minY || candidate.y > maxY) continue;
+    if (isFree(candidate, bounds, placed)) return candidate;
   }
-  return winner;
+  return null;
 }
 
 function findLeastOverlapSlot(anchor, bounds, placed, width, height, step) {
