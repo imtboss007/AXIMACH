@@ -165,3 +165,20 @@ test("Route Flow transport markers are compact vehicle-only icons; details stay 
   assert.ok(routeFlow.includes('tripCount+" trip(s) · Open details"'));
   assert.ok(css.includes("width:27px;height:27px;padding:3px;border:1px solid #c9e0f5;border-radius:8px"));
 });
+
+
+test("Process Map relationship semantics survive inserted material and transport stages", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes("previousOperationByRouteNode[index]"));
+  assert.ok(processMap.includes("nextOperationByRouteNode[index]"));
+  assert.ok(processMap.includes("const savedRelationship=fromOperation&&toOperation?"));
+});
+
+test("explicit typed route relationships replace duplicate implicit 3D edges and survive material/transport routing", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("explicitRelationshipPairs"));
+  assert.ok(universe.includes("if (!explicitRelationshipPairs.has(pairId))"));
+  assert.ok(universe.includes("validRouteRelationships"));
+  assert.ok(scene.includes('!String(edge.id||"").startsWith("relationship-")&&replacedOperationEdges.has'));
+});
