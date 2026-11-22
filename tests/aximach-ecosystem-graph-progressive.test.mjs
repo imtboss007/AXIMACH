@@ -59,3 +59,28 @@ test("group expansion never exceeds the available record count",()=>{
   assert.equal(expandEcosystemGroupLimit(14,14,4),14);
   assert.equal(expandEcosystemGroupLimit(6,3,4),3);
 });
+
+
+test("graph view preferences restore hidden groups and progressive expansion limits",()=>{
+  const preferences=loadEcosystemGraphPreferences(JSON.stringify({
+    version:1,
+    visibleKinds:["vendor","operation","unknown","vendor"],
+    visibleLimits:{vendor:14,operation:20,unknown:900}
+  }),["company","vendor","operation"],{company:6,vendor:6,operation:8});
+  assert.deepEqual(preferences.visibleKinds,["vendor","operation"]);
+  assert.deepEqual(preferences.visibleLimits,{company:6,vendor:14,operation:20});
+});
+
+test("graph view preference loader falls back safely for malformed or inaccessible storage data",()=>{
+  const defaults=loadEcosystemGraphPreferences("{not valid json",["company","vendor"],{company:6,vendor:6});
+  assert.deepEqual(defaults,{version:1,visibleKinds:["company","vendor"],visibleLimits:{company:6,vendor:6}});
+});
+
+test("graph view preferences allow an intentionally hidden-all state and clamp unsafe limits",()=>{
+  const preferences=loadEcosystemGraphPreferences(JSON.stringify({
+    visibleKinds:[],
+    visibleLimits:{company:-50,vendor:999999}
+  }),["company","vendor"],{company:6,vendor:6});
+  assert.deepEqual(preferences.visibleKinds,[]);
+  assert.deepEqual(preferences.visibleLimits,{company:0,vendor:5000});
+});

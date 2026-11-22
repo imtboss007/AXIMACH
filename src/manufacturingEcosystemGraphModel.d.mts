@@ -21,3 +21,14 @@ export function expandEcosystemGroupLimit(
   totalCount: number,
   increment?: number
 ): number;
+
+export type EcosystemGraphPreferences<K extends string = string> = {
+  version: 1;
+  visibleKinds: K[];
+  visibleLimits: Record<K, number>;
+};
+export function loadEcosystemGraphPreferences<K extends string>(
+  serialized: string | null | undefined | unknown,
+  validKinds: K[],
+  defaultLimits?: Record<K, number>
+): EcosystemGraphPreferences<K>;

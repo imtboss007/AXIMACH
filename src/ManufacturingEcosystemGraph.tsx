@@ -1,7 +1,7 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Activity, FileDown, Network, Search, X } from "lucide-react";
 import { activeRows, type ManufacturingData } from "./manufacturingData";
-import { expandEcosystemGroupLimit, getVisibleEcosystemNodes, searchEcosystemNodes } from "./manufacturingEcosystemGraphModel.mjs";
+import { expandEcosystemGroupLimit, getVisibleEcosystemNodes, loadEcosystemGraphPreferences, searchEcosystemNodes, type EcosystemGraphPreferences } from "./manufacturingEcosystemGraphModel.mjs";
 
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
 type Props = { data:ManufacturingData; onNavigate:(moduleId:string,context?:Context)=>void };
@@ -49,13 +49,41 @@ const INITIAL_VISIBLE_LIMITS = Object.fromEntries(
   GROUPS.map(group => [group.kind, group.kind === "operation" ? 8 : 6])
 ) as Record<NodeKind, number>;
 
+const GRAPH_PREFERENCES_KEY = "aximach.manufacturing-ecosystem-graph.preferences.v1";
+const VALID_GROUP_KINDS = GROUPS.map(group => group.kind);
+
 export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
-  const [visibleKinds,setVisibleKinds]=useState<NodeKind[]>(GROUPS.map(group=>group.kind));
-  const [visibleLimits,setVisibleLimits]=useState<Record<NodeKind,number>>({...INITIAL_VISIBLE_LIMITS});
+  const [graphPreferences,setGraphPreferences]=useState<EcosystemGraphPreferences<NodeKind>>(() => {
+    try {
+      return loadEcosystemGraphPreferences(
+        typeof window === "undefined" ? null : window.localStorage.getItem(GRAPH_PREFERENCES_KEY),
+        VALID_GROUP_KINDS,
+        INITIAL_VISIBLE_LIMITS
+      );
+    } catch {
+      return loadEcosystemGraphPreferences(null,VALID_GROUP_KINDS,INITIAL_VISIBLE_LIMITS);
+    }
+  });
+  const visibleKinds=graphPreferences.visibleKinds;
+  const visibleLimits=graphPreferences.visibleLimits;
   const [selectedId,setSelectedId]=useState("");
   const [searchQuery,setSearchQuery]=useState("");
   const [searchResultLimit,setSearchResultLimit]=useState(10);
   const [exportFormat,setExportFormat]=useState<"svg"|"csv"|"json">("svg");
+  useEffect(()=>{
+    try {
+      window.localStorage.setItem(GRAPH_PREFERENCES_KEY,JSON.stringify({
+        version:1,
+        visibleKinds:graphPreferences.visibleKinds,
+        visibleLimits:graphPreferences.visibleLimits
+      }));
+    } catch { /* Persisted view preferences are optional when storage is unavailable. */ }
+  },[graphPreferences]);
+  const resetGraphPreferences=()=>setGraphPreferences({
+    version:1,
+    visibleKinds:[...VALID_GROUP_KINDS],
+    visibleLimits:{...INITIAL_VISIBLE_LIMITS}
+  });
   const graph=useMemo(()=>{
     const nodes:GraphNode[]=[];
     const edges:GraphEdge[]=[];
@@ -178,7 +206,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       <div className="ax-ecosystem-graph-count"><Network size={15}/><strong>{graph.nodes.length}</strong><small>nodes shown</small><span>{graph.totalAvailable} saved records in these groups</span></div><div className="ax-ecosystem-export"><select aria-label="Ecosystem export format" value={exportFormat} onChange={event=>setExportFormat(event.target.value as typeof exportFormat)}><option value="svg">SVG</option><option value="csv">CSV</option><option value="json">JSON</option></select><button type="button" onClick={exportGraph}><FileDown size={13}/> Export graph</button></div>
     </header>
     <div className="ax-ecosystem-filters" aria-label="Show or hide entity groups">
-      {graph.totals.map(group=><button type="button" key={group.kind} aria-pressed={visibleKinds.includes(group.kind)} onClick={()=>setVisibleKinds(current=>current.includes(group.kind)?current.filter(kind=>kind!==group.kind):[...current,group.kind])}><i style={{background:group.color}}/><span>{group.title}</span><b>{group.count}</b></button>)}
+      {graph.totals.map(group=><button type="button" key={group.kind} aria-pressed={visibleKinds.includes(group.kind)} onClick={()=>setGraphPreferences(current=>({...current,visibleKinds:current.visibleKinds.includes(group.kind)?current.visibleKinds.filter(kind=>kind!==group.kind):[...current.visibleKinds,group.kind]}))}><i style={{background:group.color}}/><span>{group.title}</span><b>{group.count}</b></button>)}
     </div>
     <div className="ax-ecosystem-search" role="search">
       <label>
@@ -203,7 +231,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
             {graph.searchResults.slice(0,searchResultLimit).map(node=>{
               const group=GROUPS.find(item=>item.kind===node.kind)!;
               return <button type="button" key={node.id} className={selectedId===node.id?"is-selected":""} onClick={()=>{
-                setVisibleKinds(current=>current.includes(node.kind)?current:[...current,node.kind]);
+                setGraphPreferences(current=>({...current,visibleKinds:current.visibleKinds.includes(node.kind)?current.visibleKinds:[...current.visibleKinds,node.kind]}));
                 setSelectedId(node.id);
               }}>
                 <i style={{background:group.color}}/>
@@ -216,7 +244,8 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
         </>}
     </section>}
     <div className="ax-ecosystem-expand-groups" aria-label="Progressively expand visible graph groups">
-      {graph.totals.filter(group=>visibleKinds.includes(group.kind)&&group.count>group.renderedCount).map(group=><button type="button" key={group.kind} onClick={()=>setVisibleLimits(current=>({...current,[group.kind]:expandEcosystemGroupLimit(current[group.kind]??INITIAL_VISIBLE_LIMITS[group.kind],group.count,4)}))}>
+      <button type="button" className="ax-ecosystem-reset-view" onClick={resetGraphPreferences}>Reset graph view</button>
+      {graph.totals.filter(group=>visibleKinds.includes(group.kind)&&group.count>group.renderedCount).map(group=><button type="button" key={group.kind} onClick={()=>setGraphPreferences(current=>({...current,visibleLimits:{...current.visibleLimits,[group.kind]:expandEcosystemGroupLimit(current.visibleLimits[group.kind]??INITIAL_VISIBLE_LIMITS[group.kind],group.count,4)}}))}>
         <span>Show more {group.title}</span><b>{group.renderedCount} / {group.count}</b>
       </button>)}
     </div>
