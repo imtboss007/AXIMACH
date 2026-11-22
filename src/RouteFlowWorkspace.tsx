@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useReducedMotion } from "motion/react";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 import OperationInlineEditor from "./OperationInlineEditor";
@@ -49,6 +50,7 @@ type FlowNode =
 function vehicleClassFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike"; if(/bus/.test(type))return "bus"; if(/car|taxi|auto|three.wheeler/.test(type))return "car"; if(/air|plane|flight/.test(type))return "air"; if(/ship|boat|vessel/.test(type))return "ship"; if(/train|rail/.test(type))return "rail"; return "truck"}
 
 function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,transportLegId,materialTransportId,layout="orthogonal",onTransportClick}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number;transportLegId?:string;materialTransportId?:string;layout?:RouteLayoutMode;onTransportClick?:(id:string,kind:"leg"|"material",element:HTMLElement)=>void}) {
+  const reduceMotion = useReducedMotion();
   const style=transport?"transport":type;
 
   const curvePath=layout==="orthogonal"?"M4 36 L54 36 L54 12 L88 12 L88 36 L132 36":layout==="horizontal"?"M4 36 L132 36":style==="feedback"?"M4 35 C20 -2 48 -5 68 28 C84 55 112 60 132 25"
@@ -70,7 +72,7 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,trans
       {style==="conditional"&&<path className="route-flow-curve-diamond" d="M69 22 L76 29 L69 36 L62 29 Z"/>}
       {style==="merge"&&<path className="route-flow-curve-branch" d="M56 12 L68 34 L80 12"/>}
       {style==="split"&&<path className="route-flow-curve-branch" d="M56 54 L68 32 L80 54"/>}
-      <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path={curvePath}/></circle>
+      {!reduceMotion && <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path={curvePath}/></circle>}
     </svg>
     {transport&&(transportLegId||materialTransportId?<button type="button" className={"route-flow-vehicle-marker route-flow-vehicle-marker-button vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s) · Open details"} aria-label="Open this transport popup" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onTransportClick?.(transportLegId||materialTransportId!,transportLegId?"leg":"material",event.currentTarget);}}><VehicleTypeIcon vehicleType={vehicleType} size={17}/></button>:<span className={"route-flow-vehicle-marker vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleTypeIcon vehicleType={vehicleType} size={17}/></span>)}
     {!transport&&<small>{label||relationLabel(type)}</small>}
