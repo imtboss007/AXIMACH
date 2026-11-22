@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Activity, FileDown, Network, Search, X } from "lucide-react";
+import { Background, BackgroundVariant, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow } from "@xyflow/react";
+import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
+import "@xyflow/react/style.css";
 import { activeRows, type ManufacturingData } from "./manufacturingData";
 import { expandEcosystemGroupLimit, getVisibleEcosystemNodes, loadEcosystemGraphPreferences, searchEcosystemNodes, type EcosystemGraphPreferences } from "./manufacturingEcosystemGraphModel.mjs";
 
@@ -8,6 +11,11 @@ type Props = { data:ManufacturingData; onNavigate:(moduleId:string,context?:Cont
 type NodeKind = "company"|"customer"|"factory"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
 type GraphNode = { id:string; label:string; detail:string; kind:NodeKind; moduleId:string; context:Context; x:number; y:number };
 type GraphEdge = { id:string; from:string; to:string; kind:string };
+type EcosystemEntityNodeData = { label:string; detail:string; group:string; accent:string };
+type EcosystemHubNodeData = { label:string; detail:string };
+type EcosystemEntityNode = Node<EcosystemEntityNodeData,"ecosystem">;
+type EcosystemHubNode = Node<EcosystemHubNodeData,"hub">;
+type EcosystemFlowNode = EcosystemEntityNode | EcosystemHubNode;
 
 const EDGE_LEGEND = [
   {label:"Structure",color:"#2875bd"},
@@ -45,6 +53,31 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
   {kind:"finance",title:"Payments",moduleId:"costing",color:"#8b69aa"},
   {kind:"contact",title:"Contacts",moduleId:"contact360",color:"#648b91"}
 ];
+
+function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {
+  return <div className="ax-ecosystem-flow-node" style={{"--node-accent":data.accent} as CSSProperties}>
+    <Handle type="target" position={Position.Top} isConnectable={false}/>
+    <span>{data.group}</span>
+    <strong title={data.label}>{data.label}</strong>
+    <small title={data.detail}>{data.detail}</small>
+    <Handle type="source" position={Position.Bottom} isConnectable={false}/>
+  </div>;
+}
+
+function EcosystemHubFlowNode({data}:NodeProps<EcosystemHubNode>) {
+  return <div className="ax-ecosystem-flow-hub">
+    <Handle type="target" position={Position.Top} isConnectable={false}/>
+    <Network size={17}/>
+    <strong>{data.label}</strong>
+    <small>{data.detail}</small>
+    <Handle type="source" position={Position.Bottom} isConnectable={false}/>
+  </div>;
+}
+
+const ECOSYSTEM_FLOW_NODE_TYPES = {
+  ecosystem:EcosystemEntityFlowNode,
+  hub:EcosystemHubFlowNode
+} satisfies NodeTypes;
 
 const INITIAL_VISIBLE_LIMITS = Object.fromEntries(
   GROUPS.map(group => [group.kind, group.kind === "operation" ? 8 : 6])
@@ -180,6 +213,57 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     const searchResults=searchEcosystemNodes(nodes,searchQuery);
     return {nodes:visible,allNodes:nodes,edges:visibleEdges,totals,totalAvailable,searchResults};
   },[data,visibleKinds,visibleLimits,selectedId,searchQuery]);
+  const flowNodes=useMemo<EcosystemFlowNode[]>(()=>{
+    const hub:EcosystemHubNode={
+      id:"aximach-hub",
+      type:"hub",
+      position:{x:0,y:0},
+      data:{label:"AXIMACH",detail:"MANUFACTURING OS"},
+      draggable:false,
+      selectable:false,
+      focusable:false,
+      style:{width:146,height:94}
+    };
+    const entities:EcosystemEntityNode[]=graph.nodes.map(node=>{
+      const group=GROUPS.find(item=>item.kind===node.kind)!;
+      return {
+        id:node.id,
+        type:"ecosystem",
+        position:{x:(node.x-50)*16,y:(node.y-50)*12},
+        data:{label:node.label,detail:node.detail,group:group.title,accent:group.color},
+        draggable:false,
+        selectable:false,
+        focusable:true,
+        style:{width:190}
+      };
+    });
+    return [hub,...entities];
+  },[graph.nodes]);
+  const flowEdges=useMemo<Edge[]>(()=>{
+    const membership:Edge[]=graph.nodes.map(node=>({
+      id:"hub:"+node.id,
+      source:"aximach-hub",
+      target:node.id,
+      type:"straight",
+      selectable:false,
+      focusable:false,
+      style:{stroke:"#9dbbd0",strokeWidth:1.15,strokeDasharray:"4 7",opacity:.58}
+    }));
+    const relationships:Edge[]=graph.edges.map(link=>{
+      const color=edgeColor(link.kind);
+      return {
+        id:link.id,
+        source:link.from,
+        target:link.to,
+        type:"smoothstep",
+        selectable:false,
+        focusable:false,
+        style:{stroke:color,strokeWidth:1.8,opacity:.86},
+        markerEnd:{type:MarkerType.ArrowClosed,color}
+      };
+    });
+    return [...membership,...relationships];
+  },[graph.nodes,graph.edges]);
   const byId=new Map(graph.nodes.map(node=>[node.id,node]));
   const selected=graph.allNodes.find(node=>node.id===selectedId);
   const exportGraph=()=>{
@@ -253,14 +337,32 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       </button>)}
     </div>
     <div className="ax-ecosystem-edge-legend" aria-label="Relationship line colour legend">{EDGE_LEGEND.map(item=><span key={item.label}><i style={{background:item.color}}/>{item.label}</span>)}</div>
-    <div className="ax-ecosystem-stage">
-      <svg className="ax-ecosystem-links" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
-        <defs><marker id="ax-ecosystem-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6489a5"/></marker></defs>
-        {graph.edges.map(link=>{const from=byId.get(link.from),to=byId.get(link.to);if(!from||!to)return null;return <line key={link.id} className="ax-ecosystem-edge" x1={from.x*10} y1={from.y*7} x2={to.x*10} y2={to.y*7} style={{stroke:edgeColor(link.kind)}} markerEnd="url(#ax-ecosystem-arrow)" />;})}
-        {graph.nodes.map(node=><line key={"hub:"+node.id} className="ax-ecosystem-hub-link" x1="500" y1="350" x2={node.x*10} y2={node.y*7}/> )}
-      </svg>
-      <div className="ax-ecosystem-hub"><Network size={23}/><strong>AXIMACH</strong><small>MANUFACTURING OS</small></div>
-      {graph.nodes.map(node=>{const group=GROUPS.find(item=>item.kind===node.kind)!;return <button type="button" key={node.id} className={"ax-ecosystem-node kind-"+node.kind+(selectedId===node.id?" is-selected":"")} style={{left:node.x+"%",top:node.y+"%", "--node-accent":group.color} as CSSProperties} onClick={()=>setSelectedId(current=>current===node.id?"":node.id)} title={node.detail}><span>{node.label}</span><small>{group.title.replace(" & allocations","")}</small></button>;})}
+    <div className="ax-ecosystem-flow-canvas" data-testid="ecosystem-flow-canvas" aria-label="Interactive manufacturing relationship canvas">
+      <ReactFlow<EcosystemFlowNode,Edge>
+        nodes={flowNodes}
+        edges={flowEdges}
+        nodeTypes={ECOSYSTEM_FLOW_NODE_TYPES}
+        fitView
+        fitViewOptions={{padding:0.22,minZoom:0.18,maxZoom:1.15}}
+        minZoom={0.18}
+        maxZoom={1.8}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        nodesFocusable
+        edgesFocusable={false}
+        panOnDrag
+        zoomOnScroll={false}
+        zoomOnPinch
+        zoomOnDoubleClick={false}
+        onNodeClick={(_,node)=>{if(node.type==="ecosystem")setSelectedId(current=>current===node.id?"":node.id);}}
+        onPaneClick={()=>setSelectedId("")}
+        proOptions={{hideAttribution:false}}
+      >
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#b5c9da"/>
+        <Controls showInteractive={false}/>
+        <MiniMap pannable zoomable nodeColor={node=>node.type==="hub"?"#8fc4e5":node.data.accent}/>
+      </ReactFlow>
     </div>
     <div className="ax-ecosystem-graph-foot"><span><i/> Solid lines represent saved ID relationships · dashed hub lines indicate membership in the live graph</span>{selected&&<div className="ax-ecosystem-selected"><div><strong>{selected.label}</strong><small>{selected.detail}</small></div><button type="button" onClick={()=>onNavigate(selected.moduleId,selected.context)}>Open source record <Activity size={13}/></button></div>}</div>
     <p className="ax-ecosystem-help">Select a graph node or a search result to inspect it, then open its source record. Search covers every saved record in the graph model, including records outside the visible canvas sample.</p><p className="ax-ecosystem-sample-note">Use “Show more” to progressively add records to each visible group. Search results can select records beyond the current canvas limit. Display controls never change source manufacturing data.</p>

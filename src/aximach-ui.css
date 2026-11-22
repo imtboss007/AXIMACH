@@ -6238,3 +6238,37 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .lead-converted{color:#4d8066;font-size:10px;font-weight:700}
 .lead-empty{padding:16px 6px;color:var(--muted,#789);font-size:11px}
 @media(max-width:700px){.lead-discovery-head,.lead-result,.lead-prospect{align-items:stretch;flex-direction:column}.lead-discovery-provider{white-space:normal}.lead-prospect-actions{justify-content:flex-start}}
+
+
+/* React Flow powered live Manufacturing Universe canvas */
+.ax-ecosystem-flow-canvas{position:relative;isolation:isolate;height:680px;min-height:460px;overflow:hidden;border:1px solid #d9e5f0;border-radius:12px;background:radial-gradient(circle at 50% 46%,#fff 0%,#f5f9fd 45%,#eaf2f9 100%)}
+.ax-ecosystem-flow-canvas .react-flow{width:100%;height:100%;background:transparent;font-family:'DM Sans',sans-serif}
+.ax-ecosystem-flow-canvas .react-flow__pane{cursor:grab}
+.ax-ecosystem-flow-canvas .react-flow__pane:active{cursor:grabbing}
+.ax-ecosystem-flow-canvas .react-flow__node{border:0;background:transparent;box-shadow:none}
+.ax-ecosystem-flow-canvas .react-flow__node-ecosystem{width:190px}
+.ax-ecosystem-flow-canvas .react-flow__node-hub{width:146px;height:94px}
+.ax-ecosystem-flow-node{position:relative;display:flex;flex-direction:column;justify-content:center;gap:4px;width:190px;min-height:70px;padding:9px 11px;border:1px solid color-mix(in srgb,var(--node-accent) 42%,white);border-left:3px solid var(--node-accent);border-radius:9px;background:linear-gradient(145deg,#fff,#f7fbff);box-shadow:0 5px 16px #254c6b18;color:#2b4d6c}
+.ax-ecosystem-flow-node>span{color:var(--node-accent);font:700 8px 'DM Mono';letter-spacing:.045em;text-transform:uppercase}
+.ax-ecosystem-flow-node strong{overflow:hidden;color:#284b69;font-size:11px;font-weight:750;text-overflow:ellipsis;white-space:nowrap}
+.ax-ecosystem-flow-node small{display:-webkit-box;overflow:hidden;color:#7c91a6;font-size:8px;line-height:1.4;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.ax-ecosystem-flow-hub{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:146px;height:94px;border:1px solid #83b8d6;border-radius:15px;background:linear-gradient(145deg,#f8fdff,#cde5f4);box-shadow:0 0 0 8px #b8d7ea24,0 12px 30px #3d719326;color:#17618f}
+.ax-ecosystem-flow-hub strong{font:800 15px 'Space Grotesk';letter-spacing:.08em}
+.ax-ecosystem-flow-hub small{font:7px 'DM Mono';letter-spacing:.1em}
+.ax-ecosystem-flow-canvas .react-flow__handle{width:5px;height:5px;min-width:5px;min-height:5px;border:0;background:#8caec7;opacity:.5;pointer-events:none}
+.ax-ecosystem-flow-canvas .react-flow__edge-path{stroke-linecap:round}
+.ax-ecosystem-flow-canvas .react-flow__controls{overflow:hidden;border:1px solid #d6e2ed;border-radius:9px;background:#fff;box-shadow:0 5px 16px #254c6b16}
+.ax-ecosystem-flow-canvas .react-flow__controls-button{width:29px;height:29px;border:0;border-bottom:1px solid #edf1f5;background:#fff;color:#52708a}
+.ax-ecosystem-flow-canvas .react-flow__controls-button:hover{background:#eef5fb}
+.ax-ecosystem-flow-canvas .react-flow__minimap{overflow:hidden;border:1px solid #d6e2ed;border-radius:9px;background:#f7fbff;box-shadow:0 5px 16px #254c6b14}
+.ax-ecosystem-flow-canvas .react-flow__attribution{font-size:7px;background:#ffffffbd}
+@media(max-width:700px){
+  .ax-ecosystem-flow-canvas{height:540px;min-height:420px}
+  .ax-ecosystem-flow-canvas .react-flow__minimap{display:none}
+  .ax-ecosystem-flow-node{width:166px;min-height:64px;padding:8px}
+  .ax-ecosystem-flow-canvas .react-flow__node-ecosystem{width:166px}
+  .ax-ecosystem-flow-canvas .react-flow__controls{transform:scale(.94);transform-origin:top left}
+}
+@media(prefers-reduced-motion:reduce){
+  .ax-ecosystem-flow-canvas .react-flow__node{transition:none!important}
+}

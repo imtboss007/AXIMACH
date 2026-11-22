@@ -126,6 +126,13 @@ try {
   await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Manufacturing Universe"]').click();
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Manufacturing Universe");
   await page.locator(".ax-ecosystem-graph").waitFor({ timeout: 15000 });
+  await page.locator('[data-testid="ecosystem-flow-canvas"] .react-flow__renderer').waitFor({ timeout: 10000 });
+  await page.locator('[data-testid="ecosystem-flow-canvas"] .react-flow__controls').waitFor({ timeout: 10000 });
+  await page.locator('[data-testid="ecosystem-flow-canvas"] .react-flow__minimap').waitFor({ timeout: 10000 });
+  if (await page.locator('[data-testid="ecosystem-flow-canvas"] .react-flow__node-hub').count() !== 1) {
+    throw new Error("Manufacturing Universe React Flow canvas is missing its AXIMACH graph hub.");
+  }
+  console.log("PASS Manufacturing Universe React Flow canvas, viewport controls and minimap");
   if (await page.locator(".ax-ecosystem-filters button").count() !== 13) {
     throw new Error("Manufacturing ecosystem graph does not expose all 12 entity filters.");
   }

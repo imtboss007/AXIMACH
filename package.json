@@ -37,7 +37,8 @@
     "exceljs": "^4.4.0",
     "@capacitor/screen-orientation": "7.0.4",
     "echarts": "^6.1.0",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "@xyflow/react": "^13.0.2"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
