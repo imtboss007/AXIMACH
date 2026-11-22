@@ -195,17 +195,20 @@ function App() {
   const [appearance, setAppearance] = useState<"light"|"dark"|"midnight"|"ocean">(() => { try { const saved=localStorage.getItem("aximach.ui.appearance"); return saved==="dark"||saved==="midnight"||saved==="ocean"?saved:"light"; } catch { return "light"; } });
   const [followUpSeed,setFollowUpSeed] = useState<{name:string;phone:string;company:string;vendorId:string;process:string;operationId:string}>({name:"",phone:"",company:"",vendorId:"",process:"",operationId:""});
   const needsLandscapeOrientation = activeModuleId === "process-map" || activeModuleId === "route-flow" || activeModuleId === "manufacturing-universe";
+  const [landscapeCanvasOpen,setLandscapeCanvasOpen] = useState(false);
   const [orientationLockUnavailable,setOrientationLockUnavailable] = useState(false);
-  const [orientationHintDismissed,setOrientationHintDismissed] = useState(false);
-  const requestLandscapeOrientation = async ():Promise<boolean> => {
+  // Treat touch devices as mobile even when a landscape viewport is wider than
+  // 900px. Android desktop-mode/large-device viewports can still be phones.
+  const isTouchViewport = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  const requestDeviceOrientation = async (orientation:"portrait-primary"|"landscape-primary"):Promise<boolean> => {
     try {
-      await CapacitorScreenOrientation.lock({ orientation: "landscape-primary" });
+      await CapacitorScreenOrientation.lock({ orientation });
       return true;
     } catch {
       try {
-        const browserOrientation = window.screen?.orientation as unknown as { lock?: (orientation:"landscape-primary")=>Promise<void> };
+        const browserOrientation = window.screen?.orientation as unknown as { lock?: (value:"portrait-primary"|"landscape-primary")=>Promise<void> };
         if (!browserOrientation?.lock) return false;
-        await browserOrientation.lock("landscape-primary");
+        await browserOrientation.lock(orientation);
         return true;
       } catch {
         return false;
@@ -214,31 +217,29 @@ function App() {
   };
   useEffect(() => {
     let disposed = false;
-    setOrientationHintDismissed(false);
-    if (!needsLandscapeOrientation || !window.matchMedia("(pointer: coarse) and (max-width: 900px)").matches) {
+    if (!isTouchViewport) {
       setOrientationLockUnavailable(false);
       void CapacitorScreenOrientation.unlock().catch(() => undefined);
       return;
     }
+    const targetOrientation = needsLandscapeOrientation && landscapeCanvasOpen ? "landscape-primary" : "portrait-primary";
     setOrientationLockUnavailable(false);
-    void requestLandscapeOrientation().then(locked => {
-      if (disposed) {
-        // A slow native bridge must not re-apply landscape after the user
-        // has already left this workspace.
-        if (locked) void CapacitorScreenOrientation.unlock().catch(() => undefined);
-        return;
-      }
-      setOrientationLockUnavailable(!locked);
+    void requestDeviceOrientation(targetOrientation).then(locked => {
+      if (!disposed) setOrientationLockUnavailable(!locked);
     });
-    return () => {
-      disposed = true;
-      // Release the temporary landscape lock only when the user leaves all
-      // landscape-first manufacturing workspaces.
-      if (needsLandscapeOrientation) void CapacitorScreenOrientation.unlock().catch(() => undefined);
-    };
-  },[needsLandscapeOrientation]);
-  const retryLandscapeOrientation = async () => {
-    const locked = await requestLandscapeOrientation();
+    return () => { disposed = true; };
+  },[isTouchViewport,needsLandscapeOrientation,landscapeCanvasOpen]);
+  const toggleLandscapeCanvas = async () => {
+    if (!needsLandscapeOrientation) return;
+    const next = !landscapeCanvasOpen;
+    setLandscapeCanvasOpen(next);
+    const locked = await requestDeviceOrientation(next ? "landscape-primary" : "portrait-primary");
+    setOrientationLockUnavailable(!locked);
+  };
+  const retryDeviceOrientation = async () => {
+    if (!isTouchViewport) return;
+    const targetOrientation = needsLandscapeOrientation && landscapeCanvasOpen ? "landscape-primary" : "portrait-primary";
+    const locked = await requestDeviceOrientation(targetOrientation);
     setOrientationLockUnavailable(!locked);
   };
   const openVendorFollowUp = (vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string}, operationId="", processName="") => {
@@ -306,6 +307,8 @@ function App() {
   }, []);
 
   const selectModule = (id: string, context: LinkedNavigationContext = {}) => {
+    setLandscapeCanvasOpen(false);
+    setOrientationLockUnavailable(false);
     setModuleContext(context);
     setActiveModuleId(id);
     setModuleExplorerOpen(false);
@@ -365,6 +368,7 @@ function App() {
         <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>{modules.length}</b></button>
         <button className="deck-action" onClick={() => setIconStudioOpen(true)}><Sparkles size={16}/><span>Logo Studio</span></button>
         <label className="appearance-picker" title="Appearance"><Settings2 size={15}/><select aria-label="Appearance" value={appearance} onChange={e=>setAppearance(e.target.value as "light"|"dark"|"midnight"|"ocean")}><option value="light">Light</option><option value="dark">Dark</option><option value="midnight">Midnight</option><option value="ocean">Ocean</option></select></label>
+        {needsLandscapeOrientation && isTouchViewport && <button type="button" className="ax-orientation-toggle" aria-pressed={landscapeCanvasOpen} aria-label={landscapeCanvasOpen ? "Return to portrait layout" : "Open landscape canvas"} title={landscapeCanvasOpen ? "Return to portrait layout" : "Open landscape canvas"} onClick={() => void toggleLandscapeCanvas()}><RotateCcw size={15}/><span>{landscapeCanvasOpen ? "Portrait" : "Landscape"}</span></button>}
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
       </header>
@@ -377,16 +381,9 @@ function App() {
       </div>
 
       <main className="page-content">
-        {needsLandscapeOrientation && orientationLockUnavailable && !orientationHintDismissed && <div className="ax-landscape-rotate-prompt" role="status">
-          <section>
-            <RotateCcw size={38}/>
-            <strong>Landscape view required</strong>
-            <p>This browser could not rotate the screen automatically. Enable auto-rotate and turn your phone sideways for the full route canvas.</p>
-            <div>
-              <button type="button" className="button-primary" onClick={() => void retryLandscapeOrientation()}>Try landscape again</button>
-              <button type="button" className="button-quiet" onClick={() => setOrientationHintDismissed(true)}>Continue in portrait</button>
-            </div>
-          </section>
+        {needsLandscapeOrientation && landscapeCanvasOpen && orientationLockUnavailable && <div className="ax-orientation-fallback" role="status">
+          <span>Automatic rotation is unavailable. Enable auto-rotate and turn your device sideways; portrait remains available.</span>
+          <button type="button" className="button-quiet compact-button" onClick={() => void retryDeviceOrientation()}>Retry</button>
         </div>}
         <Suspense fallback={<div className="workspace-loading-state" role="status"><span className="workspace-loading-spinner" /> Loading AXIMACH workspace…</div>}>
         {activeModuleId === "dashboard" ? (
@@ -465,6 +462,9 @@ function App() {
         <button title="3D Command Centre" className={activeModuleId === "command-centre" ? "rail-active" : ""} onClick={() => selectModule("command-centre")}><Command size={16} /><span>3D Command Centre</span></button>
         <div className="rail-section-label">ALL MODULES</div>
         {modules.map((item) => { const ItemIcon = item.icon; return <button key={item.id} title={item.title} className={activeModuleId === item.id ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16} /><span>{item.title}</span></button>; })}
+        <div className="rail-section-label">WORKSPACE TOOLS</div>
+        <button title="Logo Studio" onClick={() => { setIconStudioOpen(true); setMobileNavOpen(false); }}><Sparkles size={16}/><span>Logo Studio</span></button>
+        <label className="rail-appearance-setting"><span>Appearance</span><select aria-label="Mobile appearance" value={appearance} onChange={event=>setAppearance(event.target.value as "light"|"dark"|"midnight"|"ocean")}><option value="light">Light</option><option value="dark">Dark</option><option value="midnight">Midnight</option><option value="ocean">Ocean</option></select></label>
         <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={16} /><span>Module explorer</span></button>
       </nav>
 
