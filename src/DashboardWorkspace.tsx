@@ -3,6 +3,7 @@ import { activeRows, useManufacturingData } from "./manufacturingData";
 import AXIMACHOrb from "./AXIMACHOrb";
 import DashboardDataOrb from "./DashboardDataOrb";
 import { ComponentIcon } from "./IconStudio";
+import ProductionStatusChart from "./ProductionStatusChart";
 
 type DashboardNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; vendorId?:string };
 type Props = { onSelectModule:(id:string,context?:DashboardNavigationContext)=>void; onOpenCommandCentre:()=>void; onOpenModules:()=>void; moduleCount:number };
@@ -57,6 +58,15 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
       </div>
       <div className="surface-panel jobs-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> JOB LIFECYCLE</div><h3>Production status</h3><p>PO component jobs, separate from process status.</p></div><span className="attention-count">{pendingJobs.length}</span></div>
         <div className="dashboard-job-summary"><div><strong>{pendingJobs.length}</strong><span>Jobs in progress</span></div><div><strong>{lines.length-pendingJobs.length}</strong><span>Jobs finished</span></div><div><strong>{ops.length}</strong><span>Process operations</span></div></div><button className="related-all" onClick={()=>onSelectModule("production")}>Open Production Plan <ArrowRight size={14}/></button>
+      </div>
+    </section>
+    <section className="dashboard-production-visuals">
+      <div className="surface-panel dashboard-production-chart-panel">
+        <div className="panel-heading">
+          <div><div className="eyebrow"><span className="eyebrow-mark"/> SHOP-FLOOR SNAPSHOT</div><h3>Production status distribution</h3><p>{ops.length.toLocaleString("en-IN")} saved operations · live from AXIMACH records</p></div>
+          <button className="button-quiet compact-button" onClick={()=>onSelectModule("production")}><Workflow size={14}/> Open production plan</button>
+        </div>
+        <ProductionStatusChart operations={ops}/>
       </div>
     </section>
     <section className="dashboard-data-orb-grid" aria-label="Five live rotating 3D dashboard data visualisations">
