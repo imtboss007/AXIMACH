@@ -21,5 +21,6 @@ export interface ProcessSceneLabelCandidate {
 export function relaxProcessSceneLabels<T extends ProcessSceneLabelCandidate>(
   items: T[],
   width: number,
-  height: number
+  height: number,
+  responsiveWidth?: number
 ): T[];
