@@ -1587,11 +1587,26 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                   routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(appendMaterial);
                   materialLinksAt(operation.id,"after").forEach(link=>routeNodes.push({kind:"material-process-link",id:"material-process-link-"+link.id,link}));
                 });
+                // Resolve the nearest operation on either side of every route node.
+                // Saved relationship semantics must survive material and transport
+                // stages inserted between their process endpoints.
+                const previousOperationByRouteNode:Array<OperationRecord|undefined>=[];
+                let previousRouteOperation:OperationRecord|undefined;
+                routeNodes.forEach((node,index)=>{
+                  previousOperationByRouteNode[index]=previousRouteOperation;
+                  if(node.kind==="operation")previousRouteOperation=node.operation as OperationRecord;
+                });
+                const nextOperationByRouteNode:Array<OperationRecord|undefined>=new Array(routeNodes.length);
+                let nextRouteOperation:OperationRecord|undefined;
+                for(let index=routeNodes.length-1;index>=0;index--){
+                  nextOperationByRouteNode[index]=nextRouteOperation;
+                  if(routeNodes[index].kind==="operation")nextRouteOperation=routeNodes[index].operation as OperationRecord;
+                }
                 return <><nav className="process-route-index" aria-label="Jump to route operation"><strong>STEPS</strong>{lane.map((operation,index)=><button type="button" key={operation.id} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} aria-label={"Go to operation "+(index+1)+": "+operation.name}><b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span></button>)}</nav><div className="process-route-layout-toolbar"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><RouteConnectorLegend compact/><RouteConnectorLegend/></div><div className="process-route-flow-track" data-route-layout={routeLayout}>{routeNodes.map((item,index)=>{
                   const next=routeNodes[index+1];
                   const isTransport=item.kind==="transport"||item.kind==="material-transport"||next?.kind==="transport"||next?.kind==="material-transport";
-                  const fromOperation=item.kind==="operation"?item.operation:undefined;
-                  const toOperation=next?.kind==="operation"?next.operation:undefined;
+                  const fromOperation=item.kind==="operation"?item.operation:previousOperationByRouteNode[index];
+                  const toOperation=nextOperationByRouteNode[index];
                   const savedRelationship=fromOperation&&toOperation?activeRows(data.routeRelationships||[]).find(link=>link.poId===poId&&link.poLineId===lineId&&link.componentId===selectedLine?.componentId&&link.fromOperationId===fromOperation.id&&link.toOperationId===toOperation.id&&link.status!=="Disabled"):undefined;
                   const routeRelationshipType=savedRelationship?.relationshipType||(rework?"rework":branchRoot||branch!=="Main route"?"alternate":"main");
                   const routeRelationshipColors:Record<string,string>={main:"#12b9d5",alternate:"#d99a27",rework:"#df4d59",dependency:"#347de5",parallel:"#9848d6",merge:"#9e4bc9",split:"#3d79df","follow-on":"#173c6c",feedback:"#455bd6",conditional:"#9954ce",successor:"#203e62"};
