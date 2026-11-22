@@ -610,6 +610,20 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         edges.push({id:"process-sequence:"+from.id+":"+to.id,source:"operation:"+from.id,target:"operation:"+to.id,type:"smoothstep",label:saved?.label||relation.replaceAll("-"," ").toUpperCase(),labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
       }
     });
+    branchRows.filter(row=>row.branch!=="Main route").forEach(({branch,operations:ops})=>{
+      const origin=resolveBranchOrigin(branch,ops);
+      if(!origin?.branchRoot||!origin.parent)return;
+      const branchRootPosition=operationPositions.get(origin.branchRoot.id);
+      if(!branchRootPosition)return;
+      let sourceId="operation:"+origin.parent.id;
+      if(!operationPositions.has(origin.parent.id)){
+        sourceId="branch-origin:"+origin.parent.id+":"+branch;
+        nodes.push({id:sourceId,type:"processMapEntity",position:{x:Math.max(16,branchRootPosition.x-310),y:Math.max(16,branchRootPosition.y-145)},data:{title:"OP-"+String(origin.parent.sequence).padStart(3,"0")+" · "+origin.parent.name,detail:"Parent process · outside the current route scope",kind:"BRANCH ORIGIN REFERENCE",accent:"#647d93",status:origin.parent.status,actionLabel:"Select parent",onAction:()=>{setSelectedOperationId(origin.parent.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:236}});
+      }
+      const relation=origin.branchRoot.relationType==="rework"||/rework/i.test(branch)?"rework":"alternate";
+      const color=relationColors[relation];
+      edges.push({id:"branch-origin:"+origin.parent.id+":"+origin.branchRoot.id,source:sourceId,target:"operation:"+origin.branchRoot.id,type:"smoothstep",label:relation==="rework"?"REWORK BRANCH":"ALTERNATE BRANCH",labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2,strokeDasharray:"7 4"},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
+    });
     const sequentialPairs=new Set(edges.map(edge=>edge.source+"::"+edge.target));
     relationshipRows.forEach(link=>{
       const from="operation:"+link.fromOperationId,to="operation:"+link.toOperationId;
