@@ -1,9 +1,9 @@
 const CARD_BOUNDS = Object.freeze({
-  operation: { width: 184, height: 72 },
+  operation: { width: 184, height: 96 },
   material: { width: 190, height: 118 },
   transport: { width: 34, height: 34 },
   transportLeg: { width: 34, height: 34 },
-  catalogue: { width: 184, height: 72 },
+  catalogue: { width: 184, height: 96 },
   core: { width: 140, height: 56 }
 });
 
@@ -12,11 +12,11 @@ const CARD_BOUNDS = Object.freeze({
 function boundsForKind(kind, viewportWidth) {
   if (viewportWidth <= 600) {
     const compact = {
-      operation: { width: 148, height: 86 },
+      operation: { width: 148, height: 112 },
       material: { width: 140, height: 105 },
       transport: { width: 32, height: 32 },
       transportLeg: { width: 32, height: 32 },
-      catalogue: { width: 148, height: 86 },
+      catalogue: { width: 148, height: 112 },
       core: { width: 100, height: 42 }
     };
     return compact[kind] || compact.operation;
