@@ -124,7 +124,7 @@ function operationCode(operation:OperationRecord):string{
  return "OP-"+String(operation.sequence).padStart(3,"0")+(relation?" · "+relation:"");
 }
 type ProjectedPoint={x:number;y:number;z:number;scale?:number;collision?:boolean};
-type LabelCandidate={id:string;screen:ProjectedPoint;kind:"operation"|"material"|"transport"|"transportLeg"|"catalogue"|"core"};
+type LabelCandidate={id:string;screen:ProjectedPoint;anchor?:ProjectedPoint;kind:"operation"|"material"|"transport"|"transportLeg"|"catalogue"|"core"};
 function frontFacing(p:P,angle:number):boolean{
  const x=-.24,y=angle,cx=Math.cos(x),sx=Math.sin(x),cy=Math.cos(y),sy=Math.sin(y);
  const cameraZ=cx*sy*p.x-sx*p.y+cx*cy*p.z;
@@ -307,9 +307,9 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const catalogues=cataloguePoints.filter(({p})=>mode!=="sphere"||frontFacing(p,angle)).map(({definition,p})=>({id:definition.id,definition,kind:"catalogue" as const,screen:project(p,m,w,h)})).filter((item):item is {id:string;definition:CatalogueDefinition;kind:"catalogue";screen:ProjectedPoint}=>!!item.screen);
   const centerScreen=mode==="sphere"?project({x:0,y:0,z:0},m,w,h):null;
   const orderedOps=[...ops].sort((a,b)=>Number(b.id===selectedOperationId)-Number(a.id===selectedOperationId));
-  const all:LabelCandidate[]=[...(centerScreen?[{id:"__aximach-core__",kind:"core" as const,screen:centerScreen}]:[]),...orderedOps.map(item=>({id:item.id,kind:item.kind,screen:item.screen})),...materials.map(item=>({id:item.id,kind:"material" as const,screen:item.screen})),...transports.map(item=>({id:item.id,kind:"transport" as const,screen:item.screen})),...transportLegsProjected.map(item=>({id:item.id,kind:"transportLeg" as const,screen:item.screen})),...catalogues.map(item=>({id:item.id,kind:item.kind,screen:item.screen}))];
+  const all:LabelCandidate[]=[...(centerScreen?[{id:"__aximach-core__",kind:"core" as const,screen:centerScreen,anchor:centerScreen}]:[]),...orderedOps.map(item=>({id:item.id,kind:item.kind,screen:item.screen,anchor:item.screen})),...materials.map(item=>({id:item.id,kind:"material" as const,screen:item.screen,anchor:item.screen})),...transports.map(item=>({id:item.id,kind:"transport" as const,screen:item.screen,anchor:item.screen})),...transportLegsProjected.map(item=>({id:item.id,kind:"transportLeg" as const,screen:item.screen,anchor:item.screen})),...catalogues.map(item=>({id:item.id,kind:item.kind,screen:item.screen,anchor:item.screen}))];
   const relaxed=relaxProcessSceneLabels(all,w,h);
-  return {operations:relaxed.filter(item=>item.kind==="operation").map(item=>({op:ops.find(candidate=>candidate.id===item.id)!.op,screen:item.screen})),materials:relaxed.filter(item=>item.kind==="material").map(item=>({id:item.id,screen:item.screen})),transports:relaxed.filter(item=>item.kind==="transport").map(item=>({id:item.id,screen:item.screen})),transportLegs:relaxed.filter(item=>item.kind==="transportLeg").map(item=>({id:item.id,screen:item.screen})),catalogues:relaxed.filter(item=>item.kind==="catalogue").map(item=>({definition:catalogues.find(candidate=>candidate.id===item.id)!.definition,screen:item.screen})),center:relaxed.find(item=>item.kind==="core")?.screen??null};
+  return {operations:relaxed.filter(item=>item.kind==="operation").map(item=>({op:ops.find(candidate=>candidate.id===item.id)!.op,screen:item.screen,anchor:item.anchor})),materials:relaxed.filter(item=>item.kind==="material").map(item=>({id:item.id,screen:item.screen,anchor:item.anchor})),transports:relaxed.filter(item=>item.kind==="transport").map(item=>({id:item.id,screen:item.screen,anchor:item.anchor})),transportLegs:relaxed.filter(item=>item.kind==="transportLeg").map(item=>({id:item.id,screen:item.screen,anchor:item.anchor})),catalogues:relaxed.filter(item=>item.kind==="catalogue").map(item=>({definition:catalogues.find(candidate=>candidate.id===item.id)!.definition,screen:item.screen,anchor:item.anchor})),center:relaxed.find(item=>item.kind==="core")?.screen??null};
  },[points,size,angle,materialPlacements,transportLegPlacements,mode,cataloguePoints,selectedOperationId]);
  const projected=projectedLayout.operations;
  const projectedMaterials=projectedLayout.materials;
@@ -318,11 +318,11 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
  const projectedCore=projectedLayout.center;
  const projectedEdges=useMemo(()=>{
   const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));
-  const positions=new Map(projected.map(item=>[item.op.id,item.screen]));
+  const positions=new Map(projected.map(item=>[item.op.id,item.anchor??item.screen]));
   for(const anchor of anchorPoints){const screen=project(anchor.point,m,w,h);if(screen)positions.set(anchor.anchor.operation.id,screen);}
-  const materialPosition=new Map(projectedMaterials.map(item=>[item.id,item.screen]));
-  const transportPosition=new Map(projectedTransports.map(item=>[item.id,item.screen]));
-  const transportLegPosition=new Map(projectedTransportLegs.map(item=>[item.id,item.screen]));
+  const materialPosition=new Map(projectedMaterials.map(item=>[item.id,item.anchor??item.screen]));
+  const transportPosition=new Map(projectedTransports.map(item=>[item.id,item.anchor??item.screen]));
+  const transportLegPosition=new Map(projectedTransportLegs.map(item=>[item.id,item.anchor??item.screen]));
   const result:any[]=[];
   const add=(key:string,fromId:string,toId:string,fromName:string,toName:string,from:ProjectedPoint|undefined|null,to:ProjectedPoint|undefined|null,relation:string)=>{
    if(!from||!to)return;const dx=to.x-from.x,dy=to.y-from.y,length=Math.hypot(dx,dy);if(length<7)return;const inset=Math.min(20,length*.2);result.push({key,fromId,toId,from:fromName,to:toName,x:from.x+(dx/length)*inset,y:from.y+(dy/length)*inset,length:Math.max(7,length-inset*2),angle:Math.atan2(dy,dx)*180/Math.PI,relation});

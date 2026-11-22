@@ -74,6 +74,8 @@ test("3D process label layout includes every node class in one shared collision 
   assert.ok(scene.includes('kind:"catalogue" as const'));
   assert.ok(scene.includes('const projectedCatalogue=projectedLayout.catalogues'));
   assert.ok(scene.includes('relaxProcessSceneLabels(all,w,h)'));
+  assert.ok(scene.includes('anchor:item.screen'));
+  assert.ok(scene.includes('item.anchor??item.screen'), "Edge endpoints must keep the original WebGL projection after label decluttering.");
   assert.ok(layout.includes('catalogue: { width: 184, height: 124 }'));
   assert.ok(layout.includes('core: { width: 140, height: 56 }'));
   assert.ok(layout.includes('findNearestFreeSlot'));
