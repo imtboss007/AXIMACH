@@ -19,7 +19,7 @@
     "test:server": "node --test server/integrations/catalog-api.test.mjs server/integrations/catalog.test.mjs server/manufacturing-data.test.mjs server/index.test.mjs tests/aximach-five-part-fixture.test.mjs tests/aximach-transport-route-demo.test.mjs tests/aximach-material-process-links.test.mjs tests/aximach-landscape-orientation.test.mjs tests/aximach-cost-reconciliation.test.mjs tests/aximach-manufacturing-deletion.test.mjs tests/aximach-navigation-catalogue.test.mjs",
     "start:scheduler": "node server/index.mjs",
     "start:whatsapp-web": "node server/whatsapp-web.mjs",
-    "test:functional": "node --test server/integrations/catalog-api.test.mjs server/integrations/catalog.test.mjs server/manufacturing-data.test.mjs tests/aximach-route-inclusion.test.mjs tests/aximach-five-part-fixture.test.mjs tests/aximach-transport-route-demo.test.mjs tests/aximach-material-process-links.test.mjs tests/aximach-landscape-orientation.test.mjs tests/aximach-cost-reconciliation.test.mjs tests/aximach-manufacturing-deletion.test.mjs tests/aximach-navigation-catalogue.test.mjs",
+    "test:functional": "node --test server/integrations/catalog-api.test.mjs server/integrations/catalog.test.mjs server/manufacturing-data.test.mjs tests/aximach-ecosystem-graph-progressive.test.mjs tests/aximach-route-inclusion.test.mjs tests/aximach-five-part-fixture.test.mjs tests/aximach-transport-route-demo.test.mjs tests/aximach-material-process-links.test.mjs tests/aximach-landscape-orientation.test.mjs tests/aximach-cost-reconciliation.test.mjs tests/aximach-manufacturing-deletion.test.mjs tests/aximach-navigation-catalogue.test.mjs",
     "test:browser": "npm run build && node tests/aximach-browser-smoke.mjs"
   },
   "dependencies": {

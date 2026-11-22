@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
-import { Activity, FileDown, Network } from "lucide-react";
+import { Activity, FileDown, Network, Search, X } from "lucide-react";
 import { activeRows, type ManufacturingData } from "./manufacturingData";
+import { expandEcosystemGroupLimit, getVisibleEcosystemNodes, searchEcosystemNodes } from "./manufacturingEcosystemGraphModel.mjs";
 
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
 type Props = { data:ManufacturingData; onNavigate:(moduleId:string,context?:Context)=>void };
@@ -44,9 +45,16 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
   {kind:"contact",title:"Contacts",moduleId:"contact360",color:"#648b91"}
 ];
 
+const INITIAL_VISIBLE_LIMITS = Object.fromEntries(
+  GROUPS.map(group => [group.kind, group.kind === "operation" ? 8 : 6])
+) as Record<NodeKind, number>;
+
 export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
   const [visibleKinds,setVisibleKinds]=useState<NodeKind[]>(GROUPS.map(group=>group.kind));
+  const [visibleLimits,setVisibleLimits]=useState<Record<NodeKind,number>>({...INITIAL_VISIBLE_LIMITS});
   const [selectedId,setSelectedId]=useState("");
+  const [searchQuery,setSearchQuery]=useState("");
+  const [searchResultLimit,setSearchResultLimit]=useState(10);
   const [exportFormat,setExportFormat]=useState<"svg"|"csv"|"json">("svg");
   const graph=useMemo(()=>{
     const nodes:GraphNode[]=[];
@@ -70,13 +78,13 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     const inventory=activeRows(data.inventoryTransactions||[]);
     const nodeIds=new Set<string>();
     const edge=(from:string,to:string,kind:string)=>{if(from&&to&&from!==to)edges.push({id:from+"|"+to+"|"+kind,from,to,kind});};
-    companies.slice(0,6).forEach(row=>{add("company:"+row.id,row.name,"Company · "+(row.gstin||"GSTIN not recorded"),"company","companies",{companyId:row.id});nodeIds.add(row.id);});
-    factories.slice(0,6).forEach(row=>{add("factory:"+row.id,row.name,"Factory · "+(row.address||"Address not recorded"),"factory","companies",{companyId:row.companyId});edge("factory:"+row.id,"company:"+row.companyId,"owns");});
-    orders.slice(0,6).forEach(row=>{add("order:"+row.id,row.number,"Purchase order · "+row.status,"order","purchasing",{companyId:row.companyId,poId:row.id});edge("order:"+row.id,"company:"+row.companyId,"placed by");row.lines.filter(line=>!line.deletedAt).forEach(line=>edge("order:"+row.id,"component:"+line.componentId,"orders"));});
-    components.slice(0,6).forEach(row=>add("component:"+row.id,row.partNumber||row.name,"Component · "+row.name+" · Rev "+(row.revision||"—"),"component","components",{companyId:row.companyId}));
-    vendors.slice(0,6).forEach(row=>add("vendor:"+row.id,row.company,"Vendor · "+(row.vendorType||row.role||"Supplier"),"vendor","vendors"));
-    definitions.slice(0,6).forEach(row=>{add("process:"+row.id,row.processType,"Process definition · "+row.category,"process","process-master");(row.vendorIds||[]).forEach(vendorId=>edge("process:"+row.id,"vendor:"+vendorId,"capable vendor"));});
-    operations.slice(0,8).forEach(row=>{
+    companies.forEach(row=>{add("company:"+row.id,row.name,"Company · "+(row.gstin||"GSTIN not recorded"),"company","companies",{companyId:row.id});nodeIds.add(row.id);});
+    factories.forEach(row=>{add("factory:"+row.id,row.name,"Factory · "+(row.address||"Address not recorded"),"factory","companies",{companyId:row.companyId});edge("factory:"+row.id,"company:"+row.companyId,"owns");});
+    orders.forEach(row=>{add("order:"+row.id,row.number,"Purchase order · "+row.status,"order","purchasing",{companyId:row.companyId,poId:row.id});edge("order:"+row.id,"company:"+row.companyId,"placed by");row.lines.filter(line=>!line.deletedAt).forEach(line=>edge("order:"+row.id,"component:"+line.componentId,"orders"));});
+    components.forEach(row=>add("component:"+row.id,row.partNumber||row.name,"Component · "+row.name+" · Rev "+(row.revision||"—"),"component","components",{companyId:row.companyId}));
+    vendors.forEach(row=>add("vendor:"+row.id,row.company,"Vendor · "+(row.vendorType||row.role||"Supplier"),"vendor","vendors"));
+    definitions.forEach(row=>{add("process:"+row.id,row.processType,"Process definition · "+row.category,"process","process-master");(row.vendorIds||[]).forEach(vendorId=>edge("process:"+row.id,"vendor:"+vendorId,"capable vendor"));});
+    operations.forEach(row=>{
       const context={poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.id};
       add("operation:"+row.id,row.sequence+". "+row.name,"Operation · "+row.status+" · "+row.machine,"operation","production",context);
       edge("operation:"+row.id,"order:"+row.poId,"belongs to");
@@ -84,7 +92,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       edge("operation:"+row.id,"vendor:"+row.vendorId,"performed by");
       edge("operation:"+row.id,"process:"+row.processDefinitionId,"defined by");
     });
-    allocations.slice(0,6).forEach(row=>{
+    allocations.forEach(row=>{
       const context={companyId:row.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.componentId};
       add("material:"+row.id,row.materialName||"Material allocation","Material · "+(row.materialGrade||"Grade not set")+" · "+(row.totalWeightKg||0)+" kg","material","inventory",context);
       edge("material:"+row.id,"order:"+row.poId,"procured for");
@@ -92,24 +100,24 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       edge("material:"+row.id,"vendor:"+row.vendorId,"supplied by");
       edge("material:"+row.id,"operation:"+row.anchorOperationId,"feeds operation");
     });
-    inspections.slice(0,6).forEach(row=>{
+    inspections.forEach(row=>{
       const context={poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.operationId};
       add("quality:"+row.id,row.characteristic,"Inspection · "+row.result+" · "+row.measuredValue+" "+row.unit,"quality","quality",context);
       edge("quality:"+row.id,"operation:"+row.operationId,"inspects");
     });
-    legs.slice(0,6).forEach(row=>{
+    legs.forEach(row=>{
       const context={poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.anchorOperationId};
       add("transport:"+row.id,(row.fromLocation||"Origin")+" → "+(row.toLocation||"Destination"),"Dispatch leg · "+(row.status||"Planned")+" · "+row.vehicleType,"transport","dispatch",context);
       edge("transport:"+row.id,"operation:"+row.anchorOperationId,"moves between");
       edge("transport:"+row.id,"vendor:"+row.vendorId,"carried by");
       edge("transport:"+row.id,"order:"+row.poId,"serves");
     });
-    payments.slice(0,6).forEach(row=>{
+    payments.forEach(row=>{
       add("finance:"+row.id,"₹"+Number(row.amount||0).toLocaleString("en-IN"),"Payment · "+(row.reference||"No reference"),"finance","costing",{poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.operationId});
       edge("finance:"+row.id,"operation:"+row.operationId,"settles");
       edge("finance:"+row.id,"vendor:"+row.vendorId,"paid to");
     });
-    contacts.slice(0,6).forEach(row=>{
+    contacts.forEach(row=>{
       add("contact:"+row.id,row.name,"Contact · "+row.role,"contact","contact360",row.linkedType==="company"?{companyId:row.linkedId}:{});
       edge("contact:"+row.id,(row.linkedType==="company"?"company:":"vendor:")+row.linkedId,"contact for");
     });
@@ -119,7 +127,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     });
     const byId=new Map(nodes.map(node=>[node.id,node]));
     const filteredEdges=edges.filter(item=>byId.has(item.from)&&byId.has(item.to));
-    const visibleNodes=nodes.filter(node=>visibleKinds.includes(node.kind));
+    const visibleNodes=getVisibleEcosystemNodes(nodes,visibleKinds,visibleLimits,selectedId);
     const visibleIds=new Set(visibleNodes.map(node=>node.id));
     const visibleEdges=filteredEdges.filter(item=>visibleIds.has(item.from)&&visibleIds.has(item.to));
     const groupIndex=new Map(GROUPS.map((group,index)=>[group.kind,index]));
@@ -128,7 +136,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       vendor:vendors.length,process:definitions.length,operation:operations.length,material:allocations.length,
       quality:inspections.length,transport:legs.length,finance:payments.length,contact:contacts.length
     };
-    const totals=GROUPS.map(group=>({...group,count:availableCounts[group.kind]||0,renderedCount:nodes.filter(node=>node.kind===group.kind).length}));
+    const totals=GROUPS.map(group=>({...group,count:availableCounts[group.kind]||0,renderedCount:visibleNodes.filter(node=>node.kind===group.kind).length}));
     const totalAvailable=Object.values(availableCounts).reduce((sum,count)=>sum+count,0);
     const visible=visibleNodes.map(node=>{
       const index=groupIndex.get(node.kind)||0;
@@ -138,10 +146,11 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       const radius=34+(local%2)*5;
       return {...node,x:50+Math.cos(angle)*radius,y:50+Math.sin(angle)*radius};
     });
-    return {nodes:visible,edges:visibleEdges,totals,totalAvailable};
-  },[data,visibleKinds]);
+    const searchResults=searchEcosystemNodes(nodes,searchQuery);
+    return {nodes:visible,allNodes:nodes,edges:visibleEdges,totals,totalAvailable,searchResults};
+  },[data,visibleKinds,visibleLimits,selectedId,searchQuery]);
   const byId=new Map(graph.nodes.map(node=>[node.id,node]));
-  const selected=graph.nodes.find(node=>node.id===selectedId);
+  const selected=graph.allNodes.find(node=>node.id===selectedId);
   const exportGraph=()=>{
     const escapeXml=(value:string)=>value.replace(/[<>&"']/g,char=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&apos;"}[char]||char));
     let body="",mime="application/json",extension=exportFormat;
@@ -171,6 +180,46 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     <div className="ax-ecosystem-filters" aria-label="Show or hide entity groups">
       {graph.totals.map(group=><button type="button" key={group.kind} aria-pressed={visibleKinds.includes(group.kind)} onClick={()=>setVisibleKinds(current=>current.includes(group.kind)?current.filter(kind=>kind!==group.kind):[...current,group.kind])}><i style={{background:group.color}}/><span>{group.title}</span><b>{group.count}</b></button>)}
     </div>
+    <div className="ax-ecosystem-search" role="search">
+      <label>
+        <Search size={15} aria-hidden="true"/>
+        <input
+          type="search"
+          aria-label="Search all manufacturing ecosystem records"
+          placeholder="Search all saved companies, orders, components, operations, vendors..."
+          value={searchQuery}
+          onChange={event=>{setSearchQuery(event.target.value);setSearchResultLimit(10);}}
+        />
+        {searchQuery&&<button type="button" aria-label="Clear graph search" onClick={()=>{setSearchQuery("");setSearchResultLimit(10);}}><X size={14}/></button>}
+      </label>
+      <span>{searchQuery.trim()?graph.searchResults.length+" matching saved records":"Search includes records outside the current graph sample"}</span>
+    </div>
+    {searchQuery.trim()&&<section className="ax-ecosystem-search-results" aria-label="All matching saved records">
+      <header><strong>Search results</strong><span>{graph.searchResults.length} matches across all saved graph records</span></header>
+      {graph.searchResults.length===0
+        ? <p>No matching saved records. Check the spelling or search by an ID, name, status or detail.</p>
+        : <>
+          <div className="ax-ecosystem-search-result-list">
+            {graph.searchResults.slice(0,searchResultLimit).map(node=>{
+              const group=GROUPS.find(item=>item.kind===node.kind)!;
+              return <button type="button" key={node.id} className={selectedId===node.id?"is-selected":""} onClick={()=>{
+                setVisibleKinds(current=>current.includes(node.kind)?current:[...current,node.kind]);
+                setSelectedId(node.id);
+              }}>
+                <i style={{background:group.color}}/>
+                <span><strong>{node.label}</strong><small>{group.title} · {node.detail}</small></span>
+                <b>{selectedId===node.id?"Selected":"Select"}</b>
+              </button>;
+            })}
+          </div>
+          {graph.searchResults.length>searchResultLimit&&<button type="button" className="ax-ecosystem-search-more" onClick={()=>setSearchResultLimit(current=>Math.min(graph.searchResults.length,current+10))}>Show next {Math.min(10,graph.searchResults.length-searchResultLimit)} results</button>}
+        </>}
+    </section>}
+    <div className="ax-ecosystem-expand-groups" aria-label="Progressively expand visible graph groups">
+      {graph.totals.filter(group=>visibleKinds.includes(group.kind)&&group.count>group.renderedCount).map(group=><button type="button" key={group.kind} onClick={()=>setVisibleLimits(current=>({...current,[group.kind]:expandEcosystemGroupLimit(current[group.kind]??INITIAL_VISIBLE_LIMITS[group.kind],group.count,4)}))}>
+        <span>Show more {group.title}</span><b>{group.renderedCount} / {group.count}</b>
+      </button>)}
+    </div>
     <div className="ax-ecosystem-edge-legend" aria-label="Relationship line colour legend">{EDGE_LEGEND.map(item=><span key={item.label}><i style={{background:item.color}}/>{item.label}</span>)}</div>
     <div className="ax-ecosystem-stage">
       <svg className="ax-ecosystem-links" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
@@ -182,6 +231,6 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       {graph.nodes.map(node=>{const group=GROUPS.find(item=>item.kind===node.kind)!;return <button type="button" key={node.id} className={"ax-ecosystem-node kind-"+node.kind+(selectedId===node.id?" is-selected":"")} style={{left:node.x+"%",top:node.y+"%", "--node-accent":group.color} as CSSProperties} onClick={()=>setSelectedId(current=>current===node.id?"":node.id)} title={node.detail}><span>{node.label}</span><small>{group.title.replace(" & allocations","")}</small></button>;})}
     </div>
     <div className="ax-ecosystem-graph-foot"><span><i/> Solid lines represent saved ID relationships · dashed hub lines indicate membership in the live graph</span>{selected&&<div className="ax-ecosystem-selected"><div><strong>{selected.label}</strong><small>{selected.detail}</small></div><button type="button" onClick={()=>onNavigate(selected.moduleId,selected.context)}>Open source record <Activity size={13}/></button></div>}</div>
-    <p className="ax-ecosystem-help">Select a node to inspect it, then use “Open source record” to jump to its owning module. Group filters change visibility only, never source data.</p><p className="ax-ecosystem-sample-note">Graph preview limit: up to 6 records per group (8 operations) are drawn to keep the network readable. Filter counts show the full saved-record totals; open the source module to inspect records outside this visual sample.</p>
+    <p className="ax-ecosystem-help">Select a graph node or a search result to inspect it, then open its source record. Search covers every saved record in the graph model, including records outside the visible canvas sample.</p><p className="ax-ecosystem-sample-note">Use “Show more” to progressively add records to each visible group. Search results can select records beyond the current canvas limit. Display controls never change source manufacturing data.</p>
   </section>;
 }
