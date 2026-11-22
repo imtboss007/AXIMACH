@@ -93,7 +93,7 @@ test("Process Plan bulk update validates dates and vendor capabilities, and sync
   assert.ok(!workspace.includes('completed: Math.max(op.completed || 0, op.quantity || 0)'));
   assert.ok(workspace.includes('Existing actual completed quantities were preserved'));
   assert.ok(workspace.includes('jobStatus: "In progress" as const, jobFinishedAt: undefined'));
-  assert.ok(workspace.includes("Number(finalRouteOperation?.accepted)||0"), "zero accepted output must not fall back to completed quantity");
+  assert.ok(workspace.includes("routeQuantityMetrics.finalAcceptedQuantity"), "accepted output must come from the final production step");
   assert.ok(workspace.includes("const totalAccepted = finalCompletedQty;"), "accepted output must count final-route good parts once, not once per operation");
   assert.ok(!workspace.includes("routeOperations.reduce((sum, op) => sum + op.accepted, 0)"));
 });
@@ -101,7 +101,9 @@ test("Finished goods receipt and dispatch require completed accepted production 
   const workspace = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('transactionType === "Finished goods receipt" || transactionType === "Dispatch"'));
   assert.ok(workspace.includes('companyId !== po.companyId || factoryId !== po.factoryId'));
-  assert.ok(workspace.includes('lineOperations.some(op => op.status !== "Complete"'));
+  assert.ok(workspace.includes("getRequiredRouteOperations(lineOperations)"));
+  assert.ok(workspace.includes('requiredRouteOperations.some(op => op.status !== "Complete"'));
+  assert.ok(workspace.includes("requiredRouteOperations.filter(op => op.inspectionRequired)"));
   assert.ok(workspace.includes('inspectionRows.some(row => row.result !== "Pass")'));
   assert.ok(workspace.includes('remainingAccepted'));
   assert.ok(workspace.includes('q > lineFinishedBalance'));
