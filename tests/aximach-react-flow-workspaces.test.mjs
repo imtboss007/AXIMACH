@@ -67,16 +67,17 @@ test("synthetic multi-route fixture covers the graph relationship types without 
 });
 
 
-test("3D process node decluttering accounts for each rendered card class and separates taller material cards", () => {
+test("3D process label layout includes every node class in one shared collision pass", () => {
   const scene = source("src/ProcessScene3D.tsx");
-  assert.ok(scene.includes('const LABEL_CARD_METRICS:Record<LabelCandidate["kind"],{width:number;height:number}>'));
-  assert.ok(scene.includes('operation:{width:184,height:124}'));
-  assert.ok(scene.includes('material:{width:194,height:174}'));
-  assert.ok(scene.includes('transport:{width:48,height:48}'));
-  assert.ok(scene.includes('transportLeg:{width:48,height:48}'));
-  assert.ok(scene.includes('for(let pass=0;pass<120;pass++)'));
-  assert.ok(scene.includes('const overlapX=(a.bounds.width+b.bounds.width)/2+14-Math.abs(dx)'));
-  assert.ok(scene.includes('const overlapY=(a.bounds.height+b.bounds.height)/2+14-Math.abs(dy)'));
+  const layout = source("src/processSceneLabelLayout.js");
+  assert.ok(scene.includes('import { relaxProcessSceneLabels } from "./processSceneLabelLayout.js"'));
+  assert.ok(scene.includes('kind:"catalogue" as const'));
+  assert.ok(scene.includes('const projectedCatalogue=projectedLayout.catalogues'));
+  assert.ok(scene.includes('relaxProcessSceneLabels(all,w,h)'));
+  assert.ok(layout.includes('catalogue: { width: 184, height: 124 }'));
+  assert.ok(layout.includes('core: { width: 140, height: 56 }'));
+  assert.ok(layout.includes('findNearestFreeSlot'));
+  assert.ok(layout.includes('findLeastOverlapSlot'));
 });
 
 test("short-landscape Route Flow and Manufacturing Universe keep navigation chrome off the canvas", () => {

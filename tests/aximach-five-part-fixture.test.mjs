@@ -1278,6 +1278,7 @@ test("Sphere view is a full 3D globe with visible route cylinders and distinct a
 
 test("3D Gantt view uses saved planned/actual date ranges as volumetric duration bars and preserves time scale controls", () => {
   const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  const labelLayout = readFileSync(new URL("../src/processSceneLabelLayout.js", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(scene.includes('function ganttSegment(index:number,rows:OperationRecord[],scale:"day"|"week"|"month"="week")'));
@@ -1844,8 +1845,11 @@ test("Manufacturing Universe uses compact 3D nodes and keeps full operation deta
   assert.ok(scene.includes("<small>{operationCode(op)}</small><strong>{op.name}</strong>"));
   assert.ok(scene.includes('Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}'));
   assert.ok(scene.includes('visibleFields.includes("category")'));
-  assert.ok(scene.includes('operation:{width:184,height:124}'));
-  assert.ok(scene.includes('material:{width:194,height:174}'));
+  assert.ok(scene.includes('import { relaxProcessSceneLabels } from "./processSceneLabelLayout.js"'));
+  assert.ok(labelLayout.includes("operation: { width: 184, height: 124 }"));
+  assert.ok(labelLayout.includes("material: { width: 194, height: 174 }"));
+  assert.ok(labelLayout.includes("findNearestFreeSlot"));
+  assert.ok(scene.includes('kind:"catalogue" as const'));
   assert.ok(scene.includes('const overlapX=(a.bounds.width+b.bounds.width)/2+14-Math.abs(dx)'));
   assert.ok(scene.includes('const overlapY=(a.bounds.height+b.bounds.height)/2+14-Math.abs(dy)'));
   assert.ok(universe.includes('className="process-orbit-selected-details"'));

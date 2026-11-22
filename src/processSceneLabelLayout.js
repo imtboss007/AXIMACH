@@ -10,20 +10,6 @@ const CARD_BOUNDS = Object.freeze({
 const LABEL_GAP = 14;
 const CARD_SCALES = [1, 0.92, 0.84, 0.78];
 
-function* squareSpiral(step, maximumRing) {
-  yield [0, 0];
-  for (let ring = 1; ring <= maximumRing; ring += 1) {
-    for (let column = -ring; column <= ring; column += 1) {
-      yield [column * step, -ring * step];
-      yield [column * step, ring * step];
-    }
-    for (let row = -ring + 1; row < ring; row += 1) {
-      yield [-ring * step, row * step];
-      yield [ring * step, row * step];
-    }
-  }
-}
-
 function clampCenter(x, y, bounds, width, height) {
   const minX = Math.min(bounds.width / 2 + 7, width / 2);
   const maxX = Math.max(minX, width - bounds.width / 2 - 7);
@@ -33,6 +19,13 @@ function clampCenter(x, y, bounds, width, height) {
     x: Math.max(minX, Math.min(maxX, x)),
     y: Math.max(minY, Math.min(maxY, y))
   };
+}
+
+function isFree(candidate, bounds, placed) {
+  return placed.every(other =>
+    Math.abs(candidate.x - other.screen.x) >= (bounds.width + other.bounds.width) / 2 + LABEL_GAP ||
+    Math.abs(candidate.y - other.screen.y) >= (bounds.height + other.bounds.height) / 2 + LABEL_GAP
+  );
 }
 
 function overlapScore(candidate, bounds, placed) {
@@ -45,24 +38,72 @@ function overlapScore(candidate, bounds, placed) {
   return score;
 }
 
-function isFree(candidate, bounds, placed) {
-  return placed.every(other =>
-    Math.abs(candidate.x - other.screen.x) >= (bounds.width + other.bounds.width) / 2 + LABEL_GAP ||
-    Math.abs(candidate.y - other.screen.y) >= (bounds.height + other.bounds.height) / 2 + LABEL_GAP
-  );
+function findNearestFreeSlot(anchor, bounds, placed, width, height, step) {
+  let winner = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  const test = raw => {
+    const candidate = clampCenter(raw.x, raw.y, bounds, width, height);
+    if (!isFree(candidate, bounds, placed)) return;
+    const dx = candidate.x - anchor.x;
+    const dy = candidate.y - anchor.y;
+    const distance = dx * dx + dy * dy;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      winner = candidate;
+    }
+  };
+
+  test(anchor);
+  const minX = Math.min(bounds.width / 2 + 7, width / 2);
+  const maxX = Math.max(minX, width - bounds.width / 2 - 7);
+  const minY = Math.min(bounds.height / 2 + 24, height / 2);
+  const maxY = Math.max(minY, height - bounds.height / 2 - 42);
+
+  // Scan the whole usable canvas, not only a clamped spiral around the anchor.
+  // Clamping many spiral points to the same edge can hide free interior slots.
+  for (let y = minY; y <= maxY; y += step) {
+    for (let x = minX; x <= maxX; x += step) {
+      test({ x, y });
+    }
+  }
+  return winner;
+}
+
+function findLeastOverlapSlot(anchor, bounds, placed, width, height, step) {
+  let winner = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  const minX = Math.min(bounds.width / 2 + 7, width / 2);
+  const maxX = Math.max(minX, width - bounds.width / 2 - 7);
+  const minY = Math.min(bounds.height / 2 + 24, height / 2);
+  const maxY = Math.max(minY, height - bounds.height / 2 - 42);
+
+  for (let y = minY; y <= maxY; y += step) {
+    for (let x = minX; x <= maxX; x += step) {
+      const candidate = { x, y };
+      const score = overlapScore(candidate, bounds, placed);
+      const dx = x - anchor.x;
+      const dy = y - anchor.y;
+      const distance = dx * dx + dy * dy;
+      if (score < bestScore || (score === bestScore && distance < bestDistance)) {
+        bestScore = score;
+        bestDistance = distance;
+        winner = candidate;
+      }
+    }
+  }
+  return winner ? { ...winner, collision: bestScore > 0 } : null;
 }
 
 /**
  * Position all DOM cards and transport markers in the same 2D overlay space.
- * Cards search outward from their projected 3D anchor until a collision-free
- * slot is found. Selected process and fixed core labels should be supplied
- * before secondary labels so they retain their visual priority.
+ * Selected process and fixed core labels should be supplied first so they
+ * retain visual priority. Cards move to the nearest available viewport slot.
  */
 export function relaxProcessSceneLabels(items, width, height) {
   const viewportWidth = Math.max(1, Number(width) || 1);
   const viewportHeight = Math.max(1, Number(height) || 1);
-  const step = Math.max(18, Math.min(28, Math.round(Math.min(viewportWidth, viewportHeight) / 24)));
-  const maximumRing = Math.ceil(Math.max(viewportWidth, viewportHeight) / step) + 2;
+  const step = Math.max(16, Math.min(24, Math.round(Math.min(viewportWidth, viewportHeight) / 28)));
   const placed = [];
   const output = [];
 
@@ -74,53 +115,33 @@ export function relaxProcessSceneLabels(items, width, height) {
 
     for (const scale of scales) {
       const bounds = { width: baseBounds.width * scale, height: baseBounds.height * scale };
-      const seen = new Set();
-
-      for (const [dx, dy] of squareSpiral(step, maximumRing)) {
-        const candidate = clampCenter(item.screen.x + dx, item.screen.y + dy, bounds, viewportWidth, viewportHeight);
-        const key = Math.round(candidate.x) + ":" + Math.round(candidate.y);
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        if (isFree(candidate, bounds, placed)) {
-          winner = { ...candidate, bounds, scale, collision: false };
-          break;
-        }
+      winner = findNearestFreeSlot(item.screen, bounds, placed, viewportWidth, viewportHeight, step);
+      if (winner) {
+        winner = { ...winner, bounds, scale, collision: false };
+        break;
       }
-      if (winner) break;
     }
 
     if (!winner) {
       const scale = CARD_SCALES[CARD_SCALES.length - 1];
       const bounds = { width: baseBounds.width * scale, height: baseBounds.height * scale };
-      let bestScore = Number.POSITIVE_INFINITY;
-      let bestDistance = Number.POSITIVE_INFINITY;
-      const seen = new Set();
-
-      for (const [dx, dy] of squareSpiral(step, maximumRing)) {
-        const candidate = clampCenter(item.screen.x + dx, item.screen.y + dy, bounds, viewportWidth, viewportHeight);
-        const key = Math.round(candidate.x) + ":" + Math.round(candidate.y);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const score = overlapScore(candidate, bounds, placed);
-        const distance = dx * dx + dy * dy;
-        if (score < bestScore || (score === bestScore && distance < bestDistance)) {
-          bestScore = score;
-          bestDistance = distance;
-          winner = { ...candidate, bounds, scale, collision: score > 0 };
-          if (score === 0) break;
-        }
-      }
+      winner = {
+        ...(findLeastOverlapSlot(item.screen, bounds, placed, viewportWidth, viewportHeight, step) ||
+          clampCenter(item.screen.x, item.screen.y, bounds, viewportWidth, viewportHeight)),
+        bounds,
+        scale,
+        collision: true
+      };
     }
 
     const resolved = {
       ...item,
       screen: {
         ...item.screen,
-        x: winner?.x ?? clampCenter(item.screen.x, item.screen.y, baseBounds, viewportWidth, viewportHeight).x,
-        y: winner?.y ?? clampCenter(item.screen.x, item.screen.y, baseBounds, viewportWidth, viewportHeight).y,
-        scale: winner?.scale ?? 1,
-        collision: winner?.collision ?? true
+        x: winner.x,
+        y: winner.y,
+        scale: winner.scale,
+        collision: winner.collision
       }
     };
     output.push(resolved);
@@ -128,7 +149,7 @@ export function relaxProcessSceneLabels(items, width, height) {
       id: item.id,
       kind: item.kind,
       screen: resolved.screen,
-      bounds: winner?.bounds ?? baseBounds
+      bounds: winner.bounds
     });
   }
 
