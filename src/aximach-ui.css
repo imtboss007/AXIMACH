@@ -6576,6 +6576,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
    portrait touch layouts. Custom properties carry the exact measured scene
    coordinates while this rule resets every competing inset. */
 .ax-full3d-scene .ax-full3d-label-layer > .ax-full3d-label,
+.ax-full3d-scene .ax-full3d-label-layer > .ax-full3d-core-label,
 .ax-full3d-scene .ax-full3d-label-layer > .ax-full3d-transport-icon{
   position:absolute!important;
   inset:auto!important;
