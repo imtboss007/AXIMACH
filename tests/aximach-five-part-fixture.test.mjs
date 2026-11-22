@@ -814,7 +814,8 @@ test("Process route scope keeps original parent arrows visible and each 3D view 
   for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
     assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
   }
-  assert.ok(workspace.includes("initialLayout={visualStyle}"));
+  assert.ok(workspace.includes('initialLayout={visualStyle==="graph"?"sphere":visualStyle}'));
+  assert.ok(workspace.includes('visualStyle==="graph" && exportOperations.length'), "React Flow graph remains a separate non-WebGL view");
   assert.ok(universe.includes('initialLayout = "sphere"'));
   assert.ok(universe.includes("useState<ProcessLayoutMode>(initialLayout)"));
   assert.ok(universe.includes("while (ancestor && routeGroupKey(ancestor) === key"));
