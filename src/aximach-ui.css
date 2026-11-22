@@ -6163,3 +6163,9 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .ax-ecosystem-links .ax-ecosystem-hub-link{marker-end:none}
 @media(max-width:760px){.ax-ecosystem-links .ax-ecosystem-edge{stroke-width:2.1;stroke-opacity:.72}}
 @media(prefers-reduced-motion:reduce){.ax-ecosystem-node{transition:none!important}}
+
+
+.ax-ecosystem-edge-legend{display:flex;align-items:center;gap:7px 14px;flex-wrap:wrap;padding:0 4px 10px}
+.ax-ecosystem-edge-legend span{display:inline-flex;align-items:center;gap:5px;color:#71869b;font-size:8px}
+.ax-ecosystem-edge-legend i{width:17px;height:3px;border-radius:3px;flex:0 0 17px}
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .ax-ecosystem-edge-legend span{color:#a8bfd1}
