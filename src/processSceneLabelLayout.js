@@ -113,7 +113,7 @@ function packDenseLabels(items, width, height) {
     for (const current of rows) {
       let x = (width - current.width) / 2;
       for (const entry of current.entries) {
-        resolved.set(entry.item.id, {
+        resolved.set(entry.item, {
           ...entry.item,
           screen: {
             ...entry.item.screen,
@@ -127,7 +127,7 @@ function packDenseLabels(items, width, height) {
       }
       y += current.height + SHELF_GAP;
     }
-    return items.map(item => resolved.get(item.id));
+    return items.map(item => resolved.get(item));
   }
   return null;
 }

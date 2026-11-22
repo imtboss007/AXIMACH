@@ -59,7 +59,9 @@ test("uses compact card scale before accepting an overlap in dense viewports", (
     ...Array.from({ length: 22 }, (_, i) => ({
       id: "dense-" + i, kind: i % 5 === 0 ? "material" : i % 4 === 0 ? "catalogue" : "operation",
       screen: { x: 490 + (i % 2), y: 300 + (i % 3), z: 0 }
-    }))
+    })),
+    // Material and transport labels share a route ID in real Process Map data.
+    { id: "dense-0", kind: "transport", screen: { x: 490, y: 300, z: 0 } }
   ];
   const result = relaxProcessSceneLabels(items, 1080, 700);
   assert.equal(result.length, items.length);
