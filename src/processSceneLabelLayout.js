@@ -28,15 +28,6 @@ function isFree(candidate, bounds, placed) {
   );
 }
 
-function overlapScore(candidate, bounds, placed) {
-  let score = 0;
-  for (const other of placed) {
-    const overlapX = Math.max(0, (bounds.width + other.bounds.width) / 2 + LABEL_GAP - Math.abs(candidate.x - other.screen.x));
-    const overlapY = Math.max(0, (bounds.height + other.bounds.height) / 2 + LABEL_GAP - Math.abs(candidate.y - other.screen.y));
-    score += overlapX * overlapY;
-  }
-  return score;
-}
 
 function* squareSpiral(step, maximumRing) {
   yield [0, 0];
@@ -70,31 +61,6 @@ function findNearestFreeSlot(anchor, bounds, placed, width, height, step) {
   return null;
 }
 
-function findLeastOverlapSlot(anchor, bounds, placed, width, height, step) {
-  let winner = null;
-  let bestScore = Number.POSITIVE_INFINITY;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  const minX = Math.min(bounds.width / 2 + 7, width / 2);
-  const maxX = Math.max(minX, width - bounds.width / 2 - 7);
-  const minY = Math.min(bounds.height / 2 + 24, height / 2);
-  const maxY = Math.max(minY, height - bounds.height / 2 - 42);
-
-  for (let y = minY; y <= maxY; y += step) {
-    for (let x = minX; x <= maxX; x += step) {
-      const candidate = { x, y };
-      const score = overlapScore(candidate, bounds, placed);
-      const dx = x - anchor.x;
-      const dy = y - anchor.y;
-      const distance = dx * dx + dy * dy;
-      if (score < bestScore || (score === bestScore && distance < bestDistance)) {
-        bestScore = score;
-        bestDistance = distance;
-        winner = candidate;
-      }
-    }
-  }
-  return winner ? { ...winner, collision: bestScore > 0 } : null;
-}
 
 
 function packDenseLabels(items, width, height) {
@@ -196,8 +162,7 @@ export function relaxProcessSceneLabels(items, width, height) {
       const scale = CARD_SCALES[CARD_SCALES.length - 1];
       const bounds = { width: baseBounds.width * scale, height: baseBounds.height * scale };
       winner = {
-        ...(findLeastOverlapSlot(item.screen, bounds, placed, viewportWidth, viewportHeight, step) ||
-          clampCenter(item.screen.x, item.screen.y, bounds, viewportWidth, viewportHeight)),
+        ...clampCenter(item.screen.x, item.screen.y, bounds, viewportWidth, viewportHeight),
         bounds,
         scale,
         collision: true

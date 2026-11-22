@@ -79,7 +79,7 @@ test("3D process label layout includes every node class in one shared collision 
   assert.ok(layout.includes('catalogue: { width: 184, height: 124 }'));
   assert.ok(layout.includes('core: { width: 140, height: 56 }'));
   assert.ok(layout.includes('findNearestFreeSlot'));
-  assert.ok(layout.includes('findLeastOverlapSlot'));
+  assert.ok(layout.includes("packDenseLabels"));
 });
 
 test("short-landscape Route Flow and Manufacturing Universe keep navigation chrome off the canvas", () => {
