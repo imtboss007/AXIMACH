@@ -137,3 +137,16 @@ test("Customer Directory includes an evidence-first Lead Discovery view", async 
  assert.ok(panel.includes('target="_blank" rel="noopener noreferrer"'));
  assert.ok(panel.includes('row.stage==="Qualified"'));
 });
+
+
+test("hybrid touch devices activate the phone workspace shell when a precise pointer is also present", async () => {
+  const [app, styles] = await Promise.all([
+    readSource("src/App.tsx"),
+    readSource("src/aximach-ui.css")
+  ]);
+
+  assert.match(app, /matchMedia\(["']\\(any-pointer:\\s*coarse\\)["']\)/,
+    "touch viewport detection must include secondary touch pointers, not only the primary pointer");
+  assert.match(styles, /@media[^\\{]*any-pointer\\s*:\\s*coarse/,
+    "responsive workspace rules must activate when any available pointer is touch-capable");
+});
