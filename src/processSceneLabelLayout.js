@@ -1,11 +1,39 @@
 const CARD_BOUNDS = Object.freeze({
-  operation: { width: 184, height: 124 },
-  material: { width: 194, height: 174 },
-  transport: { width: 48, height: 48 },
-  transportLeg: { width: 48, height: 48 },
-  catalogue: { width: 184, height: 124 },
+  operation: { width: 168, height: 96 },
+  material: { width: 168, height: 100 },
+  transport: { width: 34, height: 34 },
+  transportLeg: { width: 34, height: 34 },
+  catalogue: { width: 168, height: 96 },
   core: { width: 140, height: 56 }
 });
+
+// Use the actual responsive CSS footprints instead of desktop-sized estimates
+// on narrow screens. Oversized estimates force premature collision fallback.
+function boundsForKind(kind, viewportWidth) {
+  if (viewportWidth <= 600) {
+    const compact = {
+      operation: { width: 116, height: 82 },
+      material: { width: 116, height: 88 },
+      transport: { width: 32, height: 32 },
+      transportLeg: { width: 32, height: 32 },
+      catalogue: { width: 116, height: 82 },
+      core: { width: 100, height: 42 }
+    };
+    return compact[kind] || compact.operation;
+  }
+  if (viewportWidth <= 820) {
+    const tablet = {
+      operation: { width: 142, height: 84 },
+      material: { width: 142, height: 96 },
+      transport: { width: 34, height: 34 },
+      transportLeg: { width: 34, height: 34 },
+      catalogue: { width: 142, height: 84 },
+      core: { width: 120, height: 48 }
+    };
+    return tablet[kind] || tablet.operation;
+  }
+  return CARD_BOUNDS[kind] || CARD_BOUNDS.operation;
+}
 
 const LABEL_GAP = 14;
 const SHELF_GAP = 18;
@@ -71,8 +99,8 @@ function packDenseLabels(items, width, height) {
   const prefixCount = hasCore ? Math.min(2, items.length) : Math.min(1, items.length);
   const priority = items.slice(0, prefixCount);
   const remainder = items.slice(prefixCount).sort((a, b) => {
-    const aBounds = CARD_BOUNDS[a.kind] || CARD_BOUNDS.operation;
-    const bBounds = CARD_BOUNDS[b.kind] || CARD_BOUNDS.operation;
+    const aBounds = boundsForKind(a.kind, width);
+    const bBounds = boundsForKind(b.kind, width);
     return bBounds.width * bBounds.height - aBounds.width * aBounds.height ||
       a.screen.y - b.screen.y || a.screen.x - b.screen.x;
   });
@@ -88,7 +116,7 @@ function packDenseLabels(items, width, height) {
     let row = { entries: [], width: 0, height: 0 };
 
     for (const item of ordered) {
-      const base = CARD_BOUNDS[item.kind] || CARD_BOUNDS.operation;
+      const base = boundsForKind(item.kind, width);
       const isCard = item.kind === "operation" || item.kind === "material" || item.kind === "catalogue";
       const itemScale = isCard ? scale : 1;
       const bounds = { width: base.width * itemScale, height: base.height * itemScale };
@@ -161,7 +189,7 @@ export function relaxProcessSceneLabels(items, width, height) {
   const output = [];
 
   for (const item of items) {
-    const baseBounds = CARD_BOUNDS[item.kind] || CARD_BOUNDS.operation;
+    const baseBounds = boundsForKind(item.kind, viewportWidth);
     const isCard = item.kind === "operation" || item.kind === "material" || item.kind === "catalogue";
     const scales = isCard ? CARD_SCALES : [1];
     let winner = null;
