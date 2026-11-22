@@ -23,3 +23,8 @@ export function getProductionRouteMetrics(
   operations?: OperationRecord[],
   lineQuantity?: number
 ): ProductionRouteMetrics;
+
+export function inheritsRouteInclusion(
+  parentOperation: OperationRecord | undefined,
+  operations?: OperationRecord[]
+): boolean;
