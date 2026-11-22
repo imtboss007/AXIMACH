@@ -325,6 +325,19 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
   const orbitConnections = useMemo(() => {
     const visibleIds = new Set(displayOperations.map(operation => operation.id));
     const edges: Array<{id:string;from:OperationRecord;to:OperationRecord;relation:string;color:string}> = [];
+    const operationsById = new Map(lookupOperations.map(operation => [operation.id, operation]));
+    const validRouteRelationships = routeRelationships.filter(link => {
+      if (link.deletedAt || link.status === "Disabled") return false;
+      const from = operationsById.get(link.fromOperationId);
+      const to = operationsById.get(link.toOperationId);
+      return Boolean(from && to
+        && from.poId === link.poId && to.poId === link.poId
+        && from.poLineId === link.poLineId && to.poLineId === link.poLineId
+        && from.componentId === link.componentId && to.componentId === link.componentId);
+    });
+    // An explicit saved relationship is authoritative for this operation pair.
+    // Do not draw a second implicit sequence/branch connector underneath it.
+    const explicitRelationshipPairs = new Set(validRouteRelationships.map(link => link.fromOperationId + "->" + link.toOperationId));
     const byBranch = new Map<string, OperationRecord[]>();
     for (const operation of coordinateOperations) {
       const groupKey = routeGroupKey(operation);
@@ -342,20 +355,20 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
       for (let index=0; index<ordered.length-1; index++) {
         const from=ordered[index], to=ordered[index+1];
         if (!visibleIds.has(from.id) && !visibleIds.has(to.id)) continue;
-        edges.push({id:from.id+"->"+to.id,from,to,relation,color:color||accentFor(to)});
+        const pairId = from.id + "->" + to.id;
+        if (!explicitRelationshipPairs.has(pairId)) edges.push({id:pairId,from,to,relation,color:color||accentFor(to)});
       }
       if (branch!=="Main route" && lane?.branchRoot && lane.parent && displayOperations.some(operation=>routeGroupKey(operation)===groupKey)) {
         const from=lane.parent, to=lane.branchRoot;
-        edges.push({id:from.id+"->"+to.id,from,to,relation:relation==="rework"?"rework":"alternate",color:relation==="rework"?"#e38b45":"#4b95eb"});
+        const pairId = from.id + "->" + to.id;
+        if (!explicitRelationshipPairs.has(pairId)) edges.push({id:pairId,from,to,relation:relation==="rework"?"rework":"alternate",color:relation==="rework"?"#e38b45":"#4b95eb"});
       }
     }
     const relationshipColors:Record<string,string>={main:"#12c7df",alternate:"#f1a42b",rework:"#ef4c50",dependency:"#2f7cff",parallel:"#9b48e9",merge:"#b24be7",split:"#3c7ee8","follow-on":"#163b68",feedback:"#3866ea",conditional:"#a45be8",successor:"#132d52"};
-    for(const link of routeRelationships){
-      if(link.deletedAt||link.status==="Disabled")continue;
-      const from=lookupOperations.find(operation=>operation.id===link.fromOperationId);
-      const to=lookupOperations.find(operation=>operation.id===link.toOperationId);
+    for(const link of validRouteRelationships){
+      const from=operationsById.get(link.fromOperationId);
+      const to=operationsById.get(link.toOperationId);
       if(!from||!to)continue;
-      if((from.poLineId||from.componentId)!==(to.poLineId||to.componentId))continue;
       if(!visibleIds.has(from.id)&&!visibleIds.has(to.id))continue;
       edges.push({id:"relationship-"+link.id,from,to,relation:link.relationshipType,color:relationshipColors[link.relationshipType]||"#4b95eb"});
     }
