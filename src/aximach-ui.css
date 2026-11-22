@@ -6571,3 +6571,17 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   inset-block-end:auto!important;
   margin:0!important;
 }
+
+/* Inline projection coordinates must win over global button inset rules on
+   portrait touch layouts. Custom properties carry the exact measured scene
+   coordinates while this rule resets every competing inset. */
+.ax-full3d-scene .ax-full3d-label-layer > .ax-full3d-label,
+.ax-full3d-scene .ax-full3d-label-layer > .ax-full3d-transport-icon{
+  position:absolute!important;
+  inset:auto!important;
+  left:var(--ax-scene-left)!important;
+  top:var(--ax-scene-top)!important;
+  right:auto!important;
+  bottom:auto!important;
+  margin:0!important;
+}
