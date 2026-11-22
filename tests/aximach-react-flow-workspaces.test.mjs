@@ -45,7 +45,7 @@ test("Manufacturing Universe graph retains cross-register record navigation and 
   const graph = source("src/ManufacturingEcosystemGraph.tsx");
   assert.ok(graph.includes("getVisibleEcosystemNodes"));
   assert.ok(graph.includes("searchEcosystemNodes"));
-  assert.ok(graph.includes("onNavigate(node.moduleId,node.context)"), "Selecting an ecosystem record must open its source module with record context.");
+  assert.ok(graph.includes("onNavigate(selected.moduleId,selected.context)"), "Selecting an ecosystem record must open its source module with record context.");
   assert.ok(graph.includes("ECOSYSTEM_FLOW_NODE_TYPES"));
   assert.ok(graph.includes("ECOSYSTEM_GRAPH_PREFERENCES_KEY") || graph.includes("GRAPH_PREFERENCES_KEY"));
   assert.ok(graph.includes('data-testid="ecosystem-flow-canvas"'));
