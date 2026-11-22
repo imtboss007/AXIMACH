@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type MaterialCostEntryRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine, type TransportRouteRecord } from "./manufacturingData";
-import { getProductionRouteMetrics, getRequiredRouteOperations } from "./productionRouteMetrics.mjs";
+import { getProductionRouteMetrics, getRequiredRouteOperations, inheritsRouteInclusion } from "./productionRouteMetrics.mjs";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
@@ -856,7 +856,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const parent = routeOperations.find(operation => operation.id === parentId);
     if (!parent) return;
     const base = blankOperation(selectedLine);
-    base.costIncluded = getRequiredRouteOperations(routeOperations).some(operation => operation.id === parent.id);
+    base.costIncluded = inheritsRouteInclusion(parent, routeOperations);
     base.processDefinitionId = parent.processDefinitionId || processDefinitions.find(item => item.processType === parent.name && item.category === parent.category)?.id || "";
     base.name = parent.name;
     base.category = parent.category;
@@ -963,7 +963,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     // while retaining the same branch label and relation type for lane grouping.
     base.parentId = anchor.id;
     base.relationType = anchor.relationType;
-    base.costIncluded = getRequiredRouteOperations(routeOperations).some(operation => operation.id === anchor.id);
+    base.costIncluded = inheritsRouteInclusion(anchor, routeOperations);
     setDraft(base);
     setSelectedOperationId(anchor.id);
     setEditingId("");
