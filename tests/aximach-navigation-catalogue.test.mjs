@@ -101,7 +101,7 @@ test("Process Map interactive graph uses exact PO-line operations, scoped materi
   assert.ok(source.includes("processMapMaterialEntries.forEach"));
   assert.ok(source.includes("componentMaterialProcessLinks.forEach"));
   assert.ok(source.includes("componentTransportLegs.forEach"));
-  assert.ok(source.includes("link.poId!==poId&&link.poLineId===selectedLine?.id"));
+  assert.ok(source.includes("if(link.poId!==poId||link.poLineId!==selectedLine?.id||link.componentId!==selectedLine?.componentId)return false;"));
   assert.ok(source.includes("poLineId === selectedLine?.id || (!leg.poLineId && selectedComponentLineCount === 1)"));
   assert.ok(source.includes("nodesDraggable={false}"));
   assert.ok(source.includes("<ProcessUniverse3D"));
