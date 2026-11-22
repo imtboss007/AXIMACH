@@ -21,9 +21,9 @@ test("the main module catalogue and 3D command sphere expose the same 22 unique 
   const moduleIds = [...moduleBlock[1].matchAll(/\{\s*id:\s*"([^"]+)"\s*,\s*title:/g)].map((match) => match[1]);
   const satelliteIds = [...satelliteBlock[1].matchAll(/\{\s*id:\s*"([^"]+)"\s*,\s*label:/g)].map((match) => match[1]);
 
-  assert.equal(moduleIds.length, 22, "the main catalogue must contain 21 modules");
+  assert.equal(moduleIds.length, 22, "the main catalogue must contain 22 modules");
   assert.equal(new Set(moduleIds).size, 22, "main module IDs must be unique");
-  assert.equal(satelliteIds.length, 22, "the 3D sphere must expose all 21 module controls");
+  assert.equal(satelliteIds.length, 22, "the 3D sphere must expose all 22 module controls");
   assert.equal(new Set(satelliteIds).size, 22, "3D sphere module IDs must be unique");
   assert.deepEqual([...satelliteIds].sort(), [...moduleIds].sort(), "the 3D sphere and navigation rail must expose identical module IDs");
 });

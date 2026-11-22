@@ -867,7 +867,7 @@ test("five synthetic component names resolve to the intended mechanical logo fam
 
 test("Main dashboard sphere uses native 3D module hit targets with stable transforms", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  assert.ok(orb.includes('aria-label="21 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label={`${satellites.length} clickable AXIMACH modules`}'));
   assert.ok(orb.includes('return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"'));
   assert.ok(orb.includes('translate3d(" + x + "px," + y + "px," + z + "px)'));
   assert.ok(orb.includes("onPointerDown={startDrag}"));
@@ -963,7 +963,7 @@ test("Process Plan panels expose independent native expand/collapse sections", (
 });
 
 
-test("Main Dashboard and 3D Command Centre center the 21-module orb on mobile", () => {
+test("Main Dashboard and 3D Command Centre center the 22-module orb on mobile", () => {
   const dashboardStyles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   const appStyles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.ok(dashboardStyles.includes(".dashboard-welcome-orb .ax-orb-drag-zone"));
@@ -2040,9 +2040,9 @@ test("Manufacturing Universe exposes every AXIMACH module and renders material-f
   const moduleBlock = universe.match(/const linkModules=\[([\s\S]*?)\n  \];/);
   assert.ok(moduleBlock, "missing Manufacturing Universe module directory");
   const ids = [...moduleBlock[1].matchAll(/id:"([^"]+)"/g)].map(match => match[1]);
-  const expected = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export","integrations"];
+  const expected = ["companies","customers","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export","integrations"];
   assert.deepEqual([...new Set(ids)].sort(), [...expected].sort());
-  assert.equal(ids.length, 21, "module shortcuts must not contain duplicate entries");
+  assert.equal(ids.length, 22, "module shortcuts must not contain duplicate entries");
   assert.ok(universe.includes('poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)'));
   assert.ok(universe.includes('materialRoutes={materialRouteNodes}'));
 });

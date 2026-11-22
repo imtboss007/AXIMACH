@@ -36,7 +36,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
   const [showUniverseSettings,setShowUniverseSettings]=useState(false);
   const [visibleUniverseFields,setVisibleUniverseFields]=useState<string[]>(["company","po","component","category","subcategory","quantity","vendor","plannedStart","plannedEnd","price","amount","status","transportVendor","transportRoute","vehicle","transportPickup","transportDelivery","transportLegCost","combinedAmount","materialShape","materialDensity","materialQuantity","materialWeight","materialVendor","materialGiven","materialDelivery","materialReceived","materialCost","materialCuttingCost","materialTransportCost"]);
-  const [visibleUniverseModules,setVisibleUniverseModules]=useState<string[]>(["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export","integrations"]);
+  const [visibleUniverseModules,setVisibleUniverseModules]=useState<string[]>(["companies","customers","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export","integrations"]);
   const appliedContextKey=useRef("");
   useEffect(()=>{
     const context=initialContext||{};
@@ -174,6 +174,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   ];
   const linkModules=[
     {id:"companies",title:"Company Directory",icon:Factory,meta:"Company and factory records"},
+    {id:"customers",title:"Customer Directory",icon:Users,meta:"Customer accounts, enquiries and customer contacts"},
     {id:"purchasing",title:"Purchase Orders",icon:Package,meta:"PO dates, lines and quantities"},
     {id:"components",title:"Component Directory",icon:Boxes,meta:"Components, parts and revisions"},
     {id:"inventory",title:"Material Directory",icon:Package,meta:"Grades, density, material and cutting cost"},

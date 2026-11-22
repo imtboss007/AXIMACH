@@ -15,7 +15,7 @@ No merge to main, deployment, production connection, paid subscription, public r
 Inspected on branch integrate/35-toolkit-ui-audit:
 
 - React 19, Vite, TypeScript, custom AXIMACH CSS, Motion, Lucide and Tabler icons.
-- Initial baseline was the 20-module navigation catalogue and dashboard/3D command-centre surfaces; the follow-on implementation adds Integrations & API as workspace 21.
+- Initial baseline was the 20-module navigation catalogue and dashboard/3D command-centre surfaces; the follow-on implementation added Integrations & API, and the current catalogue contains 22 unique modules including Customer Directory.
 - Existing Manufacturing Universe graph and Route Flow workspace.
 - Existing local-first manufacturing data with an optional JSON-backed API.
 - Existing ExcelJS and PptxGenJS export dependencies.
