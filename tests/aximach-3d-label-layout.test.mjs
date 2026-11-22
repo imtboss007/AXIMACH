@@ -82,3 +82,46 @@ test("keeps edge labels clamped within the visible overlay and preserves origina
   }
   assert.deepEqual(result.map(item => item.screen.z), [.2, .4, .6]);
 });
+
+
+test("keeps full label rectangles inside phone, short-landscape, hybrid-tablet and desktop scene bounds", () => {
+  const items = [
+    { id: "core", kind: "core", screen: { x: 190, y: 210, z: 0 } },
+    ...Array.from({ length: 10 }, (_, i) => ({
+      id: "phone-operation-" + i, kind: "operation",
+      screen: { x: 190 + (i % 3) * 2, y: 210 + (i % 4) * 2, z: 0 }
+    })),
+    ...Array.from({ length: 3 }, (_, i) => ({
+      id: "phone-material-" + i, kind: "material",
+      screen: { x: 192, y: 212, z: 0 }
+    })),
+    ...Array.from({ length: 2 }, (_, i) => ({
+      id: "phone-catalogue-" + i, kind: "catalogue",
+      screen: { x: 188, y: 208, z: 0 }
+    })),
+    { id: "phone-transport", kind: "transport", screen: { x: 190, y: 210, z: 0 } },
+    { id: "phone-transport-leg", kind: "transportLeg", screen: { x: 190, y: 210, z: 0 } }
+  ];
+
+  for (const viewport of [
+    { width: 390, height: 844, name: "phone portrait" },
+    { width: 844, height: 390, name: "short landscape" },
+    { width: 1365, height: 620, name: "hybrid tablet landscape" },
+    { width: 1280, height: 800, name: "desktop" }
+  ]) {
+    const result = relaxProcessSceneLabels(items, viewport.width, viewport.height);
+    assert.equal(result.length, items.length, viewport.name + " must retain every label");
+    for (const item of result) {
+      const base = boundsByKind[item.kind];
+      const scale = item.screen.scale ?? 1;
+      const left = item.screen.x - base.width * scale / 2;
+      const right = item.screen.x + base.width * scale / 2;
+      const top = item.screen.y - base.height * scale / 2;
+      const bottom = item.screen.y + base.height * scale / 2;
+      assert.ok(left >= -0.5, viewport.name + " clips left edge of " + item.id + ": " + left);
+      assert.ok(right <= viewport.width + 0.5, viewport.name + " clips right edge of " + item.id + ": " + right);
+      assert.ok(top >= -0.5, viewport.name + " clips top edge of " + item.id + ": " + top);
+      assert.ok(bottom <= viewport.height + 0.5, viewport.name + " clips bottom edge of " + item.id + ": " + bottom);
+    }
+  }
+});
