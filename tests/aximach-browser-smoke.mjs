@@ -117,7 +117,8 @@ try {
   await page.getByRole("button", { name: "Import Demo Factory" }).click();
   await page.locator(".demo-pill").filter({ hasText: "DEMO LOADED" }).waitFor({ timeout: 10000 });
   const demoOperations = await page.locator(".metric-card").filter({ hasText: "Operations" }).innerText();
-  if (!/Operations\\s*\\d+/.test(demoOperations)) throw new Error("Demo Factory did not report imported operation records.");
+  const demoOperationCount = Number(demoOperations.trim().split("\n").at(-1));
+  if (!demoOperations.includes("Operations") || !Number.isFinite(demoOperationCount) || demoOperationCount < 1) throw new Error("Demo Factory did not report imported operation records.");
   console.log("PASS isolated Demo Factory fixture loaded for populated Process Map visual checks");
 
   // Verify both module discovery surfaces open exact workspaces.
@@ -139,7 +140,7 @@ try {
   await page.getByRole("button", { name: "Open Process Plan" }).click();
   await page.getByRole("heading", { name: /Process Map/i }).waitFor({ timeout: 10000 });
 
-  // Select a real synthetic PO line with six operation labels, material and transport.
+  // Select a real synthetic PO line with five or more operation labels, material and transport.
   const companyPicker = page.getByRole("combobox", { name: "Company" });
   await companyPicker.fill("ASTER MOTION COMPONENTS");
   await page.getByRole("option", { name: /ASTER MOTION COMPONENTS PVT LTD/ }).click();
@@ -167,6 +168,7 @@ try {
   };
   await assertCollisionFreeScene("desktop Process Map");
   await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(350);
   await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
   await assertCollisionFreeScene("short-landscape mobile-sized Process Map");
   const processGraphMode = page.getByRole("button", { name: "Interactive Graph" });
