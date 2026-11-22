@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { relaxProcessSceneLabels } from "../src/processSceneLabelLayout.js";
 
-function boundsByKind(kind, width) {
-  if (width <= 600) {
+function boundsByKind(kind, width, responsiveWidth = width) {
+  if (responsiveWidth <= 600) {
     return ({
       operation: { width: 148, height: 112 },
       material: { width: 140, height: 105 },
@@ -13,14 +13,14 @@ function boundsByKind(kind, width) {
       core: { width: 100, height: 42 }
     })[kind];
   }
-  if (width <= 820) {
+  if (responsiveWidth <= 760) {
     return ({
-      operation: { width: 142, height: 84 },
-      material: { width: 142, height: 96 },
+      operation: { width: 124, height: 82 },
+      material: { width: 124, height: 82 },
       transport: { width: 34, height: 34 },
       transportLeg: { width: 34, height: 34 },
-      catalogue: { width: 142, height: 84 },
-      core: { width: 120, height: 48 }
+      catalogue: { width: 124, height: 82 },
+      core: { width: 110, height: 44 }
     })[kind];
   }
   return ({
@@ -34,9 +34,9 @@ function boundsByKind(kind, width) {
 }
 const gap = 14;
 
-function assertNoCollisions(items, viewportWidth = 1280) {
+function assertNoCollisions(items, viewportWidth = 1280, responsiveWidth = viewportWidth) {
   const boxes = items.map(item => {
-    const base = boundsByKind(item.kind, viewportWidth);
+    const base = boundsByKind(item.kind, viewportWidth, responsiveWidth);
     const scale = item.screen.scale ?? 1;
     return { id: item.id, x: item.screen.x, y: item.screen.y, width: base.width * scale, height: base.height * scale };
   });
@@ -89,6 +89,22 @@ test("uses compact card scale before accepting an overlap in dense viewports", (
   assert.equal(result.length, items.length);
   assert.ok(result.every(item => item.screen.scale >= 0.78 && item.screen.scale <= 1));
   assertNoCollisions(result, 1080);
+});
+
+test("uses browser viewport breakpoints when the Process Map is inside a narrower desktop panel", () => {
+  const items = [
+    ...Array.from({ length: 9 }, (_, i) => ({
+      id: "narrow-panel-operation-" + i,
+      kind: "operation",
+      screen: { x: 360 + (i % 2), y: 300 + (i % 3), z: 0 }
+    })),
+    { id: "narrow-panel-transport", kind: "transport", screen: { x: 360, y: 300, z: 0 } }
+  ];
+  // The scene is only 720px wide, but the browser is desktop-sized.
+  // CSS therefore renders desktop cards (184px), not tablet cards.
+  const result = relaxProcessSceneLabels(items, 720, 620, 1280);
+  assert.equal(result.length, items.length);
+  assertNoCollisions(result, 720, 1280);
 });
 
 test("keeps edge labels clamped within the visible overlay and preserves original depth", () => {
