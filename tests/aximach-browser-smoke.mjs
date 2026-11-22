@@ -150,6 +150,9 @@ try {
   await mobileNavigation.locator('button[title="Route Flow & Relationships"]').click();
   const landscapeToggle = mobilePage.getByRole("button", { name: "Open landscape canvas" });
   await landscapeToggle.waitFor({ state: "visible", timeout: 10000 });
+  // Route Flow is lazy-loaded; wait for the workspace shell before measuring
+  // its actual portrait viewport bounds.
+  await mobilePage.locator(".route-flow-workspace").waitFor({ state: "visible", timeout: 15000 });
   if (await landscapeToggle.getAttribute("aria-pressed") !== "false") {
     throw new Error("Route Flow must start in portrait with landscape mode off.");
   }
