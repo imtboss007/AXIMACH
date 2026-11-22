@@ -106,10 +106,13 @@ function packDenseLabels(items, width, height) {
     if (row.entries.length) rows.push(row);
     const packedHeight = rows.reduce((total, current) => total + current.height, 0) +
       SHELF_GAP * Math.max(0, rows.length - 1);
-    if (packedHeight > availableHeight) continue;
 
     const resolved = new Map();
-    let y = 24 + (availableHeight - packedHeight) / 2;
+    // Keep labels centred when they fit. If the short scene is too crowded,
+    // preserve every label in a taller shelf rather than falling back to
+    // colliding projected coordinates or dropping any manufacturing record.
+    const fitsViewport = packedHeight <= availableHeight;
+    let y = fitsViewport ? 24 + (availableHeight - packedHeight) / 2 : 24;
     for (const current of rows) {
       let x = (width - current.width) / 2;
       for (const entry of current.entries) {
@@ -127,7 +130,10 @@ function packDenseLabels(items, width, height) {
       }
       y += current.height + SHELF_GAP;
     }
-    return items.map(item => resolved.get(item));
+    const result = items.map(item => resolved.get(item));
+    const requiredHeight = fitsViewport ? height : Math.ceil(packedHeight + 66);
+    Object.defineProperty(result, "layoutHeight", { value: Math.max(height, requiredHeight), enumerable: false });
+    return result;
   }
   return null;
 }
