@@ -1,9 +1,0 @@
-{
-  "appId": "com.aximach.manufacturingos",
-  "appName": "AXIMACH",
-  "webDir": "dist",
-  "bundledWebRuntime": false,
-  "android": {
-    "allowMixedContent": true
-  }
-}

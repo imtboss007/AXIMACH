@@ -109,6 +109,16 @@ try {
   await page.locator(".lead-discovery-safety").waitFor();
   console.log("PASS Customer Directory Lead Discovery panel");
 
+  // Seed the browser-only workspace with isolated synthetic records so the
+  // Process Map visual acceptance check cannot silently pass with an empty scene.
+  await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Data Exchange Centre"]').click();
+  await page.getByRole("button", { name: "Import Demo Factory" }).waitFor({ timeout: 10000 });
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Import Demo Factory" }).click();
+  await page.locator(".demo-pill").filter({ hasText: "DEMO LOADED" }).waitFor({ timeout: 10000 });
+  const demoOperations = await page.locator(".metric-card").filter({ hasText: "Operations" }).innerText();
+  if (!/Operations\\s*\\d+/.test(demoOperations)) throw new Error("Demo Factory did not report imported operation records.");
+  console.log("PASS isolated Demo Factory fixture loaded for populated Process Map visual checks");
 
   // Verify both module discovery surfaces open exact workspaces.
   await page.locator(".deck-action").filter({ hasText: "Modules" }).click();
@@ -128,17 +138,37 @@ try {
   console.log("PASS Route Flow graph/stage-card view toggle");
   await page.getByRole("button", { name: "Open Process Plan" }).click();
   await page.getByRole("heading", { name: /Process Map/i }).waitFor({ timeout: 10000 });
+
+  // Select a real synthetic PO line with six operation labels, material and transport.
+  const companyPicker = page.getByRole("combobox", { name: "Company" });
+  await companyPicker.fill("ASTER MOTION COMPONENTS");
+  await page.getByRole("option", { name: /ASTER MOTION COMPONENTS PVT LTD/ }).click();
+  const poPicker = page.getByRole("combobox", { name: "Purchase order" });
+  await poPicker.fill("DEMO-PO-001");
+  await page.getByRole("option", { name: /DEMO-PO-001/ }).click();
+  const linePicker = page.getByRole("combobox", { name: "PO component line" });
+  await linePicker.fill("AST-1001");
+  await page.getByRole("option", { name: /AST-1001/ }).click();
+  await page.getByText("CNC finish turning", { exact: true }).waitFor({ timeout: 10000 });
+
   if (await page.locator(".ax-followup-assignment-dock").count() !== 0) throw new Error("Follow-up launcher must not overlay Process Map.");
   const sceneLabels = page.locator(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon");
-  const sceneRects = await sceneLabels.evaluateAll(elements => elements.map(element => { const r = element.getBoundingClientRect(); return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height}; }).filter(r => r.width > 0 && r.height > 0));
-  for (let i = 0; i < sceneRects.length; i++) for (let j = i + 1; j < sceneRects.length; j++) {
-    const a = sceneRects[i], b = sceneRects[j];
-    if (a.x < b.right + 4 && a.right + 4 > b.x && a.y < b.bottom + 4 && a.bottom + 4 > b.y) {
-      throw new Error("Rendered 3D process labels overlap: " + JSON.stringify({a,b}));
+  const readSceneRects = () => sceneLabels.evaluateAll(elements => elements.map(element => { const r = element.getBoundingClientRect(); return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height}; }).filter(r => r.width > 0 && r.height > 0));
+  const assertCollisionFreeScene = async label => {
+    const rects = await readSceneRects();
+    if (rects.length < 5) throw new Error("Populated Process Map rendered too few visible 3D labels (" + rects.length + ") for a meaningful collision check.");
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+      const a = rects[i], b = rects[j];
+      if (a.x < b.right + 4 && a.right + 4 > b.x && a.y < b.bottom + 4 && a.bottom + 4 > b.y) {
+        throw new Error(label + " — rendered 3D process labels overlap: " + JSON.stringify({a,b}));
+      }
     }
-  }
-  if (sceneRects.length > 1) console.log("PASS collision-free rendered 3D label rectangles:", sceneRects.length);
-  else console.log("SKIP rendered 3D label rectangle check: no populated labels in this browser fixture");
+    console.log("PASS", label, "collision-free rendered 3D label rectangles:", rects.length);
+  };
+  await assertCollisionFreeScene("desktop Process Map");
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
+  await assertCollisionFreeScene("short-landscape mobile-sized Process Map");
   const processGraphMode = page.getByRole("button", { name: "Interactive Graph" });
   await processGraphMode.waitFor({ timeout: 10000 });
   await processGraphMode.click();
