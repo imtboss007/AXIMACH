@@ -504,10 +504,15 @@ try {
     if (!scene) return false;
     const measuredWidth = Number(scene.getAttribute("data-scene-layout-width"));
     const measuredHeight = Number(scene.getAttribute("data-scene-layout-height"));
+    const layer = scene.querySelector(".ax-full3d-label-layer");
     const content = scene.querySelector(".ax-full3d-label-content");
-    return Math.abs(measuredWidth - scene.clientWidth) <= 1 &&
-      Math.abs(measuredHeight - scene.clientHeight) <= 1 &&
-      !!content && content.clientHeight >= scene.clientHeight;
+    if (Math.abs(measuredWidth - scene.clientWidth) > 1 ||
+        Math.abs(measuredHeight - scene.clientHeight) > 1 ||
+        !layer || !content) return false;
+    const expanded = content.clientHeight > scene.clientHeight + 1;
+    return Math.abs(layer.clientHeight - scene.clientHeight) <= 1 &&
+      content.clientHeight >= layer.clientHeight &&
+      (!expanded || layer.scrollHeight > layer.clientHeight);
   }, null, { timeout: 5000 });
   await page.waitForTimeout(100);
   await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
