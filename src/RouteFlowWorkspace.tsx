@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Background, BackgroundVariant, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow } from "@xyflow/react";
 import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
 import "@xyflow/react/style.css";
@@ -52,7 +52,7 @@ type FlowNode =
 type RouteFlowNodeData = {title:string;detail:string;kind:string;accent:string;actionLabel?:string;onAction?:(element:HTMLElement)=>void};
 type RouteFlowGraphNode = Node<RouteFlowNodeData,"routeStage">;
 function RouteFlowGraphStage({data}:NodeProps<RouteFlowGraphNode>) {
-  return <article className="route-flow-graph-node" style={{"--route-accent":data.accent} as React.CSSProperties}>
+  return <article className="route-flow-graph-node" style={{"--route-accent":data.accent} as CSSProperties}>
     <Handle type="target" position={Position.Left}/>
     <span>{data.kind}</span><strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
     {data.actionLabel&&data.onAction&&<button type="button" className="nodrag" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();data.onAction?.(event.currentTarget);}}>{data.actionLabel}</button>}

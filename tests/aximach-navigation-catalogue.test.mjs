@@ -96,15 +96,15 @@ test("mobile dashboard preserves the six live record nodes in the rotating 3D sh
 
 test("Process Map interactive graph uses exact PO-line operations, scoped material records, transport legs and saved BOM links", async () => {
   const source = await readSource("src/LinkedProcessWorkspace.tsx");
-  assert.match(source, /id:"graph",label:"Interactive Graph"/);
-  assert.match(source, /visualStyle==="graph" && exportOperations\\.length/);
-  assert.match(source, /processMapMaterialEntries\\.forEach/);
-  assert.match(source, /componentMaterialProcessLinks\\.forEach/);
-  assert.match(source, /componentTransportLegs\\.forEach/);
-  assert.match(source, /link\\.poId!==poId\\|\\|link\\.poLineId!==selectedLine\\?\\.id/);
-  assert.match(source, /poLineId === selectedLine\\?\\.id \\|\\| \\(\\!leg\\.poLineId && selectedComponentLineCount === 1\\)/);
-  assert.match(source, /nodesDraggable=\\{false\\}/);
-  assert.match(source, /<ProcessUniverse3D/);
+  assert.ok(source.includes('id:"graph",label:"Interactive Graph"'));
+  assert.ok(source.includes('visualStyle==="graph" && exportOperations.length'));
+  assert.ok(source.includes("processMapMaterialEntries.forEach"));
+  assert.ok(source.includes("componentMaterialProcessLinks.forEach"));
+  assert.ok(source.includes("componentTransportLegs.forEach"));
+  assert.ok(source.includes("link.poId!==poId&&link.poLineId===selectedLine?.id"));
+  assert.ok(source.includes("poLineId === selectedLine?.id || (!leg.poLineId && selectedComponentLineCount === 1)"));
+  assert.ok(source.includes("nodesDraggable={false}"));
+  assert.ok(source.includes("<ProcessUniverse3D"));
 });
 
 test("Manufacturing Universe defaults to a live cross-module ecosystem graph and preserves PO route mode", async () => {

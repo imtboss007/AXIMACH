@@ -123,6 +123,15 @@ try {
   await page.getByRole("button", { name: "Stage cards" }).click();
   await page.getByRole("button", { name: "Interactive graph" }).waitFor({ timeout: 10000 });
   console.log("PASS Route Flow graph/stage-card view toggle");
+  await page.getByRole("button", { name: "Open Process Plan" }).click();
+  await page.getByRole("heading", { name: /Process Map/i }).waitFor({ timeout: 10000 });
+  const processGraphMode = page.getByRole("button", { name: "Interactive Graph" });
+  await processGraphMode.waitFor({ timeout: 10000 });
+  await processGraphMode.click();
+  if (await processGraphMode.getAttribute("aria-pressed") !== "true") {
+    throw new Error("Process Map Interactive Graph view did not become active.");
+  }
+  console.log("PASS Process Map Interactive Graph view selection");
   await page.locator(".command-search").click();
   await page.locator(".command-palette input").fill("Quality Inspection");
   await page.locator(".command-palette .palette-results button").filter({ hasText: "Quality Inspection" }).click();
