@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Background, BackgroundVariant, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow } from "@xyflow/react";
+import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
+import "@xyflow/react/style.css";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type MaterialCostEntryRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine, type TransportRouteRecord } from "./manufacturingData";
 import { getProductionRouteMetrics, getRequiredRouteOperations, inheritsRouteInclusion } from "./productionRouteMetrics.mjs";
@@ -22,6 +25,18 @@ function RouteConnectorLegend({compact=false}:{compact?:boolean}) {
   return compact ? <RouteLayoutConnectorLegend compact/> : <MaterialRouteConnectorLegend/>;
 }
 
+type ProcessMapGraphNodeData = {title:string;detail:string;kind:string;accent:string;status?:string;actionLabel?:string;onAction?:()=>void};
+type ProcessMapGraphNode = Node<ProcessMapGraphNodeData,"processMapEntity">;
+function ProcessMapGraphCard({data}:NodeProps<ProcessMapGraphNode>) {
+  return <article className="process-map-graph-card" style={{"--process-map-accent":data.accent} as CSSProperties}>
+    <Handle type="target" position={Position.Left}/>
+    <span>{data.kind}</span><strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
+    {data.status&&<em>{data.status}</em>}
+    {data.actionLabel&&data.onAction&&<button type="button" className="nodrag" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();data.onAction?.();}}>{data.actionLabel}</button>}
+    <Handle type="source" position={Position.Right}/>
+  </article>;
+}
+const PROCESS_MAP_NODE_TYPES = {processMapEntity:ProcessMapGraphCard} satisfies NodeTypes;
 type ProcessCardField = "category"|"subcategory"|"execution"|"machine"|"vendor"|"plannedStart"|"plannedEnd"|"actualStart"|"actualEnd"|"quantity"|"completed"|"accepted"|"rejected"|"price"|"amount"|"status"|"transportVendor"|"transportRoute"|"vehicle"|"transportPickup"|"transportDelivery"|"transportLegCost"|"combinedAmount"|"company"|"po"|"component"|"materialShape"|"materialDensity"|"materialQuantity"|"materialWeight"|"materialVendor"|"materialGiven"|"materialDelivery"|"materialReceived"|"materialCost"|"materialCuttingCost"|"materialTransportCost";
 const DEFAULT_PROCESS_COLOR = "#6fa9e5";
 const ALTERNATE_ROUTE_COLOR = "#4b95eb";
@@ -161,7 +176,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [exportScope,setExportScope] = useState<string>("all");
   const [exportArrows] = useState(true);
   const [routeLayout,setRouteLayout]=useRouteLayout();
-  const [visualStyle,setVisualStyle] = useState<"sphere"|"cube"|"vortex"|"helix"|"orbit"|"stacked"|"pipeline"|"network"|"grid"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"digital-mesh"|"molecular"|"combined">("sphere");
+  const [visualStyle,setVisualStyle] = useState<"sphere"|"cube"|"vortex"|"helix"|"orbit"|"stacked"|"pipeline"|"network"|"grid"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"digital-mesh"|"molecular"|"combined"|"graph">("sphere");
   const [ganttScale,setGanttScale] = useState<"day"|"week"|"month">("week");
   const [histogramStyle,setHistogramStyle] = useState<"bar"|"stacked"|"donut">("bar");
   const [statusFilters,setStatusFilters] = useState<string[]>([]);
@@ -571,6 +586,83 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const exportBranches = [...new Set(exportOperations.map(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")))].sort((a,b)=>a.localeCompare(b));
   const processAccent = (operation:OperationRecord) => processDefinitions.find(item=>item.id===operation.processDefinitionId)?.displayColor || operation.processColor || DEFAULT_PROCESS_COLOR;
   const branchAccent = (operation:OperationRecord) => operation.relationType==="rework" ? REWORK_ROUTE_COLOR : operation.relationType==="alternate" ? ALTERNATE_ROUTE_COLOR : processAccent(operation);
+  const processMapGraph = useMemo(()=>{
+    const nodes:ProcessMapGraphNode[]=[];
+    const edges:Edge[]=[];
+    const operationPositions=new Map<string,{x:number;y:number;branch:string;index:number}>();
+    const relationshipRows=activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===selectedLine?.id&&link.componentId===selectedLine?.componentId&&link.status!=="Disabled");
+    const relationColors:Record<string,string>={main:"#2875bd",alternate:ALTERNATE_ROUTE_COLOR,rework:REWORK_ROUTE_COLOR,dependency:"#347de5",parallel:"#9848d6",merge:"#9e4bc9",split:"#3d79df","follow-on":"#173c6c",feedback:"#455bd6",conditional:"#9954ce",successor:"#203e62"};
+    const branchRows=exportBranches.map((key,row)=>{
+      const operationsInBranch=exportOperations.filter(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")===key).slice().sort((a,b)=>a.sequence-b.sequence);
+      return {key,row,branch:operationsInBranch[0]?.branch||"Main route",operations:operationsInBranch};
+    }).filter(row=>row.operations.length);
+    branchRows.forEach(({row,branch,operations:ops})=>{
+      ops.forEach((operation,index)=>{
+        const x=120+index*290,y=90+row*240;
+        operationPositions.set(operation.id,{x,y,branch,index});
+        nodes.push({id:"operation:"+operation.id,type:"processMapEntity",position:{x,y},data:{title:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name,detail:[operation.category,operation.subcategory,vendors.find(v=>v.id===operation.vendorId)?.company||"Vendor not assigned","Qty "+operation.quantity].filter(Boolean).join(" · "),kind:"PROCESS OPERATION",accent:branchAccent(operation),status:operation.status,actionLabel:"Select operation",onAction:()=>{setSelectedOperationId(operation.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:236}});
+      });
+      for(let index=0;index<ops.length-1;index++){
+        const from=ops[index],to=ops[index+1];
+        const saved=relationshipRows.find(link=>link.fromOperationId===from.id&&link.toOperationId===to.id);
+        const relation=saved?.relationshipType||(branch.toLowerCase().includes("rework")?"rework":branch==="Main route"?"main":"alternate");
+        const color=relationColors[relation]||relationColors.main;
+        edges.push({id:"process-sequence:"+from.id+":"+to.id,source:"operation:"+from.id,target:"operation:"+to.id,type:"smoothstep",label:saved?.label||relation.replaceAll("-"," ").toUpperCase(),labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
+      }
+    });
+    const sequentialPairs=new Set(edges.map(edge=>edge.source+"::"+edge.target));
+    relationshipRows.forEach(link=>{
+      const from="operation:"+link.fromOperationId,to="operation:"+link.toOperationId;
+      if(!operationPositions.has(link.fromOperationId)||!operationPositions.has(link.toOperationId)||sequentialPairs.has(from+"::"+to))return;
+      const color=relationColors[link.relationshipType]||relationColors.main;
+      edges.push({id:"saved-relationship:"+link.id,source:from,target:to,type:"smoothstep",label:link.label||link.relationshipType.toUpperCase(),labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2,strokeDasharray:"7 4"},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
+    });
+    const materialNodeIds=new Map<string,string>();
+    processMapMaterialEntries.forEach((entry,index)=>{
+      const id="material:"+entry.id;materialNodeIds.set(entry.id,id);
+      const anchor=entry.anchorOperationId?operationPositions.get(entry.anchorOperationId):undefined;
+      const firstMain=branchRows.find(row=>row.branch==="Main route")?.operations[0];
+      const routeStart=!entry.anchorOperationId&&firstMain?operationPositions.get(firstMain.id):undefined;
+      const base=anchor||routeStart;
+      const y=base?.y??110+index*100;
+      const x=base?(entry.anchorOperationId?base.x-215:Math.max(24,base.x-255)):35;
+      const supplier=vendors.find(v=>v.id===entry.vendorId)?.company||"Supplier not assigned";
+      nodes.push({id,type:"processMapEntity",position:{x,y:y+100+index*105},data:{title:[entry.materialName,entry.materialGrade].filter(Boolean).join(" · "),detail:[entry.partNumber||entry.partName||"Component-level",entry.shapeType,entry.quantity+" pcs",Number(entry.totalWeightKg||0).toFixed(3)+" kg",supplier].join(" · "),kind:"MATERIAL PROCUREMENT",accent:"#b18a2d",status:entry.actualDeliveryDate?"Received":"Planned"},draggable:false,selectable:false,style:{width:220}});
+      if(base){
+        const target=entry.anchorOperationId?"operation:"+entry.anchorOperationId:"operation:"+firstMain!.id;
+        edges.push({id:"material-allocation:"+entry.id,source:id,target,label:entry.anchorOperationId?"ALLOCATED AFTER PROCESS":"REQUIRED ROUTE INPUT",labelStyle:{fontSize:8,fill:"#8b702e"},style:{stroke:"#b18a2d",strokeWidth:1.8,strokeDasharray:"5 4"},markerEnd:{type:MarkerType.ArrowClosed,color:"#b18a2d"},selectable:false,focusable:false});
+      }
+    });
+    componentMaterialProcessLinks.forEach(link=>{
+      const material=materialMasterRecords.find(row=>row.id===link.materialId);
+      const operation=operationPositions.get(link.operationId);
+      if(!material||!operation)return;
+      const id="bom-link:"+link.id;
+      const label=materialProcessPartLabels[link.id]||"BOM part";
+      nodes.push({id,type:"processMapEntity",position:{x:operation.x+(link.placement==="before"?-150:150),y:operation.y+155},data:{title:material.name,detail:label,kind:"MATERIAL → PROCESS LINK",accent:"#3e9278",status:link.placement==="before"?"Before operation":"After operation"},draggable:false,selectable:false,style:{width:190}});
+      const source=link.placement==="before"?id:"operation:"+link.operationId;
+      const target=link.placement==="before"?"operation:"+link.operationId:id;
+      edges.push({id:"bom-link-edge:"+link.id,source,target,label:link.placement==="before"?"INPUT TO PROCESS":"OUTPUT FROM PROCESS",labelStyle:{fontSize:8,fill:"#3c806d"},style:{stroke:"#3e9278",strokeWidth:1.7},markerEnd:{type:MarkerType.ArrowClosed,color:"#3e9278"},selectable:false,focusable:false});
+    });
+    componentTransportLegs.forEach((leg,index)=>{
+      const id="transport:"+leg.id;
+      const from=leg.anchorOperationId?operationPositions.get(leg.anchorOperationId):undefined;
+      const to=leg.targetOperationId?operationPositions.get(leg.targetOperationId):undefined;
+      const materialId=leg.materialEntryId?materialNodeIds.get(leg.materialEntryId):undefined;
+      const firstMain=branchRows.find(row=>row.branch==="Main route")?.operations[0];
+      const targetPosition=to||(!from&&!materialId&&leg.placement==="start"&&firstMain?operationPositions.get(firstMain.id):undefined);
+      const x=from&&to?(from.x+to.x)/2:from?from.x+135:to?to.x-160:targetPosition?targetPosition.x-160:24;
+      const y=from&&to?(from.y+to.y)/2+105:from?from.y+115:to?to.y+115:targetPosition?targetPosition.y+115:360+index*85;
+      nodes.push({id,type:"processMapEntity",position:{x,y},data:{title:leg.fromLocation+" → "+leg.toLocation,detail:[leg.vehicleType,leg.tripCount+" trip(s)",vendors.find(v=>v.id===leg.vendorId)?.company||"Transporter not assigned"].join(" · "),kind:"TRANSPORT LEG",accent:"#397ea4",status:leg.status||"Planned",actionLabel:"Open transport details",onAction:()=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");}},draggable:false,selectable:false,style:{width:218}});
+      const color="#397ea4";
+      if(materialId)edges.push({id:"transport-from-material:"+leg.id,source:materialId,target:id,label:"CARRY",style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
+      else if(from)edges.push({id:"transport-from-operation:"+leg.id,source:"operation:"+leg.anchorOperationId,target:id,label:"CARRY",style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
+      if(to)edges.push({id:"transport-to-operation:"+leg.id,source:id,target:"operation:"+leg.targetOperationId,label:"DELIVER TO",style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
+      else if(!materialId&&targetPosition&&firstMain&&leg.placement==="start")edges.push({id:"transport-to-route:"+leg.id,source:id,target:"operation:"+firstMain.id,label:"ROUTE START",style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
+    });
+    return {nodes,edges};
+  },[exportBranches,exportOperations,processMapMaterialEntries,componentMaterialProcessLinks,componentTransportLegs,poId,selectedLine?.id,materialMasterRecords,materialProcessPartLabels,data.routeRelationships,vendors,branchAccent]);
+
   const exportValue = (op:OperationRecord,key:ProcessExportField):string|number => {
     switch(key) {
       case "company": return selectedCompany?.name || "";
@@ -1388,7 +1480,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             {id:"horizontal",label:"Horizontal Flow"},
             {id:"vertical",label:"Vertical Flow"},
             {id:"nodes",label:"Connected Nodes"},
-            {id:"branch",label:"Branch / Rework"}
+            {id:"branch",label:"Branch / Rework"},
+            {id:"graph",label:"Interactive Graph"}
           ] as const).map(option=><button key={option.id} type="button" aria-pressed={visualStyle===option.id}
             className={(visualStyle===option.id?"button-primary":"button-quiet")+" compact-button"}
             onClick={()=>{setVisualStyle(option.id);setRouteView("3d");setSimulationActive(false);setSimulationIndex(-1);}}>
@@ -1715,6 +1808,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           : visualStyle==="gantt" && exportOperations.length ? <div className="process-gantt-view">
               <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {exportOperations.length} operations in {exportScopeLabel}</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
               {exportOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));const branch=op.branch||"Main route";const color=processAccent(op);const routeColor=branchAccent(op);return <div className={"process-gantt-row "+(branch==="Main route"?"":"is-branch")} key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small><i style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:routeColor,marginRight:5}}/>{branch} · {shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%",backgroundColor:color}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
+            </div>
+          : visualStyle==="graph" && exportOperations.length ? <div className="process-map-graph-canvas" data-testid="process-map-react-canvas">
+              <div className="process-map-graph-header"><strong>{selectedPO?.number||"Selected PO"} · {selectedComponent?.partNumber||"Component"} · {selectedPart?.partNumber||"All line parts"}</strong><span>{processMapGraph.nodes.length} nodes · {processMapGraph.edges.length} route links</span></div>
+              <ReactFlow<ProcessMapGraphNode,Edge> nodes={processMapGraph.nodes} edges={processMapGraph.edges} nodeTypes={PROCESS_MAP_NODE_TYPES} fitView fitViewOptions={{padding:.18,minZoom:.2,maxZoom:1.1}} minZoom={.16} maxZoom={1.8} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} nodesFocusable edgesFocusable={false} panOnDrag zoomOnScroll={false} zoomOnPinch zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
+                <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#b5c9da"/><Controls showInteractive={false}/><MiniMap<ProcessMapGraphNode> pannable zoomable nodeColor={(node:ProcessMapGraphNode):string=>node.data.accent}/>
+              </ReactFlow>
             </div>
           : exportOperations.length ? <div className={"linked-node-scroll process-visual-"+visualStyle+" " + (visualStyle==="vertical" ? "linked-node-vertical" : "")}><nav className="linked-process-index" aria-label="Jump to process operation"><strong>STEPS</strong>{exportOperations.map(operation=><button type="button" key={operation.id} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} aria-label={"Go to operation "+operation.sequence+": "+operation.name}><b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span></button>)}</nav><div className="linked-route-lanes" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{exportBranches.map(routeGroup => {
           const laneOperations = exportOperations.filter(op => (op.poLineId||op.componentId)+"::"+(op.branch||"Main route") === routeGroup).slice().sort((a,b)=>a.sequence-b.sequence);

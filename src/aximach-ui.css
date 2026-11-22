@@ -6290,3 +6290,24 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .route-flow-graph-canvas .react-flow__attribution{font-size:7px;background:#ffffffbd}
 @media(max-width:700px){.route-flow-graph-canvas{height:520px;min-height:420px}.route-flow-graph-canvas .react-flow__minimap{display:none}}
 @media(prefers-reduced-motion:reduce){.route-flow-graph-canvas .react-flow__node{transition:none!important}}
+
+
+/* React Flow Process Map graph view: exact PO-line operations, materials and transport. */
+.process-map-graph-canvas{position:relative;height:720px;min-height:500px;overflow:hidden;border:1px solid #d8e5ef;border-radius:12px;background:radial-gradient(circle at 48% 42%,#fff 0%,#f5f9fd 44%,#eaf2f9 100%)}
+.process-map-graph-header{position:absolute;z-index:5;top:10px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:none}
+.process-map-graph-header strong,.process-map-graph-header span{padding:6px 9px;border:1px solid #dbe6ef;border-radius:7px;background:#ffffffdc;color:#45637e;font-size:9px;box-shadow:0 3px 10px #254c6b12}
+.process-map-graph-canvas .react-flow{background:transparent;font-family:'DM Sans',sans-serif}
+.process-map-graph-canvas .react-flow__node{border:0;background:transparent;box-shadow:none}
+.process-map-graph-card{position:relative;display:flex;flex-direction:column;gap:5px;width:236px;min-height:110px;padding:11px;border:1px solid color-mix(in srgb,var(--process-map-accent) 42%,white);border-left:4px solid var(--process-map-accent);border-radius:10px;background:linear-gradient(145deg,#fff,#f7fbff);box-shadow:0 6px 18px #254c6b18;color:#2b4d6c}
+.process-map-graph-card>span{color:var(--process-map-accent);font:700 8px 'DM Mono';letter-spacing:.05em}
+.process-map-graph-card>strong{font-size:11px;line-height:1.4}
+.process-map-graph-card>small{font-size:8px;line-height:1.45;color:#748ba1}
+.process-map-graph-card>em{align-self:flex-start;padding:3px 6px;border-radius:5px;background:#eef4f8;color:#5a748d;font-size:8px;font-style:normal;font-weight:700}
+.process-map-graph-card>button{align-self:flex-start;padding:5px 8px;border:1px solid #d9e6f1;border-radius:6px;background:#f7fbff;color:#315b7d;font-size:9px;font-weight:700;cursor:pointer}
+.process-map-graph-card>button:hover{border-color:var(--process-map-accent);background:#fff}
+.process-map-graph-canvas .react-flow__handle{width:5px;height:5px;min-width:5px;min-height:5px;border:0;background:#8caec7;opacity:.55;pointer-events:none}
+.process-map-graph-canvas .react-flow__controls,.process-map-graph-canvas .react-flow__minimap{overflow:hidden;border:1px solid #d6e2ed;border-radius:9px;background:#fff;box-shadow:0 5px 16px #254c6b16}
+.process-map-graph-canvas .react-flow__controls-button{width:29px;height:29px;border:0;border-bottom:1px solid #edf1f5;background:#fff;color:#52708a}
+.process-map-graph-canvas .react-flow__attribution{font-size:7px;background:#ffffffbd}
+@media(max-width:700px){.process-map-graph-canvas{height:560px;min-height:440px}.process-map-graph-header{flex-direction:column;align-items:flex-start}.process-map-graph-canvas .react-flow__minimap{display:none}}
+@media(prefers-reduced-motion:reduce){.process-map-graph-canvas .react-flow__node{transition:none!important}}
