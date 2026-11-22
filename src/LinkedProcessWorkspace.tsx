@@ -176,7 +176,21 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [exportScope,setExportScope] = useState<string>("all");
   const [exportArrows] = useState(true);
   const [routeLayout,setRouteLayout]=useRouteLayout();
-  const [visualStyle,setVisualStyle] = useState<"sphere"|"cube"|"vortex"|"helix"|"orbit"|"stacked"|"pipeline"|"network"|"grid"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"digital-mesh"|"molecular"|"combined"|"graph">("sphere");
+  const [visualStyle,setVisualStyle] = useState<"sphere"|"cube"|"vortex"|"helix"|"orbit"|"stacked"|"pipeline"|"network"|"grid"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"digital-mesh"|"molecular"|"combined"|"graph">(() => typeof window !== "undefined" && window.matchMedia("(pointer:coarse)").matches && window.matchMedia("(orientation:portrait)").matches ? "vertical" : "sphere");
+  // Phone Process Map opens as a readable vertical route. When the user opts
+  // into landscape, promote the default vertical view to the immersive 3D scene.
+  useEffect(() => {
+    const syncResponsiveProcessView = () => {
+      const portrait = window.matchMedia("(orientation:portrait)").matches;
+      setVisualStyle(current => portrait && current === "sphere" ? "vertical" : !portrait && current === "vertical" ? "sphere" : current);
+    };
+    window.addEventListener("orientationchange",syncResponsiveProcessView);
+    window.addEventListener("resize",syncResponsiveProcessView);
+    return () => {
+      window.removeEventListener("orientationchange",syncResponsiveProcessView);
+      window.removeEventListener("resize",syncResponsiveProcessView);
+    };
+  },[]);
   const [ganttScale,setGanttScale] = useState<"day"|"week"|"month">("week");
   const [histogramStyle,setHistogramStyle] = useState<"bar"|"stacked"|"donut">("bar");
   const [statusFilters,setStatusFilters] = useState<string[]>([]);
