@@ -345,7 +345,7 @@ function App() {
   };
 
   return (
-    <div className="app-shell" data-theme={appearance}>
+    <div className="app-shell" data-theme={appearance} data-landscape-canvas-open={landscapeCanvasOpen ? "true" : "false"} data-phone-viewport={isTouchViewport ? "true" : "false"}>
       <header className="command-deck">
         <button className="brand-lockup" onClick={() => selectModule("dashboard")} aria-label="Open AXIMACH dashboard">
           <span className="brand-symbol"><span>A</span><i /></span>
