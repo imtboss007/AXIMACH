@@ -6360,7 +6360,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .rail-appearance-setting{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;padding:7px 10px;border:1px solid rgba(124,166,197,.2);border-radius:9px;color:#b9d2e7;font-size:11px}
 .rail-appearance-setting select{min-width:100px;max-width:132px;padding:6px 8px;border:1px solid #38566f;border-radius:7px;background:#102a40;color:#eff8ff;font:inherit}
 
-@media (max-width:760px), (pointer:coarse) and (max-height:900px){
+@media (max-width:760px), (hover:none), (pointer:coarse){
   html,body,#root{width:100%!important;max-width:100%!important;height:100%!important;min-height:100%!important;overflow:hidden!important}
   body{overscroll-behavior:none!important}
   .app-shell,
