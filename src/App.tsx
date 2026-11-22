@@ -20,6 +20,7 @@ import SearchablePicker from "./SearchablePicker";
 const AXIMACHOrb = lazy(() => import("./AXIMACHOrb"));
 const IconStudio = lazy(() => import("./IconStudio"));
 const ManufacturingMasterWorkspace = lazy(() => import("./ManufacturingMasterWorkspace"));
+const CustomerDirectoryWorkspace = lazy(() => import("./CustomerDirectoryWorkspace"));
 const DashboardWorkspace = lazy(() => import("./DashboardWorkspace"));
 const SpecializedDirectoryWorkspace = lazy(() => import("./SpecializedDirectoryWorkspace"));
 const TransportDirectoryWorkspace = lazy(() => import("./TransportDirectoryWorkspace"));
@@ -67,7 +68,8 @@ type ModuleItem = {
 };
 
 const modules: ModuleItem[] = [
-  { id: "companies", title: "Company Directory", group: "Master Data", description: "Company name, GST, contact person, email and address.", icon: Factory, action: "Open company directory" },
+  { id: "companies", title: "Company Directory", group: "Master Data", description: "AXIMACH operating companies, GST, contact person, email and address.", icon: Factory, action: "Open company directory" },
+  { id: "customers", title: "Customer Directory", group: "Master Data", description: "Buyer accounts, GST/PAN identity, commercial terms, credit limit and addresses.", icon: Handshake, action: "Open customer directory" },
   { id: "components", title: "Component Directory", group: "Master Data", description: "Company-linked component names, numbers and piece or set prices.", icon: Box, action: "Open component directory" },
   { id: "purchasing", title: "Purchase Orders", group: "Commercial", description: "Company purchase orders, dates, due dates and multiple component quantities.", icon: Package, action: "Open purchase orders" },
   { id: "vendors", title: "Vendor Directory", group: "Supply Network", description: "Individual vendors with multiple process capabilities and contact details.", icon: Users, action: "Open vendor directory" },
@@ -407,6 +409,8 @@ function App() {
           <RouteFlowWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-map" ? (
           <LinkedProcessWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
+        ) : activeModuleId === "customers" ? (
+          <CustomerDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace navigationContext={moduleContext} moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(componentId)=>{setIconStudioTarget(componentId?{targetType:"component",targetRecordId:componentId}:null);setIconStudioOpen(true);}} />
         ) : activeModuleId === "inventory" ? (

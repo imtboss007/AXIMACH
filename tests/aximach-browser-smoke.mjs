@@ -38,6 +38,7 @@ try {
 
   const modules = [
     ["Company Directory", "companies"],
+    ["Customer Directory", "customers"],
     ["Component Directory", "components"],
     ["Purchase Orders", "purchasing"],
     ["Vendor Directory", "vendors"],
@@ -102,7 +103,7 @@ try {
   // Verify both module discovery surfaces open exact workspaces.
   await page.locator(".deck-action").filter({ hasText: "Modules" }).click();
   await page.getByRole("heading", { name: /module universe/i }).waitFor();
-  if (!(await page.locator(".universe-footer").innerText()).includes("21 of 21 modules")) {
+  if (!(await page.locator(".universe-footer").innerText()).includes("22 of 22 modules")) {
     throw new Error("Module Universe does not report all 21 modules.");
   }
   await page.locator(".universe-search input").fill("Route Flow");
@@ -118,7 +119,7 @@ try {
   await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Manufacturing Universe"]').click();
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Manufacturing Universe");
   await page.locator(".ax-ecosystem-graph").waitFor({ timeout: 15000 });
-  if (await page.locator(".ax-ecosystem-filters button").count() !== 12) {
+  if (await page.locator(".ax-ecosystem-filters button").count() !== 13) {
     throw new Error("Manufacturing ecosystem graph does not expose all 12 entity filters.");
   }
   const sampleNote = await page.locator(".ax-ecosystem-sample-note").innerText();

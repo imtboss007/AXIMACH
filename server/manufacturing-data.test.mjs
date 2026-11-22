@@ -7,7 +7,7 @@ const newTime = "2026-11-04T09:00:00.000Z";
 
 test("server merge covers every manufacturing collection, including follow-up assignments", () => {
   assert.deepEqual(manufacturingCollections, [
-    "companies", "factories", "purchaseOrders", "components", "vendors", "operations",
+    "companies", "customers", "factories", "purchaseOrders", "components", "vendors", "operations",
     "quotations", "materials", "componentParts", "materialCostEntries", "bomLines", "materialProcessLinks", "inventoryTransactions", "contactProfiles",
     "processDefinitions", "plannedCosts", "paymentTransactions", "inspectionMeasurements",
     "supplierInvoices", "supplierPayments", "supplierFinanceApprovals", "supplierPaymentAllocations",
@@ -142,4 +142,17 @@ test("supplier invoices, finance approvals, supplier payments and allocations sy
   assert.equal(second.supplierPaymentAllocations[0].deletedAt,deletedAt);
   assert.equal(second.supplierPayments.length,1);
   assert.equal(second.supplierFinanceApprovals.length,1);
+});
+
+
+test("customer records sync by stable ID and preserve soft-delete tombstones",()=>{
+ const customer={id:"customer-1",customerCode:"CUST-001",legalName:"Example Industrial Systems Pvt Ltd",displayName:"Example Industrial",currency:"INR",status:"Active",updatedAt:newTime};
+ const first=mergeManufacturingData({}, {customers:[customer],updatedAt:newTime});
+ assert.equal(first.customers.length,1);
+ assert.equal(first.customers[0].customerCode,"CUST-001");
+ const deletedAt="2026-11-05T09:00:00.000Z";
+ const second=mergeManufacturingData(first,{customers:[{...customer,displayName:"Example IS",updatedAt:deletedAt,deletedAt}],updatedAt:deletedAt});
+ assert.equal(second.customers.length,1);
+ assert.equal(second.customers[0].displayName,"Example IS");
+ assert.equal(second.customers[0].deletedAt,deletedAt);
 });

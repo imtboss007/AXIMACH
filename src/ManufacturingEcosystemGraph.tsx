@@ -5,7 +5,7 @@ import { expandEcosystemGroupLimit, getVisibleEcosystemNodes, loadEcosystemGraph
 
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
 type Props = { data:ManufacturingData; onNavigate:(moduleId:string,context?:Context)=>void };
-type NodeKind = "company"|"factory"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
+type NodeKind = "company"|"customer"|"factory"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
 type GraphNode = { id:string; label:string; detail:string; kind:NodeKind; moduleId:string; context:Context; x:number; y:number };
 type GraphEdge = { id:string; from:string; to:string; kind:string };
 
@@ -32,6 +32,7 @@ const edgeColor = (kind:string) => {
 
 const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> = [
   {kind:"company",title:"Companies",moduleId:"companies",color:"#2875bd"},
+  {kind:"customer",title:"Customers",moduleId:"customers",color:"#2f9b82"},
   {kind:"factory",title:"Factories",moduleId:"companies",color:"#4b8cbd"},
   {kind:"order",title:"Purchase orders",moduleId:"purchasing",color:"#8b68c5"},
   {kind:"component",title:"Components",moduleId:"components",color:"#168d89"},
@@ -92,6 +93,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       nodes.push({id,label:label||"Unnamed record",detail,kind,moduleId,context,x:0,y:0});
     };
     const companies=activeRows(data.companies||[]);
+    const customers=activeRows(data.customers||[]);
     const factories=activeRows(data.factories||[]);
     const orders=activeRows(data.purchaseOrders||[]);
     const components=activeRows(data.components||[]);
@@ -107,6 +109,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     const nodeIds=new Set<string>();
     const edge=(from:string,to:string,kind:string)=>{if(from&&to&&from!==to)edges.push({id:from+"|"+to+"|"+kind,from,to,kind});};
     companies.forEach(row=>{add("company:"+row.id,row.name,"Company · "+(row.gstin||"GSTIN not recorded"),"company","companies",{companyId:row.id});nodeIds.add(row.id);});
+    customers.forEach(row=>add("customer:"+row.id,row.displayName||row.legalName,"Customer · "+row.customerCode+" · "+row.status,"customer","customers"));
     factories.forEach(row=>{add("factory:"+row.id,row.name,"Factory · "+(row.address||"Address not recorded"),"factory","companies",{companyId:row.companyId});edge("factory:"+row.id,"company:"+row.companyId,"owns");});
     orders.forEach(row=>{add("order:"+row.id,row.number,"Purchase order · "+row.status,"order","purchasing",{companyId:row.companyId,poId:row.id});edge("order:"+row.id,"company:"+row.companyId,"placed by");row.lines.filter(line=>!line.deletedAt).forEach(line=>edge("order:"+row.id,"component:"+line.componentId,"orders"));});
     components.forEach(row=>add("component:"+row.id,row.partNumber||row.name,"Component · "+row.name+" · Rev "+(row.revision||"—"),"component","components",{companyId:row.companyId}));
