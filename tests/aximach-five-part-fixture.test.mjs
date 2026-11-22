@@ -2623,3 +2623,9 @@ test("scoped user sessions stop WhatsApp bridge polling and clear shared-device 
   assert.ok(app.includes('setServerAuthMode("users");clearUserLocalCache();'));
   assert.ok(app.includes('window.dispatchEvent(new Event("aximach-module-records-updated"));'));
 });
+
+test("new sub-process and branch steps inherit the selected route inclusion state", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("base.costIncluded = getRequiredRouteOperations(routeOperations).some(operation => operation.id === parent.id)"));
+  assert.ok(workspace.includes("base.costIncluded = getRequiredRouteOperations(routeOperations).some(operation => operation.id === anchor.id)"));
+});
