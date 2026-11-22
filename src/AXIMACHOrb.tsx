@@ -16,6 +16,7 @@ function readOrbPreferences(storageKey: string): Record<string, unknown> {
 
 const satellites = [
   { id: "companies", label: "Company", Icon: Building2 },
+  { id: "customers", label: "Customers", Icon: Users },
   { id: "components", label: "Components", Icon: Box },
   { id: "purchasing", label: "Purchase Orders", Icon: Package },
   { id: "vendors", label: "Vendors", Icon: Users },
