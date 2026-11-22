@@ -95,6 +95,75 @@ function findLeastOverlapSlot(anchor, bounds, placed, width, height, step) {
   return winner ? { ...winner, collision: bestScore > 0 } : null;
 }
 
+
+function packDenseLabels(items, width, height) {
+  const availableWidth = Math.max(1, width - 14);
+  const availableHeight = Math.max(1, height - 66);
+  const hasCore = items[0]?.kind === "core";
+  const prefixCount = hasCore ? Math.min(2, items.length) : Math.min(1, items.length);
+  const priority = items.slice(0, prefixCount);
+  const remainder = items.slice(prefixCount).sort((a, b) => {
+    const aBounds = CARD_BOUNDS[a.kind] || CARD_BOUNDS.operation;
+    const bBounds = CARD_BOUNDS[b.kind] || CARD_BOUNDS.operation;
+    return bBounds.width * bBounds.height - aBounds.width * aBounds.height ||
+      a.screen.y - b.screen.y || a.screen.x - b.screen.x;
+  });
+  const ordered = [...priority, ...remainder];
+
+  for (const scale of [0.84, 0.78, 0.72, 0.68, 0.64, 0.6]) {
+    const rows = [];
+    let row = { entries: [], width: 0, height: 0 };
+
+    for (const item of ordered) {
+      const base = CARD_BOUNDS[item.kind] || CARD_BOUNDS.operation;
+      const isCard = item.kind === "operation" || item.kind === "material" || item.kind === "catalogue";
+      const itemScale = isCard ? scale : 1;
+      const bounds = { width: base.width * itemScale, height: base.height * itemScale };
+
+      if (bounds.width > availableWidth) {
+        row = null;
+        break;
+      }
+      const nextWidth = row.width + (row.entries.length ? LABEL_GAP : 0) + bounds.width;
+      if (row.entries.length && nextWidth > availableWidth) {
+        rows.push(row);
+        row = { entries: [], width: 0, height: 0 };
+      }
+      row.entries.push({ item, bounds, scale: itemScale });
+      row.width += (row.entries.length > 1 ? LABEL_GAP : 0) + bounds.width;
+      row.height = Math.max(row.height, bounds.height);
+    }
+
+    if (!row) continue;
+    if (row.entries.length) rows.push(row);
+    const packedHeight = rows.reduce((total, current) => total + current.height, 0) +
+      LABEL_GAP * Math.max(0, rows.length - 1);
+    if (packedHeight > availableHeight) continue;
+
+    const resolved = new Map();
+    let y = 24 + (availableHeight - packedHeight) / 2;
+    for (const current of rows) {
+      let x = (width - current.width) / 2;
+      for (const entry of current.entries) {
+        resolved.set(entry.item.id, {
+          ...entry.item,
+          screen: {
+            ...entry.item.screen,
+            x: x + entry.bounds.width / 2,
+            y: y + current.height / 2,
+            scale: entry.scale,
+            collision: false
+          }
+        });
+        x += entry.bounds.width + LABEL_GAP;
+      }
+      y += current.height + LABEL_GAP;
+    }
+    return items.map(item => resolved.get(item.id));
+  }
+  return null;
+}
+
 /**
  * Position all DOM cards and transport markers in the same 2D overlay space.
  * Selected process and fixed core labels should be supplied first so they
@@ -153,5 +222,8 @@ export function relaxProcessSceneLabels(items, width, height) {
     });
   }
 
+  if (output.some(item => item.screen.collision)) {
+    return packDenseLabels(items, viewportWidth, viewportHeight) || output;
+  }
   return output;
 }

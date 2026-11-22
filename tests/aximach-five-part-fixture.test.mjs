@@ -1837,6 +1837,7 @@ test("3D Gantt does not fabricate schedule dates for operations without date-tim
 test("Manufacturing Universe uses compact 3D nodes and keeps full operation details in the selected-record panel", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  const labelLayout = readFileSync(new URL("../src/processSceneLabelLayout.js", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('const REQUIRED_PROCESS_CARD_FIELDS: ProcessCardField[] = ["category","subcategory","quantity","plannedStart","plannedEnd","vendor","amount"]'));
   assert.ok(workspace.includes('checked={REQUIRED_PROCESS_CARD_FIELDS.includes(field.key)||cardVisibleFields.includes(field.key)}'));
