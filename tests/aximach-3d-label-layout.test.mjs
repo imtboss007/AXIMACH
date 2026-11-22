@@ -125,3 +125,30 @@ test("keeps full label rectangles inside phone, short-landscape, hybrid-tablet a
     }
   }
 });
+
+test("keeps a dense short-landscape label shelf collision-free by expanding the scene instead of overlapping labels", () => {
+  const items = [
+    { id: "dense-core", kind: "core", screen: { x: 420, y: 195, z: 0 } },
+    ...Array.from({ length: 16 }, (_, i) => ({
+      id: "dense-operation-" + i, kind: "operation",
+      screen: { x: 420 + (i % 3), y: 195 + (i % 4), z: 0 }
+    })),
+    ...Array.from({ length: 4 }, (_, i) => ({
+      id: "dense-material-" + i, kind: "material",
+      screen: { x: 420, y: 195, z: 0 }
+    })),
+    ...Array.from({ length: 4 }, (_, i) => ({
+      id: "dense-transport-" + i, kind: "transport",
+      screen: { x: 420, y: 195, z: 0 }
+    })),
+    ...Array.from({ length: 3 }, (_, i) => ({
+      id: "dense-transport-leg-" + i, kind: "transportLeg",
+      screen: { x: 420, y: 195, z: 0 }
+    }))
+  ];
+  const result = relaxProcessSceneLabels(items, 844, 390);
+  assert.equal(result.length, items.length, "all process, material and transport labels must be retained");
+  assertNoCollisions(result);
+  assert.ok(result.layoutHeight >= 390, "the packed layout must report a sufficient scene height");
+  assert.ok(result.every(item => item.screen.collision === false), "the dense layout must not return fallback overlaps");
+});
