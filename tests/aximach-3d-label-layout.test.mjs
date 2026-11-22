@@ -5,11 +5,11 @@ import { relaxProcessSceneLabels } from "../src/processSceneLabelLayout.js";
 function boundsByKind(kind, width) {
   if (width <= 600) {
     return ({
-      operation: { width: 116, height: 82 },
-      material: { width: 116, height: 88 },
+      operation: { width: 148, height: 86 },
+      material: { width: 140, height: 105 },
       transport: { width: 32, height: 32 },
       transportLeg: { width: 32, height: 32 },
-      catalogue: { width: 116, height: 82 },
+      catalogue: { width: 148, height: 86 },
       core: { width: 100, height: 42 }
     })[kind];
   }
@@ -24,11 +24,11 @@ function boundsByKind(kind, width) {
     })[kind];
   }
   return ({
-    operation: { width: 168, height: 96 },
-    material: { width: 168, height: 100 },
+    operation: { width: 184, height: 72 },
+    material: { width: 190, height: 118 },
     transport: { width: 34, height: 34 },
     transportLeg: { width: 34, height: 34 },
-    catalogue: { width: 168, height: 96 },
+    catalogue: { width: 184, height: 72 },
     core: { width: 140, height: 56 }
   })[kind];
 }
