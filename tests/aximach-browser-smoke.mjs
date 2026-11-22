@@ -130,7 +130,10 @@ try {
   }
   const graphSearch = page.getByRole("searchbox", { name: "Search all manufacturing ecosystem records" });
   await graphSearch.fill("record-that-does-not-exist");
-  await page.getByText("No matching saved records.", { exact: true }).waitFor({ timeout: 5000 });
+  await page.locator(".ax-ecosystem-search-results p").waitFor({ timeout: 5000 });
+  if (!(await page.locator(".ax-ecosystem-search-results p").innerText()).includes("No matching saved records.")) {
+    throw new Error("Manufacturing Universe did not show the no-match search state.");
+  }
   await page.getByRole("button", { name: "Clear graph search" }).click();
   if (await page.locator(".ax-ecosystem-search-results").count() !== 0) {
     throw new Error("Clearing Manufacturing Universe graph search did not close the results panel.");
