@@ -6580,6 +6580,8 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .ax-full3d-scene .ax-full3d-label-layer > .ax-full3d-transport-icon{
   position:absolute!important;
   inset:auto!important;
+  inset-inline:auto!important;
+  inset-block:auto!important;
   left:var(--ax-scene-left)!important;
   top:var(--ax-scene-top)!important;
   right:auto!important;
