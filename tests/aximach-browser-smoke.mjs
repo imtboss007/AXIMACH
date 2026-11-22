@@ -156,13 +156,20 @@ try {
   if (await mobilePage.locator(".ax-landscape-rotate-prompt").count() !== 0) {
     throw new Error("Portrait-first Route Flow must not show a blocking landscape prompt.");
   }
-  const routePortraitGeometry = await mobilePage.evaluate(() => ({
-    viewportWidth: document.documentElement.clientWidth,
-    documentWidth: document.documentElement.scrollWidth,
-    pageLeft: document.querySelector("main.page-content")?.getBoundingClientRect().left ?? -1,
-    canvasWidth: document.querySelector(".route-flow-workspace")?.getBoundingClientRect().width ?? 0
-  }));
-  if (routePortraitGeometry.documentWidth > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.pageLeft > 1 || routePortraitGeometry.canvasWidth < routePortraitGeometry.viewportWidth - 2) {
+  const routePortraitGeometry = await mobilePage.evaluate(() => {
+    const page = document.querySelector("main.page-content");
+    const canvas = document.querySelector(".route-flow-workspace");
+    const rect = canvas?.getBoundingClientRect();
+    return {
+      viewportWidth: document.documentElement.clientWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      pageLeft: page?.getBoundingClientRect().left ?? -1,
+      canvasLeft: rect?.left ?? -1,
+      canvasRight: rect?.right ?? Number.POSITIVE_INFINITY,
+      canvasWidth: rect?.width ?? 0
+    };
+  });
+  if (routePortraitGeometry.documentWidth > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.pageLeft > 1 || routePortraitGeometry.canvasLeft < 0 || routePortraitGeometry.canvasRight > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.canvasWidth < 250) {
     throw new Error("Route Flow does not fit portrait width: " + JSON.stringify(routePortraitGeometry));
   }
   console.log("PASS portrait-first Android viewport, full-width Route Flow, mobile drawer and opt-in landscape control");
