@@ -2,19 +2,41 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { relaxProcessSceneLabels } from "../src/processSceneLabelLayout.js";
 
-const boundsByKind = {
-  operation: { width: 184, height: 124 },
-  material: { width: 194, height: 174 },
-  transport: { width: 48, height: 48 },
-  transportLeg: { width: 48, height: 48 },
-  catalogue: { width: 184, height: 124 },
-  core: { width: 140, height: 56 }
-};
+function boundsByKind(kind, width) {
+  if (width <= 600) {
+    return ({
+      operation: { width: 116, height: 82 },
+      material: { width: 116, height: 88 },
+      transport: { width: 32, height: 32 },
+      transportLeg: { width: 32, height: 32 },
+      catalogue: { width: 116, height: 82 },
+      core: { width: 100, height: 42 }
+    })[kind];
+  }
+  if (width <= 820) {
+    return ({
+      operation: { width: 142, height: 84 },
+      material: { width: 142, height: 96 },
+      transport: { width: 34, height: 34 },
+      transportLeg: { width: 34, height: 34 },
+      catalogue: { width: 142, height: 84 },
+      core: { width: 120, height: 48 }
+    })[kind];
+  }
+  return ({
+    operation: { width: 168, height: 96 },
+    material: { width: 168, height: 100 },
+    transport: { width: 34, height: 34 },
+    transportLeg: { width: 34, height: 34 },
+    catalogue: { width: 168, height: 96 },
+    core: { width: 140, height: 56 }
+  })[kind];
+}
 const gap = 14;
 
-function assertNoCollisions(items) {
+function assertNoCollisions(items, viewportWidth = 1280) {
   const boxes = items.map(item => {
-    const base = boundsByKind[item.kind];
+    const base = boundsByKind(item.kind, viewportWidth);
     const scale = item.screen.scale ?? 1;
     return { id: item.id, x: item.screen.x, y: item.screen.y, width: base.width * scale, height: base.height * scale };
   });
@@ -51,7 +73,7 @@ test("clusters mixed process, catalogue, material and transport labels without c
   const result = relaxProcessSceneLabels(items, 1280, 800);
   assert.equal(result.length, items.length);
   assert.deepEqual(result.map(item => item.id), items.map(item => item.id));
-  assertNoCollisions(result);
+  assertNoCollisions(result, 1280);
 });
 
 test("uses compact card scale before accepting an overlap in dense viewports", () => {
@@ -66,7 +88,7 @@ test("uses compact card scale before accepting an overlap in dense viewports", (
   const result = relaxProcessSceneLabels(items, 1080, 700);
   assert.equal(result.length, items.length);
   assert.ok(result.every(item => item.screen.scale >= 0.78 && item.screen.scale <= 1));
-  assertNoCollisions(result);
+  assertNoCollisions(result, 1080);
 });
 
 test("keeps edge labels clamped within the visible overlay and preserves original depth", () => {
@@ -112,7 +134,7 @@ test("keeps full label rectangles inside phone, short-landscape, hybrid-tablet a
     const result = relaxProcessSceneLabels(items, viewport.width, viewport.height);
     assert.equal(result.length, items.length, viewport.name + " must retain every label");
     for (const item of result) {
-      const base = boundsByKind[item.kind];
+      const base = boundsByKind(item.kind, viewport.width);
       const scale = item.screen.scale ?? 1;
       const left = item.screen.x - base.width * scale / 2;
       const right = item.screen.x + base.width * scale / 2;
@@ -148,7 +170,7 @@ test("keeps a dense short-landscape label shelf collision-free by expanding the 
   ];
   const result = relaxProcessSceneLabels(items, 844, 390);
   assert.equal(result.length, items.length, "all process, material and transport labels must be retained");
-  assertNoCollisions(result);
+  assertNoCollisions(result, 844);
   assert.ok(result.layoutHeight >= 390, "the packed layout must report a sufficient scene height");
   assert.ok(result.every(item => item.screen.collision === false), "the dense layout must not return fallback overlaps");
 });
