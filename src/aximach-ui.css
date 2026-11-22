@@ -6372,7 +6372,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
     padding:0!important;overflow:hidden!important;background:var(--canvas,#f2f6fa)!important
   }
   .app-shell .command-deck{
-    position:fixed!important;inset:0 0 auto 0!important;z-index:130!important;
+    position:fixed!important;inset:0 0 auto 0!important;z-index:2147483200!important;
     display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:7px!important;
     width:100%!important;height:calc(58px + env(safe-area-inset-top))!important;min-height:calc(58px + env(safe-area-inset-top))!important;
     padding:env(safe-area-inset-top) 9px 0!important;box-sizing:border-box!important;overflow:hidden!important;
@@ -6426,7 +6426,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .app-shell:has(.manufacturing-universe-workspace) .command-rail,
   .app-shell:has(.linked-process-page) .command-rail{
     display:flex!important;position:fixed!important;inset:calc(58px + env(safe-area-inset-top)) auto 0 0!important;
-    z-index:121!important;width:min(320px,88vw)!important;max-width:88vw!important;height:auto!important;max-height:none!important;
+    z-index:2147483100!important;width:min(320px,88vw)!important;max-width:88vw!important;height:auto!important;max-height:none!important;
     margin:0!important;padding:12px 12px calc(16px + env(safe-area-inset-bottom))!important;
     flex:0 0 auto!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:5px!important;
     overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important;
@@ -6459,7 +6459,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .app-shell .rail-appearance-setting{min-height:44px!important;background:#0d263a!important}
   .app-shell .mobile-nav-backdrop{
     display:block!important;position:fixed!important;inset:calc(58px + env(safe-area-inset-top)) 0 0!important;
-    z-index:120!important;width:100vw!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;
+    z-index:2147483000!important;width:100vw!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;
     background:rgba(1,9,18,.64)!important;backdrop-filter:blur(2px)!important
   }
   .app-shell:has(.route-flow-workspace) .route-flow-workspace,
