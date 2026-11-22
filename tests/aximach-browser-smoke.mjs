@@ -523,6 +523,8 @@ try {
           styleLeft:element.style.left,styleTop:element.style.top,
           computedLeft:labelStyle.left,computedTop:labelStyle.top,
           position:labelStyle.position,transform:labelStyle.transform,
+          marginLeft:labelStyle.marginLeft,marginRight:labelStyle.marginRight,marginTop:labelStyle.marginTop,marginBottom:labelStyle.marginBottom,
+          right:labelStyle.right,justifySelf:labelStyle.justifySelf,alignSelf:labelStyle.alignSelf,
           offsetLeft:element.offsetLeft,offsetTop:element.offsetTop,
           offsetParentClass:typeof offsetParent?.className==="string"?offsetParent.className:"",
           offsetParentLeft:offsetRect?.left,offsetParentWidth:offsetRect?.width,
