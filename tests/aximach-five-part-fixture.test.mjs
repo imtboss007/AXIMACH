@@ -1851,8 +1851,8 @@ test("Manufacturing Universe uses compact 3D nodes and keeps full operation deta
   assert.ok(labelLayout.includes("material: { width: 194, height: 174 }"));
   assert.ok(labelLayout.includes("findNearestFreeSlot"));
   assert.ok(scene.includes('kind:"catalogue" as const'));
-  assert.ok(scene.includes('const overlapX=(a.bounds.width+b.bounds.width)/2+14-Math.abs(dx)'));
-  assert.ok(scene.includes('const overlapY=(a.bounds.height+b.bounds.height)/2+14-Math.abs(dy)'));
+  assert.ok(labelLayout.includes("function isFree("));
+  assert.ok(labelLayout.includes("function packDenseLabels("));
   assert.ok(universe.includes('className="process-orbit-selected-details"'));
   for (const field of [
     '<small>CATEGORY</small><strong>{expandedOrbitOperation.category || "Not set"}</strong>',
