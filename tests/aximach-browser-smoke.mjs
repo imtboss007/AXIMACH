@@ -120,6 +120,112 @@ try {
   // authoritative proof that this import supplied usable manufacturing records.
   console.log("PASS isolated Demo Factory fixture loaded for populated Process Map visual checks");
 
+  // Verify shared searchable menus remain visible when their anchor sits near the
+  // bottom edge of a phone workspace instead of being clipped by page-content.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Transport Directory"]').click();
+  await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Transport Directory");
+  const vehicleFilter = page.locator("#transport-filter-vehicle");
+  await vehicleFilter.waitFor({ state: "visible", timeout: 10000 });
+  const multiAnchor = vehicleFilter.locator("xpath=..");
+  await multiAnchor.evaluate(element => {
+    const pageContent = document.querySelector("main.page-content");
+    if (!pageContent) throw new Error("Phone workspace scroll container is missing.");
+    const rect = element.getBoundingClientRect();
+    const targetBottom = window.innerHeight - 72;
+    pageContent.scrollTop += rect.bottom - targetBottom;
+  });
+  await page.waitForTimeout(80);
+  const multiAnchorBefore = await multiAnchor.boundingBox();
+  await vehicleFilter.click();
+  const multiMenu = page.locator("#transport-filter-vehicle-menu");
+  await multiMenu.waitFor({ state: "visible", timeout: 5000 });
+  const multiGeometry = await multiMenu.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    const anchor = document.querySelector("#transport-filter-vehicle")?.parentElement?.getBoundingClientRect();
+    return {
+      position: getComputedStyle(element).position,
+      placement: anchor && rect.bottom <= anchor.top ? "top" : "bottom",
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      portaledToBody: element.parentElement === document.body
+    };
+  });
+  if (multiGeometry.position !== "fixed" || !multiGeometry.portaledToBody ||
+      multiGeometry.left < 8 || multiGeometry.right > multiGeometry.viewportWidth - 8 ||
+      multiGeometry.top < 8 || multiGeometry.bottom > multiGeometry.viewportHeight - 8 ||
+      multiGeometry.placement !== "top") {
+    throw new Error("Transport Directory multi-select menu escapes the phone viewport or is clipped: " + JSON.stringify({multiAnchorBefore,multiGeometry}));
+  }
+  await multiMenu.getByRole("button", { name: "Done" }).click();
+  console.log("PASS phone Transport Directory multi-select flips above its anchor and stays inside the viewport");
+
+  // Exercise the same viewport-safe positioning with the single-select picker.
+  const vendorPicker = page.locator("#transport-route-vendor");
+  await vendorPicker.waitFor({ state: "visible", timeout: 10000 });
+  const vendorPickerAnchor = vendorPicker.locator("xpath=../..");
+  await vendorPickerAnchor.evaluate(element => {
+    const pageContent = document.querySelector("main.page-content");
+    if (!pageContent) throw new Error("Phone workspace scroll container is missing.");
+    const rect = element.getBoundingClientRect();
+    pageContent.scrollTop += rect.bottom - (window.innerHeight - 72);
+  });
+  await page.waitForTimeout(80);
+  await vendorPicker.focus();
+  const pickerMenu = page.locator("#transport-route-vendor-choices-").or(page.locator(".searchable-picker-menu")).last();
+  await page.locator(".searchable-picker-menu").waitFor({ state: "visible", timeout: 5000 });
+  const pickerGeometry = await page.locator(".searchable-picker-menu").last().evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    const anchor = document.querySelector("#transport-route-vendor")?.parentElement?.getBoundingClientRect();
+    return {
+      position: getComputedStyle(element).position,
+      placement: anchor && rect.bottom <= anchor.top ? "top" : "bottom",
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      portaledToBody: element.parentElement === document.body
+    };
+  });
+  if (pickerGeometry.position !== "fixed" || !pickerGeometry.portaledToBody ||
+      pickerGeometry.left < 8 || pickerGeometry.right > pickerGeometry.viewportWidth - 8 ||
+      pickerGeometry.top < 8 || pickerGeometry.bottom > pickerGeometry.viewportHeight - 8 ||
+      pickerGeometry.placement !== "top") {
+    throw new Error("Transport Directory single-select picker escapes the phone viewport or is clipped: " + JSON.stringify(pickerGeometry));
+  }
+  await vendorPicker.press("Escape");
+  console.log("PASS phone Transport Directory single-select picker flips above its anchor and stays inside the viewport");
+
+  // The floating follow-up dock is a shared control too: its panel must stay
+  // inside the viewport and above the bottom navigation-safe area.
+  await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Component Directory"]').click();
+  await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Component Directory");
+  const followUpTrigger = page.getByRole("button", { name: /Follow-up people/ });
+  await followUpTrigger.waitFor({ state: "visible", timeout: 10000 });
+  await followUpTrigger.click();
+  const followUpPanel = page.locator(".ax-followup-assignment-panel");
+  await followUpPanel.waitFor({ state: "visible", timeout: 5000 });
+  const followUpGeometry = await followUpPanel.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return {left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height,viewportWidth:window.innerWidth,viewportHeight:window.innerHeight};
+  });
+  if (followUpGeometry.left < 0 || followUpGeometry.top < 0 ||
+      followUpGeometry.right > followUpGeometry.viewportWidth ||
+      followUpGeometry.bottom > followUpGeometry.viewportHeight) {
+    throw new Error("Phone follow-up floating panel escapes the visible viewport: " + JSON.stringify(followUpGeometry));
+  }
+  await followUpPanel.getByRole("button", { name: "Close follow-up people" }).click();
+  console.log("PASS phone follow-up panel stays within viewport bounds");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
   // Verify that an Android-sized phone starts in portrait layout with a full-width
   // workspace and a drawer; spatial workspaces offer landscape only on request.
   const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
