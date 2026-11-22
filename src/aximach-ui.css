@@ -6169,3 +6169,10 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .ax-ecosystem-edge-legend span{display:inline-flex;align-items:center;gap:5px;color:#71869b;font-size:8px}
 .ax-ecosystem-edge-legend i{width:17px;height:3px;border-radius:3px;flex:0 0 17px}
 .manufacturing-universe-workspace[data-workspace-theme="dark"] .ax-ecosystem-edge-legend span{color:#a8bfd1}
+
+/* Show explicit receiving operations so non-adjacent transport legs are not
+   mistaken for the next sequential route step. */
+.process-route-flow-transport{flex-wrap:wrap;max-width:150px;justify-content:center}
+.process-route-flow-transport-target{display:block;max-width:140px;color:#a9c5d9;font-size:8px;line-height:1.25;text-align:center;overflow-wrap:anywhere}
+.route-flow-stage-transport{flex-direction:column;flex:0 0 auto;width:auto;min-width:56px;max-width:132px;gap:4px;padding:4px}
+.route-flow-transport-target{display:block;max-width:124px;color:#315b80;font-size:8px;line-height:1.25;text-align:center;overflow-wrap:anywhere}
