@@ -6149,3 +6149,10 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .production-status-empty small{color:#8494aa;font-size:10px;line-height:1.5}
 @media(max-width:620px){.dashboard-production-chart-panel{padding:16px 14px}.dashboard-production-chart-panel .panel-heading{align-items:flex-start}.dashboard-production-chart-panel .panel-heading .button-quiet{white-space:normal}.production-status-chart{height:260px}.production-status-chart-summary{gap:8px 12px}}
 @media(prefers-reduced-motion:reduce){.production-status-chart *{transition:none!important;animation:none!important}}
+
+
+/* Route Flow: stop both CSS dash motion and SVG travelling markers for reduced-motion users. */
+@media(prefers-reduced-motion:reduce){
+  .route-flow-curve-path{animation:none!important;stroke-dashoffset:0}
+  .route-flow-curve-pulse{display:none!important}
+}
