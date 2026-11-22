@@ -507,12 +507,39 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
   await assertCollisionFreeScene("phone-portrait Process Map");
   const phoneSceneBounds = await page.evaluate(() => {
-    const scene = document.querySelector(".ax-full3d-scene")?.getBoundingClientRect();
+    const sceneElement = document.querySelector(".ax-full3d-scene");
+    const scene = sceneElement?.getBoundingClientRect();
+    const canvas = sceneElement?.querySelector("canvas");
+    const ancestors = [];
+    for (let element = sceneElement, depth = 0; element && depth < 6; element = element.parentElement, depth++) {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      ancestors.push({
+        tag:element.tagName,
+        className:typeof element.className === "string" ? element.className : "",
+        left:rect.left,
+        width:rect.width,
+        clientWidth:element.clientWidth,
+        offsetWidth:element.offsetWidth,
+        transform:style.transform,
+        transformOrigin:style.transformOrigin,
+        cssWidth:style.width
+      });
+    }
     const labels = [...document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon")].map(element => {
       const rect = element.getBoundingClientRect();
-      return {left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom};
+      return {left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,styleLeft:(element as HTMLElement).style.left,styleTop:(element as HTMLElement).style.top};
     }).filter(rect => rect.right > rect.left && rect.bottom > rect.top);
-    return {scene:scene?{left:scene.left,top:scene.top,right:scene.right,bottom:scene.bottom}:null,labels};
+    return {
+      scene:scene?{left:scene.left,top:scene.top,right:scene.right,bottom:scene.bottom}:null,
+      measuredWidth:sceneElement?.getAttribute("data-scene-layout-width"),
+      measuredHeight:sceneElement?.getAttribute("data-scene-layout-height"),
+      sceneClientWidth:sceneElement?.clientWidth,
+      canvasClientWidth:canvas?.clientWidth,
+      canvasRectWidth:canvas?.getBoundingClientRect().width,
+      ancestors,
+      labels
+    };
   });
   if (!phoneSceneBounds.scene || phoneSceneBounds.labels.some(rect =>
       rect.left < phoneSceneBounds.scene.left - 1 ||
