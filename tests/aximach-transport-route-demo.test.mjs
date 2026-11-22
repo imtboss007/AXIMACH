@@ -51,7 +51,7 @@ test("route views fit smaller cards, expose portrait step navigation and support
   assert.ok(app.includes('activeModuleId === "process-map"'));
   assert.ok(app.includes('activeModuleId === "route-flow"'));
   assert.ok(app.includes('activeModuleId === "manufacturing-universe"'));
-  assert.ok(app.includes('CapacitorScreenOrientation.lock({ orientation: "landscape-primary" })'));
+  assert.ok(app.includes('requestDeviceOrientation(next ? "landscape-primary" : "portrait-primary")'), "Landscape is requested only from the explicit user-controlled workspace toggle.");
   assert.ok(workspace.includes("The app-level landscape lock remains active until Process Map is closed."));
   assert.ok(workspace.includes('className="process-route-index"'));
   assert.ok(universe.includes("process-universe-node-track"));
