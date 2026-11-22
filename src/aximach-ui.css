@@ -6558,3 +6558,16 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 @media (prefers-reduced-motion:reduce){
   .app-shell .command-rail,.route-flow-stage-card,.manufacturing-universe-links-grid>button,.react-flow__node,.route-kpi{transition:none!important;animation:none!important}
 }
+
+/* Keep projected 3D labels anchored only by their measured left/top coordinates.
+   Reset opposing insets explicitly so global/workspace button rules cannot
+   stretch or displace absolute scene markers on compact viewport layouts. */
+.ax-full3d-label-layer > .ax-full3d-label,
+.ax-full3d-label-layer > .ax-full3d-transport-icon{
+  position:absolute!important;
+  right:auto!important;
+  bottom:auto!important;
+  inset-inline-end:auto!important;
+  inset-block-end:auto!important;
+  margin:0!important;
+}
