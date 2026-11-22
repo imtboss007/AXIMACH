@@ -99,6 +99,13 @@ try {
     throw new Error("Company Directory did not return to the Companies register.");
   }
   console.log("PASS Company Directory company/factory tab navigation");
+  await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Customer Directory"]').click();
+  const leadsTab = page.getByRole("tab", { name: /Lead Discovery/ });
+  await leadsTab.click();
+  await page.getByRole("heading", { name: "Lead Discovery" }).waitFor();
+  await page.locator(".lead-discovery-safety").waitFor();
+  console.log("PASS Customer Directory Lead Discovery panel");
+
 
   // Verify both module discovery surfaces open exact workspaces.
   await page.locator(".deck-action").filter({ hasText: "Modules" }).click();

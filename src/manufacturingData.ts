@@ -12,13 +12,23 @@ export type CompanyRecord = {
 };
 /** Buyer account identity, separate from AXIMACH operating companies and suppliers. */
 export type CustomerRecord = {
-  id:string; customerCode:string; legalName:string; displayName:string;
+  id:string; ownerCompanyId?:string; customerCode:string; legalName:string; displayName:string;
   gstin?:string; pan?:string; industry?:string; website?:string;
   primaryContact?:string; phone?:string; email?:string;
   billingAddress?:string; shippingAddress?:string;
   paymentTerms?:string; creditLimit?:number; currency:"INR"|"USD"|"EUR"|"GBP";
   status:"Active"|"On hold"|"Inactive"; notes?:string;
   createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type ProspectStage = "New" | "Reviewed" | "Qualified" | "Disqualified" | "Converted";
+export type ProspectEvidenceRecord = {
+  id:string; provider:"SearXNG"; query:string; sourceUrl:string; sourceTitle:string; snippet:string;
+  engine?:string; retrievedAt:string; publishedAt?:string;
+};
+export type ProspectRecord = {
+  id:string; ownerCompanyId:string; businessName:string; industry?:string; region?:string;
+  stage:ProspectStage; notes?:string; evidence:ProspectEvidenceRecord[];
+  convertedCustomerId?:string; createdAt:string; updatedAt:string; deletedAt?:string;
 };
 export type FactoryRecord = {
   id: string; companyId: string; name: string; address: string; contactPhone: string;
@@ -205,7 +215,7 @@ export type InventoryTransactionRecord = {
 };
 export type ManufacturingData = {
   updatedAt: string;
-  companies: CompanyRecord[]; customers: CustomerRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
+  companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[]; materialProcessLinks: MaterialProcessLinkRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
@@ -225,7 +235,7 @@ export function makeId(prefix: string): string {
 export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.filter(row => !row.deletedAt);
 
 export const emptyManufacturingData = (): ManufacturingData => ({
-  updatedAt: "", companies: [], customers: [], factories: [], purchaseOrders: [], components: [], vendors: [],
+  updatedAt: "", companies: [], customers: [], prospects: [], factories: [], purchaseOrders: [], components: [], vendors: [],
   operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
   supplierInvoices: [], supplierPayments: [], supplierFinanceApprovals: [], supplierPaymentAllocations: [],
@@ -238,6 +248,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     updatedAt: typeof value?.updatedAt === "string" ? value.updatedAt : "",
     companies: Array.isArray(value?.companies) ? value.companies : empty.companies,
     customers: Array.isArray(value?.customers) ? value.customers : empty.customers,
+    prospects: Array.isArray(value?.prospects) ? value.prospects : empty.prospects,
     factories: Array.isArray(value?.factories) ? value.factories : empty.factories,
     purchaseOrders: Array.isArray(value?.purchaseOrders) ? value.purchaseOrders : empty.purchaseOrders,
     components: Array.isArray(value?.components) ? value.components.map(component => ({
@@ -360,6 +371,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     updatedAt: local.updatedAt >= remote.updatedAt ? local.updatedAt : remote.updatedAt,
     companies: mergeRows(local.companies, remote.companies),
     customers: mergeRows(local.customers, remote.customers),
+    prospects: mergeRows(local.prospects, remote.prospects),
     factories: mergeRows(local.factories, remote.factories),
     purchaseOrders: mergePurchaseOrderRows(local.purchaseOrders, remote.purchaseOrders),
     components: mergeRows(local.components, remote.components),

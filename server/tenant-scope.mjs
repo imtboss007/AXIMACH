@@ -1,5 +1,5 @@
 const ARRAY_FIELDS = Object.freeze([
- "companies","factories","purchaseOrders","components","vendors","operations","quotations","materials",
+ "companies","customers","prospects","factories","purchaseOrders","components","vendors","operations","quotations","materials",
  "componentParts","materialCostEntries","bomLines","materialProcessLinks","inventoryTransactions",
  "contactProfiles","processDefinitions","plannedCosts","transportRoutes","transportLegs",
  "paymentTransactions","inspectionMeasurements","supplierInvoices","supplierPayments","supplierFinanceApprovals","supplierPaymentAllocations","routeRelationships","followUpAssignments"
@@ -144,6 +144,8 @@ function resolveAccess(data, user) {
  const transportRouteIds = ids(transportLegs.map(row => ({id:row.routeId})).filter(row => row.id));
  const transportRoutes = rows(data,"transportRoutes").filter(row => transportRouteIds.has(row.id) && vendorIds.has(row.vendorId));
  const companies = rows(data,"companies").filter(row => companyAllowed(row.id));
+ const customers = rows(data,"customers").filter(row => companyAllowed(row.ownerCompanyId));
+ const prospects = rows(data,"prospects").filter(row => companyAllowed(row.ownerCompanyId));
  const factories = factoryRows.filter(row => factoryIds.has(row.id) && companyAllowed(row.companyId));
  const plannedCosts = rows(data,"plannedCosts").filter(row =>
   (row.companyId ? companyAllowed(row.companyId) : row.poId ? purchaseOrderIds.has(row.poId) : componentIds.has(row.componentId)) &&
@@ -172,7 +174,7 @@ function resolveAccess(data, user) {
   invoiceIds.has(row.invoiceId) && supplierPaymentIds.has(row.paymentId)
  );
  const entityIds = new Set([
-  ...ids(companies),...ids(factories),...purchaseOrderIds,...lineIds,...componentIds,
+  ...ids(companies),...ids(customers),...ids(prospects),...ids(factories),...purchaseOrderIds,...lineIds,...componentIds,
   ...operationIds,...ids(quotations),...ids(transportLegs),...ids(routeRelationships),
   ...ids(paymentTransactions),...ids(inspectionMeasurements),...ids(materialProcessLinks),
   ...ids(inventoryTransactions),...ids(componentParts),...ids(bomLines),...ids(materialCostEntries),
@@ -186,7 +188,7 @@ function resolveAccess(data, user) {
  return {
   companyIds, factoryIds, purchaseOrderIds, lineIds, componentIds, operationIds, vendorIds, vendorOwners,
   materialIds, processDefinitionIds, transportRouteIds, entityIds,
-  companies,factories,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
+  companies,customers,prospects,factories,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
   paymentTransactions,inspectionMeasurements,materialProcessLinks,inventoryTransactions,
   componentParts,bomLines,materialCostEntries,materials,vendors,processDefinitions,transportRoutes,
   plannedCosts,contactProfiles,supplierInvoices,supplierPayments,supplierFinanceApprovals,supplierPaymentAllocations,followUpAssignments
@@ -303,6 +305,16 @@ export function validateManufacturingWrite(currentData, incoming, user) {
    let allowed=false;
    switch(collection) {
     case "companies": allowed=companyIds.has(row.id); break;
+    case "customers": allowed=privileged || companyIds.has(row.ownerCompanyId); break;
+    case "prospects": {
+     const validEvidence=Array.isArray(row.evidence)&&row.evidence.length<=20&&row.evidence.every(item=>{
+      if(!item||item.provider!=="SearXNG"||typeof item.sourceUrl!=="string"||typeof item.sourceTitle!=="string"||typeof item.query!=="string"||typeof item.retrievedAt!=="string")return false;
+      try { const source=new URL(item.sourceUrl); return (source.protocol==="https:"||source.protocol==="http:")&&!source.username&&!source.password; } catch { return false; }
+     });
+     allowed=companyIds.has(row.ownerCompanyId)&&typeof row.businessName==="string"&&row.businessName.trim().length>0&&row.businessName.length<=240&&
+      ["New","Reviewed","Qualified","Disqualified","Converted"].includes(row.stage)&&validEvidence;
+     break;
+    }
     case "factories": allowed=companyIds.has(row.companyId) && (!assignedFactories.size || assignedFactories.has(row.id)); break;
     case "purchaseOrders": allowed=Boolean(poAllowed(row)); break;
     case "components": allowed=(row.companyId && companyIds.has(row.companyId)) || currentVisibleComponents.has(row.id); break;

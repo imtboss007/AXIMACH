@@ -1,6 +1,7 @@
 export const manufacturingCollections = Object.freeze([
   "companies",
   "customers",
+  "prospects",
   "factories",
   "purchaseOrders",
   "components",

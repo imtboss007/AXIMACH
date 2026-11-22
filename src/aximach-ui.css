@@ -6206,3 +6206,35 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 
 /* Customer Directory */
 .customer-directory{display:flex;flex-direction:column;gap:16px}.customer-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--muted,#789);font-size:12px}.customer-toolbar label{display:flex;align-items:center;gap:8px;min-width:min(100%,420px);padding:10px 12px;border:1px solid var(--line,#ccd);border-radius:10px;background:var(--surface,#fff)}.customer-toolbar input{width:100%;border:0;outline:0;background:transparent;color:inherit}.customer-form,.customer-list{padding:16px;border:1px solid var(--line,#ccd);border-radius:14px;background:var(--surface,#fff)}.customer-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}.customer-field{display:flex;flex-direction:column;gap:6px;min-width:0;color:var(--muted,#789);font-size:11px}.customer-field input,.customer-field select,.customer-field textarea{width:100%;min-width:0;padding:9px 10px;border:1px solid var(--line,#ccd);border-radius:8px;background:var(--surface,#fff);color:var(--text,#234);font:inherit;font-size:13px}.customer-field-wide{grid-column:1/-1}.customer-form-actions{display:flex;gap:8px;margin-top:14px}.customer-row{display:grid;grid-template-columns:38px minmax(0,1.5fr) minmax(130px,.8fr) auto;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line,#ccd)}.customer-row:last-child{border-bottom:0}.customer-avatar{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:var(--surface-soft,#edf3f7);font-weight:700}.customer-main,.customer-commercial{display:flex;flex-direction:column;gap:4px;min-width:0}.customer-main strong,.customer-commercial strong{color:var(--text,#234);font-size:13px}.customer-main small,.customer-main span,.customer-commercial small,.customer-commercial span{color:var(--muted,#789);font-size:10px;overflow-wrap:anywhere}.customer-actions{display:flex;gap:5px;flex-wrap:wrap}@media(max-width:760px){.customer-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customer-row{grid-template-columns:34px minmax(0,1fr);align-items:start}.customer-commercial,.customer-actions{grid-column:2}}@media(max-width:430px){.customer-form-grid{grid-template-columns:1fr}.customer-field-wide{grid-column:auto}.customer-toolbar{align-items:stretch;flex-direction:column}}
+
+/* Public-web lead discovery inside Customer Directory */
+.customer-tabs{display:flex;gap:6px;align-items:center;border-bottom:1px solid var(--line,#ccd);padding:0 2px}
+.customer-tab{display:inline-flex;align-items:center;gap:8px;padding:10px 13px;border:1px solid transparent;border-bottom:2px solid transparent;background:transparent;color:var(--muted,#789);font:600 12px inherit;cursor:pointer}
+.customer-tab span{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:12px;background:var(--surface-soft,#edf3f7);font-size:10px}
+.customer-tab.active{border-bottom-color:var(--accent,#2384bd);color:var(--text,#234)}
+.lead-discovery{display:grid;gap:14px;min-width:0}
+.lead-discovery-head,.lead-discovery-results>header,.lead-prospect-list>header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.lead-discovery-head h2{margin:4px 0;font-size:22px;color:var(--text,#234)}
+.lead-discovery-head p,.lead-discovery-results>header p,.lead-prospect-list>header p{margin:3px 0;color:var(--muted,#789);font-size:11px;line-height:1.5}
+.lead-discovery-provider{display:flex;align-items:center;gap:7px;white-space:nowrap;color:var(--muted,#789);font-size:10px}
+.lead-discovery-safety{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border:1px solid #c8d8e6;border-radius:9px;background:var(--surface-soft,#edf3f7);color:var(--text,#345);font-size:10px;line-height:1.5}
+.lead-discovery-search,.lead-discovery-results,.lead-prospect-list{display:grid;gap:12px;padding:15px;border:1px solid var(--line,#ccd);border-radius:13px;background:var(--surface,#fff)}
+.lead-discovery-presets{display:flex;flex-wrap:wrap;gap:6px}
+.lead-preset{padding:6px 8px;border:1px solid var(--line,#ccd);border-radius:7px;background:var(--surface-soft,#f2f6f9);color:var(--muted,#789);font-size:9px;cursor:pointer}
+.lead-discovery-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lead-discovery-actions>span{color:var(--muted,#789);font-size:10px}
+.lead-discovery-warning,.lead-discovery-success{padding:9px 11px;border-radius:8px;font-size:10px;line-height:1.5}
+.lead-discovery-warning{border:1px solid #dbbd91;background:#fff8e9;color:#835c24}
+.lead-discovery-success{border:1px solid #b8d8c8;background:#effaf4;color:#276044}
+.lead-discovery-results h3,.lead-prospect-list h3{margin:0;color:var(--text,#234);font-size:13px}
+.lead-result,.lead-prospect{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 2px;border-top:1px solid var(--line,#ccd)}
+.lead-result-main,.lead-prospect-main{display:grid;gap:5px;min-width:0}
+.lead-result-main strong,.lead-prospect-main strong{color:var(--text,#234);font-size:12px}
+.lead-result-main p{margin:0;color:var(--muted,#789);font-size:10px;line-height:1.5}
+.lead-result-main a,.lead-prospect-main a{display:flex;align-items:center;gap:5px;max-width:100%;overflow-wrap:anywhere;color:var(--accent,#2879a8);font-size:9px;text-decoration:none}
+.lead-result-main small,.lead-prospect-main small{color:var(--muted,#789);font-size:9px}
+.lead-prospect-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.lead-prospect-actions select{max-width:145px;padding:7px;border:1px solid var(--line,#ccd);border-radius:7px;background:var(--surface,#fff);color:var(--text,#234);font-size:10px}
+.lead-converted{color:#4d8066;font-size:10px;font-weight:700}
+.lead-empty{padding:16px 6px;color:var(--muted,#789);font-size:11px}
+@media(max-width:700px){.lead-discovery-head,.lead-result,.lead-prospect{align-items:stretch;flex-direction:column}.lead-discovery-provider{white-space:normal}.lead-prospect-actions{justify-content:flex-start}}

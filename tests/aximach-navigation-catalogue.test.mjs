@@ -112,3 +112,15 @@ test("Manufacturing Universe defaults to a live cross-module ecosystem graph and
   assert.ok(styles.includes(".ax-ecosystem-stage"));
   assert.ok(styles.includes(".ax-ecosystem-node"));
 });
+
+test("Customer Directory includes an evidence-first Lead Discovery view", async () => {
+ const workspace = await readSource("src/CustomerDirectoryWorkspace.tsx");
+ const panel = await readSource("src/LeadDiscoveryPanel.tsx");
+ assert.ok(workspace.includes('<LeadDiscoveryPanel companies={companies} prospects={prospects}'));
+ assert.ok(workspace.includes('onConvertProspect={convertProspect}'));
+ assert.ok(panel.includes('/api/lead-discovery/search'));
+ assert.ok(panel.includes('provider:"SearXNG"'));
+ assert.ok(panel.includes('stage:"New"'));
+ assert.ok(panel.includes('target="_blank" rel="noopener noreferrer"'));
+ assert.ok(panel.includes('row.stage==="Qualified"'));
+});

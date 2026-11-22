@@ -7,6 +7,7 @@ import { manufacturingCollections, mergeManufacturingData } from "./manufacturin
 import { bearerToken, createAuthService, getRequiredPermission, hasPermission } from "./auth.mjs";
 import { filterManufacturingData, filterModuleRecords, hasTenantScope, validateManufacturingWrite } from "./tenant-scope.mjs";
 import { getIntegrationCatalog } from "./integrations/catalog.mjs";
+import { searchSearxng } from "./integrations/lead-discovery.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
 const API_KEY = process.env.AXIMACH_API_KEY || "";
@@ -263,6 +264,27 @@ const server = createServer(async (req, res) => {
   try {
     if (url.pathname === "/api/integrations/catalog" && req.method === "GET") {
       return json(res, 200, getIntegrationCatalog(process.env));
+    }
+    if (url.pathname === "/api/lead-discovery/search" && req.method === "POST") {
+      const input = await body(req, 32_768);
+      const ownerCompanyId = typeof input.ownerCompanyId === "string" ? input.ownerCompanyId : "";
+      const visible = principal.legacy || principal.role === "admin"
+        ? (db.manufacturingData || {})
+        : filterManufacturingData(db.manufacturingData || {}, principal);
+      if (!ownerCompanyId || !(visible.companies || []).some(company => company.id === ownerCompanyId)) {
+        return json(res, 403, { error: "Select a company assigned to this AXIMACH account before searching for prospects." });
+      }
+      try {
+        const result = await searchSearxng(input.query);
+        appendAuditEvent(req, principal, "lead-discovery.search", { provider: "SearXNG", ownerCompanyId, resultCount: result.results.length });
+        await saveDb();
+        return json(res, 200, result);
+      } catch (error) {
+        return json(res, Number.isInteger(error.status) ? error.status : 502, {
+          error: error.message || "Public-web search could not be completed.",
+          code: error.code || "lead-discovery-failed"
+        });
+      }
     }
     if (url.pathname === "/api/backup" && req.method === "GET") {
       const snapshot = JSON.parse(JSON.stringify(db));
