@@ -6156,3 +6156,10 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .route-flow-curve-path{animation:none!important;stroke-dashoffset:0}
   .route-flow-curve-pulse{display:none!important}
 }
+
+
+/* Manufacturing ecosystem graph: directional links expose the saved relationship flow. */
+.ax-ecosystem-links .ax-ecosystem-edge{stroke-width:1.8;stroke-opacity:.78;stroke-linecap:round}
+.ax-ecosystem-links .ax-ecosystem-hub-link{marker-end:none}
+@media(max-width:760px){.ax-ecosystem-links .ax-ecosystem-edge{stroke-width:2.1;stroke-opacity:.72}}
+@media(prefers-reduced-motion:reduce){.ax-ecosystem-node{transition:none!important}}
