@@ -126,7 +126,7 @@ try {
   const mobileErrors = [];
   mobilePage.on("pageerror", error => mobileErrors.push(error.message));
   await mobilePage.goto(baseUrl, { waitUntil: "networkidle" });
-  await mobilePage.getByRole("navigation", { name: "AXIMACH navigation" }).waitFor({ state: "attached" });
+  await mobilePage.locator("nav.command-rail").waitFor({ state: "attached" });
   const mobileGeometry = await mobilePage.evaluate(() => {
     const page = document.querySelector("main.page-content");
     const rect = page?.getBoundingClientRect();
@@ -145,7 +145,7 @@ try {
     throw new Error("Portrait mobile shell does not use the full viewport: " + JSON.stringify(mobileGeometry));
   }
   await mobilePage.getByRole("button", { name: "Open navigation menu" }).click();
-  const mobileNavigation = mobilePage.getByRole("navigation", { name: "AXIMACH navigation" });
+  const mobileNavigation = mobilePage.locator("nav.command-rail");
   await mobileNavigation.locator('button[title="Route Flow & Relationships"]').waitFor({ state: "visible" });
   await mobileNavigation.locator('button[title="Route Flow & Relationships"]').click();
   const landscapeToggle = mobilePage.getByRole("button", { name: "Open landscape canvas" });
