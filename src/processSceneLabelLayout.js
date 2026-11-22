@@ -8,6 +8,7 @@ const CARD_BOUNDS = Object.freeze({
 });
 
 const LABEL_GAP = 14;
+const SHELF_GAP = 18;
 const CARD_SCALES = [1, 0.92, 0.84, 0.78];
 
 function clampCenter(x, y, bounds, width, height) {
@@ -91,20 +92,20 @@ function packDenseLabels(items, width, height) {
         row = null;
         break;
       }
-      const nextWidth = row.width + (row.entries.length ? LABEL_GAP : 0) + bounds.width;
+      const nextWidth = row.width + (row.entries.length ? SHELF_GAP : 0) + bounds.width;
       if (row.entries.length && nextWidth > availableWidth) {
         rows.push(row);
         row = { entries: [], width: 0, height: 0 };
       }
       row.entries.push({ item, bounds, scale: itemScale });
-      row.width += (row.entries.length > 1 ? LABEL_GAP : 0) + bounds.width;
+      row.width += (row.entries.length > 1 ? SHELF_GAP : 0) + bounds.width;
       row.height = Math.max(row.height, bounds.height);
     }
 
     if (!row) continue;
     if (row.entries.length) rows.push(row);
     const packedHeight = rows.reduce((total, current) => total + current.height, 0) +
-      LABEL_GAP * Math.max(0, rows.length - 1);
+      SHELF_GAP * Math.max(0, rows.length - 1);
     if (packedHeight > availableHeight) continue;
 
     const resolved = new Map();
@@ -122,9 +123,9 @@ function packDenseLabels(items, width, height) {
             collision: false
           }
         });
-        x += entry.bounds.width + LABEL_GAP;
+        x += entry.bounds.width + SHELF_GAP;
       }
-      y += current.height + LABEL_GAP;
+      y += current.height + SHELF_GAP;
     }
     return items.map(item => resolved.get(item.id));
   }
