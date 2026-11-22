@@ -77,8 +77,13 @@ function packDenseLabels(items, width, height) {
       a.screen.y - b.screen.y || a.screen.x - b.screen.x;
   });
   const ordered = [...priority, ...remainder];
+  const portrait = height > width;
+  const scales = portrait
+    ? [0.84, 0.78, 0.72, 0.68, 0.64, 0.60, 0.56, 0.54, 0.52, 0.50, 0.48, 0.46, 0.44, 0.42, 0.40]
+    : [0.84, 0.78, 0.72, 0.68, 0.64, 0.60];
+  let bestOverflow = null;
 
-  for (const scale of [0.84, 0.78, 0.72, 0.68, 0.64, 0.6]) {
+  for (const scale of scales) {
     const rows = [];
     let row = { entries: [], width: 0, height: 0 };
 
@@ -106,12 +111,10 @@ function packDenseLabels(items, width, height) {
     if (row.entries.length) rows.push(row);
     const packedHeight = rows.reduce((total, current) => total + current.height, 0) +
       SHELF_GAP * Math.max(0, rows.length - 1);
-
-    const resolved = new Map();
-    // Keep labels centred when they fit. If the short scene is too crowded,
-    // preserve every label in a taller shelf rather than falling back to
-    // colliding projected coordinates or dropping any manufacturing record.
     const fitsViewport = packedHeight <= availableHeight;
+    const resolved = new Map();
+    // Keep labels centred when they fit. A short landscape layout may grow
+    // vertically; portrait must use a more compact scale to remain in-frame.
     let y = fitsViewport ? 24 + (availableHeight - packedHeight) / 2 : 24;
     for (const current of rows) {
       let x = (width - current.width) / 2;
@@ -130,12 +133,19 @@ function packDenseLabels(items, width, height) {
       }
       y += current.height + SHELF_GAP;
     }
+
     const result = items.map(item => resolved.get(item));
     const requiredHeight = fitsViewport ? height : Math.ceil(packedHeight + 66);
-    Object.defineProperty(result, "layoutHeight", { value: Math.max(height, requiredHeight), enumerable: false });
-    return result;
+    Object.defineProperty(result, "layoutHeight", {
+      value: Math.max(height, requiredHeight),
+      enumerable: false
+    });
+    if (fitsViewport) return result;
+    // Prefer the smallest expansion for landscape; keep trying smaller scales
+    // in portrait until every label fits the existing viewport.
+    if (!bestOverflow || requiredHeight < bestOverflow.layoutHeight) bestOverflow = result;
   }
-  return null;
+  return bestOverflow;
 }
 
 /**
