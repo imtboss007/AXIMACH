@@ -194,7 +194,7 @@ export default function AXIMACHOrb({ onSelectModule, surface }: Props) {
         <motion.div
           className="ax-orb-module-shell"
           style={{ transformStyle: "preserve-3d", scale: sphereSize * (compactViewport ? 0.78 : 1) * (zoomed ? 1.2 : 1) }}
-          aria-label="21 clickable AXIMACH modules"
+          aria-label={`${satellites.length} clickable AXIMACH modules`}
         >
           {satellites.map(({ id, label, Icon }, index) => {
             // Fibonacci-sphere placement distributes all 20 module controls
