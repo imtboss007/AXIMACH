@@ -1596,14 +1596,15 @@ test("AXIMACH spheres auto-rotate by default with an explicit pause control whil
   assert.ok(!orb.includes("NO IDLE ROTATION"));
 });
 
-test("every Process Plan view uses the interactive 3D universe and volumetric WebGL core", () => {
+test("existing Process Plan 3D views retain their WebGL universe while the new React Flow graph stays separate", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   const core = readFileSync(new URL("../src/ProcessUniverseWebGLCore.tsx", import.meta.url), "utf8");
   for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
     assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
   }
-  assert.ok(workspace.includes('initialLayout={visualStyle}'), "selected view must be passed directly to the 3D renderer");
+  assert.ok(workspace.includes('initialLayout={visualStyle==="graph"?"sphere":visualStyle}'), "3D renderer must receive a supported 3D layout");
+  assert.ok(workspace.includes('visualStyle==="graph" && exportOperations.length'), "React Flow graph must use its separate view branch");
   assert.ok(universe.includes("ProcessUniverseWebGLCore"));
   assert.ok(universe.includes("getLayoutPoint"));
   assert.ok(universe.includes("transformStyle3d"));
