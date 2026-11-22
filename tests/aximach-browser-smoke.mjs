@@ -137,7 +137,7 @@ try {
   await page.getByRole("button", { name: "Interactive graph" }).waitFor({ timeout: 10000 });
   console.log("PASS Route Flow graph/stage-card view toggle");
   await page.getByRole("button", { name: "Open Process Plan" }).click();
-  await page.locator("h1").filter({ hasText: "Process Map" }).waitFor({ timeout: 10000 });
+  await page.locator(".linked-process-page > .workspace-title-row h1").waitFor({ timeout: 10000 });
 
   // Select a real synthetic PO line with five or more operation labels, material and transport.
   const companyPicker = page.getByRole("combobox", { name: "Company" });
