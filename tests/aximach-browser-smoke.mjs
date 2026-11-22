@@ -441,6 +441,26 @@ try {
   await page.waitForTimeout(350);
   await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
   await assertCollisionFreeScene("short-landscape mobile-sized Process Map");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(350);
+  await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
+  await assertCollisionFreeScene("phone-portrait Process Map");
+  const phoneSceneBounds = await page.evaluate(() => {
+    const scene = document.querySelector(".ax-full3d-scene")?.getBoundingClientRect();
+    const labels = [...document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon")].map(element => {
+      const rect = element.getBoundingClientRect();
+      return {left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom};
+    }).filter(rect => rect.right > rect.left && rect.bottom > rect.top);
+    return {scene:scene?{left:scene.left,top:scene.top,right:scene.right,bottom:scene.bottom}:null,labels};
+  });
+  if (!phoneSceneBounds.scene || phoneSceneBounds.labels.some(rect =>
+      rect.left < phoneSceneBounds.scene.left - 1 ||
+      rect.right > phoneSceneBounds.scene.right + 1 ||
+      rect.top < phoneSceneBounds.scene.top - 1 ||
+      rect.bottom > phoneSceneBounds.scene.bottom + 1)) {
+    throw new Error("Phone portrait Process Map has a label outside the visible 3D scene: " + JSON.stringify(phoneSceneBounds));
+  }
+  console.log("PASS phone portrait Process Map label cards remain inside the scene viewport");
   const processGraphMode = page.getByRole("button", { name: "Interactive Graph" });
   await processGraphMode.waitFor({ timeout: 10000 });
   await processGraphMode.click();
