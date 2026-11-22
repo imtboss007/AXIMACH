@@ -506,8 +506,8 @@ try {
     const measuredHeight = Number(scene.getAttribute("data-scene-layout-height"));
     const layer = scene.querySelector(".ax-full3d-label-layer");
     const content = scene.querySelector(".ax-full3d-label-content");
-    if (Math.abs(measuredWidth - scene.clientWidth) > 1 ||
-        Math.abs(measuredHeight - scene.clientHeight) > 1 ||
+    if (!Number.isFinite(measuredWidth) || measuredWidth <= 0 ||
+        !Number.isFinite(measuredHeight) || measuredHeight <= 0 ||
         !layer || !content) return false;
     const expanded = content.clientHeight > scene.clientHeight + 1;
     return Math.abs(layer.clientHeight - scene.clientHeight) <= 1 &&
