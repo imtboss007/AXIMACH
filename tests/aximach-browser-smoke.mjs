@@ -507,47 +507,42 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
   await assertCollisionFreeScene("phone-portrait Process Map");
   const phoneSceneBounds = await page.evaluate(() => {
-    const selector = ".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon";
-    return [...document.querySelectorAll(".ax-full3d-scene")].map((sceneElement,index) => {
-      const scene = sceneElement.getBoundingClientRect();
-      const layer = sceneElement.querySelector(".ax-full3d-label-layer");
-      const layerRect = layer?.getBoundingClientRect();
-      const labels = [...sceneElement.querySelectorAll(selector)].map(element => {
+    return [...document.querySelectorAll(".ax-full3d-label-layer")].map((layer,index) => {
+      const sceneElement = layer.closest(".ax-full3d-scene");
+      const scene = sceneElement?.getBoundingClientRect();
+      const labels = [...layer.querySelectorAll(".ax-full3d-label, .ax-full3d-core-label, .ax-full3d-transport-icon")].map(element => {
         const rect = element.getBoundingClientRect();
-        const labelStyle = getComputedStyle(element);
+        const style = getComputedStyle(element);
         const offsetParent = element.offsetParent;
         const offsetRect = offsetParent?.getBoundingClientRect();
-        const labelLayerRect = element.parentElement?.getBoundingClientRect();
         return {
           left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,
           styleLeft:element.style.left,styleTop:element.style.top,
-          computedLeft:labelStyle.left,computedTop:labelStyle.top,
-          position:labelStyle.position,transform:labelStyle.transform,
-          marginLeft:labelStyle.marginLeft,marginRight:labelStyle.marginRight,marginTop:labelStyle.marginTop,marginBottom:labelStyle.marginBottom,
-          right:labelStyle.right,justifySelf:labelStyle.justifySelf,alignSelf:labelStyle.alignSelf,
+          computedLeft:style.left,computedTop:style.top,
+          position:style.position,transform:style.transform,
+          marginLeft:style.marginLeft,marginRight:style.marginRight,
           offsetLeft:element.offsetLeft,offsetTop:element.offsetTop,
           offsetParentClass:typeof offsetParent?.className==="string"?offsetParent.className:"",
-          offsetParentLeft:offsetRect?.left,offsetParentWidth:offsetRect?.width,
-          labelLayerLeft:labelLayerRect?.left,labelLayerWidth:labelLayerRect?.width
+          offsetParentLeft:offsetRect?.left,offsetParentWidth:offsetRect?.width
         };
       }).filter(rect => rect.right > rect.left && rect.bottom > rect.top);
-      const canvas = sceneElement.querySelector("canvas");
-      const style = getComputedStyle(sceneElement);
+      const layerRect=layer.getBoundingClientRect();
+      const canvas=sceneElement?.querySelector("canvas");
       return {
         index,
-        scene:{left:scene.left,top:scene.top,right:scene.right,bottom:scene.bottom,width:scene.width,height:scene.height},
-        layer:layerRect?{left:layerRect.left,top:layerRect.top,right:layerRect.right,bottom:layerRect.bottom,width:layerRect.width,height:layerRect.height}:null,
-        measuredWidth:sceneElement.getAttribute("data-scene-layout-width"),
-        measuredHeight:sceneElement.getAttribute("data-scene-layout-height"),
-        sceneClientWidth:sceneElement.clientWidth,
+        hasScene:!!sceneElement,
+        scene:scene?{left:scene.left,top:scene.top,right:scene.right,bottom:scene.bottom,width:scene.width,height:scene.height}:null,
+        layer:{left:layerRect.left,top:layerRect.top,right:layerRect.right,bottom:layerRect.bottom,width:layerRect.width,height:layerRect.height},
+        measuredWidth:sceneElement?.getAttribute("data-scene-layout-width"),
+        measuredHeight:sceneElement?.getAttribute("data-scene-layout-height"),
+        sceneClientWidth:sceneElement?.clientWidth,
         canvasClientWidth:canvas?.clientWidth,
-        transform:style.transform,
         labelCount:labels.length,
         labels
       };
     });
   });
-  const populatedPhoneScenes = phoneSceneBounds.filter(scene => scene.labelCount > 0 && scene.scene.width > 0 && scene.scene.height > 0);
+  const populatedPhoneScenes = phoneSceneBounds.filter(scene => scene.hasScene && scene.labelCount > 0 && scene.scene);
   if (!populatedPhoneScenes.length || populatedPhoneScenes.some(scene => scene.labels.some(rect =>
       rect.left < scene.scene.left - 1 ||
       rect.right > scene.scene.right + 1 ||
@@ -555,7 +550,6 @@ try {
       rect.bottom > scene.scene.bottom + 1))) {
     throw new Error("Phone portrait Process Map has a label outside its own 3D scene: " + JSON.stringify(phoneSceneBounds));
   }
-  console.log("PASS phone portrait Process Map label cards remain inside their own scene viewports:", populatedPhoneScenes.map(scene=>({index:scene.index,labelCount:scene.labelCount,measuredWidth:scene.measuredWidth,sceneWidth:scene.scene.width})));
   const processGraphMode = page.getByRole("button", { name: "Interactive Graph" });
   await processGraphMode.waitFor({ timeout: 10000 });
   await processGraphMode.click();
