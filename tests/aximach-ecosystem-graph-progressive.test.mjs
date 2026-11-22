@@ -74,7 +74,7 @@ test("graph view preferences restore hidden groups and progressive expansion lim
 
 test("graph view preference loader falls back safely for malformed or inaccessible storage data",()=>{
   const defaults=loadEcosystemGraphPreferences("{not valid json",["company","vendor"],{company:6,vendor:6});
-  assert.deepEqual(defaults,{version:1,visibleKinds:["company","vendor"],visibleLimits:{company:6,vendor:6}});
+  assert.deepEqual(defaults,{version:2,visibleKinds:["company","vendor"],visibleLimits:{company:6,vendor:6}});
 });
 
 test("graph view preferences allow an intentionally hidden-all state and clamp unsafe limits",()=>{
