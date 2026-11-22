@@ -6439,7 +6439,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .app-shell:has(.route-flow-workspace) .command-rail.mobile-nav-open,
   .app-shell:has(.manufacturing-universe-workspace) .command-rail.mobile-nav-open,
   .app-shell:has(.linked-process-page) .command-rail.mobile-nav-open{
-    transform:translateX(0)!important;visibility:visible!important;pointer-events:auto!important
+    z-index:2147483100!important;transform:translateX(0)!important;visibility:visible!important;pointer-events:auto!important
   }
   .app-shell .command-rail .rail-section-label{
     display:block!important;width:100%!important;margin:12px 0 5px!important;padding:0 8px!important;
