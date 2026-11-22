@@ -21,14 +21,14 @@ function boundsForKind(kind, viewportWidth) {
     };
     return compact[kind] || compact.operation;
   }
-  if (viewportWidth <= 820) {
+  if (viewportWidth <= 760) {
     const tablet = {
-      operation: { width: 142, height: 84 },
-      material: { width: 142, height: 96 },
+      operation: { width: 124, height: 82 },
+      material: { width: 124, height: 82 },
       transport: { width: 34, height: 34 },
       transportLeg: { width: 34, height: 34 },
-      catalogue: { width: 142, height: 84 },
-      core: { width: 120, height: 48 }
+      catalogue: { width: 124, height: 82 },
+      core: { width: 110, height: 44 }
     };
     return tablet[kind] || tablet.operation;
   }
@@ -92,15 +92,15 @@ function findNearestFreeSlot(anchor, bounds, placed, width, height, step) {
 
 
 
-function packDenseLabels(items, width, height) {
+function packDenseLabels(items, width, height, responsiveWidth = width) {
   const availableWidth = Math.max(1, width - 14);
   const availableHeight = Math.max(1, height - 66);
   const hasCore = items[0]?.kind === "core";
   const prefixCount = hasCore ? Math.min(2, items.length) : Math.min(1, items.length);
   const priority = items.slice(0, prefixCount);
   const remainder = items.slice(prefixCount).sort((a, b) => {
-    const aBounds = boundsForKind(a.kind, width);
-    const bBounds = boundsForKind(b.kind, width);
+    const aBounds = boundsForKind(a.kind, responsiveWidth);
+    const bBounds = boundsForKind(b.kind, responsiveWidth);
     return bBounds.width * bBounds.height - aBounds.width * aBounds.height ||
       a.screen.y - b.screen.y || a.screen.x - b.screen.x;
   });
@@ -116,7 +116,7 @@ function packDenseLabels(items, width, height) {
     let row = { entries: [], width: 0, height: 0 };
 
     for (const item of ordered) {
-      const base = boundsForKind(item.kind, width);
+      const base = boundsForKind(item.kind, responsiveWidth);
       const isCard = item.kind === "operation" || item.kind === "material" || item.kind === "catalogue";
       const itemScale = isCard ? scale : 1;
       const bounds = { width: base.width * itemScale, height: base.height * itemScale };
@@ -181,15 +181,17 @@ function packDenseLabels(items, width, height) {
  * Selected process and fixed core labels should be supplied first so they
  * retain visual priority. Cards move to the nearest available viewport slot.
  */
-export function relaxProcessSceneLabels(items, width, height) {
+export function relaxProcessSceneLabels(items, width, height, responsiveWidth = width) {
   const viewportWidth = Math.max(1, Number(width) || 1);
   const viewportHeight = Math.max(1, Number(height) || 1);
+  // CSS media queries follow the browser viewport, not the width of this scene panel.
+  const responsiveViewportWidth = Math.max(1, Number(responsiveWidth) || viewportWidth);
   const step = Math.max(16, Math.min(24, Math.round(Math.min(viewportWidth, viewportHeight) / 28)));
   const placed = [];
   const output = [];
 
   for (const item of items) {
-    const baseBounds = boundsForKind(item.kind, viewportWidth);
+    const baseBounds = boundsForKind(item.kind, responsiveViewportWidth);
     const isCard = item.kind === "operation" || item.kind === "material" || item.kind === "catalogue";
     const scales = isCard ? CARD_SCALES : [1];
     let winner = null;
@@ -234,7 +236,7 @@ export function relaxProcessSceneLabels(items, width, height) {
   }
 
   if (output.some(item => item.screen.collision)) {
-    return packDenseLabels(items, viewportWidth, viewportHeight) || output;
+    return packDenseLabels(items, viewportWidth, viewportHeight, responsiveViewportWidth) || output;
   }
   return output;
 }
