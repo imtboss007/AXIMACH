@@ -1090,11 +1090,13 @@ test("Icon Studio strips saved outline/filled prefixes before rendering Tabler c
   assert.ok(studio.includes("ti ti-" + "${baseName}"));
 });
 
-test("CI skips Electron binary download for frontend and Android jobs only", () => {
+test("CI skips Electron binary download for frontend, functional and Android jobs only", () => {
   const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
-  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 2);
+  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 3);
   const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
   assert.ok(!windows.includes("ELECTRON_SKIP_BINARY_DOWNLOAD"));
+  const functional = workflow.slice(workflow.indexOf("functional-tests:"), workflow.indexOf("frontend:"));
+  assert.ok(functional.includes('ELECTRON_SKIP_BINARY_DOWNLOAD: "1"'));
 });
 
 test("Dashboard module and live-record spheres are independently draggable with idle auto-rotation", () => {
