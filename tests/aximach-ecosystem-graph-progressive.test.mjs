@@ -64,7 +64,7 @@ test("group expansion never exceeds the available record count",()=>{
 
 test("graph view preferences restore hidden groups and progressive expansion limits",()=>{
   const preferences=loadEcosystemGraphPreferences(JSON.stringify({
-    version:1,
+    version:2,
     visibleKinds:["vendor","operation","unknown","vendor"],
     visibleLimits:{vendor:14,operation:20,unknown:900}
   }),["company","vendor","operation"],{company:6,vendor:6,operation:8});
