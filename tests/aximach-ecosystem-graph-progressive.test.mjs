@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   expandEcosystemGroupLimit,
   getVisibleEcosystemNodes,
+  loadEcosystemGraphPreferences,
   searchEcosystemNodes
 } from "../src/manufacturingEcosystemGraphModel.mjs";
 
