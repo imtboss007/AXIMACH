@@ -6588,3 +6588,19 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   bottom:auto!important;
   margin:0!important;
 }
+
+
+/* Use the layer origin as the sole absolute anchor. CSS transforms carry the
+   projected coordinates so conflicting left/right insets cannot reposition
+   phone-sized Process Map markers. */
+.ax-full3d-label-layer .ax-full3d-label,
+.ax-full3d-label-layer .ax-full3d-core-label,
+.ax-full3d-label-layer .ax-full3d-transport-icon{
+  position:absolute!important;
+  left:0!important;
+  top:0!important;
+  right:auto!important;
+  bottom:auto!important;
+  transform:translate3d(var(--ax-scene-left),var(--ax-scene-top),0) translate(-50%,-50%) scale(var(--ax-scene-scale,1))!important;
+  margin:0!important;
+}
