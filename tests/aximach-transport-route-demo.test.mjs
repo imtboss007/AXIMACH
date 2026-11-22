@@ -137,6 +137,25 @@ test("Manufacturing Universe does not render a material-entry transport leg twic
 });
 
 
+test("legacy transport legs without a PO-line ID remain visible only when the component has one unambiguous PO line", () => {
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(routeFlow.includes("(!leg.poLineId&&componentGlobalLineCount===1)"));
+  assert.ok(processMap.includes("(!leg.poLineId&&selectedComponentLineCount===1)"));
+  assert.ok(processMap.includes("(!leg.poLineId&&selectedComponentLineCount===1)||exportOperations.some"));
+});
+
+test("explicit transport destinations are shown in 2D route views and honoured across 3D branch geometry", () => {
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  assert.ok(routeFlow.includes("node.leg.targetOperationId"));
+  assert.ok(routeFlow.includes("route-flow-transport-target"));
+  assert.ok(processMap.includes('leg.targetOperationId&&<small className="process-route-flow-transport-target"'));
+  assert.ok(scene.includes("const branchRows=lineRows.filter"));
+  assert.ok(scene.includes('const toOperation=target||(leg.placement==="start"'));
+});
+
 test("Route Flow transport markers are compact vehicle-only icons; details stay in the popup", () => {
   const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
