@@ -505,7 +505,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(350);
   await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
-  await assertCollisionFreeScene("phone-portrait Process Map");
+  await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
   const phoneSceneBounds = await page.evaluate(() => {
     return [...document.querySelectorAll(".ax-full3d-label-layer")].map((layer,index) => {
       const sceneElement = layer.closest(".ax-full3d-scene");
@@ -547,13 +547,24 @@ try {
     });
   });
   const populatedPhoneScenes = phoneSceneBounds.filter(scene => scene.hasScene && scene.labelCount > 0 && scene.scene);
-  if (!populatedPhoneScenes.length || populatedPhoneScenes.some(scene => scene.labels.some(rect =>
-      rect.left < scene.scene.left - 1 ||
-      rect.right > scene.scene.right + 1 ||
-      rect.top < scene.scene.top - 1 ||
-      rect.bottom > scene.scene.bottom + 1))) {
-    throw new Error("Phone portrait Process Map has a label outside its own 3D scene: " + JSON.stringify(phoneSceneBounds));
+  const phoneLabelOverlaps = populatedPhoneScenes.flatMap(scene => {
+    const overlaps = [];
+    for (let i=0;i<scene.labels.length;i++) for(let j=i+1;j<scene.labels.length;j++) {
+      const a=scene.labels[i],b=scene.labels[j];
+      if(a.left < b.right+4 && a.right+4 > b.left && a.top < b.bottom+4 && a.bottom+4 > b.top) overlaps.push({a,b});
+    }
+    return overlaps.map(pair=>({scene:scene.index,...pair}));
+  });
+  if (!populatedPhoneScenes.length ||
+      populatedPhoneScenes.some(scene => scene.labels.some(rect =>
+        rect.left < scene.scene.left - 1 ||
+        rect.right > scene.scene.right + 1 ||
+        rect.top < scene.scene.top - 1 ||
+        rect.bottom > scene.scene.bottom + 1)) ||
+      phoneLabelOverlaps.length) {
+    throw new Error("Phone portrait Process Map labels are outside their scene or overlap in the same rendered frame: " + JSON.stringify({phoneSceneBounds,phoneLabelOverlaps}));
   }
+  console.log("PASS phone portrait Process Map collision-free labels inside each scene:",populatedPhoneScenes.map(scene=>({index:scene.index,labelCount:scene.labelCount})));
   const processGraphMode = page.getByRole("button", { name: "Interactive Graph" });
   await processGraphMode.waitFor({ timeout: 10000 });
   await processGraphMode.click();
