@@ -528,7 +528,7 @@ try {
     }
     const labels = [...document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon")].map(element => {
       const rect = element.getBoundingClientRect();
-      return {left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,styleLeft:(element as HTMLElement).style.left,styleTop:(element as HTMLElement).style.top};
+      return {left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,styleLeft:element.style.left,styleTop:element.style.top};
     }).filter(rect => rect.right > rect.left && rect.bottom > rect.top);
     return {
       scene:scene?{left:scene.left,top:scene.top,right:scene.right,bottom:scene.bottom}:null,
