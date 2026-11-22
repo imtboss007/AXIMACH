@@ -506,49 +506,60 @@ try {
   await page.waitForTimeout(350);
   await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
   const phoneSceneSnapshotHandle = await page.waitForFunction(() => {
-    const snapshots = [...document.querySelectorAll(".ax-full3d-label-layer")].map((layer,index) => {
-      const sceneElement = layer.closest(".ax-full3d-scene");
-      const scene = sceneElement?.getBoundingClientRect();
-      const labels = [...layer.querySelectorAll(".ax-full3d-label, .ax-full3d-core-label, .ax-full3d-transport-icon")].map(element => {
-        const rect = element.getBoundingClientRect();
-        const style = getComputedStyle(element);
-        const offsetParent = element.offsetParent;
-        const offsetRect = offsetParent?.getBoundingClientRect();
-        return {
-          left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,
-          styleLeft:element.style.left,styleTop:element.style.top,
-          computedLeft:style.left,computedTop:style.top,
-          position:style.position,transform:style.transform,
-          marginLeft:style.marginLeft,marginRight:style.marginRight,
-          right:style.right,direction:style.direction,writingMode:style.writingMode,
-          paddingLeft:style.paddingLeft,paddingRight:style.paddingRight,
-          offsetLeft:element.offsetLeft,offsetTop:element.offsetTop,
-          offsetParentClass:typeof offsetParent?.className==="string"?offsetParent.className:"",
-          offsetParentLeft:offsetRect?.left,offsetParentWidth:offsetRect?.width,
-          offsetParentRight:offsetParent?getComputedStyle(offsetParent).right:undefined,
-          offsetParentDirection:offsetParent?getComputedStyle(offsetParent).direction:undefined
+    const selector = ".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon";
+    const elements = [...document.querySelectorAll(selector)];
+    if (elements.length < 5) return false;
+
+    const groups = new Map();
+    for (const element of elements) {
+      const sceneElement = element.closest(".ax-full3d-scene");
+      if (!sceneElement) continue;
+      let group = groups.get(sceneElement);
+      if (!group) {
+        const scene = sceneElement.getBoundingClientRect();
+        const layer = sceneElement.querySelector(".ax-full3d-label-layer");
+        const layerRect = layer?.getBoundingClientRect();
+        const canvas = sceneElement.querySelector("canvas");
+        group = {
+          index: groups.size,
+          hasScene: true,
+          scene: {left:scene.left,top:scene.top,right:scene.right,bottom:scene.bottom,width:scene.width,height:scene.height},
+          layer: layerRect ? {left:layerRect.left,top:layerRect.top,right:layerRect.right,bottom:layerRect.bottom,width:layerRect.width,height:layerRect.height} : null,
+          measuredWidth: sceneElement.getAttribute("data-scene-layout-width"),
+          measuredHeight: sceneElement.getAttribute("data-scene-layout-height"),
+          sceneClientWidth: sceneElement.clientWidth,
+          canvasClientWidth: canvas?.clientWidth,
+          labelCount: 0,
+          labels: []
         };
-      }).filter(rect => rect.right > rect.left && rect.bottom > rect.top);
-      const layerRect=layer.getBoundingClientRect();
-      const canvas=sceneElement?.querySelector("canvas");
-      return {
-        index,
-        hasScene:!!sceneElement,
-        scene:scene?{left:scene.left,top:scene.top,right:scene.right,bottom:scene.bottom,width:scene.width,height:scene.height}:null,
-        layer:{left:layerRect.left,top:layerRect.top,right:layerRect.right,bottom:layerRect.bottom,width:layerRect.width,height:layerRect.height},
-        measuredWidth:sceneElement?.getAttribute("data-scene-layout-width"),
-        measuredHeight:sceneElement?.getAttribute("data-scene-layout-height"),
-        sceneClientWidth:sceneElement?.clientWidth,
-        canvasClientWidth:canvas?.clientWidth,
-        labelCount:labels.length,
-        labels
-      };
-    });
+        groups.set(sceneElement, group);
+      }
+      const rect = element.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      const style = getComputedStyle(element);
+      const offsetParent = element.offsetParent;
+      const offsetRect = offsetParent?.getBoundingClientRect();
+      group.labels.push({
+        left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,
+        styleLeft:element.style.left,styleTop:element.style.top,
+        computedLeft:style.left,computedTop:style.top,
+        position:style.position,transform:style.transform,
+        marginLeft:style.marginLeft,marginRight:style.marginRight,
+        right:style.right,direction:style.direction,writingMode:style.writingMode,
+        paddingLeft:style.paddingLeft,paddingRight:style.paddingRight,
+        offsetLeft:element.offsetLeft,offsetTop:element.offsetTop,
+        offsetParentClass:typeof offsetParent?.className==="string"?offsetParent.className:"",
+        offsetParentLeft:offsetRect?.left,offsetParentWidth:offsetRect?.width,
+        offsetParentRight:offsetParent?getComputedStyle(offsetParent).right:undefined,
+        offsetParentDirection:offsetParent?getComputedStyle(offsetParent).direction:undefined
+      });
+      group.labelCount = group.labels.length;
+    }
+    const snapshots = [...groups.values()];
     return snapshots.some(snapshot => snapshot.labelCount >= 5) ? snapshots : false;
   }, null, { timeout: 10000 });
   const phoneSceneBounds = await phoneSceneSnapshotHandle.jsonValue();
-
-    const populatedPhoneScenes = phoneSceneBounds.filter(scene => scene.hasScene && scene.labelCount > 0 && scene.scene);
+  const populatedPhoneScenes = phoneSceneBounds.filter(scene => scene.hasScene && scene.labelCount > 0 && scene.scene);
   const phoneLabelOverlaps = populatedPhoneScenes.flatMap(scene => {
     const overlaps = [];
     for (let i=0;i<scene.labels.length;i++) for(let j=i+1;j<scene.labels.length;j++) {
