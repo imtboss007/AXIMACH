@@ -89,3 +89,17 @@ test("short-landscape Route Flow and Manufacturing Universe keep navigation chro
   assert.ok(responsiveRule.includes('display:none!important'));
   assert.ok(app.includes('onClick={openModuleExplorer}'), "The command-deck module explorer remains available for navigation.");
 });
+
+
+test("short-landscape graph canvases adapt to the available viewport and hide secondary minimaps", () => {
+  const css = source("src/aximach-ui.css");
+  const responsiveRule = css.slice(css.lastIndexOf("/* Short-landscape graph workspaces"));
+  assert.ok(responsiveRule.includes("@media (orientation:landscape) and (max-height:600px) and (max-width:1100px)"));
+  for (const canvas of [".route-flow-graph-canvas", ".process-map-graph-canvas", ".ax-ecosystem-flow-canvas"]) {
+    assert.ok(responsiveRule.includes(canvas), "Missing short-landscape sizing for " + canvas);
+  }
+  assert.ok(responsiveRule.includes("height:clamp(220px,calc(100dvh - 160px),380px)"));
+  assert.ok(responsiveRule.includes("min-height:220px"));
+  assert.ok(responsiveRule.includes(".react-flow__minimap"));
+  assert.ok(responsiveRule.includes("display:none!important"));
+});

@@ -6323,3 +6323,20 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   display:none!important;
  }
 }
+
+
+/* Short-landscape graph workspaces: make the canvas use the available viewport. */
+@media (orientation:landscape) and (max-height:600px) and (max-width:1100px){
+ .route-flow-graph-canvas,
+ .process-map-graph-canvas,
+ .ax-ecosystem-flow-canvas{
+  height:clamp(220px,calc(100vh - 160px),380px);
+  height:clamp(220px,calc(100dvh - 160px),380px);
+  min-height:220px;
+ }
+ .route-flow-graph-canvas .react-flow__minimap,
+ .process-map-graph-canvas .react-flow__minimap,
+ .ax-ecosystem-flow-canvas .react-flow__minimap{
+  display:none!important;
+ }
+}
