@@ -126,7 +126,7 @@ try {
   const mobileErrors = [];
   mobilePage.on("pageerror", error => mobileErrors.push(error.message));
   await mobilePage.goto(baseUrl, { waitUntil: "networkidle" });
-  await mobilePage.getByRole("navigation", { name: "AXIMACH navigation" }).waitFor();
+  await mobilePage.getByRole("navigation", { name: "AXIMACH navigation" }).waitFor({ state: "attached" });
   const mobileGeometry = await mobilePage.evaluate(() => {
     const page = document.querySelector("main.page-content");
     const rect = page?.getBoundingClientRect();
