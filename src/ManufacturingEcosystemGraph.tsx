@@ -361,7 +361,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#b5c9da"/>
         <Controls showInteractive={false}/>
-        <MiniMap pannable zoomable nodeColor={node=>node.type==="hub"?"#8fc4e5":node.data.accent}/>
+        <MiniMap<EcosystemFlowNode> pannable zoomable nodeColor={(node:EcosystemFlowNode):string=>node.type==="ecosystem"?node.data.accent:"#8fc4e5"}/>
       </ReactFlow>
     </div>
     <div className="ax-ecosystem-graph-foot"><span><i/> Solid lines represent saved ID relationships · dashed hub lines indicate membership in the live graph</span>{selected&&<div className="ax-ecosystem-selected"><div><strong>{selected.label}</strong><small>{selected.detail}</small></div><button type="button" onClick={()=>onNavigate(selected.moduleId,selected.context)}>Open source record <Activity size={13}/></button></div>}</div>
