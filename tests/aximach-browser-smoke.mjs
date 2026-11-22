@@ -547,13 +547,19 @@ try {
         computedLeft:style.left,computedTop:style.top,
         position:style.position,transform:style.transform,
         marginLeft:style.marginLeft,marginRight:style.marginRight,
-        computedRight:style.right,computedBottom:style.bottom,direction:style.direction,writingMode:style.writingMode,
+        computedRight:style.right,computedBottom:style.bottom,
+        computedInsetInlineStart:style.insetInlineStart,computedInsetInlineEnd:style.insetInlineEnd,
+        computedInsetBlockStart:style.insetBlockStart,computedInsetBlockEnd:style.insetBlockEnd,
+        inlineRight:element.style.right,inlineInsetInlineEnd:element.style.insetInlineEnd,
+        direction:style.direction,writingMode:style.writingMode,zoom:style.zoom,
         paddingLeft:style.paddingLeft,paddingRight:style.paddingRight,
         offsetLeft:element.offsetLeft,offsetTop:element.offsetTop,
         offsetParentClass:typeof offsetParent?.className==="string"?offsetParent.className:"",
         offsetParentLeft:offsetRect?.left,offsetParentWidth:offsetRect?.width,
         offsetParentRight:offsetParent?getComputedStyle(offsetParent).right:undefined,
-        offsetParentDirection:offsetParent?getComputedStyle(offsetParent).direction:undefined
+        offsetParentDirection:offsetParent?getComputedStyle(offsetParent).direction:undefined,
+        ancestors:(()=>{const result=[];let node=element;while(node&&result.length<8){const st=getComputedStyle(node),r=node.getBoundingClientRect();result.push({tag:node.tagName,className:typeof node.className==="string"?node.className:"",left:r.left,width:r.width,position:st.position,transform:st.transform,direction:st.direction,zoom:st.zoom,writingMode:st.writingMode});node=node.parentElement;}return result;})(),
+        matchingInsetRules:(()=>{const result=[];const visit=rules=>{for(const rule of rules){if(rule.cssRules)visit(rule.cssRules);else if(rule.selectorText&&rule.style&&element.matches(rule.selectorText)&&["left","right","top","bottom","inset","inset-inline","inset-inline-start","inset-inline-end","inset-block","inset-block-start","inset-block-end"].some(key=>rule.style.getPropertyValue(key)))result.push({selector:rule.selectorText,cssText:rule.cssText});}};for(const sheet of document.styleSheets){try{visit(sheet.cssRules);}catch{}}return result.slice(-15);})()
       });
       group.labelCount = group.labels.length;
     }
