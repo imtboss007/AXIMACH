@@ -282,7 +282,68 @@ try {
   if (routePortraitGeometry.documentWidth > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.pageLeft > 1 || routePortraitGeometry.canvasLeft < 0 || routePortraitGeometry.canvasRight > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.canvasWidth < 250) {
     throw new Error("Route Flow does not fit portrait width: " + JSON.stringify(routePortraitGeometry));
   }
-  console.log("PASS portrait-first Android viewport, full-width Route Flow, mobile drawer and opt-in landscape control");
+  // Inspect the shared mobile shell on every business workspace, not only
+  // the two immersive canvases. Header actions and the floating follow-up dock
+  // must remain separated and inside the phone viewport on all 22 modules.
+  for (const [title, moduleId] of modules) {
+    await mobilePage.getByRole("button", { name: "Open navigation menu" }).click();
+    await mobileNavigation.locator('button[title="' + title + '"]').waitFor({ state: "visible" });
+    await mobileNavigation.locator('button[title="' + title + '"]').click();
+    await mobilePage.waitForFunction(expected => {
+      const active = document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active');
+      return active?.getAttribute("title") === expected;
+    }, title, { timeout: 10000 });
+    await mobilePage.locator("main.page-content").waitFor();
+    await mobilePage.waitForFunction(() => !document.querySelector(".workspace-loading-state"), null, { timeout: 15000 });
+
+    const phoneLayout = await mobilePage.evaluate(() => {
+      const rect = element => {
+        const bounds = element?.getBoundingClientRect();
+        return bounds ? {left:bounds.left,top:bounds.top,right:bounds.right,bottom:bounds.bottom,width:bounds.width,height:bounds.height} : null;
+      };
+      const isVisible = element => {
+        if (!element) return false;
+        const style = getComputedStyle(element);
+        const bounds = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && bounds.width > 0 && bounds.height > 0;
+      };
+      const header = document.querySelector(".command-deck");
+      const page = document.querySelector("main.page-content");
+      const controlSelectors = [".brand-lockup",".mobile-nav-trigger",".command-search",".deck-action",".ax-orientation-toggle",".deck-icon.alert-trigger"];
+      const controls = controlSelectors.flatMap(selector => [...document.querySelectorAll(selector)].filter(isVisible).map(element => ({selector,...rect(element)})));
+      const dock = document.querySelector(".ax-followup-assignment-trigger");
+      return {
+        viewportWidth: document.documentElement.clientWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        header: rect(header),
+        page: rect(page),
+        controls,
+        dock: isVisible(dock) ? rect(dock) : null
+      };
+    });
+    if (phoneLayout.documentWidth > phoneLayout.viewportWidth + 1 ||
+        !phoneLayout.header || !phoneLayout.page ||
+        phoneLayout.page.left < -1 ||
+        phoneLayout.page.right > phoneLayout.viewportWidth + 1 ||
+        phoneLayout.page.top < phoneLayout.header.bottom - 1) {
+      throw new Error("Phone workspace shell overflows or its header collides with content in " + moduleId + ": " + JSON.stringify(phoneLayout));
+    }
+    const headerControls = phoneLayout.controls.slice().sort((a,b)=>a.left-b.left);
+    for (let i=0;i<headerControls.length-1;i++) {
+      if (headerControls[i].right > headerControls[i+1].left + 1) {
+        throw new Error("Phone command-header controls overlap in " + moduleId + ": " + JSON.stringify(headerControls));
+      }
+    }
+    if (phoneLayout.dock &&
+        (phoneLayout.dock.left < 0 || phoneLayout.dock.top < 0 ||
+         phoneLayout.dock.right > phoneLayout.viewportWidth ||
+         phoneLayout.dock.bottom > 844)) {
+      throw new Error("Phone follow-up dock escapes the viewport in " + moduleId + ": " + JSON.stringify(phoneLayout.dock));
+    }
+    console.log("PASS phone workspace shell and header geometry:", moduleId);
+  }
+  console.log("PASS 22-module phone responsive shell and shared navigation geometry");
+
   await mobilePage.close();
 
   // A landscape tablet can expose both a precise primary pointer and a touch
