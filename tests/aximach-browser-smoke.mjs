@@ -135,7 +135,9 @@ try {
   if (!(await page.locator(".ax-ecosystem-search-results p").innerText()).includes("No matching saved records.")) {
     throw new Error("Manufacturing Universe did not show the no-match search state.");
   }
-  await page.getByRole("button", { name: "Clear graph search" }).click();
+  const clearGraphSearch = page.getByRole("button", { name: "Clear graph search" });
+  await clearGraphSearch.evaluate(element => element.scrollIntoView({ block: "center", inline: "center" }));
+  await clearGraphSearch.click();
   if (await page.locator(".ax-ecosystem-search-results").count() !== 0) {
     throw new Error("Clearing Manufacturing Universe graph search did not close the results panel.");
   }
