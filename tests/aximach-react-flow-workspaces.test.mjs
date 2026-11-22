@@ -65,3 +65,27 @@ test("synthetic multi-route fixture covers the graph relationship types without 
   assert.ok(fixture.transportLegs.some(row => row.placement === "before"));
   assert.ok(fixture.transportLegs.some(row => row.placement === "after"));
 });
+
+
+test("3D process node decluttering accounts for each rendered card class and separates taller material cards", () => {
+  const scene = source("src/ProcessScene3D.tsx");
+  assert.ok(scene.includes('const LABEL_CARD_METRICS:Record<LabelCandidate["kind"],{width:number;height:number}>'));
+  assert.ok(scene.includes('operation:{width:184,height:124}'));
+  assert.ok(scene.includes('material:{width:194,height:174}'));
+  assert.ok(scene.includes('transport:{width:48,height:48}'));
+  assert.ok(scene.includes('transportLeg:{width:48,height:48}'));
+  assert.ok(scene.includes('for(let pass=0;pass<120;pass++)'));
+  assert.ok(scene.includes('const overlapX=(a.bounds.width+b.bounds.width)/2+14-Math.abs(dx)'));
+  assert.ok(scene.includes('const overlapY=(a.bounds.height+b.bounds.height)/2+14-Math.abs(dy)'));
+});
+
+test("short-landscape Route Flow and Manufacturing Universe keep navigation chrome off the canvas", () => {
+  const css = source("src/aximach-ui.css");
+  const app = source("src/App.tsx");
+  const responsiveRule = css.slice(css.lastIndexOf("/* Short-landscape Route Flow and Manufacturing Universe"));
+  assert.ok(responsiveRule.includes('@media (orientation:landscape) and (max-height:600px) and (max-width:1100px)'));
+  assert.ok(responsiveRule.includes('.app-shell:has(.route-flow-workspace) .command-rail'));
+  assert.ok(responsiveRule.includes('.app-shell:has(.manufacturing-universe-workspace) .command-rail'));
+  assert.ok(responsiveRule.includes('display:none!important'));
+  assert.ok(app.includes('onClick={openModuleExplorer}'), "The command-deck module explorer remains available for navigation.");
+});

@@ -124,24 +124,40 @@ function operationCode(operation:OperationRecord):string{
 }
 type ProjectedPoint={x:number;y:number;z:number};
 type LabelCandidate={id:string;screen:ProjectedPoint;kind:"operation"|"material"|"transport"|"transportLeg"};
+const LABEL_CARD_METRICS:Record<LabelCandidate["kind"],{width:number;height:number}>={
+ operation:{width:184,height:124},
+ material:{width:194,height:174},
+ transport:{width:48,height:48},
+ transportLeg:{width:48,height:48}
+};
 function relaxLabels(items:LabelCandidate[],width:number,height:number){
- const cardWidth=width<600?Math.min(124,width*.34):Math.min(184,width*.27);
- const cardHeight=width<600?76:92;
- const placed=items.map((item,index)=>({...item,screen:{...item.screen},index}));
- const minX=cardWidth/2+7,maxX=Math.max(cardWidth/2+7,width-cardWidth/2-7);
- const minY=cardHeight/2+24,maxY=Math.max(cardHeight/2+24,height-cardHeight/2-48);
- for(let pass=0;pass<72;pass++){
+ // Keep the collision envelope aligned with the largest card styles used by
+ // the 3D overlay. Material cards can be taller than operation cards.
+ const placed=items.map((item,index)=>({...item,screen:{...item.screen},bounds:LABEL_CARD_METRICS[item.kind],index}));
+ const clamp=(item:typeof placed[number])=>{
+  const minX=Math.min(item.bounds.width/2+7,width/2),maxX=Math.max(minX,width-item.bounds.width/2-7);
+  const minY=Math.min(item.bounds.height/2+24,height/2),maxY=Math.max(minY,height-item.bounds.height/2-42);
+  item.screen.x=Math.max(minX,Math.min(maxX,item.screen.x));
+  item.screen.y=Math.max(minY,Math.min(maxY,item.screen.y));
+ };
+ for(let pass=0;pass<120;pass++){
   for(let i=0;i<placed.length;i++)for(let j=i+1;j<placed.length;j++){
    const a=placed[i],b=placed[j],dx=b.screen.x-a.screen.x,dy=b.screen.y-a.screen.y;
-   const ox=cardWidth+10-Math.abs(dx),oy=cardHeight+9-Math.abs(dy);
-   if(ox>0&&oy>0){
-    if(ox<oy){const sign=dx===0?(a.index%2?1:-1):Math.sign(dx),push=Math.min(ox*.52,18);a.screen.x-=sign*push;b.screen.x+=sign*push;}
-    else{const sign=dy===0?(a.index%2?1:-1):Math.sign(dy),push=Math.min(oy*.52,18);a.screen.y-=sign*push;b.screen.y+=sign*push;}
+   const overlapX=(a.bounds.width+b.bounds.width)/2+14-Math.abs(dx);
+   const overlapY=(a.bounds.height+b.bounds.height)/2+14-Math.abs(dy);
+   if(overlapX>0&&overlapY>0){
+    if(overlapX<overlapY){
+     const sign=dx===0?(a.index%2?1:-1):Math.sign(dx),push=Math.min(overlapX*.54+1,28);
+     a.screen.x-=sign*push;b.screen.x+=sign*push;
+    }else{
+     const sign=dy===0?(a.index%2?1:-1):Math.sign(dy),push=Math.min(overlapY*.54+1,28);
+     a.screen.y-=sign*push;b.screen.y+=sign*push;
+    }
    }
   }
-  for(const item of placed){item.screen.x=Math.max(minX,Math.min(maxX,item.screen.x));item.screen.y=Math.max(minY,Math.min(maxY,item.screen.y));}
+  for(const item of placed)clamp(item);
  }
- return placed;
+ return placed.map(({bounds,index,...item})=>item);
 }
 function frontFacing(p:P,angle:number):boolean{
  const x=-.24,y=angle,cx=Math.cos(x),sx=Math.sin(x),cy=Math.cos(y),sy=Math.sin(y);
