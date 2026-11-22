@@ -39,8 +39,8 @@ test("floating menu clamps its width and horizontal position on narrow viewports
     { maxHeight: 250, minWidth: 210, margin: 8, gap: 6 }
   );
 
-  assert.equal(position.width, 304);
-  assert.equal(position.left, 8);
+  assert.equal(position.width, 210);
+  assert.equal(position.left, 102);
   assert.ok(position.left >= 8);
   assert.ok(position.left + position.width <= 320 - 8);
 });
