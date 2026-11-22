@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type MaterialCostEntryRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine, type TransportRouteRecord } from "./manufacturingData";
+import { getProductionRouteMetrics, getRequiredRouteOperations } from "./productionRouteMetrics.mjs";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
@@ -475,16 +476,16 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       }));
       if (!bulkStatus) return { ...current, operations: nextOperations };
       const touchedLines = new Set(selected.map(op => op.poId + "::" + op.poLineId));
+      const requiredBeforeUpdateIds = new Set(getRequiredRouteOperations(current.operations).map(op => op.id));
       const reopenedLines = new Set(selected
-        .filter(op => bulkStatus !== "Complete" && ((op.branch || "Main route") === "Main route" || op.costIncluded !== false))
+        .filter(op => bulkStatus !== "Complete" && requiredBeforeUpdateIds.has(op.id))
         .map(op => op.poId + "::" + op.poLineId));
       const nextPurchaseOrders = current.purchaseOrders.map(order => ({
         ...order,
         lines: order.lines.map(line => {
           const key = order.id + "::" + line.id;
           if (!touchedLines.has(key)) return line;
-          const lineOperations = nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id && !op.deletedAt
-            && ((op.branch || "Main route") === "Main route" || op.costIncluded !== false));
+          const lineOperations = getRequiredRouteOperations(nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id));
           if (lineOperations.length && lineOperations.every(op => op.status === "Complete")) {
             return { ...line, jobStatus: "Finished" as const, jobFinishedAt: stamp, updatedAt: stamp };
           }
@@ -514,8 +515,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const transactions=paymentRowsFor(operation.id);
     return transactions.length?transactions.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0):Math.max(0,Number(operation.paidAmount)||0);
   };
-  const activeBranchNames = new Set(routeOperations.filter(op => (op.branch || "Main route") !== "Main route" && op.costIncluded !== false).map(op => op.branch || "Main route"));
-  const activeRouteOperations = routeOperations.filter(op => (op.branch || "Main route") === "Main route" || activeBranchNames.has(op.branch || "Main route"));
+  const routeQuantityMetrics = getProductionRouteMetrics(routeOperations, selectedLine?.quantity || 0);
+  const activeRouteOperations = routeQuantityMetrics.requiredOperations;
   const costedOperations = routeOperations.filter(op => op.costIncluded !== false);
   const totalProcessCost = costedOperations.reduce((sum, op) => sum + op.quantity * (op.actualRatePerPart || op.ratePerPart), 0);
   const includedTransportLegs = componentTransportLegs.filter(leg => !leg.anchorOperationId || routeOperations.find(operation => operation.id === leg.anchorOperationId)?.costIncluded !== false);
@@ -536,12 +537,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const legacy = duplicateLegacyTransportIds.has(operation.id) ? 0 : Math.max(0,Number(operation.transportCost)||0);
     return anchored + legacy + (firstMainRouteOperation?.id === operation.id ? unanchoredTransportCost : 0);
   };
-  const expectedQuantity = Math.max(0,Number(selectedLine?.quantity)||0);
-  const completedQuantity = activeRouteOperations.length ? Math.min(...activeRouteOperations.map(op => op.accepted || 0)) : 0;
-  const finalRouteOperation = [...routeOperations].filter(op=>(op.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence).at(-1) || routeOperations[routeOperations.length-1];
-  const finalCompletedQty = Math.min(expectedQuantity,Math.max(0,Number(finalRouteOperation?.accepted)||0));
-  const pendingProductionQty = Math.max(0,expectedQuantity-finalCompletedQty);
-  const inProgressProductionQty = Math.min(pendingProductionQty,activeRouteOperations.filter(op=>op.status==="Running").reduce((sum,op)=>sum+Math.max(0,op.quantity-op.completed),0));
+  const expectedQuantity = routeQuantityMetrics.expectedQuantity;
+  const finalRouteOperation = routeQuantityMetrics.finalOperation;
+  const finalCompletedQty = routeQuantityMetrics.finalAcceptedQuantity;
+  const pendingProductionQty = routeQuantityMetrics.pendingQuantity;
+  const inProgressProductionQty = routeQuantityMetrics.inProgressEstimate;
   const plannedProductionQty = expectedQuantity;
   const completionPercent = plannedProductionQty>0?Math.round(finalCompletedQty/plannedProductionQty*100):0;
   const vendorAssignedPercent = activeRouteOperations.length?Math.round(activeRouteOperations.filter(op=>op.executionType==="Internal"||Boolean(op.vendorId)).length/activeRouteOperations.length*100):0;
@@ -553,7 +553,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   }).map(leg=>leg.anchorOperationId));
   const transportCount = includedTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.tripCount) || 0), 0) + costedOperations.filter(op => !duplicateLegacyTransportIdsForCount.has(op.id) && (op.transportCost > 0 || op.transportVendorId)).length + materialRouteEntries.filter(entry=>(Number(entry.transportCost)||0)>0 || entry.transportVendorId).length;
   const totalAccepted = finalCompletedQty;
-  const allDone = activeRouteOperations.length > 0 && activeRouteOperations.every(op => op.status === "Complete");
+  const allDone = routeQuantityMetrics.allRequiredOperationsComplete;
   const finalDelivery = selectedLine?.targetDelivery || selectedPO?.targetDelivery || "";
   const routeCost = totalProcessCost;
   const durationDays = activeRouteOperations.reduce((sum, op) => sum + daysBetween(op.plannedStart, op.plannedEnd), 0);
@@ -1105,7 +1105,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         ...order,
         lines: order.lines.map(line => {
           if (!touchedLines.has(order.id + "::" + line.id)) return line;
-          const lineOperations = nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id && !op.deletedAt && ((op.branch || "Main route") === "Main route" || op.costIncluded !== false));
+          const lineOperations = getRequiredRouteOperations(nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id));
           if (!lineOperations.length || !lineOperations.every(op => op.status === "Complete")) return line;
           return { ...line, jobStatus: "Finished" as const, jobFinishedAt: stamp, updatedAt: stamp };
         })
@@ -1298,7 +1298,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             <strong>{selectedLine.jobStatus === "Finished" ? "Job Finished" : "In Progress"}</strong>
             <p>{selectedLine.jobStatus === "Finished"
               ? "Finished " + (selectedLine.jobFinishedAt ? new Date(selectedLine.jobFinishedAt).toLocaleString("en-IN") : "—") + ". Operation history remains available."
-              : allDone ? "All saved route operations are Complete. Confirm final job closure when the job is actually finished."
+              : allDone ? "All required active-route operations are Complete. Confirm final job closure when the job is actually finished."
               : "Job closure is a separate control. You may mark the PO line Finished when the job is actually finished; unfinished process statuses are not changed."}</p>
           </div>
         </div>
@@ -1309,21 +1309,22 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       <div className="linked-kpis">
         <button className="route-kpi kpi-delivery" onClick={() => document.getElementById("linked-timeline")?.scrollIntoView({behavior:"smooth",block:"nearest"})}><span className="kpi-icon"><CalendarClock size={19}/></span><span><small>DELIVERY FORECAST</small><strong>{deliveryState}</strong><em>{finalDelivery ? "Target " + shortDate(finalDelivery) : "Enter PO line delivery date"}</em></span></button>
         <button className={"route-kpi kpi-risk " + (lateOps.length ? "linked-kpi-alert" : "")} onClick={() => setSearch("Quality hold")}><span className="kpi-icon"><ShieldAlert size={19}/></span><span><small>BOTTLENECK / LATE OPERATIONS</small><strong>{lateOps.length}</strong><em>{lateOps.length ? "Late or overdue target dates" : "No overdue targets recorded"}</em></span></button>
-        <button className="route-kpi kpi-wip"><span className="kpi-icon"><Boxes size={19}/></span><span><small>WORK IN PROGRESS</small><strong>{routeOperations.filter(op => op.status === "Running").reduce((sum,op) => sum + Math.max(0,op.quantity-op.completed),0).toLocaleString("en-IN")} {quantityUnit}</strong><em>{routeOperations.filter(op => op.status === "Running").length} operations running</em></span></button>
+        <button className="route-kpi kpi-wip"><span className="kpi-icon"><Boxes size={19}/></span><span><small>WORK IN PROGRESS · EST.</small><strong>{inProgressProductionQty.toLocaleString("en-IN")} {quantityUnit}</strong><em>{activeRouteOperations.filter(op => op.status === "Running").length} active operations running</em></span></button>
         <button className="route-kpi kpi-cost" onClick={() => onSelectModule("costing",{companyId,poId,poLineId,componentId:selectedLine?.componentId,operationId:selectedOperationId||undefined})}><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PROCESS COST</small><strong>{money(routeCost)}</strong><em>Transport is totalled separately below</em></span></button>
         <button className="route-kpi kpi-transport"><span className="kpi-icon"><Truck size={19}/></span><span><small>TRANSPORT TRIPS</small><strong>{transportCount}</strong><em>{money(totalTransportCost)} total transport cost</em></span></button>
         <button className="route-kpi kpi-quality"><span className="kpi-icon"><ClipboardCheck size={19}/></span><span><small>ACCEPTED / ORDER QTY</small><strong>{totalAccepted.toLocaleString("en-IN")} {quantityUnit}</strong><em>Accepted quantity at the final main-route operation</em></span></button>
       </div>
       <section className="surface-panel process-production-summary">
-        <div className="panel-heading"><div><div className="eyebrow">QUANTITY & EXECUTION OVERVIEW</div><h3>Production quantity status</h3><p>PO quantity is the control total; completion comes from the final process route step.</p></div><div className="module-form-actions"><label className="histogram-style-picker">Histogram<select value={histogramStyle} onChange={e=>setHistogramStyle(e.target.value as "bar"|"stacked"|"donut")}><option value="bar">Progress bars</option><option value="stacked">Completed / rejected</option><option value="donut">Donut progress</option></select></label><span className="module-number">{completionPercent}% COMPLETE</span></div></div>
+        <div className="panel-heading"><div><div className="eyebrow">QUANTITY & EXECUTION OVERVIEW</div><h3>Production quantity status</h3><p>PO quantity is the control total; accepted output comes from the final top-level production step. In-process quantity is a non-additive estimate.</p></div><div className="module-form-actions"><label className="histogram-style-picker">Histogram<select value={histogramStyle} onChange={e=>setHistogramStyle(e.target.value as "bar"|"stacked"|"donut")}><option value="bar">Progress bars</option><option value="stacked">Completed / rejected</option><option value="donut">Donut progress</option></select></label><span className="module-number">{completionPercent}% COMPLETE</span></div></div>
         <div className="production-quantity-grid">
           <div><small>PLANNED</small><strong>{plannedProductionQty.toLocaleString("en-IN")} {quantityUnit}</strong></div>
-          <div><small>IN PROGRESS</small><strong>{inProgressProductionQty.toLocaleString("en-IN")} {quantityUnit}</strong></div>
+          <div><small>IN PROCESS · EST.</small><strong>{inProgressProductionQty.toLocaleString("en-IN")} {quantityUnit}</strong></div>
           <div><small>COMPLETED</small><strong>{finalCompletedQty.toLocaleString("en-IN")} {quantityUnit}</strong></div>
           <div><small>PENDING</small><strong>{pendingProductionQty.toLocaleString("en-IN")} {quantityUnit}</strong></div>
           <div><small>VENDORS ASSIGNED</small><strong>{vendorAssignedPercent}%</strong></div>
           <div><small>DELAYED OPERATIONS</small><strong>{lateOps.length} · {delayedPercent}%</strong></div>
         </div>
+        <p className="field-hint">Running-stage balances are not added together because the same pieces can pass through multiple sequential operations. Exact parallel split/merge WIP requires lot-level transfer quantities, which are not yet recorded per operation.</p>
         <div className="production-progress-track"><span style={{width:completionPercent+"%"}}/></div>
         <div className={"production-operation-histogram histogram-style-"+histogramStyle}>
           {routeOperations.map(op=>{const pct=op.quantity>0?Math.min(100,Math.round(op.completed/op.quantity*100)):0;const rejected=op.quantity>0?Math.min(100-pct,Math.round(op.rejected/op.quantity*100)):0;return <div className="production-histogram-row" key={op.id}><span>{op.name}</span>{histogramStyle==="donut"?<div className="production-donut" style={{background:"conic-gradient(#25a77b "+pct+"%, #df6e76 "+(pct+rejected)+"%, var(--line) "+(pct+rejected)+"%)"}}><b>{pct}%</b></div>:<div className={histogramStyle==="stacked"?"production-stacked-bar":""}><i className={"histogram-status histogram-"+op.status.toLowerCase().replaceAll(" ","-")} style={{width:pct+"%"}}/>{histogramStyle==="stacked"&&<b style={{width:rejected+"%"}}/>}</div>}<strong>{pct}%</strong><small>{op.completed}/{op.quantity} completed · {op.rejected} rejected · {op.status}</small></div>;})}
@@ -1785,7 +1786,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     </div>
     <div className="linked-bottom-grid">
       <details className="surface-panel linked-cost-card"><summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COST BREAKDOWN</div><h3>Entered route costs</h3><p>Only rates you entered or selected from quotations are counted.</p></div><CircleDollarSign size={18}/></summary><div className="linked-cost-row"><span>Process cost</span><strong>{money(totalProcessCost)}</strong></div><div className="linked-cost-row"><span>Transport cost</span><strong>{money(totalTransportCost)}</strong></div><div className="linked-cost-row linked-cost-total"><span>Process + transport total</span><strong>{money(componentTotalCost)}</strong></div><button className="button-quiet" onClick={() => onSelectModule("costing",{companyId:selectedPO?.companyId,poId:selectedPO?.id,poLineId:selectedLine?.id,componentId:selectedComponent?.id})}><CircleDollarSign size={14}/> Open detailed costing</button></details>
-      <details className="surface-panel linked-timeline-card" id="linked-timeline"><summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> TIMELINE & DELIVERY</div><h3>Planned progress</h3><p>Schedule is based on saved operation dates, not estimated samples.</p></div><CalendarClock size={18}/></summary><div className="linked-timeline-facts"><div><small>FIRST PLANNED START</small><strong>{shortDate(timelineStart)}</strong></div><div><small>LAST OPERATION TARGET</small><strong>{shortDate(timelineEnd)}</strong></div><div><small>SUM OF OPERATION DAYS</small><strong>{durationDays || "—"} days</strong></div><div><small>PO DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div></div><div className={"linked-delivery-state " + (lateOps.length ? "linked-delivery-late" : "")}><span>{lateOps.length ? <ShieldAlert size={16}/> : <Activity size={16}/>}</span><div><strong>{lateOps.length ? "Delay risk detected" : allDone ? "All saved operations complete" : "Delivery forecast awaits schedule data"}</strong><small>{lateOps.length ? lateOps.length + " operation(s) are past their planned target date." : "ETA can be assessed once operation schedules and dependencies are entered."}</small></div></div></details>
+      <details className="surface-panel linked-timeline-card" id="linked-timeline"><summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> TIMELINE & DELIVERY</div><h3>Planned progress</h3><p>Schedule is based on saved operation dates, not estimated samples.</p></div><CalendarClock size={18}/></summary><div className="linked-timeline-facts"><div><small>FIRST PLANNED START</small><strong>{shortDate(timelineStart)}</strong></div><div><small>LAST OPERATION TARGET</small><strong>{shortDate(timelineEnd)}</strong></div><div><small>SUM OF OPERATION DAYS</small><strong>{durationDays || "—"} days</strong></div><div><small>PO DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div></div><div className={"linked-delivery-state " + (lateOps.length ? "linked-delivery-late" : "")}><span>{lateOps.length ? <ShieldAlert size={16}/> : <Activity size={16}/>}</span><div><strong>{lateOps.length ? "Delay risk detected" : allDone ? "All active-route operations complete" : "Delivery forecast awaits schedule data"}</strong><small>{lateOps.length ? lateOps.length + " operation(s) are past their planned target date." : "ETA can be assessed once operation schedules and dependencies are entered."}</small></div></div></details>
     </div>
     {inspectedMaterialTransportEntry&&<MaterialTransportRecordInspector entry={inspectedMaterialTransportEntry} anchor={transportPopupPoint} vendor={inspectedMaterialTransportVendor} directoryRoute={inspectedMaterialTransportRoute} onClose={()=>setInspectedMaterialTransportId("")} onOpenDirectory={()=>{setInspectedMaterialTransportId("");onSelectModule("transport-master",{companyId,poId,poLineId:selectedLine?.id,componentId:selectedLine?.componentId});}}/>}
     {inspectedTransportLeg&&<TransportRecordInspector leg={inspectedTransportLeg} anchor={transportPopupPoint} materialEntry={materialRouteEntries.find(entry=>entry.id===inspectedTransportLeg.materialEntryId)} fromOperationName={routeOperations.find(row=>row.id===inspectedTransportLeg.anchorOperationId)?.name} toOperationName={routeOperations.find(row=>row.id===inspectedTransportLeg.targetOperationId)?.name} vendor={inspectedTransportVendor} directoryRoute={inspectedTransportRoute} legacyVendorRoute={inspectedLegacyVendorRoute} onClose={()=>setInspectedTransportId("")} onOpenDirectory={()=>{setInspectedTransportId("");onSelectModule("transport-master",{companyId,poId,poLineId:selectedLine?.id,componentId:selectedLine?.componentId});}}/>}
