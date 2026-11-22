@@ -94,3 +94,13 @@ export function getProductionRouteMetrics(operations = [], lineQuantity = 0) {
       requiredOperations.every(operation => operation.status === "Complete")
   };
 }
+
+/**
+ * Inherit the active/inactive cost state of the selected route parent.
+ * Main-route steps remain required; alternate/rework branches follow the
+ * branch inclusion state resolved by getRequiredRouteOperations.
+ */
+export function inheritsRouteInclusion(parentOperation, operations = []) {
+  if (!parentOperation?.id) return false;
+  return getRequiredRouteOperations(operations).some(operation => operation.id === parentOperation.id);
+}
