@@ -1842,7 +1842,10 @@ test("Manufacturing Universe uses compact 3D nodes and keeps full operation deta
   assert.ok(scene.includes("<small>{operationCode(op)}</small><strong>{op.name}</strong>"));
   assert.ok(scene.includes('Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}'));
   assert.ok(scene.includes('visibleFields.includes("category")'));
-  assert.ok(scene.includes("const cardHeight=width<600?76:92;"));
+  assert.ok(scene.includes('operation:{width:184,height:124}'));
+  assert.ok(scene.includes('material:{width:194,height:174}'));
+  assert.ok(scene.includes('const overlapX=(a.bounds.width+b.bounds.width)/2+14-Math.abs(dx)'));
+  assert.ok(scene.includes('const overlapY=(a.bounds.height+b.bounds.height)/2+14-Math.abs(dy)'));
   assert.ok(universe.includes('className="process-orbit-selected-details"'));
   for (const field of [
     '<small>CATEGORY</small><strong>{expandedOrbitOperation.category || "Not set"}</strong>',
