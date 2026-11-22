@@ -178,6 +178,112 @@ try {
   console.log("PASS portrait-first Android viewport, full-width Route Flow, mobile drawer and opt-in landscape control");
   await mobilePage.close();
 
+  // A landscape tablet can expose both a precise primary pointer and a touch
+  // pointer. It must still use the compact touch shell rather than the desktop
+  // header that previously squeezed workspace controls into overlapping rows.
+  const hybridTouchPage = await browser.newPage({
+    viewport: { width: 1365, height: 620 },
+    hasTouch: true,
+    isMobile: false
+  });
+  const hybridErrors = [];
+  hybridTouchPage.on("pageerror", error => hybridErrors.push(error.message));
+  await hybridTouchPage.goto(baseUrl, { waitUntil: "networkidle" });
+  await hybridTouchPage.locator("nav.command-rail").waitFor({ state: "attached" });
+  const hybridShell = await hybridTouchPage.evaluate(() => {
+    const rect = selector => {
+      const element = document.querySelector(selector);
+      const bounds = element?.getBoundingClientRect();
+      return bounds ? { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom, width: bounds.width } : null;
+    };
+    const display = selector => {
+      const element = document.querySelector(selector);
+      return element ? getComputedStyle(element).display : "missing";
+    };
+    return {
+      viewportWidth: document.documentElement.clientWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      anyCoarse: matchMedia("(any-pointer: coarse)").matches,
+      primaryCoarse: matchMedia("(pointer: coarse)").matches,
+      mobileMenuDisplay: display(".mobile-nav-trigger"),
+      desktopSwitcherDisplay: display(".factory-switcher"),
+      ribbonDisplay: display(".status-ribbon"),
+      header: rect(".command-deck"),
+      page: rect("main.page-content"),
+      phoneViewport: document.querySelector(".app-shell")?.getAttribute("data-phone-viewport")
+    };
+  });
+  if (!hybridShell.anyCoarse || hybridShell.phoneViewport !== "true") {
+    throw new Error("Hybrid touch viewport was not identified: " + JSON.stringify(hybridShell));
+  }
+  if (hybridShell.mobileMenuDisplay === "none" || hybridShell.desktopSwitcherDisplay !== "none" || hybridShell.ribbonDisplay !== "none") {
+    throw new Error("Hybrid touch viewport retained the crowded desktop header or status ribbon: " + JSON.stringify(hybridShell));
+  }
+  if (hybridShell.documentWidth > hybridShell.viewportWidth + 1 ||
+      !hybridShell.header || !hybridShell.page ||
+      hybridShell.page.top < hybridShell.header.bottom - 1 ||
+      hybridShell.page.right > hybridShell.viewportWidth + 1) {
+    throw new Error("Hybrid touch shell has viewport overflow or header/content collision: " + JSON.stringify(hybridShell));
+  }
+
+  const hybridNavigation = hybridTouchPage.locator("nav.command-rail");
+  await hybridTouchPage.getByRole("button", { name: "Open navigation menu" }).click();
+  await hybridNavigation.locator('button[title="Route Flow & Relationships"]').click();
+  await hybridTouchPage.locator(".route-flow-workspace").waitFor({ state: "visible", timeout: 15000 });
+  const routeTouchLayout = await hybridTouchPage.evaluate(() => {
+    const head = document.querySelector(".route-flow-workspace-head");
+    const title = head?.firstElementChild?.getBoundingClientRect();
+    const actions = head?.querySelector(".route-flow-head-actions")?.getBoundingClientRect();
+    const scope = document.querySelector(".route-flow-scope-bar")?.getBoundingClientRect();
+    return {
+      viewportWidth: document.documentElement.clientWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      headDirection: head ? getComputedStyle(head).flexDirection : "missing",
+      titleBottom: title?.bottom ?? -1,
+      actionsTop: actions?.top ?? -1,
+      scopeLeft: scope?.left ?? -1,
+      scopeRight: scope?.right ?? Number.POSITIVE_INFINITY
+    };
+  });
+  if (routeTouchLayout.headDirection !== "column" ||
+      routeTouchLayout.actionsTop < routeTouchLayout.titleBottom - 1 ||
+      routeTouchLayout.documentWidth > routeTouchLayout.viewportWidth + 1 ||
+      routeTouchLayout.scopeLeft < 0 ||
+      routeTouchLayout.scopeRight > routeTouchLayout.viewportWidth + 1) {
+    throw new Error("Route Flow header, controls or selectors collide on a hybrid touch tablet: " + JSON.stringify(routeTouchLayout));
+  }
+
+  await hybridTouchPage.getByRole("button", { name: "Open navigation menu" }).click();
+  await hybridNavigation.locator('button[title="Manufacturing Universe"]').click();
+  await hybridTouchPage.locator(".manufacturing-universe-workspace").waitFor({ state: "visible", timeout: 15000 });
+  const universeTouchLayout = await hybridTouchPage.evaluate(() => {
+    const head = document.querySelector(".manufacturing-universe-head");
+    const title = head?.firstElementChild?.getBoundingClientRect();
+    const actions = head?.querySelector(".manufacturing-universe-actions")?.getBoundingClientRect();
+    const scope = document.querySelector(".manufacturing-universe-scope")?.getBoundingClientRect();
+    return {
+      viewportWidth: document.documentElement.clientWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      headDirection: head ? getComputedStyle(head).flexDirection : "missing",
+      titleBottom: title?.bottom ?? -1,
+      actionsTop: actions?.top ?? -1,
+      scopeLeft: scope?.left ?? -1,
+      scopeRight: scope?.right ?? Number.POSITIVE_INFINITY,
+      landscapeToggle: document.querySelector(".ax-orientation-toggle")?.getAttribute("aria-label") || "missing"
+    };
+  });
+  if (universeTouchLayout.headDirection !== "column" ||
+      universeTouchLayout.actionsTop < universeTouchLayout.titleBottom - 1 ||
+      universeTouchLayout.documentWidth > universeTouchLayout.viewportWidth + 1 ||
+      universeTouchLayout.scopeLeft < 0 ||
+      universeTouchLayout.scopeRight > universeTouchLayout.viewportWidth + 1 ||
+      universeTouchLayout.landscapeToggle === "missing") {
+    throw new Error("Manufacturing Universe header, controls or selectors collide on a hybrid touch tablet: " + JSON.stringify(universeTouchLayout));
+  }
+  if (hybridErrors.length) throw new Error("Hybrid touch viewport runtime errors: " + hybridErrors.join(" | "));
+  console.log("PASS hybrid-touch tablet: compact navigation, non-overlapping Route Flow and Manufacturing Universe workspaces");
+  await hybridTouchPage.close();
+
   // Verify both module discovery surfaces open exact workspaces.
   await page.locator(".deck-action").filter({ hasText: "Modules" }).click();
   await page.getByRole("heading", { name: /module universe/i }).waitFor();
