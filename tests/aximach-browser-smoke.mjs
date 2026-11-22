@@ -521,9 +521,13 @@ try {
           computedLeft:style.left,computedTop:style.top,
           position:style.position,transform:style.transform,
           marginLeft:style.marginLeft,marginRight:style.marginRight,
+          right:style.right,direction:style.direction,writingMode:style.writingMode,
+          paddingLeft:style.paddingLeft,paddingRight:style.paddingRight,
           offsetLeft:element.offsetLeft,offsetTop:element.offsetTop,
           offsetParentClass:typeof offsetParent?.className==="string"?offsetParent.className:"",
-          offsetParentLeft:offsetRect?.left,offsetParentWidth:offsetRect?.width
+          offsetParentLeft:offsetRect?.left,offsetParentWidth:offsetRect?.width,
+          offsetParentRight:offsetParent?getComputedStyle(offsetParent).right:undefined,
+          offsetParentDirection:offsetParent?getComputedStyle(offsetParent).direction:undefined
         };
       }).filter(rect => rect.right > rect.left && rect.bottom > rect.top);
       const layerRect=layer.getBoundingClientRect();
