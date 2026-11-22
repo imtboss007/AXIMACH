@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Background, BackgroundVariant, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow } from "@xyflow/react";
+import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
+import "@xyflow/react/style.css";
 import { useReducedMotion } from "motion/react";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
@@ -46,6 +49,17 @@ type FlowNode =
  | {kind:"transport";id:string;leg:ComponentTransportLegRecord}
  | {kind:"operation";id:string;operation:OperationRecord}
  | {kind:"missing-material";id:string};
+type RouteFlowNodeData = {title:string;detail:string;kind:string;accent:string;actionLabel?:string;onAction?:(element:HTMLElement)=>void};
+type RouteFlowGraphNode = Node<RouteFlowNodeData,"routeStage">;
+function RouteFlowGraphStage({data}:NodeProps<RouteFlowGraphNode>) {
+  return <article className="route-flow-graph-node" style={{"--route-accent":data.accent} as React.CSSProperties}>
+    <Handle type="target" position={Position.Left}/>
+    <span>{data.kind}</span><strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
+    {data.actionLabel&&data.onAction&&<button type="button" className="nodrag" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();data.onAction?.(event.currentTarget);}}>{data.actionLabel}</button>}
+    <Handle type="source" position={Position.Right}/>
+  </article>;
+}
+const ROUTE_FLOW_NODE_TYPES = {routeStage:RouteFlowGraphStage} satisfies NodeTypes;
 
 function vehicleClassFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike"; if(/bus/.test(type))return "bus"; if(/car|taxi|auto|three.wheeler/.test(type))return "car"; if(/air|plane|flight/.test(type))return "air"; if(/ship|boat|vessel/.test(type))return "ship"; if(/train|rail/.test(type))return "rail"; return "truck"}
 
@@ -147,6 +161,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
   const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
+  const [routeCanvasMode,setRouteCanvasMode]=useState<"cards"|"graph">("cards");
   const [showRelationshipEditor,setShowRelationshipEditor]=useState(false);
   const [showTransportEditor,setShowTransportEditor]=useState(false);
   const routeViewportRef=useRef<HTMLDivElement|null>(null);
@@ -250,6 +265,46 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     return {transport,relation,type:relation?.relationshipType||defaultType,label:relation?.label,vehicleType,tripCount,transportLegId:transportNode?.kind==="transport"?transportNode.leg.id:undefined,materialTransportId:materialTransportNode?.kind==="material-transport"?materialTransportNode.entry.id:undefined};
   };
 
+  const routeFlowGraph = useMemo(()=>{
+    const accentFor=(node:FlowNode)=>{
+      if(node.kind==="operation") return node.operation.relationType==="rework"?"#df7a45":node.operation.relationType==="alternate"?"#4b95eb":"#168d89";
+      if(node.kind==="material"||node.kind==="missing-material") return "#b18a2d";
+      if(node.kind==="material-transport"||node.kind==="transport") return "#397ea4";
+      return "#73879a";
+    };
+    const nodes:RouteFlowGraphNode[]=routeNodes.map((node,index)=>{
+      let title="",detail="",kind="",actionLabel="",onAction:RouteFlowNodeData["onAction"];
+      if(node.kind==="operation"){
+        title="OP-"+String(node.operation.sequence).padStart(3,"0")+" · "+node.operation.name;
+        detail=node.operation.status+" · Qty "+node.operation.quantity+" · "+(vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned");
+        kind="PROCESS OPERATION"; actionLabel="Edit operation"; onAction=()=>setEditingOperation(node.operation);
+      }else if(node.kind==="material"){
+        title=node.entry.materialName+" · "+node.entry.materialGrade;
+        detail=(node.entry.partNumber||node.entry.partName||"Component allocation")+" · "+node.entry.quantity+" pcs · "+Number(node.entry.totalWeightKg||0).toFixed(3)+" kg";
+        kind="MATERIAL ALLOCATION"; actionLabel="Open Process Map"; onAction=()=>openProcessMap();
+      }else if(node.kind==="material-transport"){
+        title=(node.entry.transportFrom||"Pickup")+" → "+(node.entry.transportTo||"Destination");
+        detail=(node.entry.transportVehicleType||"Vehicle not set")+" · "+money(node.entry.transportCost||0);
+        kind="INBOUND MATERIAL TRANSPORT"; actionLabel="Open transport details";
+        onAction=element=>{setInspectedMaterialTransportId(node.entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(element));};
+      }else if(node.kind==="transport"){
+        title=node.leg.fromLocation+" → "+node.leg.toLocation;
+        detail=node.leg.vehicleType+" · "+node.leg.tripCount+" trip(s) · "+money(node.leg.fixedAmount*node.leg.tripCount);
+        kind="TRANSPORT LEG"; actionLabel="Open transport details";
+        onAction=element=>{setInspectedTransportId(node.leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(element));};
+      }else{
+        title="Material allocation missing"; detail="Add the required material / grade allocation before production.";
+        kind="ROUTE REQUIREMENT"; actionLabel="Open Process Map"; onAction=()=>openProcessMap();
+      }
+      return {id:node.id,type:"routeStage",position:{x:index*285,y:0},data:{title,detail,kind,accent:accentFor(node),actionLabel,onAction},draggable:false,selectable:false,style:{width:230}};
+    });
+    const edges:Edge[]=routeNodes.slice(0,-1).map((node,index)=>{
+      const connector=connectorFor(index);
+      const color=connector.transport?"#397ea4":connector.type==="rework"?"#df7a45":connector.type==="alternate"?"#4b95eb":connector.type==="feedback"?"#755fd1":connector.type==="conditional"?"#9868ba":"#2875bd";
+      return {id:"route-edge:"+node.id+":"+routeNodes[index+1].id,source:node.id,target:routeNodes[index+1].id,type:"smoothstep",label:connector.transport?"TRANSPORT":connector.label||relationLabel(connector.type),labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false};
+    });
+    return {nodes,edges};
+  },[routeNodes,branch,routeOperations,relationships,vendors]);
   const saveRelationship=()=>{
     if(!poId||!poLineId){onNotice("Select a company, PO and component line before adding a route relationship.");return;}
     if(!fromOperationId||!toOperationId||fromOperationId===toOperationId){onNotice("Choose two different saved process operations.");return;}
@@ -435,7 +490,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     </div>
 
     <section className="route-flow-canvas-panel">
-      <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowAddOperation(v=>!v)}><Plus size={14}/> Add process stage</button><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" disabled={!poLineId} onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button></div></div>
+      <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowAddOperation(v=>!v)}><Plus size={14}/> Add process stage</button><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" disabled={!poLineId} onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button><button type="button" className="button-quiet compact-button" aria-pressed={routeCanvasMode==="graph"} onClick={()=>setRouteCanvasMode(value=>value==="graph"?"cards":"graph")}>{routeCanvasMode==="graph"?"Stage cards":"Interactive graph"}</button></div></div>
       <div className="route-flow-canvas-layout"><div className="route-flow-map-main ax-map-fullscreen-shell" ref={mapViewportRef} data-route-layout={routeLayout}><ImmersiveWorkspaceControls targetRef={mapViewportRef} onNotice={onNotice}/>
         <div className="ax-map-zoom-toolbar" role="group" aria-label="Route flow zoom controls">
           <button type="button" aria-label="Zoom out" title="Zoom out" onClick={()=>setRouteZoom(value=>Math.max(.55,Number((value-.1).toFixed(2))))}>−</button>
@@ -443,7 +498,12 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           <button type="button" aria-label="Zoom in" title="Zoom in" onClick={()=>setRouteZoom(value=>Math.min(2,Number((value+.1).toFixed(2))))}>+</button>
           <button type="button" className="ax-map-zoom-fit" onClick={()=>setRouteZoom(.82)} title="Fit route">Fit</button>
         </div>
-      {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:
+      {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:routeCanvasMode==="graph"?
+      <div className="route-flow-graph-canvas" data-testid="route-flow-react-canvas">
+        <ReactFlow<RouteFlowGraphNode,Edge> nodes={routeFlowGraph.nodes} edges={routeFlowGraph.edges} nodeTypes={ROUTE_FLOW_NODE_TYPES} fitView fitViewOptions={{padding:.2,minZoom:.22,maxZoom:1.15}} minZoom={.18} maxZoom={1.8} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} nodesFocusable edgesFocusable={false} panOnDrag zoomOnScroll={false} zoomOnPinch zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
+          <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#b5c9da"/><Controls showInteractive={false}/><MiniMap<RouteFlowGraphNode> pannable zoomable nodeColor={(node:RouteFlowGraphNode):string=>node.data.accent}/>
+        </ReactFlow>
+      </div>:
       <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<RouteConnectorLegend/><div className="route-flow-stage-track" data-route-layout={routeLayout}>
         {routeNodes.map((node,index)=>{
           const connector=index<routeNodes.length-1?connectorFor(index):null;

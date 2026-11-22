@@ -6272,3 +6272,21 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 @media(prefers-reduced-motion:reduce){
   .ax-ecosystem-flow-canvas .react-flow__node{transition:none!important}
 }
+
+
+/* React Flow route editor canvas: graph mode complements the preserved route-card editor. */
+.route-flow-graph-canvas{position:relative;height:640px;min-height:440px;overflow:hidden;border:1px solid #d9e5f0;border-radius:12px;background:radial-gradient(circle at 50% 45%,#fff 0%,#f5f9fd 45%,#eaf2f9 100%)}
+.route-flow-graph-canvas .react-flow{background:transparent;font-family:'DM Sans',sans-serif}
+.route-flow-graph-canvas .react-flow__node{border:0;background:transparent;box-shadow:none}
+.route-flow-graph-node{position:relative;display:flex;flex-direction:column;gap:6px;width:230px;min-height:116px;padding:12px;border:1px solid color-mix(in srgb,var(--route-accent) 42%,white);border-left:4px solid var(--route-accent);border-radius:10px;background:linear-gradient(145deg,#fff,#f7fbff);box-shadow:0 6px 18px #254c6b19;color:#2b4d6c}
+.route-flow-graph-node>span{color:var(--route-accent);font:700 8px 'DM Mono';letter-spacing:.05em}
+.route-flow-graph-node>strong{font-size:12px;line-height:1.4}
+.route-flow-graph-node>small{font-size:9px;line-height:1.45;color:#748ba1}
+.route-flow-graph-node>button{align-self:flex-start;padding:5px 8px;border:1px solid #d9e6f1;border-radius:6px;background:#f7fbff;color:#315b7d;font-size:9px;font-weight:700;cursor:pointer}
+.route-flow-graph-node>button:hover{border-color:var(--route-accent);background:#fff}
+.route-flow-graph-canvas .react-flow__handle{width:5px;height:5px;min-width:5px;min-height:5px;border:0;background:#8caec7;opacity:.55;pointer-events:none}
+.route-flow-graph-canvas .react-flow__controls,.route-flow-graph-canvas .react-flow__minimap{overflow:hidden;border:1px solid #d6e2ed;border-radius:9px;background:#fff;box-shadow:0 5px 16px #254c6b16}
+.route-flow-graph-canvas .react-flow__controls-button{width:29px;height:29px;border:0;border-bottom:1px solid #edf1f5;background:#fff;color:#52708a}
+.route-flow-graph-canvas .react-flow__attribution{font-size:7px;background:#ffffffbd}
+@media(max-width:700px){.route-flow-graph-canvas{height:520px;min-height:420px}.route-flow-graph-canvas .react-flow__minimap{display:none}}
+@media(prefers-reduced-motion:reduce){.route-flow-graph-canvas .react-flow__node{transition:none!important}}

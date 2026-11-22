@@ -116,6 +116,13 @@ try {
   await page.locator(".universe-search input").fill("Route Flow");
   await page.locator(".universe-card").filter({ hasText: "Route Flow & Relationships" }).click();
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Route Flow & Relationships");
+  const routeGraphToggle = page.getByRole("button", { name: "Interactive graph" });
+  await routeGraphToggle.waitFor({ timeout: 10000 });
+  await routeGraphToggle.click();
+  await page.getByRole("button", { name: "Stage cards" }).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: "Stage cards" }).click();
+  await page.getByRole("button", { name: "Interactive graph" }).waitFor({ timeout: 10000 });
+  console.log("PASS Route Flow graph/stage-card view toggle");
   await page.locator(".command-search").click();
   await page.locator(".command-palette input").fill("Quality Inspection");
   await page.locator(".command-palette .palette-results button").filter({ hasText: "Quality Inspection" }).click();
