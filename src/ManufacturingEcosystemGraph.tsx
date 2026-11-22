@@ -8,6 +8,16 @@ type NodeKind = "company"|"factory"|"order"|"component"|"vendor"|"process"|"oper
 type GraphNode = { id:string; label:string; detail:string; kind:NodeKind; moduleId:string; context:Context; x:number; y:number };
 type GraphEdge = { id:string; from:string; to:string; kind:string };
 
+const EDGE_LEGEND = [
+  {label:"Structure",color:"#2875bd"},
+  {label:"Production",color:"#168d89"},
+  {label:"Supply",color:"#b17a27"},
+  {label:"Material flow",color:"#8b68c5"},
+  {label:"Quality",color:"#b95665"},
+  {label:"Logistics",color:"#397ea4"},
+  {label:"Finance",color:"#7565b5"}
+];
+
 const edgeColor = (kind:string) => {
   if (/owns|belongs to|contact for/.test(kind)) return "#2875bd";
   if (/orders|placed by|makes|performed by|defined by/.test(kind)) return "#168d89";
@@ -161,6 +171,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     <div className="ax-ecosystem-filters" aria-label="Show or hide entity groups">
       {graph.totals.map(group=><button type="button" key={group.kind} aria-pressed={visibleKinds.includes(group.kind)} onClick={()=>setVisibleKinds(current=>current.includes(group.kind)?current.filter(kind=>kind!==group.kind):[...current,group.kind])}><i style={{background:group.color}}/><span>{group.title}</span><b>{group.count}</b></button>)}
     </div>
+    <div className="ax-ecosystem-edge-legend" aria-label="Relationship line colour legend">{EDGE_LEGEND.map(item=><span key={item.label}><i style={{background:item.color}}/>{item.label}</span>)}</div>
     <div className="ax-ecosystem-stage">
       <svg className="ax-ecosystem-links" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
         <defs><marker id="ax-ecosystem-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6489a5"/></marker></defs>
