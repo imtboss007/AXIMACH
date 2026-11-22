@@ -505,9 +505,8 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(350);
   await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
-  await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
-  const phoneSceneBounds = await page.evaluate(() => {
-    return [...document.querySelectorAll(".ax-full3d-label-layer")].map((layer,index) => {
+  const phoneSceneSnapshotHandle = await page.waitForFunction(() => {
+    const snapshots = [...document.querySelectorAll(".ax-full3d-label-layer")].map((layer,index) => {
       const sceneElement = layer.closest(".ax-full3d-scene");
       const scene = sceneElement?.getBoundingClientRect();
       const labels = [...layer.querySelectorAll(".ax-full3d-label, .ax-full3d-core-label, .ax-full3d-transport-icon")].map(element => {
@@ -545,7 +544,35 @@ try {
         labels
       };
     });
-  });
+    return snapshots.some(snapshot => snapshot.labelCount >= 5) ? snapshots : false;
+  }, null, { timeout: 10000 });
+  const phoneSceneBounds = await phoneSceneSnapshotHandle.jsonValue();
+
+    return [...document.querySelectorAll(".ax-full3d-label-layer")].map((layer,index) => {
+      const sceneElement = layer.closest(".ax-full3d-scene");
+      const scene = sceneElement?.getBoundingClientRect();
+      const labels = [...layer.querySelectorAll(".ax-full3d-label, .ax-full3d-core-label, .ax-full3d-transport-icon")].map(element => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const offsetParent = element.offsetParent;
+        const offsetRect = offsetParent?.getBoundingClientRect();
+        return {
+          left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,
+          styleLeft:element.style.left,styleTop:element.style.top,
+          computedLeft:style.left,computedTop:style.top,
+          position:style.position,transform:style.transform,
+          marginLeft:style.marginLeft,marginRight:style.marginRight,
+          right:style.right,direction:style.direction,writingMode:style.writingMode,
+          paddingLeft:style.paddingLeft,paddingRight:style.paddingRight,
+          offsetLeft:element.offsetLeft,offsetTop:element.offsetTop,
+          offsetParentClass:typeof offsetParent?.className==="string"?offsetParent.className:"",
+          offsetParentLeft:offsetRect?.left,offsetParentWidth:offsetRect?.width,
+          offsetParentRight:offsetParent?getComputedStyle(offsetParent).right:undefined,
+          offsetParentDirection:offsetParent?getComputedStyle(offsetParent).direction:undefined
+        };
+      }).filter(rect => rect.right > rect.left && rect.bottom > rect.top);
+      const layerRect=layer.getBoundingClientRect();
+      const canvas=sceneElement?.querySelector("canvas");
   const populatedPhoneScenes = phoneSceneBounds.filter(scene => scene.hasScene && scene.labelCount > 0 && scene.scene);
   const phoneLabelOverlaps = populatedPhoneScenes.flatMap(scene => {
     const overlaps = [];
