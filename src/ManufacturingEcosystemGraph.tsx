@@ -163,7 +163,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     const visibleEdges=filteredEdges.filter(item=>visibleIds.has(item.from)&&visibleIds.has(item.to));
     const groupIndex=new Map(GROUPS.map((group,index)=>[group.kind,index]));
     const availableCounts:Record<NodeKind,number>={
-      company:companies.length,factory:factories.length,order:orders.length,component:components.length,
+      company:companies.length,customer:customers.length,factory:factories.length,order:orders.length,component:components.length,
       vendor:vendors.length,process:definitions.length,operation:operations.length,material:allocations.length,
       quality:inspections.length,transport:legs.length,finance:payments.length,contact:contacts.length
     };
