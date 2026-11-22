@@ -231,7 +231,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   ...materialPlacements.filter(item=>item.fromOperation&&item.toOperation).map(item=>item.fromOperation!.id+"->"+item.toOperation!.id),
   ...transportLegPlacements.filter(item=>item.fromOperation&&item.toOperation).map(item=>item.fromOperation!.id+"->"+item.toOperation!.id)
  ]);
- const routeEdges=edges.length?edges:points.slice(0,-1).map((item,i)=>({from:item.op,to:points[i+1].op,relation:"main",color:"#4b95eb"}));
+ const routeEdges=edges.length?edges:points.slice(0,-1).map((item,i)=>({id:undefined,from:item.op,to:points[i+1].op,relation:"main",color:"#4b95eb"}));
  let flowIndex=0;
  const drawOperationFlow=(p:P,q:P,offset:number,rgb:number[],relation:string="main")=>{
   const delta={x:q.x-p.x,y:q.y-p.y,z:q.z-p.z},length=Math.hypot(delta.x,delta.y,delta.z)||1;
