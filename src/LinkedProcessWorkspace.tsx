@@ -538,7 +538,6 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     return anchored + legacy + (firstMainRouteOperation?.id === operation.id ? unanchoredTransportCost : 0);
   };
   const expectedQuantity = routeQuantityMetrics.expectedQuantity;
-  const finalRouteOperation = routeQuantityMetrics.finalOperation;
   const finalCompletedQty = routeQuantityMetrics.finalAcceptedQuantity;
   const pendingProductionQty = routeQuantityMetrics.pendingQuantity;
   const inProgressProductionQty = routeQuantityMetrics.inProgressEstimate;
@@ -857,6 +856,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const parent = routeOperations.find(operation => operation.id === parentId);
     if (!parent) return;
     const base = blankOperation(selectedLine);
+    base.costIncluded = getRequiredRouteOperations(routeOperations).some(operation => operation.id === parent.id);
     base.processDefinitionId = parent.processDefinitionId || processDefinitions.find(item => item.processType === parent.name && item.category === parent.category)?.id || "";
     base.name = parent.name;
     base.category = parent.category;
@@ -963,7 +963,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     // while retaining the same branch label and relation type for lane grouping.
     base.parentId = anchor.id;
     base.relationType = anchor.relationType;
-    base.costIncluded = false;
+    base.costIncluded = getRequiredRouteOperations(routeOperations).some(operation => operation.id === anchor.id);
     setDraft(base);
     setSelectedOperationId(anchor.id);
     setEditingId("");
