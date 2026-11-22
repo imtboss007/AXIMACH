@@ -1,0 +1,83 @@
+{
+  "name": "aximach",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "description": "AXIMACH Manufacturing OS",
+  "author": "AXIMACH",
+  "main": "electron/main.cjs",
+  "engines": {
+    "node": ">=20.18.0"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "cap:sync": "cap sync android",
+    "cap:android": "cap open android",
+    "package:windows": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "test:server": "node --test server/integrations/catalog-api.test.mjs server/integrations/catalog.test.mjs server/integrations/lead-discovery.test.mjs server/tenant-scope.test.mjs server/manufacturing-data.test.mjs server/index.test.mjs tests/aximach-five-part-fixture.test.mjs tests/aximach-transport-route-demo.test.mjs tests/aximach-material-process-links.test.mjs tests/aximach-landscape-orientation.test.mjs tests/aximach-cost-reconciliation.test.mjs tests/aximach-manufacturing-deletion.test.mjs tests/aximach-navigation-catalogue.test.mjs",
+    "start:scheduler": "node server/index.mjs",
+    "start:whatsapp-web": "node server/whatsapp-web.mjs",
+    "test:functional": "node --test tests/aximach-3d-label-layout.test.mjs server/integrations/catalog-api.test.mjs server/integrations/catalog.test.mjs server/integrations/lead-discovery.test.mjs server/tenant-scope.test.mjs server/manufacturing-data.test.mjs tests/aximach-ecosystem-graph-progressive.test.mjs tests/aximach-route-inclusion.test.mjs tests/aximach-five-part-fixture.test.mjs tests/aximach-transport-route-demo.test.mjs tests/aximach-material-process-links.test.mjs tests/aximach-landscape-orientation.test.mjs tests/aximach-cost-reconciliation.test.mjs tests/aximach-manufacturing-deletion.test.mjs tests/aximach-navigation-catalogue.test.mjs tests/aximach-react-flow-workspaces.test.mjs",
+    "test:browser": "npm run build && node tests/aximach-browser-smoke.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@whiskeysockets/baileys": "^6.7.18",
+    "qrcode": "^1.5.4",
+    "@tabler/icons": "3.50.0",
+    "@tabler/icons-webfont": "3.50.0",
+    "motion": "^14.9.0",
+    "pptxgenjs": "^3.12.0",
+    "exceljs": "^4.4.0",
+    "@capacitor/screen-orientation": "7.0.4",
+    "echarts": "^6.1.0",
+    "zod": "^4.6.7",
+    "@xyflow/react": "^13.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "playwright": "^1.65.1"
+  },
+  "build": {
+    "appId": "com.aximach.manufacturingos",
+    "productName": "AXIMACH Manufacturing OS",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "server/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
