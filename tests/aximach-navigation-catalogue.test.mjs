@@ -150,3 +150,18 @@ test("hybrid touch devices activate the phone workspace shell when a precise poi
   assert.ok(styles.includes("(any-pointer:coarse)"),
     "responsive workspace rules must activate when any available pointer is touch-capable");
 });
+
+
+test("3D process labels and transport markers use only their projected left/top anchors", async () => {
+  const source = await readSource("src/aximach-ui.css");
+  assert.match(
+    source,
+    /\.ax-full3d-label-layer\s*>\s*\.ax-full3d-label[\s\S]*?right:\s*auto!important;[\s\S]*?bottom:\s*auto!important;/,
+    "3D labels must clear opposing inset values so projected left/top coordinates control their position"
+  );
+  assert.match(
+    source,
+    /\.ax-full3d-label-layer\s*>\s*\.ax-full3d-transport-icon[\s\S]*?right:\s*auto!important;[\s\S]*?bottom:\s*auto!important;/,
+    "3D transport markers must clear opposing inset values so projected left/top coordinates control their position"
+  );
+});
