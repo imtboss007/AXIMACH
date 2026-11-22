@@ -120,6 +120,54 @@ try {
   // authoritative proof that this import supplied usable manufacturing records.
   console.log("PASS isolated Demo Factory fixture loaded for populated Process Map visual checks");
 
+  // Verify that an Android-sized phone starts in portrait layout with a full-width
+  // workspace and a drawer; spatial workspaces offer landscape only on request.
+  const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const mobileErrors = [];
+  mobilePage.on("pageerror", error => mobileErrors.push(error.message));
+  await mobilePage.goto(baseUrl, { waitUntil: "networkidle" });
+  await mobilePage.getByRole("navigation", { name: "AXIMACH navigation" }).waitFor();
+  const mobileGeometry = await mobilePage.evaluate(() => {
+    const page = document.querySelector("main.page-content");
+    const rect = page?.getBoundingClientRect();
+    return {
+      viewportWidth: document.documentElement.clientWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      pageLeft: rect?.left ?? -1,
+      pageWidth: rect?.width ?? 0,
+      headerHeight: document.querySelector(".command-deck")?.getBoundingClientRect().height ?? 0
+    };
+  });
+  if (mobileGeometry.documentWidth > mobileGeometry.viewportWidth + 1) {
+    throw new Error("Portrait mobile shell has horizontal page overflow: " + JSON.stringify(mobileGeometry));
+  }
+  if (mobileGeometry.pageLeft > 1 || mobileGeometry.pageWidth < mobileGeometry.viewportWidth - 2 || mobileGeometry.headerHeight < 50) {
+    throw new Error("Portrait mobile shell does not use the full viewport: " + JSON.stringify(mobileGeometry));
+  }
+  await mobilePage.getByRole("button", { name: "Open navigation menu" }).click();
+  const mobileNavigation = mobilePage.getByRole("navigation", { name: "AXIMACH navigation" });
+  await mobileNavigation.locator('button[title="Route Flow & Relationships"]').waitFor({ state: "visible" });
+  await mobileNavigation.locator('button[title="Route Flow & Relationships"]').click();
+  const landscapeToggle = mobilePage.getByRole("button", { name: "Open landscape canvas" });
+  await landscapeToggle.waitFor({ state: "visible", timeout: 10000 });
+  if (await landscapeToggle.getAttribute("aria-pressed") !== "false") {
+    throw new Error("Route Flow must start in portrait with landscape mode off.");
+  }
+  if (await mobilePage.locator(".ax-landscape-rotate-prompt").count() !== 0) {
+    throw new Error("Portrait-first Route Flow must not show a blocking landscape prompt.");
+  }
+  const routePortraitGeometry = await mobilePage.evaluate(() => ({
+    viewportWidth: document.documentElement.clientWidth,
+    documentWidth: document.documentElement.scrollWidth,
+    pageLeft: document.querySelector("main.page-content")?.getBoundingClientRect().left ?? -1,
+    canvasWidth: document.querySelector(".route-flow-workspace")?.getBoundingClientRect().width ?? 0
+  }));
+  if (routePortraitGeometry.documentWidth > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.pageLeft > 1 || routePortraitGeometry.canvasWidth < routePortraitGeometry.viewportWidth - 2) {
+    throw new Error("Route Flow does not fit portrait width: " + JSON.stringify(routePortraitGeometry));
+  }
+  console.log("PASS portrait-first Android viewport, full-width Route Flow, mobile drawer and opt-in landscape control");
+  await mobilePage.close();
+
   // Verify both module discovery surfaces open exact workspaces.
   await page.locator(".deck-action").filter({ hasText: "Modules" }).click();
   await page.getByRole("heading", { name: /module universe/i }).waitFor();
