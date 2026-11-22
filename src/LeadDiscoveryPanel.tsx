@@ -8,7 +8,8 @@ type Props={companies:CompanyRecord[];prospects:ProspectRecord[];onSaveProspect:
 const presets=["CNC machining OEM buyers India","precision components automotive Tier 1 suppliers India","aerospace precision machining procurement suppliers","industrial machinery precision parts sourcing OEM"];
 const stages:ProspectStage[]=["New","Reviewed","Qualified","Disqualified","Converted"];
 function connection(){
- const base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim().replace(/\\/+$/,"");
+ let base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim();
+ while(base.endsWith("/"))base=base.slice(0,-1);
  const key=window.localStorage.getItem("aximach.scheduler.key")||"";
  const userMode=getServerAuthMode()==="users",session=readServerSession(base);
  if(!base||window.localStorage.getItem("aximach.storage.mode")==="local-only")throw new Error("Connect the shared AXIMACH data server before searching for public-web leads.");
@@ -68,7 +69,7 @@ export default function LeadDiscoveryPanel({companies,prospects,onSaveProspect,o
    }):<p className="lead-empty">No public results were returned for this query.</p>}
   </section>}
   <section className="lead-prospect-list panel"><header><div><h3>Saved prospects</h3><p>{ownedProspects.length} unqualified or reviewed records in the selected scope</p></div></header>
-   {ownedProspects.length?ownedProspects.map(row=><article className="lead-prospect" key={row.id}><div className="lead-prospect-main"><strong>{row.businessName}</strong><small>{companies.find(company=>company.id===row.ownerCompanyId)?.name||"Owning company"} · {row.evidence.length} source item(s)</small>{row.evidence.slice(-2).map(item=><a key={item.id} href={item.sourceUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={11}/>{item.sourceTitle||item.sourceUrl}</a>)}</div><div className="lead-prospect-actions"><select aria-label={"Review stage for "+row.businessName} value={row.stage} disabled={row.stage==="Converted"} onChange={event=>setStage(row,event.target.value as ProspectStage)}>{stages.map(stage=><option key={stage}>{stage}</option>)}</select>{row.stage==="Qualified"&&<button type="button" className="button-primary compact-button" onClick={()=>onConvertProspect(row)}>Promote to customer</button>}{row.stage==="Converted"&&<span className="lead-converted">Converted · On hold</span>}</div></article>):<div className="lead-empty">No prospects saved yet. Search public sources and save a result for review.</div>}
+   {ownedProspects.length?ownedProspects.map(row=><article className="lead-prospect" key={row.id}><div className="lead-prospect-main"><strong>{row.businessName}</strong><small>{companies.find(company=>company.id===row.ownerCompanyId)?.name||"Owning company"} · {row.evidence.length} source item(s)</small>{row.evidence.slice(-2).map(item=><a key={item.id} href={item.sourceUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={11}/>{item.sourceTitle||item.sourceUrl}</a>)}</div><div className="lead-prospect-actions"><select aria-label={"Review stage for "+row.businessName} value={row.stage} disabled={row.stage==="Converted"} onChange={event=>setStage(row,event.target.value as ProspectStage)}>{stages.map(stage=><option key={stage} disabled={stage==="Converted"}>{stage}</option>)}</select>{row.stage==="Qualified"&&<button type="button" className="button-primary compact-button" onClick={()=>onConvertProspect(row)}>Promote to customer</button>}{row.stage==="Converted"&&<span className="lead-converted">Converted · On hold</span>}</div></article>):<div className="lead-empty">No prospects saved yet. Search public sources and save a result for review.</div>}
   </section>
  </section>;
 }

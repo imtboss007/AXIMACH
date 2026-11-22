@@ -1,11 +1,20 @@
 function fail(status,code,message){const error=new Error(message);error.status=status;error.code=code;return error;}
-function cleanText(value,max){return String(value??"").replace(/[\\u0000-\\u001f\\u007f]/g," ").replace(/\\s+/g," ").trim().slice(0,max);}
+function cleanText(value,max){
+ let cleaned="";
+ for(const character of String(value??"")){
+  const code=character.charCodeAt(0);
+  cleaned+=(code<32||code===127)?" ":character;
+ }
+ return cleaned.split(" ").filter(Boolean).join(" ").trim().slice(0,max);
+}
 function publicResultUrl(value){
  try{
   const url=new URL(String(value||""));
   if(!["http:","https:"].includes(url.protocol)||url.username||url.password)return "";
-  const host=url.hostname.toLowerCase().replace(/^\\[|\\]$/g,"");
-  if(!host||host==="localhost"||host.endsWith(".localhost")||host.endsWith(".local")||host==="::1"||host.startsWith("fc")||host.startsWith("fd")||host.startsWith("fe80:"))return "";
+  let host=url.hostname.toLowerCase();
+  if(host.startsWith("[")&&host.endsWith("]"))host=host.slice(1,-1);
+  if(!host||host==="localhost"||host.endsWith(".localhost")||host.endsWith(".local")||host==="::1"||
+     (host.includes(":")&&(host.startsWith("fc")||host.startsWith("fd")||host.startsWith("fe80:"))))return "";
   const octets=host.split(".").map(Number);
   if(octets.length===4&&octets.every(n=>Number.isInteger(n)&&n>=0&&n<=255)){
    const [a,b]=octets;
@@ -25,8 +34,10 @@ export async function searchSearxng(query,{env=process.env,fetchImpl=fetch,now=(
   endpoint=new URL(configured);
   if(!["http:","https:"].includes(endpoint.protocol)||endpoint.username||endpoint.password)throw new Error("invalid");
   endpoint.search="";endpoint.hash="";
-  const suffix=endpoint.pathname.replace(/\\/+$/,"");
-  endpoint.pathname=/\\/search$/i.test(suffix)?suffix:(suffix+"/search");
+  let suffix=endpoint.pathname;
+  while(suffix.endsWith("/"))suffix=suffix.slice(0,-1);
+  if(!suffix.toLowerCase().endsWith("/search"))suffix+="/search";
+  endpoint.pathname=suffix||"/search";
  }catch{throw fail(503,"invalid-configuration","AXIMACH_SEARXNG_URL must be a valid HTTP(S) SearXNG base URL without credentials.");}
  endpoint.searchParams.set("q",term);
  endpoint.searchParams.set("format","json");
