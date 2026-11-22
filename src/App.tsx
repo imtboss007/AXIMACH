@@ -199,7 +199,7 @@ function App() {
   const [orientationLockUnavailable,setOrientationLockUnavailable] = useState(false);
   // Treat touch devices as mobile even when a landscape viewport is wider than
   // 900px. Android desktop-mode/large-device viewports can still be phones.
-  const isTouchViewport = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  const isTouchViewport = typeof window !== "undefined" && (window.matchMedia("(any-pointer: coarse)").matches || window.matchMedia("(pointer: coarse)").matches);
   const requestDeviceOrientation = async (orientation:"portrait-primary"|"landscape-primary"):Promise<boolean> => {
     try {
       await CapacitorScreenOrientation.lock({ orientation });
