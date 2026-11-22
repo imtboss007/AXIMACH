@@ -177,6 +177,9 @@ try {
     throw new Error("Process Map Interactive Graph view did not become active.");
   }
   console.log("PASS Process Map Interactive Graph view selection");
+  // Return to the desktop shell before desktop-only command search assertions.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForTimeout(200);
   await page.locator(".command-search").click();
   await page.locator(".command-palette input").fill("Quality Inspection");
   await page.locator(".command-palette .palette-results button").filter({ hasText: "Quality Inspection" }).click();
