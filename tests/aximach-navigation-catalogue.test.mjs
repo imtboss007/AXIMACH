@@ -145,8 +145,8 @@ test("hybrid touch devices activate the phone workspace shell when a precise poi
     readSource("src/aximach-ui.css")
   ]);
 
-  assert.match(app, /matchMedia\(["']\\(any-pointer:\\s*coarse\\)["']\)/,
+  assert.ok(app.includes('window.matchMedia("(any-pointer: coarse)").matches'),
     "touch viewport detection must include secondary touch pointers, not only the primary pointer");
-  assert.match(styles, /@media[^\\{]*any-pointer\\s*:\\s*coarse/,
+  assert.ok(styles.includes("(any-pointer:coarse)"),
     "responsive workspace rules must activate when any available pointer is touch-capable");
 });
