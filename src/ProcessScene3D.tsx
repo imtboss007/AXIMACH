@@ -23,7 +23,7 @@ const hasMaterialTransport=(route:MaterialRouteNode)=>Boolean(
  route.from || route.to || route.vehicle || route.transportCost>0 || route.pickupAt || route.deliveryAt
 );
 
-type Props = { operations: OperationRecord[]; materialRoutes?: MaterialRouteNode[]; transportLegs?:TransportLegNode[]; visibleFields?:string[]; autoRotate?: boolean; mode: Mode; selectedOperationId: string; expandedOperationId?: string; onSelectOperation: (id:string)=>void; onExpandOperation?:(id:string)=>void; onArrowSelect?:(id:string)=>void; onSelectTransportLeg?:(id:string,anchor?:{x:number;y:number})=>void; onSelectMaterialTransport?:(id:string,anchor?:{x:number;y:number})=>void; edges?:Array<{from:OperationRecord;to:OperationRecord;relation:string;color:string}>; coordinateOperations?:OperationRecord[]; anchors?:RouteAnchor[]; catalogue?:CatalogueDefinition[]; onAddCatalogue?:(id:string)=>void; showArrows?: boolean; vendors?:Array<{id:string;company:string}>; quantityUnit?:string; ganttScale?:"day"|"week"|"month"; simulationIndex?:number };
+type Props = { operations: OperationRecord[]; materialRoutes?: MaterialRouteNode[]; transportLegs?:TransportLegNode[]; visibleFields?:string[]; autoRotate?: boolean; mode: Mode; selectedOperationId: string; expandedOperationId?: string; onSelectOperation: (id:string)=>void; onExpandOperation?:(id:string)=>void; onArrowSelect?:(id:string)=>void; onSelectTransportLeg?:(id:string,anchor?:{x:number;y:number})=>void; onSelectMaterialTransport?:(id:string,anchor?:{x:number;y:number})=>void; edges?:Array<{id?:string;from:OperationRecord;to:OperationRecord;relation:string;color:string}>; coordinateOperations?:OperationRecord[]; anchors?:RouteAnchor[]; catalogue?:CatalogueDefinition[]; onAddCatalogue?:(id:string)=>void; showArrows?: boolean; vendors?:Array<{id:string;company:string}>; quantityUnit?:string; ganttScale?:"day"|"week"|"month"; simulationIndex?:number };
 const EMPTY_CATALOGUE: CatalogueDefinition[] = [];
 
 type P = {x:number;y:number;z:number};
@@ -265,7 +265,9 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   if(showArrows){const tip={x:to.x-delta.x/length*.14,y:to.y-delta.y/length*.14,z:to.z-delta.z/length*.14};draw(arrowHeadMesh(tip,to,.09),rgb);const phase=((now*.00012+offset*.23)%1+1)%1;const particle={x:from.x+delta.x*phase,y:from.y+delta.y*phase,z:from.z+delta.z*phase};draw(sphereMesh(particle.x,particle.y,particle.z,.045,4,6),[.24,.86,1]);}
  };
  routeEdges.forEach(edge=>{
-  if(replacedOperationEdges.has(edge.from.id+"->"+edge.to.id))return;
+  // Intermediate material/transport stages replace only the implicit sequence
+  // connector. A saved typed relationship remains a separate, explicit edge.
+  if(!String(edge.id||"").startsWith("relationship-")&&replacedOperationEdges.has(edge.from.id+"->"+edge.to.id))return;
   const edgeIndex=flowIndex++;
   let p=pointById.get(edge.from.id),q=pointById.get(edge.to.id);
   if(mode==="gantt"){const fromIndex=geometryRows.findIndex(op=>op.id===edge.from.id),toIndex=geometryRows.findIndex(op=>op.id===edge.to.id);if(fromIndex>=0&&toIndex>=0){p=ganttSegment(fromIndex,geometryRows,ganttScale).end;q=ganttSegment(toIndex,geometryRows,ganttScale).start;}}
