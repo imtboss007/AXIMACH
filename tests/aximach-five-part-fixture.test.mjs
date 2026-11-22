@@ -204,20 +204,20 @@ test("additional planned-cost process rows cascade by category and stable defini
 });
 
 
-test("dashboard command globe exposes 21 unique, distinguishable module shortcuts", () => {
+test("dashboard command globe exposes 22 unique, distinguishable module shortcuts", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const satelliteBlock = orb.match(/const satellites = \[([\s\S]*?)\n\];/);
   assert.ok(satelliteBlock, "command globe satellite registry exists");
   const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
-  assert.equal(ids.length, 21);
-  assert.equal(new Set(ids).size, 21, "module shortcut IDs must be unique");
-  assert.equal(labels.length, 21);
-  assert.equal(new Set(labels).size, 21, "module shortcut labels must be distinguishable");
+  assert.equal(ids.length, 22);
+  assert.equal(new Set(ids).size, 22, "module shortcut IDs must be unique");
+  assert.equal(labels.length, 22);
+  assert.equal(new Set(labels).size, 22, "module shortcut labels must be distinguishable");
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
-test("all 21 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
+test("all 22 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const depthOpen = orb.indexOf('<motion.div className="ax-orb-depth"');
   const moduleShell = orb.indexOf('className="ax-orb-module-shell"');
@@ -230,7 +230,7 @@ test("all 21 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(depthOpen >= 0 && depthOpen < moduleShell && moduleShell < moduleClose && moduleClose < depthClose,
     "module controls must be children of the same draggable 3D globe");
   assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the globe");
-  assert.ok(orb.includes('aria-label="21 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label="22 clickable AXIMACH modules"'));
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
   assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
   assert.ok(orb.includes('className="ax-orb-core"'));
