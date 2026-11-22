@@ -28,7 +28,9 @@ export default function ProductionStatusChart({ operations }: Props) {
     const container = chartRef.current;
     if (!container || operations.length === 0) return;
     const chart = echarts.init(container, undefined, { renderer: "canvas" });
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     chart.setOption({
+      animation: !prefersReducedMotion,
       animationDuration: 320,
       animationEasing: "cubicOut",
       grid: { left: 104, right: 28, top: 8, bottom: 24 },
