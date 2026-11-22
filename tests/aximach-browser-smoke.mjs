@@ -149,7 +149,7 @@ try {
   const linePicker = page.getByRole("combobox", { name: "PO component line" });
   await linePicker.fill("AST-1001");
   await page.getByRole("option", { name: /AST-1001/ }).click();
-  await page.getByText("CNC finish turning", { exact: true }).waitFor({ timeout: 10000 });
+  await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
 
   if (await page.locator(".ax-followup-assignment-dock").count() !== 0) throw new Error("Follow-up launcher must not overlay Process Map.");
   const sceneLabels = page.locator(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon");
