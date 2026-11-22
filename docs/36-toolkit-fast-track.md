@@ -68,3 +68,16 @@ Do not install every candidate. Most listed projects are design references, agen
 ## Scope note
 
 The current AXIMACH branch has a 35-candidate integration matrix. The visible shortlist also includes the UI/agent projects named above. This document consolidates that recorded set; it does not claim an independent source/licence audit of repository names that are not present in the branch's candidate matrix or the working conversation context.
+
+
+## Expanded 111-entry source register
+
+The complete supplied candidate set is now copied into AXIMACH:
+- `docs/audits/README-111-entry-inventory.md`
+- `docs/audits/111-entry-inventory-part-01.csv` — entries 1–38
+- `docs/audits/111-entry-inventory-part-02.csv` — entries 39–76
+- `docs/audits/111-entry-inventory-part-03.csv` — entries 77–111
+
+The register keeps all 104 repository/tool candidates and the 7 service/product entries distinct. It carries forward the AXIMACH audit status for the 104 repositories; service entries remain unreviewed for AXIMACH until a specific use case and provider/legal gate exist.
+
+**Execution rule:** use the inventory as a capability map, not an install list. Before adopting any candidate, compare its exact capability with the current branch, confirm the upstream project and path-level licence, measure the AXIMACH gap, then integrate only the smallest compatible piece and add a regression test. Current source code supersedes stale “integrated/not integrated” snapshot fields when direct repository evidence proves a later change (for example, React Flow is now imported in the Process Map and Route Flow workspaces).
