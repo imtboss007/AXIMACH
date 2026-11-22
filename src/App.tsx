@@ -449,7 +449,7 @@ function App() {
         </Suspense>
       </main>
 
-      {activeModuleId !== "dashboard" && activeModuleId !== "command-centre" && (
+      {activeModuleId !== "dashboard" && activeModuleId !== "command-centre" && !needsLandscapeOrientation && (
         <FollowUpAssignmentsLauncher
           moduleId={activeModuleId}
           moduleTitle={activeModuleId === "process-map" ? "Process Plan" : activeModule.title}

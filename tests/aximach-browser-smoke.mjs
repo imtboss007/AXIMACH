@@ -75,6 +75,9 @@ try {
     if (await page.locator("[data-aximach-startup-error='true']").count()) {
       throw new Error("Renderer crashed while opening module: " + id);
     }
+    const followUpDockCount = await page.locator(".ax-followup-assignment-dock").count();
+    if (id === "companies" && followUpDockCount !== 1) throw new Error("Follow-up launcher should remain available in Company Directory.");
+    if ((id === "route-flow" || id === "manufacturing-universe") && followUpDockCount !== 0) throw new Error("Follow-up launcher must not cover immersive workspace: " + id);
     console.log("PASS module navigation:", id);
   }
 
@@ -125,6 +128,17 @@ try {
   console.log("PASS Route Flow graph/stage-card view toggle");
   await page.getByRole("button", { name: "Open Process Plan" }).click();
   await page.getByRole("heading", { name: /Process Map/i }).waitFor({ timeout: 10000 });
+  if (await page.locator(".ax-followup-assignment-dock").count() !== 0) throw new Error("Follow-up launcher must not overlay Process Map.");
+  const sceneLabels = page.locator(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon");
+  const sceneRects = await sceneLabels.evaluateAll(elements => elements.map(element => { const r = element.getBoundingClientRect(); return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height}; }).filter(r => r.width > 0 && r.height > 0));
+  for (let i = 0; i < sceneRects.length; i++) for (let j = i + 1; j < sceneRects.length; j++) {
+    const a = sceneRects[i], b = sceneRects[j];
+    if (a.x < b.right + 4 && a.right + 4 > b.x && a.y < b.bottom + 4 && a.bottom + 4 > b.y) {
+      throw new Error("Rendered 3D process labels overlap: " + JSON.stringify({a,b}));
+    }
+  }
+  if (sceneRects.length > 1) console.log("PASS collision-free rendered 3D label rectangles:", sceneRects.length);
+  else console.log("SKIP rendered 3D label rectangle check: no populated labels in this browser fixture");
   const processGraphMode = page.getByRole("button", { name: "Interactive Graph" });
   await processGraphMode.waitFor({ timeout: 10000 });
   await processGraphMode.click();

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Truck } from "lucide-react";
 import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
 import type { OperationRecord } from "./manufacturingData";
+import { relaxProcessSceneLabels } from "./processSceneLabelLayout.js";
 
 type Mode = "sphere"|"cube"|"vortex"|"helix"|"orbit"|"network"|"grid"|"pipeline"|"layered"|"stacked"|"matrix"|"tree"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined"|"molecular"|"digital-mesh"|"route"|"orthogonal"|"s-curve"|"swimlane"|"radial"|"circular"|"organic";
 type CatalogueDefinition = { id:string; processType:string; category:string; displayColor?:string };
@@ -122,43 +123,8 @@ function operationCode(operation:OperationRecord):string{
  const relation=operation.relationType==="alternate"?"ALT":operation.relationType==="rework"?"REWORK":operation.relationType==="subprocess"?"SUB":"";
  return "OP-"+String(operation.sequence).padStart(3,"0")+(relation?" · "+relation:"");
 }
-type ProjectedPoint={x:number;y:number;z:number};
-type LabelCandidate={id:string;screen:ProjectedPoint;kind:"operation"|"material"|"transport"|"transportLeg"};
-const LABEL_CARD_METRICS:Record<LabelCandidate["kind"],{width:number;height:number}>={
- operation:{width:184,height:124},
- material:{width:194,height:174},
- transport:{width:48,height:48},
- transportLeg:{width:48,height:48}
-};
-function relaxLabels(items:LabelCandidate[],width:number,height:number){
- // Keep the collision envelope aligned with the largest card styles used by
- // the 3D overlay. Material cards can be taller than operation cards.
- const placed=items.map((item,index)=>({...item,screen:{...item.screen},bounds:LABEL_CARD_METRICS[item.kind],index}));
- const clamp=(item:typeof placed[number])=>{
-  const minX=Math.min(item.bounds.width/2+7,width/2),maxX=Math.max(minX,width-item.bounds.width/2-7);
-  const minY=Math.min(item.bounds.height/2+24,height/2),maxY=Math.max(minY,height-item.bounds.height/2-42);
-  item.screen.x=Math.max(minX,Math.min(maxX,item.screen.x));
-  item.screen.y=Math.max(minY,Math.min(maxY,item.screen.y));
- };
- for(let pass=0;pass<120;pass++){
-  for(let i=0;i<placed.length;i++)for(let j=i+1;j<placed.length;j++){
-   const a=placed[i],b=placed[j],dx=b.screen.x-a.screen.x,dy=b.screen.y-a.screen.y;
-   const overlapX=(a.bounds.width+b.bounds.width)/2+14-Math.abs(dx);
-   const overlapY=(a.bounds.height+b.bounds.height)/2+14-Math.abs(dy);
-   if(overlapX>0&&overlapY>0){
-    if(overlapX<overlapY){
-     const sign=dx===0?(a.index%2?1:-1):Math.sign(dx),push=Math.min(overlapX*.54+1,28);
-     a.screen.x-=sign*push;b.screen.x+=sign*push;
-    }else{
-     const sign=dy===0?(a.index%2?1:-1):Math.sign(dy),push=Math.min(overlapY*.54+1,28);
-     a.screen.y-=sign*push;b.screen.y+=sign*push;
-    }
-   }
-  }
-  for(const item of placed)clamp(item);
- }
- return placed.map(({bounds,index,...item})=>item);
-}
+type ProjectedPoint={x:number;y:number;z:number;scale?:number;collision?:boolean};
+type LabelCandidate={id:string;screen:ProjectedPoint;kind:"operation"|"material"|"transport"|"transportLeg"|"catalogue"|"core"};
 function frontFacing(p:P,angle:number):boolean{
  const x=-.24,y=angle,cx=Math.cos(x),sx=Math.sin(x),cy=Math.cos(y),sy=Math.sin(y);
  const cameraZ=cx*sy*p.x-sx*p.y+cx*cy*p.z;
@@ -338,11 +304,13 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const materials=materialPlacements.filter(item=>mode!=="sphere"||frontFacing(item.materialPoint,angle)).map(item=>({id:item.route.id,screen:project(item.materialPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
   const transports=materialPlacements.filter(item=>hasMaterialTransport(item.route)&&(mode!=="sphere"||frontFacing(item.transportPoint,angle))).map(item=>({id:item.route.id,screen:project(item.transportPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
   const transportLegsProjected=transportLegPlacements.filter(item=>mode!=="sphere"||frontFacing(item.point,angle)).map(item=>({id:item.leg.id,screen:project(item.point,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
+  const catalogues=cataloguePoints.filter(({p})=>mode!=="sphere"||frontFacing(p,angle)).map(({definition,p})=>({id:definition.id,definition,kind:"catalogue" as const,screen:project(p,m,w,h)})).filter((item):item is {id:string;definition:CatalogueDefinition;kind:"catalogue";screen:ProjectedPoint}=>!!item.screen);
   const centerScreen=mode==="sphere"?project({x:0,y:0,z:0},m,w,h):null;
-  const all:LabelCandidate[]=[...ops.map(item=>({id:item.id,kind:item.kind,screen:item.screen})),...materials.map(item=>({id:item.id,kind:"material" as const,screen:item.screen})),...transports.map(item=>({id:item.id,kind:"transport" as const,screen:item.screen})),...transportLegsProjected.map(item=>({id:item.id,kind:"transportLeg" as const,screen:item.screen}))];
-  const relaxed=relaxLabels(all,w,h);
-  return {operations:relaxed.filter(item=>item.kind==="operation").map(item=>({op:ops.find(candidate=>candidate.id===item.id)!.op,screen:item.screen})),materials:relaxed.filter(item=>item.kind==="material").map(item=>({id:item.id,screen:item.screen})),transports:relaxed.filter(item=>item.kind==="transport").map(item=>({id:item.id,screen:item.screen})),transportLegs:relaxed.filter(item=>item.kind==="transportLeg").map(item=>({id:item.id,screen:item.screen})),center:centerScreen};
- },[points,size,angle,materialPlacements,transportLegPlacements,mode]);
+  const orderedOps=[...ops].sort((a,b)=>Number(b.id===selectedOperationId)-Number(a.id===selectedOperationId));
+  const all:LabelCandidate[]=[...(centerScreen?[{id:"__aximach-core__",kind:"core" as const,screen:centerScreen}]:[]),...orderedOps.map(item=>({id:item.id,kind:item.kind,screen:item.screen})),...materials.map(item=>({id:item.id,kind:"material" as const,screen:item.screen})),...transports.map(item=>({id:item.id,kind:"transport" as const,screen:item.screen})),...transportLegsProjected.map(item=>({id:item.id,kind:"transportLeg" as const,screen:item.screen})),...catalogues.map(item=>({id:item.id,kind:item.kind,screen:item.screen}))];
+  const relaxed=relaxProcessSceneLabels(all,w,h);
+  return {operations:relaxed.filter(item=>item.kind==="operation").map(item=>({op:ops.find(candidate=>candidate.id===item.id)!.op,screen:item.screen})),materials:relaxed.filter(item=>item.kind==="material").map(item=>({id:item.id,screen:item.screen})),transports:relaxed.filter(item=>item.kind==="transport").map(item=>({id:item.id,screen:item.screen})),transportLegs:relaxed.filter(item=>item.kind==="transportLeg").map(item=>({id:item.id,screen:item.screen})),catalogues:relaxed.filter(item=>item.kind==="catalogue").map(item=>({definition:catalogues.find(candidate=>candidate.id===item.id)!.definition,screen:item.screen})),center:relaxed.find(item=>item.kind==="core")?.screen??null};
+ },[points,size,angle,materialPlacements,transportLegPlacements,mode,cataloguePoints,selectedOperationId]);
  const projected=projectedLayout.operations;
  const projectedMaterials=projectedLayout.materials;
  const projectedTransports=projectedLayout.transports;
@@ -397,7 +365,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   return result;
  },[projected,projectedMaterials,projectedTransports,projectedTransportLegs,materialPlacements,transportLegPlacements,edges,points,anchorPoints,size,angle]);
  const projectedGanttTicks=useMemo(()=>{if(mode!=="gantt")return[];const domain=ganttDomain(geometryRows,ganttScale);if(!domain.hasEvents)return[];const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));return domain.ticks.map(value=>{const x=((value-domain.minimum)/Math.max(1,domain.maximum-domain.minimum))*2.35-1.175;const screen=project({x,y:-1.08,z:-.09},m,w,h);const date=new Date(value);const label=date.toLocaleDateString("en-IN",ganttScale==="month"?{month:"short",year:"2-digit"}:{day:"2-digit",month:"short"});return screen?{key:String(value),x:screen.x,label}:null;}).filter(Boolean);},[mode,geometryRows,ganttScale,size,angle]);
- const projectedCatalogue=useMemo(()=>{const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));return cataloguePoints.map(({definition,p})=>({definition,screen:project(p,m,w,h)}));},[cataloguePoints,size,angle]);
+ const projectedCatalogue=projectedLayout.catalogues;
   const ganttStatus=useMemo(()=>{if(mode!=="gantt")return "";const domain=ganttDomain(geometryRows,ganttScale);const unscheduled=geometryRows.filter(op=>!(timestamp(op.plannedStart)??timestamp(op.actualStart))&&!(timestamp(op.plannedEnd)??timestamp(op.actualEnd))).length;const incomplete=geometryRows.filter(op=>!(timestamp(op.plannedStart)??timestamp(op.actualStart))||!(timestamp(op.plannedEnd)??timestamp(op.actualEnd))).length;return !domain.hasEvents?"NO SCHEDULE DATES · "+unscheduled+" UNSCHEDULED":incomplete?"INCOMPLETE SCHEDULE · "+incomplete+" OPERATION(S)":"";},[mode,geometryRows,ganttScale]);
  return <div className="ax-full3d-scene" onPointerDown={e=>{drag.current={x:e.clientX,y:e.clientY,angle:rotationRef.current};e.currentTarget.setPointerCapture(e.pointerId);setDragging(true);}} onPointerMove={e=>{if(drag.current){rotationRef.current=drag.current.angle+(e.clientX-drag.current.x)*.008;setAngle(rotationRef.current);}}} onPointerUp={()=>{drag.current=null;setDragging(false);}} onPointerCancel={()=>{drag.current=null;setDragging(false);}}>
   <canvas ref={canvas} aria-label="Interactive WebGL 3D manufacturing process graph"/>
@@ -405,19 +373,19 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
    {ganttStatus&&<div className="ax-full3d-gantt-status">{ganttStatus}</div>}
    {projectedGanttTicks.map(tick=>tick&&<div key={tick.key} className="ax-full3d-gantt-tick" style={{left:tick.x}}>{tick.label}</div>)}
    {projectedEdges.map(edge=><div key={edge.key} role="button" tabIndex={0} className={"ax-full3d-route-arrow "+edge.relation+" "+(edge.relation==="rework"?"rework":edge.relation==="alternate"?"alternate":edge.relation==="material"?"material":"")+" "+(showArrows?"":" no-arrowhead")} style={{left:edge.x,top:edge.y,width:edge.length,transform:"rotate("+edge.angle+"deg)"}} aria-label={"Follow route from "+edge.from+" to "+edge.to} title={"Route: "+edge.from+" → "+edge.to} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(edge.toId)onArrowSelect?.(edge.toId);}} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();if(edge.toId)onArrowSelect?.(edge.toId);}}}><span>{edge.from} → {edge.to}</span></div>)}
-   {projectedMaterials.map((item,index)=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;return <div key={"material-card-"+item.id} className="ax-full3d-label ax-full3d-material-label" style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()}>
+   {projectedMaterials.map((item,index)=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;return <div key={"material-card-"+item.id} className="ax-full3d-label ax-full3d-material-label" style={{left:item.screen.x,top:item.screen.y,transform:`translate(-50%,-50%) scale(${item.screen.scale??1})`}} onPointerDown={event=>event.stopPropagation()}>
      <small>MATERIAL · {index+1}/{materialRoutes.length}</small><strong>{route.materialLabel}</strong><em>{route.partLabel}</em>
      {visibleFields.includes("materialQuantity")&&<small>Qty {route.quantity.toLocaleString("en-IN")} · {route.weightKg.toFixed(2)} kg</small>}
      {visibleFields.includes("materialVendor")&&<small>Supplier · {route.supplier}</small>}
    </div>;})}
    {projectedTransports.map(item=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;const vehicleTone=vehicleClassFor(route.vehicle);return <button type="button" key={"transport-card-"+item.id} className={"ax-full3d-transport-icon vehicle-"+vehicleTone} style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();const rect=event.currentTarget.getBoundingClientRect();onSelectMaterialTransport?.(route.id,{x:rect.left,y:rect.top});}} aria-label={"Open inbound material transport popup · "+route.from+" to "+route.to} title={(route.vehicle||"Transport")+" · "+(route.transporter||"Transporter not assigned")}><VehicleTypeIcon vehicleType={route.vehicle} size={17}/></button>;})}
     {projectedTransportLegs.map(item=>{const leg=transportLegs.find(row=>row.id===item.id);if(!leg)return null;return <button type="button" key={"transport-leg-card-"+item.id} className={"ax-full3d-transport-icon vehicle-"+vehicleClassFor(leg.vehicleType)} style={{left:item.screen.x,top:item.screen.y}} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();const rect=event.currentTarget.getBoundingClientRect();onSelectTransportLeg?.(leg.id,{x:rect.left,y:rect.top});}} aria-label={"Open transport popup · "+leg.fromLocation+" to "+leg.toLocation} title={(leg.vehicleType||"Transport")+" · "+(leg.vendorName||"Transporter not assigned")}><VehicleTypeIcon vehicleType={leg.vehicleType} size={17}/></button>;})}
-   {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
+   {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{left:screen.x,top:screen.y,transform:`translate(-50%,-50%) scale(${screen.scale??1})`}} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
      <small>{operationCode(op)}</small><strong>{op.name}</strong>
      <em>{visibleFields.includes("status")?op.status:"Process step"} · Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>
      {visibleFields.includes("category")&&<small>{op.category||"Category not set"}</small>}
    </button>)}
-   {projectedCatalogue.map(({definition,screen},index)=>screen&&<button key={definition.id} type="button" className="ax-full3d-label ax-full3d-catalogue-label" style={{left:screen.x,top:screen.y}} onPointerDown={e=>e.stopPropagation()} onClick={()=>onAddCatalogue?.(definition.id)} disabled={!onAddCatalogue} aria-label={"Add "+definition.processType+" to this PO line"}><small>LIB-{String(index+1).padStart(2,"0")}</small><strong>{definition.processType}</strong><em>{definition.category} · ADD STAGE</em></button>)}
+   {projectedCatalogue.map(({definition,screen},index)=>screen&&<button key={definition.id} type="button" className="ax-full3d-label ax-full3d-catalogue-label" style={{left:screen.x,top:screen.y,transform:`translate(-50%,-50%) scale(${screen.scale??1})`}} onPointerDown={e=>e.stopPropagation()} onClick={()=>onAddCatalogue?.(definition.id)} disabled={!onAddCatalogue} aria-label={"Add "+definition.processType+" to this PO line"}><small>LIB-{String(index+1).padStart(2,"0")}</small><strong>{definition.processType}</strong><em>{definition.category} · ADD STAGE</em></button>)}
   </div>
   <div className="ax-full3d-controls"><span>{dragging?"DRAGGING · TRUE 3D VIEW":mode.toUpperCase()+" · WEBGL 3D · "+(autoRotate?"AUTO ROTATING":"ROTATION PAUSED")}</span></div>
  </div>;
