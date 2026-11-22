@@ -6134,3 +6134,18 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .integration-metrics{margin-bottom:18px}
 @media(max-width:900px){.integration-hub-grid{grid-template-columns:1fr}.integration-chart{min-height:260px}}
 @media(max-width:620px){.integration-filters{grid-template-columns:1fr}.integration-directory-card{grid-template-columns:1fr}.integration-directory-action{flex-direction:row;align-items:center;justify-content:space-between}.integration-directory-meta{gap:6px}}
+
+
+/* Saved production status chart: restrained operational visual with an accessible text summary. */
+.dashboard-production-visuals{min-width:0}
+.dashboard-production-chart-panel{padding:20px 22px 16px}
+.production-status-chart-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-top:10px;min-width:0}
+.production-status-chart{width:100%;height:286px;min-width:0}
+.production-status-chart-summary{display:flex;align-items:center;gap:9px 16px;flex-wrap:wrap;border-top:1px solid #edf1f7;padding-top:11px}
+.production-status-chart-summary span{display:inline-flex;align-items:center;gap:5px;color:#72839a;font-size:10px}
+.production-status-chart-summary i{width:7px;height:7px;border-radius:2px;flex:0 0 7px}
+.production-status-chart-summary b{color:#344d6c;font:600 10px 'DM Mono',monospace}
+.production-status-empty{display:flex;flex-direction:column;gap:6px;align-items:flex-start;padding:28px 4px 18px;color:#526982;font-size:12px}
+.production-status-empty small{color:#8494aa;font-size:10px;line-height:1.5}
+@media(max-width:620px){.dashboard-production-chart-panel{padding:16px 14px}.dashboard-production-chart-panel .panel-heading{align-items:flex-start}.dashboard-production-chart-panel .panel-heading .button-quiet{white-space:normal}.production-status-chart{height:260px}.production-status-chart-summary{gap:8px 12px}}
+@media(prefers-reduced-motion:reduce){.production-status-chart *{transition:none!important;animation:none!important}}
