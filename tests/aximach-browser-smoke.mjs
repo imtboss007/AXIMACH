@@ -122,11 +122,18 @@ try {
     throw new Error("Manufacturing ecosystem graph does not expose all 12 entity filters.");
   }
   const sampleNote = await page.locator(".ax-ecosystem-sample-note").innerText();
-  if (!sampleNote.includes("up to 6 records per group") || !sampleNote.includes("full saved-record totals")) {
-    throw new Error("Manufacturing ecosystem graph must disclose its visual sample cap and full record counts.");
+  if (!sampleNote.includes("Show more") || !sampleNote.includes("Search results can select records beyond the current canvas limit")) {
+    throw new Error("Manufacturing ecosystem graph must disclose progressive expansion and search beyond the visible canvas.");
   }
   if (!(await page.locator(".ax-ecosystem-graph-count").innerText()).includes("saved records in these groups")) {
     throw new Error("Manufacturing ecosystem graph header must distinguish rendered nodes from saved-record totals.");
+  }
+  const graphSearch = page.getByRole("searchbox", { name: "Search all manufacturing ecosystem records" });
+  await graphSearch.fill("record-that-does-not-exist");
+  await page.getByText("No matching saved records.", { exact: true }).waitFor({ timeout: 5000 });
+  await page.getByRole("button", { name: "Clear graph search" }).click();
+  if (await page.locator(".ax-ecosystem-search-results").count() !== 0) {
+    throw new Error("Clearing Manufacturing Universe graph search did not close the results panel.");
   }
   await page.locator('select[aria-label="Ecosystem export format"]').selectOption("csv");
   const ecosystemDownloadPromise = page.waitForEvent("download");
