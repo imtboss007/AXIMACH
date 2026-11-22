@@ -510,15 +510,31 @@ try {
     const selector = ".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon";
     return [...document.querySelectorAll(".ax-full3d-scene")].map((sceneElement,index) => {
       const scene = sceneElement.getBoundingClientRect();
+      const layer = sceneElement.querySelector(".ax-full3d-label-layer");
+      const layerRect = layer?.getBoundingClientRect();
       const labels = [...sceneElement.querySelectorAll(selector)].map(element => {
         const rect = element.getBoundingClientRect();
-        return {left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,styleLeft:element.style.left,styleTop:element.style.top};
+        const labelStyle = getComputedStyle(element);
+        const offsetParent = element.offsetParent;
+        const offsetRect = offsetParent?.getBoundingClientRect();
+        const labelLayerRect = element.parentElement?.getBoundingClientRect();
+        return {
+          left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,
+          styleLeft:element.style.left,styleTop:element.style.top,
+          computedLeft:labelStyle.left,computedTop:labelStyle.top,
+          position:labelStyle.position,transform:labelStyle.transform,
+          offsetLeft:element.offsetLeft,offsetTop:element.offsetTop,
+          offsetParentClass:typeof offsetParent?.className==="string"?offsetParent.className:"",
+          offsetParentLeft:offsetRect?.left,offsetParentWidth:offsetRect?.width,
+          labelLayerLeft:labelLayerRect?.left,labelLayerWidth:labelLayerRect?.width
+        };
       }).filter(rect => rect.right > rect.left && rect.bottom > rect.top);
       const canvas = sceneElement.querySelector("canvas");
       const style = getComputedStyle(sceneElement);
       return {
         index,
         scene:{left:scene.left,top:scene.top,right:scene.right,bottom:scene.bottom,width:scene.width,height:scene.height},
+        layer:layerRect?{left:layerRect.left,top:layerRect.top,right:layerRect.right,bottom:layerRect.bottom,width:layerRect.width,height:layerRect.height}:null,
         measuredWidth:sceneElement.getAttribute("data-scene-layout-width"),
         measuredHeight:sceneElement.getAttribute("data-scene-layout-height"),
         sceneClientWidth:sceneElement.clientWidth,
