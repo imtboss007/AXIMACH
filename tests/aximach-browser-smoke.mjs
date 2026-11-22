@@ -123,16 +123,17 @@ try {
   // Verify shared searchable menus remain visible when their anchor sits near the
   // bottom edge of a phone workspace instead of being clipped by page-content.
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Open navigation menu" }).click();
   await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Transport Directory"]').click();
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Transport Directory");
-  const vehicleFilter = page.locator("#transport-filter-vehicle");
+  const vehicleFilter = page.locator("#transport-filter-vendor");
   await vehicleFilter.waitFor({ state: "visible", timeout: 10000 });
   const multiAnchor = vehicleFilter.locator("xpath=..");
   await multiAnchor.evaluate(element => {
     const pageContent = document.querySelector("main.page-content");
     if (!pageContent) throw new Error("Phone workspace scroll container is missing.");
     const rect = element.getBoundingClientRect();
-    const targetBottom = window.innerHeight - 72;
+    const targetBottom = window.innerHeight - 156;
     pageContent.scrollTop += rect.bottom - targetBottom;
   });
   await page.waitForTimeout(80);
@@ -142,7 +143,7 @@ try {
   await multiMenu.waitFor({ state: "visible", timeout: 5000 });
   const multiGeometry = await multiMenu.evaluate(element => {
     const rect = element.getBoundingClientRect();
-    const anchor = document.querySelector("#transport-filter-vehicle")?.parentElement?.getBoundingClientRect();
+    const anchor = document.querySelector("#transport-filter-vendor")?.parentElement?.getBoundingClientRect();
     return {
       position: getComputedStyle(element).position,
       placement: anchor && rect.bottom <= anchor.top ? "top" : "bottom",
@@ -178,7 +179,6 @@ try {
   });
   await page.waitForTimeout(80);
   await vendorPicker.focus();
-  const pickerMenu = page.locator("#transport-route-vendor-choices-").or(page.locator(".searchable-picker-menu")).last();
   await page.locator(".searchable-picker-menu").waitFor({ state: "visible", timeout: 5000 });
   const pickerGeometry = await page.locator(".searchable-picker-menu").last().evaluate(element => {
     const rect = element.getBoundingClientRect();
@@ -206,6 +206,7 @@ try {
 
   // The floating follow-up dock is a shared control too: its panel must stay
   // inside the viewport and above the bottom navigation-safe area.
+  await page.getByRole("button", { name: "Open navigation menu" }).click();
   await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Component Directory"]').click();
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Component Directory");
   const followUpTrigger = page.getByRole("button", { name: /Follow-up people/ });
