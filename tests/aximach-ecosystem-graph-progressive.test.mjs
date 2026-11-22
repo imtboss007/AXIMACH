@@ -85,3 +85,13 @@ test("graph view preferences allow an intentionally hidden-all state and clamp u
   assert.deepEqual(preferences.visibleKinds,[]);
   assert.deepEqual(preferences.visibleLimits,{company:0,vendor:5000});
 });
+
+
+test("graph preference schema upgrade exposes newly added entity groups once",()=>{
+ const migrated=loadEcosystemGraphPreferences(JSON.stringify({version:1,visibleKinds:["company","vendor"],visibleLimits:{company:6,vendor:10}}),["company","vendor","customer"],{company:6,vendor:6,customer:6});
+ assert.equal(migrated.version,2);
+ assert.deepEqual(migrated.visibleKinds,["company","vendor","customer"]);
+ assert.equal(migrated.visibleLimits.customer,6);
+ const next=loadEcosystemGraphPreferences(JSON.stringify({version:2,visibleKinds:["company","vendor"],visibleLimits:{}}),["company","vendor","customer"],{company:6,vendor:6,customer:6});
+ assert.deepEqual(next.visibleKinds,["company","vendor"]);
+});

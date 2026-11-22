@@ -74,14 +74,14 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
   useEffect(()=>{
     try {
       window.localStorage.setItem(GRAPH_PREFERENCES_KEY,JSON.stringify({
-        version:1,
+        version:2,
         visibleKinds:graphPreferences.visibleKinds,
         visibleLimits:graphPreferences.visibleLimits
       }));
     } catch { /* Persisted view preferences are optional when storage is unavailable. */ }
   },[graphPreferences]);
   const resetGraphPreferences=()=>setGraphPreferences({
-    version:1,
+    version:2,
     visibleKinds:[...VALID_GROUP_KINDS],
     visibleLimits:{...INITIAL_VISIBLE_LIMITS}
   });

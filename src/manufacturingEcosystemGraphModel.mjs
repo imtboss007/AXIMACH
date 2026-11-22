@@ -57,7 +57,7 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
     const value = Number(defaultLimits[kind]);
     return [kind, Number.isFinite(value) ? Math.max(0, Math.min(5000, Math.floor(value))) : 6];
   }));
-  const defaults = { version: 1, visibleKinds: [...kinds], visibleLimits };
+  const defaults = { version: 2, visibleKinds: [...kinds], visibleLimits };
   let parsed;
   try {
     parsed = typeof serialized === "string" ? JSON.parse(serialized) : serialized;
@@ -65,9 +65,12 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
     return defaults;
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
-  const visibleKinds = Array.isArray(parsed.visibleKinds)
-    ? [...new Set(parsed.visibleKinds.filter(kind => kinds.includes(kind)))]
-    : [...kinds];
+  const savedKinds = Array.isArray(parsed.visibleKinds) ? [...new Set(parsed.visibleKinds.filter(kind => kinds.includes(kind)))] : [...kinds];
+  // A new graph entity group should become visible once for existing users, without
+  // re-enabling groups they intentionally hid after the preference schema was upgraded.
+  const visibleKinds = parsed.version < 2
+    ? [...new Set([...savedKinds, ...kinds.filter(kind => !savedKinds.includes(kind))])]
+    : savedKinds;
   const savedLimits = parsed.visibleLimits && typeof parsed.visibleLimits === "object" && !Array.isArray(parsed.visibleLimits)
     ? parsed.visibleLimits
     : {};
@@ -76,5 +79,5 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
     const fallback = visibleLimits[kind];
     return [kind, Number.isFinite(saved) ? Math.max(0, Math.min(5000, Math.floor(saved))) : fallback];
   }));
-  return { version: 1, visibleKinds, visibleLimits: normalizedLimits };
+  return { version: 2, visibleKinds, visibleLimits: normalizedLimits };
 }

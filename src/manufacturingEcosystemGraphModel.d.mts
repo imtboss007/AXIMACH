@@ -23,7 +23,7 @@ export function expandEcosystemGroupLimit(
 ): number;
 
 export type EcosystemGraphPreferences<K extends string = string> = {
-  version: 1;
+  version: 1 | 2;
   visibleKinds: K[];
   visibleLimits: Record<K, number>;
 };
