@@ -8,6 +8,17 @@ type NodeKind = "company"|"factory"|"order"|"component"|"vendor"|"process"|"oper
 type GraphNode = { id:string; label:string; detail:string; kind:NodeKind; moduleId:string; context:Context; x:number; y:number };
 type GraphEdge = { id:string; from:string; to:string; kind:string };
 
+const edgeColor = (kind:string) => {
+  if (/owns|belongs to|contact for/.test(kind)) return "#2875bd";
+  if (/orders|placed by|makes|performed by|defined by/.test(kind)) return "#168d89";
+  if (/capable vendor|supplied by|procured for|allocated to/.test(kind)) return "#b17a27";
+  if (/feeds operation/.test(kind)) return "#8b68c5";
+  if (/inspects/.test(kind)) return "#b95665";
+  if (/moves between|carried by/.test(kind)) return "#397ea4";
+  if (/serves|settles|paid to/.test(kind)) return "#7565b5";
+  return "#7ba5c1";
+};
+
 const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> = [
   {kind:"company",title:"Companies",moduleId:"companies",color:"#2875bd"},
   {kind:"factory",title:"Factories",moduleId:"companies",color:"#4b8cbd"},
@@ -152,7 +163,8 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     </div>
     <div className="ax-ecosystem-stage">
       <svg className="ax-ecosystem-links" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
-        {graph.edges.map(link=>{const from=byId.get(link.from),to=byId.get(link.to);if(!from||!to)return null;return <line key={link.id} x1={from.x*10} y1={from.y*7} x2={to.x*10} y2={to.y*7} />;})}
+        <defs><marker id="ax-ecosystem-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6489a5"/></marker></defs>
+        {graph.edges.map(link=>{const from=byId.get(link.from),to=byId.get(link.to);if(!from||!to)return null;return <line key={link.id} className="ax-ecosystem-edge" x1={from.x*10} y1={from.y*7} x2={to.x*10} y2={to.y*7} style={{stroke:edgeColor(link.kind)}} markerEnd="url(#ax-ecosystem-arrow)" />;})}
         {graph.nodes.map(node=><line key={"hub:"+node.id} className="ax-ecosystem-hub-link" x1="500" y1="350" x2={node.x*10} y2={node.y*7}/> )}
       </svg>
       <div className="ax-ecosystem-hub"><Network size={23}/><strong>AXIMACH</strong><small>MANUFACTURING OS</small></div>
