@@ -6340,3 +6340,221 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   display:none!important;
  }
 }
+
+
+/* AXIMACH phone-first shell — one portrait layout across every workspace.
+   Wide spatial canvases opt into landscape only through the app-level control. */
+.ax-orientation-toggle{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;
+  min-width:40px!important;height:38px!important;padding:0 9px!important;
+  border:1px solid rgba(105,170,211,.48)!important;border-radius:10px!important;
+  background:#12334d!important;color:#dcf1ff!important;font-size:10px!important;font-weight:750!important;
+  cursor:pointer!important;white-space:nowrap!important
+}
+.ax-orientation-toggle[aria-pressed="true"]{border-color:#5fd0c7!important;background:#104a50!important;color:#e8fffc!important}
+.ax-orientation-fallback{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  margin:0 0 10px;padding:9px 11px;border:1px solid #e5bf72;border-radius:9px;
+  background:#fff8e8;color:#72531e;font-size:11px;line-height:1.45
+}
+.rail-appearance-setting{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;padding:7px 10px;border:1px solid rgba(124,166,197,.2);border-radius:9px;color:#b9d2e7;font-size:11px}
+.rail-appearance-setting select{min-width:100px;max-width:132px;padding:6px 8px;border:1px solid #38566f;border-radius:7px;background:#102a40;color:#eff8ff;font:inherit}
+
+@media (max-width:760px), (pointer:coarse) and (max-height:900px){
+  html,body,#root{width:100%!important;max-width:100%!important;height:100%!important;min-height:100%!important;overflow:hidden!important}
+  body{overscroll-behavior:none!important}
+  .app-shell,
+  .app-shell:has(.route-flow-workspace),
+  .app-shell:has(.manufacturing-universe-workspace),
+  .app-shell:has(.linked-process-page){
+    position:relative!important;display:flex!important;flex-direction:column!important;
+    width:100%!important;max-width:100%!important;height:100dvh!important;min-height:100dvh!important;
+    padding:0!important;overflow:hidden!important;background:var(--canvas,#f2f6fa)!important
+  }
+  .app-shell .command-deck{
+    position:fixed!important;inset:0 0 auto 0!important;z-index:130!important;
+    display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:7px!important;
+    width:100%!important;height:calc(58px + env(safe-area-inset-top))!important;min-height:calc(58px + env(safe-area-inset-top))!important;
+    padding:env(safe-area-inset-top) 9px 0!important;box-sizing:border-box!important;overflow:hidden!important;
+    border:0!important;border-bottom:1px solid #203b52!important;border-radius:0!important;
+    background:#071625!important;color:#e7f2fb!important;box-shadow:0 5px 16px rgba(0,0,0,.18)!important
+  }
+  .app-shell .brand-lockup{display:flex!important;flex:1 1 auto!important;align-items:center!important;gap:8px!important;min-width:0!important;max-width:none!important;padding:0!important;border:0!important;background:transparent!important}
+  .app-shell .brand-symbol{flex:0 0 36px!important;width:36px!important;height:36px!important}
+  .app-shell .brand-copy{min-width:0!important;max-width:125px!important}
+  .app-shell .brand-copy strong{display:block!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:11px!important}
+  .app-shell .brand-copy small,.app-shell .deck-divider,.app-shell .factory-switcher,.app-shell .deck-spacer,
+  .app-shell .appearance-picker,.app-shell .profile-trigger{display:none!important}
+  .app-shell .mobile-nav-trigger{
+    display:grid!important;place-items:center!important;flex:0 0 38px!important;width:38px!important;min-width:38px!important;
+    height:38px!important;margin:0!important;padding:0!important;border:1px solid #29475f!important;border-radius:10px!important;
+    background:#10283c!important;color:#e2f2ff!important
+  }
+  .app-shell .command-search{
+    display:grid!important;place-items:center!important;flex:0 0 38px!important;width:38px!important;min-width:38px!important;
+    height:38px!important;margin:0!important;padding:0!important;border:1px solid #29475f!important;border-radius:10px!important;
+    background:#10283c!important;color:#e2f2ff!important
+  }
+  .app-shell .command-search>span,.app-shell .command-search>kbd{display:none!important}
+  .app-shell .deck-action{
+    display:grid!important;place-items:center!important;flex:0 0 38px!important;width:38px!important;min-width:38px!important;
+    height:38px!important;margin:0!important;padding:0!important;border:1px solid #29475f!important;border-radius:10px!important;
+    background:#10283c!important;color:#e2f2ff!important
+  }
+  .app-shell .deck-action>span,.app-shell .deck-action:nth-of-type(7){display:none!important}
+  .app-shell .deck-action b{font-size:8px!important}
+  .app-shell .ax-orientation-toggle{display:grid!important;place-items:center!important;flex:0 0 38px!important;width:38px!important;min-width:38px!important;height:38px!important;padding:0!important}
+  .app-shell .ax-orientation-toggle>span{display:none!important}
+  .app-shell .deck-icon.alert-trigger{
+    display:grid!important;place-items:center!important;flex:0 0 38px!important;width:38px!important;min-width:38px!important;
+    height:38px!important;margin:0!important;padding:0!important;border:1px solid #29475f!important;border-radius:10px!important;
+    background:#10283c!important;color:#e2f2ff!important
+  }
+  .app-shell .status-ribbon{display:none!important}
+  .app-shell .page-content,
+  .app-shell:has(.route-flow-workspace) .page-content,
+  .app-shell:has(.manufacturing-universe-workspace) .page-content,
+  .app-shell:has(.linked-process-page) .page-content{
+    position:absolute!important;inset:calc(58px + env(safe-area-inset-top)) 0 0 0!important;
+    display:block!important;width:100%!important;height:auto!important;max-width:none!important;min-width:0!important;
+    margin:0!important;padding:11px 10px calc(18px + env(safe-area-inset-bottom))!important;
+    overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important;
+    box-sizing:border-box!important;background:var(--canvas,#f2f6fa)!important
+  }
+  .app-shell .command-rail,
+  .app-shell:has(.route-flow-workspace) .command-rail,
+  .app-shell:has(.manufacturing-universe-workspace) .command-rail,
+  .app-shell:has(.linked-process-page) .command-rail{
+    display:flex!important;position:fixed!important;inset:calc(58px + env(safe-area-inset-top)) auto 0 0!important;
+    z-index:121!important;width:min(320px,88vw)!important;max-width:88vw!important;height:auto!important;max-height:none!important;
+    margin:0!important;padding:12px 12px calc(16px + env(safe-area-inset-bottom))!important;
+    flex:0 0 auto!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:5px!important;
+    overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important;
+    border:0!important;border-right:1px solid rgba(118,164,202,.28)!important;border-radius:0 16px 16px 0!important;
+    background:#071625!important;color:#e7f2fb!important;box-shadow:18px 0 44px rgba(0,0,0,.38)!important;
+    transform:translateX(-110%)!important;visibility:hidden!important;pointer-events:none!important;
+    transition:transform .2s ease,visibility .2s ease!important
+  }
+  .app-shell .command-rail.mobile-nav-open,
+  .app-shell:has(.route-flow-workspace) .command-rail.mobile-nav-open,
+  .app-shell:has(.manufacturing-universe-workspace) .command-rail.mobile-nav-open,
+  .app-shell:has(.linked-process-page) .command-rail.mobile-nav-open{
+    transform:translateX(0)!important;visibility:visible!important;pointer-events:auto!important
+  }
+  .app-shell .command-rail .rail-section-label{
+    display:block!important;width:100%!important;margin:12px 0 5px!important;padding:0 8px!important;
+    color:#83a4bf!important;text-align:left!important;font-size:9px!important;letter-spacing:.14em!important
+  }
+  .app-shell .command-rail>button,
+  .app-shell .command-rail.mobile-nav-open>button{
+    display:flex!important;flex:0 0 auto!important;align-items:center!important;justify-content:flex-start!important;gap:12px!important;
+    width:100%!important;min-width:0!important;max-width:none!important;height:auto!important;min-height:44px!important;
+    margin:0!important;padding:10px 11px!important;border:1px solid transparent!important;border-radius:9px!important;
+    background:transparent!important;color:#bcd0e2!important;text-align:left!important
+  }
+  .app-shell .command-rail>button svg{display:block!important;flex:0 0 18px!important;width:18px!important;height:18px!important}
+  .app-shell .command-rail>button span{display:block!important;flex:1 1 auto!important;min-width:0!important;max-width:none!important;color:inherit!important;text-align:left!important;font-size:12px!important;line-height:1.25!important;white-space:normal!important}
+  .app-shell .command-rail>button.rail-active{border-color:#1d668c!important;background:#103653!important;color:#77d3ff!important}
+  .app-shell .command-rail>button.rail-all{margin-top:8px!important;border-top:1px solid #29445d!important;border-radius:0!important;color:#83c8f0!important}
+  .app-shell .rail-appearance-setting{min-height:44px!important;background:#0d263a!important}
+  .app-shell .mobile-nav-backdrop{
+    display:block!important;position:fixed!important;inset:calc(58px + env(safe-area-inset-top)) 0 0!important;
+    z-index:120!important;width:100vw!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;
+    background:rgba(1,9,18,.64)!important;backdrop-filter:blur(2px)!important
+  }
+  .app-shell:has(.route-flow-workspace) .route-flow-workspace,
+  .app-shell:has(.manufacturing-universe-workspace) .manufacturing-universe-workspace,
+  .app-shell:has(.linked-process-page) .linked-process-page{width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important}
+  .workspace-topline{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:7px!important;flex-wrap:wrap!important;margin-bottom:10px!important}
+  .workspace-topline .demo-pill{max-width:100%!important;white-space:normal!important;font-size:8px!important}
+  .workspace-title-row,.route-flow-workspace-head,.manufacturing-universe-head{
+    display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:9px!important;
+    width:100%!important;min-width:0!important;margin:0 0 12px!important
+  }
+  .workspace-title-row h1,.route-flow-workspace-head h1,.manufacturing-universe-head h1{font-size:clamp(22px,6vw,29px)!important;line-height:1.12!important;letter-spacing:-.035em!important}
+  .workspace-title-row p,.route-flow-workspace-head p,.manufacturing-universe-head p{max-width:none!important;font-size:11px!important;line-height:1.5!important}
+  .workspace-title-actions,.route-flow-head-actions,.manufacturing-universe-actions{
+    display:flex!important;align-items:stretch!important;gap:7px!important;flex-wrap:wrap!important;width:100%!important;min-width:0!important
+  }
+  .workspace-title-actions>button,.route-flow-head-actions>button,.manufacturing-universe-actions>button{flex:1 1 auto!important;min-width:0!important;min-height:38px!important;font-size:10px!important}
+  .linked-master-selectors{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:9px!important;width:100%!important;margin:8px 0 12px!important}
+  .linked-master-selectors>*{min-width:0!important;width:100%!important}
+  .linked-component-summary{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:9px!important}
+  .linked-component-identity{min-width:0!important}
+  .linked-component-identity>span:last-child{min-width:0!important;overflow-wrap:anywhere!important}
+  .linked-kpis,.production-quantity-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  .route-kpi{min-width:0!important;padding:9px!important}
+  .route-kpi strong{font-size:14px!important;overflow-wrap:anywhere!important}
+  .route-kpi small,.route-kpi em{font-size:8px!important;line-height:1.35!important}
+  .route-flow-workspace-head,.manufacturing-universe-head{padding-right:0!important}
+  .route-flow-canvas-layout{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:9px!important}
+  .route-flow-relationship-panel{order:2!important;min-width:0!important}
+  .route-flow-canvas-panel,.route-flow-graph-panel,.manufacturing-universe-live-panel{min-width:0!important;width:100%!important;max-width:100%!important;overflow:hidden!important}
+  .route-flow-stage-scroll{
+    display:block!important;width:100%!important;min-width:0!important;min-height:0!important;max-height:none!important;
+    padding:8px!important;overflow-x:hidden!important;overflow-y:visible!important
+  }
+  .route-flow-stage-track{
+    display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:0!important;
+    width:100%!important;min-width:0!important;min-height:0!important
+  }
+  .route-flow-stage-card{width:100%!important;min-width:0!important;min-height:0!important;margin:0!important;padding:12px!important}
+  .route-flow-curve{width:100%!important;min-width:0!important;flex:0 0 34px!important;height:34px!important}
+  .route-flow-curve svg{width:100%!important;height:34px!important}
+  .route-flow-workspace .route-flow-scope-bar,.manufacturing-universe-scope{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important}
+  .manufacturing-universe-stat-grid,.manufacturing-universe-links-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  .manufacturing-universe-live-panel{padding:8px!important}
+  .manufacturing-universe-live-heading{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:6px!important}
+  .manufacturing-universe-live-panel .process-orbit-panel{min-height:320px!important;height:42dvh!important;max-height:430px!important;margin:7px 0 0!important;padding:5px!important}
+  .manufacturing-universe-live-panel .process-orbit-scene,.manufacturing-universe-live-panel .process-scene-stage{min-height:290px!important;height:100%!important}
+  .process-scene-zoom-viewport{max-width:100%!important;overflow:hidden!important}
+  .ax-full3d-scene{width:100%!important;height:clamp(290px,45dvh,430px)!important;min-height:290px!important;max-height:430px!important}
+  .ax-full3d-label{width:min(142px,39vw)!important;min-height:68px!important;max-height:100px!important;padding:6px 7px!important;gap:3px!important}
+  .ax-full3d-label strong{font-size:9px!important;line-height:1.2!important}
+  .ax-full3d-label small{font-size:7px!important;line-height:1.2!important}
+  .route-flow-graph-canvas,.process-map-graph-canvas,.ax-ecosystem-flow-canvas{width:100%!important;height:clamp(320px,52dvh,500px)!important;min-height:320px!important;max-height:none!important}
+  .route-flow-graph-header,.process-map-graph-header{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:8px!important}
+  .process-map-graph-canvas .react-flow__minimap,.route-flow-graph-canvas .react-flow__minimap,.ax-ecosystem-flow-canvas .react-flow__minimap{display:none!important}
+  .route-flow-export-controls{display:flex!important;flex-wrap:wrap!important;gap:6px!important;width:100%!important}
+  .route-flow-export-controls select{flex:1 1 100%!important;max-width:none!important;min-width:0!important}
+  .route-flow-export-controls button{flex:1 1 auto!important}
+  .process-map-filter-grid{grid-template-columns:minmax(0,1fr)!important}
+  .process-map-filter-grid>div{max-height:180px!important}
+  .process-production-summary,.process-add-prerequisite-note,.job-completion-panel{min-width:0!important;padding:11px!important}
+  .process-production-summary .panel-heading{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:7px!important}
+  .ax-map-zoom-toolbar{top:6px!important;left:6px!important;gap:3px!important;padding:4px!important}
+  .ax-map-zoom-toolbar button{min-width:31px!important;height:30px!important}
+  .ax-map-fullscreen-toggle{top:6px!important;right:6px!important;width:36px!important;height:36px!important}
+  .route-flow-module-link-grid,.linked-empty-actions{display:grid!important;grid-template-columns:minmax(0,1fr)!important}
+  .workspace-page,.workspace-card,.surface-panel,.linked-process-page .surface-panel{min-width:0!important;max-width:100%!important}
+  .costing-table-wrap,.process-operation-table-wrap,.table-wrap{max-width:100%!important;overflow-x:auto!important;overscroll-behavior-x:contain!important}
+  .module-action-bar,.module-hero,.panel-heading{display:flex!important;flex-wrap:wrap!important;align-items:flex-start!important;gap:8px!important}
+  .module-hero-copy{min-width:0!important}
+  .module-hero-copy h1{font-size:clamp(22px,6vw,30px)!important}
+  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .ax-followup-assignment-dock{right:8px!important;bottom:max(10px,env(safe-area-inset-bottom))!important}
+  .ax-followup-assignment-panel{width:min(340px,calc(100vw - 24px))!important}
+  .route-flow-stage-card,.manufacturing-universe-links-grid>button,.react-flow__node,.route-kpi{
+    transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,background-color .18s ease!important
+  }
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:700px){
+  .app-shell[data-phone-viewport="true"][data-landscape-canvas-open="true"] .page-content{padding:7px 8px calc(10px + env(safe-area-inset-bottom))!important}
+  .app-shell[data-phone-viewport="true"][data-landscape-canvas-open="true"] .workspace-topline{display:none!important}
+  .app-shell[data-phone-viewport="true"][data-landscape-canvas-open="true"] .route-flow-stage-scroll{max-height:calc(100dvh - 110px)!important;min-height:0!important;overflow:auto!important}
+  .app-shell[data-phone-viewport="true"][data-landscape-canvas-open="true"] .manufacturing-universe-live-panel .process-orbit-panel{height:calc(100dvh - 150px)!important;min-height:0!important;max-height:none!important}
+  .app-shell[data-phone-viewport="true"][data-landscape-canvas-open="true"] .ax-full3d-scene{height:calc(100dvh - 110px)!important;min-height:0!important;max-height:none!important}
+  .app-shell[data-phone-viewport="true"][data-landscape-canvas-open="true"] .route-flow-graph-canvas,
+  .app-shell[data-phone-viewport="true"][data-landscape-canvas-open="true"] .process-map-graph-canvas,
+  .app-shell[data-phone-viewport="true"][data-landscape-canvas-open="true"] .ax-ecosystem-flow-canvas{height:calc(100dvh - 120px)!important;min-height:0!important}
+}
+.route-flow-workspace[data-workspace-theme="light"],.manufacturing-universe-workspace[data-workspace-theme="light"]{
+  color:#19374d!important;background:#f1f6fb!important
+}
+.route-flow-workspace[data-workspace-theme="light"] .route-flow-canvas-panel,
+.manufacturing-universe-workspace[data-workspace-theme="light"] .manufacturing-universe-live-panel{
+  background:#fff!important;border-color:#d4e1ec!important;box-shadow:0 8px 24px rgba(28,64,91,.07)!important
+}
+@media (prefers-reduced-motion:reduce){
+  .app-shell .command-rail,.route-flow-stage-card,.manufacturing-universe-links-grid>button,.react-flow__node,.route-kpi{transition:none!important;animation:none!important}
+}
