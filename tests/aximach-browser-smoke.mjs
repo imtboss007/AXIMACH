@@ -528,6 +528,8 @@ try {
           measuredWidth: sceneElement.getAttribute("data-scene-layout-width"),
           measuredHeight: sceneElement.getAttribute("data-scene-layout-height"),
           sceneClientWidth: sceneElement.clientWidth,
+          sceneLayoutWidth: sceneElement.getAttribute("data-scene-layout-width"),
+          sceneLayoutHeight: sceneElement.getAttribute("data-scene-layout-height"),
           canvasClientWidth: canvas?.clientWidth,
           labelCount: 0,
           labels: []
@@ -545,7 +547,7 @@ try {
         computedLeft:style.left,computedTop:style.top,
         position:style.position,transform:style.transform,
         marginLeft:style.marginLeft,marginRight:style.marginRight,
-        right:style.right,direction:style.direction,writingMode:style.writingMode,
+        computedRight:style.right,computedBottom:style.bottom,direction:style.direction,writingMode:style.writingMode,
         paddingLeft:style.paddingLeft,paddingRight:style.paddingRight,
         offsetLeft:element.offsetLeft,offsetTop:element.offsetTop,
         offsetParentClass:typeof offsetParent?.className==="string"?offsetParent.className:"",
