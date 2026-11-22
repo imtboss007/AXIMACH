@@ -6,7 +6,7 @@ function boundsByKind(kind, width, responsiveWidth = width) {
   if (responsiveWidth <= 600) {
     return ({
       operation: { width: 148, height: 112 },
-      material: { width: 140, height: 105 },
+      material: { width: 148, height: 112 },
       transport: { width: 32, height: 32 },
       transportLeg: { width: 32, height: 32 },
       catalogue: { width: 148, height: 112 },
@@ -20,12 +20,12 @@ function boundsByKind(kind, width, responsiveWidth = width) {
       transport: { width: 34, height: 34 },
       transportLeg: { width: 34, height: 34 },
       catalogue: { width: 124, height: 82 },
-      core: { width: 110, height: 44 }
+      core: { width: 120, height: 56 }
     })[kind];
   }
   return ({
     operation: { width: 184, height: 96 },
-    material: { width: 190, height: 118 },
+    material: { width: 190, height: 202 },
     transport: { width: 34, height: 34 },
     transportLeg: { width: 34, height: 34 },
     catalogue: { width: 184, height: 96 },
