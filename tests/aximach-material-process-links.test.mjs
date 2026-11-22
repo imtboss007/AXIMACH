@@ -143,7 +143,8 @@ test("Process Map is scoped to the exact selected PO line and its part material 
   assert.ok(processMap.includes('leg.poLineId === selectedLine?.id'));
   assert.ok(processMap.includes('entry.poLineId === selectedLine?.id'));
   assert.ok(processMap.includes('entry.partId===selectedPart.id'));
-  assert.ok(processMap.includes('const expectedQuantity = Math.max(0,Number(selectedLine?.quantity)||0)'));
+  assert.ok(processMap.includes('getProductionRouteMetrics(routeOperations, selectedLine?.quantity || 0)'));
+  assert.ok(processMap.includes('const expectedQuantity = routeQuantityMetrics.expectedQuantity'));
 });
 
 test("Route Flow never defaults to an unrelated first company, PO or component line", () => {
