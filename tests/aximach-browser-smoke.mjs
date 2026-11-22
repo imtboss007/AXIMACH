@@ -139,7 +139,7 @@ try {
   await page.waitForTimeout(80);
   const multiAnchorBefore = await multiAnchor.boundingBox();
   await vehicleFilter.click();
-  const multiMenu = page.locator("#transport-filter-vehicle-menu");
+  const multiMenu = page.locator("#transport-filter-vendor-menu");
   await multiMenu.waitFor({ state: "visible", timeout: 5000 });
   const multiGeometry = await multiMenu.evaluate(element => {
     const rect = element.getBoundingClientRect();
