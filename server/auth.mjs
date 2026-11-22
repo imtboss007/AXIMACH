@@ -86,7 +86,7 @@ export function getRequiredPermission(pathname,method){
  if(pathname==="/api/backup"&&verb==="GET")return "backup:read";
  if(pathname==="/api/audit-events"&&verb==="GET")return "audit:read";
  if(pathname==="/api/restore"&&verb==="POST")return "backup:restore";
- if(pathname==="/api/lead-discovery/search"&&verb==="POST")return "data:read";
+ if((pathname==="/api/lead-discovery/search"||pathname==="/api/lead-discovery/enrich")&&verb==="POST")return "data:read";
  if(pathname==="/api/manufacturing-data")return verb==="GET"?"data:read":"data:write";
  if(pathname==="/api/records")return verb==="GET"?"records:read":"records:write";
  if(pathname==="/api/ui-preferences")return verb==="GET"?"preferences:read":"preferences:write";

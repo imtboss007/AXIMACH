@@ -22,7 +22,7 @@ export type CustomerRecord = {
 };
 export type ProspectStage = "New" | "Reviewed" | "Qualified" | "Disqualified" | "Converted";
 export type ProspectEvidenceRecord = {
-  id:string; provider:"SearXNG"; query:string; sourceUrl:string; sourceTitle:string; snippet:string;
+  id:string; provider:"SearXNG"|"Official website"; query:string; sourceUrl:string; sourceTitle:string; snippet:string;
   engine?:string; retrievedAt:string; publishedAt?:string;
 };
 export type ProspectRecord = {

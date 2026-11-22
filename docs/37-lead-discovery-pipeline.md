@@ -1,70 +1,66 @@
-# AXIMACH — Public-Web Lead Discovery (Initial Integration)
+# AXIMACH — Multi-source Public-Web Lead Discovery
 
-**Status:** implemented as a self-hosted SearXNG search adapter and a tenant-scoped prospect workflow. A live SearXNG provider is not yet configured or health-verified.
+**Status:** implemented in the existing Customer Directory workflow as multi-instance SearXNG search plus a single-page, administrator-allowlisted official website metadata capture. Provider configuration and live-source operation remain unverified until configured on the shared server.
 
-## Purpose
+## Purpose and operating flow
 
-Lead Discovery is part of **Customer Directory**. It searches public web indexes for possible OEM, Tier-1/Tier-2, industrial machinery, automation, automotive, aerospace, electrical, defence and medical-device buyers. It does not create customer accounts directly from search results.
+AXIMACH uses the existing **Customer Directory → Lead Discovery** workspace. It searches for possible OEM, Tier-1/Tier-2, industrial machinery, automation, automotive, aerospace, electrical, defence and medical-device buyers. Search results are unverified prospects, not customer records.
 
-AXIMACH remains the canonical customer and manufacturing system. Prospects are a separate collection, with stable IDs and source evidence, until a user reviews and qualifies them.
+1. A user selects the AXIMACH operating company that owns the prospect relationship.
+2. The server fans the query out to up to five configured self-hosted SearXNG search instances. Each instance can use its enabled public web search engines.
+3. AXIMACH combines results, deduplicates canonical source URLs and reports which configured search sources succeeded or failed. Partial results are retained when at least one source is available.
+4. The user can save a result as an unqualified prospect.
+5. The user may explicitly request metadata enrichment for one selected HTTPS result URL. The server fetches only that one page when its hostname is on the administrator's allowlist.
+6. AXIMACH extracts a limited set of public company metadata: page title, site name, description and Schema.org Organization fields (name, legal name, website and public sameAs links). Email addresses, phone numbers and page scripts are not returned.
+7. Search and official-website captures are stored as separate source-evidence records. The prospect must be reviewed and qualified by a person before the existing **Promote to customer** action is enabled. Promoted customers start **On hold**.
 
-## Current flow
+Changing the selected owning company clears transient search results and website enrichment in the panel.
 
-1. A user opens **Customer Directory → Lead Discovery**.
-2. The user selects an AXIMACH operating company that owns the prospect relationship.
-3. The user submits a search query to the AXIMACH server.
-4. The server sends a JSON search request to the configured SearXNG instance and returns up to ten public web results.
-5. The user chooses which result to save. AXIMACH stores a prospect with the query, provider, source URL, result title/snippet, retrieval timestamp and available engine/publication metadata.
-6. The prospect moves through **New → Reviewed → Qualified** or **Disqualified**.
-7. Only the explicit **Promote to customer** action on a Qualified prospect creates a customer record. The created customer starts **On hold**, retains the source URLs in its notes, and requires identity/contact/commercial verification before activation.
+## Server-only configuration
 
-Changing the selected owning company clears the currently displayed search results to prevent saving a previous company's results into a different company scope.
-
-## Provider configuration
-
-Set this variable on the **AXIMACH server only**:
+Configure these variables on the **AXIMACH shared server**, never in browser code or localStorage.
 
 ```env
+# Preferred: semicolon/comma/newline-separated URLs; maximum five unique instances.
+AXIMACH_SEARXNG_URLS=https://search-one.example;https://search-two.example
+
+# Backward-compatible single-instance setting; used when AXIMACH_SEARXNG_URLS is empty.
 AXIMACH_SEARXNG_URL=https://your-private-searxng-host
+
+# Exact hostnames or wildcard subdomains approved for single-page metadata capture.
+AXIMACH_DISCOVERY_ALLOWED_HOSTS=company-one.example;*.company-two.example
 ```
 
-The value must be a base HTTP(S) URL without credentials. The adapter appends `/search` and requests `format=json`, safe-search enabled and page 1. In the SearXNG instance's `settings.yml`, JSON output must be enabled under the server's configured search formats. The Integration Hub's readiness state only indicates whether the URL is configured; it does not perform a health check.
+Each SearXNG value must be a base HTTP(S) URL without credentials. AXIMACH appends `/search` and requests `format=json`, safe-search enabled and page 1. JSON output must be enabled in every SearXNG instance's `settings.yml`. Instances should be private to the AXIMACH server or protected behind an authenticated/private network boundary. Do not place service credentials in browser storage or public bundles.
 
-Keep the SearXNG instance private to the AXIMACH server or behind an authenticated/private network boundary. Do not expose a SearXNG API key or service credential in browser code, localStorage or a public client bundle. The AXIMACH proxy uses a 12-second request timeout and does not follow redirects.
+The hostname allowlist is an explicit administrator approval boundary. It supports exact hostnames and `*.example.com` patterns (which include the apex host). Website enrichment accepts HTTPS only on the standard port, rejects credentials and IP-literal URLs, resolves the hostname and rejects the request if any returned address is non-public, pins the HTTPS request to the checked DNS addresses, blocks redirects, requires HTML, and caps the response at 1 MB with a 10-second timeout. Administrators must approve only domains and pages whose public access is permitted by their terms and applicable site policies.
 
-## API and permissions
+## APIs, permissions and evidence
 
-- Endpoint: `POST /api/lead-discovery/search`
-- Request: `{ "query": "...", "ownerCompanyId": "..." }`
-- Permission: `data:read` plus the normal AXIMACH account authentication and assigned-company scope.
-- The server verifies that the requested owning company is visible to the caller before it sends the search request.
-- Search activity is recorded in AXIMACH's audit log with the provider, owning company and result count. The raw query is not written to that audit event.
-- Search results are transient until a user saves one as a prospect.
-- Prospect and customer records are stored in the canonical manufacturing-data document and use the existing server sync path.
-- Tenant filtering and writes restrict customer/prospect visibility to their `ownerCompanyId`. Legacy customer rows without an owner remain visible to administrators; they are not silently assigned to a tenant.
+- `POST /api/lead-discovery/search` — `{ "query": "...", "ownerCompanyId": "..." }`.
+- `POST /api/lead-discovery/enrich` — `{ "url": "...", "ownerCompanyId": "..." }`.
+- Both endpoints require normal AXIMACH authentication, `data:read` permission and visibility of the selected owning company.
+- The server checks tenant/company visibility before calling a provider or requesting the website.
+- Search audit events record provider, owning company and result count, not the raw query. Website audit events record the provider, owning company and approved source domain, not page content.
+- Search results and enrichment payloads remain transient until the user saves them into the prospect evidence list.
+- Prospects remain separate from customers. Existing human qualification and customer promotion rules are unchanged.
+- Prospect evidence is capped at 20 source records per prospect. A source URL is evidence, not proof of legal identity, buyer authority or commercial fit.
 
-## Safety and data-handling rules
+## Safety boundaries
 
-- Search results are unverified leads, not verified companies or approved customers.
-- The first integration stores only publicly returned search metadata and source evidence. It does not crawl result pages, harvest private contact details, bypass access controls, create accounts, or send outreach.
-- Only HTTP(S) result URLs without embedded credentials are displayed/saved; obvious local/private URL patterns are filtered before results are returned. A saved URL is evidence, not proof of identity or ownership.
-- Evidence is capped at 20 source items per prospect. Users should inspect source freshness, official company identity and relevance before qualification.
-- A promoted customer is initially On hold. The user must verify legal name, official website, relevant buyer/contact details, GSTIN where applicable, and commercial terms before activation.
-- Search results and page content are untrusted external input. They must never be treated as executable instructions or as authority to modify AXIMACH records.
+- No bulk website crawler, recursive link traversal, page-wide data dump, private-contact harvesting, email/phone discovery, email verification, automated outreach or CRM export is included.
+- Website enrichment is a single user-selected page fetch on a hostname explicitly approved by the AXIMACH administrator.
+- Search and page content are untrusted external input. They are rendered as text and never treated as executable instructions or authority to change AXIMACH records.
+- No LinkedIn logged-in scraping, access-control bypass, paid provider connection, paid API, deployment or public release is included.
+- Search results and source metadata must be reviewed for freshness, relevance, official identity, legal entity name and ownership before qualification. Verify GSTIN (where applicable), actual buyer contacts and commercial terms independently.
 
 ## Tests and verification boundary
 
-The repository tests cover request construction, JSON mode, response normalization, result count limits, obvious private/non-web URL filtering, missing configuration, disabled JSON output, permission mapping, tenant isolation and the prospect/customer qualification flow.
+Unit tests cover multi-instance fan-out, URL deduplication, partial source failure, total provider failure, SearXNG JSON mode, result filtering, official-website allowlist checks, public-DNS checks, HTTPS-only requests, redirect rejection, metadata extraction and omission of email/phone fields. These tests use mocked providers and DNS/HTTP responses. They do not prove that a live SearXNG service or an approved website is configured, reachable or currently returning results.
 
-The CI tests use a mocked SearXNG response. **They do not prove that a live SearXNG instance is deployed, configured, reachable or returning current results.** A live provider smoke check remains pending until an administrator supplies the server-side URL and the connected environment is available.
+## Remaining pipeline work
 
-## Explicitly not part of this initial slice
-
-- Crawl4AI or any other page crawler/content extractor.
-- Email/phone enrichment or email verification.
-- Automated outreach, bulk messaging or third-party CRM sync.
-- Apollo, Apify or other paid provider connections.
-- Automatic conversion of search results into Customer Directory records.
-- Deployment or public release.
-
-These can be evaluated later as separate adapters, with source/licence and provider-term review, data provenance, tenant scope, explicit user actions and their own tests.
+- Optional registry and public-business-directory adapters require exact source terms, licence/data-rights checks and separate tests.
+- Full-site crawling and page discovery are not included; add only as a later, bounded allowlisted crawl with robots/terms compliance and page/depth/rate limits.
+- Decision-maker discovery and direct contact enrichment are not included. Use official company leadership pages and permitted public sources only in a separately reviewed workflow; do not harvest private data.
+- Matching against detailed AXIMACH customer requirements, confidence scoring, manual evidence review and bulk prospect workflow still need their own implementation and acceptance.
