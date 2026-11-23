@@ -32,9 +32,10 @@ test("Theme Studio previews without saving, supports HEX and colour picker contr
 
 test("Global appearance maps application, chart and graph tokens onto the existing app", () => {
   for (const token of ["--ax-theme-background","--ax-theme-surface","--ax-theme-navigation","--ax-theme-sidebar","--ax-theme-chart-1","--ax-theme-graph-1"]) {
-    assert.ok(model.includes(token), "Theme token missing: " + token);
-    if(token.startsWith("--ax-theme-chart-")||token.startsWith("--ax-theme-graph-")) assert.ok(model.includes(token.slice(0,-1)), "Indexed theme palette token missing: " + token);
-    if(token.startsWith("--ax-theme-chart-")||token.startsWith("--ax-theme-graph-")) assert.ok(app.includes("Object.entries(resolvedTheme.cssVariables)"));
+    if(token.startsWith("--ax-theme-chart-")||token.startsWith("--ax-theme-graph-")) {
+      assert.ok(model.includes(token.slice(0,-1)), "Indexed theme palette token missing: " + token);
+      assert.ok(app.includes("Object.entries(resolvedTheme.cssVariables)"));
+    } else assert.ok(model.includes(token), "Theme token missing: " + token);
     else assert.ok(css.includes(token), "Global token not applied: " + token);
   }
   assert.ok(css.includes(".app-shell[data-theme] .command-rail"));
