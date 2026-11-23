@@ -1,9 +1,9 @@
 const CARD_BOUNDS = Object.freeze({
-  operation: { width: 184, height: 96 },
+  operation: { width: 184, height: 112 },
   material: { width: 190, height: 202 },
   transport: { width: 34, height: 34 },
   transportLeg: { width: 34, height: 34 },
-  catalogue: { width: 184, height: 96 },
+  catalogue: { width: 184, height: 112 },
   core: { width: 140, height: 56 }
 });
 
@@ -12,22 +12,22 @@ const CARD_BOUNDS = Object.freeze({
 function boundsForKind(kind, viewportWidth) {
   if (viewportWidth <= 600) {
     const compact = {
-      operation: { width: 148, height: 112 },
-      material: { width: 148, height: 112 },
+      operation: { width: 156, height: 124 },
+      material: { width: 156, height: 136 },
       transport: { width: 32, height: 32 },
       transportLeg: { width: 32, height: 32 },
-      catalogue: { width: 148, height: 112 },
+      catalogue: { width: 156, height: 124 },
       core: { width: 100, height: 42 }
     };
     return compact[kind] || compact.operation;
   }
   if (viewportWidth <= 760) {
     const tablet = {
-      operation: { width: 124, height: 82 },
-      material: { width: 124, height: 82 },
+      operation: { width: 148, height: 104 },
+      material: { width: 148, height: 116 },
       transport: { width: 34, height: 34 },
       transportLeg: { width: 34, height: 34 },
-      catalogue: { width: 124, height: 82 },
+      catalogue: { width: 148, height: 104 },
       core: { width: 120, height: 56 }
     };
     return tablet[kind] || tablet.operation;
@@ -37,7 +37,7 @@ function boundsForKind(kind, viewportWidth) {
 
 const LABEL_GAP = 14;
 const SHELF_GAP = 18;
-const CARD_SCALES = [1, 0.92, 0.84, 0.78];
+const CARD_SCALES = [1];
 
 function clampCenter(x, y, bounds, width, height) {
   const minX = Math.min(bounds.width / 2 + 7, width / 2);
@@ -106,9 +106,9 @@ function packDenseLabels(items, width, height, responsiveWidth = width) {
   });
   const ordered = [...priority, ...remainder];
   const portrait = height > width;
-  const scales = portrait
-    ? [0.84, 0.78, 0.72, 0.68, 0.64, 0.60, 0.56, 0.54, 0.52, 0.50, 0.48, 0.46, 0.44, 0.42, 0.40]
-    : [0.84, 0.78, 0.72, 0.68, 0.64, 0.60];
+  // Preserve readable card text: extend the scrollable label canvas vertically
+  // rather than shrinking manufacturing labels to unreadable thumbnail size.
+  const scales = [1];
   let bestOverflow = null;
 
   for (const scale of scales) {
