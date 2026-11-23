@@ -161,7 +161,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
   const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
-  const [routeCanvasMode,setRouteCanvasMode]=useState<"cards"|"graph">("cards");
+  const [routeCanvasMode,setRouteCanvasMode]=useState<"cards"|"graph">("graph");
   const [showRelationshipEditor,setShowRelationshipEditor]=useState(false);
   const [showTransportEditor,setShowTransportEditor]=useState(false);
   const routeViewportRef=useRef<HTMLDivElement|null>(null);
@@ -191,7 +191,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     ||(!entry.poLineId&&entry.poId===poId&&componentLineCount===1)
     ||(!entry.poLineId&&!entry.poId&&componentGlobalLineCount===1)
   )&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
-  const routeLegs=legs.filter(leg=>leg.poId===poId&&(leg.poLineId===poLineId||(!leg.poLineId&&componentGlobalLineCount===1))&&leg.componentId===componentId&&(!leg.anchorOperationId&&!leg.targetOperationId||lane.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
+  const routeLegs=legs.filter(leg=>leg.poId===poId&&(leg.poLineId===poLineId||(!leg.poLineId&&componentGlobalLineCount===1))&&leg.componentId===componentId&&(!leg.anchorOperationId&&!leg.targetOperationId||routeOperations.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
   const routeMaterialProcessLinks=allMaterialProcessLinks.filter(link=>{
     if(link.poId!==poId||link.poLineId!==poLineId||link.componentId!==componentId)return false;
     const linkedBom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
@@ -266,45 +266,163 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   };
 
   const routeFlowGraph = useMemo(()=>{
-    const accentFor=(node:FlowNode)=>{
-      if(node.kind==="operation") return node.operation.relationType==="rework"?"#df7a45":node.operation.relationType==="alternate"?"#4b95eb":"#168d89";
-      if(node.kind==="material"||node.kind==="missing-material") return "#b18a2d";
-      if(node.kind==="material-transport"||node.kind==="transport") return "#397ea4";
-      return "#73879a";
+    const lineOperations=routeOperations.filter(operation=>operation.relationType!=="subprocess"&&!operation.deletedAt);
+    const mainOperations=lineOperations.filter(operation=>(operation.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence);
+    const branchNames=[...new Set(lineOperations.map(operation=>operation.branch||"Main route"))];
+    const branchOffsets=new Map<string,number>();
+    branchNames.forEach((name,index)=>branchOffsets.set(name,name==="Main route"?0:/alternate/i.test(name)?-1:/rework/i.test(name)?1:index-1));
+    const portrait=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
+    const graphSource:FlowNode[]=[
+      ...routeMaterials.map(entry=>({kind:"material" as const,id:"material-"+entry.id,entry})),
+      ...routeMaterials.filter(entry=>entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||Number(entry.transportCost)>0||entry.transportPickupAt||entry.transportDeliveryAt)
+        .map(entry=>({kind:"material-transport" as const,id:"material-transport-"+entry.id,entry})),
+      ...routeLegs.map(leg=>({kind:"transport" as const,id:"transport-"+leg.id,leg})),
+      ...lineOperations.map(operation=>({kind:"operation" as const,id:operation.id,operation}))
+    ];
+    const uniqueSource=graphSource.filter((node,index)=>graphSource.findIndex(other=>other.id===node.id)===index);
+    const operationFor=(id:string)=>lineOperations.find(operation=>operation.id===id);
+    const positionFor=(node:FlowNode,index:number)=>{
+      if(node.kind==="operation"){
+        const operation=node.operation;
+        const branch=operation.branch||"Main route";
+        const lane=branchOffsets.get(branch)||0;
+        if(portrait){
+          const laneColumn=branch==="Main route"?0:/alternate/i.test(branch)?1:/rework/i.test(branch)?2:Math.max(1,index%3);
+          return {x:28+laneColumn*278,y:180+Math.max(0,operation.sequence-1)*218};
+        }
+        return {x:500+Math.max(0,operation.sequence-1)*290,y:210+lane*245};
+      }
+      if(node.kind==="material")return portrait?{x:28,y:0}:{x:20,y:210};
+      if(node.kind==="material-transport")return portrait?{x:28,y:86}:{x:265,y:210};
+      if(node.kind==="transport"){
+        const anchor=operationFor(node.leg.anchorOperationId||"");
+        const target=operationFor(node.leg.targetOperationId||"");
+        const reference=anchor||target||mainOperations[0];
+        const lane=reference?branchOffsets.get(reference.branch||"Main route")||0:0;
+        const sequence=reference?.sequence||0;
+        if(portrait){
+          const laneColumn=reference?.branch==="Alternate route"?1:/rework/i.test(reference?.branch||"")?2:0;
+          return {x:28+laneColumn*278,y:120+Math.max(0,sequence-1)*218};
+        }
+        return {x:385+Math.max(0,sequence-1)*290,y:210+lane*245};
+      }
+      return portrait?{x:28,y:0}:{x:20,y:210};
     };
-    const nodes:RouteFlowGraphNode[]=routeNodes.map((node,index)=>{
+    const accentFor=(node:FlowNode)=>{
+      if(node.kind==="operation"){
+        const branch=(node.operation.branch||"Main route").toLowerCase();
+        return /rework/.test(branch)?"#c45445":/alternate/.test(branch)?"#356fc5":"#0e827f";
+      }
+      if(node.kind==="material"||node.kind==="missing-material")return "#a56b12";
+      if(node.kind==="material-transport"||node.kind==="transport")return "#176c9b";
+      return "#667c95";
+    };
+    const nodes:RouteFlowGraphNode[]=uniqueSource.map((node,index)=>{
       let title="",detail="",kind="",actionLabel="",onAction:RouteFlowNodeData["onAction"];
       if(node.kind==="operation"){
         title="OP-"+String(node.operation.sequence).padStart(3,"0")+" · "+node.operation.name;
         detail=node.operation.status+" · Qty "+node.operation.quantity+" · "+(vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned");
-        kind="PROCESS OPERATION"; actionLabel="Edit operation"; onAction=()=>setEditingOperation(node.operation);
+        kind=(node.operation.branch||"Main route").toUpperCase();
+        actionLabel="Edit operation";onAction=()=>setEditingOperation(node.operation);
       }else if(node.kind==="material"){
         title=node.entry.materialName+" · "+node.entry.materialGrade;
         detail=(node.entry.partNumber||node.entry.partName||"Component allocation")+" · "+node.entry.quantity+" pcs · "+Number(node.entry.totalWeightKg||0).toFixed(3)+" kg";
-        kind="MATERIAL ALLOCATION"; actionLabel="Open Process Map"; onAction=()=>openProcessMap();
+        kind="MATERIAL ALLOCATION";actionLabel="Open Process Map";onAction=()=>openProcessMap();
       }else if(node.kind==="material-transport"){
         title=(node.entry.transportFrom||"Pickup")+" → "+(node.entry.transportTo||"Destination");
         detail=(node.entry.transportVehicleType||"Vehicle not set")+" · "+money(node.entry.transportCost||0);
-        kind="INBOUND MATERIAL TRANSPORT"; actionLabel="Open transport details";
+        kind="INBOUND MATERIAL TRANSPORT";actionLabel="Open transport details";
         onAction=element=>{setInspectedMaterialTransportId(node.entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(element));};
       }else if(node.kind==="transport"){
         title=node.leg.fromLocation+" → "+node.leg.toLocation;
         detail=node.leg.vehicleType+" · "+node.leg.tripCount+" trip(s) · "+money(node.leg.fixedAmount*node.leg.tripCount);
-        kind="TRANSPORT LEG"; actionLabel="Open transport details";
+        kind="TRANSPORT LEG";actionLabel="Open transport details";
         onAction=element=>{setInspectedTransportId(node.leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(element));};
       }else{
-        title="Material allocation missing"; detail="Add the required material / grade allocation before production.";
-        kind="ROUTE REQUIREMENT"; actionLabel="Open Process Map"; onAction=()=>openProcessMap();
+        title="Material allocation missing";detail="Add the required material / grade allocation before production.";
+        kind="ROUTE REQUIREMENT";actionLabel="Open Process Map";onAction=()=>openProcessMap();
       }
-      return {id:node.id,type:"routeStage",position:{x:index*285,y:0},data:{title,detail,kind,accent:accentFor(node),actionLabel,onAction},draggable:false,selectable:false,style:{width:230}};
+      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),actionLabel,onAction},draggable:false,selectable:true,focusable:true,style:{width:248}};
     });
-    const edges:Edge[]=routeNodes.slice(0,-1).map((node,index)=>{
-      const connector=connectorFor(index);
-      const color=connector.transport?"#397ea4":connector.type==="rework"?"#df7a45":connector.type==="alternate"?"#4b95eb":connector.type==="feedback"?"#755fd1":connector.type==="conditional"?"#9868ba":"#2875bd";
-      return {id:"route-edge:"+node.id+":"+routeNodes[index+1].id,source:node.id,target:routeNodes[index+1].id,type:"smoothstep",label:connector.transport?"TRANSPORT":connector.label||relationLabel(connector.type),labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false};
+    const nodeIds=new Set(nodes.map(node=>node.id));
+    const edges:Edge[]=[];
+    const edgeKeys=new Set<string>();
+    const edgeStyles:Record<string,{color:string;dash?:string}> = {
+      main:{color:"#167b82"},alternate:{color:"#276bc0",dash:"9 4"},rework:{color:"#cb4d47",dash:"7 4"},
+      dependency:{color:"#9563ba",dash:"3 5"},parallel:{color:"#157e9a",dash:"8 3"},
+      merge:{color:"#a05db7"},split:{color:"#c18425",dash:"5 3"},
+      "follow-on":{color:"#406f9c"} ,feedback:{color:"#bd5d86",dash:"2 4"},
+      conditional:{color:"#a06a21",dash:"10 4 2 4"},successor:{color:"#397b55"},
+      transport:{color:"#176c9b",dash:"5 3"}
+    };
+    const addEdge=(source:string,target:string,type:string,id:string,label:string)=>{
+      if(!source||!target||source===target||!nodeIds.has(source)||!nodeIds.has(target))return;
+      const key=source+"::"+target+"::"+type;
+      if(edgeKeys.has(key))return;
+      edgeKeys.add(key);
+      const style=edgeStyles[type]||edgeStyles.main;
+      edges.push({
+        id,source,target,type:"smoothstep",label,
+        labelStyle:{fill:"#18344e",fontSize:10,fontWeight:700},
+        labelBgStyle:{fill:"#ffffff",fillOpacity:.98},
+        labelBgPadding:[6,3],
+        style:{stroke:style.color,strokeWidth:type==="transport"?2.2:2.8,...(style.dash?{strokeDasharray:style.dash}:{})},
+        markerEnd:{type:MarkerType.ArrowClosed,color:style.color},
+        focusable:true,selectable:true
+      });
+    };
+    // Draw each actual branch as its own sequence; the branch selector only affects card mode.
+    const groups=new Map<string,OperationRecord[]>();
+    lineOperations.forEach(operation=>{
+      const key=operation.branch||"Main route";
+      const bucket=groups.get(key)||[];bucket.push(operation);groups.set(key,bucket);
+    });
+    for(const [branchName,rows] of groups){
+      const ordered=rows.slice().sort((a,b)=>a.sequence-b.sequence);
+      const type:RouteRelationshipType=branchName==="Main route"?"main":/rework/i.test(branchName)?"rework":"alternate";
+      ordered.slice(0,-1).forEach((operation,index)=>{
+        const next=ordered[index+1];
+        addEdge(operation.id,next.id,type,"branch:"+operation.id+":"+next.id,relationLabel(type));
+      });
+    }
+    // Explicit saved alternate and rework parent links.
+    lineOperations.filter(operation=>(operation.relationType==="alternate"||operation.relationType==="rework")&&operation.parentId)
+      .forEach(operation=>addEdge(operation.parentId!,operation.id,operation.relationType==="rework"?"rework":"alternate","parent:"+operation.parentId+":"+operation.id,relationLabel(operation.relationType==="rework"?"rework":"alternate")));
+    // The persisted relationship table is authoritative and all enabled/planned examples are drawn.
+    relationships.filter(link=>link.status!=="Disabled").forEach(link=>{
+      const label=(link.label||relationLabel(link.relationshipType))+(link.condition?" · CONDITIONAL":"");
+      addEdge(link.fromOperationId,link.toOperationId,link.relationshipType,"saved:"+link.id,label);
+    });
+    // Material allocations and incoming material movements feed their linked operation.
+    routeMaterials.forEach(entry=>{
+      const materialId="material-"+entry.id;
+      const materialTransportId="material-transport-"+entry.id;
+      const target=operationFor(entry.anchorOperationId||"")||mainOperations[0];
+      if(!target)return;
+      const hasInbound=nodes.some(node=>node.id===materialTransportId);
+      if(hasInbound){
+        addEdge(materialId,materialTransportId,"transport","material-in:"+entry.id,"INBOUND MATERIAL");
+        addEdge(materialTransportId,target.id,"main","material-to-op:"+entry.id,"MATERIAL READY");
+      }else addEdge(materialId,target.id,"main","material-to-op:"+entry.id,"MATERIAL INPUT");
+    });
+    // Transport legs are placed between their real operation endpoints when available.
+    routeLegs.forEach(leg=>{
+      const transportId="transport-"+leg.id;
+      if(!nodeIds.has(transportId))return;
+      const anchor=operationFor(leg.anchorOperationId||"");
+      const branchRows=lineOperations.filter(operation=>(operation.branch||"Main route")===(anchor?.branch||"Main route")).sort((a,b)=>a.sequence-b.sequence);
+      const anchorIndex=anchor?branchRows.findIndex(operation=>operation.id===anchor.id):-1;
+      const inferredTarget=anchorIndex>=0
+        ? branchRows[anchorIndex+(leg.placement==="before"?0:1)]||null
+        : mainOperations[0]||null;
+      const target=operationFor(leg.targetOperationId||"")||inferredTarget;
+      const source=anchor?anchor.id:leg.materialEntryId?"material-"+leg.materialEntryId:"";
+      if(source)addEdge(source,transportId,"transport","transport-from:"+leg.id,"TRANSPORT");
+      if(target)addEdge(transportId,target.id,"transport","transport-to:"+leg.id,(leg.vehicleType||"TRANSPORT").toUpperCase());
     });
     return {nodes,edges};
-  },[routeNodes,branch,routeOperations,relationships,vendors]);
+  },[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors]);
+
   const saveRelationship=()=>{
     if(!poId||!poLineId){onNotice("Select a company, PO and component line before adding a route relationship.");return;}
     if(!fromOperationId||!toOperationId||fromOperationId===toOperationId){onNotice("Choose two different saved process operations.");return;}
@@ -399,7 +517,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const rows:Array<{fromId:string;toId:string;type:RouteRelationshipType;status:string}>=[];
     const add=(fromId:string,toId:string,type:RouteRelationshipType,status:string)=>{
       if(!fromId||!toId||fromId===toId)return;
-      const existing=rows.findIndex(row=>row.fromId===fromId&&row.toId===toId);
+      const existing=rows.findIndex(row=>row.fromId===fromId&&row.toId===toId&&row.type===type);
       const next={fromId,toId,type,status};
       if(existing>=0)rows[existing]=next;else rows.push(next);
     };
@@ -500,7 +618,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         </div>
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:routeCanvasMode==="graph"?
       <div className="route-flow-graph-canvas" data-testid="route-flow-react-canvas">
-        <ReactFlow<RouteFlowGraphNode,Edge> nodes={routeFlowGraph.nodes} edges={routeFlowGraph.edges} nodeTypes={ROUTE_FLOW_NODE_TYPES} fitView fitViewOptions={{padding:.2,minZoom:.22,maxZoom:1.15}} minZoom={.18} maxZoom={1.8} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} nodesFocusable edgesFocusable={false} panOnDrag zoomOnScroll={false} zoomOnPinch zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
+        <ReactFlow<RouteFlowGraphNode,Edge> nodes={routeFlowGraph.nodes} edges={routeFlowGraph.edges} nodeTypes={ROUTE_FLOW_NODE_TYPES} fitView={typeof window==="undefined"||window.innerWidth>760} fitViewOptions={{padding:.18,minZoom:.32,maxZoom:1.15}} defaultViewport={{x:18,y:18,zoom:.82}} minZoom={.28} maxZoom={1.8} nodesDraggable={false} nodesConnectable={false} elementsSelectable nodesFocusable edgesFocusable panOnDrag zoomOnScroll={false} zoomOnPinch zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#b5c9da"/><Controls showInteractive={false}/><MiniMap<RouteFlowGraphNode> pannable zoomable nodeColor={(node:RouteFlowGraphNode):string=>node.data.accent}/>
         </ReactFlow>
       </div>:
