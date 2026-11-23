@@ -1,30 +1,30 @@
 /* AXIMACH high-contrast visual system — final cascade after legacy workspace styles. */
-:root[data-theme="light"]{
+.app-shell[data-theme="light"]{
   color-scheme:light;
   --ink:#12263f;--muted:#4e627a;--muted2:#647b94;--line:#d8e2ed;--line-strong:#b8c8da;
   --panel:#ffffff;--canvas:#f1f5fa;--blue:#145fc4;--blue2:#2879dc;--blue-soft:#e5effc;
   --navy:#102b4c;--cyan:#087f9e;--green:#137b5b;--amber:#94600b;--red:#b83a49;--violet:#694db0;
 }
-:root[data-theme="dark"]{
+.app-shell[data-theme="dark"]{
   color-scheme:dark;
   --ink:#edf5ff;--muted:#b4c5d8;--muted2:#91a8c2;--line:#2b4057;--line-strong:#405a76;
   --panel:#101f30;--canvas:#081522;--blue:#71b4ff;--blue2:#9bcbff;--blue-soft:#173655;
   --navy:#0d2744;--cyan:#58c9e2;--green:#5bd0a3;--amber:#f0bd62;--red:#ff8792;--violet:#b49cff;
 }
-:root[data-theme="midnight"]{
+.app-shell[data-theme="midnight"]{
   color-scheme:dark;
   --ink:#f0efff;--muted:#c0bfd9;--muted2:#9c9bb8;--line:#373653;--line-strong:#555273;
   --panel:#191a31;--canvas:#0b0c1b;--blue:#a99bff;--blue2:#c3b8ff;--blue-soft:#292744;
   --navy:#15152d;--cyan:#77d2e8;--green:#69d5ae;--amber:#f1c57c;--red:#ff8e9a;--violet:#c0a5ff;
 }
-:root[data-theme="ocean"]{
+.app-shell[data-theme="ocean"]{
   color-scheme:dark;
   --ink:#e9f8ff;--muted:#b0d1dc;--muted2:#8eb8c6;--line:#285063;--line-strong:#3c6c7f;
   --panel:#10303f;--canvas:#071b27;--blue:#55c2dc;--blue2:#8de0ed;--blue-soft:#164556;
   --navy:#082637;--cyan:#77e0e9;--green:#63d7ac;--amber:#ffd27d;--red:#ff9aa4;--violet:#c0a5ff;
 }
-html,body{color:var(--ink)}
-body{background:var(--canvas)!important;color:var(--ink)!important}
+html,body{color:#12263f}
+body{background:#f1f5fa!important;color:#12263f!important}
 .app-shell{background:var(--canvas)!important;color:var(--ink)!important}
 .page-content{color:var(--ink)!important}
 .page-content :is(h1,h2,h3,h4,h5,h6,.panel-heading h3,.module-record-card strong,.module-hero-copy h1,.workspace-title-row h1){color:var(--ink)!important;opacity:1!important;-webkit-text-fill-color:var(--ink)!important}
@@ -94,8 +94,8 @@ body{background:var(--canvas)!important;color:var(--ink)!important}
 .app-shell[data-theme="light"] .page-content :is(.module-number,.demo-pill,.status-pill,.status-badge){opacity:1!important}
 .ax-full3d-label{
   width:184px!important;min-height:96px!important;padding:8px 9px!important;gap:4px!important;
-  background:linear-gradient(145deg,#ffffff,#edf5ff)!important;border:1px solid #6b9cc8!important;
-  color:#122c49!important;box-shadow:0 9px 24px rgba(12,38,67,.24),inset 0 1px #fff!important;
+  background:#ffffff!important;border:1px solid #6b9cc8!important;
+  color:#122c49!important;box-shadow:0 4px 14px rgba(12,38,67,.14)!important;
 }
 .ax-full3d-label small{font-size:9px!important;color:#24577f!important;letter-spacing:.55px!important}
 .ax-full3d-label strong{font-size:11px!important;line-height:1.3!important;color:#102944!important}
@@ -122,15 +122,15 @@ body{background:var(--canvas)!important;color:var(--ink)!important}
 /* React Flow route view: readable nodes, relation-specific edges and phone-safe panning. */
 .route-flow-graph-canvas{
   height:clamp(560px,72vh,820px)!important;min-height:560px!important;
-  background:radial-gradient(circle at 48% 40%,#f8fbff 0%,#edf3fa 56%,#e5eef7 100%)!important;
+  background:#edf3f8!important;
   border:1px solid #b9ccdf!important;touch-action:pan-x pan-y;
 }
 .route-flow-graph-node{
   width:248px!important;min-height:132px!important;padding:14px!important;gap:8px!important;
   border:1px solid color-mix(in srgb,var(--route-accent) 62%,#ffffff)!important;
   border-left:5px solid var(--route-accent)!important;
-  background:linear-gradient(145deg,#ffffff,#eef5fc)!important;
-  box-shadow:0 9px 24px rgba(18,47,78,.17)!important;color:#18334d!important;
+  background:#ffffff!important;
+  box-shadow:0 4px 14px rgba(18,47,78,.10)!important;color:#18334d!important;
 }
 .route-flow-graph-node>span{font-size:9px!important;color:var(--route-accent)!important;letter-spacing:.08em!important}
 .route-flow-graph-node>strong{font-size:14px!important;line-height:1.35!important;color:#102b45!important;overflow-wrap:anywhere}
@@ -158,3 +158,9 @@ body{background:var(--canvas)!important;color:var(--ink)!important}
   .route-flow-graph-canvas{height:calc(100dvh - 235px)!important;min-height:570px!important}
   .route-flow-graph-node{width:242px!important;min-height:124px!important}
 }
+
+/* Typography scale: clear labels first, utility metadata second. */
+.page-content .workspace-title-row h1{font-size:clamp(25px,2.4vw,32px)!important;line-height:1.12!important;letter-spacing:-.035em!important}
+.page-content .workspace-title-row p{font-size:14px!important;line-height:1.55!important;max-width:780px}
+.page-content .panel-heading h3{font-size:16px!important;line-height:1.35!important}
+.page-content .panel-heading p,.page-content .module-safety-note{font-size:13px!important;line-height:1.55!important}

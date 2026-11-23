@@ -518,13 +518,19 @@ try {
   await page.locator(".universe-search input").fill("Route Flow");
   await page.locator(".universe-card").filter({ hasText: "Route Flow & Relationships" }).click();
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Route Flow & Relationships");
-  const routeGraphToggle = page.getByRole("button", { name: "Interactive graph" });
+  const routeGraphToggle = page.getByRole("button", { name: "Stage cards" });
   await routeGraphToggle.waitFor({ timeout: 10000 });
+  await page.locator('[data-testid="route-flow-react-canvas"]').waitFor({ timeout: 10000 });
+  const routeTitleColor = await page.locator(".workspace-title-row h1").first().evaluate(element => getComputedStyle(element).color);
+  const routeTitleRgb = routeTitleColor.match(/\d+/g)?.map(Number) || [];
+  if (routeTitleRgb.length < 3 || routeTitleRgb.every(channel => channel > 210)) {
+    throw new Error("Light-theme workspace heading is too pale: " + routeTitleColor);
+  }
   await routeGraphToggle.click();
-  await page.getByRole("button", { name: "Stage cards" }).waitFor({ timeout: 10000 });
-  await page.getByRole("button", { name: "Stage cards" }).click();
   await page.getByRole("button", { name: "Interactive graph" }).waitFor({ timeout: 10000 });
-  console.log("PASS Route Flow graph/stage-card view toggle");
+  await page.getByRole("button", { name: "Interactive graph" }).click();
+  await page.getByRole("button", { name: "Stage cards" }).waitFor({ timeout: 10000 });
+  console.log("PASS Route Flow graph-first view, stage-card toggle and readable heading contrast");
   await page.getByRole("button", { name: "Open Process Plan" }).click();
   await page.locator(".linked-process-page > .workspace-title-row h1").waitFor({ timeout: 10000 });
 

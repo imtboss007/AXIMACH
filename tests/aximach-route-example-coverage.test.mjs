@@ -32,7 +32,9 @@ test("Route Flow graph contains all PO-line operations and renders saved relatio
 
 test("global appearance fix is imported after the older AXIMACH stylesheet and enforces readable light text", () => {
   assert.ok(main.indexOf('import "./aximach-ui.css";') < main.indexOf('import "./aximach-visual-fixes.css";'));
-  assert.ok(visual.includes(':root[data-theme="light"]'));
+  assert.ok(visual.includes('.app-shell[data-theme="light"]{'), "Theme tokens must be attached to the actual themed app shell.");
+  assert.ok(!visual.includes(':root[data-theme="light"]'), "Theme tokens must not be scoped to an attribute the root element does not receive.");
+  assert.ok(visual.includes('color:#12263f'), "Default body contrast must remain readable.");
   assert.ok(visual.includes('.app-shell[data-theme="light"] .workspace-title-row h1'));
   assert.ok(visual.includes('.route-flow-graph-node>strong'));
   assert.ok(visual.includes('.ax-full3d-label strong'));
