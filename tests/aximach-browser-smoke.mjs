@@ -163,7 +163,7 @@ try {
     };
   });
   const darkReadable = value => {
-    const rgb=value?.color?.match(/\\d+/g)?.slice(0,3).map(Number)||[];
+    const rgb=value?.color?.match(/\d+/g)?.slice(0,3).map(Number)||[];
     return rgb.length===3 && rgb.some(channel=>channel<170) && Number(value.opacity||1)>=0.95;
   };
   if(!darkReadable(dataExchangeTypography.title)||!darkReadable(dataExchangeTypography.section)||
