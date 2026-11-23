@@ -5,30 +5,30 @@ import { relaxProcessSceneLabels } from "../src/processSceneLabelLayout.js";
 function boundsByKind(kind, width, responsiveWidth = width) {
   if (responsiveWidth <= 600) {
     return ({
-      operation: { width: 148, height: 112 },
-      material: { width: 148, height: 112 },
+      operation: { width: 156, height: 124 },
+      material: { width: 156, height: 136 },
       transport: { width: 32, height: 32 },
       transportLeg: { width: 32, height: 32 },
-      catalogue: { width: 148, height: 112 },
+      catalogue: { width: 156, height: 124 },
       core: { width: 100, height: 42 }
     })[kind];
   }
   if (responsiveWidth <= 760) {
     return ({
-      operation: { width: 124, height: 82 },
-      material: { width: 124, height: 82 },
+      operation: { width: 148, height: 104 },
+      material: { width: 148, height: 116 },
       transport: { width: 34, height: 34 },
       transportLeg: { width: 34, height: 34 },
-      catalogue: { width: 124, height: 82 },
+      catalogue: { width: 148, height: 104 },
       core: { width: 120, height: 56 }
     })[kind];
   }
   return ({
-    operation: { width: 184, height: 96 },
+    operation: { width: 184, height: 112 },
     material: { width: 190, height: 202 },
     transport: { width: 34, height: 34 },
     transportLeg: { width: 34, height: 34 },
-    catalogue: { width: 184, height: 96 },
+    catalogue: { width: 184, height: 112 },
     core: { width: 140, height: 56 }
   })[kind];
 }
@@ -76,7 +76,7 @@ test("clusters mixed process, catalogue, material and transport labels without c
   assertNoCollisions(result, 1280);
 });
 
-test("uses compact card scale before accepting an overlap in dense viewports", () => {
+test("keeps dense manufacturing labels full-size instead of shrinking text to thumbnails", () => {
   const items = [
     ...Array.from({ length: 22 }, (_, i) => ({
       id: "dense-" + i, kind: i % 5 === 0 ? "material" : i % 4 === 0 ? "catalogue" : "operation",
@@ -87,7 +87,7 @@ test("uses compact card scale before accepting an overlap in dense viewports", (
   ];
   const result = relaxProcessSceneLabels(items, 1080, 700);
   assert.equal(result.length, items.length);
-  assert.ok(result.every(item => item.screen.scale >= 0.78 && item.screen.scale <= 1));
+  assert.ok(result.every(item => item.screen.scale === 1), "dense labels must remain at their readable CSS size");
   assertNoCollisions(result, 1080);
 });
 
