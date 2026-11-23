@@ -12,11 +12,11 @@ const CARD_BOUNDS = Object.freeze({
 export function processSceneLabelBounds(kind, viewportWidth) {
   if (viewportWidth <= 600) {
     const compact = {
-      operation: { width: 156, height: 124 },
-      material: { width: 156, height: 136 },
+      operation: { width: 132, height: 88 },
+      material: { width: 132, height: 92 },
       transport: { width: 32, height: 32 },
       transportLeg: { width: 32, height: 32 },
-      catalogue: { width: 156, height: 124 },
+      catalogue: { width: 132, height: 88 },
       core: { width: 100, height: 42 }
     };
     return compact[kind] || compact.operation;
@@ -95,6 +95,10 @@ function findNearestFreeSlot(anchor, bounds, placed, width, height, step) {
 function packDenseLabels(items, width, height, responsiveWidth = width) {
   const availableWidth = Math.max(1, width - 14);
   const availableHeight = Math.max(1, height - 66);
+  // Compact phone shelves use two columns of readable 132px cards where the
+  // 297px label plane allows it. This reduces vertical overflow without
+  // removing manufacturing records or shrinking text to thumbnail size.
+  const shelfGap = responsiveWidth <= 600 ? 8 : SHELF_GAP;
   const hasCore = items[0]?.kind === "core";
   const prefixCount = hasCore ? Math.min(2, items.length) : Math.min(1, items.length);
   const priority = items.slice(0, prefixCount);
@@ -125,20 +129,20 @@ function packDenseLabels(items, width, height, responsiveWidth = width) {
         row = null;
         break;
       }
-      const nextWidth = row.width + (row.entries.length ? SHELF_GAP : 0) + bounds.width;
+      const nextWidth = row.width + (row.entries.length ? shelfGap : 0) + bounds.width;
       if (row.entries.length && nextWidth > availableWidth) {
         rows.push(row);
         row = { entries: [], width: 0, height: 0 };
       }
       row.entries.push({ item, bounds, scale: itemScale });
-      row.width += (row.entries.length > 1 ? SHELF_GAP : 0) + bounds.width;
+      row.width += (row.entries.length > 1 ? shelfGap : 0) + bounds.width;
       row.height = Math.max(row.height, bounds.height);
     }
 
     if (!row) continue;
     if (row.entries.length) rows.push(row);
     const packedHeight = rows.reduce((total, current) => total + current.height, 0) +
-      SHELF_GAP * Math.max(0, rows.length - 1);
+      shelfGap * Math.max(0, rows.length - 1);
     const fitsViewport = packedHeight <= availableHeight;
     const resolved = new Map();
     // Keep labels centred when they fit. A short landscape layout may grow
@@ -157,9 +161,9 @@ function packDenseLabels(items, width, height, responsiveWidth = width) {
             collision: false
           }
         });
-        x += entry.bounds.width + SHELF_GAP;
+        x += entry.bounds.width + shelfGap;
       }
-      y += current.height + SHELF_GAP;
+      y += current.height + shelfGap;
     }
 
     const result = items.map(item => resolved.get(item));

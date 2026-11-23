@@ -5,11 +5,11 @@ import { relaxProcessSceneLabels } from "../src/processSceneLabelLayout.js";
 function boundsByKind(kind, width, responsiveWidth = width) {
   if (responsiveWidth <= 600) {
     return ({
-      operation: { width: 156, height: 124 },
-      material: { width: 156, height: 136 },
+      operation: { width: 132, height: 88 },
+      material: { width: 132, height: 92 },
       transport: { width: 32, height: 32 },
       transportLeg: { width: 32, height: 32 },
-      catalogue: { width: 156, height: 124 },
+      catalogue: { width: 132, height: 88 },
       core: { width: 100, height: 42 }
     })[kind];
   }
@@ -193,6 +193,19 @@ test("keeps a dense short-landscape label shelf collision-free by expanding the 
   assertNoCollisions(result, 844);
   assert.ok(result.layoutHeight >= 390, "the packed layout must report a sufficient scene height");
   assert.ok(result.every(item => item.screen.collision === false), "the dense layout must not return fallback overlaps");
+});
+
+test("packs populated phone portrait Process Map labels into two readable columns without clipping", () => {
+  const items = [
+    ...Array.from({length:5},(_,i)=>({id:"phone-operation-"+i,kind:"operation",screen:{x:148,y:168,z:0}})),
+    ...Array.from({length:2},(_,i)=>({id:"phone-material-"+i,kind:"material",screen:{x:148,y:168,z:0}})),
+    ...Array.from({length:2},(_,i)=>({id:"phone-transport-"+i,kind:"transport",screen:{x:148,y:168,z:0}}))
+  ];
+  const result = relaxProcessSceneLabels(items,297,336,390);
+  assert.equal(result.length,items.length,"all operation, material and transport markers must remain present");
+  assert.ok(result.layoutHeight<=500,"phone portrait label plane must fit the existing scrollable 500px mobile content: "+result.layoutHeight);
+  assertNoCollisions(result,297,390);
+  assert.ok(result.every(item=>item.screen.collision===false),"every visible phone label must have a collision-free position");
 });
 
 test("reports enough scrollable content height for every full-size label", () => {
