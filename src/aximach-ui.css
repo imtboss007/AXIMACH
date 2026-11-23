@@ -6672,6 +6672,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .dashboard-cockpit-main{
   display:grid;
   grid-template-columns:minmax(205px,.82fr) minmax(390px,1.7fr) minmax(275px,1.06fr);
+  grid-template-areas:"summary universe right";
   gap:12px;
   align-items:stretch;
   min-width:0;
