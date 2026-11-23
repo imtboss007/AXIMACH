@@ -95,10 +95,17 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,trans
 
 export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModule,initialContext}:Props) {
   const {data,update,syncStatus}=useManufacturingData();
-  const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),vendors=activeRows(data.vendors);
-  const operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),materialMasterRecords=activeRows(data.materials||[]),legs=activeRows(data.transportLegs||[]);
-  const allMaterialProcessLinks=activeRows(data.materialProcessLinks||[]);
-  const routes=activeRows(data.transportRoutes||[]);
+  // React Flow publishes nodes when its input arrays change. Keep the underlying
+  // source-row collections referentially stable across unrelated component renders.
+  const companies=useMemo(()=>activeRows(data.companies),[data.companies]);
+  const orders=useMemo(()=>activeRows(data.purchaseOrders),[data.purchaseOrders]);
+  const vendors=useMemo(()=>activeRows(data.vendors),[data.vendors]);
+  const operations=useMemo(()=>activeRows(data.operations),[data.operations]);
+  const materials=useMemo(()=>activeRows(data.materialCostEntries),[data.materialCostEntries]);
+  const materialMasterRecords=useMemo(()=>activeRows(data.materials||[]),[data.materials]);
+  const legs=useMemo(()=>activeRows(data.transportLegs||[]),[data.transportLegs]);
+  const allMaterialProcessLinks=useMemo(()=>activeRows(data.materialProcessLinks||[]),[data.materialProcessLinks]);
+  const routes=useMemo(()=>activeRows(data.transportRoutes||[]),[data.transportRoutes]);
   const [companyPick,setCompanyPick]=useState(initialContext?.companyId||"");
   const [poPick,setPoPick]=useState(initialContext?.poId||"");
   const [linePick,setLinePick]=useState(initialContext?.poLineId||"");
@@ -182,26 +189,26 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const componentId=component?.id||"";
   const componentLineCount=lineOptions.filter(row=>row.componentId===componentId).length;
   const componentGlobalLineCount=orders.reduce((count,poRow)=>count+poRow.lines.filter(row=>!row.deletedAt&&row.componentId===componentId).length,0);
-  const routeOperations=operations.filter(row=>row.poId===poId&&row.poLineId===poLineId&&row.componentId===componentId).sort((a,b)=>a.sequence-b.sequence);
-  const branches=[...new Set(["Main route",...routeOperations.map(row=>row.branch||"Main route")])];
+  const routeOperations=useMemo(()=>operations.filter(row=>row.poId===poId&&row.poLineId===poLineId&&row.componentId===componentId).sort((a,b)=>a.sequence-b.sequence),[operations,poId,poLineId,componentId]);
+  const branches=useMemo(()=>[...new Set(["Main route",...routeOperations.map(row=>row.branch||"Main route")])],[routeOperations]);
   const branch=branches.includes(branchPick)?branchPick:"Main route";
-  const lane=routeOperations.filter(row=>(row.branch||"Main route")===branch);
-  const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(
+  const lane=useMemo(()=>routeOperations.filter(row=>(row.branch||"Main route")===branch),[routeOperations,branch]);
+  const routeMaterials=useMemo(()=>materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(
     (entry.poLineId===poLineId&&(!entry.poId||entry.poId===poId))
     ||(!entry.poLineId&&entry.poId===poId&&componentLineCount===1)
     ||(!entry.poLineId&&!entry.poId&&componentGlobalLineCount===1)
-  )&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
-  const routeLegs=legs.filter(leg=>leg.poId===poId&&(leg.poLineId===poLineId||(!leg.poLineId&&componentGlobalLineCount===1))&&leg.componentId===componentId&&(!leg.anchorOperationId&&!leg.targetOperationId||routeOperations.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
-  const routeMaterialProcessLinks=allMaterialProcessLinks.filter(link=>{
+  )&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)),[materials,componentId,poLineId,poId,componentLineCount,componentGlobalLineCount,line?.partId]);
+  const routeLegs=useMemo(()=>legs.filter(leg=>leg.poId===poId&&(leg.poLineId===poLineId||(!leg.poLineId&&componentGlobalLineCount===1))&&leg.componentId===componentId&&(!leg.anchorOperationId&&!leg.targetOperationId||routeOperations.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0)),[legs,poId,poLineId,componentGlobalLineCount,componentId,routeOperations]);
+  const routeMaterialProcessLinks=useMemo(()=>allMaterialProcessLinks.filter(link=>{
     if(link.poId!==poId||link.poLineId!==poLineId||link.componentId!==componentId)return false;
     const linkedBom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
     return !line?.partId||!linkedBom?.partId||linkedBom.partId===line.partId;
-  });
-  const materialProcessPartLabels=Object.fromEntries(routeMaterialProcessLinks.map(link=>{
+  }),[allMaterialProcessLinks,poId,poLineId,componentId,data.bomLines,line?.partId]);
+  const materialProcessPartLabels=useMemo(()=>Object.fromEntries(routeMaterialProcessLinks.map(link=>{
     const bom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
     const part=bom?.partId?data.componentParts.find(row=>row.id===bom.partId):undefined;
     return [link.id,part?((part.partNumber?part.partNumber+" · ":"")+part.name):"Whole component"];
-  }));
+  })),[routeMaterialProcessLinks,data.bomLines,data.componentParts]);
   const materialLinksAt=(operationId:string,placement:"before"|"after")=>routeMaterialProcessLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
   const renderMaterialProcessLink=(link:MaterialProcessLinkRecord)=>{const material=materialMasterRecords.find(row=>row.id===link.materialId);return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={line?.quantity||0} partLabel={materialProcessPartLabels[link.id]} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>:null;};
   const inspectedTransportLeg=routeLegs.find(leg=>leg.id===inspectedTransportId);
@@ -211,7 +218,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const inspectedMaterialTransportEntry=routeMaterials.find(entry=>entry.id===inspectedMaterialTransportId);
   const inspectedMaterialTransportVendor=inspectedMaterialTransportEntry?vendors.find(vendor=>vendor.id===inspectedMaterialTransportEntry.transportVendorId):undefined;
   const inspectedMaterialTransportRoute=inspectedMaterialTransportEntry?inspectedMaterialTransportVendor?.transportRoutes?.find(route=>route.fromLocation===inspectedMaterialTransportEntry.transportFrom&&route.toLocation===inspectedMaterialTransportEntry.transportTo&&route.vehicleType===inspectedMaterialTransportEntry.transportVehicleType):undefined;
-  const relationships=activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===poLineId&&routeOperations.some(op=>op.id===link.fromOperationId||op.id===link.toOperationId));
+  const relationships=useMemo(()=>activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===poLineId&&routeOperations.some(op=>op.id===link.fromOperationId||op.id===link.toOperationId)),[data.routeRelationships,poId,poLineId,routeOperations]);
   const routeNodes=useMemo<FlowNode[]>(()=>{
     const nodes:FlowNode[]=[];
     const addMaterial=(entry:any)=>{
