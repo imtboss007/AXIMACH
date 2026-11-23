@@ -28,7 +28,31 @@ try {
 
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.getByRole("navigation", { name: "AXIMACH navigation" }).waitFor();
-  await page.getByRole("heading", { name: /main dashboard/i }).waitFor({ timeout: 15000 }).catch(() => {});
+  await page.locator("[data-testid='dashboard-cockpit']").waitFor({ timeout: 15000 });
+  await page.getByRole("heading", { name: /Manufacturing Universe/i }).waitFor({ timeout: 15000 });
+  const cockpitSummaryRows = page.locator("[data-testid='dashboard-cockpit-summary'] .dashboard-cockpit-summary-line");
+  if (await cockpitSummaryRows.count() !== 9) throw new Error("Manufacturing Universe summary must expose all nine saved-record indicators.");
+  await page.locator("[data-testid='dashboard-cockpit-operations']").waitFor();
+  await page.locator("[data-testid='dashboard-cockpit-kpis']").waitFor();
+  await page.locator("[data-testid='dashboard-cockpit-route']").waitFor();
+  const desktopCockpit = await page.locator("[data-testid='dashboard-cockpit']").evaluate(element => {
+    const rect = selector => { const node=element.querySelector(selector); const box=node?.getBoundingClientRect(); return box?{left:box.left,top:box.top,right:box.right,bottom:box.bottom,width:box.width,height:box.height}:null; };
+    return {
+      viewportWidth:document.documentElement.clientWidth,
+      documentWidth:document.documentElement.scrollWidth,
+      summary:rect(".dashboard-cockpit-summary"),
+      universe:rect(".dashboard-cockpit-universe"),
+      right:rect(".dashboard-cockpit-right"),
+      route:rect(".dashboard-cockpit-route")
+    };
+  });
+  if (desktopCockpit.documentWidth > desktopCockpit.viewportWidth + 1 ||
+      !desktopCockpit.summary || !desktopCockpit.universe || !desktopCockpit.right || !desktopCockpit.route ||
+      desktopCockpit.summary.right > desktopCockpit.universe.left + 2 ||
+      desktopCockpit.universe.right > desktopCockpit.right.left + 2) {
+    throw new Error("Desktop Manufacturing Universe cockpit columns overlap or overflow: " + JSON.stringify(desktopCockpit));
+  }
+  console.log("PASS Manufacturing Universe desktop cockpit, nine summary indicators, operations, KPI and route panels");
   const sphereModules = page.locator(".ax-orb-module-shell .ax-orb-satellite");
   await page.waitForFunction(() => document.querySelectorAll(".ax-orb-module-shell .ax-orb-satellite").length === 22, null, { timeout: 15000 });
   if (await sphereModules.count() !== 22) throw new Error("The 3D command sphere does not expose all 22 module controls.");
@@ -247,6 +271,26 @@ try {
   mobilePage.on("pageerror", error => mobileErrors.push(error.message));
   await mobilePage.goto(baseUrl, { waitUntil: "networkidle" });
   await mobilePage.locator("nav.command-rail").waitFor({ state: "attached" });
+  await mobilePage.locator("[data-testid='dashboard-cockpit']").waitFor({ timeout: 15000 });
+  const mobileCockpitGeometry = await mobilePage.locator("[data-testid='dashboard-cockpit']").evaluate(element => {
+    const rect = selector => { const node=element.querySelector(selector); const box=node?.getBoundingClientRect(); return box?{left:box.left,top:box.top,right:box.right,bottom:box.bottom,width:box.width,height:box.height}:null; };
+    return {
+      viewportWidth:document.documentElement.clientWidth,
+      documentWidth:document.documentElement.scrollWidth,
+      universe:rect(".dashboard-cockpit-universe"),
+      summary:rect(".dashboard-cockpit-summary"),
+      right:rect(".dashboard-cockpit-right"),
+      route:rect(".dashboard-cockpit-route")
+    };
+  });
+  if (mobileCockpitGeometry.documentWidth > mobileCockpitGeometry.viewportWidth + 1 ||
+      !mobileCockpitGeometry.universe || !mobileCockpitGeometry.summary || !mobileCockpitGeometry.right ||
+      mobileCockpitGeometry.universe.top >= mobileCockpitGeometry.summary.top ||
+      mobileCockpitGeometry.summary.top >= mobileCockpitGeometry.right.top ||
+      mobileCockpitGeometry.route.width > mobileCockpitGeometry.viewportWidth + 1) {
+    throw new Error("Phone Manufacturing Universe cockpit does not stack without horizontal overflow: " + JSON.stringify(mobileCockpitGeometry));
+  }
+  console.log("PASS phone Manufacturing Universe cockpit stacks 3D hub, summary, operations and route without overflow");
   const mobileGeometry = await mobilePage.evaluate(() => {
     const page = document.querySelector("main.page-content");
     const rect = page?.getBoundingClientRect();
