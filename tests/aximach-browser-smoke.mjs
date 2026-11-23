@@ -96,6 +96,19 @@ try {
   if (!(await factoryTab.getAttribute("class") || "").includes("costing-tab-active")) {
     throw new Error("Company Directory did not switch to the Factories register.");
   }
+  const addFactoryButton = page.getByRole("button", { name: "Add Factory" });
+  await addFactoryButton.waitFor({ state: "visible" });
+  await addFactoryButton.click();
+  const factoryForm = page.locator(".module-record-form-panel");
+  await factoryForm.getByRole("heading", { name: "New factory" }).waitFor();
+  if (await factoryForm.getByLabel("Company name *").count()) {
+    throw new Error("Factory form incorrectly displays the Company form fields.");
+  }
+  await factoryForm.getByLabel("Factory / site name *").waitFor();
+  await factoryForm.getByLabel("Parent company *").waitFor();
+  await factoryForm.getByRole("button", { name: "Cancel" }).click();
+  console.log("PASS Factory tab opens only the factory form with a parent-company selector");
+
   const companyTab = page.locator(".costing-tabs button").filter({ hasText: "Companies" });
   await companyTab.click();
   if (!(await companyTab.getAttribute("class") || "").includes("costing-tab-active")) {
