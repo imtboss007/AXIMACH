@@ -9,7 +9,7 @@ const CARD_BOUNDS = Object.freeze({
 
 // Use the actual responsive CSS footprints instead of desktop-sized estimates
 // on narrow screens. Oversized estimates force premature collision fallback.
-function boundsForKind(kind, viewportWidth) {
+export function processSceneLabelBounds(kind, viewportWidth) {
   if (viewportWidth <= 600) {
     const compact = {
       operation: { width: 156, height: 124 },
@@ -99,8 +99,8 @@ function packDenseLabels(items, width, height, responsiveWidth = width) {
   const prefixCount = hasCore ? Math.min(2, items.length) : Math.min(1, items.length);
   const priority = items.slice(0, prefixCount);
   const remainder = items.slice(prefixCount).sort((a, b) => {
-    const aBounds = boundsForKind(a.kind, responsiveWidth);
-    const bBounds = boundsForKind(b.kind, responsiveWidth);
+    const aBounds = processSceneLabelBounds(a.kind, responsiveWidth);
+    const bBounds = processSceneLabelBounds(b.kind, responsiveWidth);
     return bBounds.width * bBounds.height - aBounds.width * aBounds.height ||
       a.screen.y - b.screen.y || a.screen.x - b.screen.x;
   });
@@ -116,7 +116,7 @@ function packDenseLabels(items, width, height, responsiveWidth = width) {
     let row = { entries: [], width: 0, height: 0 };
 
     for (const item of ordered) {
-      const base = boundsForKind(item.kind, responsiveWidth);
+      const base = processSceneLabelBounds(item.kind, responsiveWidth);
       const isCard = item.kind === "operation" || item.kind === "material" || item.kind === "catalogue";
       const itemScale = isCard ? scale : 1;
       const bounds = { width: base.width * itemScale, height: base.height * itemScale };
@@ -191,7 +191,7 @@ export function relaxProcessSceneLabels(items, width, height, responsiveWidth = 
   const output = [];
 
   for (const item of items) {
-    const baseBounds = boundsForKind(item.kind, responsiveViewportWidth);
+    const baseBounds = processSceneLabelBounds(item.kind, responsiveViewportWidth);
     const isCard = item.kind === "operation" || item.kind === "material" || item.kind === "catalogue";
     const scales = isCard ? CARD_SCALES : [1];
     let winner = null;
@@ -235,8 +235,23 @@ export function relaxProcessSceneLabels(items, width, height, responsiveWidth = 
     });
   }
 
-  if (output.some(item => item.screen.collision)) {
-    return packDenseLabels(items, viewportWidth, viewportHeight, responsiveViewportWidth) || output;
-  }
-  return output;
+  const packed = output.some(item => item.screen.collision)
+    ? (packDenseLabels(items, viewportWidth, viewportHeight, responsiveViewportWidth) || output)
+    : output;
+  const requiredContentHeight = packed.reduce((maxBottom, item) => {
+    const bounds = processSceneLabelBounds(item.kind, responsiveViewportWidth);
+    const scale = Number(item.screen.scale) || 1;
+    return Math.max(maxBottom, item.screen.y + bounds.height * scale / 2 + 42);
+  }, viewportHeight);
+  const contentHeight = Math.ceil(Math.max(
+    viewportHeight,
+    Number(packed.layoutHeight) || 0,
+    requiredContentHeight
+  ));
+  Object.defineProperty(packed, "layoutHeight", {
+    value: contentHeight,
+    enumerable: false,
+    configurable: true
+  });
+  return packed;
 }
