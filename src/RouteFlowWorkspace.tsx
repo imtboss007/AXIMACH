@@ -294,7 +294,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         return {x:500+Math.max(0,operation.sequence-1)*290,y:210+lane*245};
       }
       if(node.kind==="material")return portrait?{x:28,y:0}:{x:20,y:210};
-      if(node.kind==="material-transport")return portrait?{x:28,y:86}:{x:265,y:210};
+      if(node.kind==="material-transport")return portrait?{x:28,y:154}:{x:265,y:210};
       if(node.kind==="transport"){
         const anchor=operationFor(node.leg.anchorOperationId||"");
         const target=operationFor(node.leg.targetOperationId||"");
@@ -303,9 +303,9 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         const sequence=reference?.sequence||0;
         if(portrait){
           const laneColumn=reference?.branch==="Alternate route"?1:/rework/i.test(reference?.branch||"")?2:0;
-          return {x:28+laneColumn*278,y:120+Math.max(0,sequence-1)*218};
+          return {x:306+laneColumn*278,y:330+Math.max(0,sequence-1)*218};
         }
-        return {x:385+Math.max(0,sequence-1)*290,y:210+lane*245};
+        return {x:500+Math.max(0,sequence-1)*290,y:360+lane*245};
       }
       return portrait?{x:28,y:0}:{x:20,y:210};
     };
