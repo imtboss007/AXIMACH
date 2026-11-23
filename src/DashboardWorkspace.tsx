@@ -32,7 +32,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
   const today=todayDate.getFullYear()+"-"+String(todayDate.getMonth()+1).padStart(2,"0")+"-"+String(todayDate.getDate()).padStart(2,"0");
   const overdue=ops.filter(op=>op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<today);
   const holds=ops.filter(op=>op.status==="Quality hold");
-  const exceptions=[...overdue,...holds.filter(op=>!overdue.some(item=>item.id===op.id))];
+  const exceptions=[...overdue,...holds.filter(op=>!overdue.some(item=>item.id===op.id))];\n  const visibleExceptions=[...overdue.slice(0,4),...holds.slice(0,4).filter(op=>!overdue.some(item=>item.id===op.id))];
   const dueToday=ops.filter(op=>op.status!=="Complete"&&op.plannedEnd===today);
   const pendingJobs=lines.filter(({line})=>line.jobStatus!=="Finished");
   const recent=[...ops].sort((x,y)=>(y.updatedAt||"").localeCompare(x.updatedAt||"")).slice(0,5);
@@ -92,7 +92,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
 
       <aside className="dashboard-cockpit-right">
         <section className="dashboard-cockpit-panel dashboard-cockpit-operations" data-testid="dashboard-cockpit-operations">
-          <div className="dashboard-cockpit-panel-title"><div><span className="dashboard-cockpit-section-icon"><Activity size={16}/></span><span><strong>Operations Monitor</strong><small>Latest saved operation updates</small></span></div><span className="dashboard-cockpit-live-label"><i/> RECORDS</span></div>
+          <div className="dashboard-cockpit-panel-title"><div><span className="dashboard-cockpit-section-icon"><Activity size={16}/></span><span><strong>Recent operations</strong><small>Latest saved operation updates</small></span></div><span className="dashboard-cockpit-live-label"><i/> RECORDS</span></div>
           {recent.length?<div className="dashboard-cockpit-operation-list">{recent.map(op=>{
             const po=pos.find(x=>x.id===op.poId),part=components.find(x=>x.id===op.componentId),vendor=vendors.find(x=>x.id===op.vendorId);
             const ratio=op.quantity>0?Math.round(Math.max(0,Math.min(op.quantity,op.completed))/op.quantity*100):0;
@@ -169,7 +169,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
           <ProductionStatusChart operations={ops}/>
         </div>
         <div className="surface-panel dashboard-analytics-exceptions"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> ATTENTION REQUIRED</div><h3>Recorded exceptions</h3><p>Overdue operations and quality holds only</p></div><span className="attention-count">{exceptions.length}</span></div>
-          {exceptions.length?<div className="dashboard-exception-list">{exceptions.slice(0,8).map(op=><button className="attention-row" key={op.id} onClick={()=>onSelectModule(op.status==="Quality hold"?"quality":"production",operationContext(op))}><span className="attention-symbol red-symbol"><CircleAlert size={16}/></span><span className="attention-copy"><strong>{op.name}</strong><small>{op.status==="Quality hold"?"Quality hold recorded":"Past target · "+op.plannedEnd}</small></span><ArrowUpRight size={15}/></button>)}</div>:<div className="module-empty-state"><CheckCircle2 size={24}/><h3>No recorded exceptions</h3><p>No overdue operations or quality holds are recorded.</p></div>}
+          {exceptions.length?<div className="dashboard-exception-list">{visibleExceptions.map(op=><button className="attention-row" key={op.id} onClick={()=>onSelectModule(op.status==="Quality hold"?"quality":"production",operationContext(op))}><span className="attention-symbol red-symbol"><CircleAlert size={16}/></span><span className="attention-copy"><strong>{op.name}</strong><small>{op.status==="Quality hold"?"Quality hold recorded":"Past target · "+op.plannedEnd}</small></span><ArrowUpRight size={15}/></button>)}</div>:<div className="module-empty-state"><CheckCircle2 size={24}/><h3>No recorded exceptions</h3><p>No overdue operations or quality holds are recorded.</p></div>}
         </div>
       </section>
       <section className="dashboard-data-orb-grid" aria-label="Five live rotating 3D dashboard data visualisations">
