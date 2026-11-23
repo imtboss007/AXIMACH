@@ -686,6 +686,9 @@ try {
           scene: {left:scene.left,top:scene.top,right:scene.right,bottom:scene.bottom,width:scene.width,height:scene.height},
           layer: layerRect ? {left:layerRect.left,top:layerRect.top,right:layerRect.right,bottom:layerRect.bottom,width:layerRect.width,height:layerRect.height} : null,
           content: contentRect ? {left:contentRect.left,top:contentRect.top,right:contentRect.right,bottom:contentRect.bottom,width:contentRect.width,height:contentRect.height} : null,
+          contentStyleHeight:contentElement?.style.height,
+          contentComputedHeight:contentElement?getComputedStyle(contentElement).height:null,
+          contentComputedMaxHeight:contentElement?getComputedStyle(contentElement).maxHeight:null,
           layerClientHeight:layer?.clientHeight,
           layerScrollHeight:layer?.scrollHeight,
           measuredLabelHeight:sceneElement.getAttribute("data-scene-label-layout-height"),
@@ -747,7 +750,10 @@ try {
         !scene.content ||
         rect.top < scene.content.top - 1 ||
         rect.bottom > scene.content.bottom + 1)) ||
-      populatedPhoneScenes.some(scene=>scene.layerScrollHeight < scene.layerClientHeight) ||
+      populatedPhoneScenes.some(scene=>scene.layerScrollHeight < scene.layerClientHeight ||
+        !scene.content || scene.content.height < Number(scene.measuredLabelHeight||0)-1 ||
+        Number.parseFloat(scene.contentComputedHeight||"0") < Number(scene.measuredLabelHeight||0)-1 ||
+        scene.contentComputedMaxHeight!=="none") ||
       phoneLabelOverlaps.length) {
     throw new Error("Phone portrait Process Map labels are outside their scene or overlap in the same rendered frame: " + JSON.stringify({phoneSceneBounds,phoneLabelOverlaps}));
   }
