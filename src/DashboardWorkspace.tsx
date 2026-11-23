@@ -173,6 +173,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
           {exceptions.length?<div className="dashboard-exception-list">{visibleExceptions.map(op=><button className="attention-row" key={op.id} onClick={()=>onSelectModule(op.status==="Quality hold"?"quality":"production",operationContext(op))}><span className="attention-symbol red-symbol"><CircleAlert size={16}/></span><span className="attention-copy"><strong>{op.name}</strong><small>{op.status==="Quality hold"?"Quality hold recorded":"Past target · "+op.plannedEnd}</small></span><ArrowUpRight size={15}/></button>)}</div>:<div className="module-empty-state"><CheckCircle2 size={24}/><h3>No recorded exceptions</h3><p>No overdue operations or quality holds are recorded.</p></div>}
         </div>
       </section>
+      <div className="dashboard-cockpit-records-label">Master records</div>
       <section className="dashboard-data-orb-grid" aria-label="Five live rotating 3D dashboard data visualisations">
         <DashboardDataOrb title="Recent Operations" subtitle="Latest saved shop-floor operations" onSelectModule={onSelectModule} items={recent.length?recent.map(op=>({id:op.id,label:op.name,value:op.status,moduleId:"production",Icon:Activity})):[{id:"no-recent-operations",label:"No operations recorded",value:0,moduleId:"production",Icon:Workflow}]}/>
         <DashboardDataOrb title="Records" subtitle="Live totals across master data" onSelectModule={onSelectModule} items={[
