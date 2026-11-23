@@ -53,10 +53,16 @@ type RouteFlowNodeData = {title:string;detail:string;kind:string;accent:string;a
 type RouteFlowGraphNode = Node<RouteFlowNodeData,"routeStage">;
 function RouteFlowGraphStage({data}:NodeProps<RouteFlowGraphNode>) {
   return <article className="route-flow-graph-node" style={{"--route-accent":data.accent} as CSSProperties}>
-    <Handle type="target" position={Position.Left}/>
+    <Handle id="target-left" type="target" position={Position.Left} style={{top:"35%"}}/>
+    <Handle id="target-right" type="target" position={Position.Right} style={{top:"65%"}}/>
+    <Handle id="target-top" type="target" position={Position.Top} style={{left:"35%"}}/>
+    <Handle id="target-bottom" type="target" position={Position.Bottom} style={{left:"35%"}}/>
+    <Handle id="source-right" type="source" position={Position.Right} style={{top:"35%"}}/>
+    <Handle id="source-left" type="source" position={Position.Left} style={{top:"65%"}}/>
+    <Handle id="source-top" type="source" position={Position.Top} style={{left:"65%"}}/>
+    <Handle id="source-bottom" type="source" position={Position.Bottom} style={{left:"65%"}}/>
     <span>{data.kind}</span><strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
     {data.actionLabel&&data.onAction&&<button type="button" className="nodrag" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();data.onAction?.(event.currentTarget);}}>{data.actionLabel}</button>}
-    <Handle type="source" position={Position.Right}/>
   </article>;
 }
 const ROUTE_FLOW_NODE_TYPES = {routeStage:RouteFlowGraphStage} satisfies NodeTypes;
@@ -363,14 +369,31 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       conditional:{color:"#a06a21",dash:"10 4 2 4"},successor:{color:"#397b55"},
       transport:{color:"#176c9b",dash:"5 3"}
     };
+    // Each semantic relationship uses a distinct pair of node handles. This keeps
+    // parallel/split/feedback links visible when they share operation endpoints.
+    const relationHandles:Record<string,{source:string;target:string}> = {
+      main:{source:"source-right",target:"target-left"},
+      alternate:{source:"source-top",target:"target-left"},
+      rework:{source:"source-bottom",target:"target-left"},
+      dependency:{source:"source-top",target:"target-top"},
+      parallel:{source:"source-bottom",target:"target-bottom"},
+      merge:{source:"source-right",target:"target-bottom"},
+      split:{source:"source-top",target:"target-right"},
+      "follow-on":{source:"source-right",target:"target-top"},
+      feedback:{source:"source-left",target:"target-left"},
+      conditional:{source:"source-bottom",target:"target-top"},
+      successor:{source:"source-left",target:"target-bottom"},
+      transport:{source:"source-right",target:"target-left"}
+    };
     const addEdge=(source:string,target:string,type:string,id:string,label:string)=>{
       if(!source||!target||source===target||!nodeIds.has(source)||!nodeIds.has(target))return;
       const key=source+"::"+target+"::"+type;
       if(edgeKeys.has(key))return;
       edgeKeys.add(key);
       const style=edgeStyles[type]||edgeStyles.main;
+      const handles=relationHandles[type]||relationHandles.main;
       edges.push({
-        id,source,target,type:"smoothstep",label,
+        id,source,target,sourceHandle:handles.source,targetHandle:handles.target,type:"smoothstep",label,
         labelStyle:{fill:"#18344e",fontSize:10,fontWeight:700},
         labelBgStyle:{fill:"#ffffff",fillOpacity:.98},
         labelBgPadding:[6,3],
