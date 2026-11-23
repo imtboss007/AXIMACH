@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Bike, Bus, Boxes, Car, Package, Truck, type LucideIcon } from "lucide-react";
+import { Bike, Bus, Boxes, Car, Package, Plane, Ship, TrainFront, Truck, type LucideIcon } from "lucide-react";
 import type { ComponentTransportLegRecord, TransportRouteRecord } from "./manufacturingData";
 
 export const VEHICLE_TYPES = [
@@ -13,20 +13,29 @@ export const VEHICLE_TYPES = [
   "Container truck",
   "Trailer / tractor",
   "Bus / staff vehicle",
-  "Courier / delivery"
+  "Courier / delivery",
+  "Air freight",
+  "Rail freight",
+  "Sea freight / container vessel",
+  "Inland waterway vessel",
+  "Multimodal freight"
 ] as const;
 
 type VehicleVisual = { Icon: LucideIcon; color: string };
 
 export function getVehicleVisual(vehicleType: string): VehicleVisual {
   const value = (vehicleType || "").toLowerCase();
+  if (/air|aircraft|flight|plane/.test(value)) return { Icon: Plane, color: "#397FE0" };
+  if (/rail|train|locomotive/.test(value)) return { Icon: TrainFront, color: "#9869D5" };
+  if (/sea|ship|vessel|waterway|barge/.test(value)) return { Icon: Ship, color: "#16A6A0" };
+  if (/multimodal|intermodal/.test(value)) return { Icon: Boxes, color: "#7B8BA5" };
   if (/courier|delivery/.test(value)) return { Icon: Bike, color: "#B56BC5" };
   if (/2.?wheel|bike|motorcycle|scooter/.test(value)) return { Icon: Bike, color: "#D49A2D" };
-  if (/3.?wheel|auto|rickshaw/.test(value)) return { Icon: Bus, color: "#16A6A0" };
+  if (/3.?wheel|auto|rickshaw/.test(value)) return { Icon: Bus, color: "#279C84" };
   if (/heavy.?duty/.test(value)) return { Icon: Truck, color: "#C94D75" };
-  if (/4.?wheel|pickup|car/.test(value)) return { Icon: Car, color: "#397FE0" };
-  if (/bus|staff/.test(value)) return { Icon: Bus, color: "#9869D5" };
-  if (/container/.test(value)) return { Icon: Boxes, color: "#7B8BA5" };
+  if (/4.?wheel|pickup|car/.test(value)) return { Icon: Car, color: "#4674B8" };
+  if (/bus|staff/.test(value)) return { Icon: Bus, color: "#9A63A8" };
+  if (/container/.test(value)) return { Icon: Boxes, color: "#687A91" };
   if (/trailer|tractor/.test(value)) return { Icon: Package, color: "#C46A42" };
   if (/mini.?truck/.test(value)) return { Icon: Package, color: "#A17A35" };
   if (/light commercial|lcv|van/.test(value)) return { Icon: Bus, color: "#299A70" };

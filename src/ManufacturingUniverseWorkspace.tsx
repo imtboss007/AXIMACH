@@ -8,6 +8,7 @@ import TransportRecordInspector from "./TransportRecordInspector";
 import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector";
 import { transportPopupAnchorFromPoint } from "./transportPopup";
 import WorkspaceThemePicker from "./WorkspaceThemePicker";
+import SearchablePicker from "./SearchablePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
 
 type NavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
@@ -20,6 +21,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const materialProcessLinks=activeRows(data.materialProcessLinks||[]);
   const definitions=activeRows(data.processDefinitions),relationships=activeRows(data.routeRelationships||[]);
   const [companyPick,setCompanyPick]=useState(initialContext?.companyId||""),[poPick,setPoPick]=useState(initialContext?.poId||""),[linePick,setLinePick]=useState(initialContext?.poLineId||"");
+  const [universeScope,setUniverseScope]=useState<"enterprise"|"po-line">((initialContext?.poLineId||initialContext?.operationId)?"po-line":"enterprise");
   const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
   const [inspectedTransportId,setInspectedTransportId]=useState("");
   const [inspectedMaterialTransportId,setInspectedMaterialTransportId]=useState("");
@@ -76,6 +78,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const allRouteOperations=operations.filter(row=>row.poId===poId&&row.poLineId===poLineId&&row.componentId===componentId);
   const routeOperations=allRouteOperations.filter(row=>row.relationType!=="subprocess").sort((a,b)=>a.sequence-b.sequence);
   const activeOperation=routeOperations.find(row=>row.id===selectedOperationId)||routeOperations[0];
+  const selectedSceneOperation=operations.find(row=>row.id===selectedOperationId)||(universeScope==="po-line"?activeOperation:undefined);
   const selectedMaterialProcessLinks=materialProcessLinks.filter(link=>{
     if(link.poId!==poId||link.poLineId!==poLineId||link.componentId!==componentId)return false;
     const linkedBom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
@@ -100,24 +103,41 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   },[simulationActive,simulationIndex,simulatedOperationId]);
 
   const routeLabels=useMemo(()=>Object.fromEntries(lines.map(item=>{const itemComponent=components.find(row=>row.id===item.componentId);return [item.id,(itemComponent?.partNumber?itemComponent.partNumber+" · ":"")+(itemComponent?.name||"Component")+" · Qty "+item.quantity];})),[lines,components]);
+  const globalRouteLabels=useMemo(()=>Object.fromEntries(orders.flatMap(order=>order.lines.filter(item=>!item.deletedAt).map(item=>{const itemComponent=components.find(row=>row.id===item.componentId);return [item.id,order.number+" · "+(itemComponent?.partNumber?itemComponent.partNumber+" · ":"")+(itemComponent?.name||"Component")+" · Qty "+item.quantity];}))),[orders,components]);
   const componentLineCount=lines.filter(item=>item.componentId===componentId).length;
   const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.poId===poId&&entry.componentId===componentId&&(entry.poLineId===poLineId||(!entry.poLineId&&componentLineCount===1))&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&leg.componentId===componentId);
   const routeRelationships=relationships.filter(link=>link.poId===poId&&link.poLineId===poLineId&&link.componentId===componentId&&link.status!=="Disabled");
-  const transportCostByOperation=Object.fromEntries(routeOperations.map(operation=>{
-    const attached=routeLegs.filter(leg=>leg.anchorOperationId===operation.id).reduce((sum,leg)=>sum+Math.max(0,leg.fixedAmount)*Math.max(1,leg.tripCount),0);
+  const sceneRouteOperations=universeScope==="enterprise"?operations:routeOperations;
+  const sceneAllOperations=universeScope==="enterprise"?operations:allRouteOperations;
+  const sceneRouteLabels=universeScope==="enterprise"?globalRouteLabels:routeLabels;
+  const sceneRouteMaterials=universeScope==="enterprise"?materials.filter(entry=>entry.scope==="process-map"):routeMaterials;
+  const sceneRouteLegs=universeScope==="enterprise"?legs:routeLegs;
+  const sceneRouteRelationships=universeScope==="enterprise"?relationships.filter(link=>link.status!=="Disabled"):routeRelationships;
+  const sceneMaterialProcessLinks=universeScope==="enterprise"?materialProcessLinks:selectedMaterialProcessLinks;
+  const sceneMaterialPartLabels=Object.fromEntries(sceneMaterialProcessLinks.map(link=>{
+    const bom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
+    const part=bom?.partId?data.componentParts.find(row=>row.id===bom.partId):undefined;
+    return [link.id,part?((part.partNumber?part.partNumber+" · ":"")+part.name):"Whole component"];
+  }));
+  const sceneComponentQuantity=universeScope==="enterprise"?orders.reduce((sum,order)=>sum+order.lines.filter(row=>!row.deletedAt).reduce((lineSum,row)=>lineSum+Math.max(0,row.quantity||0),0),0):(line?.quantity||0);
+  const transportCostByOperation=Object.fromEntries(sceneRouteOperations.map(operation=>{
+    const attached=sceneRouteLegs.filter(leg=>leg.anchorOperationId===operation.id).reduce((sum,leg)=>sum+Math.max(0,leg.fixedAmount)*Math.max(1,leg.tripCount),0);
     return [operation.id,attached+Math.max(0,Number(operation.transportCost)||0)];
   }));
-  const materialRouteNodes=routeMaterials.map((entry:MaterialCostEntryRecord)=>{
+  const materialRouteNodes=sceneRouteMaterials.map((entry:MaterialCostEntryRecord)=>{
+    const entryPO=orders.find(row=>row.id===entry.poId);
+    const entryComponent=components.find(row=>row.id===entry.componentId);
+    const entryPart=entry.partId?data.componentParts.find(row=>row.id===entry.partId):undefined;
     const supplier=vendors.find(vendor=>vendor.id===entry.vendorId),transporter=vendors.find(vendor=>vendor.id===entry.transportVendorId);
     const dimensions=[entry.shapeType,...Object.entries(entry.dimensions||{}).filter(([,value])=>Number(value)>0).map(([key,value])=>key.replace(/[A-Z]/g,letter=>" "+letter)+" "+value+" "+(entry.dimensionUnits?.[key]||"mm"))].join(" · ");
     return {
-      id:entry.id,poLineId:entry.poLineId||"",partNumber:entry.partNumber||"",partName:entry.partName||"",
-      partLabel:entry.partNumber||entry.partName?[entry.partNumber,entry.partName].filter(Boolean).join(" · "):routeLabels[entry.poLineId||""]||"Component-level material",
+      id:entry.id,poLineId:entry.poLineId||"",partNumber:entry.partNumber||entryPart?.partNumber||"",partName:entry.partName||entryPart?.name||"",
+      partLabel:entry.partNumber||entry.partName?[entry.partNumber,entry.partName].filter(Boolean).join(" · "):entryPart?((entryPart.partNumber?entryPart.partNumber+" · ":"")+entryPart.name):sceneRouteLabels[entry.poLineId||""]||entryComponent?.name||"Component-level material",
       materialLabel:[entry.materialName,entry.materialGrade].filter(Boolean).join(" · "),dimensionsLabel:dimensions,
-      companyLabel:company?.name||"Company not linked",poLabel:po?.number||"—",componentLabel:component?.name||"—",
+      companyLabel:companies.find(row=>row.id===entry.companyId)?.name||"Company not linked",poLabel:entryPO?.number||"—",componentLabel:entryComponent?.name||"—",
       densityKgM3:entry.densityKgM3,anchorOperationId:entry.anchorOperationId||"",
-      anchorOperationName:routeOperations.find(row=>row.id===entry.anchorOperationId)?.name||"",
+      anchorOperationName:sceneAllOperations.find(row=>row.id===entry.anchorOperationId)?.name||"",
       quantity:entry.quantity,weightKg:entry.totalWeightKg,supplier:supplier?.company||"Supplier not assigned",
       transporter:transporter?.company||"Transporter not assigned",from:entry.transportFrom||supplier?.address||"Supplier pickup",
       to:entry.transportTo||"Destination not set",vehicle:entry.transportVehicleType||"Vehicle not set",
@@ -128,16 +148,19 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
       cuttingCost:entry.cuttingCost||0,transportCost:entry.transportCost||0
     };
   });
-  const inspectedTransportLeg=routeLegs.find(leg=>leg.id===inspectedTransportId);
+  const inspectedTransportLeg=legs.find(leg=>leg.id===inspectedTransportId);
   const inspectedTransportVendor=inspectedTransportLeg?vendors.find(vendor=>vendor.id===inspectedTransportLeg.vendorId):undefined;
   const inspectedTransportRoute=inspectedTransportLeg?activeRows(data.transportRoutes||[]).find(route=>route.id===inspectedTransportLeg.routeId):undefined;
   const inspectedLegacyVendorRoute=inspectedTransportLeg?inspectedTransportVendor?.transportRoutes?.find(route=>route.id===inspectedTransportLeg.routeId):undefined;
-  const inspectedMaterialTransportEntry=routeMaterials.find(entry=>entry.id===inspectedMaterialTransportId);
+  const inspectedMaterialTransportEntry=materials.find(entry=>entry.id===inspectedMaterialTransportId);
   const inspectedMaterialTransportVendor=inspectedMaterialTransportEntry?vendors.find(vendor=>vendor.id===inspectedMaterialTransportEntry.transportVendorId):undefined;
   const inspectedMaterialTransportRoute=inspectedMaterialTransportEntry?inspectedMaterialTransportVendor?.transportRoutes?.find(route=>route.fromLocation===inspectedMaterialTransportEntry.transportFrom&&route.toLocation===inspectedMaterialTransportEntry.transportTo&&route.vehicleType===inspectedMaterialTransportEntry.transportVehicleType):undefined;
-  const transportNodes=routeLegs.map(leg=>{
-    const anchor=allRouteOperations.find(operation=>operation.id===leg.anchorOperationId);
-    const relation=anchor?.relationType==="rework"||/rework/i.test(anchor?.branch||"")?"rework" as const:anchor?.relationType==="alternate"||Boolean(anchor?.branch&&anchor.branch!=="Main route")?"alternate" as const:"main" as const;
+  const transportNodes=sceneRouteLegs.map(leg=>{
+    const anchor=sceneAllOperations.find(operation=>operation.id===leg.anchorOperationId);
+    const target=sceneAllOperations.find(operation=>operation.id===leg.targetOperationId);
+    const destination=target||anchor;
+    const crossesBranch=Boolean(anchor&&target&&(anchor.branch||"Main route")!==(target.branch||"Main route"));
+    const relation=destination?.relationType==="rework"||/rework/i.test(destination?.branch||"")?"rework" as const:destination?.relationType==="alternate"||crossesBranch||Boolean(destination?.branch&&destination.branch!=="Main route")?"alternate" as const:"main" as const;
     return {
       id:leg.id,poLineId:leg.poLineId,anchorOperationId:leg.anchorOperationId||"",targetOperationId:leg.targetOperationId||"",materialEntryId:leg.materialEntryId||"",
       placement:leg.placement||(!leg.anchorOperationId?"start":"after") as "start"|"before"|"after",
@@ -157,18 +180,22 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
       pickupAt:leg.pickupAt||"",deliveryAt:leg.deliveryAt||"",status:leg.status||"Planned",relation
     };
   });
-  const onNavigate=(moduleId:string,operation?:OperationRecord)=>onSelectModule(moduleId,{companyId,poId,poLineId,componentId,operationId:operation?.id});
+  const onNavigate=(moduleId:string,operation:OperationRecord|undefined=selectedSceneOperation)=>{
+    const targetPO=operation?.poId?orders.find(row=>row.id===operation.poId):po;
+    const targetLine=targetPO?.lines.find(row=>row.id===operation?.poLineId);
+    onSelectModule(moduleId,{companyId:targetPO?.companyId||companyId,poId:targetPO?.id||poId,poLineId:targetLine?.id||poLineId,componentId:operation?.componentId||componentId,operationId:operation?.id});
+  };
   const stats=[
-    {label:"PROCESS STAGES",value:routeOperations.length,icon:Activity,module:"production"},
-    {label:"MATERIAL ALLOCATIONS",value:routeMaterials.length,icon:Package,module:"inventory"},
-    {label:"TRANSPORT LEGS",value:routeLegs.length,icon:Truck,module:"transport-master"},
+    {label:"PROCESS STAGES",value:sceneRouteOperations.filter(row=>row.relationType!=="subprocess").length,icon:Activity,module:"production"},
+    {label:"MATERIAL ALLOCATIONS",value:sceneRouteMaterials.length,icon:Package,module:"inventory"},
+    {label:"TRANSPORT LEGS",value:sceneRouteLegs.length,icon:Truck,module:"transport-master"},
     {label:"PROCESS DEFINITIONS",value:definitions.length,icon:Workflow,module:"process-master"},
     {label:"VENDORS",value:vendors.length,icon:Factory,module:"vendors"},
     {label:"CONTACTS",value:activeRows(data.contactProfiles||[]).length,icon:Users,module:"contact360"},
     {label:"PLANNED COSTS",value:activeRows(data.plannedCosts||[]).length,icon:CircleDollarSign,module:"planned-cost"},
     {label:"FOLLOW-UP LINKS",value:activeRows(data.followUpAssignments||[]).length,icon:MessageCircle,module:"communications"},
-    {label:"DISPATCH LEGS",value:routeLegs.length,icon:Truck,module:"dispatch"},
-    {label:"RELATIONSHIPS",value:routeRelationships.length,icon:GitBranch,module:"route-flow"}
+    {label:"DISPATCH LEGS",value:sceneRouteLegs.length,icon:Truck,module:"dispatch"},
+    {label:"RELATIONSHIPS",value:sceneRouteRelationships.length,icon:GitBranch,module:"route-flow"}
   ];
   const linkModules=[
     {id:"companies",title:"Company Directory",icon:Factory,meta:"Company and factory records"},
@@ -208,14 +235,32 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     onNotice("Process operation updated in Manufacturing Universe. The shared record has been saved.");
   };
   const exportUniverse=()=>{
-    const safeName=("AXIMACH-"+(component?.partNumber||"Manufacturing-Universe")).replace(/[^a-z0-9-_]+/gi,"-");
+    const safeName=("AXIMACH-"+(universeScope==="enterprise"?"Enterprise-Manufacturing-Universe":(component?.partNumber||"Manufacturing-Universe"))).replace(/[^a-z0-9-_]+/gi,"-");
     const download=(blob:Blob,name:string)=>{const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1200);};
     const escape=(value:unknown)=>String(value??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-    const records={company:company?.name,po:po?.number,component:component?.name,stages:routeOperations,materials:routeMaterials,transportLegs:routeLegs,relationships:routeRelationships};
+    const records={scope:universeScope,company:universeScope==="enterprise"?"All companies":company?.name,po:universeScope==="enterprise"?"All purchase orders":po?.number,component:universeScope==="enterprise"?"All components":component?.name,companyId,poId,poLineId,componentId,stages:sceneRouteOperations,materials:sceneRouteMaterials,materialProcessLinks:sceneMaterialProcessLinks,transportLegs:sceneRouteLegs,relationships:sceneRouteRelationships};
     if(exportFormat==="json"){download(new Blob([JSON.stringify(records,null,2)],{type:"application/json"}),safeName+".json");}
-    else if(exportFormat==="csv"){const rows=[["Type","Code","Name","Category","Subcategory","Quantity","Vendor","Rate","Amount","Status","Planned Start","Planned End"],...routeOperations.map(op=>["Process","OP-"+String(op.sequence).padStart(3,"0"),op.name,op.category,op.subcategory||"",op.quantity,vendors.find(v=>v.id===op.vendorId)?.company||"",op.actualRatePerPart||op.ratePerPart,op.quantity*(op.actualRatePerPart||op.ratePerPart),op.status,op.plannedStart,op.plannedEnd]),...routeMaterials.map(m=>["Material",m.materialGrade,m.materialName,m.shapeType,"",m.quantity,vendors.find(v=>v.id===m.vendorId)?.company||"",m.materialRate,m.materialCost,"",m.givenDate,m.deliveryDate])];const csv=rows.map(row=>row.map(value=>'"'+String(value??"").replace(/"/g,'""')+'"').join(",")).join(String.fromCharCode(13,10));download(new Blob([String.fromCharCode(65279)+csv],{type:"text/csv;charset=utf-8"}),safeName+"-excel.csv");}
+    else if(exportFormat==="csv"){
+      const rows=[
+        ["Type","ID","Code / Reference","Name","Category","Subtype / Vehicle","Quantity","Unit","Vendor / Carrier","Rate per unit / trip","Total amount","Status","From","To","Target process","BOM line","Part","Flow type / relationship","Placement","Planned start / pickup","Planned end / delivery"],
+        ...sceneRouteOperations.map(op=>["Process",op.id,"OP-"+String(op.sequence).padStart(3,"0"),op.name,op.category,op.subcategory||"",op.quantity,"pieces",vendors.find(vendor=>vendor.id===op.vendorId)?.company||"",op.actualRatePerPart||op.ratePerPart,op.quantity*(op.actualRatePerPart||op.ratePerPart),op.status,"","","","","","","",op.plannedStart,op.plannedEnd]),
+        ...sceneRouteMaterials.map(m=>["Material allocation",m.id,m.materialId,m.materialName,m.shapeType,m.materialGrade,m.quantity,m.priceUnit,vendors.find(vendor=>vendor.id===m.vendorId)?.company||"",m.materialRate,m.materialCost,"",m.transportFrom||"",m.transportTo||"", "", "",m.partNumber||m.partName||"","Material procurement","",m.givenDate,m.deliveryDate]),
+        ...sceneRouteMaterials.filter(m=>m.transportVendorId||m.transportVehicleType||m.transportFrom||m.transportTo||Number(m.transportCost)>0).map(m=>["Material inbound transport",m.id,m.materialId,m.materialName,"Transport",m.transportVehicleType||"Vehicle not set",1,"trip",vendors.find(vendor=>vendor.id===m.transportVendorId)?.company||"Transporter not assigned",m.transportCost||0,m.transportCost||0,m.transportStatus||"Planned",m.transportFrom||"",m.transportTo||"","","",m.partNumber||m.partName||"Whole component","Material procurement","before",m.transportPickupAt||"",m.transportDeliveryAt||""]),
+        ...sceneMaterialProcessLinks.map(link=>{
+          const bom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
+          const part=bom?.partId?data.componentParts.find(row=>row.id===bom.partId):undefined;
+          const material=materialMasterRecords.find(row=>row.id===link.materialId);
+          const target=sceneAllOperations.find(row=>row.id===link.operationId);
+          return ["Material process link",link.id,link.bomLineId,material?.name||link.materialId,link.flowType,material?.grade||"",link.quantityPerPart,link.unit,"","","","", "", "",target?.name||link.operationId,link.bomLineId,part?.partNumber||"Whole component",link.flowType,link.placement,"",""];
+        }),
+        ...sceneRouteLegs.map(leg=>["Transport leg",leg.id,leg.routeId,leg.fromLocation+" → "+leg.toLocation,"Transport",leg.vehicleType,leg.tripCount,"trips",vendors.find(vendor=>vendor.id===leg.vendorId)?.company||"",leg.fixedAmount,leg.fixedAmount*leg.tripCount,leg.status||"Planned",leg.fromLocation,leg.toLocation,(sceneAllOperations.find(row=>row.id===leg.anchorOperationId)?.name||"Material / start")+" → "+(sceneAllOperations.find(row=>row.id===leg.targetOperationId)?.name||"Destination"),"","","Transport",leg.placement||"after",leg.pickupAt||"",leg.deliveryAt||""]),
+        ...sceneRouteRelationships.map(link=>["Relationship",link.id,"",(sceneAllOperations.find(row=>row.id===link.fromOperationId)?.name||link.fromOperationId)+" → "+(sceneAllOperations.find(row=>row.id===link.toOperationId)?.name||link.toOperationId),link.relationshipType,link.status,"","","","","",link.status,"","","","","",link.relationshipType,link.condition||"","",""])
+      ];
+      const csv=rows.map(row=>row.map(value=>'"'+String(value??"").replace(/"/g,'""')+'"').join(",")).join(String.fromCharCode(13,10));
+      download(new Blob([String.fromCharCode(65279)+csv],{type:"text/csv;charset=utf-8"}),safeName+"-excel.csv");
+    }
     else {
-      const count=Math.max(1,routeOperations.length),cx=650,cy=470,radius=Math.min(310,120+count*22),positions=routeOperations.map((op,i)=>({op,x:cx+Math.cos((i/count)*Math.PI*2-Math.PI/2)*radius,y:cy+Math.sin((i/count)*Math.PI*2-Math.PI/2)*radius}));
+      const count=Math.max(1,sceneRouteOperations.length),cx=650,cy=470,radius=Math.min(310,120+count*22),positions=sceneRouteOperations.map((op,i)=>({op,x:cx+Math.cos((i/count)*Math.PI*2-Math.PI/2)*radius,y:cy+Math.sin((i/count)*Math.PI*2-Math.PI/2)*radius}));
       const nodes=positions.map(({op,x,y})=>'<g><rect x="'+(x-110)+'" y="'+(y-46)+'" width="220" height="92" rx="13" fill="#f4f9ff" stroke="#2d8ac8" stroke-width="3"/><text x="'+x+'" y="'+(y-10)+'" text-anchor="middle" font-family="Arial" font-size="15" font-weight="700" fill="#173954">'+escape("OP-"+String(op.sequence).padStart(3,"0")+" · "+op.name)+'</text><text x="'+x+'" y="'+(y+16)+'" text-anchor="middle" font-family="Arial" font-size="12" fill="#355a7a">'+escape(op.category+" · Qty "+op.quantity)+'</text><text x="'+x+'" y="'+(y+34)+'" text-anchor="middle" font-family="Arial" font-size="11" fill="#55718c">'+escape(op.status)+'</text></g>').join("");
       const edges=positions.map((p,i)=>{const next=positions[i+1];if(!next||positions.length<2)return "";return '<path d="M '+p.x+' '+p.y+' Q '+cx+' '+cy+' '+next.x+' '+next.y+'" fill="none" stroke="#16aeca" stroke-width="4" marker-end="url(#universeArrow)"/>';}).join("");
       const svg='<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="950" viewBox="0 0 1300 950"><defs><marker id="universeArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#16aeca"/></marker></defs><rect width="100%" height="100%" fill="#eaf3fc"/><text x="650" y="70" font-family="Arial" font-size="30" font-weight="700" text-anchor="middle" fill="#173954">AXIMACH · MANUFACTURING UNIVERSE</text><text x="650" y="105" font-family="Arial" font-size="16" text-anchor="middle" fill="#55718c">'+escape((company?.name||"Company")+" · "+(po?.number||"PO")+" · "+(component?.name||"Component"))+'</text><circle cx="650" cy="470" r="75" fill="#0e3454" stroke="#27b8d2" stroke-width="8"/><text x="650" y="462" text-anchor="middle" font-family="Arial" font-size="21" font-weight="700" fill="#fff">AXIMACH</text><text x="650" y="490" text-anchor="middle" font-family="Arial" font-size="13" fill="#c6eaff">LIVE ROUTE</text>'+edges+nodes+'</svg>';
@@ -233,32 +278,36 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   };
   return <section className="manufacturing-universe-workspace" data-workspace-theme={workspaceTheme}>
     <header className="manufacturing-universe-head">
-      <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE CONNECTED OPERATIONS</div><h1>Manufacturing <span>Universe</span></h1><p>A dedicated large-format 3D view of live material, transport, process, quality and delivery records. Select a PO line to see its live route.</p></div>
-      <div className="manufacturing-universe-actions"><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="manufacturing-universe-simulation-controls">{simulationActive?<button className="button-quiet compact-button" onClick={()=>setSimulationActive(false)}><Activity size={14}/> Pause simulation</button>:<button className="button-quiet compact-button" onClick={startRouteSimulation} disabled={!simulationOperations.length}><Activity size={14}/> Simulate route</button>}<button className="button-quiet compact-button" onClick={()=>{setSimulationActive(false);setSimulationIndex(-1);}} disabled={simulationIndex<0}><CheckCircle2 size={14}/> Reset</button>{simulationIndex>=0&&<small>STEP {simulationIndex+1}/{simulationOperations.length} · VISUAL ONLY</small>}</div><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div></div>
+      <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE CONNECTED OPERATIONS</div><h1>Manufacturing <span>Universe</span></h1><p>Explore all active company, purchase-order, component, process, material and transport records together, or switch to one selected PO-line route for detailed execution.</p></div>
+      <div className="manufacturing-universe-actions"><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!selectedSceneOperation} onClick={()=>selectedSceneOperation&&setEditingOperation(selectedSceneOperation)}><Workflow size={15}/> Edit selected process here</button><div className="manufacturing-universe-simulation-controls">{simulationActive?<button className="button-quiet compact-button" onClick={()=>setSimulationActive(false)}><Activity size={14}/> Pause simulation</button>:<button className="button-quiet compact-button" onClick={startRouteSimulation} disabled={!simulationOperations.length}><Activity size={14}/> Simulate route</button>}<button className="button-quiet compact-button" onClick={()=>{setSimulationActive(false);setSimulationIndex(-1);}} disabled={simulationIndex<0}><CheckCircle2 size={14}/> Reset</button>{simulationIndex>=0&&<small>STEP {simulationIndex+1}/{simulationOperations.length} · VISUAL ONLY</small>}</div><div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div></div>
     </header>
     {notice&&<div className="notice-banner"><CheckCircle2 size={15}/><span>{notice}</span></div>}
+    <div className="manufacturing-universe-view-switch" role="group" aria-label="Manufacturing Universe scope" style={{display:"flex",flexWrap:"wrap",gap:8,margin:"12px 0"}}>
+      <button type="button" className={universeScope==="enterprise"?"button-primary compact-button":"button-quiet compact-button"} aria-pressed={universeScope==="enterprise"} onClick={()=>{setUniverseScope("enterprise");setSimulationActive(false);setSimulationIndex(-1);}}>Enterprise-wide live universe</button>
+      <button type="button" className={universeScope==="po-line"?"button-primary compact-button":"button-quiet compact-button"} aria-pressed={universeScope==="po-line"} onClick={()=>{setUniverseScope("po-line");setSimulationActive(false);setSimulationIndex(-1);}}>Selected PO-line route</button>
+    </div>
     <div className="manufacturing-universe-scope">
-      <label>Company<select value={companyId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setCompanyPick(e.target.value);setPoPick("");setLinePick("");setSelectedOperationId("");}}><option value="">Select company…</option>{companies.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
-      <label>Purchase order<select value={poId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setPoPick(e.target.value);setLinePick("");setSelectedOperationId("");}}><option value="">Select PO…</option>{companyOrders.map(row=><option key={row.id} value={row.id}>{row.number}</option>)}</select></label>
-      <label>Component / PO line<select value={poLineId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setLinePick(e.target.value);setSelectedOperationId("");}}><option value="">Select component line…</option>{lines.map(row=>{const lineComponent=components.find(item=>item.id===row.componentId);const part=data.componentParts.find(item=>item.id===row.partId);return <option key={row.id} value={row.id}>{lineComponent?.partNumber||"Missing component"} · {lineComponent?.name||"Component"}{part?" · "+part.partNumber+" "+part.name:""} · Qty {row.quantity}</option>;})}</select></label>
-      <div className="manufacturing-universe-current"><strong>{component?.partNumber||"No component selected"} · {component?.name||"Select a PO line"}</strong><span>{po?.number||"No purchase order"} · {routeOperations.length} process stages · {routeMaterials.length} material allocations · {routeLegs.length} transport legs</span></div>
+      <SearchablePicker id="universe-company" label="Company" value={companyId} placeholder="Search company name…" options={companies.map(row=>({id:row.id,label:row.name}))} onChange={value=>{setSimulationActive(false);setSimulationIndex(-1);setCompanyPick(value);setPoPick("");setLinePick("");setSelectedOperationId("");}} />
+      <SearchablePicker id="universe-purchase-order" label="Purchase order" value={poId} placeholder="Search PO number…" options={companyOrders.map(row=>({id:row.id,label:row.number+" · "+row.status}))} onChange={value=>{setSimulationActive(false);setSimulationIndex(-1);setPoPick(value);setLinePick("");setSelectedOperationId("");}} />
+      <SearchablePicker id="universe-component-line" label="Component / PO line" value={poLineId} placeholder="Search part number or component name…" options={lines.map(row=>{const lineComponent=components.find(item=>item.id===row.componentId);const part=data.componentParts.find(item=>item.id===row.partId);return {id:row.id,label:(lineComponent?.partNumber||"Missing component")+" · "+(lineComponent?.name||"Component")+(part?" · "+part.partNumber+" "+part.name:"")+" · Qty "+row.quantity};})} onChange={value=>{setSimulationActive(false);setSimulationIndex(-1);setLinePick(value);setSelectedOperationId("");}} />
+      <div className="manufacturing-universe-current"><strong>{universeScope==="enterprise"?"ENTERPRISE-WIDE LIVE VIEW":(component?.partNumber||"No component selected")+" · "+(component?.name||"Select a PO line")}</strong><span>{universeScope==="enterprise"?companies.length+" companies · "+orders.length+" purchase orders · "+components.length+" components · "+operations.length+" process operations · "+materials.filter(entry=>entry.scope==="process-map").length+" material allocations · "+legs.length+" transport legs":(po?.number||"No purchase order")+" · "+routeOperations.length+" process stages · "+routeMaterials.length+" material allocations · "+routeLegs.length+" transport legs"}</span></div>
     </div>
     <section className="manufacturing-universe-customizer"><div className="manufacturing-universe-customizer-head"><div><span className="eyebrow">UNIVERSE DISPLAY CONTROLS</span><strong>Choose what appears in this live view</strong><small>These are view preferences only. They do not delete or change source records.</small></div><button className="button-quiet compact-button" onClick={()=>setShowUniverseSettings(value=>!value)}><Settings2 size={14}/>{showUniverseSettings?"Hide display settings":"Customize view"}</button></div>{showUniverseSettings&&<div className="manufacturing-universe-customizer-body"><div><strong>Live scene information</strong><div className="manufacturing-universe-toggle-grid">{universeFieldOptions.map(([id,label])=><label key={id}><input type="checkbox" checked={visibleUniverseFields.includes(id)} onChange={event=>setVisibleUniverseFields(current=>event.target.checked?[...current,id]:current.filter(value=>value!==id))}/><span>{label}</span></label>)}</div></div><div><strong>Connected module shortcuts</strong><div className="manufacturing-universe-toggle-grid">{linkModules.map(item=><label key={item.id}><input type="checkbox" checked={visibleUniverseModules.includes(item.id)} onChange={event=>setVisibleUniverseModules(current=>event.target.checked?[...current,item.id]:current.filter(value=>value!==item.id))}/><span>{item.title}</span></label>)}</div></div><div className="manufacturing-universe-customizer-actions"><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields(universeFieldOptions.map(([id])=>id));setVisibleUniverseModules(linkModules.map(item=>item.id));}}>Show all</button><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields([]);setVisibleUniverseModules([]);}}>Clear optional display items</button></div></div>}</section>
-    <div className="manufacturing-universe-stat-grid">{stats.filter(item=>visibleUniverseModules.includes(item.module)).map(item=>{const Icon=item.icon;return <button key={item.label} onClick={()=>onNavigate(item.module,activeOperation)}><Icon size={16}/><strong>{item.value.toLocaleString("en-IN")}</strong><small>{item.label}</small></button>;})}</div>
+    <div className="manufacturing-universe-stat-grid">{stats.filter(item=>visibleUniverseModules.includes(item.module)).map(item=>{const Icon=item.icon;return <button key={item.label} onClick={()=>onNavigate(item.module)}><Icon size={16}/><strong>{item.value.toLocaleString("en-IN")}</strong><small>{item.label}</small></button>;})}</div>
     <section className="manufacturing-universe-live-panel">
-      <div className="manufacturing-universe-live-heading"><div><span className="eyebrow">LIVE MANUFACTURING SCENE · WEBGL</span><h2>Manufacturing process universe</h2><p>Sphere, cube, vortex, helix, orbit, network, grid, pipeline, layered, stacked, matrix and tree views use the selected live PO-line data.</p></div><div className="manufacturing-universe-live-tools"><button className="button-primary compact-button" disabled={!poId||!poLineId||!componentId} onClick={()=>setShowAddOperation(value=>!value)}><Activity size={14}/> Add process stage</button><span className="manufacturing-universe-live-state"><i/> LIVE RECORDS</span></div></div>
-      {poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)?<ProcessUniverse3D
-        onNotice={onNotice} key={poLineId}
-        operations={routeOperations.filter(row=>row.relationType!=="subprocess")}
-        allOperations={allRouteOperations}
-        routeLabels={routeLabels}
+      <div className="manufacturing-universe-live-heading"><div><span className="eyebrow">{universeScope==="enterprise"?"ENTERPRISE-WIDE LIVE MANUFACTURING SCENE":"LIVE MANUFACTURING SCENE · WEBGL"}</span><h2>Manufacturing process universe</h2><p>{universeScope==="enterprise"?"All saved PO-line operations, route relationships, material allocations and transport legs are plotted together and remain linked to their source modules.":"This scene is limited to the selected PO line and includes its saved process, material and transport records."}</p></div><div className="manufacturing-universe-live-tools"><button className="button-primary compact-button" disabled={universeScope!=="po-line"||!poId||!poLineId||!componentId} onClick={()=>setShowAddOperation(value=>!value)}><Activity size={14}/> Add process stage</button><span className="manufacturing-universe-live-state"><i/> LIVE RECORDS</span></div></div>
+      {((universeScope==="enterprise"&&(sceneRouteOperations.length>0||sceneRouteMaterials.length>0||sceneRouteLegs.length>0))||(universeScope==="po-line"&&!!poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)))?<ProcessUniverse3D
+        onNotice={onNotice} sceneScopeLabel={universeScope==="enterprise"?"ENTERPRISE-WIDE":"PO-LINE"} key={universeScope==="enterprise"?"enterprise":poLineId}
+        operations={sceneRouteOperations.filter(row=>row.relationType!=="subprocess")}
+        allOperations={sceneAllOperations}
+        routeLabels={sceneRouteLabels}
         materialRoutes={materialRouteNodes}
         transportLegs={transportNodes}
-        routeRelationships={routeRelationships}
-        materialLinks={selectedMaterialProcessLinks}
-        materialPartLabels={materialProcessPartLabels}
+        routeRelationships={sceneRouteRelationships}
+        materialLinks={sceneMaterialProcessLinks}
+        materialPartLabels={sceneMaterialPartLabels}
         materials={materialMasterRecords}
-        componentQuantity={line?.quantity||0}
+        componentQuantity={sceneComponentQuantity}
         selectedMaterialLinkId={selectedMaterialLinkId}
         onSelectMaterialLink={id=>setSelectedMaterialLinkId(current=>current===id?"":id)}
         processDefinitions={definitions}
@@ -266,23 +315,23 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
         visibleFields={visibleUniverseFields}
         showArrows
         operationTransportAmounts={transportCostByOperation}
-        selectedOperationId={activeOperation?.id||""}
+        selectedOperationId={selectedSceneOperation?.id||""}
         simulationIndex={simulationIndex}
         zoom={zoom}
         onZoomChange={setZoom}
-        initialLayout={typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches?"network":"sphere"}
+        initialLayout="sphere"
         ganttScale={ganttScale}
         onGanttScaleChange={setGanttScale}
         onSelectOperation={id=>{setSimulationActive(false);setSimulationIndex(-1);setSelectedOperationId(id);}}
-        onEditOperation={id=>{const op=allRouteOperations.find(row=>row.id===id)||operations.find(row=>row.id===id);if(!op){onNotice("The selected process record could not be found in the current PO line. Refresh the line and try again.");return;}setSelectedOperationId(op.id);setEditingOperation(op);}}
+        onEditOperation={id=>{const op=sceneAllOperations.find(row=>row.id===id)||operations.find(row=>row.id===id);if(!op){onNotice("The selected process record could not be found in the current PO line. Refresh the line and try again.");return;}setSelectedOperationId(op.id);setEditingOperation(op);}}
         onChangeProcessColor={(id,color)=>update(current=>({...current,operations:current.operations.map(row=>row.id===id?{...row,processColor:color,updatedAt:new Date().toISOString()}:row)}))}
-        onAddSubprocess={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
-        onAddAlternateRoute={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
-        onAddReworkRoute={id=>{const op=allRouteOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
-        onAddProcessDefinition={()=>onNavigate("process-map",activeOperation)}
+        onAddSubprocess={id=>{const op=sceneAllOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
+        onAddAlternateRoute={id=>{const op=sceneAllOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
+        onAddReworkRoute={id=>{const op=sceneAllOperations.find(row=>row.id===id);if(op)onNavigate("process-map",op);}}
+        onAddProcessDefinition={()=>onNavigate("process-map")}
         onSelectTransportLeg={(id,anchor)=>{setInspectedTransportId(id);setInspectedMaterialTransportId("");if(anchor)setTransportPopupPoint(transportPopupAnchorFromPoint(anchor.x,anchor.y));}}
         onSelectMaterialTransport={(id,anchor)=>{setInspectedMaterialTransportId(id);setInspectedTransportId("");if(anchor)setTransportPopupPoint(transportPopupAnchorFromPoint(anchor.x,anchor.y));}}
-      />:<div className="manufacturing-universe-empty"><Network size={34}/><strong>No saved manufacturing route for this PO line</strong><span>Add material allocations and process steps first. The universe does not invent placeholder operations.</span><div><button className="button-primary" onClick={()=>onNavigate("route-flow")}><Route size={14}/> Open Route Flow</button><button className="button-quiet" onClick={()=>onNavigate("process-map")}><Workflow size={14}/> Open Process Plan</button></div></div>}
+      />:<div className="manufacturing-universe-empty"><Network size={34}/><strong>{universeScope==="enterprise"?"No saved manufacturing records to plot yet":"No saved manufacturing route for this PO line"}</strong><span>{universeScope==="enterprise"?"Add company, purchase-order, component, material, transport and process records in the source modules. The universe plots actual saved records only.":"Add material allocations and process steps first. The universe does not invent placeholder operations."}</span><div><button className="button-primary" onClick={()=>onNavigate("route-flow")}><Route size={14}/> Open Route Flow</button><button className="button-quiet" onClick={()=>onNavigate("process-map")}><Workflow size={14}/> Open Process Plan</button></div></div>}
     </section>
     {inspectedMaterialTransportEntry&&<MaterialTransportRecordInspector
       entry={inspectedMaterialTransportEntry}
@@ -290,19 +339,19 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
       vendor={inspectedMaterialTransportVendor}
       directoryRoute={inspectedMaterialTransportRoute}
       onClose={()=>setInspectedMaterialTransportId("")}
-      onOpenDirectory={()=>{setInspectedMaterialTransportId("");onNavigate("transport-master",activeOperation);}}
+      onOpenDirectory={()=>{setInspectedMaterialTransportId("");onNavigate("transport-master");}}
     />}
     {inspectedTransportLeg&&<TransportRecordInspector
       leg={inspectedTransportLeg}
       anchor={transportPopupPoint}
-      materialEntry={routeMaterials.find(entry=>entry.id===inspectedTransportLeg.materialEntryId)}
+      materialEntry={materials.find(entry=>entry.id===inspectedTransportLeg.materialEntryId)}
       fromOperationName={allRouteOperations.find(row=>row.id===inspectedTransportLeg.anchorOperationId)?.name}
       toOperationName={allRouteOperations.find(row=>row.id===inspectedTransportLeg.targetOperationId)?.name}
       vendor={inspectedTransportVendor}
       directoryRoute={inspectedTransportRoute}
       legacyVendorRoute={inspectedLegacyVendorRoute}
       onClose={()=>setInspectedTransportId("")}
-      onOpenDirectory={()=>{setInspectedTransportId("");onNavigate("transport-master",activeOperation);}}
+      onOpenDirectory={()=>{setInspectedTransportId("");onNavigate("transport-master");}}
     />}
     {showAddOperation&&<OperationQuickCreate
       poId={poId} poLineId={poLineId} componentId={componentId}
@@ -316,7 +365,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     />}
     <section className="manufacturing-universe-module-links">
       <div className="manufacturing-universe-links-head"><div><span className="eyebrow">CONNECTED WORKSPACES</span><h2>Edit the live records from their source modules</h2><p>Changes made in a source module flow back into this universe through AXIMACH's shared manufacturing data.</p></div></div>
-      <div className="manufacturing-universe-links-grid">{linkModules.filter(item=>visibleUniverseModules.includes(item.id)).map(item=>{const Icon=item.icon;return <button key={item.id} onClick={()=>onNavigate(item.id,activeOperation)}><span><Icon size={17}/></span><strong>{item.title}</strong><small>{item.meta}</small><ArrowRight size={14}/></button>;})}</div>
+      <div className="manufacturing-universe-links-grid">{linkModules.filter(item=>visibleUniverseModules.includes(item.id)).map(item=>{const Icon=item.icon;return <button key={item.id} onClick={()=>onNavigate(item.id)}><span><Icon size={17}/></span><strong>{item.title}</strong><small>{item.meta}</small><ArrowRight size={14}/></button>;})}</div>
     </section>
   </section>;
 }

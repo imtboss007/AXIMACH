@@ -7,7 +7,19 @@ export default function SearchableMultiSelect({ id, label, options, selected, on
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const selectedSet = new Set(selected);
-  const filtered = useMemo(() => { const needle = query.trim().toLocaleLowerCase(); const rows = needle ? options.filter(option => option.label.toLocaleLowerCase().includes(needle)) : options; return rows.slice(0, maxResults); }, [options, query, maxResults]);
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase();
+    if (!needle) return options.slice(0, maxResults);
+    return options
+      .map((option, index) => ({ option, index, label: option.label.trim().toLocaleLowerCase() }))
+      .filter(item => item.label.includes(needle))
+      .sort((a, b) => {
+        const rank = (label: string) => label === needle ? 0 : label.startsWith(needle) ? 1 : 2;
+        return rank(a.label) - rank(b.label) || a.label.localeCompare(b.label) || a.index - b.index;
+      })
+      .slice(0, maxResults)
+      .map(item => item.option);
+  }, [options, query, maxResults]);
   const summary = emptyMeansAll && selected.length === 0 ? "All " + label.toLowerCase() : selected.length ? selected.map(idValue => options.find(option => option.id === idValue)?.label).filter(Boolean).join(", ") : "None selected";
   const toggle = (idValue: string) => onChange(selectedSet.has(idValue) ? selected.filter(value => value !== idValue) : [...selected, idValue]);
   return <div className={"ax-search-multi" + (disabled ? " is-disabled" : "")}>

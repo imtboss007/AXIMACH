@@ -196,7 +196,9 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const lineRows=geometryRows.filter(operation=>operation.poLineId===leg.poLineId&&(operation.branch||"Main route")===branch&&operation.relationType!=="subprocess").sort((a,b)=>a.sequence-b.sequence);
   const anchorIndex=anchor?lineRows.findIndex(operation=>operation.id===anchor.id):-1;
   const fromOperation=leg.placement==="start"?undefined:leg.placement==="before"?(anchorIndex>0?lineRows[anchorIndex-1]:undefined):anchor;
-  const toOperation=(leg.targetOperationId?lineRows.find(operation=>operation.id===leg.targetOperationId):undefined)||(leg.placement==="start"?lineRows[0]:leg.placement==="before"?anchor:(anchorIndex>=0?lineRows[anchorIndex+1]:undefined));
+  // A leg with an explicit target may cross from the main route to a part branch.
+  // Resolve it against the full PO-line graph, not the anchor branch's local lane.
+  const toOperation=target||(leg.placement==="start"?lineRows[0]:leg.placement==="before"?anchor:(anchorIndex>=0?lineRows[anchorIndex+1]:undefined));
   const fromPoint=fromOperation?geometryPoints.find(item=>item.op.id===fromOperation.id)?.p:undefined;
   const toPoint=toOperation?geometryPoints.find(item=>item.op.id===toOperation.id)?.p:undefined;
   const siblings=transportLegs.filter(other=>other.poLineId===leg.poLineId&&other.placement===leg.placement&&(leg.targetOperationId?other.targetOperationId===leg.targetOperationId:other.anchorOperationId===leg.anchorOperationId));

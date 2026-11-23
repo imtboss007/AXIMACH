@@ -4,54 +4,38 @@ import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("AXIMACH includes the Capacitor 7 screen-orientation plugin", () => {
-  const pkg = JSON.parse(read("../package.json"));
-  assert.equal(pkg.dependencies["@capacitor/screen-orientation"], "7.0.4");
-  assert.ok(pkg.scripts["test:server"].includes("tests/aximach-landscape-orientation.test.mjs"));
-});
-
-test("Route Graph, Route Flow and Manufacturing Universe lock the phone to landscape on entry", () => {
+test("Route Flow, Process Map and Manufacturing Universe never force device orientation", () => {
   const app = read("../src/App.tsx");
-  assert.ok(app.includes('activeModuleId === "process-map"'));
-  assert.ok(app.includes('activeModuleId === "route-flow"'));
-  assert.ok(app.includes('activeModuleId === "manufacturing-universe"'));
-  assert.ok(app.includes('CapacitorScreenOrientation.lock({ orientation: "landscape-primary" })'));
-  assert.ok(app.includes('window.matchMedia("(pointer: coarse) and (max-width: 900px)")'));
+  assert.doesNotMatch(app, /CapacitorScreenOrientation\.lock/);
+  assert.doesNotMatch(app, /needsLandscapeOrientation/);
+  assert.doesNotMatch(app, /Landscape view required/);
+  assert.doesNotMatch(app, /retryLandscapeOrientation/);
+  assert.match(app, /activeModuleId === "route-flow"/);
+  assert.match(app, /activeModuleId === "process-map"/);
+  assert.match(app, /activeModuleId === "manufacturing-universe"/);
 });
 
-test("Landscape orientation is released when leaving the three route workspaces", () => {
-  const app = read("../src/App.tsx");
-  assert.ok(app.includes("void CapacitorScreenOrientation.unlock().catch(() => undefined)"));
-  assert.ok(app.includes("return () => {\n      disposed = true;"));
-  assert.ok(app.includes("if (disposed) {\n        // A slow native bridge"));
-  assert.ok(app.includes("if (locked) void CapacitorScreenOrientation.unlock().catch(() => undefined)"));
-});
-
-test("A browser that cannot lock orientation shows a rotate-device fallback", () => {
-  const app = read("../src/App.tsx");
-  const css = read("../src/aximach-ui.css");
-  assert.ok(app.includes("orientationLockUnavailable"));
-  assert.ok(app.includes("Landscape view required"));
-  assert.ok(app.includes("Try landscape again"));
-  assert.ok(css.includes(".ax-landscape-rotate-prompt"));
-  assert.ok(css.includes("@media (orientation:portrait) and (max-width:900px) and (pointer:coarse)"));
-});
-
-test("Exiting only the Process Map graph fullscreen does not unlock the workspace orientation", () => {
+test("Process Map full-screen control does not require landscape", () => {
   const processMap = read("../src/LinkedProcessWorkspace.tsx");
   const fullscreenControls = read("../src/ImmersiveWorkspaceControls.tsx");
-  assert.ok(processMap.includes("The app-level landscape lock remains active until Process Map is closed."));
-  assert.ok(!processMap.includes("orientation?.unlock?.()"));
-  assert.ok(!processMap.includes("orientation?.lock(\"landscape\")"));
-  assert.ok(!fullscreenControls.includes("orientation?.unlock?.()"));
+  assert.doesNotMatch(processMap, /landscape lock/i);
+  assert.doesNotMatch(processMap, /Landscape orientation stays active/i);
+  assert.doesNotMatch(processMap, /full-screen landscape/i);
+  assert.match(processMap, /Open route in full screen/);
+  assert.doesNotMatch(fullscreenControls, /orientation\?\.unlock/);
+  assert.doesNotMatch(fullscreenControls, /orientation\?\.lock/);
 });
 
-test("Route Flow, Route Graph and Manufacturing Universe have compact short-landscape canvas rules", () => {
+test("Portrait layouts exist for Process Map route nodes and Manufacturing Universe", () => {
   const css = read("../src/aximach-ui.css");
-  assert.ok(css.includes("@media (orientation:landscape) and (max-height:600px) and (max-width:1100px)"));
-  assert.ok(css.includes(".route-flow-stage-scroll{min-height:0;max-height:calc(100dvh - 190px)"));
-  assert.ok(css.includes(".linked-process-page .process-route-flow-track{max-height:calc(100dvh - 190px)"));
-  assert.ok(css.includes(".manufacturing-universe-live-panel .process-orbit-scene,.manufacturing-universe-live-panel .process-scene-stage{min-height:280px!important}"));
-  assert.ok(css.includes(".app-shell:has(.linked-process-page) .command-rail"));
-  assert.ok(css.includes(".app-shell:has(.linked-process-page) .page-content"));
+  assert.ok(css.includes("@media (orientation:portrait) and (max-width:900px)"));
+  assert.ok(css.includes(".linked-process-page .linked-node-scroll"));
+  assert.ok(css.includes(".process-universe-viewport"));
+  assert.ok(css.includes(".process-route-flow-track"));
+});
+
+test("Landscape-only rotate prompt is no longer required by the application", () => {
+  const app = read("../src/App.tsx");
+  assert.doesNotMatch(app, /ax-landscape-rotate-prompt/);
+  assert.doesNotMatch(app, /Continue in portrait/);
 });

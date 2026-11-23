@@ -38,8 +38,8 @@ The machine-readable process/category/sub-process fixture is in [tests/fixtures/
 
 ## Command globe and logo export acceptance additions
 
-- The main dashboard and 3D Command Centre share the same full WebGL sphere component. The 18-module shell and separate lower live-record shell auto-rotate by default; pointer/touch drag takes over immediately, and Pause auto-rotation stops idle movement. Each shell has an independent drag lock/unlock control, and each workspace surface retains its own saved interaction preferences.
-- The 18 module controls use Fibonacci-sphere coordinates distributed across the full spherical surface. Rear-facing controls are hidden by back-face culling until the operator rotates them into view. The WebGL globe surface texture receives the same drag orientation as a shader uniform, so the spherical silhouette stays round instead of rotating as a flat canvas plane.
+- The main dashboard and 3D Command Centre share the same full WebGL sphere component. The 20-module shell and separate lower live-record shell auto-rotate by default; pointer/touch drag takes over immediately, and Pause auto-rotation stops idle movement. The sphere includes every official module, including Route Flow & Relationships and Manufacturing Universe. Each shell has an independent drag lock/unlock control, and each workspace surface retains its own saved interaction preferences.
+- The 20 module controls use Fibonacci-sphere coordinates distributed across the full spherical surface. Rear-facing controls are hidden by back-face culling until the operator rotates them into view. The WebGL globe surface texture receives the same drag orientation as a shader uniform, so the spherical silhouette stays round instead of rotating as a flat canvas plane.
 - The lower shell carries six live record categories: companies, purchase orders, PO component lines, components, vendors and open operations.
 - Component Master and Purchase Order PDF/Excel exports include the component logo. A saved imported SVG/PNG logo is preferred when present; otherwise the deterministic name-based mechanical symbol is used.
 - Every saved Component Master row opens Logo Studio with its own stable component ID preselected. The Component Master also exposes the 46-symbol mechanical inventory; Process Directory exposes the same inventory and per-process Logo Studio actions.
@@ -84,3 +84,63 @@ Automated coverage is in `tests/aximach-transport-route-demo.test.mjs`. Browser/
 - The isolated hydraulic manifold fixture has three distinct materials mapped to three different process steps and six transport legs across the primary and alternate paths. Demo data remains test-only and must not be inserted into live records.
 
 Automated coverage is in tests/aximach-material-process-links.test.mjs. Browser/device acceptance (portrait, landscape, full-screen orientation support, touch hit targets and popup placement) remains a physical-device check.
+
+
+
+## Integrated two-assembly / five-part all-module acceptance — 15 November 2026
+
+The primary comprehensive acceptance dataset is now `tests/fixtures/aximach-one-component-multipart-route.json`. Its legacy filename is retained for compatibility with existing tests and imports; the fixture itself is now explicitly a two-parent-assembly test, not a one-component test.
+
+### Exact synthetic dataset
+
+- **2 parent Component Master assemblies**: AX-ASSY-100 and AX-ASSY-200.
+- **5 unique child part records**: AX-1001 through AX-1005, with Standard, Precision and Ultra Precision classifications.
+- **5 part-level PO lines** in one synthetic PO. Every part has its own stable `partId`, PO-line ID and independently linked operation route; the part routes are not flattened into one shared operation list.
+- **37 operation records** across the five main routes, including five alternate and five rework route records; operation statuses span Planned, Queued, Running, Complete, Quality hold, Rejected and Delayed.
+- **24 Process Directory definitions** with stable process-definition and subcategory IDs, linked vendor capability records and process-specific identity colours.
+- **57 route relationship records**, with all eleven types represented on every part PO line: main, alternate, rework, dependency, parallel, merge, split, follow-on, feedback, conditional and successor. Relationship status options include Active, Planned, Conditional and Disabled.
+- **16 Transport Directory route masters and 16 saved component transport legs**, collectively covering all sixteen configured vehicle categories in the same dataset: two-wheeler, three-wheeler, four-wheeler, light commercial vehicle, mini truck, heavy-duty four-wheeler, heavy truck, container truck, trailer/tractor, bus/staff vehicle, courier/delivery, air freight, rail freight, sea freight/container vessel, inland waterway vessel and multimodal freight. Each leg retains its exact vendor, saved route, vehicle, rate snapshot, trip count, direction, PO line and process anchor/target.
+- **8 material masters, 11 part-scoped BOM rows, 11 material-to-process feed links and 11 process-map material cost rows**, retaining material, BOM, part, operation and PO-line identity.
+- Additional records for **16 planned-cost rows, 5 quotations, 5 payment entries, 5 inspection measurements, 10 stock transaction kinds, 4 contact profiles and 2 follow-up assignments**. The records deliberately span quote statuses, inspection results, stock movement types, operation statuses, contact linkage and one-way/two-way transport.
+
+The material calculator fixture now covers all thirteen configured raw-stock profiles (plate, flat bar, round bar, square bar, hex bar, round tube, square tube, rectangular tube, angle, channel, I-beam, T-section and custom profile) through part-scoped BOM/material cost entries. Each entry has positive dimensions, recalculated volume/weight, normalized density, price-rate and cost data. The same fixture spans all five dimension units (mm, cm, m, ft, inch), both price units (kg/lb), all 13 cutting methods, all six cutting charge bases (per piece, per cut, per kg, per metre, per hour and fixed job), both density entry units (kg/m³ and g/cm³), and all five material transport lifecycle states (Planned, Queued, Running, Complete and Delayed).
+
+### Module coverage
+
+The fixture declares record coverage for the complete canonical 20-module catalogue: Company Directory, Component Directory, Purchase Orders, Vendor Directory, Transport Directory, Contact 360, Process Directory, Component Planned Cost, Vendor Network, Material Directory, Production Plan & Process Plan, Route Flow & Relationships, Manufacturing Universe, Transport & Dispatch, Quality Inspection, Costing & Payment, Follow-up Centre, Reports & Analytics, AI Insights and Data Exchange Centre.
+
+The in-app read-only demonstration is implemented in `src/TransportRoutingDemo.tsx` and is surfaced by Process Map, Route Flow, Transport Directory and Transport & Dispatch. It has seven review views: assembly/part hierarchy, individual part routes, relationship links, transport legs, all vehicle categories, material feeds and 20-module record coverage. It does not write fixture data into the live workspace.
+
+The optional two-company demo generator in `src/aximachDemoData.ts` is aligned to the same hierarchy: two parent Component Master assemblies, five `componentParts` child records, five part-level PO lines, separate main/alternate/rework chains, all eleven typed relationship kinds on each part route, and all sixteen transport vehicle categories represented in saved route masters and legs. Its opt-in load/remove controls are retained; removal archives both the parent assemblies and their child part records.
+
+### Automated acceptance
+
+- `tests/aximach-two-component-comprehensive.test.mjs` validates parent/child identity, all five part-level PO lines, separate operation routes, stable Process Directory references, all eleven relationship kinds per line, all sixteen route/vehicle categories, exact material/BOM/process links, all twenty module record domains and major option sets.
+- `tests/aximach-material-process-links.test.mjs` validates the integrated read-only preview, all-part route linkage and transport category coverage.
+- `tests/aximach-five-part-fixture.test.mjs` verifies five distinct parts grouped under exactly two parent components.
+- `tests/aximach-crud-acceptance.mjs` seeds both parent Component Master records and the complete linked dataset in an isolated browser origin, opens all twenty module workspaces against that same dataset, and checks data through reload and fresh-tab reopen.
+
+### Integrity boundaries
+
+- Every operational, material, transport, relationship, quote, payment and inspection record must retain its exact part-level PO-line and parent component IDs.
+- Alternate and rework branches remain separate; disabled/conditional relationships are not silently promoted to active main-route steps.
+- Vehicle master rate and transport-leg rate snapshot remain separately visible; transportation costs remain distinct from process/material/cutting costs.
+- Inspection rows are explicitly synthetic and are not physical measurement results or proof of a part passing inspection.
+- All example company, component, supplier, PO, material, quote, payment, quality, stock and follow-up records are synthetic test data. `liveSeed:false`; never auto-import this dataset into a user's production records.
+- Physical PC/Android round-trip sync, real touch hit-targets, WebGL depth ordering, print/PDF rendering and spreadsheet image rendering remain separate device acceptance checks. CI source tests or browser emulation do not certify these physical-device behaviours.
+
+## Two-component / five-part comprehensive acceptance scenario
+
+The canonical integrated fixture is `tests/fixtures/aximach-one-component-multipart-route.json`. Its historical filename is retained for compatibility; the fixture now contains exactly two parent Component Master assemblies and five distinct child part records. Each child part has its own part-level PO line, independent process chain, BOM/material allocations, material-to-process links, route relationships and transport legs. It is synthetic and is never automatically loaded into live workspace data.
+
+The in-app preview is shared by Process Map, Route Flow, Transport Directory and Transport & Dispatch. It has seven views: Assemblies & parts, Part process routes, Relationship types, Transport legs, All vehicles, Material feeds and 20-module coverage. The fixture contains:
+- 2 parent assemblies, 5 child parts and 5 distinct part-level PO lines.
+- 37 process operations, including independent main, alternate and rework branches for each part.
+- All 11 route relationship types on every part-level route, with valid same-line endpoints and lifecycle states.
+- All 16 configured vehicle categories in saved Transport Directory route masters and saved component transport legs at the same time.
+- Multi-material BOMs, material input/consumable/WIP/output feeds, both before/after placements and material cost rows for every part.
+- Cross-module quote, payment, inspection, inventory, vendor, contact, follow-up and planned-cost records, with declared coverage for all 20 modules.
+- Representative process, quotation, inspection, job and transport lifecycle options, including planned, queued, running, complete, delayed, quality hold and rejected states.
+
+Automated coverage is in `tests/aximach-two-component-comprehensive.test.mjs`, with the existing five-part, material-link and transport-route test suites. The browser acceptance seed now inserts both parent components and the five part-level lines into the isolated browser test profile only. This is a synthetic coverage scenario, not a production-ready certification; visual, touch, orientation and device-specific acceptance still require the configured PC and Android devices.
+

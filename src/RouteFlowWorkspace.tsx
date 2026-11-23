@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
+import SearchablePicker from "./SearchablePicker";
 import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
@@ -8,9 +9,10 @@ import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector
 import { transportPopupAnchor } from "./transportPopup";
 import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
+import TransportRoutingDemo from "./TransportRoutingDemo";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
-import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
+import { VehicleIcon as VehicleTypeIcon, VEHICLE_TYPES } from "./TransportVehicle";
 import { Activity, ArrowLeft, ArrowRight, Box, Check, ChevronDown, CircleDashed, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, GitMerge, GitPullRequest, Link2, MessageCircle, Network, Package, Plus, Route, Save, ShieldCheck, Sparkles, Split, Truck, Users, Waypoints, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
@@ -51,7 +53,9 @@ function vehicleClassFor(value:string) { const type=(value||"").toLowerCase(); i
 function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,transportLegId,materialTransportId,layout="orthogonal",onTransportClick}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number;transportLegId?:string;materialTransportId?:string;layout?:RouteLayoutMode;onTransportClick?:(id:string,kind:"leg"|"material",element:HTMLElement)=>void}) {
   const style=transport?"transport":type;
 
-  const curvePath=layout==="orthogonal"?"M4 36 L54 36 L54 12 L88 12 L88 36 L132 36":layout==="horizontal"?"M4 36 L132 36":style==="feedback"?"M4 35 C20 -2 48 -5 68 28 C84 55 112 60 132 25"
+  // Layout controls arrange process cards; relationship identity controls connector geometry.
+  // Never flatten typed relationships into the same orthogonal or straight line.
+  const curvePath=style==="feedback"?"M4 35 C20 -2 48 -5 68 28 C84 55 112 60 132 25"
     :style==="rework"?"M4 37 C36 67 92 2 132 31"
     :style==="alternate"?"M4 36 C35 -15 93 -12 132 31"
     :style==="dependency"?"M4 36 C42 36 92 6 132 31"
@@ -86,6 +90,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [companyPick,setCompanyPick]=useState(initialContext?.companyId||"");
   const [poPick,setPoPick]=useState(initialContext?.poId||"");
   const [linePick,setLinePick]=useState(initialContext?.poLineId||"");
+  const [showMultipartDemo,setShowMultipartDemo]=useState(false);
   const appliedContextKey=useRef("");
   useEffect(()=>{
     const context=initialContext||{};
@@ -329,8 +334,23 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const download=(blob:Blob,name:string)=>{const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1200);};
     const safeName=(title||"aximach-route").replace(/[^a-z0-9-_]+/gi,"-").replace(/-+/g,"-");
     const records=routeNodes.map((node,index)=>({sequence:index+1,stage:node.kind,record:node.kind==="operation"?node.operation:node.kind==="transport"?node.leg:node.kind==="material"||node.kind==="material-transport"?node.entry:{},relationshipToNext:index<routeNodes.length-1?connectorFor(index).type:""}));
-    if(exportFormat==="json"){download(new Blob([JSON.stringify({company:company?.name,po:order?.number,component:component?.name,branch,stages:records,relationships,transportLegs:routeLegs},null,2)],{type:"application/json"}),safeName+".json");}
-    else if(exportFormat==="csv"){const rows=[["Sequence","Stage","Name","Category","Subcategory","Quantity","Vendor","Amount","Status","Start","Due","Relationship to next"],...routeNodes.map((node,index)=>node.kind==="operation"?[index+1,"Process",node.operation.name,node.operation.category,node.operation.subcategory||"",node.operation.quantity,vendors.find(v=>v.id===node.operation.vendorId)?.company||"",node.operation.quantity*(node.operation.actualRatePerPart||node.operation.ratePerPart),node.operation.status,node.operation.plannedStart,node.operation.plannedEnd,index<routeNodes.length-1?connectorFor(index).type:""]:node.kind==="transport"?[index+1,"Transport",node.leg.fromLocation+" → "+node.leg.toLocation,"",node.leg.vehicleType,node.leg.tripCount,vendors.find(v=>v.id===node.leg.vendorId)?.company||"",node.leg.fixedAmount*node.leg.tripCount,node.leg.status,node.leg.pickupAt,node.leg.deliveryAt,index<routeNodes.length-1?connectorFor(index).type:""]:[index+1,node.kind,node.kind==="material"?node.entry.materialName+" "+node.entry.materialGrade:node.kind==="material-transport"?"Inbound transport":"Material missing","","",node.kind==="material"?node.entry.quantity:"", "",node.kind==="material"?node.entry.materialCost:node.kind==="material-transport"?node.entry.transportCost||0:"","","","",index<routeNodes.length-1?connectorFor(index).type:""] )];const csv=rows.map(row=>row.map(value=>'"'+String(value??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");download(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),safeName+"-excel.csv");}
+    if(exportFormat==="json"){download(new Blob([JSON.stringify({company:company?.name,po:order?.number,component:component?.name,companyId,poId,poLineId,componentId,branch,stages:records,materialProcessLinks:routeMaterialProcessLinks,relationships,transportLegs:routeLegs},null,2)],{type:"application/json"}),safeName+".json");}
+    else if(exportFormat==="csv"){
+      const rows=[
+        ["Sequence","Stage","Name","Category","Subcategory","Quantity","Vendor","Amount","Status","Start","Due","Relationship to next"],
+        ...routeNodes.map((node,index)=>node.kind==="operation"?[index+1,"Process",node.operation.name,node.operation.category,node.operation.subcategory||"",node.operation.quantity,vendors.find(v=>v.id===node.operation.vendorId)?.company||"",node.operation.quantity*(node.operation.actualRatePerPart||node.operation.ratePerPart),node.operation.status,node.operation.plannedStart,node.operation.plannedEnd,index<routeNodes.length-1?connectorFor(index).type:""]:node.kind==="transport"?[index+1,"Transport",node.leg.fromLocation+" → "+node.leg.toLocation,"",node.leg.vehicleType,node.leg.tripCount,vendors.find(v=>v.id===node.leg.vendorId)?.company||"",node.leg.fixedAmount*node.leg.tripCount,node.leg.status,node.leg.pickupAt,node.leg.deliveryAt,index<routeNodes.length-1?connectorFor(index).type:""]:[index+1,node.kind,node.kind==="material"?node.entry.materialName+" "+node.entry.materialGrade:node.kind==="material-transport"?"Inbound transport":"Material missing","","",node.kind==="material"?node.entry.quantity:"","",node.kind==="material"?node.entry.materialCost:node.kind==="material-transport"?node.entry.transportCost||0:"","","","",index<routeNodes.length-1?connectorFor(index).type:""]),
+        ...routeMaterialProcessLinks.map((link,index)=>{
+          const bom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
+          const part=bom?.partId?data.componentParts.find(row=>row.id===bom.partId):undefined;
+          const material=materialMasterRecords.find(row=>row.id===link.materialId);
+          const target=routeOperations.find(row=>row.id===link.operationId);
+          return [routeNodes.length+index+1,"Material process link",material?.name||link.materialId,link.flowType,link.placement,link.quantityPerPart,"","","","","", (part?.partNumber||"Whole component")+" · "+(target?.name||link.operationId)+" · BOM "+link.bomLineId];
+        }),
+        ...relationships.map((link,index)=>[routeNodes.length+routeMaterialProcessLinks.length+index+1,"Relationship",(processName(link.fromOperationId))+" → "+processName(link.toOperationId),link.relationshipType,link.status,"","","","","","",link.condition||""])
+      ];
+      const csv=rows.map(row=>row.map(value=>'"'+String(value??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
+      download(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),safeName+"-excel.csv");
+    }
     else if(exportFormat==="pdf"){const win=window.open("","_blank");if(!win){onNotice("The browser blocked the PDF print window. Allow pop-ups, or export as SVG / PNG instead.");return;}win.document.write('<!doctype html><html><head><title>'+escSvg(title)+'</title><style>body{margin:0;padding:20px;font:14px Arial}svg{max-width:100%;height:auto}@page{size:landscape;margin:10mm}</style></head><body>'+svg+'<script>window.onload=()=>window.print()<\/script></body></html>');win.document.close();}
     else if(exportFormat==="svg"){download(new Blob([svg],{type:"image/svg+xml;charset=utf-8"}),safeName+".svg");}
     else {const image=new Image(),url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml;charset=utf-8"}));image.onload=()=>{const canvas=document.createElement("canvas");canvas.width=width*2;canvas.height=height*2;const context=canvas.getContext("2d");if(!context){URL.revokeObjectURL(url);onNotice("PNG export is unavailable in this browser.");return;}context.scale(2,2);context.drawImage(image,0,0,width,height);canvas.toBlob(blob=>{if(blob)download(blob,safeName+".png");else onNotice("PNG export failed. Try SVG or PDF.");URL.revokeObjectURL(url);},"image/png");};image.onerror=()=>{URL.revokeObjectURL(url);onNotice("PNG export failed. Try SVG or PDF.");};image.src=url;}
@@ -342,7 +362,10 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const rows:Array<{fromId:string;toId:string;type:RouteRelationshipType;status:string}>=[];
     const add=(fromId:string,toId:string,type:RouteRelationshipType,status:string)=>{
       if(!fromId||!toId||fromId===toId)return;
-      const existing=rows.findIndex(row=>row.fromId===fromId&&row.toId===toId);
+      // Different relationship types may legitimately connect the same two
+      // operations (for example, a rework path plus a parallel dependency).
+      // Preserve each typed edge; only collapse duplicate records of the same type.
+      const existing=rows.findIndex(row=>row.fromId===fromId&&row.toId===toId&&row.type===type);
       const next={fromId,toId,type,status};
       if(existing>=0)rows[existing]=next;else rows.push(next);
     };
@@ -419,18 +442,25 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   return <section className="route-flow-workspace" data-workspace-theme={workspaceTheme}>
     <header className="route-flow-workspace-head">
       <div><div className="eyebrow"><span className="eyebrow-mark"/> AXIMACH · LIVE ROUTE EDITOR</div><h1>Route Flow <span>&amp; Relationships</span></h1><p>Open this as a dedicated route canvas. Material, transport, process steps and saved relationship types stay linked to their original PO component line.</p></div>
-      <div className="route-flow-head-actions"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"route-flow-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncLabel}</span><div className="route-flow-export-controls"><select aria-label="Route export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportRouteFile}><FileDown size={14}/> Download</button></div><button className="button-quiet" onClick={openProcessMap}><Workflow size={15}/> Open Process Plan</button></div>
+      <div className="route-flow-head-actions"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"route-flow-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncLabel}</span><div className="route-flow-export-controls"><select aria-label="Route export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportRouteFile}><FileDown size={14}/> Download</button></div><button className="button-quiet" onClick={()=>setShowMultipartDemo(value=>!value)} aria-expanded={showMultipartDemo}><GitBranch size={15}/> {showMultipartDemo?"Close multi-part demo":"Open multi-part demo"}</button><button className="button-quiet" onClick={openProcessMap}><Workflow size={15}/> Open Process Plan</button></div>
     </header>
     {notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
+    {showMultipartDemo&&<TransportRoutingDemo onClose={()=>setShowMultipartDemo(false)}/>}
     {inspectedMaterialTransportEntry&&<MaterialTransportRecordInspector entry={inspectedMaterialTransportEntry} anchor={transportPopupPoint} vendor={inspectedMaterialTransportVendor} directoryRoute={inspectedMaterialTransportRoute} onClose={()=>setInspectedMaterialTransportId("")} onOpenDirectory={()=>{setInspectedMaterialTransportId("");onSelectModule("transport-master",{companyId,poId,poLineId,componentId});}}/>}
     {inspectedTransportLeg&&<TransportRecordInspector leg={inspectedTransportLeg} anchor={transportPopupPoint} materialEntry={routeMaterials.find(entry=>entry.id===inspectedTransportLeg.materialEntryId)} fromOperationName={processName(inspectedTransportLeg.anchorOperationId)} toOperationName={processName(inspectedTransportLeg.targetOperationId||"")} vendor={inspectedTransportVendor} directoryRoute={inspectedTransportRoute} legacyVendorRoute={inspectedLegacyVendorRoute} onClose={()=>setInspectedTransportId("")} onOpenDirectory={()=>{setInspectedTransportId("");onSelectModule("transport-master",{companyId,poId,poLineId,componentId});}}/>}
     <div className="route-flow-scope-bar">
-      <label>Company<select value={companyId} onChange={e=>{setCompanyPick(e.target.value);setPoPick("");setLinePick("");}}><option value="">Select company…</option>{companies.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
-      <label>Purchase order<select value={poId} onChange={e=>{setPoPick(e.target.value);setLinePick("");}}><option value="">Select PO…</option>{companyOrders.map(row=><option key={row.id} value={row.id}>{row.number}</option>)}</select></label>
-      <label>Component / PO line<select value={poLineId} onChange={e=>setLinePick(e.target.value)}><option value="">Select PO component line…</option>{lineOptions.map(row=>{const part=data.componentParts.find(p=>p.id===row.partId);const lineComponent=data.components.find(item=>item.id===row.componentId);return <option key={row.id} value={row.id}>{lineComponent?.partNumber||"Missing component"} · {lineComponent?.name||"Component"}{part?" · "+part.partNumber+" "+part.name:""} · Qty {row.quantity}</option>;})}</select></label>
-      <label>Route branch<select value={branch} onChange={e=>setBranchPick(e.target.value)}>{branches.map(value=><option key={value}>{value}</option>)}</select></label>
+      <SearchablePicker id="route-flow-company" label="Company" value={companyId} placeholder="Search company name…" options={companies.map(row=>({id:row.id,label:row.name}))} onChange={value=>{setCompanyPick(value);setPoPick("");setLinePick("");}} />
+      <SearchablePicker id="route-flow-po" label="Purchase order" value={poId} placeholder="Search PO number…" options={companyOrders.map(row=>({id:row.id,label:row.number+" · "+row.status}))} onChange={value=>{setPoPick(value);setLinePick("");}} />
+      <SearchablePicker id="route-flow-component-line" label="Component / PO line" value={poLineId} placeholder="Search part number or component…" options={lineOptions.map(row=>{const part=data.componentParts.find(p=>p.id===row.partId);const lineComponent=data.components.find(item=>item.id===row.componentId);return {id:row.id,label:(lineComponent?.partNumber||"Missing component")+" · "+(lineComponent?.name||"Component")+(part?" · "+part.partNumber+" "+part.name:"")+" · Qty "+row.quantity};})} onChange={setLinePick} />
+      <SearchablePicker id="route-flow-branch" label="Route branch" value={branch} placeholder="Search route branch…" options={branches.map(value=>({id:value,label:value}))} onChange={setBranchPick} />
       <div className="route-flow-scope-stats"><strong>{routeNodes.length}</strong><span>ROUTE STAGES</span><strong>{routeLegs.length}</strong><span>TRANSPORT LEGS</span></div>
     </div>
+    {companies.length>0&&!company&&<div className="process-add-prerequisite-note" role="status"><strong>Select a company, purchase order and component line.</strong><span>Route Flow will load only the exact PO component route you choose; it will not guess between different jobs.</span></div>
+    }
+    {!companies.length&&<div className="process-add-prerequisite-note" role="status"><strong>No company records are saved on this device.</strong><span>Route Flow needs a company, purchase order and component line. Add your master records or restore a backup from Data Exchange Centre.</span><div><button type="button" className="button-primary compact-button" onClick={()=>onSelectModule("companies")}>Add company</button><button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("export")}>Import / restore data</button></div></div>}
+    {company&&companyOrders.length>0&&!order&&<div className="process-add-prerequisite-note" role="status"><strong>Select a purchase order for {company.name}.</strong><span>Choose the correct PO before selecting its component line.</span></div>}
+    {company&&!companyOrders.length&&<div className="process-add-prerequisite-note" role="status"><strong>No purchase orders found for {company.name}.</strong><span>Create a purchase order for this company before building its route.</span><div><button type="button" className="button-primary compact-button" onClick={()=>onSelectModule("purchasing",{companyId})}>Create purchase order</button><button type="button" className="button-quiet compact-button" onClick={()=>onSelectModule("export")}>Import / restore data</button></div></div>}
+    {order&&!lineOptions.length&&<div className="process-add-prerequisite-note" role="status"><strong>{order.number} has no active component lines.</strong><span>Add one or more Component Master lines to this purchase order before creating manufacturing routes.</span><button type="button" className="button-primary compact-button" onClick={()=>onSelectModule("purchasing",{companyId,poId})}>Open purchase order</button></div>}
 
     <section className="route-flow-canvas-panel">
       <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowAddOperation(v=>!v)}><Plus size={14}/> Add process stage</button><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" disabled={!poLineId} onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button></div></div>
@@ -468,7 +498,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         <div className="route-flow-relationship-matrix"><h4>RELATIONSHIP MATRIX · {relationshipMatrixRows.length}</h4>
           {relationshipMatrixRows.length?relationshipMatrixRows.map((link,index)=><div className="route-flow-matrix-row" key={link.fromId+"-"+link.toId+"-"+index}>
             <strong title={processName(link.fromId)}>{processName(link.fromId)}</strong>
-            <span className={"route-flow-matrix-arrow route-flow-curve-"+link.type} aria-label={relationLabel(link.type)}><i/></span>
+            <span className={"route-flow-matrix-arrow route-flow-curve-"+link.type} data-relationship-type={link.type} aria-label={relationLabel(link.type)}><i/></span>
             <strong title={processName(link.toId)}>{processName(link.toId)}</strong>
             <em title={relationLabel(link.type)}>{relationLabel(link.type)} · {link.status}</em>
           </div>):<div className="route-flow-matrix-empty">No saved route connections yet. Add process stages or select a relationship type above.</div>}
@@ -482,16 +512,16 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     {showTransportEditor&&<section className="route-flow-editor-panel">
       <div className="route-flow-editor-title"><div><span className="eyebrow">TRANSPORT DIRECTORY · MULTIPLE CARRIERS SUPPORTED</span><h3>Add a transport leg between two process stages</h3></div><button className="close-round compact" onClick={()=>setShowTransportEditor(false)}><X size={16}/></button></div>
       <div className="route-flow-editor-grid">
-        <label>From process<select value={transportFromOperationId} onChange={e=>{setTransportFromOperationId(e.target.value);if(e.target.value)setTransportFromMaterialId("");}}><option value="">Select sending process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
-        <label>Or source material<select value={transportFromMaterialId} onChange={e=>{setTransportFromMaterialId(e.target.value);if(e.target.value)setTransportFromOperationId("");}}><option value="">No material source selected</option>{routeMaterials.map(row=><option key={row.id} value={row.id}>{row.partNumber||row.partName||"Part"} · {row.materialName} {row.materialGrade} · Qty {row.quantity}</option>)}</select></label>
-        <label>To process<select value={transportToOperationId} onChange={e=>setTransportToOperationId(e.target.value)}><option value="">Select receiving process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
-        <label>Transport vendor<select value={transportVendorId} onChange={e=>{setTransportVendorId(e.target.value);setTransportRouteId("");}}><option value="">Select a carrier…</option>{vendors.map(v=><option key={v.id} value={v.id}>{v.company} · {v.phone||"No phone"}</option>)}</select></label>
-        <label>Saved route<select value={transportRouteId} onChange={e=>{setTransportRouteId(e.target.value);const r=transportChoices.find(item=>item.id===e.target.value);if(r){setTransportVendorId(r.vendorId);setTransportFrom(r.fromLocation);setTransportTo(r.toLocation);setVehicleType(r.vehicleType);setTripDirection(r.tripDirection);setTransportAmount(String(r.fixedAmount));}}}><option value="">Choose a saved route or enter new locations…</option>{transportChoices.filter(r=>!transportVendorId||r.vendorId===transportVendorId).map(r=><option key={r.id} value={r.id}>{r.fromLocation} → {r.toLocation} · {r.vehicleType} · {money(r.fixedAmount)}</option>)}</select></label>
+        <SearchablePicker id="route-flow-transport-from-process" label="From process" value={transportFromOperationId} placeholder="Search sending process…" options={routeOperations.map(row=>({id:row.id,label:row.name+" · OP-"+row.sequence}))} onChange={value=>{setTransportFromOperationId(value);if(value)setTransportFromMaterialId("");}} />
+        <SearchablePicker id="route-flow-transport-source-material" label="Or source material" value={transportFromMaterialId} placeholder="Search source material or part…" options={routeMaterials.map(row=>({id:row.id,label:(row.partNumber||row.partName||"Part")+" · "+row.materialName+" "+row.materialGrade+" · Qty "+row.quantity}))} onChange={value=>{setTransportFromMaterialId(value);if(value)setTransportFromOperationId("");}} />
+        <SearchablePicker id="route-flow-transport-to-process" label="To process" value={transportToOperationId} placeholder="Search receiving process…" options={routeOperations.map(row=>({id:row.id,label:row.name+" · OP-"+row.sequence}))} onChange={setTransportToOperationId} />
+        <SearchablePicker id="route-flow-transport-vendor" label="Transport vendor" value={transportVendorId} placeholder="Search carrier name or phone…" options={vendors.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")}))} onChange={value=>{setTransportVendorId(value);setTransportRouteId("");}} />
+        <SearchablePicker id="route-flow-transport-saved-route" label="Saved route" value={transportRouteId} placeholder="Search saved route, vehicle or rate…" options={transportChoices.filter(r=>!transportVendorId||r.vendorId===transportVendorId).map(r=>({id:r.id,label:r.fromLocation+" → "+r.toLocation+" · "+r.vehicleType+" · "+money(r.fixedAmount)}))} onChange={value=>{setTransportRouteId(value);const r=transportChoices.find(item=>item.id===value);if(r){setTransportVendorId(r.vendorId);setTransportFrom(r.fromLocation);setTransportTo(r.toLocation);setVehicleType(r.vehicleType);setTripDirection(r.tripDirection);setTransportAmount(String(r.fixedAmount));}}} />
         <label>From location<input list="route-flow-locations" value={transportFrom} onChange={e=>setTransportFrom(e.target.value)} placeholder="Search or enter new pickup location"/></label>
         <label>To location<input list="route-flow-locations" value={transportTo} onChange={e=>setTransportTo(e.target.value)} placeholder="Search or enter new destination"/></label>
         <datalist id="route-flow-locations">{locationHints.map(value=><option key={value} value={value}/>)}</datalist>
-        <label>Vehicle type<input value={vehicleType} onChange={e=>setVehicleType(e.target.value)} placeholder="Truck, tempo, van, car, bike…"/></label>
-        <label>Trip direction<select value={tripDirection} onChange={e=>setTripDirection(e.target.value as "One-way"|"Two-way")}><option>One-way</option><option>Two-way</option></select></label>
+        <SearchablePicker id="route-flow-vehicle-type" label="Vehicle type" value={vehicleType} placeholder="Search vehicle type…" options={[...new Set([...VEHICLE_TYPES,vehicleType].filter(Boolean))].map(value=>({id:value,label:value}))} onChange={setVehicleType} allowCustom />
+        <SearchablePicker id="route-flow-trip-direction" label="Trip direction" value={tripDirection} options={["One-way","Two-way"].map(value=>({id:value,label:value}))} onChange={value=>setTripDirection(value as "One-way"|"Two-way")} />
         <label>Trips / carries<input type="number" min="1" step="1" value={tripCount} onChange={e=>setTripCount(e.target.value)}/></label>
         <label>Amount per trip (₹)<input type="number" min="0" step="0.01" value={transportAmount} onChange={e=>setTransportAmount(e.target.value)}/></label>
         <label>Pickup date &amp; time<input type="datetime-local" value={pickupAt} onChange={e=>setPickupAt(e.target.value)}/></label>
@@ -507,10 +537,10 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     {showRelationshipEditor&&<section className="route-flow-editor-panel">
       <div className="route-flow-editor-title"><div><span className="eyebrow">RELATIONSHIP DIRECTORY · PERSISTED CONNECTIONS</span><h3>Add a typed process relationship</h3></div><button className="close-round compact" onClick={()=>setShowRelationshipEditor(false)}><X size={16}/></button></div>
       <div className="route-flow-editor-grid">
-        <label>From process<select value={fromOperationId} onChange={e=>setFromOperationId(e.target.value)}><option value="">Select source process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
-        <label>To process<select value={toOperationId} onChange={e=>setToOperationId(e.target.value)}><option value="">Select destination process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
-        <label>Relationship type<select value={relationshipType} onChange={e=>setRelationshipType(e.target.value as RouteRelationshipType)}>{RELATIONSHIPS.map(item=><option key={item.id} value={item.id}>{item.label} · {item.description}</option>)}</select></label>
-        <label>Link status<select value={relationshipStatus} onChange={e=>setRelationshipStatus(e.target.value as RouteRelationshipStatus)}>{STATUS_OPTIONS.filter(value=>value!=="Disabled").map(value=><option key={value}>{value}</option>)}</select></label>
+        <SearchablePicker id="route-flow-relationship-from" label="From process" value={fromOperationId} placeholder="Search source process…" options={routeOperations.map(row=>({id:row.id,label:row.name+" · OP-"+row.sequence}))} onChange={setFromOperationId} />
+        <SearchablePicker id="route-flow-relationship-to" label="To process" value={toOperationId} placeholder="Search destination process…" options={routeOperations.map(row=>({id:row.id,label:row.name+" · OP-"+row.sequence}))} onChange={setToOperationId} />
+        <SearchablePicker id="route-flow-relationship-type" label="Relationship type" value={relationshipType} placeholder="Search relationship type…" options={RELATIONSHIPS.map(item=>({id:item.id,label:item.label+" · "+item.description}))} onChange={value=>setRelationshipType(value as RouteRelationshipType)} />
+        <SearchablePicker id="route-flow-relationship-status" label="Link status" value={relationshipStatus} options={STATUS_OPTIONS.filter(value=>value!=="Disabled").map(value=>({id:value,label:value}))} onChange={value=>setRelationshipStatus(value as RouteRelationshipStatus)} />
         {relationshipType==="conditional"&&<label className="route-flow-wide">Condition / rule<input value={relationshipCondition} onChange={e=>setRelationshipCondition(e.target.value)} placeholder="Example: continue only if inspection result is accepted"/></label>}
         <label className="route-flow-wide">Notes<input value={relationshipNotes} onChange={e=>setRelationshipNotes(e.target.value)} placeholder="Why these process steps are linked…"/></label>
       </div>
