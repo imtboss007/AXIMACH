@@ -32,7 +32,8 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
   const today=todayDate.getFullYear()+"-"+String(todayDate.getMonth()+1).padStart(2,"0")+"-"+String(todayDate.getDate()).padStart(2,"0");
   const overdue=ops.filter(op=>op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<today);
   const holds=ops.filter(op=>op.status==="Quality hold");
-  const exceptions=[...overdue,...holds.filter(op=>!overdue.some(item=>item.id===op.id))];\n  const visibleExceptions=[...overdue.slice(0,4),...holds.slice(0,4).filter(op=>!overdue.some(item=>item.id===op.id))];
+  const exceptions=[...overdue,...holds.filter(op=>!overdue.some(item=>item.id===op.id))];
+  const visibleExceptions=[...overdue.slice(0,4),...holds.slice(0,4).filter(op=>!overdue.some(item=>item.id===op.id))];
   const dueToday=ops.filter(op=>op.status!=="Complete"&&op.plannedEnd===today);
   const pendingJobs=lines.filter(({line})=>line.jobStatus!=="Finished");
   const recent=[...ops].sort((x,y)=>(y.updatedAt||"").localeCompare(x.updatedAt||"")).slice(0,5);
