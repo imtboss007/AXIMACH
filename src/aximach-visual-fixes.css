@@ -237,3 +237,12 @@ body{background:#f1f5fa!important;color:#12263f!important}
 .route-flow-graph-canvas .react-flow__edge-text{font-size:11px!important;font-weight:600!important}
 .route-flow-relationship-type strong{font-size:12px!important;font-weight:600!important}
 .route-flow-relationship-type small{font-size:11px!important;line-height:1.35!important}
+
+/* Keep the scroll canvas in exact sync with the projected label packer's full extents. */
+.ax-full3d-scene .ax-full3d-label-content{
+  height:var(--ax-scene-label-content-height,auto)!important;
+  min-height:var(--ax-scene-label-content-height,0px)!important;
+  max-height:none!important;
+  flex:0 0 auto!important;
+  box-sizing:border-box!important;
+}
