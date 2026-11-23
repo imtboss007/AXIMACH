@@ -28,6 +28,12 @@ test("Route Flow graph contains all PO-line operations and renders saved relatio
   assert.ok(route.includes('addEdge(link.fromOperationId,link.toOperationId,link.relationshipType'));
   assert.ok(route.includes('const existing=rows.findIndex(row=>row.fromId===fromId&&row.toId===toId&&row.type===type)'));
   assert.ok(route.includes('useState<"cards"|"graph">("graph")'));
+  assert.ok(route.includes('sourceHandle:handles.source,targetHandle:handles.target'));
+  for (const handle of ["source-right","source-left","source-top","source-bottom","target-right","target-left","target-top","target-bottom"]) {
+    assert.ok(route.includes('id="' + handle + '"'), "missing distinct graph handle " + handle);
+  }
+  assert.ok(route.includes('parallel:{source:"source-bottom",target:"target-bottom"}'));
+  assert.ok(route.includes('split:{source:"source-top",target:"target-right"}'));
 });
 
 test("global appearance fix is imported after the older AXIMACH stylesheet and enforces readable light text", () => {
