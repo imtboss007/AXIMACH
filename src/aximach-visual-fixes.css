@@ -104,14 +104,17 @@ body{background:var(--canvas)!important;color:var(--ink)!important}
 .ax-full3d-label.selected{border:2px solid #008fc7!important;box-shadow:0 0 0 3px rgba(0,143,199,.18),0 10px 25px rgba(12,38,67,.22)!important}
 /* Relationship captions are shown in the full Route Flow graph and legend, not stacked over the 3D hub. */
 .ax-full3d-route-arrow span{display:none!important}
+.ax-full3d-label.ax-full3d-material-label{width:190px!important;min-height:202px!important}
 @media(min-width:601px) and (max-width:760px){
   .ax-full3d-label{width:124px!important;min-height:82px!important;padding:6px!important}
   .ax-full3d-label strong{font-size:9px!important}
   .ax-full3d-label small,.ax-full3d-label em{font-size:7px!important}
   .ax-full3d-node-meta{font-size:6.5px!important}
 }
+@media(min-width:601px) and (max-width:760px){.ax-full3d-label.ax-full3d-material-label{width:124px!important;min-height:82px!important}}
 @media(max-width:600px){
   .ax-full3d-label{width:148px!important;min-height:112px!important;padding:8px!important;gap:4px!important}
+  .ax-full3d-label.ax-full3d-material-label{width:148px!important;min-height:112px!important}
   .ax-full3d-label strong{font-size:10px!important}
   .ax-full3d-label small,.ax-full3d-label em{font-size:8px!important}
   .ax-full3d-node-meta{font-size:7.5px!important}
