@@ -98,7 +98,7 @@ function packDenseLabels(items, width, height, responsiveWidth = width) {
   // Compact phone shelves use two columns of readable 132px cards where the
   // 297px label plane allows it. This reduces vertical overflow without
   // removing manufacturing records or shrinking text to thumbnail size.
-  const shelfGap = SHELF_GAP;
+  const shelfGap = responsiveWidth <= 600 ? 14 : SHELF_GAP;
   const hasCore = items[0]?.kind === "core";
   const prefixCount = hasCore ? Math.min(2, items.length) : Math.min(1, items.length);
   const priority = items.slice(0, prefixCount);
