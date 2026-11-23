@@ -113,6 +113,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
             <div><small>Open operations</small><strong>{openOps.length.toLocaleString("en-IN")}</strong><span>Not marked complete</span></div>
             <div><small>Completed operations</small><strong>{completeOps.length.toLocaleString("en-IN")}</strong><span>Saved complete status</span></div>
             <div className={holds.length?"is-alert":""}><small>Quality holds</small><strong>{holds.length.toLocaleString("en-IN")}</strong><span>Recorded quality status</span></div>
+            <div className={overdue.length?"is-alert":""}><small>Overdue operations</small><strong>{overdue.length.toLocaleString("en-IN")}</strong><span>Open operations past planned end</span></div>
           </div>
           <div className="dashboard-cockpit-kpi-footer"><span>Active transport legs</span><strong>{activeLegs.length.toLocaleString("en-IN")}</strong><span>Active routes</span><strong>{activeTransportRoutes.length.toLocaleString("en-IN")}</strong></div>
         </section>
