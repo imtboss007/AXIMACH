@@ -32,7 +32,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
   const today=todayDate.getFullYear()+"-"+String(todayDate.getMonth()+1).padStart(2,"0")+"-"+String(todayDate.getDate()).padStart(2,"0");
   const overdue=ops.filter(op=>op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<today);
   const holds=ops.filter(op=>op.status==="Quality hold");
-  const exceptions=[...new Map([...overdue,...holds].map(op=>[op.id,op])).values()];
+  const exceptions=[...overdue,...holds.filter(op=>!overdue.some(item=>item.id===op.id))];
   const dueToday=ops.filter(op=>op.status!=="Complete"&&op.plannedEnd===today);
   const pendingJobs=lines.filter(({line})=>line.jobStatus!=="Finished");
   const recent=[...ops].sort((x,y)=>(y.updatedAt||"").localeCompare(x.updatedAt||"")).slice(0,5);
@@ -44,7 +44,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
   const routeComponent=latestOperation?components.find(component=>component.id===latestOperation.componentId):undefined;
   const routeCompany=routePo?companies.find(company=>company.id===routePo.companyId):undefined;
   const routeLegs=latestOperation?transportLegs.filter(leg=>leg.poLineId===latestOperation.poLineId):[];
-  const activeLegs=transportLegs.filter(leg=>leg.status!=="Complete"&&leg.status!=="Cancelled");
+  const activeLegs=transportLegs.filter(leg=>leg.status==="Running"||leg.status==="Delayed");
   const sync=syncStatus==="synced"?"SHARED DATA SYNCED":syncStatus==="syncing"?"SYNCING":syncStatus==="error"?"SYNC ERROR · LOCAL COPY RETAINED":"LOCAL DATA";
   const completion=ops.reduce((total,op)=>total+(op.quantity>0?Math.max(0,Math.min(op.quantity,op.completed)):0),0);
   const planned=ops.reduce((total,op)=>total+Math.max(0,op.quantity),0);
