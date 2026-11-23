@@ -105,7 +105,7 @@ test("Production Plan hides inactive transport routes and Transport Directory re
   assert.ok(!operations.includes("const openTransport=(poId:string,lineId:string)"));
   assert.ok(!operations.includes("route.vendorId===draft.vendorId&&route.active!==false"));
   assert.ok(!operations.includes("<th>Transport</th>"));
-  assert.ok(operations.includes('onSelectModule("transport-master")'));
+  assert.ok(operations.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(operations.includes("Attach a route before or after a process from Process Map"));
   assert.ok(transport.includes("!vendors.some(vendor => vendor.id === vendorId)"));
 });
@@ -137,7 +137,7 @@ test("Transport route ownership stays in Transport Directory and Process Plan re
   assert.ok(!production.includes("transportLine"));
   assert.ok(!production.includes("openTransport("));
   assert.ok(!production.includes("jobTransportLegs"));
-  assert.ok(production.includes('onSelectModule("transport-master")'));
+  assert.ok(production.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(processPlan.includes("selectedTransportDirectoryRoute.active===false"));
   assert.ok(processPlan.includes("route.active!==false"));
   assert.ok(processPlan.includes("componentTransportLegs"));
@@ -1064,9 +1064,9 @@ test("Icon Studio strips saved outline/filled prefixes before rendering Tabler c
   assert.ok(studio.includes("ti ti-" + "${baseName}"));
 });
 
-test("CI skips Electron binary download for frontend and Android jobs only", () => {
+test("CI skips Electron binary download for frontend, Android and browser acceptance jobs only", () => {
   const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
-  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 2);
+  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 3);
   const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
   assert.ok(!windows.includes("ELECTRON_SKIP_BINARY_DOWNLOAD"));
 });
@@ -1428,7 +1428,7 @@ test("Production Plan no longer owns the component transport registry or inline 
   assert.ok(!production.includes("saveTransport"));
   assert.ok(!production.includes("jobTransportLegs"));
   assert.ok(!production.includes("<th>Transport</th>"));
-  assert.ok(production.includes('onSelectModule("transport-master")'));
+  assert.ok(production.includes('onSelectModule("transport-master",initialContext)'));
   assert.ok(production.includes('onSelectModule("process-map"'));
 });
 

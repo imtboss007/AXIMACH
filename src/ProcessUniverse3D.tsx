@@ -218,6 +218,8 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
   const materialLinksAt = (operationId:string,placement:"before"|"after") => materialLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
   const renderMaterialLink = (link:MaterialProcessLinkRecord) => { const material=materials.find(row=>row.id===link.materialId); return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={componentQuantity} partLabel={materialPartLabels?.[link.id]} selected={selectedMaterialLinkId===link.id} onSelect={()=>onSelectMaterialLink?.(link.id)}/>:null; };
   const transportFor = (operationId:string,placement:"before"|"after") => (transportLegs||[]).filter(leg=>!leg.materialEntryId&&leg.anchorOperationId===operationId&&leg.placement===placement);
+  const firstMainOperationId = displayOperations.filter(operation=>(operation.branch||"Main route")==="Main route").slice().sort((a,b)=>a.sequence-b.sequence)[0]?.id||displayOperations.slice().sort((a,b)=>a.sequence-b.sequence)[0]?.id||"";
+  const transportAtStart = (operationId:string) => (transportLegs||[]).filter(leg=>!leg.materialEntryId&&leg.placement==="start"&&(leg.anchorOperationId?leg.anchorOperationId===operationId:operationId===firstMainOperationId));
   const renderTransportLeg = (leg:TransportLegRouteNode) => <TransportLegNodeMarker key={leg.id} leg={leg} onSelect={onSelectTransportLeg}/>;
 
   const expandedOrbitOperation = lookupOperations.find(operation => operation.id === expandedOperationId) || displayOperations.find(operation => operation.id === expandedOperationId);
@@ -396,6 +398,13 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
           <div className="process-orbit-material-dates"><span>Given: {route.materialGivenAt||"—"}</span><span>Due: {route.materialDueAt||"—"}</span><span>Received: {route.materialReceivedAt||"—"}</span><span>Pickup: {route.pickupAt||"—"}</span><span>Transport delivery: {route.deliveryAt||"—"}</span><span>Material rate: ₹{route.materialRate.toLocaleString("en-IN",{maximumFractionDigits:2})} / {route.priceUnit}</span><span>Cutting: {route.cuttingType||"No cutting"} · ₹{route.cuttingRate.toLocaleString("en-IN",{maximumFractionDigits:2})} / {route.cuttingBasis||"—"}</span><strong>Material ₹{route.materialCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong><strong>Cutting ₹{route.cuttingCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong><strong>Transport ₹{route.transportCost.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div>
         </article>)}
       </section>}
+      {transportLegs.length > 0 && <section className="process-universe-transport-directory" aria-label="All component transport records">
+        <div className="process-orbit-material-routes-head"><strong>COMPONENT TRANSPORT DIRECTORY</strong><span>{transportLegs.length} saved transport leg(s) · select any vehicle to open its exact route and transporter record</span></div>
+        <div className="process-universe-transport-directory-list">{transportLegs.map(leg => <article className="process-universe-transport-directory-item" key={leg.id}>
+          <div><strong>{leg.fromLocation} → {leg.toLocation}</strong><small>{leg.vendorName || "Transporter not assigned"} · {leg.status || "Planned"} · {leg.relation || "main"}</small></div>
+          {renderTransportLeg(leg)}
+        </article>)}</div>
+      </section>}
       {layoutMode === "gantt" && <div className="process-gantt-toolbar process-gantt-3d-toolbar"><label>Time scale<select value={ganttScale} onChange={event => onGanttScaleChange?.(event.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>3D SCHEDULE · {displayOperations.length} PROCESS STEPS · DRAG TO ROTATE</span></div>}
       {/* Branch-aware route connectors: orbitConnections.edges.map is rendered by the WebGL scene in shared camera space. */}
       <div ref={mapViewportRef} className="ax-map-fullscreen-shell ax-process-map-fullscreen"><ImmersiveWorkspaceControls targetRef={mapViewportRef} onNotice={onNotice}/>
@@ -469,6 +478,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
               const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
               const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
               return <div className="process-universe-node-wrap" key={operation.id}>
+                {transportAtStart(operation.id).map(renderTransportLeg)}
                 {materialLinksAt(operation.id,"before").map(renderMaterialLink)}
                 {transportFor(operation.id,"before").map(renderTransportLeg)}
                 <button type="button" className={"process-universe-node status-" + state + (active ? " is-selected" : "") + (expanded ? " is-expanded" : "") + (current ? " simulation-current" : "") + (passed ? " simulation-passed" : "")} style={{"--process-accent":accent} as CSSProperties} onClick={() => { onSelectOperation(operation.id); setExpandedOperationId(operation.id); }} aria-pressed={active} aria-expanded={expanded} aria-controls={"process-universe-node-details-"+operation.id} title={"Open " + operation.name + " operation record"}>

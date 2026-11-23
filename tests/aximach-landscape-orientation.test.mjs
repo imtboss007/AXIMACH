@@ -55,3 +55,13 @@ test("Route Flow, Route Graph and Manufacturing Universe have compact short-land
   assert.ok(css.includes(".app-shell:has(.linked-process-page) .command-rail"));
   assert.ok(css.includes(".app-shell:has(.linked-process-page) .page-content"));
 });
+
+
+test("Route Flow and Manufacturing Universe hide the mobile command rail and reclaim its gutter in landscape", () => {
+  const css = read("../src/aximach-ui.css");
+  assert.ok(css.includes(".app-shell:has(.route-flow-workspace) .command-rail"));
+  assert.ok(css.includes(".app-shell:has(.manufacturing-universe-workspace) .command-rail"));
+  assert.ok(css.includes(".app-shell:has(.route-flow-workspace) .page-content"));
+  assert.ok(css.includes(".app-shell:has(.manufacturing-universe-workspace) .page-content"));
+  assert.match(css, /@media \(orientation:landscape\) and \(max-height:600px\) and \(max-width:1100px\)[\s\S]*?\.app-shell:has\(\.route-flow-workspace\) \.command-rail[\s\S]*?display:none!important/);
+});

@@ -194,6 +194,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       ? purchaseOrders.flatMap(po => po.lines.filter(line => line.componentId === initialContext.componentId && !line.deletedAt).map(line => ({ po, line })))
       : [];
     const componentOnlyLine = componentLines.length === 1 ? componentLines[0] : undefined;
+    const vendorOperations = initialContext.vendorId ? operations.filter(op => op.vendorId === initialContext.vendorId
+      && (!initialContext.componentId || op.componentId === initialContext.componentId)
+      && (!initialContext.poLineId || op.poLineId === initialContext.poLineId)) : [];
+    const vendorOnlyOperation = vendorOperations.length === 1 ? vendorOperations[0] : undefined;
     const targetPO = (initialContext.poId
       ? purchaseOrders.find(po => po.id === initialContext.poId)
       : undefined)
@@ -203,8 +207,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       || (initialContext.operationId
         ? purchaseOrders.find(po => po.id === operations.find(op => op.id === initialContext.operationId)?.poId)
         : undefined)
-      || (initialContext.vendorId
-        ? purchaseOrders.find(po => po.lines.some(line => operations.some(op => op.vendorId === initialContext.vendorId && op.poId === po.id && op.poLineId === line.id)))
+      || (vendorOnlyOperation
+        ? purchaseOrders.find(po => po.id === vendorOnlyOperation.poId)
         : undefined)
       || (!initialContext.poId && !initialContext.poLineId && !initialContext.operationId && !initialContext.vendorId
         ? componentOnlyLine?.po
@@ -216,8 +220,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (targetPO) {
       setCompanyId(targetPO.companyId);
       setPoId(targetPO.id);
+      const matchingVendorOperations = initialContext.vendorId ? operations.filter(op => op.vendorId === initialContext.vendorId && op.poId === targetPO.id
+        && (!initialContext.poLineId || op.poLineId === initialContext.poLineId)
+        && (!initialContext.componentId || op.componentId === initialContext.componentId)) : [];
       const targetOperation = (initialContext.operationId ? operations.find(op => op.id === initialContext.operationId && op.poId === targetPO.id) : undefined)
-        || (initialContext.vendorId ? operations.find(op => op.vendorId === initialContext.vendorId && op.poId === targetPO.id) : undefined);
+        || (matchingVendorOperations.length === 1 ? matchingVendorOperations[0] : undefined);
       const targetComponentLines = initialContext.componentId ? targetPO.lines.filter(line => line.componentId === initialContext.componentId && !line.deletedAt) : [];
       const uniqueComponentLine = targetComponentLines.length === 1 ? targetComponentLines[0] : undefined;
       const targetLine = targetPO.lines.find(line => line.id === targetOperation?.poLineId)
@@ -1375,6 +1382,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             {id:"horizontal",label:"Horizontal Flow"},
             {id:"vertical",label:"Vertical Flow"},
             {id:"nodes",label:"Connected Nodes"},
+            {id:"digital-mesh",label:"◇ Digital Mesh"},
             {id:"branch",label:"Branch / Rework"}
           ] as const).map(option=><button key={option.id} type="button" aria-pressed={visualStyle===option.id}
             className={(visualStyle===option.id?"button-primary":"button-quiet")+" compact-button"}
@@ -1420,7 +1428,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     </section>}
     <details className="surface-panel component-transport-map-strip">
       <summary className="panel-heading"><div><div className="eyebrow"><Truck size={12}/> ROUTE TRANSPORT NODES</div><h3>Transport legs · {componentTransportLegs.length}</h3><p>Transport is displayed as route nodes here; the master rates remain in Transport Directory and dispatch execution remains in Transport &amp; Dispatch.</p></div><div className="relationship-actions"><button className="button-quiet compact-button" onClick={event=>{event.preventDefault();event.stopPropagation();onSelectModule("transport-master",{companyId,poId,poLineId,componentId:selectedLine?.componentId});}}>Transport Directory</button><button className="button-primary compact-button" disabled={!selectedLine} onClick={event=>{event.preventDefault();event.stopPropagation();openTransportEditor();}}><Plus size={13}/> Add transport node</button></div></summary>
-      {componentTransportLegs.length?<div className="component-transport-node-track"><div className="component-transport-node component-transport-start"><Truck size={15}/><strong>Component start</strong></div>{componentTransportLegs.map(leg=>{const anchor=routeOperations.find(op=>op.id===leg.anchorOperationId);const vendor=vendors.find(v=>v.id===leg.vendorId);return <div className="component-transport-node" key={leg.id}><Truck size={15}/><strong>{leg.placement==="before"?"Before":leg.placement==="after"?"After": "At start"} {anchor?"OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:""}</strong><span>{leg.fromLocation} → {leg.toLocation}</span><small>{vendor?.company||"Vendor"} · {leg.vehicleType} · {leg.tripDirection} · {leg.tripCount} trip(s) · {money(leg.fixedAmount*leg.tripCount)}</small><span className="component-transport-node-actions"><button type="button" onClick={()=>editTransportLeg(leg)}>Edit</button><button type="button" onClick={()=>archiveTransportLeg(leg)}>Archive</button></span></div>;})}<button className="component-transport-node component-transport-add" onClick={()=>onSelectModule("transport-dispatch",{companyId,poId,poLineId,componentId:selectedLine?.componentId})}><Truck size={15}/><strong>Dispatch status</strong><small>Open Transport &amp; Dispatch</small></button></div>:<div className="module-empty-state"><Truck size={22}/><p>No transport nodes added for this PO component. Add a route in Transport Directory, then add its usage here.</p></div>}
+      {componentTransportLegs.length?<div className="component-transport-node-track"><div className="component-transport-node component-transport-start"><Truck size={15}/><strong>Component start</strong></div>{componentTransportLegs.map(leg=>{const anchor=routeOperations.find(op=>op.id===leg.anchorOperationId);const vendor=vendors.find(v=>v.id===leg.vendorId);return <div className="component-transport-node" key={leg.id}><Truck size={15}/><strong>{leg.placement==="before"?"Before":leg.placement==="after"?"After": "At start"} {anchor?"OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:""}</strong><span>{leg.fromLocation} → {leg.toLocation}</span><small>{vendor?.company||"Vendor"} · {leg.vehicleType} · {leg.tripDirection} · {leg.tripCount} trip(s) · {money(leg.fixedAmount*leg.tripCount)}</small><span className="component-transport-node-actions"><button type="button" onClick={()=>editTransportLeg(leg)}>Edit</button><button type="button" onClick={()=>archiveTransportLeg(leg)}>Archive</button></span></div>;})}<button className="component-transport-node component-transport-add" onClick={()=>onSelectModule("dispatch",{companyId,poId,poLineId,componentId:selectedLine?.componentId})}><Truck size={15}/><strong>Dispatch status</strong><small>Open Transport &amp; Dispatch</small></button></div>:<div className="module-empty-state"><Truck size={22}/><p>No transport nodes added for this PO component. Add a route in Transport Directory, then add its usage here.</p></div>}
     </details>
     <details className="surface-panel process-map-filter-panel">
       <summary className="panel-heading"><div><div className="eyebrow">ROUTE FILTERS / SAVED OPERATIONS</div><h3>Filter this PO component route</h3><p>Process category, process type and subcategory are linked to Process Directory stable references.</p></div></summary>
