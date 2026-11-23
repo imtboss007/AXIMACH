@@ -7,10 +7,12 @@ import {
   HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
   Package, Pause, Play, Plug, Plus, RotateCcw, ScanLine, Search, Settings2,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Truck, Users,
-  Wallet, Workflow, Wrench, X, Zap
+  Wallet, Workflow, Wrench, X, Zap, Palette
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ProcessIcon } from "./IconStudio";
+import ThemeStudio from "./ThemeStudio";
+import { buildThemeTokens, readThemePreference, resolveThemePreference, writeThemePreference, type ThemePreference } from "./themeStudio";
 import { clearServerSession, getServerAuthHeaders, getServerAuthMode, hasServerCredentials, readServerSession, saveServerSession, setServerAuthMode, type ServerSession } from "./serverAuth";
 import FollowUpAssignmentsLauncher from "./FollowUpAssignments";
 import SearchableMultiSelect from "./SearchableMultiSelect";
@@ -192,7 +194,12 @@ function App() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
-  const [appearance, setAppearance] = useState<"light"|"dark"|"midnight"|"ocean">(() => { try { const saved=localStorage.getItem("aximach.ui.appearance"); return saved==="dark"||saved==="midnight"||saved==="ocean"?saved:"light"; } catch { return "light"; } });
+  const [themePreference,setThemePreference] = useState<ThemePreference>(()=>readThemePreference());
+  const [themeDraft,setThemeDraft] = useState<ThemePreference|null>(null);
+  const [themeStudioOpen,setThemeStudioOpen] = useState(false);
+  const [systemDark,setSystemDark] = useState(()=>typeof window!=="undefined"&&window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const activeThemePreference=themeDraft??themePreference;
+  const resolvedTheme=useMemo(()=>resolveThemePreference(activeThemePreference,systemDark),[activeThemePreference,systemDark]);
   const [followUpSeed,setFollowUpSeed] = useState<{name:string;phone:string;company:string;vendorId:string;process:string;operationId:string}>({name:"",phone:"",company:"",vendorId:"",process:"",operationId:""});
   const needsLandscapeOrientation = activeModuleId === "process-map" || activeModuleId === "route-flow" || activeModuleId === "manufacturing-universe";
   const [landscapeCanvasOpen,setLandscapeCanvasOpen] = useState(false);
@@ -246,7 +253,36 @@ function App() {
     setFollowUpSeed({name:vendor.contact,phone:vendor.whatsappNumber||vendor.phone,company:vendor.company,vendorId:vendor.id,process:processName||vendor.processes||"",operationId});
     selectModule("communications");
   };
-  useEffect(() => { try { localStorage.setItem("aximach.ui.appearance",appearance); document.documentElement.dataset.theme=appearance; } catch { /* appearance remains active for this session */ } },[appearance]);
+  useEffect(()=>{
+    const media=window.matchMedia("(prefers-color-scheme: dark)");
+    const update=(event:MediaQueryListEvent)=>setSystemDark(event.matches);
+    setSystemDark(media.matches);
+    if(media.addEventListener)media.addEventListener("change",update);else media.addListener(update);
+    return ()=>{if(media.removeEventListener)media.removeEventListener("change",update);else media.removeListener(update);};
+  },[]);
+  useEffect(()=>{
+    document.documentElement.dataset.theme=resolvedTheme.appearance;
+    for(const [key,value] of Object.entries(resolvedTheme.cssVariables))document.documentElement.style.setProperty(key,value);
+    try{localStorage.setItem("aximach.ui.appearance",resolvedTheme.appearance);}catch{/* current-session appearance remains active */}
+    window.dispatchEvent(new Event("aximach-theme-updated"));
+  },[resolvedTheme]);
+  const openThemeStudio=()=>{
+    setThemeDraft({...themePreference,custom:{...themePreference.custom,chartColors:[...themePreference.custom.chartColors],graphColors:[...themePreference.custom.graphColors]}});
+    setThemeStudioOpen(true);
+  };
+  const cancelThemePreview=()=>{setThemeDraft(null);setThemeStudioOpen(false);};
+  const applyTheme=()=>{
+    if(themeDraft){setThemePreference(themeDraft);writeThemePreference(themeDraft);}
+    setThemeDraft(null);setThemeStudioOpen(false);
+  };
+  const resetThemeColours=()=>{
+    setThemeDraft(current=>{
+      const selected=current??themePreference;
+      const resolved=resolveThemePreference(selected,systemDark);
+      const basePreset=selected.preset==="custom"?"titanium-graphite":selected.preset;
+      return {...selected,preset:"custom",mode:"custom",custom:buildThemeTokens(basePreset,resolved.dark)};
+    });
+  };
 
   const activeModule = modules.find((item) => item.id === activeModuleId) ?? modules[0];
   const globalRecords = getAllModuleRecords();
@@ -345,7 +381,7 @@ function App() {
   };
 
   return (
-    <div className="app-shell" data-theme={appearance} data-landscape-canvas-open={landscapeCanvasOpen ? "true" : "false"} data-phone-viewport={isTouchViewport ? "true" : "false"}>
+    <div className="app-shell" data-theme={resolvedTheme.appearance} style={resolvedTheme.cssVariables as CSSProperties} data-landscape-canvas-open={landscapeCanvasOpen ? "true" : "false"} data-phone-viewport={isTouchViewport ? "true" : "false"}>
       <header className="command-deck">
         <button className="brand-lockup" onClick={() => selectModule("dashboard")} aria-label="Open AXIMACH dashboard">
           <span className="brand-symbol"><span>A</span><i /></span>
@@ -367,7 +403,7 @@ function App() {
         </button>
         <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>{modules.length}</b></button>
         <button className="deck-action" onClick={() => setIconStudioOpen(true)}><Sparkles size={16}/><span>Logo Studio</span></button>
-        <label className="appearance-picker" title="Appearance"><Settings2 size={15}/><select aria-label="Appearance" value={appearance} onChange={e=>setAppearance(e.target.value as "light"|"dark"|"midnight"|"ocean")}><option value="light">Light</option><option value="dark">Dark</option><option value="midnight">Midnight</option><option value="ocean">Ocean</option></select></label>
+        <button type="button" className="theme-studio-trigger" onClick={openThemeStudio} aria-label="Open Theme Studio"><Palette size={15}/><span>Theme Studio</span></button>
         {needsLandscapeOrientation && isTouchViewport && <button type="button" className="ax-orientation-toggle" aria-pressed={landscapeCanvasOpen} aria-label={landscapeCanvasOpen ? "Return to portrait layout" : "Open landscape canvas"} title={landscapeCanvasOpen ? "Return to portrait layout" : "Open landscape canvas"} onClick={() => void toggleLandscapeCanvas()}><RotateCcw size={15}/><span>{landscapeCanvasOpen ? "Portrait" : "Landscape"}</span></button>}
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
@@ -464,7 +500,7 @@ function App() {
         {modules.map((item) => { const ItemIcon = item.icon; return <button key={item.id} title={item.title} className={activeModuleId === item.id ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16} /><span>{item.title}</span></button>; })}
         <div className="rail-section-label">WORKSPACE TOOLS</div>
         <button title="Logo Studio" onClick={() => { setIconStudioOpen(true); setMobileNavOpen(false); }}><Sparkles size={16}/><span>Logo Studio</span></button>
-        <label className="rail-appearance-setting"><span>Appearance</span><select aria-label="Mobile appearance" value={appearance} onChange={event=>setAppearance(event.target.value as "light"|"dark"|"midnight"|"ocean")}><option value="light">Light</option><option value="dark">Dark</option><option value="midnight">Midnight</option><option value="ocean">Ocean</option></select></label>
+        <button type="button" className="rail-theme-studio-trigger" title="Theme Studio" onClick={()=>{openThemeStudio();setMobileNavOpen(false);}}><Palette size={16}/><span>Theme Studio</span></button>
         <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={16} /><span>Module explorer</span></button>
       </nav>
 
@@ -526,6 +562,8 @@ function App() {
           </section>
         </div>
       )}
+
+      <ThemeStudio open={themeStudioOpen} preference={themeDraft??themePreference} systemDark={systemDark} onChange={setThemeDraft} onApply={applyTheme} onCancel={cancelThemePreview} onReset={resetThemeColours} />
 
       <Suspense fallback={<div className="workspace-loading-state" role="status">Loading Icon Studio…</div>}><IconStudio open={iconStudioOpen} initialTarget={iconStudioTarget} onClose={() => {setIconStudioOpen(false);setIconStudioTarget(null);}} /></Suspense>
 

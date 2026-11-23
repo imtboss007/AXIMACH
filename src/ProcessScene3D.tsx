@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Truck } from "lucide-react";
 import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
 import type { OperationRecord } from "./manufacturingData";
@@ -196,11 +196,27 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
  const points=useMemo(()=>rows.map(op=>geometryPoints.find(item=>item.op.id===op.id)).filter((item):item is {op:OperationRecord;p:P}=>!!item),[rows,geometryPoints]);
  const anchorPoints=useMemo(()=>anchors.filter(anchor=>!rows.some(op=>op.id===anchor.operation.id)).map(anchor=>({anchor,point:geometryPoints.find(item=>item.op.id===anchor.operation.id)?.p})).filter((item):item is {anchor:RouteAnchor;point:P}=>!!item),[anchors,rows,geometryPoints]);
  const cataloguePoints=useMemo(()=>catalogue.map((definition,index)=>({definition,p:pointFor(index,catalogue.length,mode)})),[catalogue,mode]);
- useEffect(()=>{const el=canvas.current;if(!el)return;const gl=el.getContext("webgl",{alpha:true,antialias:true});if(!gl)return;let program:WebGLProgram;try{program=gl.createProgram()!;gl.attachShader(program,shader(gl,gl.VERTEX_SHADER,vs));gl.attachShader(program,shader(gl,gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error("link");}catch{return;}gl.useProgram(program);const pos=gl.createBuffer()!,normal=gl.createBuffer()!;const loc=gl.getAttribLocation(program,"aPosition"),nl=gl.getAttribLocation(program,"aNormal"),mvp=gl.getUniformLocation(program,"uMvp"),color=gl.getUniformLocation(program,"uColor");gl.enable(gl.DEPTH_TEST);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);let last=0,lastOverlayUpdate=0,raf=0;const render=(now:number)=>{const dt=Math.min(40,now-last);last=now;if(autoRotate&&!drag.current){rotationRef.current+=dt*.00022;if(now-lastOverlayUpdate>=33){lastOverlayUpdate=now;setAngle(rotationRef.current);}}const w=el.clientWidth,h=el.clientHeight,dpr=Math.min(2,window.devicePixelRatio||1);if(el.width!==Math.floor(w*dpr)||el.height!==Math.floor(h*dpr)){el.width=Math.floor(w*dpr);el.height=Math.floor(h*dpr);}gl.viewport(0,0,el.width,el.height);gl.clearColor(.94,.97,1,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);const proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,rotationRef.current),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));gl.uniformMatrix4fv(mvp,false,new Float32Array(m));const draw=(mesh:{v:number[];n:number[]},rgb:number[])=>{gl.bindBuffer(gl.ARRAY_BUFFER,pos);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.v),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,normal);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.n),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(nl);gl.vertexAttribPointer(nl,3,gl.FLOAT,false,0,0);gl.uniform3fv(color,new Float32Array(rgb));gl.drawArrays(gl.TRIANGLES,0,mesh.v.length/3);};const center={x:0,y:0,z:0};
+ useEffect(()=>{const el=canvas.current;if(!el)return;
+ const readThemeRgb=(token:string,fallback:number[])=>{
+  const value=getComputedStyle(el).getPropertyValue(token).trim();
+  const match=value.match(/^#([0-9a-f]{6})$/i);
+  return match?[0,2,4].map(index=>parseInt(match[1].slice(index,index+2),16)/255):fallback;
+ };
+ let themePrimary=readThemeRgb("--ax-theme-accent",[.12,.43,.82]);
+ let themeSecondary=readThemeRgb("--ax-theme-secondary",[.05,.48,.62]);
+ let themeGraph3=readThemeRgb("--ax-theme-graph-3",[.7,.48,.16]);
+ const refreshTheme=()=>{
+  themePrimary=readThemeRgb("--ax-theme-accent",[.12,.43,.82]);
+  themeSecondary=readThemeRgb("--ax-theme-secondary",[.05,.48,.62]);
+  themeGraph3=readThemeRgb("--ax-theme-graph-3",[.7,.48,.16]);
+ };
+ const gl=el.getContext("webgl",{alpha:true,antialias:true});if(!gl)return;
+ window.addEventListener("aximach-theme-updated",refreshTheme);
+ let program:WebGLProgram;try{program=gl.createProgram()!;gl.attachShader(program,shader(gl,gl.VERTEX_SHADER,vs));gl.attachShader(program,shader(gl,gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error("link");}catch{return;}gl.useProgram(program);const pos=gl.createBuffer()!,normal=gl.createBuffer()!;const loc=gl.getAttribLocation(program,"aPosition"),nl=gl.getAttribLocation(program,"aNormal"),mvp=gl.getUniformLocation(program,"uMvp"),color=gl.getUniformLocation(program,"uColor");gl.enable(gl.DEPTH_TEST);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);let last=0,lastOverlayUpdate=0,raf=0;const render=(now:number)=>{const dt=Math.min(40,now-last);last=now;if(autoRotate&&!drag.current){rotationRef.current+=dt*.00022;if(now-lastOverlayUpdate>=33){lastOverlayUpdate=now;setAngle(rotationRef.current);}}const w=el.clientWidth,h=el.clientHeight,dpr=Math.min(2,window.devicePixelRatio||1);if(el.width!==Math.floor(w*dpr)||el.height!==Math.floor(h*dpr)){el.width=Math.floor(w*dpr);el.height=Math.floor(h*dpr);}gl.viewport(0,0,el.width,el.height);gl.clearColor(.94,.97,1,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);const proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,rotationRef.current),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));gl.uniformMatrix4fv(mvp,false,new Float32Array(m));const draw=(mesh:{v:number[];n:number[]},rgb:number[])=>{gl.bindBuffer(gl.ARRAY_BUFFER,pos);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.v),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,normal);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.n),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(nl);gl.vertexAttribPointer(nl,3,gl.FLOAT,false,0,0);gl.uniform3fv(color,new Float32Array(rgb));gl.drawArrays(gl.TRIANGLES,0,mesh.v.length/3);};const center={x:0,y:0,z:0};
  if(mode==="sphere"){
-  draw(SPHERE_GUIDE_MESH,[.24,.58,.83]);
-  draw(SPHERE_ORBIT_MESH,[.05,.48,.74]);
-  draw(sphereMesh(center.x,center.y,center.z,.12),[.08,.48,.78]);
+  draw(SPHERE_GUIDE_MESH,themeSecondary.map(value=>Math.min(1,value*.88+.08)));
+  draw(SPHERE_ORBIT_MESH,themePrimary.map(value=>Math.min(1,value*.68)));
+  draw(sphereMesh(center.x,center.y,center.z,.12),themePrimary);
  }
  if(mode==="gantt"){
    const domain=ganttDomain(geometryRows,ganttScale);
@@ -254,9 +270,9 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   let p=pointById.get(edge.from.id),q=pointById.get(edge.to.id);
   if(mode==="gantt"){const fromIndex=geometryRows.findIndex(op=>op.id===edge.from.id),toIndex=geometryRows.findIndex(op=>op.id===edge.to.id);if(fromIndex>=0&&toIndex>=0){p=ganttSegment(fromIndex,geometryRows,ganttScale).end;q=ganttSegment(toIndex,geometryRows,ganttScale).start;}}
   if(!p||!q)return;
-  const fallback=edge.relation==="rework"?[.93,.25,.29]:edge.relation==="alternate"?[.95,.61,.12]:[.12,.43,.82];
+  const fallback=edge.relation==="rework"?[.93,.25,.29]:edge.relation==="alternate"?[.95,.61,.12]:themePrimary;
   const hex=String(edge.color||"").replace("#","");
-  const baseRgb=/^[0-9a-f]{6}$/i.test(hex)?[0,2,4].map(index=>parseInt(hex.slice(index,index+2),16)/255):fallback;
+  const baseRgb=edge.relation==="main"&&(!edge.color||edge.color==="#4b95eb")?themePrimary:/^[0-9a-f]{6}$/i.test(hex)?[0,2,4].map(index=>parseInt(hex.slice(index,index+2),16)/255):fallback;
   const isSimulationEdge=!!simulatedOperation&&edge.to.id===simulatedOperation.id;
   const rgb=isSimulationEdge?[.05,.86,1]:baseRgb;
   drawOperationFlow(p,q,edgeIndex,rgb,isSimulationEdge?"main":edge.relation);
@@ -265,14 +281,14 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
   const to=placement.toOperation?pointById.get(placement.toOperation.id):undefined;
   const isSimulationMaterial=!!simulatedOperation&&placement.toOperation?.id===simulatedOperation.id;
-  const rgb=isSimulationMaterial?[.05,.9,1]:[.06,.76,.98];
+  const rgb=isSimulationMaterial?[.05,.9,1]:themeSecondary;
   const hasTransport=hasMaterialTransport(placement.route);
   const hasMaterialSpecificLeg=transportLegPlacements.some(item=>item.leg.materialEntryId===placement.route.id);
   const routeExit=hasTransport?placement.transportPoint:placement.materialPoint;
   if(from)drawFlow(from,placement.materialPoint,index*3,rgb,.037);
   if(hasTransport){
    drawFlow(placement.materialPoint,placement.transportPoint,index*3+1,rgb,.042);
-   draw(boxMesh(placement.transportPoint.x,placement.transportPoint.y,placement.transportPoint.z,.105),[.14,.55,.91]);
+   draw(boxMesh(placement.transportPoint.x,placement.transportPoint.y,placement.transportPoint.z,.105),themePrimary);
   }
   // A material with its own transport leg must not also receive a synthetic direct edge.
   if(to&&!hasMaterialSpecificLeg)drawFlow(routeExit,to,index*3+2,rgb,.037);
@@ -283,7 +299,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const from=placement.fromOperation?pointById.get(placement.fromOperation.id):undefined;
   const to=placement.toOperation?pointById.get(placement.toOperation.id):undefined;
   const isSimulationTransport=!!simulatedOperation&&placement.toOperation?.id===simulatedOperation.id;
-  const rgb=isSimulationTransport?[.04,.88,1]:placement.leg.relation==="rework"?[.9,.43,.12]:placement.leg.relation==="alternate"?[.18,.49,.88]:[.12,.68,.86];
+  const rgb=isSimulationTransport?[.04,.88,1]:placement.leg.relation==="rework"?[.9,.43,.12]:placement.leg.relation==="alternate"?[.18,.49,.88]:themeSecondary;
   const materialSource=placement.leg.materialEntryId
    ?materialPlacements.find(item=>item.route.id===placement.leg.materialEntryId)
    :placement.leg.placement==="start"&&!placement.leg.anchorOperationId
@@ -292,11 +308,11 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   const fromMaterial=materialSource?(hasMaterialTransport(materialSource.route)?materialSource.transportPoint:materialSource.materialPoint):undefined;
   if(from)drawFlow(from,placement.point,index*2,rgb,.034);else if(fromMaterial)drawFlow(fromMaterial,placement.point,index*2,rgb,.034);
   if(to)drawFlow(placement.point,to,index*2+1,rgb,.034);
-  draw(boxMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport ? .15 : .115),isSimulationTransport?[.04,.78,.98]:[.08,.55,.85]);
-  draw(sphereMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport ? .085 : .065),isSimulationTransport?[.04,.95,1]:[.12,.79,.94]);
+  draw(boxMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport ? .15 : .115),isSimulationTransport?[.04,.78,.98]:themePrimary);
+  draw(sphereMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport ? .085 : .065),isSimulationTransport?[.04,.95,1]:themeSecondary);
   if(isSimulationTransport){const radius=.21+Math.sin(now*.008)*.035;for(let segment=0;segment<24;segment++){const a=segment*Math.PI*2/24,b=(segment+1)*Math.PI*2/24;draw(lineMesh({x:placement.point.x+Math.cos(a)*radius,y:placement.point.y+Math.sin(a)*radius,z:placement.point.z+.015},{x:placement.point.x+Math.cos(b)*radius,y:placement.point.y+Math.sin(b)*radius,z:placement.point.z+.015},.01),[.04,.86,1]);}}
  });
- points.forEach(({p,op})=>{const rgb=operationRgb(op);draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"||mode==="layered"||mode==="matrix"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);if(op.id===simulatedOperation?.id){const radius=.22+Math.sin(now*.008)*.035;for(let segment=0;segment<32;segment++){const a=segment*Math.PI*2/32,b=(segment+1)*Math.PI*2/32;draw(lineMesh({x:p.x+Math.cos(a)*radius,y:p.y+Math.sin(a)*radius,z:p.z+.015},{x:p.x+Math.cos(b)*radius,y:p.y+Math.sin(b)*radius,z:p.z+.015},.012),[.04,.86,1]);}draw(sphereMesh(p.x,p.y,p.z,.065),[.05,.88,1]);}});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:[.24,.5,.78];draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>cancelAnimationFrame(raf);},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialPlacements,transportLegPlacements,simulationIndex,selectedOperationId]);
+ points.forEach(({p,op})=>{const rgb=operationRgb(op);draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"||mode==="layered"||mode==="matrix"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);if(op.id===simulatedOperation?.id){const radius=.22+Math.sin(now*.008)*.035;for(let segment=0;segment<32;segment++){const a=segment*Math.PI*2/32,b=(segment+1)*Math.PI*2/32;draw(lineMesh({x:p.x+Math.cos(a)*radius,y:p.y+Math.sin(a)*radius,z:p.z+.015},{x:p.x+Math.cos(b)*radius,y:p.y+Math.sin(b)*radius,z:p.z+.015},.012),[.04,.86,1]);}draw(sphereMesh(p.x,p.y,p.z,.065),[.05,.88,1]);}});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:themeGraph3;draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>{cancelAnimationFrame(raf);window.removeEventListener("aximach-theme-updated",refreshTheme);};},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialPlacements,transportLegPlacements,simulationIndex,selectedOperationId]);
  useEffect(()=>{
   const element=scene.current;
   if(!element)return;
@@ -398,17 +414,6 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   return Math.max(bottom,item.screen.y+bounds.height*(item.screen.scale??1)/2+42);
  },size.h);
  const sceneLayoutHeight=Math.max(size.h,projectedLayout.layoutHeight||0,Math.ceil(projectedLabelBottom));
- useLayoutEffect(()=>{
-  const content=scene.current?.querySelector<HTMLElement>(".ax-full3d-label-content");
-  if(!content)return;
-  // Keep the existing scene and scroll-layer measurements owned by the
-  // renderer. Only pin the inner label plane to the packer's full extent so
-  // phone labels remain scrollable instead of being clamped by legacy CSS.
-  content.style.setProperty("height",sceneLayoutHeight+"px","important");
-  content.style.setProperty("min-height",sceneLayoutHeight+"px","important");
-  content.style.setProperty("max-height","none","important");
-  content.style.setProperty("flex","0 0 auto","important");
- },[sceneLayoutHeight]);
  return <div ref={scene} className="ax-full3d-scene" style={{height:size.h,minHeight:size.h,"--ax-scene-label-content-height":sceneLayoutHeight+"px"} as CSSProperties} data-scene-layout-width={size.w} data-scene-layout-height={size.h} data-scene-label-layout-height={sceneLayoutHeight} onPointerDown={e=>{if(e.pointerType!=="mouse"&&e.target instanceof Element&&e.target.closest(".ax-full3d-label-layer"))return;drag.current={x:e.clientX,y:e.clientY,angle:rotationRef.current};e.currentTarget.setPointerCapture(e.pointerId);setDragging(true);}} onPointerMove={e=>{if(drag.current){rotationRef.current=drag.current.angle+(e.clientX-drag.current.x)*.008;setAngle(rotationRef.current);}}} onPointerUp={()=>{drag.current=null;setDragging(false);}} onPointerCancel={()=>{drag.current=null;setDragging(false);}}>
   <canvas ref={canvas} aria-label="Interactive WebGL 3D manufacturing process graph"/>
   <div className="ax-full3d-label-layer" style={{height:size.h,minHeight:0,maxHeight:size.h,overflowY:sceneLayoutHeight>size.h?"auto":"hidden",overflowX:"hidden",pointerEvents:"auto",touchAction:"pan-y",bottom:"auto"}}>

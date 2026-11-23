@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as echarts from "echarts";
 import type { OperationRecord } from "./manufacturingData";
 
@@ -7,18 +7,28 @@ type Props = { operations: OperationRecord[] };
 const statusOrder: OperationRecord["status"][] = [
   "Running", "Queued", "Planned", "Delayed", "Quality hold", "Rejected", "Complete"
 ];
-const statusColors: Record<OperationRecord["status"], string> = {
-  Running: "#2b80d8",
-  Queued: "#55a6bd",
-  Planned: "#8799ae",
-  Delayed: "#c58a2d",
-  "Quality hold": "#c65d66",
-  Rejected: "#8f5365",
-  Complete: "#249875"
-};
+function readChartTheme() {
+  const style = getComputedStyle(document.documentElement);
+  const get = (name:string,fallback:string) => style.getPropertyValue(name).trim() || fallback;
+  return {
+    colours: Array.from({length:7},(_,index)=>get("--ax-theme-chart-"+(index+1),["#2b80d8","#55a6bd","#8799ae","#c58a2d","#c65d66","#8f5365","#249875"][index])),
+    text:get("--ax-theme-text","#526982"),
+    muted:get("--ax-theme-muted","#7c8da4"),
+    border:get("--ax-theme-border","rgba(133,157,187,.18)"),
+    panel:get("--ax-theme-panel","rgba(129,153,181,.10)")
+  };
+}
+
 
 export default function ProductionStatusChart({ operations }: Props) {
   const chartRef = useRef<HTMLDivElement | null>(null);
+  const [themeRevision,setThemeRevision]=useState(0);
+  useEffect(()=>{
+    const refresh=()=>setThemeRevision(value=>value+1);
+    window.addEventListener("aximach-theme-updated",refresh);
+    return ()=>window.removeEventListener("aximach-theme-updated",refresh);
+  },[]);
+
   const counts = useMemo(() => statusOrder.map(status => ({
     name: status,
     value: operations.filter(operation => operation.status === status).length
@@ -29,6 +39,7 @@ export default function ProductionStatusChart({ operations }: Props) {
     if (!container || operations.length === 0) return;
     const chart = echarts.init(container, undefined, { renderer: "canvas" });
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const theme=readChartTheme();
     chart.setOption({
       animation: !prefersReducedMotion,
       animationDuration: 320,
@@ -42,16 +53,16 @@ export default function ProductionStatusChart({ operations }: Props) {
       xAxis: {
         type: "value",
         minInterval: 1,
-        axisLabel: { color: "#7c8da4", fontSize: 10 },
+        axisLabel: { color: theme.muted, fontSize: 10 },
         axisLine: { show: false },
         axisTick: { show: false },
-        splitLine: { lineStyle: { color: "rgba(133,157,187,.18)", type: "dashed" } }
+        splitLine: { lineStyle: { color: theme.border, type: "dashed" } }
       },
       yAxis: {
         type: "category",
         inverse: true,
         data: counts.map(item => item.name),
-        axisLabel: { color: "#506782", fontSize: 10, width: 88, overflow: "truncate" },
+        axisLabel: { color: theme.text, fontSize: 10, width: 88, overflow: "truncate" },
         axisLine: { show: false },
         axisTick: { show: false }
       },
@@ -60,12 +71,12 @@ export default function ProductionStatusChart({ operations }: Props) {
         type: "bar",
         barMaxWidth: 16,
         showBackground: true,
-        backgroundStyle: { color: "rgba(129,153,181,.10)", borderRadius: 5 },
+        backgroundStyle: { color: theme.panel, borderRadius: 5 },
         itemStyle: { borderRadius: [0, 5, 5, 0] },
-        label: { show: true, position: "right", color: "#526982", fontSize: 10 },
+        label: { show: true, position: "right", color: theme.text, fontSize: 10 },
         data: counts.map(item => ({
           value: item.value,
-          itemStyle: { color: statusColors[item.name as OperationRecord["status"]] }
+          itemStyle: { color: theme.colours[statusOrder.indexOf(item.name as OperationRecord["status"])] }
         }))
       }]
     });
@@ -78,7 +89,7 @@ export default function ProductionStatusChart({ operations }: Props) {
       window.removeEventListener("resize", resize);
       chart.dispose();
     };
-  }, [operations, counts]);
+  }, [operations, counts, themeRevision]);
 
   if (operations.length === 0) {
     return <div className="production-status-empty" role="status">
@@ -92,7 +103,7 @@ export default function ProductionStatusChart({ operations }: Props) {
       aria-label={counts.map(item => item.name + ": " + item.value).join(", ") + " saved production operations"} />
     <div className="production-status-chart-summary" aria-label="Operation status totals">
       {counts.filter(item => item.value > 0).map(item => <span key={item.name}>
-        <i style={{ background: statusColors[item.name] }} />
+        <i style={{ background: readChartTheme().colours[statusOrder.indexOf(item.name)] }} />
         <b>{item.value.toLocaleString("en-IN")}</b> {item.name}
       </span>)}
     </div>

@@ -18,40 +18,40 @@ type EcosystemHubNode = Node<EcosystemHubNodeData,"hub">;
 type EcosystemFlowNode = EcosystemEntityNode | EcosystemHubNode;
 
 const EDGE_LEGEND = [
-  {label:"Structure",color:"#2875bd"},
-  {label:"Production",color:"#168d89"},
-  {label:"Supply",color:"#b17a27"},
-  {label:"Material flow",color:"#8b68c5"},
-  {label:"Quality",color:"#b95665"},
-  {label:"Logistics",color:"#397ea4"},
-  {label:"Finance",color:"#7565b5"}
+  {label:"Structure",color:"var(--ax-theme-graph-1,#2875bd)"},
+  {label:"Production",color:"var(--ax-theme-graph-2,#168d89)"},
+  {label:"Supply",color:"var(--ax-theme-graph-3,#b17a27)"},
+  {label:"Material flow",color:"var(--ax-theme-graph-4,#8b68c5)"},
+  {label:"Quality",color:"var(--ax-theme-graph-5,#b95665)"},
+  {label:"Logistics",color:"var(--ax-theme-graph-6,#397ea4)"},
+  {label:"Finance",color:"var(--ax-theme-graph-7,#7565b5)"}
 ];
 
 const edgeColor = (kind:string) => {
-  if (/owns|belongs to|contact for/.test(kind)) return "#2875bd";
-  if (/orders|placed by|makes|performed by|defined by/.test(kind)) return "#168d89";
-  if (/capable vendor|supplied by|procured for|allocated to/.test(kind)) return "#b17a27";
-  if (/feeds operation/.test(kind)) return "#8b68c5";
-  if (/inspects/.test(kind)) return "#b95665";
-  if (/moves between|carried by/.test(kind)) return "#397ea4";
-  if (/serves|settles|paid to/.test(kind)) return "#7565b5";
-  return "#7ba5c1";
+  if (/owns|belongs to|contact for/.test(kind)) return "var(--ax-theme-graph-1,#2875bd)";
+  if (/orders|placed by|makes|performed by|defined by/.test(kind)) return "var(--ax-theme-graph-2,#168d89)";
+  if (/capable vendor|supplied by|procured for|allocated to/.test(kind)) return "var(--ax-theme-graph-3,#b17a27)";
+  if (/feeds operation/.test(kind)) return "var(--ax-theme-graph-4,#8b68c5)";
+  if (/inspects/.test(kind)) return "var(--ax-theme-graph-5,#b95665)";
+  if (/moves between|carried by/.test(kind)) return "var(--ax-theme-graph-6,#397ea4)";
+  if (/serves|settles|paid to/.test(kind)) return "var(--ax-theme-graph-7,#7565b5)";
+  return "var(--ax-theme-graph-1,#7ba5c1)";
 };
 
 const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> = [
-  {kind:"company",title:"Companies",moduleId:"companies",color:"#2875bd"},
-  {kind:"customer",title:"Customers",moduleId:"customers",color:"#2f9b82"},
-  {kind:"factory",title:"Factories",moduleId:"companies",color:"#4b8cbd"},
-  {kind:"order",title:"Purchase orders",moduleId:"purchasing",color:"#8b68c5"},
-  {kind:"component",title:"Components",moduleId:"components",color:"#168d89"},
-  {kind:"vendor",title:"Vendors",moduleId:"vendors",color:"#c07a2b"},
-  {kind:"process",title:"Process definitions",moduleId:"process-master",color:"#5b83cf"},
-  {kind:"operation",title:"Operations",moduleId:"production",color:"#1a9b68"},
-  {kind:"material",title:"Materials & allocations",moduleId:"inventory",color:"#b18a2d"},
-  {kind:"quality",title:"Quality inspections",moduleId:"quality",color:"#b95665"},
-  {kind:"transport",title:"Transport & dispatch",moduleId:"dispatch",color:"#397ea4"},
-  {kind:"finance",title:"Payments",moduleId:"costing",color:"#8b69aa"},
-  {kind:"contact",title:"Contacts",moduleId:"contact360",color:"#648b91"}
+  {kind:"company",title:"Companies",moduleId:"companies",color:"var(--ax-theme-graph-1,#2875bd)"},
+  {kind:"customer",title:"Customers",moduleId:"customers",color:"var(--ax-theme-graph-2,#2f9b82)"},
+  {kind:"factory",title:"Factories",moduleId:"companies",color:"var(--ax-theme-graph-1,#4b8cbd)"},
+  {kind:"order",title:"Purchase orders",moduleId:"purchasing",color:"var(--ax-theme-graph-4,#8b68c5)"},
+  {kind:"component",title:"Components",moduleId:"components",color:"var(--ax-theme-graph-2,#168d89)"},
+  {kind:"vendor",title:"Vendors",moduleId:"vendors",color:"var(--ax-theme-graph-3,#c07a2b)"},
+  {kind:"process",title:"Process definitions",moduleId:"process-master",color:"var(--ax-theme-graph-1,#5b83cf)"},
+  {kind:"operation",title:"Operations",moduleId:"production",color:"var(--ax-theme-graph-2,#1a9b68)"},
+  {kind:"material",title:"Materials & allocations",moduleId:"inventory",color:"var(--ax-theme-graph-3,#b18a2d)"},
+  {kind:"quality",title:"Quality inspections",moduleId:"quality",color:"var(--ax-theme-graph-5,#b95665)"},
+  {kind:"transport",title:"Transport & dispatch",moduleId:"dispatch",color:"var(--ax-theme-graph-6,#397ea4)"},
+  {kind:"finance",title:"Payments",moduleId:"costing",color:"var(--ax-theme-graph-7,#8b69aa)"},
+  {kind:"contact",title:"Contacts",moduleId:"contact360",color:"var(--ax-theme-graph-6,#648b91)"}
 ];
 
 function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {
