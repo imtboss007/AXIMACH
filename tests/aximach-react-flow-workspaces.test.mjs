@@ -72,7 +72,7 @@ test("synthetic multi-route fixture covers the graph relationship types without 
 test("3D process label layout includes every node class in one shared collision pass", () => {
   const scene = source("src/ProcessScene3D.tsx");
   const layout = source("src/processSceneLabelLayout.js");
-  assert.ok(scene.includes('import { relaxProcessSceneLabels } from "./processSceneLabelLayout.js"'));
+  assert.ok(scene.includes('import { processSceneLabelBounds, relaxProcessSceneLabels } from "./processSceneLabelLayout.js"'));
   assert.ok(scene.includes('kind:"catalogue" as const'));
   assert.ok(scene.includes('const projectedCatalogue=projectedLayout.catalogues'));
   assert.ok(scene.includes('relaxProcessSceneLabels(all,w,h,size.vw)'));
