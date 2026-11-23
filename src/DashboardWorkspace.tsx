@@ -27,7 +27,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
   const transportLegs=activeRows(data.transportLegs);
   const activeTransportRoutes=activeRows(data.transportRoutes).filter(route=>route.active);
   const lines=pos.flatMap(po=>po.lines.filter(line=>!line.deletedAt).map(line=>({po,line})));
-  const openOps=ops.filter(op=>op.status!=="Complete"), completeOps=ops.filter(op=>op.status==="Complete");
+  const openOps=ops.filter(op=>op.status!=="Complete"), completeOps=ops.filter(op=>op.status==="Complete"), inProduction=ops.filter(op=>op.status==="Running");
   const todayDate=new Date();
   const today=todayDate.getFullYear()+"-"+String(todayDate.getMonth()+1).padStart(2,"0")+"-"+String(todayDate.getDate()).padStart(2,"0");
   const overdue=ops.filter(op=>op.status!=="Complete"&&op.plannedEnd&&op.plannedEnd<today);
@@ -71,13 +71,13 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
 
     <section className="dashboard-cockpit-main" aria-label="Manufacturing universe command view">
       <aside className="dashboard-cockpit-panel dashboard-cockpit-summary" data-testid="dashboard-cockpit-summary">
-        <div className="dashboard-cockpit-panel-title"><div><span className="dashboard-cockpit-section-icon"><Gauge size={16}/></span><span><strong>Universe Summary</strong><small>Saved AXIMACH records</small></span></div><span className="dashboard-cockpit-count">{companies.length+pos.length+components.length+ops.length}</span></div>
+        <div className="dashboard-cockpit-panel-title"><div><span className="dashboard-cockpit-section-icon"><Gauge size={16}/></span><span><strong>Universe Summary</strong><small>Saved AXIMACH records</small></span></div><span className="dashboard-cockpit-count">09 / METRICS</span></div>
         <SummaryLine label="Companies" value={companies.length} icon={Building2}/>
         <SummaryLine label="Purchase Orders" value={pos.length} icon={Package}/>
         <SummaryLine label="Components" value={components.length} icon={Factory}/>
         <SummaryLine label="Parts / Varieties" value={parts.length} icon={Boxes}/>
         <SummaryLine label="Active Operations" value={openOps.length} icon={Activity}/>
-        <SummaryLine label="In Production" value={pendingJobs.length} icon={Workflow}/>
+        <SummaryLine label="In Production" value={inProduction.length} icon={Workflow}/>
         <SummaryLine label="In Transport" value={activeLegs.length} icon={Truck}/>
         <SummaryLine label="Due Today" value={dueToday.length} icon={CalendarClock}/>
         <SummaryLine label="Exceptions" value={exceptions.length} icon={CircleAlert} alert={exceptions.length>0}/>
@@ -146,7 +146,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
         {label:"Components",value:components.length,Icon:Factory},
         {label:"Parts / Varieties",value:parts.length,Icon:Layers3},
         {label:"Active Routes",value:activeTransportRoutes.length,Icon:Route},
-        {label:"In Production",value:openOps.length,Icon:Activity},
+        {label:"In Production",value:inProduction.length,Icon:Activity},
         {label:"In Transport",value:activeLegs.length,Icon:Truck},
         {label:"Completed Operations",value:completeOps.length,Icon:CheckCircle2},
         {label:"Exceptions",value:exceptions.length,Icon:CircleAlert}
