@@ -96,7 +96,7 @@ try {
   if (!(await factoryTab.getAttribute("class") || "").includes("costing-tab-active")) {
     throw new Error("Company Directory did not switch to the Factories register.");
   }
-  const addFactoryButton = page.getByRole("button", { name: "Add Factory" });
+  const addFactoryButton = page.getByRole("button", { name: "Add Factory", exact: true });
   await addFactoryButton.waitFor({ state: "visible" });
   await addFactoryButton.click();
   const factoryForm = page.locator(".module-record-form-panel");
