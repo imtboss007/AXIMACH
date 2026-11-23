@@ -245,7 +245,8 @@
       "anchorOperationId": "demo-op-02",
       "placement": "after",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "targetOperationId": "demo-op-03"
     },
     {
       "id": "demo-leg-03",
@@ -264,7 +265,8 @@
       "anchorOperationId": "demo-op-04",
       "placement": "after",
       "createdAt": "2026-01-01T09:00:00.000Z",
-      "updatedAt": "2026-01-01T09:00:00.000Z"
+      "updatedAt": "2026-01-01T09:00:00.000Z",
+      "targetOperationId": "demo-op-08"
     },
     {
       "id": "demo-leg-04",

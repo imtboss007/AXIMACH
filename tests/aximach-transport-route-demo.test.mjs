@@ -182,3 +182,19 @@ test("explicit typed route relationships replace duplicate implicit 3D edges and
   assert.ok(universe.includes("validRouteRelationships"));
   assert.ok(scene.includes('!String(edge.id||"").startsWith("relationship-")&&replacedOperationEdges.has'));
 });
+
+
+test("explicit transport sender and receiver IDs persist without inferring the next displayed operation", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const operations = new Map(fixture.operations.map(row=>[row.id,row]));
+  const crossBranch = fixture.transportLegs.find(leg=>leg.anchorOperationId && leg.targetOperationId &&
+    operations.get(leg.anchorOperationId)?.branch !== operations.get(leg.targetOperationId)?.branch);
+  assert.ok(crossBranch, "fixture must exercise a transport hand-off between main and alternate branches");
+  assert.ok(operations.has(crossBranch.anchorOperationId), "sending operation ID must resolve");
+  assert.ok(operations.has(crossBranch.targetOperationId), "receiving operation ID must resolve");
+  assert.ok(processMap.includes('setTransportTargetOperationId(leg?.targetOperationId || "")'));
+  assert.ok(processMap.includes('targetOperationId: receivingOperation?.id || undefined'));
+  assert.ok(processMap.includes('label="Sending process (from)"'));
+  assert.ok(processMap.includes('label="Receiving process (to) · optional"'));
+  assert.ok(processMap.includes('Destinations are never inferred from display order.'));
+});
