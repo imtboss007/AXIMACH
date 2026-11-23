@@ -273,6 +273,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     branchNames.forEach((name,index)=>branchOffsets.set(name,name==="Main route"?0:/alternate/i.test(name)?-1:/rework/i.test(name)?1:index-1));
     const portrait=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
     const graphSource:FlowNode[]=[
+      ...(routeMaterials.length?[]:[{kind:"missing-material" as const,id:"missing-material"}]),
       ...routeMaterials.map(entry=>({kind:"material" as const,id:"material-"+entry.id,entry})),
       ...routeMaterials.filter(entry=>entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||Number(entry.transportCost)>0||entry.transportPickupAt||entry.transportDeliveryAt)
         .map(entry=>({kind:"material-transport" as const,id:"material-transport-"+entry.id,entry})),
