@@ -221,10 +221,10 @@ body{background:#f1f5fa!important;color:#12263f!important}
   .ax-full3d-label strong{font-size:11px!important}
 }
 @media(max-width:600px){
-  .ax-full3d-scene .ax-full3d-label{width:132px!important;min-width:132px!important;min-height:88px!important;max-height:94px!important;padding:6px!important;gap:3px!important;box-sizing:border-box!important}
-  .ax-full3d-scene .ax-full3d-label.ax-full3d-material-label{width:132px!important;min-width:132px!important;min-height:92px!important;max-height:98px!important}
-  .ax-full3d-scene .ax-full3d-label small,.ax-full3d-scene .ax-full3d-label em,.ax-full3d-scene .ax-full3d-node-meta{font-size:8px!important;line-height:1.2!important}
-  .ax-full3d-scene .ax-full3d-label strong{font-size:9px!important;line-height:1.2!important}
+  .ax-full3d-scene .ax-full3d-label{width:134px!important;min-width:134px!important;min-height:84px!important;max-height:90px!important;padding:5px!important;gap:2px!important;box-sizing:border-box!important}
+  .ax-full3d-scene .ax-full3d-label.ax-full3d-material-label{width:134px!important;min-width:134px!important;min-height:88px!important;max-height:94px!important}
+  .ax-full3d-scene .ax-full3d-label small,.ax-full3d-scene .ax-full3d-label em,.ax-full3d-scene .ax-full3d-node-meta{font-size:7px!important;line-height:1.15!important}
+  .ax-full3d-scene .ax-full3d-label strong{font-size:8.5px!important;line-height:1.15!important}
 }
 
 /* Route graph uses the same calm neutral canvas and compact but readable labels. */

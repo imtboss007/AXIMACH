@@ -12,11 +12,11 @@ const CARD_BOUNDS = Object.freeze({
 export function processSceneLabelBounds(kind, viewportWidth) {
   if (viewportWidth <= 600) {
     const compact = {
-      operation: { width: 132, height: 88 },
-      material: { width: 132, height: 92 },
+      operation: { width: 134, height: 84 },
+      material: { width: 134, height: 88 },
       transport: { width: 32, height: 32 },
       transportLeg: { width: 32, height: 32 },
-      catalogue: { width: 132, height: 88 },
+      catalogue: { width: 134, height: 84 },
       core: { width: 100, height: 42 }
     };
     return compact[kind] || compact.operation;
@@ -98,7 +98,7 @@ function packDenseLabels(items, width, height, responsiveWidth = width) {
   // Compact phone shelves use two columns of readable 132px cards where the
   // 297px label plane allows it. This reduces vertical overflow without
   // removing manufacturing records or shrinking text to thumbnail size.
-  const shelfGap = responsiveWidth <= 600 ? 8 : SHELF_GAP;
+  const shelfGap = SHELF_GAP;
   const hasCore = items[0]?.kind === "core";
   const prefixCount = hasCore ? Math.min(2, items.length) : Math.min(1, items.length);
   const priority = items.slice(0, prefixCount);

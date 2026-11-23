@@ -5,11 +5,11 @@ import { relaxProcessSceneLabels } from "../src/processSceneLabelLayout.js";
 function boundsByKind(kind, width, responsiveWidth = width) {
   if (responsiveWidth <= 600) {
     return ({
-      operation: { width: 132, height: 88 },
-      material: { width: 132, height: 92 },
+      operation: { width: 134, height: 84 },
+      material: { width: 134, height: 88 },
       transport: { width: 32, height: 32 },
       transportLeg: { width: 32, height: 32 },
-      catalogue: { width: 132, height: 88 },
+      catalogue: { width: 134, height: 84 },
       core: { width: 100, height: 42 }
     })[kind];
   }
