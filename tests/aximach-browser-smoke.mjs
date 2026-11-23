@@ -576,7 +576,7 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".route-flow-graph-canvas .react-flow__edge").length >= 11, null, { timeout: 10000 });
   const routeEdgeCount = await page.locator(".route-flow-graph-canvas .react-flow__edge").count();
   if (routeEdgeCount < 11) throw new Error("Route Flow graph must render the 11 relationship examples; found " + routeEdgeCount);
-  const routeEdgeLabels = (await page.locator(".route-flow-graph-canvas .react-flow__edge-text").allInnerTexts()).join(" ").toUpperCase();
+  const routeEdgeLabels = (await page.locator(".route-flow-graph-canvas .react-flow__edge-text").evaluateAll(elements => elements.map(element => element.textContent || "").join(" "))).toUpperCase();
   for (const label of ["MAIN","ALTERNATE","REWORK","DEPENDENCY","PARALLEL","MERGE","SPLIT","FOLLOW-ON","FEEDBACK","CONDITIONAL","SUCCESSOR"]) {
     if (!routeEdgeLabels.includes(label)) throw new Error("Route Flow graph did not display relationship label "+label+": "+routeEdgeLabels);
   }
