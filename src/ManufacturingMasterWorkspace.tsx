@@ -310,7 +310,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
       <div className="workspace-title-actions">
         {moduleId === "components" && <button className="button-quiet" disabled={!selectedComponentForNavigation} onClick={() => onSelectModule("costing",selectedComponentContext)}><CircleDollarSign size={15}/> Component costing</button>}
         {moduleId === "purchasing" && <button className="button-quiet" disabled={!selectedPOForNavigation} onClick={() => onSelectModule("process-map",selectedPOContext)}><ArrowRight size={15}/> Open Process Map</button>}
-        <button className="button-primary" onClick={beginAdd}><Plus size={15}/> {moduleId === "companies" ? "Add Company" : moduleId === "purchasing" ? "Create Purchase Order" : "Add Component"}</button>
+        <button className="button-primary" onClick={beginAdd}><Plus size={15}/> {moduleId === "companies" ? (tab === "factories" ? "Add Factory" : "Add Company") : moduleId === "purchasing" ? "Create Purchase Order" : "Add Component"}</button>
       </div>
     </div>
     {moduleId === "companies" && <div className="costing-tabs">
@@ -345,7 +345,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
 
     {showForm && <section className="surface-panel module-record-form-panel">
       <div className="panel-heading"><div><h3>{moduleId === "companies" ? companyEditingId ? "Edit company" : factoryEditingId ? "Edit factory" : tab === "companies" ? "New company" : "New factory" : moduleId === "purchasing" ? poEditingId ? "Edit purchase order" : "New purchase order" : componentEditingId ? "Edit component" : "New component"}</h3><p>Required fields are checked before the record is saved.</p></div><button className="icon-control" onClick={resetForms} aria-label="Close form"><X size={15}/></button></div>
-      {moduleId === "companies" && <div className="module-record-form">
+      {moduleId === "companies" && tab === "companies" && !factoryEditingId && <div className="module-record-form">
         <label>Company name *<input value={companyDraft.name} onChange={e => setCompanyDraft({ ...companyDraft, name: e.target.value })} placeholder="Enter your actual registered company name"/></label>
         <label>GSTIN<input value={companyDraft.gstin} onChange={e => setCompanyDraft({ ...companyDraft, gstin: e.target.value.toUpperCase() })} placeholder="Optional"/></label>
         <label>Contact person<input value={companyDraft.contactPerson || ""} onChange={e => setCompanyDraft({ ...companyDraft, contactPerson: e.target.value })} placeholder="Primary contact person"/></label>
