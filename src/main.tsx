@@ -5,6 +5,7 @@ import "@tabler/icons-webfont/dist/tabler-icons.min.css";
 import "@tabler/icons-webfont/dist/tabler-icons-filled.min.css";
 import "./styles.css";
 import "./aximach-ui.css";
+import "./aximach-visual-fixes.css";
 
 type StartupBoundaryState = { error: Error | null };
 
