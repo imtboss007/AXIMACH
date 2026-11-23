@@ -87,19 +87,31 @@ body{background:var(--canvas)!important;color:var(--ink)!important}
 .app-shell[data-theme="light"] .page-content .module-form-actions .button-quiet{background:#f6f9fd!important;border-color:#cbd8e7!important;color:#173654!important}
 .app-shell[data-theme="light"] .page-content .module-form-actions .button-quiet svg{color:#245e9b!important}
 
-/* Manufacturing 3D labels: larger type and stronger text on the DOM overlay. */
+/* Manufacturing 3D labels: larger type with dimensions matching the collision packer. */
+.app-shell[data-theme="light"] .page-content :is(strong,b,th,.stat-value,.metric-value,.module-stat-value,.data-value){
+  color:#15314e!important;opacity:1!important;-webkit-text-fill-color:#15314e!important;
+}
+.app-shell[data-theme="light"] .page-content :is(.module-number,.demo-pill,.status-pill,.status-badge){opacity:1!important}
 .ax-full3d-label{
-  width:min(190px,38vw)!important;min-height:104px!important;padding:9px 10px!important;gap:5px!important;
+  width:184px!important;min-height:96px!important;padding:8px 9px!important;gap:4px!important;
   background:linear-gradient(145deg,#ffffff,#edf5ff)!important;border:1px solid #6b9cc8!important;
   color:#122c49!important;box-shadow:0 9px 24px rgba(12,38,67,.24),inset 0 1px #fff!important;
 }
 .ax-full3d-label small{font-size:9px!important;color:#24577f!important;letter-spacing:.55px!important}
 .ax-full3d-label strong{font-size:11px!important;line-height:1.3!important;color:#102944!important}
-.ax-full3d-label em{font-size:9px!important;color:#45647f!important}
-.ax-full3d-node-meta{font-size:8.5px!important;line-height:1.4!important;color:#35546f!important}
+.ax-full3d-label em{font-size:8px!important;color:#45647f!important}
+.ax-full3d-node-meta{font-size:7.5px!important;line-height:1.35!important;color:#35546f!important}
 .ax-full3d-label.selected{border:2px solid #008fc7!important;box-shadow:0 0 0 3px rgba(0,143,199,.18),0 10px 25px rgba(12,38,67,.22)!important}
+/* Relationship captions are shown in the full Route Flow graph and legend, not stacked over the 3D hub. */
+.ax-full3d-route-arrow span{display:none!important}
+@media(min-width:601px) and (max-width:760px){
+  .ax-full3d-label{width:124px!important;min-height:82px!important;padding:6px!important}
+  .ax-full3d-label strong{font-size:9px!important}
+  .ax-full3d-label small,.ax-full3d-label em{font-size:7px!important}
+  .ax-full3d-node-meta{font-size:6.5px!important}
+}
 @media(max-width:600px){
-  .ax-full3d-label{width:min(156px,38vw)!important;min-height:104px!important;padding:8px!important;gap:4px!important}
+  .ax-full3d-label{width:148px!important;min-height:112px!important;padding:8px!important;gap:4px!important}
   .ax-full3d-label strong{font-size:10px!important}
   .ax-full3d-label small,.ax-full3d-label em{font-size:8px!important}
   .ax-full3d-node-meta{font-size:7.5px!important}
