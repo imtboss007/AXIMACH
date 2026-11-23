@@ -235,9 +235,12 @@ export function relaxProcessSceneLabels(items, width, height, responsiveWidth = 
     });
   }
 
-  const packed = output.some(item => item.screen.collision)
+  const packedSource = output.some(item => item.screen.collision)
     ? (packDenseLabels(items, viewportWidth, viewportHeight, responsiveViewportWidth) || output)
     : output;
+  // Dense packing defines its own non-enumerable layoutHeight. Clone the array
+  // before extending that height with the lowest rendered card extent.
+  const packed = packedSource.slice();
   const requiredContentHeight = packed.reduce((maxBottom, item) => {
     const bounds = processSceneLabelBounds(item.kind, responsiveViewportWidth);
     const scale = Number(item.screen.scale) || 1;
