@@ -499,6 +499,17 @@ try {
   };
   await assertCollisionFreeScene("desktop Process Map");
   await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(150);
+  console.log("Process Map short-landscape viewport diagnostics", await page.locator(".ax-full3d-scene").evaluate(scene => {
+    const layer = scene.querySelector(".ax-full3d-label-layer");
+    const content = scene.querySelector(".ax-full3d-label-content");
+    const rect = element => {
+      if (!element) return null;
+      const box = element.getBoundingClientRect();
+      return { width: box.width, height: box.height, clientWidth: element.clientWidth, clientHeight: element.clientHeight, scrollWidth: element.scrollWidth, scrollHeight: element.scrollHeight, inlineHeight: element.style.height, inlineMinHeight: element.style.minHeight, inlineBottom: element.style.bottom };
+    };
+    return { viewport: { width: window.innerWidth, height: window.innerHeight }, scene: rect(scene), layer: rect(layer), content: rect(content), measured: { width: scene.getAttribute("data-scene-layout-width"), height: scene.getAttribute("data-scene-layout-height") } };
+  }));
   await page.waitForFunction(() => {
     const scene = document.querySelector(".ax-full3d-scene");
     if (!scene) return false;
