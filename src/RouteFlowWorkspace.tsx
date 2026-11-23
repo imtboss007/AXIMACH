@@ -289,12 +289,12 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         const lane=branchOffsets.get(branch)||0;
         if(portrait){
           const laneColumn=branch==="Main route"?0:/alternate/i.test(branch)?1:/rework/i.test(branch)?2:Math.max(1,index%3);
-          return {x:28+laneColumn*278,y:180+Math.max(0,operation.sequence-1)*218};
+          return {x:28+laneColumn*278,y:320+Math.max(0,operation.sequence-1)*330};
         }
-        return {x:500+Math.max(0,operation.sequence-1)*290,y:210+lane*245};
+        return {x:550+Math.max(0,operation.sequence-1)*500,y:210+lane*245};
       }
-      if(node.kind==="material")return portrait?{x:28,y:0}:{x:20,y:210};
-      if(node.kind==="material-transport")return portrait?{x:28,y:154}:{x:265,y:210};
+      if(node.kind==="material")return portrait?{x:28,y:0}:{x:30,y:210};
+      if(node.kind==="material-transport")return portrait?{x:28,y:160}:{x:290,y:210};
       if(node.kind==="transport"){
         const anchor=operationFor(node.leg.anchorOperationId||"");
         const target=operationFor(node.leg.targetOperationId||"");
@@ -303,9 +303,9 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         const sequence=reference?.sequence||0;
         if(portrait){
           const laneColumn=reference?.branch==="Alternate route"?1:/rework/i.test(reference?.branch||"")?2:0;
-          return {x:306+laneColumn*278,y:330+Math.max(0,sequence-1)*218};
+          return {x:28+laneColumn*278,y:485+Math.max(0,sequence-1)*330};
         }
-        return {x:500+Math.max(0,sequence-1)*290,y:360+lane*245};
+        return {x:800+Math.max(0,sequence-1)*500,y:210+lane*245};
       }
       return portrait?{x:28,y:0}:{x:20,y:210};
     };
@@ -343,7 +343,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         title="Material allocation missing";detail="Add the required material / grade allocation before production.";
         kind="ROUTE REQUIREMENT";actionLabel="Open Process Map";onAction=()=>openProcessMap();
       }
-      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),actionLabel,onAction},draggable:false,selectable:true,focusable:true,style:{width:248}};
+      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),actionLabel,onAction},draggable:false,selectable:true,focusable:true,style:{width:node.kind==="transport"?210:node.kind==="material-transport"?218:248}};
     });
     const nodeIds=new Set(nodes.map(node=>node.id));
     const edges:Edge[]=[];
