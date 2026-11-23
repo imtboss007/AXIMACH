@@ -5,7 +5,7 @@ import {
 import {
   buildThemeTokens, resolveThemePreference, THEME_PRESETS,
   type AppearanceMode, type ThemePreference, type ThemeTokens
-} from "./themeStudio";
+} from "./aximachThemeStudio";
 
 type Props = {
   open: boolean;

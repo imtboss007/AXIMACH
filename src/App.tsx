@@ -12,7 +12,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { ProcessIcon } from "./IconStudio";
 import ThemeStudio from "./ThemeStudio";
-import { buildThemeTokens, readThemePreference, resolveThemePreference, writeThemePreference, type ThemePreference } from "./themeStudio";
+import { buildThemeTokens, readThemePreference, resolveThemePreference, writeThemePreference, type ThemePreference } from "./aximachThemeStudio";
 import { clearServerSession, getServerAuthHeaders, getServerAuthMode, hasServerCredentials, readServerSession, saveServerSession, setServerAuthMode, type ServerSession } from "./serverAuth";
 import FollowUpAssignmentsLauncher from "./FollowUpAssignments";
 import SearchableMultiSelect from "./SearchableMultiSelect";

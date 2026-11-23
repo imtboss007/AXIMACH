@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
-const model = read("src/themeStudio.ts");
+const model = read("src/aximachThemeStudio.ts");
 const studio = read("src/ThemeStudio.tsx");
 const app = read("src/App.tsx");
 const css = read("src/aximach-theme-studio.css");
