@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import ExcelJS from "exceljs";
 import { ArrowRight, Check, CircleDollarSign, Layers3, Plus, Search, ShieldCheck, Trash2, Users, Edit3, FileDown, FileText, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type PlannedCostEntry, type ProcessDefinitionRecord } from "./manufacturingData";
+import { getServerAuthMode, readServerSession } from "./serverAuth";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 import { MechanicalIconGlyph, MECHANICAL_ICON_INVENTORY, mechanicalOperationSvgForName } from "./MechanicalOperationIcon";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
 
-type Props={moduleId:"process-master"|"planned-cost";onBack:()=>void;onNotice:(value:string)=>void;notice:string;onOpenIconStudio?:(processDefinitionId?:string)=>void};
+type SpecializedNavigationContext={companyId?:string;poId?:string;componentId?:string;searchText?:string};
+type Props={moduleId:"process-master"|"planned-cost";onBack:()=>void;onNotice:(value:string)=>void;notice:string;onOpenIconStudio?:(processDefinitionId?:string)=>void;initialContext?:SpecializedNavigationContext};
 type ProcessEntry=ProcessDefinitionRecord;
 const PROCESS_KEY="aximach.processDirectory.v1";
 function readRows<T>(key:string):T[]{try{const value=JSON.parse(localStorage.getItem(key)||"[]");return Array.isArray(value)?value as T[]:[];}catch{return[];}}
@@ -30,24 +32,31 @@ async function processLogoPngBase64(process: Pick<ProcessEntry, "id" | "processT
  context.drawImage(image,4,4,88,88);return canvas.toDataURL("image/png").split(",")[1];
 }
 
-function ProcessDirectory({onNotice,onBack,onOpenIconStudio}:Pick<Props,"onNotice"|"onBack"|"onOpenIconStudio">){
+function ProcessDirectory({onNotice,onBack,onOpenIconStudio,initialContext}:Pick<Props,"onNotice"|"onBack"|"onOpenIconStudio"|"initialContext">){
  const {data,update}=useManufacturingData();
  const vendors=activeRows(data.vendors);
  const rows=activeRows(data.processDefinitions);
  useEffect(()=>{
-  const legacy=readRows<ProcessEntry>(PROCESS_KEY);
-  if(!legacy.length)return;
-  update(current=>{
-   const byId=new Map(current.processDefinitions.map(row=>[row.id,row]));
-   let changed=false;
-   for(const row of legacy){
-    const old=byId.get(row.id);
-    if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){
-     byId.set(row.id,row);changed=true;
+  const migrate=()=>{
+   const session=readServerSession(window.localStorage.getItem("aximach.scheduler.url")||"");
+   if(getServerAuthMode()==="users"&&session?.user.role!=="admin")return;
+   const legacy=readRows<ProcessEntry>(PROCESS_KEY);
+   if(!legacy.length)return;
+   update(current=>{
+    const byId=new Map(current.processDefinitions.map(row=>[row.id,row]));
+    let changed=false;
+    for(const row of legacy){
+     const old=byId.get(row.id);
+     if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){
+      byId.set(row.id,row);changed=true;
+     }
     }
-   }
-   return changed?{...current,processDefinitions:[...byId.values()]}:current;
-  });
+    return changed?{...current,processDefinitions:[...byId.values()]}:current;
+   });
+  };
+  migrate();
+  window.addEventListener("aximach-server-session-updated",migrate);
+  return()=>window.removeEventListener("aximach-server-session-updated",migrate);
  },[update]);
  useEffect(()=>{
   const needsIds=data.processDefinitions.some(row=>row.subcategories.length>0&&(!Array.isArray(row.subcategoryIds)||row.subcategoryIds.length!==row.subcategories.length||row.subcategoryIds.some(id=>!id)));
@@ -71,6 +80,7 @@ function ProcessDirectory({onNotice,onBack,onOpenIconStudio}:Pick<Props,"onNotic
  const [selectedVendorFilters,setSelectedVendorFilters]=useState<string[]>([]);
  const [notes,setNotes]=useState("");
  const [processColor,setProcessColor]=useState("#4b95eb");
+ useEffect(()=>setSearch(initialContext?.searchText||""),[initialContext?.searchText]);
  const filtered=useMemo(()=>rows.filter(row=>(row.processType+" "+row.category+" "+row.subcategories.join(" ")+" "+row.notes+" "+row.vendorIds.map(id=>vendors.find(v=>v.id===id)?.company||"").join(" ")).toLowerCase().includes(search.toLowerCase().trim())
   &&(!selectedCategoryFilters.length||selectedCategoryFilters.includes(row.category))
   &&(!selectedTypeFilters.length||selectedTypeFilters.includes(row.processType))
@@ -202,7 +212,7 @@ function ProcessDirectory({onNotice,onBack,onOpenIconStudio}:Pick<Props,"onNotic
 }
 
 
-function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">){
+function PlannedCostDirectory({onNotice,onBack,initialContext}:Pick<Props,"onNotice"|"onBack"|"initialContext">){
  const {data,update}=useManufacturingData();
  const rows=activeRows(data.plannedCosts);
  const definitions=activeRows(data.processDefinitions);
@@ -210,17 +220,24 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
  const purchaseOrders=activeRows(data.purchaseOrders);
  const components=activeRows(data.components);
  useEffect(()=>{
-  const legacy=readRows<PlannedCostEntry>("aximach.componentPlannedCost.v1");
-  if(!legacy.length)return;
-  update(current=>{
-   const byId=new Map(current.plannedCosts.map(row=>[row.id,row]));
-   let changed=false;
-   for(const row of legacy){
-    const old=byId.get(row.id);
-    if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){byId.set(row.id,row);changed=true;}
-   }
-   return changed?{...current,plannedCosts:[...byId.values()]}:current;
-  });
+  const migrate=()=>{
+   const session=readServerSession(window.localStorage.getItem("aximach.scheduler.url")||"");
+   if(getServerAuthMode()==="users"&&session?.user.role!=="admin")return;
+   const legacy=readRows<PlannedCostEntry>("aximach.componentPlannedCost.v1");
+   if(!legacy.length)return;
+   update(current=>{
+    const byId=new Map(current.plannedCosts.map(row=>[row.id,row]));
+    let changed=false;
+    for(const row of legacy){
+     const old=byId.get(row.id);
+     if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){byId.set(row.id,row);changed=true;}
+    }
+    return changed?{...current,plannedCosts:[...byId.values()]}:current;
+   });
+  };
+  migrate();
+  window.addEventListener("aximach-server-session-updated",migrate);
+  return()=>window.removeEventListener("aximach-server-session-updated",migrate);
  },[update]);
  const [search,setSearch]=useState("");
  const [companyFilters,setCompanyFilters]=useState<string[]>([]);
@@ -245,6 +262,12 @@ function PlannedCostDirectory({onNotice,onBack}:Pick<Props,"onNotice"|"onBack">)
  const [plannedRate,setPlannedRate]=useState("");
  const [notes,setNotes]=useState("");
  const [extraProcesses,setExtraProcesses]=useState<Array<{id:string;processDefinitionId:string;processType:string;processCategory:string;processSubcategory:string;processSubcategoryId:string;plannedQty:string;unit:"piece"|"set";plannedRate:string}>>([]);
+ useEffect(()=>{
+  setSearch("");
+  setCompanyFilters(initialContext?.companyId?[initialContext.companyId]:[]);
+  setPoFilters(initialContext?.poId?[initialContext.poId]:[]);
+  setComponentFilters(initialContext?.componentId?[initialContext.componentId]:[]);
+ },[initialContext?.companyId,initialContext?.poId,initialContext?.componentId]);
  const filtered=useMemo(()=>rows.filter(row=>{
   const companyMatch=!companyFilters.length||companyFilters.includes(row.companyId||companies.find(item=>item.name.trim().toLowerCase()===(row.companyName||"").trim().toLowerCase())?.id||"");
   const poMatch=!poFilters.length||poFilters.includes(row.poId||purchaseOrders.find(item=>item.number.trim().toLowerCase()===(row.poNumber||"").trim().toLowerCase())?.id||"");

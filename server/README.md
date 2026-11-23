@@ -4,7 +4,9 @@ This optional Node.js service runs scheduled WhatsApp **individual** messages in
 
 ## Required environment variables
 
-- `AXIMACH_API_KEY`: strong random secret used by the UI/API caller.
+- `AXIMACH_API_KEY`: strong random secret used by the legacy shared-key connector. It is ignored when `AXIMACH_AUTH_USERS` is configured.
+- `AXIMACH_AUTH_USERS`: optional JSON array of account records containing `id`, `username`, `passwordHash`, `role` and optional `active`. Setting this variable enables bearer-session authentication and disables shared-key access to the scheduler API.
+- `AXIMACH_SESSION_TTL_MS`: optional bearer-session lifetime in milliseconds (5 minutes to 7 days; default 12 hours). Sessions are held in memory and are revoked when the server restarts.
 - `WHATSAPP_ACCESS_TOKEN`: Meta WhatsApp Cloud API access token.
 - `WHATSAPP_PHONE_NUMBER_ID`: phone-number ID from the Meta WhatsApp Business platform.
 - `AXIMACH_DATA_FILE`: persistent file path, e.g. `/data/aximach.json` on a host with a persistent disk.
@@ -15,11 +17,25 @@ This optional Node.js service runs scheduled WhatsApp **individual** messages in
 
 Run with Node.js 20.18+: `node server/index.mjs`.
 
+Create a password-hashed account in an interactive terminal (the password is masked and is not written to a file):
+
+```sh
+node server/create-auth-user.mjs --username=admin --role=admin
+```
+
+Use the emitted JSON as the value of `AXIMACH_AUTH_USERS` in the server secret manager. Add one object per account to the JSON array. Supported roles are `admin`, `manager`, `operator` and `viewer`. Non-admin users can be scoped by optional `companyIds` and `factoryIds` arrays in each account record. Company scope includes all factories of that company unless explicit factory IDs are provided; factory scope also resolves its parent company. Assign at least one company or factory ID before the user can access manufacturing data. The API exposes `POST /api/auth/login` with username/password, `GET /api/auth/session` and `POST /api/auth/logout`; authenticated API calls use `Authorization: Bearer <token>`. Sessions expire and are stored only in server memory. When `AXIMACH_AUTH_USERS` is set, `x-aximach-key` is not accepted by the scheduler API and the loopback connection-info endpoint does not return the legacy API key.
+
 ## API
 
-All routes except `GET /health` require header `x-aximach-key: <AXIMACH_API_KEY>`.
+In legacy mode (no `AXIMACH_AUTH_USERS`), routes require `x-aximach-key: <AXIMACH_API_KEY>`. In user mode, routes require a valid bearer session. Role permissions are enforced server-side: admins can administer, read/write all data, and access backup/restore; managers and operators can read/write only their scoped linked manufacturing data; viewers are read-only within their scope. Unscoped contacts/schedules/logs/preferences, generic legacy module records, and full backup/restore are admin-only until their tenant ownership is modeled.
 
-- `GET /api/manufacturing-data` — read the linked company/factory/PO/component/vendor/operation/quotation collections.
+- `GET /api/manufacturing-data` — read the linked company/factory/PO/component/vendor/operation/quotation collections and the current `restoreGeneration` value.
+
+- `GET /api/records` — read module records and the current `restoreGeneration` value. Both manufacturing-data and module-record PUT requests must send that generation after a restore; stale devices receive HTTP 409 and must refresh from the server before writing.
+
+- `GET /api/backup` — authenticated full JSON backup of the local service database, including manufacturing collections, general module records, contacts, schedules, logs and UI preferences. The response includes a SHA-256 integrity digest.
+- `POST /api/restore` — authenticated restore of a version-1 AXIMACH backup. Send `{"backup":{...the complete /api/backup response...},"confirmation":"RESTORE_AXIMACH_BACKUP"}`. The service verifies the digest and schema, writes a protected pre-restore snapshot beside the database file, then atomically replaces the database. Invalid/tampered backups and missing confirmation are rejected without changing current data. Mutating requests recheck the restore lock after parsing their request body, and overlapping restore requests are rejected, preventing an in-flight request from saving over the recovered snapshot. Each successful restore increments `restoreGeneration`; manufacturing-data and module-record sync endpoints expose it and reject stale/missing generation writes with HTTP 409 so old device caches cannot resurrect pre-restore records. Keep downloaded backups encrypted and access-controlled; this endpoint does not replace off-host backup retention or disaster-recovery testing.
+
 - `PUT /api/manufacturing-data` — merge linked manufacturing records by stable record ID and `updatedAt` into the persistent JSON store (maximum 8 MB per payload; archive records with a `deletedAt` timestamp to retain history).
 - `GET /api/records` — read all generic module records by module ID.
 - `PUT /api/records` JSON: `{"records":{"companies":[{"id":"...","title":"Example","updatedAt":"..."}]}}` — merge module records by stable ID and latest `updatedAt`, preserving `deletedAt` tombstones for cross-device removals (maximum 8 MB per payload).
@@ -59,7 +75,7 @@ For the QR-paired bridge, build the separate container from the repository root 
 
 ## Frontend connection and security
 
-The Communication & Follow-up screen configures the shared AXIMACH data server. Enter the same deployed HTTPS URL and the same `AXIMACH_API_KEY` on every Windows and Android install; settings are stored separately on each device. Do not use `localhost` for cross-device sync because it resolves to the device itself. Linked manufacturing records and general module records refresh immediately after local edits and when the app regains focus/connection, with a four-second safety poll. CORS preflight must allow `PUT` and the exact client origins. The screen can also add contacts with explicit opt-in, create one-time/daily/weekly individual schedules, pause/resume schedules, refresh records and export contacts as CSV. Generic module records sync to `/api/records`; linked manufacturing master records sync separately to `/api/manufacturing-data`. The browser keeps a local cache for continuity. The API key and server URL are stored in this browser/device local storage, so protect the device and do not use this single shared key as a production multi-user permission system. This is a connector prototype, **not a multi-user security boundary**: anyone allowed to use the UI can potentially inspect/use that key. Do not expose this configuration to untrusted users or deploy it publicly without adding real user authentication, per-user authorization and a server-side session/proxy.
+The current source client in this branch supports individual-account sign-in from Follow-up Centre. It checks `/health` for the server authentication mode, signs in at `/api/auth/login`, validates the session at `/api/auth/session`, and sends bearer tokens for manufacturing sync; users can sign out to revoke the token. The client keeps the bearer token in browser/device session storage (not the shared API-key localStorage slot), and the server enforces its expiry. Existing packaged Windows/Android releases built before this client migration still use the legacy shared-key connector; update every device to a build containing this change before setting `AXIMACH_AUTH_USERS` on a live server, or old clients will be rejected. Linked manufacturing reads are filtered by company/factory and traversed through PO lines, components, operations, inspections, payments, transport legs, material links and other saved relationships. Non-admin writes are checked against the same references; shared global masters are admin-write-only and exposed only when referenced by the scoped manufacturing graph. Generic legacy module records, global contacts/schedules/preferences, and WhatsApp bridge controls remain admin-only because their schemas do not yet provide reliable tenant ownership. The optional WhatsApp bridge continues to use its separate bridge credential; it is not authenticated by the AXIMACH bearer session. User accounts and company/factory assignments are configured server-side through `AXIMACH_AUTH_USERS`; there is not yet an in-app user/role administration screen. Sessions are held in server memory and are revoked at server restart; users must sign in again after a restart. Do not expose session tokens or bridge credentials to untrusted users.
 
 The current scheduler does not sync a phone's WhatsApp address book, pair via QR/linked devices, send to WhatsApp groups, or stop repeated messages on a reply. Those require supported provider capabilities and additional webhook/state handling. Do not configure repeat messages without appropriate recipient consent and a clear stop/pause process.
 

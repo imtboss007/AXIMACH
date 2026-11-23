@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { request as httpRequest } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { once } from "node:events";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -9,6 +10,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const serverEntry = fileURLToPath(new URL("./index.mjs", import.meta.url));
+const { hashPassword } = await import("./auth.mjs");
 const apiKey = "aximach-integration-test-key-0123456789abcdef";
 
 async function freePort() {
@@ -23,16 +25,10 @@ async function freePort() {
   return address.port;
 }
 
-function startServer(port, dataFile) {
+function startServer(port, dataFile, extraEnv = {}) {
   return spawn(process.execPath, [serverEntry], {
     cwd: process.cwd(),
-    env: {
-      ...process.env,
-      PORT: String(port),
-      AXIMACH_API_KEY: apiKey,
-      AXIMACH_DATA_FILE: dataFile,
-      AXIMACH_ALLOWED_ORIGINS: "http://localhost"
-    },
+    env: { ...process.env, PORT: String(port), AXIMACH_API_KEY: apiKey, AXIMACH_AUTH_USERS: "", AXIMACH_DATA_FILE: dataFile, AXIMACH_ALLOWED_ORIGINS: "http://localhost", ...extraEnv },
     stdio: "ignore"
   });
 }
@@ -47,6 +43,21 @@ async function waitForHealth(child, baseUrl) {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   throw new Error("AXIMACH server did not become healthy within 8 seconds.");
+}
+
+function beginDelayedJsonRequest(baseUrl, path, headers, firstChunk) {
+  const target = new URL(baseUrl);
+  const request = httpRequest({ hostname: target.hostname, port: target.port, path, method: "PUT", headers: { ...headers, "transfer-encoding": "chunked" } });
+  const responsePromise = new Promise((resolve, reject) => {
+    request.once("error", reject);
+    request.once("response", response => {
+      const chunks = [];
+      response.on("data", chunk => chunks.push(chunk));
+      response.on("end", () => resolve({ status: response.statusCode, body: Buffer.concat(chunks).toString("utf8") }));
+    });
+  });
+  request.write(firstChunk);
+  return { finish: finalChunk => request.end(finalChunk), response: responsePromise };
 }
 
 async function stopServer(child) {
@@ -209,5 +220,379 @@ test("HTTP server persists and merges follow-up assignments across device update
   } finally {
     await stopServer(child);
     await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("authenticated backup and restore verifies integrity and preserves a pre-restore snapshot", { timeout: 20000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-backup-restore-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  const headers = { "content-type": "application/json", "x-aximach-key": apiKey };
+  let child;
+
+  try {
+    child = startServer(port, dataFile);
+    await waitForHealth(child, baseUrl);
+
+    const unauthorizedBackup = await fetch(baseUrl + "/api/backup");
+    assert.equal(unauthorizedBackup.status, 401, "backup export must require the API key");
+
+    const seed = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({ data: {
+        companies: [{ id: "backup-company-1", name: "Original Company", updatedAt: "2026-11-20T01:00:00.000Z" }]
+      } })
+    });
+    assert.equal(seed.status, 200);
+
+    const backupResponse = await fetch(baseUrl + "/api/backup", { headers });
+    assert.equal(backupResponse.status, 200);
+    const backup = await backupResponse.json();
+    assert.equal(backup.format, "aximach-backup");
+    assert.equal(backup.version, 1);
+    assert.equal(
+      backup.sha256,
+      (await import("node:crypto")).createHash("sha256").update(JSON.stringify(backup.data)).digest("hex")
+    );
+
+    const missingConfirmation = await fetch(baseUrl + "/api/restore", {
+      method: "POST", headers, body: JSON.stringify({ backup })
+    });
+    assert.equal(missingConfirmation.status, 400);
+
+    const tamperedBackup = { ...backup, data: { ...backup.data, contacts: [{ id: "tampered" }] } };
+    const rejectedTamper = await fetch(baseUrl + "/api/restore", {
+      method: "POST", headers,
+      body: JSON.stringify({ backup: tamperedBackup, confirmation: "RESTORE_AXIMACH_BACKUP" })
+    });
+    assert.equal(rejectedTamper.status, 400);
+    assert.match((await rejectedTamper.json()).error, /integrity check failed/i);
+
+    const changed = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({ data: {
+        companies: [{ id: "backup-company-1", name: "Changed Company", updatedAt: "2026-11-20T02:00:00.000Z" }]
+      } })
+    });
+    assert.equal(changed.status, 200);
+
+    const restored = await fetch(baseUrl + "/api/restore", {
+      method: "POST", headers,
+      body: JSON.stringify({ backup, confirmation: "RESTORE_AXIMACH_BACKUP" })
+    });
+    assert.equal(restored.status, 200);
+    const restoreResult = await restored.json();
+    assert.ok(restoreResult.preRestoreBackup.startsWith("aximach.json.pre-restore-"));
+
+    const current = await fetch(baseUrl + "/api/manufacturing-data", { headers });
+    const currentBody = await current.json();
+    const currentData = currentBody.data;
+    assert.equal(currentData.companies.find(row => row.id === "backup-company-1").name, "Original Company");
+    assert.equal(restoreResult.restoreGeneration, 1, "restore must advance the server generation");
+    assert.equal(currentBody.restoreGeneration, 1);
+    const staleManufacturingWrite = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({ data: { companies: [{ id: "stale", name: "Stale client write" }] } })
+    });
+    assert.equal(staleManufacturingWrite.status, 409, "pre-restore clients without a generation must be blocked");
+    const staleRecordsWrite = await fetch(baseUrl + "/api/records", {
+      method: "PUT", headers, body: JSON.stringify({ records: { companies: [{ id: "stale", title: "Stale record" }] } })
+    });
+    assert.equal(staleRecordsWrite.status, 409, "pre-restore module-record clients must be blocked");
+    const currentGenerationWrite = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers, body: JSON.stringify({ restoreGeneration: 1, data: { companies: [{ id: "backup-company-1", name: "Post-restore update", updatedAt: "2026-11-20T03:00:00.000Z" }] } })
+    });
+    assert.equal(currentGenerationWrite.status, 200, "current-generation clients must continue syncing");
+    const moduleState = await fetch(baseUrl + "/api/records", { headers });
+    assert.equal((await moduleState.json()).restoreGeneration, 1);
+    const currentGenerationRecordsWrite = await fetch(baseUrl + "/api/records", {
+      method: "PUT", headers, body: JSON.stringify({ restoreGeneration: 1, records: { companies: [{ id: "restored-record", title: "Current-generation record", updatedAt: "2026-11-20T03:10:00.000Z" }] } })
+    });
+    assert.equal(currentGenerationRecordsWrite.status, 200, "current-generation module-record clients must continue syncing");
+
+    const files = await (await import("node:fs/promises")).readdir(folder);
+    assert.ok(files.includes(restoreResult.preRestoreBackup), "restore must preserve the pre-restore database snapshot");
+    const preRestore = JSON.parse(await readFile(join(folder, restoreResult.preRestoreBackup), "utf8"));
+    assert.equal(preRestore.manufacturingData.companies.find(row => row.id === "backup-company-1").name, "Changed Company");
+
+    const persistedAfterRestore = JSON.parse(await readFile(dataFile, "utf8"));
+    assert.equal(persistedAfterRestore.manufacturingData.companies.find(row => row.id === "backup-company-1").name, "Post-restore update", "writes completed after restore must persist on the restored generation");
+  } finally {
+    await stopServer(child);
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("a write whose body finishes after restore is rejected by the captured generation", { timeout: 20000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-restore-race-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  const headers = { "content-type": "application/json", "x-aximach-key": apiKey };
+  let child;
+
+  try {
+    child = startServer(port, dataFile);
+    await waitForHealth(child, baseUrl);
+    const backupResponse = await fetch(baseUrl + "/api/backup", { headers });
+    assert.equal(backupResponse.status, 200);
+    const backup = await backupResponse.json();
+
+    const delayed = beginDelayedJsonRequest(baseUrl, "/api/ui-preferences", headers, '{"preferences":');
+    await new Promise(resolve => setTimeout(resolve, 75));
+
+    const restored = await fetch(baseUrl + "/api/restore", {
+      method: "POST", headers,
+      body: JSON.stringify({ backup, confirmation: "RESTORE_AXIMACH_BACKUP" })
+    });
+    assert.equal(restored.status, 200);
+    const restoreResult = await restored.json();
+    assert.equal(restoreResult.restoreGeneration, 1);
+
+    delayed.finish('{"theme":"stale-after-restore","updatedAt":"2026-11-20T02:30:00.000Z"}}');
+    const delayedResult = await delayed.response;
+    assert.equal(delayedResult.status, 409, "pre-restore writes that finish after the restore must not mutate the recovered database");
+    const preferences = await fetch(baseUrl + "/api/ui-preferences", { headers });
+    assert.equal((await preferences.json()).preferences, null);
+  } finally {
+    await stopServer(child);
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+
+test("server user authentication issues expiring bearer sessions and enforces role permissions", { timeout: 30000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-user-auth-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  const users = [
+    { id: "auth-admin", username: "admin", passwordHash: await hashPassword("AXIMACH-admin-Password-2026!"), role: "admin", active: true },
+    { id: "auth-operator", username: "operator", passwordHash: await hashPassword("AXIMACH-operator-Password-2026!"), role: "operator", companyIds: ["auth-company"], active: true },
+    { id: "auth-viewer", username: "viewer", passwordHash: await hashPassword("AXIMACH-viewer-Password-2026!"), role: "viewer", companyIds: ["auth-company"], active: true }
+  ];
+  let child;
+  try {
+    child = startServer(port, dataFile, { AXIMACH_AUTH_USERS: JSON.stringify(users), AXIMACH_SESSION_TTL_MS: String(30 * 60 * 1000) });
+    const health = await (await waitForHealth(child, baseUrl)).json();
+    assert.equal(health.authMode, "users");
+    const sharedKeyBypass = await fetch(baseUrl + "/api/manufacturing-data", { headers: { "x-aximach-key": apiKey } });
+    assert.equal(sharedKeyBypass.status, 401, "legacy shared key must not bypass user mode");
+    assert.equal((await fetch(baseUrl + "/api/auth/session")).status, 401);
+
+    const badLogin = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "operator", password: "incorrect-password" }) });
+    assert.equal(badLogin.status, 401);
+    const login = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "operator", password: "AXIMACH-operator-Password-2026!" }) });
+    assert.equal(login.status, 200);
+    const operatorSession = await login.json();
+    assert.match(operatorSession.token, /^[A-Za-z0-9_-]{40,60}$/);
+    assert.equal(operatorSession.user.role, "operator");
+    const operatorHeaders = { authorization: "Bearer " + operatorSession.token, "content-type": "application/json" };
+    const whoAmI = await fetch(baseUrl + "/api/auth/session", { headers: operatorHeaders });
+    assert.equal(whoAmI.status, 200);
+    assert.equal((await whoAmI.json()).user.username, "operator");
+    assert.equal((await fetch(baseUrl + "/api/manufacturing-data", { headers: operatorHeaders })).status, 200);
+    const operatorWrite = await fetch(baseUrl + "/api/manufacturing-data", { method: "PUT", headers: operatorHeaders, body: JSON.stringify({ data: { components: [{ id: "auth-component", companyId: "auth-company", name: "Operator component", updatedAt: "2026-11-20T04:00:00.000Z" }] } }) });
+    assert.equal(operatorWrite.status, 200);
+    assert.equal((await fetch(baseUrl + "/api/backup", { headers: operatorHeaders })).status, 403);
+    assert.equal((await fetch(baseUrl + "/api/not-yet-classified", { headers: operatorHeaders })).status, 403, "unclassified routes must fail closed for non-admin users");
+
+    const viewerLogin = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "viewer", password: "AXIMACH-viewer-Password-2026!" }) });
+    assert.equal(viewerLogin.status, 200);
+    const viewer = await viewerLogin.json();
+    const viewerHeaders = { authorization: "Bearer " + viewer.token, "content-type": "application/json" };
+    assert.equal((await fetch(baseUrl + "/api/records", { headers: viewerHeaders })).status, 403, "generic legacy module records remain admin-only until tenant ownership is modeled");
+    const blockedWrite = await fetch(baseUrl + "/api/records", { method: "PUT", headers: viewerHeaders, body: JSON.stringify({ records: { companies: [{ id: "viewer-write" }] } }) });
+    assert.equal(blockedWrite.status, 403);
+
+    const adminLogin = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: "AXIMACH-admin-Password-2026!" }) });
+    assert.equal(adminLogin.status, 200);
+    const admin = await adminLogin.json(), adminHeaders = { authorization: "Bearer " + admin.token };
+    assert.equal((await fetch(baseUrl + "/api/backup", { headers: adminHeaders })).status, 200);
+    const info = await (await fetch(baseUrl + "/api/connection-info")).json();
+    assert.equal(info.authMode, "users");
+    assert.equal(Object.hasOwn(info, "apiKey"), false);
+
+    assert.equal((await fetch(baseUrl + "/api/auth/logout", { method: "POST", headers: adminHeaders })).status, 200);
+    assert.equal((await fetch(baseUrl + "/api/manufacturing-data", { headers: adminHeaders })).status, 401, "logout must revoke the bearer session immediately");
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const failed = await fetch(baseUrl + "/api/auth/login", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: "admin", password: "wrong-password" })
+      });
+      assert.equal(failed.status, attempt < 7 ? 401 : 429, "failed sign-in attempts should throttle only after the configured threshold");
+    }
+    const throttled = await fetch(baseUrl + "/api/auth/login", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: "admin", password: "AXIMACH-admin-Password-2026!" })
+    });
+    assert.equal(throttled.status, 429, "repeated failures must rate-limit subsequent sign-in attempts");
+  } finally {
+    await stopServer(child);
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("tenant-scoped user reads and writes only its assigned company and related manufacturing records", { timeout: 30000 }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), "aximach-tenant-scope-"));
+  const dataFile = join(folder, "aximach.json");
+  const port = await freePort();
+  const baseUrl = "http://127.0.0.1:" + port;
+  const users = [
+    { id: "tenant-admin", username: "admin", passwordHash: await hashPassword("AXIMACH-tenant-admin-Password!"), role: "admin" },
+    { id: "tenant-a-user", username: "companya", passwordHash: await hashPassword("AXIMACH-companya-Password!"), role: "operator", companyIds: ["company-a"] },
+    { id: "tenant-a-viewer", username: "viewera", passwordHash: await hashPassword("AXIMACH-viewera-Password!"), role: "viewer", companyIds: ["company-a"] },
+    { id: "tenant-a-factory-user", username: "factorya", passwordHash: await hashPassword("AXIMACH-factorya-Password!"), role: "operator", factoryIds: ["factory-a"] },
+    { id: "tenant-unassigned", username: "unassigned", passwordHash: await hashPassword("AXIMACH-unassigned-Password!"), role: "operator" }
+  ];
+  let child;
+  try {
+    child = startServer(port, dataFile, { AXIMACH_AUTH_USERS: JSON.stringify(users) });
+    await waitForHealth(child, baseUrl);
+    const login = async (username, password) => {
+      const response = await fetch(baseUrl + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username, password }) });
+      assert.equal(response.status, 200);
+      const session = await response.json();
+      return { authorization: "Bearer " + session.token, "content-type": "application/json" };
+    };
+    const adminHeaders = await login("admin","AXIMACH-tenant-admin-Password!");
+    const seed = await fetch(baseUrl + "/api/manufacturing-data", {
+      method: "PUT", headers: adminHeaders,
+      body: JSON.stringify({ data: {
+        companies: [
+          { id:"company-a", name:"Company A", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"company-b", name:"Company B", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        factories: [
+          { id:"factory-a", companyId:"company-a", name:"Factory A", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"factory-b", companyId:"company-b", name:"Factory B", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        components: [
+          { id:"component-a", companyId:"company-a", name:"Component A", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"component-b", companyId:"company-b", name:"Component B", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        materials: [
+          { id:"material-a", code:"MAT-A", name:"Material A", preferredVendorId:"vendor-a", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        componentParts: [
+          { id:"part-a", componentId:"component-a", materialId:"material-a", materialIds:["material-a"], vendorIds:["vendor-a","vendor-b"], updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        bomLines: [
+          { id:"bom-cross-part", componentId:"component-a", materialId:"material-a", partId:"part-b", quantityPerPart:1, updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        purchaseOrders: [
+          { id:"po-a", companyId:"company-a", factoryId:"factory-a", lines:[{id:"line-a",componentId:"component-a",quantity:10}], updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"po-b", companyId:"company-b", factoryId:"factory-b", lines:[{id:"line-b",componentId:"component-b",quantity:20}], updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        operations: [
+          { id:"operation-a", poId:"po-a", poLineId:"line-a", componentId:"component-a", vendorId:"vendor-a", processDefinitionId:"process-a", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"operation-a-cross-vendor", poId:"po-a", poLineId:"line-a", componentId:"component-a", vendorId:"vendor-b", processDefinitionId:"process-a", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"operation-b", poId:"po-b", poLineId:"line-b", componentId:"component-b", vendorId:"vendor-b", processDefinitionId:"process-b", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        vendors: [
+          { id:"vendor-a", company:"A subcontractor", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"vendor-b", company:"B subcontractor", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        processDefinitions: [
+          { id:"process-a", processType:"Machining", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"process-b", processType:"Grinding", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        quotations: [
+          { id:"cross-tenant-quote-hidden", poId:"po-a", poLineId:"line-a", componentId:"component-a", operationId:"operation-b", vendorId:"vendor-b", ratePerPart:999, updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        transportLegs: [
+          { id:"cross-tenant-leg-hidden", poId:"po-a", poLineId:"line-a", componentId:"component-a", anchorOperationId:"operation-b", targetOperationId:"operation-a", routeId:"route-b", vendorId:"vendor-b", tripCount:1, updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        paymentTransactions: [
+          { id:"cross-tenant-payment-hidden", poId:"po-a", poLineId:"line-a", componentId:"component-a", operationId:"operation-b", vendorId:"vendor-b", amount:999999, updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        inspectionMeasurements: [
+          { id:"cross-tenant-inspection-hidden", poId:"po-a", poLineId:"line-a", componentId:"component-a", operationId:"operation-b", characteristic:"Secret", measuredValue:999, result:"Fail", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        plannedCosts: [
+          { id:"cross-tenant-plan-hidden", companyId:"company-a", poId:"po-b", componentId:"component-b", processDefinitionId:"process-b", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        materialCostEntries: [
+          { id:"cross-tenant-material-hidden", companyId:"company-a", poId:"po-b", componentId:"component-b", materialId:"material-b", updatedAt:"2026-11-20T05:00:00.000Z" },
+          { id:"cross-tenant-anchor-cost-hidden", companyId:"company-a", poId:"po-a", poLineId:"line-a", componentId:"component-a", anchorOperationId:"operation-b", materialId:"material-a", vendorId:"vendor-b", updatedAt:"2026-11-20T05:00:00.000Z" }
+        ],
+        inventoryTransactions: [
+          { id:"cross-tenant-stock-hidden", companyId:"company-a", factoryId:"factory-b", itemType:"component", itemId:"component-b", transactionType:"Receipt", direction:"in", quantity:1, updatedAt:"2026-11-20T05:00:00.000Z" }
+        ]
+      } })
+    });
+    assert.equal(seed.status,200);
+
+    const companyHeaders = await login("companya","AXIMACH-companya-Password!");
+    const response = await fetch(baseUrl + "/api/manufacturing-data", { headers: companyHeaders });
+    assert.equal(response.status,200);
+    const scoped = (await response.json()).data;
+    assert.deepEqual(scoped.companies.map(row=>row.id),["company-a"]);
+    assert.deepEqual(scoped.factories.map(row=>row.id),["factory-a"]);
+    assert.deepEqual(scoped.purchaseOrders.map(row=>row.id),["po-a"]);
+    assert.deepEqual(scoped.components.map(row=>row.id),["component-a"]);
+    assert.deepEqual(scoped.operations.map(row=>row.id),["operation-a"]);
+    assert.equal(scoped.vendors.some(row=>row.id==="vendor-b"),false,"vendor referenced across companies is not exposed through a forged operation link");
+    assert.deepEqual(scoped.componentParts,[],"component parts referencing an out-of-scope vendor are excluded");
+    assert.deepEqual(scoped.bomLines,[],"BOM lines referencing an out-of-scope component part are excluded");
+    assert.equal(scoped.materials[0]?.preferredVendorId,"","foreign preferred-vendor identifiers are removed from material master records");
+    assert.deepEqual(scoped.vendors.map(row=>row.id),["vendor-a"]);
+    assert.deepEqual(scoped.processDefinitions.map(row=>row.id),["process-a"]);
+    assert.deepEqual(scoped.plannedCosts,[],"tenant scope excludes a company-tagged cost row linked to a foreign PO/component/process");
+    assert.deepEqual(scoped.materialCostEntries,[],"tenant scope excludes material costing linked to a foreign PO/component");
+    assert.deepEqual(scoped.inventoryTransactions,[],"tenant scope excludes stock records for another factory");
+    assert.deepEqual(scoped.quotations,[],"quotes linked to a foreign operation are not exposed even when PO identifiers are forged");
+    assert.deepEqual(scoped.transportLegs,[],"transport legs with foreign anchor/target operations are not exposed");
+    assert.deepEqual(scoped.paymentTransactions,[],"payments with foreign operation references are not exposed");
+    assert.deepEqual(scoped.inspectionMeasurements,[],"inspections with foreign operation references are not exposed");
+
+    const foreignWrite = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:companyHeaders,
+      body:JSON.stringify({data:{purchaseOrders:[{id:"po-b",companyId:"company-b",factoryId:"factory-b",lines:[{id:"line-b",componentId:"component-b",quantity:999}]}]}})
+    });
+    assert.equal(foreignWrite.status,403,"cross-company PO update must be blocked");
+
+    const foreignVendorLink = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:companyHeaders,
+      body:JSON.stringify({data:{operations:[{id:"operation-a",poId:"po-a",poLineId:"line-a",componentId:"component-a",vendorId:"vendor-b",processDefinitionId:"process-a"}]}})
+    });
+    assert.equal(foreignVendorLink.status,403,"a scoped operation cannot be linked to a vendor visible only through another company's PO");
+
+    const foreignComponentPo = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:companyHeaders,
+      body:JSON.stringify({data:{purchaseOrders:[{id:"new-cross-tenant-po",companyId:"company-a",factoryId:"factory-a",lines:[{id:"cross-tenant-line",componentId:"component-b",quantity:5}]}]}})
+    });
+    assert.equal(foreignComponentPo.status,403,"an assigned-company PO cannot reference another company's component");
+
+    const crossTenantPlan = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:companyHeaders,
+      body:JSON.stringify({data:{plannedCosts:[{id:"cross-tenant-cost",companyId:"company-a",poId:"po-b",componentId:"component-b",plannedQty:1,plannedRate:1}]}})
+    });
+    assert.equal(crossTenantPlan.status,403,"a company-owned cost row cannot reference a foreign PO or component");
+
+    const factoryHeaders = await login("factorya","AXIMACH-factorya-Password!");
+    const factoryRead = await fetch(baseUrl + "/api/manufacturing-data", {headers:factoryHeaders});
+    assert.equal(factoryRead.status,200);
+    assert.deepEqual((await factoryRead.json()).data.purchaseOrders.map(row=>row.id),["po-a"],"factory-only assignment resolves only its parent company and factory's POs");
+
+    const validWrite = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:companyHeaders,
+      body:JSON.stringify({data:{components:[{id:"component-a",companyId:"company-a",name:"Component A updated",updatedAt:"2026-11-20T06:00:00.000Z"}]}})
+    });
+    assert.equal(validWrite.status,200,"assigned-company component edits remain available");
+
+    const viewerHeaders = await login("viewera","AXIMACH-viewera-Password!");
+    const viewerWrite = await fetch(baseUrl + "/api/manufacturing-data", {
+      method:"PUT", headers:viewerHeaders,
+      body:JSON.stringify({data:{components:[{id:"component-a",companyId:"company-a",name:"Viewer overwrite"}]}})
+    });
+    assert.equal(viewerWrite.status,403,"read-only role cannot write scoped company records");
+
+    const unassignedHeaders = await login("unassigned","AXIMACH-unassigned-Password!");
+    const unassignedRead = await fetch(baseUrl + "/api/manufacturing-data", {headers:unassignedHeaders});
+    assert.equal(unassignedRead.status,403,"unassigned users cannot access manufacturing records");
+    const genericRecords = await fetch(baseUrl + "/api/records", {headers:companyHeaders});
+    assert.equal(genericRecords.status,403,"generic legacy module records remain admin-only until ownership is modeled");
+  } finally {
+    await stopServer(child);
+    await rm(folder,{recursive:true,force:true});
   }
 });

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ProcessIcon } from "./IconStudio";
+import { clearServerSession, getServerAuthHeaders, getServerAuthMode, hasServerCredentials, readServerSession, saveServerSession, setServerAuthMode, type ServerSession } from "./serverAuth";
 import FollowUpAssignmentsLauncher from "./FollowUpAssignments";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import SearchablePicker from "./SearchablePicker";
@@ -36,7 +37,7 @@ const RouteFlowWorkspace = lazy(() => import("./RouteFlowWorkspace"));
 const ManufacturingUniverseWorkspace = lazy(() => import("./ManufacturingUniverseWorkspace"));
 const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
 const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
-import { activeRows, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
+import { activeRows, emptyManufacturingData, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 import { AXIMACH_DEMO_ID_PREFIX, archiveAxMachTwoCompanyDemo, createAxMachTwoCompanyDemo } from "./aximachDemoData";
 
 function isAllowedAxMachServiceUrl(value: string) {
@@ -89,7 +90,7 @@ const modules: ModuleItem[] = [
 
 const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) => item.group)))];
 
-function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNotice:(value:string)=>void;notice:string}) {
+function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string,context?:LinkedNavigationContext)=>void}) {
   const [mode,setMode] = useState<"export"|"import">("export");
   const { data, update, syncStatus } = useManufacturingData();
   const [demoBusy,setDemoBusy] = useState(false);
@@ -158,13 +159,13 @@ function DataExchangeWorkspace({onBack,onNotice,notice}: {onBack:()=>void;onNoti
         <button type="button" role="tab" aria-selected={mode==="import"} className={(mode==="import"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("import")}><FileUp size={14}/> Import and validate</button>
       </div>
       {mode==="export"
-        ? <ExportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={()=>{}} />
-        : <ImportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={()=>{}} />}
+        ? <ExportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={onSelectModule} />
+        : <ImportCentreWorkspace onBack={onBack} onNotice={onNotice} notice={notice} onSelectModule={onSelectModule} />}
     </section>
   );
 }
 
-type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
+type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; materialId?: string; routeId?: string; subtab?: string; searchText?: string };
 
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
@@ -244,6 +245,27 @@ function App() {
   const globalContactProfiles = activeRows(globalManufacturingData.contactProfiles || []);
   const normalizedGlobalQuery = query.toLowerCase().trim();
   const globalRecordResults = normalizedGlobalQuery ? Object.entries(globalRecords).flatMap(([moduleId, records]) => records.filter((record) => !record.deletedAt && (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(normalizedGlobalQuery)).map((record) => ({ ...record, moduleId }))).slice(0, 8) : [];
+  const globalManufacturingResults: Array<{id:string;title:string;subtitle:string;moduleId:string;context:LinkedNavigationContext;icon:LucideIcon}> = normalizedGlobalQuery ? [
+    ...globalManufacturingData.companies.filter(row=>!row.deletedAt&&[row.name,row.gstin,row.contactPerson,row.phone,row.email,row.address].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.name,subtitle:"Company Directory · "+(row.gstin||row.phone||"Company master"),moduleId:"companies",context:{companyId:row.id},icon:Factory})),
+    ...globalManufacturingData.components.filter(row=>!row.deletedAt&&[row.partNumber,row.name,row.revision,row.drawingReference,globalManufacturingData.companies.find(company=>company.id===row.companyId)?.name].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.partNumber+" · "+row.name,subtitle:"Component Directory · "+(row.revision||"No revision"),moduleId:"components",context:{companyId:row.companyId,componentId:row.id},icon:Box})),
+    ...globalManufacturingData.purchaseOrders.filter(row=>!row.deletedAt&&[row.number,row.status,row.issueDate,row.targetDelivery,row.notes,globalManufacturingData.companies.find(company=>company.id===row.companyId)?.name,...row.lines.flatMap(line=>{const component=globalManufacturingData.components.find(item=>item.id===line.componentId);return [component?.partNumber,component?.name,line.targetDelivery,line.quantity];})].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.number,subtitle:"Purchase Orders · "+(globalManufacturingData.companies.find(company=>company.id===row.companyId)?.name||"Company")+", "+row.lines.filter(line=>!line.deletedAt).length+" component line(s)",moduleId:"purchasing",context:{companyId:row.companyId,poId:row.id},icon:Package})),
+    ...globalManufacturingData.operations.filter(row=>!row.deletedAt&&[row.name,row.category,row.machine,row.status,row.branch,row.notes,row.qualityNotes,globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.number,globalManufacturingData.components.find(component=>component.id===row.componentId)?.partNumber,globalManufacturingData.components.find(component=>component.id===row.componentId)?.name].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.name,subtitle:"Process Plan · "+(globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.number||"PO")+", OP-"+row.sequence,moduleId:"process-map",context:{companyId:globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.id,vendorId:row.vendorId},icon:Activity})),
+    ...globalManufacturingData.materials.filter(row=>!row.deletedAt&&[row.code,row.name,row.grade,row.materialType,row.shapeType,row.specification,row.notes].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.code+" · "+row.name,subtitle:"Material Directory · "+(row.grade||"Grade not set"),moduleId:"inventory",context:{materialId:row.id,subtab:"materials"},icon:Boxes})),
+    ...globalManufacturingData.bomLines.filter(row=>!row.deletedAt&&[row.revision,row.notes,globalManufacturingData.components.find(component=>component.id===row.componentId)?.partNumber,globalManufacturingData.materials.find(material=>material.id===row.materialId)?.code,globalManufacturingData.materials.find(material=>material.id===row.materialId)?.name].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:(globalManufacturingData.materials.find(material=>material.id===row.materialId)?.code||"BOM")+" · "+(globalManufacturingData.materials.find(material=>material.id===row.materialId)?.name||"Material"),subtitle:"Material Directory · BOM for "+(globalManufacturingData.components.find(component=>component.id===row.componentId)?.partNumber||"Component"),moduleId:"inventory",context:{componentId:row.componentId,subtab:"bom"},icon:Boxes})),
+    ...globalManufacturingData.processDefinitions.filter(row=>!row.deletedAt&&[row.processType,row.category,...row.subcategories,row.notes].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.processType,subtitle:"Process Directory · "+row.category,moduleId:"process-master",context:{searchText:row.processType},icon:Layers3})),
+    ...globalManufacturingData.quotations.filter(row=>!row.deletedAt&&[row.quoteReference,row.status,row.notes,globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.number,globalManufacturingData.components.find(component=>component.id===row.componentId)?.partNumber,globalManufacturingData.vendors.find(vendor=>vendor.id===row.vendorId)?.company].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.quoteReference||"Supplier quotation",subtitle:"Costing & Payment · "+row.status,moduleId:"costing",context:{poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.operationId,vendorId:row.vendorId},icon:CircleDollarSign})),
+    ...globalManufacturingData.plannedCosts.filter(row=>!row.deletedAt&&[row.componentNumber,row.componentName,row.processType,row.processCategory,row.processSubcategory,row.poNumber,row.companyName,row.notes].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.componentNumber+" · "+row.processType,subtitle:"Component Planned Cost · "+row.componentName,moduleId:"planned-cost",context:{companyId:row.companyId,poId:row.poId,componentId:row.componentId},icon:CircleDollarSign})),
+    ...globalManufacturingData.transportRoutes.filter(row=>!row.deletedAt&&[row.fromLocation,row.toLocation,row.vehicleType,row.tripDirection,row.notes,globalManufacturingData.vendors.find(vendor=>vendor.id===row.vendorId)?.company].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.fromLocation+" → "+row.toLocation,subtitle:"Transport Directory · "+row.vehicleType,moduleId:"transport-master",context:{vendorId:row.vendorId,routeId:row.id},icon:Truck})),
+    ...globalManufacturingData.transportLegs.filter(row=>!row.deletedAt&&[row.fromLocation,row.toLocation,row.vehicleType,row.notes,row.status,globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.number,globalManufacturingData.vendors.find(vendor=>vendor.id===row.vendorId)?.company].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.fromLocation+" → "+row.toLocation,subtitle:"Transport & Dispatch · "+(globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.number||"PO")+" · "+(row.status||"Queued"),moduleId:"dispatch",context:{companyId:globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,vendorId:row.vendorId},icon:Truck})),
+    ...globalManufacturingData.paymentTransactions.filter(row=>!row.deletedAt&&[row.reference,row.notes,row.amount,row.paidAt,globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.number,globalManufacturingData.components.find(component=>component.id===row.componentId)?.partNumber,globalManufacturingData.vendors.find(vendor=>vendor.id===row.vendorId)?.company].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.reference||"Payment "+row.id,subtitle:"Costing & Payment · ₹"+Number(row.amount||0).toLocaleString("en-IN"),moduleId:"costing",context:{poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.operationId,vendorId:row.vendorId},icon:CircleDollarSign})),
+    ...globalManufacturingData.inspectionMeasurements.filter(row=>!row.deletedAt&&[row.characteristic,row.result,row.unit,row.notes,row.measuredValue,row.inspectedAt,globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.number,globalManufacturingData.components.find(component=>component.id===row.componentId)?.partNumber].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.characteristic,subtitle:"Quality Inspection · "+row.result+" · "+row.measuredValue+" "+row.unit,moduleId:"quality",context:{poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.operationId},icon:ClipboardCheck})),
+    ...globalManufacturingData.materialProcessLinks.filter(row=>!row.deletedAt&&[row.flowType,row.placement,row.notes,globalManufacturingData.materials.find(material=>material.id===row.materialId)?.code,globalManufacturingData.materials.find(material=>material.id===row.materialId)?.name,globalManufacturingData.operations.find(operation=>operation.id===row.operationId)?.name,globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.number].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:(globalManufacturingData.materials.find(material=>material.id===row.materialId)?.code||"Material")+" · "+row.flowType,subtitle:"Material → Process · "+(globalManufacturingData.operations.find(operation=>operation.id===row.operationId)?.name||"Operation"),moduleId:"inventory",context:{poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.operationId,subtab:"process-links",searchText:row.id},icon:Boxes})),
+    ...globalManufacturingData.inventoryTransactions.filter(row=>!row.deletedAt&&[row.reference,row.notes,row.transactionType,row.direction,row.quantity,row.occurredAt,globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.number,globalManufacturingData.components.find(component=>component.id===row.itemId)?.partNumber,globalManufacturingData.materials.find(material=>material.id===row.itemId)?.code].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.reference||row.transactionType,subtitle:"Stock Ledger · "+row.quantity+" "+(row.itemType==="material"?"material":"component")+" units · "+row.occurredAt,moduleId:"inventory",context:{companyId:row.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.itemType==="component"?row.itemId:undefined,materialId:row.itemType==="material"?row.itemId:undefined,subtab:"stock",searchText:row.id},icon:Boxes})),
+    ...globalManufacturingData.contactProfiles.filter(row=>!row.deletedAt&&[row.name,row.role,row.group,row.phone,row.whatsapp,row.email,row.address,row.history,globalManufacturingData.companies.find(company=>company.id===row.linkedId)?.name,globalManufacturingData.vendors.find(vendor=>vendor.id===row.linkedId)?.company].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.name,subtitle:"Contact 360 · "+(row.linkedType==="company"?(globalManufacturingData.companies.find(company=>company.id===row.linkedId)?.name||"Company"):(globalManufacturingData.vendors.find(vendor=>vendor.id===row.linkedId)?.company||"Vendor")),moduleId:"contact360",context:{searchText:row.name},icon:Users})),
+    ...globalManufacturingData.componentParts.filter(row=>!row.deletedAt&&[row.partNumber,row.name,row.revision,row.drawingReference,row.notes,globalManufacturingData.components.find(component=>component.id===row.componentId)?.partNumber,globalManufacturingData.components.find(component=>component.id===row.componentId)?.name].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.partNumber+" · "+row.name,subtitle:"Component Directory · sub-part of "+(globalManufacturingData.components.find(component=>component.id===row.componentId)?.partNumber||"Component"),moduleId:"components",context:{companyId:row.companyId||globalManufacturingData.components.find(component=>component.id===row.componentId)?.companyId,componentId:row.componentId},icon:Box})),
+    ...globalManufacturingData.materialCostEntries.filter(row=>!row.deletedAt&&[row.partNumber,row.partName,row.materialName,row.materialGrade,row.materialRate,row.materialCost,row.cuttingType,row.cuttingBasis,row.poReference,row.notes,globalManufacturingData.materials.find(material=>material.id===row.materialId)?.code,globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.number].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.materialName+" · "+row.materialGrade,subtitle:"Material cost allocation · "+row.partNumber,moduleId:"inventory",context:{companyId:row.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,materialId:row.materialId,subtab:"materials",searchText:globalManufacturingData.materials.find(material=>material.id===row.materialId)?.code||row.materialName},icon:Boxes})),
+    ...globalManufacturingData.routeRelationships.filter(row=>!row.deletedAt&&[row.relationshipType,row.label,row.condition,row.notes,globalManufacturingData.operations.find(operation=>operation.id===row.fromOperationId)?.name,globalManufacturingData.operations.find(operation=>operation.id===row.toOperationId)?.name,globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.number,globalManufacturingData.components.find(component=>component.id===row.componentId)?.partNumber].join(" ").toLowerCase().includes(normalizedGlobalQuery)).map(row=>({id:row.id,title:row.label||row.relationshipType,subtitle:"Route Flow relationship · "+(globalManufacturingData.operations.find(operation=>operation.id===row.fromOperationId)?.name||"Operation")+" → "+(globalManufacturingData.operations.find(operation=>operation.id===row.toOperationId)?.name||"Operation"),moduleId:"route-flow",context:{companyId:globalManufacturingData.purchaseOrders.find(po=>po.id===row.poId)?.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.componentId},icon:GitBranch}))
+  ].slice(0, 24) : [];
   const globalVendorResults = normalizedGlobalQuery ? globalVendorContacts.filter((contact) => {
     const masterText = (contact.company + " " + contact.contact + " " + contact.role + " " + contact.phone + " " + contact.email + " " + contact.processes + " " + contact.notes).toLowerCase();
     const linkedText = globalContactProfiles.filter(profile => profile.linkedType === "vendor" && profile.linkedId === contact.id)
@@ -359,7 +381,7 @@ function App() {
         </div>}
         <Suspense fallback={<div className="workspace-loading-state" role="status"><span className="workspace-loading-spinner" /> Loading AXIMACH workspace…</div>}>
         {activeModuleId === "dashboard" ? (
-          <DashboardWorkspace onSelectModule={selectModule} onOpenCommandCentre={() => selectModule("command-centre")} onOpenModules={openModuleExplorer} />
+          <DashboardWorkspace onSelectModule={selectModule} onOpenCommandCentre={() => selectModule("command-centre")} onOpenModules={openModuleExplorer} moduleCount={modules.length} />
         ) : activeModuleId === "command-centre" ? (
           <CommandCentre
             activeModule={activeModule}
@@ -385,7 +407,7 @@ function App() {
         ) : activeModuleId === "costing" ? (
           <LinkedCostingWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-master" || activeModuleId === "planned-cost" ? (
-          <SpecializedDirectoryWorkspace moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} />
+          <SpecializedDirectoryWorkspace moduleId={activeModuleId} initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} />
         ) : activeModuleId === "transport-master" ? (
           <TransportDirectoryWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenContact360={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
         ) : activeModuleId === "reports" ? (
@@ -393,7 +415,7 @@ function App() {
         ) : activeModuleId === "ai-insights" ? (
           <AIInsightsWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "export" ? (
-          <DataExchangeWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
+          <DataExchangeWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "production" ? (
           <ProductionPlanWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "dispatch" ? (
@@ -401,7 +423,7 @@ function App() {
         ) : activeModuleId === "quality" ? (
           <QualityInspectionWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "contact360" ? (
-          <Contact360Workspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} initialVendorId={contactVendorSeed} onInitialVendorConsumed={()=>setContactVendorSeed("")} />
+          <Contact360Workspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} initialVendorId={moduleContext.vendorId||contactVendorSeed} initialSearch={moduleContext.searchText} onInitialVendorConsumed={()=>setContactVendorSeed("")} />
         ) : activeModuleId === "vendor-capability" ? (
           <VendorNetworkWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "vendors" ? (
@@ -464,7 +486,7 @@ function App() {
               })}
               {filteredModules.length === 0 && <div className="no-modules"><Search size={24} /><strong>No modules found</strong><span>Try another search or choose a different domain.</span><button onClick={() => { setQuery(""); setDomain("All domains"); }}>Clear filters</button></div>}
             </div>
-            <div className="universe-footer"><span><LayoutGrid size={14} /> {filteredModules.length} of 18 modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
+            <div className="universe-footer"><span><LayoutGrid size={14} /> {filteredModules.length} of {modules.length} modules</span><span>Tip: press <kbd>Ctrl/⌘ K</kbd> to search from anywhere</span></div>
           </section>
         </div>
       )}
@@ -473,7 +495,12 @@ function App() {
         <div className="overlay-shell command-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setCommandOpen(false); }}>
           <section className="command-palette" role="dialog" aria-modal="true" aria-label="Command search">
             <div className="palette-search"><Command size={19} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search modules, vendors, contacts, jobs, references…" /><button className="close-round compact" onClick={() => setCommandOpen(false)} aria-label="Close search"><X size={17} /></button></div>
-            {normalizedGlobalQuery && <><div className="palette-label">VENDOR NAMES & CONTACTS</div><div className="palette-results">{globalVendorResults.map((contact) => { const linked = globalContactProfiles.find(profile => profile.linkedType === "vendor" && profile.linkedId === contact.id && [profile.name, profile.role, profile.group, profile.phone, profile.whatsapp, profile.email, profile.address, profile.history].join(" ").toLowerCase().includes(normalizedGlobalQuery)); return <button key={contact.id} onClick={() => { setVendorSearchJump(contact.company + " " + contact.contact + (linked ? " " + linked.name + " " + (linked.group || "") : "")); selectModule("vendors"); }}><span className="palette-icon"><Users size={17}/></span><span><strong>{contact.company}</strong><small>{linked ? linked.name + " · " + (linked.group || linked.role || "Additional contact") : contact.contact + " · " + (contact.phone || contact.email || "Contact details not added")}</small></span><ArrowUpRight size={15}/></button>; })}{globalVendorResults.length === 0 && <div className="palette-empty">No vendor/contact matches.</div>}</div><div className="palette-label">SAVED RECORDS ACROSS MODULES</div><div className="palette-results">{globalRecordResults.map((record) => { const target = modules.find((item) => item.id === record.moduleId); const Icon = target?.icon ?? Box; return <button key={record.moduleId + ":" + record.id} onClick={() => selectModule(record.moduleId)}><span className="palette-icon"><Icon size={17}/></span><span><strong>{record.title}</strong><small>{target?.title || record.moduleId} · {record.reference || record.status}</small></span><ArrowUpRight size={15}/></button>; })}{globalRecordResults.length === 0 && <div className="palette-empty">No saved record matches yet.</div>}</div></>}
+            {normalizedGlobalQuery && <>
+              <div className="palette-label">MANUFACTURING RECORDS · LIVE MASTER DATA</div>
+              <div className="palette-results">{globalManufacturingResults.map((record) => { const Icon = record.icon; return <button key={record.moduleId+":"+record.id} onClick={() => selectModule(record.moduleId,record.context)}><span className="palette-icon"><Icon size={17}/></span><span><strong>{record.title}</strong><small>{record.subtitle}</small></span><ArrowUpRight size={15}/></button>; })}{globalManufacturingResults.length===0&&<div className="palette-empty">No manufacturing master or operational record matches.</div>}</div>
+              <div className="palette-label">VENDOR NAMES & CONTACTS</div><div className="palette-results">{globalVendorResults.map((contact) => { const linked = globalContactProfiles.find(profile => profile.linkedType === "vendor" && profile.linkedId === contact.id && [profile.name, profile.role, profile.group, profile.phone, profile.whatsapp, profile.email, profile.address, profile.history].join(" ").toLowerCase().includes(normalizedGlobalQuery)); return <button key={contact.id} onClick={() => { setVendorSearchJump(contact.company + " " + contact.contact + (linked ? " " + linked.name + " " + (linked.group || "") : "")); selectModule("vendors"); }}><span className="palette-icon"><Users size={17}/></span><span><strong>{contact.company}</strong><small>{linked ? linked.name + " · " + (linked.group || linked.role || "Additional contact") : contact.contact + " · " + (contact.phone || contact.email || "Contact details not added")}</small></span><ArrowUpRight size={15}/></button>; })}{globalVendorResults.length === 0 && <div className="palette-empty">No vendor/contact matches.</div>}</div>
+              <div className="palette-label">SAVED RECORDS ACROSS MODULES</div><div className="palette-results">{globalRecordResults.map((record) => { const target = modules.find((item) => item.id === record.moduleId); const Icon = target?.icon ?? Box; return <button key={record.moduleId + ":" + record.id} onClick={() => selectModule(record.moduleId)}><span className="palette-icon"><Icon size={17}/></span><span><strong>{record.title}</strong><small>{target?.title || record.moduleId} · {record.reference || record.status}</small></span><ArrowUpRight size={15}/></button>; })}{globalRecordResults.length === 0 && <div className="palette-empty">No saved record matches yet.</div>}</div>
+            </>}
             <div className="palette-label">MODULES & WORKSPACES</div>
             <div className="palette-results">
               {modules.filter((item) => (item.title + " " + item.group + " " + item.description).toLowerCase().includes(query.toLowerCase().trim())).slice(0, 10).map((item) => {
@@ -509,7 +536,7 @@ function CommandCentre(props: {
           <div className="eyebrow"><span className="eyebrow-mark" /> 3D COMMAND CENTRE / 02</div>
           <h1>One sphere.<br /><em>Every command.</em></h1>
           <p>An interactive manufacturing command surface. Rotate the sphere, open workspaces and control the connected operating flow.</p>
-          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all 18 modules</button></div>
+          <div className="hero-actions"><button className="button-primary" onClick={() => onSelectModule("process-map")}><Workflow size={17} /> Open process universe <ArrowRight size={15} /></button><button className="button-quiet" onClick={onOpenModules}><LayoutGrid size={16} /> Explore all {modules.length} modules</button></div>
         </div>
         <div className="hero-graphic axim-hero-graphic" aria-label="Interactive AXIMACH 3D operations sphere">
           <div className="graphic-grid" />
@@ -564,7 +591,7 @@ function CommandCentre(props: {
         </div>
       </section>
       <section className="module-shortcuts">
-        <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all 18 modules <ArrowRight size={15} /></button></div>
+        <div className="section-row-title"><div><div className="eyebrow"><span className="eyebrow-mark" /> QUICK ACCESS</div><h2>Jump into a domain<span>.</span></h2></div><button className="button-quiet" onClick={onOpenModules}>View all {modules.length} modules <ArrowRight size={15} /></button></div>
         <div className="shortcut-grid">
           {modules.filter((item) => ["process-map", "production", "vendors", "quality", "costing", "inventory"].includes(item.id)).map((item) => <ModuleShortcut key={item.id} module={item} onClick={() => onSelectModule(item.id)} />)}
         </div>
@@ -703,11 +730,15 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
   type ApiContact = { id: string; name: string; phone: string; company: string; optedIn: boolean; createdAt: string };
   type ApiSchedule = { id: string; to: string; message: string; nextRunAt: string | null; repeat: "once" | "daily" | "weekly"; enabled: boolean; lastRunAt: string | null; lastError: string; vendorId?: string; operationId?: string; process?: string; company?: string };
   type ApiLog = { id: string; scheduleId: string; at: string; status: string; detail: string; providerMessageId?: string };
-  const [storageMode,setStorageMode]=useState<"local-only"|"shared-server">(()=>window.localStorage.getItem("aximach.storage.mode")==="local-only"?"local-only":(window.localStorage.getItem("aximach.scheduler.url")&&window.localStorage.getItem("aximach.scheduler.key")?"shared-server":"local-only"));
+  const [storageMode,setStorageMode]=useState<"local-only"|"shared-server">(()=>window.localStorage.getItem("aximach.storage.mode")==="local-only"?"local-only":(window.localStorage.getItem("aximach.scheduler.url")&&hasServerCredentials(window.localStorage.getItem("aximach.scheduler.key")||"",window.localStorage.getItem("aximach.scheduler.url")||"")?"shared-server":"local-only"));
   const [apiUrl,setApiUrl]=useState(()=>window.localStorage.getItem("aximach.storage.mode")==="local-only"?"":window.localStorage.getItem("aximach.scheduler.url")||((window.location.protocol==="file:"||window.location.protocol==="aximach:")?"http://127.0.0.1:8787":""));
   const [apiKey,setApiKey]=useState(()=>window.localStorage.getItem("aximach.scheduler.key")||"");
+  const [authMode,setAuthMode]=useState<"api-key"|"users"|null>(()=>getServerAuthMode());
+  const [serverSession,setServerSessionState]=useState<ServerSession|null>(()=>readServerSession(window.localStorage.getItem("aximach.scheduler.url")||undefined));
+  const [username,setUsername]=useState(()=>readServerSession(window.localStorage.getItem("aximach.scheduler.url")||undefined)?.user.username||"");
+  const [password,setPassword]=useState("");
   const [connected,setConnected]=useState(false);
-  const [lanInfo,setLanInfo]=useState<{addresses:string[];apiKey:string;port:number}|null>(null);
+  const [lanInfo,setLanInfo]=useState<{addresses:string[];apiKey?:string;port:number;authMode?:"users"|"api-key"}|null>(null);
   useEffect(()=>{
     if(window.location.protocol!=="file:"&&window.location.protocol!=="aximach:")return;
     if(window.localStorage.getItem("aximach.storage.mode")==="local-only")return;
@@ -719,7 +750,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
         const response=await fetch("http://127.0.0.1:8787/api/connection-info",{cache:"no-store"});
         if(!response.ok)throw new Error("Local server unavailable");
         const info=await response.json();
-        if(!cancelled&&window.localStorage.getItem("aximach.storage.mode")!=="local-only"){setLanInfo(info);setApiKey(info.apiKey||"");setApiUrl("http://127.0.0.1:8787");setStorageMode("shared-server");}
+        if(!cancelled&&window.localStorage.getItem("aximach.storage.mode")!=="local-only"){setLanInfo(info);if(info.apiKey)setApiKey(info.apiKey);const mode=info.authMode==="users"?"users":"api-key";setAuthMode(mode);setServerAuthMode(mode);setApiUrl("http://127.0.0.1:8787");setStorageMode("shared-server");}
       }catch{
         attempts++;
         if(!cancelled&&attempts<12)timer=window.setTimeout(loadLanInfo,1000);
@@ -788,6 +819,17 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
   },[initialRecipient?.vendorId,initialRecipient?.operationId,contacts.length]);
 
   const waBase=waUrl.trim().replace(/\/+$/,"");
+  const isScopedUser = authMode==="users" && serverSession?.user.role!=="admin";
+  const clearUserLocalCache = () => {
+    updateManufacturingData(()=>emptyManufacturingData());
+    setAllModuleRecords({});
+    window.dispatchEvent(new Event("aximach-module-records-updated"));
+    window.localStorage.removeItem("aximach.manufacturing.user-scope");
+    window.localStorage.removeItem("aximach.module-records.user-scope");
+    setContacts([]);setSchedules([]);setLogs([]);
+    setWaContacts([]);setWaGroups([]);setWaSchedules([]);
+    setWaConnected(false);setWaQr("");setWaUser("");
+  };
   const waApiKey=apiKey;
   const waRequest=async(path:string,init:RequestInit={})=>{const response=await fetch(waBase+path,{...init,headers:{"content-type":"application/json","x-aximach-key":waApiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"WhatsApp bridge returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
   const verifiedWhatsAppPhone=(value:unknown)=>{
@@ -801,7 +843,7 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     for(const candidate of candidates){const number=verifiedWhatsAppPhone(candidate);if(number)return number;}
     return "";
   };
-  const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{
+  const syncWhatsAppContactsToVendors=(incoming:WhatsAppContact[])=>{if(isScopedUser)return {added:0,updated:0};
     if(!incoming.length)return {added:0,updated:0};
     const current=readManufacturingData();
     const next=[...current.vendors];
@@ -845,32 +887,112 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     if(added||updated)updateManufacturingData(currentData=>({...currentData,vendors:next}));
     return {added,updated};
   };
-  const refreshWhatsApp=async()=>{setBusy(true);setWaError("");try{if(!waApiKey.trim())throw new Error("AXIMACH shared API key is missing.");if(!isAllowedAxMachServiceUrl(waBase))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");const contactRows:WhatsAppContact[]=co.contacts||[];setWaContacts(contactRows);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);const synced=syncWhatsAppContactsToVendors(contactRows);window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; "+synced.added+" new contacts added to the AXIMACH vendor master and "+synced.updated+" existing records refreshed. They stay unverified until reviewed; cross-device persistence depends on the scheduler data server being connected.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
+  const refreshWhatsApp=async()=>{if(isScopedUser){clearUserLocalCache();setWaError("WhatsApp bridge access is restricted to AXIMACH administrators.");return;}setBusy(true);setWaError("");try{if(!waApiKey.trim())throw new Error("AXIMACH shared API key is missing.");if(!isAllowedAxMachServiceUrl(waBase))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(waBase+"/health");if(!h.ok)throw new Error("WhatsApp bridge health check failed.");const [st,co,gr,sc]=await Promise.all([waRequest("/api/whatsapp/status"),waRequest("/api/whatsapp/contacts"),waRequest("/api/whatsapp/groups"),waRequest("/api/whatsapp/schedules")]);setWaConnected(Boolean(st.connected));setWaQr(st.qrDataUrl||"");setWaUser(st.user||"");const contactRows:WhatsAppContact[]=co.contacts||[];setWaContacts(contactRows);setWaGroups(gr.groups||[]);setWaSchedules(sc.schedules||[]);const synced=syncWhatsAppContactsToVendors(contactRows);window.localStorage.setItem("aximach.whatsapp.url",waBase);window.localStorage.setItem("aximach.scheduler.key",apiKey);setApiError("");onNotice(st.connected?"WhatsApp linked-device bridge connected; "+synced.added+" new contacts added to the AXIMACH vendor master and "+synced.updated+" existing records refreshed. They stay unverified until reviewed; cross-device persistence depends on the scheduler data server being connected.":"Bridge reachable. Scan the QR code below from WhatsApp > Linked devices.");}catch(e){setWaConnected(false);setWaError(e instanceof Error?e.message:"Could not connect to WhatsApp bridge.");}finally{setBusy(false);}};
   const addWhatsAppSchedule=async()=>{setBusy(true);setWaError("");try{if(!waOptIn)throw new Error("Confirm you have permission to message this recipient.");const d=await waRequest("/api/whatsapp/schedules",{method:"POST",body:JSON.stringify({to:waTarget,message:waMessage,nextRunAt:new Date(waDue).toISOString(),repeat:waRepeat,optedIn:true,vendorId:initialRecipient?.vendorId||"",operationId:initialRecipient?.operationId||"",process:initialRecipient?.process||"",company:initialRecipient?.company||""})});setWaSchedules(prev=>[d.schedule,...prev]);setWaMessage("");onNotice("WhatsApp automation saved to the bridge server.");}catch(e){setWaError(e instanceof Error?e.message:"Could not save WhatsApp automation.");}finally{setBusy(false);}};
   const toggleWhatsAppSchedule=async(task:{id:string;enabled:boolean})=>{setBusy(true);setWaError("");try{const d=await waRequest("/api/whatsapp/schedules/"+task.id,{method:"PATCH",body:JSON.stringify({enabled:!task.enabled})});setWaSchedules(prev=>prev.map(x=>x.id===task.id?d.schedule:x));}catch(e){setWaError(e instanceof Error?e.message:"Could not update WhatsApp schedule.");}finally{setBusy(false);}};
   const visibleWaContacts=waContacts.filter(c=>(c.name+" "+c.notify+" "+whatsappContactPhone(c)).toLowerCase().includes(waSearch.toLowerCase().trim()));
   const visibleWaGroups=waGroups.filter(group=>(group.name+" "+group.id+" "+group.participants).toLowerCase().includes(waSearch.toLowerCase().trim()));
-  const importWhatsAppContactsToVendors=()=>{if(!waContacts.length){setWaError("No WhatsApp contacts are synced yet. Link WhatsApp and refresh contacts first.");return;}const result=syncWhatsAppContactsToVendors(waContacts);const withoutNumber=waContacts.filter(c=>!whatsappContactPhone(c)).length;onNotice("Contact 360 sync complete: "+result.added+" new contacts added, "+result.updated+" existing records refreshed. "+withoutNumber+" contacts did not have a phone number shared by WhatsApp and were not assigned a fabricated number.");};
-  useEffect(()=>{if((window.location.protocol==="file:"||window.location.protocol==="aximach:")){if(apiUrl)window.localStorage.setItem("aximach.scheduler.url",apiUrl);if(apiKey)window.localStorage.setItem("aximach.scheduler.key",apiKey);if(waUrl)window.localStorage.setItem("aximach.whatsapp.url",waUrl);const timer=window.setTimeout(()=>{void refreshWhatsApp();},1800);return()=>window.clearTimeout(timer);}if(window.localStorage.getItem("aximach.scheduler.key"))void refreshWhatsApp();},[]);
-  useEffect(()=>{const local=(window.location.protocol==="file:"||window.location.protocol==="aximach:");const pollBase=local?"http://127.0.0.1:8789":waBase;const pollKey=apiKey;if(!pollKey.trim())return;let cancelled=false;const poll=async()=>{try{const headers={"x-aximach-key":pollKey};const statusResponse=await fetch(pollBase+"/api/whatsapp/status",{headers});if(!statusResponse.ok)return;const status=await statusResponse.json();if(cancelled)return;setWaConnected(Boolean(status.connected));setWaQr(status.qrDataUrl||"");setWaUser(status.user||"");if(!status.connected)return;const [co,gr,sc]=await Promise.all([fetch(pollBase+"/api/whatsapp/contacts",{headers}),fetch(pollBase+"/api/whatsapp/groups",{headers}),fetch(pollBase+"/api/whatsapp/schedules",{headers})]);if(cancelled)return;if(co.ok){const rows:WhatsAppContact[]=(await co.json()).contacts||[];setWaContacts(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);syncWhatsAppContactsToVendors(rows);}if(gr.ok){const rows=(await gr.json()).groups||[];setWaGroups(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}if(sc.ok){const rows=(await sc.json()).schedules||[];setWaSchedules(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}}catch{/* bridge may be unavailable while starting */}};void poll();const timer=window.setInterval(()=>void poll(),3000);return()=>{cancelled=true;window.clearInterval(timer);};},[waBase,apiKey]);
+  const importWhatsAppContactsToVendors=()=>{if(isScopedUser){setWaError("WhatsApp contact import is administrator-only.");return;}if(!waContacts.length){setWaError("No WhatsApp contacts are synced yet. Link WhatsApp and refresh contacts first.");return;}const result=syncWhatsAppContactsToVendors(waContacts);const withoutNumber=waContacts.filter(c=>!whatsappContactPhone(c)).length;onNotice("Contact 360 sync complete: "+result.added+" new contacts added, "+result.updated+" existing records refreshed. "+withoutNumber+" contacts did not have a phone number shared by WhatsApp and were not assigned a fabricated number.");};
+  useEffect(()=>{if(isScopedUser){clearUserLocalCache();return;}if((window.location.protocol==="file:"||window.location.protocol==="aximach:")){if(apiUrl)window.localStorage.setItem("aximach.scheduler.url",apiUrl);if(apiKey)window.localStorage.setItem("aximach.scheduler.key",apiKey);if(waUrl)window.localStorage.setItem("aximach.whatsapp.url",waUrl);const timer=window.setTimeout(()=>{void refreshWhatsApp();},1800);return()=>window.clearTimeout(timer);}if(window.localStorage.getItem("aximach.scheduler.key"))void refreshWhatsApp();},[]);
+  useEffect(()=>{if(isScopedUser){clearUserLocalCache();return;}const local=(window.location.protocol==="file:"||window.location.protocol==="aximach:");const pollBase=local?"http://127.0.0.1:8789":waBase;const pollKey=apiKey;if(!pollKey.trim())return;let cancelled=false;const poll=async()=>{try{const headers={"x-aximach-key":pollKey};const statusResponse=await fetch(pollBase+"/api/whatsapp/status",{headers});if(!statusResponse.ok)return;const status=await statusResponse.json();if(cancelled)return;setWaConnected(Boolean(status.connected));setWaQr(status.qrDataUrl||"");setWaUser(status.user||"");if(!status.connected)return;const [co,gr,sc]=await Promise.all([fetch(pollBase+"/api/whatsapp/contacts",{headers}),fetch(pollBase+"/api/whatsapp/groups",{headers}),fetch(pollBase+"/api/whatsapp/schedules",{headers})]);if(cancelled)return;if(co.ok){const rows:WhatsAppContact[]=(await co.json()).contacts||[];setWaContacts(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);syncWhatsAppContactsToVendors(rows);}if(gr.ok){const rows=(await gr.json()).groups||[];setWaGroups(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}if(sc.ok){const rows=(await sc.json()).schedules||[];setWaSchedules(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows);}}catch{/* bridge may be unavailable while starting */}};void poll();const timer=window.setInterval(()=>void poll(),3000);return()=>{cancelled=true;window.clearInterval(timer);};},[waBase,apiKey,isScopedUser]);
 
   const base=apiUrl.trim().replace(/\/+$/,"");
   const visibleContacts=contacts.filter(c=>(c.name+" "+c.company+" "+c.phone).toLowerCase().includes(contactSearch.toLowerCase().trim()));
-  const request=async(path:string,init:RequestInit={})=>{const response=await fetch(base+path,{...init,headers:{"content-type":"application/json","x-aximach-key":apiKey,...(init.headers||{})}});const data=await response.json().catch(()=>({error:"The service returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
-  const connect=async()=>{setBusy(true);setApiError("");try{if(!isAllowedAxMachServiceUrl(base))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");const h=await fetch(base+"/health");if(!h.ok)throw new Error("AXIMACH shared-data server health check failed.");const [manufacturing,c,s]=await Promise.all([request("/api/manufacturing-data"),request("/api/contacts"),request("/api/schedules")]);setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);window.localStorage.setItem("aximach.scheduler.url",base);window.localStorage.setItem("aximach.scheduler.key",apiKey);window.localStorage.setItem("aximach.storage.mode","shared-server");setStorageMode("shared-server");if(base.startsWith("http://")){const bridge=new URL(base);bridge.port="8789";const bridgeUrl=bridge.toString().replace(/\/$/,"");setWaUrl(bridgeUrl);window.localStorage.setItem("aximach.whatsapp.url",bridgeUrl);}if(manufacturing.data&&typeof manufacturing.data==="object"){updateManufacturingData(currentData=>mergeManufacturingData(currentData,manufacturing.data));}else{updateManufacturingData(currentData=>({...currentData}));}const synced=readManufacturingData();setConnected(true);setApiError("");onNotice("AXIMACH PC shared data connected and manufacturing records fetched: "+activeRows(synced.companies).length+" companies, "+activeRows(synced.purchaseOrders).length+" POs, "+activeRows(synced.components).length+" components and "+activeRows(synced.operations).length+" process operations. Shared sync is now active on this device.");}catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}finally{setBusy(false);}};
+  const request=async(path:string,init:RequestInit={},tokenOverride?:string,forceUserMode=authMode==="users")=>{const response=await fetch(base+path,{...init,headers:{"content-type":"application/json",...getServerAuthHeaders(forceUserMode?"":apiKey,base,tokenOverride,forceUserMode),...(init.headers||{})}});const data=await response.json().catch(()=>({error:"The service returned an unreadable response."}));if(!response.ok)throw new Error(data.error||("HTTP "+response.status));return data;};
+  const connect=async()=>{
+    const hadSavedSharedConnection=Boolean(window.localStorage.getItem("aximach.scheduler.url")&&window.localStorage.getItem("aximach.storage.mode")!=="local-only");
+    setBusy(true);setApiError("");
+    try{
+      if(!isAllowedAxMachServiceUrl(base))throw new Error("Use HTTPS, localhost, or a private Wi-Fi address (10.x, 172.16–31.x, or 192.168.x). Public HTTP is blocked.");
+      const healthResponse=await fetch(base+"/health",{cache:"no-store"});
+      if(!healthResponse.ok)throw new Error("AXIMACH shared-data server health check failed.");
+      const health=await healthResponse.json().catch(()=>({}));
+      const userMode=health.authMode==="users";
+      let session=userMode?readServerSession(base):null;
+      let bearer="";
+      if(userMode){
+        setAuthMode("users");setServerAuthMode("users");
+        if(session){
+          const verified=await fetch(base+"/api/auth/session",{headers:{authorization:"Bearer "+session.token},cache:"no-store"});
+          if(verified.ok){
+            const identity=await verified.json();
+            session={...session,user:identity.user,expiresAt:identity.expiresAt};
+            saveServerSession(session,base);setServerSessionState(session);
+          }else{clearServerSession();setServerSessionState(null);session=null;}
+        }
+        if(!session){
+          clearUserLocalCache();
+          if(!username.trim()||!password)throw new Error("This server uses individual accounts. Enter your username and password, then connect again.");
+          const loginResponse=await fetch(base+"/api/auth/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({username:username.trim(),password})});
+          const loginData=await loginResponse.json().catch(()=>({}));
+          if(!loginResponse.ok)throw new Error(loginData.error||"User sign-in failed.");
+          session={token:loginData.token,expiresAt:loginData.expiresAt,user:loginData.user,serverUrl:base} as ServerSession;
+          saveServerSession(session,base);setServerSessionState(session);setPassword("");
+        }
+        bearer=session.token;
+      }else{
+        clearServerSession();setServerSessionState(null);setAuthMode("api-key");setServerAuthMode("api-key");
+        if(!apiKey.trim())throw new Error("This server uses legacy API-key authentication. Enter the server API key and connect again.");
+      }
+      const adminAccess=!userMode||session?.user.role==="admin";
+      const manufacturing=await request("/api/manufacturing-data",{},bearer,userMode);
+      let c:any={contacts:[]},s:any={schedules:[],logs:[]},records:any={records:{},restoreGeneration:0};
+      if(adminAccess)[c,s,records]=await Promise.all([request("/api/contacts",{},bearer,userMode),request("/api/schedules",{},bearer,userMode),request("/api/records",{},bearer,userMode)]);
+      setContacts(c.contacts||[]);setSchedules(s.schedules||[]);setLogs(s.logs||[]);
+      window.localStorage.setItem("aximach.scheduler.url",base);
+      if(!userMode&&apiKey)window.localStorage.setItem("aximach.scheduler.key",apiKey);
+      window.localStorage.setItem("aximach.storage.mode","shared-server");setStorageMode("shared-server");
+      if(base.startsWith("http://")){const bridge=new URL(base);bridge.port="8789";const bridgeUrl=bridge.toString().replace(/\/$/,"");setWaUrl(bridgeUrl);window.localStorage.setItem("aximach.whatsapp.url",bridgeUrl);}
+      const manufacturingGeneration=Number.isSafeInteger(manufacturing.restoreGeneration)?manufacturing.restoreGeneration:0;
+      const savedManufacturingGeneration=window.localStorage.getItem("aximach.manufacturing.restore-generation");
+      const replaceManufacturing=(userMode&&session?.user.role!=="admin")||(savedManufacturingGeneration!==null?Number(savedManufacturingGeneration)!==manufacturingGeneration:(hadSavedSharedConnection&&manufacturingGeneration>0));
+      window.localStorage.setItem("aximach.manufacturing.restore-generation",String(manufacturingGeneration));
+      if(manufacturing.data&&typeof manufacturing.data==="object"){
+        updateManufacturingData((userMode&&session?.user.role!=="admin")||replaceManufacturing?()=>manufacturing.data:currentData=>mergeManufacturingData(currentData,manufacturing.data));
+      }else if(replaceManufacturing){updateManufacturingData(()=>emptyManufacturingData());}
+      else{updateManufacturingData(currentData=>({...currentData}));}
+      if(adminAccess){
+        const recordsGeneration=Number.isSafeInteger(records.restoreGeneration)?records.restoreGeneration:0;
+        const savedRecordsGeneration=window.localStorage.getItem("aximach.module-records.restore-generation");
+        const replaceModuleRecords=savedRecordsGeneration!==null?Number(savedRecordsGeneration)!==recordsGeneration:(hadSavedSharedConnection&&recordsGeneration>0);
+        if(replaceModuleRecords)setAllModuleRecords((records.records||{}) as Record<string,ModuleRecord[]>);
+        window.localStorage.setItem("aximach.module-records.restore-generation",String(recordsGeneration));
+      }
+      window.dispatchEvent(new Event("aximach-server-session-updated"));
+      const synced=readManufacturingData();setConnected(true);setApiError("");
+      onNotice(userMode
+        ? session?.user.username+" signed in as "+session?.user.role+". Manufacturing records are limited to the assigned company/factory scope. Generic records, contacts, schedules and WhatsApp controls remain administrator-only."
+        : "AXIMACH PC shared data connected and manufacturing records fetched: "+activeRows(synced.companies).length+" companies, "+activeRows(synced.purchaseOrders).length+" POs, "+activeRows(synced.components).length+" components and "+activeRows(synced.operations).length+" process operations. Shared sync is now active on this device.");
+    }catch(e){setConnected(false);setApiError(e instanceof Error?e.message:"Connection failed.");}
+    finally{setBusy(false);}
+  };
   useEffect(()=>{
-    if(!apiKey.trim()||!isAllowedAxMachServiceUrl(apiUrl))return;
+    if(!isAllowedAxMachServiceUrl(apiUrl))return;
     let cancelled=false;
     const verify=async()=>{
       try{
-        const health=await fetch(apiUrl.trim().replace(/\/+$/,"")+"/health",{cache:"no-store"});
-        if(!health.ok)throw new Error("Server unavailable");
-        const response=await fetch(apiUrl.trim().replace(/\/+$/,"")+"/api/contacts",{headers:{"x-aximach-key":apiKey}});
-        if(!response.ok)throw new Error("Server authentication failed");
-        if(!cancelled)setConnected(true);
-      }catch{
-        if(!cancelled)setConnected(false);
-      }
+        const target=apiUrl.trim().replace(/\/+$/,"");
+        const healthResponse=await fetch(target+"/health",{cache:"no-store"});
+        if(!healthResponse.ok)throw new Error("Server unavailable");
+        const health=await healthResponse.json().catch(()=>({}));
+        if(health.authMode==="users"){
+          setAuthMode("users");setServerAuthMode("users");
+          const session=readServerSession(target);
+          if(!session){if(!cancelled){setServerSessionState(null);setConnected(false);clearUserLocalCache();}return;}
+          const response=await fetch(target+"/api/auth/session",{headers:{authorization:"Bearer "+session.token},cache:"no-store"});
+          if(!response.ok){clearServerSession();if(!cancelled){setServerSessionState(null);setConnected(false);clearUserLocalCache();}return;}
+          const identity=await response.json();
+          const refreshed={...session,user:identity.user,expiresAt:identity.expiresAt};
+          saveServerSession(refreshed,target);
+          if(!cancelled){setServerSessionState(refreshed);setConnected(true);}
+        }else{
+          setAuthMode("api-key");setServerAuthMode("api-key");
+          if(!apiKey.trim()){if(!cancelled)setConnected(false);return;}
+          const response=await fetch(target+"/api/contacts",{headers:{"x-aximach-key":apiKey},cache:"no-store"});
+          if(!response.ok)throw new Error("Server authentication failed");
+          if(!cancelled)setConnected(true);
+        }
+      }catch{if(!cancelled)setConnected(false);}
     };
     void verify();
     const timer=window.setInterval(()=>void verify(),10000);
@@ -885,11 +1007,18 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     try{
       const response=await fetch("http://127.0.0.1:8787/api/connection-info",{cache:"no-store"});
       const info=await response.json();
-      if(!response.ok||!info.apiKey||!Array.isArray(info.addresses))throw new Error("The PC shared-data server is not ready. Keep AXIMACH running on the PC and try again.");
-      setLanInfo(info);setApiUrl("http://127.0.0.1:8787");setApiKey(info.apiKey);
-      onNotice("PC shared-server details loaded. Use a displayed LAN address and this API key on Android, then press Connect / refresh shared data.");
+      if(!response.ok||!Array.isArray(info.addresses))throw new Error("The PC shared-data server is not ready. Keep AXIMACH running on the PC and try again.");
+      setLanInfo(info);setApiUrl("http://127.0.0.1:8787");
+      const mode=info.authMode==="users"?"users":"api-key";setAuthMode(mode);setServerAuthMode(mode);if(info.apiKey)setApiKey(info.apiKey);
+      onNotice(mode==="users"?"PC shared server uses individual accounts. Enter your AXIMACH username and password, then connect from this device.":"PC shared-server details loaded. Use a displayed LAN address and the server API key on Android, then connect.");
     }catch(error){setApiError(error instanceof Error?error.message:"Could not load the PC shared-server details.");}
     finally{setBusy(false);}
+  };
+  const signOut=async()=>{
+    const session=readServerSession(base);
+    if(session){try{await fetch(base+"/api/auth/logout",{method:"POST",headers:{authorization:"Bearer "+session.token}});}catch{/* local token is still cleared when server is unreachable */}}
+    clearServerSession();setServerSessionState(null);setConnected(false);setAuthMode("users");setServerAuthMode("users");clearUserLocalCache();
+    onNotice("Signed out of the AXIMACH account on this device. The local bearer token has been cleared.");
   };
   const useLocalOnly=()=>{
     window.localStorage.setItem("aximach.storage.mode","local-only");
@@ -912,21 +1041,36 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
     <div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> SERVER-BACKED SCHEDULER CONNECTOR</span></div>
     <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMMUNICATION / CRM</div><h1>Follow-up centre<span>.</span></h1><p>Contacts, one-time and recurring individual messages, server schedules and send logs.</p></div><button className="button-quiet" onClick={downloadContacts} disabled={!contacts.length}><FileDown size={15}/> Export contacts CSV</button></div>
     <section className="surface-panel followup-list-panel scheduler-connect-panel"><div className="panel-heading"><div><h3><Plug size={17}/> Scheduler connection</h3><p>Connect to your PC-hosted private Wi-Fi server or a deployed AXIMACH server.</p></div><span className={"module-number "+(connected?"scheduler-connected":"")}>{connected?"CONNECTED":"NOT CONNECTED"}</span></div>
-      <div className="scheduler-connect-form"><label>Shared AXIMACH data server URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="http://192.168.x.x:8787 (same Wi-Fi) or HTTPS server"/></label><label>API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label><button className="button-primary" disabled={busy||!apiUrl.trim()||!apiKey.trim()} onClick={connect}>{busy?"Connecting…":"Connect / refresh shared data"}</button><button type="button" className="button-quiet" disabled={busy||storageMode==="local-only"} onClick={useLocalOnly}>Use local-only on this device</button></div>
-      <div className="module-safety-note"><ShieldCheck size={15}/><span><strong>Manufacturing storage mode: {storageMode==="local-only"?"LOCAL ONLY · THIS DEVICE":connected?"SHARED SERVER · CONNECTED":"SHARED SERVER · NOT CONNECTED"}.</strong> Local-only data is saved on this device and does not synchronize. Shared mode synchronizes devices using the same server URL and API key. This build does not include a cloud account/login service; cloud account sync needs a separately configured account backend.</span>{storageMode==="local-only"&&<button type="button" className="button-quiet compact-button" onClick={()=>void prepareSharedPcServer()}>Set up shared sync</button>}</div>
+      <div className="scheduler-connect-form">
+        <label>Shared AXIMACH data server URL<input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="http://192.168.x.x:8787 (same Wi-Fi) or HTTPS server"/></label>
+        {authMode==="users"?<>
+          <label>AXIMACH username<input autoComplete="username" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Your assigned username"/></label>
+          <label>AXIMACH password<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your account password"/></label>
+          {serverSession?.user.role==="admin"&&<label>WhatsApp bridge key (optional; not used for AXIMACH data login)<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Separate WhatsApp bridge shared key"/></label>}
+        </>:<label>Server API key<input type="password" autoComplete="off" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="Server AXIMACH_API_KEY"/></label>}
+        <button className="button-primary" disabled={busy||!apiUrl.trim()||(authMode==="users"?(!username.trim()||(!password&&!serverSession)):!apiKey.trim())} onClick={connect}>{busy?"Connecting…":authMode==="users"?"Sign in / refresh manufacturing data":"Connect / refresh shared data"}</button>
+        {serverSession&&<button type="button" className="button-quiet" disabled={busy} onClick={()=>void signOut()}>Sign out {serverSession.user.username}</button>}
+        <button type="button" className="button-quiet" disabled={busy||storageMode==="local-only"} onClick={useLocalOnly}>Use local-only on this device</button>
+      </div>
+      <div className="module-safety-note"><ShieldCheck size={15}/><span><strong>Manufacturing storage mode: {storageMode==="local-only"?"LOCAL ONLY · THIS DEVICE":connected?"SHARED SERVER · CONNECTED":"SHARED SERVER · NOT CONNECTED"}.</strong> {authMode==="users"?"Named accounts use a temporary bearer session scoped to assigned companies/factories.":"Legacy mode uses a shared API key; restrict it to trusted devices."} Local-only data stays on this device.</span>{storageMode==="local-only"&&<button type="button" className="button-quiet compact-button" onClick={()=>void prepareSharedPcServer()}>Set up shared sync</button>}</div>
       {apiError&&<div className="scheduler-error"><ShieldAlert size={15}/>{apiError}</div>}
-      <div className="module-safety-note"><ShieldCheck size={15}/><span>Use one shared server URL and API key on both devices. A Windows-installed AXIMACH can host the private server: keep the PC and this Android device on the same Wi-Fi, keep AXIMACH running on the PC, then enter one of the PC LAN addresses below on Android (not localhost). Public HTTP is blocked; HTTPS and private LAN HTTP only are allowed. Keep the API key private.</span></div>
+      <div className="module-safety-note"><ShieldCheck size={15}/><span>A Windows-installed AXIMACH can host the private server. Keep the PC and Android device on the same Wi-Fi and enter the PC LAN address on Android, not localhost. Public HTTP is blocked; use HTTPS or private LAN HTTP.</span></div>
       {lanInfo&&<div className="aximach-lan-share">
         <div className="aximach-lan-share-heading"><strong>PC → Android private Wi-Fi connection</strong><span>LOCAL SERVER READY</span></div>
-        <p>On Android, enter one of these URLs as the Shared AXIMACH data server. Use the same API key shown below.</p>
+        <p>On Android, enter one of these URLs as the Shared AXIMACH data server. Sign in with your assigned AXIMACH user account when user authentication is enabled.</p>
         <div className="aximach-lan-share-values">
           {lanInfo.addresses.map(address=><div className="aximach-lan-share-row" key={address}><code>{address}</code><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(address);}}>Copy data URL</button><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(address.replace(/:8787$/,":8789"));}}>Copy WhatsApp URL</button></div>)}
           {!lanInfo.addresses.length&&<small>No private Wi-Fi IPv4 address detected. Connect the PC to Wi-Fi/Ethernet and reopen this section.</small>}
-          <div className="aximach-lan-share-row"><code>{lanInfo.apiKey}</code><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(lanInfo.apiKey);}}>Copy API key</button></div>
+          {lanInfo.apiKey&&<div className="aximach-lan-share-row"><code>{lanInfo.apiKey}</code><button className="button-quiet compact-button" onClick={()=>{void navigator.clipboard?.writeText(lanInfo.apiKey||"");}}>Copy API key</button></div>}
+          {lanInfo.authMode==="users"&&!lanInfo.apiKey&&<small>Individual AXIMACH account sign-in is required; no shared data key is exposed.</small>}
         </div>
         <small>WhatsApp bridge (optional): use the same LAN address with port 8789, for example http://192.168.x.x:8789. The data server uses port 8787.</small>
       </div>}
     </section>
+    {authMode==="users"&&serverSession?.user.role!=="admin"?(
+      <section className="surface-panel followup-list-panel"><div className="panel-heading"><div><h3><ShieldCheck size={17}/> Scoped manufacturing access</h3><p>Signed in as {serverSession?.user.username||"user"} · {serverSession?.user.role||"not signed in"}</p></div></div><div className="module-safety-note"><ShieldCheck size={15}/><span>This account can access linked manufacturing records only within its assigned company/factory scope. Contacts, schedules, WhatsApp controls, generic legacy module records, and server backup/restore are administrator-only.</span></div></section>
+    ):(
+      <>
     <section className="surface-panel followup-list-panel scheduler-connect-panel">
       <div className="panel-heading"><div><h3><ScanLine size={17}/> QR-paired WhatsApp account</h3><p>Link your WhatsApp account once. Keep this service running on an always-on host with persistent disk.</p></div><span className={"module-number "+(waConnected?"scheduler-connected":"")}>{waConnected?"LINKED":"NOT LINKED"}</span></div>
       <div className="scheduler-connect-form"><label>WhatsApp bridge URL<input value={waUrl} onChange={e=>setWaUrl(e.target.value)} placeholder="http://192.168.x.x:8788 (PC Wi-Fi bridge) or HTTPS bridge"/></label><button className="button-primary" disabled={busy||!waUrl.trim()||!apiKey.trim()} onClick={refreshWhatsApp}>{busy?"Connecting…":"Connect / refresh QR"}</button><button className="button-quiet" disabled={busy||!waConnected} onClick={()=>{setWaQr("");refreshWhatsApp();}}>Refresh status</button></div>
@@ -959,6 +1103,8 @@ function FollowUpWorkspace({ onBack, onNotice, notice, initialRecipient }: { onB
       {schedules.length===0?<div className="vendor-empty">No server schedules loaded yet.</div>:<div className="followup-table-wrap"><table className="followup-table"><thead><tr><th>Recipient</th><th>Vendor / process link</th><th>Next run</th><th>Repeat</th><th>Message</th><th>State</th><th>Action</th></tr></thead><tbody>{schedules.map(t=><tr key={t.id}><td>+{t.to}</td><td>{t.company||"—"}<small>{t.process||"No process link"}{t.operationId?" · OP "+t.operationId.slice(0,8):""}</small></td><td>{t.nextRunAt?new Date(t.nextRunAt).toLocaleString():"—"}</td><td>{t.repeat}</td><td>{t.message}</td><td>{t.lastError?"Paused · error":t.enabled?"Enabled":"Paused"}</td><td><button className="button-quiet compact-button" disabled={busy} onClick={()=>toggleSchedule(t)}>{t.enabled?<Pause size={13}/>:<Play size={13}/>} {t.enabled?"Pause":"Enable"}</button></td></tr>)}</tbody></table></div>}
     </section>
     <section className="surface-panel followup-list-panel"><div className="panel-heading"><div><h3><Activity size={17}/> Send log</h3><p>Provider acceptance/failure log. Delivery and replies require webhooks.</p></div><span className="module-number">{logs.length} EVENTS</span></div>{logs.length===0?<div className="vendor-empty">No send attempts logged by the scheduler yet.</div>:<div className="followup-table-wrap"><table className="followup-table"><thead><tr><th>Time</th><th>Schedule</th><th>Status</th><th>Details</th></tr></thead><tbody>{logs.slice(0,100).map(l=><tr key={l.id}><td>{new Date(l.at).toLocaleString()}</td><td>{l.scheduleId.slice(0,8)}</td><td>{l.status}</td><td>{l.detail}</td></tr>)}</tbody></table></div>}</section>
+      </>
+    )}
   </section>;
 }
 
@@ -1040,10 +1186,12 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
       if (busy) { syncPending = true; return; }
       const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
       const key = window.localStorage.getItem("aximach.scheduler.key") || "";
-      if (!base || !key) { if (!cancelled) setRecordSync("local"); return; }
+      const session = readServerSession(base);
+      const userMode = getServerAuthMode() === "users";
+      if (!base || (userMode ? !session : !key && !session) || (session && session.user.role !== "admin")) { if (!cancelled) setRecordSync("local"); return; }
 
       busy = true;
-      const headers = { "content-type": "application/json", "x-aximach-key": key };
+      const headers = { "content-type": "application/json", ...getServerAuthHeaders(key,base,undefined,userMode) };
       try {
         do {
           syncPending = false;
@@ -1053,13 +1201,27 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
           if (!response.ok) throw new Error(data.error || "Record sync failed");
           if (cancelled) return;
 
+          const remote = (data.records || {}) as Record<string, ModuleRecord[]>;
+          const generationKey = "aximach.module-records.restore-generation";
+          const savedGeneration = window.localStorage.getItem(generationKey);
+          const receivedGeneration = Number.isSafeInteger(data.restoreGeneration) ? data.restoreGeneration : 0;
+          const hasPreviouslySavedConnection = Boolean(window.localStorage.getItem("aximach.scheduler.url") && (window.localStorage.getItem("aximach.scheduler.key") || readServerSession(base)) && window.localStorage.getItem("aximach.storage.mode") !== "local-only");
+          const generationChanged = savedGeneration !== null && Number(savedGeneration) !== receivedGeneration;
+          const restoredBeforeThisDeviceWasUpgraded = savedGeneration === null && hasPreviouslySavedConnection && receivedGeneration > 0;
+          if (generationChanged || restoredBeforeThisDeviceWasUpgraded) {
+            window.localStorage.setItem(generationKey, String(receivedGeneration));
+            setAllModuleRecords(remote);
+            if (!cancelled) setAllRecords(remote);
+            syncPending = false;
+            break;
+          }
+          if (savedGeneration === null) window.localStorage.setItem(generationKey, String(receivedGeneration));
           const local = getAllModuleRecords();
           if (JSON.stringify(local) !== JSON.stringify(beforeFetch)) syncPending = true;
-          const remote = (data.records || {}) as Record<string, ModuleRecord[]>;
           const merged = mergeModuleRecordSets(local, remote);
           if (JSON.stringify(merged) !== JSON.stringify(remote)) {
             setRecordSync("syncing");
-            const write = await fetch(base + "/api/records", { method: "PUT", headers, body: JSON.stringify({ records: merged }) });
+            const write = await fetch(base + "/api/records", { method: "PUT", headers, body: JSON.stringify({ records: merged, restoreGeneration: receivedGeneration }) });
             const saved = await write.json().catch(() => ({}));
             if (!write.ok) throw new Error(saved.error || "Could not persist merged module records");
             const latestLocal = getAllModuleRecords();
@@ -1095,6 +1257,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
     window.addEventListener("storage", refreshLocal);
     window.addEventListener("focus", syncWhenActive);
     window.addEventListener("online", syncWhenActive);
+    window.addEventListener("aximach-server-session-updated", syncWhenActive);
     document.addEventListener("visibilitychange", syncWhenActive);
     void sync();
     const timer = window.setInterval(() => { void sync(); }, 2500)
@@ -1105,6 +1268,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
       window.removeEventListener("storage", refreshLocal);
       window.removeEventListener("focus", syncWhenActive);
       window.removeEventListener("online", syncWhenActive);
+      window.removeEventListener("aximach-server-session-updated", syncWhenActive);
       document.removeEventListener("visibilitychange", syncWhenActive);
     };
   }, []);
@@ -1112,10 +1276,14 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState({ title: "", reference: "", status: "Open", owner: "", linkedModule: "", notes: "" });
-  const records = (allRecords[module.id] ?? []).filter(record => !record.deletedAt);
+  const currentServerUrl=(window.localStorage.getItem("aximach.scheduler.url")||"").trim();
+  const currentUserSession=readServerSession(currentServerUrl);
+  const restrictedModuleRecords=getServerAuthMode()==="users"&&currentUserSession?.user.role!=="admin";
+  const records = restrictedModuleRecords?[]:(allRecords[module.id] ?? []).filter(record => !record.deletedAt);
   const related = modules.filter((item) => item.id !== module.id && [module.group, "Engineering", "Operations", "Governance", "Supply Network", "Commercial", "Finance", "Connections"].includes(item.group)).slice(0, 8);
   const filtered = records.filter((record) => (record.title + " " + record.reference + " " + record.status + " " + record.owner + " " + record.notes).toLowerCase().includes(search.toLowerCase()));
   const persist = (next: Record<string, ModuleRecord[]>) => {
+    if(restrictedModuleRecords){onNotice("Generic module records are administrator-only until their company/factory ownership is defined. Use the linked manufacturing records for your assigned scope.");return;}
     const latestLocal = getAllModuleRecords();
     const updated = mergeModuleRecordSets(latestLocal, next);
     setAllRecords(updated);
@@ -1123,7 +1291,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
     window.dispatchEvent(new Event("aximach-module-records-updated"));
     const base = (window.localStorage.getItem("aximach.scheduler.url") || "").trim().replace(/\/+$/, "");
     const key = window.localStorage.getItem("aximach.scheduler.key") || "";
-    setRecordSync(base && key ? "syncing" : "local");
+    setRecordSync(base && key && !restrictedModuleRecords ? "syncing" : "local");
   };
   const resetForm = () => { setDraft({ title: "", reference: "", status: "Open", owner: "", linkedModule: "", notes: "" }); setEditingId(""); setShowForm(false); };
   const saveRecord = () => {
@@ -1235,7 +1403,7 @@ function ModuleWorkspace({ module, onBack, onNotice, onOpenModules, onSelectModu
         </section>
         <aside className="surface-panel module-connection-panel"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark" /> CROSS-MODULE LINKS</div><h3>Connected workspaces</h3><p>{totalLinked} linked records across local modules</p></div></div>
           {related.map((item) => { const RelatedIcon = item.icon; return <button className="related-row" key={item.id} onClick={() => onSelectModule(item.id)}><span className="related-icon"><RelatedIcon size={16} /></span><span><strong>{item.title}</strong><small>{(allRecords[item.id] ?? []).length} local records · {item.group}</small></span><ArrowUpRight size={14} /></button>; })}
-          <button className="related-all" onClick={onOpenModules}>Browse all 18 modules <ArrowRight size={14} /></button>
+          <button className="related-all" onClick={onOpenModules}>Browse all {modules.length} modules <ArrowRight size={14} /></button>
         </aside>
       </div>
       <div className="module-safety-note"><ShieldCheck size={16} /><span>This workspace now supports local create, edit, delete, search, export and navigation links. It is not a production database; multi-user sync, server permissions, automated external actions and audit-grade persistence remain to be implemented.</span></div>

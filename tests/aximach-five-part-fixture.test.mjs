@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { getEligibleDispatchTransactions, validateDeliveryConfirmation, validateTransportCompletion } from "../src/transportReconciliation.mjs";
+import { reconcilePurchaseOrderCosts } from "../src/costReconciliation.mjs";
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-five-part-process-catalog.json", import.meta.url), "utf8"));
 
@@ -56,6 +58,8 @@ test("Inventory ledger enforces transaction direction, source references and liv
   assert.ok(workspace.includes("const requiredDirection = fixedStockDirections[transactionType]"));
   assert.ok(workspace.includes('if (!reference.trim())'));
   assert.ok(workspace.includes("The selected operation does not belong to the chosen PO line"));
+  assert.ok(workspace.includes('(!scope.companyId || row.companyId === scope.companyId) && (!scope.factoryId || row.factoryId === scope.factoryId)'), "stock balances must isolate company and factory");
+  assert.ok(workspace.includes('stockBalance("material", materialId, { companyId: bomIssueSelection.po.companyId, factoryId: bomIssueSelection.po.factoryId })'), "BOM issue shortage preview must use the owning PO factory balance");
   assert.ok(workspace.includes("op.id === bomIssueOperationId && op.poId === po.id && op.poLineId === line.id && !op.deletedAt"));
 });
 test("BOM and material masters reject invalid quantities, scrap limits and inactive links", () => {
@@ -83,8 +87,26 @@ test("Process Plan bulk update validates dates and vendor capabilities, and sync
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("const scheduleConflict = selected.find(op =>"));
   assert.ok(workspace.includes("definition?.vendorIds?.length && !definition.vendorIds.includes(bulkVendorId)"));
-  assert.ok(workspace.includes('bulkStatus === "Complete" ? { completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp }'));
+  assert.ok(workspace.includes('bulkStatus === "Complete" ? { actualEnd: op.actualEnd || stamp } : {}'));
+  assert.ok(workspace.includes('const quantityMismatch = selected.find(op => !Number.isSafeInteger(Number(op.completed)) || Number(op.completed) !== Number(op.quantity))'));
+  assert.ok(workspace.includes('const quantityMismatch = selectedVisibleOperations.find(op => !Number.isSafeInteger(Number(op.completed)) || Number(op.completed) !== Number(op.quantity))'));
+  assert.ok(!workspace.includes('completed: Math.max(op.completed || 0, op.quantity || 0)'));
+  assert.ok(workspace.includes('Existing actual completed quantities were preserved'));
   assert.ok(workspace.includes('jobStatus: "In progress" as const, jobFinishedAt: undefined'));
+  assert.ok(workspace.includes("Number(finalRouteOperation?.accepted)||0"), "zero accepted output must not fall back to completed quantity");
+  assert.ok(workspace.includes("const totalAccepted = finalCompletedQty;"), "accepted output must count final-route good parts once, not once per operation");
+  assert.ok(!workspace.includes("routeOperations.reduce((sum, op) => sum + op.accepted, 0)"));
+});
+test("Finished goods receipt and dispatch require completed accepted production and passing required inspections", () => {
+  const workspace = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('transactionType === "Finished goods receipt" || transactionType === "Dispatch"'));
+  assert.ok(workspace.includes('companyId !== po.companyId || factoryId !== po.factoryId'));
+  assert.ok(workspace.includes('lineOperations.some(op => op.status !== "Complete"'));
+  assert.ok(workspace.includes('inspectionRows.some(row => row.result !== "Pass")'));
+  assert.ok(workspace.includes('remainingAccepted'));
+  assert.ok(workspace.includes('q > lineFinishedBalance'));
+  assert.ok(workspace.includes('Finished-goods dispatch cannot create a negative stock balance'));
+  assert.ok(workspace.includes('transactionType === "Finished goods receipt" && row.direction === "in"'));
 });
 test("Process Plan rejects archived vendors, reversed actual dates and incomplete Complete status", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
@@ -180,20 +202,20 @@ test("additional planned-cost process rows cascade by category and stable defini
 });
 
 
-test("dashboard command globe exposes 18 unique, distinguishable module shortcuts", () => {
+test("dashboard command globe exposes 20 unique, distinguishable module shortcuts", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const satelliteBlock = orb.match(/const satellites = \[([\s\S]*?)\n\];/);
   assert.ok(satelliteBlock, "command globe satellite registry exists");
   const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
-  assert.equal(ids.length, 18);
-  assert.equal(new Set(ids).size, 18, "module shortcut IDs must be unique");
-  assert.equal(labels.length, 18);
-  assert.equal(new Set(labels).size, 18, "module shortcut labels must be distinguishable");
+  assert.equal(ids.length, 20);
+  assert.equal(new Set(ids).size, 20, "module shortcut IDs must be unique");
+  assert.equal(labels.length, 20);
+  assert.equal(new Set(labels).size, 20, "module shortcut labels must be distinguishable");
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
-test("all 18 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
+test("all 20 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const depthOpen = orb.indexOf('<motion.div className="ax-orb-depth"');
   const moduleShell = orb.indexOf('className="ax-orb-module-shell"');
@@ -206,7 +228,7 @@ test("all 18 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(depthOpen >= 0 && depthOpen < moduleShell && moduleShell < moduleClose && moduleClose < depthClose,
     "module controls must be children of the same draggable 3D globe");
   assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the globe");
-  assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label="20 clickable AXIMACH modules"'));
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
   assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
   assert.ok(orb.includes('className="ax-orb-core"'));
@@ -380,7 +402,8 @@ test("PC-hosted shared data exposes a protected LAN endpoint and Android permits
   assert.ok(client.includes('window.localStorage.getItem("aximach.scheduler.key")'));
   assert.ok(client.includes('window.setInterval(() => { void syncOnce(); }, 2500)'));
   assert.ok(followUp.includes("PC → Android private Wi-Fi connection"));
-  assert.ok(followUp.includes("Use one shared server URL and API key on both devices"));
+  assert.ok(followUp.includes("A Windows-installed AXIMACH can host the private server"));
+  assert.ok(followUp.includes("Sign in with your assigned AXIMACH user account when user authentication is enabled"));
 });
 
 
@@ -842,7 +865,7 @@ test("five synthetic component names resolve to the intended mechanical logo fam
 
 test("Main dashboard sphere uses native 3D module hit targets with stable transforms", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  assert.ok(orb.includes('aria-label="18 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label="20 clickable AXIMACH modules"'));
   assert.ok(orb.includes('return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"'));
   assert.ok(orb.includes('translate3d(" + x + "px," + y + "px," + z + "px)'));
   assert.ok(orb.includes("onPointerDown={startDrag}"));
@@ -1678,10 +1701,10 @@ test("client-side shared data merge keeps saved parts and both cost scopes by re
 });
 
 test("purchase-order deletion retains stand-alone material budgets but removes entries attached to that PO", () => {
-  const master = readFileSync(new URL("../src/ManufacturingMasterWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(master.includes("(!row.poId||!targetIds.has(row.poId))&&(!row.poLineId||!lineIds.has(row.poLineId))"));
-  assert.ok(master.includes("componentParts:(current.componentParts||[]).filter(row=>!targetIds.has(row.componentId))"));
-  assert.ok(master.includes("materialCostEntries:(current.materialCostEntries||[]).filter(row=>!targetIds.has(row.componentId))"));
+  const deletion = readFileSync(new URL("../src/manufacturingDeletion.mjs", import.meta.url), "utf8");
+  assert.ok(deletion.includes("array(data.materialCostEntries).filter((row) => targets.has(row.poId) || (row.poLineId && lineIds.has(row.poLineId)))"));
+  assert.ok(deletion.includes("materialCostEntries: array(data.materialCostEntries).filter((row) => !materialCostIds.has(row.id))"));
+  assert.ok(deletion.includes("componentParts: array(data.componentParts).filter((row) => !removedPartIds.has(row.id))"));
 });
 
 
@@ -2392,4 +2415,206 @@ test("manufacturing storage offers persistent local-only and explicit shared PC-
   assert.ok(app.includes("Use local-only on this device"));
   assert.ok(electron.includes("localStorage.getItem('aximach.storage.mode') === 'local-only'"));
   assert.ok(electron.includes("localStorage.setItem('aximach.storage.mode', 'shared-server')"));
+});
+
+
+test("transport dispatch does not auto-count planned trips as completed actual trips",()=>{
+  const workspace=readFileSync(new URL("../src/OperationsWorkspaces.tsx",import.meta.url),"utf8");
+  assert.ok(workspace.includes("completedTrips:leg.completedTrips||0"));
+  assert.ok(workspace.includes("validateTransportCompletion(leg)"));
+  const reconciliation=readFileSync(new URL("../src/transportReconciliation.mjs",import.meta.url),"utf8");
+  assert.ok(reconciliation.includes("record every planned trip as actually completed first"));
+  assert.ok(workspace.includes("Actual completed"));
+  assert.ok(workspace.includes("if(!Number.isSafeInteger(value)||value<0||value>row.trips)return"));
+});
+
+
+test("transport dispatch links to existing ledger rows and confirms delivery with proof without reposting stock",()=>{
+  const workspace=readFileSync(new URL("../src/OperationsWorkspaces.tsx",import.meta.url),"utf8");
+  const schema=readFileSync(new URL("../src/manufacturingData.ts",import.meta.url),"utf8");
+  const reconciliation=readFileSync(new URL("../src/transportReconciliation.mjs",import.meta.url),"utf8");
+  assert.ok(schema.includes("dispatchTransactionId?: string; deliveryConfirmedAt?: string; deliveryReference?: string;"));
+  assert.ok(workspace.includes("getEligibleDispatchTransactions(leg,po,inventoryTransactions,legs)"));
+  assert.ok(workspace.includes("validateDeliveryConfirmation({leg,purchaseOrder:po"));
+  assert.ok(workspace.includes("validateTransportCompletion(leg)"));
+  assert.ok(reconciliation.includes('transaction.transactionType === "Dispatch"'));
+  assert.ok(reconciliation.includes('transaction.direction === "out"'));
+  assert.ok(reconciliation.includes("transaction.itemId === leg.componentId"));
+  assert.ok(reconciliation.includes("transaction.poId === leg.poId"));
+  assert.ok(reconciliation.includes("transaction.poLineId === leg.poLineId"));
+  assert.ok(reconciliation.includes("transaction.companyId === purchaseOrder.companyId"));
+  assert.ok(reconciliation.includes("transaction.factoryId === purchaseOrder.factoryId"));
+  assert.ok(reconciliation.includes("reversal.reversalOfId === transaction.id"));
+  assert.ok(workspace.includes("Link existing Dispatch entry"));
+  assert.ok(reconciliation.includes("Enter the delivery challan, proof-of-delivery number or signed receiver reference."));
+  assert.ok(workspace.includes("deliveryConfirmedAt:stamp,deliveryReference:proof"));
+  assert.ok(workspace.includes("no duplicate inventory transaction was posted"));
+});
+
+test("dispatch exports include modern transport legs, linked POD details and unlinked stock dispatch rows",()=>{
+  const exports=readFileSync(new URL("../src/IntelligenceWorkspaces.tsx",import.meta.url),"utf8");
+  assert.ok(exports.includes('const transportLegs=activeRows(data.transportLegs||[])'));
+  assert.ok(exports.includes('recordType:"transport-leg"'));
+  assert.ok(exports.includes('dispatchTransactionId:leg.dispatchTransactionId||""'));
+  assert.ok(exports.includes('deliveryConfirmedAt:leg.deliveryConfirmedAt||""'));
+  assert.ok(exports.includes('recordType:"unlinked-dispatch-ledger-entry"'));
+  assert.ok(exports.includes('recordType:"legacy-transport-operation"'));
+});
+
+
+test("payment ledger export preserves transaction-level identity and legacy totals",()=>{
+  const schema=readFileSync(new URL("../src/manufacturingData.ts",import.meta.url),"utf8");
+  const processMap=readFileSync(new URL("../src/LinkedProcessWorkspace.tsx",import.meta.url),"utf8");
+  const exports=readFileSync(new URL("../src/IntelligenceWorkspaces.tsx",import.meta.url),"utf8");
+  assert.ok(schema.includes("componentId: string; vendorId?: string;"));
+  assert.ok(processMap.includes("vendorId:old?.vendorId||draft.vendorId||\"\""));
+  assert.ok(processMap.includes("vendorId:draft.vendorId||old?.vendorId||\"\""));
+  assert.ok(exports.includes('if(moduleId==="payments")'));
+  assert.ok(exports.includes('recordType:"payment-transaction"'));
+  assert.ok(exports.includes('sourceRecord:"PaymentTransactionRecord"'));
+  assert.ok(exports.includes('recordType:"legacy-payment-total"'));
+  assert.ok(exports.includes('["payments","Payment Ledger"]'));
+});
+
+
+test("transport dispatch selection matches the exact component, PO line, company and factory",()=>{
+  const leg={id:"leg-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",tripCount:2,completedTrips:2};
+  const po={id:"po-1",companyId:"company-1",factoryId:"factory-1"};
+  const dispatch=(overrides={})=>({id:"dispatch-1",itemType:"component",itemId:"component-1",transactionType:"Dispatch",direction:"out",poId:"po-1",poLineId:"line-1",companyId:"company-1",factoryId:"factory-1",quantity:10,...overrides});
+  const valid=dispatch();
+  const wrongLine=dispatch({id:"wrong-line",poLineId:"line-2"});
+  const wrongCompany=dispatch({id:"wrong-company",companyId:"company-2"});
+  const wrongFactory=dispatch({id:"wrong-factory",factoryId:"factory-2"});
+  const wrongPart=dispatch({id:"wrong-part",itemId:"component-2"});
+  const wrongDirection=dispatch({id:"wrong-direction",direction:"in"});
+  const wrongKind=dispatch({id:"wrong-kind",transactionType:"Receipt"});
+  const zeroQuantity=dispatch({id:"zero-quantity",quantity:0});
+  const reversed=dispatch({id:"reversed"});
+  const used=dispatch({id:"already-used"});
+  const rows=[valid,wrongLine,wrongCompany,wrongFactory,wrongPart,wrongDirection,wrongKind,zeroQuantity,reversed,used];
+  const eligible=getEligibleDispatchTransactions(leg,po,rows.concat([{id:"rev-1",reversalOfId:"reversed"}]),[
+    leg,{id:"leg-2",poId:"po-1",poLineId:"line-1",componentId:"component-1",tripCount:1,dispatchTransactionId:"already-used"}
+  ]);
+  assert.deepEqual(eligible.map(row=>row.id),["dispatch-1"]);
+  assert.deepEqual(getEligibleDispatchTransactions(leg,{...po,id:"other-po"},rows,[leg]),[]);
+});
+
+test("transport completion requires a positive whole planned trip count and exact actual trips",()=>{
+  assert.equal(validateTransportCompletion({tripCount:3,completedTrips:3}),null);
+  assert.match(validateTransportCompletion({tripCount:3,completedTrips:2}),/every planned trip/);
+  assert.match(validateTransportCompletion({tripCount:3,completedTrips:3.5}),/every planned trip/);
+  assert.match(validateTransportCompletion({tripCount:0,completedTrips:0}),/positive whole number/);
+});
+
+test("delivery confirmation requires completed transport, one valid unreversed dispatch and a proof reference",()=>{
+  const leg={id:"leg-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",tripCount:2,completedTrips:2,status:"Complete",dispatchTransactionId:"dispatch-1"};
+  const po={id:"po-1",companyId:"company-1",factoryId:"factory-1"};
+  const dispatch={id:"dispatch-1",itemType:"component",itemId:"component-1",transactionType:"Dispatch",direction:"out",poId:"po-1",poLineId:"line-1",companyId:"company-1",factoryId:"factory-1",quantity:120,reference:"DC-120"};
+  const base={leg,purchaseOrder:po,dispatchTransaction:dispatch,inventoryTransactions:[dispatch],transportLegs:[leg],proof:"POD-120"};
+  assert.equal(validateDeliveryConfirmation(base),null);
+  assert.match(validateDeliveryConfirmation({...base,proof:"  "}),/delivery challan/);
+  assert.match(validateDeliveryConfirmation({...base,leg:{...leg,status:"Running"}}),/every planned transport trip/);
+  assert.match(validateDeliveryConfirmation({...base,inventoryTransactions:[dispatch,{id:"rev-1",reversalOfId:"dispatch-1"}]}),/missing, reversed, reused/);
+  assert.match(validateDeliveryConfirmation({...base,transportLegs:[leg,{...leg,id:"leg-2"}]}),/missing, reversed, reused/);
+  assert.match(validateDeliveryConfirmation({...base,leg:{...leg,deliveryConfirmedAt:"2026-11-19T10:00:00Z"}}),/Link a valid Dispatch/);
+  assert.match(validateDeliveryConfirmation({...base,purchaseOrder:{...po,id:"other-po"}}),/Link a valid Dispatch/);
+  assert.match(validateDeliveryConfirmation({...base,dispatchTransaction:{...dispatch,poLineId:"other-line"}}),/missing, reversed, reused/);
+  const alternateDispatch={...dispatch,id:"alternate-dispatch"};
+  assert.match(validateDeliveryConfirmation({...base,dispatchTransaction:alternateDispatch,inventoryTransactions:[dispatch,alternateDispatch]}),/missing, reversed, reused/);
+});
+
+
+test("PO-line cost reconciliation separates estimates, entered costs, executed transport and cash payments", () => {
+  const data = {
+    companies: [{id:"co-1",name:"Factory Co"}],
+    factories: [{id:"factory-1",name:"Plant 1"}],
+    components: [{id:"component-1",partNumber:"AX-100",name:"Precision shaft"}],
+    purchaseOrders: [{
+      id:"po-1",number:"PO-100",companyId:"co-1",factoryId:"factory-1",
+      lines:[{id:"line-1",componentId:"component-1",quantity:10},{id:"line-2",componentId:"component-2",quantity:5}]
+    }],
+    operations: [
+      {id:"op-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",quantity:10,ratePerPart:2,actualRatePerPart:3,transportCost:40,paidAmount:50,costIncluded:true},
+      {id:"op-2",poId:"po-1",poLineId:"line-1",componentId:"component-1",quantity:10,ratePerPart:100,actualRatePerPart:90,transportCost:20,paidAmount:10,costIncluded:false},
+      {id:"op-wrong-line",poId:"po-1",poLineId:"line-2",componentId:"component-2",quantity:5,ratePerPart:99,actualRatePerPart:99}
+    ],
+    materialCostEntries: [
+      {id:"pm-1",scope:"process-map",poId:"po-1",poLineId:"line-1",componentId:"component-1",partId:"part-1",materialId:"steel",quantity:2,materialCost:100,cuttingCost:10,transportCost:5},
+      {id:"pc-1",scope:"planned-cost",poId:"po-1",poLineId:"line-1",componentId:"component-1",partId:"part-1",materialId:"steel",quantity:2,materialCost:100,cuttingCost:10,transportCost:5},
+      {id:"wrong-line",scope:"process-map",poId:"po-1",poLineId:"line-2",componentId:"component-2",materialCost:999,cuttingCost:0,transportCost:0},
+      {id:"archived",scope:"process-map",poId:"po-1",poLineId:"line-1",componentId:"component-1",materialCost:999,deletedAt:"2026-11-19T00:00:00Z"}
+    ],
+    plannedCosts: [{id:"benchmark-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",plannedQty:10,plannedRate:4}],
+    transportLegs: [{id:"leg-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",tripCount:2,completedTrips:1,fixedAmount:50}],
+    paymentTransactions: [{id:"pay-1",operationId:"op-1",poId:"po-1",poLineId:"line-1",componentId:"component-1",amount:50}]
+  };
+  const result = reconcilePurchaseOrderCosts(data);
+  assert.equal(result.length,2);
+  const line = result.find(row => row.poLineId === "line-1");
+  assert.ok(line);
+  assert.equal(line.plannedProcessCost,20);
+  assert.equal(line.enteredActualProcessCost,30);
+  assert.equal(line.excludedRoutePlannedProcessCost,1000);
+  assert.equal(line.processMapMaterialCost,100);
+  assert.equal(line.processMapCuttingCost,10);
+  assert.equal(line.processMapMaterialTransportCost,5);
+  assert.equal(line.plannedScopeMaterialCost,100);
+  assert.equal(line.componentPlannedProcessBenchmarkCost,40);
+  assert.equal(line.transportRoutePlannedCost,100);
+  assert.equal(line.transportRouteCompletedTripCost,50);
+  assert.equal(line.legacyTransportCost,0);
+  assert.equal(line.legacyTransportExcludedAmount,40);
+  assert.equal(line.paymentTransactionTotal,50);
+  assert.equal(line.legacyPaidAmount,10);
+  assert.equal(line.crossScopeDuplicateCandidateCount,1);
+  assert.ok(line.warnings.some(value => value.includes("not combined")));
+  assert.ok(line.warnings.some(value => value.includes("Legacy operation transport")));
+  assert.equal(result.find(row => row.poLineId === "line-2").processMapMaterialCost,999);
+});
+
+test("PO-line cost reconciliation suppresses duplicate legacy paid totals and rejects mismatched payment links", () => {
+  const base = {
+    purchaseOrders:[{id:"po",companyId:"co",factoryId:"factory",lines:[{id:"line",componentId:"part",quantity:1}]}],
+    operations:[{id:"op",poId:"po",poLineId:"line",componentId:"part",quantity:1,paidAmount:75,ratePerPart:0,actualRatePerPart:0}],
+    paymentTransactions:[{id:"payment",operationId:"op",poId:"po",poLineId:"another-line",componentId:"part",amount:75}],
+    components:[],companies:[],factories:[]
+  };
+  const [line] = reconcilePurchaseOrderCosts(base);
+  assert.equal(line.paymentTransactionTotal,0);
+  assert.equal(line.legacyPaidAmount,0);
+  assert.ok(line.warnings.some(value => value.includes("different PO, PO-line or component")));
+});
+
+test("PO-line cost reconciliation ignores archived sources and invalid actual trip counts", () => {
+  const data = {
+    purchaseOrders:[{id:"po",companyId:"co",factoryId:"factory",lines:[{id:"line",componentId:"part",quantity:1}]}],
+    operations:[],components:[],companies:[],factories:[],
+    transportLegs:[{id:"leg",poId:"po",poLineId:"line",componentId:"part",tripCount:2,completedTrips:3,fixedAmount:25}],
+    materialCostEntries:[{id:"old",scope:"process-map",poId:"po",poLineId:"line",componentId:"part",materialCost:100,deletedAt:"2026-11-19"}]
+  };
+  const [line] = reconcilePurchaseOrderCosts(data);
+  assert.equal(line.transportRoutePlannedCost,50);
+  assert.equal(line.transportRouteCompletedTripCost,0);
+  assert.equal(line.processMapMaterialCost,0);
+  assert.ok(line.warnings.some(value => value.includes("invalid actual completed-trip count")));
+});
+
+
+test("scoped account sessions do not import legacy browser-local global directories", () => {
+  const specialized = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const relationships = readFileSync(new URL("../src/RelationshipWorkspaces.tsx", import.meta.url), "utf8");
+  assert.ok(specialized.includes('if(getServerAuthMode()==="users"&&session?.user.role!=="admin")return;'));
+  assert.ok(relationships.includes('if(getServerAuthMode()==="users"&&session?.user.role!=="admin")return;'));
+  assert.ok(specialized.includes('"aximach.componentPlannedCost.v1"'));
+  assert.ok(relationships.includes('readContacts()'));
+});
+
+
+test("scoped user sessions stop WhatsApp bridge polling and clear shared-device caches", () => {
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.ok(app.includes('const isScopedUser = authMode==="users" && serverSession?.user.role!=="admin";'));
+  assert.ok(app.includes('if(isScopedUser){clearUserLocalCache();return;}const local='));
+  assert.ok(app.includes('if(isScopedUser)return {added:0,updated:0};'));
+  assert.ok(app.includes('setServerAuthMode("users");clearUserLocalCache();'));
+  assert.ok(app.includes('window.dispatchEvent(new Event("aximach-module-records-updated"));'));
 });

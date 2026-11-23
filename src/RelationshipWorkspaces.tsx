@@ -4,17 +4,18 @@ import { activeRows, makeId, nowIso, useManufacturingData, type ContactProfileRe
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import SearchablePicker from "./SearchablePicker";
 import { ProcessIcon } from "./IconStudio";
+import { getServerAuthMode, readServerSession } from "./serverAuth";
 
 type LinkedNavigationContext={companyId?:string;poId?:string;poLineId?:string;componentId?:string;operationId?:string;vendorId?:string};
 type Props={onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string,context?:LinkedNavigationContext)=>void};
-type Contact360Props=Props & {initialVendorId?:string;onInitialVendorConsumed?:()=>void};
+type Contact360Props=Props & {initialVendorId?:string;initialSearch?:string;onInitialVendorConsumed?:()=>void};
 type ContactRecord=ContactProfileRecord;
 type ContactDraft=Omit<ContactRecord,"id"|"createdAt"|"updatedAt">;
 const CONTACT_KEY="aximach.contact360.v1";
 const blank=():ContactDraft=>({linkedType:"company",linkedId:"",name:"",role:"",group:"",phone:"",whatsapp:"",additionalPhones:[],email:"",address:"",followUpDate:"",history:"",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[],machineCapabilities:[],materialCapabilities:[]});
 function readContacts():ContactRecord[]{try{const value=JSON.parse(localStorage.getItem(CONTACT_KEY)||"[]");return Array.isArray(value)?value as ContactRecord[]:[];}catch{return[];}}
 
-export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initialVendorId,onInitialVendorConsumed}:Contact360Props){
+export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initialVendorId,initialSearch,onInitialVendorConsumed}:Contact360Props){
  const {data,update}=useManufacturingData();const companies=activeRows(data.companies),vendors=activeRows(data.vendors);
  const rows=data.contactProfiles||[];const [search,setSearch]=useState("");const [editingId,setEditingId]=useState("");const [showForm,setShowForm]=useState(false);const [draft,setDraft]=useState<ContactDraft>(blank());
  const [typeFilter,setTypeFilter]=useState("All");
@@ -26,8 +27,28 @@ export function Contact360Workspace({onBack,onNotice,notice,onSelectModule,initi
  const [categoryFilters,setCategoryFilters]=useState<string[]>([]);
  const [subcategoryFilters,setSubcategoryFilters]=useState<string[]>([]);
  const [onlyWhatsApp,setOnlyWhatsApp]=useState(false);
- useEffect(()=>{const legacy=readContacts();if(!legacy.length)return;update(current=>{const byId=new Map(current.contactProfiles.map(row=>[row.id,row]));let changed=false;for(const row of legacy){const old=byId.get(row.id);if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){byId.set(row.id,{...row,group:row.group||""});changed=true;}}return changed?{...current,contactProfiles:[...byId.values()]}:current;});},[update]);
- useEffect(()=>{if(!initialVendorId)return;setEditingId("");setDraft({...blank(),linkedType:"vendor",linkedId:initialVendorId});setShowForm(true);onInitialVendorConsumed?.();},[initialVendorId]);
+ useEffect(()=>{
+  const migrate=()=>{
+   const session=readServerSession(window.localStorage.getItem("aximach.scheduler.url")||"");
+   if(getServerAuthMode()==="users"&&session?.user.role!=="admin")return;
+   const legacy=readContacts();if(!legacy.length)return;
+   update(current=>{
+    const byId=new Map(current.contactProfiles.map(row=>[row.id,row]));let changed=false;
+    for(const row of legacy){
+     const old=byId.get(row.id);
+     if(!old||(Date.parse(row.updatedAt||"")||0)>(Date.parse(old.updatedAt||"")||0)){
+      byId.set(row.id,{...row,group:row.group||""});changed=true;
+     }
+    }
+    return changed?{...current,contactProfiles:[...byId.values()]}:current;
+   });
+  };
+  migrate();
+  window.addEventListener("aximach-server-session-updated",migrate);
+  return()=>window.removeEventListener("aximach-server-session-updated",migrate);
+ },[update]);
+ useEffect(()=>{if(!initialVendorId)return;setEditingId("");setSearch("");setDraft({...blank(),linkedType:"vendor",linkedId:initialVendorId});setShowForm(true);onInitialVendorConsumed?.();},[initialVendorId]);
+ useEffect(()=>{if(initialSearch){setShowForm(false);setSearch(initialSearch);}},[initialSearch]);
  const relatedLabel=(row:ContactRecord)=>row.linkedType==="company"?companies.find(x=>x.id===row.linkedId)?.name||"Company record missing":vendors.find(x=>x.id===row.linkedId)?.company||"Vendor record missing";
  const generated=[
   ...companies.filter(c=>c.contactPerson?.trim()).map(c=>({id:"company:"+c.id,linkedId:c.id,name:c.contactPerson||"",role:"Company contact",group:"",phone:c.phone,whatsapp:c.phone,additionalPhones:[],email:c.email,address:c.address||"",followUpDate:"",history:"",relationship:c.name,source:"Company Directory",linkedType:"company",vendorType:"Company",processes:"",machines:"",materials:"",processCategories:[],processTypes:[],processSubcategories:[],processDefinitionIds:[],processSubcategoryIds:[],machineCapabilities:[],materialCapabilities:[]})),
@@ -262,7 +283,7 @@ export function VendorNetworkWorkspace({onBack,onSelectModule}:Props){
 <td>{[...new Set(capabilityDefinitions.flatMap(definition=>definition.subcategories||[]))].join(", ")||"Not set"}</td>
 <td>{[...new Set(assigned.map(op=>op.executionType||"Outsourced"))].join(", ")||"No execution yet"}</td>
 <td>{assigned.length} operation(s) · {assignedPOs.length} PO(s){assigned.length>0&&<small>{assigned.slice(0,6).map(op=>op.name+" · "+op.status).join(" | ")}</small>}</td>
-<td><div className="vendor-network-actions"><button className="button-quiet compact-button" onClick={()=>onSelectModule("vendors",{vendorId:v.id})}>Vendor</button><button className="button-quiet compact-button" onClick={()=>{const op=assigned[0];onSelectModule("process-map",{poId:op?.poId,poLineId:op?.poLineId,componentId:op?.componentId,operationId:op?.id,vendorId:v.id});}}>Process Plan</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("contact360")}>Contact 360</button></div></td>
+<td><div className="vendor-network-actions"><button className="button-quiet compact-button" onClick={()=>onSelectModule("vendors",{vendorId:v.id})}>Vendor</button><button className="button-quiet compact-button" disabled={!assigned.length} title={assigned.length?"Open this vendor’s first assigned operation in Process Plan":"No process operation is assigned to this vendor yet"} onClick={()=>{const op=assigned[0];if(op)onSelectModule("process-map",{poId:op.poId,poLineId:op.poLineId,componentId:op.componentId,operationId:op.id,vendorId:v.id});}}>Process Plan</button><button className="button-quiet compact-button" onClick={()=>onSelectModule("contact360",{vendorId:v.id})}>Contact 360</button></div></td>
 </tr>)}</tbody></table></div>:<div className="module-empty-state"><Wrench size={24}/><h3>No matching vendors</h3><p>Change the capability filters or add capabilities to Vendor Directory from Process Directory.</p><button className="button-primary" onClick={()=>onSelectModule("vendors")}><Plus size={14}/> Open Vendor Directory</button></div>}
 </section>
 <div className="module-safety-note"><ShieldCheck size={15}/><span>Capability data is sourced from Vendor Directory and Process Directory. Assignment counts and statuses are derived from existing PO-linked Process Plan operations; they are not manually duplicated here.</span></div>

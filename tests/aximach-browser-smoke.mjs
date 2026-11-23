@@ -29,6 +29,9 @@ try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.getByRole("navigation", { name: "AXIMACH navigation" }).waitFor();
   await page.getByRole("heading", { name: /main dashboard/i }).waitFor({ timeout: 15000 }).catch(() => {});
+  const sphereModules = page.locator(".ax-orb-module-shell .ax-orb-satellite");
+  await page.waitForFunction(() => document.querySelectorAll(".ax-orb-module-shell .ax-orb-satellite").length === 20, null, { timeout: 15000 });
+  if (await sphereModules.count() !== 20) throw new Error("The 3D command sphere does not expose all 20 module controls.");
   if (await page.locator("[data-aximach-startup-error='true']").count()) {
     throw new Error("AXIMACH renderer startup error: " + await page.locator("[data-aximach-startup-error='true']").innerText());
   }
@@ -73,6 +76,36 @@ try {
     console.log("PASS module navigation:", id);
   }
 
+  // Exercise Company Directory's factory tab, which was previously hidden.
+  await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Company Directory"]').click();
+  await page.locator(".costing-tabs").waitFor();
+  const factoryTab = page.locator(".costing-tabs button").filter({ hasText: "Factories" });
+  await factoryTab.click();
+  if (!(await factoryTab.getAttribute("class") || "").includes("costing-tab-active")) {
+    throw new Error("Company Directory did not switch to the Factories register.");
+  }
+  const companyTab = page.locator(".costing-tabs button").filter({ hasText: "Companies" });
+  await companyTab.click();
+  if (!(await companyTab.getAttribute("class") || "").includes("costing-tab-active")) {
+    throw new Error("Company Directory did not return to the Companies register.");
+  }
+  console.log("PASS Company Directory company/factory tab navigation");
+
+  // Verify both module discovery surfaces open exact workspaces.
+  await page.locator(".deck-action").filter({ hasText: "Modules" }).click();
+  await page.getByRole("heading", { name: /module universe/i }).waitFor();
+  if (!(await page.locator(".universe-footer").innerText()).includes("20 of 20 modules")) {
+    throw new Error("Module Universe does not report all 20 modules.");
+  }
+  await page.locator(".universe-search input").fill("Route Flow");
+  await page.locator(".universe-card").filter({ hasText: "Route Flow & Relationships" }).click();
+  await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Route Flow & Relationships");
+  await page.locator(".command-search").click();
+  await page.locator(".command-palette input").fill("Quality Inspection");
+  await page.locator(".command-palette .palette-results button").filter({ hasText: "Quality Inspection" }).click();
+  await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Quality Inspection");
+  console.log("PASS module universe and global command-search navigation");
+
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Open navigation menu" }).click();
@@ -80,7 +113,7 @@ try {
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Purchase Orders");
   if (pageErrors.length) throw new Error("Browser runtime errors: " + pageErrors.join(" | "));
   console.log("PASS responsive mobile navigation and Purchase Orders workspace");
-  console.log("PASS browser smoke: 20 module routes, desktop navigation, mobile navigation, no renderer page errors");
+  console.log("PASS browser smoke: 20 module routes, Company/Factory tabs, module explorer, global search, desktop and mobile navigation, no renderer page errors");
 } finally {
   if (browser) await browser.close();
   preview.kill("SIGTERM");
