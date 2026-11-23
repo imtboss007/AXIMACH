@@ -859,6 +859,48 @@ try {
   await page.getByRole("button", { name: "Open navigation menu" }).click();
   await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Purchase Orders"]').click();
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Purchase Orders");
+  // Exercise Theme Studio on a phone-sized viewport: preview/cancel, edit a custom
+  // HEX token, apply it and verify that it survives a full renderer reload.
+  const openMobileThemeStudio = async () => {
+    await page.getByRole("button", { name: "Open navigation menu" }).click();
+    await page.locator(".rail-theme-studio-trigger").click();
+    const dialog = page.getByRole("dialog", { name: "Theme Studio" });
+    await dialog.waitFor({ state: "visible", timeout: 10000 });
+    return dialog;
+  };
+  const originalAccent = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--ax-theme-accent").trim());
+  let themeDialog = await openMobileThemeStudio();
+  if (await themeDialog.locator(".ax-theme-preset").count() !== 10) {
+    throw new Error("Theme Studio must expose all ten coordinated theme presets.");
+  }
+  const studioBounds = await themeDialog.boundingBox();
+  if (!studioBounds || studioBounds.x < 0 || studioBounds.y < 0 ||
+      studioBounds.x + studioBounds.width > 390 || studioBounds.y + studioBounds.height > 844) {
+    throw new Error("Phone Theme Studio dialog extends beyond the viewport: " + JSON.stringify(studioBounds));
+  }
+  await themeDialog.locator(".ax-theme-preset").filter({ hasText: "Obsidian" }).click();
+  await page.waitForFunction(() => getComputedStyle(document.documentElement).getPropertyValue("--ax-theme-accent").trim().toLowerCase() === "#f08a43");
+  await themeDialog.getByRole("button", { name: "Cancel preview" }).click();
+  await page.waitForFunction(expected => getComputedStyle(document.documentElement).getPropertyValue("--ax-theme-accent").trim() === expected, originalAccent);
+  if (await page.locator(".ax-theme-studio").count() !== 0) throw new Error("Cancel preview did not close Theme Studio.");
+  console.log("PASS mobile Theme Studio exposes ten presets and restores the prior theme on cancel");
+
+  themeDialog = await openMobileThemeStudio();
+  await themeDialog.locator(".ax-theme-mode").filter({ hasText: "Custom" }).click();
+  const mainAccentHex = themeDialog.locator('input[aria-label="Main accent HEX value"]');
+  await mainAccentHex.fill("#123456");
+  await page.waitForFunction(() => getComputedStyle(document.documentElement).getPropertyValue("--ax-theme-accent").trim().toLowerCase() === "#123456");
+  await themeDialog.getByRole("button", { name: "Apply theme" }).click();
+  await page.waitForFunction(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("aximach.theme-studio.v1") || "null");
+      return saved?.preset === "custom" && saved?.mode === "custom" && saved?.custom?.accent?.toLowerCase() === "#123456";
+    } catch { return false; }
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(() => document.documentElement.dataset.theme === "dark" &&
+    getComputedStyle(document.documentElement).getPropertyValue("--ax-theme-accent").trim().toLowerCase() === "#123456");
+  console.log("PASS custom HEX theme applies and persists across a renderer reload");
   if (pageErrors.length) throw new Error("Browser runtime errors: " + pageErrors.join(" | "));
   console.log("PASS responsive mobile navigation and Purchase Orders workspace");
   console.log("PASS browser smoke: 22 module routes, Company/Factory tabs, module explorer, global search, desktop and mobile navigation, no renderer page errors");
