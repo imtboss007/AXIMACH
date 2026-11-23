@@ -24,3 +24,5 @@ export function relaxProcessSceneLabels<T extends ProcessSceneLabelCandidate>(
   height: number,
   responsiveWidth?: number
 ): T[];
+
+export function processSceneLabelBounds(kind: ProcessSceneLabelKind, viewportWidth: number): { width: number; height: number };
