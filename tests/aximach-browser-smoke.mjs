@@ -149,6 +149,29 @@ try {
   // Seed the browser-only workspace with isolated synthetic records so the
   // Process Map visual acceptance check cannot silently pass with an empty scene.
   await page.locator('nav[aria-label="AXIMACH navigation"] button[title="Data Exchange Centre"]').click();
+  const dataExchangeTypography = await page.evaluate(() => {
+    const describe = selector => {
+      const element=document.querySelector(selector);
+      if(!element)return null;
+      const style=getComputedStyle(element);
+      return {text:element.textContent?.trim(),color:style.color,fontSize:style.fontSize,opacity:style.opacity};
+    };
+    return {
+      title:describe(".workspace-page > .workspace-title-row h1"),
+      section:describe(".workspace-page .workspace-card .workspace-title-row h2"),
+      copy:describe(".workspace-page .workspace-card .workspace-title-row p")
+    };
+  });
+  const darkReadable = value => {
+    const rgb=value?.color?.match(/\\d+/g)?.slice(0,3).map(Number)||[];
+    return rgb.length===3 && rgb.some(channel=>channel<170) && Number(value.opacity||1)>=0.95;
+  };
+  if(!darkReadable(dataExchangeTypography.title)||!darkReadable(dataExchangeTypography.section)||
+     !darkReadable(dataExchangeTypography.copy)||
+     Number.parseFloat(dataExchangeTypography.copy.fontSize)<13){
+    throw new Error("Data Exchange Centre typography lacks contrast/readability in light mode: "+JSON.stringify(dataExchangeTypography));
+  }
+  console.log("PASS Data Exchange Centre headings, sandbox copy and supporting text meet light-theme contrast checks");
   await page.getByRole("button", { name: "Import Demo Factory" }).waitFor({ timeout: 10000 });
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "Import Demo Factory" }).click();
@@ -553,7 +576,11 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".route-flow-graph-canvas .react-flow__edge").length >= 11, null, { timeout: 10000 });
   const routeEdgeCount = await page.locator(".route-flow-graph-canvas .react-flow__edge").count();
   if (routeEdgeCount < 11) throw new Error("Route Flow graph must render the 11 relationship examples; found " + routeEdgeCount);
-  const routeTitleColor = await page.locator(".workspace-title-row h1").first().evaluate(element => getComputedStyle(element).color);
+  const routeEdgeLabels = (await page.locator(".route-flow-graph-canvas .react-flow__edge-text").allInnerTexts()).join(" ").toUpperCase();
+  for (const label of ["MAIN","ALTERNATE","REWORK","DEPENDENCY","PARALLEL","MERGE","SPLIT","FOLLOW-ON","FEEDBACK","CONDITIONAL","SUCCESSOR"]) {
+    if (!routeEdgeLabels.includes(label)) throw new Error("Route Flow graph did not display relationship label "+label+": "+routeEdgeLabels);
+  }
+  const routeTitleColor = await page.locator(".route-flow-workspace-head h1").first().evaluate(element => getComputedStyle(element).color);
   const routeTitleRgb = routeTitleColor.match(/\d+/g)?.map(Number) || [];
   if (routeTitleRgb.length < 3 || routeTitleRgb.every(channel => channel > 210)) {
     throw new Error("Light-theme workspace heading is too pale: " + routeTitleColor);
@@ -577,6 +604,16 @@ try {
   await linePicker.fill("AST-1001");
   await page.getByRole("option", { name: /AST-1001/ }).click();
   await page.waitForFunction(() => document.querySelectorAll(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon").length >= 5, null, { timeout: 10000 });
+  const processLabelTypography = await page.locator(".ax-full3d-label-layer .ax-full3d-label:not(.ax-full3d-material-label)").first().evaluate(element => ({
+    cardWidth:element.getBoundingClientRect().width,
+    cardHeight:element.getBoundingClientRect().height,
+    titleSize:Number.parseFloat(getComputedStyle(element.querySelector("strong")).fontSize),
+    metadataSize:Number.parseFloat(getComputedStyle(element.querySelector("small")).fontSize)
+  }));
+  if(processLabelTypography.titleSize<10.5||processLabelTypography.metadataSize<10.5||processLabelTypography.cardWidth<150||processLabelTypography.cardHeight<100){
+    throw new Error("Process Map 3D labels are too small to read: "+JSON.stringify(processLabelTypography));
+  }
+  console.log("PASS Process Map 3D labels retain readable typography and full card dimensions");
 
   if (await page.locator(".ax-followup-assignment-dock").count() !== 0) throw new Error("Follow-up launcher must not overlay Process Map.");
   const sceneLabels = page.locator(".ax-full3d-label-layer .ax-full3d-label, .ax-full3d-label-layer .ax-full3d-core-label, .ax-full3d-label-layer .ax-full3d-transport-icon");
