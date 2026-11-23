@@ -520,7 +520,22 @@ try {
   await page.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Route Flow & Relationships");
   const routeGraphToggle = page.getByRole("button", { name: "Stage cards" });
   await routeGraphToggle.waitFor({ timeout: 10000 });
+  const routeScopeSelects = page.locator(".route-flow-scope-bar select");
+  await routeScopeSelects.nth(0).selectOption({ label: "ASTER MOTION COMPONENTS PVT LTD" });
+  await page.waitForFunction(() => {
+    const select = document.querySelectorAll(".route-flow-scope-bar select")[1];
+    return Boolean(select && select.options.length > 1);
+  }, null, { timeout: 10000 });
+  await routeScopeSelects.nth(1).selectOption({ label: "DEMO-PO-001" });
+  await page.waitForFunction(() => {
+    const select = document.querySelectorAll(".route-flow-scope-bar select")[2];
+    return Boolean(select && select.options.length > 1);
+  }, null, { timeout: 10000 });
+  await routeScopeSelects.nth(2).selectOption({ index: 1 });
   await page.locator('[data-testid="route-flow-react-canvas"]').waitFor({ timeout: 10000 });
+  await page.waitForFunction(() => document.querySelectorAll(".route-flow-graph-canvas .react-flow__edge").length >= 11, null, { timeout: 10000 });
+  const routeEdgeCount = await page.locator(".route-flow-graph-canvas .react-flow__edge").count();
+  if (routeEdgeCount < 11) throw new Error("Route Flow graph must render the 11 relationship examples; found " + routeEdgeCount);
   const routeTitleColor = await page.locator(".workspace-title-row h1").first().evaluate(element => getComputedStyle(element).color);
   const routeTitleRgb = routeTitleColor.match(/\d+/g)?.map(Number) || [];
   if (routeTitleRgb.length < 3 || routeTitleRgb.every(channel => channel > 210)) {
