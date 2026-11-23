@@ -532,6 +532,12 @@ try {
     return Boolean(select && select.options.length > 1);
   }, null, { timeout: 10000 });
   await routeScopeSelects.nth(2).selectOption({ index: 1 });
+  const routeScopeDiagnostic = await page.locator(".route-flow-scope-bar").evaluate(element => ({
+    selections:[...element.querySelectorAll("select")].map(select=>({value:select.value,label:select.selectedOptions[0]?.textContent,options:[...select.options].map(option=>option.textContent)})),
+    stats:element.querySelector(".route-flow-scope-stats")?.innerText||"missing",
+    canvas:document.querySelector(".route-flow-canvas-panel")?.innerText?.slice(0,420)||"missing"
+  }));
+  console.log("DEBUG Route Flow selected demo scope:", JSON.stringify(routeScopeDiagnostic));
   await page.locator('[data-testid="route-flow-react-canvas"]').waitFor({ timeout: 10000 });
   await page.waitForFunction(() => document.querySelectorAll(".route-flow-graph-canvas .react-flow__edge").length >= 11, null, { timeout: 10000 });
   const routeEdgeCount = await page.locator(".route-flow-graph-canvas .react-flow__edge").count();
