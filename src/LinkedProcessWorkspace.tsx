@@ -455,12 +455,19 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       return Boolean(nextStart && nextEnd && nextEnd < nextStart);
     });
     if (scheduleConflict) { onNotice("Bulk dates would put the due date before the planned start for " + scheduleConflict.name + ". No records were changed."); return; }
+    if (bulkStatus === "Complete") {
+      const incomplete = selected.filter(op => op.completed !== op.quantity);
+      if (incomplete.length) {
+        onNotice("Cannot mark operations Complete until each actual completed quantity equals its planned operation quantity. Update the recorded quantities first; no records were changed.");
+        return;
+      }
+    }
     const stamp = nowIso();
     update(current => {
       const nextOperations = current.operations.map(op => !ids.has(op.id) ? op : ({
         ...op,
         ...(bulkStatus ? { status: bulkStatus as LifecycleStatus } : {}),
-        ...(bulkStatus === "Complete" ? { completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp } : {}),
+        ...(bulkStatus === "Complete" ? { actualEnd: op.actualEnd || stamp } : {}),
         ...(bulkVendorId ? { vendorId: bulkVendorId } : {}),
         ...(bulkStart ? { plannedStart: bulkStart } : {}),
         ...(bulkEnd ? { plannedEnd: bulkEnd } : {}),
@@ -530,9 +537,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     return anchored + legacy + (firstMainRouteOperation?.id === operation.id ? unanchoredTransportCost : 0);
   };
   const expectedQuantity = Math.max(0,Number(selectedLine?.quantity)||0);
-  const completedQuantity = activeRouteOperations.length ? Math.min(...activeRouteOperations.map(op => op.accepted || 0)) : 0;
-  const finalRouteOperation = [...routeOperations].filter(op=>(op.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence).at(-1) || routeOperations[routeOperations.length-1];
-  const finalCompletedQty = Math.min(expectedQuantity,Math.max(0,finalRouteOperation?.accepted||finalRouteOperation?.completed||0));
+  const finalRouteOperation = [...routeOperations].filter(op=>(op.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence).at(-1);
+  const finalCompletedQty = Math.min(expectedQuantity,Math.max(0,Number(finalRouteOperation?.accepted)||0));
   const pendingProductionQty = Math.max(0,expectedQuantity-finalCompletedQty);
   const inProgressProductionQty = Math.min(pendingProductionQty,activeRouteOperations.filter(op=>op.status==="Running").reduce((sum,op)=>sum+Math.max(0,op.quantity-op.completed),0));
   const plannedProductionQty = expectedQuantity;
@@ -545,7 +551,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     return Boolean(op?.transportRouteId)&&op?.transportRouteId===leg.routeId&&Math.abs(Math.max(0,Number(leg.fixedAmount)||0)*Math.max(0,Number(leg.tripCount)||0)-Math.max(0,Number(op?.transportCost)||0))<0.01;
   }).map(leg=>leg.anchorOperationId));
   const transportCount = includedTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.tripCount) || 0), 0) + costedOperations.filter(op => !duplicateLegacyTransportIdsForCount.has(op.id) && (op.transportCost > 0 || op.transportVendorId)).length + materialRouteEntries.filter(entry=>(Number(entry.transportCost)||0)>0 || entry.transportVendorId).length;
-  const totalAccepted = routeOperations.reduce((sum, op) => sum + op.accepted, 0);
+  const totalAccepted = finalCompletedQty;
   const allDone = activeRouteOperations.length > 0 && activeRouteOperations.every(op => op.status === "Complete");
   const finalDelivery = selectedLine?.targetDelivery || selectedPO?.targetDelivery || "";
   const routeCost = totalProcessCost;
@@ -1085,9 +1091,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const finishSelectedOperations = () => {
     const ids = new Set(selectedVisibleOperations.map(op => op.id));
     if (!ids.size) { onNotice("Select one or more visible operations to finish."); return; }
+    const incomplete = selectedVisibleOperations.filter(op => op.completed !== op.quantity);
+    if (incomplete.length) {
+      onNotice("Cannot finish selected operations until each actual completed quantity equals its planned operation quantity. Update the recorded quantities first; no records were changed.");
+      return;
+    }
     const stamp = nowIso();
     update(current => {
-      const nextOperations = current.operations.map(op => ids.has(op.id) ? { ...op, status: "Complete" as LifecycleStatus, completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp, updatedAt: stamp } : op);
+      const nextOperations = current.operations.map(op => ids.has(op.id) ? { ...op, status: "Complete" as LifecycleStatus, actualEnd: op.actualEnd || stamp, updatedAt: stamp } : op);
       const touchedLines = new Set(selectedVisibleOperations.map(op => op.poId + "::" + op.poLineId));
       const nextPurchaseOrders = current.purchaseOrders.map(order => ({
         ...order,
@@ -1300,7 +1311,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         <button className="route-kpi kpi-wip"><span className="kpi-icon"><Boxes size={19}/></span><span><small>WORK IN PROGRESS</small><strong>{routeOperations.filter(op => op.status === "Running").reduce((sum,op) => sum + Math.max(0,op.quantity-op.completed),0).toLocaleString("en-IN")} {quantityUnit}</strong><em>{routeOperations.filter(op => op.status === "Running").length} operations running</em></span></button>
         <button className="route-kpi kpi-cost" onClick={() => onSelectModule("costing",{companyId,poId,poLineId,componentId:selectedLine?.componentId,operationId:selectedOperationId||undefined})}><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PROCESS COST</small><strong>{money(routeCost)}</strong><em>Transport is totalled separately below</em></span></button>
         <button className="route-kpi kpi-transport"><span className="kpi-icon"><Truck size={19}/></span><span><small>TRANSPORT TRIPS</small><strong>{transportCount}</strong><em>{money(totalTransportCost)} total transport cost</em></span></button>
-        <button className="route-kpi kpi-quality"><span className="kpi-icon"><ClipboardCheck size={19}/></span><span><small>ACCEPTED / ORDER QTY</small><strong>{totalAccepted.toLocaleString("en-IN")} {quantityUnit}</strong><em>Sum of accepted quantities entered per operation</em></span></button>
+        <button className="route-kpi kpi-quality"><span className="kpi-icon"><ClipboardCheck size={19}/></span><span><small>ACCEPTED / ORDER QTY</small><strong>{totalAccepted.toLocaleString("en-IN")} {quantityUnit}</strong><em>Accepted quantity at the final main-route operation</em></span></button>
       </div>
       <section className="surface-panel process-production-summary">
         <div className="panel-heading"><div><div className="eyebrow">QUANTITY & EXECUTION OVERVIEW</div><h3>Production quantity status</h3><p>PO quantity is the control total; completion comes from the final process route step.</p></div><div className="module-form-actions"><label className="histogram-style-picker">Histogram<select value={histogramStyle} onChange={e=>setHistogramStyle(e.target.value as "bar"|"stacked"|"donut")}><option value="bar">Progress bars</option><option value="stacked">Completed / rejected</option><option value="donut">Donut progress</option></select></label><span className="module-number">{completionPercent}% COMPLETE</span></div></div>

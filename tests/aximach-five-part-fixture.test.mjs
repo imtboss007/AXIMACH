@@ -83,9 +83,34 @@ test("Process Plan bulk update validates dates and vendor capabilities, and sync
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("const scheduleConflict = selected.find(op =>"));
   assert.ok(workspace.includes("definition?.vendorIds?.length && !definition.vendorIds.includes(bulkVendorId)"));
-  assert.ok(workspace.includes('bulkStatus === "Complete" ? { completed: Math.max(op.completed || 0, op.quantity || 0), actualEnd: op.actualEnd || stamp }'));
+  assert.ok(workspace.includes('bulkStatus === "Complete" ? { actualEnd: op.actualEnd || stamp } : {}'));
+  assert.ok(!workspace.includes('completed: Math.max(op.completed || 0, op.quantity || 0)'));
+  assert.ok(workspace.includes('const incomplete = selected.filter(op => op.completed !== op.quantity)'));
+  assert.ok(workspace.includes('const incomplete = selectedVisibleOperations.filter(op => op.completed !== op.quantity)'));
   assert.ok(workspace.includes('jobStatus: "In progress" as const, jobFinishedAt: undefined'));
 });
+
+test("bulk completion never fabricates production quantity and rejects incomplete actuals", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('const incomplete = selected.filter(op => op.completed !== op.quantity)'));
+  assert.ok(workspace.includes('const incomplete = selectedVisibleOperations.filter(op => op.completed !== op.quantity)'));
+  assert.ok(workspace.includes('Cannot mark operations Complete until each actual completed quantity equals its planned operation quantity.'));
+  assert.ok(workspace.includes('Cannot finish selected operations until each actual completed quantity equals its planned operation quantity.'));
+  assert.ok(!workspace.includes('completed: Math.max(op.completed || 0, op.quantity || 0)'));
+});
+
+test("final output KPI counts only accepted quantity at the terminal main-route operation", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes('const finalRouteOperation = [...routeOperations].filter(op=>(op.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence).at(-1);'));
+  assert.ok(workspace.includes('const finalCompletedQty = Math.min(expectedQuantity,Math.max(0,Number(finalRouteOperation?.accepted)||0));'));
+  assert.ok(workspace.includes('const totalAccepted = finalCompletedQty;'));
+  assert.ok(workspace.includes('Accepted quantity at the final main-route operation'));
+  assert.ok(!workspace.includes('finalRouteOperation?.accepted||finalRouteOperation?.completed'));
+  assert.ok(!workspace.includes('Sum of accepted quantities entered per operation'));
+  assert.ok(!workspace.includes('const completedQuantity = activeRouteOperations.length'));
+});
+
+
 test("Process Plan rejects archived vendors, reversed actual dates and incomplete Complete status", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes("draft.vendorId && !vendors.some(vendor => vendor.id === draft.vendorId)"));
