@@ -246,3 +246,21 @@ body{background:#f1f5fa!important;color:#12263f!important}
   flex:0 0 auto!important;
   box-sizing:border-box!important;
 }
+
+/* Portrait label planes scroll at their measured content height.
+   Prevent legacy viewport sizing rules from collapsing the 3D card plane. */
+.ax-full3d-label-layer{
+  display:block!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+}
+.ax-full3d-label-content{
+  display:block!important;
+  position:relative!important;
+  width:100%!important;
+  height:var(--ax-scene-label-content-height)!important;
+  min-height:var(--ax-scene-label-content-height)!important;
+  max-height:none!important;
+  flex:0 0 auto!important;
+  align-self:flex-start!important;
+}
