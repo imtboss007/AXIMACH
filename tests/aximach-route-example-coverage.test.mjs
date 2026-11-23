@@ -45,4 +45,5 @@ test("global appearance fix is imported after the older AXIMACH stylesheet and e
   assert.ok(visual.includes('.route-flow-graph-node>strong'));
   assert.ok(visual.includes('.ax-full3d-label strong'));
   assert.ok(visual.includes("height:var(--ax-scene-label-content-height)!important"));
+  assert.ok(visual.includes("height:var(--ax-scene-label-content-height,520px)!important"), "The WebGL scene must grow with the packed phone label plane.");
 });

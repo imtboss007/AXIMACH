@@ -755,7 +755,8 @@ try {
         !scene.content ||
         rect.top < scene.content.top - 1 ||
         rect.bottom > scene.content.bottom + 1)) ||
-      populatedPhoneScenes.some(scene=>scene.layerScrollHeight < scene.layerClientHeight ||
+      populatedPhoneScenes.some(scene=>scene.scene.height < Number(scene.measuredLabelHeight||0)-1 ||
+        scene.layerScrollHeight < scene.layerClientHeight ||
         !scene.content || scene.content.height < Number(scene.measuredLabelHeight||0)-1 ||
         Number.parseFloat(scene.contentComputedHeight||"0") < Number(scene.measuredLabelHeight||0)-1 ||
         scene.contentComputedMaxHeight!=="none") ||
