@@ -1846,7 +1846,7 @@ test("Manufacturing Universe uses compact 3D nodes and keeps full operation deta
   assert.ok(scene.includes("<small>{operationCode(op)}</small><strong>{op.name}</strong>"));
   assert.ok(scene.includes('Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}'));
   assert.ok(scene.includes('visibleFields.includes("category")'));
-  assert.ok(scene.includes('import { relaxProcessSceneLabels } from "./processSceneLabelLayout.js"'));
+  assert.ok(scene.includes('import { processSceneLabelBounds, relaxProcessSceneLabels } from "./processSceneLabelLayout.js"'));
   assert.ok(labelLayout.includes("operation: { width: 184, height: 112 }"));
   assert.ok(labelLayout.includes("material: { width: 190, height: 202 }"));
   assert.ok(labelLayout.includes("findNearestFreeSlot"));
