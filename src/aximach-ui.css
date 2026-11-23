@@ -6844,3 +6844,11 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 @media(prefers-reduced-motion:reduce){
   .dashboard-cockpit *{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+.dashboard-cockpit-records-label{
+  padding:3px 2px 0;
+  color:#8bb5cf;
+  font:700 9px 'DM Mono',monospace;
+  letter-spacing:1.1px;
+  text-transform:uppercase;
+}
