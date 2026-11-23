@@ -198,3 +198,10 @@ test("explicit transport sender and receiver IDs persist without inferring the n
   assert.ok(processMap.includes('label="Receiving process (to) · optional"'));
   assert.ok(processMap.includes('Destinations are never inferred from display order.'));
 });
+
+test("Route Flow never infers a transport receiver from the next displayed operation", () => {
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(routeFlow.includes('const target=operationFor(leg.targetOperationId||"")'));
+  assert.ok(!routeFlow.includes("inferredTarget"), "The next displayed operation is not a valid transport destination.");
+  assert.ok(routeFlow.includes('if(target)addEdge(transportId,target.id,"transport","transport-to:"+leg.id'));
+});

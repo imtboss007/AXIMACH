@@ -441,12 +441,9 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       const transportId="transport-"+leg.id;
       if(!nodeIds.has(transportId))return;
       const anchor=operationFor(leg.anchorOperationId||"");
-      const branchRows=lineOperations.filter(operation=>(operation.branch||"Main route")===(anchor?.branch||"Main route")).sort((a,b)=>a.sequence-b.sequence);
-      const anchorIndex=anchor?branchRows.findIndex(operation=>operation.id===anchor.id):-1;
-      const inferredTarget=anchorIndex>=0
-        ? branchRows[anchorIndex+(leg.placement==="before"?0:1)]||null
-        : mainOperations[0]||null;
-      const target=operationFor(leg.targetOperationId||"")||inferredTarget;
+      // A transport receiving operation is an explicit saved relationship.
+      // Never infer it from the next node in the current visual layout.
+      const target=operationFor(leg.targetOperationId||"");
       const source=anchor?anchor.id:leg.materialEntryId?"material-"+leg.materialEntryId:"";
       if(source)addEdge(source,transportId,"transport","transport-from:"+leg.id,"TRANSPORT");
       if(target)addEdge(transportId,target.id,"transport","transport-to:"+leg.id,(leg.vehicleType||"TRANSPORT").toUpperCase());
