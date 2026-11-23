@@ -4,20 +4,22 @@ import test from "node:test";
 
 const source = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 
-test("Route Flow React Flow graph preserves every route-stage kind and its existing actions", () => {
+test("Route Flow React Flow graph draws all PO-line branches and persisted relationship links", () => {
   const flow = source("src/RouteFlowWorkspace.tsx");
   assert.match(flow, /const routeFlowGraph = useMemo\(/);
-  assert.match(flow, /const nodes:RouteFlowGraphNode\[\]=routeNodes\.map\(/);
-  assert.match(flow, /const edges:Edge\[\]=routeNodes\.slice\(0,-1\)\.map\(/);
+  assert.match(flow, /const graphSource:FlowNode\[\]=\[/);
+  assert.match(flow, /const nodes:RouteFlowGraphNode\[\]=uniqueSource\.map\(/);
   for (const kind of ["operation", "material", "material-transport", "transport", "missing-material"]) {
     assert.ok(flow.includes('node.kind==="' + kind + '"'), "Route Flow graph must map " + kind + " stages.");
   }
   assert.ok(flow.includes("setEditingOperation(node.operation)"), "Operation node must retain its edit action.");
   assert.ok(flow.includes("setInspectedTransportId(node.leg.id)"), "Transport node must open its saved transport record.");
   assert.ok(flow.includes("setInspectedMaterialTransportId(node.entry.id)"), "Material inbound transport node must open its saved record.");
-  assert.ok(flow.includes("connectorFor(index)"), "Graph edges must use the existing route relationship/transport connector resolver.");
+  assert.ok(flow.includes('relationships.filter(link=>link.status!=="Disabled")'), "Enabled and planned saved relationships must become graph edges.");
+  assert.ok(flow.includes("addEdge(link.fromOperationId,link.toOperationId,link.relationshipType"), "Relationship edges must preserve their saved type.");
   assert.ok(flow.includes('data-testid="route-flow-react-canvas"'));
   assert.ok(flow.includes('routeCanvasMode==="graph"'));
+  assert.ok(flow.includes('useState<"cards"|"graph">("graph")'), "The branch-aware interactive graph is the default Route Flow view.");
 });
 
 test("Process Map graph is scoped to the selected PO line and preserves branch, BOM and transport relationships", () => {
