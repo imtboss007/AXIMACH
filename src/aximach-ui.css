@@ -6604,3 +6604,17 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   transform:translate3d(var(--ax-scene-left),var(--ax-scene-top),0) translate(-50%,-50%) scale(var(--ax-scene-scale,1))!important;
   margin:0!important;
 }
+
+
+/* Keep the Process Map scroll viewport constrained to the measured scene.
+   The inner label content may be taller; it must scroll inside this fixed box,
+   never increase the absolute layer's min-content height. */
+.ax-full3d-scene > .ax-full3d-label-layer{
+  position:absolute!important;
+  inset:0 0 auto 0!important;
+  height:100%!important;
+  min-height:0!important;
+  max-height:100%!important;
+  box-sizing:border-box!important;
+  overflow-x:hidden!important;
+}
