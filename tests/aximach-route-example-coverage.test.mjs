@@ -44,4 +44,5 @@ test("global appearance fix is imported after the older AXIMACH stylesheet and e
   assert.ok(visual.includes('.app-shell[data-theme="light"] .workspace-title-row h1'));
   assert.ok(visual.includes('.route-flow-graph-node>strong'));
   assert.ok(visual.includes('.ax-full3d-label strong'));
+  assert.ok(visual.includes("height:var(--ax-scene-label-content-height)!important"));
 });
