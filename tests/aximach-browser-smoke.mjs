@@ -532,6 +532,17 @@ try {
     return Boolean(select && select.options.length > 1);
   }, null, { timeout: 10000 });
   await routeScopeSelects.nth(2).selectOption({ index: 1 });
+  await page.waitForTimeout(250);
+  const routeScopeCount = await page.locator(".route-flow-scope-bar").count();
+  if (routeScopeCount !== 1) {
+    const routeFailureContext = await page.evaluate(() => ({
+      activeModule:document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title")||"missing",
+      startupError:document.querySelector("[data-aximach-startup-error]")?.innerText||"",
+      workspaceCount:document.querySelectorAll(".route-flow-workspace").length,
+      pageText:document.querySelector("main.page-content")?.innerText?.slice(0,1800)||"missing"
+    }));
+    throw new Error("Route Flow scope disappeared after selecting the demo PO line: "+JSON.stringify({routeFailureContext,pageErrors}));
+  }
   const routeScopeDiagnostic = await page.locator(".route-flow-scope-bar").evaluate(element => ({
     selections:[...element.querySelectorAll("select")].map(select=>({value:select.value,label:select.selectedOptions[0]?.textContent,options:[...select.options].map(option=>option.textContent)})),
     stats:element.querySelector(".route-flow-scope-stats")?.innerText||"missing",
