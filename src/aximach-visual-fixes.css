@@ -238,15 +238,6 @@ body{background:#f1f5fa!important;color:#12263f!important}
 .route-flow-relationship-type strong{font-size:12px!important;font-weight:600!important}
 .route-flow-relationship-type small{font-size:11px!important;line-height:1.35!important}
 
-/* Expand the actual Process Map scene when portrait packing needs a taller label plane.
-   The ResizeObserver then measures the expanded viewport and projects the WebGL
-   overlay against the same height, rather than leaving readable labels below a
-   clipped canvas. This preserves full-size manufacturing labels on phones. */
-.ax-full3d-scene{
-  height:var(--ax-scene-label-content-height,520px)!important;
-  min-height:var(--ax-scene-label-content-height,520px)!important;
-}
-
 /* Keep the scroll canvas in exact sync with the projected label packer's full extents. */
 .ax-full3d-scene .ax-full3d-label-content{
   height:var(--ax-scene-label-content-height,auto)!important;

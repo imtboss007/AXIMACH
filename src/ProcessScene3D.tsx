@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Truck } from "lucide-react";
 import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
 import type { OperationRecord } from "./manufacturingData";
@@ -398,6 +398,23 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   return Math.max(bottom,item.screen.y+bounds.height*(item.screen.scale??1)/2+42);
  },size.h);
  const sceneLayoutHeight=Math.max(size.h,projectedLayout.layoutHeight||0,Math.ceil(projectedLabelBottom));
+ useLayoutEffect(()=>{
+  const element=scene.current;
+  const layer=element?.querySelector<HTMLElement>(".ax-full3d-label-layer");
+  const content=element?.querySelector<HTMLElement>(".ax-full3d-label-content");
+  if(!element||!layer||!content)return;
+  // The label plane is a scrollable child of the fixed-size viewport. Use
+  // inline important dimensions so legacy mobile workspace rules cannot
+  // clamp a full-size manufacturing label plane to a stale 500px height.
+  content.style.setProperty("height",sceneLayoutHeight+"px","important");
+  content.style.setProperty("min-height",sceneLayoutHeight+"px","important");
+  content.style.setProperty("max-height","none","important");
+  content.style.setProperty("flex","0 0 auto","important");
+  layer.style.setProperty("height",size.h+"px","important");
+  layer.style.setProperty("min-height","0","important");
+  layer.style.setProperty("max-height",size.h+"px","important");
+  layer.style.setProperty("overflow-y",sceneLayoutHeight>size.h?"auto":"hidden","important");
+ },[sceneLayoutHeight,size.h]);
  return <div ref={scene} className="ax-full3d-scene" style={{height:size.h,minHeight:size.h,"--ax-scene-label-content-height":sceneLayoutHeight+"px"} as CSSProperties} data-scene-layout-width={size.w} data-scene-layout-height={size.h} data-scene-label-layout-height={sceneLayoutHeight} onPointerDown={e=>{if(e.pointerType!=="mouse"&&e.target instanceof Element&&e.target.closest(".ax-full3d-label-layer"))return;drag.current={x:e.clientX,y:e.clientY,angle:rotationRef.current};e.currentTarget.setPointerCapture(e.pointerId);setDragging(true);}} onPointerMove={e=>{if(drag.current){rotationRef.current=drag.current.angle+(e.clientX-drag.current.x)*.008;setAngle(rotationRef.current);}}} onPointerUp={()=>{drag.current=null;setDragging(false);}} onPointerCancel={()=>{drag.current=null;setDragging(false);}}>
   <canvas ref={canvas} aria-label="Interactive WebGL 3D manufacturing process graph"/>
   <div className="ax-full3d-label-layer" style={{height:size.h,minHeight:0,maxHeight:size.h,overflowY:sceneLayoutHeight>size.h?"auto":"hidden",overflowX:"hidden",pointerEvents:"auto",touchAction:"pan-y",bottom:"auto"}}>
