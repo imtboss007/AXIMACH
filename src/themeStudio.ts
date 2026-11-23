@@ -27,7 +27,7 @@ export interface ThemePreference {
   custom: ThemeTokens;
 }
 
-type SurfaceSet = Omit<ThemeTokens, "chartColors" | "graphColors">;
+type SurfaceSet = Omit<ThemeTokens, "chartColors" | "graphColors" | "accent" | "secondaryAccent">;
 interface PresetDefinition {
   id: ThemePresetId;
   label: string;
@@ -132,6 +132,8 @@ export function buildThemeTokens(preset: ThemePresetId, dark: boolean): ThemeTok
   const surfaces = dark ? definition.dark : definition.light;
   return {
     ...surfaces,
+    accent: definition.accent,
+    secondaryAccent: definition.secondaryAccent,
     chartColors: [...definition.chartColors],
     graphColors: [...definition.graphColors]
   };
