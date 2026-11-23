@@ -194,3 +194,19 @@ test("keeps a dense short-landscape label shelf collision-free by expanding the 
   assert.ok(result.layoutHeight >= 390, "the packed layout must report a sufficient scene height");
   assert.ok(result.every(item => item.screen.collision === false), "the dense layout must not return fallback overlaps");
 });
+
+test("reports enough scrollable content height for every full-size label", () => {
+  const items = [
+    { id: "low-operation", kind: "operation", screen: { x: 150, y: 790, z: 0 } },
+    { id: "low-material", kind: "material", screen: { x: 150, y: 650, z: 0 } },
+    { id: "low-transport", kind: "transport", screen: { x: 40, y: 820, z: 0 } }
+  ];
+  const result = relaxProcessSceneLabels(items, 390, 844, 390);
+  assert.ok(result.layoutHeight >= 844);
+  for (const item of result) {
+    const bounds = boundsByKind(item.kind, 390);
+    const scale = item.screen.scale ?? 1;
+    assert.ok(item.screen.y + bounds.height * scale / 2 + 42 <= result.layoutHeight,
+      "scroll content must contain " + item.id);
+  }
+});
