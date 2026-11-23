@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Truck } from "lucide-react";
 import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
 import type { OperationRecord } from "./manufacturingData";
-import { relaxProcessSceneLabels } from "./processSceneLabelLayout.js";
+import { processSceneLabelBounds, relaxProcessSceneLabels } from "./processSceneLabelLayout.js";
 
 type Mode = "sphere"|"cube"|"vortex"|"helix"|"orbit"|"network"|"grid"|"pipeline"|"layered"|"stacked"|"matrix"|"tree"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined"|"molecular"|"digital-mesh"|"route"|"orthogonal"|"s-curve"|"swimlane"|"radial"|"circular"|"organic";
 type CatalogueDefinition = { id:string; processType:string; category:string; displayColor?:string };
@@ -385,8 +385,20 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
  const projectedGanttTicks=useMemo(()=>{if(mode!=="gantt")return[];const domain=ganttDomain(geometryRows,ganttScale);if(!domain.hasEvents)return[];const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));return domain.ticks.map(value=>{const x=((value-domain.minimum)/Math.max(1,domain.maximum-domain.minimum))*2.35-1.175;const screen=project({x,y:-1.08,z:-.09},m,w,h);const date=new Date(value);const label=date.toLocaleDateString("en-IN",ganttScale==="month"?{month:"short",year:"2-digit"}:{day:"2-digit",month:"short"});return screen?{key:String(value),x:screen.x,label}:null;}).filter(Boolean);},[mode,geometryRows,ganttScale,size,angle]);
  const projectedCatalogue=projectedLayout.catalogues;
   const ganttStatus=useMemo(()=>{if(mode!=="gantt")return "";const domain=ganttDomain(geometryRows,ganttScale);const unscheduled=geometryRows.filter(op=>!(timestamp(op.plannedStart)??timestamp(op.actualStart))&&!(timestamp(op.plannedEnd)??timestamp(op.actualEnd))).length;const incomplete=geometryRows.filter(op=>!(timestamp(op.plannedStart)??timestamp(op.actualStart))||!(timestamp(op.plannedEnd)??timestamp(op.actualEnd))).length;return !domain.hasEvents?"NO SCHEDULE DATES · "+unscheduled+" UNSCHEDULED":incomplete?"INCOMPLETE SCHEDULE · "+incomplete+" OPERATION(S)":"";},[mode,geometryRows,ganttScale]);
- const sceneLayoutHeight=Math.max(size.h,projectedLayout.layoutHeight||0);
- return <div ref={scene} className="ax-full3d-scene" style={{height:size.h,minHeight:size.h}} data-scene-layout-width={size.w} data-scene-layout-height={size.h} onPointerDown={e=>{if(e.pointerType!=="mouse"&&e.target instanceof Element&&e.target.closest(".ax-full3d-label-layer"))return;drag.current={x:e.clientX,y:e.clientY,angle:rotationRef.current};e.currentTarget.setPointerCapture(e.pointerId);setDragging(true);}} onPointerMove={e=>{if(drag.current){rotationRef.current=drag.current.angle+(e.clientX-drag.current.x)*.008;setAngle(rotationRef.current);}}} onPointerUp={()=>{drag.current=null;setDragging(false);}} onPointerCancel={()=>{drag.current=null;setDragging(false);}}>
+ const projectedLabelExtents=[
+  ...projectedLayout.operations.map(item=>({kind:"operation" as const,screen:item.screen})),
+  ...projectedLayout.materials.map(item=>({kind:"material" as const,screen:item.screen})),
+  ...projectedLayout.transports.map(item=>({kind:"transport" as const,screen:item.screen})),
+  ...projectedLayout.transportLegs.map(item=>({kind:"transportLeg" as const,screen:item.screen})),
+  ...projectedLayout.catalogues.map(item=>({kind:"catalogue" as const,screen:item.screen})),
+  ...(projectedLayout.center?[{kind:"core" as const,screen:projectedLayout.center}]:[])
+ ];
+ const projectedLabelBottom=projectedLabelExtents.reduce((bottom,item)=>{
+  const bounds=processSceneLabelBounds(item.kind,size.vw);
+  return Math.max(bottom,item.screen.y+bounds.height*(item.screen.scale??1)/2+42);
+ },size.h);
+ const sceneLayoutHeight=Math.max(size.h,projectedLayout.layoutHeight||0,Math.ceil(projectedLabelBottom));
+ return <div ref={scene} className="ax-full3d-scene" style={{height:size.h,minHeight:size.h}} data-scene-layout-width={size.w} data-scene-layout-height={size.h} data-scene-label-layout-height={sceneLayoutHeight} onPointerDown={e=>{if(e.pointerType!=="mouse"&&e.target instanceof Element&&e.target.closest(".ax-full3d-label-layer"))return;drag.current={x:e.clientX,y:e.clientY,angle:rotationRef.current};e.currentTarget.setPointerCapture(e.pointerId);setDragging(true);}} onPointerMove={e=>{if(drag.current){rotationRef.current=drag.current.angle+(e.clientX-drag.current.x)*.008;setAngle(rotationRef.current);}}} onPointerUp={()=>{drag.current=null;setDragging(false);}} onPointerCancel={()=>{drag.current=null;setDragging(false);}}>
   <canvas ref={canvas} aria-label="Interactive WebGL 3D manufacturing process graph"/>
   <div className="ax-full3d-label-layer" style={{height:size.h,minHeight:0,maxHeight:size.h,overflowY:sceneLayoutHeight>size.h?"auto":"hidden",overflowX:"hidden",pointerEvents:"auto",touchAction:"pan-y",bottom:"auto"}}>
    <div className="ax-full3d-label-content" style={{position:"relative",height:sceneLayoutHeight,minHeight:sceneLayoutHeight,width:"100%"}}> {projectedCore&&mode==="sphere"&&<div className="ax-full3d-core-label" style={{"--ax-scene-left":projectedCore.x+"px","--ax-scene-top":projectedCore.y+"px"} as CSSProperties}><strong>AXIMACH</strong><small>MANUFACTURING FLOW</small></div>}
