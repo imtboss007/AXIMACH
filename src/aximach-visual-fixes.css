@@ -164,3 +164,76 @@ body{background:#f1f5fa!important;color:#12263f!important}
 .page-content .workspace-title-row p{font-size:14px!important;line-height:1.55!important;max-width:780px}
 .page-content .panel-heading h3{font-size:16px!important;line-height:1.35!important}
 .page-content .panel-heading p,.page-content .module-safety-note{font-size:13px!important;line-height:1.55!important}
+
+/* Unslop pass: calm Data Exchange surfaces and readable manufacturing labels. */
+.app-shell[data-theme="light"] .workspace-page .workspace-card,
+.app-shell[data-theme="light"] .workspace-page .surface-panel{
+  background:#ffffff!important;border-color:#d8e2ed!important;color:#12263f!important;
+  box-shadow:0 1px 2px rgba(18,38,63,.05)!important;
+}
+.app-shell[data-theme="light"] .workspace-page .workspace-card :is(h1,h2,h3,h4,strong,b){
+  color:#12263f!important;opacity:1!important;-webkit-text-fill-color:#12263f!important;
+}
+.app-shell[data-theme="light"] .workspace-page .workspace-card :is(p,.muted-copy,small,label){
+  color:#4e627a!important;opacity:1!important;
+}
+.app-shell[data-theme="light"] .workspace-page .workspace-card .metric-card{
+  background:#f7f9fc!important;border-color:#d8e2ed!important;
+}
+.app-shell[data-theme="light"] .workspace-page .workspace-card .metric-card small{
+  color:#4e627a!important;font-size:12px!important;line-height:1.35!important;
+}
+.app-shell[data-theme="light"] .workspace-page .workspace-card .metric-card strong{
+  color:#12263f!important;
+}
+.app-shell[data-theme="light"] .workspace-page .workspace-title-row h1,
+.app-shell[data-theme="light"] .workspace-page .workspace-title-row h2{
+  color:#12263f!important;opacity:1!important;-webkit-text-fill-color:#12263f!important;
+}
+.app-shell[data-theme="light"] .workspace-page .workspace-title-row p{
+  color:#4e627a!important;opacity:1!important;font-size:14px!important;line-height:1.55!important;
+}
+.app-shell[data-theme="light"] .workspace-page .demo-pill{
+  color:#24557e!important;background:#edf4fb!important;border-color:#d5e1ed!important;
+}
+.app-shell[data-theme="light"] .workspace-page .module-form-actions button,
+.app-shell[data-theme="light"] .workspace-page .linked-route-actions button{
+  min-height:40px!important;font-size:11px!important;
+}
+
+/* Full WebGL label cards: fixed, collision-matched footprints and legible text. */
+.ax-full3d-label{
+  width:184px!important;min-height:112px!important;padding:10px!important;gap:5px!important;
+  background:#ffffff!important;border:1px solid #c6d4e2!important;
+  color:#12263f!important;box-shadow:0 4px 14px rgba(18,38,63,.12)!important;
+}
+.ax-full3d-label small{font:500 11px/1.3 'DM Mono',monospace!important;color:#3f5e7b!important;letter-spacing:0!important}
+.ax-full3d-label strong{font:600 12px/1.35 'Space Grotesk',sans-serif!important;color:#12263f!important}
+.ax-full3d-label em{font:500 11px/1.35 'DM Mono',monospace!important;color:#3f5e7b!important;font-style:normal}
+.ax-full3d-node-meta{font:400 11px/1.4 'DM Sans',sans-serif!important;color:#40576f!important}
+.ax-full3d-label.selected{border:2px solid #0b78a5!important;box-shadow:0 0 0 2px rgba(11,120,165,.12),0 4px 14px rgba(18,38,63,.12)!important}
+.ax-full3d-label.ax-full3d-material-label{width:190px!important;min-height:202px!important}
+.ax-full3d-catalogue-label{border-style:dashed!important;background:#f8fafc!important}
+@media(min-width:601px) and (max-width:760px){
+  .ax-full3d-label{width:148px!important;min-height:104px!important;padding:8px!important}
+  .ax-full3d-label.ax-full3d-material-label{width:148px!important;min-height:116px!important}
+  .ax-full3d-label small,.ax-full3d-label em,.ax-full3d-node-meta{font-size:11px!important}
+  .ax-full3d-label strong{font-size:11px!important}
+}
+@media(max-width:600px){
+  .ax-full3d-label{width:156px!important;min-height:124px!important;padding:9px!important;gap:5px!important}
+  .ax-full3d-label.ax-full3d-material-label{width:156px!important;min-height:136px!important}
+  .ax-full3d-label small,.ax-full3d-label em,.ax-full3d-node-meta{font-size:11px!important;line-height:1.35!important}
+  .ax-full3d-label strong{font-size:11px!important;line-height:1.35!important}
+}
+
+/* Route graph uses the same calm neutral canvas and compact but readable labels. */
+.route-flow-graph-canvas{background:#f5f7fa!important;border-color:#d5dee8!important}
+.route-flow-graph-node{border-color:#cbd6e2!important;box-shadow:0 2px 8px rgba(18,38,63,.07)!important}
+.route-flow-graph-node>span{font-size:11px!important;letter-spacing:0!important}
+.route-flow-graph-node>strong{font-size:14px!important;font-weight:600!important}
+.route-flow-graph-node>small{font-size:12px!important;line-height:1.45!important;color:#40576f!important}
+.route-flow-graph-node>button{font-size:11px!important;font-weight:500!important}
+.route-flow-graph-canvas .react-flow__edge-text{font-size:11px!important;font-weight:600!important}
+.route-flow-relationship-type strong{font-size:12px!important;font-weight:600!important}
+.route-flow-relationship-type small{font-size:11px!important;line-height:1.35!important}
