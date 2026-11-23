@@ -45,5 +45,5 @@ test("global appearance fix is imported after the older AXIMACH stylesheet and e
   assert.ok(visual.includes('.route-flow-graph-node>strong'));
   assert.ok(visual.includes('.ax-full3d-label strong'));
   assert.ok(visual.includes("height:var(--ax-scene-label-content-height)!important"));
-  assert.ok(read("../src/ProcessScene3D.tsx").includes('content.style.setProperty("height",sceneLayoutHeight+"px","important")'), "The scrollable Process Map label plane must bypass legacy mobile height clamps.");
+  assert.ok(read("../src/ProcessScene3D.tsx").includes("height:sceneLayoutHeight,minHeight:sceneLayoutHeight"), "The scrollable Process Map content retains its measured layout height.");
 });
