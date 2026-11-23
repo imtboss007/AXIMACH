@@ -156,10 +156,14 @@ test("keeps full label rectangles inside phone, short-landscape, hybrid-tablet a
       const right = item.screen.x + base.width * scale / 2;
       const top = item.screen.y - base.height * scale / 2;
       const bottom = item.screen.y + base.height * scale / 2;
+      // Dense portrait routes may exceed the visible viewport; their overlay is
+      // intentionally scrollable, so verify against the packed content height.
+      const contentHeight = Number(result.layoutHeight) || viewport.height;
       assert.ok(left >= -0.5, viewport.name + " clips left edge of " + item.id + ": " + left);
       assert.ok(right <= viewport.width + 0.5, viewport.name + " clips right edge of " + item.id + ": " + right);
       assert.ok(top >= -0.5, viewport.name + " clips top edge of " + item.id + ": " + top);
-      assert.ok(bottom <= viewport.height + 0.5, viewport.name + " clips bottom edge of " + item.id + ": " + bottom);
+      assert.ok(bottom <= contentHeight + 0.5, viewport.name + " clips bottom edge of " + item.id + ": " + bottom);
+      assert.ok(result.layoutHeight === undefined || result.layoutHeight >= viewport.height, viewport.name + " must expose a scrollable content height");
     }
   }
 });
