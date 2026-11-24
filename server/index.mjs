@@ -266,7 +266,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/integrations/catalog" && req.method === "GET") {
       return json(res, 200, getIntegrationCatalog(process.env));
     }
-    const publicApiRoute = url.pathname.match(/^\\/api\\/public-apis\\/(fx|holidays|ev-stations)$/);
+    const publicApiRoute = url.pathname.match(/^\/api\/public-apis\/(fx|holidays|ev-stations)$/);
     if (publicApiRoute && req.method === "GET") {
       if (!principal.legacy && principal.role !== "admin") {
         appendAuditEvent(req, principal, "authorization.denied", { requiredPermission: "integrations:manage", provider: publicApiRoute[1] });
