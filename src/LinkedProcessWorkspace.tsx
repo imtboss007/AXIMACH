@@ -183,7 +183,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   useEffect(() => {
     const syncResponsiveProcessView = () => {
       const portrait = window.matchMedia("(orientation:portrait)").matches;
-      setVisualStyle(current => portrait && current === "sphere" ? "graph" : !portrait && current === "vertical" ? "sphere" : current);
+      setVisualStyle(current => portrait && current === "sphere" ? "graph" : !portrait && current === "graph" ? "sphere" : current);
     };
     window.addEventListener("orientationchange",syncResponsiveProcessView);
     window.addEventListener("resize",syncResponsiveProcessView);
