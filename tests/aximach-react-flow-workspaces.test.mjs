@@ -136,5 +136,6 @@ test("Route Flow graph animates only edges attached to real Running operation re
   assert.ok(route.includes('const animated=routeOperations.some(operation=>(operation.id===source||operation.id===target)&&operation.status==="Running")'));
   assert.ok(route.includes("label,animated,"));
   assert.ok(visual.includes(".route-flow-graph-canvas .react-flow__edge.animated .react-flow__edge-path"));
+  assert.ok(visual.includes(".process-map-graph-canvas .react-flow__edge.animated .react-flow__edge-path"));
   assert.ok(visual.includes("@media(prefers-reduced-motion:reduce)"));
 });
