@@ -89,6 +89,12 @@ test("integration catalogue is admin-only and does not disclose connector secret
       cache: "no-store"
     });
     assert.equal(denied.status, 403);
+    const deniedPublicApi = await fetch(baseUrl + "/api/public-apis/fx?base=INR&quotes=USD", {
+      headers: { authorization: "Bearer " + viewer.token },
+      cache: "no-store"
+    });
+    assert.equal(deniedPublicApi.status, 403);
+
 
     const accepted = await fetch(baseUrl + "/api/integrations/catalog", {
       headers: { authorization: "Bearer " + admin.token },
