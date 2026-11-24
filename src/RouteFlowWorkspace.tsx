@@ -182,6 +182,13 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const mapViewportRef=useRef<HTMLDivElement|null>(null);
   const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
   const darkGraph=workspaceTheme==="dark";
+  const [compactGraphViewport,setCompactGraphViewport]=useState(()=>typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches);
+  useEffect(()=>{
+    const syncViewport=()=>setCompactGraphViewport(window.matchMedia("(max-width:760px)").matches);
+    window.addEventListener("resize",syncViewport);
+    window.addEventListener("orientationchange",syncViewport);
+    return ()=>{window.removeEventListener("resize",syncViewport);window.removeEventListener("orientationchange",syncViewport);};
+  },[]);
   const [inspectedTransportId,setInspectedTransportId]=useState("");
   const [inspectedMaterialTransportId,setInspectedMaterialTransportId]=useState("");
   const [transportPopupPoint,setTransportPopupPoint]=useState<{x:number;y:number}>({x:8,y:8});
@@ -295,7 +302,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const routeFlowGraph = useMemo(()=>{
     const lineOperations=routeOperations.filter(operation=>operation.relationType!=="subprocess"&&!operation.deletedAt);
     const mainOperations=lineOperations.filter(operation=>(operation.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence);
-    const portrait=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
+    const portrait=compactGraphViewport;
     const operationPositions=buildRouteFlowOperationPositions(lineOperations,routeLayout,portrait);
     const operationPoint=(operation:OperationRecord)=>operationPositions[operation.id]||{x:130,y:145};
     const graphSource:FlowNode[]=[
@@ -478,7 +485,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       if(target)addEdge(transportId,target.id,"transport","transport-to:"+leg.id,(leg.vehicleType||"TRANSPORT").toUpperCase());
     });
     return {nodes,edges};
-  },[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme]);
+  },[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport]);
 
   const saveRelationship=()=>{
     if(!poId||!poLineId){onNotice("Select a company, PO and component line before adding a route relationship.");return;}
@@ -678,7 +685,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Pinch / wheel to zoom · drag canvas to pan · use Fit in controls</small></div>
         <RouteConnectorLegend/>
         <ReactFlow<RouteFlowGraphNode,Edge> nodes={routeFlowGraph.nodes} edges={routeFlowGraph.edges} nodeTypes={ROUTE_FLOW_NODE_TYPES} fitView fitViewOptions={{padding:.16,minZoom:.24,maxZoom:1.35}} minZoom={.18} maxZoom={2.8} nodesDraggable={false} nodesConnectable={false} elementsSelectable nodesFocusable edgesFocusable panOnDrag zoomOnScroll zoomOnPinch preventScrolling zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
-          <RouteFlowFitController revision={routeLayout+":"+routeFlowGraph.nodes.length+":"+routeFlowGraph.edges.length}/>
+          <RouteFlowFitController revision={routeLayout+":"+routeFlowGraph.nodes.map(node=>node.id+"@"+node.position.x+","+node.position.y).join(";")}/>
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} color={darkGraph?"#28445e":"#cbd8e6"}/><Controls showInteractive={false}/><MiniMap<RouteFlowGraphNode> pannable zoomable nodeColor={(node:RouteFlowGraphNode):string=>node.data.accent}/>
         </ReactFlow>
       </div>:
