@@ -282,9 +282,14 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const lineOperations=routeOperations.filter(operation=>operation.relationType!=="subprocess"&&!operation.deletedAt);
     const mainOperations=lineOperations.filter(operation=>(operation.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence);
     const branchNames=[...new Set(lineOperations.map(operation=>operation.branch||"Main route"))];
-    const branchOffsets=new Map<string,number>();
-    branchNames.forEach((name,index)=>branchOffsets.set(name,name==="Main route"?0:/alternate/i.test(name)?-1:/rework/i.test(name)?1:index-1));
     const portrait=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
+    const operationPoint=(operation:OperationRecord)=>{
+      const branchIndex=Math.max(0,branchNames.indexOf(operation.branch||"Main route"));
+      const sequence=Math.max(0,operation.sequence-1);
+      return portrait
+        ? {x:32+branchIndex*206,y:170+sequence*126}
+        : {x:395+sequence*214,y:135+branchIndex*176};
+    };
     const graphSource:FlowNode[]=[
       ...(routeMaterials.length?[]:[{kind:"missing-material" as const,id:"missing-material"}]),
       ...routeMaterials.map(entry=>({kind:"material" as const,id:"material-"+entry.id,entry})),
@@ -296,31 +301,32 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const uniqueSource=graphSource.filter((node,index)=>graphSource.findIndex(other=>other.id===node.id)===index);
     const operationFor=(id:string)=>lineOperations.find(operation=>operation.id===id);
     const positionFor=(node:FlowNode,index:number)=>{
-      if(node.kind==="operation"){
-        const operation=node.operation;
-        const branch=operation.branch||"Main route";
-        const lane=branchOffsets.get(branch)||0;
-        if(portrait){
-          const laneColumn=branch==="Main route"?0:/alternate/i.test(branch)?1:/rework/i.test(branch)?2:Math.max(1,index%3);
-          return {x:28+laneColumn*278,y:320+Math.max(0,operation.sequence-1)*330};
-        }
-        return {x:550+Math.max(0,operation.sequence-1)*500,y:210+lane*245};
+      if(node.kind==="operation")return operationPoint(node.operation);
+      if(node.kind==="material"){
+        const materialIndex=Math.max(0,routeMaterials.findIndex(entry=>entry.id===node.entry.id));
+        return portrait?{x:18,y:16+materialIndex*104}:{x:24,y:135+materialIndex*112};
       }
-      if(node.kind==="material")return portrait?{x:28,y:0}:{x:30,y:210};
-      if(node.kind==="material-transport")return portrait?{x:28,y:160}:{x:290,y:210};
+      if(node.kind==="material-transport"){
+        const materialIndex=Math.max(0,routeMaterials.findIndex(entry=>entry.id===node.entry.id));
+        return portrait?{x:226,y:16+materialIndex*104}:{x:240,y:135+materialIndex*112};
+      }
       if(node.kind==="transport"){
         const anchor=operationFor(node.leg.anchorOperationId||"");
         const target=operationFor(node.leg.targetOperationId||"");
-        const reference=anchor||target||mainOperations[0];
-        const lane=reference?branchOffsets.get(reference.branch||"Main route")||0:0;
-        const sequence=reference?.sequence||0;
-        if(portrait){
-          const laneColumn=reference?.branch==="Alternate route"?1:/rework/i.test(reference?.branch||"")?2:0;
-          return {x:28+laneColumn*278,y:485+Math.max(0,sequence-1)*330};
+        const from=anchor?operationPoint(anchor):undefined;
+        const to=target?operationPoint(target):undefined;
+        if(from&&to)return portrait
+          ? {x:from.x+205,y:(from.y+to.y)/2}
+          : {x:(from.x+to.x)/2-82,y:(from.y+to.y)/2+62};
+        if(from)return {x:from.x+(portrait?205:106),y:from.y};
+        if(to)return {x:to.x-(portrait?180:192),y:to.y};
+        if(node.leg.materialEntryId){
+          const materialIndex=Math.max(0,routeMaterials.findIndex(entry=>entry.id===node.leg.materialEntryId));
+          return portrait?{x:226,y:16+materialIndex*104}:{x:240,y:135+materialIndex*112};
         }
-        return {x:800+Math.max(0,sequence-1)*500,y:210+lane*245};
+        return portrait?{x:226,y:130+index*72}:{x:240,y:135+index*72};
       }
-      return portrait?{x:28,y:0}:{x:20,y:210};
+      return portrait?{x:18,y:16}:{x:24,y:135};
     };
     const accentFor=(node:FlowNode)=>{
       if(node.kind==="operation"){
@@ -356,7 +362,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         title="Material allocation missing";detail="Add the required material / grade allocation before production.";
         kind="ROUTE REQUIREMENT";actionLabel="Open Process Map";onAction=()=>openProcessMap();
       }
-      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),actionLabel,onAction},draggable:false,selectable:true,focusable:true,style:{width:node.kind==="transport"?210:node.kind==="material-transport"?218:248}};
+      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),actionLabel,onAction},draggable:false,selectable:true,focusable:true,style:{width:node.kind==="transport"?164:node.kind==="material-transport"?164:node.kind==="material"?180:192}};
     });
     const nodeIds=new Set(nodes.map(node=>node.id));
     const edges:Edge[]=[];
@@ -639,16 +645,18 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     <section className="route-flow-canvas-panel">
       <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowAddOperation(v=>!v)}><Plus size={14}/> Add process stage</button><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" disabled={!poLineId} onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button><button type="button" className="button-quiet compact-button" aria-pressed={routeCanvasMode==="graph"} onClick={()=>setRouteCanvasMode(value=>value==="graph"?"cards":"graph")}>{routeCanvasMode==="graph"?"Stage cards":"Interactive graph"}</button></div></div>
       <div className="route-flow-canvas-layout"><div className="route-flow-map-main ax-map-fullscreen-shell" ref={mapViewportRef} data-route-layout={routeLayout}><ImmersiveWorkspaceControls targetRef={mapViewportRef} onNotice={onNotice}/>
-        <div className="ax-map-zoom-toolbar" role="group" aria-label="Route flow zoom controls">
+        {routeCanvasMode==="cards"&&<div className="ax-map-zoom-toolbar" role="group" aria-label="Route flow zoom controls">
           <button type="button" aria-label="Zoom out" title="Zoom out" onClick={()=>setRouteZoom(value=>Math.max(.55,Number((value-.1).toFixed(2))))}>−</button>
           <output aria-live="polite">{Math.round(routeZoom*100)}%</output>
           <button type="button" aria-label="Zoom in" title="Zoom in" onClick={()=>setRouteZoom(value=>Math.min(2,Number((value+.1).toFixed(2))))}>+</button>
           <button type="button" className="ax-map-zoom-fit" onClick={()=>setRouteZoom(.82)} title="Fit route">Fit</button>
-        </div>
+        </div>}
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:routeCanvasMode==="graph"?
       <div className="route-flow-graph-canvas" data-testid="route-flow-react-canvas">
-        <ReactFlow<RouteFlowGraphNode,Edge> nodes={routeFlowGraph.nodes} edges={routeFlowGraph.edges} nodeTypes={ROUTE_FLOW_NODE_TYPES} fitView={typeof window==="undefined"||window.innerWidth>760} fitViewOptions={{padding:.18,minZoom:.32,maxZoom:1.15}} defaultViewport={{x:18,y:18,zoom:.82}} minZoom={.28} maxZoom={1.8} nodesDraggable={false} nodesConnectable={false} elementsSelectable nodesFocusable edgesFocusable panOnDrag zoomOnScroll={false} zoomOnPinch zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
-          <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#b5c9da"/><Controls showInteractive={false}/><MiniMap<RouteFlowGraphNode> pannable zoomable nodeColor={(node:RouteFlowGraphNode):string=>node.data.accent}/>
+        <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Pinch / wheel to zoom · drag canvas to pan · use Fit in controls</small></div>
+        <RouteConnectorLegend compact/>
+        <ReactFlow<RouteFlowGraphNode,Edge> nodes={routeFlowGraph.nodes} edges={routeFlowGraph.edges} nodeTypes={ROUTE_FLOW_NODE_TYPES} fitView fitViewOptions={{padding:.14,minZoom:.24,maxZoom:1.15}} minZoom={.16} maxZoom={2.2} nodesDraggable={false} nodesConnectable={false} elementsSelectable nodesFocusable edgesFocusable panOnDrag zoomOnScroll={true} zoomOnPinch zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
+          <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--ax-theme-border,#b5c9da)"/><Controls showInteractive={false}/><MiniMap<RouteFlowGraphNode> pannable zoomable nodeColor={(node:RouteFlowGraphNode):string=>node.data.accent}/>
         </ReactFlow>
       </div>:
       <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<RouteConnectorLegend/><div className="route-flow-stage-track" data-route-layout={routeLayout}>
