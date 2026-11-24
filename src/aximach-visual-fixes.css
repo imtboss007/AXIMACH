@@ -119,44 +119,59 @@ body{background:#f1f5fa!important;color:#12263f!important}
   .ax-full3d-label small,.ax-full3d-label em{font-size:8px!important}
   .ax-full3d-node-meta{font-size:7.5px!important}
 }
-/* React Flow route view: readable nodes, relation-specific edges and phone-safe panning. */
+/* React Flow route view: node widths are supplied by the graph model so phone sizing stays compact. */
 .route-flow-graph-canvas{
-  height:clamp(560px,72vh,820px)!important;min-height:560px!important;
-  background:#edf3f8!important;
-  border:1px solid #b9ccdf!important;touch-action:pan-x pan-y;
+  position:relative!important;height:clamp(460px,62dvh,700px)!important;min-height:400px!important;
+  overflow:hidden!important;border:1px solid var(--ax-ws-border,#c8d7e5)!important;border-radius:13px!important;
+  touch-action:none!important;overscroll-behavior:contain!important;
 }
+.route-flow-graph-canvas .react-flow,
+.route-flow-graph-canvas .react-flow__pane,
+.route-flow-graph-canvas .react-flow__renderer{touch-action:none!important;overscroll-behavior:contain!important}
 .route-flow-graph-node{
-  width:248px!important;min-height:132px!important;padding:14px!important;gap:8px!important;
-  border:1px solid color-mix(in srgb,var(--route-accent) 62%,#ffffff)!important;
-  border-left:5px solid var(--route-accent)!important;
-  background:#ffffff!important;
-  box-shadow:0 4px 14px rgba(18,47,78,.10)!important;color:#18334d!important;
+  position:relative!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;
+  min-width:0!important;min-height:94px!important;padding:9px!important;gap:5px!important;
+  border:1px solid color-mix(in srgb,var(--route-accent) 58%,var(--ax-ws-border,#d1dce7))!important;
+  border-left:4px solid var(--route-accent)!important;border-radius:10px!important;
+  background:var(--ax-ws-card,#fff)!important;box-shadow:0 6px 17px rgba(3,18,35,.17)!important;
+  color:var(--ax-ws-text,#17334d)!important;
 }
-.route-flow-graph-node>span{font-size:9px!important;color:var(--route-accent)!important;letter-spacing:.08em!important}
-.route-flow-graph-node>strong{font-size:14px!important;line-height:1.35!important;color:#102b45!important;overflow-wrap:anywhere}
-.route-flow-graph-node>small{font-size:11px!important;line-height:1.45!important;color:#425c76!important;overflow-wrap:anywhere}
-.route-flow-graph-node>button{min-height:32px!important;padding:6px 10px!important;border-color:#aabfd4!important;background:#f5f9fe!important;color:#163d62!important;font-size:10px!important}
-.route-flow-graph-canvas .react-flow__edge-text{font-size:10px!important;font-weight:800!important}
-.route-flow-graph-canvas .react-flow__edge-textbg{fill:#ffffff!important;fill-opacity:.98!important;stroke:#cad8e6!important;stroke-width:1px!important}
+.route-flow-node-heading{display:flex!important;align-items:center!important;gap:5px!important;min-width:0!important}
+.route-flow-node-heading>span:first-child{display:grid;place-items:center;flex:0 0 17px;width:17px;height:17px;border-radius:5px;background:color-mix(in srgb,var(--route-accent) 16%,transparent);color:var(--route-accent)!important}
+.route-flow-node-heading>span:last-child{overflow:hidden;color:var(--route-accent)!important;font:800 8px 'DM Mono',monospace!important;letter-spacing:.055em!important;text-overflow:ellipsis;white-space:nowrap}
+.route-flow-graph-node>strong{color:var(--ax-ws-text,#17334d)!important;font-size:11px!important;line-height:1.32!important;font-weight:800!important;overflow-wrap:anywhere}
+.route-flow-graph-node>small{color:var(--ax-ws-muted,#50687f)!important;font-size:9px!important;line-height:1.38!important;opacity:1!important;overflow-wrap:anywhere}
+.route-flow-graph-node>button{align-self:flex-start!important;min-height:27px!important;padding:4px 7px!important;border:1px solid var(--ax-ws-border,#c8d7e5)!important;border-radius:6px!important;background:var(--ax-ws-panel,#fff)!important;color:var(--ax-ws-text,#17334d)!important;font-size:9px!important;font-weight:750!important}
+.route-flow-graph-node>button:hover{border-color:var(--route-accent)!important;background:var(--ax-ws-bg,#f4f7fb)!important}
+.route-flow-graph-canvas .react-flow__handle{width:7px!important;height:7px!important;min-width:7px!important;min-height:7px!important;border:1px solid var(--ax-ws-panel,#fff)!important;background:var(--route-accent,#277fb4)!important;opacity:1!important}
+.route-flow-graph-canvas .react-flow__edge-path{stroke-width:3.8px!important;stroke-linecap:round!important;filter:drop-shadow(0 1px 2px rgba(0,0,0,.2))}
+.route-flow-graph-canvas .react-flow__arrowhead path{fill:currentColor!important;stroke:currentColor!important}
+.route-flow-graph-canvas .react-flow__edge-text{font-size:9px!important;font-weight:850!important}
+.route-flow-graph-canvas .react-flow__edge-textbg{fill:var(--ax-ws-panel,#fff)!important;fill-opacity:.98!important;stroke:var(--ax-ws-border,#c8d7e5)!important;stroke-width:1.1px!important}
 .route-flow-graph-canvas .react-flow__controls,.route-flow-graph-canvas .react-flow__minimap{
-  border-color:#a9bfd4!important;background:#ffffff!important;color:#183652!important;
+  border:1px solid var(--ax-ws-border,#c8d7e5)!important;border-radius:9px!important;
+  background:var(--ax-ws-panel,#fff)!important;color:var(--ax-ws-text,#17334d)!important;
+  box-shadow:0 5px 16px rgba(4,20,38,.2)!important
 }
-.route-flow-graph-canvas .react-flow__controls-button{background:#fff!important;border-bottom-color:#d3e0ec!important;color:#183652!important}
-.route-flow-graph-canvas .react-flow__controls-button svg{fill:#183652!important}
+.route-flow-graph-canvas .react-flow__controls-button{width:33px!important;height:33px!important;background:var(--ax-ws-panel,#fff)!important;border-bottom:1px solid var(--ax-ws-border,#c8d7e5)!important;color:var(--ax-ws-text,#17334d)!important}
+.route-flow-graph-canvas .react-flow__controls-button svg{fill:var(--ax-ws-text,#17334d)!important}
+.route-flow-graph-canvas .react-flow__attribution{font-size:7px!important;background:var(--ax-ws-panel,#fff)!important;color:var(--ax-ws-muted,#50687f)!important}
 .route-flow-canvas-layout{grid-template-columns:minmax(0,1fr) minmax(255px,300px)!important}
-.route-flow-relationship-panel{background:var(--panel)!important;border-color:var(--line)!important;color:var(--ink)!important}
-.route-flow-relationship-panel h3{color:var(--ink)!important;font-size:15px!important}
-.route-flow-relationship-type{background:color-mix(in srgb,var(--panel) 92%,var(--canvas))!important;color:var(--ink)!important;border-color:var(--line)!important}
-.route-flow-relationship-type strong{color:var(--ink)!important;font-size:11px!important}
-.route-flow-relationship-type small{color:var(--muted)!important;font-size:10px!important}
-.route-flow-matrix-row strong{color:var(--ink)!important}
-.route-flow-matrix-row small{color:var(--muted)!important}
-@media(max-width:850px){
-  .route-flow-canvas-layout{grid-template-columns:minmax(0,1fr)!important}
-}
+.route-flow-relationship-panel{background:var(--ax-ws-panel,var(--panel))!important;border-color:var(--ax-ws-border,var(--line))!important;color:var(--ax-ws-text,var(--ink))!important}
+.route-flow-relationship-panel h3{color:var(--ax-ws-text,var(--ink))!important;font-size:15px!important}
+.route-flow-relationship-type{background:var(--ax-ws-card,var(--panel))!important;color:var(--ax-ws-text,var(--ink))!important;border-color:var(--ax-ws-border,var(--line))!important}
+.route-flow-relationship-type strong{color:var(--ax-ws-text,var(--ink))!important;font-size:11px!important}
+.route-flow-relationship-type small{color:var(--ax-ws-muted,var(--muted))!important;font-size:10px!important}
+.route-flow-matrix-row strong{color:var(--ax-ws-text,var(--ink))!important}
+.route-flow-matrix-row small{color:var(--ax-ws-muted,var(--muted))!important}
+@media(max-width:850px){.route-flow-canvas-layout{grid-template-columns:minmax(0,1fr)!important}}
 @media(max-width:760px){
-  .route-flow-graph-canvas{height:calc(100dvh - 235px)!important;min-height:570px!important}
-  .route-flow-graph-node{width:242px!important;min-height:124px!important}
+  .route-flow-graph-canvas{height:clamp(420px,60dvh,580px)!important;min-height:380px!important}
+  .route-flow-graph-node{min-height:88px!important;padding:8px!important;gap:4px!important}
+  .route-flow-graph-node>strong{font-size:10.5px!important}
+  .route-flow-graph-node>small{font-size:8.5px!important}
+  .route-flow-graph-canvas .react-flow__controls{bottom:7px!important;left:7px!important}
+  .route-flow-graph-canvas .react-flow__minimap{display:none!important}
 }
 
 /* Typography scale: clear labels first, utility metadata second. */
