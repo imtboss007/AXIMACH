@@ -71,7 +71,7 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
       </div>
     </header>
 
-    <DashboardCommandLayer operations={ops} completedQuantity={completion} plannedQuantity={planned} completionPercent={completionPercent} inProduction={inProduction.length} openOperations={openOps.length} completedOperations={completeOps.length} qualityHolds={holds.length} overdue={overdue.length} activeTransport={activeLegs.length} onSelectModule={onSelectModule}/>
+    <DashboardCommandLayer operations={ops} completedQuantity={completion} plannedQuantity={planned} completionPercent={completionPercent} exceptionCount={exceptions.length} inProduction={inProduction.length} openOperations={openOps.length} completedOperations={completeOps.length} qualityHolds={holds.length} overdue={overdue.length} activeTransport={activeLegs.length} onSelectModule={onSelectModule}/>
 
     <section className="dashboard-cockpit-main" aria-label="Manufacturing universe command view">
       <aside className="dashboard-cockpit-panel dashboard-cockpit-summary" data-testid="dashboard-cockpit-summary">
