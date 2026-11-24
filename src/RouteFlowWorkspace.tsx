@@ -410,6 +410,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       successor:{source:"source-left",target:"target-bottom"},
       transport:{source:"source-right",target:"target-left"}
     };
+    const graphEdgeType=routeLayout==="orthogonal"||routeLayout==="vertical"||routeLayout==="swimlane"?"step":routeLayout==="horizontal"?"straight":routeLayout==="s-curve"||routeLayout==="timeline"?"smoothstep":"default";
     const addEdge=(source:string,target:string,type:string,id:string,label:string)=>{
       if(!source||!target||source===target||!nodeIds.has(source)||!nodeIds.has(target))return;
       const key=source+"::"+target+"::"+type;
@@ -419,7 +420,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       const handles=relationHandles[type]||relationHandles.main;
       const animated=routeOperations.some(operation=>(operation.id===source||operation.id===target)&&operation.status==="Running");
       edges.push({
-        id,source,target,sourceHandle:handles.source,targetHandle:handles.target,type:"smoothstep",label,animated,
+        id,source,target,sourceHandle:handles.source,targetHandle:handles.target,type:graphEdgeType,label,animated,
         labelStyle:{fill:darkGraph?"#f4f8ff":"#142b43",fontSize:10,fontWeight:800},
         labelBgStyle:{fill:darkGraph?"#10243a":"#ffffff",fillOpacity:.98},
         labelBgPadding:[7,4],
