@@ -405,7 +405,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
       <button type="button" aria-pressed={flowMotionEnabled&&!prefersReducedMotion} onClick={()=>setFlowMotionEnabled(value=>!value)}>{flowMotionEnabled&&!prefersReducedMotion?"Pause flow animation":"Enable flow animation"}</button>
       {prefersReducedMotion&&<span>Device reduced-motion preference overrides continuous animation.</span>}
     </div>
-    <RouteConnectorLegend compact/><RouteConnectorLegend/>
+    <RouteConnectorLegend compact/>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
       {materialRoutes.length>0 && <section className="process-orbit-material-routes" aria-label="Material procurement and inbound transport routes">
