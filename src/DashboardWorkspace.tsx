@@ -8,6 +8,7 @@ import AXIMACHOrb from "./AXIMACHOrb";
 import DashboardDataOrb from "./DashboardDataOrb";
 import { ComponentIcon } from "./IconStudio";
 import ProductionStatusChart from "./ProductionStatusChart";
+import DashboardCommandLayer from "./DashboardCommandLayer";
 
 type DashboardNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; vendorId?:string };
 type Props = { onSelectModule:(id:string,context?:DashboardNavigationContext)=>void; onOpenCommandCentre:()=>void; onOpenModules:()=>void; moduleCount:number };
@@ -69,6 +70,8 @@ export default function DashboardWorkspace({onSelectModule,onOpenCommandCentre,o
         <button className="dashboard-cockpit-command" onClick={onOpenCommandCentre}><Command size={15}/> 3D Command Centre</button>
       </div>
     </header>
+
+    <DashboardCommandLayer operations={ops} completedQuantity={completion} plannedQuantity={planned} completionPercent={completionPercent} inProduction={inProduction.length} openOperations={openOps.length} completedOperations={completeOps.length} qualityHolds={holds.length} overdue={overdue.length} activeTransport={activeLegs.length} onSelectModule={onSelectModule}/>
 
     <section className="dashboard-cockpit-main" aria-label="Manufacturing universe command view">
       <aside className="dashboard-cockpit-panel dashboard-cockpit-summary" data-testid="dashboard-cockpit-summary">
