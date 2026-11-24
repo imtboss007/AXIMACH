@@ -203,7 +203,7 @@ test("Route Flow contrast, touch and vehicle marker rules remain explicit",()=>{
   assert.ok(visual.includes('width:25px!important;height:25px!important'));
   assert.ok(!visual.includes("width:248px!important"));
   assert.ok(!visual.includes("width:242px!important"));
-  assert.ok(flow.includes("className:{\"route-flow-edge route-flow-edge-\"+type}"));
+  assert.ok(flow.includes('className:"route-flow-edge route-flow-edge-"+type'));
   for(const kind of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor","material","transport"]){
     assert.ok(legend.includes('"'+kind+'"'),"Missing full legend connector "+kind);
   }
