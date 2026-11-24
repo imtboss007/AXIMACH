@@ -392,8 +392,9 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       edgeKeys.add(key);
       const style=edgeStyles[type]||edgeStyles.main;
       const handles=relationHandles[type]||relationHandles.main;
+      const animated=routeOperations.some(operation=>(operation.id===source||operation.id===target)&&operation.status==="Running");
       edges.push({
-        id,source,target,sourceHandle:handles.source,targetHandle:handles.target,type:"smoothstep",label,
+        id,source,target,sourceHandle:handles.source,targetHandle:handles.target,type:"smoothstep",label,animated,
         labelStyle:{fill:"#18344e",fontSize:10,fontWeight:700},
         labelBgStyle:{fill:"#ffffff",fillOpacity:.98},
         labelBgPadding:[6,3],
