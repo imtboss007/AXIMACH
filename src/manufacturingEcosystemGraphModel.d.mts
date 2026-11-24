@@ -32,3 +32,11 @@ export function loadEcosystemGraphPreferences<K extends string>(
   validKinds: K[],
   defaultLimits?: Record<K, number>
 ): EcosystemGraphPreferences<K>;
+
+export type EcosystemGraphPosition = { x:number; y:number };
+export function loadEcosystemGraphLayout(serialized: string | null | undefined | unknown): Record<string,EcosystemGraphPosition>;
+export function updateEcosystemGraphLayout(
+  layout: Record<string,EcosystemGraphPosition>,
+  nodeId: string,
+  position: EcosystemGraphPosition
+): Record<string,EcosystemGraphPosition>;
