@@ -155,7 +155,7 @@ test("Route Flow applies the selected layout to the live graph, preserves explic
   assert.ok(flow.includes("buildRouteFlowOperationPositions(lineOperations,routeLayout,portrait)"));
   assert.ok(flow.includes('window.addEventListener("orientationchange",syncViewport)'),"Phone rotation must recompute compact graph geometry.");
   assert.ok(flow.includes("workspaceTheme,compactGraphViewport])"),"Viewport changes must invalidate the live layout memo.");
-  assert.ok(flow.includes("},[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme])"));
+  assert.ok(flow.includes("},[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport])"));
   assert.ok(flow.includes("const graphEdgeType=routeLayout==="));
   assert.ok(flow.includes("zoomOnScroll zoomOnPinch preventScrolling"));
   assert.ok(flow.includes("maxZoom={2.8}"));
