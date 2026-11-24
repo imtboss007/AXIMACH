@@ -139,3 +139,44 @@ test("Route Flow graph animates only edges attached to real Running operation re
   assert.ok(visual.includes(".process-map-graph-canvas .react-flow__edge.animated .react-flow__edge-path"));
   assert.ok(visual.includes("@media(prefers-reduced-motion:reduce)"));
 });
+
+
+test("Phone Process Map opens the compact PO-line graph and preserves the collapsible 3D scene",()=>{
+  const map=source("src/LinkedProcessWorkspace.tsx");
+  assert.match(map,/matchMedia\("\(pointer:coarse\)"\)\.matches && window\.matchMedia\("\(orientation:portrait\)"\)\.matches \? "graph"/);
+  assert.ok(map.includes('["graph","sphere","cube"'),"The 3D universe must remain available from graph-first mode.");
+  assert.ok(map.includes("compactViewport?28+row*185:100+index*230"),"Phone graph nodes must use compact placement.");
+  assert.ok(map.includes("fitView fitViewOptions={{padding:.14,minZoom:.26,maxZoom:1.2}}"));
+});
+
+test("Route Flow graph is compact on mobile, auto-fits and enables wheel/pinch zoom",()=>{
+  const flow=source("src/RouteFlowWorkspace.tsx");
+  assert.ok(flow.includes("const operationPoint=(operation:OperationRecord)=>"));
+  assert.ok(flow.includes("y:190+sequence*126"));
+  assert.ok(flow.includes("y:125+branchIndex*176"));
+  assert.ok(flow.includes("fitView fitViewOptions={{padding:.14,minZoom:.24,maxZoom:1.15}}"));
+  assert.ok(flow.includes("zoomOnScroll={true}")&&flow.includes("zoomOnPinch"));
+  assert.ok(flow.includes("RouteConnectorLegend compact"));
+  assert.ok(!flow.includes('fitView={typeof window==="undefined"||window.innerWidth>760}'));
+  assert.ok(flow.includes("targetOperationId"),"Transport destinations must remain explicit saved references.");
+});
+
+test("Manufacturing Universe SVG export includes visible themed relationship paths",()=>{
+  const graph=source("src/ManufacturingEcosystemGraph.tsx");
+  assert.ok(graph.includes("getComputedStyle(document.documentElement)"));
+  assert.ok(graph.includes('stroke-width="2.2"'));
+  assert.ok(graph.includes('marker-end="url(#ax-arrow)"'));
+  assert.ok(graph.includes('fill="#ffffff"'));
+  assert.ok(graph.includes("setTimeout(()=>URL.revokeObjectURL(url),1200)"));
+});
+
+test("Manufacturing graphs use theme-aware readable text, compact material panels and mobile fullscreen controls",()=>{
+  const visual=source("src/aximach-visual-fixes.css");
+  for(const selector of [".ax-ecosystem-flow-node small",".route-flow-graph-node>small",".process-map-graph-card>small"]) {
+    assert.ok(visual.includes(selector),"Missing high-contrast text rule: "+selector);
+  }
+  assert.ok(visual.includes(".ax-map-fullscreen-shell:fullscreen .route-flow-graph-canvas"));
+  assert.ok(visual.includes(".linked-route-canvas:fullscreen .process-map-graph-canvas"));
+  assert.ok(visual.includes(".process-material-route-row{"));
+  assert.ok(visual.includes("grid-template-columns:minmax(0,1fr)!important"));
+});
