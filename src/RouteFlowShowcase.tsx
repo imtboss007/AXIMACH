@@ -87,7 +87,7 @@ function edgePath(edge:DemoEdge,from:DemoNode,to:DemoNode) {
 }
 function FlowDiagram({example,large=false}:{example:FlowExample|LayoutExample;large?:boolean}) {
   const markerId="route-showcase-arrow-"+useId().replace(/:/g,"");
-  const nodeById=new Map(example.nodes.map(node=>[node.id,node]));
+  const nodeById=new Map<string,DemoNode>(example.nodes.map(node=>[node.id,node] as const));
   return <svg className={"route-flow-showcase-diagram"+(large?" is-large":"")} viewBox="0 0 650 220" role="img" aria-label={example.title+" route diagram"} preserveAspectRatio="xMidYMid meet">
     <defs><marker id={markerId} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#607d98"/></marker></defs>
     {example.lanes?.map((label,index)=><g key={label}><rect x="8" y={14+index*65} width="634" height="61" rx="8" className="route-flow-showcase-lane"/><text x="18" y={28+index*65} className="route-flow-showcase-lane-label">{label}</text></g>)}
@@ -119,7 +119,7 @@ export function RouteFlowShowcase() {
   return <section className="route-flow-showcase" aria-label="Route flow patterns and layout showcase">
     <header className="route-flow-showcase-header">
       <div><span>AXIMACH · ROUTE FLOW PATTERN LIBRARY</span><h2>One component. Every route pattern.</h2><p>Manufacturing, quality, branching, supply and transport examples in one read-only showcase.</p></div>
-      <div className="route-flow-showcase-counts"><strong>13</strong><small>FLOW PATTERNS</small><strong>9</strong><small>LAYOUT STYLES</small></div>
+      <div className="route-flow-showcase-counts"><strong>14</strong><small>FLOW PATTERNS</small><strong>9</strong><small>LAYOUT STYLES</small></div>
     </header>
     <div className="route-flow-showcase-tabs" role="tablist" aria-label="Showcase view">
       <button type="button" role="tab" aria-selected={view==="patterns"} className={view==="patterns"?"is-active":""} onClick={()=>setView("patterns")}>Relationship &amp; process patterns <b>13</b></button>
@@ -155,6 +155,6 @@ export function RouteFlowShowcase() {
     <div className="route-flow-showcase-legend">
       {Object.entries(edgePalette).map(([kind,style])=><span key={kind}><i style={{background:style.color}}/><b>{kind==="follow-on"?"FOLLOW-ON":kind.toUpperCase()}</b><small>{style.description}</small></span>)}
     </div>
-    <footer className="route-flow-showcase-footer"><span>DEMONSTRATION ONLY · SAMPLE COMPONENTS · NO PO / OPERATION RECORDS MODIFIED</span><span>Pattern reference · 13 routes · 9 layouts</span></footer>
+    <footer className="route-flow-showcase-footer"><span>DEMONSTRATION ONLY · SAMPLE COMPONENTS · NO PO / OPERATION RECORDS MODIFIED</span><span>Pattern reference · 14 examples · 9 layouts</span></footer>
   </section>;
 }
