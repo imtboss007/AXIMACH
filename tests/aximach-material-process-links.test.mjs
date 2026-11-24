@@ -53,7 +53,8 @@ test("Process Map node, Route Flow and Manufacturing Universe render material an
   assert.ok(universe.includes('transportFor(operation.id,"after")'));
   assert.ok(universe.includes("<RouteConnectorLegend compact/>"));
   assert.ok(!universe.includes("<RouteConnectorLegend compact/><RouteConnectorLegend/>"),"Process Map must not duplicate the connector legend.");
-  assert.ok(flow.includes("<RouteConnectorLegend/>"));
+  assert.ok(flow.includes("<RouteConnectorLegend compact/>"));
+  assert.ok(!flow.includes("<RouteConnectorLegend compact/><RouteConnectorLegend/>"),"The Process Map route toolbar must not duplicate the connector legend.");
 });
 
 test("synthetic route example has three materials linked to distinct process operations and six transport legs", () => {
