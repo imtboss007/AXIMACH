@@ -27,13 +27,17 @@ export function buildRouteFlowOperationPositions(operations, layout = "orthogona
   const maxDate = dateValues.length ? Math.max(...dateValues) : minDate;
 
   if (layout === "radial" || layout === "circular") {
-    const radius = Math.max(compact ? 250 : 360, total * (compact ? 28 : 37));
+    const ringCapacity = compact ? 9 : 12;
+    const baseRadius = compact ? 245 : 335;
     rows.forEach((row, index) => {
+      const ring = Math.floor(index / ringCapacity);
+      const slot = index % ringCapacity;
+      const ringCount = Math.min(ringCapacity, total - ring * ringCapacity);
       const angle = layout === "radial"
-        ? -Math.PI * 0.85 + (index / Math.max(1, total - 1)) * Math.PI * 1.7
-        : -Math.PI / 2 + (index / total) * Math.PI * 2;
+        ? -Math.PI * .82 + (slot / Math.max(1, ringCount - 1)) * Math.PI * 1.64
+        : -Math.PI / 2 + (slot / Math.max(1, ringCount)) * Math.PI * 2;
       const lane = branchIndex.get(row.branch || "Main route") || 0;
-      const laneRadius = layout === "radial" ? radius + lane * (compact ? 100 : 145) : radius + lane * (compact ? 65 : 95);
+      const laneRadius = baseRadius + ring * (compact ? 112 : 142) + lane * (compact ? 76 : 94);
       positions[row.id] = {
         x: (compact ? 540 : 720) + Math.cos(angle) * laneRadius,
         y: (compact ? 420 : 520) + Math.sin(angle) * laneRadius * (layout === "radial" ? .68 : .82)
