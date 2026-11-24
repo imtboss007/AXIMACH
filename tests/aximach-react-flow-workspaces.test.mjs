@@ -123,7 +123,7 @@ test("factory floor mode renders manufacturing-specific selectable workcells and
   const scene = source("src/ProcessScene3D.tsx"), universe = source("src/ProcessUniverse3D.tsx");
   assert.ok(scene.includes("factoryMachineKind"));
   for (const kind of ["machining", "lathe", "edm", "welding", "laser", "metrology", "workcell"]) assert.ok(scene.includes("\"" + kind + "\""));
-  assert.ok(scene.includes("drawFactoryMachine(draw,p,op"));
+  assert.ok(scene.includes("drawFactoryMachine(factoryBatches,p,op"));
   assert.ok(scene.includes("op.machine||(\"Workcell · \"+(op.category||\"General\"))"));
   assert.ok(universe.includes("id:\"factory\",label:\"Factory Floor\""));
   assert.ok(universe.includes("setAutoRotateEnabled") && universe.includes("setFlowMotionEnabled"));
