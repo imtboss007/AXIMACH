@@ -29,11 +29,12 @@ test("only Process Map, Route Flow and Manufacturing Universe expose the optiona
   assert.ok(app.includes('requestDeviceOrientation(next ? "landscape-primary" : "portrait-primary")'));
 });
 
-test("phone Process Map defaults to a vertical route and expands to 3D only in landscape", () => {
+test("phone Process Map defaults to the compact graph and restores 3D in landscape", () => {
   const workspace = read("../src/LinkedProcessWorkspace.tsx");
-  assert.ok(workspace.includes('window.matchMedia("(pointer:coarse)").matches && window.matchMedia("(orientation:portrait)").matches ? "vertical" : "sphere"'));
+  assert.ok(workspace.includes('window.matchMedia("(pointer:coarse)").matches && window.matchMedia("(orientation:portrait)").matches ? "graph" : "sphere"'));
   assert.ok(workspace.includes('window.addEventListener("orientationchange",syncResponsiveProcessView)'));
-  assert.ok(workspace.includes('portrait && current === "sphere" ? "vertical" : !portrait && current === "vertical" ? "sphere" : current'));
+  assert.ok(workspace.includes('portrait && current === "sphere" ? "graph" : !portrait && current === "graph" ? "sphere" : current'));
+  assert.ok(workspace.includes('["graph","sphere","cube"'));
   assert.ok(workspace.includes('className={"linked-node-scroll process-visual-"+visualStyle'));
 });
 
