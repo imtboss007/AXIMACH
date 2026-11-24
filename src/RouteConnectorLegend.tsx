@@ -1,4 +1,4 @@
-import { Boxes, GitBranch, GitMerge, Package, Truck } from "lucide-react";
+import { Boxes, Truck } from "lucide-react";
 
 const CONNECTORS = [
   ["main","Main route","Primary manufacturing sequence"],
