@@ -152,11 +152,11 @@ test("Phone Process Map opens the compact PO-line graph and preserves the collap
 test("Route Flow graph is compact on mobile, auto-fits and enables wheel/pinch zoom",()=>{
   const flow=source("src/RouteFlowWorkspace.tsx");
   assert.ok(flow.includes("const operationPoint=(operation:OperationRecord)=>"));
-  assert.ok(flow.includes("y:190+sequence*126"));
+  assert.ok(flow.includes("y:170+sequence*126"));
   assert.ok(flow.includes("y:125+branchIndex*176"));
   assert.ok(flow.includes("fitView fitViewOptions={{padding:.14,minZoom:.24,maxZoom:1.15}}"));
   assert.ok(flow.includes("zoomOnScroll={true}")&&flow.includes("zoomOnPinch"));
-  assert.ok(flow.includes("RouteConnectorLegend compact"));
+  assert.ok(flow.includes("<RouteConnectorLegend/>"));
   assert.ok(!flow.includes('fitView={typeof window==="undefined"||window.innerWidth>760}'));
   assert.ok(flow.includes("targetOperationId"),"Transport destinations must remain explicit saved references.");
 });
