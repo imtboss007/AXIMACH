@@ -177,13 +177,13 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [exportScope,setExportScope] = useState<string>("all");
   const [exportArrows] = useState(true);
   const [routeLayout,setRouteLayout]=useRouteLayout();
-  const [visualStyle,setVisualStyle] = useState<"sphere"|"cube"|"vortex"|"helix"|"orbit"|"stacked"|"pipeline"|"network"|"grid"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"digital-mesh"|"molecular"|"combined"|"graph">(() => typeof window !== "undefined" && window.matchMedia("(pointer:coarse)").matches && window.matchMedia("(orientation:portrait)").matches ? "vertical" : "sphere");
-  // Phone Process Map opens as a readable vertical route. When the user opts
-  // into landscape, promote the default vertical view to the immersive 3D scene.
+  const [visualStyle,setVisualStyle] = useState<"sphere"|"cube"|"vortex"|"helix"|"orbit"|"stacked"|"pipeline"|"network"|"grid"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"digital-mesh"|"molecular"|"combined"|"graph">(() => typeof window !== "undefined" && window.matchMedia("(pointer:coarse)").matches && window.matchMedia("(orientation:portrait)").matches ? "graph" : "sphere");
+  // Phones open on the compact PO-line flowchart. The WebGL manufacturing universe
+  // remains available below as a separate collapsible 3D view.
   useEffect(() => {
     const syncResponsiveProcessView = () => {
       const portrait = window.matchMedia("(orientation:portrait)").matches;
-      setVisualStyle(current => portrait && current === "sphere" ? "vertical" : !portrait && current === "vertical" ? "sphere" : current);
+      setVisualStyle(current => portrait && current === "sphere" ? "graph" : !portrait && current === "vertical" ? "sphere" : current);
     };
     window.addEventListener("orientationchange",syncResponsiveProcessView);
     window.addEventListener("resize",syncResponsiveProcessView);
@@ -608,15 +608,17 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const relationshipRows=activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===selectedLine?.id&&link.componentId===selectedLine?.componentId&&link.status!=="Disabled");
     const relationColors:Record<string,string>={main:"#2875bd",alternate:ALTERNATE_ROUTE_COLOR,rework:REWORK_ROUTE_COLOR,dependency:"#347de5",parallel:"#9848d6",merge:"#9e4bc9",split:"#3d79df","follow-on":"#173c6c",feedback:"#455bd6",conditional:"#9954ce",successor:"#203e62"};
     const isRunningOperation=(id:string)=>exportOperations.some(operation=>operation.id===id&&operation.status==="Running");
+    const compactViewport=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
     const branchRows=exportBranches.map((key,row)=>{
       const operationsInBranch=exportOperations.filter(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")===key).slice().sort((a,b)=>a.sequence-b.sequence);
       return {key,row,branch:operationsInBranch[0]?.branch||"Main route",operations:operationsInBranch};
     }).filter(row=>row.operations.length);
     branchRows.forEach(({row,branch,operations:ops})=>{
       ops.forEach((operation,index)=>{
-        const x=120+index*290,y=90+row*240;
+        const x=compactViewport?28+row*185:100+index*230;
+        const y=compactViewport?65+index*118:80+row*180;
         operationPositions.set(operation.id,{x,y,branch,index});
-        nodes.push({id:"operation:"+operation.id,type:"processMapEntity",position:{x,y},data:{title:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name,detail:[operation.category,operation.subcategory,vendors.find(v=>v.id===operation.vendorId)?.company||"Vendor not assigned","Qty "+operation.quantity].filter(Boolean).join(" · "),kind:"PROCESS OPERATION",accent:branchAccent(operation),status:operation.status,actionLabel:"Select operation",onAction:()=>{setSelectedOperationId(operation.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:236}});
+        nodes.push({id:"operation:"+operation.id,type:"processMapEntity",position:{x,y},data:{title:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name,detail:[operation.category,operation.subcategory,vendors.find(v=>v.id===operation.vendorId)?.company||"Vendor not assigned","Qty "+operation.quantity].filter(Boolean).join(" · "),kind:"PROCESS OPERATION",accent:branchAccent(operation),status:operation.status,actionLabel:"Select operation",onAction:()=>{setSelectedOperationId(operation.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:compactViewport?160:210}});
       });
       for(let index=0;index<ops.length-1;index++){
         const from=ops[index],to=ops[index+1];
@@ -634,7 +636,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       let sourceId="operation:"+origin.parent.id;
       if(!operationPositions.has(origin.parent.id)){
         sourceId="branch-origin:"+origin.parent.id+":"+branch;
-        nodes.push({id:sourceId,type:"processMapEntity",position:{x:Math.max(16,branchRootPosition.x-310),y:Math.max(16,branchRootPosition.y-145)},data:{title:"OP-"+String(origin.parent.sequence).padStart(3,"0")+" · "+origin.parent.name,detail:"Parent process · outside the current route scope",kind:"BRANCH ORIGIN REFERENCE",accent:"#647d93",status:origin.parent.status,actionLabel:"Select parent",onAction:()=>{setSelectedOperationId(origin.parent.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:236}});
+        nodes.push({id:sourceId,type:"processMapEntity",position:{x:Math.max(16,branchRootPosition.x-175),y:Math.max(16,branchRootPosition.y-95)},data:{title:"OP-"+String(origin.parent.sequence).padStart(3,"0")+" · "+origin.parent.name,detail:"Parent process · outside the current route scope",kind:"BRANCH ORIGIN REFERENCE",accent:"#647d93",status:origin.parent.status,actionLabel:"Select parent",onAction:()=>{setSelectedOperationId(origin.parent.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:compactViewport?160:210}});
       }
       const relation=origin.branchRoot.relationType==="rework"||/rework/i.test(branch)?"rework":"alternate";
       const color=relationColors[relation];
@@ -655,9 +657,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const routeStart=!entry.anchorOperationId&&firstMain?operationPositions.get(firstMain.id):undefined;
       const base=anchor||routeStart;
       const y=base?.y??110+index*100;
-      const x=base?(entry.anchorOperationId?base.x-215:Math.max(24,base.x-255)):35;
+      const x=base?(compactViewport?(entry.anchorOperationId?Math.max(20,base.x-160):base.x+165):(entry.anchorOperationId?base.x-215:Math.max(24,base.x-255))):35;
       const supplier=vendors.find(v=>v.id===entry.vendorId)?.company||"Supplier not assigned";
-      nodes.push({id,type:"processMapEntity",position:{x,y:y+100+index*105},data:{title:[entry.materialName,entry.materialGrade].filter(Boolean).join(" · "),detail:[entry.partNumber||entry.partName||"Component-level",entry.shapeType,entry.quantity+" pcs",Number(entry.totalWeightKg||0).toFixed(3)+" kg",supplier].join(" · "),kind:"MATERIAL PROCUREMENT",accent:"#b18a2d",status:entry.actualDeliveryDate?"Received":"Planned"},draggable:false,selectable:false,style:{width:220}});
+      nodes.push({id,type:"processMapEntity",position:{x,y:compactViewport?y+(entry.anchorOperationId?70:8)+index*82:y+100+index*105},data:{title:[entry.materialName,entry.materialGrade].filter(Boolean).join(" · "),detail:[entry.partNumber||entry.partName||"Component-level",entry.shapeType,entry.quantity+" pcs",Number(entry.totalWeightKg||0).toFixed(3)+" kg",supplier].join(" · "),kind:"MATERIAL PROCUREMENT",accent:"#b18a2d",status:entry.actualDeliveryDate?"Received":"Planned"},draggable:false,selectable:false,style:{width:compactViewport?154:195}});
       if(base){
         const target=entry.anchorOperationId?"operation:"+entry.anchorOperationId:"operation:"+firstMain!.id;
         edges.push({id:"material-allocation:"+entry.id,source:id,target,label:entry.anchorOperationId?"ALLOCATED AFTER PROCESS":"REQUIRED ROUTE INPUT",labelStyle:{fontSize:8,fill:"#8b702e"},style:{stroke:"#b18a2d",strokeWidth:1.8,strokeDasharray:"5 4"},markerEnd:{type:MarkerType.ArrowClosed,color:"#b18a2d"},selectable:false,focusable:false});
@@ -669,7 +671,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       if(!material||!operation)return;
       const id="bom-link:"+link.id;
       const label=materialProcessPartLabels[link.id]||"BOM part";
-      nodes.push({id,type:"processMapEntity",position:{x:operation.x+(link.placement==="before"?-150:150),y:operation.y+155},data:{title:material.name,detail:label,kind:"MATERIAL → PROCESS LINK",accent:"#3e9278",status:link.placement==="before"?"Before operation":"After operation"},draggable:false,selectable:false,style:{width:190}});
+      nodes.push({id,type:"processMapEntity",position:{x:operation.x+(link.placement==="before"?-135:135),y:operation.y+95},data:{title:material.name,detail:label,kind:"MATERIAL → PROCESS LINK",accent:"#3e9278",status:link.placement==="before"?"Before operation":"After operation"},draggable:false,selectable:false,style:{width:compactViewport?145:175}});
       const source=link.placement==="before"?id:"operation:"+link.operationId;
       const target=link.placement==="before"?"operation:"+link.operationId:id;
       edges.push({id:"bom-link-edge:"+link.id,source,target,label:link.placement==="before"?"INPUT TO PROCESS":"OUTPUT FROM PROCESS",labelStyle:{fontSize:8,fill:"#3c806d"},style:{stroke:"#3e9278",strokeWidth:1.7},markerEnd:{type:MarkerType.ArrowClosed,color:"#3e9278"},selectable:false,focusable:false});
@@ -681,9 +683,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const materialId=leg.materialEntryId?materialNodeIds.get(leg.materialEntryId):undefined;
       const firstMain=branchRows.find(row=>row.branch==="Main route")?.operations[0];
       const targetPosition=to||(!from&&!materialId&&leg.placement==="start"&&firstMain?operationPositions.get(firstMain.id):undefined);
-      const x=from&&to?(from.x+to.x)/2:from?from.x+135:to?to.x-160:targetPosition?targetPosition.x-160:24;
-      const y=from&&to?(from.y+to.y)/2+105:from?from.y+115:to?to.y+115:targetPosition?targetPosition.y+115:360+index*85;
-      nodes.push({id,type:"processMapEntity",position:{x,y},data:{title:leg.fromLocation+" → "+leg.toLocation,detail:[leg.vehicleType,leg.tripCount+" trip(s)",vendors.find(v=>v.id===leg.vendorId)?.company||"Transporter not assigned"].join(" · "),kind:"TRANSPORT LEG",accent:"#397ea4",status:leg.status||"Planned",actionLabel:"Open transport details",onAction:()=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");}},draggable:false,selectable:false,style:{width:218}});
+      const x=from&&to?(from.x+to.x)/2:from?from.x+105:to?to.x-170:targetPosition?targetPosition.x-170:24;
+      const y=from&&to?(from.y+to.y)/2+65:from?from.y+65:to?to.y-65:targetPosition?targetPosition.y-65:300+index*75;
+      nodes.push({id,type:"processMapEntity",position:{x,y},data:{title:leg.fromLocation+" → "+leg.toLocation,detail:[leg.vehicleType,leg.tripCount+" trip(s)",vendors.find(v=>v.id===leg.vendorId)?.company||"Transporter not assigned"].join(" · "),kind:"TRANSPORT LEG",accent:"#397ea4",status:leg.status||"Planned",actionLabel:"Open transport details",onAction:()=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");}},draggable:false,selectable:false,style:{width:compactViewport?154:190}});
       const color="#397ea4";
       if(materialId)edges.push({id:"transport-from-material:"+leg.id,source:materialId,target:id,label:"CARRY",style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
       else if(from)edges.push({id:"transport-from-operation:"+leg.id,source:"operation:"+leg.anchorOperationId,target:id,label:"CARRY",style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
@@ -1803,7 +1805,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           })}
         </details>}
         {processMapMaterialEntries.length>0&&<details className="process-material-route-panel process-material-route-collapsible" aria-label="Material supplier and inbound transport route"><summary className="process-material-route-heading"><strong>MATERIAL PROCUREMENT · ROUTE INSERTIONS</strong><span>{processMapMaterialEntries.length} material allocation(s) · open to inspect procurement details</span></summary>{processMapMaterialEntries.map(entry=><div className="process-material-route-row" key={entry.id}><div className="process-material-route-node"><small>{entry.anchorOperationId ? "PROCUREMENT AFTER PROCESS" : "PROCUREMENT · ROUTE START"}</small><strong>{entry.anchorOperationId ? (()=>{const anchor=routeOperations.find(op=>op.id===entry.anchorOperationId);return anchor?"After OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:"After selected process"} )() : "Before first manufacturing process"}</strong><small>SUPPLIER · {vendors.find(v=>v.id===entry.vendorId)?.company||"Vendor not assigned"}</small><span>Given {entry.givenDate||"—"} · Due {entry.deliveryDate||"—"} · Received {entry.actualDeliveryDate||"—"}</span></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node"><small>MATERIAL</small><strong>{entry.materialName} · {entry.materialGrade}</strong><small>{entry.shapeType} · {Object.entries(entry.dimensions||{}).filter(([,value])=>Number(value)>0).map(([key,value])=>key.replace(/[A-Z]/g,letter=>" "+letter)+" "+value+" "+(entry.dimensionUnits?.[key]||"mm")).join(" · ")||"Dimensions not entered"}</small><span>{entry.quantity} pcs · {entry.totalWeightKg.toFixed(3)} kg · {money(entry.materialRate)} / {entry.priceUnit} · Material {money(entry.materialCost)}</span><small>{entry.cuttingType||"No cutting"} · {money(entry.cuttingCost)} cutting · {entry.cuttingBasis||"—"}</small></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node"><small>INBOUND TRANSPORT</small>{(entry.transportVendorId||entry.transportVehicleType||entry.transportFrom||entry.transportTo||Number(entry.transportCost)>0)&&<button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(entry.transportVehicleType||"")} aria-label="Open inbound material transport popup" title="Transport details" onClick={event=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}>{(()=>{const Icon=transportVehicleIcon(entry.transportVehicleType||"");return <Icon size={17}/>})()}</button>}<strong>{vendors.find(v=>v.id===entry.transportVendorId)?.company||"Transport not assigned"}</strong><span>{[entry.transportFrom||vendors.find(v=>v.id===entry.vendorId)?.address,entry.transportTo].filter(Boolean).join(" → ")||"Route not set"} · {entry.transportVehicleType||"Vehicle not set"} · {money(entry.transportCost||0)}</span><small>Pickup {entry.transportPickupAt||"—"} → Delivery {entry.transportDeliveryAt||"—"} · {entry.transportStatus||"Planned"}</small></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node process-material-route-destination"><small>ALLOCATED TO</small><strong>{entry.partId?entry.partName+" · "+entry.partNumber:"Component-level allocation"}</strong><span>{selectedComponent?.partNumber} · {selectedComponent?.name}</span></div></div>)}</details>}
-        {["sphere","cube","vortex","helix","orbit","stacked","pipeline","network","grid","linear","horizontal","vertical","timeline","gantt","nodes","branch","digital-mesh","molecular","combined"].includes(visualStyle)
+        {["graph","sphere","cube","vortex","helix","orbit","stacked","pipeline","network","grid","linear","horizontal","vertical","timeline","gantt","nodes","branch","digital-mesh","molecular","combined"].includes(visualStyle)
           ? <details className="process-universe-collapsible"><summary><strong>MANUFACTURING UNIVERSE · {visualStyle.toUpperCase()}</strong><span>Open 3D route view</span></summary><div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D onNotice={onNotice} key={visualStyle} initialLayout={visualStyle==="graph"?"sphere":visualStyle} operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} vendors={vendors} routeLabels={routeLabels} routeRelationships={activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===selectedLine?.id&&link.status!=="Disabled")} materialLinks={componentMaterialProcessLinks} materialPartLabels={materialProcessPartLabels} materials={materialMasterRecords} componentQuantity={selectedLine?.quantity||0} selectedMaterialLinkId={selectedMaterialLinkId} onSelectMaterialLink={id=>setSelectedMaterialLinkId(current=>current===id?"":id)} transportLegs={componentTransportLegs.filter(leg=>(!leg.poLineId&&selectedComponentLineCount===1)||exportOperations.some(operation=>operation.poLineId===leg.poLineId)).map(leg=>{
             const anchor=routeOperations.find(operation=>operation.id===leg.anchorOperationId);
             const relation=anchor?.relationType==="rework"||/rework/i.test(anchor?.branch||"")?"rework" as const:anchor?.relationType==="alternate"||Boolean(anchor?.branch&&anchor.branch!=="Main route")?"alternate" as const:"main" as const;
@@ -1854,7 +1856,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             </div>
           : visualStyle==="graph" && exportOperations.length ? <div className="process-map-graph-canvas" data-testid="process-map-react-canvas">
               <div className="process-map-graph-header"><strong>{selectedPO?.number||"Selected PO"} · {selectedComponent?.partNumber||"Component"} · {selectedPart?.partNumber||"All line parts"}</strong><span>{processMapGraph.nodes.length} nodes · {processMapGraph.edges.length} route links</span></div>
-              <ReactFlow<ProcessMapGraphNode,Edge> nodes={processMapGraph.nodes} edges={processMapGraph.edges} nodeTypes={PROCESS_MAP_NODE_TYPES} fitView fitViewOptions={{padding:.18,minZoom:.2,maxZoom:1.1}} minZoom={.16} maxZoom={1.8} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} nodesFocusable edgesFocusable={false} panOnDrag zoomOnScroll={false} zoomOnPinch zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
+              <ReactFlow<ProcessMapGraphNode,Edge> nodes={processMapGraph.nodes} edges={processMapGraph.edges} nodeTypes={PROCESS_MAP_NODE_TYPES} fitView fitViewOptions={{padding:.14,minZoom:.26,maxZoom:1.2}} minZoom={.2} maxZoom={2} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} nodesFocusable edgesFocusable={false} panOnDrag zoomOnScroll={false} zoomOnPinch zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
                 <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#b5c9da"/><Controls showInteractive={false}/><MiniMap<ProcessMapGraphNode> pannable zoomable nodeColor={(node:ProcessMapGraphNode):string=>node.data.accent}/>
               </ReactFlow>
             </div>
