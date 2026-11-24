@@ -51,7 +51,8 @@ test("Process Map node, Route Flow and Manufacturing Universe render material an
   assert.ok(universe.includes('transportFor(operation.id,"before")'));
   assert.ok(universe.includes('materialLinksAt(operation.id,"after")'));
   assert.ok(universe.includes('transportFor(operation.id,"after")'));
-  assert.ok(universe.includes("<RouteConnectorLegend/>"));
+  assert.ok(universe.includes("<RouteConnectorLegend compact/>"));
+  assert.ok(!universe.includes("<RouteConnectorLegend compact/><RouteConnectorLegend/>"),"Process Map must not duplicate the connector legend.");
   assert.ok(flow.includes("<RouteConnectorLegend/>"));
 });
 
