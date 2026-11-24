@@ -1,3 +1,5 @@
+import { getPublicApiDirectory } from "./public-apis.mjs";
+
 const DEFINITIONS = [
   ["react","React","Frontend","runtime","in-app","Existing application UI foundation.","https://github.com/facebook/react","MIT"],
   ["vite","Vite","Developer workflow","runtime","in-app","Existing build and development server.","https://github.com/vitejs/vite","MIT"],
@@ -138,5 +140,10 @@ export function getIntegrationCatalog(env = process.env) {
       ...(requiredEnv.length ? { configured, status: configured ? "configured-unverified" : "not-configured" } : { configured: stage === "in-app" || stage === "adding", status: stage })
     };
   });
-  return { generatedAt: new Date().toISOString(), total: items.length, items };
+  return {
+    generatedAt: new Date().toISOString(),
+    total: items.length,
+    items,
+    publicApis: getPublicApiDirectory()
+  };
 }
