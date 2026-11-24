@@ -90,11 +90,17 @@ const GRAPH_LAYOUT_KEY = "aximach.manufacturing-ecosystem-graph.layout.v1";
 export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
   const [graphPreferences,setGraphPreferences]=useState<EcosystemGraphPreferences<NodeKind>>(() => {
     try {
-      return loadEcosystemGraphPreferences(
+      const loaded=loadEcosystemGraphPreferences(
         typeof window === "undefined" ? null : window.localStorage.getItem(GRAPH_PREFERENCES_KEY),
         VALID_GROUP_KINDS,
         INITIAL_VISIBLE_LIMITS
       );
+      // Limit the first mobile canvas to a readable sample. Search and Show more
+      // still expose all records; the underlying manufacturing data is untouched.
+      if(typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches){
+        return {...loaded,visibleLimits:Object.fromEntries(VALID_GROUP_KINDS.map(kind=>[kind,Math.min(loaded.visibleLimits[kind]??4,4)]))};
+      }
+      return loaded;
     } catch {
       return loadEcosystemGraphPreferences(null,VALID_GROUP_KINDS,INITIAL_VISIBLE_LIMITS);
     }
@@ -308,13 +314,34 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       body=rows.map(row=>row.map(quote).join(",")).join("\r\n");
       mime="text/csv;charset=utf-8";
     }else{
-      const lines=graph.edges.map(edge=>{const from=graph.nodes.find(node=>node.id===edge.from),to=graph.nodes.find(node=>node.id===edge.to);return from&&to?'<line x1="'+(from.x*10)+'" y1="'+(from.y*7)+'" x2="'+(to.x*10)+'" y2="'+(to.y*7)+'"/>':"";}).join("");
-      const nodes=graph.nodes.map(node=>'<g><rect x="'+(node.x*10-72)+'" y="'+(node.y*7-20)+'" width="144" height="40" rx="7" fill="#fff" stroke="'+(GROUPS.find(group=>group.kind===node.kind)?.color||"#789")+'"/><text x="'+(node.x*10)+'" y="'+(node.y*7+4)+'" text-anchor="middle" font-family="Arial" font-size="12" fill="#24445f">'+escapeXml(node.label.slice(0,24))+'</text></g>').join("");
-      body='<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700"><rect width="1000" height="700" fill="#edf4fb"/>'+lines+nodes+'<circle cx="500" cy="350" r="54" fill="#cce7f7" stroke="#2875bd"/><text x="500" y="354" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="17" fill="#17618f">AXIMACH</text></svg>';
+      // Standalone SVG: resolve Theme Studio colours before download, not CSS var()
+      // references, and render explicit visible strokes for all saved relationships.
+      const fallbackPalette=["#2875bd","#168d89","#b17a27","#8b68c5","#b95665","#397ea4","#7565b5"];
+      const groupColor=(kind:string)=>{
+        const groupIndex=GROUPS.findIndex(group=>group.kind===kind);
+        const paletteIndex=(groupIndex<0?0:groupIndex)%fallbackPalette.length+1;
+        const cssColor=typeof window!=="undefined"
+          ? window.getComputedStyle(document.documentElement).getPropertyValue("--ax-theme-graph-"+paletteIndex).trim()
+          : "";
+        return /^#[0-9a-f]{6}$/i.test(cssColor)?cssColor:fallbackPalette[paletteIndex-1];
+      };
+      const point=(node:GraphNode)=>({x:650+(node.x-50)*13,y:560+(node.y-50)*13});
+      const nodes=graph.nodes.map(node=>{
+        const p=point(node),color=groupColor(node.kind);
+        const groupName=GROUPS.find(group=>group.kind===node.kind)?.title||node.kind;
+        return '<g><rect x="'+(p.x-92)+'" y="'+(p.y-35)+'" width="184" height="70" rx="9" fill="#ffffff" stroke="'+color+'" stroke-width="2"/><rect x="'+(p.x-92)+'" y="'+(p.y-35)+'" width="5" height="70" rx="2" fill="'+color+'"/><text x="'+(p.x-78)+'" y="'+(p.y-7)+'" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#17334d">'+escapeXml(node.label.slice(0,27))+'</text><text x="'+(p.x-78)+'" y="'+(p.y+15)+'" font-family="Arial,sans-serif" font-size="10" fill="#4b6278">'+escapeXml(groupName+" · "+node.detail.slice(0,32))+'</text></g>';
+      }).join("");
+      const lines=graph.edges.map(edge=>{
+        const from=graph.nodes.find(node=>node.id===edge.from),to=graph.nodes.find(node=>node.id===edge.to);
+        if(!from||!to)return "";
+        const a=point(from),b=point(to),color=groupColor(from.kind);
+        return '<path d="M'+a.x+' '+a.y+' L'+b.x+' '+b.y+'" fill="none" stroke="'+color+'" stroke-width="2.2" opacity=".78" marker-end="url(#ax-arrow)"/>';
+      }).join("");
+      body='<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 1120"><defs><marker id="ax-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#52708a"/></marker></defs><rect width="1300" height="1120" fill="#f1f6fb"/>'+lines+nodes+'<circle cx="650" cy="560" r="62" fill="#e5f2fb" stroke="#2875bd" stroke-width="3"/><text x="650" y="556" text-anchor="middle" font-family="Arial,sans-serif" font-weight="bold" font-size="18" fill="#17618f">AXIMACH</text><text x="650" y="580" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#436781">MANUFACTURING OS</text></svg>';
       mime="image/svg+xml;charset=utf-8";
     }
     const blob=new Blob([body],{type:mime}),url=URL.createObjectURL(blob),anchor=document.createElement("a");
-    anchor.href=url;anchor.download="aximach-manufacturing-ecosystem."+extension;document.body.appendChild(anchor);anchor.click();anchor.remove();URL.revokeObjectURL(url);
+    anchor.href=url;anchor.download="aximach-manufacturing-ecosystem."+extension;document.body.appendChild(anchor);anchor.click();anchor.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1200);
   };
   return <section className="ax-ecosystem-graph" aria-label="Live manufacturing ecosystem graph">
     <header className="ax-ecosystem-graph-head">
@@ -372,7 +399,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
         edges={flowEdges}
         nodeTypes={ECOSYSTEM_FLOW_NODE_TYPES}
         fitView
-        fitViewOptions={{padding:0.22,minZoom:0.18,maxZoom:1.15}}
+        fitViewOptions={{padding:0.14,minZoom:typeof window!=="undefined"&&window.innerWidth<=760?0.3:0.18,maxZoom:1.25}}
         minZoom={0.18}
         maxZoom={1.8}
         nodesDraggable
