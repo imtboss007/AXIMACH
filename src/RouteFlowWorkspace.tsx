@@ -5,6 +5,7 @@ import "@xyflow/react/style.css";
 import { useReducedMotion } from "motion/react";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
+import { RouteFlowShowcase } from "./RouteFlowShowcase";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
 import TransportRecordInspector from "./TransportRecordInspector";
@@ -695,6 +696,8 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       <div className="route-flow-legend">
 {RELATIONSHIPS.map(item=><span key={item.id} className={"route-flow-legend-item route-flow-curve-"+item.id}><i/>{item.label}</span>)}<span className="route-flow-legend-item route-flow-curve-transport"><Truck size={13}/> Transport leg</span></div>
     </section>
+
+    <RouteFlowShowcase/>
 
     {showTransportEditor&&<section className="route-flow-editor-panel">
       <div className="route-flow-editor-title"><div><span className="eyebrow">TRANSPORT DIRECTORY · MULTIPLE CARRIERS SUPPORTED</span><h3>Add a transport leg between two process stages</h3></div><button className="close-round compact" onClick={()=>setShowTransportEditor(false)}><X size={16}/></button></div>
