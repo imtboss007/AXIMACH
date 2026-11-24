@@ -7,6 +7,7 @@ import { manufacturingCollections, mergeManufacturingData } from "./manufacturin
 import { bearerToken, createAuthService, getRequiredPermission, hasPermission } from "./auth.mjs";
 import { filterManufacturingData, filterModuleRecords, hasTenantScope, validateManufacturingWrite } from "./tenant-scope.mjs";
 import { getIntegrationCatalog } from "./integrations/catalog.mjs";
+import { getPublicApiData } from "./integrations/public-apis.mjs";
 import { searchSearxng, enrichOfficialWebsite } from "./integrations/lead-discovery.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -264,6 +265,30 @@ const server = createServer(async (req, res) => {
   try {
     if (url.pathname === "/api/integrations/catalog" && req.method === "GET") {
       return json(res, 200, getIntegrationCatalog(process.env));
+    }
+    const publicApiRoute = url.pathname.match(/^\\/api\\/public-apis\\/(fx|holidays|ev-stations)$/);
+    if (publicApiRoute && req.method === "GET") {
+      if (!principal.legacy && principal.role !== "admin") {
+        appendAuditEvent(req, principal, "authorization.denied", { requiredPermission: "integrations:manage", provider: publicApiRoute[1] });
+        await saveDb();
+        return json(res, 403, { error: "Public API connections are restricted to AXIMACH administrators." });
+      }
+      try {
+        const result = await getPublicApiData(publicApiRoute[1], Object.fromEntries(url.searchParams));
+        const resultCount = Array.isArray(result.rows) ? result.rows.length : Array.isArray(result.holidays) ? result.holidays.length : Number(result.meta?.totalFound || result.stations?.length || 0);
+        appendAuditEvent(req, principal, "public-api.read", {
+          provider: result.provider,
+          resultCount,
+          query: Object.fromEntries(url.searchParams)
+        });
+        await saveDb();
+        return json(res, 200, result);
+      } catch (error) {
+        return json(res, Number.isInteger(error.status) ? error.status : 502, {
+          error: error.message || "Public API request failed.",
+          code: error.code || "public-api-failed"
+        });
+      }
     }
     if (url.pathname === "/api/lead-discovery/search" && req.method === "POST") {
       const input = await body(req, 32_768);
