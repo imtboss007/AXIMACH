@@ -46,7 +46,7 @@ function fallbackFor(name: string) {
   return <Workflow size={20} />;
 }
 
-type ProcessLayoutMode = "sphere" | "cube" | "vortex" | "helix" | "orbit" | "network" | "grid" | "pipeline" | "layered" | "stacked" | "matrix" | "tree" | "route" | "molecular" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "orthogonal" | "s-curve" | "swimlane" | "radial" | "circular" | "organic" | "gantt" | "nodes" | "branch" | "combined";
+type ProcessLayoutMode = "factory" | "sphere" | "cube" | "vortex" | "helix" | "orbit" | "network" | "grid" | "pipeline" | "layered" | "stacked" | "matrix" | "tree" | "route" | "molecular" | "digital-mesh" | "linear" | "horizontal" | "vertical" | "timeline" | "orthogonal" | "s-curve" | "swimlane" | "radial" | "circular" | "organic" | "gantt" | "nodes" | "branch" | "combined";
 function RouteConnectorLegend({compact=false}:{compact?:boolean}) {
   return compact ? <RouteLayoutConnectorLegend compact/> : <MaterialRouteConnectorLegend/>;
 }
@@ -66,6 +66,11 @@ function getLayoutPoint(index: number, operation: OperationRecord | undefined, m
   const localCount = Math.max(1, branchRows.length || total);
   const center = (index - (total - 1) / 2);
   const branchOffset = branchIndex - (branchCount - 1) / 2;
+  if (mode === "factory") {
+    const columns = Math.min(5, Math.max(1, Math.ceil(Math.sqrt(total * 1.25))));
+    const rows = Math.ceil(total / columns);
+    return { x: (index % columns - (columns - 1) / 2) * 122, y: -47, z: (Math.floor(index / columns) - (rows - 1) / 2) * 114 };
+  }
   const golden = Math.PI * (3 - Math.sqrt(5));
   const unitY = 1 - 2 * ((index + 0.5) / total);
   const ringRadius = Math.sqrt(Math.max(0, 1 - unitY * unitY));
@@ -231,6 +236,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
   const [layoutMode, setLayoutMode] = useState<ProcessLayoutMode>(initialLayout);
   const [routeLayout,setRouteLayout]=useRouteLayout();
   const [autoRotateEnabled, setAutoRotateEnabled] = useState(true);
+  const [flowMotionEnabled, setFlowMotionEnabled] = useState(true);
   const prefersReducedMotion = useReducedMotion();
   useEffect(() => setLayoutMode(initialLayout), [initialLayout]);
   useEffect(() => setLayoutMode(routeLayout as ProcessLayoutMode), [routeLayout]);
@@ -392,8 +398,13 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
       <div className="process-universe-count"><strong>{orbitCount}</strong><span>{displayOperations.length ? "SAVED PROCESS STEPS" : "AVAILABLE STAGES"}</span><button type="button" className="process-orbit-auto-toggle" aria-pressed={autoRotateEnabled} disabled={!!prefersReducedMotion} onClick={() => setAutoRotateEnabled(value => !value)}>{prefersReducedMotion ? "Reduced motion" : autoRotateEnabled ? "Pause rotation" : "Resume rotation"}</button></div>
     </header>
     <nav className="process-universe-layouts" aria-label="Process map visualisation modes"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout}/>
-      {([{id:"sphere",label:"Sphere View",glyph:"◎"},{id:"cube",label:"Cube View",glyph:"⬡"},{id:"vortex",label:"Vortex View",glyph:"◉"},{id:"helix",label:"Helix View",glyph:"⌁"},{id:"orbit",label:"Orbit View",glyph:"⊙"},{id:"network",label:"Network View",glyph:"✣"},{id:"grid",label:"Grid View",glyph:"▦"},{id:"pipeline",label:"Pipeline View",glyph:"⇢"},{id:"layered",label:"Layered View",glyph:"▱"},{id:"stacked",label:"Stacked View",glyph:"▤"},{id:"matrix",label:"Matrix View",glyph:"▦"},{id:"tree",label:"Tree View",glyph:"♧"}, {id:"radial",label:"Radial View",glyph:"◎"}, {id:"circular",label:"Circular View",glyph:"◌"}, {id:"organic",label:"Organic View",glyph:"✣"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>{setLayoutMode(option.id);if((["orthogonal","s-curve","horizontal","vertical","swimlane","timeline","radial","circular","organic"] as string[]).includes(option.id))setRouteLayout(option.id as RouteLayoutMode);}}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}
+      {([{id:"sphere",label:"Sphere View",glyph:"◎"},{id:"cube",label:"Cube View",glyph:"⬡"},{id:"vortex",label:"Vortex View",glyph:"◉"},{id:"helix",label:"Helix View",glyph:"⌁"},{id:"orbit",label:"Orbit View",glyph:"⊙"},{id:"network",label:"Network View",glyph:"✣"},{id:"grid",label:"Grid View",glyph:"▦"},{id:"pipeline",label:"Pipeline View",glyph:"⇢"},{id:"layered",label:"Layered View",glyph:"▱"},{id:"stacked",label:"Stacked View",glyph:"▤"},{id:"matrix",label:"Matrix View",glyph:"▦"},{id:"tree",label:"Tree View",glyph:"♧"}, {id:"radial",label:"Radial View",glyph:"◎"}, {id:"circular",label:"Circular View",glyph:"◌"}, {id:"organic",label:"Organic View",glyph:"✣"},{id:"factory",label:"Factory Floor",glyph:"▦"}] as const).map(option=><button type="button" key={option.id} className={layoutMode===option.id?"active":""} aria-pressed={layoutMode===option.id} onClick={()=>{setLayoutMode(option.id);if((["orthogonal","s-curve","horizontal","vertical","swimlane","timeline","radial","circular","organic"] as string[]).includes(option.id))setRouteLayout(option.id as RouteLayoutMode);}}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}
     </nav>
+    <div className="process-orbit-visual-controls" role="group" aria-label="3D factory and process visual controls">
+      <button type="button" aria-pressed={autoRotateEnabled&&!prefersReducedMotion} onClick={()=>setAutoRotateEnabled(value=>!value)}>{autoRotateEnabled&&!prefersReducedMotion?"Pause camera rotation":"Enable camera rotation"}</button>
+      <button type="button" aria-pressed={flowMotionEnabled&&!prefersReducedMotion} onClick={()=>setFlowMotionEnabled(value=>!value)}>{flowMotionEnabled&&!prefersReducedMotion?"Pause flow animation":"Enable flow animation"}</button>
+      {prefersReducedMotion&&<span>Device reduced-motion preference overrides continuous animation.</span>}
+    </div>
     <RouteConnectorLegend compact/><RouteConnectorLegend/>
     <div className="process-orbit-panel">
       <div className="process-orbit-meta"><span><i /> LIVE PO-LINE ROUTE</span><span>TRUE 3D GEOMETRY · TOUCH / MOUSE DRAG · AUTO-ROTATE</span></div>
@@ -417,7 +428,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
         <output aria-live="polite">{Math.round(zoom*100)}%</output>
         <button type="button" aria-label="Zoom in" title="Zoom in" onClick={()=>onZoomChange?.(Math.min(2.6,Number((zoom+.1).toFixed(2))))}>+</button>
         <button type="button" className="ax-map-zoom-fit" onClick={()=>onZoomChange?.(.78)} title="Fit all process nodes">Fit</button>
-      </div><div className="process-scene-zoom-viewport"><div className="process-scene-zoom-layer" style={{transform:`scale(${zoom})`,transformOrigin:"top center",width:`${100/zoom}%`}}><ProcessScene3D operations={displayOperations} materialRoutes={materialRoutes} transportLegs={transportLegs} onSelectTransportLeg={onSelectTransportLeg} onSelectMaterialTransport={onSelectMaterialTransport} visibleFields={visibleFields} autoRotate={autoRotateEnabled && !prefersReducedMotion} mode={layoutMode} simulationIndex={simulationIndex} selectedOperationId={selectedOperationId} expandedOperationId={expandedOperationId} onSelectOperation={onSelectOperation} onExpandOperation={(id)=>setExpandedOperationId(id)} onArrowSelect={(id)=>{onSelectOperation(id);setExpandedOperationId(id);}} edges={orbitConnections.edges} coordinateOperations={coordinateOperations} anchors={orbitConnections.anchors} catalogue={showCatalogueOrbit ? processDefinitions : undefined} onAddCatalogue={onAddProcessDefinition} showArrows={showArrows} vendors={vendors} quantityUnit={quantityUnit} ganttScale={ganttScale} /></div></div></div>
+      </div><div className="process-scene-zoom-viewport"><div className="process-scene-zoom-layer" style={{transform:`scale(${zoom})`,transformOrigin:"top center",width:`${100/zoom}%`}}><ProcessScene3D operations={displayOperations} materialRoutes={materialRoutes} transportLegs={transportLegs} onSelectTransportLeg={onSelectTransportLeg} onSelectMaterialTransport={onSelectMaterialTransport} visibleFields={visibleFields} autoRotate={autoRotateEnabled && !prefersReducedMotion} motionEnabled={flowMotionEnabled && !prefersReducedMotion} mode={layoutMode} simulationIndex={simulationIndex} selectedOperationId={selectedOperationId} expandedOperationId={expandedOperationId} onSelectOperation={onSelectOperation} onExpandOperation={(id)=>setExpandedOperationId(id)} onArrowSelect={(id)=>{onSelectOperation(id);setExpandedOperationId(id);}} edges={orbitConnections.edges} coordinateOperations={coordinateOperations} anchors={orbitConnections.anchors} catalogue={showCatalogueOrbit ? processDefinitions : undefined} onAddCatalogue={onAddProcessDefinition} showArrows={showArrows} vendors={vendors} quantityUnit={quantityUnit} ganttScale={ganttScale} /></div></div></div>
       
       <div className="process-orbit-help"><span>↔ DRAG TO ROTATE</span><span>{showCatalogueOrbit ? "SELECT A DIRECTORY NODE TO CREATE A PO-LINE OPERATION" : "SELECT A PROCESS NODE TO OPEN ITS RECORD"}</span><span>{simulationIndex>=0?`SIMULATION · STEP ${Math.min(simulationIndex+1,displayOperations.length)} / ${displayOperations.length}`:"SIMULATION IS VISUAL ONLY"} · VISUAL ONLY</span></div>
       {expandedOrbitOperation && <section ref={expandedDetailsRef} className="process-orbit-selected-details" id="process-orbit-selected-details" aria-label={"Expanded details for " + expandedOrbitOperation.name}>
