@@ -67,7 +67,7 @@ export default function DashboardCommandLayer({
       <div className="dashboard-execution-metrics">{metrics.map(item => {const Icon=item.icon;return <button type="button" key={item.label} className={"dashboard-execution-metric tone-"+item.tone} onClick={()=>onSelectModule(item.module)}><span className="dashboard-execution-metric-icon"><Icon size={17}/></span><span className="dashboard-execution-metric-copy"><small>{item.label}</small><strong>{formatCount(item.value)}</strong><em>{item.hint}</em></span></button>;})}</div>
       <article className="dashboard-execution-panel dashboard-execution-state-panel">
         <div className="dashboard-execution-panel-heading"><span><Gauge size={15}/> Operation states</span><b>{formatCount(operations.length)} total</b></div>
-        <div className="dashboard-execution-state-bar" role="img" aria-label={statusCounts.map(row=>row.label+" "+row.count).join(", ")}>{statusCounts.map(row=><i key={row.id} className={"state-"+row.tone} style={{width:(row.count/totalStatus*100)+"%"}/>)}</div>
+        <div className="dashboard-execution-state-bar" role="img" aria-label={statusCounts.map(row=>row.label+" "+row.count).join(", ")}>{statusCounts.map(row=><i key={row.id} className={"state-"+row.tone} style={{width:(row.count/totalStatus*100)+"%"}}/>)}</div>
         <div className="dashboard-execution-state-legend">{statusCounts.map(row=><div key={row.id}><i className={"state-"+row.tone}/><span>{row.label}</span><strong>{formatCount(row.count)}</strong></div>)}</div>
       </article>
       <article className="dashboard-execution-panel dashboard-execution-category-panel">
