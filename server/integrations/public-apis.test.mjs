@@ -23,7 +23,7 @@ test("curated public API directory records source provenance and separates activ
   assert.equal(directory.items.find(item => item.id === "gstinapi").stage, "candidate");
   assert.equal(directory.items.find(item => item.id === "vibe-manufacturing").stage, "review-required");
   assert.match(directory.items.find(item => item.id === "india-ev-charging").limitation, /26 October 2025/);
-  assert.match(directory.items.find(item => item.id === "frankfurter").limitation, /not live market quotes/i);
+  assert.match(directory.items.find(item => item.id === "frankfurter").limitation, /not executable FX market quotes/i);
 });
 
 test("Frankfurter v2 validates currencies, calls the fixed provider and caches reference rates", async () => {
@@ -49,7 +49,7 @@ test("Frankfurter v2 validates currencies, calls the fixed provider and caches r
   assert.deepEqual(first.rows.map(row => row.quote), ["USD", "EUR"]);
   assert.deepEqual(second.rows, first.rows);
   await assert.rejects(() => getPublicApiData("fx", { base: "INR", quotes: "INR" }, fetchImpl), /different from the base currency/);
-  await assert.rejects(() => getPublicApiData("fx", { base: "IND", quotes: "USD" }, fetchImpl), /3-letter ISO 4217/);
+  await assert.rejects(() => getPublicApiData("fx", { base: "IN", quotes: "USD" }, fetchImpl), /3-letter ISO 4217/);
 });
 
 test("Nager.Date v4 returns country and subdivision-aware calendar data through a pinned host", async () => {
@@ -98,7 +98,7 @@ test("India EV station proxy filters the BEE-derived dataset and preserves manda
   assert.match(requested, /city=Bengaluru/);
   assert.equal(result.stations[0].maxPowerKw, 60);
   assert.match(result.meta.attribution, /Bureau of Energy Efficiency/);
-  assert.match(result.note, /no live charger availability/i);
+  assert.match(result.note, /does not report live charger availability/i);
   await assert.rejects(() => getPublicApiData("ev-stations", { state: "https://evil.example", city: "Bengaluru" }, fetchImpl), /valid Indian state/);
   await assert.rejects(() => getPublicApiData("ev-stations", { state: "Karnataka", page: "0" }, fetchImpl), /Page must be/);
 });
