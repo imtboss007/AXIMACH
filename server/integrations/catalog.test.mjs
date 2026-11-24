@@ -18,6 +18,12 @@ test("catalog covers the supplied tool families and never returns environment va
     "AFFiNE", "Scout (varun-io-eng/Scout)"
   ]) assert.ok(result.items.some(item => item.name === name), "missing " + name);
   assert.equal(JSON.stringify(result).includes(secret), false);
+  assert.equal(result.publicApis.source.repository, "public-apis/public-apis");
+  assert.equal(result.publicApis.source.license, "MIT");
+  assert.ok(result.publicApis.total >= 8);
+  assert.ok(result.publicApis.items.some(item => item.id === "frankfurter" && item.stage === "live-adapter"));
+  assert.ok(result.publicApis.items.some(item => item.id === "gstinapi" && item.stage === "candidate"));
+  assert.equal(JSON.stringify(result.publicApis).includes(secret), false);
 });
 
 test("connector readiness means configuration is present, not that the provider is healthy", () => {
