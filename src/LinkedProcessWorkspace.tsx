@@ -607,6 +607,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const operationPositions=new Map<string,{x:number;y:number;branch:string;index:number}>();
     const relationshipRows=activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===selectedLine?.id&&link.componentId===selectedLine?.componentId&&link.status!=="Disabled");
     const relationColors:Record<string,string>={main:"#2875bd",alternate:ALTERNATE_ROUTE_COLOR,rework:REWORK_ROUTE_COLOR,dependency:"#347de5",parallel:"#9848d6",merge:"#9e4bc9",split:"#3d79df","follow-on":"#173c6c",feedback:"#455bd6",conditional:"#9954ce",successor:"#203e62"};
+    const isRunningOperation=(id:string)=>exportOperations.some(operation=>operation.id===id&&operation.status==="Running");
     const branchRows=exportBranches.map((key,row)=>{
       const operationsInBranch=exportOperations.filter(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")===key).slice().sort((a,b)=>a.sequence-b.sequence);
       return {key,row,branch:operationsInBranch[0]?.branch||"Main route",operations:operationsInBranch};
@@ -622,7 +623,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         const saved=relationshipRows.find(link=>link.fromOperationId===from.id&&link.toOperationId===to.id);
         const relation=saved?.relationshipType||(branch.toLowerCase().includes("rework")?"rework":branch==="Main route"?"main":"alternate");
         const color=relationColors[relation]||relationColors.main;
-        edges.push({id:"process-sequence:"+from.id+":"+to.id,source:"operation:"+from.id,target:"operation:"+to.id,type:"smoothstep",label:saved?.label||relation.replaceAll("-"," ").toUpperCase(),labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
+        edges.push({id:"process-sequence:"+from.id+":"+to.id,source:"operation:"+from.id,target:"operation:"+to.id,type:"smoothstep",label:saved?.label||relation.replaceAll("-"," ").toUpperCase(),labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},animated:isRunningOperation(from.id)||isRunningOperation(to.id),selectable:false,focusable:false});
       }
     });
     branchRows.filter(row=>row.branch!=="Main route").forEach(({branch,operations:ops})=>{
@@ -637,14 +638,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       }
       const relation=origin.branchRoot.relationType==="rework"||/rework/i.test(branch)?"rework":"alternate";
       const color=relationColors[relation];
-      edges.push({id:"branch-origin:"+origin.parent.id+":"+origin.branchRoot.id,source:sourceId,target:"operation:"+origin.branchRoot.id,type:"smoothstep",label:relation==="rework"?"REWORK BRANCH":"ALTERNATE BRANCH",labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2,strokeDasharray:"7 4"},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
+      edges.push({id:"branch-origin:"+origin.parent.id+":"+origin.branchRoot.id,source:sourceId,target:"operation:"+origin.branchRoot.id,type:"smoothstep",label:relation==="rework"?"REWORK BRANCH":"ALTERNATE BRANCH",labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2,strokeDasharray:"7 4"},markerEnd:{type:MarkerType.ArrowClosed,color},animated:origin.parent.status==="Running"||origin.branchRoot.status==="Running",selectable:false,focusable:false});
     });
     const sequentialPairs=new Set(edges.map(edge=>edge.source+"::"+edge.target));
     relationshipRows.forEach(link=>{
       const from="operation:"+link.fromOperationId,to="operation:"+link.toOperationId;
       if(!operationPositions.has(link.fromOperationId)||!operationPositions.has(link.toOperationId)||sequentialPairs.has(from+"::"+to))return;
       const color=relationColors[link.relationshipType]||relationColors.main;
-      edges.push({id:"saved-relationship:"+link.id,source:from,target:to,type:"smoothstep",label:link.label||link.relationshipType.toUpperCase(),labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2,strokeDasharray:"7 4"},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
+      edges.push({id:"saved-relationship:"+link.id,source:from,target:to,type:"smoothstep",label:link.label||link.relationshipType.toUpperCase(),labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2,strokeDasharray:"7 4"},markerEnd:{type:MarkerType.ArrowClosed,color},animated:isRunningOperation(link.fromOperationId)||isRunningOperation(link.toOperationId),selectable:false,focusable:false});
     });
     const materialNodeIds=new Map<string,string>();
     processMapMaterialEntries.forEach((entry,index)=>{
