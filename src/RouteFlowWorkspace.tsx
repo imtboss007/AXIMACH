@@ -181,6 +181,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [transportNotes,setTransportNotes]=useState("");
   const mapViewportRef=useRef<HTMLDivElement|null>(null);
   const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
+  const darkGraph=workspaceTheme==="dark";
   const [inspectedTransportId,setInspectedTransportId]=useState("");
   const [inspectedMaterialTransportId,setInspectedMaterialTransportId]=useState("");
   const [transportPopupPoint,setTransportPopupPoint]=useState<{x:number;y:number}>({x:8,y:8});
@@ -378,7 +379,6 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const nodeIds=new Set(nodes.map(node=>node.id));
     const edges:Edge[]=[];
     const edgeKeys=new Set<string>();
-    const darkGraph=workspaceTheme==="dark";
     const edgePalette:Record<string,{color:string;dash?:string}> = darkGraph?{
       main:{color:"#35d4dc"},alternate:{color:"#ffc45c",dash:"9 5"},rework:{color:"#ff747e",dash:"7 5"},
       dependency:{color:"#72b4ff",dash:"2 5"},parallel:{color:"#d19aff",dash:"8 3"},
