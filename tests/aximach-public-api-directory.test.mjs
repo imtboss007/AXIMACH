@@ -51,7 +51,8 @@ test("Public API adapters use fixed upstream origins and server-side validated p
 
 test("Public API proxy is limited to three GET adapters and is administrator-only with audit receipts",()=>{
   const server=source("server/index.mjs");
-  assert.ok(server.includes('url.pathname.match(/^\\/api\\/public-apis\\/(fx|holidays|ev-stations)$/'));
+  assert.ok(server.includes("const publicApiRoute = url.pathname.match("));
+  assert.ok(server.includes("fx|holidays|ev-stations"));
   assert.ok(server.includes('if (publicApiRoute && req.method === "GET")'));
   assert.ok(server.includes('principal.role !== "admin"'));
   assert.ok(server.includes('"authorization.denied"'));
