@@ -108,3 +108,33 @@ test("short-landscape graph canvases adapt to the available viewport and hide se
   assert.ok(responsiveRule.includes(".react-flow__minimap"));
   assert.ok(responsiveRule.includes("display:none!important"));
 });
+
+
+test("premium dashboard command layer is computed exclusively from saved operation and transport records", () => {
+  const dashboard = source("src/DashboardWorkspace.tsx");
+  const command = source("src/DashboardCommandLayer.tsx");
+  assert.ok(dashboard.includes("<DashboardCommandLayer operations={ops}"));
+  for (const field of ["completedQuantity={completion}", "plannedQuantity={planned}", "qualityHolds={holds.length}", "overdue={overdue.length}", "activeTransport={activeLegs.length}"]) assert.ok(dashboard.includes(field));
+  for (const marker of ["data-testid=\"dashboard-command-graphics\"", "aria-valuenow={safePercent}", "operation.machine", "operation.category", "row.status === \"Running\""]) assert.ok(command.includes(marker));
+  assert.ok(command.includes("Machine assignments are not recorded"));
+});
+
+test("factory floor mode renders manufacturing-specific selectable workcells and supports user motion controls", () => {
+  const scene = source("src/ProcessScene3D.tsx"), universe = source("src/ProcessUniverse3D.tsx");
+  assert.ok(scene.includes("factoryMachineKind"));
+  for (const kind of ["machining", "lathe", "edm", "welding", "laser", "metrology", "workcell"]) assert.ok(scene.includes("\"" + kind + "\""));
+  assert.ok(scene.includes("drawFactoryMachine(draw,p,op"));
+  assert.ok(scene.includes("op.machine||(\"Workcell · \"+(op.category||\"General\"))"));
+  assert.ok(universe.includes("id:\"factory\",label:\"Factory Floor\""));
+  assert.ok(universe.includes("setAutoRotateEnabled") && universe.includes("setFlowMotionEnabled"));
+  assert.ok(universe.includes("motionEnabled={flowMotionEnabled && !prefersReducedMotion}"));
+  assert.ok(scene.includes("if(motionEnabled)"));
+});
+
+test("Route Flow graph animates only edges attached to real Running operation records", () => {
+  const route = source("src/RouteFlowWorkspace.tsx"), visual = source("src/aximach-visual-fixes.css");
+  assert.ok(route.includes('const animated=routeOperations.some(operation=>(operation.id===source||operation.id===target)&&operation.status==="Running")'));
+  assert.ok(route.includes("label,animated,"));
+  assert.ok(visual.includes(".route-flow-graph-canvas .react-flow__edge.animated .react-flow__edge-path"));
+  assert.ok(visual.includes("@media(prefers-reduced-motion:reduce)"));
+});
