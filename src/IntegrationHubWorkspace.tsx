@@ -60,14 +60,8 @@ function readConnection() {
 }
 
 async function requestPublicApi<T>(path:string):Promise<T> {
-  const base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim().replace(/\/+$/, "");
-  const key=window.localStorage.getItem("aximach.scheduler.key")||"";
-  const userMode=getServerAuthMode()==="users";
-  const session=readServerSession(base);
-  if(!base||window.localStorage.getItem("aximach.storage.mode")==="local-only") throw new Error("Connect the shared AXIMACH data server first.");
-  if(userMode&&(!session||session.user.role!=="admin")) throw new Error("Public API access requires a shared-server administrator account.");
-  if(!userMode&&!key) throw new Error("The shared AXIMACH server API key is not available on this device.");
-  const response=await fetch(base.replace(/\/+$/,"")+path,{headers:getServerAuthHeaders(key,base,session?.token,userMode),cache:"no-store"});
+  const connection=readConnection();
+  const response=await fetch(connection.base+path,{headers:connection.headers,cache:"no-store"});
   const payload:unknown=await response.json().catch(()=>null);
   if(!response.ok){
     const message=typeof payload==="object"&&payload&&"error" in payload?String((payload as {error:unknown}).error):"Public API request failed (HTTP "+response.status+").";
