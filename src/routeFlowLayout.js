@@ -67,12 +67,17 @@ export function buildRouteFlowOperationPositions(operations, layout = "orthogona
         point = { x: xStart + ratio * Math.max(stepX * 2, (bucket.length - 1) * stepX), y: yStart + lane * stepY };
         break;
       }
-      case "s-curve": {
+      case "orthogonal": {
         const columns = compact ? 3 : 4;
         const rowIndex = Math.floor(sequence / columns);
         const slot = sequence % columns;
         const column = rowIndex % 2 ? columns - 1 - slot : slot;
-        point = { x: xStart + column * stepX, y: yStart + lane * stepY + rowIndex * (compact ? 108 : 132) };
+        point = { x: xStart + column * stepX, y: yStart + lane * stepY * 2 + rowIndex * (compact ? 112 : 138) };
+        break;
+      }
+      case "s-curve": {
+        const amplitude = compact ? 64 : 82;
+        point = { x: xStart + sequence * stepX * .82, y: yStart + lane * stepY + Math.sin(sequence * .82) * amplitude };
         break;
       }
       case "organic": {
@@ -81,10 +86,9 @@ export function buildRouteFlowOperationPositions(operations, layout = "orthogona
         point = { x: (compact ? 380 : 520) + Math.cos(angle) * radius, y: (compact ? 300 : 400) + Math.sin(angle) * radius * .72 };
         break;
       }
-      case "orthogonal":
       case "horizontal":
       default:
-        point = { x: xStart + sequence * stepX, y: yStart + lane * stepY };
+        point = { x: xStart + sequence * (compact ? 214 : 280), y: yStart + lane * stepY };
         break;
     }
     positions[row.id] = point;
