@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Activity, FileDown, Network, Search, X } from "lucide-react";
 import { Background, BackgroundVariant, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow } from "@xyflow/react";
-import type { Edge, Node, NodeChange, NodeProps, NodeTypes } from "@xyflow/react";
+import type { Edge, Node, NodeProps, NodeTypes, OnNodesChange } from "@xyflow/react";
 import "@xyflow/react/style.css";
 import { activeRows, type ManufacturingData } from "./manufacturingData";
 import { expandEcosystemGroupLimit, getVisibleEcosystemNodes, loadEcosystemGraphLayout, loadEcosystemGraphPreferences, searchEcosystemNodes, updateEcosystemGraphLayout, type EcosystemGraphPreferences } from "./manufacturingEcosystemGraphModel.mjs";
@@ -130,12 +130,15 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     setGraphLayout({});
     try { window.localStorage.removeItem(GRAPH_LAYOUT_KEY); } catch { /* Layout reset still applies in memory. */ }
   };
-  const handleGraphNodesChange=(changes:NodeChange<EcosystemFlowNode>[])=>{
-    const positions=changes.filter((change):change is Extract<NodeChange<EcosystemFlowNode>,{type:"position"}> =>
-      change.type==="position" && Boolean(change.position) && change.id!=="aximach-hub"
-    );
+  const handleGraphNodesChange:OnNodesChange<EcosystemFlowNode>=(changes)=>{
+    const positions:Array<{id:string;position:{x:number;y:number}}>=[];
+    for(const change of changes){
+      if(change.type==="position" && change.position && change.id!=="aximach-hub"){
+        positions.push({id:change.id,position:change.position});
+      }
+    }
     if(!positions.length)return;
-    setGraphLayout(current=>positions.reduce((next,change)=>updateEcosystemGraphLayout(next,change.id,change.position!),current));
+    setGraphLayout(current=>positions.reduce((next,change)=>updateEcosystemGraphLayout(next,change.id,change.position),current));
   };
   const persistGraphNodePosition=(_:unknown,node:EcosystemFlowNode)=>{
     if(node.type!=="ecosystem")return;
