@@ -99,7 +99,7 @@ test("India EV station proxy filters the BEE-derived dataset and preserves manda
   assert.equal(result.stations[0].maxPowerKw, 60);
   assert.match(result.meta.attribution, /Bureau of Energy Efficiency/);
   assert.match(result.note, /no live charger availability/i);
-  await assert.rejects(() => getPublicApiData("ev-stations", { state: "https://evil.example", city: "Bengaluru" }, fetchImpl), /state name/);
+  await assert.rejects(() => getPublicApiData("ev-stations", { state: "https://evil.example", city: "Bengaluru" }, fetchImpl), /valid Indian state/);
   await assert.rejects(() => getPublicApiData("ev-stations", { state: "Karnataka", page: "0" }, fetchImpl), /Page must be/);
 });
 
