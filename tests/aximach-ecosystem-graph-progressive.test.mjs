@@ -3,8 +3,10 @@ import test from "node:test";
 import {
   expandEcosystemGroupLimit,
   getVisibleEcosystemNodes,
+  loadEcosystemGraphLayout,
   loadEcosystemGraphPreferences,
-  searchEcosystemNodes
+  searchEcosystemNodes,
+  updateEcosystemGraphLayout
 } from "../src/manufacturingEcosystemGraphModel.mjs";
 
 const node=(id,kind,label,detail="",context={})=>({id,kind,label,detail,moduleId:kind,context});
@@ -94,4 +96,34 @@ test("graph preference schema upgrade exposes newly added entity groups once",()
  assert.equal(migrated.visibleLimits.customer,6);
  const next=loadEcosystemGraphPreferences(JSON.stringify({version:2,visibleKinds:["company","vendor"],visibleLimits:{}}),["company","vendor","customer"],{company:6,vendor:6,customer:6});
  assert.deepEqual(next.visibleKinds,["company","vendor"]);
+});
+
+
+test("ecosystem graph layouts restore saved node positions by stable record ID",()=>{
+  const layout=loadEcosystemGraphLayout(JSON.stringify({
+    "vendor:stable-1":{x:420,y:-180},
+    "operation:stable-2":{x:12.5,y:90}
+  }));
+  assert.deepEqual(layout,{
+    "vendor:stable-1":{x:420,y:-180},
+    "operation:stable-2":{x:12.5,y:90}
+  });
+});
+
+test("ecosystem graph layout updates one node without disturbing other saved positions",()=>{
+  const first={"vendor:1":{x:10,y:20},"operation:2":{x:30,y:40}};
+  const next=updateEcosystemGraphLayout(first,"vendor:1",{x:150,y:260});
+  assert.deepEqual(next,{"operation:2":{x:30,y:40},"vendor:1":{x:150,y:260}});
+  assert.deepEqual(first,{"vendor:1":{x:10,y:20},"operation:2":{x:30,y:40}});
+});
+
+test("ecosystem graph layout loader rejects corrupt entries and clamps unsafe coordinates",()=>{
+  const layout=loadEcosystemGraphLayout(JSON.stringify({
+    "vendor:valid":{x:999999,y:-999999},
+    "operation:invalid":{x:"not-a-number",y:10},
+    "":{x:1,y:2}
+  }));
+  assert.deepEqual(layout,{"vendor:valid":{x:100000,y:-100000}});
+  assert.deepEqual(loadEcosystemGraphLayout("{broken"),{});
+  assert.deepEqual(updateEcosystemGraphLayout(layout,"bad-id",{x:NaN,y:1}),layout);
 });
