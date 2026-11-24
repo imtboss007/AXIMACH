@@ -17,12 +17,31 @@ const IntegrationSchema = z.object({
   configured: z.boolean(),
   status: z.string()
 });
+const PublicApiSchema = z.object({
+  id: z.string(), name: z.string(), category: z.string(), description: z.string(),
+  purpose: z.string(), auth: z.string(), https: z.string(), cors: z.string(),
+  stage: z.string(), docs: z.string().url(), upstream: z.string().optional(),
+  coverage: z.string(), limitation: z.string()
+});
+const PublicApiDirectorySchema = z.object({
+  source: z.object({
+    repository: z.string(), repositoryUrl: z.string().url(), readmeUrl: z.string().url(),
+    license: z.string(), note: z.string()
+  }),
+  total: z.number().int().nonnegative(),
+  items: z.array(PublicApiSchema)
+});
 const CatalogueSchema = z.object({
   generatedAt: z.string(),
   total: z.number().int().nonnegative(),
-  items: z.array(IntegrationSchema)
+  items: z.array(IntegrationSchema),
+  publicApis: PublicApiDirectorySchema.optional()
 });
 type Integration = z.infer<typeof IntegrationSchema>;
+type PublicApiDirectory = z.infer<typeof PublicApiDirectorySchema>;
+type FxResult = { provider:string;base:string;quotes:string[];date:string;rows:Array<{date:string;base:string;quote:string;rate:number}>;note:string;source:string };
+type HolidayResult = { provider:string;country:string;year:number;holidays:Array<{date:string;name:string;localName?:string;countryCode:string;nationalHoliday:boolean;subdivisionCodes:string[]|null;holidayTypes:string[]}>;note:string;source:string };
+type EvResult = { provider:string;state:string;city:string;stations:Array<{id:string;operator:string;ownership:string;state:string;district:string;city:string;address:string;latitude:number;longitude:number;locationQuality:string;connectors:string[];currents:string[];maxPowerKw:number|null;distanceKm:number|null}>;meta:{page:number;limit:number;totalFound:number;totalPages:number;source:{name:string;publisher?:string};attribution:string};note:string;source:string };
 type Props = { onBack: () => void; onNotice: (message: string) => void; notice?: string };
 
 function readConnection() {
@@ -39,6 +58,25 @@ function readConnection() {
   if (!userMode && !key) throw new Error("The shared AXIMACH server API key is not available on this device.");
   return { base, headers: getServerAuthHeaders(key, base, session?.token, userMode) };
 }
+
+async function requestPublicApi<T>(path:string):Promise<T> {
+  const base=(window.localStorage.getItem("aximach.scheduler.url")||"").trim().replace(/\\/+$/, "");
+  const key=window.localStorage.getItem("aximach.scheduler.key")||"";
+  const userMode=getServerAuthMode()==="users";
+  const session=readServerSession(base);
+  if(!base||window.localStorage.getItem("aximach.storage.mode")==="local-only") throw new Error("Connect the shared AXIMACH data server first.");
+  if(userMode&&(!session||session.user.role!=="admin")) throw new Error("Public API access requires a shared-server administrator account.");
+  if(!userMode&&!key) throw new Error("The shared AXIMACH server API key is not available on this device.");
+  const response=await fetch(base.replace(/\\/+$/,"")+path,{headers:getServerAuthHeaders(key,base,session?.token,userMode),cache:"no-store"});
+  const payload:unknown=await response.json().catch(()=>null);
+  if(!response.ok){
+    const message=typeof payload==="object"&&payload&&"error" in payload?String((payload as {error:unknown}).error):"Public API request failed (HTTP "+response.status+").";
+    throw new Error(message);
+  }
+  return payload as T;
+}
+const publicApiStageLabel:Record<string,string>={"live-adapter":"Live AXIMACH adapter",candidate:"Optional candidate","review-required":"Review required"};
+
 const stageLabel: Record<string,string> = {
   "in-app": "Already in AXIMACH",
   adding: "Being integrated",
@@ -56,6 +94,24 @@ const statusLabel: Record<string,string> = {
 
 export default function IntegrationHubWorkspace({ onBack, notice }: Props) {
   const [items, setItems] = useState<Integration[]>([]);
+  const [publicApis,setPublicApis]=useState<PublicApiDirectory|null>(null);
+  const [publicApiError,setPublicApiError]=useState("");
+  const [fxBusy,setFxBusy]=useState(false);
+  const [holidayBusy,setHolidayBusy]=useState(false);
+  const [evBusy,setEvBusy]=useState(false);
+  const [fxError,setFxError]=useState("");
+  const [holidayError,setHolidayError]=useState("");
+  const [evError,setEvError]=useState("");
+  const [fxBase,setFxBase]=useState("INR");
+  const [fxQuotes,setFxQuotes]=useState("USD,EUR,PLN");
+  const [fxAmount,setFxAmount]=useState("1");
+  const [fxData,setFxData]=useState<FxResult|null>(null);
+  const [holidayCountry,setHolidayCountry]=useState("IN");
+  const [holidayYear,setHolidayYear]=useState(String(new Date().getFullYear()));
+  const [holidayData,setHolidayData]=useState<HolidayResult|null>(null);
+  const [evState,setEvState]=useState("Karnataka");
+  const [evCity,setEvCity]=useState("Bengaluru");
+  const [evData,setEvData]=useState<EvResult|null>(null);
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState("All categories");
   const [busy, setBusy] = useState(false);
@@ -78,6 +134,8 @@ export default function IntegrationHubWorkspace({ onBack, notice }: Props) {
       if (!parsed.success) throw new Error("The shared server returned an invalid integration catalogue. Refresh the server code before retrying.");
       if (parsed.data.total !== parsed.data.items.length) throw new Error("The integration catalogue count does not match its records.");
       setItems(parsed.data.items);
+      setPublicApis(parsed.data.publicApis||null);
+      setPublicApiError(parsed.data.publicApis?"":"The connected server has an older integration catalogue. Update the AXIMACH server to enable the curated public API directory.");
       setLoaded(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load integration catalogue.");
@@ -88,6 +146,32 @@ export default function IntegrationHubWorkspace({ onBack, notice }: Props) {
   };
 
   useEffect(() => { void refresh(); }, []);
+
+  const loadFx=async()=>{
+    setFxBusy(true);setFxError("");
+    try{
+      const params=new URLSearchParams({base:fxBase.trim().toUpperCase(),quotes:fxQuotes.trim()});
+      setFxData(await requestPublicApi<FxResult>("/api/public-apis/fx?"+params.toString()));
+    }catch(error){setFxError(error instanceof Error?error.message:"Could not load reference FX rates.");}
+    finally{setFxBusy(false);}
+  };
+  const loadHolidays=async()=>{
+    setHolidayBusy(true);setHolidayError("");
+    try{
+      const params=new URLSearchParams({country:holidayCountry.trim().toUpperCase(),year:holidayYear.trim()});
+      setHolidayData(await requestPublicApi<HolidayResult>("/api/public-apis/holidays?"+params.toString()));
+    }catch(error){setHolidayError(error instanceof Error?error.message:"Could not load public holidays.");}
+    finally{setHolidayBusy(false);}
+  };
+  const loadEvStations=async()=>{
+    setEvBusy(true);setEvError("");
+    try{
+      const params=new URLSearchParams({state:evState.trim(),city:evCity.trim(),page:"1",limit:"20"});
+      setEvData(await requestPublicApi<EvResult>("/api/public-apis/ev-stations?"+params.toString()));
+    }catch(error){setEvError(error instanceof Error?error.message:"Could not load EV stations.");}
+    finally{setEvBusy(false);}
+  };
+
 
   const families = useMemo(() => ["All categories", ...Array.from(new Set(items.map(item => item.family))).sort()], [items]);
   const filtered = useMemo(() => {
@@ -175,6 +259,81 @@ export default function IntegrationHubWorkspace({ onBack, notice }: Props) {
         <div className="integration-governance-item"><strong>Human approval</strong><span>External findings do not automatically change supplier, customer, finance or production master records.</span></div>
       </section>
     </div>
+
+    <section className="surface-panel public-api-lab">
+      <div className="panel-heading">
+        <div><h3>Public API tools</h3><p>Read-only adapters curated from the public-apis directory. Results never write manufacturing, costing or schedule records.</p></div>
+        <span className="integration-stage stage-adding">3 live read-only adapters</span>
+      </div>
+      {!publicApis && <div className="module-safety-note"><ShieldCheck size={15}/><span>{publicApiError||"Loading the curated API directory from the shared AXIMACH server."}</span></div>}
+      {publicApis && <div className="public-api-source-note">
+        <span>Source: <strong>{publicApis.source.repository}</strong> · {publicApis.total} selected entries · MIT catalogue licence</span>
+        <a href={publicApis.source.readmeUrl} target="_blank" rel="noreferrer">Original directory <ExternalLink size={12}/></a>
+      </div>}
+      <div className="public-api-tools-grid">
+        <article className="public-api-tool">
+          <div className="public-api-tool-head"><span className="public-api-tool-code">FX / 01</span><span className="integration-stage stage-adding">Live adapter</span></div>
+          <h4>Supplier currency reference</h4>
+          <p>Frankfurter rates for imported materials, export quotations and supplier comparison. No key required.</p>
+          <div className="public-api-form-grid">
+            <label>Base currency<input value={fxBase} maxLength={3} onChange={event=>setFxBase(event.target.value.toUpperCase())} placeholder="INR"/></label>
+            <label>Quote currencies<input value={fxQuotes} onChange={event=>setFxQuotes(event.target.value.toUpperCase())} placeholder="USD,EUR,PLN"/></label>
+            <label>Illustrative amount<input inputMode="decimal" value={fxAmount} onChange={event=>setFxAmount(event.target.value)} placeholder="1"/></label>
+          </div>
+          <button type="button" className="button-primary compact-button" disabled={fxBusy||!fxBase.trim()||!fxQuotes.trim()} onClick={()=>void loadFx()}><RefreshCw size={13}/>{fxBusy?"Loading rates…":"Get reference rates"}</button>
+          {fxError&&<div className="scheduler-error" role="alert">{fxError}</div>}
+          {fxData&&<div className="public-api-result">
+            <div className="public-api-result-head"><strong>{fxData.base} reference rates</strong><span>Rate date · {fxData.date||"Not supplied"}</span></div>
+            {fxData.rows.map(row=><div className="public-api-fx-row" key={row.quote}><span>1 {row.base} =</span><strong>{row.rate.toLocaleString("en-IN",{maximumFractionDigits:6})} {row.quote}</strong><small>{fxAmount.trim()!==""&&Number.isFinite(Number(fxAmount))?(Number(fxAmount)*row.rate).toLocaleString("en-IN",{maximumFractionDigits:2})+" "+row.quote:""}</small></div>)}
+            <small className="public-api-caveat">{fxData.note} <a href={fxData.source} target="_blank" rel="noreferrer">Source</a></small>
+          </div>}
+        </article>
+
+        <article className="public-api-tool">
+          <div className="public-api-tool-head"><span className="public-api-tool-code">CAL / 02</span><span className="integration-stage stage-adding">Live adapter</span></div>
+          <h4>Factory working-day reference</h4>
+          <p>Nager.Date public holidays with first-level subdivision codes where the provider supplies them.</p>
+          <div className="public-api-form-grid">
+            <label>Country code<input value={holidayCountry} maxLength={2} onChange={event=>setHolidayCountry(event.target.value.toUpperCase())} placeholder="IN"/></label>
+            <label>Calendar year<input inputMode="numeric" value={holidayYear} maxLength={4} onChange={event=>setHolidayYear(event.target.value)} placeholder="2026"/></label>
+          </div>
+          <button type="button" className="button-primary compact-button" disabled={holidayBusy||holidayCountry.length!==2||holidayYear.length!==4} onClick={()=>void loadHolidays()}><RefreshCw size={13}/>{holidayBusy?"Loading calendar…":"Load holidays"}</button>
+          {holidayError&&<div className="scheduler-error" role="alert">{holidayError}</div>}
+          {holidayData&&<div className="public-api-result">
+            <div className="public-api-result-head"><strong>{holidayData.country} · {holidayData.year}</strong><span>{holidayData.holidays.length} holidays</span></div>
+            <div className="public-api-holiday-list">{holidayData.holidays.slice(0,18).map((holiday,index)=><div className="public-api-holiday-row" key={holiday.date+"-"+holiday.name+"-"+index}><time>{holiday.date}</time><strong>{holiday.localName||holiday.name}</strong><small>{holiday.subdivisionCodes?.join(", ")||(holiday.nationalHoliday?"National":"Regional / unspecified")}</small></div>)}</div>
+            <small className="public-api-caveat">{holidayData.note} <a href={holidayData.source} target="_blank" rel="noreferrer">Source</a></small>
+          </div>}
+        </article>
+
+        <article className="public-api-tool">
+          <div className="public-api-tool-head"><span className="public-api-tool-code">EV / 03</span><span className="integration-stage stage-adding">Live adapter</span></div>
+          <h4>India EV charging directory</h4>
+          <p>Third-party directory of public charging locations, connector types and rated charging power.</p>
+          <div className="public-api-form-grid">
+            <label>State / UT<input value={evState} onChange={event=>setEvState(event.target.value)} placeholder="Karnataka"/></label>
+            <label>City<input value={evCity} onChange={event=>setEvCity(event.target.value)} placeholder="Bengaluru"/></label>
+          </div>
+          <button type="button" className="button-primary compact-button" disabled={evBusy||evState.trim().length<2} onClick={()=>void loadEvStations()}><RefreshCw size={13}/>{evBusy?"Searching…":"Find charging stations"}</button>
+          {evError&&<div className="scheduler-error" role="alert">{evError}</div>}
+          {evData&&<div className="public-api-result">
+            <div className="public-api-result-head"><strong>{evData.city||evData.state}</strong><span>{evData.meta.totalFound.toLocaleString("en-IN")} listed · page {evData.meta.page}/{evData.meta.totalPages||1}</span></div>
+            <div className="public-api-ev-list">{evData.stations.slice(0,10).map(station=><div className="public-api-ev-row" key={station.id}><strong>{station.operator}</strong><span>{station.address}</span><small>{station.connectors.join(" · ")||"Connector not recorded"} · {station.maxPowerKw===null?"Power not recorded":station.maxPowerKw+" kW"}</small><a href={"https://www.openstreetmap.org/?mlat="+station.latitude+"&mlon="+station.longitude+"#map=17/"+station.latitude+"/"+station.longitude} target="_blank" rel="noreferrer">Map location <ExternalLink size={11}/></a></div>)}</div>
+            <small className="public-api-caveat">{evData.note} Attribution: {evData.meta.attribution} <a href={evData.source} target="_blank" rel="noreferrer">API source</a></small>
+          </div>}
+        </article>
+      </div>
+      {publicApis&&<div className="public-api-directory-block">
+        <div className="panel-heading"><div><h4>Additional APIs screened</h4><p>Candidate providers are listed, not connected. Their authentication, licence, quotas and data terms still apply.</p></div></div>
+        <div className="public-api-directory-grid">{publicApis.items.map(item=><article className="public-api-directory-card" key={item.id}>
+          <div className="public-api-directory-top"><strong>{item.name}</strong><span className={"integration-stage stage-"+(item.stage==="live-adapter"?"adding":item.stage==="review-required"?"verify":"candidate")}>{publicApiStageLabel[item.stage]||item.stage}</span></div>
+          <small>{item.category} · Auth: {item.auth} · HTTPS: {item.https} · CORS: {item.cors}</small>
+          <p>{item.purpose}</p>
+          <details><summary>Coverage and limitations</summary><p>{item.coverage}</p><p>{item.limitation}</p></details>
+          <a href={item.docs} target="_blank" rel="noreferrer">Provider documentation <ExternalLink size={12}/></a>
+        </article>)}</div>
+      </div>}
+    </section>
 
     <section className="surface-panel integration-directory-panel">
       <div className="panel-heading">
