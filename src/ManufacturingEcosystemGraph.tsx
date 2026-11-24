@@ -98,7 +98,8 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       // Limit the first mobile canvas to a readable sample. Search and Show more
       // still expose all records; the underlying manufacturing data is untouched.
       if(typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches){
-        return {...loaded,visibleLimits:Object.fromEntries(VALID_GROUP_KINDS.map(kind=>[kind,Math.min(loaded.visibleLimits[kind]??4,4)]))};
+        const mobileLimits=Object.fromEntries(VALID_GROUP_KINDS.map(kind=>[kind,Math.min(loaded.visibleLimits[kind]??4,4)])) as Record<NodeKind,number>;
+        return {...loaded,visibleLimits:mobileLimits};
       }
       return loaded;
     } catch {
