@@ -4,7 +4,7 @@ import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
 import type { OperationRecord } from "./manufacturingData";
 import { processSceneLabelBounds, relaxProcessSceneLabels } from "./processSceneLabelLayout.js";
 
-type Mode = "sphere"|"cube"|"vortex"|"helix"|"orbit"|"network"|"grid"|"pipeline"|"layered"|"stacked"|"matrix"|"tree"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined"|"molecular"|"digital-mesh"|"route"|"orthogonal"|"s-curve"|"swimlane"|"radial"|"circular"|"organic";
+type Mode = "factory"|"sphere"|"cube|"vortex"|"helix"|"orbit"|"network"|"grid"|"pipeline"|"layered"|"stacked"|"matrix"|"tree"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined"|"molecular"|"digital-mesh"|"route"|"orthogonal"|"s-curve"|"swimlane"|"radial"|"circular"|"organic";
 type CatalogueDefinition = { id:string; processType:string; category:string; displayColor?:string };
 type RouteAnchor = { operation:OperationRecord; relation:string; color:string };
 type MaterialRouteNode = { id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
@@ -24,7 +24,7 @@ const hasMaterialTransport=(route:MaterialRouteNode)=>Boolean(
  route.from || route.to || route.vehicle || route.transportCost>0 || route.pickupAt || route.deliveryAt
 );
 
-type Props = { operations: OperationRecord[]; materialRoutes?: MaterialRouteNode[]; transportLegs?:TransportLegNode[]; visibleFields?:string[]; autoRotate?: boolean; mode: Mode; selectedOperationId: string; expandedOperationId?: string; onSelectOperation: (id:string)=>void; onExpandOperation?:(id:string)=>void; onArrowSelect?:(id:string)=>void; onSelectTransportLeg?:(id:string,anchor?:{x:number;y:number})=>void; onSelectMaterialTransport?:(id:string,anchor?:{x:number;y:number})=>void; edges?:Array<{id?:string;from:OperationRecord;to:OperationRecord;relation:string;color:string}>; coordinateOperations?:OperationRecord[]; anchors?:RouteAnchor[]; catalogue?:CatalogueDefinition[]; onAddCatalogue?:(id:string)=>void; showArrows?: boolean; vendors?:Array<{id:string;company:string}>; quantityUnit?:string; ganttScale?:"day"|"week"|"month"; simulationIndex?:number };
+type Props = { operations: OperationRecord[]; materialRoutes?: MaterialRouteNode[]; transportLegs?:TransportLegNode[]; visibleFields?:string[]; autoRotate?: boolean; motionEnabled?:boolean; mode: Mode; selectedOperationId: string; expandedOperationId?: string; onSelectOperation: (id:string)=>void; onExpandOperation?:(id:string)=>void; onArrowSelect?:(id:string)=>void; onSelectTransportLeg?:(id:string,anchor?:{x:number;y:number})=>void; onSelectMaterialTransport?:(id:string,anchor?:{x:number;y:number})=>void; edges?:Array<{id?:string;from:OperationRecord;to:OperationRecord;relation:string;color:string}>; coordinateOperations?:OperationRecord[]; anchors?:RouteAnchor[]; catalogue?:CatalogueDefinition[]; onAddCatalogue?:(id:string)=>void; showArrows?: boolean; vendors?:Array<{id:string;company:string}>; quantityUnit?:string; ganttScale?:"day"|"week"|"month"; simulationIndex?:number };
 const EMPTY_CATALOGUE: CatalogueDefinition[] = [];
 
 type P = {x:number;y:number;z:number};
@@ -123,6 +123,66 @@ function operationCode(operation:OperationRecord):string{
  const relation=operation.relationType==="alternate"?"ALT":operation.relationType==="rework"?"REWORK":operation.relationType==="subprocess"?"SUB":"";
  return "OP-"+String(operation.sequence).padStart(3,"0")+(relation?" · "+relation:"");
 }
+
+type SceneDraw = (mesh:{v:number[];n:number[]},rgb:number[])=>void;
+function prismMesh(cx:number,cy:number,cz:number,rx:number,ry:number,rz:number):{v:number[];n:number[]} {
+ const unit=boxMesh(0,0,0,1),v:number[]=[];
+ for(let i=0;i<unit.v.length;i+=3)v.push(cx+unit.v[i]*rx,cy+unit.v[i+1]*ry,cz+unit.v[i+2]*rz);
+ return {v,n:unit.n};
+}
+function factoryMachineKind(operation:OperationRecord):"machining"|"lathe"|"edm"|"welding"|"laser"|"metrology"|"workcell" {
+ const label=((operation.machine||"")+" "+(operation.category||"")+" "+operation.name).toLowerCase();
+ if(/wire.?edm|edm|spark erosion/.test(label))return "edm";
+ if(/turn|lathe/.test(label))return "lathe";
+ if(/weld|robotic cell/.test(label))return "welding";
+ if(/laser|plasma|cutting table/.test(label))return "laser";
+ if(/cmm|inspect|metrology|measure/.test(label))return "metrology";
+ if(/mill|machin|vmc|hmc|cnc/.test(label))return "machining";
+ return "workcell";
+}
+function drawFactoryMachine(draw:SceneDraw,p:P,operation:OperationRecord,selected:boolean,now:number,motionEnabled:boolean) {
+ const kind=factoryMachineKind(operation),steel=[.34,.43,.53],dark=[.12,.19,.27],glass=[.12,.34,.46],trim=[.52,.66,.76];
+ const status=operation.status.toLowerCase();
+ const lamp=status.includes("running")?[.08,.86,.95]:status.includes("complete")?[.13,.72,.43]:status.includes("hold")||status.includes("reject")?[.92,.25,.28]:[.82,.62,.22];
+ const accent=selected?[.08,.82,.97]:lamp;
+ const box=(x:number,y:number,z:number,rx:number,ry:number,rz:number,color:number[])=>draw(prismMesh(p.x+x,p.y+y,p.z+z,rx,ry,rz),color);
+ const rod=(a:P,b:P,r:number,color:number[])=>draw(lineMesh({x:p.x+a.x,y:p.y+a.y,z:p.z+a.z},{x:p.x+b.x,y:p.y+b.y,z:p.z+b.z},r),color);
+ const joint=(x:number,y:number,z:number,r:number,color:number[])=>draw(sphereMesh(p.x+x,p.y+y,p.z+z,r,7,9),color);
+ box(0,-.055,0,.30,.035,.25,dark);
+ box(0,-.012,0,.24,.018,.19,steel);
+ if(kind==="machining"){
+  box(0,.22,0,.255,.22,.205,steel);box(0,.24,.209,.185,.115,.012,glass);
+  box(-.16,.46,0,.085,.035,.21,trim);box(.02,.455,0,.075,.035,.21,dark);
+  box(.18,.15,.214,.034,.15,.014,dark);rod({x:.08,y:.38,z:.23},{x:.08,y:.16,z:.23},.018,trim);joint(.08,.135,.23,.03,accent);
+ }else if(kind==="lathe"){
+  box(0,.06,0,.27,.07,.20,steel);box(-.17,.25,0,.095,.18,.18,trim);
+  box(-.17,.25,.19,.065,.095,.018,dark);joint(-.17,.25,.218,.08,steel);
+  rod({x:-.11,y:.25,z:.21},{x:.17,y:.25,z:.21},.025,trim);
+  box(.18,.20,0,.065,.14,.16,steel);joint(.18,.26,.20,.035,accent);
+ }else if(kind==="edm"){
+  box(0,.02,0,.28,.075,.21,steel);box(0,.12,.10,.18,.055,.12,glass);
+  box(-.20,.32,0,.035,.23,.035,trim);box(.20,.32,0,.035,.23,.035,trim);
+  box(0,.51,0,.24,.035,.045,dark);rod({x:0,y:.47,z:.02},{x:0,y:.18,z:.02},.009,accent);joint(0,.16,.02,.025,accent);
+ }else if(kind==="welding"){
+  box(-.06,.055,0,.17,.055,.17,steel);box(.17,.04,0,.095,.045,.13,dark);
+  rod({x:-.06,y:.12,z:0},{x:-.03,y:.29,z:0},.055,trim);joint(-.03,.29,0,.065,steel);
+  rod({x:-.03,y:.29,z:0},{x:.12,y:.38,z:0},.045,trim);joint(.12,.38,0,.05,steel);
+  rod({x:.12,y:.38,z:0},{x:.21,y:.27,z:.04},.026,trim);joint(.22,.26,.04,.024,accent);box(0,.01,.23,.29,.012,.018,accent);
+ }else if(kind==="laser"){
+  box(0,.045,0,.29,.045,.22,steel);box(-.23,.27,0,.035,.22,.035,trim);box(.23,.27,0,.035,.22,.035,trim);
+  box(0,.49,0,.27,.035,.045,dark);box(.02,.42,.035,.055,.05,.065,accent);
+  rod({x:.02,y:.38,z:.04},{x:.02,y:.20,z:.04},.009,accent);
+ }else if(kind==="metrology"){
+  box(0,.04,0,.29,.05,.23,dark);box(-.22,.28,0,.028,.23,.028,trim);box(.22,.28,0,.028,.23,.028,trim);
+  box(0,.52,0,.25,.025,.04,steel);rod({x:0,y:.49,z:0},{x:0,y:.22,z:.04},.012,accent);joint(0,.20,.04,.026,accent);
+ }else{
+  box(0,.20,0,.235,.20,.19,steel);box(0,.23,.195,.16,.09,.012,glass);
+  box(.19,.13,.205,.035,.12,.012,dark);box(-.18,.43,0,.055,.025,.17,trim);
+ }
+ box(0,.015,-.225,.09,.018,.018,dark);joint(.20,.40,-.13,.025,accent);
+ if(motionEnabled&&status.includes("running"))joint(.20,.40,-.13,.032+Math.sin(now*.006)*.009,[.12,.92,1]);
+}
+
 type ProjectedPoint={x:number;y:number;z:number;scale?:number;collision?:boolean};
 type LabelCandidate={id:string;screen:ProjectedPoint;anchor?:ProjectedPoint;kind:"operation"|"material"|"transport"|"transportLeg"|"catalogue"|"core"};
 function frontFacing(p:P,angle:number):boolean{
@@ -144,9 +204,9 @@ function sphereOrbitMesh():{v:number[];n:number[]}{
 }
 const SPHERE_GUIDE_MESH = sphereWireMesh(1.025);
 const SPHERE_ORBIT_MESH = sphereOrbitMesh();
-function pointFor(i:number,n:number,mode:Mode):P{const t=(i+0.5)/Math.max(1,n),a=i*2.399963;const c=i-(n-1)/2;switch(mode){case"route":case"linear":case"horizontal":case"pipeline":return{x:c*.72,y:Math.sin(i*.7)*.16,z:Math.cos(i*.5)*.18};case"vertical":return{x:Math.cos(a)*.34,y:-c*.64,z:Math.sin(a)*.34};case"timeline":case"gantt":return{x:(t-.5)*2.5,y:Math.sin(i*.8)*.12,z:Math.cos(i*.6)*.28};case"cube":{const s=Math.ceil(Math.cbrt(n));return{x:((i%s)-(s-1)/2)*.72,y:((Math.floor(i/s)%s)-(s-1)/2)*.72,z:(Math.floor(i/(s*s))-(s-1)/2)*.72};}case"vortex":{const r=.35+t*.72;return{x:Math.cos(a)*r,y:(t-.5)*1.7,z:Math.sin(a)*r};}case"molecular":case"network":return{x:Math.cos(Math.floor(i/3)*2.1)*.55+Math.cos(a)*.25,y:Math.sin(i*.8)*.35,z:Math.sin(Math.floor(i/3)*2.1)*.55+Math.sin(a)*.25};case"orbit":{const r=.42+(i%3)*.28;return{x:Math.cos(a)*r,y:Math.sin(i*.65)*.42,z:Math.sin(a)*r};}case"nodes":return{x:(i%3-1)*.8,y:(Math.floor(i/3)-(Math.ceil(n/3)-1)/2)*.65,z:(i%2?1:-1)*.24};case"branch":return{x:c*.55,y:(i%3-1)*.25,z:(i%2?1:-1)*.52};case"digital-mesh":case"grid":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=row%2?cols-1-i%cols:i%cols;return{x:(col-(cols-1)/2)*.58,y:((Math.ceil(n/cols)-1)/2-row)*.55,z:Math.sin(i*.45)*.12};}case"helix":{const radius=.48+(i%3)*.08;return{x:Math.cos(i*1.08)*radius,y:(t-.5)*2.05,z:Math.sin(i*1.08)*radius};}case"stacked":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=i%cols,rows=Math.ceil(n/cols);return{x:(col-(cols-1)/2)*.7,y:((rows-1)/2-row)*.68,z:(i%3-1)*.48};}case"layered":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=i%cols,rows=Math.ceil(n/cols),layers=Math.max(1,Math.ceil(rows/2));return{x:(col-(cols-1)/2)*.68,y:((rows-1)/2-row)*.62,z:(Math.floor(row/2)-(layers-1)/2)*.46};}case"matrix":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),rows=Math.ceil(n/cols),row=Math.floor(i/cols),col=i%cols;return{x:(col-(cols-1)/2)*.64,y:((rows-1)/2-row)*.62,z:(i%3-1)*.12};}case"tree":{const level=Math.floor(Math.log2(i+1)),first=Math.pow(2,level)-1,slot=i-first,count=Math.pow(2,level);return{x:((slot+.5)/count*2-1)*Math.min(1.2,.48+count*.16),y:.82-level*.62,z:(slot%2?1:-1)*.16};}case"combined":return{x:Math.cos(a)*(.4+t*.6),y:Math.sin(i*.9)*.5,z:Math.sin(a)*(.4+t*.6)};default:{const depth=.95-((i+.5)/Math.max(1,n))*.86,r=Math.sqrt(Math.max(0,1-depth*depth));return{x:Math.cos(a)*r*.9,y:Math.sin(a)*r*.9,z:depth*.9};}}}
+function pointFor(i:number,n:number,mode:Mode):P{if(mode==="factory"){const columns=Math.min(5,Math.max(1,Math.ceil(Math.sqrt(n*1.25)))),rows=Math.ceil(n/columns);return{x:(i%columns-(columns-1)/2)*.62,y:-.24,z:(Math.floor(i/columns)-(rows-1)/2)*.58};}const t=(i+0.5)/Math.max(1,n),a=i*2.399963;const c=i-(n-1)/2;switch(mode){case"route":case"linear":case"horizontal":case"pipeline":return{x:c*.72,y:Math.sin(i*.7)*.16,z:Math.cos(i*.5)*.18};case"vertical":return{x:Math.cos(a)*.34,y:-c*.64,z:Math.sin(a)*.34};case"timeline":case"gantt":return{x:(t-.5)*2.5,y:Math.sin(i*.8)*.12,z:Math.cos(i*.6)*.28};case"cube":{const s=Math.ceil(Math.cbrt(n));return{x:((i%s)-(s-1)/2)*.72,y:((Math.floor(i/s)%s)-(s-1)/2)*.72,z:(Math.floor(i/(s*s))-(s-1)/2)*.72};}case"vortex":{const r=.35+t*.72;return{x:Math.cos(a)*r,y:(t-.5)*1.7,z:Math.sin(a)*r};}case"molecular":case"network":return{x:Math.cos(Math.floor(i/3)*2.1)*.55+Math.cos(a)*.25,y:Math.sin(i*.8)*.35,z:Math.sin(Math.floor(i/3)*2.1)*.55+Math.sin(a)*.25};case"orbit":{const r=.42+(i%3)*.28;return{x:Math.cos(a)*r,y:Math.sin(i*.65)*.42,z:Math.sin(a)*r};}case"nodes":return{x:(i%3-1)*.8,y:(Math.floor(i/3)-(Math.ceil(n/3)-1)/2)*.65,z:(i%2?1:-1)*.24};case"branch":return{x:c*.55,y:(i%3-1)*.25,z:(i%2?1:-1)*.52};case"digital-mesh":case"grid":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=row%2?cols-1-i%cols:i%cols;return{x:(col-(cols-1)/2)*.58,y:((Math.ceil(n/cols)-1)/2-row)*.55,z:Math.sin(i*.45)*.12};}case"helix":{const radius=.48+(i%3)*.08;return{x:Math.cos(i*1.08)*radius,y:(t-.5)*2.05,z:Math.sin(i*1.08)*radius};}case"stacked":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=i%cols,rows=Math.ceil(n/cols);return{x:(col-(cols-1)/2)*.7,y:((rows-1)/2-row)*.68,z:(i%3-1)*.48};}case"layered":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),row=Math.floor(i/cols),col=i%cols,rows=Math.ceil(n/cols),layers=Math.max(1,Math.ceil(rows/2));return{x:(col-(cols-1)/2)*.68,y:((rows-1)/2-row)*.62,z:(Math.floor(row/2)-(layers-1)/2)*.46};}case"matrix":{const cols=Math.max(2,Math.ceil(Math.sqrt(n))),rows=Math.ceil(n/cols),row=Math.floor(i/cols),col=i%cols;return{x:(col-(cols-1)/2)*.64,y:((rows-1)/2-row)*.62,z:(i%3-1)*.12};}case"tree":{const level=Math.floor(Math.log2(i+1)),first=Math.pow(2,level)-1,slot=i-first,count=Math.pow(2,level);return{x:((slot+.5)/count*2-1)*Math.min(1.2,.48+count*.16),y:.82-level*.62,z:(slot%2?1:-1)*.16};}case"combined":return{x:Math.cos(a)*(.4+t*.6),y:Math.sin(i*.9)*.5,z:Math.sin(a)*(.4+t*.6)};default:{const depth=.95-((i+.5)/Math.max(1,n))*.86,r=Math.sqrt(Math.max(0,1-depth*depth));return{x:Math.cos(a)*r*.9,y:Math.sin(a)*r*.9,z:depth*.9};}}}
 
-export default function ProcessScene3D({operations,materialRoutes=[],transportLegs=[],visibleFields=[],autoRotate=true,mode,selectedOperationId,expandedOperationId="",onSelectOperation,onExpandOperation,onArrowSelect,onSelectTransportLeg,onSelectMaterialTransport,edges=[],coordinateOperations=[],anchors=[],catalogue=EMPTY_CATALOGUE,onAddCatalogue,showArrows=true,vendors=[],quantityUnit="pieces",ganttScale="week",simulationIndex=-1}:Props){
+export default function ProcessScene3D({operations,materialRoutes=[],transportLegs=[],visibleFields=[],autoRotate=true,mode,selectedOperationId,expandedOperationId="",onSelectOperation,onExpandOperation,onArrowSelect,onSelectTransportLeg,onSelectMaterialTransport,edges=[],coordinateOperations=[],anchors=[],catalogue=EMPTY_CATALOGUE,onAddCatalogue,showArrows=true,vendors=[],quantityUnit="pieces",ganttScale="week",simulationIndex=-1,motionEnabled=true}:Props){
  const canvas=useRef<HTMLCanvasElement>(null),scene=useRef<HTMLDivElement>(null),[angle,setAngle]=useState(0),rotationRef=useRef(0),[dragging,setDragging]=useState(false),drag=useRef<{x:number;y:number;angle:number}|null>(null),[size,setSize]=useState({w:600,h:500,vw:typeof window==="undefined"?600:Math.max(1,window.innerWidth)});
  const rows=useMemo(()=>operations.slice().sort((a,b)=>a.sequence-b.sequence),[operations]);
  const geometryRows=useMemo(()=>{const byId=new Map<string,OperationRecord>();for(const op of (coordinateOperations.length?coordinateOperations:rows))byId.set(op.id,op);for(const anchor of anchors)byId.set(anchor.operation.id,anchor.operation);return [...byId.values()].sort((a,b)=>a.sequence-b.sequence);},[coordinateOperations,rows,anchors]);
@@ -213,6 +273,14 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
  const gl=el.getContext("webgl",{alpha:true,antialias:true});if(!gl)return;
  window.addEventListener("aximach-theme-updated",refreshTheme);
  let program:WebGLProgram;try{program=gl.createProgram()!;gl.attachShader(program,shader(gl,gl.VERTEX_SHADER,vs));gl.attachShader(program,shader(gl,gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error("link");}catch{return;}gl.useProgram(program);const pos=gl.createBuffer()!,normal=gl.createBuffer()!;const loc=gl.getAttribLocation(program,"aPosition"),nl=gl.getAttribLocation(program,"aNormal"),mvp=gl.getUniformLocation(program,"uMvp"),color=gl.getUniformLocation(program,"uColor");gl.enable(gl.DEPTH_TEST);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);let last=0,lastOverlayUpdate=0,raf=0;const render=(now:number)=>{const dt=Math.min(40,now-last);last=now;if(autoRotate&&!drag.current){rotationRef.current+=dt*.00022;if(now-lastOverlayUpdate>=33){lastOverlayUpdate=now;setAngle(rotationRef.current);}}const w=el.clientWidth,h=el.clientHeight,dpr=Math.min(2,window.devicePixelRatio||1);if(el.width!==Math.floor(w*dpr)||el.height!==Math.floor(h*dpr)){el.width=Math.floor(w*dpr);el.height=Math.floor(h*dpr);}gl.viewport(0,0,el.width,el.height);gl.clearColor(.94,.97,1,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);const proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,rotationRef.current),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));gl.uniformMatrix4fv(mvp,false,new Float32Array(m));const draw=(mesh:{v:number[];n:number[]},rgb:number[])=>{gl.bindBuffer(gl.ARRAY_BUFFER,pos);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.v),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,normal);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.n),gl.DYNAMIC_DRAW);gl.enableVertexAttribArray(nl);gl.vertexAttribPointer(nl,3,gl.FLOAT,false,0,0);gl.uniform3fv(color,new Float32Array(rgb));gl.drawArrays(gl.TRIANGLES,0,mesh.v.length/3);};const center={x:0,y:0,z:0};
+ if(mode==="factory"){
+  const columns=Math.min(5,Math.max(1,Math.ceil(Math.sqrt(geometryPoints.length*1.25)))),rows=Math.ceil(Math.max(1,geometryPoints.length)/columns);
+  const halfX=(columns-1)*.31+.40,halfZ=(rows-1)*.29+.38;
+  draw(prismMesh(0,-.38,0,halfX,.045,halfZ),[.10,.15,.21]);
+  for(let column=0;column<=columns;column++){const x=(column-columns/2)*.62;draw(lineMesh({x,y:-.332,z:-halfZ+.04},{x,y:-.332,z:halfZ-.04},.003),[.25,.34,.42]);}
+  for(let row=0;row<=rows;row++){const z=(row-rows/2)*.58;draw(lineMesh({x:-halfX+.04,y:-.332,z},{x:halfX-.04,y:-.332,z},.003),[.25,.34,.42]);}
+  draw(lineMesh({x:-halfX,y:-.329,z:0},{x:halfX,y:-.329,z:0},.012),[.08,.50,.65]);
+ }
  if(mode==="sphere"){
   draw(SPHERE_GUIDE_MESH,themeSecondary.map(value=>Math.min(1,value*.88+.08)));
   draw(SPHERE_ORBIT_MESH,themePrimary.map(value=>Math.min(1,value*.68)));
@@ -249,8 +317,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
    const tangent={x:q.x-control.x,y:q.y-control.y,z:q.z-control.z},tLen=Math.hypot(tangent.x,tangent.y,tangent.z)||1;
    const tip={x:q.x-tangent.x/tLen*.14,y:q.y-tangent.y/tLen*.14,z:q.z-tangent.z/tLen*.14};
    draw(arrowHeadMesh(tip,q,.095),rgb);
-   const phase=((now*.00012+offset*.23)%1+1)%1,particle=pointAt(phase);
-   draw(sphereMesh(particle.x,particle.y,particle.z,.045,4,6),[.24,.86,1]);
+   if(motionEnabled){const phase=((now*.00012+offset*.23)%1+1)%1,particle=pointAt(phase);draw(sphereMesh(particle.x,particle.y,particle.z,.045,4,6),[.24,.86,1]);}
    if(relation==="conditional"||relation==="merge"||relation==="split"){
     const mid=pointAt(.52);
     draw(sphereMesh(mid.x,mid.y,mid.z,relation==="conditional"?.065:.05,5,7),rgb);
@@ -260,7 +327,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
  const drawFlow=(from:P,to:P,offset:number,rgb:number[],radius=.034)=>{
   const delta={x:to.x-from.x,y:to.y-from.y,z:to.z-from.z},length=Math.hypot(delta.x,delta.y,delta.z)||1;
   draw(lineMesh(from,to,radius),rgb);
-  if(showArrows){const tip={x:to.x-delta.x/length*.14,y:to.y-delta.y/length*.14,z:to.z-delta.z/length*.14};draw(arrowHeadMesh(tip,to,.09),rgb);const phase=((now*.00012+offset*.23)%1+1)%1;const particle={x:from.x+delta.x*phase,y:from.y+delta.y*phase,z:from.z+delta.z*phase};draw(sphereMesh(particle.x,particle.y,particle.z,.045,4,6),[.24,.86,1]);}
+  if(showArrows){const tip={x:to.x-delta.x/length*.14,y:to.y-delta.y/length*.14,z:to.z-delta.z/length*.14};draw(arrowHeadMesh(tip,to,.09),rgb);if(motionEnabled){const phase=((now*.00012+offset*.23)%1+1)%1;const particle={x:from.x+delta.x*phase,y:from.y+delta.y*phase,z:from.z+delta.z*phase};draw(sphereMesh(particle.x,particle.y,particle.z,.045,4,6),[.24,.86,1]);}}
  };
  routeEdges.forEach(edge=>{
   // Intermediate material/transport stages replace only the implicit sequence
@@ -312,7 +379,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   draw(sphereMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport ? .085 : .065),isSimulationTransport?[.04,.95,1]:themeSecondary);
   if(isSimulationTransport){const radius=.21+Math.sin(now*.008)*.035;for(let segment=0;segment<24;segment++){const a=segment*Math.PI*2/24,b=(segment+1)*Math.PI*2/24;draw(lineMesh({x:placement.point.x+Math.cos(a)*radius,y:placement.point.y+Math.sin(a)*radius,z:placement.point.z+.015},{x:placement.point.x+Math.cos(b)*radius,y:placement.point.y+Math.sin(b)*radius,z:placement.point.z+.015},.01),[.04,.86,1]);}}
  });
- points.forEach(({p,op})=>{const rgb=operationRgb(op);draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"||mode==="layered"||mode==="matrix"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);if(op.id===simulatedOperation?.id){const radius=.22+Math.sin(now*.008)*.035;for(let segment=0;segment<32;segment++){const a=segment*Math.PI*2/32,b=(segment+1)*Math.PI*2/32;draw(lineMesh({x:p.x+Math.cos(a)*radius,y:p.y+Math.sin(a)*radius,z:p.z+.015},{x:p.x+Math.cos(b)*radius,y:p.y+Math.sin(b)*radius,z:p.z+.015},.012),[.04,.86,1]);}draw(sphereMesh(p.x,p.y,p.z,.065),[.05,.88,1]);}});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:themeGraph3;draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>{cancelAnimationFrame(raf);window.removeEventListener("aximach-theme-updated",refreshTheme);};},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialPlacements,transportLegPlacements,simulationIndex,selectedOperationId]);
+ points.forEach(({p,op})=>{const rgb=operationRgb(op);if(mode==="factory")drawFactoryMachine(draw,p,op,op.id===selectedOperationId,now,motionEnabled);else draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"||mode==="layered"||mode==="matrix"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);if(op.id===simulatedOperation?.id){if(motionEnabled){const radius=.22+Math.sin(now*.008)*.035;for(let segment=0;segment<32;segment++){const a=segment*Math.PI*2/32,b=(segment+1)*Math.PI*2/32;draw(lineMesh({x:p.x+Math.cos(a)*radius,y:p.y+Math.sin(a)*radius,z:p.z+.015},{x:p.x+Math.cos(b)*radius,y:p.y+Math.sin(b)*radius,z:p.z+.015},.012),[.04,.86,1]);}}draw(sphereMesh(p.x,p.y,p.z,.065),[.05,.88,1]);}});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:themeGraph3;draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>{cancelAnimationFrame(raf);window.removeEventListener("aximach-theme-updated",refreshTheme);};},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialPlacements,transportLegPlacements,simulationIndex,selectedOperationId,motionEnabled]);
  useEffect(()=>{
   const element=scene.current;
   if(!element)return;
@@ -333,7 +400,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
  },[]);
  const projectedLayout=useMemo(()=>{
   const w=size.w,h=size.h,proj=perspective(.82,w/Math.max(1,h),.1,30),rot=rotation(-.24,angle),view=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,-4.8,1],m=matMul(proj,matMul(view,rot));
-  const ops=points.filter(({p})=>mode!=="sphere"||frontFacing(p,angle)).map(({op,p})=>({id:op.id,op,kind:"operation" as const,screen:project(p,m,w,h)})).filter((item):item is {id:string;op:OperationRecord;kind:"operation";screen:ProjectedPoint}=>!!item.screen);
+  const ops=points.filter(({p})=>mode!=="sphere"||frontFacing(p,angle)).map(({op,p})=>({id:op.id,op,kind:"operation" as const,screen:project(mode==="factory"?{x:p.x,y:p.y+.58,z:p.z}:p,m,w,h)})).filter((item):item is {id:string;op:OperationRecord;kind:"operation";screen:ProjectedPoint}=>!!item.screen);
   const materials=materialPlacements.filter(item=>mode!=="sphere"||frontFacing(item.materialPoint,angle)).map(item=>({id:item.route.id,screen:project(item.materialPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
   const transports=materialPlacements.filter(item=>hasMaterialTransport(item.route)&&(mode!=="sphere"||frontFacing(item.transportPoint,angle))).map(item=>({id:item.route.id,screen:project(item.transportPoint,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
   const transportLegsProjected=transportLegPlacements.filter(item=>mode!=="sphere"||frontFacing(item.point,angle)).map(item=>({id:item.leg.id,screen:project(item.point,m,w,h)})).filter((item):item is {id:string;screen:ProjectedPoint}=>!!item.screen);
@@ -414,8 +481,8 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   return Math.max(bottom,item.screen.y+bounds.height*(item.screen.scale??1)/2+42);
  },size.h);
  const sceneLayoutHeight=Math.max(size.h,projectedLayout.layoutHeight||0,Math.ceil(projectedLabelBottom));
- return <div ref={scene} className="ax-full3d-scene" style={{height:size.h,minHeight:size.h,"--ax-scene-label-content-height":sceneLayoutHeight+"px"} as CSSProperties} data-scene-layout-width={size.w} data-scene-layout-height={size.h} data-scene-label-layout-height={sceneLayoutHeight} onPointerDown={e=>{if(e.pointerType!=="mouse"&&e.target instanceof Element&&e.target.closest(".ax-full3d-label-layer"))return;drag.current={x:e.clientX,y:e.clientY,angle:rotationRef.current};e.currentTarget.setPointerCapture(e.pointerId);setDragging(true);}} onPointerMove={e=>{if(drag.current){rotationRef.current=drag.current.angle+(e.clientX-drag.current.x)*.008;setAngle(rotationRef.current);}}} onPointerUp={()=>{drag.current=null;setDragging(false);}} onPointerCancel={()=>{drag.current=null;setDragging(false);}}>
-  <canvas ref={canvas} aria-label="Interactive WebGL 3D manufacturing process graph"/>
+ return <div ref={scene} className={"ax-full3d-scene"+(mode==="factory"?" is-factory-floor":"")} style={{height:size.h,minHeight:size.h,"--ax-scene-label-content-height":sceneLayoutHeight+"px"} as CSSProperties} data-scene-layout-width={size.w} data-scene-layout-height={size.h} data-scene-label-layout-height={sceneLayoutHeight} onPointerDown={e=>{if(e.pointerType!=="mouse"&&e.target instanceof Element&&e.target.closest(".ax-full3d-label-layer"))return;drag.current={x:e.clientX,y:e.clientY,angle:rotationRef.current};e.currentTarget.setPointerCapture(e.pointerId);setDragging(true);}} onPointerMove={e=>{if(drag.current){rotationRef.current=drag.current.angle+(e.clientX-drag.current.x)*.008;setAngle(rotationRef.current);}}} onPointerUp={()=>{drag.current=null;setDragging(false);}} onPointerCancel={()=>{drag.current=null;setDragging(false);}}>
+  <canvas ref={canvas} aria-label={mode==="factory"?"Interactive 3D factory floor with selectable manufacturing machines and workcells":"Interactive WebGL 3D manufacturing process graph"}/>
   <div className="ax-full3d-label-layer" style={{height:size.h,minHeight:0,maxHeight:size.h,overflowY:sceneLayoutHeight>size.h?"auto":"hidden",overflowX:"hidden",pointerEvents:"auto",touchAction:"pan-y",bottom:"auto"}}>
    <div className="ax-full3d-label-content" style={{position:"relative",height:sceneLayoutHeight,minHeight:sceneLayoutHeight,width:"100%"}}> {projectedCore&&mode==="sphere"&&<div className="ax-full3d-core-label" style={{"--ax-scene-left":projectedCore.x+"px","--ax-scene-top":projectedCore.y+"px"} as CSSProperties}><strong>AXIMACH</strong><small>MANUFACTURING FLOW</small></div>}
    {ganttStatus&&<div className="ax-full3d-gantt-status">{ganttStatus}</div>}
@@ -430,6 +497,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
     {projectedTransportLegs.map(item=>{const leg=transportLegs.find(row=>row.id===item.id);if(!leg)return null;return <button type="button" key={"transport-leg-card-"+item.id} className={"ax-full3d-transport-icon vehicle-"+vehicleClassFor(leg.vehicleType)} style={{"--ax-scene-left":item.screen.x+"px","--ax-scene-top":item.screen.y+"px"} as CSSProperties} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();const rect=event.currentTarget.getBoundingClientRect();onSelectTransportLeg?.(leg.id,{x:rect.left,y:rect.top});}} aria-label={"Open transport popup · "+leg.fromLocation+" to "+leg.toLocation} title={(leg.vehicleType||"Transport")+" · "+(leg.vendorName||"Transporter not assigned")}><VehicleTypeIcon vehicleType={leg.vehicleType} size={17}/></button>;})}
    {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{"--ax-scene-left":screen.x+"px","--ax-scene-top":screen.y+"px","--ax-scene-scale":String(screen.scale??1)} as CSSProperties} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
      <small>{operationCode(op)}</small><strong>{op.name}</strong>
+     {mode==="factory"&&<small className="ax-full3d-machine-label">{op.machine||("Workcell · "+(op.category||"General"))}</small>}
      <em>{visibleFields.includes("status")?op.status:"Process step"} · Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>
      {visibleFields.includes("category")&&<small>{op.category||"Category not set"}</small>}
    </button>)}
