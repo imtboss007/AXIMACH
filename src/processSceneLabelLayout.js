@@ -1,8 +1,8 @@
 const CARD_BOUNDS = Object.freeze({
   operation: { width: 184, height: 112 },
   material: { width: 190, height: 202 },
-  transport: { width: 34, height: 34 },
-  transportLeg: { width: 34, height: 34 },
+  transport: { width: 28, height: 28 },
+  transportLeg: { width: 28, height: 28 },
   catalogue: { width: 184, height: 112 },
   core: { width: 140, height: 56 }
 });
@@ -14,8 +14,8 @@ export function processSceneLabelBounds(kind, viewportWidth) {
     const compact = {
       operation: { width: 134, height: 84 },
       material: { width: 134, height: 88 },
-      transport: { width: 32, height: 32 },
-      transportLeg: { width: 32, height: 32 },
+      transport: { width: 26, height: 26 },
+      transportLeg: { width: 26, height: 26 },
       catalogue: { width: 134, height: 84 },
       core: { width: 100, height: 42 }
     };
