@@ -81,3 +81,46 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
   }));
   return { version: 2, visibleKinds, visibleLimits: normalizedLimits };
 }
+
+
+const MAX_SAVED_GRAPH_POSITIONS = 5000;
+const MAX_GRAPH_COORDINATE = 100000;
+
+function normalizeGraphPosition(position) {
+  if (!position || typeof position !== "object" || Array.isArray(position)) return null;
+  const x = Number(position.x), y = Number(position.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return {
+    x: Math.max(-MAX_GRAPH_COORDINATE, Math.min(MAX_GRAPH_COORDINATE, x)),
+    y: Math.max(-MAX_GRAPH_COORDINATE, Math.min(MAX_GRAPH_COORDINATE, y))
+  };
+}
+
+export function loadEcosystemGraphLayout(serialized) {
+  let parsed;
+  try {
+    parsed = typeof serialized === "string" ? JSON.parse(serialized) : serialized;
+  } catch {
+    return {};
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  const entries = [];
+  for (const [id, value] of Object.entries(parsed)) {
+    if (typeof id !== "string" || !id.trim() || id.length > 256) continue;
+    const position = normalizeGraphPosition(value);
+    if (position) entries.push([id, position]);
+    if (entries.length >= MAX_SAVED_GRAPH_POSITIONS) break;
+  }
+  return Object.fromEntries(entries);
+}
+
+export function updateEcosystemGraphLayout(layout = {}, nodeId, position) {
+  if (typeof nodeId !== "string" || !nodeId.trim() || nodeId.length > 256) return layout;
+  const normalized = normalizeGraphPosition(position);
+  if (!normalized) return layout;
+  const current = layout && typeof layout === "object" && !Array.isArray(layout) ? layout : {};
+  const entries = Object.entries(current).filter(([id]) => id !== nodeId && id.length <= 256)
+    .slice(-(MAX_SAVED_GRAPH_POSITIONS - 1));
+  entries.push([nodeId, normalized]);
+  return Object.fromEntries(entries);
+}
