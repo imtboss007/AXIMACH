@@ -149,16 +149,77 @@ test("Phone Process Map opens the compact PO-line graph and preserves the collap
   assert.ok(map.includes("fitView fitViewOptions={{padding:.14,minZoom:.26,maxZoom:1.2}}"));
 });
 
-test("Route Flow graph is compact on mobile, auto-fits and enables wheel/pinch zoom",()=>{
+test("Route Flow applies the selected layout to the live graph, preserves explicit transport endpoints and enables pinch zoom",()=>{
   const flow=source("src/RouteFlowWorkspace.tsx");
-  assert.ok(flow.includes("const operationPoint=(operation:OperationRecord)=>"));
-  assert.ok(flow.includes("y:170+sequence*126"));
-  assert.ok(flow.includes("y:135+branchIndex*176"));
-  assert.ok(flow.includes("fitView fitViewOptions={{padding:.14,minZoom:.24,maxZoom:1.15}}"));
-  assert.ok(flow.includes("zoomOnScroll={true}")&&flow.includes("zoomOnPinch"));
+  assert.ok(flow.includes('import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js"'));
+  assert.ok(flow.includes("buildRouteFlowOperationPositions(lineOperations,routeLayout,portrait)"));
+  assert.ok(flow.includes("},[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme])"));
+  assert.ok(flow.includes("const graphEdgeType=routeLayout==="));
+  assert.ok(flow.includes("zoomOnScroll zoomOnPinch preventScrolling"));
+  assert.ok(flow.includes("maxZoom={2.8}"));
   assert.ok(flow.includes("<RouteConnectorLegend/>"));
-  assert.ok(!flow.includes('fitView={typeof window==="undefined"||window.innerWidth>760}'));
+  assert.ok(flow.includes("RouteFlowFitController revision={routeLayout+"));
   assert.ok(flow.includes("targetOperationId"),"Transport destinations must remain explicit saved references.");
+  assert.ok(flow.includes('markerEnd:{type:MarkerType.ArrowClosed,color:style.color,width:18,height:18}'));
+  assert.ok(flow.includes("strokeWidth:type===\"transport\"?3.4:3.8"));
+});
+
+test("Every selected route layout yields stable compact positions and retains saved branch parent anchors",async()=>{
+  const {buildRouteFlowOperationPositions}=await import("../src/routeFlowLayout.js");
+  const operations=[
+    {id:"m1",sequence:1,branch:"Main route",relationType:"main",plannedStart:"2026-11-24T08:00:00Z"},
+    {id:"m2",sequence:2,branch:"Main route",relationType:"main",plannedStart:"2026-11-25T08:00:00Z"},
+    {id:"m3",sequence:3,branch:"Main route",relationType:"main",plannedStart:"2026-11-26T08:00:00Z"},
+    {id:"a1",sequence:1,branch:"Alternate route",relationType:"alternate",parentId:"m1",plannedStart:"2026-11-24T12:00:00Z"},
+    {id:"r1",sequence:1,branch:"Rework route",relationType:"rework",parentId:"m2",plannedStart:"2026-11-25T12:00:00Z"}
+  ];
+  const layouts=["orthogonal","s-curve","horizontal","vertical","swimlane","timeline","radial","circular","organic"];
+  const results=new Map();
+  for(const layout of layouts){
+    const points=buildRouteFlowOperationPositions(operations,layout,true);
+    assert.deepEqual(Object.keys(points).sort(),operations.map(row=>row.id).sort());
+    assert.equal(new Set(Object.values(points).map(point=>point.x+":"+point.y)).size,operations.length,layout+" must not overlap every node at one point");
+    assert.deepEqual(points,buildRouteFlowOperationPositions(operations,layout,true),layout+" must be deterministic");
+    results.set(layout,points);
+  }
+  assert.notDeepEqual(results.get("horizontal"),results.get("vertical"));
+  assert.notDeepEqual(results.get("orthogonal"),results.get("s-curve"));
+  assert.notDeepEqual(results.get("radial"),results.get("circular"));
+  assert.ok(results.get("horizontal").a1.x>results.get("horizontal").m1.x,"Alternate branch keeps its saved parent as its visual origin.");
+  assert.ok(results.get("vertical").a1.y>results.get("vertical").m1.y,"Vertical alternate branch follows its saved parent.");
+  const phone=buildRouteFlowOperationPositions(operations,"horizontal",true);
+  const desktop=buildRouteFlowOperationPositions(operations,"horizontal",false);
+  assert.ok(desktop.m2.x-phone.m2.x>0,"Compact and desktop spacing must be independently tuned.");
+});
+
+test("Route Flow contrast, touch and vehicle marker rules remain explicit",()=>{
+  const visual=source("src/aximach-visual-fixes.css");
+  const flow=source("src/RouteFlowWorkspace.tsx");
+  const legend=source("src/RouteConnectorLegend.tsx");
+  assert.ok(visual.includes(".route-flow-graph-canvas .react-flow__pane"));
+  assert.ok(visual.includes("touch-action:none!important"));
+  assert.ok(visual.includes('data-workspace-theme="dark"'));
+  assert.ok(visual.includes('data-workspace-theme="light"'));
+  assert.ok(visual.includes('width:25px!important;height:25px!important'));
+  assert.ok(!visual.includes("width:248px!important"));
+  assert.ok(!visual.includes("width:242px!important"));
+  assert.ok(flow.includes("className:{\"route-flow-edge route-flow-edge-\"+type}"));
+  for(const kind of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor","material","transport"]){
+    assert.ok(legend.includes('"'+kind+'"'),"Missing full legend connector "+kind);
+  }
+});
+
+test("Process Map uses one connector legend and the 3D scene remains enlarged and touch-safe",()=>{
+  const map=source("src/LinkedProcessWorkspace.tsx");
+  const scene=source("src/ProcessScene3D.tsx");
+  const visual=source("src/aximach-visual-fixes.css");
+  assert.ok(map.includes("<RouteConnectorLegend compact/>"));
+  assert.ok(!map.includes("<RouteConnectorLegend compact/><RouteConnectorLegend/>"));
+  assert.ok(scene.includes('perspective(.74'));
+  assert.ok(scene.includes("-4.15"));
+  assert.ok(scene.includes('touchAction:"none"'));
+  assert.ok(visual.includes(".process-scene-zoom-viewport"));
+  assert.ok(visual.includes(".ax-full3d-transport-icon{width:25px"));
 });
 
 test("Manufacturing Universe SVG export includes visible themed relationship paths",()=>{
