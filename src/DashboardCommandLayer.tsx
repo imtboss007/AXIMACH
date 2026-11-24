@@ -7,6 +7,7 @@ type Props = {
   completedQuantity: number;
   plannedQuantity: number;
   completionPercent: number;
+  exceptionCount: number;
   inProduction: number;
   openOperations: number;
   completedOperations: number;
@@ -19,7 +20,7 @@ type Props = {
 function formatCount(value: number) { return Math.max(0, Number(value || 0)).toLocaleString("en-IN"); }
 
 export default function DashboardCommandLayer({
-  operations, completedQuantity, plannedQuantity, completionPercent, inProduction,
+  operations, completedQuantity, plannedQuantity, completionPercent, exceptionCount, inProduction,
   openOperations, completedOperations, qualityHolds, overdue, activeTransport, onSelectModule
 }: Props) {
   const safePercent = Math.max(0, Math.min(100, Number.isFinite(completionPercent) ? completionPercent : 0));
@@ -43,7 +44,7 @@ export default function DashboardCommandLayer({
     return groups;
   }, new Map<string, number>()).entries()]
     .map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)).slice(0, 4);
-  const exceptions = qualityHolds + overdue;
+  const exceptions = exceptionCount;
   const progressStyle = { background: "conic-gradient(var(--ax-theme-accent) " + safePercent + "%, var(--ax-theme-border) " + safePercent + "%)" } as CSSProperties;
   const metrics = [
     { label: "Running now", value: inProduction, hint: "Saved operations", icon: Activity, module: "production", tone: "running" },
