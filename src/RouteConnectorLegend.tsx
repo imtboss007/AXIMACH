@@ -2,8 +2,8 @@ import { Boxes, Truck } from "lucide-react";
 
 const CONNECTORS = [
   ["main","Main route","Primary manufacturing sequence"],
-  ["alternate","Alternate","Qualified alternative process"],
-  ["rework","Rework","Corrective return path"],
+  ["alternate","Alternate route","Qualified alternative process"],
+  ["rework","Rework route","Corrective return path"],
   ["dependency","Dependency","Prerequisite / gated step"],
   ["parallel","Parallel","Simultaneous workcells"],
   ["merge","Merge","Converging paths"],
@@ -12,8 +12,8 @@ const CONNECTORS = [
   ["feedback","Feedback","Quality / process loop"],
   ["conditional","Conditional","Decision-dependent path"],
   ["successor","Successor","Predecessor relationship"],
-  ["material","Material movement","Material allocation / process input"],
-  ["transport","Transport leg","Vehicle / inter-vendor movement"]
+  ["material","Material → process","Material allocation / process input"],
+  ["transport","Transport leg · vehicle colour","Vehicle / inter-vendor movement"]
 ] as const;
 
 export function RouteConnectorLegend({compact=false}:{compact?:boolean}={}) {
