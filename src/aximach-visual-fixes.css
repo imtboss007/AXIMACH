@@ -856,3 +856,22 @@ body{background:#f1f5fa!important;color:#12263f!important}
   .route-flow-graph-canvas .react-flow__edge.animated .react-flow__edge-path{animation:none!important;stroke-dasharray:none!important}
   .process-scene-zoom-viewport,.ax-full3d-label{transition:none!important}
 }
+
+/* Make each React Flow article fill its measured node wrapper (164–192px), not the legacy 230px card width. */
+.route-flow-graph-node{width:100%!important;max-width:100%!important;box-sizing:border-box!important}
+
+/* Process Universe headings and material captions retain dark readable ink on light cards. */
+.process-universe-3d .process-universe-head h3,
+.process-universe-3d .process-orbit-panel h3,
+.process-universe-3d .process-orbit-material-routes-head strong{color:#173b56!important;-webkit-text-fill-color:#173b56!important}
+.process-universe-3d .process-universe-head p,
+.process-universe-3d .process-orbit-meta span,
+.process-universe-3d .process-orbit-help,
+.process-universe-3d .process-universe-count>span{color:#47677f!important;opacity:1!important}
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-universe-head h3,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-orbit-panel h3,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-orbit-material-routes-head strong{color:#e8f2fa!important;-webkit-text-fill-color:#e8f2fa!important}
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-universe-head p,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-orbit-meta span,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-orbit-help,
+.manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-universe-count>span{color:#b8ccda!important}
