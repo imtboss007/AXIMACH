@@ -654,7 +654,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:routeCanvasMode==="graph"?
       <div className="route-flow-graph-canvas" data-testid="route-flow-react-canvas">
         <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Pinch / wheel to zoom · drag canvas to pan · use Fit in controls</small></div>
-        <RouteConnectorLegend compact/>
+        <RouteConnectorLegend/>
         <ReactFlow<RouteFlowGraphNode,Edge> nodes={routeFlowGraph.nodes} edges={routeFlowGraph.edges} nodeTypes={ROUTE_FLOW_NODE_TYPES} fitView fitViewOptions={{padding:.14,minZoom:.24,maxZoom:1.15}} minZoom={.16} maxZoom={2.2} nodesDraggable={false} nodesConnectable={false} elementsSelectable nodesFocusable edgesFocusable panOnDrag zoomOnScroll={true} zoomOnPinch zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--ax-theme-border,#b5c9da)"/><Controls showInteractive={false}/><MiniMap<RouteFlowGraphNode> pannable zoomable nodeColor={(node:RouteFlowGraphNode):string=>node.data.accent}/>
         </ReactFlow>
