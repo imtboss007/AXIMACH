@@ -11,7 +11,7 @@ test("Public API tools are presented in the existing admin Integrations workspac
   assert.ok(app.includes('activeModuleId === "integrations"'));
   assert.ok(workspace.includes("function requestPublicApi<T>"));
   assert.ok(workspace.includes("getServerAuthHeaders"));
-  assert.ok(workspace.includes("session.user.role!==\"admin\""));
+  assert.ok(workspace.includes("const connection=readConnection();"));
   assert.ok(workspace.includes("Public API tools"));
   assert.ok(workspace.includes("Additional APIs screened"));
   assert.ok(workspace.includes("setPublicApis(parsed.data.publicApis||null)"));
