@@ -180,3 +180,46 @@ test("Manufacturing graphs use theme-aware readable text, compact material panel
   assert.ok(visual.includes(".process-material-route-row{"));
   assert.ok(visual.includes("grid-template-columns:minmax(0,1fr)!important"));
 });
+
+
+test("Route Flow workspace contains one integrated showcase for every saved relationship type plus material and transport",()=>{
+  const route=source("src/RouteFlowWorkspace.tsx");
+  const showcase=source("src/RouteFlowShowcase.tsx");
+  assert.ok(route.includes('import { RouteFlowShowcase } from "./RouteFlowShowcase"'));
+  assert.ok(route.includes("<RouteFlowShowcase/>"));
+  for(const kind of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor","material","transport"]){
+    assert.ok(showcase.includes(kind),"Missing route pattern or flow key: "+kind);
+  }
+  for(const example of ["end-to-end","main","alternate","rework","parallel","split","merge","conditional","dependency","follow-on","feedback","successor","material","transport"]){
+    assert.ok(showcase.includes('id:"'+example+'"'),"Missing sample flow: "+example);
+  }
+  assert.ok(showcase.includes("<strong>14</strong><small>FLOW PATTERNS</small>"));
+});
+
+test("Route Flow Showcase demonstrates all nine supported layout modes",()=>{
+  const showcase=source("src/RouteFlowShowcase.tsx");
+  for(const layout of ["orthogonal","s-curve","horizontal","vertical","swimlane","timeline","radial","circular","organic"]){
+    assert.ok(showcase.includes('id:"'+layout+'"'),"Missing layout mode: "+layout);
+  }
+  assert.ok(showcase.includes("Flow layout styles"));
+  assert.ok(showcase.includes("setSelectedLayout"));
+});
+
+test("Route Flow Showcase is a read-only example library and does not write PO or operation data",()=>{
+  const showcase=source("src/RouteFlowShowcase.tsx");
+  assert.ok(showcase.includes("DEMONSTRATION ONLY"));
+  assert.ok(showcase.includes("NO PO / OPERATION RECORDS MODIFIED"));
+  assert.ok(!showcase.includes("useManufacturingData"));
+  assert.ok(!showcase.includes("update("));
+  assert.ok(showcase.includes("aria-pressed"));
+  assert.ok(showcase.includes("aria-selected"));
+});
+
+test("Route Flow Showcase includes responsive cards and contrast-aware styling",()=>{
+  const visual=source("src/aximach-visual-fixes.css");
+  for(const selector of [".route-flow-showcase",".route-flow-showcase-preview",".route-flow-showcase-card",".route-flow-showcase-legend"]){
+    assert.ok(visual.includes(selector),"Missing showcase style: "+selector);
+  }
+  assert.ok(visual.includes("@media(max-width:600px)"));
+  assert.ok(visual.includes("var(--ax-theme-text"));
+});
