@@ -319,3 +319,226 @@ body{background:#f1f5fa!important;color:#12263f!important}
 .app-shell[data-theme] .workspace-page :is(.surface-panel,.workspace-card,.metric-card,.master-data-card,.workspace-panel){border-color:var(--ax-theme-border)!important}
 .app-shell[data-theme] .workspace-page :is(button,input,select,textarea,[role="button"]):focus-visible{outline:2px solid var(--ax-theme-accent)!important;outline-offset:2px!important}
 .app-shell[data-theme] .workspace-page :is(.panel-heading h3,.workspace-title-row h1,.workspace-title-row h2){color:var(--ax-theme-text)}
+
+/* AXIMACH mobile graph contrast, compact flowcharts and fullscreen controls. */
+.app-shell[data-theme] .ax-ecosystem-flow-canvas,
+.app-shell[data-theme] .route-flow-graph-canvas,
+.app-shell[data-theme] .process-map-graph-canvas{
+  background:var(--ax-theme-background,#f1f5fa)!important;
+  border-color:var(--ax-theme-border,#c8d7e5)!important;
+  color:var(--ax-theme-text,#12263f)!important;
+}
+.app-shell[data-theme] .ax-ecosystem-flow-node,
+.app-shell[data-theme] .route-flow-graph-node,
+.app-shell[data-theme] .process-map-graph-card{
+  background:var(--ax-theme-panel,#fff)!important;
+  border:1px solid var(--ax-theme-border,#c8d7e5)!important;
+  color:var(--ax-theme-text,#12263f)!important;
+  box-shadow:0 5px 16px rgba(4,20,38,.16)!important;
+}
+.app-shell[data-theme] .ax-ecosystem-flow-node strong,
+.app-shell[data-theme] .route-flow-graph-node>strong,
+.app-shell[data-theme] .process-map-graph-card>strong{
+  color:var(--ax-theme-text,#12263f)!important;
+  font-size:12px!important;line-height:1.35!important;font-weight:750!important;
+}
+.app-shell[data-theme] .ax-ecosystem-flow-node small,
+.app-shell[data-theme] .route-flow-graph-node>small,
+.app-shell[data-theme] .process-map-graph-card>small{
+  color:var(--ax-theme-muted,#4e627a)!important;opacity:1!important;
+  font-size:10px!important;line-height:1.4!important;
+}
+.app-shell[data-theme] .ax-ecosystem-flow-node>span,
+.app-shell[data-theme] .route-flow-graph-node>span,
+.app-shell[data-theme] .process-map-graph-card>span{
+  color:var(--node-accent,var(--route-accent,var(--process-map-accent,var(--ax-theme-accent))))!important;
+  font-size:9px!important;font-weight:800!important;letter-spacing:.035em!important;
+}
+.app-shell[data-theme] .ax-ecosystem-flow-hub{
+  background:var(--ax-theme-selected,#dcecf8)!important;
+  border-color:var(--ax-theme-accent,#2875bd)!important;
+  color:var(--ax-theme-text,#12263f)!important;
+}
+.app-shell[data-theme] .ax-ecosystem-flow-hub strong,
+.app-shell[data-theme] .ax-ecosystem-flow-hub small{color:var(--ax-theme-text,#12263f)!important}
+.app-shell[data-theme] .ax-ecosystem-flow-canvas .react-flow__controls,
+.app-shell[data-theme] .route-flow-graph-canvas .react-flow__controls,
+.app-shell[data-theme] .process-map-graph-canvas .react-flow__controls,
+.app-shell[data-theme] .ax-ecosystem-flow-canvas .react-flow__minimap,
+.app-shell[data-theme] .route-flow-graph-canvas .react-flow__minimap,
+.app-shell[data-theme] .process-map-graph-canvas .react-flow__minimap{
+  background:var(--ax-theme-panel,#fff)!important;
+  border:1px solid var(--ax-theme-border,#c8d7e5)!important;
+  color:var(--ax-theme-text,#12263f)!important;
+}
+.app-shell[data-theme] .ax-ecosystem-flow-canvas .react-flow__controls-button,
+.app-shell[data-theme] .route-flow-graph-canvas .react-flow__controls-button,
+.app-shell[data-theme] .process-map-graph-canvas .react-flow__controls-button{
+  background:var(--ax-theme-panel,#fff)!important;
+  color:var(--ax-theme-text,#12263f)!important;
+  border-color:var(--ax-theme-border,#c8d7e5)!important;
+}
+.app-shell[data-theme] .ax-ecosystem-flow-canvas .react-flow__controls-button svg,
+.app-shell[data-theme] .route-flow-graph-canvas .react-flow__controls-button svg,
+.app-shell[data-theme] .process-map-graph-canvas .react-flow__controls-button svg{
+  fill:var(--ax-theme-text,#12263f)!important;color:var(--ax-theme-text,#12263f)!important;
+}
+.app-shell[data-theme] .ax-ecosystem-flow-canvas .react-flow__edge-text,
+.app-shell[data-theme] .route-flow-graph-canvas .react-flow__edge-text,
+.app-shell[data-theme] .process-map-graph-canvas .react-flow__edge-text{
+  fill:var(--ax-theme-text,#12263f)!important;font-size:10px!important;font-weight:800!important;
+}
+.app-shell[data-theme] .ax-ecosystem-flow-canvas .react-flow__edge-textbg,
+.app-shell[data-theme] .route-flow-graph-canvas .react-flow__edge-textbg,
+.app-shell[data-theme] .process-map-graph-canvas .react-flow__edge-textbg{
+  fill:var(--ax-theme-panel,#fff)!important;fill-opacity:.97!important;
+  stroke:var(--ax-theme-border,#c8d7e5)!important;
+}
+.app-shell[data-theme] .route-flow-graph-node>button,
+.app-shell[data-theme] .process-map-graph-card>button{
+  border-color:var(--ax-theme-border,#c8d7e5)!important;
+  background:var(--ax-theme-selected,#e5eff8)!important;
+  color:var(--ax-theme-text,#12263f)!important;font-size:10px!important;font-weight:750!important;
+}
+
+/* Route Flow / Process Map graph canvases use the viewport, not a giant fixed scene. */
+.route-flow-graph-canvas{
+  position:relative!important;height:clamp(460px,62dvh,680px)!important;min-height:400px!important;
+}
+.route-flow-graph-canvas .react-flow{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+.route-flow-graph-toolbar{
+  position:absolute;z-index:5;top:9px;left:12px;right:56px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;pointer-events:none;
+}
+.route-flow-graph-toolbar span,.route-flow-graph-toolbar small{
+  max-width:100%;padding:5px 8px;border:1px solid var(--ax-theme-border,#c8d7e5);
+  border-radius:7px;background:var(--ax-theme-panel,#fff);color:var(--ax-theme-muted,#4e627a);
+  font-size:9px;font-weight:750;box-shadow:0 2px 8px rgba(0,0,0,.08)
+}
+.route-flow-graph-toolbar small{text-align:right;font-weight:600}
+.route-flow-graph-canvas>.route-connector-legend{
+  position:absolute!important;z-index:5;top:41px;left:10px;right:10px;
+  display:flex;flex-wrap:wrap;gap:5px 10px;padding:5px 8px;
+  border:1px solid var(--ax-theme-border,#c8d7e5);border-radius:8px;
+  background:var(--ax-theme-panel,#fff)!important;color:var(--ax-theme-muted,#4e627a)!important;
+  pointer-events:none;
+}
+.route-flow-graph-canvas>.route-connector-legend>span{font-size:8px!important;color:var(--ax-theme-muted,#4e627a)!important}
+.process-map-graph-canvas{
+  position:relative!important;height:clamp(460px,62dvh,680px)!important;min-height:400px!important;
+}
+.process-map-graph-canvas .react-flow{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+.process-map-graph-card{min-height:0!important;padding:9px!important;gap:5px!important}
+.process-map-graph-card>strong{font-size:12px!important}
+.process-map-graph-card>small{font-size:9px!important}
+.ax-ecosystem-flow-canvas{position:relative!important;height:640px!important;min-height:460px!important}
+.ax-ecosystem-flow-canvas .react-flow{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+.ax-ecosystem-flow-node{min-height:76px!important;padding:10px!important}
+.ax-ecosystem-flow-node strong{font-size:12px!important}
+.ax-ecosystem-flow-node small{font-size:10px!important}
+.ax-ecosystem-flow-canvas .react-flow__edge-path,
+.route-flow-graph-canvas .react-flow__edge-path,
+.process-map-graph-canvas .react-flow__edge-path{
+  stroke-width:2.6px!important;stroke-linecap:round!important;
+}
+
+/* Keep controls inside the actual fullscreen canvas on Android. */
+.ax-map-fullscreen-shell:fullscreen .route-flow-graph-canvas{
+  position:relative!important;flex:1 1 auto!important;width:100%!important;
+  height:auto!important;min-height:0!important;max-height:none!important;
+}
+.ax-map-fullscreen-shell:fullscreen .route-flow-graph-canvas .react-flow{position:absolute!important;inset:0!important}
+.ax-map-fullscreen-shell:fullscreen .route-flow-graph-toolbar{top:8px!important}
+.ax-map-fullscreen-shell:fullscreen .route-flow-graph-canvas>.route-connector-legend{top:40px!important}
+.ax-process-map-fullscreen:fullscreen .process-map-graph-canvas,
+.linked-route-canvas:fullscreen .process-map-graph-canvas{
+  position:relative!important;flex:1 1 auto!important;height:100%!important;min-height:0!important;max-height:none!important;
+}
+.ax-process-map-fullscreen:fullscreen .process-map-graph-canvas .react-flow,
+.linked-route-canvas:fullscreen .process-map-graph-canvas .react-flow{position:absolute!important;inset:0!important}
+.process-material-route-panel{
+  margin:7px 0!important;overflow:hidden!important;
+  border-color:var(--ax-theme-border,var(--line))!important;
+  background:var(--ax-theme-surface,var(--panel))!important;
+}
+.process-material-route-heading{
+  display:flex!important;align-items:center;justify-content:space-between;
+  gap:8px;flex-wrap:wrap;padding:10px 12px!important;
+}
+.process-material-route-heading strong{color:var(--ax-theme-text,var(--ink))!important;font-size:10px!important}
+.process-material-route-heading span{color:var(--ax-theme-muted,var(--muted))!important;font-size:9px!important}
+.process-material-route-row{
+  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:7px!important;padding:9px!important;
+}
+.process-material-route-node{
+  min-width:0!important;padding:9px!important;border:1px solid var(--ax-theme-border,var(--line))!important;
+  border-radius:9px!important;background:var(--ax-theme-panel,var(--panel))!important;
+  color:var(--ax-theme-text,var(--ink))!important;
+}
+.process-material-route-node small{color:var(--ax-theme-muted,var(--muted))!important;font-size:8px!important;line-height:1.35!important}
+.process-material-route-node strong{color:var(--ax-theme-text,var(--ink))!important;font-size:10px!important;line-height:1.35!important;overflow-wrap:anywhere}
+.process-material-route-node span{color:var(--ax-theme-muted,var(--muted))!important;font-size:9px!important;line-height:1.4!important;overflow-wrap:anywhere}
+.process-material-route-arrow{color:var(--ax-theme-accent,var(--blue))!important}
+@media(max-width:760px){
+  .route-flow-graph-canvas{height:clamp(430px,58dvh,540px)!important;min-height:380px!important}
+  .route-flow-graph-toolbar{left:7px!important;right:7px!important;top:6px!important;gap:4px!important}
+  .route-flow-graph-toolbar span,.route-flow-graph-toolbar small{font-size:7px!important;padding:4px 5px!important}
+  .route-flow-graph-canvas>.route-connector-legend{top:34px!important;left:6px!important;right:6px!important;gap:4px!important;padding:4px 6px!important}
+  .route-flow-graph-canvas>.route-connector-legend>span{font-size:7px!important}
+  .route-flow-graph-canvas .react-flow__controls{bottom:7px!important;left:7px!important}
+  .route-flow-graph-canvas .react-flow__controls-button,
+  .process-map-graph-canvas .react-flow__controls-button,
+  .ax-ecosystem-flow-canvas .react-flow__controls-button{width:34px!important;height:34px!important}
+  .route-flow-graph-canvas .react-flow__minimap,
+  .process-map-graph-canvas .react-flow__minimap,
+  .ax-ecosystem-flow-canvas .react-flow__minimap{display:none!important}
+  .process-map-graph-canvas{height:clamp(430px,60dvh,560px)!important;min-height:380px!important}
+  .process-map-graph-header{top:5px!important;left:6px!important;right:6px!important;gap:4px!important}
+  .process-map-graph-header strong,.process-map-graph-header span{font-size:8px!important;padding:4px 6px!important}
+  .process-map-graph-canvas .react-flow__controls{bottom:7px!important;left:7px!important}
+  .ax-ecosystem-flow-canvas{height:clamp(480px,68dvh,620px)!important;min-height:420px!important}
+  .ax-ecosystem-flow-node{width:166px!important;min-height:72px!important;padding:9px!important}
+  .ax-ecosystem-flow-node strong{font-size:11px!important}
+  .ax-ecosystem-flow-node small{font-size:9px!important;color:var(--ax-theme-muted,#40566c)!important}
+  .ax-ecosystem-flow-canvas .react-flow__controls{bottom:7px!important;left:7px!important}
+  .process-material-route-row{grid-template-columns:minmax(0,1fr)!important;gap:5px!important;padding:7px!important}
+  .process-material-route-node{
+    display:grid!important;grid-template-columns:minmax(72px,.34fr) minmax(0,1fr)!important;
+    align-items:start!important;gap:4px 8px!important;padding:7px!important;
+  }
+  .process-material-route-node small:first-child{grid-column:1}
+  .process-material-route-node strong,.process-material-route-node span{grid-column:2}
+  .process-material-route-arrow{display:none!important}
+  .process-material-route-node small{font-size:8px!important}
+  .process-material-route-node strong{font-size:10px!important}
+  .process-material-route-node span{font-size:9px!important}
+  .process-universe-collapsible>.process-visual-stage{min-height:0!important;padding:6px!important}
+}
+@media(max-width:760px) and (orientation:landscape){
+  .route-flow-graph-canvas,.process-map-graph-canvas{height:calc(100dvh - 110px)!important;min-height:250px!important;max-height:none!important}
+}
+@media(max-width:820px){
+  .ax-map-fullscreen-shell:fullscreen{
+    padding:calc(7px + env(safe-area-inset-top)) 7px calc(7px + env(safe-area-inset-bottom))!important;
+  }
+  .ax-map-fullscreen-shell:fullscreen .route-flow-graph-canvas,
+  .ax-process-map-fullscreen:fullscreen .process-map-graph-canvas,
+  .linked-route-canvas:fullscreen .process-map-graph-canvas{
+    height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 14px)!important;
+    min-height:0!important;max-height:none!important;flex:1 1 auto!important;
+  }
+  .ax-map-fullscreen-shell:fullscreen .route-flow-graph-canvas .react-flow,
+  .ax-process-map-fullscreen:fullscreen .process-map-graph-canvas .react-flow,
+  .linked-route-canvas:fullscreen .process-map-graph-canvas .react-flow{position:absolute!important;inset:0!important}
+  .ax-map-fullscreen-shell:fullscreen .route-flow-graph-canvas .react-flow__controls,
+  .ax-process-map-fullscreen:fullscreen .process-map-graph-canvas .react-flow__controls,
+  .linked-route-canvas:fullscreen .process-map-graph-canvas .react-flow__controls{
+    position:fixed!important;left:max(9px,env(safe-area-inset-left))!important;
+    bottom:max(12px,env(safe-area-inset-bottom))!important;top:auto!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .route-flow-graph-canvas .react-flow__edge.animated .react-flow__edge-path,
+  .process-map-graph-canvas .react-flow__edge.animated .react-flow__edge-path{animation:none!important;stroke-dasharray:none!important}
+}
