@@ -312,8 +312,8 @@ body{background:#f1f5fa!important;color:#12263f!important}
 .process-orbit-visual-controls{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:8px 10px;border:1px solid var(--ax-theme-border,var(--line));border-radius:9px;background:var(--ax-theme-surface,var(--surface))}
 .process-orbit-visual-controls button{min-height:34px;padding:0 10px;border:1px solid var(--ax-theme-border,var(--line));border-radius:7px;background:var(--ax-theme-panel,var(--panel));color:var(--ax-theme-text,var(--foreground));font-size:10px;font-weight:650}
 .process-orbit-visual-controls button[aria-pressed="true"]{border-color:var(--ax-theme-accent,var(--blue));color:var(--ax-theme-accent,var(--blue))}.process-orbit-visual-controls span{color:var(--ax-theme-muted,var(--muted));font-size:9px}
-@keyframes ax-route-flow-dash{to{stroke-dashoffset:-28}}.route-flow-graph-canvas .react-flow__edge.animated .react-flow__edge-path{stroke-dasharray:9 7;animation:ax-route-flow-dash 1.1s linear infinite}
-@media(prefers-reduced-motion:reduce){.route-flow-graph-canvas .react-flow__edge.animated .react-flow__edge-path{animation:none!important;stroke-dasharray:none!important}.dashboard-execution-metric{transition:none!important;transform:none!important}}
+@keyframes ax-route-flow-dash{to{stroke-dashoffset:-28}}.route-flow-graph-canvas .react-flow__edge.animated .react-flow__edge-path,.process-map-graph-canvas .react-flow__edge.animated .react-flow__edge-path{stroke-dasharray:9 7;animation:ax-route-flow-dash 1.1s linear infinite}
+@media(prefers-reduced-motion:reduce){.route-flow-graph-canvas .react-flow__edge.animated .react-flow__edge-path,.process-map-graph-canvas .react-flow__edge.animated .react-flow__edge-path{animation:none!important;stroke-dasharray:none!important}.dashboard-execution-metric{transition:none!important;transform:none!important}}
 
 /* Shared focus and border semantics across module workspaces, while retaining specialised layouts. */
 .app-shell[data-theme] .workspace-page :is(.surface-panel,.workspace-card,.metric-card,.master-data-card,.workspace-panel){border-color:var(--ax-theme-border)!important}
