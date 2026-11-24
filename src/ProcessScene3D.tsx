@@ -124,7 +124,8 @@ function operationCode(operation:OperationRecord):string{
  return "OP-"+String(operation.sequence).padStart(3,"0")+(relation?" · "+relation:"");
 }
 
-type SceneDraw = (mesh:{v:number[];n:number[]},rgb:number[])=>void;
+type FactoryMeshBatch = Map<string,{v:number[];n:number[];color:number[]}>;
+function addFactoryMesh(batch:FactoryMeshBatch,mesh:{v:number[];n:number[]},color:number[]){const key=color.join(",");let target=batch.get(key);if(!target){target={v:[],n:[],color};batch.set(key,target);}target.v.push(...mesh.v);target.n.push(...mesh.n);}
 function prismMesh(cx:number,cy:number,cz:number,rx:number,ry:number,rz:number):{v:number[];n:number[]} {
  const unit=boxMesh(0,0,0,1),v:number[]=[];
  for(let i=0;i<unit.v.length;i+=3)v.push(cx+unit.v[i]*rx,cy+unit.v[i+1]*ry,cz+unit.v[i+2]*rz);
@@ -140,14 +141,14 @@ function factoryMachineKind(operation:OperationRecord):"machining"|"lathe"|"edm"
  if(/mill|machin|vmc|hmc|cnc/.test(label))return "machining";
  return "workcell";
 }
-function drawFactoryMachine(draw:SceneDraw,p:P,operation:OperationRecord,selected:boolean,now:number,motionEnabled:boolean) {
+function drawFactoryMachine(batch:FactoryMeshBatch,p:P,operation:OperationRecord,selected:boolean,now:number,motionEnabled:boolean) {
  const kind=factoryMachineKind(operation),steel=[.34,.43,.53],dark=[.12,.19,.27],glass=[.12,.34,.46],trim=[.52,.66,.76];
  const status=operation.status.toLowerCase();
  const lamp=status.includes("running")?[.08,.86,.95]:status.includes("complete")?[.13,.72,.43]:status.includes("hold")||status.includes("reject")?[.92,.25,.28]:[.82,.62,.22];
  const accent=selected?[.08,.82,.97]:lamp;
- const box=(x:number,y:number,z:number,rx:number,ry:number,rz:number,color:number[])=>draw(prismMesh(p.x+x,p.y+y,p.z+z,rx,ry,rz),color);
- const rod=(a:P,b:P,r:number,color:number[])=>draw(lineMesh({x:p.x+a.x,y:p.y+a.y,z:p.z+a.z},{x:p.x+b.x,y:p.y+b.y,z:p.z+b.z},r),color);
- const joint=(x:number,y:number,z:number,r:number,color:number[])=>draw(sphereMesh(p.x+x,p.y+y,p.z+z,r,7,9),color);
+ const box=(x:number,y:number,z:number,rx:number,ry:number,rz:number,color:number[])=>addFactoryMesh(batch,prismMesh(p.x+x,p.y+y,p.z+z,rx,ry,rz),color);
+ const rod=(a:P,b:P,r:number,color:number[])=>addFactoryMesh(batch,lineMesh({x:p.x+a.x,y:p.y+a.y,z:p.z+a.z},{x:p.x+b.x,y:p.y+b.y,z:p.z+b.z},r),color);
+ const joint=(x:number,y:number,z:number,r:number,color:number[])=>addFactoryMesh(batch,sphereMesh(p.x+x,p.y+y,p.z+z,r,7,9),color);
  box(0,-.055,0,.30,.035,.25,dark);
  box(0,-.012,0,.24,.018,.19,steel);
  if(kind==="machining"){
@@ -379,7 +380,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
   draw(sphereMesh(placement.point.x,placement.point.y,placement.point.z,isSimulationTransport ? .085 : .065),isSimulationTransport?[.04,.95,1]:themeSecondary);
   if(isSimulationTransport){const radius=.21+Math.sin(now*.008)*.035;for(let segment=0;segment<24;segment++){const a=segment*Math.PI*2/24,b=(segment+1)*Math.PI*2/24;draw(lineMesh({x:placement.point.x+Math.cos(a)*radius,y:placement.point.y+Math.sin(a)*radius,z:placement.point.z+.015},{x:placement.point.x+Math.cos(b)*radius,y:placement.point.y+Math.sin(b)*radius,z:placement.point.z+.015},.01),[.04,.86,1]);}}
  });
- points.forEach(({p,op})=>{const rgb=operationRgb(op);if(mode==="factory")drawFactoryMachine(draw,p,op,op.id===selectedOperationId,now,motionEnabled);else draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"||mode==="layered"||mode==="matrix"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);if(op.id===simulatedOperation?.id){if(motionEnabled){const radius=.22+Math.sin(now*.008)*.035;for(let segment=0;segment<32;segment++){const a=segment*Math.PI*2/32,b=(segment+1)*Math.PI*2/32;draw(lineMesh({x:p.x+Math.cos(a)*radius,y:p.y+Math.sin(a)*radius,z:p.z+.015},{x:p.x+Math.cos(b)*radius,y:p.y+Math.sin(b)*radius,z:p.z+.015},.012),[.04,.86,1]);}}draw(sphereMesh(p.x,p.y,p.z,.065),[.05,.88,1]);}});anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:themeGraph3;draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});if(autoRotate||motionEnabled)raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>{cancelAnimationFrame(raf);window.removeEventListener("aximach-theme-updated",refreshTheme);};},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialPlacements,transportLegPlacements,simulationIndex,selectedOperationId,motionEnabled]);
+ const factoryBatches:FactoryMeshBatch=new Map();points.forEach(({p,op})=>{const rgb=operationRgb(op);if(mode==="factory")drawFactoryMachine(factoryBatches,p,op,op.id===selectedOperationId,now,motionEnabled);else draw(mode==="cube"||mode==="digital-mesh"||mode==="grid"||mode==="stacked"||mode==="layered"||mode==="matrix"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);if(op.id===simulatedOperation?.id){if(motionEnabled){const radius=.22+Math.sin(now*.008)*.035;for(let segment=0;segment<32;segment++){const a=segment*Math.PI*2/32,b=(segment+1)*Math.PI*2/32;draw(lineMesh({x:p.x+Math.cos(a)*radius,y:p.y+Math.sin(a)*radius,z:p.z+.015},{x:p.x+Math.cos(b)*radius,y:p.y+Math.sin(b)*radius,z:p.z+.015},.012),[.04,.86,1]);}}draw(sphereMesh(p.x,p.y,p.z,.065),[.05,.88,1]);}});for(const batch of factoryBatches.values())draw({v:batch.v,n:batch.n},batch.color);anchorPoints.forEach(({point})=>draw(sphereMesh(point.x,point.y,point.z,.085),[.38,.58,.82]));cataloguePoints.forEach(({p,definition})=>{const rgb=definition.displayColor?[.22,.55,.86]:themeGraph3;draw(mode==="cube"||mode==="digital-mesh"?boxMesh(p.x,p.y,p.z,.13):sphereMesh(p.x,p.y,p.z,.14),rgb);});if(autoRotate||motionEnabled)raf=requestAnimationFrame(render);};raf=requestAnimationFrame(render);return()=>{cancelAnimationFrame(raf);window.removeEventListener("aximach-theme-updated",refreshTheme);};},[geometryRows,geometryPoints,points,anchorPoints,cataloguePoints,edges,mode,autoRotate,showArrows,ganttScale,materialPlacements,transportLegPlacements,simulationIndex,selectedOperationId,motionEnabled]);
  useEffect(()=>{
   const element=scene.current;
   if(!element)return;
