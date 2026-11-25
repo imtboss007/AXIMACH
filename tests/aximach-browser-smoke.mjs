@@ -799,8 +799,8 @@ try {
     throw new Error("Manufacturing Universe must disclose complete default record visibility and global search.");
   }
   const graphCountText = await page.locator(".ax-ecosystem-graph-count").innerText();
-  const shownCount = Number(graphCountText.match(/(\\d+)\\s+nodes shown/)?.[1]);
-  const savedCount = Number(graphCountText.match(/(\\d+)\\s+saved records in these groups/)?.[1]);
+  const shownCount = Number(graphCountText.match(/(\d+)\s+nodes shown/)?.[1]);
+  const savedCount = Number(graphCountText.match(/(\d+)\s+saved records in these groups/)?.[1]);
   if (!Number.isFinite(shownCount) || shownCount !== savedCount) {
     throw new Error("Manufacturing Universe does not render every saved record in the visible entity groups.");
   }
