@@ -1,6 +1,6 @@
 function hasProcessCapability(machine, processDefinitionId) {
   const capabilities = Array.isArray(machine?.processDefinitionIds) ? machine.processDefinitionIds : [];
-  return !processDefinitionId || capabilities.length === 0 || capabilities.includes(processDefinitionId);
+  return capabilities.length === 0 || Boolean(processDefinitionId && capabilities.includes(processDefinitionId));
 }
 
 export function getEligibleMachineAssets(machines = [], scope = {}) {
