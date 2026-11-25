@@ -25,13 +25,13 @@ const FALLBACK_PALETTE = [
 ];
 const LEGACY_DEFAULTS = new Set(["#4b95eb","#6fa9e5","#477fbd"]);
 
-const normalise=(value:string)=>String(value||"").trim().toLowerCase().replace(/\\s+/g," ");
+const normalise=(value:string)=>String(value||"").trim().toLowerCase().replace(/\s+/g," ");
 
 export function processPaletteColor(category:string,processType:string):string{
   const categoryKey=normalise(category);
   if(CATEGORY_COLOURS[categoryKey])return CATEGORY_COLOURS[categoryKey];
   const processKey=normalise(processType);
-  if(/\\bwire\\s*edm\\b|wire.?cut/.test(processKey))return CATEGORY_COLOURS["wire edm"];
+  if(/\bwire\s*edm\b|wire.?cut/.test(processKey))return CATEGORY_COLOURS["wire edm"];
   if(/laser/.test(processKey))return CATEGORY_COLOURS["laser cutting"];
   if(/heat.?treat|hardening|tempering|carbur/.test(processKey))return CATEGORY_COLOURS["heat treatment"];
   if(/turning|lathe/.test(processKey))return CATEGORY_COLOURS["turning"];
