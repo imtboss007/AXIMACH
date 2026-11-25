@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { applyNodeChanges, Background, BackgroundVariant, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
-import type { Connection, Edge, EdgeTypes, Node, NodeChange, NodeMouseHandler, NodeTypes, OnNodesChange } from "@xyflow/react";
+import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
+import type { Connection, Edge, EdgeTypes, Node, NodeMouseHandler, NodeTypes, OnNodesChange } from "@xyflow/react";
 import { ManufacturingRelationshipEdge } from "./ManufacturingRelationshipEdge";
 import "@xyflow/react/style.css";
 
@@ -51,10 +51,10 @@ export function ManufacturingGraphCanvas<TNode extends Node = Node>({
   useEffect(()=>{
     setCanvasNodes(nodes.map(node=>({...node,position:positionOverrides.current.get(node.id)||node.position}) as TNode));
   },[nodes]);
-  const handleNodesChange=(changes:NodeChange<TNode>[])=>{
-    setCanvasNodes(current=>applyNodeChanges(changes,current) as TNode[]);
-    changes.forEach(change=>{
-      if(change.type==="position"&&change.position&&change.dragging===false)
+  const handleNodesChange:OnNodesChange<TNode>=(changes)=>{
+    setCanvasNodes(current=>changes.applyTo(current) as TNode[]);
+    changes.getByType("position").forEach(change=>{
+      if(change.position&&change.dragging===false)
         positionOverrides.current.set(change.id,change.position);
     });
     onNodesChange?.(changes);
