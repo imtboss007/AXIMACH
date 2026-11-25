@@ -939,8 +939,10 @@ try {
     throw new Error("Manufacturing Universe React Flow canvas is missing its AXIMACH graph hub.");
   }
   console.log("PASS Manufacturing Universe React Flow canvas, viewport controls and minimap");
-  if (await page.locator(".ax-ecosystem-filters button").count() !== 16) {
-    throw new Error("Manufacturing ecosystem graph does not expose all 16 entity filters.");
+  const ecosystemFilterLabels=await page.locator(".ax-ecosystem-filters button").allTextContents();
+  const requiredEcosystemFilters=["Companies","Customers","Factories","Machines & equipment","Maintenance plans & work orders","Machine downtime","Tooling & cutting assets","Jigs, fixtures & workholding","Tool / fixture usage history","Purchase orders","Components","Vendors","Process definitions","Production operations","Materials","Quality inspections","Transport & logistics","Finance","Contacts"];
+  if(ecosystemFilterLabels.length!==requiredEcosystemFilters.length||requiredEcosystemFilters.some(label=>!ecosystemFilterLabels.some(actual=>actual.includes(label)))){
+    throw new Error("Manufacturing Universe must expose all 19 entity filters, including tooling, fixtures and resource history. Found: "+ecosystemFilterLabels.join(" | "));
   }
   const sampleNote = await page.locator(".ax-ecosystem-sample-note").innerText();
   if (!sampleNote.includes("All records in visible groups are shown by default") ||
