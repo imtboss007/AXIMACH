@@ -309,3 +309,17 @@ test("one shared graph canvas renders every route type, material movement and ve
   assert.ok(universe.includes("relationshipRows")||universe.includes("routeLinks.forEach"),"Manufacturing Universe must include saved route relationships.");
   assert.ok(shared.includes("ReactFlowProvider")&&shared.includes("<ReactFlow"),"The reusable canvas owns the React Flow provider and renderer.");
 });
+
+
+test("Route Flow supports n8n-style drag-to-connect and persists typed PO-line relationships",()=>{
+  const route=source("src/RouteFlowWorkspace.tsx");
+  const shared=source("src/ManufacturingGraphCanvas.tsx");
+  assert.ok(shared.includes("applyNodeChanges"),"The shared canvas must keep draggable node positions controlled.");
+  assert.ok(shared.includes("onConnect?:(connection:Connection)=>void"),"The shared canvas must expose React Flow connections.");
+  assert.ok(shared.includes("onConnect={onConnect}"),"The shared canvas must forward connection events.");
+  assert.ok(route.includes("const connectRouteNodes=(connection:Connection)=>{"),"Route Flow must handle drag-to-connect.");
+  assert.ok(route.includes("routeRelationships:[...(current.routeRelationships||[]),record]"),"A graph connection must persist in the shared manufacturing data store.");
+  assert.ok(route.includes("relationshipType,status:relationshipStatus"),"The selected relationship type and status must be retained.");
+  assert.ok(route.includes("nodesDraggable\n          nodesConnectable\n          onConnect={connectRouteNodes}"),"The Route Flow canvas must enable node dragging and connector handles.");
+  assert.ok(route.includes("Only process-operation nodes can be connected here"),"Material and transport records must keep their dedicated editors.");
+});
