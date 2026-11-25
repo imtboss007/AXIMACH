@@ -64,19 +64,19 @@ test("group expansion never exceeds the available record count",()=>{
 });
 
 
-test("graph view preferences restore hidden groups and progressive expansion limits",()=>{
+test("graph view preferences restore hidden groups and migrate legacy samples to complete groups",()=>{
   const preferences=loadEcosystemGraphPreferences(JSON.stringify({
     version:2,
     visibleKinds:["vendor","operation","unknown","vendor"],
     visibleLimits:{vendor:14,operation:20,unknown:900}
   }),["company","vendor","operation"],{company:6,vendor:6,operation:8});
   assert.deepEqual(preferences.visibleKinds,["vendor","operation"]);
-  assert.deepEqual(preferences.visibleLimits,{company:6,vendor:14,operation:20});
+  assert.deepEqual(preferences.visibleLimits,{company:6,vendor:6,operation:8});
 });
 
 test("graph view preference loader falls back safely for malformed or inaccessible storage data",()=>{
   const defaults=loadEcosystemGraphPreferences("{not valid json",["company","vendor"],{company:6,vendor:6});
-  assert.deepEqual(defaults,{version:2,visibleKinds:["company","vendor"],visibleLimits:{company:6,vendor:6}});
+  assert.deepEqual(defaults,{version:3,visibleKinds:["company","vendor"],visibleLimits:{company:6,vendor:6}});
 });
 
 test("graph view preferences allow an intentionally hidden-all state and clamp unsafe limits",()=>{
@@ -91,11 +91,12 @@ test("graph view preferences allow an intentionally hidden-all state and clamp u
 
 test("graph preference schema upgrade exposes newly added entity groups once",()=>{
  const migrated=loadEcosystemGraphPreferences(JSON.stringify({version:1,visibleKinds:["company","vendor"],visibleLimits:{company:6,vendor:10}}),["company","vendor","customer"],{company:6,vendor:6,customer:6});
- assert.equal(migrated.version,2);
+ assert.equal(migrated.version,3);
  assert.deepEqual(migrated.visibleKinds,["company","vendor","customer"]);
  assert.equal(migrated.visibleLimits.customer,6);
  const next=loadEcosystemGraphPreferences(JSON.stringify({version:2,visibleKinds:["company","vendor"],visibleLimits:{}}),["company","vendor","customer"],{company:6,vendor:6,customer:6});
  assert.deepEqual(next.visibleKinds,["company","vendor"]);
+ assert.deepEqual(next.visibleLimits,{company:6,vendor:6,customer:6});
 });
 
 
