@@ -26,3 +26,14 @@ This change repairs connector geometry consistency across Route Flow, Process Ma
 The adaptive geometry tests cover directional ports, reverse and vertical edges, curved layouts, rounded orthogonal routing, all eleven route relationship types plus transport, and separate paths for parallel relationships. The functional suite runs these tests through `npm run test:functional`.
 
 A passing build is not visual acceptance. Real populated multi-branch fixtures and desktop/Android screenshots must still be reviewed for clipping, overlapping edges, label legibility and route consistency before this work is accepted.
+
+
+## Transport vehicle identity expansion
+
+Transport Directory and all Route Flow, Process Map and Manufacturing Universe surfaces use the shared `getVehicleVisual` resolver in `src/TransportVehicle.tsx`.
+
+Canonical classes now include two-wheeler/bike, car, auto-rickshaw/three-wheeler, tempo goods carrier, heavy-duty tempo, mini truck, pickup, lorry, heavy lorry, heavy truck, container, trailer, bus, van, air, ship and rail. Auto-rickshaw, tempo, heavy-tempo, mini-truck, lorry and heavy-lorry receive purpose-drawn vector silhouettes; remaining classes use their dedicated Lucide vehicle icons.
+
+Vehicle class resolution is shared across the directory, 2D route connectors, Process Map cards, Process Map route insertions, 3D scene markers and transport inspectors. Courier/delivery now resolves to a van identity rather than being misclassified as a bike. New class colour tokens are defined in `src/aximach-ui.css`.
+
+Acceptance is covered in `tests/aximach-transport-route-demo.test.mjs`; source-level regressions in the route and Process Map suites now target the shared resolver rather than the removed duplicate vehicle mapping.
