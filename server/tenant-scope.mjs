@@ -1,5 +1,5 @@
 const ARRAY_FIELDS = Object.freeze([
- "companies","customers","prospects","factories","machines","maintenancePlans","maintenanceWorkOrders","machineDowntime","purchaseOrders","components","vendors","operations","quotations","materials",
+ "companies","customers","prospects","factories","machines","toolingAssets","fixtureAssets","resourceUsageEvents","maintenancePlans","maintenanceWorkOrders","machineDowntime","purchaseOrders","components","vendors","operations","quotations","materials",
  "componentParts","materialCostEntries","bomLines","materialProcessLinks","inventoryTransactions",
  "contactProfiles","processDefinitions","plannedCosts","transportRoutes","transportLegs",
  "paymentTransactions","inspectionMeasurements","supplierInvoices","supplierPayments","supplierFinanceApprovals","supplierPaymentAllocations","routeRelationships","followUpAssignments"
@@ -37,6 +37,13 @@ function resolveAccess(data, user) {
  );
  const machineIds = ids(machines);
  const machineById = new Map(machines.map(machine=>[machine.id,machine]));
+ const toolingAssets=rows(data,"toolingAssets").filter(asset=>
+  companyAllowed(asset.companyId)&&factoryAllowed(asset.factoryId)&&factoryById.get(asset.factoryId)?.companyId===asset.companyId
+ );
+ const fixtureAssets=rows(data,"fixtureAssets").filter(asset=>
+  companyAllowed(asset.companyId)&&factoryAllowed(asset.factoryId)&&factoryById.get(asset.factoryId)?.companyId===asset.companyId
+ );
+ const toolingAssetIds=ids(toolingAssets),fixtureAssetIds=ids(fixtureAssets);
  const maintenancePlans=rows(data,"maintenancePlans").filter(row=>{
   const machine=machineById.get(row.machineId);
   return Boolean(machine&&machine.companyId===row.companyId&&machine.factoryId===row.factoryId);
@@ -103,6 +110,8 @@ function resolveAccess(data, user) {
   componentIds.has(operation.componentId) &&
   (!operation.vendorId || vendorIds.has(operation.vendorId)) &&
   (!operation.transportVendorId || vendorIds.has(operation.transportVendorId)) &&
+  (Array.isArray(operation.toolingAssetIds)?operation.toolingAssetIds.every(id=>toolingAssetIds.has(id)):true) &&
+  (Array.isArray(operation.fixtureAssetIds)?operation.fixtureAssetIds.every(id=>fixtureAssetIds.has(id)):true) &&
   (!operation.machineId || (() => {
    const machine=machineById.get(operation.machineId);
    const po=purchaseOrdersById.get(operation.poId);
@@ -112,6 +121,11 @@ function resolveAccess(data, user) {
   })())
  );
  const operationIds = ids(operations);
+ const resourceUsageEvents=rows(data,"resourceUsageEvents").filter(event=>
+  (event.resourceType==="tooling"?toolingAssetIds.has(event.resourceId):event.resourceType==="fixture"&&fixtureAssetIds.has(event.resourceId))&&
+  (!event.operationId||operationIds.has(event.operationId))&&
+  (event.resourceType==="tooling"?toolingAssets.some(asset=>asset.id===event.resourceId&&asset.companyId===event.companyId&&asset.factoryId===event.factoryId):fixtureAssets.some(asset=>asset.id===event.resourceId&&asset.companyId===event.companyId&&asset.factoryId===event.factoryId))
+ );
  const quotations = rows(data,"quotations").filter(row =>
   purchaseOrderIds.has(row.poId) && lineIds.has(row.poLineId) && componentIds.has(row.componentId) &&
   operationIds.has(row.operationId) && (!row.vendorId || vendorIds.has(row.vendorId))
@@ -206,7 +220,7 @@ function resolveAccess(data, user) {
   invoiceIds.has(row.invoiceId) && supplierPaymentIds.has(row.paymentId)
  );
  const entityIds = new Set([
-  ...ids(companies),...ids(customers),...ids(prospects),...ids(factories),...machineIds,...ids(maintenancePlans),...ids(maintenanceWorkOrders),...ids(machineDowntime),...purchaseOrderIds,...lineIds,...componentIds,
+  ...ids(companies),...ids(customers),...ids(prospects),...ids(factories),...machineIds,...toolingAssetIds,...fixtureAssetIds,...ids(resourceUsageEvents),...ids(maintenancePlans),...ids(maintenanceWorkOrders),...ids(machineDowntime),...purchaseOrderIds,...lineIds,...componentIds,
   ...operationIds,...ids(quotations),...ids(transportLegs),...ids(routeRelationships),
   ...ids(paymentTransactions),...ids(inspectionMeasurements),...ids(materialProcessLinks),
   ...ids(inventoryTransactions),...ids(componentParts),...ids(bomLines),...ids(materialCostEntries),
@@ -220,7 +234,7 @@ function resolveAccess(data, user) {
  return {
   companyIds, factoryIds, purchaseOrderIds, lineIds, componentIds, operationIds, vendorIds, vendorOwners,
   materialIds, processDefinitionIds, transportRouteIds, entityIds,
-  companies,customers,prospects,factories,machines,maintenancePlans,maintenanceWorkOrders,machineDowntime,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
+  companies,customers,prospects,factories,machines,toolingAssets,fixtureAssets,resourceUsageEvents,maintenancePlans,maintenanceWorkOrders,machineDowntime,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
   paymentTransactions,inspectionMeasurements,materialProcessLinks,inventoryTransactions,
   componentParts,bomLines,materialCostEntries,materials,vendors,processDefinitions,transportRoutes,
   plannedCosts,contactProfiles,supplierInvoices,supplierPayments,supplierFinanceApprovals,supplierPaymentAllocations,followUpAssignments
@@ -247,7 +261,7 @@ function resolveFullAccess(data,incoming={}) {
  return {
   ...Object.fromEntries(ARRAY_FIELDS.map(field=>[field,all(field)])),
   companyIds:ids(companies),factoryIds:ids(factories),purchaseOrderIds,lineIds,componentIds,operationIds,
-  vendorIds:idsInRows("vendors"),machineIds:idsInRows("machines"),materialIds:idsInRows("materials"),processDefinitionIds:idsInRows("processDefinitions"),
+  vendorIds:idsInRows("vendors"),machineIds:idsInRows("machines"),toolingAssetIds:idsInRows("toolingAssets"),fixtureAssetIds:idsInRows("fixtureAssets"),materialIds:idsInRows("materials"),processDefinitionIds:idsInRows("processDefinitions"),
   transportRouteIds:idsInRows("transportRoutes"),entityIds
  };
 }
