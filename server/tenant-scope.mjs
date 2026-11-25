@@ -478,7 +478,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      const statuses=["Planned","Open","In progress","Waiting parts","Completed","Cancelled"];
      const uniqueNumber=!([...rows(currentData,"maintenanceWorkOrders"),...rows(incoming,"maintenanceWorkOrders")].some(other=>other.id!==row.id&&!other.deletedAt&&other.companyId===row.companyId&&String(other.workOrderNumber||"").trim().toLowerCase()===String(row.workOrderNumber||"").trim().toLowerCase()));
      const scheduleDates=!row.scheduledStart&&!row.scheduledEnd ? ["Open","In progress","Waiting parts","Completed","Cancelled"].includes(row.status) : Boolean(timeRange(row.scheduledStart,row.scheduledEnd));
-     const actualDates=(!row.actualStart&&!row.actualEnd)||(row.actualStart&&row.actualEnd&&Boolean(timeRange(row.actualStart,row.actualEnd)));
+     const actualDates=(!row.actualStart&&!row.actualEnd)||(row.actualStart&&!row.actualEnd&&["In progress","Waiting parts"].includes(row.status)&&Number.isFinite(Date.parse(row.actualStart)))||(row.actualStart&&row.actualEnd&&Boolean(timeRange(row.actualStart,row.actualEnd)));
      allowed=Boolean(machine&&!machine.deletedAt&&companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&
       machine.companyId===row.companyId&&machine.factoryId===row.factoryId&&
       (!row.planId||(plan&&plan.machineId===machine.id&&plan.companyId===row.companyId))&&
