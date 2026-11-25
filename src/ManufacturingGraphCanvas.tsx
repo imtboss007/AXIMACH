@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 import type { Edge, Node, NodeTypes } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+import "@xyflow/react/style.css";
 
 type GraphNode = Node<any,string>;
 type Props = {
