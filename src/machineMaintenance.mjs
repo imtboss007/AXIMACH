@@ -31,7 +31,10 @@ export function getMachineAvailability(machine, workOrders=[], downtimeRecords=[
     .filter(row=>{const range=timeRange(row.scheduledStart,row.scheduledEnd);return Boolean(range&&range.start<=now&&range.end>now);})[0]||null;
   const availability = machine?.status==="Retired" ? "Retired"
     : activeDowntime?.downtimeType==="Unplanned breakdown" ? "Breakdown"
-    : activeDowntime||activeWorkOrder ? "Under maintenance"
+    : activeDowntime?.downtimeType==="Planned maintenance" ? "Planned maintenance"
+    : activeDowntime ? "Under maintenance"
+    : activeWorkOrder?.status==="In progress"||activeWorkOrder?.status==="Waiting parts" ? "Under maintenance"
+    : activeWorkOrder ? "Planned maintenance"
     : plannedOrder ? "Planned maintenance"
     : machine?.status||"Available";
   return {
@@ -79,6 +82,10 @@ export function validateMachineSchedule(candidate,operations=[],editingId="",mai
     if(!order||order.machineId!==candidate.machineId||order.deletedAt||!ACTIVE_WORK_ORDER_STATUSES.has(order.status))continue;
     const planned=timeRange(order.scheduledStart,order.scheduledEnd);
     if(planned&&overlaps(range,planned))return {ok:false,reason:"machine-maintenance-conflict",conflictingMaintenanceId:order.id};
+    if(["In progress","Waiting parts"].includes(order.status)&&!planned&&order.actualStart){
+      const start=Date.parse(order.actualStart);
+      if(Number.isFinite(start)&&range.end>start)return {ok:false,reason:"machine-maintenance-conflict",conflictingMaintenanceId:order.id};
+    }
   }
   for(const event of Array.isArray(downtimeRecords)?downtimeRecords:[]){
     if(!event||event.machineId!==candidate.machineId||event.deletedAt||!event.startedAt)continue;
