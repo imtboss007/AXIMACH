@@ -971,3 +971,71 @@ body{background:#f1f5fa!important;color:#12263f!important}
 @media(max-width:760px){
   .single-component-route-tools{grid-template-columns:minmax(0,1fr)!important}
 }
+
+
+/* Consistent high-contrast manufacturing scene: avoid the white WebGL void. */
+.process-scene-zoom-viewport,
+.process-scene-zoom-viewport .process-scene-zoom-layer,
+.process-scene-zoom-viewport .ax-full3d-scene{
+  background:
+    radial-gradient(ellipse at 50% 34%,rgba(30,111,151,.26),transparent 58%),
+    linear-gradient(145deg,#071624 0%,#0b2033 54%,#102b42 100%)!important;
+}
+.process-scene-zoom-viewport .ax-full3d-scene{
+  border:1px solid rgba(78,150,187,.24)!important;
+  border-radius:14px!important;
+  overflow:hidden!important;
+}
+.process-scene-zoom-viewport .ax-full3d-scene canvas{
+  background:transparent!important;
+}
+.process-scene-zoom-viewport .ax-full3d-label:not(.ax-full3d-material-label):not(.ax-full3d-catalogue-label){
+  border:1px solid color-mix(in srgb,var(--process-accent,#2789a8) 72%,#d5e5f2)!important;
+  border-left:4px solid var(--process-accent,#2789a8)!important;
+  background:linear-gradient(145deg,
+    color-mix(in srgb,var(--process-accent,#2789a8) 13%,#ffffff),
+    #f2f7fb 80%)!important;
+  box-shadow:0 7px 20px color-mix(in srgb,var(--process-accent,#2789a8) 18%,transparent)!important;
+}
+.process-scene-zoom-viewport .ax-full3d-label:not(.ax-full3d-material-label):not(.ax-full3d-catalogue-label) strong{
+  color:color-mix(in srgb,var(--process-accent,#2789a8) 70%,#102b45)!important;
+}
+.process-scene-zoom-viewport .ax-full3d-label.selected{
+  outline:2px solid #25c8e6!important;
+  outline-offset:2px!important;
+}
+.process-universe-3d .process-universe-node{
+  border-color:var(--process-accent,#6fa9e5)!important;
+  border-left:4px solid var(--process-accent,#6fa9e5)!important;
+  background:linear-gradient(145deg,
+    color-mix(in srgb,var(--process-accent,#6fa9e5) 15%,var(--ax-theme-panel,#fff)),
+    var(--ax-theme-panel,#fff) 78%)!important;
+  box-shadow:0 6px 18px color-mix(in srgb,var(--process-accent,#6fa9e5) 18%,transparent)!important;
+}
+.process-universe-3d .process-universe-node strong,
+.process-universe-3d .process-universe-node-icon{color:var(--process-accent,#3979bd)!important}
+.ax-ecosystem-flow-canvas{
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(25,105,145,.22),transparent 58%),
+    linear-gradient(145deg,#071624,#0c2032 55%,#102b42)!important;
+  border:1px solid #284a63!important;
+  border-radius:14px!important;
+  overflow:hidden!important;
+}
+.ax-ecosystem-flow-canvas .react-flow__background pattern circle{fill:#36546b!important;opacity:.46}
+.ax-ecosystem-flow-canvas .react-flow__edge-path{stroke-width:3.4px!important;filter:drop-shadow(0 0 3px rgba(35,180,218,.2))}
+.ax-ecosystem-flow-canvas .react-flow__arrowhead path{fill:currentColor!important;stroke:currentColor!important}
+.ax-ecosystem-flow-node{
+  border:1px solid color-mix(in srgb,var(--node-accent,#2875bd) 78%,#dce8f2)!important;
+  border-left:4px solid var(--node-accent,#2875bd)!important;
+  background:linear-gradient(145deg,
+    color-mix(in srgb,var(--node-accent,#2875bd) 18%,#183247),
+    #10263a 82%)!important;
+  color:#edf6fc!important;
+}
+.ax-ecosystem-flow-node strong{color:#f2f8fc!important}
+.ax-ecosystem-flow-node small{color:#bfd3e1!important;opacity:1!important}
+@media(prefers-reduced-motion:reduce){
+  .process-scene-zoom-viewport .ax-full3d-label,
+  .process-universe-3d .process-universe-node{transition:none!important;animation:none!important}
+}
