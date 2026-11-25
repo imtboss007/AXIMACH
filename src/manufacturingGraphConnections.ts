@@ -129,7 +129,7 @@ export function connectManufacturingGraphNodes({
     const operation=sourceOperation||targetOperation!;
     const po=activeRows(data.purchaseOrders).find(row=>row.id===operation.poId);
     if(!tooling&&!fixture)return;
-    const resource=tooling??fixture;
+    const resource=(tooling??fixture)!;
     const componentRecord=activeRows(data.components||[]).find(row=>row.id===operation.componentId);
     const operationMachine=operation.machineId?activeRows(data.machines||[]).find(row=>row.id===operation.machineId):undefined;
     if(operation.executionType==="Outsourced"){
@@ -175,7 +175,7 @@ export function connectManufacturingGraphNodes({
 
   if((tooling||fixture)&&machine){
     if(!tooling&&!fixture)return;
-    const resource=tooling??fixture;
+    const resource=(tooling??fixture)!;
     if(resource.companyId!==machine.companyId||resource.factoryId!==machine.factoryId){
       onNotice("A tooling or fixture asset and its compatible machine must belong to the same company and factory.");
       return;
