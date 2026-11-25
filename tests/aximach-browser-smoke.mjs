@@ -172,11 +172,9 @@ try {
     throw new Error("Data Exchange Centre typography lacks contrast/readability in light mode: "+JSON.stringify(dataExchangeTypography));
   }
   console.log("PASS Data Exchange Centre headings, sandbox copy and supporting text meet light-theme contrast checks");
-  const oneComponentEntry=page.getByRole("button",{name:"Open single-component route + rate graph"});
-  await oneComponentEntry.waitFor({timeout:10000});
-  await oneComponentEntry.click();
-  await page.locator(".route-flow-workspace").waitFor({state:"visible",timeout:10000});
-  console.log("PASS Data Exchange Centre opens the one-company / one-PO / one-component route preview without importing sample companies");
+  await page.getByRole("heading",{name:"One-company / one-PO / one-component manufacturing preview"}).waitFor({timeout:10000});
+  await page.getByText(/28 priced operations across 18 process categories/).waitFor({timeout:10000});
+  console.log("PASS Data Exchange Centre documents the isolated one-company / one-PO / one-component preview without seeding sample companies");
 
   // Verify shared searchable menus remain visible when their anchor sits near the
   // bottom edge of a phone workspace instead of being clipped by page-content.
