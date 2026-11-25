@@ -739,9 +739,9 @@ test("AXIMACH command sphere module buttons can be dragged without losing click 
 test("Process Directory stores a colour per process type and route exports share the selected scope", () => {
   const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(directory.includes("displayColor:processColor"));
-  assert.ok(directory.includes('setProcessColor(row.displayColor||"#4b95eb")'));
-  assert.ok(directory.includes('type="color" value={processColor}'));
+  assert.ok(directory.includes("displayColor:processColor||processPaletteColor(category,processType)"));
+  assert.ok(directory.includes("setProcessColor(resolveProcessColor(row))"));
+  assert.ok(directory.includes('type="color" value={processColor||processPaletteColor(category,processType)}'));
   assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
   for (const exportName of ["exportCsv", "exportExcel", "exportVisual", "exportPowerPoint", "printExport"]) {
     const start = workspace.indexOf("const " + exportName);
