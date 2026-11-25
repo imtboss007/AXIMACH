@@ -32,6 +32,7 @@ test("regrind increments the regrind counter and resets current life; over-limit
  const updated=applyResourceUsageEvent(asset,{resourceType:"tooling",eventType:"Regrind",runtimeMinutes:0,cycles:0,occurredAt:"2026-11-25T12:00:00.000Z"});
  assert.equal(updated.regrindCount,2);assert.equal(updated.toolLifeUsedMinutes,0);assert.equal(updated.status,"Available");
  assert.throws(()=>applyResourceUsageEvent({...asset,regrindCount:2},{resourceType:"tooling",eventType:"Regrind",runtimeMinutes:0,cycles:0}));
+ assert.throws(()=>applyResourceUsageEvent({...asset,status:"Available"},{resourceType:"tooling",eventType:"Regrind",runtimeMinutes:0,cycles:0}),/Needs regrind/);
 });
 test("fixture use increments life cycles and inspection failure blocks the fixture",()=>{
  const used=applyResourceUsageEvent(fixtures[0],{resourceType:"fixture",eventType:"Production use",runtimeMinutes:10,cycles:20});
