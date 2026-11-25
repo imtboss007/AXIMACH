@@ -221,6 +221,10 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   };
   const saveFactory = () => {
     if (!factoryDraft.companyId || !factoryDraft.name.trim()) { onNotice("Select the parent company and enter a factory name."); return; }
+    const currentFactory=factories.find(row=>row.id===factoryEditingId);
+    if(currentFactory&&currentFactory.companyId!==factoryDraft.companyId&&machines.some(machine=>machine.factoryId===currentFactory.id)){
+      onNotice("This factory has registered machine assets. Reassign or archive those machines before moving the factory to another company.");return;
+    }
     const stamp = nowIso(); const id = factoryEditingId || makeId("factory");
     update(current => ({ ...current, factories: [...current.factories.filter(x => x.id !== id), { ...factoryDraft, name: factoryDraft.name.trim(), id, createdAt: current.factories.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
     resetForms(); onNotice("Factory saved and linked to its company by record ID.");
@@ -332,6 +336,15 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     const bytes=await workbook.xlsx.writeBuffer();const blob=new Blob([new Uint8Array(bytes).buffer as ArrayBuffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="AXIMACH-Purchase-Orders.xlsx";a.click();URL.revokeObjectURL(url);onNotice("Exported "+rows.length+" purchase order(s) to Excel.");
   };
   const archive = (collection: "companies" | "factories" | "machines" | "components" | "purchaseOrders", id: string) => {
+    if(collection==="companies"&&machines.some(machine=>machine.companyId===id)){
+      onNotice("Archive or reassign this company's machine assets before archiving the company. Machine ownership and production history must remain traceable.");return;
+    }
+    if(collection==="factories"&&machines.some(machine=>machine.factoryId===id)){
+      onNotice("Archive or reassign the machine assets in this factory before archiving the factory.");return;
+    }
+    if(collection==="machines"&&data.operations.some(operation=>!operation.deletedAt&&operation.machineId===id)){
+      onNotice("This machine is referenced by active production operations. Reassign those operations before archiving the machine.");return;
+    }
     if (!window.confirm("Archive this record? It will be hidden from active selectors but retained in history to protect linked records.")) return;
     const stamp = nowIso();
     update(current => ({ ...current, [collection]: current[collection].map(row => row.id === id ? { ...row, deletedAt: stamp, updatedAt: stamp } : row) } as typeof current));
