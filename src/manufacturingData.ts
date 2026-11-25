@@ -346,7 +346,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
       salePriceUnit: component.salePriceUnit === "set" ? "set" as const : component.salePriceUnit === "piece" ? "piece" as const : component.orderUnit === "Set" ? "set" as const : "piece" as const
     })) : empty.components,
     vendors: Array.isArray(value?.vendors) ? value.vendors : empty.vendors,
-    operations: Array.isArray(value?.operations) ? value.operations : empty.operations,
+    operations: Array.isArray(value?.operations) ? value.operations.map(row=>({...row,toolingAssetIds:Array.isArray(row.toolingAssetIds)?[...new Set(row.toolingAssetIds.filter(id=>typeof id==="string"&&id))]:[],fixtureAssetIds:Array.isArray(row.fixtureAssetIds)?[...new Set(row.fixtureAssetIds.filter(id=>typeof id==="string"&&id))]:[]})) : empty.operations,
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
     materials: Array.isArray(value?.materials) ? value.materials.map(material => ({
       ...material,
@@ -464,6 +464,9 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     prospects: mergeRows(local.prospects, remote.prospects),
     factories: mergeRows(local.factories, remote.factories),
     machines: mergeRows(local.machines, remote.machines),
+    toolingAssets: mergeRows(local.toolingAssets, remote.toolingAssets),
+    fixtureAssets: mergeRows(local.fixtureAssets, remote.fixtureAssets),
+    resourceUsageEvents: mergeRows(local.resourceUsageEvents, remote.resourceUsageEvents),
     maintenancePlans: mergeRows(local.maintenancePlans, remote.maintenancePlans),
     maintenanceWorkOrders: mergeRows(local.maintenanceWorkOrders, remote.maintenanceWorkOrders),
     machineDowntime: mergeRows(local.machineDowntime, remote.machineDowntime),
