@@ -5,7 +5,7 @@ import type { Edge, Node, NodeProps, NodeTypes, OnNodesChange } from "@xyflow/re
 import "@xyflow/react/style.css";
 import { activeRows, type ManufacturingData } from "./manufacturingData";
 import { expandEcosystemGroupLimit, getVisibleEcosystemNodes, loadEcosystemGraphLayout, loadEcosystemGraphPreferences, searchEcosystemNodes, updateEcosystemGraphLayout, type EcosystemGraphPreferences } from "./manufacturingEcosystemGraphModel.mjs";
-import { layoutManufacturingUniverseNodes, routeRelationshipHandles } from "./manufacturingGraphLayout.mjs";
+import { layoutManufacturingUniverseNodes, routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
 
@@ -326,17 +326,29 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     return [hub,...entities];
   },[graph.nodes,graphLayout]);
   const flowEdges=useMemo<Edge[]>(()=>{
+    const nodeById=new Map(flowNodes.map(node=>[node.id,node]));
+    const center=(id:string)=>{
+      const node=nodeById.get(id);
+      if(!node)return {x:0,y:0};
+      const width=typeof node.style?.width==="number"?node.style.width:190;
+      return {x:node.position.x+width/2,y:node.position.y+52};
+    };
+    const parallelEdgeCounts=new Map<string,number>();
     const relationships:Edge[]=graph.edges.map(link=>{
       const color=edgeColor(link.kind);
-      const [sourceHandle,targetHandle]=routeRelationshipHandles(link.kind);
+      const pairKey=link.from+"::"+link.to;
+      const parallelIndex=parallelEdgeCounts.get(pairKey)||0;
+      parallelEdgeCounts.set(pairKey,parallelIndex+1);
+      const geometry=routeRelationshipEdgeGeometry(link.kind,center(link.from),center(link.to),"organic",parallelIndex);
       const routeType=/^(main|alternate|rework|dependency|parallel|merge|split|follow-on|feedback|conditional|successor|transport)$/.test(link.kind);
       return {
         id:link.id,
         source:link.from,
         target:link.to,
-        sourceHandle,
-        targetHandle,
-        type:"smoothstep",
+        sourceHandle:geometry.sourceHandle,
+        targetHandle:geometry.targetHandle,
+        type:geometry.edgeType,
+        data:{relationshipType:link.kind,layout:"organic",parallelIndex,pathOptions:geometry.pathOptions},
         label:routeType?link.kind.replaceAll("-"," ").toUpperCase():undefined,
         labelStyle:{fontSize:8,fontWeight:750,fill:"#50677d"},
         labelBgStyle:{fill:"#ffffff",fillOpacity:.92},
@@ -348,7 +360,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       };
     });
     return relationships;
-  },[graph.nodes,graph.edges]);
+  },[flowNodes,graph.edges]);
   const byId=new Map(graph.nodes.map(node=>[node.id,node]));
   const selected=graph.allNodes.find(node=>node.id===selectedId);
   const exportGraph=()=>{

@@ -158,7 +158,9 @@ test("Route Flow applies the selected layout to the live graph, preserves explic
   assert.ok(flow.includes('window.addEventListener("orientationchange",syncViewport)'),"Phone rotation must recompute compact graph geometry.");
   assert.ok(flow.includes("workspaceTheme,compactGraphViewport])"),"Viewport changes must invalidate the live layout memo.");
   assert.ok(flow.includes("},[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport])"));
-  assert.ok(flow.includes("const graphEdgeType=routeLayout==="));
+  assert.ok(flow.includes("routeRelationshipEdgeGeometry(type,nodeCenter(source),nodeCenter(target),routeLayout,parallelIndex)"),"Each edge must adapt to its real node geometry and selected route layout.");
+  assert.ok(flow.includes("type:geometry.edgeType,label,animated"),"The edge path type must be selected per relationship.");
+  assert.ok(flow.includes("pathOptions:geometry.pathOptions"),"Per-edge routing geometry must be carried in edge data.");
   assert.ok(flow.includes("zoomOnScroll") && flow.includes("zoomOnPinch"),"Route Flow must support wheel and pinch zoom through the shared graph.");
   assert.ok(flow.includes("maxZoom={2.8}"));
   assert.ok(flow.includes("<RouteConnectorLegend/>"));

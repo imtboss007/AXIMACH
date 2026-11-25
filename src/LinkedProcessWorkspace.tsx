@@ -14,10 +14,11 @@ import TransportRecordInspector from "./TransportRecordInspector";
 import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector";
 import { transportPopupAnchor, transportPopupAnchorFromPoint } from "./transportPopup";
 import { RouteLayoutPicker, RouteConnectorLegend as RouteLayoutConnectorLegend, useRouteLayout } from "./RouteLayoutPicker";
+import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend as MaterialRouteConnectorLegend } from "./RouteConnectorLegend";
 import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
-import { manufacturingGraphEdgeKey, routeRelationshipHandles } from "./manufacturingGraphLayout.mjs";
+import { manufacturingGraphEdgeKey, routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import TransportRoutingDemo from "./TransportRoutingDemo";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
@@ -625,6 +626,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const isRunningOperation=(id:string)=>exportOperations.some(operation=>operation.id===id&&operation.status==="Running");
     const compactViewport=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
     const nodeWidth=compactViewport?176:210;
+    const routedOperationPositions=buildRouteFlowOperationPositions(exportOperations,routeLayout,compactViewport);
+    const graphNodeCenter=(id:string)=>{
+      const node=nodes.find(row=>row.id===id);
+      if(!node)return {x:0,y:0};
+      const width=typeof node.style?.width==="number"?node.style.width:nodeWidth;
+      return {x:node.position.x+width/2,y:node.position.y+54};
+    };
+    const parallelEdgeCounts=new Map<string,number>();
     const branchRows=exportBranches.map((key,row)=>{
       const operationsInBranch=exportOperations.filter(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")===key).slice().sort((a,b)=>a.sequence-b.sequence);
       return {key,row,branch:operationsInBranch[0]?.branch||"Main route",operations:operationsInBranch};
@@ -635,14 +644,18 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       if(edgeKeys.has(key))return;
       edgeKeys.add(key);
       const color=relationColors[type]||relationColors.main;
-      const [sourceHandle,targetHandle]=routeRelationshipHandles(type);
-      edges.push({id,source,target,sourceHandle,targetHandle,type:"smoothstep",label,labelStyle:{fontSize:9,fontWeight:750,fill:"#435d73"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.96},labelBgPadding:[5,3],style:{stroke:color,strokeWidth:type==="transport"?2.8:2.4,...(relationDashes[type]?{strokeDasharray:relationDashes[type]}:{})},markerEnd:{type:MarkerType.ArrowClosed,color},animated,selectable:false,focusable:false});
+      const pairKey=source+"::"+target;
+      const parallelIndex=parallelEdgeCounts.get(pairKey)||0;
+      parallelEdgeCounts.set(pairKey,parallelIndex+1);
+      const geometry=routeRelationshipEdgeGeometry(type,graphNodeCenter(source),graphNodeCenter(target),routeLayout,parallelIndex);
+      edges.push({id,source,target,sourceHandle:geometry.sourceHandle,targetHandle:geometry.targetHandle,type:geometry.edgeType,data:{relationshipType:type,routeLayout,parallelIndex,pathOptions:geometry.pathOptions},label,labelStyle:{fontSize:9,fontWeight:750,fill:"#435d73"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.96},labelBgPadding:[5,3],style:{stroke:color,strokeWidth:type==="transport"?2.8:2.4,...(relationDashes[type]?{strokeDasharray:relationDashes[type]}:{})},markerEnd:{type:MarkerType.ArrowClosed,color},animated,selectable:false,focusable:false});
     };
     branchRows.forEach(({row,branch,operations:ops})=>{
       ops.forEach((operation,index)=>{
         // A horizontal, lane-based flow works consistently on phones and desktops.
-        const x=compactViewport?48+index*248:96+index*278;
-        const y=compactViewport?400+row*820:400+row*820;
+        const routedPoint=routedOperationPositions[operation.id]||{x:compactViewport?48+index*248:96+index*278,y:400+row*820};
+        const x=routedPoint.x;
+        const y=routedPoint.y;
         operationPositions.set(operation.id,{x,y,branch,index});
         nodes.push({id:"operation:"+operation.id,type:"processMapEntity",position:{x,y},data:{title:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name,detail:[operation.category,operation.subcategory,vendors.find(v=>v.id===operation.vendorId)?.company||"Vendor not assigned","Qty "+operation.quantity].filter(Boolean).join(" · "),kind:"PROCESS OPERATION",accent:branchAccent(operation),status:operation.status,actionLabel:"Select operation",onAction:()=>{setSelectedOperationId(operation.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:nodeWidth}});
       });
@@ -725,7 +738,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       else if(!materialId&&firstMain&&leg.placement==="start")addEdge(id,"operation:"+firstMain.id,"transport","transport-to-route:"+leg.id,"ROUTE START");
     });
     return {nodes,edges};
-  },[exportBranches,exportOperations,processMapMaterialEntries,componentMaterialProcessLinks,componentTransportLegs,poId,selectedLine?.id,materialMasterRecords,materialProcessPartLabels,data.routeRelationships,vendors,branchAccent]);
+  },[exportBranches,exportOperations,processMapMaterialEntries,componentMaterialProcessLinks,componentTransportLegs,poId,selectedLine?.id,materialMasterRecords,materialProcessPartLabels,data.routeRelationships,vendors,branchAccent,routeLayout]);
 
   const exportValue = (op:OperationRecord,key:ProcessExportField):string|number => {
     switch(key) {

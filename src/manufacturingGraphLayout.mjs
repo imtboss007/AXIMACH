@@ -48,7 +48,23 @@ export function layoutManufacturingUniverseNodes(nodes = [], groupOrder = [], op
 }
 
 /** Handles separate overlapping semantic relationships between the same node pair. */
-export function routeRelationshipHandles(type) {
+export function routeRelationshipHandles(type, sourcePoint, targetPoint) {
+  if (sourcePoint && targetPoint
+    && Number.isFinite(sourcePoint.x) && Number.isFinite(sourcePoint.y)
+    && Number.isFinite(targetPoint.x) && Number.isFinite(targetPoint.y)) {
+    const dx = targetPoint.x - sourcePoint.x;
+    const dy = targetPoint.y - sourcePoint.y;
+    if (Math.abs(dx) + Math.abs(dy) > 0.001) {
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        return dx >= 0
+          ? ["source-right", "target-left"]
+          : ["source-left", "target-right"];
+      }
+      return dy >= 0
+        ? ["source-bottom", "target-top"]
+        : ["source-top", "target-bottom"];
+    }
+  }
   const map = {
     main: ["source-right","target-left"],
     alternate: ["source-top","target-left"],
@@ -69,4 +85,73 @@ export function routeRelationshipHandles(type) {
 /** Stable key includes relationship type so multiple link types are never collapsed. */
 export function manufacturingGraphEdgeKey(source, target, type) {
   return [source, target, type].join("::");
+}
+
+
+const RELATIONSHIP_PATH_ORDER = [
+  "main", "alternate", "rework", "dependency", "parallel", "merge",
+  "split", "follow-on", "feedback", "conditional", "successor", "transport"
+];
+
+const RELATIONSHIP_CURVATURE = {
+  main: 0.24,
+  alternate: 0.38,
+  rework: 0.54,
+  dependency: 0.30,
+  parallel: 0.68,
+  merge: 0.44,
+  split: 0.58,
+  "follow-on": 0.34,
+  feedback: 0.76,
+  conditional: 0.62,
+  successor: 0.20,
+  transport: 0.48
+};
+
+/**
+ * Resolve graph edge ports and path options from the actual node geometry.
+ * Orthogonal/vertical/swimlane layouts use rounded step paths; all other
+ * layouts use Bezier paths. Semantic edge types and parallel edges receive
+ * distinct routing offsets/curvatures so links between the same nodes remain
+ * independently visible.
+ */
+export function routeRelationshipEdgeGeometry(
+  type,
+  sourcePoint,
+  targetPoint,
+  layout = "orthogonal",
+  parallelIndex = 0
+) {
+  let [sourceHandle, targetHandle] = routeRelationshipHandles(type, sourcePoint, targetPoint);
+  if (type === "transport" && sourceHandle === "source-right" && targetHandle === "target-left") {
+    sourceHandle = "source-right-transport";
+    targetHandle = "target-left-transport";
+  }
+  const semanticIndex = Math.max(0, RELATIONSHIP_PATH_ORDER.indexOf(type));
+  const extraLane = Math.max(0, Number(parallelIndex) || 0);
+  const orthogonal = layout === "orthogonal" || layout === "vertical" || layout === "swimlane";
+
+  if (orthogonal) {
+    return {
+      sourceHandle,
+      targetHandle,
+      edgeType: "manufacturing",
+      pathOptions: {
+        mode: "smoothstep",
+        offset: 18 + semanticIndex * 2.5 + extraLane * 11,
+        borderRadius: 12 + (semanticIndex % 3) * 4
+      }
+    };
+  }
+
+  const base = RELATIONSHIP_CURVATURE[type] || 0.26;
+  return {
+    sourceHandle,
+    targetHandle,
+    edgeType: "manufacturing",
+    pathOptions: {
+      mode: "bezier",
+      curvature: Math.min(0.86, Math.max(0.16, base + extraLane * 0.095))
+    }
+  };
 }

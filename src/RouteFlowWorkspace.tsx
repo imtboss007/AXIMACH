@@ -7,7 +7,7 @@ import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 import { RouteFlowShowcase } from "./RouteFlowShowcase";
 import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js";
-import { routeRelationshipHandles } from "./manufacturingGraphLayout.mjs";
+import { routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
@@ -401,8 +401,16 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),vehicleType:node.kind==="transport"?node.leg.vehicleType:node.kind==="material-transport"?node.entry.transportVehicleType||"truck":undefined,actionLabel,onAction},draggable:false,selectable:true,focusable:true,style:{width:node.kind==="transport"?184:node.kind==="material-transport"?184:node.kind==="material"?190:192}};
     });
     const nodeIds=new Set(nodes.map(node=>node.id));
+    const nodeById=new Map(nodes.map(node=>[node.id,node]));
+    const nodeCenter=(id:string)=>{
+      const node=nodeById.get(id);
+      if(!node)return {x:0,y:0};
+      const width=typeof node.style?.width==="number"?node.style.width:192;
+      return {x:node.position.x+width/2,y:node.position.y+58};
+    };
     const edges:Edge[]=[];
     const edgeKeys=new Set<string>();
+    const parallelEdgeCounts=new Map<string,number>();
     const edgePalette:Record<string,{color:string;dash?:string}> = darkGraph?{
       main:{color:"#35d4dc"},alternate:{color:"#ffc45c",dash:"9 5"},rework:{color:"#ff747e",dash:"7 5"},
       dependency:{color:"#72b4ff",dash:"2 5"},parallel:{color:"#d19aff",dash:"8 3"},
@@ -418,26 +426,21 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       conditional:{color:"#7d399e",dash:"10 4 2 4"},successor:{color:"#24764f"},
       transport:{color:"#176a9f",dash:"5 3"}
     };
-    // Each semantic relationship uses a distinct pair of node handles. This keeps
-    // parallel/split/feedback links visible when they share operation endpoints.
-    // Every route type owns a distinct handle pair so parallel semantics remain visible.
-    const relationHandles=Object.fromEntries(
-      [...RELATIONSHIPS.map(item=>item.id),"transport"].map(type=>{
-        const [source,target]=routeRelationshipHandles(type);
-        return [type,{source,target}];
-      })
-    ) as Record<string,{source:string;target:string}>;
-    const graphEdgeType=routeLayout==="orthogonal"||routeLayout==="vertical"||routeLayout==="swimlane"?"step":routeLayout==="horizontal"?"straight":routeLayout==="s-curve"||routeLayout==="timeline"?"smoothstep":"default";
     const addEdge=(source:string,target:string,type:string,id:string,label:string)=>{
       if(!source||!target||source===target||!nodeIds.has(source)||!nodeIds.has(target))return;
       const key=source+"::"+target+"::"+type;
       if(edgeKeys.has(key))return;
       edgeKeys.add(key);
       const style=edgePalette[type]||edgePalette.main;
-      const handles=relationHandles[type]||relationHandles.main;
+      const pairKey=source+"::"+target;
+      const parallelIndex=parallelEdgeCounts.get(pairKey)||0;
+      parallelEdgeCounts.set(pairKey,parallelIndex+1);
+      const geometry=routeRelationshipEdgeGeometry(type,nodeCenter(source),nodeCenter(target),routeLayout,parallelIndex);
+      const handles={source:geometry.sourceHandle,target:geometry.targetHandle};
       const animated=routeOperations.some(operation=>(operation.id===source||operation.id===target)&&operation.status==="Running");
       edges.push({
-        id,source,target,sourceHandle:handles.source,targetHandle:handles.target,type:graphEdgeType,label,animated,
+        id,source,target,sourceHandle:handles.source,targetHandle:handles.target,type:geometry.edgeType,label,animated,
+        data:{relationshipType:type,routeLayout,parallelIndex,pathOptions:geometry.pathOptions},
         labelStyle:{fill:darkGraph?"#f4f8ff":"#142b43",fontSize:10,fontWeight:800},
         labelBgStyle:{fill:darkGraph?"#10243a":"#ffffff",fillOpacity:.98},
         labelBgPadding:[7,4],
