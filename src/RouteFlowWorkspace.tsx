@@ -443,7 +443,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       const animated=routeOperations.some(operation=>(operation.id===source||operation.id===target)&&operation.status==="Running");
       edges.push({
         id,source,target,sourceHandle:handles.source,targetHandle:handles.target,type:geometry.edgeType,label,animated,
-        data:{relationshipType:type,routeLayout,parallelIndex,pathOptions:geometry.pathOptions},
+        data:{relationshipType:type,routeLayout,parallelIndex,pathOptions:geometry.pathOptions,flowMotion:["main","alternate","rework","transport","material"].includes(type)},
         labelStyle:{fill:darkGraph?"#f4f8ff":"#142b43",fontSize:10,fontWeight:800},
         labelBgStyle:{fill:darkGraph?"#10243a":"#ffffff",fillOpacity:.98},
         labelBgPadding:[7,4],
