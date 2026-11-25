@@ -939,8 +939,8 @@ try {
     throw new Error("Manufacturing Universe React Flow canvas is missing its AXIMACH graph hub.");
   }
   console.log("PASS Manufacturing Universe React Flow canvas, viewport controls and minimap");
-  if (await page.locator(".ax-ecosystem-filters button").count() !== 13) {
-    throw new Error("Manufacturing ecosystem graph does not expose all 12 entity filters.");
+  if (await page.locator(".ax-ecosystem-filters button").count() !== 14) {
+    throw new Error("Manufacturing ecosystem graph does not expose all 14 entity filters.");
   }
   const sampleNote = await page.locator(".ax-ecosystem-sample-note").innerText();
   if (!sampleNote.includes("All records in visible groups are shown by default") ||
