@@ -67,18 +67,18 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
 function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {\n  const connectable=data.kind==="operation";
   return <div className="ax-ecosystem-flow-node" style={{"--node-accent":data.accent} as CSSProperties}>
     <Handle id="target-top" type="target" position={Position.Top} isConnectable={connectable}/>
-    <Handle id="target-bottom" type="target" position={Position.Bottom} isConnectable={false}/>
-    <Handle id="target-left" type="target" position={Position.Left} isConnectable={false}/>
-    <Handle id="target-right" type="target" position={Position.Right} isConnectable={false}/>
+    <Handle id="target-bottom" type="target" position={Position.Bottom} isConnectable={connectable}/>
+    <Handle id="target-left" type="target" position={Position.Left} isConnectable={connectable}/>
+    <Handle id="target-right" type="target" position={Position.Right} isConnectable={connectable}/>
     <span className="ax-ecosystem-node-heading">{data.kind==="transport"?<Truck size={13}/>:data.kind==="operation"||data.kind==="process"?<Workflow size={13}/>:data.kind==="material"||data.kind==="component"?<Boxes size={13}/>:data.kind==="quality"?<ClipboardCheck size={13}/>:data.kind==="finance"?<Wallet size={13}/>:data.kind==="company"?<Building2 size={13}/>:data.kind==="factory"?<Factory size={13}/>:data.kind==="customer"||data.kind==="contact"?<UserRound size={13}/>:<Network size={13}/>}<b>{data.group}</b></span>
     <strong title={data.label}>{data.label}</strong>
     <small title={data.detail}>{data.detail}</small>
-    <Handle id="source-top" type="source" position={Position.Top} isConnectable={false}/>
-    <Handle id="source-bottom" type="source" position={Position.Bottom} isConnectable={false}/>
-    <Handle id="source-left" type="source" position={Position.Left} isConnectable={false}/>
-    <Handle id="source-right" type="source" position={Position.Right} isConnectable={false}/>
-    <Handle id="target-left-transport" type="target" position={Position.Left} style={{top:"84%"}} isConnectable={false}/>
-    <Handle id="source-right-transport" type="source" position={Position.Right} style={{top:"84%"}} isConnectable={false}/>
+    <Handle id="source-top" type="source" position={Position.Top} isConnectable={connectable}/>
+    <Handle id="source-bottom" type="source" position={Position.Bottom} isConnectable={connectable}/>
+    <Handle id="source-left" type="source" position={Position.Left} isConnectable={connectable}/>
+    <Handle id="source-right" type="source" position={Position.Right} isConnectable={connectable}/>
+    <Handle id="target-left-transport" type="target" position={Position.Left} style={{top:"84%"}} isConnectable={connectable}/>
+    <Handle id="source-right-transport" type="source" position={Position.Right} style={{top:"84%"}} isConnectable={connectable}/>
   </div>;
 }
 
