@@ -86,11 +86,11 @@ function buildDemoGraph():{nodes:DemoFlowNode[];edges:DemoFlowEdge[]} {
     return {
       id:row.id,source:row.source,target:row.target,
       sourceHandle:geometry.sourceHandle,targetHandle:geometry.targetHandle,
-      type:"manufacturing",data:{relationshipType:row.type,pathOptions:geometry.pathOptions,parallelIndex},
+      type:"manufacturing",data:{relationshipType:row.type,pathOptions:geometry.pathOptions,parallelIndex,flowMotion:["main","alternate","rework","transport","material"].includes(row.type)},
       label:row.label,labelStyle:{fontSize:8,fontWeight:800,fill:"#46617a"},
       labelBgStyle:{fill:"#ffffff",fillOpacity:.96},labelBgPadding:[4,2],
       style:{stroke:color,strokeWidth:row.type==="transport"?3:2.5,opacity:.96,...(RELATIONSHIP_DASHES[row.type]?{strokeDasharray:RELATIONSHIP_DASHES[row.type]}:{})},
-      markerEnd:{type:MarkerType.ArrowClosed,color},animated:false,selectable:false,focusable:false
+      markerEnd:{type:MarkerType.ArrowClosed,color,width:18,height:18},animated:false,selectable:false,focusable:false
     };
   });
   return {nodes,edges};
@@ -117,13 +117,13 @@ export function SingleComponentRouteGraphDemo() {
     setEdges(current=>[...current,{
       id,source,target,sourceHandle:geometry.sourceHandle,targetHandle:geometry.targetHandle,
       type:"manufacturing",
-      data:{relationshipType,pathOptions:geometry.pathOptions,parallelIndex},
+      data:{relationshipType,pathOptions:geometry.pathOptions,parallelIndex,flowMotion:["main","alternate","rework","transport","material"].includes(relationshipType)},
       label:relationshipType.toUpperCase(),
       labelStyle:{fontSize:8,fontWeight:800,fill:"#46617a"},
       labelBgStyle:{fill:"#ffffff",fillOpacity:.96},labelBgPadding:[4,2],
       style:{stroke:color,strokeWidth:relationshipType==="transport"?3:2.5,opacity:.98,
         ...(RELATIONSHIP_DASHES[relationshipType]?{strokeDasharray:RELATIONSHIP_DASHES[relationshipType]}:{})},
-      markerEnd:{type:MarkerType.ArrowClosed,color},animated:relationshipType==="main"||relationshipType==="rework",
+      markerEnd:{type:MarkerType.ArrowClosed,color,width:18,height:18},animated:relationshipType==="main"||relationshipType==="rework",
       selectable:true,focusable:true
     }]);
   };
