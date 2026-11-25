@@ -210,12 +210,12 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     const payments=activeRows(data.paymentTransactions||[]).filter(matchesLine);
     const inventory=activeRows(data.inventoryTransactions||[]).filter(matchesLine);
     const vendorIds=new Set<string>([
-      ...operations.flatMap(row=>[row.vendorId,row.transportVendorId].filter(Boolean)),
-      ...allocations.flatMap(row=>[row.vendorId,row.transportVendorId].filter(Boolean)),
-      ...legs.map(row=>row.vendorId).filter(Boolean)
+      ...operations.flatMap(row=>[row.vendorId,row.transportVendorId].filter((id):id is string=>Boolean(id))),
+      ...allocations.flatMap(row=>[row.vendorId,row.transportVendorId].filter((id):id is string=>Boolean(id))),
+      ...legs.map(row=>row.vendorId).filter((id):id is string=>Boolean(id))
     ]);
     const vendors=activeRows(data.vendors||[]).filter(row=>!scoped||vendorIds.has(row.id));
-    const processIds=new Set(operations.map(row=>row.processDefinitionId).filter(Boolean));
+    const processIds=new Set(operations.map(row=>row.processDefinitionId).filter((id):id is string=>Boolean(id)));
     const definitions=activeRows(data.processDefinitions||[]).filter(row=>!scoped||processIds.has(row.id)||row.vendorIds.some(id=>vendorIds.has(id)));
     const contactIds=new Set<string>([...scopedCompanyIds,...vendorIds]);
     const contacts=activeRows(data.contactProfiles||[]).filter(row=>!scoped||contactIds.has(row.linkedId));
