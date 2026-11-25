@@ -1,6 +1,6 @@
-import type { CSSProperties, ReactNode } from "react";
-import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
-import type { Edge, EdgeTypes, Node, NodeMouseHandler, NodeTypes, OnNodesChange } from "@xyflow/react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { applyNodeChanges, Background, BackgroundVariant, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
+import type { Connection, Edge, EdgeTypes, Node, NodeChange, NodeMouseHandler, NodeTypes, OnNodesChange } from "@xyflow/react";
 import { ManufacturingRelationshipEdge } from "./ManufacturingRelationshipEdge";
 import "@xyflow/react/style.css";
 
@@ -27,6 +27,7 @@ type Props<TNode extends Node = Node> = {
   zoomOnPinch?:boolean;
   zoomOnDoubleClick?:boolean;
   onNodesChange?:OnNodesChange<TNode>;
+  onConnect?:(connection:Connection)=>void;
   onNodeDragStop?:(event:any,node:TNode)=>void;
   onNodeClick?:NodeMouseHandler<TNode>;
   onPaneClick?:()=>void;
@@ -43,12 +44,25 @@ export function ManufacturingGraphCanvas<TNode extends Node = Node>({
   nodes,edges,nodeTypes,edgeTypes=DEFAULT_MANUFACTURING_EDGE_TYPES,fitView=true,fitViewOptions,minZoom=.14,maxZoom=2,
   nodesDraggable=false,nodesConnectable=false,elementsSelectable=false,nodesFocusable=true,edgesFocusable=false,
   panOnDrag=true,zoomOnScroll=false,zoomOnPinch=true,zoomOnDoubleClick=false,
-  onNodesChange,onNodeDragStop,onNodeClick,onPaneClick,minimapNodeColor,children,className,style,testId,ariaLabel
+  onNodesChange,onConnect,onNodeDragStop,onNodeClick,onPaneClick,minimapNodeColor,children,className,style,testId,ariaLabel
 }:Props<TNode>) {
+  const [canvasNodes,setCanvasNodes]=useState<TNode[]>(nodes);
+  const positionOverrides=useRef(new Map<string,{x:number;y:number}>());
+  useEffect(()=>{
+    setCanvasNodes(nodes.map(node=>({...node,position:positionOverrides.current.get(node.id)||node.position}) as TNode));
+  },[nodes]);
+  const handleNodesChange=(changes:NodeChange<TNode>[])=>{
+    setCanvasNodes(current=>applyNodeChanges(changes,current) as TNode[]);
+    changes.forEach(change=>{
+      if(change.type==="position"&&change.position&&change.dragging===false)
+        positionOverrides.current.set(change.id,change.position);
+    });
+    onNodesChange?.(changes);
+  };
   return <ReactFlowProvider>
     <div className={className} style={style} data-testid={testId} aria-label={ariaLabel}>
       <ReactFlow<TNode,Edge>
-        nodes={nodes}
+        nodes={canvasNodes}
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -65,7 +79,8 @@ export function ManufacturingGraphCanvas<TNode extends Node = Node>({
         zoomOnScroll={zoomOnScroll}
         zoomOnPinch={zoomOnPinch}
         zoomOnDoubleClick={zoomOnDoubleClick}
-        onNodesChange={onNodesChange}
+        onNodesChange={handleNodesChange}
+        onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
