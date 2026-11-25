@@ -8,6 +8,7 @@ import { expandEcosystemGroupLimit, getVisibleEcosystemNodes, loadEcosystemGraph
 import { layoutManufacturingUniverseNodes, routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
+import { resolveProcessColor } from "./processPalette";
 
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
 type GraphScope = {companyId?:string;poId?:string;poLineId?:string;componentId?:string};
@@ -327,6 +328,8 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     return {nodes:visible,allNodes:nodes,edges:visibleEdges,totals,totalAvailable,searchResults};
   },[data,scope?.companyId,scope?.poId,scope?.poLineId,scope?.componentId,visibleKinds,visibleLimits,selectedId,searchQuery]);
   const flowNodes=useMemo<EcosystemFlowNode[]>(()=>{
+    const operationById=new Map(activeRows(data.operations||[]).map(row=>[row.id,row]));
+    const definitionById=new Map(activeRows(data.processDefinitions||[]).map(row=>[row.id,row]));
     const canvasWidth=Math.max(146,...graph.nodes.map(node=>node.x+190));
     const hub:EcosystemHubNode={
       id:"aximach-hub",
@@ -344,7 +347,12 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
         id:node.id,
         type:"ecosystem",
         position:graphLayout[node.id]||{x:node.x,y:node.y},
-        data:{label:node.label,detail:node.detail,group:group.title,accent:group.color,kind:node.kind},
+        data:{label:node.label,detail:node.detail,group:group.title,accent:node.kind==="operation"&&operationById.has(node.id.slice("operation:".length))?resolveProcessColor({
+          category:operationById.get(node.id.slice("operation:".length))?.category||"",
+          processType:operationById.get(node.id.slice("operation:".length))?.name||"",
+          processColor:operationById.get(node.id.slice("operation:".length))?.processColor,
+          displayColor:definitionById.get(operationById.get(node.id.slice("operation:".length))?.processDefinitionId||"")?.displayColor
+        }):group.color,kind:node.kind},
         draggable:true,
         selectable:false,
         focusable:true,
@@ -354,7 +362,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     // Keep the AXIMACH anchor node but do not draw hub-to-every-record spokes;
     // those synthetic links previously obscured real manufacturing relationships.
     return [hub,...entities];
-  },[graph.nodes,graphLayout]);
+  },[graph.nodes,graphLayout,data.operations,data.processDefinitions]);
   const flowEdges=useMemo<Edge[]>(()=>{
     const nodeById=new Map(flowNodes.map(node=>[node.id,node]));
     const center=(id:string)=>{
