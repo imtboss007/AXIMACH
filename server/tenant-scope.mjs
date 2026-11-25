@@ -1,5 +1,5 @@
 const ARRAY_FIELDS = Object.freeze([
- "companies","customers","prospects","factories","machines","purchaseOrders","components","vendors","operations","quotations","materials",
+ "companies","customers","prospects","factories","machines","maintenancePlans","maintenanceWorkOrders","machineDowntime","purchaseOrders","components","vendors","operations","quotations","materials",
  "componentParts","materialCostEntries","bomLines","materialProcessLinks","inventoryTransactions",
  "contactProfiles","processDefinitions","plannedCosts","transportRoutes","transportLegs",
  "paymentTransactions","inspectionMeasurements","supplierInvoices","supplierPayments","supplierFinanceApprovals","supplierPaymentAllocations","routeRelationships","followUpAssignments"
@@ -37,6 +37,20 @@ function resolveAccess(data, user) {
  );
  const machineIds = ids(machines);
  const machineById = new Map(machines.map(machine=>[machine.id,machine]));
+ const maintenancePlans=rows(data,"maintenancePlans").filter(row=>{
+  const machine=machineById.get(row.machineId);
+  return Boolean(machine&&machine.companyId===row.companyId&&machine.factoryId===row.factoryId);
+ });
+ const maintenancePlanIds=ids(maintenancePlans);
+ const maintenanceWorkOrders=rows(data,"maintenanceWorkOrders").filter(row=>{
+  const machine=machineById.get(row.machineId);
+  return Boolean(machine&&machine.companyId===row.companyId&&machine.factoryId===row.factoryId&&(!row.planId||maintenancePlanIds.has(row.planId)));
+ });
+ const maintenanceWorkOrderIds=ids(maintenanceWorkOrders);
+ const machineDowntime=rows(data,"machineDowntime").filter(row=>{
+  const machine=machineById.get(row.machineId);
+  return Boolean(machine&&machine.companyId===row.companyId&&machine.factoryId===row.factoryId&&(!row.workOrderId||maintenanceWorkOrderIds.has(row.workOrderId)));
+ });
  const candidatePurchaseOrders = rows(data,"purchaseOrders").filter(po =>
   companyAllowed(po.companyId) && factoryAllowed(po.factoryId)
  );
@@ -192,7 +206,7 @@ function resolveAccess(data, user) {
   invoiceIds.has(row.invoiceId) && supplierPaymentIds.has(row.paymentId)
  );
  const entityIds = new Set([
-  ...ids(companies),...ids(customers),...ids(prospects),...ids(factories),...machineIds,...purchaseOrderIds,...lineIds,...componentIds,
+  ...ids(companies),...ids(customers),...ids(prospects),...ids(factories),...machineIds,...ids(maintenancePlans),...ids(maintenanceWorkOrders),...ids(machineDowntime),...purchaseOrderIds,...lineIds,...componentIds,
   ...operationIds,...ids(quotations),...ids(transportLegs),...ids(routeRelationships),
   ...ids(paymentTransactions),...ids(inspectionMeasurements),...ids(materialProcessLinks),
   ...ids(inventoryTransactions),...ids(componentParts),...ids(bomLines),...ids(materialCostEntries),
@@ -206,7 +220,7 @@ function resolveAccess(data, user) {
  return {
   companyIds, factoryIds, purchaseOrderIds, lineIds, componentIds, operationIds, vendorIds, vendorOwners,
   materialIds, processDefinitionIds, transportRouteIds, entityIds,
-  companies,customers,prospects,factories,machines,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
+  companies,customers,prospects,factories,machines,maintenancePlans,maintenanceWorkOrders,machineDowntime,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
   paymentTransactions,inspectionMeasurements,materialProcessLinks,inventoryTransactions,
   componentParts,bomLines,materialCostEntries,materials,vendors,processDefinitions,transportRoutes,
   plannedCosts,contactProfiles,supplierInvoices,supplierPayments,supplierFinanceApprovals,supplierPaymentAllocations,followUpAssignments
@@ -331,6 +345,48 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   }
   return true;
  };
+ const timeRange=(startValue,endValue)=>{
+  const start=Date.parse(startValue||""),end=Date.parse(endValue||"");
+  return Number.isFinite(start)&&Number.isFinite(end)&&end>start?{start,end}:null;
+ };
+ const overlaps=(left,right)=>left.start<right.end&&right.start<left.end;
+ const machineMaintenanceScheduleAllowed=operation=>{
+  if(!operation.machineId||operation.executionType==="Outsourced"||operation.deletedAt||["Complete","Rejected"].includes(operation.status))return true;
+  const range=operationRange(operation);
+  if(!range||range.invalid)return !range;
+  for(const order of [...rows(currentData,"maintenanceWorkOrders"),...rows(incoming,"maintenanceWorkOrders")]){
+   if(!order||order.machineId!==operation.machineId||order.deletedAt||!["Planned","In progress","Waiting parts"].includes(order.status))continue;
+   const scheduled=timeRange(order.scheduledStart,order.scheduledEnd);
+   if(scheduled&&overlaps(range,scheduled))return false;
+  }
+  for(const event of [...rows(currentData,"machineDowntime"),...rows(incoming,"machineDowntime")]){
+   if(!event||event.machineId!==operation.machineId||event.deletedAt||!event.startedAt)continue;
+   const start=Date.parse(event.startedAt),end=event.endedAt?Date.parse(event.endedAt):Number.POSITIVE_INFINITY;
+   if(Number.isFinite(start)&&Number.isFinite(end)&&overlaps(range,{start,end}))return false;
+  }
+  return true;
+ };
+ const maintenanceWorkOrderScheduleAllowed=order=>{
+  if(!["Planned","In progress","Waiting parts"].includes(order.status)||!order.scheduledStart||!order.scheduledEnd)return true;
+  const range=timeRange(order.scheduledStart,order.scheduledEnd);
+  if(!range)return false;
+  for(const operation of [...rows(currentData,"operations"),...rows(incoming,"operations")]){
+   if(!operation||operation.machineId!==order.machineId||operation.executionType==="Outsourced"||operation.deletedAt||["Complete","Rejected"].includes(operation.status))continue;
+   const scheduled=operationRange(operation);
+   if(scheduled&&!scheduled.invalid&&overlaps(range,scheduled))return false;
+  }
+  for(const other of [...rows(currentData,"maintenanceWorkOrders"),...rows(incoming,"maintenanceWorkOrders")]){
+   if(!other||other.id===order.id||other.machineId!==order.machineId||other.deletedAt||!["Planned","In progress","Waiting parts"].includes(other.status))continue;
+   const scheduled=timeRange(other.scheduledStart,other.scheduledEnd);
+   if(scheduled&&overlaps(range,scheduled))return false;
+  }
+  for(const event of [...rows(currentData,"machineDowntime"),...rows(incoming,"machineDowntime")]){
+   if(!event||event.machineId!==order.machineId||event.deletedAt||!event.startedAt)continue;
+   const start=Date.parse(event.startedAt),end=event.endedAt?Date.parse(event.endedAt):Number.POSITIVE_INFINITY;
+   if(Number.isFinite(start)&&Number.isFinite(end)&&overlaps(range,{start,end}))return false;
+  }
+  return true;
+ };
  const machineAssignmentAllowed = operation => {
   if(!operation.machineId)return true;
   const machine=machineById.get(operation.machineId);
@@ -342,7 +398,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
    machine.companyId===po.companyId && machine.factoryId===po.factoryId &&
    operation.executionType!=="Outsourced" && statusAllowed &&
    (!capabilities.length || Boolean(operation.processDefinitionId && capabilities.includes(operation.processDefinitionId))) &&
-   machineScheduleAllowed(operation));
+   machineScheduleAllowed(operation) && machineMaintenanceScheduleAllowed(operation));
  };
  const transportRouteIds = access.transportRouteIds;
  const scopeIds = access.entityIds;
@@ -391,6 +447,55 @@ export function validateManufacturingWrite(currentData, incoming, user) {
       Array.isArray(row.processDefinitionIds)&&row.processDefinitionIds.every(id=>processIds.has(id))&&
       Array.isArray(row.materialCapabilities)&&row.materialCapabilities.length<=100&&row.materialCapabilities.every(value=>typeof value==="string"&&value.length<=120)&&
       typeof row.notes==="string"&&row.notes.length<=4000;
+     break;
+    }
+    case "maintenancePlans": {
+     const machine=machineById.get(row.machineId);
+     const frequencyUnits=["Days","Weeks","Months","Operating hours","Cycles"];
+     const planTypes=["Preventive","Lubrication","Calibration","Inspection"];
+     allowed=Boolean(machine&&!machine.deletedAt&&companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&
+      machine.companyId===row.companyId&&machine.factoryId===row.factoryId&&
+      typeof row.planName==="string"&&row.planName.trim().length>0&&row.planName.length<=180&&
+      planTypes.includes(row.maintenanceType)&&Number.isSafeInteger(row.frequencyValue)&&row.frequencyValue>0&&row.frequencyValue<=100000&&
+      frequencyUnits.includes(row.frequencyUnit)&&validIsoDate(row.nextDueAt)&&
+      (row.lastCompletedAt===undefined||row.lastCompletedAt===""||validIsoDate(row.lastCompletedAt))&&
+      validMoney(row.estimatedDurationHours)&&Number(row.estimatedDurationHours)<=10000&&
+      Array.isArray(row.checklist)&&row.checklist.length<=100&&row.checklist.every(item=>typeof item==="string"&&item.trim().length>0&&item.length<=300)&&
+      typeof row.assignedTo==="string"&&row.assignedTo.length<=180&&typeof row.active==="boolean"&&typeof row.notes==="string"&&row.notes.length<=4000);
+     break;
+    }
+    case "maintenanceWorkOrders": {
+     const machine=machineById.get(row.machineId);
+     const plan=row.planId?combinedById("maintenancePlans").get(row.planId):null;
+     const workTypes=["Preventive","Breakdown","Corrective","Calibration","Inspection"];
+     const priorities=["Low","Normal","High","Critical"];
+     const statuses=["Planned","Open","In progress","Waiting parts","Completed","Cancelled"];
+     const uniqueNumber=!([...rows(currentData,"maintenanceWorkOrders"),...rows(incoming,"maintenanceWorkOrders")].some(other=>other.id!==row.id&&!other.deletedAt&&other.companyId===row.companyId&&String(other.workOrderNumber||"").trim().toLowerCase()===String(row.workOrderNumber||"").trim().toLowerCase()));
+     const scheduleDates=!row.scheduledStart&&!row.scheduledEnd ? ["Open","In progress","Waiting parts","Completed","Cancelled"].includes(row.status) : Boolean(timeRange(row.scheduledStart,row.scheduledEnd));
+     const actualDates=(!row.actualStart&&!row.actualEnd)||(row.actualStart&&row.actualEnd&&Boolean(timeRange(row.actualStart,row.actualEnd)));
+     allowed=Boolean(machine&&!machine.deletedAt&&companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&
+      machine.companyId===row.companyId&&machine.factoryId===row.factoryId&&
+      (!row.planId||(plan&&plan.machineId===machine.id&&plan.companyId===row.companyId))&&
+      typeof row.workOrderNumber==="string"&&row.workOrderNumber.trim().length>0&&row.workOrderNumber.length<=80&&uniqueNumber&&
+      typeof row.title==="string"&&row.title.trim().length>0&&row.title.length<=240&&
+      workTypes.includes(row.workType)&&priorities.includes(row.priority)&&statuses.includes(row.status)&&
+      typeof row.reportedAt==="string"&&Number.isFinite(Date.parse(row.reportedAt))&&scheduleDates&&actualDates&&
+      ["symptom","rootCause","actionTaken","technician","notes"].every(field=>typeof row[field]==="string"&&row[field].length<=4000)&&
+      validMoney(row.estimatedCost)&&validMoney(row.actualCost)&&maintenanceWorkOrderScheduleAllowed(row));
+     break;
+    }
+    case "machineDowntime": {
+     const machine=machineById.get(row.machineId);
+     const workOrder=row.workOrderId?combinedById("maintenanceWorkOrders").get(row.workOrderId):null;
+     const types=["Planned maintenance","Unplanned breakdown","Waiting for parts","Setup","Quality hold","Other"];
+     const start=Date.parse(row.startedAt||""),end=row.endedAt?Date.parse(row.endedAt):null;
+     allowed=Boolean(machine&&!machine.deletedAt&&companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&
+      machine.companyId===row.companyId&&machine.factoryId===row.factoryId&&
+      (!row.workOrderId||(workOrder&&workOrder.machineId===machine.id&&workOrder.companyId===row.companyId))&&
+      types.includes(row.downtimeType)&&Number.isFinite(start)&&(!row.endedAt||(Number.isFinite(end)&&end>start))&&
+      typeof row.reason==="string"&&row.reason.trim().length>0&&row.reason.length<=2000&&
+      Number.isFinite(Number(row.productionImpactQty))&&Number(row.productionImpactQty)>=0&&
+      typeof row.recordedBy==="string"&&row.recordedBy.length<=180&&typeof row.notes==="string"&&row.notes.length<=4000);
      break;
     }
     case "purchaseOrders": allowed=Boolean(poAllowed(row)); break;
