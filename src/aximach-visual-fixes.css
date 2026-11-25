@@ -908,11 +908,6 @@ body{background:#f1f5fa!important;color:#12263f!important}
   stroke-linecap:round!important;
   filter:drop-shadow(0 0 2px rgba(18,39,61,.25));
 }
-.route-flow-graph-canvas .react-flow__arrowhead path,
-.ax-ecosystem-flow-canvas .react-flow__arrowhead path{
-  fill:currentColor!important;
-  stroke:currentColor!important;
-}
 
 /* Explicit high-contrast workspace surfaces in both theme modes. */
 [data-workspace-theme="light"] .specialized-record,
@@ -1024,7 +1019,7 @@ body{background:#f1f5fa!important;color:#12263f!important}
 }
 .ax-ecosystem-flow-canvas .react-flow__background pattern circle{fill:#36546b!important;opacity:.46}
 .ax-ecosystem-flow-canvas .react-flow__edge-path{stroke-width:3.4px!important;filter:drop-shadow(0 0 3px rgba(35,180,218,.2))}
-.ax-ecosystem-flow-canvas .react-flow__arrowhead path{fill:currentColor!important;stroke:currentColor!important}
+.ax-ecosystem-flow-canvas .react-flow__arrowhead path{stroke-width:.7px!important}
 .ax-ecosystem-flow-node{
   border:1px solid color-mix(in srgb,var(--node-accent,#2875bd) 78%,#dce8f2)!important;
   border-left:4px solid var(--node-accent,#2875bd)!important;
@@ -1038,4 +1033,16 @@ body{background:#f1f5fa!important;color:#12263f!important}
 @media(prefers-reduced-motion:reduce){
   .process-scene-zoom-viewport .ax-full3d-label,
   .process-universe-3d .process-universe-node{transition:none!important;animation:none!important}
+}
+
+
+/* Moving direction pulse sits on top of the real connector path and does not
+   replace its relationship-specific colour, dash pattern or arrowhead. */
+.ax-manufacturing-edge-pulse{
+  pointer-events:none;
+  filter:drop-shadow(0 0 4px currentColor);
+  opacity:.98;
+}
+@media(prefers-reduced-motion:reduce){
+  .ax-manufacturing-edge-pulse{display:none!important}
 }
