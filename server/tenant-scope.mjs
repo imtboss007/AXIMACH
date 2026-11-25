@@ -333,7 +333,9 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   ...access.processDefinitionIds,
   ...rows(currentData,"processDefinitions").map(row=>row.id).filter(Boolean),
   ...rows(currentData,"toolingAssets").flatMap(row=>Array.isArray(row.processDefinitionIds)?row.processDefinitionIds:[]),
-  ...rows(currentData,"fixtureAssets").flatMap(row=>Array.isArray(row.processDefinitionIds)?row.processDefinitionIds:[])
+  ...rows(currentData,"fixtureAssets").flatMap(row=>Array.isArray(row.processDefinitionIds)?row.processDefinitionIds:[]),
+  ...rows(incoming,"toolingAssets").flatMap(row=>Array.isArray(row.processDefinitionIds)?row.processDefinitionIds:[]),
+  ...rows(incoming,"fixtureAssets").flatMap(row=>Array.isArray(row.processDefinitionIds)?row.processDefinitionIds:[])
  ]);
  const machineById = new Map([...rows(currentData,"machines"),...rows(incoming,"machines")].filter(row=>row?.id).map(row=>[row.id,row]));
  const toolingById = new Map([...rows(currentData,"toolingAssets"),...rows(incoming,"toolingAssets")].filter(row=>row?.id).map(row=>[row.id,row]));
@@ -577,7 +579,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
       eventTypes.includes(row.eventType)&&(row.eventType!=="Regrind"||row.resourceType==="tooling")&&
       Number.isFinite(Number(row.runtimeMinutes))&&Number(row.runtimeMinutes)>=0&&Number.isFinite(Number(row.cycles))&&Number(row.cycles)>=0&&
       (row.eventType!=="Inspection"||(inspectionResults.includes(row.inspectionResult)&&(!row.inspectionDueAt||validIsoDate(row.inspectionDueAt))))&&
-      (!row.operationId||(operation&&allowedPOIds.has(operation.poId)&&operation.toolingAssetIds?.includes(row.resourceType==="tooling"?row.resourceId:"")=== (row.resourceType==="tooling")&&operation.fixtureAssetIds?.includes(row.resourceType==="fixture"?row.resourceId:"")=== (row.resourceType==="fixture")))&&
+      (!row.operationId||Boolean(operation&&allowedPOIds.has(operation.poId)&&(row.resourceType==="tooling"?(Array.isArray(operation.toolingAssetIds)&&operation.toolingAssetIds.includes(row.resourceId)):(Array.isArray(operation.fixtureAssetIds)&&operation.fixtureAssetIds.includes(row.resourceId)))))&&
       typeof row.occurredAt==="string"&&Number.isFinite(Date.parse(row.occurredAt))&&typeof row.notes==="string"&&row.notes.length<=4000);
      break;
     }
