@@ -389,6 +389,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     customers: mergeRows(local.customers, remote.customers),
     prospects: mergeRows(local.prospects, remote.prospects),
     factories: mergeRows(local.factories, remote.factories),
+    machines: mergeRows(local.machines, remote.machines),
     purchaseOrders: mergePurchaseOrderRows(local.purchaseOrders, remote.purchaseOrders),
     components: mergeRows(local.components, remote.components),
     vendors: mergeRows(local.vendors, remote.vendors),
