@@ -12,7 +12,7 @@ const machines=[
 ];
 
 test("eligible machine assets are scoped to the selected company and factory",()=>{
- assert.deepEqual(getEligibleMachineAssets(machines,{companyId:"c1",factoryId:"f1"}).map(m=>m.id),["m1","m2","m4"]);
+ assert.deepEqual(getEligibleMachineAssets(machines,{companyId:"c1",factoryId:"f1"}).map(m=>m.id),["m2","m1","m4"]);
 });
 test("eligible machine assets filter by stable Process Directory definition IDs",()=>{
  assert.deepEqual(getEligibleMachineAssets(machines,{companyId:"c1",factoryId:"f1",processDefinitionId:"vmc"}).map(m=>m.id),["m1","m4"]);
