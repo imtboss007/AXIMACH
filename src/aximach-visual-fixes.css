@@ -875,3 +875,67 @@ body{background:#f1f5fa!important;color:#12263f!important}
 .manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-orbit-meta span,
 .manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-orbit-help,
 .manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-universe-count>span{color:#b8ccda!important}
+
+
+/* AXIMACH process identity system: stable colour per process, retained across modules. */
+.specialized-directory .specialized-record{
+  border-left:4px solid var(--process-accent,#2789a8)!important;
+  background:linear-gradient(105deg,color-mix(in srgb,var(--process-accent,#2789a8) 9%,var(--panel,#fff)) 0%,var(--panel,#fff) 42%)!important;
+}
+.specialized-directory .specialized-record-icon{
+  color:var(--process-accent,#2789a8)!important;
+  border-color:color-mix(in srgb,var(--process-accent,#2789a8) 55%,transparent)!important;
+  background:color-mix(in srgb,var(--process-accent,#2789a8) 16%,var(--panel,#fff))!important;
+  box-shadow:0 3px 12px color-mix(in srgb,var(--process-accent,#2789a8) 18%,transparent)!important;
+}
+.specialized-directory .specialized-record-copy>strong,
+.specialized-directory .process-subcategory-logo-chip{
+  color:var(--process-accent,#2789a8)!important;
+}
+.specialized-directory .specialized-record-copy>span{
+  color:var(--ax-theme-muted,#526a80)!important;
+}
+.route-flow-graph-node{
+  border-color:var(--route-accent,#2789a8)!important;
+  box-shadow:0 7px 22px color-mix(in srgb,var(--route-accent,#2789a8) 20%,transparent)!important;
+}
+.route-flow-graph-node .route-flow-node-heading{
+  color:var(--route-accent,#2789a8)!important;
+}
+.route-flow-graph-canvas .react-flow__edge-path,
+.ax-ecosystem-flow-canvas .react-flow__edge-path{
+  stroke-width:3.2px!important;
+  stroke-linecap:round!important;
+  filter:drop-shadow(0 0 2px rgba(18,39,61,.25));
+}
+.route-flow-graph-canvas .react-flow__arrowhead path,
+.ax-ecosystem-flow-canvas .react-flow__arrowhead path{
+  fill:currentColor!important;
+  stroke:currentColor!important;
+}
+
+/* Explicit high-contrast workspace surfaces in both theme modes. */
+[data-workspace-theme="light"] .specialized-record,
+[data-workspace-theme="light"] .route-flow-canvas-layout,
+[data-workspace-theme="light"] .manufacturing-universe-live-panel,
+[data-workspace-theme="light"] .ax-ecosystem-graph{
+  color:#152b40!important;
+}
+[data-workspace-theme="light"] .specialized-record small,
+[data-workspace-theme="light"] .specialized-record-copy p,
+[data-workspace-theme="light"] .ax-ecosystem-graph-head p,
+[data-workspace-theme="light"] .manufacturing-universe-live-heading p{
+  color:#4a6279!important;
+  opacity:1!important;
+}
+[data-workspace-theme="light"] .specialized-record,
+[data-workspace-theme="light"] .manufacturing-universe-live-panel{
+  border-color:#c6d3e1!important;
+}
+[data-workspace-theme="dark"] .specialized-record small,
+[data-workspace-theme="dark"] .specialized-record-copy p,
+[data-workspace-theme="dark"] .ax-ecosystem-graph-head p,
+[data-workspace-theme="dark"] .manufacturing-universe-live-heading p{
+  color:#b7c9d9!important;
+  opacity:1!important;
+}
