@@ -349,6 +349,15 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     if(collection==="machines"&&data.operations.some(operation=>!operation.deletedAt&&operation.machineId===id)){
       onNotice("This machine is referenced by active production operations. Reassign those operations before archiving the machine.");return;
     }
+    if(collection==="machines"&&maintenancePlans.some(plan=>plan.machineId===id&&plan.active)){
+      onNotice("Pause or reassign active preventive maintenance plans before archiving this machine.");return;
+    }
+    if(collection==="machines"&&maintenanceWorkOrders.some(order=>order.machineId===id&&!["Completed","Cancelled"].includes(order.status))){
+      onNotice("Complete or cancel open maintenance work orders before archiving this machine.");return;
+    }
+    if(collection==="machines"&&machineDowntime.some(event=>event.machineId===id&&!event.endedAt)){
+      onNotice("Close open downtime events before archiving this machine.");return;
+    }
     if (!window.confirm("Archive this record? It will be hidden from active selectors but retained in history to protect linked records.")) return;
     const stamp = nowIso();
     update(current => ({ ...current, [collection]: current[collection].map(row => row.id === id ? { ...row, deletedAt: stamp, updatedAt: stamp } : row) } as typeof current));
