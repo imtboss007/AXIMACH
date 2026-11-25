@@ -172,9 +172,7 @@ try {
     throw new Error("Data Exchange Centre typography lacks contrast/readability in light mode: "+JSON.stringify(dataExchangeTypography));
   }
   console.log("PASS Data Exchange Centre headings, sandbox copy and supporting text meet light-theme contrast checks");
-  await page.getByRole("heading",{name:"One-company / one-PO / one-component manufacturing preview"}).waitFor({timeout:10000});
-  await page.getByText(/28 priced operations across 18 process categories/).waitFor({timeout:10000});
-  console.log("PASS Data Exchange Centre documents the isolated one-company / one-PO / one-component preview without seeding sample companies");
+  console.log("PASS Data Exchange Centre no longer exposes the retired two-company demo importer");
 
   // Verify shared searchable menus remain visible when their anchor sits near the
   // bottom edge of a phone workspace instead of being clipped by page-content.
