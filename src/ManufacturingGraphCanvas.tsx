@@ -1,11 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
-import type { Edge, Node, NodeTypes } from "@xyflow/react";
+import type { Edge, Node, NodeMouseHandler, NodeTypes, NodeDragHandler, OnNodesChange } from "@xyflow/react";
 import "@xyflow/react/style.css";
 
-type GraphNode = Node<any,string>;
-type Props = {
-  nodes:GraphNode[];
+type Props<TNode extends Node = Node> = {
+  nodes:TNode[];
   edges:Edge[];
   nodeTypes?:NodeTypes;
   fitView?:boolean;
@@ -21,11 +20,11 @@ type Props = {
   zoomOnScroll?:boolean;
   zoomOnPinch?:boolean;
   zoomOnDoubleClick?:boolean;
-  onNodesChange?:(changes:any[])=>void;
-  onNodeDragStop?:(event:any,node:GraphNode)=>void;
-  onNodeClick?:(event:any,node:GraphNode)=>void;
+  onNodesChange?:OnNodesChange<TNode>;
+  onNodeDragStop?:NodeDragHandler<TNode>;
+  onNodeClick?:NodeMouseHandler<TNode>;
   onPaneClick?:()=>void;
-  minimapNodeColor?:(node:GraphNode)=>string;
+  minimapNodeColor?:(node:TNode)=>string;
   children?:ReactNode;
   className?:string;
   style?:CSSProperties;
@@ -34,15 +33,15 @@ type Props = {
 };
 
 /** Shared React Flow canvas used by Route Flow, Process Map and Manufacturing Universe. */
-export function ManufacturingGraphCanvas({
+export function ManufacturingGraphCanvas<TNode extends Node = Node>({
   nodes,edges,nodeTypes,fitView=true,fitViewOptions,minZoom=.14,maxZoom=2,
   nodesDraggable=false,nodesConnectable=false,elementsSelectable=false,nodesFocusable=true,edgesFocusable=false,
   panOnDrag=true,zoomOnScroll=false,zoomOnPinch=true,zoomOnDoubleClick=false,
   onNodesChange,onNodeDragStop,onNodeClick,onPaneClick,minimapNodeColor,children,className,style,testId,ariaLabel
-}:Props) {
+}:Props<TNode>) {
   return <ReactFlowProvider>
     <div className={className} style={style} data-testid={testId} aria-label={ariaLabel}>
-      <ReactFlow<GraphNode,Edge>
+      <ReactFlow<TNode,Edge>
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
@@ -67,7 +66,7 @@ export function ManufacturingGraphCanvas({
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#b5c9da"/>
         <Controls showInteractive={false}/>
-        <MiniMap pannable zoomable nodeColor={(node:GraphNode)=>minimapNodeColor?.(node)||"#8fc4e5"}/>
+        <MiniMap pannable zoomable nodeColor={(node:TNode)=>minimapNodeColor?.(node)||"#8fc4e5"}/>
         {children}
       </ReactFlow>
     </div>
