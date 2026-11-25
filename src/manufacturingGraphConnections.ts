@@ -82,6 +82,23 @@ export function connectManufacturingGraphNodes({
   const vendor=vendorId?activeRows(data.vendors).find(row=>row.id===vendorId):undefined;
   const processId=sourceProcessId||targetProcessId;
   const process=processId?activeRows(data.processDefinitions).find(row=>row.id===processId):undefined;
+  const sourceToolingId=afterPrefix(source,["tooling:"]);
+  const targetToolingId=afterPrefix(target,["tooling:"]);
+  const sourceFixtureId=afterPrefix(source,["fixture:"]);
+  const targetFixtureId=afterPrefix(target,["fixture:"]);
+  const toolingId=sourceToolingId||targetToolingId;
+  const fixtureId=sourceFixtureId||targetFixtureId;
+  const selectedPO=activeRows(data.purchaseOrders).find(row=>row.id===scope.poId);
+  const tooling=toolingId?activeRows(data.toolingAssets||[]).find(row=>row.id===toolingId&&row.companyId===selectedPO?.companyId&&row.factoryId===selectedPO?.factoryId):undefined;
+  const fixture=fixtureId?activeRows(data.fixtureAssets||[]).find(row=>row.id===fixtureId&&row.companyId===selectedPO?.companyId&&row.factoryId===selectedPO?.factoryId):undefined;
+  const sourceMachineId=afterPrefix(source,["machine:"]);
+  const targetMachineId=afterPrefix(target,["machine:"]);
+  const machineId=sourceMachineId||targetMachineId;
+  const machine=machineId?activeRows(data.machines||[]).find(row=>row.id===machineId&&row.companyId===selectedPO?.companyId&&row.factoryId===selectedPO?.factoryId):undefined;
+  const sourceComponentId=afterPrefix(source,["component:"]);
+  const targetComponentId=afterPrefix(target,["component:"]);
+  const componentId=sourceComponentId||targetComponentId;
+  const component=componentId?activeRows(data.components||[]).find(row=>row.id===componentId&&(!row.companyId||row.companyId===selectedPO?.companyId)):undefined;
 
   if(sourceOperation&&targetOperation){
     if(!ROUTE_TYPES.includes(relationshipType as RouteRelationshipType)){
@@ -104,6 +121,60 @@ export function connectManufacturingGraphNodes({
     };
     update(current=>({...current,routeRelationships:[...(current.routeRelationships||[]),record]}));
     onNotice("Saved "+type+" connection: "+sourceOperation.name+" → "+targetOperation.name+".");
+    return;
+  }
+
+  if((tooling||fixture)&&(sourceOperation||targetOperation)){
+    const operation=sourceOperation||targetOperation!;
+    const po=activeRows(data.purchaseOrders).find(row=>row.id===operation.poId);
+    const resource=tooling||fixture;
+    if(!po||resource.companyId!==po.companyId||resource.factoryId!==po.factoryId){
+      onNotice("The tooling or fixture must belong to the selected operation's company and factory.");
+      return;
+    }
+    if(tooling){
+      if((operation.toolingAssetIds||[]).includes(tooling.id)){onNotice(tooling.assetCode+" is already assigned to "+operation.name+".");return;}
+      update(current=>({...current,operations:current.operations.map(row=>row.id===operation.id?{...row,toolingAssetIds:[...new Set([...(row.toolingAssetIds||[]),tooling.id])],updatedAt:nowIso()}:row)}));
+      onNotice("Reserved tooling "+tooling.assetCode+" for "+operation.name+". The operation record is updated.");
+    }else{
+      if((operation.fixtureAssetIds||[]).includes(fixture!.id)){onNotice(fixture!.assetCode+" is already assigned to "+operation.name+".");return;}
+      update(current=>({...current,operations:current.operations.map(row=>row.id===operation.id?{...row,fixtureAssetIds:[...new Set([...(row.fixtureAssetIds||[]),fixture!.id])],updatedAt:nowIso()}:row)}));
+      onNotice("Reserved fixture "+fixture!.assetCode+" for "+operation.name+". The operation record is updated.");
+    }
+    return;
+  }
+
+  if((tooling||fixture)&&machine){
+    const resource=tooling||fixture;
+    if(resource.companyId!==machine.companyId||resource.factoryId!==machine.factoryId){
+      onNotice("A tooling or fixture asset and its compatible machine must belong to the same company and factory.");
+      return;
+    }
+    if(tooling){
+      update(current=>({...current,toolingAssets:(current.toolingAssets||[]).map(row=>row.id===tooling.id?{...row,compatibleMachineIds:[...new Set([...(row.compatibleMachineIds||[]),machine.id])],updatedAt:nowIso()}:row)}));
+      onNotice("Linked "+machine.assetCode+" as a compatible machine for tooling "+tooling.assetCode+".");
+    }else{
+      update(current=>({...current,fixtureAssets:(current.fixtureAssets||[]).map(row=>row.id===fixture!.id?{...row,compatibleMachineIds:[...new Set([...(row.compatibleMachineIds||[]),machine.id])],updatedAt:nowIso()}:row)}));
+      onNotice("Linked "+machine.assetCode+" as a compatible machine for fixture "+fixture!.assetCode+".");
+    }
+    return;
+  }
+
+  if((tooling||fixture)&&process){
+    if(tooling){
+      update(current=>({...current,toolingAssets:(current.toolingAssets||[]).map(row=>row.id===tooling.id?{...row,processDefinitionIds:[...new Set([...(row.processDefinitionIds||[]),process.id])],updatedAt:nowIso()}:row)}));
+      onNotice("Linked Process Directory definition "+process.processType+" to tooling "+tooling.assetCode+".");
+    }else{
+      update(current=>({...current,fixtureAssets:(current.fixtureAssets||[]).map(row=>row.id===fixture!.id?{...row,processDefinitionIds:[...new Set([...(row.processDefinitionIds||[]),process.id])],updatedAt:nowIso()}:row)}));
+      onNotice("Linked Process Directory definition "+process.processType+" to fixture "+fixture!.assetCode+".");
+    }
+    return;
+  }
+
+  if(fixture&&component){
+    if(component.companyId&&component.companyId!==fixture.companyId){onNotice("This fixture and component belong to different companies.");return;}
+    update(current=>({...current,fixtureAssets:(current.fixtureAssets||[]).map(row=>row.id===fixture.id?{...row,componentIds:[...new Set([...(row.componentIds||[]),component.id])],updatedAt:nowIso()}:row)}));
+    onNotice("Linked component "+(component.partNumber||component.name)+" to fixture "+fixture.assetCode+".");
     return;
   }
 
@@ -220,5 +291,5 @@ export function connectManufacturingGraphNodes({
     return;
   }
 
-  onNotice("That connection is not valid for this manufacturing record type. Use process, material, transport, quality, vendor or Process Directory nodes.");
+  onNotice("That connection is not valid for this manufacturing record type. Use operation, tooling, fixture, machine, process, material, transport, quality or vendor nodes.");
 }
