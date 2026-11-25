@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Activity, Boxes, Building2, ClipboardCheck, FileDown, Factory, Network, Search, Truck, UserRound, Wallet, Workflow, X } from "lucide-react";
 import { Handle, MarkerType, Position } from "@xyflow/react";
-import type { Edge, Node, NodeProps, NodeTypes, OnNodesChange } from "@xyflow/react";
+import type { Connection, Edge, Node, NodeProps, NodeTypes, OnNodesChange } from "@xyflow/react";
 import "@xyflow/react/style.css";
 import { activeRows, type ManufacturingData } from "./manufacturingData";
 import { expandEcosystemGroupLimit, getVisibleEcosystemNodes, loadEcosystemGraphLayout, loadEcosystemGraphPreferences, searchEcosystemNodes, updateEcosystemGraphLayout, type EcosystemGraphPreferences } from "./manufacturingEcosystemGraphModel.mjs";
@@ -10,7 +10,7 @@ import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
 
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
-type Props = { data:ManufacturingData; onNavigate:(moduleId:string,context?:Context)=>void };
+type Props = { data:ManufacturingData; onNavigate:(moduleId:string,context?:Context)=>void; onConnect?:(connection:Connection,relationshipType:string)=>void };
 type NodeKind = "company"|"customer"|"factory"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
 type GraphNode = { id:string; label:string; detail:string; kind:NodeKind; moduleId:string; context:Context; x:number; y:number };
 type GraphEdge = { id:string; from:string; to:string; kind:string };
@@ -64,9 +64,9 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
   {kind:"contact",title:"Contacts",moduleId:"contact360",color:"var(--ax-theme-graph-6,#648b91)"}
 ];
 
-function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {
+function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {\n  const connectable=data.kind==="operation";
   return <div className="ax-ecosystem-flow-node" style={{"--node-accent":data.accent} as CSSProperties}>
-    <Handle id="target-top" type="target" position={Position.Top} isConnectable={false}/>
+    <Handle id="target-top" type="target" position={Position.Top} isConnectable={connectable}/>
     <Handle id="target-bottom" type="target" position={Position.Bottom} isConnectable={false}/>
     <Handle id="target-left" type="target" position={Position.Left} isConnectable={false}/>
     <Handle id="target-right" type="target" position={Position.Right} isConnectable={false}/>
@@ -107,7 +107,7 @@ const GRAPH_PREFERENCES_KEY = "aximach.manufacturing-ecosystem-graph.preferences
 const VALID_GROUP_KINDS = GROUPS.map(group => group.kind);
 const GRAPH_LAYOUT_KEY = "aximach.manufacturing-ecosystem-graph.layout.v2";
 
-export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
+export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:Props) {\n  const [relationshipType,setRelationshipType]=useState("main");
   const [graphPreferences,setGraphPreferences]=useState<EcosystemGraphPreferences<NodeKind>>(() => {
     try {
       const loaded=loadEcosystemGraphPreferences(
@@ -454,7 +454,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
         <span>Show more {group.title}</span><b>{group.renderedCount} / {group.count}</b>
       </button>)}
     </div>
-    <div className="ax-ecosystem-edge-legend" aria-label="Relationship line colour legend">{EDGE_LEGEND.map(item=><span key={item.label}><i style={{background:item.color}}/>{item.label}</span>)}</div>
+    <div className="ax-ecosystem-connect-tools"><label>New operation connection<select aria-label="New operation connection type" value={relationshipType} onChange={event=>setRelationshipType(event.target.value)}>{["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"].map(kind=><option key={kind} value={kind}>{kind}</option>)}</select></label><small>Drag from one operation node handle to another. Other entity types remain read-only.</small></div>\n    <div className="ax-ecosystem-edge-legend" aria-label="Relationship line colour legend">{EDGE_LEGEND.map(item=><span key={item.label}><i style={{background:item.color}}/>{item.label}</span>)}</div>
     <RouteConnectorLegend compact/>
     <div className="ax-ecosystem-flow-canvas" data-testid="ecosystem-flow-canvas" aria-label="Interactive manufacturing relationship canvas">
       <ManufacturingGraphCanvas
