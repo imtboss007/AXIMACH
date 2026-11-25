@@ -64,3 +64,18 @@ test("restricted tooling is excluded when the selected operation has no known co
  const asset={...tooling[0],materialCapabilities:["EN24"]};
  assert.deepEqual(getEligibleToolingAssets([asset],{companyId:"c1",factoryId:"f1",machineId:"m1",machineType:"VMC",processDefinitionId:"vmc"}),[]);
 });
+
+test("existing operation retains its tool and fixture links after life or inspection quarantines the assets",()=>{
+ const quarantinedTool={...tooling[0],status:"Needs regrind",toolLifeUsedMinutes:100,toolLifeUsedCycles:1000};
+ const quarantinedFixture={...fixtures[0],status:"Under maintenance"};
+ const retained=validateOperationResourceAssignments({
+  toolingIds:["t1"],fixtureIds:["f1"],toolingAssets:[quarantinedTool],fixtureAssets:[quarantinedFixture],
+  scope:{companyId:"c1",factoryId:"f1",machineId:"m1",machineType:"VMC",processDefinitionId:"vmc",material:"EN24",componentId:"cpt1",existingToolingIds:["t1"],existingFixtureIds:["f1"]}
+ });
+ assert.equal(retained.ok,true);
+ const newOperation=validateOperationResourceAssignments({
+  toolingIds:["t1"],fixtureIds:["f1"],toolingAssets:[quarantinedTool],fixtureAssets:[quarantinedFixture],
+  scope:{companyId:"c1",factoryId:"f1",machineId:"m1",machineType:"VMC",processDefinitionId:"vmc",material:"EN24",componentId:"cpt1"}
+ });
+ assert.equal(newOperation.ok,false);
+});
