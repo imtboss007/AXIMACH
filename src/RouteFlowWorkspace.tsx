@@ -8,6 +8,7 @@ import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./Route
 import { RouteFlowShowcase } from "./RouteFlowShowcase";
 import TransportRoutingDemo from "./TransportRoutingDemo";
 import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js";
+import { loadRouteFlowGraphLayout, saveRouteFlowGraphPosition } from "./routeFlowGraphLayout.mjs";
 import { routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import OperationInlineEditor from "./OperationInlineEditor";
@@ -46,6 +47,7 @@ const RELATIONSHIPS:Array<{id:RouteRelationshipType;label:string;description:str
   {id:"successor",label:"Successor",description:"Next linked operation",symbol:"⤷"}
 ];
 const STATUS_OPTIONS:RouteRelationshipStatus[]=["Active","Planned","Conditional","Disabled"];
+const ROUTE_FLOW_GRAPH_LAYOUT_PREFIX="aximach.route-flow.graph-layout.v1:";
 const relationLabel=(type:RouteRelationshipType)=>RELATIONSHIPS.find(item=>item.id===type)?.label||type;
 const money=(amount:number)=>"₹"+Number(amount||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 const dateTime=(value?:string)=>value?new Date(value).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"Not scheduled";
@@ -222,6 +224,15 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const poLineId=line?.id||"";
   const component=data.components.find(row=>row.id===line?.componentId);
   const componentId=component?.id||"";
+  const routeGraphLayoutStorageKey=companyId&&poId&&poLineId
+    ?ROUTE_FLOW_GRAPH_LAYOUT_PREFIX+encodeURIComponent([companyId,poId,poLineId].join("|"))
+    :"";
+  const [routeGraphLayoutRevision,setRouteGraphLayoutRevision]=useState(0);
+  const routeGraphSavedPositions=useMemo(()=>{
+    if(!routeGraphLayoutStorageKey||typeof window==="undefined")return {};
+    try{return loadRouteFlowGraphLayout(window.localStorage.getItem(routeGraphLayoutStorageKey));}
+    catch{return {};}
+  },[routeGraphLayoutStorageKey,routeGraphLayoutRevision]);
   const componentLineCount=lineOptions.filter(row=>row.componentId===componentId).length;
   const componentGlobalLineCount=orders.reduce((count,poRow)=>count+poRow.lines.filter(row=>!row.deletedAt&&row.componentId===componentId).length,0);
   const routeOperations=useMemo(()=>operations.filter(row=>row.poId===poId&&row.poLineId===poLineId&&row.componentId===componentId).sort((a,b)=>a.sequence-b.sequence),[operations,poId,poLineId,componentId]);
@@ -324,6 +335,8 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const uniqueSource=graphSource.filter((node,index)=>graphSource.findIndex(other=>other.id===node.id)===index);
     const operationFor=(id:string)=>lineOperations.find(operation=>operation.id===id);
     const positionFor=(node:FlowNode,index:number)=>{
+      const savedPosition=routeGraphSavedPositions[node.id];
+      if(savedPosition)return savedPosition;
       if(node.kind==="operation")return operationPoint(node.operation);
       if(node.kind==="material"){
         const materialIndex=Math.max(0,routeMaterials.findIndex(entry=>entry.id===node.entry.id));
@@ -501,7 +514,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       if(target)addEdge(transportId,target.id,"transport","transport-to:"+leg.id,(leg.vehicleType||"TRANSPORT").toUpperCase());
     });
     return {nodes,edges};
-  },[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport]);
+  },[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport,routeGraphSavedPositions]);
 
   const saveRelationship=()=>{
     if(!poId||!poLineId){onNotice("Select a company, PO and component line before adding a route relationship.");return;}
@@ -515,6 +528,14 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     update(current=>({...current,routeRelationships:[...(current.routeRelationships||[]),record]}));
     setRelationshipCondition("");setRelationshipNotes("");setShowRelationshipEditor(false);
     onNotice(relationLabel(relationshipType)+" connection saved between "+from.name+" and "+to.name+".");
+  };
+  const persistRouteGraphNodePosition=(_:unknown,node:RouteFlowGraphNode)=>{
+    if(!routeGraphLayoutStorageKey||typeof window==="undefined")return;
+    try{
+      const current=window.localStorage.getItem(routeGraphLayoutStorageKey);
+      window.localStorage.setItem(routeGraphLayoutStorageKey,saveRouteFlowGraphPosition(current,node.id,node.position));
+      setRouteGraphLayoutRevision(value=>value+1);
+    }catch{/* Saved layout is a convenience; route records remain safely persisted independently. */}
   };
   // n8n-style drag-to-connect: only saved process-operation nodes may create
   // typed PO-line relationships. Materials and transport keep their own editors.
@@ -723,6 +744,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           nodesDraggable
           nodesConnectable
           onConnect={connectRouteNodes}
+          onNodeDragStop={persistRouteGraphNodePosition}
           nodesFocusable
           panOnDrag
           zoomOnScroll
@@ -731,7 +753,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           className="route-flow-shared-graph-layer"
           testId="route-flow-shared-canvas"
         >
-          <RouteFlowFitController revision={routeLayout+":"+routeFlowGraph.nodes.map(node=>node.id+"@"+node.position.x+","+node.position.y).join(";")}/>
+          <RouteFlowFitController revision={routeLayout+":"+routeGraphLayoutStorageKey+":"+routeFlowGraph.nodes.map(node=>node.id).join(";")}/>
         </ManufacturingGraphCanvas>
       </div>:
       <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<RouteConnectorLegend/><div className="route-flow-stage-track" data-route-layout={routeLayout}>
