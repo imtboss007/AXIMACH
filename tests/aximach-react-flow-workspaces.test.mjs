@@ -379,6 +379,18 @@ test("process definitions use stable distinct category colours instead of the le
   const universe=source("src/ManufacturingEcosystemGraph.tsx");
   assert.ok(palette.includes("PROCESS_PALETTE"));
   assert.ok(palette.includes("LEGACY_DEFAULTS"));
+  const requiredColours=[
+    ["sawing","#0e9ca6"],["turning","#d28a22"],["wire edm","#7958c8"],
+    ["gear cutting","#d35463"],["heat treatment","#2f7fca"],["grinding","#24936d"],
+    ["metrology","#b86a35"],["laser cutting","#287aa0"],["forming","#9a5b91"],
+    ["fabrication","#6e9439"],["welding","#bd684b"],["finishing","#4d70b5"],
+    ["vmc machining","#a17b28"],["deburring","#278f89"],["quality","#8a64b5"],
+    ["assembly","#cd7a28"],["packaging","#527d91"],["punching","#b14d72"]
+  ];
+  for(const [category,colour] of requiredColours){
+    assert.ok(palette.includes('"'+category+'":"'+colour+'"'),"missing distinct process colour for "+category);
+  }
+  assert.equal(new Set(requiredColours.map(([,colour])=>colour)).size,18,"all 18 demo process categories must have distinct colours");
   assert.ok(directory.includes("resolveProcessColor(row)"));
   assert.ok(directory.includes("processPaletteColor(category,processType)"));
   assert.ok(route.includes("resolveProcessColor({"));
