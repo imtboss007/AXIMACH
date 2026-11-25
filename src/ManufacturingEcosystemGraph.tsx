@@ -112,6 +112,7 @@ const GRAPH_LAYOUT_KEY = "aximach.manufacturing-ecosystem-graph.layout.v3";
 
 export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onConnect}:Props) {
   const [relationshipType,setRelationshipType]=useState("main");
+  const compactViewport=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
   const [graphPreferences,setGraphPreferences]=useState<EcosystemGraphPreferences<NodeKind>>(() => {
     try {
       const loaded=loadEcosystemGraphPreferences(
@@ -500,7 +501,8 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
         nodes={flowNodes}
         edges={flowEdges}
         nodeTypes={ECOSYSTEM_FLOW_NODE_TYPES}
-        fitView
+        fitView={!compactViewport}
+        defaultViewport={compactViewport?{x:12,y:8,zoom:.62}:undefined}
         fitViewOptions={{padding:.06,minZoom:.28,maxZoom:1.2}}
         minZoom={.22}
         maxZoom={1.8}
