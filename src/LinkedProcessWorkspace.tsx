@@ -22,7 +22,8 @@ import { manufacturingGraphEdgeKey, routeRelationshipEdgeGeometry } from "./manu
 import TransportRoutingDemo from "./TransportRoutingDemo";
 import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
 import { resolveProcessColor } from "./processPalette";
-import { getEligibleMachineAssets, validateMachineAssignment, validateMachineSchedule } from "./machineCapabilities.mjs";
+import { getEligibleMachineAssets, validateMachineAssignment } from "./machineCapabilities.mjs";
+import { getMachineAvailability, validateMachineSchedule } from "./machineMaintenance.mjs";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -132,6 +133,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const operations = activeRows(data.operations);
   const processDefinitions = activeRows(data.processDefinitions);
   const machines = activeRows(data.machines || []);
+  const maintenanceWorkOrders = activeRows(data.maintenanceWorkOrders || []);
+  const machineDowntime = activeRows(data.machineDowntime || []);
   const transportRoutes = activeRows(data.transportRoutes || []);
   const allTransportLegs = activeRows(data.transportLegs || []);
   const allMaterialCostEntries = activeRows(data.materialCostEntries || []);
@@ -389,7 +392,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     }))
   );
   const quantityUnit = selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces";
-  const eligibleMachines = getEligibleMachineAssets(machines,{companyId:selectedPO?.companyId,factoryId:selectedPO?.factoryId,processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,selectedMachineId:draft.machineId});
+  const eligibleMachines = getEligibleMachineAssets(machines,{companyId:selectedPO?.companyId,factoryId:selectedPO?.factoryId,processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,selectedMachineId:draft.machineId}).filter(machine=>!getMachineAvailability(machine,maintenanceWorkOrders,machineDowntime).blocksProduction||machine.id===draft.machineId);
   const selectedMachine = machines.find(machine=>machine.id===draft.machineId);
   const processVendorOptions = selectedProcessDefinition?.vendorIds?.length ? vendors.filter(vendor => selectedProcessDefinition.vendorIds.includes(vendor.id)) : vendors;
   const selectedTransportVendor = vendors.find(vendor => vendor.id === draft.transportVendorId);
@@ -1176,12 +1179,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       if(!assignment.ok){onNotice("Registered machine assignment is invalid ("+assignment.reason+"). Choose an available machine in this PO factory with the selected process capability.");return;}
     }
     if(draft.machineId){
-      const schedule=validateMachineSchedule({...draft,id:editingId||"__new-operation__"},operations,editingId);
+      const schedule=validateMachineSchedule({...draft,id:editingId||"__new-operation__"},operations,editingId,maintenanceWorkOrders,machineDowntime);
       if(!schedule.ok){
         const conflict=operations.find(operation=>operation.id===schedule.conflictingOperationId);
         onNotice(schedule.reason==="machine-time-conflict"
           ?"Machine "+(selectedMachine?.assetCode||selectedMachine?.name||"asset")+" is already reserved by "+(conflict?.name||"another operation")+" ("+dateTimeInput(conflict?.plannedStart)+" → "+dateTimeInput(conflict?.plannedEnd)+"). Choose a non-overlapping time or another machine."
-          :"Enter a valid machine reservation end time after its start time.");
+          :schedule.reason==="machine-maintenance-conflict"?"This machine is reserved for maintenance during the selected production interval. Choose another time or machine.":schedule.reason==="machine-downtime-conflict"?"This machine has recorded downtime during the selected production interval. Close or resolve the downtime event, or choose another machine.":"Enter a valid machine reservation end time after its start time.");
         return;
       }
     }
