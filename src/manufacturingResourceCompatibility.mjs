@@ -10,7 +10,7 @@ const machineMatch=(asset,machineId,machineType)=>{
 };
 const materialMatch=(asset,material)=>{
  const capabilities=asArray(asset?.materialCapabilities).map(value=>String(value).trim().toLowerCase());
- return !capabilities.length||!material||capabilities.includes(String(material).trim().toLowerCase());
+ return !capabilities.length||(Boolean(material)&&capabilities.includes(String(material).trim().toLowerCase()));
 };
 export function getEligibleToolingAssets(assets=[],scope={}){
  return asArray(assets).filter(asset=>
@@ -25,7 +25,7 @@ export function getEligibleToolingAssets(assets=[],scope={}){
 export function getEligibleFixtureAssets(assets=[],scope={}){
  return asArray(assets).filter(asset=>
   asset&&!asset.deletedAt&&asset.companyId===scope.companyId&&asset.factoryId===scope.factoryId&&
-  (asset.status==="Available"||asset.id===scope.selectedId&&asset.status==="In use")&&
+  (asset.status==="Available"||((asset.id===scope.selectedId||asArray(scope.selectedIds).includes(asset.id))&&asset.status==="In use"))&&
   machineMatch(asset,scope.machineId,scope.machineType)&&hasProcess(asset,scope.processDefinitionId)&&
   (!asArray(asset.componentIds).length||asset.componentIds.includes(scope.componentId))&&
   !(Number(asset.maxUsageCycles)>0&&Number(asset.usageCycles)>=Number(asset.maxUsageCycles))&&
