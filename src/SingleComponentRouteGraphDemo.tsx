@@ -100,6 +100,7 @@ export function SingleComponentRouteGraphDemo() {
   const graph=useMemo(buildDemoGraph,[]);
   const [edges,setEdges]=useState(graph.edges);
   const [relationshipType,setRelationshipType]=useState("main");
+  const compactViewport=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
   const routeTypes=["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor","material","transport"];
   const connectDemoNodes=(connection:{source:string|null;target:string|null})=>{
     const source=connection.source||"",target=connection.target||"";
@@ -141,7 +142,7 @@ export function SingleComponentRouteGraphDemo() {
     </div>
     <div className="route-flow-graph-canvas single-component-route-demo-canvas" data-testid="single-component-route-graph">
       <ManufacturingGraphCanvas nodes={graph.nodes} edges={edges} nodeTypes={SINGLE_COMPONENT_NODE_TYPES}
-        fitView fitViewOptions={{padding:.08,minZoom:.2,maxZoom:1.1,duration:260}} minZoom={.16} maxZoom={1.8}
+        fitView={!compactViewport} defaultViewport={compactViewport?{x:10,y:8,zoom:.68}:undefined} fitViewOptions={{padding:.08,minZoom:.2,maxZoom:1.1,duration:260}} minZoom={.28} maxZoom={1.8}
         nodesDraggable nodesConnectable elementsSelectable
         onConnect={connectDemoNodes}
         nodesFocusable edgesFocusable
