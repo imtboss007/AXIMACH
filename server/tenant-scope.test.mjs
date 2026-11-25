@@ -231,3 +231,12 @@ test("recorded tool usage may exceed nominal life only when the tool is quaranti
  assert.equal(validateManufacturingWrite(base,{toolingAssets:[overLimit]},user).ok,true);
  assert.equal(validateManufacturingWrite(base,{toolingAssets:[{...overLimit,status:"Available"}]},user).ok,false);
 });
+
+test("an existing operation keeps its historical tool and fixture links after quarantine, but a new reservation is blocked",()=>{
+ const base={companies:[companyA],factories:[factoryA],machines:[machineA],processDefinitions:[processDefinition],components:[componentResource],purchaseOrders:[poResource],toolingAssets:[toolingA],fixtureAssets:[fixtureA],operations:[operationResource]};
+ const quarantinedTool={...toolingA,toolLifeUsedMinutes:110,toolLifeUsedCycles:1100,status:"Needs regrind"};
+ const quarantinedFixture={...fixtureA,status:"Under maintenance"};
+ assert.equal(validateManufacturingWrite(base,{toolingAssets:[quarantinedTool],fixtureAssets:[quarantinedFixture],operations:[operationResource]},user).ok,true);
+ const nextOperation={...operationResource,id:"operation-resource-next",toolingAssetIds:["tooling-a"],fixtureAssetIds:["fixture-a"],plannedStart:"2026-11-26T11:00:00.000Z",plannedEnd:"2026-11-26T12:00:00.000Z"};
+ assert.equal(validateManufacturingWrite({...base,toolingAssets:[quarantinedTool],fixtureAssets:[quarantinedFixture]},{operations:[nextOperation]},user).ok,false);
+});
