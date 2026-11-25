@@ -401,7 +401,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         title="Material allocation missing";detail="Add the required material / grade allocation before production.";
         kind="ROUTE REQUIREMENT";actionLabel="Open Process Map";onAction=()=>openProcessMap();
       }
-      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),vehicleType:node.kind==="transport"?node.leg.vehicleType:node.kind==="material-transport"?node.entry.transportVehicleType||"truck":undefined,actionLabel,onAction},draggable:false,selectable:true,focusable:true,style:{width:node.kind==="transport"?184:node.kind==="material-transport"?184:node.kind==="material"?190:192}};
+      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),vehicleType:node.kind==="transport"?node.leg.vehicleType:node.kind==="material-transport"?node.entry.transportVehicleType||"truck":undefined,actionLabel,onAction},draggable:true,selectable:true,focusable:true,style:{width:node.kind==="transport"?184:node.kind==="material-transport"?184:node.kind==="material"?190:192}};
     });
     const nodeIds=new Set(nodes.map(node=>node.id));
     const nodeById=new Map(nodes.map(node=>[node.id,node]));
