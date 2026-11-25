@@ -15,7 +15,7 @@ const materialMatch=(asset,material)=>{
 export function getEligibleToolingAssets(assets=[],scope={}){
  return asArray(assets).filter(asset=>
   asset&&!asset.deletedAt&&asset.companyId===scope.companyId&&asset.factoryId===scope.factoryId&&
-  (asset.status==="Available"||asset.id===scope.selectedId&&asset.status==="In use")&&
+  (asset.status==="Available"||((asset.id===scope.selectedId||asArray(scope.selectedIds).includes(asset.id))&&asset.status==="In use"))&&
   machineMatch(asset,scope.machineId,scope.machineType)&&hasProcess(asset,scope.processDefinitionId)&&materialMatch(asset,scope.material)&&
   !(Number(asset.toolLifeLimitMinutes)>0&&Number(asset.toolLifeUsedMinutes)>=Number(asset.toolLifeLimitMinutes))&&
   !(Number(asset.toolLifeLimitCycles)>0&&Number(asset.toolLifeUsedCycles)>=Number(asset.toolLifeLimitCycles))&&
