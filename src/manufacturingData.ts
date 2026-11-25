@@ -45,6 +45,34 @@ export type MachineRecord = {
   status: MachineStatus; commissionedAt?: string; nextMaintenanceAt?: string;
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type ToolingAssetStatus = "Available" | "In use" | "Needs regrind" | "Under maintenance" | "Retired";
+export type ToolingAssetRecord = {
+  id:string; companyId:string; factoryId:string; assetCode:string; name:string; toolType:string;
+  manufacturer?:string; model?:string; specification?:string; holderInterface?:string; coating?:string;
+  diameterMm?:number; fluteCount?:number; maxRpm?:number;
+  compatibleMachineIds:string[]; machineTypeCapabilities:string[]; processDefinitionIds:string[]; materialCapabilities:string[];
+  toolLifeLimitMinutes:number; toolLifeUsedMinutes:number; toolLifeLimitCycles:number; toolLifeUsedCycles:number;
+  regrindCount:number; maxRegrinds:number; lastInspectedAt?:string; inspectionDueAt?:string;
+  status:ToolingAssetStatus; storageLocation:string; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type FixtureAssetStatus = "Available" | "In use" | "Under maintenance" | "Retired";
+export type FixtureAssetRecord = {
+  id:string; companyId:string; factoryId:string; assetCode:string; name:string; fixtureType:string;
+  manufacturer?:string; model?:string; workholdingType:string;
+  compatibleMachineIds:string[]; machineTypeCapabilities:string[]; processDefinitionIds:string[]; componentIds:string[];
+  maxWorkpieceWeightKg?:number; maxClampForceKn?:number; repeatabilityMicron?:number;
+  usageCycles:number; maxUsageCycles?:number; lastInspectedAt?:string; inspectionDueAt?:string;
+  status:FixtureAssetStatus; storageLocation:string; setupNotes:string; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type ResourceUsageEventKind = "Production use" | "Regrind" | "Inspection" | "Repair" | "Replacement";
+export type ResourceUsageEventRecord = {
+  id:string; companyId:string; factoryId:string; resourceType:"tooling"|"fixture"; resourceId:string;
+  operationId?:string; eventType:ResourceUsageEventKind; runtimeMinutes:number; cycles:number;
+  inspectionResult?:"Pass"|"Fail"|"Not assessed"; occurredAt:string; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
 export type MaintenancePlanFrequencyUnit = "Days" | "Weeks" | "Months";
 export type MaintenancePlanType = "Preventive" | "Lubrication" | "Calibration" | "Inspection";
 export type MachineMaintenancePlanRecord = {
@@ -150,7 +178,7 @@ export type PlannedCostEntry = {
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type OperationRecord = {
-  id: string; poId: string; poLineId: string; componentId: string; processDefinitionId?: string; machineId?: string; sequence: number; name: string;
+  id: string; poId: string; poLineId: string; componentId: string; processDefinitionId?: string; machineId?: string; toolingAssetIds?: string[]; fixtureAssetIds?: string[]; sequence: number; name: string;
   category: string; machine: string; vendorId: string; status: LifecycleStatus;
   plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string;
   quantity: number; completed: number; accepted: number; rejected: number;
@@ -254,7 +282,7 @@ export type InventoryTransactionRecord = {
 };
 export type ManufacturingData = {
   updatedAt: string;
-  companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; machines: MachineRecord[]; maintenancePlans: MachineMaintenancePlanRecord[]; maintenanceWorkOrders: MachineMaintenanceWorkOrderRecord[]; machineDowntime: MachineDowntimeRecord[]; purchaseOrders: PurchaseOrderRecord[];
+  companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; machines: MachineRecord[]; toolingAssets:ToolingAssetRecord[]; fixtureAssets:FixtureAssetRecord[]; resourceUsageEvents:ResourceUsageEventRecord[]; maintenancePlans: MachineMaintenancePlanRecord[]; maintenanceWorkOrders: MachineMaintenanceWorkOrderRecord[]; machineDowntime: MachineDowntimeRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[]; materialProcessLinks: MaterialProcessLinkRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
@@ -274,7 +302,7 @@ export function makeId(prefix: string): string {
 export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.filter(row => !row.deletedAt);
 
 export const emptyManufacturingData = (): ManufacturingData => ({
-  updatedAt: "", companies: [], customers: [], prospects: [], factories: [], machines: [], maintenancePlans: [], maintenanceWorkOrders: [], machineDowntime: [], purchaseOrders: [], components: [], vendors: [],
+  updatedAt: "", companies: [], customers: [], prospects: [], factories: [], machines: [], toolingAssets: [], fixtureAssets: [], resourceUsageEvents: [], maintenancePlans: [], maintenanceWorkOrders: [], machineDowntime: [], purchaseOrders: [], components: [], vendors: [],
   operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
   supplierInvoices: [], supplierPayments: [], supplierFinanceApprovals: [], supplierPaymentAllocations: [],
@@ -294,6 +322,21 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
       processDefinitionIds: Array.isArray(machine.processDefinitionIds) ? [...new Set(machine.processDefinitionIds.filter(id => typeof id === "string" && id))] : [],
       materialCapabilities: Array.isArray(machine.materialCapabilities) ? [...new Set(machine.materialCapabilities.filter(value => typeof value === "string" && value.trim()))] : []
     })) : empty.machines,
+    toolingAssets: Array.isArray(value?.toolingAssets) ? value.toolingAssets.map(row=>({
+      ...row,
+      compatibleMachineIds:Array.isArray(row.compatibleMachineIds)?[...new Set(row.compatibleMachineIds.filter(id=>typeof id==="string"&&id))]:[],
+      machineTypeCapabilities:Array.isArray(row.machineTypeCapabilities)?[...new Set(row.machineTypeCapabilities.filter(value=>typeof value==="string"&&value.trim()))]:[],
+      processDefinitionIds:Array.isArray(row.processDefinitionIds)?[...new Set(row.processDefinitionIds.filter(id=>typeof id==="string"&&id))]:[],
+      materialCapabilities:Array.isArray(row.materialCapabilities)?[...new Set(row.materialCapabilities.filter(value=>typeof value==="string"&&value.trim()))]:[]
+    })) : empty.toolingAssets,
+    fixtureAssets: Array.isArray(value?.fixtureAssets) ? value.fixtureAssets.map(row=>({
+      ...row,
+      compatibleMachineIds:Array.isArray(row.compatibleMachineIds)?[...new Set(row.compatibleMachineIds.filter(id=>typeof id==="string"&&id))]:[],
+      machineTypeCapabilities:Array.isArray(row.machineTypeCapabilities)?[...new Set(row.machineTypeCapabilities.filter(value=>typeof value==="string"&&value.trim()))]:[],
+      processDefinitionIds:Array.isArray(row.processDefinitionIds)?[...new Set(row.processDefinitionIds.filter(id=>typeof id==="string"&&id))]:[],
+      componentIds:Array.isArray(row.componentIds)?[...new Set(row.componentIds.filter(id=>typeof id==="string"&&id))]:[]
+    })) : empty.fixtureAssets,
+    resourceUsageEvents: Array.isArray(value?.resourceUsageEvents) ? value.resourceUsageEvents : empty.resourceUsageEvents,
     maintenancePlans: Array.isArray(value?.maintenancePlans) ? value.maintenancePlans : empty.maintenancePlans,
     maintenanceWorkOrders: Array.isArray(value?.maintenanceWorkOrders) ? value.maintenanceWorkOrders : empty.maintenanceWorkOrders,
     machineDowntime: Array.isArray(value?.machineDowntime) ? value.machineDowntime : empty.machineDowntime,
