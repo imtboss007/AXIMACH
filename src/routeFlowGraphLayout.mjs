@@ -12,7 +12,8 @@ function parseLayout(serialized) {
 
 function normalizePosition(position) {
   if (!position || typeof position !== "object" || Array.isArray(position)) return null;
-  const x = Number(position.x), y = Number(position.y);
+  if (typeof position.x !== "number" || typeof position.y !== "number") return null;
+  const x = position.x, y = position.y;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   return {
     x: Math.max(-MAX_COORDINATE, Math.min(MAX_COORDINATE, x)),
