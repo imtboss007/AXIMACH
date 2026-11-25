@@ -66,7 +66,7 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
 ];
 
 function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {
-  const connectable=data.kind==="operation"||data.kind==="material"||data.kind==="transport"||data.kind==="quality";
+  const connectable=data.kind==="operation"||data.kind==="material"||data.kind==="transport"||data.kind==="quality"||data.kind==="vendor"||data.kind==="process";
   return <div className="ax-ecosystem-flow-node" style={{"--node-accent":data.accent} as CSSProperties}>
     <Handle id="target-top" type="target" position={Position.Top} isConnectable={connectable}/>
     <Handle id="target-bottom" type="target" position={Position.Bottom} isConnectable={connectable}/>
