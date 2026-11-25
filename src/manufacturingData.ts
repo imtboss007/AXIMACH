@@ -45,7 +45,7 @@ export type MachineRecord = {
   status: MachineStatus; commissionedAt?: string; nextMaintenanceAt?: string;
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
-export type MaintenancePlanFrequencyUnit = "Days" | "Weeks" | "Months" | "Operating hours" | "Cycles";
+export type MaintenancePlanFrequencyUnit = "Days" | "Weeks" | "Months";
 export type MaintenancePlanType = "Preventive" | "Lubrication" | "Calibration" | "Inspection";
 export type MachineMaintenancePlanRecord = {
   id:string; companyId:string; factoryId:string; machineId:string; planName:string;
