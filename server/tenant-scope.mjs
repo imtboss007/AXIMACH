@@ -316,7 +316,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   return Boolean(machine && !machine.deletedAt && po && companyIds.has(machine.companyId) && factoryAllowed(machine.factoryId) &&
    machine.companyId===po.companyId && machine.factoryId===po.factoryId &&
    operation.executionType!=="Outsourced" && statusAllowed &&
-   (!capabilities.length || Boolean(operation.processDefinitionId && capabilities.includes(operation.processDefinitionId)))));
+   (!capabilities.length || Boolean(operation.processDefinitionId && capabilities.includes(operation.processDefinitionId))));
  };
  const transportRouteIds = access.transportRouteIds;
  const scopeIds = access.entityIds;
