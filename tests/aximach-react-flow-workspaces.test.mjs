@@ -377,7 +377,7 @@ test("process definitions use stable distinct category colours instead of the le
   const directory=source("src/SpecializedDirectoryWorkspace.tsx");
   const route=source("src/RouteFlowWorkspace.tsx");
   const universe=source("src/ManufacturingEcosystemGraph.tsx");
-  assert.ok(palette.includes("PROCESS_PALETTE"));
+  assert.ok(palette.includes("CATEGORY_COLOURS"));
   assert.ok(palette.includes("LEGACY_DEFAULTS"));
   const requiredColours=[
     ["sawing","#0e9ca6"],["turning","#d28a22"],["wire edm","#7958c8"],
