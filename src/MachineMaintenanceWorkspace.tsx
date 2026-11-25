@@ -119,6 +119,9 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
     if(workDraft.status==="Planned"&&(!workDraft.scheduledStart||!workDraft.scheduledEnd)){
       onNotice("A planned maintenance work order needs both start and end times.");return;
     }
+    if(Boolean(workDraft.scheduledStart)!==Boolean(workDraft.scheduledEnd)){
+      onNotice("Enter both the scheduled start and end, or leave both blank for an open work order.");return;
+    }
     if(workDraft.scheduledStart&&workDraft.scheduledEnd){
       const check=validateMachineMaintenanceWindow(machine.id,toIso(workDraft.scheduledStart),toIso(workDraft.scheduledEnd),operations,selectedWorkOrders,selectedDowntime);
       if(!check.ok){
@@ -129,7 +132,7 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
     const stamp=nowIso(),record:MachineMaintenanceWorkOrderRecord={...workDraft,id:makeId("maintenance-wo"),
       companyId:machine.companyId,factoryId:machine.factoryId,machineId:machine.id,
       reportedAt:workDraft.reportedAt||stamp,scheduledStart:toIso(workDraft.scheduledStart),scheduledEnd:toIso(workDraft.scheduledEnd),
-      actualStart:workDraft.actualStart?toIso(workDraft.actualStart):workDraft.status==="In progress"?stamp:"",actualEnd:workDraft.actualEnd?toIso(workDraft.actualEnd):workDraft.status==="Completed"?stamp:"",
+      actualStart:workDraft.actualStart?toIso(workDraft.actualStart):["In progress","Completed"].includes(workDraft.status)?stamp:"",actualEnd:workDraft.actualEnd?toIso(workDraft.actualEnd):workDraft.status==="Completed"?stamp:"",
       estimatedCost:Math.max(0,Number(workDraft.estimatedCost)||0),actualCost:Math.max(0,Number(workDraft.actualCost)||0),
       createdAt:stamp,updatedAt:stamp
     };
@@ -191,6 +194,9 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
   const closeDowntime=(event:MachineDowntimeRecord)=>{
     if(event.endedAt)return;
     const stamp=nowIso();
+    if(Date.parse(stamp)<=Date.parse(event.startedAt)){
+      onNotice("A downtime event cannot be closed before its recorded start time.");return;
+    }
     update(current=>({...current,machineDowntime:(current.machineDowntime||[]).map(row=>row.id===event.id?{...row,endedAt:stamp,updatedAt:stamp}:row)}));
     onNotice("Downtime event closed. The machine's availability has been recalculated.");
   };
