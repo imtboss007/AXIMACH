@@ -251,6 +251,23 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     });
     factories.forEach(row=>{add("factory:"+row.id,row.name,"Factory · "+(row.address||"Address not recorded"),"factory","companies",{companyId:row.companyId});edge("factory:"+row.id,"company:"+row.companyId,"owns");});
     machines.forEach(row=>{add("machine:"+row.id,row.assetCode+" · "+row.name,"Machine · "+row.machineType+" · "+row.status+(row.model?" · "+row.model:""),"machine","companies",{companyId:row.companyId,subtab:"machines"});edge("machine:"+row.id,"factory:"+row.factoryId,"installed at");(row.processDefinitionIds||[]).forEach(id=>edge("machine:"+row.id,"process:"+id,"supports process"));});
+    maintenancePlans.forEach(row=>{
+      const id="maintenance-plan:"+row.id;
+      add(id,row.planName,"Preventive plan · "+row.maintenanceType+" · every "+row.frequencyValue+" "+row.frequencyUnit+" · due "+row.nextDueAt+" · "+(row.active?"active":"paused"),"maintenance","companies",{companyId:row.companyId,subtab:"machines"});
+      edge("machine:"+row.machineId,id,"has maintenance plan");
+    });
+    maintenanceWorkOrders.forEach(row=>{
+      const id="maintenance-work-order:"+row.id;
+      add(id,row.workOrderNumber+" · "+row.title,"Maintenance work order · "+row.workType+" · "+row.priority+" · "+row.status,"maintenance","companies",{companyId:row.companyId,subtab:"machines"});
+      edge("machine:"+row.machineId,id,"maintenance work");
+      if(row.planId)edge(id,"maintenance-plan:"+row.planId,"follows plan");
+    });
+    machineDowntime.forEach(row=>{
+      const id="machine-downtime:"+row.id;
+      add(id,row.downtimeType+" · "+row.startedAt,"Downtime · "+row.reason+" · "+(row.endedAt?"closed":"OPEN")+" · impact "+row.productionImpactQty,"downtime","companies",{companyId:row.companyId,subtab:"machines"});
+      edge(id,"machine:"+row.machineId,"affects machine availability");
+      if(row.workOrderId)edge(id,"maintenance-work-order:"+row.workOrderId,"recorded under");
+    });
     orders.forEach(row=>{add("order:"+row.id,row.number,"Purchase order · "+row.status,"order","purchasing",{companyId:row.companyId,poId:row.id});edge("order:"+row.id,"company:"+row.companyId,"placed by");row.lines.filter(line=>!line.deletedAt).forEach(line=>edge("order:"+row.id,"component:"+line.componentId,"orders"));});
     components.forEach(row=>add("component:"+row.id,row.partNumber||row.name,"Component · "+row.name+" · Rev "+(row.revision||"—"),"component","components",{companyId:row.companyId}));
     vendors.forEach(row=>add("vendor:"+row.id,row.company,"Vendor · "+(row.vendorType||row.role||"Supplier"),"vendor","vendors"));
@@ -351,6 +368,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     const visibleEdges=filteredEdges.filter(item=>visibleIds.has(item.from)&&visibleIds.has(item.to));
     const availableCounts:Record<NodeKind,number>={
       company:companies.length,customer:customers.length,factory:factories.length,machine:machines.length,order:orders.length,component:components.length,
+      maintenance:maintenancePlans.length+maintenanceWorkOrders.length,downtime:machineDowntime.length,
       vendor:vendors.length,process:definitions.length,operation:operations.length,material:allocations.length+materialProcessLinks.length,
       quality:inspections.length,transport:legs.length+inboundMaterialTransportCount,finance:payments.length,contact:contacts.length
     };
