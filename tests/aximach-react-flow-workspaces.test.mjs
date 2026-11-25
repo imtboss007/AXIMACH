@@ -97,8 +97,8 @@ test("Manufacturing Universe graph exposes registered machines and saved operati
   assert.ok(graph.includes('edge("machine:"+row.id,"factory:"+row.factoryId,"installed at")'));
   assert.ok(graph.includes('edge("operation:"+row.id,"machine:"+row.machineId,"runs on")'));
   assert.ok(graph.includes('subtab:"machines"'));
-  assert.ok(graph.includes("version:4"));
-  assert.ok(model.includes("parsed.version < 4"));
+  assert.ok(graph.includes("version:5"));
+  assert.ok(model.includes("parsed.version < 4")&&model.includes("parsed.version < 5"));
   assert.ok(master.includes('navigationContext?.subtab==="machines"?"machines"'));
 });
 
@@ -559,3 +559,11 @@ test("Manufacturing Universe graph supports typed connections for tooling, fixtu
  assert.ok(connector.includes("componentIds:[...new Set"));
  assert.ok(connector.includes("Outsourced operations cannot reserve"));
 });
+
+test("Manufacturing Universe preferences reveal new tooling and fixture groups without re-enabling previously hidden groups",()=>{
+ const model=source("src/manufacturingEcosystemGraphModel.mjs");
+ assert.ok(model.includes('["tooling","fixture","resourceEvent"]'));
+ assert.ok(model.includes("parsed.version < 5"));
+ assert.ok(model.includes("return { version: 5, visibleKinds, visibleLimits: normalizedLimits }"));
+});
+
