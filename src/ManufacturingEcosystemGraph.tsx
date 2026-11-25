@@ -10,7 +10,8 @@ import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
 
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
-type Props = { data:ManufacturingData; onNavigate:(moduleId:string,context?:Context)=>void; onConnect?:(connection:Connection,relationshipType:string)=>void };
+type GraphScope = {companyId?:string;poId?:string;poLineId?:string;componentId?:string};
+type Props = { data:ManufacturingData; scope?:GraphScope; onNavigate:(moduleId:string,context?:Context)=>void; onConnect?:(connection:Connection,relationshipType:string)=>void };
 type NodeKind = "company"|"customer"|"factory"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
 type GraphNode = { id:string; label:string; detail:string; kind:NodeKind; moduleId:string; context:Context; x:number; y:number };
 type GraphEdge = { id:string; from:string; to:string; kind:string };
@@ -65,7 +66,7 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
 ];
 
 function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {
-  const connectable=data.kind==="operation";
+  const connectable=data.kind==="operation"||data.kind==="material"||data.kind==="transport"||data.kind==="quality";
   return <div className="ax-ecosystem-flow-node" style={{"--node-accent":data.accent} as CSSProperties}>
     <Handle id="target-top" type="target" position={Position.Top} isConnectable={connectable}/>
     <Handle id="target-bottom" type="target" position={Position.Bottom} isConnectable={connectable}/>
@@ -106,9 +107,9 @@ const INITIAL_VISIBLE_LIMITS = Object.fromEntries(
 
 const GRAPH_PREFERENCES_KEY = "aximach.manufacturing-ecosystem-graph.preferences.v1";
 const VALID_GROUP_KINDS = GROUPS.map(group => group.kind);
-const GRAPH_LAYOUT_KEY = "aximach.manufacturing-ecosystem-graph.layout.v2";
+const GRAPH_LAYOUT_KEY = "aximach.manufacturing-ecosystem-graph.layout.v3";
 
-export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:Props) {
+export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onConnect}:Props) {
   const [relationshipType,setRelationshipType]=useState("main");
   const [graphPreferences,setGraphPreferences]=useState<EcosystemGraphPreferences<NodeKind>>(() => {
     try {
@@ -177,20 +178,46 @@ export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:
       if(!id||nodes.some(node=>node.id===id))return;
       nodes.push({id,label:label||"Unnamed record",detail,kind,moduleId,context,x:0,y:0});
     };
-    const companies=activeRows(data.companies||[]);
-    const customers=activeRows(data.customers||[]);
-    const factories=activeRows(data.factories||[]);
-    const orders=activeRows(data.purchaseOrders||[]);
-    const components=activeRows(data.components||[]);
-    const vendors=activeRows(data.vendors||[]);
-    const definitions=activeRows(data.processDefinitions||[]);
-    const operations=activeRows(data.operations||[]);
-    const allocations=activeRows(data.materialCostEntries||[]);
-    const inspections=activeRows(data.inspectionMeasurements||[]);
-    const legs=activeRows(data.transportLegs||[]);
-    const payments=activeRows(data.paymentTransactions||[]);
-    const contacts=activeRows(data.contactProfiles||[]);
-    const inventory=activeRows(data.inventoryTransactions||[]);
+    const scoped=Boolean(scope?.companyId||scope?.poId||scope?.poLineId||scope?.componentId);
+    const allOrders=activeRows(data.purchaseOrders||[]);
+    const orders=allOrders.map(po=>({
+      ...po,
+      lines:po.lines.filter(line=>!line.deletedAt
+        &&(!scope?.poLineId||line.id===scope.poLineId)
+        &&(!scope?.componentId||line.componentId===scope.componentId))
+    })).filter(po=>(!scope?.companyId||po.companyId===scope.companyId)
+      &&(!scope?.poId||po.id===scope.poId)
+      &&(!scoped||po.lines.length>0));
+    const scopedPoIds=new Set(orders.map(po=>po.id));
+    const scopedCompanyIds=new Set(orders.map(po=>po.companyId));
+    if(scope?.companyId)scopedCompanyIds.add(scope.companyId);
+    const scopedComponentIds=new Set(orders.flatMap(po=>po.lines.map(line=>line.componentId)));
+    if(scope?.componentId)scopedComponentIds.add(scope.componentId);
+    const matchesLine=(row:{poId?:string;poLineId?:string;componentId?:string;companyId?:string})=>
+      (!scope?.poId||row.poId===scope.poId)
+      &&(!scope?.poLineId||row.poLineId===scope.poLineId)
+      &&(!scope?.componentId||row.componentId===scope.componentId)
+      &&(!scope?.companyId||(row.companyId?row.companyId===scope.companyId:scopedPoIds.has(row.poId||"")));
+    const companies=activeRows(data.companies||[]).filter(row=>!scoped||scopedCompanyIds.has(row.id));
+    const customers=activeRows(data.customers||[]).filter(row=>!scoped||(row.ownerCompanyId&&scopedCompanyIds.has(row.ownerCompanyId)));
+    const factories=activeRows(data.factories||[]).filter(row=>!scoped||scopedCompanyIds.has(row.companyId));
+    const components=activeRows(data.components||[]).filter(row=>!scoped||scopedComponentIds.has(row.id));
+    const operations=activeRows(data.operations||[]).filter(matchesLine);
+    const allocations=activeRows(data.materialCostEntries||[]).filter(matchesLine);
+    const inspections=activeRows(data.inspectionMeasurements||[]).filter(matchesLine);
+    const legs=activeRows(data.transportLegs||[]).filter(matchesLine);
+    const payments=activeRows(data.paymentTransactions||[]).filter(matchesLine);
+    const inventory=activeRows(data.inventoryTransactions||[]).filter(matchesLine);
+    const vendorIds=new Set<string>([
+      ...operations.flatMap(row=>[row.vendorId,row.transportVendorId].filter(Boolean)),
+      ...allocations.flatMap(row=>[row.vendorId,row.transportVendorId].filter(Boolean)),
+      ...legs.map(row=>row.vendorId).filter(Boolean)
+    ]);
+    const vendors=activeRows(data.vendors||[]).filter(row=>!scoped||vendorIds.has(row.id));
+    const processIds=new Set(operations.map(row=>row.processDefinitionId).filter(Boolean));
+    const definitions=activeRows(data.processDefinitions||[]).filter(row=>!scoped||processIds.has(row.id)||row.vendorIds.some(id=>vendorIds.has(id)));
+    const contactIds=new Set<string>([...scopedCompanyIds,...vendorIds]);
+    const contacts=activeRows(data.contactProfiles||[]).filter(row=>!scoped||contactIds.has(row.linkedId));
     const edgeKeys=new Set<string>();
     const edge=(from:string,to:string,kind:string)=>{
       if(!from||!to||from===to)return;
@@ -293,11 +320,12 @@ export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:
     const totalAvailable=Object.values(availableCounts).reduce((sum,count)=>sum+count,0);
     // Grouped two-column tiles keep all entity groups readable and prevent the
     // old 34%-radius ring from stacking 190px cards on top of one another.
-    const positions=layoutManufacturingUniverseNodes(visibleNodes,GROUPS.map(group=>group.kind),{columns:4,innerColumns:2,nodeWidth:190,nodeHeight:92,gapX:26,gapY:34,groupGapX:72,groupGapY:78});
+    const mobile=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
+    const positions=layoutManufacturingUniverseNodes(visibleNodes,GROUPS.map(group=>group.kind),{columns:mobile?2:4,innerColumns:2,nodeWidth:mobile?166:190,nodeHeight:mobile?88:92,gapX:mobile?12:26,gapY:mobile?18:34,groupGapX:mobile?24:72,groupGapY:mobile?32:78});
     const visible=visibleNodes.map(node=>({...node,...(positions[node.id]||{x:0,y:0})}));
     const searchResults=searchEcosystemNodes(nodes,searchQuery);
     return {nodes:visible,allNodes:nodes,edges:visibleEdges,totals,totalAvailable,searchResults};
-  },[data,visibleKinds,visibleLimits,selectedId,searchQuery]);
+  },[data,scope?.companyId,scope?.poId,scope?.poLineId,scope?.componentId,visibleKinds,visibleLimits,selectedId,searchQuery]);
   const flowNodes=useMemo<EcosystemFlowNode[]>(()=>{
     const canvasWidth=Math.max(146,...graph.nodes.map(node=>node.x+190));
     const hub:EcosystemHubNode={
@@ -407,9 +435,9 @@ export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:
     const blob=new Blob([body],{type:mime}),url=URL.createObjectURL(blob),anchor=document.createElement("a");
     anchor.href=url;anchor.download="aximach-manufacturing-ecosystem."+extension;document.body.appendChild(anchor);anchor.click();anchor.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1200);
   };
-  return <section className="ax-ecosystem-graph" aria-label="Live manufacturing ecosystem graph">
+  return <section className="ax-ecosystem-graph" aria-label="Live Manufacturing Universe connected graph">
     <header className="ax-ecosystem-graph-head">
-      <div><span className="eyebrow">CROSS-MODULE RELATIONSHIP MAP</span><h3>Connected manufacturing ecosystem</h3><p>Live links are derived from saved company, PO, component, vendor, process, material, quality, dispatch and payment records. Missing references are not fabricated.</p></div>
+      <div><span className="eyebrow">MANUFACTURING UNIVERSE · CONNECTED GRAPH</span><h3>Connected manufacturing map</h3><p>Showing the selected company, purchase order and component route. Process, material, quality, vendor and transport records retain their source IDs and saved links.</p></div>
       <div className="ax-ecosystem-graph-count"><Network size={15}/><strong>{graph.nodes.length}</strong><small>nodes shown</small><span>{graph.totalAvailable} saved records in these groups</span></div><div className="ax-ecosystem-export"><select aria-label="Ecosystem export format" value={exportFormat} onChange={event=>setExportFormat(event.target.value as typeof exportFormat)}><option value="svg">SVG</option><option value="csv">CSV</option><option value="json">JSON</option></select><button type="button" onClick={exportGraph}><FileDown size={13}/> Export graph</button></div>
     </header>
     <div className="ax-ecosystem-filters" aria-label="Show or hide entity groups">
@@ -421,13 +449,13 @@ export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:
         <input
           type="search"
           aria-label="Search all manufacturing ecosystem records"
-          placeholder="Search all saved companies, orders, components, operations, vendors..."
+          placeholder="Search this company, PO line, operations, materials, vendors and transport..."
           value={searchQuery}
           onChange={event=>{setSearchQuery(event.target.value);setSearchResultLimit(10);}}
         />
         {searchQuery&&<button type="button" aria-label="Clear graph search" onClick={()=>{setSearchQuery("");setSearchResultLimit(10);}}><X size={14}/></button>}
       </label>
-      <span>{searchQuery.trim()?graph.searchResults.length+" matching saved records":"Search includes records outside the current graph sample"}</span>
+      <span>{searchQuery.trim()?graph.searchResults.length+" matching saved records":"Search is scoped to the selected manufacturing route"}</span>
     </div>
     {searchQuery.trim()&&<section className="ax-ecosystem-search-results" aria-label="All matching saved records">
       <header><strong>Search results</strong><span>{graph.searchResults.length} matches across all saved graph records</span></header>
@@ -456,7 +484,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:
         <span>Show more {group.title}</span><b>{group.renderedCount} / {group.count}</b>
       </button>)}
     </div>
-    <div className="ax-ecosystem-connect-tools"><label>New operation connection<select aria-label="New operation connection type" value={relationshipType} onChange={event=>setRelationshipType(event.target.value)}>{["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"].map(kind=><option key={kind} value={kind}>{kind}</option>)}</select></label><small>Drag from one operation node handle to another. Other entity types remain read-only.</small></div>
+    <div className="ax-ecosystem-connect-tools"><label>New operation connection<select aria-label="New manufacturing connection type" value={relationshipType} onChange={event=>setRelationshipType(event.target.value)}>{["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"].map(kind=><option key={kind} value={kind}>{kind}</option>)}<option value="material">material</option><option value="transport">transport</option></select></label><small>Connect process, material, transport and quality nodes. Company, PO and component identities stay fixed.</small></div>
     <div className="ax-ecosystem-edge-legend" aria-label="Relationship line colour legend">{EDGE_LEGEND.map(item=><span key={item.label}><i style={{background:item.color}}/>{item.label}</span>)}</div>
     <RouteConnectorLegend compact/>
     <div className="ax-ecosystem-flow-canvas" data-testid="ecosystem-flow-canvas" aria-label="Interactive manufacturing relationship canvas">
@@ -465,8 +493,8 @@ export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:
         edges={flowEdges}
         nodeTypes={ECOSYSTEM_FLOW_NODE_TYPES}
         fitView
-        fitViewOptions={{padding:.12,minZoom:.12,maxZoom:1.25}}
-        minZoom={.1}
+        fitViewOptions={{padding:.06,minZoom:.28,maxZoom:1.2}}
+        minZoom={.22}
         maxZoom={1.8}
         nodesDraggable
         nodesConnectable
