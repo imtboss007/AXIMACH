@@ -986,7 +986,7 @@ try {
   if (await page.locator(".manufacturing-universe-empty").count() !== 1 && await page.locator(".process-universe-3d").count() !== 1) {
     throw new Error("Manufacturing Universe did not preserve its PO route scene.");
   }
-  await page.getByRole("button", { name: /Ecosystem/i }).click();
+  await page.getByRole("button", { name: /Manufacturing Graph/i }).click();
   await page.locator(".ax-ecosystem-graph").waitFor();
   console.log("PASS Manufacturing Universe ecosystem graph, 12 filters and preserved PO route view");
 
