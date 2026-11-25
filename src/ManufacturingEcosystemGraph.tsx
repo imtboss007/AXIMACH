@@ -206,6 +206,10 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     const components=activeRows(data.components||[]).filter(row=>!scoped||scopedComponentIds.has(row.id));
     const operations=activeRows(data.operations||[]).filter(matchesLine);
     const allocations=activeRows(data.materialCostEntries||[]).filter(matchesLine);
+    const materialProcessLinks=activeRows(data.materialProcessLinks||[]).filter(matchesLine);
+    const materialMasters=new Map(activeRows(data.materials||[]).map(row=>[row.id,row]));
+    const bomById=new Map(activeRows(data.bomLines||[]).map(row=>[row.id,row]));
+    const partsById=new Map(activeRows(data.componentParts||[]).map(row=>[row.id,row]));
     const inspections=activeRows(data.inspectionMeasurements||[]).filter(matchesLine);
     const legs=activeRows(data.transportLegs||[]).filter(matchesLine);
     const payments=activeRows(data.paymentTransactions||[]).filter(matchesLine);
@@ -266,6 +270,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     }
     routeLinks.forEach(link=>edge("operation:"+link.fromOperationId,"operation:"+link.toOperationId,link.relationshipType));
     const inboundMaterialTransportCount=allocations.filter(row=>row.transportVendorId||row.transportVehicleType||row.transportFrom||row.transportTo||Number(row.transportCost)>0).length;
+    const firstMainOperation=operations.filter(operation=>(operation.branch||"Main route")==="Main route"&&operation.relationType!=="subprocess").sort((a,b)=>a.sequence-b.sequence)[0]||operations.filter(operation=>operation.relationType!=="subprocess").sort((a,b)=>a.sequence-b.sequence)[0];
     allocations.forEach(row=>{
       const context={companyId:row.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.anchorOperationId};
       const materialId="material:"+row.id;
@@ -274,13 +279,31 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
       edge(materialId,"component:"+row.componentId,"allocated to");
       edge(materialId,"vendor:"+row.vendorId,"supplied by");
       const hasInbound=Boolean(row.transportVendorId||row.transportVehicleType||row.transportFrom||row.transportTo||Number(row.transportCost)>0);
+      const targetOperation=operations.find(operation=>operation.id===row.anchorOperationId)||firstMainOperation;
       if(hasInbound){
         const transportId="material-transport:"+row.id;
-        add(transportId,(row.transportFrom||"Supplier pickup")+" → "+(row.transportTo||"Factory destination"),"Inbound transport · "+(row.transportVehicleType||"Vehicle not set")+" · "+(row.transportStatus||"Planned"),"transport","dispatch",{...context,operationId:row.anchorOperationId});
+        add(transportId,(row.transportFrom||"Supplier pickup")+" → "+(row.transportTo||"Factory destination"),"Inbound transport · "+(row.transportVehicleType||"Vehicle not set")+" · "+(row.transportStatus||"Planned"),"transport","dispatch",{...context,operationId:targetOperation?.id||row.anchorOperationId});
         edge(materialId,transportId,"transport");
-        edge(transportId,"operation:"+row.anchorOperationId,"transport");
-        edge(transportId,"vendor:"+row.transportVendorId,"carried by");
-      }else edge(materialId,"operation:"+row.anchorOperationId,"feeds operation");
+        if(targetOperation)edge(transportId,"operation:"+targetOperation.id,"transport");
+        if(row.transportVendorId)edge(transportId,"vendor:"+row.transportVendorId,"carried by");
+      }else if(targetOperation)edge(materialId,"operation:"+targetOperation.id,"feeds operation");
+    });
+    // BOM material-to-process links are separate canonical records from cost
+    // allocations. Render each link so a saved part/material feed is never lost.
+    materialProcessLinks.forEach(link=>{
+      const material=materialMasters.get(link.materialId);
+      const bom=bomById.get(link.bomLineId);
+      const part=bom?.partId?partsById.get(bom.partId):undefined;
+      const linkId="material-link:"+link.id;
+      const label=material?.name||"Material "+link.materialId;
+      const subPart=part?((part.partNumber?part.partNumber+" · ":"")+part.name):"Whole component";
+      const detail="BOM material · "+(material?.grade||"Grade not recorded")+" · "+link.flowType+" · "+link.quantityPerPart+" "+link.unit+" / part · "+subPart;
+      const context={companyId:scope?.companyId,poId:link.poId,poLineId:link.poLineId,componentId:link.componentId,operationId:link.operationId};
+      add(linkId,label,detail,"material","inventory",context);
+      if(link.flowType==="Output")edge("operation:"+link.operationId,linkId,"output from operation");
+      else edge(linkId,"operation:"+link.operationId,"feeds operation");
+      edge(linkId,"component:"+link.componentId,"allocated to");
+      if(material?.preferredVendorId)edge(linkId,"vendor:"+material.preferredVendorId,"supplied by");
     });
     inspections.forEach(row=>{
       const context={poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.operationId};
@@ -315,7 +338,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     const visibleEdges=filteredEdges.filter(item=>visibleIds.has(item.from)&&visibleIds.has(item.to));
     const availableCounts:Record<NodeKind,number>={
       company:companies.length,customer:customers.length,factory:factories.length,order:orders.length,component:components.length,
-      vendor:vendors.length,process:definitions.length,operation:operations.length,material:allocations.length,
+      vendor:vendors.length,process:definitions.length,operation:operations.length,material:allocations.length+materialProcessLinks.length,
       quality:inspections.length,transport:legs.length+inboundMaterialTransportCount,finance:payments.length,contact:contacts.length
     };
     const totals=GROUPS.map(group=>({...group,count:availableCounts[group.kind]||0,renderedCount:visibleNodes.filter(node=>node.kind===group.kind).length}));
