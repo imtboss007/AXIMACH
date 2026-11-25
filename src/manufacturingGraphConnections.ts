@@ -56,8 +56,10 @@ export function connectManufacturingGraphNodes({
   const targetOperation=activeRows(data.operations).find(row=>row.id===targetOperationId&&inScope(row,scope));
   const sourceInboundMaterialId=afterPrefix(source,["material-transport:","material-transport-"]);
   const targetInboundMaterialId=afterPrefix(target,["material-transport:","material-transport-"]);
-  const sourceMaterialId=sourceInboundMaterialId?"":afterPrefix(source,["material:","material-"]);
-  const targetMaterialId=targetInboundMaterialId?"":afterPrefix(target,["material:","material-"]);
+  const sourceMaterialLinkId=afterPrefix(source,["material-link:"]);
+  const targetMaterialLinkId=afterPrefix(target,["material-link:"]);
+  const sourceMaterialId=sourceInboundMaterialId||sourceMaterialLinkId?"":afterPrefix(source,["material:","material-"]);
+  const targetMaterialId=targetInboundMaterialId||targetMaterialLinkId?"":afterPrefix(target,["material:","material-"]);
   const sourceTransportId=afterPrefix(source,["transport:","transport-"]);
   const targetTransportId=afterPrefix(target,["transport:","transport-"]);
   const sourceQualityId=afterPrefix(source,["quality:"]);
@@ -69,6 +71,9 @@ export function connectManufacturingGraphNodes({
 
   const materialId=sourceMaterialId||targetMaterialId||sourceInboundMaterialId||targetInboundMaterialId;
   const material=materialId?activeRows(data.materialCostEntries).find(row=>row.id===materialId&&inScope(row,scope)):undefined;
+  const materialProcessLinkId=sourceMaterialLinkId||targetMaterialLinkId;
+  const materialProcessLink=materialProcessLinkId?activeRows(data.materialProcessLinks||[]).find(row=>row.id===materialProcessLinkId&&inScope(row,scope)):undefined;
+  const isInboundMaterialTransport=Boolean(sourceInboundMaterialId||targetInboundMaterialId);
   const transportId=sourceTransportId||targetTransportId;
   const transport=transportId?activeRows(data.transportLegs).find(row=>row.id===transportId&&inScope(row,scope)):undefined;
   const qualityId=sourceQualityId||targetQualityId;
@@ -99,6 +104,15 @@ export function connectManufacturingGraphNodes({
     };
     update(current=>({...current,routeRelationships:[...(current.routeRelationships||[]),record]}));
     onNotice("Saved "+type+" connection: "+sourceOperation.name+" → "+targetOperation.name+".");
+    return;
+  }
+
+  if(materialProcessLink&&(sourceOperation||targetOperation)){
+    const operation=sourceOperation||targetOperation!;
+    update(current=>({...current,materialProcessLinks:(current.materialProcessLinks||[]).map(row=>
+      row.id===materialProcessLink.id?{...row,operationId:operation.id,updatedAt:nowIso()}:row
+    )}));
+    onNotice("Linked BOM material "+materialProcessLink.materialId+" to "+operation.name+". The material-process link is saved.");
     return;
   }
 
@@ -144,6 +158,14 @@ export function connectManufacturingGraphNodes({
     return;
   }
 
+  if(material&&vendor&&isInboundMaterialTransport){
+    update(current=>({...current,materialCostEntries:current.materialCostEntries.map(row=>
+      row.id===material.id?{...row,transportVendorId:vendor.id,updatedAt:nowIso()}:row
+    )}));
+    onNotice("Assigned "+vendor.company+" as the carrier for inbound material transport.");
+    return;
+  }
+
   if(material&&vendor){
     update(current=>({...current,materialCostEntries:current.materialCostEntries.map(row=>
       row.id===material.id?{...row,vendorId:vendor.id,updatedAt:nowIso()}:row
@@ -152,11 +174,33 @@ export function connectManufacturingGraphNodes({
     return;
   }
 
+  if(materialProcessLink&&vendor){
+    const materialRecord=activeRows(data.materials||[]).find(row=>row.id===materialProcessLink.materialId);
+    if(!materialRecord){onNotice("The BOM material master record is missing. Open Material Directory and repair the reference.");return;}
+    update(current=>({...current,materials:(current.materials||[]).map(row=>
+      row.id===materialRecord.id?{...row,preferredVendorId:vendor.id,updatedAt:nowIso()}:row
+    )}));
+    onNotice("Assigned "+vendor.company+" as the preferred supplier for "+materialRecord.name+".");
+    return;
+  }
+
   if(transport&&vendor){
     update(current=>({...current,transportLegs:current.transportLegs.map(row=>
       row.id===transport.id?{...row,vendorId:vendor.id,updatedAt:nowIso()}:row
     )}));
     onNotice("Assigned "+vendor.company+" as the carrier for this transport leg.");
+    return;
+  }
+
+  if(process&&vendor){
+    if(process.vendorIds.includes(vendor.id)){
+      onNotice(vendor.company+" is already linked to "+process.processType+".");
+      return;
+    }
+    update(current=>({...current,processDefinitions:current.processDefinitions.map(row=>
+      row.id===process.id?{...row,vendorIds:[...row.vendorIds,vendor.id],updatedAt:nowIso()}:row
+    )}));
+    onNotice("Linked "+vendor.company+" as a capable vendor for "+process.processType+".");
     return;
   }
 
