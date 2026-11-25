@@ -427,3 +427,22 @@ test("manufacturing route connectors show animated directional pulses without ov
   assert.ok(css.includes("@media(prefers-reduced-motion:reduce)"));
   assert.ok(!css.includes(".ax-ecosystem-flow-canvas .react-flow__arrowhead path{fill:currentColor!important"));
 });
+
+
+test("Manufacturing Universe renders every selected-line BOM material link and attaches unanchored allocations to the first main operation",()=>{
+  const graph=source("src/ManufacturingEcosystemGraph.tsx");
+  assert.ok(graph.includes("materialProcessLinks=activeRows(data.materialProcessLinks||[]).filter(matchesLine)"));
+  assert.ok(graph.includes('const linkId="material-link:"+link.id'));
+  assert.ok(graph.includes('if(link.flowType==="Output")edge("operation:"+link.operationId,linkId,"output from operation")'));
+  assert.ok(graph.includes('else edge(linkId,"operation:"+link.operationId,"feeds operation")'));
+  assert.ok(graph.includes("const firstMainOperation=operations.filter"));
+  assert.ok(graph.includes("operations.find(operation=>operation.id===row.anchorOperationId)||firstMainOperation"));
+  assert.ok(graph.includes("if(targetOperation)edge(transportId,\"operation:\"+targetOperation.id,\"transport\")"));
+});
+
+test("custom process colours override palette defaults while legacy shared blues fall back to category colours",()=>{
+  const palette=source("src/processPalette.ts");
+  assert.ok(palette.includes("const saved=[record.processColor,record.displayColor]"));
+  assert.ok(palette.includes(".find(value=>Boolean(value)&&!LEGACY_DEFAULTS.has(value))"));
+  assert.ok(palette.includes("if(saved)return saved"));
+});
