@@ -45,6 +45,8 @@ function ProcessMapGraphCard({data}:NodeProps<ProcessMapGraphNode>) {
     <Handle id="source-right" type="source" position={Position.Right}/>
     <Handle id="source-top" type="source" position={Position.Top}/>
     <Handle id="source-bottom" type="source" position={Position.Bottom}/>
+    <Handle id="target-left-transport" type="target" position={Position.Left} style={{top:"84%"}}/>
+    <Handle id="source-right-transport" type="source" position={Position.Right} style={{top:"84%"}}/>
   </article>;
 }
 const PROCESS_MAP_NODE_TYPES = {processMapEntity:ProcessMapGraphCard} satisfies NodeTypes;
