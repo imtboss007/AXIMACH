@@ -32,7 +32,7 @@ const dateLabel=(value?:string)=>value?new Date(value).toLocaleString("en-IN",{d
 const money=(value:number)=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 const dayAfter=(date=new Date())=>{const next=new Date(date);next.setDate(next.getDate()+1);return next.toISOString().slice(0,10);};
 const addFrequency=(date:string,value:number,unit:string)=>{
-  if(!date||!Number.isFinite(value)||value<=0||["Operating hours","Cycles"].includes(unit))return "";
+  if(!date||!Number.isFinite(value)||value<=0)return "";
   const next=new Date(date+"T12:00:00");
   if(unit==="Days")next.setDate(next.getDate()+value);
   else if(unit==="Weeks")next.setDate(next.getDate()+value*7);
@@ -232,7 +232,7 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
         <label>Plan name *<input value={planDraft.planName} onChange={event=>setPlanDraft({...planDraft,planName:event.target.value})} placeholder="90-day spindle and lubrication service"/></label>
         <label>Maintenance type<select value={planDraft.maintenanceType} onChange={event=>setPlanDraft({...planDraft,maintenanceType:event.target.value as MachineMaintenancePlanType})}>{PLAN_TYPES.map(value=><option key={value}>{value}</option>)}</select></label>
         <label>Frequency value<input type="number" min="1" value={planDraft.frequencyValue} onChange={event=>setPlanDraft({...planDraft,frequencyValue:Math.max(1,Math.floor(Number(event.target.value)||1))})}/></label>
-        <label>Frequency unit<select value={planDraft.frequencyUnit} onChange={event=>setPlanDraft({...planDraft,frequencyUnit:event.target.value as PlanDraft["frequencyUnit"]})}>{["Days","Weeks","Months","Operating hours","Cycles"].map(value=><option key={value}>{value}</option>)}</select></label>
+        <label>Frequency unit<select value={planDraft.frequencyUnit} onChange={event=>setPlanDraft({...planDraft,frequencyUnit:event.target.value as PlanDraft["frequencyUnit"]})}>{["Days","Weeks","Months"].map(value=><option key={value}>{value}</option>)}</select><small className="field-hint">Calendar-based recurrence is supported now. Machine-hour and cycle triggers will be enabled with meter capture.</small></label>
         <label>Next due date *<input type="date" value={planDraft.nextDueAt} onChange={event=>setPlanDraft({...planDraft,nextDueAt:event.target.value})}/></label>
         <label>Estimated duration (hours)<input type="number" min="0.1" step="0.1" value={planDraft.estimatedDurationHours} onChange={event=>setPlanDraft({...planDraft,estimatedDurationHours:Number(event.target.value)||0})}/></label>
         <label>Assigned technician / team<input value={planDraft.assignedTo} onChange={event=>setPlanDraft({...planDraft,assignedTo:event.target.value})} placeholder="Maintenance team"/></label>
