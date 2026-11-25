@@ -22,7 +22,8 @@ type PlanDraft=Omit<MachineMaintenancePlanRecord,"id"|"createdAt"|"updatedAt"|"d
 type WorkOrderDraft=Omit<MachineMaintenanceWorkOrderRecord,"id"|"createdAt"|"updatedAt"|"deletedAt">;
 type DowntimeDraft=Omit<MachineDowntimeRecord,"id"|"createdAt"|"updatedAt"|"deletedAt">;
 const localDateTime=(value:string)=>{
-  const date=value?new Date(value):new Date();
+  if(!value)return "";
+  const date=new Date(value);
   const local=new Date(date.getTime()-date.getTimezoneOffset()*60000);
   return local.toISOString().slice(0,16);
 };
@@ -160,7 +161,7 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
       const nextDowntime=(current.machineDowntime||[]).map(event=>
         status==="Completed"&&event.workOrderId===order.id&&!event.endedAt?{...event,endedAt:stamp,updatedAt:stamp}:event
       );
-      return {...current,maintenancePlans:nextPlans,maintenanceDowntime:nextDowntime.length?undefined:undefined,machineDowntime:nextDowntime,
+      return {...current,maintenancePlans:nextPlans,machineDowntime:nextDowntime,
         maintenanceWorkOrders:(current.maintenanceWorkOrders||[]).map(row=>row.id===order.id?updated:row)};
     });
     onNotice("Work order "+order.workOrderNumber+" marked "+status+".");
