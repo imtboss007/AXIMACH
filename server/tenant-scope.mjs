@@ -311,7 +311,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
  const validMoney = value => Number.isFinite(Number(value)) && Number(value)>=0;
  const vendorAllowedForCompany = (vendorId,companyId) => vendorIds.has(vendorId) &&
   (privileged || Boolean(access.vendorOwners?.get(vendorId)?.has(companyId)));
- const validIsoDate = value => typeof value==="string"&&/^\\d{4}-\\d{2}-\\d{2}$/.test(value)&&
+ const validIsoDate = value => typeof value==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&
   Number.isFinite(Date.parse(value+"T00:00:00.000Z"))&&new Date(value+"T00:00:00.000Z").toISOString().slice(0,10)===value;
 
  const materialIds = access.materialIds;
@@ -366,7 +366,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   for(const event of [...rows(currentData,"machineDowntime"),...rows(incoming,"machineDowntime")]){
    if(!event||event.machineId!==operation.machineId||event.deletedAt||!event.startedAt)continue;
    const start=Date.parse(event.startedAt),end=event.endedAt?Date.parse(event.endedAt):Number.POSITIVE_INFINITY;
-   if(Number.isFinite(start)&&Number.isFinite(end)&&overlaps(range,{start,end}))return false;
+   if(Number.isFinite(start)&&(!event.endedAt||Number.isFinite(end))&&overlaps(range,{start,end}))return false;
   }
   return true;
  };
@@ -389,7 +389,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   for(const event of [...rows(currentData,"machineDowntime"),...rows(incoming,"machineDowntime")]){
    if(!event||event.machineId!==order.machineId||event.workOrderId===order.id||event.deletedAt||!event.startedAt)continue;
    const start=Date.parse(event.startedAt),end=event.endedAt?Date.parse(event.endedAt):Number.POSITIVE_INFINITY;
-   if(Number.isFinite(start)&&Number.isFinite(end)&&overlaps(range,{start,end}))return false;
+   if(Number.isFinite(start)&&(!event.endedAt||Number.isFinite(end))&&overlaps(range,{start,end}))return false;
   }
   return true;
  };
