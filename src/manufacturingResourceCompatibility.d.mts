@@ -1,0 +1,5 @@
+export type ResourceScope = {companyId:string;factoryId:string;machineId?:string;machineType?:string;processDefinitionId?:string;material?:string;componentId?:string;selectedId?:string;existingToolingIds?:string[];existingFixtureIds?:string[]};
+export function getEligibleToolingAssets<T extends Record<string,any>>(assets:T[],scope:ResourceScope):T[];
+export function getEligibleFixtureAssets<T extends Record<string,any>>(assets:T[],scope:ResourceScope):T[];
+export function validateOperationResourceAssignments(input:{toolingIds?:string[];fixtureIds?:string[];toolingAssets?:any[];fixtureAssets?:any[];scope?:ResourceScope}):{ok:boolean;reason:string};
+export function applyResourceUsageEvent<T extends Record<string,any>>(asset:T,event:{resourceType:"tooling"|"fixture";eventType:"Production use"|"Regrind"|"Inspection"|"Repair"|"Replacement";runtimeMinutes:number;cycles:number;occurredAt?:string;inspectionResult?:"Pass"|"Fail"|"Not assessed";inspectionDueAt?:string}):T;
