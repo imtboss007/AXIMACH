@@ -457,7 +457,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
     }
     case "maintenancePlans": {
      const machine=machineById.get(row.machineId);
-     const frequencyUnits=["Days","Weeks","Months","Operating hours","Cycles"];
+     const frequencyUnits=["Days","Weeks","Months"];
      const planTypes=["Preventive","Lubrication","Calibration","Inspection"];
      allowed=Boolean(machine&&!machine.deletedAt&&companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&
       machine.companyId===row.companyId&&machine.factoryId===row.factoryId&&
