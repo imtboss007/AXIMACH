@@ -61,7 +61,7 @@ export function routeRelationshipHandles(type) {
     feedback: ["source-left","target-left"],
     conditional: ["source-bottom","target-top"],
     successor: ["source-left","target-bottom"],
-    transport: ["source-right","target-left"]
+    transport: ["source-right-transport","target-left-transport"]
   };
   return map[type] || map.main;
 }
