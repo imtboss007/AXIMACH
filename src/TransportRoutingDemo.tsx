@@ -5,6 +5,7 @@ import type { ComponentTransportLegRecord, MaterialProcessLinkRecord, MaterialRe
 import { TransportLegMarker, VehicleBadge, VEHICLE_TYPES } from "./TransportVehicle";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
+import { SingleComponentRouteGraphDemo } from "./SingleComponentRouteGraphDemo";
 
 type Props = { onClose?: () => void };
 type DemoOperation = { id:string; name:string; sequence:number; branch:string; relationType:string|null; parentId:string; quantity:number; costIncluded:boolean };
@@ -53,6 +54,7 @@ export default function TransportRoutingDemo({onClose}:Props) {
       <span>{simulationIndex<0?"Ready":simulationIndex>=activeOperations.length-1?"Simulation reached final active step": "Step "+(simulationIndex+1)+" of "+activeOperations.length}</span>
     </div>
     {currentOperation&&<div className="transport-demo-current"><CheckCircle2 size={15}/><span>Current simulation step: <strong>OP-{String(currentOperation.sequence).padStart(3,"0")} · {currentOperation.name}</strong></span></div>}
+    <SingleComponentRouteGraphDemo/>
     <div className="transport-demo-lane">
       <div className="transport-demo-lane-title"><strong>Main manufacturing route</strong><small>{mainOperations.length} process steps · all legs belong to the same component / PO line</small></div>
       {startLegs.length>0&&<div className="transport-demo-start-legs">{startLegs.map(renderLeg)}</div>}

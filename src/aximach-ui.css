@@ -6963,3 +6963,27 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .route-flow-graph-node{width:192px!important;min-height:88px!important}
   .process-map-graph-card{width:176px!important;min-height:96px!important}
 }
+
+
+/* Synthetic, one-component relationship acceptance graph. Reuses the live
+   Route Flow canvas and keeps the diagram readable with zoom/pan on phones. */
+.single-component-route-demo{display:grid;gap:10px;margin:16px 0;padding:14px;border:1px solid #d7e5ef;border-radius:12px;background:linear-gradient(145deg,#f8fbfe,#eef5fa)}
+.single-component-route-demo-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.single-component-route-demo-head h3{margin:5px 0 3px;color:#213e59;font-size:15px}
+.single-component-route-demo-head p{margin:0;color:#6c8196;font-size:11px;line-height:1.5}
+.single-component-route-demo-canvas{height:650px;min-height:520px;background:radial-gradient(circle at 50% 42%,#fff 0%,#f7fbff 45%,#eaf2f9 100%)}
+.single-component-route-node{width:230px;min-height:116px}
+.single-component-route-node-head{display:flex;align-items:center;gap:8px;color:var(--route-accent);font:700 8px 'DM Mono';letter-spacing:.05em}
+.single-component-route-node-head>span{display:grid;place-items:center;min-width:25px;width:25px;height:25px;border:1px solid color-mix(in srgb,var(--route-accent) 28%,white);border-radius:7px;background:color-mix(in srgb,var(--route-accent) 8%,white)}
+.single-component-route-node>strong{font-size:11px;line-height:1.35}
+.single-component-route-node>small{font-size:8px;line-height:1.45;color:#748ba1}
+.single-component-route-demo-caption{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#506b83;font-size:10px;line-height:1.5}
+.single-component-route-demo-caption small{color:#8092a3;font-size:9px}
+.single-component-route-demo-canvas .react-flow__handle{opacity:.24}
+@media(max-width:700px){
+ .single-component-route-demo{padding:9px;margin:12px 0}
+ .single-component-route-demo-head{flex-direction:column;align-items:flex-start}
+ .single-component-route-demo-canvas{height:600px;min-height:480px}
+ .single-component-route-demo-caption{display:grid;gap:3px}
+}
+@media(prefers-reduced-motion:reduce){.single-component-route-demo-canvas .react-flow__node{transition:none!important}}

@@ -1,0 +1,348 @@
+{
+  "component": {
+    "id": "demo-component-ast-1001",
+    "partNumber": "AST-1001",
+    "name": "Motor mounting bracket",
+    "material": "IS 2062 mild steel",
+    "quantity": 250,
+    "quantityUnit": "pieces"
+  },
+  "nodes": [
+    {
+      "id": "material-stock",
+      "label": "IS 2062 mild steel",
+      "code": "MATERIAL · 01",
+      "kind": "material",
+      "detail": "Raw stock · 250 pcs · 716.92 kg",
+      "accent": "#0c9e98",
+      "x": 60,
+      "y": 110,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "inbound-vehicle",
+      "label": "Supplier → ASTER CNC",
+      "code": "INBOUND TRANSPORT",
+      "kind": "transport",
+      "detail": "Mini truck · 1 trip · material pickup",
+      "accent": "#2c87c6",
+      "vehicleType": "Mini truck",
+      "x": 330,
+      "y": 110,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "incoming-qc",
+      "label": "Incoming material inspection",
+      "code": "QUALITY · IQC",
+      "kind": "quality",
+      "detail": "Grade, dimensions and certificate verification",
+      "accent": "#8a60bd",
+      "x": 600,
+      "y": 110,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "op-001",
+      "label": "Fiber laser cutting",
+      "code": "OP-001 · MAIN",
+      "kind": "process",
+      "detail": "250 pcs · ASTER CNC · Laser cutting",
+      "accent": "#3d79b7",
+      "processName": "Fiber laser cutting",
+      "category": "Laser cutting",
+      "x": 870,
+      "y": 110,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "op-002",
+      "label": "Press brake bending",
+      "code": "OP-002 · MAIN",
+      "kind": "process",
+      "detail": "250 pcs · Forming",
+      "accent": "#3d79b7",
+      "processName": "Press brake bending",
+      "category": "Forming",
+      "x": 870,
+      "y": 340,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "op-003",
+      "label": "CNC punching alternative",
+      "code": "OP-003 · ALTERNATE",
+      "kind": "process",
+      "detail": "Optional qualified route · alternate workcell",
+      "accent": "#4b95eb",
+      "processName": "CNC punching",
+      "category": "Machining",
+      "x": 600,
+      "y": 340,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "op-004",
+      "label": "MIG welding",
+      "code": "OP-004 · SPLIT",
+      "kind": "process",
+      "detail": "Weld preparation · simultaneous downstream work",
+      "accent": "#3d79b7",
+      "processName": "MIG welding",
+      "category": "Welding",
+      "x": 330,
+      "y": 340,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "op-005",
+      "label": "Vacuum hardening",
+      "code": "OP-005 · PARALLEL A",
+      "kind": "process",
+      "detail": "Heat treatment · parallel branch A",
+      "accent": "#3d79b7",
+      "processName": "Vacuum hardening",
+      "category": "Heat treatment",
+      "x": 60,
+      "y": 340,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "op-006",
+      "label": "Cylindrical grinding",
+      "code": "OP-006 · PARALLEL B",
+      "kind": "process",
+      "detail": "Finish grinding · parallel branch B",
+      "accent": "#3d79b7",
+      "processName": "Cylindrical grinding",
+      "category": "Grinding",
+      "x": 60,
+      "y": 570,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "op-007",
+      "label": "CMM inspection",
+      "code": "OP-007 · MERGE / QC",
+      "kind": "quality",
+      "detail": "Dimensional verification · 250 pcs",
+      "accent": "#8a60bd",
+      "x": 330,
+      "y": 570,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "pass-release",
+      "label": "Inspection passed",
+      "code": "CONDITIONAL · PASS",
+      "kind": "delivery",
+      "detail": "Release to final finishing",
+      "accent": "#33865e",
+      "x": 600,
+      "y": 570,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "rework-station",
+      "label": "Corrective rework",
+      "code": "REWORK · FAIL PATH",
+      "kind": "process",
+      "detail": "Rework station · return to grinding",
+      "accent": "#e38b45",
+      "processName": "Corrective grinding",
+      "category": "Rework",
+      "x": 870,
+      "y": 570,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "wash-deburr",
+      "label": "Wash and deburr",
+      "code": "OP-008 · FOLLOW-ON",
+      "kind": "process",
+      "detail": "Cleaning · edge finishing",
+      "accent": "#3d79b7",
+      "processName": "Wash and deburr",
+      "category": "Finishing",
+      "x": 870,
+      "y": 800,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "packing",
+      "label": "Final packing",
+      "code": "OP-009 · SUCCESSOR",
+      "kind": "delivery",
+      "detail": "Pack and identify completed component",
+      "accent": "#33865e",
+      "x": 600,
+      "y": 800,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "outbound-vehicle",
+      "label": "ASTER CNC → Customer",
+      "code": "OUTBOUND TRANSPORT",
+      "kind": "transport",
+      "detail": "Container truck · 1 trip · delivery",
+      "accent": "#2c87c6",
+      "vehicleType": "Container truck",
+      "x": 330,
+      "y": 800,
+      "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "dispatch",
+      "label": "Customer dispatch",
+      "code": "DELIVERY",
+      "kind": "delivery",
+      "detail": "Proof of delivery · component hand-off",
+      "accent": "#33865e",
+      "x": 60,
+      "y": 800,
+      "componentId": "demo-component-ast-1001"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-transport-in",
+      "source": "material-stock",
+      "target": "inbound-vehicle",
+      "type": "transport",
+      "label": "INBOUND PICKUP"
+    },
+    {
+      "id": "edge-material-receipt",
+      "source": "inbound-vehicle",
+      "target": "incoming-qc",
+      "type": "material",
+      "label": "MATERIAL RECEIVED"
+    },
+    {
+      "id": "edge-dependency",
+      "source": "incoming-qc",
+      "target": "op-001",
+      "type": "dependency",
+      "label": "QC RELEASE REQUIRED"
+    },
+    {
+      "id": "edge-main",
+      "source": "op-001",
+      "target": "op-002",
+      "type": "main",
+      "label": "MAIN ROUTE"
+    },
+    {
+      "id": "edge-alternate",
+      "source": "op-002",
+      "target": "op-003",
+      "type": "alternate",
+      "label": "ALTERNATE ROUTE"
+    },
+    {
+      "id": "edge-split",
+      "source": "op-002",
+      "target": "op-004",
+      "type": "split",
+      "label": "SPLIT TO WELD CELL"
+    },
+    {
+      "id": "edge-parallel-a",
+      "source": "op-004",
+      "target": "op-005",
+      "type": "parallel",
+      "label": "PARALLEL A"
+    },
+    {
+      "id": "edge-parallel-b",
+      "source": "op-004",
+      "target": "op-006",
+      "type": "parallel",
+      "label": "PARALLEL B"
+    },
+    {
+      "id": "edge-merge-a",
+      "source": "op-005",
+      "target": "op-007",
+      "type": "merge",
+      "label": "MERGE A"
+    },
+    {
+      "id": "edge-merge-b",
+      "source": "op-006",
+      "target": "op-007",
+      "type": "merge",
+      "label": "MERGE B"
+    },
+    {
+      "id": "edge-merge-alternate",
+      "source": "op-003",
+      "target": "op-007",
+      "type": "merge",
+      "label": "ALTERNATE REJOINS"
+    },
+    {
+      "id": "edge-conditional-pass",
+      "source": "op-007",
+      "target": "pass-release",
+      "type": "conditional",
+      "label": "PASS"
+    },
+    {
+      "id": "edge-conditional-fail",
+      "source": "op-007",
+      "target": "rework-station",
+      "type": "conditional",
+      "label": "FAIL"
+    },
+    {
+      "id": "edge-feedback",
+      "source": "op-007",
+      "target": "op-004",
+      "type": "feedback",
+      "label": "PROCESS FEEDBACK"
+    },
+    {
+      "id": "edge-feedback-parallel",
+      "source": "op-007",
+      "target": "rework-station",
+      "type": "feedback",
+      "label": "QUALITY FEEDBACK"
+    },
+    {
+      "id": "edge-rework",
+      "source": "rework-station",
+      "target": "op-006",
+      "type": "rework",
+      "label": "REWORK RETURN"
+    },
+    {
+      "id": "edge-follow-on",
+      "source": "pass-release",
+      "target": "wash-deburr",
+      "type": "follow-on",
+      "label": "FINAL FINISHING"
+    },
+    {
+      "id": "edge-successor",
+      "source": "wash-deburr",
+      "target": "packing",
+      "type": "successor",
+      "label": "SUCCESSOR"
+    },
+    {
+      "id": "edge-transport-out",
+      "source": "packing",
+      "target": "outbound-vehicle",
+      "type": "transport",
+      "label": "DISPATCH PICKUP"
+    },
+    {
+      "id": "edge-transport-deliver",
+      "source": "outbound-vehicle",
+      "target": "dispatch",
+      "type": "transport",
+      "label": "CUSTOMER DELIVERY"
+    }
+  ]
+}
