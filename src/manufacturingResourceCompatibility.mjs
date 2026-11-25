@@ -17,19 +17,19 @@ export function getEligibleToolingAssets(assets=[],scope={}){
   asset&&!asset.deletedAt&&asset.companyId===scope.companyId&&asset.factoryId===scope.factoryId&&
   (asset.status==="Available"||((asset.id===scope.selectedId||asArray(scope.selectedIds).includes(asset.id))&&["In use","Needs regrind","Under maintenance"].includes(asset.status)))&&
   machineMatch(asset,scope.machineId,scope.machineType)&&hasProcess(asset,scope.processDefinitionId)&&materialMatch(asset,scope.material)&&
-  !(Number(asset.toolLifeLimitMinutes)>0&&Number(asset.toolLifeUsedMinutes)>=Number(asset.toolLifeLimitMinutes))&&
-  !(Number(asset.toolLifeLimitCycles)>0&&Number(asset.toolLifeUsedCycles)>=Number(asset.toolLifeLimitCycles))&&
-  !dueIsPast(asset.inspectionDueAt)
+  ((asset.id===scope.selectedId||asArray(scope.selectedIds).includes(asset.id))||
+   (!(Number(asset.toolLifeLimitMinutes)>0&&Number(asset.toolLifeUsedMinutes)>=Number(asset.toolLifeLimitMinutes))&&
+    !(Number(asset.toolLifeLimitCycles)>0&&Number(asset.toolLifeUsedCycles)>=Number(asset.toolLifeLimitCycles))&&!dueIsPast(asset.inspectionDueAt)))
  ).sort((a,b)=>String(a.assetCode||"").localeCompare(String(b.assetCode||"")));
 }
 export function getEligibleFixtureAssets(assets=[],scope={}){
  return asArray(assets).filter(asset=>
   asset&&!asset.deletedAt&&asset.companyId===scope.companyId&&asset.factoryId===scope.factoryId&&
-  (asset.status==="Available"||((asset.id===scope.selectedId||asArray(scope.selectedIds).includes(asset.id))&&asset.status==="Under maintenance"))&&
+  (asset.status==="Available"||((asset.id===scope.selectedId||asArray(scope.selectedIds).includes(asset.id))&&["In use","Under maintenance"].includes(asset.status)))&&
   machineMatch(asset,scope.machineId,scope.machineType)&&hasProcess(asset,scope.processDefinitionId)&&
   (!asArray(asset.componentIds).length||asset.componentIds.includes(scope.componentId))&&
-  !(Number(asset.maxUsageCycles)>0&&Number(asset.usageCycles)>=Number(asset.maxUsageCycles))&&
-  !dueIsPast(asset.inspectionDueAt)
+  ((asset.id===scope.selectedId||asArray(scope.selectedIds).includes(asset.id))||
+   (!(Number(asset.maxUsageCycles)>0&&Number(asset.usageCycles)>=Number(asset.maxUsageCycles))&&!dueIsPast(asset.inspectionDueAt)))
  ).sort((a,b)=>String(a.assetCode||"").localeCompare(String(b.assetCode||"")));
 }
 export function validateOperationResourceAssignments({toolingIds=[],fixtureIds=[],toolingAssets=[],fixtureAssets=[],scope={}}={}){
