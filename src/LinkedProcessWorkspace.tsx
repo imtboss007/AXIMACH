@@ -389,7 +389,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     }))
   );
   const quantityUnit = selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces";
-  const eligibleMachines = getEligibleMachineAssets(machines,{companyId:selectedPO?.companyId,factoryId:selectedPO?.factoryId,processDefinitionId:draft.processDefinitionId,selectedMachineId:draft.machineId});
+  const eligibleMachines = getEligibleMachineAssets(machines,{companyId:selectedPO?.companyId,factoryId:selectedPO?.factoryId,processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,selectedMachineId:draft.machineId});
   const selectedMachine = machines.find(machine=>machine.id===draft.machineId);
   const processVendorOptions = selectedProcessDefinition?.vendorIds?.length ? vendors.filter(vendor => selectedProcessDefinition.vendorIds.includes(vendor.id)) : vendors;
   const selectedTransportVendor = vendors.find(vendor => vendor.id === draft.transportVendorId);
@@ -1172,7 +1172,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (draft.vendorId && !vendors.some(vendor => vendor.id === draft.vendorId)) { onNotice("The selected vendor is missing or archived. Choose an active Vendor Directory record."); return; }
     if(draft.machineId){
       const assignedMachine=machines.find(machine=>machine.id===draft.machineId);
-      const assignment=validateMachineAssignment(assignedMachine,{machineId:draft.machineId,existingMachineId:operations.find(operation=>operation.id===editingId)?.machineId,companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,processDefinitionId:draft.processDefinitionId,executionType:draft.executionType});
+      const assignment=validateMachineAssignment(assignedMachine,{machineId:draft.machineId,existingMachineId:operations.find(operation=>operation.id===editingId)?.machineId,companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,executionType:draft.executionType});
       if(!assignment.ok){onNotice("Registered machine assignment is invalid ("+assignment.reason+"). Choose an available machine in this PO factory with the selected process capability.");return;}
     }
     if (draft.executionType === "Outsourced" && selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)) { onNotice("The selected vendor is not assigned to this Process Directory definition. Choose an assigned vendor or update the Process Directory vendor links."); return; }
