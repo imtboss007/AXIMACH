@@ -211,6 +211,14 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     const factories=activeRows(data.factories||[]).filter(row=>!scoped||scopedCompanyIds.has(row.companyId));
     const machines=activeRows(data.machines||[]).filter(row=>!scoped||scopedCompanyIds.has(row.companyId));
     const machineIdSet=new Set(machines.map(row=>row.id));
+    const toolingAssets=activeRows(data.toolingAssets||[]).filter(row=>!scoped||scopedCompanyIds.has(row.companyId));
+    const fixtureAssets=activeRows(data.fixtureAssets||[]).filter(row=>!scoped||scopedCompanyIds.has(row.companyId));
+    const toolingAssetIds=new Set(toolingAssets.map(row=>row.id));
+    const fixtureAssetIds=new Set(fixtureAssets.map(row=>row.id));
+    const resourceUsageEvents=activeRows(data.resourceUsageEvents||[]).filter(row=>
+      row.resourceType==="tooling"?toolingAssetIds.has(row.resourceId):
+      row.resourceType==="fixture"&&fixtureAssetIds.has(row.resourceId)
+    );
     const maintenancePlans=activeRows(data.maintenancePlans||[]).filter(row=>machineIdSet.has(row.machineId));
     const maintenancePlanIdSet=new Set(maintenancePlans.map(row=>row.id));
     const maintenanceWorkOrders=activeRows(data.maintenanceWorkOrders||[]).filter(row=>machineIdSet.has(row.machineId)&&(!row.planId||maintenancePlanIdSet.has(row.planId)));
@@ -234,7 +242,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     ]);
     const vendors=activeRows(data.vendors||[]).filter(row=>!scoped||vendorIds.has(row.id));
     const processIds=new Set(operations.map(row=>row.processDefinitionId).filter((id):id is string=>Boolean(id)));
-    const machineProcessIds=new Set(machines.flatMap(machine=>machine.processDefinitionIds||[]));
+    const machineProcessIds=new Set([...machines.flatMap(machine=>machine.processDefinitionIds||[]),...toolingAssets.flatMap(asset=>asset.processDefinitionIds||[]),...fixtureAssets.flatMap(asset=>asset.processDefinitionIds||[])]);
     const definitions=activeRows(data.processDefinitions||[]).filter(row=>!scoped||processIds.has(row.id)||machineProcessIds.has(row.id)||row.vendorIds.some(id=>vendorIds.has(id)));
     const contactIds=new Set<string>([...scopedCompanyIds,...vendorIds]);
     const contacts=activeRows(data.contactProfiles||[]).filter(row=>!scoped||contactIds.has(row.linkedId));
