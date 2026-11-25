@@ -34,27 +34,8 @@
   "vendors": [
     {
       "id": "demo-vendor-internal",
-      "company": "ASTER Precision Works · Internal Workcells"
-    },
-    {
-      "id": "demo-vendor-logistics",
-      "company": "ASTER Logistics"
-    },
-    {
-      "id": "demo-vendor-heat",
-      "company": "ASTER Heat Treatment Cell"
-    },
-    {
-      "id": "demo-vendor-grind",
-      "company": "ASTER Grinding Cell"
-    },
-    {
-      "id": "demo-vendor-coating",
-      "company": "ASTER Surface Engineering"
-    },
-    {
-      "id": "demo-vendor-metrology",
-      "company": "ASTER Metrology Lab"
+      "company": "ASTER Precision Works",
+      "contact": "Internal logistics and handling desk"
     }
   ],
   "materials": [
@@ -870,7 +851,7 @@
   "transportRoutes": [
     {
       "id": "demo-route-inbound",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "fromLocation": "Central raw-material store",
       "toLocation": "ASTER blank-preparation cell",
       "vehicleType": "Heavy lorry",
@@ -882,7 +863,7 @@
     },
     {
       "id": "demo-route-shaft",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "fromLocation": "Shaft and gear workcell",
       "toLocation": "Final assembly",
       "vehicleType": "Heavy-duty tempo",
@@ -894,7 +875,7 @@
     },
     {
       "id": "demo-route-bracket",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "fromLocation": "Fabrication cell",
       "toLocation": "Final assembly",
       "vehicleType": "Tempo / 3-wheeler goods carrier",
@@ -906,7 +887,7 @@
     },
     {
       "id": "demo-route-base",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "fromLocation": "Base-plate machining cell",
       "toLocation": "Final assembly",
       "vehicleType": "Mini truck",
@@ -918,7 +899,7 @@
     },
     {
       "id": "demo-route-manifold",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "fromLocation": "Manifold machining cell",
       "toLocation": "Final assembly",
       "vehicleType": "Lorry / goods truck",
@@ -930,7 +911,7 @@
     },
     {
       "id": "demo-route-sample",
-      "vendorId": "demo-vendor-metrology",
+      "vendorId": "demo-vendor-internal",
       "fromLocation": "Assembly cell",
       "toLocation": "Metrology lab",
       "vehicleType": "Motorcycle",
@@ -942,7 +923,7 @@
     },
     {
       "id": "demo-route-alt",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "fromLocation": "Alternate punching cell",
       "toLocation": "Bracket forming cell",
       "vehicleType": "3-wheeler / Auto rickshaw",
@@ -954,7 +935,7 @@
     },
     {
       "id": "demo-route-rework",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "fromLocation": "Rework grinding cell",
       "toLocation": "Metrology lab",
       "vehicleType": "Car / Taxi",
@@ -966,7 +947,7 @@
     },
     {
       "id": "demo-route-outbound",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "fromLocation": "ASTER finished-goods store",
       "toLocation": "Customer receiving dock",
       "vehicleType": "Container truck",
@@ -978,7 +959,7 @@
     },
     {
       "id": "demo-route-courier",
-      "vendorId": "demo-vendor-metrology",
+      "vendorId": "demo-vendor-internal",
       "fromLocation": "Metrology lab",
       "toLocation": "Quality office",
       "vehicleType": "Courier / delivery van",
@@ -993,7 +974,7 @@
     {
       "id": "demo-leg-inbound",
       "routeId": "demo-route-inbound",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "companyId": "demo-company-aster-01",
       "componentId": "demo-component-ast-1001",
       "poId": "demo-po-aster-001",
@@ -1016,7 +997,7 @@
     {
       "id": "demo-leg-shaft",
       "routeId": "demo-route-shaft",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "companyId": "demo-company-aster-01",
       "componentId": "demo-component-ast-1001",
       "poId": "demo-po-aster-001",
@@ -1039,7 +1020,7 @@
     {
       "id": "demo-leg-bracket",
       "routeId": "demo-route-bracket",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "companyId": "demo-company-aster-01",
       "componentId": "demo-component-ast-1001",
       "poId": "demo-po-aster-001",
@@ -1062,7 +1043,7 @@
     {
       "id": "demo-leg-base",
       "routeId": "demo-route-base",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "companyId": "demo-company-aster-01",
       "componentId": "demo-component-ast-1001",
       "poId": "demo-po-aster-001",
@@ -1085,7 +1066,7 @@
     {
       "id": "demo-leg-manifold",
       "routeId": "demo-route-manifold",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "companyId": "demo-company-aster-01",
       "componentId": "demo-component-ast-1001",
       "poId": "demo-po-aster-001",
@@ -1108,7 +1089,7 @@
     {
       "id": "demo-leg-sample",
       "routeId": "demo-route-sample",
-      "vendorId": "demo-vendor-metrology",
+      "vendorId": "demo-vendor-internal",
       "companyId": "demo-company-aster-01",
       "componentId": "demo-component-ast-1001",
       "poId": "demo-po-aster-001",
@@ -1131,7 +1112,7 @@
     {
       "id": "demo-leg-alt",
       "routeId": "demo-route-alt",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "companyId": "demo-company-aster-01",
       "componentId": "demo-component-ast-1001",
       "poId": "demo-po-aster-001",
@@ -1154,7 +1135,7 @@
     {
       "id": "demo-leg-rework",
       "routeId": "demo-route-rework",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "companyId": "demo-company-aster-01",
       "componentId": "demo-component-ast-1001",
       "poId": "demo-po-aster-001",
@@ -1177,7 +1158,7 @@
     {
       "id": "demo-leg-courier",
       "routeId": "demo-route-courier",
-      "vendorId": "demo-vendor-metrology",
+      "vendorId": "demo-vendor-internal",
       "companyId": "demo-company-aster-01",
       "componentId": "demo-component-ast-1001",
       "poId": "demo-po-aster-001",
@@ -1200,7 +1181,7 @@
     {
       "id": "demo-leg-outbound",
       "routeId": "demo-route-outbound",
-      "vendorId": "demo-vendor-logistics",
+      "vendorId": "demo-vendor-internal",
       "companyId": "demo-company-aster-01",
       "componentId": "demo-component-ast-1001",
       "poId": "demo-po-aster-001",
@@ -1338,7 +1319,8 @@
       "poId": "demo-po-aster-001",
       "poLineId": "demo-line-aster-001",
       "componentId": "demo-component-ast-1001",
-      "vehicleType": "Heavy lorry"
+      "vehicleType": "Heavy lorry",
+      "transportLegId": "demo-leg-inbound"
     },
     {
       "id": "incoming-qc",
@@ -1802,7 +1784,8 @@
       "poId": "demo-po-aster-001",
       "poLineId": "demo-line-aster-001",
       "componentId": "demo-component-ast-1001",
-      "vehicleType": "Motorcycle"
+      "vehicleType": "Motorcycle",
+      "transportLegId": "demo-leg-sample"
     },
     {
       "id": "op-021",
@@ -1931,7 +1914,8 @@
       "poId": "demo-po-aster-001",
       "poLineId": "demo-line-aster-001",
       "componentId": "demo-component-ast-1001",
-      "vehicleType": "Container truck"
+      "vehicleType": "Container truck",
+      "transportLegId": "demo-leg-outbound"
     },
     {
       "id": "dispatch",
@@ -1946,6 +1930,118 @@
       "poId": "demo-po-aster-001",
       "poLineId": "demo-line-aster-001",
       "componentId": "demo-component-ast-1001"
+    },
+    {
+      "id": "transport-shaft",
+      "label": "Shaft subassembly transfer",
+      "code": "VEHICLE · HEAVY-DUTY TEMPO",
+      "kind": "transport",
+      "detail": "Shaft / gear cell → final assembly",
+      "accent": "#2c87c6",
+      "vehicleType": "Heavy-duty tempo",
+      "x": 2900,
+      "y": 30,
+      "companyId": "demo-company-aster-01",
+      "poId": "demo-po-aster-001",
+      "poLineId": "demo-line-aster-001",
+      "componentId": "demo-component-ast-1001",
+      "transportLegId": "demo-leg-shaft"
+    },
+    {
+      "id": "transport-bracket",
+      "label": "Bracket subassembly transfer",
+      "code": "VEHICLE · TEMPO",
+      "kind": "transport",
+      "detail": "Fabrication cell → final assembly",
+      "accent": "#2c87c6",
+      "vehicleType": "Tempo / 3-wheeler goods carrier",
+      "x": 2900,
+      "y": 260,
+      "companyId": "demo-company-aster-01",
+      "poId": "demo-po-aster-001",
+      "poLineId": "demo-line-aster-001",
+      "componentId": "demo-component-ast-1001",
+      "transportLegId": "demo-leg-bracket"
+    },
+    {
+      "id": "transport-base",
+      "label": "Base plate transfer",
+      "code": "VEHICLE · MINI TRUCK",
+      "kind": "transport",
+      "detail": "Base plate cell → final assembly",
+      "accent": "#2c87c6",
+      "vehicleType": "Mini truck",
+      "x": 2320,
+      "y": 490,
+      "companyId": "demo-company-aster-01",
+      "poId": "demo-po-aster-001",
+      "poLineId": "demo-line-aster-001",
+      "componentId": "demo-component-ast-1001",
+      "transportLegId": "demo-leg-base"
+    },
+    {
+      "id": "transport-manifold",
+      "label": "Manifold transfer",
+      "code": "VEHICLE · LORRY",
+      "kind": "transport",
+      "detail": "Manifold cell → final assembly",
+      "accent": "#2c87c6",
+      "vehicleType": "Lorry / goods truck",
+      "x": 3190,
+      "y": 720,
+      "companyId": "demo-company-aster-01",
+      "poId": "demo-po-aster-001",
+      "poLineId": "demo-line-aster-001",
+      "componentId": "demo-component-ast-1001",
+      "transportLegId": "demo-leg-manifold"
+    },
+    {
+      "id": "transport-alt",
+      "label": "Alternate route transfer",
+      "code": "VEHICLE · AUTO RICKSHAW",
+      "kind": "transport",
+      "detail": "Alternate punching → forming",
+      "accent": "#2c87c6",
+      "vehicleType": "3-wheeler / Auto rickshaw",
+      "x": 2030,
+      "y": 950,
+      "companyId": "demo-company-aster-01",
+      "poId": "demo-po-aster-001",
+      "poLineId": "demo-line-aster-001",
+      "componentId": "demo-component-ast-1001",
+      "transportLegId": "demo-leg-alt"
+    },
+    {
+      "id": "transport-rework",
+      "label": "Rework sample transfer",
+      "code": "VEHICLE · CAR / TAXI",
+      "kind": "transport",
+      "detail": "Rework cell → metrology lab",
+      "accent": "#2c87c6",
+      "vehicleType": "Car / Taxi",
+      "x": 4380,
+      "y": 660,
+      "companyId": "demo-company-aster-01",
+      "poId": "demo-po-aster-001",
+      "poLineId": "demo-line-aster-001",
+      "componentId": "demo-component-ast-1001",
+      "transportLegId": "demo-leg-rework"
+    },
+    {
+      "id": "transport-courier",
+      "label": "Inspection document courier",
+      "code": "VEHICLE · DELIVERY VAN",
+      "kind": "transport",
+      "detail": "Metrology lab → quality office",
+      "accent": "#2c87c6",
+      "vehicleType": "Courier / delivery van",
+      "x": 4100,
+      "y": 900,
+      "companyId": "demo-company-aster-01",
+      "poId": "demo-po-aster-001",
+      "poLineId": "demo-line-aster-001",
+      "componentId": "demo-component-ast-1001",
+      "transportLegId": "demo-leg-courier"
     }
   ],
   "edges": [
@@ -2034,13 +2130,6 @@
       "label": "FINISH GAUGE"
     },
     {
-      "id": "edge-shaft-assembly",
-      "source": "op-006",
-      "target": "op-020",
-      "type": "merge",
-      "label": "SHAFT SUBASSEMBLY READY"
-    },
-    {
       "id": "edge-bracket-laser-form",
       "source": "op-007",
       "target": "op-008",
@@ -2076,13 +2165,6 @@
       "label": "WELD → COAT"
     },
     {
-      "id": "edge-bracket-assembly",
-      "source": "op-010",
-      "target": "op-020",
-      "type": "merge",
-      "label": "BRACKET SUBASSEMBLY READY"
-    },
-    {
       "id": "edge-base-mill-drill",
       "source": "op-011",
       "target": "op-012",
@@ -2095,13 +2177,6 @@
       "target": "op-013",
       "type": "follow-on",
       "label": "DRILL → GRIND"
-    },
-    {
-      "id": "edge-base-assembly",
-      "source": "op-013",
-      "target": "op-020",
-      "type": "merge",
-      "label": "BASE PLATE READY"
     },
     {
       "id": "edge-manifold-mill-drill",
@@ -2137,13 +2212,6 @@
       "target": "op-019",
       "type": "dependency",
       "label": "SURFACE QA"
-    },
-    {
-      "id": "edge-manifold-assembly",
-      "source": "op-019",
-      "target": "op-020",
-      "type": "merge",
-      "label": "MANIFOLD READY"
     },
     {
       "id": "edge-assembly-sample",
@@ -2232,44 +2300,142 @@
     {
       "id": "edge-demo-material-link-01",
       "source": "demo-material-is2062",
-      "target": "demo-op-007",
+      "target": "op-007",
       "type": "material",
       "label": "BOM · 1.8 kg/part"
     },
     {
       "id": "edge-demo-material-link-02",
       "source": "demo-material-en24",
-      "target": "demo-op-002",
+      "target": "op-002",
       "type": "material",
       "label": "BOM · 2.4 kg/part"
     },
     {
       "id": "edge-demo-material-link-03",
       "source": "demo-material-20mncr5",
-      "target": "demo-op-003",
+      "target": "op-003",
       "type": "material",
       "label": "BOM · 1.1 kg/part"
     },
     {
       "id": "edge-demo-material-link-04",
       "source": "demo-material-en8",
-      "target": "demo-op-011",
+      "target": "op-011",
       "type": "material",
       "label": "BOM · 3.2 kg/part"
     },
     {
       "id": "edge-demo-material-link-05",
       "source": "demo-material-al6082",
-      "target": "demo-op-014",
+      "target": "op-014",
       "type": "material",
       "label": "BOM · 2.8 kg/part"
     },
     {
       "id": "edge-demo-material-link-06",
       "source": "demo-material-coating",
-      "target": "demo-op-010",
+      "target": "op-010",
       "type": "material",
       "label": "BOM · 0.12 kg/part"
+    },
+    {
+      "id": "edge-shaft-to-vehicle",
+      "source": "op-006",
+      "target": "transport-shaft",
+      "type": "transport",
+      "label": "PICKUP SHAFT SUBASSEMBLY"
+    },
+    {
+      "id": "edge-vehicle-to-assembly-shaft",
+      "source": "transport-shaft",
+      "target": "op-020",
+      "type": "merge",
+      "label": "SHAFT HAND-OFF"
+    },
+    {
+      "id": "edge-bracket-to-vehicle",
+      "source": "op-010",
+      "target": "transport-bracket",
+      "type": "transport",
+      "label": "PICKUP BRACKET SUBASSEMBLY"
+    },
+    {
+      "id": "edge-vehicle-to-assembly-bracket",
+      "source": "transport-bracket",
+      "target": "op-020",
+      "type": "merge",
+      "label": "BRACKET HAND-OFF"
+    },
+    {
+      "id": "edge-base-to-vehicle",
+      "source": "op-013",
+      "target": "transport-base",
+      "type": "transport",
+      "label": "PICKUP BASE PLATE"
+    },
+    {
+      "id": "edge-vehicle-to-assembly-base",
+      "source": "transport-base",
+      "target": "op-020",
+      "type": "merge",
+      "label": "BASE PLATE HAND-OFF"
+    },
+    {
+      "id": "edge-manifold-to-vehicle",
+      "source": "op-019",
+      "target": "transport-manifold",
+      "type": "transport",
+      "label": "PICKUP MANIFOLD"
+    },
+    {
+      "id": "edge-vehicle-to-assembly-manifold",
+      "source": "transport-manifold",
+      "target": "op-020",
+      "type": "merge",
+      "label": "MANIFOLD HAND-OFF"
+    },
+    {
+      "id": "edge-alt-to-vehicle",
+      "source": "op-025",
+      "target": "transport-alt",
+      "type": "transport",
+      "label": "ALTERNATE LOT MOVEMENT"
+    },
+    {
+      "id": "edge-alt-vehicle-to-form",
+      "source": "transport-alt",
+      "target": "op-008",
+      "type": "merge",
+      "label": "ALTERNATE HAND-OFF"
+    },
+    {
+      "id": "edge-rework-to-vehicle",
+      "source": "op-026",
+      "target": "transport-rework",
+      "type": "transport",
+      "label": "REWORK SAMPLE TRANSFER"
+    },
+    {
+      "id": "edge-rework-vehicle-to-metro",
+      "source": "transport-rework",
+      "target": "op-021",
+      "type": "rework",
+      "label": "REWORK RE-INSPECTION"
+    },
+    {
+      "id": "edge-metro-to-courier",
+      "source": "op-021",
+      "target": "transport-courier",
+      "type": "transport",
+      "label": "REPORT / SAMPLE COURIER"
+    },
+    {
+      "id": "edge-courier-to-quality",
+      "source": "transport-courier",
+      "target": "op-022",
+      "type": "transport",
+      "label": "QUALITY OFFICE HAND-OFF"
     }
   ],
   "expected": {
@@ -2322,6 +2488,8 @@
     "materialCostINR": 480191,
     "oneCompanyForAllRows": true,
     "allTransportLegsShareOneComponent": true,
-    "allOperationsShareOneComponent": true
+    "allOperationsShareOneComponent": true,
+    "transportLegNodeCount": 10,
+    "transportLegGraphNodeCount": 10
   }
 }

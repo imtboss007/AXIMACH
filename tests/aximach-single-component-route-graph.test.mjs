@@ -38,6 +38,9 @@ test("transport uses vehicle-specific identities and actual vehicle nodes",()=>{
   assert.ok(transportNodes.every(node=>node.vehicleType&&node.vehicleType.trim()));
   assert.ok(new Set(transportNodes.map(node=>node.vehicleType)).size>=2);
   assert.ok(fixture.edges.filter(edge=>edge.type==="transport").length>=3);
+  const visibleLegIds=new Set(fixture.nodes.filter(node=>node.kind==="transport").map(node=>node.transportLegId).filter(Boolean));
+  assert.equal(visibleLegIds.size,fixture.transportLegs.length,"every component transport leg must be visible as its own vehicle node in the graph");
+  assert.ok(fixture.transportLegs.every(leg=>visibleLegIds.has(leg.id)));
 });
 
 test("same endpoint pair may preserve two different relationship types without collapsing",()=>{

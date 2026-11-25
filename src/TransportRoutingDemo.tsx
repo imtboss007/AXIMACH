@@ -9,7 +9,6 @@ import { SingleComponentRouteGraphDemo } from "./SingleComponentRouteGraphDemo";
 
 type Props={onClose?:()=>void};
 type DemoOperation={id:string;name:string;sequence:number;branch:string;relationType:string|null;parentId:string;quantity:number;costIncluded:boolean;category:string;processType:string;subProcess:string;subComponent:string;ratePerPartINR:number;plannedCostINR:number;costRole:"base"|"alternate"|"rework"};
-type DemoFixture=typeof demoFixture;
 const operations=demoFixture.operations as DemoOperation[];
 const legs=demoFixture.transportLegs as unknown as Array<ComponentTransportLegRecord&{costRole:"base"|"alternate"|"rework";costIncluded:boolean}>;
 const materials=demoFixture.materials as unknown as MaterialRecord[];
@@ -18,8 +17,6 @@ const routes=new Map(demoFixture.transportRoutes.map(route=>[route.id,route as u
 const vendors=new Map(demoFixture.vendors.map(vendor=>[vendor.id,vendor.company]));
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 const baseOperations=operations.filter(row=>row.costRole==="base").sort((a,b)=>a.sequence-b.sequence);
-const alternateOperations=operations.filter(row=>row.costRole==="alternate").sort((a,b)=>a.sequence-b.sequence);
-const reworkOperations=operations.filter(row=>row.costRole==="rework").sort((a,b)=>a.sequence-b.sequence);
 const operationGroups=[...new Set(operations.map(row=>row.branch))];
 const processCost=(role:"base"|"alternate"|"rework")=>operations.filter(row=>row.costRole===role).reduce((sum,row)=>sum+row.plannedCostINR,0);
 const transportCost=(role:"base"|"alternate"|"rework")=>legs.filter(row=>row.costRole===role).reduce((sum,row)=>sum+row.fixedAmount*row.tripCount,0);
