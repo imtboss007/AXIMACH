@@ -43,3 +43,18 @@ test("passed inspection can release a resource held for inspection and records t
  const updated=applyResourceUsageEvent({...fixtures[0],status:"Under maintenance"},{resourceType:"fixture",eventType:"Inspection",runtimeMinutes:0,cycles:0,inspectionResult:"Pass",inspectionDueAt:"2027-01-01",occurredAt:"2026-11-25T12:00:00.000Z"});
  assert.equal(updated.status,"Available");assert.equal(updated.inspectionDueAt,"2027-01-01");
 });
+
+test("existing in-use tooling and fixtures remain valid only for the operation that already holds them",()=>{
+ const inUseTool={...tooling[0],status:"In use"};
+ const inUseFixture={...fixtures[0],status:"In use"};
+ const retained=validateOperationResourceAssignments({
+  toolingIds:["t1"],fixtureIds:["f1"],toolingAssets:[inUseTool],fixtureAssets:[inUseFixture],
+  scope:{companyId:"c1",factoryId:"f1",machineId:"m1",machineType:"VMC",processDefinitionId:"vmc",material:"EN24",componentId:"cpt1",existingToolingIds:["t1"],existingFixtureIds:["f1"]}
+ });
+ assert.equal(retained.ok,true);
+ const newOperation=validateOperationResourceAssignments({
+  toolingIds:["t1"],fixtureIds:["f1"],toolingAssets:[inUseTool],fixtureAssets:[inUseFixture],
+  scope:{companyId:"c1",factoryId:"f1",machineId:"m1",machineType:"VMC",processDefinitionId:"vmc",material:"EN24",componentId:"cpt1"}
+ });
+ assert.equal(newOperation.ok,false);
+});
