@@ -441,7 +441,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
    const asset=toolingById.get(id);
    if(!asset||asset.deletedAt||!po||asset.companyId!==po.companyId||asset.factoryId!==po.factoryId)return false;
    const previouslyAssigned=Array.isArray(prior?.toolingAssetIds)&&prior.toolingAssetIds.includes(id);
-   if(asset.status!=="Available"&&!(previouslyAssigned&&asset.status==="In use"))return false;
+   if(asset.status!=="Available"&&!(previouslyAssigned&&["In use","Needs regrind","Under maintenance"].includes(asset.status)))return false;
    const machineIds=Array.isArray(asset.compatibleMachineIds)?asset.compatibleMachineIds:[];
    const machineTypes=Array.isArray(asset.machineTypeCapabilities)?asset.machineTypeCapabilities:[];
    const processIds=Array.isArray(asset.processDefinitionIds)?asset.processDefinitionIds:[];
@@ -458,7 +458,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
    const asset=fixtureById.get(id);
    if(!asset||asset.deletedAt||!po||asset.companyId!==po.companyId||asset.factoryId!==po.factoryId)return false;
    const previouslyAssigned=Array.isArray(prior?.fixtureAssetIds)&&prior.fixtureAssetIds.includes(id);
-   if(asset.status!=="Available"&&!(previouslyAssigned&&asset.status==="In use"))return false;
+   if(asset.status!=="Available"&&!(previouslyAssigned&&asset.status==="Under maintenance"))return false;
    const machineIds=Array.isArray(asset.compatibleMachineIds)?asset.compatibleMachineIds:[];
    const machineTypes=Array.isArray(asset.machineTypeCapabilities)?asset.machineTypeCapabilities:[];
    const processIds=Array.isArray(asset.processDefinitionIds)?asset.processDefinitionIds:[];
