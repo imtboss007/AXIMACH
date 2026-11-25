@@ -34,6 +34,17 @@ export type FactoryRecord = {
   id: string; companyId: string; name: string; address: string; contactPhone: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type MachineStatus = "Available" | "Running" | "Planned maintenance" | "Under maintenance" | "Breakdown" | "Retired";
+export type MachineRecord = {
+  id: string; companyId: string; factoryId: string;
+  assetCode: string; name: string; machineType: string;
+  manufacturer?: string; model?: string; serialNumber?: string; controller?: string;
+  axisCount?: number; workEnvelopeXmm?: number; workEnvelopeYmm?: number; workEnvelopeZmm?: number;
+  spindleMaxRpm?: number; positioningAccuracyMicron?: number; maxWorkpieceWeightKg?: number;
+  processDefinitionIds: string[]; materialCapabilities: string[];
+  status: MachineStatus; commissionedAt?: string; nextMaintenanceAt?: string;
+  notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type ComponentRecord = {
   id: string; companyId?: string; partNumber: string; name: string; revision: string; material?: string;
   drawingReference: string; notes: string; salePrice: number; salePriceUnit: "piece" | "set";
@@ -111,7 +122,7 @@ export type PlannedCostEntry = {
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type OperationRecord = {
-  id: string; poId: string; poLineId: string; componentId: string; processDefinitionId?: string; sequence: number; name: string;
+  id: string; poId: string; poLineId: string; componentId: string; processDefinitionId?: string; machineId?: string; sequence: number; name: string;
   category: string; machine: string; vendorId: string; status: LifecycleStatus;
   plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string;
   quantity: number; completed: number; accepted: number; rejected: number;
@@ -215,7 +226,7 @@ export type InventoryTransactionRecord = {
 };
 export type ManufacturingData = {
   updatedAt: string;
-  companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
+  companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; machines: MachineRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[]; materialProcessLinks: MaterialProcessLinkRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
@@ -235,7 +246,7 @@ export function makeId(prefix: string): string {
 export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.filter(row => !row.deletedAt);
 
 export const emptyManufacturingData = (): ManufacturingData => ({
-  updatedAt: "", companies: [], customers: [], prospects: [], factories: [], purchaseOrders: [], components: [], vendors: [],
+  updatedAt: "", companies: [], customers: [], prospects: [], factories: [], machines: [], purchaseOrders: [], components: [], vendors: [],
   operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
   supplierInvoices: [], supplierPayments: [], supplierFinanceApprovals: [], supplierPaymentAllocations: [],
@@ -250,6 +261,11 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     customers: Array.isArray(value?.customers) ? value.customers : empty.customers,
     prospects: Array.isArray(value?.prospects) ? value.prospects : empty.prospects,
     factories: Array.isArray(value?.factories) ? value.factories : empty.factories,
+    machines: Array.isArray(value?.machines) ? value.machines.map(machine => ({
+      ...machine,
+      processDefinitionIds: Array.isArray(machine.processDefinitionIds) ? [...new Set(machine.processDefinitionIds.filter(id => typeof id === "string" && id))] : [],
+      materialCapabilities: Array.isArray(machine.materialCapabilities) ? [...new Set(machine.materialCapabilities.filter(value => typeof value === "string" && value.trim()))] : []
+    })) : empty.machines,
     purchaseOrders: Array.isArray(value?.purchaseOrders) ? value.purchaseOrders : empty.purchaseOrders,
     components: Array.isArray(value?.components) ? value.components.map(component => ({
       ...component,
