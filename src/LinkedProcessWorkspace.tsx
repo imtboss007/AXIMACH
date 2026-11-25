@@ -662,7 +662,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       let sourceId="operation:"+origin.parent.id;
       if(!operationPositions.has(origin.parent.id)){
         sourceId="branch-origin:"+origin.parent.id+":"+branch;
-        nodes.push({id:sourceId,type:"processMapEntity",position:{x:Math.max(16,branchRootPosition.x-225),y:branchRootPosition.y+145},data:{title:"OP-"+String(origin.parent.sequence).padStart(3,"0")+" · "+origin.parent.name,detail:"Parent process · outside the current route scope",kind:"BRANCH ORIGIN REFERENCE",accent:"#647d93",status:origin.parent.status,actionLabel:"Select parent",onAction:()=>{setSelectedOperationId(origin.parent.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:nodeWidth}});
+        nodes.push({id:sourceId,type:"processMapEntity",position:{x:branchRootPosition.x+nodeWidth+40,y:branchRootPosition.y-145},data:{title:"OP-"+String(origin.parent.sequence).padStart(3,"0")+" · "+origin.parent.name,detail:"Parent process · outside the current route scope",kind:"BRANCH ORIGIN REFERENCE",accent:"#647d93",status:origin.parent.status,actionLabel:"Select parent",onAction:()=>{setSelectedOperationId(origin.parent.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:nodeWidth}});
       }
       const relation=origin.branchRoot.relationType==="rework"||/rework/i.test(branch)?"rework":"alternate";
       addEdge(sourceId,"operation:"+origin.branchRoot.id,relation,"branch-origin:"+origin.parent.id+":"+origin.branchRoot.id,relation==="rework"?"REWORK BRANCH":"ALTERNATE BRANCH",origin.parent.status==="Running"||origin.branchRoot.status==="Running");
