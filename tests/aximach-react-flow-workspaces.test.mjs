@@ -314,7 +314,7 @@ test("one shared graph canvas renders every route type, material movement and ve
 test("Route Flow supports n8n-style drag-to-connect and persists typed PO-line relationships",()=>{
   const route=source("src/RouteFlowWorkspace.tsx");
   const shared=source("src/ManufacturingGraphCanvas.tsx");
-  assert.ok(shared.includes("applyNodeChanges"),"The shared canvas must keep draggable node positions controlled.");
+  assert.ok(shared.includes("changes.applyTo(current)") && shared.includes('changes.getByType("position")'),"The shared canvas must keep draggable node positions controlled.");
   assert.ok(shared.includes("onConnect?:(connection:Connection)=>void"),"The shared canvas must expose React Flow connections.");
   assert.ok(shared.includes("onConnect={onConnect}"),"The shared canvas must forward connection events.");
   assert.ok(route.includes("const connectRouteNodes=(connection:Connection)=>{"),"Route Flow must handle drag-to-connect.");
