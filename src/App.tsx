@@ -7,10 +7,12 @@ import {
   HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
   Package, Pause, Play, Plug, Plus, RotateCcw, ScanLine, Search, Settings2,
   ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Truck, Users,
-  Wallet, Workflow, Wrench, X, Zap
+  Wallet, Workflow, Wrench, X, Zap, Palette
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ProcessIcon } from "./IconStudio";
+import ThemeStudio from "./ThemeStudio";
+import { buildThemeTokens, readThemePreference, resolveThemePreference, writeThemePreference, type ThemePreference } from "./aximachThemeStudio";
 import { clearServerSession, getServerAuthHeaders, getServerAuthMode, hasServerCredentials, readServerSession, saveServerSession, setServerAuthMode, type ServerSession } from "./serverAuth";
 import FollowUpAssignmentsLauncher from "./FollowUpAssignments";
 import SearchableMultiSelect from "./SearchableMultiSelect";
@@ -20,6 +22,7 @@ import SearchablePicker from "./SearchablePicker";
 const AXIMACHOrb = lazy(() => import("./AXIMACHOrb"));
 const IconStudio = lazy(() => import("./IconStudio"));
 const ManufacturingMasterWorkspace = lazy(() => import("./ManufacturingMasterWorkspace"));
+const CustomerDirectoryWorkspace = lazy(() => import("./CustomerDirectoryWorkspace"));
 const DashboardWorkspace = lazy(() => import("./DashboardWorkspace"));
 const SpecializedDirectoryWorkspace = lazy(() => import("./SpecializedDirectoryWorkspace"));
 const TransportDirectoryWorkspace = lazy(() => import("./TransportDirectoryWorkspace"));
@@ -37,6 +40,7 @@ const RouteFlowWorkspace = lazy(() => import("./RouteFlowWorkspace"));
 const ManufacturingUniverseWorkspace = lazy(() => import("./ManufacturingUniverseWorkspace"));
 const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
 const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
+const IntegrationHubWorkspace = lazy(() => import("./IntegrationHubWorkspace"));
 import { activeRows, emptyManufacturingData, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
 import { AXIMACH_DEMO_ID_PREFIX, archiveAxMachTwoCompanyDemo, createAxMachTwoCompanyDemo } from "./aximachDemoData";
 
@@ -66,7 +70,8 @@ type ModuleItem = {
 };
 
 const modules: ModuleItem[] = [
-  { id: "companies", title: "Company Directory", group: "Master Data", description: "Company name, GST, contact person, email and address.", icon: Factory, action: "Open company directory" },
+  { id: "companies", title: "Company Directory", group: "Master Data", description: "AXIMACH operating companies, GST, contact person, email and address.", icon: Factory, action: "Open company directory" },
+  { id: "customers", title: "Customer Directory", group: "Master Data", description: "Buyer accounts, GST/PAN identity, commercial terms, credit limit and addresses.", icon: Handshake, action: "Open customer directory" },
   { id: "components", title: "Component Directory", group: "Master Data", description: "Company-linked component names, numbers and piece or set prices.", icon: Box, action: "Open component directory" },
   { id: "purchasing", title: "Purchase Orders", group: "Commercial", description: "Company purchase orders, dates, due dates and multiple component quantities.", icon: Package, action: "Open purchase orders" },
   { id: "vendors", title: "Vendor Directory", group: "Supply Network", description: "Individual vendors with multiple process capabilities and contact details.", icon: Users, action: "Open vendor directory" },
@@ -85,7 +90,8 @@ const modules: ModuleItem[] = [
   { id: "communications", title: "Follow-up Centre", group: "Connections", description: "Contact follow-ups, reminders, WhatsApp-related communication and history.", icon: MessageCircle, action: "Open follow-up centre" },
   { id: "reports", title: "Reports & Analytics", group: "Insights", description: "PO, component, process, vendor, production, delivery and financial reporting.", icon: BarChart3, action: "Open reports and analytics" },
   { id: "ai-insights", title: "AI Insights", group: "Insights", description: "Evidence-based insights from saved AXIMACH operational and financial data.", icon: Sparkles, action: "Open AI insights" },
-  { id: "export", title: "Data Exchange Centre", group: "Data", description: "Import and export records, validate files, review duplicates and create full backups.", icon: FileDown, action: "Open data exchange centre" }
+  { id: "export", title: "Data Exchange Centre", group: "Data", description: "Import and export records, validate files, review duplicates and create full backups.", icon: FileDown, action: "Open data exchange centre" },
+  { id: "integrations", title: "Integrations & API", group: "Platform", description: "Governed integration directory, server connector readiness and external service catalogue.", icon: Plug, action: "Open integrations and API" }
 ];
 
 const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) => item.group)))];
@@ -117,7 +123,12 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
           contactProfiles:mergeById(current.contactProfiles,sample.contactProfiles), processDefinitions:mergeById(current.processDefinitions,sample.processDefinitions),
           plannedCosts:mergeById(current.plannedCosts,sample.plannedCosts), transportRoutes:mergeById(current.transportRoutes,sample.transportRoutes),
           transportLegs:mergeById(current.transportLegs,sample.transportLegs), paymentTransactions:mergeById(current.paymentTransactions,sample.paymentTransactions),
-          inspectionMeasurements:mergeById(current.inspectionMeasurements,sample.inspectionMeasurements), followUpAssignments:mergeById(current.followUpAssignments,sample.followUpAssignments)
+          inspectionMeasurements:mergeById(current.inspectionMeasurements,sample.inspectionMeasurements),
+          supplierInvoices:mergeById(current.supplierInvoices,sample.supplierInvoices),
+          supplierPayments:mergeById(current.supplierPayments,sample.supplierPayments),
+          supplierFinanceApprovals:mergeById(current.supplierFinanceApprovals,sample.supplierFinanceApprovals),
+          supplierPaymentAllocations:mergeById(current.supplierPaymentAllocations,sample.supplierPaymentAllocations),
+          followUpAssignments:mergeById(current.followUpAssignments,sample.followUpAssignments)
         };
       });
       onNotice("Demo Factory imported. Synthetic records are isolated with DEMO IDs; actual factory records were preserved.");
@@ -183,20 +194,28 @@ function App() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
-  const [appearance, setAppearance] = useState<"light"|"dark"|"midnight"|"ocean">(() => { try { const saved=localStorage.getItem("aximach.ui.appearance"); return saved==="dark"||saved==="midnight"||saved==="ocean"?saved:"light"; } catch { return "light"; } });
+  const [themePreference,setThemePreference] = useState<ThemePreference>(()=>readThemePreference());
+  const [themeDraft,setThemeDraft] = useState<ThemePreference|null>(null);
+  const [themeStudioOpen,setThemeStudioOpen] = useState(false);
+  const [systemDark,setSystemDark] = useState(()=>typeof window!=="undefined"&&window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const activeThemePreference=themeDraft??themePreference;
+  const resolvedTheme=useMemo(()=>resolveThemePreference(activeThemePreference,systemDark),[activeThemePreference,systemDark]);
   const [followUpSeed,setFollowUpSeed] = useState<{name:string;phone:string;company:string;vendorId:string;process:string;operationId:string}>({name:"",phone:"",company:"",vendorId:"",process:"",operationId:""});
   const needsLandscapeOrientation = activeModuleId === "process-map" || activeModuleId === "route-flow" || activeModuleId === "manufacturing-universe";
+  const [landscapeCanvasOpen,setLandscapeCanvasOpen] = useState(false);
   const [orientationLockUnavailable,setOrientationLockUnavailable] = useState(false);
-  const [orientationHintDismissed,setOrientationHintDismissed] = useState(false);
-  const requestLandscapeOrientation = async ():Promise<boolean> => {
+  // Treat touch devices as mobile even when a landscape viewport is wider than
+  // 900px. Android desktop-mode/large-device viewports can still be phones.
+  const isTouchViewport = typeof window !== "undefined" && (window.matchMedia("(any-pointer: coarse)").matches || window.matchMedia("(pointer: coarse)").matches);
+  const requestDeviceOrientation = async (orientation:"portrait-primary"|"landscape-primary"):Promise<boolean> => {
     try {
-      await CapacitorScreenOrientation.lock({ orientation: "landscape-primary" });
+      await CapacitorScreenOrientation.lock({ orientation });
       return true;
     } catch {
       try {
-        const browserOrientation = window.screen?.orientation as unknown as { lock?: (orientation:"landscape-primary")=>Promise<void> };
+        const browserOrientation = window.screen?.orientation as unknown as { lock?: (value:"portrait-primary"|"landscape-primary")=>Promise<void> };
         if (!browserOrientation?.lock) return false;
-        await browserOrientation.lock("landscape-primary");
+        await browserOrientation.lock(orientation);
         return true;
       } catch {
         return false;
@@ -205,38 +224,65 @@ function App() {
   };
   useEffect(() => {
     let disposed = false;
-    setOrientationHintDismissed(false);
-    if (!needsLandscapeOrientation || !window.matchMedia("(pointer: coarse) and (max-width: 900px)").matches) {
+    if (!isTouchViewport) {
       setOrientationLockUnavailable(false);
       void CapacitorScreenOrientation.unlock().catch(() => undefined);
       return;
     }
+    const targetOrientation = needsLandscapeOrientation && landscapeCanvasOpen ? "landscape-primary" : "portrait-primary";
     setOrientationLockUnavailable(false);
-    void requestLandscapeOrientation().then(locked => {
-      if (disposed) {
-        // A slow native bridge must not re-apply landscape after the user
-        // has already left this workspace.
-        if (locked) void CapacitorScreenOrientation.unlock().catch(() => undefined);
-        return;
-      }
-      setOrientationLockUnavailable(!locked);
+    void requestDeviceOrientation(targetOrientation).then(locked => {
+      if (!disposed) setOrientationLockUnavailable(!locked);
     });
-    return () => {
-      disposed = true;
-      // Release the temporary landscape lock only when the user leaves all
-      // landscape-first manufacturing workspaces.
-      if (needsLandscapeOrientation) void CapacitorScreenOrientation.unlock().catch(() => undefined);
-    };
-  },[needsLandscapeOrientation]);
-  const retryLandscapeOrientation = async () => {
-    const locked = await requestLandscapeOrientation();
+    return () => { disposed = true; };
+  },[isTouchViewport,needsLandscapeOrientation,landscapeCanvasOpen]);
+  const toggleLandscapeCanvas = async () => {
+    if (!needsLandscapeOrientation) return;
+    const next = !landscapeCanvasOpen;
+    setLandscapeCanvasOpen(next);
+    const locked = await requestDeviceOrientation(next ? "landscape-primary" : "portrait-primary");
+    setOrientationLockUnavailable(!locked);
+  };
+  const retryDeviceOrientation = async () => {
+    if (!isTouchViewport) return;
+    const targetOrientation = needsLandscapeOrientation && landscapeCanvasOpen ? "landscape-primary" : "portrait-primary";
+    const locked = await requestDeviceOrientation(targetOrientation);
     setOrientationLockUnavailable(!locked);
   };
   const openVendorFollowUp = (vendor:{id:string;company:string;contact:string;phone:string;whatsappNumber:string;processes:string}, operationId="", processName="") => {
     setFollowUpSeed({name:vendor.contact,phone:vendor.whatsappNumber||vendor.phone,company:vendor.company,vendorId:vendor.id,process:processName||vendor.processes||"",operationId});
     selectModule("communications");
   };
-  useEffect(() => { try { localStorage.setItem("aximach.ui.appearance",appearance); document.documentElement.dataset.theme=appearance; } catch { /* appearance remains active for this session */ } },[appearance]);
+  useEffect(()=>{
+    const media=window.matchMedia("(prefers-color-scheme: dark)");
+    const update=(event:MediaQueryListEvent)=>setSystemDark(event.matches);
+    setSystemDark(media.matches);
+    if(media.addEventListener)media.addEventListener("change",update);else media.addListener(update);
+    return ()=>{if(media.removeEventListener)media.removeEventListener("change",update);else media.removeListener(update);};
+  },[]);
+  useEffect(()=>{
+    document.documentElement.dataset.theme=resolvedTheme.appearance;
+    for(const [key,value] of Object.entries(resolvedTheme.cssVariables))document.documentElement.style.setProperty(key,value);
+    try{localStorage.setItem("aximach.ui.appearance",resolvedTheme.appearance);}catch{/* current-session appearance remains active */}
+    window.dispatchEvent(new Event("aximach-theme-updated"));
+  },[resolvedTheme]);
+  const openThemeStudio=()=>{
+    setThemeDraft({...themePreference,custom:{...themePreference.custom,chartColors:[...themePreference.custom.chartColors],graphColors:[...themePreference.custom.graphColors]}});
+    setThemeStudioOpen(true);
+  };
+  const cancelThemePreview=()=>{setThemeDraft(null);setThemeStudioOpen(false);};
+  const applyTheme=()=>{
+    if(themeDraft){setThemePreference(themeDraft);writeThemePreference(themeDraft);}
+    setThemeDraft(null);setThemeStudioOpen(false);
+  };
+  const resetThemeColours=()=>{
+    setThemeDraft(current=>{
+      const selected=current??themePreference;
+      const resolved=resolveThemePreference(selected,systemDark);
+      const basePreset=selected.preset==="custom"?"titanium-graphite":selected.preset;
+      return {...selected,preset:"custom",mode:"custom",custom:buildThemeTokens(basePreset,resolved.dark)};
+    });
+  };
 
   const activeModule = modules.find((item) => item.id === activeModuleId) ?? modules[0];
   const globalRecords = getAllModuleRecords();
@@ -297,6 +343,8 @@ function App() {
   }, []);
 
   const selectModule = (id: string, context: LinkedNavigationContext = {}) => {
+    setLandscapeCanvasOpen(false);
+    setOrientationLockUnavailable(false);
     setModuleContext(context);
     setActiveModuleId(id);
     setModuleExplorerOpen(false);
@@ -333,7 +381,7 @@ function App() {
   };
 
   return (
-    <div className="app-shell" data-theme={appearance}>
+    <div className="app-shell" data-theme={resolvedTheme.appearance} style={resolvedTheme.cssVariables as CSSProperties} data-landscape-canvas-open={landscapeCanvasOpen ? "true" : "false"} data-phone-viewport={isTouchViewport ? "true" : "false"}>
       <header className="command-deck">
         <button className="brand-lockup" onClick={() => selectModule("dashboard")} aria-label="Open AXIMACH dashboard">
           <span className="brand-symbol"><span>A</span><i /></span>
@@ -355,7 +403,8 @@ function App() {
         </button>
         <button className="deck-action" onClick={openModuleExplorer}><LayoutGrid size={17} /><span>Modules</span><b>{modules.length}</b></button>
         <button className="deck-action" onClick={() => setIconStudioOpen(true)}><Sparkles size={16}/><span>Logo Studio</span></button>
-        <label className="appearance-picker" title="Appearance"><Settings2 size={15}/><select aria-label="Appearance" value={appearance} onChange={e=>setAppearance(e.target.value as "light"|"dark"|"midnight"|"ocean")}><option value="light">Light</option><option value="dark">Dark</option><option value="midnight">Midnight</option><option value="ocean">Ocean</option></select></label>
+        <button type="button" className="theme-studio-trigger" onClick={openThemeStudio} aria-label="Open Theme Studio"><Palette size={15}/><span>Theme Studio</span></button>
+        {needsLandscapeOrientation && isTouchViewport && <button type="button" className="ax-orientation-toggle" aria-pressed={landscapeCanvasOpen} aria-label={landscapeCanvasOpen ? "Return to portrait layout" : "Open landscape canvas"} title={landscapeCanvasOpen ? "Return to portrait layout" : "Open landscape canvas"} onClick={() => void toggleLandscapeCanvas()}><RotateCcw size={15}/><span>{landscapeCanvasOpen ? "Portrait" : "Landscape"}</span></button>}
         <button className="deck-icon alert-trigger" aria-label="Notifications" onClick={() => setNotice("AXIMACH shows alerts only when actual operation, quality or delivery records produce them.")}><Bell size={18} /><i /></button>
         <button className="profile-trigger" onClick={() => setNotice("Profile and role management are not connected in this prototype.")}><span className="profile-mark">AX</span><span className="profile-name">Workspace</span><ChevronDown size={13} /></button>
       </header>
@@ -368,16 +417,9 @@ function App() {
       </div>
 
       <main className="page-content">
-        {needsLandscapeOrientation && orientationLockUnavailable && !orientationHintDismissed && <div className="ax-landscape-rotate-prompt" role="status">
-          <section>
-            <RotateCcw size={38}/>
-            <strong>Landscape view required</strong>
-            <p>This browser could not rotate the screen automatically. Enable auto-rotate and turn your phone sideways for the full route canvas.</p>
-            <div>
-              <button type="button" className="button-primary" onClick={() => void retryLandscapeOrientation()}>Try landscape again</button>
-              <button type="button" className="button-quiet" onClick={() => setOrientationHintDismissed(true)}>Continue in portrait</button>
-            </div>
-          </section>
+        {needsLandscapeOrientation && landscapeCanvasOpen && orientationLockUnavailable && <div className="ax-orientation-fallback" role="status">
+          <span>Automatic rotation is unavailable. Enable auto-rotate and turn your device sideways; portrait remains available.</span>
+          <button type="button" className="button-quiet compact-button" onClick={() => void retryDeviceOrientation()}>Retry</button>
         </div>}
         <Suspense fallback={<div className="workspace-loading-state" role="status"><span className="workspace-loading-spinner" /> Loading AXIMACH workspace…</div>}>
         {activeModuleId === "dashboard" ? (
@@ -400,6 +442,8 @@ function App() {
           <RouteFlowWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} />
         ) : activeModuleId === "process-map" ? (
           <LinkedProcessWorkspace initialContext={moduleContext} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(processDefinitionId)=>{setIconStudioTarget(processDefinitionId?{targetType:"process",targetRecordId:processDefinitionId}:null);setIconStudioOpen(true);}} onScheduleVendor={(vendorId,operationId,processName)=>{const vendor=globalVendorContacts.find(item=>item.id===vendorId);if(vendor)openVendorFollowUp(vendor,operationId,processName);else selectModule("vendors");}} />
+        ) : activeModuleId === "customers" ? (
+          <CustomerDirectoryWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : activeModuleId === "companies" || activeModuleId === "purchasing" || activeModuleId === "components" ? (
           <ManufacturingMasterWorkspace navigationContext={moduleContext} moduleId={activeModuleId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onOpenIconStudio={(componentId)=>{setIconStudioTarget(componentId?{targetType:"component",targetRecordId:componentId}:null);setIconStudioOpen(true);}} />
         ) : activeModuleId === "inventory" ? (
@@ -430,13 +474,15 @@ function App() {
           <VendorWorkspace initialSearch={vendorSearchJump} initialVendorId={moduleContext.vendorId} onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} onSelectModule={selectModule} onScheduleVendor={openVendorFollowUp} onAddContactForVendor={vendorId=>{setContactVendorSeed(vendorId);selectModule("contact360");}} />
         ) : activeModuleId === "communications" ? (
           <FollowUpWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} initialRecipient={followUpSeed} />
+        ) : activeModuleId === "integrations" ? (
+          <IntegrationHubWorkspace onBack={() => selectModule("command-centre")} onNotice={setNotice} notice={notice} />
         ) : (
           <ModuleWorkspace module={activeModule} onBack={() => selectModule("command-centre")} onNotice={setNotice} onOpenModules={openModuleExplorer} onSelectModule={selectModule} />
         )}
         </Suspense>
       </main>
 
-      {activeModuleId !== "dashboard" && activeModuleId !== "command-centre" && (
+      {activeModuleId !== "dashboard" && activeModuleId !== "command-centre" && !needsLandscapeOrientation && (
         <FollowUpAssignmentsLauncher
           moduleId={activeModuleId}
           moduleTitle={activeModuleId === "process-map" ? "Process Plan" : activeModule.title}
@@ -452,6 +498,9 @@ function App() {
         <button title="3D Command Centre" className={activeModuleId === "command-centre" ? "rail-active" : ""} onClick={() => selectModule("command-centre")}><Command size={16} /><span>3D Command Centre</span></button>
         <div className="rail-section-label">ALL MODULES</div>
         {modules.map((item) => { const ItemIcon = item.icon; return <button key={item.id} title={item.title} className={activeModuleId === item.id ? "rail-active" : ""} onClick={() => selectModule(item.id)}><ItemIcon size={16} /><span>{item.title}</span></button>; })}
+        <div className="rail-section-label">WORKSPACE TOOLS</div>
+        <button title="Logo Studio" onClick={() => { setIconStudioOpen(true); setMobileNavOpen(false); }}><Sparkles size={16}/><span>Logo Studio</span></button>
+        <button type="button" className="rail-theme-studio-trigger" title="Theme Studio" onClick={()=>{openThemeStudio();setMobileNavOpen(false);}}><Palette size={16}/><span>Theme Studio</span></button>
         <button className="rail-all" onClick={openModuleExplorer}><LayoutGrid size={16} /><span>Module explorer</span></button>
       </nav>
 
@@ -513,6 +562,8 @@ function App() {
           </section>
         </div>
       )}
+
+      <ThemeStudio open={themeStudioOpen} preference={themeDraft??themePreference} systemDark={systemDark} onChange={setThemeDraft} onApply={applyTheme} onCancel={cancelThemePreview} onReset={resetThemeColours} />
 
       <Suspense fallback={<div className="workspace-loading-state" role="status">Loading Icon Studio…</div>}><IconStudio open={iconStudioOpen} initialTarget={iconStudioTarget} onClose={() => {setIconStudioOpen(false);setIconStudioTarget(null);}} /></Suspense>
 

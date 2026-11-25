@@ -1,6 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Handle, MarkerType, Position, useReactFlow } from "@xyflow/react";
+import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
+import "@xyflow/react/style.css";
+import { useReducedMotion } from "motion/react";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
+import { RouteFlowShowcase } from "./RouteFlowShowcase";
+import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js";
+import { routeRelationshipHandles } from "./manufacturingGraphLayout.mjs";
+import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
 import TransportRecordInspector from "./TransportRecordInspector";
@@ -45,10 +53,41 @@ type FlowNode =
  | {kind:"transport";id:string;leg:ComponentTransportLegRecord}
  | {kind:"operation";id:string;operation:OperationRecord}
  | {kind:"missing-material";id:string};
+type RouteFlowNodeData = {title:string;detail:string;kind:string;accent:string;vehicleType?:string;actionLabel?:string;onAction?:(element:HTMLElement)=>void};
+type RouteFlowGraphNode = Node<RouteFlowNodeData,"routeStage">;
+function RouteFlowGraphStage({data}:NodeProps<RouteFlowGraphNode>) {
+  const transport = data.kind.includes("TRANSPORT");
+  const material = data.kind.includes("MATERIAL");
+  return <article className={"route-flow-graph-node"+(transport?" is-transport":"")+(material?" is-material":"")} style={{"--route-accent":data.accent} as CSSProperties}>
+    <Handle id="target-left" type="target" position={Position.Left} style={{top:"35%"}}/>
+    <Handle id="target-right" type="target" position={Position.Right} style={{top:"65%"}}/>
+    <Handle id="target-top" type="target" position={Position.Top} style={{left:"35%"}}/>
+    <Handle id="target-bottom" type="target" position={Position.Bottom} style={{left:"35%"}}/>
+    <Handle id="source-right" type="source" position={Position.Right} style={{top:"35%"}}/>
+    <Handle id="source-left" type="source" position={Position.Left} style={{top:"65%"}}/>
+    <Handle id="source-top" type="source" position={Position.Top} style={{left:"65%"}}/>
+    <Handle id="source-bottom" type="source" position={Position.Bottom} style={{left:"65%"}}/>
+    <Handle id="target-left-transport" type="target" position={Position.Left} style={{top:"84%"}}/>
+    <Handle id="source-right-transport" type="source" position={Position.Right} style={{top:"84%"}}/>
+    <div className="route-flow-node-heading"><span>{transport?<VehicleTypeIcon vehicleType={data.vehicleType||"truck"} size={14}/>:material?<Package size={14}/>:<Workflow size={14}/>}</span><span>{data.kind}</span></div><strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
+    {data.actionLabel&&data.onAction&&<button type="button" className="nodrag" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();data.onAction?.(event.currentTarget);}}>{data.actionLabel}</button>}
+  </article>;
+}
+const ROUTE_FLOW_NODE_TYPES = {routeStage:RouteFlowGraphStage} satisfies NodeTypes;
+
+function RouteFlowFitController({revision}:{revision:string}) {
+  const {fitView}=useReactFlow<RouteFlowGraphNode,Edge>();
+  useEffect(()=>{
+    const frame=window.requestAnimationFrame(()=>{void fitView({padding:.16,duration:220});});
+    return ()=>window.cancelAnimationFrame(frame);
+  },[fitView,revision]);
+  return null;
+}
 
 function vehicleClassFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike"; if(/bus/.test(type))return "bus"; if(/car|taxi|auto|three.wheeler/.test(type))return "car"; if(/air|plane|flight/.test(type))return "air"; if(/ship|boat|vessel/.test(type))return "ship"; if(/train|rail/.test(type))return "rail"; return "truck"}
 
 function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,transportLegId,materialTransportId,layout="orthogonal",onTransportClick}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number;transportLegId?:string;materialTransportId?:string;layout?:RouteLayoutMode;onTransportClick?:(id:string,kind:"leg"|"material",element:HTMLElement)=>void}) {
+  const reduceMotion = useReducedMotion();
   const style=transport?"transport":type;
 
   const curvePath=layout==="orthogonal"?"M4 36 L54 36 L54 12 L88 12 L88 36 L132 36":layout==="horizontal"?"M4 36 L132 36":style==="feedback"?"M4 35 C20 -2 48 -5 68 28 C84 55 112 60 132 25"
@@ -70,7 +109,7 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,trans
       {style==="conditional"&&<path className="route-flow-curve-diamond" d="M69 22 L76 29 L69 36 L62 29 Z"/>}
       {style==="merge"&&<path className="route-flow-curve-branch" d="M56 12 L68 34 L80 12"/>}
       {style==="split"&&<path className="route-flow-curve-branch" d="M56 54 L68 32 L80 54"/>}
-      <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path={curvePath}/></circle>
+      {!reduceMotion && <circle className="route-flow-curve-pulse" r="4"><animateMotion dur="2.3s" repeatCount="indefinite" path={curvePath}/></circle>}
     </svg>
     {transport&&(transportLegId||materialTransportId?<button type="button" className={"route-flow-vehicle-marker route-flow-vehicle-marker-button vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s) · Open details"} aria-label="Open this transport popup" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onTransportClick?.(transportLegId||materialTransportId!,transportLegId?"leg":"material",event.currentTarget);}}><VehicleTypeIcon vehicleType={vehicleType} size={17}/></button>:<span className={"route-flow-vehicle-marker vehicle-"+vehicleClassFor(vehicleType)} title={(vehicleType||"Transport vehicle")+" · "+tripCount+" trip(s)"}><VehicleTypeIcon vehicleType={vehicleType} size={17}/></span>)}
     {!transport&&<small>{label||relationLabel(type)}</small>}
@@ -79,10 +118,17 @@ function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,trans
 
 export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModule,initialContext}:Props) {
   const {data,update,syncStatus}=useManufacturingData();
-  const companies=activeRows(data.companies),orders=activeRows(data.purchaseOrders),vendors=activeRows(data.vendors);
-  const operations=activeRows(data.operations),materials=activeRows(data.materialCostEntries),materialMasterRecords=activeRows(data.materials||[]),legs=activeRows(data.transportLegs||[]);
-  const allMaterialProcessLinks=activeRows(data.materialProcessLinks||[]);
-  const routes=activeRows(data.transportRoutes||[]);
+  // React Flow publishes nodes when its input arrays change. Keep the underlying
+  // source-row collections referentially stable across unrelated component renders.
+  const companies=useMemo(()=>activeRows(data.companies),[data.companies]);
+  const orders=useMemo(()=>activeRows(data.purchaseOrders),[data.purchaseOrders]);
+  const vendors=useMemo(()=>activeRows(data.vendors),[data.vendors]);
+  const operations=useMemo(()=>activeRows(data.operations),[data.operations]);
+  const materials=useMemo(()=>activeRows(data.materialCostEntries),[data.materialCostEntries]);
+  const materialMasterRecords=useMemo(()=>activeRows(data.materials||[]),[data.materials]);
+  const legs=useMemo(()=>activeRows(data.transportLegs||[]),[data.transportLegs]);
+  const allMaterialProcessLinks=useMemo(()=>activeRows(data.materialProcessLinks||[]),[data.materialProcessLinks]);
+  const routes=useMemo(()=>activeRows(data.transportRoutes||[]),[data.transportRoutes]);
   const [companyPick,setCompanyPick]=useState(initialContext?.companyId||"");
   const [poPick,setPoPick]=useState(initialContext?.poId||"");
   const [linePick,setLinePick]=useState(initialContext?.poLineId||"");
@@ -139,12 +185,21 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [transportNotes,setTransportNotes]=useState("");
   const mapViewportRef=useRef<HTMLDivElement|null>(null);
   const [workspaceTheme,setWorkspaceTheme]=useWorkspaceTheme();
+  const darkGraph=workspaceTheme==="dark";
+  const [compactGraphViewport,setCompactGraphViewport]=useState(()=>typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches);
+  useEffect(()=>{
+    const syncViewport=()=>setCompactGraphViewport(window.matchMedia("(max-width:760px)").matches);
+    window.addEventListener("resize",syncViewport);
+    window.addEventListener("orientationchange",syncViewport);
+    return ()=>{window.removeEventListener("resize",syncViewport);window.removeEventListener("orientationchange",syncViewport);};
+  },[]);
   const [inspectedTransportId,setInspectedTransportId]=useState("");
   const [inspectedMaterialTransportId,setInspectedMaterialTransportId]=useState("");
   const [transportPopupPoint,setTransportPopupPoint]=useState<{x:number;y:number}>({x:8,y:8});
   const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
   const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
+  const [routeCanvasMode,setRouteCanvasMode]=useState<"cards"|"graph">("graph");
   const [showRelationshipEditor,setShowRelationshipEditor]=useState(false);
   const [showTransportEditor,setShowTransportEditor]=useState(false);
   const routeViewportRef=useRef<HTMLDivElement|null>(null);
@@ -165,26 +220,26 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const componentId=component?.id||"";
   const componentLineCount=lineOptions.filter(row=>row.componentId===componentId).length;
   const componentGlobalLineCount=orders.reduce((count,poRow)=>count+poRow.lines.filter(row=>!row.deletedAt&&row.componentId===componentId).length,0);
-  const routeOperations=operations.filter(row=>row.poId===poId&&row.poLineId===poLineId&&row.componentId===componentId).sort((a,b)=>a.sequence-b.sequence);
-  const branches=[...new Set(["Main route",...routeOperations.map(row=>row.branch||"Main route")])];
+  const routeOperations=useMemo(()=>operations.filter(row=>row.poId===poId&&row.poLineId===poLineId&&row.componentId===componentId).sort((a,b)=>a.sequence-b.sequence),[operations,poId,poLineId,componentId]);
+  const branches=useMemo(()=>[...new Set(["Main route",...routeOperations.map(row=>row.branch||"Main route")])],[routeOperations]);
   const branch=branches.includes(branchPick)?branchPick:"Main route";
-  const lane=routeOperations.filter(row=>(row.branch||"Main route")===branch);
-  const routeMaterials=materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(
+  const lane=useMemo(()=>routeOperations.filter(row=>(row.branch||"Main route")===branch),[routeOperations,branch]);
+  const routeMaterials=useMemo(()=>materials.filter(entry=>entry.scope==="process-map"&&entry.componentId===componentId&&(
     (entry.poLineId===poLineId&&(!entry.poId||entry.poId===poId))
     ||(!entry.poLineId&&entry.poId===poId&&componentLineCount===1)
     ||(!entry.poLineId&&!entry.poId&&componentGlobalLineCount===1)
-  )&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
-  const routeLegs=legs.filter(leg=>leg.poId===poId&&leg.poLineId===poLineId&&leg.componentId===componentId&&(!leg.anchorOperationId&&!leg.targetOperationId||lane.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0));
-  const routeMaterialProcessLinks=allMaterialProcessLinks.filter(link=>{
+  )&&(!line?.partId||!entry.partId||entry.partId===line.partId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)),[materials,componentId,poLineId,poId,componentLineCount,componentGlobalLineCount,line?.partId]);
+  const routeLegs=useMemo(()=>legs.filter(leg=>leg.poId===poId&&(leg.poLineId===poLineId||(!leg.poLineId&&componentGlobalLineCount===1))&&leg.componentId===componentId&&(!leg.anchorOperationId&&!leg.targetOperationId||routeOperations.some(operation=>operation.id===leg.anchorOperationId||operation.id===leg.targetOperationId)||leg.placement==="start")).sort((a,b)=>(a.sequence||0)-(b.sequence||0)),[legs,poId,poLineId,componentGlobalLineCount,componentId,routeOperations]);
+  const routeMaterialProcessLinks=useMemo(()=>allMaterialProcessLinks.filter(link=>{
     if(link.poId!==poId||link.poLineId!==poLineId||link.componentId!==componentId)return false;
     const linkedBom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
     return !line?.partId||!linkedBom?.partId||linkedBom.partId===line.partId;
-  });
-  const materialProcessPartLabels=Object.fromEntries(routeMaterialProcessLinks.map(link=>{
+  }),[allMaterialProcessLinks,poId,poLineId,componentId,data.bomLines,line?.partId]);
+  const materialProcessPartLabels=useMemo(()=>Object.fromEntries(routeMaterialProcessLinks.map(link=>{
     const bom=(data.bomLines||[]).find(row=>row.id===link.bomLineId);
     const part=bom?.partId?data.componentParts.find(row=>row.id===bom.partId):undefined;
     return [link.id,part?((part.partNumber?part.partNumber+" · ":"")+part.name):"Whole component"];
-  }));
+  })),[routeMaterialProcessLinks,data.bomLines,data.componentParts]);
   const materialLinksAt=(operationId:string,placement:"before"|"after")=>routeMaterialProcessLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
   const renderMaterialProcessLink=(link:MaterialProcessLinkRecord)=>{const material=materialMasterRecords.find(row=>row.id===link.materialId);return material?<MaterialFlowMarker key={link.id} link={link} material={material} componentQuantity={line?.quantity||0} partLabel={materialProcessPartLabels[link.id]} selected={selectedMaterialLinkId===link.id} onSelect={()=>setSelectedMaterialLinkId(current=>current===link.id?"":link.id)}/>:null;};
   const inspectedTransportLeg=routeLegs.find(leg=>leg.id===inspectedTransportId);
@@ -194,7 +249,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const inspectedMaterialTransportEntry=routeMaterials.find(entry=>entry.id===inspectedMaterialTransportId);
   const inspectedMaterialTransportVendor=inspectedMaterialTransportEntry?vendors.find(vendor=>vendor.id===inspectedMaterialTransportEntry.transportVendorId):undefined;
   const inspectedMaterialTransportRoute=inspectedMaterialTransportEntry?inspectedMaterialTransportVendor?.transportRoutes?.find(route=>route.fromLocation===inspectedMaterialTransportEntry.transportFrom&&route.toLocation===inspectedMaterialTransportEntry.transportTo&&route.vehicleType===inspectedMaterialTransportEntry.transportVehicleType):undefined;
-  const relationships=activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===poLineId&&routeOperations.some(op=>op.id===link.fromOperationId||op.id===link.toOperationId));
+  const relationships=useMemo(()=>activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===poLineId&&routeOperations.some(op=>op.id===link.fromOperationId||op.id===link.toOperationId)),[data.routeRelationships,poId,poLineId,routeOperations]);
   const routeNodes=useMemo<FlowNode[]>(()=>{
     const nodes:FlowNode[]=[];
     const addMaterial=(entry:any)=>{
@@ -247,6 +302,200 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const tripCount=transportNode?.kind==="transport"?transportNode.leg.tripCount:materialTransportNode?.kind==="material-transport"?1:0;
     return {transport,relation,type:relation?.relationshipType||defaultType,label:relation?.label,vehicleType,tripCount,transportLegId:transportNode?.kind==="transport"?transportNode.leg.id:undefined,materialTransportId:materialTransportNode?.kind==="material-transport"?materialTransportNode.entry.id:undefined};
   };
+
+  const routeFlowGraph = useMemo(()=>{
+    const lineOperations=routeOperations.filter(operation=>operation.relationType!=="subprocess"&&!operation.deletedAt);
+    const mainOperations=lineOperations.filter(operation=>(operation.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence);
+    const portrait=compactGraphViewport;
+    const operationPositions=buildRouteFlowOperationPositions(lineOperations,routeLayout,portrait);
+    const operationPoint=(operation:OperationRecord)=>operationPositions[operation.id]||{x:130,y:145};
+    const graphSource:FlowNode[]=[
+      ...(routeMaterials.length?[]:[{kind:"missing-material" as const,id:"missing-material"}]),
+      ...routeMaterials.map(entry=>({kind:"material" as const,id:"material-"+entry.id,entry})),
+      ...routeMaterials.filter(entry=>entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||Number(entry.transportCost)>0||entry.transportPickupAt||entry.transportDeliveryAt)
+        .map(entry=>({kind:"material-transport" as const,id:"material-transport-"+entry.id,entry})),
+      ...routeLegs.map(leg=>({kind:"transport" as const,id:"transport-"+leg.id,leg})),
+      ...lineOperations.map(operation=>({kind:"operation" as const,id:operation.id,operation}))
+    ];
+    const uniqueSource=graphSource.filter((node,index)=>graphSource.findIndex(other=>other.id===node.id)===index);
+    const operationFor=(id:string)=>lineOperations.find(operation=>operation.id===id);
+    const positionFor=(node:FlowNode,index:number)=>{
+      if(node.kind==="operation")return operationPoint(node.operation);
+      if(node.kind==="material"){
+        const materialIndex=Math.max(0,routeMaterials.findIndex(entry=>entry.id===node.entry.id));
+        const target=operationFor(node.entry.anchorOperationId||"")||mainOperations[0];
+        const anchor=target?operationPoint(target):{x:portrait?260:360,y:160};
+        const inbound=Boolean(node.entry.transportVendorId||node.entry.transportFrom||node.entry.transportTo||node.entry.transportVehicleType||Number(node.entry.transportCost)>0);
+        // Inbound material and its vehicle sit upstream of the first process card,
+        // not on top of that card as the previous mobile geometry did.
+        return {
+          x:Math.max(18,anchor.x-(inbound?(portrait?430:450):(portrait?212:226))),
+          y:anchor.y-(portrait?172:190)+materialIndex*(portrait?146:160)
+        };
+      }
+      if(node.kind==="material-transport"){
+        const materialIndex=Math.max(0,routeMaterials.findIndex(entry=>entry.id===node.entry.id));
+        const target=operationFor(node.entry.anchorOperationId||"")||mainOperations[0];
+        const anchor=target?operationPoint(target):{x:portrait?260:360,y:160};
+        return {
+          x:Math.max(18,anchor.x-(portrait?208:224)),
+          y:anchor.y-(portrait?172:190)+materialIndex*(portrait?146:160)
+        };
+      }
+      if(node.kind==="transport"){
+        const anchor=operationFor(node.leg.anchorOperationId||"");
+        const target=operationFor(node.leg.targetOperationId||"");
+        const from=anchor?operationPoint(anchor):undefined;
+        const to=target?operationPoint(target):undefined;
+        if(from&&to)return {
+          x:Math.max(18,(from.x+to.x)/2-(portrait?92:102)),
+          y:(from.y+to.y)/2+(portrait?142:150)
+        };
+        if(from)return {x:Math.max(18,from.x+(portrait?26:38)),y:from.y+(portrait?142:150)};
+        if(to)return {x:Math.max(18,to.x-(portrait?205:220)),y:to.y+(portrait?142:150)};
+        if(node.leg.materialEntryId){
+          const materialIndex=Math.max(0,routeMaterials.findIndex(entry=>entry.id===node.leg.materialEntryId));
+          const entry=routeMaterials[materialIndex];
+          const targetOp=operationFor(entry?.anchorOperationId||"")||mainOperations[0];
+          const anchorPoint=targetOp?operationPoint(targetOp):{x:portrait?260:360,y:160};
+          return {x:Math.max(18,anchorPoint.x-(portrait?205:220)),y:anchorPoint.y-(portrait?172:190)+materialIndex*(portrait?146:160)};
+        }
+        return {x:portrait?18:24,y:(portrait?165:175)+index*(portrait?120:135)};
+      }
+      return portrait?{x:18,y:16}:{x:24,y:135};
+    };
+    const accentFor=(node:FlowNode)=>{
+      if(node.kind==="operation"){
+        const branch=(node.operation.branch||"Main route").toLowerCase();
+        return /rework/.test(branch)?"#c45445":/alternate/.test(branch)?"#356fc5":"#0e827f";
+      }
+      if(node.kind==="material"||node.kind==="missing-material")return "#a56b12";
+      if(node.kind==="material-transport"||node.kind==="transport")return "#176c9b";
+      return "#667c95";
+    };
+    const nodes:RouteFlowGraphNode[]=uniqueSource.map((node,index)=>{
+      let title="",detail="",kind="",actionLabel="",onAction:RouteFlowNodeData["onAction"];
+      if(node.kind==="operation"){
+        title="OP-"+String(node.operation.sequence).padStart(3,"0")+" · "+node.operation.name;
+        detail=node.operation.status+" · Qty "+node.operation.quantity+" · "+(vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned");
+        kind=(node.operation.branch||"Main route").toUpperCase();
+        actionLabel="Edit operation";onAction=()=>setEditingOperation(node.operation);
+      }else if(node.kind==="material"){
+        title=node.entry.materialName+" · "+node.entry.materialGrade;
+        detail=(node.entry.partNumber||node.entry.partName||"Component allocation")+" · "+node.entry.quantity+" pcs · "+Number(node.entry.totalWeightKg||0).toFixed(3)+" kg";
+        kind="MATERIAL ALLOCATION";actionLabel="Open Process Map";onAction=()=>openProcessMap();
+      }else if(node.kind==="material-transport"){
+        title=(node.entry.transportFrom||"Pickup")+" → "+(node.entry.transportTo||"Destination");
+        detail=(node.entry.transportVehicleType||"Vehicle not set")+" · "+money(node.entry.transportCost||0);
+        kind="INBOUND MATERIAL TRANSPORT";actionLabel="Open transport details";
+        onAction=element=>{setInspectedMaterialTransportId(node.entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(element));};
+      }else if(node.kind==="transport"){
+        title=node.leg.fromLocation+" → "+node.leg.toLocation;
+        detail=node.leg.vehicleType+" · "+node.leg.tripCount+" trip(s) · "+money(node.leg.fixedAmount*node.leg.tripCount);
+        kind="TRANSPORT LEG";actionLabel="Open transport details";
+        onAction=element=>{setInspectedTransportId(node.leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(element));};
+      }else{
+        title="Material allocation missing";detail="Add the required material / grade allocation before production.";
+        kind="ROUTE REQUIREMENT";actionLabel="Open Process Map";onAction=()=>openProcessMap();
+      }
+      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),vehicleType:node.kind==="transport"?node.leg.vehicleType:node.kind==="material-transport"?node.entry.transportVehicleType||"truck":undefined,actionLabel,onAction},draggable:false,selectable:true,focusable:true,style:{width:node.kind==="transport"?184:node.kind==="material-transport"?184:node.kind==="material"?190:192}};
+    });
+    const nodeIds=new Set(nodes.map(node=>node.id));
+    const edges:Edge[]=[];
+    const edgeKeys=new Set<string>();
+    const edgePalette:Record<string,{color:string;dash?:string}> = darkGraph?{
+      main:{color:"#35d4dc"},alternate:{color:"#ffc45c",dash:"9 5"},rework:{color:"#ff747e",dash:"7 5"},
+      dependency:{color:"#72b4ff",dash:"2 5"},parallel:{color:"#d19aff",dash:"8 3"},
+      merge:{color:"#c19aff"},split:{color:"#82b8ff",dash:"5 3"},
+      "follow-on":{color:"#a7c9ed"},feedback:{color:"#aaa4ff",dash:"2 4"},
+      conditional:{color:"#df9cff",dash:"10 4 2 4"},successor:{color:"#75e0b0"},
+      transport:{color:"#73caff",dash:"5 3"}
+    }:{
+      main:{color:"#087d8d"},alternate:{color:"#a86708",dash:"9 5"},rework:{color:"#b83245",dash:"7 5"},
+      dependency:{color:"#245fba",dash:"2 5"},parallel:{color:"#7836a7",dash:"8 3"},
+      merge:{color:"#71399b"},split:{color:"#245fba",dash:"5 3"},
+      "follow-on":{color:"#315675"},feedback:{color:"#414fae",dash:"2 4"},
+      conditional:{color:"#7d399e",dash:"10 4 2 4"},successor:{color:"#24764f"},
+      transport:{color:"#176a9f",dash:"5 3"}
+    };
+    // Each semantic relationship uses a distinct pair of node handles. This keeps
+    // parallel/split/feedback links visible when they share operation endpoints.
+    // Every route type owns a distinct handle pair so parallel semantics remain visible.
+    const relationHandles=Object.fromEntries(
+      [...RELATIONSHIPS.map(item=>item.id),"transport"].map(type=>{
+        const [source,target]=routeRelationshipHandles(type);
+        return [type,{source,target}];
+      })
+    ) as Record<string,{source:string;target:string}>;
+    const graphEdgeType=routeLayout==="orthogonal"||routeLayout==="vertical"||routeLayout==="swimlane"?"step":routeLayout==="horizontal"?"straight":routeLayout==="s-curve"||routeLayout==="timeline"?"smoothstep":"default";
+    const addEdge=(source:string,target:string,type:string,id:string,label:string)=>{
+      if(!source||!target||source===target||!nodeIds.has(source)||!nodeIds.has(target))return;
+      const key=source+"::"+target+"::"+type;
+      if(edgeKeys.has(key))return;
+      edgeKeys.add(key);
+      const style=edgePalette[type]||edgePalette.main;
+      const handles=relationHandles[type]||relationHandles.main;
+      const animated=routeOperations.some(operation=>(operation.id===source||operation.id===target)&&operation.status==="Running");
+      edges.push({
+        id,source,target,sourceHandle:handles.source,targetHandle:handles.target,type:graphEdgeType,label,animated,
+        labelStyle:{fill:darkGraph?"#f4f8ff":"#142b43",fontSize:10,fontWeight:800},
+        labelBgStyle:{fill:darkGraph?"#10243a":"#ffffff",fillOpacity:.98},
+        labelBgPadding:[7,4],
+        className:"route-flow-edge route-flow-edge-"+type,
+        zIndex:4,
+        style:{stroke:style.color,strokeWidth:type==="transport"?3.4:3.8,...(style.dash?{strokeDasharray:style.dash}:{})},
+        markerEnd:{type:MarkerType.ArrowClosed,color:style.color,width:18,height:18},
+        focusable:true,selectable:true
+      });
+    };
+    // Draw each actual branch as its own sequence; the branch selector only affects card mode.
+    const groups=new Map<string,OperationRecord[]>();
+    lineOperations.forEach(operation=>{
+      const key=operation.branch||"Main route";
+      const bucket=groups.get(key)||[];bucket.push(operation);groups.set(key,bucket);
+    });
+    for(const [branchName,rows] of groups){
+      const ordered=rows.slice().sort((a,b)=>a.sequence-b.sequence);
+      const type:RouteRelationshipType=branchName==="Main route"?"main":/rework/i.test(branchName)?"rework":"alternate";
+      ordered.slice(0,-1).forEach((operation,index)=>{
+        const next=ordered[index+1];
+        addEdge(operation.id,next.id,type,"branch:"+operation.id+":"+next.id,relationLabel(type));
+      });
+    }
+    // Explicit saved alternate and rework parent links.
+    lineOperations.filter(operation=>(operation.relationType==="alternate"||operation.relationType==="rework")&&operation.parentId)
+      .forEach(operation=>addEdge(operation.parentId!,operation.id,operation.relationType==="rework"?"rework":"alternate","parent:"+operation.parentId+":"+operation.id,relationLabel(operation.relationType==="rework"?"rework":"alternate")));
+    // The persisted relationship table is authoritative and all enabled/planned examples are drawn.
+    relationships.filter(link=>link.status!=="Disabled").forEach(link=>{
+      const label=(link.label||relationLabel(link.relationshipType))+(link.condition?" · CONDITIONAL":"");
+      addEdge(link.fromOperationId,link.toOperationId,link.relationshipType,"saved:"+link.id,label);
+    });
+    // Material allocations and incoming material movements feed their linked operation.
+    routeMaterials.forEach(entry=>{
+      const materialId="material-"+entry.id;
+      const materialTransportId="material-transport-"+entry.id;
+      const target=operationFor(entry.anchorOperationId||"")||mainOperations[0];
+      if(!target)return;
+      const hasInbound=nodes.some(node=>node.id===materialTransportId);
+      if(hasInbound){
+        addEdge(materialId,materialTransportId,"transport","material-in:"+entry.id,"INBOUND MATERIAL");
+        addEdge(materialTransportId,target.id,"main","material-to-op:"+entry.id,"MATERIAL READY");
+      }else addEdge(materialId,target.id,"main","material-to-op:"+entry.id,"MATERIAL INPUT");
+    });
+    // Transport legs are placed between their real operation endpoints when available.
+    routeLegs.forEach(leg=>{
+      const transportId="transport-"+leg.id;
+      if(!nodeIds.has(transportId))return;
+      const anchor=operationFor(leg.anchorOperationId||"");
+      // A transport receiving operation is an explicit saved relationship.
+      // Never infer it from the next node in the current visual layout.
+      const target=operationFor(leg.targetOperationId||"");
+      const source=anchor?anchor.id:leg.materialEntryId?"material-"+leg.materialEntryId:"";
+      if(source)addEdge(source,transportId,"transport","transport-from:"+leg.id,"TRANSPORT");
+      if(target)addEdge(transportId,target.id,"transport","transport-to:"+leg.id,(leg.vehicleType||"TRANSPORT").toUpperCase());
+    });
+    return {nodes,edges};
+  },[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport]);
 
   const saveRelationship=()=>{
     if(!poId||!poLineId){onNotice("Select a company, PO and component line before adding a route relationship.");return;}
@@ -342,7 +591,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const rows:Array<{fromId:string;toId:string;type:RouteRelationshipType;status:string}>=[];
     const add=(fromId:string,toId:string,type:RouteRelationshipType,status:string)=>{
       if(!fromId||!toId||fromId===toId)return;
-      const existing=rows.findIndex(row=>row.fromId===fromId&&row.toId===toId);
+      const existing=rows.findIndex(row=>row.fromId===fromId&&row.toId===toId&&row.type===type);
       const next={fromId,toId,type,status};
       if(existing>=0)rows[existing]=next;else rows.push(next);
     };
@@ -433,15 +682,39 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     </div>
 
     <section className="route-flow-canvas-panel">
-      <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowAddOperation(v=>!v)}><Plus size={14}/> Add process stage</button><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" disabled={!poLineId} onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button></div></div>
+      <div className="route-flow-canvas-heading"><div><span className="eyebrow">LIVE PO-LINE WORKFLOW</span><h2>{component?.partNumber||"—"} · {component?.name||"Select a component"}</h2><p>{order?.number||"No PO selected"} · {line?.quantity||0} ordered · {branch} · {routeMaterials.length} material allocation(s)</p></div><div className="route-flow-canvas-tools"><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowAddOperation(v=>!v)}><Plus size={14}/> Add process stage</button><button className="button-quiet compact-button" disabled={!poLineId} onClick={()=>setShowTransportEditor(v=>!v)}><Truck size={14}/> Add transport leg</button><button className="button-primary compact-button" disabled={!poLineId} onClick={()=>setShowRelationshipEditor(v=>!v)}><GitBranch size={14}/> Add relationship</button><button type="button" className="button-quiet compact-button" aria-pressed={routeCanvasMode==="graph"} onClick={()=>setRouteCanvasMode(value=>value==="graph"?"cards":"graph")}>{routeCanvasMode==="graph"?"Stage cards":"Interactive graph"}</button></div></div>
       <div className="route-flow-canvas-layout"><div className="route-flow-map-main ax-map-fullscreen-shell" ref={mapViewportRef} data-route-layout={routeLayout}><ImmersiveWorkspaceControls targetRef={mapViewportRef} onNotice={onNotice}/>
-        <div className="ax-map-zoom-toolbar" role="group" aria-label="Route flow zoom controls">
+        {routeCanvasMode==="cards"&&<div className="ax-map-zoom-toolbar" role="group" aria-label="Route flow zoom controls">
           <button type="button" aria-label="Zoom out" title="Zoom out" onClick={()=>setRouteZoom(value=>Math.max(.55,Number((value-.1).toFixed(2))))}>−</button>
           <output aria-live="polite">{Math.round(routeZoom*100)}%</output>
           <button type="button" aria-label="Zoom in" title="Zoom in" onClick={()=>setRouteZoom(value=>Math.min(2,Number((value+.1).toFixed(2))))}>+</button>
           <button type="button" className="ax-map-zoom-fit" onClick={()=>setRouteZoom(.82)} title="Fit route">Fit</button>
-        </div>
-      {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:
+        </div>}
+      {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:routeCanvasMode==="graph"?
+      <div className="route-flow-graph-canvas" data-testid="route-flow-react-canvas">
+        <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Pinch / wheel to zoom · drag canvas to pan · use Fit in controls</small></div>
+        <RouteConnectorLegend/>
+        <ManufacturingGraphCanvas
+          nodes={routeFlowGraph.nodes}
+          edges={routeFlowGraph.edges}
+          nodeTypes={ROUTE_FLOW_NODE_TYPES}
+          fitView
+          fitViewOptions={{padding:.14,minZoom:.16,maxZoom:1.35}}
+          minZoom={.12}
+          maxZoom={2.8}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          nodesFocusable
+          panOnDrag
+          zoomOnScroll
+          zoomOnPinch
+          minimapNodeColor={node=>node.data.accent}
+          className="route-flow-shared-graph-layer"
+          testId="route-flow-shared-canvas"
+        >
+          <RouteFlowFitController revision={routeLayout+":"+routeFlowGraph.nodes.map(node=>node.id+"@"+node.position.x+","+node.position.y).join(";")}/>
+        </ManufacturingGraphCanvas>
+      </div>:
       <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<RouteConnectorLegend/><div className="route-flow-stage-track" data-route-layout={routeLayout}>
         {routeNodes.map((node,index)=>{
           const connector=index<routeNodes.length-1?connectorFor(index):null;
@@ -449,7 +722,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
             <article className={"route-flow-stage-card route-flow-stage-"+node.kind} data-route-operation-id={node.kind==="operation"?node.operation.id:undefined}>
               {node.kind==="material"&&<><div className="route-flow-node-top"><Package size={18}/><small>MANDATORY MATERIAL STAGE</small></div><strong>{node.entry.materialName} · {node.entry.materialGrade}</strong><span>{node.entry.partNumber||node.entry.partName||"Component-level allocation"} · {node.entry.shapeType}</span><span>{node.entry.quantity} pieces · {Number(node.entry.totalWeightKg||0).toFixed(3)} kg</span><span>Supplier: {vendors.find(v=>v.id===node.entry.vendorId)?.company||"Not assigned"}</span><em>{money(node.entry.materialCost)} material · {money(node.entry.cuttingCost)} cutting</em><small>Given {dateTime(node.entry.givenDate)} · Due {dateTime(node.entry.deliveryDate)}</small><button onClick={openProcessMap}>Edit material <ArrowRight size={12}/></button></>}
               {node.kind==="material-transport"&&<button type="button" className={"ax-transport-icon-trigger vehicle-"+vehicleClassFor(node.entry.transportVehicleType||"")} aria-label="Open inbound material transport popup" title={(node.entry.transportVehicleType||"Vehicle")+" · "+(node.entry.transportFrom||"Pickup")+" → "+(node.entry.transportTo||"Destination")} onClick={event=>{setInspectedMaterialTransportId(node.entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><VehicleTypeIcon vehicleType={node.entry.transportVehicleType||""} size={20}/></button>}
-              {node.kind==="transport"&&<button type="button" className={"ax-transport-icon-trigger vehicle-"+vehicleClassFor(node.leg.vehicleType)} aria-label="Open transport leg popup" title={(node.leg.vehicleType||"Vehicle")+" · "+node.leg.fromLocation+" → "+node.leg.toLocation} onClick={event=>{setInspectedTransportId(node.leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><VehicleTypeIcon vehicleType={node.leg.vehicleType} size={20}/></button>}
+              {node.kind==="transport"&&<><button type="button" className={"ax-transport-icon-trigger vehicle-"+vehicleClassFor(node.leg.vehicleType)} aria-label="Open transport leg popup" title={(node.leg.vehicleType||"Vehicle")+" · "+node.leg.fromLocation+" → "+node.leg.toLocation} onClick={event=>{setInspectedTransportId(node.leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><VehicleTypeIcon vehicleType={node.leg.vehicleType} size={20}/></button>{node.leg.targetOperationId&&<small className="route-flow-transport-target">{(()=>{const target=routeOperations.find(operation=>operation.id===node.leg.targetOperationId);return target?"TO OP-"+String(target.sequence).padStart(3,"0")+" · "+target.name:"Target operation not found in this PO line";})()}</small>}</>}
               {node.kind==="operation"&&<>{materialLinksAt(node.operation.id,"before").map(renderMaterialProcessLink)}<div className="route-flow-node-top"><Factory size={18}/><small>OP-{String(node.operation.sequence).padStart(3,"0")} · {node.operation.status}</small></div><strong>{node.operation.name}</strong><span>{node.operation.category} · {node.operation.subcategory||"Sub-process not selected"}</span><span>Qty {node.operation.quantity} · {vendors.find(v=>v.id===node.operation.vendorId)?.company||"Vendor not assigned"}</span><em>{money(node.operation.quantity*(node.operation.actualRatePerPart||node.operation.ratePerPart))} process amount</em><small>Start {dateTime(node.operation.plannedStart)} · Due {dateTime(node.operation.plannedEnd)}</small><button onClick={()=>setEditingOperation(node.operation)}>Edit here <ArrowRight size={12}/></button>{materialLinksAt(node.operation.id,"after").map(renderMaterialProcessLink)}</>}
               {node.kind==="missing-material"&&<><div className="route-flow-node-top"><Package size={18}/><small>REQUIRED FIRST STAGE</small></div><strong>Material allocation missing</strong><span>A manufacturing route must have its material / grade allocation before its first process.</span><button onClick={openProcessMap}>Add material <ArrowRight size={12}/></button></>}
             </article>
@@ -478,6 +751,8 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       <div className="route-flow-legend">
 {RELATIONSHIPS.map(item=><span key={item.id} className={"route-flow-legend-item route-flow-curve-"+item.id}><i/>{item.label}</span>)}<span className="route-flow-legend-item route-flow-curve-transport"><Truck size={13}/> Transport leg</span></div>
     </section>
+
+    <RouteFlowShowcase/>
 
     {showTransportEditor&&<section className="route-flow-editor-panel">
       <div className="route-flow-editor-title"><div><span className="eyebrow">TRANSPORT DIRECTORY · MULTIPLE CARRIERS SUPPORTED</span><h3>Add a transport leg between two process stages</h3></div><button className="close-round compact" onClick={()=>setShowTransportEditor(false)}><X size={16}/></button></div>

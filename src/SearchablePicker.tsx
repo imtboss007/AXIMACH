@@ -1,4 +1,6 @@
-import { useEffect, useId, useMemo, useState, type FocusEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FocusEvent } from "react";
+import { createPortal } from "react-dom";
+import { useFloatingMenuPosition } from "./useFloatingMenuPosition";
 
 export type SearchableOption = { id: string; label: string };
 type Props = { id: string; label: string; value: string; options: SearchableOption[]; onChange: (id: string) => void; placeholder?: string; disabled?: boolean; allowCustom?: boolean; maxResults?: number; };
@@ -9,6 +11,9 @@ export default function SearchablePicker({ id, label, value, options, onChange, 
   const listId = id + "-choices-" + reactId;
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const controlRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuPosition = useFloatingMenuPosition(controlRef, open && !disabled, 250);
   const selectedLabel = options.find(option => option.id === value)?.label || (allowCustom ? value : "");
   const matches = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -18,7 +23,8 @@ export default function SearchablePicker({ id, label, value, options, onChange, 
   useEffect(() => { if (!open) setQuery(""); }, [value, open]);
   const select = (option: SearchableOption) => { onChange(option.id); setQuery(""); setOpen(false); };
   const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
-    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    const nextTarget = event.relatedTarget as Node | null;
+    if (event.currentTarget.contains(nextTarget) || (nextTarget && menuRef.current?.contains(nextTarget))) return;
     const typedValue = query.trim();
     if (allowCustom && typedValue) {
       const exact = options.find(option => option.label.trim().toLocaleLowerCase() === typedValue.toLocaleLowerCase());
@@ -29,16 +35,33 @@ export default function SearchablePicker({ id, label, value, options, onChange, 
   };
   return <div className="searchable-picker" onBlur={handleBlur}>
     <label htmlFor={id}>{label}</label>
-    <div className="searchable-picker-control">
+    <div ref={controlRef} className="searchable-picker-control">
       <input id={id} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={listId} value={open ? query : selectedLabel} disabled={disabled} placeholder={placeholder}
         onFocus={() => { setOpen(true); setQuery(""); }}
         onChange={event => { setQuery(event.target.value); setOpen(true); if (value && event.target.value !== selectedLabel) onChange(""); }}
         onKeyDown={event => { if (event.key === "Escape") { setOpen(false); setQuery(""); } if (event.key === "Enter") { event.preventDefault(); if (matches[0]) select(matches[0]); else if (allowCustom && query.trim()) { onChange(query.trim()); setOpen(false); setQuery(""); } } }} />
       <span aria-hidden="true" className="searchable-picker-caret">⌄</span>
     </div>
-    {open && !disabled && <div className="searchable-picker-menu" id={listId} role="listbox">
-      {matches.length ? matches.map(option => <button type="button" role="option" aria-selected={option.id === value} key={option.id} onMouseDown={event => event.preventDefault()} onClick={() => select(option)}><span>{option.label}</span>{option.id === value && <b>Selected</b>}</button>) : <div className="searchable-picker-empty">{allowCustom ? "Press Enter to use this value." : "No exact or partial match."}</div>}
-      {matches.length === maxResults && <small className="searchable-picker-hint">Showing first {maxResults}. Type more to narrow the results.</small>}
-    </div>}
+    {open && !disabled && menuPosition && createPortal(
+      <div
+        ref={menuRef}
+        className="searchable-picker-menu"
+        id={listId}
+        role="listbox"
+        style={{
+          position: menuPosition.position,
+          top: menuPosition.top,
+          left: menuPosition.left,
+          width: menuPosition.width,
+          maxHeight: menuPosition.maxHeight,
+          boxSizing: "border-box",
+          zIndex: 2147483300
+        }}
+      >
+        {matches.length ? matches.map(option => <button type="button" role="option" aria-selected={option.id === value} key={option.id} onMouseDown={event => event.preventDefault()} onClick={() => select(option)}><span>{option.label}</span>{option.id === value && <b>Selected</b>}</button>) : <div className="searchable-picker-empty">{allowCustom ? "Press Enter to use this value." : "No exact or partial match."}</div>}
+        {matches.length === maxResults && <small className="searchable-picker-hint">Showing first {maxResults}. Type more to narrow the results.</small>}
+      </div>,
+      document.body
+    )}
   </div>;
 }

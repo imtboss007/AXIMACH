@@ -2,9 +2,9 @@ name: AXIMACH build and packages
 
 on:
   push:
-    branches: [main, "feat/**", "fix/**", "feature/**"]
+    branches: [main, "feat/**", "fix/**", "feature/**", "integrate/**"]
   pull_request:
-    branches: [main]
+    branches: [main, "stage6/p0-production-quantity-integrity"]
   workflow_dispatch:
 
 permissions:
@@ -15,6 +15,36 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  functional-tests:
+    name: Manufacturing and module regression suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Cache npm package downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-22-npm-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-22-npm-
+      - name: Install dependencies
+        run: npm install --prefer-offline --no-audit --no-fund
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - name: Check server syntax
+        run: |
+          node --check server/index.mjs
+          node --check server/manufacturing-data.mjs
+          node --check server/whatsapp-web.mjs
+      - name: Test manufacturing data and module workflows
+        run: npm run test:functional
+
   frontend:
     name: Type-check and build web app
     runs-on: ubuntu-latest
@@ -26,17 +56,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Cache npm package downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-22-npm-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-22-npm-
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --prefer-offline --no-audit --no-fund
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
-      - name: Check server syntax
-        run: |
-          node --check server/index.mjs
-          node --check server/manufacturing-data.mjs
-          node --check server/whatsapp-web.mjs
-      - name: Test manufacturing data and module workflows
-        run: npm run test:functional
       - name: Build application
         run: npm run build
       - name: Verify packaged frontend entrypoint
@@ -45,8 +75,11 @@ jobs:
           const fs = require("node:fs");
           const html = fs.readFileSync("dist/index.html", "utf8");
           const assets = fs.existsSync("dist/assets") ? fs.readdirSync("dist/assets") : [];
-          const hasModuleEntrypoint = /<script[^>]+type=["']module["'][^>]+src=/i.test(html);
-          if (!hasModuleEntrypoint || !assets.some(name => name.endsWith(".js"))) {
+          const scriptTags = [...html.matchAll(/<script\b[^>]*>/gi)].map(match => match[0]);
+          const moduleScript = scriptTags.find(tag => /\btype=["']module["']/i.test(tag));
+          const moduleSource = moduleScript?.match(/\bsrc=["']([^"']+)["']/i)?.[1];
+          const moduleAsset = moduleSource?.split("/").pop()?.split("?")[0];
+          if (!moduleAsset || !assets.includes(moduleAsset) || !assets.some(name => name.endsWith(".js"))) {
             throw new Error("AXIMACH build is missing its module entrypoint or bundled JavaScript assets.");
           }
           console.log("Verified AXIMACH module entrypoint and JavaScript bundle:", assets.filter(name => name.endsWith(".js")));
@@ -77,12 +110,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Cache npm package downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-22-npm-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-22-npm-
       - name: Install dependencies
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           for ($attempt = 1; $attempt -le 3; $attempt++) {
-            npm install --no-audit --no-fund
+            npm install --prefer-offline --no-audit --no-fund
             if ($LASTEXITCODE -eq 0) { exit 0 }
             if ($attempt -eq 3) { exit $LASTEXITCODE }
             Start-Sleep -Seconds (15 * $attempt)
@@ -137,6 +177,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Cache npm package downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-22-npm-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-22-npm-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -147,7 +194,7 @@ jobs:
         with:
           packages: platform-tools
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --prefer-offline --no-audit --no-fund
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - name: Build web assets

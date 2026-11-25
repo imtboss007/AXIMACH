@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Handle, MarkerType, Position } from "@xyflow/react";
+import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
+import "@xyflow/react/style.css";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type MaterialCostEntryRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine, type TransportRouteRecord } from "./manufacturingData";
+import { getProductionRouteMetrics, getRequiredRouteOperations, inheritsRouteInclusion } from "./productionRouteMetrics.mjs";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon, ProcessIcon } from "./IconStudio";
@@ -12,6 +16,8 @@ import { transportPopupAnchor, transportPopupAnchorFromPoint } from "./transport
 import { RouteLayoutPicker, RouteConnectorLegend as RouteLayoutConnectorLegend, useRouteLayout } from "./RouteLayoutPicker";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend as MaterialRouteConnectorLegend } from "./RouteConnectorLegend";
+import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
+import { manufacturingGraphEdgeKey, routeRelationshipHandles } from "./manufacturingGraphLayout.mjs";
 import TransportRoutingDemo from "./TransportRoutingDemo";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
@@ -21,6 +27,29 @@ function RouteConnectorLegend({compact=false}:{compact?:boolean}) {
   return compact ? <RouteLayoutConnectorLegend compact/> : <MaterialRouteConnectorLegend/>;
 }
 
+type ProcessMapGraphNodeData = {title:string;detail:string;kind:string;accent:string;status?:string;vehicleType?:string;actionLabel?:string;onAction?:()=>void};
+type ProcessMapGraphNode = Node<ProcessMapGraphNodeData,"processMapEntity">;
+function ProcessMapGraphCard({data}:NodeProps<ProcessMapGraphNode>) {
+  const isTransport=data.kind.includes("TRANSPORT");
+  const VehicleIcon=isTransport?transportVehicleIcon(data.vehicleType||"truck"):undefined;
+  return <article className={"process-map-graph-card"+(isTransport?" is-transport":"")} style={{"--process-map-accent":data.accent} as CSSProperties}>
+    <Handle id="target-left" type="target" position={Position.Left}/>
+    <Handle id="target-right" type="target" position={Position.Right}/>
+    <Handle id="target-top" type="target" position={Position.Top}/>
+    <Handle id="target-bottom" type="target" position={Position.Bottom}/>
+    <div className="process-map-graph-card-heading"><span>{VehicleIcon?<VehicleIcon size={15}/>:data.kind.includes("MATERIAL")?<Package size={15}/>:<Workflow size={15}/>}</span><span>{data.kind}</span></div>
+    <strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
+    {data.status&&<em>{data.status}</em>}
+    {data.actionLabel&&data.onAction&&<button type="button" className="nodrag" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();data.onAction?.();}}>{data.actionLabel}</button>}
+    <Handle id="source-left" type="source" position={Position.Left}/>
+    <Handle id="source-right" type="source" position={Position.Right}/>
+    <Handle id="source-top" type="source" position={Position.Top}/>
+    <Handle id="source-bottom" type="source" position={Position.Bottom}/>
+    <Handle id="target-left-transport" type="target" position={Position.Left} style={{top:"84%"}}/>
+    <Handle id="source-right-transport" type="source" position={Position.Right} style={{top:"84%"}}/>
+  </article>;
+}
+const PROCESS_MAP_NODE_TYPES = {processMapEntity:ProcessMapGraphCard} satisfies NodeTypes;
 type ProcessCardField = "category"|"subcategory"|"execution"|"machine"|"vendor"|"plannedStart"|"plannedEnd"|"actualStart"|"actualEnd"|"quantity"|"completed"|"accepted"|"rejected"|"price"|"amount"|"status"|"transportVendor"|"transportRoute"|"vehicle"|"transportPickup"|"transportDelivery"|"transportLegCost"|"combinedAmount"|"company"|"po"|"component"|"materialShape"|"materialDensity"|"materialQuantity"|"materialWeight"|"materialVendor"|"materialGiven"|"materialDelivery"|"materialReceived"|"materialCost"|"materialCuttingCost"|"materialTransportCost";
 const DEFAULT_PROCESS_COLOR = "#6fa9e5";
 const ALTERNATE_ROUTE_COLOR = "#4b95eb";
@@ -132,6 +161,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [transportRouteId, setTransportRouteId] = useState("");
   const [transportTripCount, setTransportTripCount] = useState("1");
   const [transportAnchorOperationId, setTransportAnchorOperationId] = useState("");
+  const [transportTargetOperationId, setTransportTargetOperationId] = useState("");
   const [transportPlacement, setTransportPlacement] = useState<"start"|"before"|"after">("after");
   const [transportLegNotes, setTransportLegNotes] = useState("");
   const [showNewTransportRoute, setShowNewTransportRoute] = useState(false);
@@ -160,7 +190,21 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [exportScope,setExportScope] = useState<string>("all");
   const [exportArrows] = useState(true);
   const [routeLayout,setRouteLayout]=useRouteLayout();
-  const [visualStyle,setVisualStyle] = useState<"sphere"|"cube"|"vortex"|"helix"|"orbit"|"stacked"|"pipeline"|"network"|"grid"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"digital-mesh"|"molecular"|"combined">("sphere");
+  const [visualStyle,setVisualStyle] = useState<"sphere"|"cube"|"vortex"|"helix"|"orbit"|"stacked"|"pipeline"|"network"|"grid"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"digital-mesh"|"molecular"|"combined"|"graph">(() => typeof window !== "undefined" && window.matchMedia("(pointer:coarse)").matches && window.matchMedia("(orientation:portrait)").matches ? "graph" : "sphere");
+  // Phones open on the compact PO-line flowchart. The WebGL manufacturing universe
+  // remains available below as a separate collapsible 3D view.
+  useEffect(() => {
+    const syncResponsiveProcessView = () => {
+      const portrait = window.matchMedia("(orientation:portrait)").matches;
+      setVisualStyle(current => portrait && current === "sphere" ? "graph" : !portrait && current === "graph" ? "sphere" : current);
+    };
+    window.addEventListener("orientationchange",syncResponsiveProcessView);
+    window.addEventListener("resize",syncResponsiveProcessView);
+    return () => {
+      window.removeEventListener("orientationchange",syncResponsiveProcessView);
+      window.removeEventListener("resize",syncResponsiveProcessView);
+    };
+  },[]);
   const [ganttScale,setGanttScale] = useState<"day"|"week"|"month">("week");
   const [histogramStyle,setHistogramStyle] = useState<"bar"|"stacked"|"donut">("bar");
   const [statusFilters,setStatusFilters] = useState<string[]>([]);
@@ -475,16 +519,16 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       }));
       if (!bulkStatus) return { ...current, operations: nextOperations };
       const touchedLines = new Set(selected.map(op => op.poId + "::" + op.poLineId));
+      const requiredBeforeUpdateIds = new Set(getRequiredRouteOperations(current.operations).map(op => op.id));
       const reopenedLines = new Set(selected
-        .filter(op => bulkStatus !== "Complete" && ((op.branch || "Main route") === "Main route" || op.costIncluded !== false))
+        .filter(op => bulkStatus !== "Complete" && requiredBeforeUpdateIds.has(op.id))
         .map(op => op.poId + "::" + op.poLineId));
       const nextPurchaseOrders = current.purchaseOrders.map(order => ({
         ...order,
         lines: order.lines.map(line => {
           const key = order.id + "::" + line.id;
           if (!touchedLines.has(key)) return line;
-          const lineOperations = nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id && !op.deletedAt
-            && ((op.branch || "Main route") === "Main route" || op.costIncluded !== false));
+          const lineOperations = getRequiredRouteOperations(nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id));
           if (lineOperations.length && lineOperations.every(op => op.status === "Complete")) {
             return { ...line, jobStatus: "Finished" as const, jobFinishedAt: stamp, updatedAt: stamp };
           }
@@ -514,8 +558,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const transactions=paymentRowsFor(operation.id);
     return transactions.length?transactions.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount)||0),0):Math.max(0,Number(operation.paidAmount)||0);
   };
-  const activeBranchNames = new Set(routeOperations.filter(op => (op.branch || "Main route") !== "Main route" && op.costIncluded !== false).map(op => op.branch || "Main route"));
-  const activeRouteOperations = routeOperations.filter(op => (op.branch || "Main route") === "Main route" || activeBranchNames.has(op.branch || "Main route"));
+  const routeQuantityMetrics = getProductionRouteMetrics(routeOperations, selectedLine?.quantity || 0);
+  const activeRouteOperations = routeQuantityMetrics.requiredOperations;
   const costedOperations = routeOperations.filter(op => op.costIncluded !== false);
   const totalProcessCost = costedOperations.reduce((sum, op) => sum + op.quantity * (op.actualRatePerPart || op.ratePerPart), 0);
   const includedTransportLegs = componentTransportLegs.filter(leg => !leg.anchorOperationId || routeOperations.find(operation => operation.id === leg.anchorOperationId)?.costIncluded !== false);
@@ -536,12 +580,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const legacy = duplicateLegacyTransportIds.has(operation.id) ? 0 : Math.max(0,Number(operation.transportCost)||0);
     return anchored + legacy + (firstMainRouteOperation?.id === operation.id ? unanchoredTransportCost : 0);
   };
-  const expectedQuantity = Math.max(0,Number(selectedLine?.quantity)||0);
-  const completedQuantity = activeRouteOperations.length ? Math.min(...activeRouteOperations.map(op => op.accepted || 0)) : 0;
-  const finalRouteOperation = [...routeOperations].filter(op=>(op.branch||"Main route")==="Main route").sort((a,b)=>a.sequence-b.sequence).at(-1) || routeOperations[routeOperations.length-1];
-  const finalCompletedQty = Math.min(expectedQuantity,Math.max(0,Number(finalRouteOperation?.accepted)||0));
-  const pendingProductionQty = Math.max(0,expectedQuantity-finalCompletedQty);
-  const inProgressProductionQty = Math.min(pendingProductionQty,activeRouteOperations.filter(op=>op.status==="Running").reduce((sum,op)=>sum+Math.max(0,op.quantity-op.completed),0));
+  const expectedQuantity = routeQuantityMetrics.expectedQuantity;
+  const finalCompletedQty = routeQuantityMetrics.finalAcceptedQuantity;
+  const pendingProductionQty = routeQuantityMetrics.pendingQuantity;
+  const inProgressProductionQty = routeQuantityMetrics.inProgressEstimate;
   const plannedProductionQty = expectedQuantity;
   const completionPercent = plannedProductionQty>0?Math.round(finalCompletedQty/plannedProductionQty*100):0;
   const vendorAssignedPercent = activeRouteOperations.length?Math.round(activeRouteOperations.filter(op=>op.executionType==="Internal"||Boolean(op.vendorId)).length/activeRouteOperations.length*100):0;
@@ -553,7 +595,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   }).map(leg=>leg.anchorOperationId));
   const transportCount = includedTransportLegs.reduce((sum, leg) => sum + Math.max(0, Number(leg.tripCount) || 0), 0) + costedOperations.filter(op => !duplicateLegacyTransportIdsForCount.has(op.id) && (op.transportCost > 0 || op.transportVendorId)).length + materialRouteEntries.filter(entry=>(Number(entry.transportCost)||0)>0 || entry.transportVendorId).length;
   const totalAccepted = finalCompletedQty;
-  const allDone = activeRouteOperations.length > 0 && activeRouteOperations.every(op => op.status === "Complete");
+  const allDone = routeQuantityMetrics.allRequiredOperationsComplete;
   const finalDelivery = selectedLine?.targetDelivery || selectedPO?.targetDelivery || "";
   const routeCost = totalProcessCost;
   const durationDays = activeRouteOperations.reduce((sum, op) => sum + daysBetween(op.plannedStart, op.plannedEnd), 0);
@@ -572,6 +614,119 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const exportBranches = [...new Set(exportOperations.map(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")))].sort((a,b)=>a.localeCompare(b));
   const processAccent = (operation:OperationRecord) => processDefinitions.find(item=>item.id===operation.processDefinitionId)?.displayColor || operation.processColor || DEFAULT_PROCESS_COLOR;
   const branchAccent = (operation:OperationRecord) => operation.relationType==="rework" ? REWORK_ROUTE_COLOR : operation.relationType==="alternate" ? ALTERNATE_ROUTE_COLOR : processAccent(operation);
+  const processMapGraph = useMemo(()=>{
+    const nodes:ProcessMapGraphNode[]=[];
+    const edges:Edge[]=[];
+    const operationPositions=new Map<string,{x:number;y:number;branch:string;index:number}>();
+    const relationshipRows=activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===selectedLine?.id&&link.componentId===selectedLine?.componentId&&link.status!=="Disabled");
+    const relationColors:Record<string,string>={main:"#168d9a",alternate:ALTERNATE_ROUTE_COLOR,rework:REWORK_ROUTE_COLOR,dependency:"#347de5",parallel:"#9848d6",merge:"#9e4bc9",split:"#3d79df","follow-on":"#315675",feedback:"#455bd6",conditional:"#9954ce",successor:"#23845d",transport:"#397ea4"};
+    const relationDashes:Record<string,string>={alternate:"8 5",rework:"7 5",dependency:"2 5",parallel:"8 3",split:"5 3",feedback:"2 4",conditional:"10 4 2 4",transport:"5 4"};
+    const edgeKeys=new Set<string>();
+    const isRunningOperation=(id:string)=>exportOperations.some(operation=>operation.id===id&&operation.status==="Running");
+    const compactViewport=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
+    const nodeWidth=compactViewport?176:210;
+    const branchRows=exportBranches.map((key,row)=>{
+      const operationsInBranch=exportOperations.filter(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")===key).slice().sort((a,b)=>a.sequence-b.sequence);
+      return {key,row,branch:operationsInBranch[0]?.branch||"Main route",operations:operationsInBranch};
+    }).filter(row=>row.operations.length);
+    const addEdge=(source:string,target:string,type:string,id:string,label:string,animated=false)=>{
+      if(!source||!target||source===target)return;
+      const key=manufacturingGraphEdgeKey(source,target,type);
+      if(edgeKeys.has(key))return;
+      edgeKeys.add(key);
+      const color=relationColors[type]||relationColors.main;
+      const [sourceHandle,targetHandle]=routeRelationshipHandles(type);
+      edges.push({id,source,target,sourceHandle,targetHandle,type:"smoothstep",label,labelStyle:{fontSize:9,fontWeight:750,fill:"#435d73"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.96},labelBgPadding:[5,3],style:{stroke:color,strokeWidth:type==="transport"?2.8:2.4,...(relationDashes[type]?{strokeDasharray:relationDashes[type]}:{})},markerEnd:{type:MarkerType.ArrowClosed,color},animated,selectable:false,focusable:false});
+    };
+    branchRows.forEach(({row,branch,operations:ops})=>{
+      ops.forEach((operation,index)=>{
+        // A horizontal, lane-based flow works consistently on phones and desktops.
+        const x=compactViewport?48+index*248:96+index*278;
+        const y=compactViewport?400+row*820:400+row*820;
+        operationPositions.set(operation.id,{x,y,branch,index});
+        nodes.push({id:"operation:"+operation.id,type:"processMapEntity",position:{x,y},data:{title:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name,detail:[operation.category,operation.subcategory,vendors.find(v=>v.id===operation.vendorId)?.company||"Vendor not assigned","Qty "+operation.quantity].filter(Boolean).join(" · "),kind:"PROCESS OPERATION",accent:branchAccent(operation),status:operation.status,actionLabel:"Select operation",onAction:()=>{setSelectedOperationId(operation.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:nodeWidth}});
+      });
+      const branchType=branch.toLowerCase().includes("rework")?"rework":branch==="Main route"?"main":"alternate";
+      for(let index=0;index<ops.length-1;index++){
+        const from=ops[index],to=ops[index+1];
+        const saved=relationshipRows.filter(link=>link.fromOperationId===from.id&&link.toOperationId===to.id);
+        const primaryType=saved[0]?.relationshipType||branchType;
+        addEdge("operation:"+from.id,"operation:"+to.id,primaryType,"process-sequence:"+from.id+":"+to.id,relationColors[primaryType]?primaryType.replaceAll("-"," ").toUpperCase():"NEXT PROCESS",isRunningOperation(from.id)||isRunningOperation(to.id));
+        saved.slice(1).forEach((link,extraIndex)=>addEdge("operation:"+from.id,"operation:"+to.id,link.relationshipType,"process-sequence-extra:"+link.id,link.label||link.relationshipType.toUpperCase(),isRunningOperation(from.id)||isRunningOperation(to.id)));
+      }
+    });
+    // Saved parent links are explicit branch relationships, not guessed from card order.
+    branchRows.filter(row=>row.branch!=="Main route").forEach(({branch,operations:ops})=>{
+      const origin=resolveBranchOrigin(branch,ops);
+      if(!origin?.branchRoot||!origin.parent)return;
+      const branchRootPosition=operationPositions.get(origin.branchRoot.id);
+      if(!branchRootPosition)return;
+      let sourceId="operation:"+origin.parent.id;
+      if(!operationPositions.has(origin.parent.id)){
+        sourceId="branch-origin:"+origin.parent.id+":"+branch;
+        nodes.push({id:sourceId,type:"processMapEntity",position:{x:branchRootPosition.x+nodeWidth+40,y:branchRootPosition.y-145},data:{title:"OP-"+String(origin.parent.sequence).padStart(3,"0")+" · "+origin.parent.name,detail:"Parent process · outside the current route scope",kind:"BRANCH ORIGIN REFERENCE",accent:"#647d93",status:origin.parent.status,actionLabel:"Select parent",onAction:()=>{setSelectedOperationId(origin.parent.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:nodeWidth}});
+      }
+      const relation=origin.branchRoot.relationType==="rework"||/rework/i.test(branch)?"rework":"alternate";
+      addEdge(sourceId,"operation:"+origin.branchRoot.id,relation,"branch-origin:"+origin.parent.id+":"+origin.branchRoot.id,relation==="rework"?"REWORK BRANCH":"ALTERNATE BRANCH",origin.parent.status==="Running"||origin.branchRoot.status==="Running");
+    });
+    // Every enabled saved relationship is drawn. Parallel relationship types between
+    // the same endpoints retain separate semantic ports instead of being discarded.
+    relationshipRows.forEach(link=>{
+      if(!operationPositions.has(link.fromOperationId)||!operationPositions.has(link.toOperationId))return;
+      addEdge("operation:"+link.fromOperationId,"operation:"+link.toOperationId,link.relationshipType,"saved-relationship:"+link.id,link.label||link.relationshipType.toUpperCase(),isRunningOperation(link.fromOperationId)||isRunningOperation(link.toOperationId));
+    });
+    const materialNodeIds=new Map<string,string>();
+    processMapMaterialEntries.forEach((entry,index)=>{
+      const id="material:"+entry.id;materialNodeIds.set(entry.id,id);
+      const anchor=entry.anchorOperationId?operationPositions.get(entry.anchorOperationId):undefined;
+      const firstMain=branchRows.find(row=>row.branch==="Main route")?.operations[0];
+      const routeStart=!entry.anchorOperationId&&firstMain?operationPositions.get(firstMain.id):undefined;
+      const base=anchor||routeStart;
+      const hasInbound=Boolean(entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||Number(entry.transportCost)>0);
+      const materialX=base?Math.max(18,base.x-(hasInbound?nodeWidth*2+70:nodeWidth+42)):24;
+      const materialY=base?base.y-285+index*112:110+index*112;
+      const supplier=vendors.find(v=>v.id===entry.vendorId)?.company||"Supplier not assigned";
+      nodes.push({id,type:"processMapEntity",position:{x:materialX,y:materialY},data:{title:[entry.materialName,entry.materialGrade].filter(Boolean).join(" · "),detail:[entry.partNumber||entry.partName||"Component-level",entry.shapeType,entry.quantity+" pcs",Number(entry.totalWeightKg||0).toFixed(3)+" kg",supplier].join(" · "),kind:"MATERIAL PROCUREMENT",accent:"#b18a2d",status:entry.actualDeliveryDate?"Received":"Planned"},draggable:false,selectable:false,style:{width:nodeWidth}});
+      const target=entry.anchorOperationId?"operation:"+entry.anchorOperationId:firstMain?"operation:"+firstMain.id:"";
+      if(hasInbound){
+        const transportId="material-transport:"+entry.id;
+        const vehicle=entry.transportVehicleType||"truck";
+        nodes.push({id:transportId,type:"processMapEntity",position:{x:materialX+nodeWidth+30,y:materialY},data:{title:[entry.transportFrom||"Supplier pickup",entry.transportTo||"Factory destination"].join(" → "),detail:[vehicle,entry.transportVendorId?vendors.find(v=>v.id===entry.transportVendorId)?.company||"Transporter not assigned":"Transporter not assigned",money(entry.transportCost||0)].join(" · "),kind:"INBOUND MATERIAL TRANSPORT",accent:"#397ea4",vehicleType:vehicle,status:entry.transportStatus||"Planned",actionLabel:"Open transport details",onAction:()=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");}},draggable:false,selectable:false,style:{width:nodeWidth}});
+        addEdge(id,transportId,"transport","material-inbound:"+entry.id,"INBOUND / VEHICLE");
+        if(target)addEdge(transportId,target,"main","material-to-operation:"+entry.id,"MATERIAL READY");
+      }else if(target)addEdge(id,target,"main","material-allocation:"+entry.id,entry.anchorOperationId?"ALLOCATED AFTER PROCESS":"REQUIRED ROUTE INPUT");
+    });
+    componentMaterialProcessLinks.forEach(link=>{
+      const material=materialMasterRecords.find(row=>row.id===link.materialId);
+      const operation=operationPositions.get(link.operationId);
+      if(!material||!operation)return;
+      const id="bom-link:"+link.id;
+      const label=materialProcessPartLabels[link.id]||"BOM part";
+      const x=link.placement==="before"?Math.max(18,operation.x-205):operation.x+nodeWidth+25;
+      const y=operation.y+145;
+      nodes.push({id,type:"processMapEntity",position:{x,y},data:{title:material.name,detail:label,kind:"MATERIAL → PROCESS LINK",accent:"#3e9278",status:link.placement==="before"?"Before operation":"After operation"},draggable:false,selectable:false,style:{width:compactViewport?154:175}});
+      const source=link.placement==="before"?id:"operation:"+link.operationId;
+      const target=link.placement==="before"?"operation:"+link.operationId:id;
+      addEdge(source,target,"main","bom-link-edge:"+link.id,link.placement==="before"?"INPUT TO PROCESS":"OUTPUT FROM PROCESS");
+    });
+    componentTransportLegs.forEach((leg,index)=>{
+      const id="transport:"+leg.id;
+      const from=leg.anchorOperationId?operationPositions.get(leg.anchorOperationId):undefined;
+      const to=leg.targetOperationId?operationPositions.get(leg.targetOperationId):undefined;
+      const materialId=leg.materialEntryId?materialNodeIds.get(leg.materialEntryId):undefined;
+      const firstMain=branchRows.find(row=>row.branch==="Main route")?.operations[0];
+      const x=from&&to?Math.max(18,(from.x+to.x)/2-nodeWidth/2):from?from.x+52:to?Math.max(18,to.x-nodeWidth-25):firstMain?Math.max(18,operationPositions.get(firstMain.id)!.x-nodeWidth-25):24;
+      const y=from&&to?Math.max(from.y,to.y)+290:from?from.y+290:to?to.y+290:firstMain?operationPositions.get(firstMain.id)!.y+290:310+index*135;
+      const vehicle=leg.vehicleType||"truck";
+      nodes.push({id,type:"processMapEntity",position:{x,y},data:{title:(leg.fromLocation||"Origin")+" → "+(leg.toLocation||"Destination"),detail:[vehicle,leg.tripCount+" trip(s)",vendors.find(v=>v.id===leg.vendorId)?.company||"Transporter not assigned"].join(" · "),kind:"TRANSPORT LEG",accent:"#397ea4",vehicleType:vehicle,status:leg.status||"Planned",actionLabel:"Open transport details",onAction:()=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");}},draggable:false,selectable:false,style:{width:nodeWidth}});
+      if(materialId)addEdge(materialId,id,"transport","transport-from-material:"+leg.id,"CARRY");
+      else if(from)addEdge("operation:"+leg.anchorOperationId,id,"transport","transport-from-operation:"+leg.id,"TRANSPORT");
+      if(to)addEdge(id,"operation:"+leg.targetOperationId,"transport","transport-to-operation:"+leg.id,"DELIVER TO");
+      else if(!materialId&&firstMain&&leg.placement==="start")addEdge(id,"operation:"+firstMain.id,"transport","transport-to-route:"+leg.id,"ROUTE START");
+    });
+    return {nodes,edges};
+  },[exportBranches,exportOperations,processMapMaterialEntries,componentMaterialProcessLinks,componentTransportLegs,poId,selectedLine?.id,materialMasterRecords,materialProcessPartLabels,data.routeRelationships,vendors,branchAccent]);
+
   const exportValue = (op:OperationRecord,key:ProcessExportField):string|number => {
     switch(key) {
       case "company": return selectedCompany?.name || "";
@@ -857,6 +1012,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const parent = routeOperations.find(operation => operation.id === parentId);
     if (!parent) return;
     const base = blankOperation(selectedLine);
+    base.costIncluded = inheritsRouteInclusion(parent, routeOperations);
     base.processDefinitionId = parent.processDefinitionId || processDefinitions.find(item => item.processType === parent.name && item.category === parent.category)?.id || "";
     base.name = parent.name;
     base.category = parent.category;
@@ -963,7 +1119,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     // while retaining the same branch label and relation type for lane grouping.
     base.parentId = anchor.id;
     base.relationType = anchor.relationType;
-    base.costIncluded = false;
+    base.costIncluded = inheritsRouteInclusion(anchor, routeOperations);
     setDraft(base);
     setSelectedOperationId(anchor.id);
     setEditingId("");
@@ -1105,7 +1261,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         ...order,
         lines: order.lines.map(line => {
           if (!touchedLines.has(order.id + "::" + line.id)) return line;
-          const lineOperations = nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id && !op.deletedAt && ((op.branch || "Main route") === "Main route" || op.costIncluded !== false));
+          const lineOperations = getRequiredRouteOperations(nextOperations.filter(op => op.poId === order.id && op.poLineId === line.id));
           if (!lineOperations.length || !lineOperations.every(op => op.status === "Complete")) return line;
           return { ...line, jobStatus: "Finished" as const, jobFinishedAt: stamp, updatedAt: stamp };
         })
@@ -1143,6 +1299,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     setTransportRouteId(legacyMatch?.id || transportRouteOptions.find(route=>route.active!==false)?.id || "");
     setTransportTripCount(String(leg?.tripCount || 1));
     setTransportAnchorOperationId(leg?.anchorOperationId || activeOperation?.id || "");
+    setTransportTargetOperationId(leg?.targetOperationId || "");
     setTransportPlacement(leg?.placement || (activeOperation && (activeOperation.branch || "Main route") !== "Main route" ? "after" : leg?.anchorOperationId ? "after" : "start"));
     setTransportLegNotes(leg?.notes || "");
     setShowTransportEditor(true);
@@ -1173,6 +1330,15 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if(selectedTransportDirectoryRoute.active===false&&existingLegForEdit?.routeId!==selectedTransportDirectoryRoute.id){onNotice("This Transport Directory route is inactive. Activate it before assigning it to a new transport entry.");return;}
     const anchoredOperation = transportPlacement==="start" ? undefined : routeOperations.find(operation=>operation.id===transportAnchorOperationId);
     if(transportPlacement!=="start"&&!anchoredOperation){onNotice("The selected process step is no longer available. Refresh the Process Map and select the step again.");return;}
+    const receivingOperation=transportTargetOperationId?routeOperations.find(operation=>operation.id===transportTargetOperationId):undefined;
+    if(transportTargetOperationId&&(!receivingOperation||receivingOperation.poLineId!==selectedLine.id||receivingOperation.componentId!==selectedComponent.id)){
+      onNotice("Select a receiving operation from this exact PO component line. Destinations are never inferred from display order.");
+      return;
+    }
+    if(receivingOperation&&anchoredOperation?.id===receivingOperation.id){
+      onNotice("The sending and receiving operations must be different. Select a distinct receiving process or clear the destination link.");
+      return;
+    }
     if(transportPlacement==="start" && activeOperation && (activeOperation.branch||"Main route")!=="Main route"){onNotice("Start-of-component transport must be placed on the component route, not a branch-only operation.");return;}
     const recordPoLineId = transportPlacement==="start" ? (existingLegForEdit?.poLineId || selectedLine.id) : (anchoredOperation?.poLineId || selectedLine.id);
     const tripCount = Number(transportTripCount);
@@ -1188,7 +1354,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       fromLocation: selectedTransportDirectoryRoute.fromLocation, toLocation: selectedTransportDirectoryRoute.toLocation,
       tripDirection: selectedTransportDirectoryRoute.tripDirection, vehicleType: selectedTransportDirectoryRoute.vehicleType,
       fixedAmount: selectedTransportDirectoryRoute.fixedAmount, tripCount,
-      anchorOperationId: transportPlacement === "start" ? "" : transportAnchorOperationId, placement: transportPlacement,
+      anchorOperationId: transportPlacement === "start" ? "" : transportAnchorOperationId,
+      targetOperationId: receivingOperation?.id || undefined, placement: transportPlacement,
       notes: transportLegNotes.trim(),
       createdAt: old?.createdAt || stamp, updatedAt: stamp
     };
@@ -1298,7 +1465,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             <strong>{selectedLine.jobStatus === "Finished" ? "Job Finished" : "In Progress"}</strong>
             <p>{selectedLine.jobStatus === "Finished"
               ? "Finished " + (selectedLine.jobFinishedAt ? new Date(selectedLine.jobFinishedAt).toLocaleString("en-IN") : "—") + ". Operation history remains available."
-              : allDone ? "All saved route operations are Complete. Confirm final job closure when the job is actually finished."
+              : allDone ? "All required active-route operations are Complete. Confirm final job closure when the job is actually finished."
               : "Job closure is a separate control. You may mark the PO line Finished when the job is actually finished; unfinished process statuses are not changed."}</p>
           </div>
         </div>
@@ -1309,21 +1476,22 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       <div className="linked-kpis">
         <button className="route-kpi kpi-delivery" onClick={() => document.getElementById("linked-timeline")?.scrollIntoView({behavior:"smooth",block:"nearest"})}><span className="kpi-icon"><CalendarClock size={19}/></span><span><small>DELIVERY FORECAST</small><strong>{deliveryState}</strong><em>{finalDelivery ? "Target " + shortDate(finalDelivery) : "Enter PO line delivery date"}</em></span></button>
         <button className={"route-kpi kpi-risk " + (lateOps.length ? "linked-kpi-alert" : "")} onClick={() => setSearch("Quality hold")}><span className="kpi-icon"><ShieldAlert size={19}/></span><span><small>BOTTLENECK / LATE OPERATIONS</small><strong>{lateOps.length}</strong><em>{lateOps.length ? "Late or overdue target dates" : "No overdue targets recorded"}</em></span></button>
-        <button className="route-kpi kpi-wip"><span className="kpi-icon"><Boxes size={19}/></span><span><small>WORK IN PROGRESS</small><strong>{routeOperations.filter(op => op.status === "Running").reduce((sum,op) => sum + Math.max(0,op.quantity-op.completed),0).toLocaleString("en-IN")} {quantityUnit}</strong><em>{routeOperations.filter(op => op.status === "Running").length} operations running</em></span></button>
+        <button className="route-kpi kpi-wip"><span className="kpi-icon"><Boxes size={19}/></span><span><small>WORK IN PROGRESS · EST.</small><strong>{inProgressProductionQty.toLocaleString("en-IN")} {quantityUnit}</strong><em>{activeRouteOperations.filter(op => op.status === "Running").length} active operations running</em></span></button>
         <button className="route-kpi kpi-cost" onClick={() => onSelectModule("costing",{companyId,poId,poLineId,componentId:selectedLine?.componentId,operationId:selectedOperationId||undefined})}><span className="kpi-icon"><CircleDollarSign size={19}/></span><span><small>PROCESS COST</small><strong>{money(routeCost)}</strong><em>Transport is totalled separately below</em></span></button>
         <button className="route-kpi kpi-transport"><span className="kpi-icon"><Truck size={19}/></span><span><small>TRANSPORT TRIPS</small><strong>{transportCount}</strong><em>{money(totalTransportCost)} total transport cost</em></span></button>
         <button className="route-kpi kpi-quality"><span className="kpi-icon"><ClipboardCheck size={19}/></span><span><small>ACCEPTED / ORDER QTY</small><strong>{totalAccepted.toLocaleString("en-IN")} {quantityUnit}</strong><em>Accepted quantity at the final main-route operation</em></span></button>
       </div>
       <section className="surface-panel process-production-summary">
-        <div className="panel-heading"><div><div className="eyebrow">QUANTITY & EXECUTION OVERVIEW</div><h3>Production quantity status</h3><p>PO quantity is the control total; completion comes from the final process route step.</p></div><div className="module-form-actions"><label className="histogram-style-picker">Histogram<select value={histogramStyle} onChange={e=>setHistogramStyle(e.target.value as "bar"|"stacked"|"donut")}><option value="bar">Progress bars</option><option value="stacked">Completed / rejected</option><option value="donut">Donut progress</option></select></label><span className="module-number">{completionPercent}% COMPLETE</span></div></div>
+        <div className="panel-heading"><div><div className="eyebrow">QUANTITY & EXECUTION OVERVIEW</div><h3>Production quantity status</h3><p>PO quantity is the control total; accepted output comes from the final top-level production step. In-process quantity is a non-additive estimate.</p></div><div className="module-form-actions"><label className="histogram-style-picker">Histogram<select value={histogramStyle} onChange={e=>setHistogramStyle(e.target.value as "bar"|"stacked"|"donut")}><option value="bar">Progress bars</option><option value="stacked">Completed / rejected</option><option value="donut">Donut progress</option></select></label><span className="module-number">{completionPercent}% COMPLETE</span></div></div>
         <div className="production-quantity-grid">
           <div><small>PLANNED</small><strong>{plannedProductionQty.toLocaleString("en-IN")} {quantityUnit}</strong></div>
-          <div><small>IN PROGRESS</small><strong>{inProgressProductionQty.toLocaleString("en-IN")} {quantityUnit}</strong></div>
+          <div><small>IN PROCESS · EST.</small><strong>{inProgressProductionQty.toLocaleString("en-IN")} {quantityUnit}</strong></div>
           <div><small>COMPLETED</small><strong>{finalCompletedQty.toLocaleString("en-IN")} {quantityUnit}</strong></div>
           <div><small>PENDING</small><strong>{pendingProductionQty.toLocaleString("en-IN")} {quantityUnit}</strong></div>
           <div><small>VENDORS ASSIGNED</small><strong>{vendorAssignedPercent}%</strong></div>
           <div><small>DELAYED OPERATIONS</small><strong>{lateOps.length} · {delayedPercent}%</strong></div>
         </div>
+        <p className="field-hint">Running-stage balances are not added together because the same pieces can pass through multiple sequential operations. Exact parallel split/merge WIP requires lot-level transfer quantities, which are not yet recorded per operation.</p>
         <div className="production-progress-track"><span style={{width:completionPercent+"%"}}/></div>
         <div className={"production-operation-histogram histogram-style-"+histogramStyle}>
           {routeOperations.map(op=>{const pct=op.quantity>0?Math.min(100,Math.round(op.completed/op.quantity*100)):0;const rejected=op.quantity>0?Math.min(100-pct,Math.round(op.rejected/op.quantity*100)):0;return <div className="production-histogram-row" key={op.id}><span>{op.name}</span>{histogramStyle==="donut"?<div className="production-donut" style={{background:"conic-gradient(#25a77b "+pct+"%, #df6e76 "+(pct+rejected)+"%, var(--line) "+(pct+rejected)+"%)"}}><b>{pct}%</b></div>:<div className={histogramStyle==="stacked"?"production-stacked-bar":""}><i className={"histogram-status histogram-"+op.status.toLowerCase().replaceAll(" ","-")} style={{width:pct+"%"}}/>{histogramStyle==="stacked"&&<b style={{width:rejected+"%"}}/>}</div>}<strong>{pct}%</strong><small>{op.completed}/{op.quantity} completed · {op.rejected} rejected · {op.status}</small></div>;})}
@@ -1387,7 +1555,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             {id:"horizontal",label:"Horizontal Flow"},
             {id:"vertical",label:"Vertical Flow"},
             {id:"nodes",label:"Connected Nodes"},
-            {id:"branch",label:"Branch / Rework"}
+            {id:"branch",label:"Branch / Rework"},
+            {id:"graph",label:"Interactive Graph"}
           ] as const).map(option=><button key={option.id} type="button" aria-pressed={visualStyle===option.id}
             className={(visualStyle===option.id?"button-primary":"button-quiet")+" compact-button"}
             onClick={()=>{setVisualStyle(option.id);setRouteView("3d");setSimulationActive(false);setSimulationIndex(-1);}}>
@@ -1424,7 +1593,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         </div>}
         <label>Number of trips / carries *<input type="number" min="1" step="1" value={transportTripCount} onChange={event => setTransportTripCount(event.target.value)}/></label>
         <SearchablePicker id="process-transport-placement" label="Place transport" value={transportPlacement} options={[{id:"start",label:"Before the first process / route start"},{id:"before",label:"Before selected process"},{id:"after",label:"After selected process"}]} onChange={value=>setTransportPlacement(value as "start"|"before"|"after")}/>
-        <SearchablePicker id="process-transport-anchor" label="Connect to process" value={transportAnchorOperationId} disabled={transportPlacement==="start"} placeholder="Search process operation…" options={routeOperations.map(operation=>({id:operation.id,label:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name+" · "+(operation.branch||"Main route")}))} onChange={setTransportAnchorOperationId}/>
+        <SearchablePicker id="process-transport-anchor" label="Sending process (from)" value={transportAnchorOperationId} disabled={transportPlacement==="start"} placeholder="Search sending operation…" options={routeOperations.map(operation=>({id:operation.id,label:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name+" · "+(operation.branch||"Main route")}))} onChange={value=>{setTransportAnchorOperationId(value);if(value===transportTargetOperationId)setTransportTargetOperationId("");}}/>
+        <SearchablePicker id="process-transport-target" label="Receiving process (to) · optional" value={transportTargetOperationId} placeholder="Search receiving operation, or leave as location-only…" options={routeOperations.filter(operation=>operation.id!==transportAnchorOperationId).map(operation=>({id:operation.id,label:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name+" · "+(operation.branch||"Main route")}))} onChange={setTransportTargetOperationId}/>
+        {transportTargetOperationId&&<button type="button" className="button-quiet compact-button editor-wide" onClick={()=>setTransportTargetOperationId("")}>Clear receiving-process link</button>}
         <label className="editor-wide">Transport notes<input value={transportLegNotes} onChange={event => setTransportLegNotes(event.target.value)} placeholder="Purpose, pickup/delivery note or dispatch reference"/></label>
         {selectedTransportDirectoryRoute ? <div className="editor-wide linked-detail-grid"><div><small>TRANSPORTER</small><strong>{vendors.find(vendor => vendor.id === selectedTransportDirectoryRoute.vendorId)?.company || "Vendor record unavailable"}</strong></div><div><small>FROM → TO</small><strong>{selectedTransportDirectoryRoute.fromLocation} → {selectedTransportDirectoryRoute.toLocation}</strong><span>{selectedTransportDirectoryRoute.tripDirection} · {selectedTransportDirectoryRoute.vehicleType}</span></div><div><small>FIXED RATE × TRIPS</small><strong>{money(selectedTransportDirectoryRoute.fixedAmount)} × {Number(transportTripCount) || 0}</strong><span>Entry total: {money(selectedTransportDirectoryRoute.fixedAmount * (Number(transportTripCount) || 0))}</span></div></div> : <div className="editor-wide vendor-empty">No saved route selected yet. Create a route above or <button type="button" className="inline-module-link" onClick={() => onSelectModule("transport-master",{companyId,poId,poLineId,componentId:selectedLine?.componentId})}>open Transport Directory</button>.</div>}
         <div className="module-form-actions"><button className="button-primary" disabled={!selectedTransportDirectoryRoute} onClick={saveTransportLeg}><Check size={14}/> {editingTransportLegId ? "Update transport entry" : "Save transport entry"}</button><button className="button-quiet" onClick={closeTransportEditor}>Cancel</button></div>
@@ -1432,7 +1603,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     </section>}
     <details className="surface-panel component-transport-map-strip">
       <summary className="panel-heading"><div><div className="eyebrow"><Truck size={12}/> ROUTE TRANSPORT NODES</div><h3>Transport legs · {componentTransportLegs.length}</h3><p>Transport is displayed as route nodes here; the master rates remain in Transport Directory and dispatch execution remains in Transport &amp; Dispatch.</p></div><div className="relationship-actions"><button className="button-quiet compact-button" onClick={event=>{event.preventDefault();event.stopPropagation();onSelectModule("transport-master",{companyId,poId,poLineId,componentId:selectedLine?.componentId});}}>Transport Directory</button><button className="button-primary compact-button" disabled={!selectedLine} onClick={event=>{event.preventDefault();event.stopPropagation();openTransportEditor();}}><Plus size={13}/> Add transport node</button></div></summary>
-      {componentTransportLegs.length?<div className="component-transport-node-track"><div className="component-transport-node component-transport-start"><Truck size={15}/><strong>Component start</strong></div>{componentTransportLegs.map(leg=>{const anchor=routeOperations.find(op=>op.id===leg.anchorOperationId);const vendor=vendors.find(v=>v.id===leg.vendorId);return <div className="component-transport-node" key={leg.id}><Truck size={15}/><strong>{leg.placement==="before"?"Before":leg.placement==="after"?"After": "At start"} {anchor?"OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:""}</strong><span>{leg.fromLocation} → {leg.toLocation}</span><small>{vendor?.company||"Vendor"} · {leg.vehicleType} · {leg.tripDirection} · {leg.tripCount} trip(s) · {money(leg.fixedAmount*leg.tripCount)}</small><span className="component-transport-node-actions"><button type="button" onClick={()=>editTransportLeg(leg)}>Edit</button><button type="button" onClick={()=>archiveTransportLeg(leg)}>Archive</button></span></div>;})}<button className="component-transport-node component-transport-add" onClick={()=>onSelectModule("transport-dispatch",{companyId,poId,poLineId,componentId:selectedLine?.componentId})}><Truck size={15}/><strong>Dispatch status</strong><small>Open Transport &amp; Dispatch</small></button></div>:<div className="module-empty-state"><Truck size={22}/><p>No transport nodes added for this PO component. Add a route in Transport Directory, then add its usage here.</p></div>}
+      {componentTransportLegs.length?<div className="component-transport-node-track"><div className="component-transport-node component-transport-start"><Truck size={15}/><strong>Component start</strong></div>{componentTransportLegs.map(leg=>{const anchor=routeOperations.find(op=>op.id===leg.anchorOperationId);const receiver=routeOperations.find(op=>op.id===leg.targetOperationId);const vendor=vendors.find(v=>v.id===leg.vendorId);return <div className="component-transport-node" key={leg.id}><Truck size={15}/><strong>{leg.placement==="before"?"Before":leg.placement==="after"?"After": "At start"} {anchor?"OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:""}</strong><span>{leg.fromLocation} → {leg.toLocation}</span><small>{anchor?"FROM OP-"+String(anchor.sequence).padStart(3,"0"):"FROM COMPONENT START"} → {receiver?"TO OP-"+String(receiver.sequence).padStart(3,"0"):"TO LOCATION ONLY"}</small><small>{vendor?.company||"Vendor"} · {leg.vehicleType} · {leg.tripDirection} · {leg.tripCount} trip(s) · {money(leg.fixedAmount*leg.tripCount)}</small><span className="component-transport-node-actions"><button type="button" onClick={()=>editTransportLeg(leg)}>Edit</button><button type="button" onClick={()=>archiveTransportLeg(leg)}>Archive</button></span></div>;})}<button className="component-transport-node component-transport-add" onClick={()=>onSelectModule("transport-dispatch",{companyId,poId,poLineId,componentId:selectedLine?.componentId})}><Truck size={15}/><strong>Dispatch status</strong><small>Open Transport &amp; Dispatch</small></button></div>:<div className="module-empty-state"><Truck size={22}/><p>No transport nodes added for this PO component. Add a route in Transport Directory, then add its usage here.</p></div>}
     </details>
     <details className="surface-panel process-map-filter-panel">
       <summary className="panel-heading"><div><div className="eyebrow">ROUTE FILTERS / SAVED OPERATIONS</div><h3>Filter this PO component route</h3><p>Process category, process type and subcategory are linked to Process Directory stable references.</p></div></summary>
@@ -1559,7 +1730,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 const lineId=lane[0]?.poLineId||"";
                 const line=poLines.find(item=>item.id===lineId);
                 const routeMaterials=materialRouteEntries.filter(entry=>(!entry.poLineId||entry.poLineId===lineId)&&(!line?.partId||!entry.partId||entry.partId===line.partId));
-                const routeTransportLegs=componentTransportLegs.filter(leg=>leg.poLineId===lineId);
+                const routeTransportLegs=componentTransportLegs.filter(leg=>leg.poLineId===lineId||(!leg.poLineId&&selectedComponentLineCount===1));
                 const routeMaterialProcessLinks=componentMaterialProcessLinks.filter(link=>link.poLineId===lineId);
                 const materialLinksAt=(operationId:string,placement:"before"|"after")=>routeMaterialProcessLinks.filter(link=>link.operationId===operationId&&link.placement===placement);
                 const routeBeforeTransportLegs=routeTransportLegs.filter(leg=>!leg.materialEntryId&&leg.placement==="before");
@@ -1587,11 +1758,26 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                   routeMaterials.filter(entry=>entry.anchorOperationId===operation.id).forEach(appendMaterial);
                   materialLinksAt(operation.id,"after").forEach(link=>routeNodes.push({kind:"material-process-link",id:"material-process-link-"+link.id,link}));
                 });
-                return <><nav className="process-route-index" aria-label="Jump to route operation"><strong>STEPS</strong>{lane.map((operation,index)=><button type="button" key={operation.id} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} aria-label={"Go to operation "+(index+1)+": "+operation.name}><b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span></button>)}</nav><div className="process-route-layout-toolbar"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><RouteConnectorLegend compact/><RouteConnectorLegend/></div><div className="process-route-flow-track" data-route-layout={routeLayout}>{routeNodes.map((item,index)=>{
+                // Resolve the nearest operation on either side of every route node.
+                // Saved relationship semantics must survive material and transport
+                // stages inserted between their process endpoints.
+                const previousOperationByRouteNode:Array<OperationRecord|undefined>=[];
+                let previousRouteOperation:OperationRecord|undefined;
+                routeNodes.forEach((node,index)=>{
+                  previousOperationByRouteNode[index]=previousRouteOperation;
+                  if(node.kind==="operation")previousRouteOperation=node.operation as OperationRecord;
+                });
+                const nextOperationByRouteNode:Array<OperationRecord|undefined>=new Array(routeNodes.length);
+                let nextRouteOperation:OperationRecord|undefined;
+                for(let index=routeNodes.length-1;index>=0;index--){
+                  nextOperationByRouteNode[index]=nextRouteOperation;
+                  if(routeNodes[index].kind==="operation")nextRouteOperation=routeNodes[index].operation as OperationRecord;
+                }
+                return <><nav className="process-route-index" aria-label="Jump to route operation"><strong>STEPS</strong>{lane.map((operation,index)=><button type="button" key={operation.id} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} aria-label={"Go to operation "+(index+1)+": "+operation.name}><b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span></button>)}</nav><div className="process-route-layout-toolbar"><RouteLayoutPicker value={routeLayout} onChange={setRouteLayout} compact/><RouteConnectorLegend compact/></div><div className="process-route-flow-track" data-route-layout={routeLayout}>{routeNodes.map((item,index)=>{
                   const next=routeNodes[index+1];
                   const isTransport=item.kind==="transport"||item.kind==="material-transport"||next?.kind==="transport"||next?.kind==="material-transport";
-                  const fromOperation=item.kind==="operation"?item.operation:undefined;
-                  const toOperation=next?.kind==="operation"?next.operation:undefined;
+                  const fromOperation=item.kind==="operation"?item.operation:previousOperationByRouteNode[index];
+                  const toOperation=nextOperationByRouteNode[index];
                   const savedRelationship=fromOperation&&toOperation?activeRows(data.routeRelationships||[]).find(link=>link.poId===poId&&link.poLineId===lineId&&link.componentId===selectedLine?.componentId&&link.fromOperationId===fromOperation.id&&link.toOperationId===toOperation.id&&link.status!=="Disabled"):undefined;
                   const routeRelationshipType=savedRelationship?.relationshipType||(rework?"rework":branchRoot||branch!=="Main route"?"alternate":"main");
                   const routeRelationshipColors:Record<string,string>={main:"#12b9d5",alternate:"#d99a27",rework:"#df4d59",dependency:"#347de5",parallel:"#9848d6",merge:"#9e4bc9",split:"#3d79df","follow-on":"#173c6c",feedback:"#455bd6",conditional:"#9954ce",successor:"#203e62"};
@@ -1629,7 +1815,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                     const legRelation=anchor?.relationType==="rework"?"rework":anchor?.relationType==="alternate"?"alternate":"main";
                     const TransportIcon=transportVehicleIcon(leg.vehicleType);
                     return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
-                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(leg.vehicleType)} aria-label="Open transport popup" title={(leg.vehicleType||"Vehicle")+" · "+(leg.fromLocation||"From")+" → "+(leg.toLocation||"To")} onClick={event=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><TransportIcon size={20}/></button>
+                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(leg.vehicleType)} aria-label="Open transport popup" title={(leg.vehicleType||"Vehicle")+" · "+(leg.fromLocation||"From")+" → "+(leg.toLocation||"To")+(leg.targetOperationId?" · Target "+(routeOperations.find(op=>op.id===leg.targetOperationId)?.name||leg.targetOperationId):"")} onClick={event=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><TransportIcon size={20}/></button>
+                      {leg.targetOperationId&&<small className="process-route-flow-transport-target">{(()=>{const target=routeOperations.find(op=>op.id===leg.targetOperationId);return target?"TO OP-"+String(target.sequence).padStart(3,"0")+" · "+target.name:"Target operation not found in this PO line";})()}</small>}
                       {next&&<span className={"process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}><ArrowRight size={20}/></span>}
                     </div>;
                   }
@@ -1650,11 +1837,11 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           })}
         </details>}
         {processMapMaterialEntries.length>0&&<details className="process-material-route-panel process-material-route-collapsible" aria-label="Material supplier and inbound transport route"><summary className="process-material-route-heading"><strong>MATERIAL PROCUREMENT · ROUTE INSERTIONS</strong><span>{processMapMaterialEntries.length} material allocation(s) · open to inspect procurement details</span></summary>{processMapMaterialEntries.map(entry=><div className="process-material-route-row" key={entry.id}><div className="process-material-route-node"><small>{entry.anchorOperationId ? "PROCUREMENT AFTER PROCESS" : "PROCUREMENT · ROUTE START"}</small><strong>{entry.anchorOperationId ? (()=>{const anchor=routeOperations.find(op=>op.id===entry.anchorOperationId);return anchor?"After OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:"After selected process"} )() : "Before first manufacturing process"}</strong><small>SUPPLIER · {vendors.find(v=>v.id===entry.vendorId)?.company||"Vendor not assigned"}</small><span>Given {entry.givenDate||"—"} · Due {entry.deliveryDate||"—"} · Received {entry.actualDeliveryDate||"—"}</span></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node"><small>MATERIAL</small><strong>{entry.materialName} · {entry.materialGrade}</strong><small>{entry.shapeType} · {Object.entries(entry.dimensions||{}).filter(([,value])=>Number(value)>0).map(([key,value])=>key.replace(/[A-Z]/g,letter=>" "+letter)+" "+value+" "+(entry.dimensionUnits?.[key]||"mm")).join(" · ")||"Dimensions not entered"}</small><span>{entry.quantity} pcs · {entry.totalWeightKg.toFixed(3)} kg · {money(entry.materialRate)} / {entry.priceUnit} · Material {money(entry.materialCost)}</span><small>{entry.cuttingType||"No cutting"} · {money(entry.cuttingCost)} cutting · {entry.cuttingBasis||"—"}</small></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node"><small>INBOUND TRANSPORT</small>{(entry.transportVendorId||entry.transportVehicleType||entry.transportFrom||entry.transportTo||Number(entry.transportCost)>0)&&<button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(entry.transportVehicleType||"")} aria-label="Open inbound material transport popup" title="Transport details" onClick={event=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}>{(()=>{const Icon=transportVehicleIcon(entry.transportVehicleType||"");return <Icon size={17}/>})()}</button>}<strong>{vendors.find(v=>v.id===entry.transportVendorId)?.company||"Transport not assigned"}</strong><span>{[entry.transportFrom||vendors.find(v=>v.id===entry.vendorId)?.address,entry.transportTo].filter(Boolean).join(" → ")||"Route not set"} · {entry.transportVehicleType||"Vehicle not set"} · {money(entry.transportCost||0)}</span><small>Pickup {entry.transportPickupAt||"—"} → Delivery {entry.transportDeliveryAt||"—"} · {entry.transportStatus||"Planned"}</small></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node process-material-route-destination"><small>ALLOCATED TO</small><strong>{entry.partId?entry.partName+" · "+entry.partNumber:"Component-level allocation"}</strong><span>{selectedComponent?.partNumber} · {selectedComponent?.name}</span></div></div>)}</details>}
-        {["sphere","cube","vortex","helix","orbit","stacked","pipeline","network","grid","linear","horizontal","vertical","timeline","gantt","nodes","branch","digital-mesh","molecular","combined"].includes(visualStyle)
-          ? <details className="process-universe-collapsible"><summary><strong>MANUFACTURING UNIVERSE · {visualStyle.toUpperCase()}</strong><span>Open 3D route view</span></summary><div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D onNotice={onNotice} key={visualStyle} initialLayout={visualStyle} operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} vendors={vendors} routeLabels={routeLabels} routeRelationships={activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===selectedLine?.id&&link.status!=="Disabled")} materialLinks={componentMaterialProcessLinks} materialPartLabels={materialProcessPartLabels} materials={materialMasterRecords} componentQuantity={selectedLine?.quantity||0} selectedMaterialLinkId={selectedMaterialLinkId} onSelectMaterialLink={id=>setSelectedMaterialLinkId(current=>current===id?"":id)} transportLegs={componentTransportLegs.filter(leg=>exportOperations.some(operation=>operation.poLineId===leg.poLineId)).map(leg=>{
+        {["graph","sphere","cube","vortex","helix","orbit","stacked","pipeline","network","grid","linear","horizontal","vertical","timeline","gantt","nodes","branch","digital-mesh","molecular","combined"].includes(visualStyle)
+          ? <details className="process-universe-collapsible"><summary><strong>MANUFACTURING UNIVERSE · {visualStyle.toUpperCase()}</strong><span>Open 3D route view</span></summary><div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D onNotice={onNotice} key={visualStyle} initialLayout={visualStyle==="graph"?"sphere":visualStyle} operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} vendors={vendors} routeLabels={routeLabels} routeRelationships={activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===selectedLine?.id&&link.status!=="Disabled")} materialLinks={componentMaterialProcessLinks} materialPartLabels={materialProcessPartLabels} materials={materialMasterRecords} componentQuantity={selectedLine?.quantity||0} selectedMaterialLinkId={selectedMaterialLinkId} onSelectMaterialLink={id=>setSelectedMaterialLinkId(current=>current===id?"":id)} transportLegs={componentTransportLegs.filter(leg=>(!leg.poLineId&&selectedComponentLineCount===1)||exportOperations.some(operation=>operation.poLineId===leg.poLineId)).map(leg=>{
             const anchor=routeOperations.find(operation=>operation.id===leg.anchorOperationId);
             const relation=anchor?.relationType==="rework"||/rework/i.test(anchor?.branch||"")?"rework" as const:anchor?.relationType==="alternate"||Boolean(anchor?.branch&&anchor.branch!=="Main route")?"alternate" as const:"main" as const;
-            return {id:leg.id,poLineId:leg.poLineId,anchorOperationId:leg.anchorOperationId||"",targetOperationId:leg.targetOperationId||"",materialEntryId:leg.materialEntryId||"",placement:leg.placement|| (leg.anchorOperationId?"after":"start"),fromLocation:leg.fromLocation,toLocation:leg.toLocation,vehicleType:leg.vehicleType,vendorName:vendors.find(vendor=>vendor.id===leg.vendorId)?.company||"Transporter not assigned",tripDirection:leg.tripDirection==="Two-way"?"Two-way" as const:"One-way" as const,tripCount:leg.tripCount,amount:leg.fixedAmount*leg.tripCount,pickupAt:leg.pickupAt||"",deliveryAt:leg.deliveryAt||"",status:leg.status||"Planned",relation};
+            return {id:leg.id,poLineId:leg.poLineId||selectedLine?.id||"",anchorOperationId:leg.anchorOperationId||"",targetOperationId:leg.targetOperationId||"",materialEntryId:leg.materialEntryId||"",placement:leg.placement|| (leg.anchorOperationId?"after":"start"),fromLocation:leg.fromLocation,toLocation:leg.toLocation,vehicleType:leg.vehicleType,vendorName:vendors.find(vendor=>vendor.id===leg.vendorId)?.company||"Transporter not assigned",tripDirection:leg.tripDirection==="Two-way"?"Two-way" as const:"One-way" as const,tripCount:leg.tripCount,amount:leg.fixedAmount*leg.tripCount,pickupAt:leg.pickupAt||"",deliveryAt:leg.deliveryAt||"",status:leg.status||"Planned",relation};
           })} onSelectTransportLeg={(id,anchor)=>{setInspectedTransportId(id);setInspectedMaterialTransportId("");if(anchor)setTransportPopupPoint(transportPopupAnchorFromPoint(anchor.x,anchor.y));}} onSelectMaterialTransport={(id,anchor)=>{setInspectedMaterialTransportId(id);setInspectedTransportId("");if(anchor)setTransportPopupPoint(transportPopupAnchorFromPoint(anchor.x,anchor.y));}} materialRoutes={materialRouteEntries.map(entry=>{
             const supplier=vendors.find(vendor=>vendor.id===entry.vendorId);
             const transporter=vendors.find(vendor=>vendor.id===entry.transportVendorId);
@@ -1698,6 +1885,24 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           : visualStyle==="gantt" && exportOperations.length ? <div className="process-gantt-view">
               <div className="process-gantt-toolbar"><label>Scale<select value={ganttScale} onChange={e=>setGanttScale(e.target.value as "day"|"week"|"month")}><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></label><span>Timeline · {exportOperations.length} operations in {exportScopeLabel}</span></div><div className="process-gantt-axis"><strong>Process</strong><div style={{gridTemplateColumns:"repeat("+ganttTicks.length+",minmax(0,1fr))"}}>{ganttTicks.map((tick,index)=><small key={index}>{tick}</small>)}</div></div>
               {exportOperations.map(op=>{const start=op.plannedStart||op.actualStart||finalDelivery;const end=op.plannedEnd||op.actualEnd||start;const startDate=start?dateValue(start):new Date();const endDate=end?dateValue(end):startDate;const span=Math.max(1,Math.round((endDate.getTime()-startDate.getTime())/86400000)+1);const offset=start?Math.max(0,Math.round((startDate.getTime()-dateValue(timelineStart||start).getTime())/86400000)):0;const total=Math.max(1,daysBetween(timelineStart||start,timelineEnd||end));const left=Math.min(92,offset/total*100);const width=Math.max(3,Math.min(100-left,span/total*100));const branch=op.branch||"Main route";const color=processAccent(op);const routeColor=branchAccent(op);return <div className={"process-gantt-row "+(branch==="Main route"?"":"is-branch")} key={op.id}><button onClick={()=>{setSelectedOperationId(op.id);setShowEditor(false);}}><strong>OP-{op.sequence} · {op.name}</strong><small><i style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:routeColor,marginRight:5}}/>{branch} · {shortDate(op.plannedStart)} → {shortDate(op.plannedEnd)}</small></button><div className="process-gantt-track"><span className={"process-gantt-bar status-"+op.status.toLowerCase().replaceAll(" ","-")} style={{left:left+"%",width:width+"%",backgroundColor:color}} title={op.status+" · "+shortDate(op.plannedStart)+" to "+shortDate(op.plannedEnd)} /></div></div>;})}
+            </div>
+          : visualStyle==="graph" && exportOperations.length ? <div className="process-map-graph-canvas" data-testid="process-map-react-canvas">
+              <div className="process-map-graph-header"><strong>{selectedPO?.number||"Selected PO"} · {selectedComponent?.partNumber||"Component"} · {selectedPart?.partNumber||"All line parts"}</strong><span>{processMapGraph.nodes.length} nodes · {processMapGraph.edges.length} route links</span></div>
+              <ManufacturingGraphCanvas
+                nodes={processMapGraph.nodes}
+                edges={processMapGraph.edges}
+                nodeTypes={PROCESS_MAP_NODE_TYPES}
+                fitView
+                nodesDraggable={false}
+                nodesConnectable={false}
+                fitViewOptions={{padding:.12,minZoom:.12,maxZoom:1.2}}
+                minZoom={.1}
+                maxZoom={2}
+                nodesFocusable
+                minimapNodeColor={node=>node.data.accent}
+                className="process-map-graph-shared-layer"
+                testId="process-map-react-flow"
+              />
             </div>
           : exportOperations.length ? <div className={"linked-node-scroll process-visual-"+visualStyle+" " + (visualStyle==="vertical" ? "linked-node-vertical" : "")}><nav className="linked-process-index" aria-label="Jump to process operation"><strong>STEPS</strong>{exportOperations.map(operation=><button type="button" key={operation.id} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} aria-label={"Go to operation "+operation.sequence+": "+operation.name}><b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span></button>)}</nav><div className="linked-route-lanes" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{exportBranches.map(routeGroup => {
           const laneOperations = exportOperations.filter(op => (op.poLineId||op.componentId)+"::"+(op.branch||"Main route") === routeGroup).slice().sort((a,b)=>a.sequence-b.sequence);
@@ -1769,7 +1974,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     </div>
     <div className="linked-bottom-grid">
       <details className="surface-panel linked-cost-card"><summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COST BREAKDOWN</div><h3>Entered route costs</h3><p>Only rates you entered or selected from quotations are counted.</p></div><CircleDollarSign size={18}/></summary><div className="linked-cost-row"><span>Process cost</span><strong>{money(totalProcessCost)}</strong></div><div className="linked-cost-row"><span>Transport cost</span><strong>{money(totalTransportCost)}</strong></div><div className="linked-cost-row linked-cost-total"><span>Process + transport total</span><strong>{money(componentTotalCost)}</strong></div><button className="button-quiet" onClick={() => onSelectModule("costing",{companyId:selectedPO?.companyId,poId:selectedPO?.id,poLineId:selectedLine?.id,componentId:selectedComponent?.id})}><CircleDollarSign size={14}/> Open detailed costing</button></details>
-      <details className="surface-panel linked-timeline-card" id="linked-timeline"><summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> TIMELINE & DELIVERY</div><h3>Planned progress</h3><p>Schedule is based on saved operation dates, not estimated samples.</p></div><CalendarClock size={18}/></summary><div className="linked-timeline-facts"><div><small>FIRST PLANNED START</small><strong>{shortDate(timelineStart)}</strong></div><div><small>LAST OPERATION TARGET</small><strong>{shortDate(timelineEnd)}</strong></div><div><small>SUM OF OPERATION DAYS</small><strong>{durationDays || "—"} days</strong></div><div><small>PO DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div></div><div className={"linked-delivery-state " + (lateOps.length ? "linked-delivery-late" : "")}><span>{lateOps.length ? <ShieldAlert size={16}/> : <Activity size={16}/>}</span><div><strong>{lateOps.length ? "Delay risk detected" : allDone ? "All saved operations complete" : "Delivery forecast awaits schedule data"}</strong><small>{lateOps.length ? lateOps.length + " operation(s) are past their planned target date." : "ETA can be assessed once operation schedules and dependencies are entered."}</small></div></div></details>
+      <details className="surface-panel linked-timeline-card" id="linked-timeline"><summary className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> TIMELINE & DELIVERY</div><h3>Planned progress</h3><p>Schedule is based on saved operation dates, not estimated samples.</p></div><CalendarClock size={18}/></summary><div className="linked-timeline-facts"><div><small>FIRST PLANNED START</small><strong>{shortDate(timelineStart)}</strong></div><div><small>LAST OPERATION TARGET</small><strong>{shortDate(timelineEnd)}</strong></div><div><small>SUM OF OPERATION DAYS</small><strong>{durationDays || "—"} days</strong></div><div><small>PO DELIVERY TARGET</small><strong>{shortDate(finalDelivery)}</strong></div></div><div className={"linked-delivery-state " + (lateOps.length ? "linked-delivery-late" : "")}><span>{lateOps.length ? <ShieldAlert size={16}/> : <Activity size={16}/>}</span><div><strong>{lateOps.length ? "Delay risk detected" : allDone ? "All active-route operations complete" : "Delivery forecast awaits schedule data"}</strong><small>{lateOps.length ? lateOps.length + " operation(s) are past their planned target date." : "ETA can be assessed once operation schedules and dependencies are entered."}</small></div></div></details>
     </div>
     {inspectedMaterialTransportEntry&&<MaterialTransportRecordInspector entry={inspectedMaterialTransportEntry} anchor={transportPopupPoint} vendor={inspectedMaterialTransportVendor} directoryRoute={inspectedMaterialTransportRoute} onClose={()=>setInspectedMaterialTransportId("")} onOpenDirectory={()=>{setInspectedMaterialTransportId("");onSelectModule("transport-master",{companyId,poId,poLineId:selectedLine?.id,componentId:selectedLine?.componentId});}}/>}
     {inspectedTransportLeg&&<TransportRecordInspector leg={inspectedTransportLeg} anchor={transportPopupPoint} materialEntry={materialRouteEntries.find(entry=>entry.id===inspectedTransportLeg.materialEntryId)} fromOperationName={routeOperations.find(row=>row.id===inspectedTransportLeg.anchorOperationId)?.name} toOperationName={routeOperations.find(row=>row.id===inspectedTransportLeg.targetOperationId)?.name} vendor={inspectedTransportVendor} directoryRoute={inspectedTransportRoute} legacyVendorRoute={inspectedLegacyVendorRoute} onClose={()=>setInspectedTransportId("")} onOpenDirectory={()=>{setInspectedTransportId("");onSelectModule("transport-master",{companyId,poId,poLineId:selectedLine?.id,componentId:selectedLine?.componentId});}}/>}

@@ -51,7 +51,7 @@ test("route views fit smaller cards, expose portrait step navigation and support
   assert.ok(app.includes('activeModuleId === "process-map"'));
   assert.ok(app.includes('activeModuleId === "route-flow"'));
   assert.ok(app.includes('activeModuleId === "manufacturing-universe"'));
-  assert.ok(app.includes('CapacitorScreenOrientation.lock({ orientation: "landscape-primary" })'));
+  assert.ok(app.includes('requestDeviceOrientation(next ? "landscape-primary" : "portrait-primary")'), "Landscape is requested only from the explicit user-controlled workspace toggle.");
   assert.ok(workspace.includes("The app-level landscape lock remains active until Process Map is closed."));
   assert.ok(workspace.includes('className="process-route-index"'));
   assert.ok(universe.includes("process-universe-node-track"));
@@ -137,6 +137,25 @@ test("Manufacturing Universe does not render a material-entry transport leg twic
 });
 
 
+test("legacy transport legs without a PO-line ID remain visible only when the component has one unambiguous PO line", () => {
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(routeFlow.includes("(!leg.poLineId&&componentGlobalLineCount===1)"));
+  assert.ok(processMap.includes("(!leg.poLineId&&selectedComponentLineCount===1)"));
+  assert.ok(processMap.includes("(!leg.poLineId&&selectedComponentLineCount===1)||exportOperations.some"));
+});
+
+test("explicit transport destinations are shown in 2D route views and honoured across 3D branch geometry", () => {
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  assert.ok(routeFlow.includes("node.leg.targetOperationId"));
+  assert.ok(routeFlow.includes("route-flow-transport-target"));
+  assert.ok(processMap.includes('leg.targetOperationId&&<small className="process-route-flow-transport-target"'));
+  assert.ok(scene.includes("const branchRows=lineRows.filter"));
+  assert.ok(scene.includes('const toOperation=target||(leg.placement==="start"'));
+});
+
 test("Route Flow transport markers are compact vehicle-only icons; details stay in the popup", () => {
   const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
@@ -145,4 +164,44 @@ test("Route Flow transport markers are compact vehicle-only icons; details stay 
   assert.ok(routeFlow.includes('<VehicleTypeIcon vehicleType={vehicleType} size={17}/>'));
   assert.ok(routeFlow.includes('tripCount+" trip(s) · Open details"'));
   assert.ok(css.includes("width:27px;height:27px;padding:3px;border:1px solid #c9e0f5;border-radius:8px"));
+});
+
+
+test("Process Map relationship semantics survive inserted material and transport stages", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(processMap.includes("previousOperationByRouteNode[index]"));
+  assert.ok(processMap.includes("nextOperationByRouteNode[index]"));
+  assert.ok(processMap.includes("const savedRelationship=fromOperation&&toOperation?"));
+});
+
+test("explicit typed route relationships replace duplicate implicit 3D edges and survive material/transport routing", () => {
+  const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
+  const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  assert.ok(universe.includes("explicitRelationshipPairs"));
+  assert.ok(universe.includes("if (!explicitRelationshipPairs.has(pairId))"));
+  assert.ok(universe.includes("validRouteRelationships"));
+  assert.ok(scene.includes('!String(edge.id||"").startsWith("relationship-")&&replacedOperationEdges.has'));
+});
+
+
+test("explicit transport sender and receiver IDs persist without inferring the next displayed operation", () => {
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const operations = new Map(fixture.operations.map(row=>[row.id,row]));
+  const crossBranch = fixture.transportLegs.find(leg=>leg.anchorOperationId && leg.targetOperationId &&
+    operations.get(leg.anchorOperationId)?.branch !== operations.get(leg.targetOperationId)?.branch);
+  assert.ok(crossBranch, "fixture must exercise a transport hand-off between main and alternate branches");
+  assert.ok(operations.has(crossBranch.anchorOperationId), "sending operation ID must resolve");
+  assert.ok(operations.has(crossBranch.targetOperationId), "receiving operation ID must resolve");
+  assert.ok(processMap.includes('setTransportTargetOperationId(leg?.targetOperationId || "")'));
+  assert.ok(processMap.includes('targetOperationId: receivingOperation?.id || undefined'));
+  assert.ok(processMap.includes('label="Sending process (from)"'));
+  assert.ok(processMap.includes('label="Receiving process (to) · optional"'));
+  assert.ok(processMap.includes('Destinations are never inferred from display order.'));
+});
+
+test("Route Flow never infers a transport receiver from the next displayed operation", () => {
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(routeFlow.includes('const target=operationFor(leg.targetOperationId||"")'));
+  assert.ok(!routeFlow.includes("inferredTarget"), "The next displayed operation is not a valid transport destination.");
+  assert.ok(routeFlow.includes('if(target)addEdge(transportId,target.id,"transport","transport-to:"+leg.id'));
 });

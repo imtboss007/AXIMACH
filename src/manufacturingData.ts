@@ -10,6 +10,26 @@ export type CompanyRecord = {
   id: string; name: string; gstin: string; contactPerson?: string; phone: string; email: string; address?: string;
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+/** Buyer account identity, separate from AXIMACH operating companies and suppliers. */
+export type CustomerRecord = {
+  id:string; ownerCompanyId?:string; customerCode:string; legalName:string; displayName:string;
+  gstin?:string; pan?:string; industry?:string; website?:string;
+  primaryContact?:string; phone?:string; email?:string;
+  billingAddress?:string; shippingAddress?:string;
+  paymentTerms?:string; creditLimit?:number; currency:"INR"|"USD"|"EUR"|"GBP";
+  status:"Active"|"On hold"|"Inactive"; notes?:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type ProspectStage = "New" | "Reviewed" | "Qualified" | "Disqualified" | "Converted";
+export type ProspectEvidenceRecord = {
+  id:string; provider:"SearXNG"|"Official website"; query:string; sourceUrl:string; sourceTitle:string; snippet:string;
+  engine?:string; retrievedAt:string; publishedAt?:string;
+};
+export type ProspectRecord = {
+  id:string; ownerCompanyId:string; businessName:string; industry?:string; region?:string;
+  stage:ProspectStage; notes?:string; evidence:ProspectEvidenceRecord[];
+  convertedCustomerId?:string; createdAt:string; updatedAt:string; deletedAt?:string;
+};
 export type FactoryRecord = {
   id: string; companyId: string; name: string; address: string; contactPhone: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
@@ -120,6 +140,29 @@ export type InspectionMeasurementRecord = {
   measuredValue: number; unit: string; result: "Pass" | "Fail" | "Not assessed"; notes: string;
   inspectedAt: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type SupplierInvoiceRecord = {
+  id: string; companyId: string; factoryId: string; vendorId: string; poId: string; poLineId: string;
+  invoiceNumber: string; invoiceDate: string; dueDate: string; currency: "INR";
+  subtotal: number; taxAmount: number; totalAmount: number;
+  status: "Draft" | "Submitted" | "Voided"; notes: string; createdBy: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type SupplierPaymentRecord = {
+  id: string; companyId: string; factoryId: string; vendorId: string;
+  paymentDate: string; method: "Bank transfer" | "UPI" | "Cheque" | "Cash" | "Other";
+  bankReference: string; amount: number; currency: "INR";
+  status: "Draft" | "Submitted" | "Voided"; notes: string; createdBy: string;
+  createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type SupplierFinanceApprovalRecord = {
+  id: string; targetType: "invoice" | "payment"; targetId: string;
+  decision: "Approved" | "Rejected" | "Returned"; decidedBy: string; decidedByRole: "admin" | "manager";
+  comments: string; decidedAt: string; targetUpdatedAt?: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type SupplierPaymentAllocationRecord = {
+  id: string; paymentId: string; invoiceId: string; amount: number; notes: string;
+  createdBy: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
 export type MaterialRecord = {
   id: string; code: string; name: string; grade: string; unit: string; specification: string;
   preferredVendorId: string; ratePerUnit: number; notes: string;
@@ -172,13 +215,15 @@ export type InventoryTransactionRecord = {
 };
 export type ManufacturingData = {
   updatedAt: string;
-  companies: CompanyRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
+  companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[]; materialProcessLinks: MaterialProcessLinkRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
   contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
   transportRoutes: TransportRouteRecord[]; transportLegs: ComponentTransportLegRecord[];
   paymentTransactions: PaymentTransactionRecord[]; inspectionMeasurements: InspectionMeasurementRecord[];
+  supplierInvoices: SupplierInvoiceRecord[]; supplierPayments: SupplierPaymentRecord[];
+  supplierFinanceApprovals: SupplierFinanceApprovalRecord[]; supplierPaymentAllocations: SupplierPaymentAllocationRecord[];
   routeRelationships: RouteRelationshipRecord[]; followUpAssignments: FollowUpAssignmentRecord[];
 };
 
@@ -190,9 +235,10 @@ export function makeId(prefix: string): string {
 export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.filter(row => !row.deletedAt);
 
 export const emptyManufacturingData = (): ManufacturingData => ({
-  updatedAt: "", companies: [], factories: [], purchaseOrders: [], components: [], vendors: [],
+  updatedAt: "", companies: [], customers: [], prospects: [], factories: [], purchaseOrders: [], components: [], vendors: [],
   operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
+  supplierInvoices: [], supplierPayments: [], supplierFinanceApprovals: [], supplierPaymentAllocations: [],
   routeRelationships: [], followUpAssignments: []
 });
 
@@ -201,6 +247,8 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
   return {
     updatedAt: typeof value?.updatedAt === "string" ? value.updatedAt : "",
     companies: Array.isArray(value?.companies) ? value.companies : empty.companies,
+    customers: Array.isArray(value?.customers) ? value.customers : empty.customers,
+    prospects: Array.isArray(value?.prospects) ? value.prospects : empty.prospects,
     factories: Array.isArray(value?.factories) ? value.factories : empty.factories,
     purchaseOrders: Array.isArray(value?.purchaseOrders) ? value.purchaseOrders : empty.purchaseOrders,
     components: Array.isArray(value?.components) ? value.components.map(component => ({
@@ -232,6 +280,10 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     transportLegs: Array.isArray(value?.transportLegs) ? value.transportLegs : empty.transportLegs,
     paymentTransactions: Array.isArray(value?.paymentTransactions) ? value.paymentTransactions : empty.paymentTransactions,
     inspectionMeasurements: Array.isArray(value?.inspectionMeasurements) ? value.inspectionMeasurements : empty.inspectionMeasurements,
+    supplierInvoices: Array.isArray(value?.supplierInvoices) ? value.supplierInvoices : empty.supplierInvoices,
+    supplierPayments: Array.isArray(value?.supplierPayments) ? value.supplierPayments : empty.supplierPayments,
+    supplierFinanceApprovals: Array.isArray(value?.supplierFinanceApprovals) ? value.supplierFinanceApprovals : empty.supplierFinanceApprovals,
+    supplierPaymentAllocations: Array.isArray(value?.supplierPaymentAllocations) ? value.supplierPaymentAllocations : empty.supplierPaymentAllocations,
     routeRelationships: Array.isArray(value?.routeRelationships) ? value.routeRelationships : empty.routeRelationships,
     followUpAssignments: Array.isArray(value?.followUpAssignments) ? value.followUpAssignments : empty.followUpAssignments
   };
@@ -318,6 +370,8 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
   return {
     updatedAt: local.updatedAt >= remote.updatedAt ? local.updatedAt : remote.updatedAt,
     companies: mergeRows(local.companies, remote.companies),
+    customers: mergeRows(local.customers, remote.customers),
+    prospects: mergeRows(local.prospects, remote.prospects),
     factories: mergeRows(local.factories, remote.factories),
     purchaseOrders: mergePurchaseOrderRows(local.purchaseOrders, remote.purchaseOrders),
     components: mergeRows(local.components, remote.components),
@@ -337,6 +391,10 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     transportLegs: mergeRows(local.transportLegs, remote.transportLegs),
     paymentTransactions: mergeRows(local.paymentTransactions, remote.paymentTransactions),
     inspectionMeasurements: mergeRows(local.inspectionMeasurements, remote.inspectionMeasurements),
+    supplierInvoices: mergeRows(local.supplierInvoices, remote.supplierInvoices),
+    supplierPayments: mergeRows(local.supplierPayments, remote.supplierPayments),
+    supplierFinanceApprovals: mergeRows(local.supplierFinanceApprovals, remote.supplierFinanceApprovals),
+    supplierPaymentAllocations: mergeRows(local.supplierPaymentAllocations, remote.supplierPaymentAllocations),
     routeRelationships: mergeRows(local.routeRelationships, remote.routeRelationships),
     followUpAssignments: mergeRows(local.followUpAssignments, remote.followUpAssignments)
   };

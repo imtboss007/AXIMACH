@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Boxes, Check, ClipboardList, Factory, FileText, Package, Plus, Search, ShieldCheck, Trash2, Truck, Users, Warehouse, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialProcessLinkRecord, type MaterialRecord, type StockTransactionKind } from "./manufacturingData";
+import { getFinalProductionOperation, getRequiredRouteOperations } from "./productionRouteMetrics.mjs";
 import SearchablePicker from "./SearchablePicker";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 
@@ -421,14 +422,15 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       if (companyId !== po.companyId || factoryId !== po.factoryId) { onNotice("Finished-goods movements must use the company and factory recorded on the selected PO."); return; }
       if (line.componentId !== itemId) { onNotice("Finished-goods item must match the component on the selected PO line."); return; }
       const lineOperations = operations.filter(op => op.poId === po.id && op.poLineId === line.id && !op.deletedAt);
-      const finalOperation = [...lineOperations].filter(op => (op.branch || "Main route") === "Main route").sort((a,b)=>a.sequence-b.sequence).at(-1);
-      if (!lineOperations.length || lineOperations.some(op => op.status !== "Complete" || !Number.isSafeInteger(Number(op.completed)) || Number(op.completed) !== Number(op.quantity))) {
-        onNotice("Finished goods cannot be received until every saved operation on this PO line is Complete with its actual completed quantity equal to its required quantity."); return;
+      const requiredRouteOperations = getRequiredRouteOperations(lineOperations);
+      const finalOperation = getFinalProductionOperation(lineOperations, requiredRouteOperations);
+      if (!requiredRouteOperations.length || requiredRouteOperations.some(op => op.status !== "Complete" || !Number.isSafeInteger(Number(op.completed)) || Number(op.completed) !== Number(op.quantity))) {
+        onNotice("Finished goods cannot be received until every required main-route operation and every included alternate/rework step is Complete with its actual completed quantity equal to its required quantity. Excluded optional branches do not block receipt."); return;
       }
       if (!finalOperation || !Number.isSafeInteger(Number(finalOperation.accepted)) || Number(finalOperation.accepted) <= 0 || Number(finalOperation.accepted) + Number(finalOperation.rejected || 0) > Number(finalOperation.completed)) {
         onNotice("Finished goods cannot be released: the final main-route operation must have a valid accepted quantity and balanced accepted/rejected quantities."); return;
       }
-      const inspectionOperations = lineOperations.filter(op => op.inspectionRequired);
+      const inspectionOperations = requiredRouteOperations.filter(op => op.inspectionRequired);
       for (const op of inspectionOperations) {
         const inspectionRows = activeRows(data.inspectionMeasurements || []).filter(row => row.operationId === op.id);
         if (!inspectionRows.length || inspectionRows.some(row => row.result !== "Pass")) {

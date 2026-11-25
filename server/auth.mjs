@@ -60,6 +60,7 @@ export function createAuthService(usersJson,options={}){
  }
  return {
   mode:"users",
+  activeUserIds(){return users.filter(user=>user.active).map(user=>user.id);},
   async login(usernameInput,password,address="unknown"){
    const now=Date.now();cleanExpired(now);const client=String(address||"unknown").slice(0,128);
    const failures=failuresByAddress.get(client)||[];if(failures.length>=MAX_LOGIN_FAILURES)return {ok:false,rateLimited:true};
@@ -83,7 +84,9 @@ export function bearerToken(req){const match=/^Bearer\s+([A-Za-z0-9_-]{32,256})$
 export function getRequiredPermission(pathname,method){
  const verb=String(method||"").toUpperCase();
  if(pathname==="/api/backup"&&verb==="GET")return "backup:read";
+ if(pathname==="/api/audit-events"&&verb==="GET")return "audit:read";
  if(pathname==="/api/restore"&&verb==="POST")return "backup:restore";
+ if((pathname==="/api/lead-discovery/search"||pathname==="/api/lead-discovery/enrich")&&verb==="POST")return "data:read";
  if(pathname==="/api/manufacturing-data")return verb==="GET"?"data:read":"data:write";
  if(pathname==="/api/records")return verb==="GET"?"records:read":"records:write";
  if(pathname==="/api/ui-preferences")return verb==="GET"?"preferences:read":"preferences:write";

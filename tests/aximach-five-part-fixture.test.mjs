@@ -93,7 +93,7 @@ test("Process Plan bulk update validates dates and vendor capabilities, and sync
   assert.ok(!workspace.includes('completed: Math.max(op.completed || 0, op.quantity || 0)'));
   assert.ok(workspace.includes('Existing actual completed quantities were preserved'));
   assert.ok(workspace.includes('jobStatus: "In progress" as const, jobFinishedAt: undefined'));
-  assert.ok(workspace.includes("Number(finalRouteOperation?.accepted)||0"), "zero accepted output must not fall back to completed quantity");
+  assert.ok(workspace.includes("routeQuantityMetrics.finalAcceptedQuantity"), "accepted output must come from the final production step");
   assert.ok(workspace.includes("const totalAccepted = finalCompletedQty;"), "accepted output must count final-route good parts once, not once per operation");
   assert.ok(!workspace.includes("routeOperations.reduce((sum, op) => sum + op.accepted, 0)"));
 });
@@ -101,7 +101,9 @@ test("Finished goods receipt and dispatch require completed accepted production 
   const workspace = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('transactionType === "Finished goods receipt" || transactionType === "Dispatch"'));
   assert.ok(workspace.includes('companyId !== po.companyId || factoryId !== po.factoryId'));
-  assert.ok(workspace.includes('lineOperations.some(op => op.status !== "Complete"'));
+  assert.ok(workspace.includes("getRequiredRouteOperations(lineOperations)"));
+  assert.ok(workspace.includes('requiredRouteOperations.some(op => op.status !== "Complete"'));
+  assert.ok(workspace.includes("requiredRouteOperations.filter(op => op.inspectionRequired)"));
   assert.ok(workspace.includes('inspectionRows.some(row => row.result !== "Pass")'));
   assert.ok(workspace.includes('remainingAccepted'));
   assert.ok(workspace.includes('q > lineFinishedBalance'));
@@ -202,20 +204,20 @@ test("additional planned-cost process rows cascade by category and stable defini
 });
 
 
-test("dashboard command globe exposes 20 unique, distinguishable module shortcuts", () => {
+test("dashboard command globe exposes 22 unique, distinguishable module shortcuts", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const satelliteBlock = orb.match(/const satellites = \[([\s\S]*?)\n\];/);
   assert.ok(satelliteBlock, "command globe satellite registry exists");
   const ids = [...satelliteBlock[1].matchAll(/id: "([^"]+)"/g)].map(match => match[1]);
   const labels = [...satelliteBlock[1].matchAll(/label: "([^"]+)"/g)].map(match => match[1]);
-  assert.equal(ids.length, 20);
-  assert.equal(new Set(ids).size, 20, "module shortcut IDs must be unique");
-  assert.equal(labels.length, 20);
-  assert.equal(new Set(labels).size, 20, "module shortcut labels must be distinguishable");
+  assert.equal(ids.length, 22);
+  assert.equal(new Set(ids).size, 22, "module shortcut IDs must be unique");
+  assert.equal(labels.length, 22);
+  assert.equal(new Set(labels).size, 22, "module shortcut labels must be distinguishable");
   assert.ok(ids.includes("transport-master") && ids.includes("dispatch"));
 });
 
-test("all 20 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
+test("all 22 module shortcuts rotate with the manually draggable globe and the lower live-data sphere remains separate", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
   const depthOpen = orb.indexOf('<motion.div className="ax-orb-depth"');
   const moduleShell = orb.indexOf('className="ax-orb-module-shell"');
@@ -228,7 +230,7 @@ test("all 20 module shortcuts rotate with the manually draggable globe and the l
   assert.ok(depthOpen >= 0 && depthOpen < moduleShell && moduleShell < moduleClose && moduleClose < depthClose,
     "module controls must be children of the same draggable 3D globe");
   assert.ok(lowerShell > depthClose, "live-data shell must be separate and below the globe");
-  assert.ok(orb.includes('aria-label="20 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label={`${satellites.length} clickable AXIMACH modules`}'));
   assert.ok(orb.includes('aria-label="Separate live record summary shell"'));
   assert.ok(orb.includes('style={{rotateX,rotateY,transformStyle:"preserve-3d",transformPerspective:950}}'));
   assert.ok(orb.includes('className="ax-orb-core"'));
@@ -812,7 +814,8 @@ test("Process route scope keeps original parent arrows visible and each 3D view 
   for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
     assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
   }
-  assert.ok(workspace.includes("initialLayout={visualStyle}"));
+  assert.ok(workspace.includes('initialLayout={visualStyle==="graph"?"sphere":visualStyle}'));
+  assert.ok(workspace.includes('visualStyle==="graph" && exportOperations.length'), "React Flow graph remains a separate non-WebGL view");
   assert.ok(universe.includes('initialLayout = "sphere"'));
   assert.ok(universe.includes("useState<ProcessLayoutMode>(initialLayout)"));
   assert.ok(universe.includes("while (ancestor && routeGroupKey(ancestor) === key"));
@@ -865,7 +868,7 @@ test("five synthetic component names resolve to the intended mechanical logo fam
 
 test("Main dashboard sphere uses native 3D module hit targets with stable transforms", () => {
   const orb = readFileSync(new URL("../src/AXIMACHOrb.tsx", import.meta.url), "utf8");
-  assert.ok(orb.includes('aria-label="20 clickable AXIMACH modules"'));
+  assert.ok(orb.includes('aria-label={`${satellites.length} clickable AXIMACH modules`}'));
   assert.ok(orb.includes('return <button key={id} type="button" className="ax-orb-satellite ax-orb-satellite-3d"'));
   assert.ok(orb.includes('translate3d(" + x + "px," + y + "px," + z + "px)'));
   assert.ok(orb.includes("onPointerDown={startDrag}"));
@@ -961,7 +964,7 @@ test("Process Plan panels expose independent native expand/collapse sections", (
 });
 
 
-test("Main Dashboard and 3D Command Centre center the 18-module orb on mobile", () => {
+test("Main Dashboard and 3D Command Centre center the 22-module orb on mobile", () => {
   const dashboardStyles = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
   const appStyles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.ok(dashboardStyles.includes(".dashboard-welcome-orb .ax-orb-drag-zone"));
@@ -1087,11 +1090,13 @@ test("Icon Studio strips saved outline/filled prefixes before rendering Tabler c
   assert.ok(studio.includes("ti ti-" + "${baseName}"));
 });
 
-test("CI skips Electron binary download for frontend and Android jobs only", () => {
+test("CI skips Electron binary download for frontend, functional and Android jobs only", () => {
   const workflow = readFileSync(new URL("../.github/workflows/build.yml", import.meta.url), "utf8");
-  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 2);
+  assert.equal((workflow.match(/ELECTRON_SKIP_BINARY_DOWNLOAD: "1"/g) || []).length, 3);
   const windows = workflow.slice(workflow.indexOf("windows-installer:"), workflow.indexOf("android-apk:"));
   assert.ok(!windows.includes("ELECTRON_SKIP_BINARY_DOWNLOAD"));
+  const functional = workflow.slice(workflow.indexOf("functional-tests:"), workflow.indexOf("frontend:"));
+  assert.ok(functional.includes('ELECTRON_SKIP_BINARY_DOWNLOAD: "1"'));
 });
 
 test("Dashboard module and live-record spheres are independently draggable with idle auto-rotation", () => {
@@ -1273,6 +1278,7 @@ test("Sphere view is a full 3D globe with visible route cylinders and distinct a
 
 test("3D Gantt view uses saved planned/actual date ranges as volumetric duration bars and preserves time scale controls", () => {
   const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  const labelLayout = readFileSync(new URL("../src/processSceneLabelLayout.js", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(scene.includes('function ganttSegment(index:number,rows:OperationRecord[],scale:"day"|"week"|"month"="week")'));
@@ -1558,7 +1564,7 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   const partKeys = [...demo.matchAll(/key:"(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
   assert.equal(partKeys.length, 5, "bundled demo must include exactly five component examples");
   assert.equal(new Set(partKeys).size, 5, "demo component IDs must be unique");
-  for (const collection of ["companies", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
+  for (const collection of ["companies", "customers", "prospects", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
     assert.ok(demo.includes(collection), "demo dataset must include " + collection);
   }
   assert.ok(demo.includes('processSubcategoryId:def.subcategoryIds?.[def.subcategories.indexOf(s.sub)]'));
@@ -1570,7 +1576,7 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   assert.ok(demo.includes('materialCostEntries.push({id:id("MATERIAL-ALLOCATION"'));
   assert.ok(demo.includes('scope:"process-map"'));
   assert.ok(demo.includes('transportVendorId:id("VENDOR","LOG")'));
-  assert.ok(demo.includes('return {updatedAt:stamp,companies,factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
+  assert.ok(demo.includes('return {updatedAt:stamp,companies,customers:[],prospects:[],factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
   assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
   assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
   assert.ok(importer.includes('onClick={loadTwoCompanyDemo}'));
@@ -1594,14 +1600,15 @@ test("AXIMACH spheres auto-rotate by default with an explicit pause control whil
   assert.ok(!orb.includes("NO IDLE ROTATION"));
 });
 
-test("every Process Plan view uses the interactive 3D universe and volumetric WebGL core", () => {
+test("existing Process Plan 3D views retain their WebGL universe while the new React Flow graph stays separate", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   const core = readFileSync(new URL("../src/ProcessUniverseWebGLCore.tsx", import.meta.url), "utf8");
   for (const view of ["sphere","vortex","linear","horizontal","vertical","timeline","gantt","nodes","branch","combined"]) {
     assert.ok(workspace.includes('id:"' + view + '"'), "missing Process Plan view: " + view);
   }
-  assert.ok(workspace.includes('initialLayout={visualStyle}'), "selected view must be passed directly to the 3D renderer");
+  assert.ok(workspace.includes('initialLayout={visualStyle==="graph"?"sphere":visualStyle}'), "3D renderer must receive a supported 3D layout");
+  assert.ok(workspace.includes('visualStyle==="graph" && exportOperations.length'), "React Flow graph must use its separate view branch");
   assert.ok(universe.includes("ProcessUniverseWebGLCore"));
   assert.ok(universe.includes("getLayoutPoint"));
   assert.ok(universe.includes("transformStyle3d"));
@@ -1830,6 +1837,7 @@ test("3D Gantt does not fabricate schedule dates for operations without date-tim
 test("Manufacturing Universe uses compact 3D nodes and keeps full operation details in the selected-record panel", () => {
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const scene = readFileSync(new URL("../src/ProcessScene3D.tsx", import.meta.url), "utf8");
+  const labelLayout = readFileSync(new URL("../src/processSceneLabelLayout.js", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
   assert.ok(workspace.includes('const REQUIRED_PROCESS_CARD_FIELDS: ProcessCardField[] = ["category","subcategory","quantity","plannedStart","plannedEnd","vendor","amount"]'));
   assert.ok(workspace.includes('checked={REQUIRED_PROCESS_CARD_FIELDS.includes(field.key)||cardVisibleFields.includes(field.key)}'));
@@ -1838,7 +1846,13 @@ test("Manufacturing Universe uses compact 3D nodes and keeps full operation deta
   assert.ok(scene.includes("<small>{operationCode(op)}</small><strong>{op.name}</strong>"));
   assert.ok(scene.includes('Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}'));
   assert.ok(scene.includes('visibleFields.includes("category")'));
-  assert.ok(scene.includes("const cardHeight=width<600?76:92;"));
+  assert.ok(scene.includes('import { processSceneLabelBounds, relaxProcessSceneLabels } from "./processSceneLabelLayout.js"'));
+  assert.ok(labelLayout.includes("operation: { width: 184, height: 112 }"));
+  assert.ok(labelLayout.includes("material: { width: 190, height: 202 }"));
+  assert.ok(labelLayout.includes("findNearestFreeSlot"));
+  assert.ok(scene.includes('kind:"catalogue" as const'));
+  assert.ok(labelLayout.includes("function isFree("));
+  assert.ok(labelLayout.includes("function packDenseLabels("));
   assert.ok(universe.includes('className="process-orbit-selected-details"'));
   for (const field of [
     '<small>CATEGORY</small><strong>{expandedOrbitOperation.category || "Not set"}</strong>',
@@ -2038,9 +2052,9 @@ test("Manufacturing Universe exposes every AXIMACH module and renders material-f
   const moduleBlock = universe.match(/const linkModules=\[([\s\S]*?)\n  \];/);
   assert.ok(moduleBlock, "missing Manufacturing Universe module directory");
   const ids = [...moduleBlock[1].matchAll(/id:"([^"]+)"/g)].map(match => match[1]);
-  const expected = ["companies","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export"];
+  const expected = ["companies","customers","components","purchasing","vendors","transport-master","contact360","process-master","planned-cost","vendor-capability","inventory","production","route-flow","manufacturing-universe","dispatch","quality","costing","communications","reports","ai-insights","export","integrations"];
   assert.deepEqual([...new Set(ids)].sort(), [...expected].sort());
-  assert.equal(ids.length, 20, "module shortcuts must not contain duplicate entries");
+  assert.equal(ids.length, 22, "module shortcuts must not contain duplicate entries");
   assert.ok(universe.includes('poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)'));
   assert.ok(universe.includes('materialRoutes={materialRouteNodes}'));
 });
@@ -2473,7 +2487,10 @@ test("payment ledger export preserves transaction-level identity and legacy tota
   assert.ok(exports.includes('recordType:"payment-transaction"'));
   assert.ok(exports.includes('sourceRecord:"PaymentTransactionRecord"'));
   assert.ok(exports.includes('recordType:"legacy-payment-total"'));
-  assert.ok(exports.includes('["payments","Payment Ledger"]'));
+  assert.ok(exports.includes('["payments","Process Payment Ledger"]'));
+  assert.ok(exports.includes('["supplier-ap","Supplier Invoices & Accounts Payable"]'));
+  assert.ok(exports.includes('recordType:"supplier-invoice"'));
+  assert.ok(exports.includes('recordType:"supplier-payment-allocation"'));
 });
 
 
@@ -2617,4 +2634,10 @@ test("scoped user sessions stop WhatsApp bridge polling and clear shared-device 
   assert.ok(app.includes('if(isScopedUser)return {added:0,updated:0};'));
   assert.ok(app.includes('setServerAuthMode("users");clearUserLocalCache();'));
   assert.ok(app.includes('window.dispatchEvent(new Event("aximach-module-records-updated"));'));
+});
+
+test("new sub-process and branch steps use the shared route-inclusion inheritance helper", () => {
+  const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(workspace.includes("base.costIncluded = inheritsRouteInclusion(parent, routeOperations)"));
+  assert.ok(workspace.includes("base.costIncluded = inheritsRouteInclusion(anchor, routeOperations)"));
 });

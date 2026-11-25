@@ -51,8 +51,10 @@ test("Process Map node, Route Flow and Manufacturing Universe render material an
   assert.ok(universe.includes('transportFor(operation.id,"before")'));
   assert.ok(universe.includes('materialLinksAt(operation.id,"after")'));
   assert.ok(universe.includes('transportFor(operation.id,"after")'));
-  assert.ok(universe.includes("<RouteConnectorLegend/>"));
-  assert.ok(flow.includes("<RouteConnectorLegend/>"));
+  assert.ok(universe.includes("<RouteConnectorLegend compact/>"));
+  assert.ok(!universe.includes("<RouteConnectorLegend compact/><RouteConnectorLegend/>"),"Process Map must not duplicate the connector legend.");
+  assert.ok(flow.includes("<RouteConnectorLegend compact/>"));
+  assert.ok(!flow.includes("<RouteConnectorLegend compact/><RouteConnectorLegend/>"),"The Process Map route toolbar must not duplicate the connector legend.");
 });
 
 test("synthetic route example has three materials linked to distinct process operations and six transport legs", () => {
@@ -143,7 +145,8 @@ test("Process Map is scoped to the exact selected PO line and its part material 
   assert.ok(processMap.includes('leg.poLineId === selectedLine?.id'));
   assert.ok(processMap.includes('entry.poLineId === selectedLine?.id'));
   assert.ok(processMap.includes('entry.partId===selectedPart.id'));
-  assert.ok(processMap.includes('const expectedQuantity = Math.max(0,Number(selectedLine?.quantity)||0)'));
+  assert.ok(processMap.includes('getProductionRouteMetrics(routeOperations, selectedLine?.quantity || 0)'));
+  assert.ok(processMap.includes('const expectedQuantity = routeQuantityMetrics.expectedQuantity'));
 });
 
 test("Route Flow never defaults to an unrelated first company, PO or component line", () => {
