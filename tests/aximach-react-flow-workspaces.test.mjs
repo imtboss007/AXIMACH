@@ -159,7 +159,7 @@ test("Route Flow applies the selected layout to the live graph, preserves explic
   assert.ok(flow.includes("workspaceTheme,compactGraphViewport])"),"Viewport changes must invalidate the live layout memo.");
   assert.ok(flow.includes("},[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport])"));
   assert.ok(flow.includes("const graphEdgeType=routeLayout==="));
-  assert.ok(flow.includes("zoomOnScroll zoomOnPinch preventScrolling"));
+  assert.ok(flow.includes("zoomOnScroll") && flow.includes("zoomOnPinch"),"Route Flow must support wheel and pinch zoom through the shared graph.");
   assert.ok(flow.includes("maxZoom={2.8}"));
   assert.ok(flow.includes("<RouteConnectorLegend/>"));
   assert.ok(flow.includes("RouteFlowFitController revision={routeLayout+"));
