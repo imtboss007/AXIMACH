@@ -1,6 +1,7 @@
+import type { MachineRecord, MachineDowntimeRecord, MachineMaintenanceWorkOrderRecord, OperationRecord } from "./manufacturingData.js";
 export type MachineAvailability = {
-  status:string; activeDowntime:MachineDowntimeRecord|any|null;
-  activeWorkOrder:MachineMaintenanceWorkOrderRecord|any|null;
+  status:string; activeDowntime:MachineDowntimeRecord|null;
+  activeWorkOrder:MachineMaintenanceWorkOrderRecord|null;
   plannedOrder:MachineMaintenanceWorkOrderRecord|any|null; blocksProduction:boolean;
 };
 export function getMachineAvailability(machine:MachineRecord,workOrders:MachineMaintenanceWorkOrderRecord[],downtimeRecords:MachineDowntimeRecord[],at?:string):MachineAvailability;
