@@ -421,18 +421,19 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   if(toolIds.length>50||fixtureIds.length>50||new Set(toolIds).size!==toolIds.length||new Set(fixtureIds).size!==fixtureIds.length)return false;
   if(operation.executionType==="Outsourced"&&(toolIds.length||fixtureIds.length))return false;
   const po=allowedPOById.get(operation.poId);
+  if((toolIds.length||fixtureIds.length)&&!operationRange(operation))return false;
   const component=[...rows(currentData,"components"),...rows(incoming,"components")].find(row=>row.id===operation.componentId);
   const machine=operation.machineId?machineById.get(operation.machineId):undefined;
   const prior=rows(currentData,"operations").find(row=>row.id===operation.id);
   const range=operationRange(operation);
   if(range?.invalid)return false;
   const hasOverlap=(type,id)=>{
-   if(!range)return false;
+   if(!range||range.invalid)return true;
    const field=type==="tooling"?"toolingAssetIds":"fixtureAssetIds";
    for(const other of [...rows(currentData,"operations"),...rows(incoming,"operations")]){
     if(!other||other.id===operation.id||other.deletedAt||["Complete","Rejected"].includes(other.status)||!Array.isArray(other[field])||!other[field].includes(id))continue;
     const otherRange=operationRange(other);
-    if(otherRange&&!otherRange.invalid&&overlaps(range,otherRange))return true;
+    if(!otherRange||otherRange.invalid||overlaps(range,otherRange))return true;
    }
    return false;
   };
@@ -550,7 +551,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
       machineList.length<=100&&machineList.every(id=>{const machine=machineById.get(id);return Boolean(machine&&!machine.deletedAt&&machine.companyId===row.companyId&&machine.factoryId===row.factoryId);})&&
       Array.isArray(row.processDefinitionIds)&&row.processDefinitionIds.length<=100&&row.processDefinitionIds.every(id=>processIds.has(id))&&
       Array.isArray(row.materialCapabilities)&&row.materialCapabilities.length<=100&&row.materialCapabilities.every(value=>typeof value==="string"&&value.trim().length>0&&value.length<=120)&&
-      (!limitMinutes||usedMinutes<=limitMinutes)&&(!limitCycles||usedCycles<=limitCycles)&&
+      (!limitMinutes||usedMinutes<=limitMinutes||row.status==="Needs regrind")&&(!limitCycles||usedCycles<=limitCycles||row.status==="Needs regrind")&&
       (!row.lastInspectedAt||validIsoDate(row.lastInspectedAt))&&(!row.inspectionDueAt||validIsoDate(row.inspectionDueAt))&&
       typeof row.storageLocation==="string"&&row.storageLocation.length<=180&&typeof row.notes==="string"&&row.notes.length<=4000;
      break;
