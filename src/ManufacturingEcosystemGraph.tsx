@@ -190,7 +190,14 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     const contacts=activeRows(data.contactProfiles||[]);
     const inventory=activeRows(data.inventoryTransactions||[]);
     const nodeIds=new Set<string>();
-    const edge=(from:string,to:string,kind:string)=>{if(from&&to&&from!==to)edges.push({id:from+"|"+to+"|"+kind,from,to,kind});};
+    const edgeKeys=new Set<string>();
+    const edge=(from:string,to:string,kind:string)=>{
+      if(!from||!to||from===to)return;
+      const id=from+"|"+to+"|"+kind;
+      if(edgeKeys.has(id))return;
+      edgeKeys.add(id);
+      edges.push({id,from,to,kind});
+    };
     companies.forEach(row=>{add("company:"+row.id,row.name,"Company · "+(row.gstin||"GSTIN not recorded"),"company","companies",{companyId:row.id});nodeIds.add(row.id);});
     customers.forEach(row=>{
       const id="customer:"+row.id;
@@ -228,13 +235,22 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
         .forEach(operation=>edge("operation:"+operation.parentId,"operation:"+operation.id,operation.relationType==="rework"?"rework":"alternate"));
     }
     routeLinks.forEach(link=>edge("operation:"+link.fromOperationId,"operation:"+link.toOperationId,link.relationshipType));
+    const inboundMaterialTransportCount=allocations.filter(row=>row.transportVendorId||row.transportVehicleType||row.transportFrom||row.transportTo||Number(row.transportCost)>0).length;
     allocations.forEach(row=>{
-      const context={companyId:row.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.componentId};
-      add("material:"+row.id,row.materialName||"Material allocation","Material · "+(row.materialGrade||"Grade not set")+" · "+(row.totalWeightKg||0)+" kg","material","inventory",context);
-      edge("material:"+row.id,"order:"+row.poId,"procured for");
-      edge("material:"+row.id,"component:"+row.componentId,"allocated to");
-      edge("material:"+row.id,"vendor:"+row.vendorId,"supplied by");
-      edge("material:"+row.id,"operation:"+row.anchorOperationId,"feeds operation");
+      const context={companyId:row.companyId,poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.anchorOperationId};
+      const materialId="material:"+row.id;
+      add(materialId,row.materialName||"Material allocation","Material · "+(row.materialGrade||"Grade not set")+" · "+(row.totalWeightKg||0)+" kg","material","inventory",context);
+      edge(materialId,"order:"+row.poId,"procured for");
+      edge(materialId,"component:"+row.componentId,"allocated to");
+      edge(materialId,"vendor:"+row.vendorId,"supplied by");
+      const hasInbound=Boolean(row.transportVendorId||row.transportVehicleType||row.transportFrom||row.transportTo||Number(row.transportCost)>0);
+      if(hasInbound){
+        const transportId="material-transport:"+row.id;
+        add(transportId,(row.transportFrom||"Supplier pickup")+" → "+(row.transportTo||"Factory destination"),"Inbound transport · "+(row.transportVehicleType||"Vehicle not set")+" · "+(row.transportStatus||"Planned"),"transport","dispatch",{...context,operationId:row.anchorOperationId});
+        edge(materialId,transportId,"transport");
+        edge(transportId,"operation:"+row.anchorOperationId,"transport");
+        edge(transportId,"vendor:"+row.transportVendorId,"carried by");
+      }else edge(materialId,"operation:"+row.anchorOperationId,"feeds operation");
     });
     inspections.forEach(row=>{
       const context={poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.operationId};
@@ -244,8 +260,8 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     legs.forEach(row=>{
       const context={poId:row.poId,poLineId:row.poLineId,componentId:row.componentId,operationId:row.anchorOperationId};
       add("transport:"+row.id,(row.fromLocation||"Origin")+" → "+(row.toLocation||"Destination"),"Dispatch leg · "+(row.status||"Planned")+" · "+row.vehicleType,"transport","dispatch",context);
-      edge("transport:"+row.id,"operation:"+row.anchorOperationId,"moves between");
-      edge("transport:"+row.id,"operation:"+row.targetOperationId,"delivers to");
+      edge("operation:"+row.anchorOperationId,"transport:"+row.id,"transport");
+      edge("transport:"+row.id,"operation:"+row.targetOperationId,"transport");
       edge("transport:"+row.id,"vendor:"+row.vendorId,"carried by");
       edge("transport:"+row.id,"order:"+row.poId,"serves");
     });
@@ -278,15 +294,14 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     // old 34%-radius ring from stacking 190px cards on top of one another.
     const positions=layoutManufacturingUniverseNodes(visibleNodes,GROUPS.map(group=>group.kind),{columns:4,innerColumns:2,nodeWidth:190,nodeHeight:92,gapX:26,gapY:34,groupGapX:72,groupGapY:78});
     const visible=visibleNodes.map(node=>({...node,...(positions[node.id]||{x:0,y:0})}));
-    const graphWidth=Math.max(146,...visible.map(node=>node.x+190));
     const searchResults=searchEcosystemNodes(nodes,searchQuery);
-    return {nodes:visible,allNodes:nodes,edges:visibleEdges,totals,totalAvailable,searchResults,graphWidth};
+    return {nodes:visible,allNodes:nodes,edges:visibleEdges,totals,totalAvailable,searchResults};
   },[data,visibleKinds,visibleLimits,selectedId,searchQuery]);
   const flowNodes=useMemo<EcosystemFlowNode[]>(()=>{
     const hub:EcosystemHubNode={
       id:"aximach-hub",
       type:"hub",
-      position:{x:Math.max(0,graph.graphWidth/2-73),y:-170},
+      position:{x:0,y:-170},
       data:{label:"AXIMACH",detail:"MANUFACTURING OS"},
       draggable:false,
       selectable:false,
