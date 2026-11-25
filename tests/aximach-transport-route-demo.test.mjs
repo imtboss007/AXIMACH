@@ -2,18 +2,28 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-transport-routing-demo.json", import.meta.url), "utf8"));
+const fixture = JSON.parse(readFileSync(new URL("../src/single-component-route-demo.json", import.meta.url), "utf8"));
 
 test("one component can carry multiple transport legs to different process steps and route branches", () => {
   assert.equal(fixture.synthetic, true);
   assert.equal(fixture.liveSeed, false);
   const operations = new Map(fixture.operations.map(row => [row.id, row]));
   const routes = new Map(fixture.transportRoutes.map(row => [row.id, row]));
-  assert.ok(fixture.transportLegs.length >= 6);
+  assert.equal(fixture.expected.companyCount,1);
+  assert.equal(fixture.expected.purchaseOrderCount,1);
+  assert.equal(fixture.expected.componentCount,1);
+  assert.ok(fixture.transportLegs.length >= 8);
+  assert.equal(fixture.operations.length,26);
+  assert.equal(fixture.operations.every(row=>row.companyId===fixture.company.id&&row.componentId===fixture.component.id&&row.poLineId===fixture.component.poLineId),true);
+  assert.equal(new Set(fixture.operations.map(row=>row.category)).size,fixture.expected.processCategoryCount);
+  assert.ok(fixture.operations.every(row=>row.ratePerPartINR>0&&row.plannedCostINR===row.ratePerPartINR*row.quantity));
+  assert.equal(new Set(fixture.transportLegs.map(row => row.companyId)).size, 1);
+  assert.equal(new Set(fixture.transportLegs.map(row => row.poId)).size, 1);
   assert.equal(new Set(fixture.transportLegs.map(row => row.componentId)).size, 1);
   assert.equal(new Set(fixture.transportLegs.map(row => row.poLineId)).size, 1);
-  assert.ok(new Set(fixture.transportLegs.map(row => row.anchorOperationId)).size >= 5);
+  assert.ok(new Set(fixture.transportLegs.map(row => row.anchorOperationId)).size >= 8);
   for (const leg of fixture.transportLegs) {
+    assert.equal(leg.companyId, fixture.company.id);
     assert.equal(leg.componentId, fixture.component.id);
     assert.equal(leg.poId, fixture.purchaseOrder.id);
     assert.equal(leg.poLineId, fixture.component.poLineId);
@@ -67,6 +77,10 @@ test("multi-route example is visible and interactive in both Process Map and Tra
   assert.ok(directory.includes("<TransportRoutingDemo onClose="));
   assert.ok(demo.includes("Next process step"));
   assert.ok(demo.includes("Activate alternate supplier route"));
+  assert.ok(demo.includes("ProcessRateGraph"));
+  assert.ok(demo.includes("one-company one-component"));
+  assert.ok(demo.includes("conditional rework cost"));
+  assert.ok(demo.includes("./single-component-route-demo.json"));
   assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
   assert.ok(demo.includes("TransportLegMarker"));
 });

@@ -37,3 +37,16 @@ Canonical classes now include two-wheeler/bike, car, auto-rickshaw/three-wheeler
 Vehicle class resolution is shared across the directory, 2D route connectors, Process Map cards, Process Map route insertions, 3D scene markers and transport inspectors. Courier/delivery now resolves to a van identity rather than being misclassified as a bike. New class colour tokens are defined in `src/aximach-ui.css`.
 
 Acceptance is covered in `tests/aximach-transport-route-demo.test.mjs`; source-level regressions in the route and Process Map suites now target the shared resolver rather than the removed duplicate vehicle mapping.
+
+
+## Unified single-company / single-component acceptance model
+
+The earlier demonstration embedded two unrelated examples: AST-1001 Motor mounting bracket in the relationship graph and AX-DEMO-HMB-01 Hydraulic manifold block in the route/transport lanes. That was not an acceptable end-to-end demonstration of one company and one component.
+
+The canonical source is now `src/single-component-route-demo.json`. Both `SingleComponentRouteGraphDemo` and `TransportRoutingDemo` consume this same file. It identifies exactly one synthetic company, one PO, one PO line and one top-level component (AST-1001 Precision multi-process drive module assembly). BOM subassembly operations remain scoped to that one component and company.
+
+The example consolidates the existing process catalogue categories into the same component route: Sawing, Turning, Gear Cutting, Heat Treatment, Grinding, Metrology, Laser Cutting, Forming, Welding, Finishing, Quality, VMC Machining, Deburring, Assembly, Packaging and a qualified Punching alternative. It shows parallel BOM workstreams, a qualified alternate route, conditional rework, quality feedback, material flows, directional transport and downstream successors.
+
+Every process operation carries a synthetic quantity, rate per piece and extended planned amount. The rate graph and cost table show each process line. Materials, process cost and transport cost remain separate; alternate and rework costs are excluded from the base scenario until selected. Transport legs and material feeds carry the same company, PO, PO-line and component identifiers.
+
+This remains an isolated preview and does not create, seed or mutate live manufacturing records. Tests now verify the one-company / one-PO / one-component invariant, shared fixture usage, complete process-category coverage, operation-rate calculations, graph edge coverage and transport/material scope.

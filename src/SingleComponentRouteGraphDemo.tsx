@@ -9,8 +9,9 @@ import { routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import { VehicleIcon } from "./TransportVehicle";
 
 type DemoNodeData = {
-  label:string; code:string; kind:"material"|"transport"|"quality"|"process"|"delivery";
+  label:string; code:string; kind:"material"|"transport"|"quality"|"process"|"delivery"|"decision";
   detail:string; accent:string; vehicleType?:string; processName?:string; category?:string;
+  ratePerPartINR?:number; plannedCostINR?:number; quantity?:number; branch?:string; subComponent?:string;
 };
 type DemoFlowNode = Node<DemoNodeData,"singleComponentRoute">;
 type DemoEdgeData = {
@@ -39,7 +40,9 @@ function SingleComponentRouteNode({data}:NodeProps<DemoFlowNode>) {
         ? <ClipboardCheck size={17}/>
         : data.kind==="delivery"
           ? <CheckCircle2 size={17}/>
-          : <ProcessIcon processName={data.processName||data.label} category={data.category} fallback={<Workflow size={17}/>}/>;
+          : data.kind==="decision"
+            ? <GitBranch size={17}/>
+            : <ProcessIcon processName={data.processName||data.label} category={data.category} fallback={<Workflow size={17}/>}/>;
   return <article className="route-flow-graph-node single-component-route-node" style={{"--route-accent":data.accent} as CSSProperties}>
     <Handle id="target-left" type="target" position={Position.Left} style={{top:"35%"}}/>
     <Handle id="target-right" type="target" position={Position.Right} style={{top:"65%"}}/>
@@ -54,6 +57,11 @@ function SingleComponentRouteNode({data}:NodeProps<DemoFlowNode>) {
     <div className="single-component-route-node-head"><span>{icon}</span><small>{data.code}</small></div>
     <strong title={data.label}>{data.label}</strong>
     <small title={data.detail}>{data.detail}</small>
+    {data.ratePerPartINR!==undefined&&<div className="single-component-route-node-cost">
+      <span><small>RATE / PC</small><strong>₹{data.ratePerPartINR.toLocaleString("en-IN")}</strong></span>
+      {data.plannedCostINR!==undefined&&<span><small>PLAN / QTY</small><strong>₹{data.plannedCostINR.toLocaleString("en-IN")}</strong></span>}
+    </div>}
+    {data.branch&&<em className={"single-component-route-branch "+(data.branch==="Alternate route"?"is-alternate":data.branch==="Rework route"?"is-rework":"")}>{data.branch}{data.subComponent?" · "+data.subComponent:""}</em>}
   </article>;
 }
 const SINGLE_COMPONENT_NODE_TYPES = {singleComponentRoute:SingleComponentRouteNode} satisfies NodeTypes;
@@ -62,7 +70,7 @@ function buildDemoGraph():{nodes:DemoFlowNode[];edges:DemoFlowEdge[]} {
   const rawNodes = demo.nodes as Array<DemoNodeData & {id:string;x:number;y:number}>;
   const nodes:DemoFlowNode[] = rawNodes.map(row=>({
     id:row.id,type:"singleComponentRoute",position:{x:row.x,y:row.y},
-    data:{label:row.label,code:row.code,kind:row.kind,detail:row.detail,accent:row.accent,vehicleType:row.vehicleType,processName:row.processName,category:row.category},
+    data:{label:row.label,code:row.code,kind:row.kind,detail:row.detail,accent:row.accent,vehicleType:row.vehicleType,processName:row.processName,category:row.category,ratePerPartINR:row.ratePerPartINR,plannedCostINR:row.plannedCostINR,quantity:row.quantity,branch:row.branch,subComponent:row.subComponent},
     draggable:false,selectable:false,focusable:false,style:{width:230}
   }));
   const centers = new Map(rawNodes.map(row=>[row.id,{x:row.x+115,y:row.y+58}]));
@@ -93,9 +101,9 @@ export function SingleComponentRouteGraphDemo() {
   const routeTypes=["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"];
   return <section className="single-component-route-demo" aria-label="One component complete manufacturing route map">
     <header className="single-component-route-demo-head">
-      <div><span className="transport-demo-kicker"><GitBranch size={13}/> SINGLE COMPONENT · COMPLETE RELATIONSHIP MAP</span>
-        <h3>{demo.component.partNumber} · {demo.component.name}</h3>
-        <p>{demo.component.material} · {demo.component.quantity} {demo.component.quantityUnit} · all route types shown together in one connected example</p>
+      <div><span className="transport-demo-kicker"><GitBranch size={13}/> ONE COMPANY · ONE PO · ONE COMPONENT</span>
+        <h3>{demo.company.name} · {demo.component.partNumber} · {demo.component.name}</h3>
+        <p>{demo.purchaseOrder.number} · {demo.component.material} · {demo.component.quantity} {demo.component.quantityUnit}</p>
       </div>
       <span className="module-number">DEMO ONLY · {routeTypes.length} ROUTE TYPES</span>
     </header>
@@ -107,8 +115,8 @@ export function SingleComponentRouteGraphDemo() {
         ariaLabel="Complete single-component process, material and transport route graph"/>
     </div>
     <div className="single-component-route-demo-caption">
-      <span>Every arrow is directional and labelled. All eleven relationship types, material movement and vehicle transport appear in the same component route.</span>
-      <small>{demo.nodes.length} nodes · {demo.edges.length} links · sample data only · no live records modified</small>
+      <span>All route relationships, 15+ manufacturing process categories, BOM materials and transport legs are scoped to the same company, PO line and component.</span>
+      <small>{demo.nodes.length} nodes · {demo.edges.length} links · {demo.operations.length} rated operations · ₹{demo.component.processCostINR.toLocaleString("en-IN")} base process plan · synthetic only</small>
     </div>
   </section>;
 }

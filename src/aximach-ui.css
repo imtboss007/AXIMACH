@@ -7002,3 +7002,62 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .route-flow-vehicle-chip.vehicle-trailer,.route-flow-vehicle-marker.vehicle-trailer,.ax-full3d-transport-icon.vehicle-trailer,.ax-transport-icon-trigger.vehicle-trailer,.ax-full3d-transport-leg-label.vehicle-trailer{color:#8e4c2e!important;background:#fff1e8!important;border-color:#dfad91!important}
 .route-flow-vehicle-chip.vehicle-van,.route-flow-vehicle-marker.vehicle-van,.ax-full3d-transport-icon.vehicle-van,.ax-transport-icon-trigger.vehicle-van,.ax-full3d-transport-leg-label.vehicle-van{color:#247b58!important;background:#e9f8f0!important;border-color:#91cfad!important}
 .ax-transport-inspector.vehicle-three-wheeler{--ax-vehicle:#16a6a0}.ax-transport-inspector.vehicle-tempo{--ax-vehicle:#a17a35}.ax-transport-inspector.vehicle-heavy-tempo{--ax-vehicle:#c94d75}.ax-transport-inspector.vehicle-mini-truck{--ax-vehicle:#c17a2c}.ax-transport-inspector.vehicle-pickup{--ax-vehicle:#4a8bbd}.ax-transport-inspector.vehicle-lorry{--ax-vehicle:#d45e52}.ax-transport-inspector.vehicle-heavy-lorry{--ax-vehicle:#923f60}.ax-transport-inspector.vehicle-heavy-truck{--ax-vehicle:#ba4d3f}.ax-transport-inspector.vehicle-container{--ax-vehicle:#7b8ba5}.ax-transport-inspector.vehicle-trailer{--ax-vehicle:#c46a42}.ax-transport-inspector.vehicle-van{--ax-vehicle:#299a70}
+
+
+/* Unified one-company / one-component route and process-rate visual. */
+.single-component-route-node{min-height:142px!important}
+.single-component-route-node-cost{display:flex;gap:7px;margin-top:5px;padding-top:5px;border-top:1px solid #e0eaf2}
+.single-component-route-node-cost>span{display:grid;gap:1px;min-width:0}
+.single-component-route-node-cost small{font-size:6px!important;font-weight:800;letter-spacing:.08em;color:#73879a!important}
+.single-component-route-node-cost strong{font:800 9px 'DM Mono',monospace;color:#1b526d}
+.single-component-route-branch{display:block;margin-top:5px;padding:3px 5px;border-radius:4px;background:#edf4f8;color:#546f86;font-size:7px;font-style:normal;font-weight:700}
+.single-component-route-branch.is-alternate{background:#e8f2fc;color:#276ca7}
+.single-component-route-branch.is-rework{background:#fff0ea;color:#ae573c}
+.transport-demo-branch-lanes{display:grid;gap:9px;min-width:0}
+.transport-demo-branch-lanes>.transport-demo-lane{display:grid;gap:8px;min-width:0;padding:10px;border:1px solid #dbe7f0;border-left:3px solid #3c8db7;border-radius:9px;background:#f8fbfd}
+.transport-demo-branch-lanes>.transport-demo-lane.transport-demo-alternate{border-left-color:#4b95eb}
+.transport-demo-branch-lanes>.transport-demo-lane.transport-demo-rework{border-left-color:#d46a55}
+.transport-demo-branch-lanes>.transport-demo-lane.is-disabled{opacity:.72;background:#f3f6f8}
+.transport-demo-branch-lanes .transport-demo-lane-title strong{color:#294962;font-size:10px}
+.transport-demo-branch-lanes .transport-demo-lane-title small{color:#6d8295;font-size:8px}
+.transport-demo-branch-lanes .transport-demo-track{display:flex;align-items:stretch;gap:7px;flex-wrap:wrap;overflow-x:auto}
+.transport-demo-branch-lanes .transport-demo-operation{display:grid;gap:4px;min-width:164px;max-width:250px;padding:9px;border:1px solid #d3e1ec;border-radius:8px;background:#fff;box-shadow:0 2px 8px #173b5710}
+.transport-demo-branch-lanes .transport-demo-operation small{font-size:7px;font-weight:800;color:#3c7ea7}
+.transport-demo-branch-lanes .transport-demo-operation strong{font-size:10px;line-height:1.3;color:#203d56}
+.transport-demo-branch-lanes .transport-demo-operation span{font-size:8px;line-height:1.4;color:#6e8295}
+.transport-demo-branch-lanes .transport-demo-operation.is-current{border:2px solid #18a68d;box-shadow:0 0 0 3px #18a68d22}
+.transport-demo-rate-panel{display:grid;gap:9px;padding:12px;border:1px solid #d8e5ef;border-radius:10px;background:linear-gradient(140deg,#f9fcff,#eef5fa)}
+.transport-demo-rate-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.transport-demo-rate-heading>div:first-child>span{font:800 7px 'DM Mono',monospace;letter-spacing:.1em;color:#6a8297}
+.transport-demo-rate-heading h4{margin:4px 0;color:#1d3e59;font-size:13px}
+.transport-demo-rate-heading p{margin:0;color:#6b8297;font-size:9px}
+.transport-demo-rate-total{display:grid;gap:3px;padding:8px 11px;border:1px solid #cbdfe9;border-radius:8px;background:#fff}
+.transport-demo-rate-total small{font:800 7px 'DM Mono',monospace;color:#698195}
+.transport-demo-rate-total strong{font:800 15px 'DM Mono',monospace;color:#176e74}
+.transport-demo-rate-chart-scroll{overflow-x:auto;border:1px solid #dbe7ef;border-radius:8px;background:#fff}
+.transport-demo-rate-chart{display:block;width:100%;min-width:680px;height:auto}
+.transport-demo-rate-legend{display:flex;gap:12px;flex-wrap:wrap;color:#587188;font-size:8px}
+.transport-demo-rate-legend span{display:flex;align-items:center;gap:5px}
+.transport-demo-rate-legend i{width:8px;height:8px;border-radius:50%;background:#168d88}
+.transport-demo-rate-legend i.is-alt{background:#3f84ca}
+.transport-demo-rate-legend i.is-rework{background:#d46a55}
+.transport-demo-operation-cost-table{display:grid;min-width:720px;overflow-x:auto;border:1px solid #dbe6ef;border-radius:8px;background:#fff}
+.transport-demo-cost-table-head,.transport-demo-cost-table-row{display:grid;grid-template-columns:minmax(230px,2.2fr) minmax(150px,1.4fr) 52px 95px 110px;gap:8px;align-items:center;padding:7px 9px}
+.transport-demo-cost-table-head{background:#eaf2f7;color:#60788d;font:800 7px 'DM Mono',monospace;letter-spacing:.06em}
+.transport-demo-cost-table-row{border-top:1px solid #e8eef3;color:#29475f;font-size:8px}
+.transport-demo-cost-table-row>span:first-child{display:grid;gap:2px}
+.transport-demo-cost-table-row small{font-size:7px;color:#7a8da0}
+.transport-demo-cost-table-row b{margin-right:5px;color:#247b8a}
+.transport-demo-cost-table-row strong{font:800 9px 'DM Mono',monospace;color:#254c66}
+.transport-demo-cost-table-row.is-alternate{background:#f3f8fe}
+.transport-demo-cost-table-row.is-rework{background:#fff7f3}
+.transport-demo-optional-costs{display:flex;gap:10px;flex-wrap:wrap;padding:8px 10px;border:1px solid #dbe6ef;border-radius:8px;background:#f5f9fc;color:#5a7388;font-size:8px}
+.transport-demo-optional-costs b{color:#1e566f}
+@media(max-width:700px){
+ .transport-demo-rate-panel{padding:8px}
+ .transport-demo-rate-chart{min-width:900px}
+ .transport-demo-branch-lanes .transport-demo-track{flex-direction:column;align-items:stretch}
+ .transport-demo-branch-lanes .transport-demo-step-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:5px}
+ .transport-demo-branch-lanes .transport-demo-operation{max-width:none;width:100%}
+ .transport-demo-cost-table-head,.transport-demo-cost-table-row{grid-template-columns:minmax(180px,2fr) minmax(125px,1.3fr) 42px 85px 100px}
+}
