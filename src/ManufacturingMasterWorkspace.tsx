@@ -246,8 +246,12 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const beginAdd = () => {
     resetForms();
     if (moduleId === "companies") {
-      if (tab === "factories") { setFactoryDraft({ ...blankFactory(), companyId: selectedCompanyId || companies[0]?.id || "" }); }
-      if (tab === "machines") { const companyId=selectedCompanyId || companies[0]?.id || ""; setMachineDraft({...blankMachine(),companyId,factoryId:factories.find(factory=>factory.companyId===companyId)?.id||""}); }
+      const companyId=selectedCompanyId || companies[0]?.id || "";
+      const factoryId=factories.find(factory=>factory.companyId===companyId)?.id||"";
+      if (tab === "factories") setFactoryDraft({ ...blankFactory(), companyId });
+      if (tab === "machines") setMachineDraft({...blankMachine(),companyId,factoryId});
+      if (tab === "tooling") setToolingDraft({...blankTooling(),companyId,factoryId});
+      if (tab === "fixtures") setFixtureDraft({...blankFixture(),companyId,factoryId});
     }
     if (moduleId === "purchasing") setPoLines([{ ...blankLine(), id: makeId("line") }]);
     setShowForm(true);
@@ -356,12 +360,15 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     const resource=resourceEventDraft.resourceType==="tooling"?toolingAssets.find(row=>row.id===resourceEventDraft.resourceId):fixtureAssets.find(row=>row.id===resourceEventDraft.resourceId);
     if(!resource){onNotice("Select a registered tooling or fixture asset first.");return;}
     const operation=resourceEventDraft.operationId?data.operations.find(row=>row.id===resourceEventDraft.operationId&&!row.deletedAt):undefined;
-    if(resourceEventDraft.operationId&&(!operation||operation.companyId===undefined&&(!orders.some(po=>po.id===operation.poId&&po.companyId===resource.companyId&&po.factoryId===resource.factoryId))||
+    if(resourceEventDraft.operationId&&(!operation||
+       !orders.some(po=>po.id===operation.poId&&po.companyId===resource.companyId&&po.factoryId===resource.factoryId)||
        !(resourceEventDraft.resourceType==="tooling"?(operation.toolingAssetIds||[]).includes(resource.id):(operation.fixtureAssetIds||[]).includes(resource.id)))){
       onNotice("Select an operation that is already linked to this exact asset and factory.");return;
     }
     if(resourceEventDraft.eventType==="Regrind"&&resourceEventDraft.resourceType!=="tooling"){onNotice("Regrind events apply only to cutting tools and tooling assets.");return;}
-    const stamp=toIso(resourceEventDraft.occurredAt);
+    const parsedOccurredAt=new Date(resourceEventDraft.occurredAt);
+    if(!Number.isFinite(parsedOccurredAt.getTime())){onNotice("Enter a valid resource usage date and time.");return;}
+    const stamp=parsedOccurredAt.toISOString();
     const event:ResourceUsageEventRecord={id:makeId("resource-usage"),companyId:resource.companyId,factoryId:resource.factoryId,
       resourceType:resourceEventDraft.resourceType,resourceId:resource.id,operationId:operation?.id,
       eventType:resourceEventDraft.eventType,runtimeMinutes:Math.max(0,Number(resourceEventDraft.runtimeMinutes)||0),cycles:Math.max(0,Number(resourceEventDraft.cycles)||0),
@@ -459,12 +466,18 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     sheet.getRow(1).font={bold:true,color:{argb:"FFFFFFFF"}};sheet.getRow(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF17324D"}};sheet.views=[{state:"frozen",ySplit:1}];
     const bytes=await workbook.xlsx.writeBuffer();const blob=new Blob([new Uint8Array(bytes).buffer as ArrayBuffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="AXIMACH-Purchase-Orders.xlsx";a.click();URL.revokeObjectURL(url);onNotice("Exported "+rows.length+" purchase order(s) to Excel.");
   };
-  const archive = (collection: "companies" | "factories" | "machines" | "components" | "purchaseOrders", id: string) => {
-    if(collection==="companies"&&machines.some(machine=>machine.companyId===id)){
+  const archive = (collection: "companies" | "factories" | "machines" | "toolingAssets" | "fixtureAssets" | "components" | "purchaseOrders", id: string) => {
+    if(collection==="companies"&&(machines.some(machine=>machine.companyId===id)||toolingAssets.some(asset=>asset.companyId===id)||fixtureAssets.some(asset=>asset.companyId===id)){
       onNotice("Archive or reassign this company's machine assets before archiving the company. Machine ownership and production history must remain traceable.");return;
     }
-    if(collection==="factories"&&machines.some(machine=>machine.factoryId===id)){
+    if(collection==="factories"&&(machines.some(machine=>machine.factoryId===id)||toolingAssets.some(asset=>asset.factoryId===id)||fixtureAssets.some(asset=>asset.factoryId===id)){
       onNotice("Archive or reassign the machine assets in this factory before archiving the factory.");return;
+    }
+    if(collection==="toolingAssets"&&data.operations.some(operation=>!operation.deletedAt&&(operation.toolingAssetIds||[]).includes(id))){
+      onNotice("This tooling asset is assigned to active operations. Remove its assignments before archiving it.");return;
+    }
+    if(collection==="fixtureAssets"&&data.operations.some(operation=>!operation.deletedAt&&(operation.fixtureAssetIds||[]).includes(id))){
+      onNotice("This fixture asset is assigned to active operations. Remove its assignments before archiving it.");return;
     }
     if(collection==="machines"&&data.operations.some(operation=>!operation.deletedAt&&operation.machineId===id)){
       onNotice("This machine is referenced by active production operations. Reassign those operations before archiving the machine.");return;
@@ -484,9 +497,9 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     onNotice("Record archived. Linked historical records remain intact.");
   };
 
-  const header = moduleId === "companies" ? tab === "machines" ? "Machine & Equipment Register" : "Company Directory" : moduleId === "purchasing" ? "Purchase Orders" : "Component Master";
+  const header = moduleId === "companies" ? tab === "machines" ? "Machine & Equipment Register" : tab === "tooling" ? "Tooling Register" : tab === "fixtures" ? "Fixtures & Workholding Register" : "Company Directory" : moduleId === "purchasing" ? "Purchase Orders" : "Component Master";
   const description = moduleId === "companies"
-    ? tab === "machines" ? "Register owned machines by company and factory, record technical limits and map supported Process Directory operations." : "Maintain company name, GST, contact person, email and address; records link by stable IDs."
+    ? tab === "machines" ? "Register owned machines by company and factory, record technical limits and map supported Process Directory operations." : tab === "tooling" ? "Register cutting tools, holders and tooling assets; track tool life, regrinds, inspections, machine/process compatibility and auditable use." : tab === "fixtures" ? "Register jigs, fixtures and workholding; track machine/component compatibility, usage cycles, setup information and inspections." : "Maintain company name, GST, contact person, email and address; records link by stable IDs."
     : moduleId === "purchasing"
       ? "Create each PO once and add multiple component lines; every line stores component ID, quantity and target delivery."
       : "Create each part number once with drawing revision/reference and a master price per piece or set; reuse the linked record in every order and route.";
