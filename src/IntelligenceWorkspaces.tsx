@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from "react";
 import { getServerAuthHeaders, getServerAuthMode, readServerSession } from "./serverAuth";
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, ClipboardList, Download, FileDown, FileUp, RefreshCw, RotateCcw, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, ClipboardList, Download, FileDown, FileUp, GitBranch, RefreshCw, RotateCcw, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
 
 import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord, type ContactProfileRecord, type ProcessDefinitionRecord, type PlannedCostEntry, type VendorTransportRoute, type ManufacturingData, type PurchaseOrderRecord, type PurchaseOrderLine, type OperationRecord } from "./manufacturingData";
 import { reconcilePurchaseOrderCosts } from "./costReconciliation.mjs";
@@ -414,7 +414,7 @@ function addAmadaDemoScenario(current:ManufacturingData):{data:ManufacturingData
  return {data:next,counts};
 }
 
-export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
+export function ImportCentreWorkspace({onBack,onNotice,notice,onSelectModule}:Props){
  const {data,update}=useManufacturingData();const [type,setType]=useState<"companies"|"components"|"vendors"|"contact360"|"process-master"|"planned-cost"|"backup">("companies");
  const [fileName,setFileName]=useState("");const [source,setSource]=useState("");const [error,setError]=useState("");const [preview,setPreview]=useState<Record<string,string>[]>([]);
  const parsed=useMemo(()=>source&&type!=="backup"?parseCsv(source):{headers:[],rows:[]},[source,type]);
