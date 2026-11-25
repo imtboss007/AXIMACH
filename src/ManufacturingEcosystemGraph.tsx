@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Activity, Boxes, Building2, ClipboardCheck, FileDown, Factory, Network, Search, Truck, UserRound, Wallet, Workflow, X } from "lucide-react";
+import { Activity, Boxes, Building2, ClipboardCheck, Cog, FileDown, Factory, Network, Search, Truck, UserRound, Wallet, Workflow, X } from "lucide-react";
 import { Handle, MarkerType, Position } from "@xyflow/react";
 import type { Connection, Edge, Node, NodeProps, NodeTypes, OnNodesChange } from "@xyflow/react";
 import "@xyflow/react/style.css";
@@ -10,10 +10,10 @@ import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
 import { resolveProcessColor } from "./processPalette";
 
-type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
+type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; subtab?:string };
 type GraphScope = {companyId?:string;poId?:string;poLineId?:string;componentId?:string};
 type Props = { data:ManufacturingData; scope?:GraphScope; onNavigate:(moduleId:string,context?:Context)=>void; onConnect?:(connection:Connection,relationshipType:string)=>void };
-type NodeKind = "company"|"customer"|"factory"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
+type NodeKind = "company"|"customer"|"factory"|"machine"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
 type GraphNode = { id:string; label:string; detail:string; kind:NodeKind; moduleId:string; context:Context; x:number; y:number };
 type GraphEdge = { id:string; from:string; to:string; kind:string };
 type EcosystemEntityNodeData = { label:string; detail:string; group:string; accent:string; kind:NodeKind };
@@ -41,7 +41,7 @@ const edgeColor = (kind:string) => {
   if (/^split$|^follow-on$/.test(kind)) return "#3d79df";
   if (/^feedback$|^conditional$/.test(kind)) return "#9954ce";
   if (/^transport$/.test(kind)) return "#397ea4";
-  if (/orders|placed by|makes|performed by|defined by/.test(kind)) return "var(--ax-theme-graph-2,#168d89)";
+  if (/orders|placed by|makes|performed by|defined by|runs on/.test(kind)) return "var(--ax-theme-graph-2,#168d89)";
   if (/capable vendor|supplied by|procured for|allocated to/.test(kind)) return "var(--ax-theme-graph-3,#b17a27)";
   if (/feeds operation/.test(kind)) return "var(--ax-theme-graph-4,#8b68c5)";
   if (/inspects/.test(kind)) return "var(--ax-theme-graph-5,#b95665)";
@@ -54,6 +54,7 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
   {kind:"company",title:"Companies",moduleId:"companies",color:"var(--ax-theme-graph-1,#2875bd)"},
   {kind:"customer",title:"Customers",moduleId:"customers",color:"var(--ax-theme-graph-2,#2f9b82)"},
   {kind:"factory",title:"Factories",moduleId:"companies",color:"var(--ax-theme-graph-1,#4b8cbd)"},
+  {kind:"machine",title:"Machines & equipment",moduleId:"companies",color:"var(--ax-theme-graph-2,#357a9b)"},
   {kind:"order",title:"Purchase orders",moduleId:"purchasing",color:"var(--ax-theme-graph-4,#8b68c5)"},
   {kind:"component",title:"Components",moduleId:"components",color:"var(--ax-theme-graph-2,#168d89)"},
   {kind:"vendor",title:"Vendors",moduleId:"vendors",color:"var(--ax-theme-graph-3,#c07a2b)"},
@@ -73,7 +74,7 @@ function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {
     <Handle id="target-bottom" type="target" position={Position.Bottom} isConnectable={connectable}/>
     <Handle id="target-left" type="target" position={Position.Left} isConnectable={connectable}/>
     <Handle id="target-right" type="target" position={Position.Right} isConnectable={connectable}/>
-    <span className="ax-ecosystem-node-heading">{data.kind==="transport"?<Truck size={13}/>:data.kind==="operation"||data.kind==="process"?<Workflow size={13}/>:data.kind==="material"||data.kind==="component"?<Boxes size={13}/>:data.kind==="quality"?<ClipboardCheck size={13}/>:data.kind==="finance"?<Wallet size={13}/>:data.kind==="company"?<Building2 size={13}/>:data.kind==="factory"?<Factory size={13}/>:data.kind==="customer"||data.kind==="contact"?<UserRound size={13}/>:<Network size={13}/>}<b>{data.group}</b></span>
+    <span className="ax-ecosystem-node-heading">{data.kind==="transport"?<Truck size={13}/>:data.kind==="operation"||data.kind==="process"?<Workflow size={13}/>:data.kind==="material"||data.kind==="component"?<Boxes size={13}/>:data.kind==="quality"?<ClipboardCheck size={13}/>:data.kind==="finance"?<Wallet size={13}/>:data.kind==="company"?<Building2 size={13}/>:data.kind==="factory"?<Factory size={13}/>:data.kind==="machine"?<Cog size={13}/>:data.kind==="customer"||data.kind==="contact"?<UserRound size={13}/>:<Network size={13}/>}<b>{data.group}</b></span>
     <strong title={data.label}>{data.label}</strong>
     <small title={data.detail}>{data.detail}</small>
     <Handle id="source-top" type="source" position={Position.Top} isConnectable={connectable}/>
@@ -141,7 +142,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
   useEffect(()=>{
     try {
       window.localStorage.setItem(GRAPH_PREFERENCES_KEY,JSON.stringify({
-        version:3,
+        version:4,
         visibleKinds:graphPreferences.visibleKinds,
         visibleLimits:graphPreferences.visibleLimits
       }));
@@ -149,7 +150,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
   },[graphPreferences]);
   const resetGraphPreferences=()=>{
     setGraphPreferences({
-      version:3,
+      version:4,
       visibleKinds:[...VALID_GROUP_KINDS],
       visibleLimits:{...INITIAL_VISIBLE_LIMITS}
     });
@@ -203,6 +204,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     const companies=activeRows(data.companies||[]).filter(row=>!scoped||scopedCompanyIds.has(row.id));
     const customers=activeRows(data.customers||[]).filter(row=>!scoped||(row.ownerCompanyId&&scopedCompanyIds.has(row.ownerCompanyId)));
     const factories=activeRows(data.factories||[]).filter(row=>!scoped||scopedCompanyIds.has(row.companyId));
+    const machines=activeRows(data.machines||[]).filter(row=>!scoped||scopedCompanyIds.has(row.companyId));
     const components=activeRows(data.components||[]).filter(row=>!scoped||scopedComponentIds.has(row.id));
     const operations=activeRows(data.operations||[]).filter(matchesLine);
     const allocations=activeRows(data.materialCostEntries||[]).filter(matchesLine);
@@ -221,7 +223,8 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     ]);
     const vendors=activeRows(data.vendors||[]).filter(row=>!scoped||vendorIds.has(row.id));
     const processIds=new Set(operations.map(row=>row.processDefinitionId).filter((id):id is string=>Boolean(id)));
-    const definitions=activeRows(data.processDefinitions||[]).filter(row=>!scoped||processIds.has(row.id)||row.vendorIds.some(id=>vendorIds.has(id)));
+    const machineProcessIds=new Set(machines.flatMap(machine=>machine.processDefinitionIds||[]));
+    const definitions=activeRows(data.processDefinitions||[]).filter(row=>!scoped||processIds.has(row.id)||machineProcessIds.has(row.id)||row.vendorIds.some(id=>vendorIds.has(id)));
     const contactIds=new Set<string>([...scopedCompanyIds,...vendorIds]);
     const contacts=activeRows(data.contactProfiles||[]).filter(row=>!scoped||contactIds.has(row.linkedId));
     const edgeKeys=new Set<string>();
@@ -239,6 +242,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
       edge(id,"company:"+row.ownerCompanyId,"belongs to");
     });
     factories.forEach(row=>{add("factory:"+row.id,row.name,"Factory · "+(row.address||"Address not recorded"),"factory","companies",{companyId:row.companyId});edge("factory:"+row.id,"company:"+row.companyId,"owns");});
+    machines.forEach(row=>{add("machine:"+row.id,row.assetCode+" · "+row.name,"Machine · "+row.machineType+" · "+row.status+(row.model?" · "+row.model:""),"machine","companies",{companyId:row.companyId,subtab:"machines"});edge("machine:"+row.id,"factory:"+row.factoryId,"installed at");(row.processDefinitionIds||[]).forEach(id=>edge("machine:"+row.id,"process:"+id,"supports process"));});
     orders.forEach(row=>{add("order:"+row.id,row.number,"Purchase order · "+row.status,"order","purchasing",{companyId:row.companyId,poId:row.id});edge("order:"+row.id,"company:"+row.companyId,"placed by");row.lines.filter(line=>!line.deletedAt).forEach(line=>edge("order:"+row.id,"component:"+line.componentId,"orders"));});
     components.forEach(row=>add("component:"+row.id,row.partNumber||row.name,"Component · "+row.name+" · Rev "+(row.revision||"—"),"component","components",{companyId:row.companyId}));
     vendors.forEach(row=>add("vendor:"+row.id,row.company,"Vendor · "+(row.vendorType||row.role||"Supplier"),"vendor","vendors"));
@@ -250,6 +254,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
       edge("operation:"+row.id,"component:"+row.componentId,"makes");
       edge("operation:"+row.id,"vendor:"+row.vendorId,"performed by");
       edge("operation:"+row.id,"process:"+row.processDefinitionId,"defined by");
+      if(row.machineId)edge("operation:"+row.id,"machine:"+row.machineId,"runs on");
     });
     // Preserve the PO-line route model: branch sequence, branch origin and every
     // enabled saved relationship type are visible on this same graph.
@@ -337,7 +342,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     const visibleIds=new Set(visibleNodes.map(node=>node.id));
     const visibleEdges=filteredEdges.filter(item=>visibleIds.has(item.from)&&visibleIds.has(item.to));
     const availableCounts:Record<NodeKind,number>={
-      company:companies.length,customer:customers.length,factory:factories.length,order:orders.length,component:components.length,
+      company:companies.length,customer:customers.length,factory:factories.length,machine:machines.length,order:orders.length,component:components.length,
       vendor:vendors.length,process:definitions.length,operation:operations.length,material:allocations.length+materialProcessLinks.length,
       quality:inspections.length,transport:legs.length+inboundMaterialTransportCount,finance:payments.length,contact:contacts.length
     };
