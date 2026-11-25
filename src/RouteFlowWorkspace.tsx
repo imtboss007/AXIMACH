@@ -20,6 +20,7 @@ import { useWorkspaceTheme } from "./workspaceTheme";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
 import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
+import { connectManufacturingGraphNodes } from "./manufacturingGraphConnections";
 import { Activity, ArrowLeft, ArrowRight, Box, Check, ChevronDown, CircleDashed, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, GitMerge, GitPullRequest, Link2, MessageCircle, Network, Package, Plus, Route, Save, ShieldCheck, Sparkles, Split, Truck, Users, Waypoints, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
@@ -518,17 +519,14 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   // n8n-style drag-to-connect: only saved process-operation nodes may create
   // typed PO-line relationships. Materials and transport keep their own editors.
   const connectRouteNodes=(connection:Connection)=>{
-    const fromId=connection.source||"",toId=connection.target||"";
-    if(!poId||!poLineId){onNotice("Select a company, PO and component line before connecting route nodes.");return;}
-    if(!fromId||!toId||fromId===toId){onNotice("Connect two different process nodes.");return;}
-    const from=routeOperations.find(row=>row.id===fromId),to=routeOperations.find(row=>row.id===toId);
-    if(!from||!to){onNotice("Only process-operation nodes can be connected here. Use the material or transport editor for those stages.");return;}
-    const existing=relationships.find(row=>row.fromOperationId===fromId&&row.toOperationId===toId&&row.relationshipType===relationshipType&&row.status!=="Disabled");
-    if(existing){onNotice("That "+relationLabel(relationshipType).toLowerCase()+" connection already exists.");return;}
-    const stamp=nowIso();
-    const record:RouteRelationshipRecord={id:makeId("route-relationship"),poId,poLineId,componentId,fromOperationId:fromId,toOperationId:toId,relationshipType,status:relationshipStatus,condition:relationshipCondition.trim(),label:relationLabel(relationshipType),notes:"Created by dragging a connector in the Route Flow graph.",createdAt:stamp,updatedAt:stamp};
-    update(current=>({...current,routeRelationships:[...(current.routeRelationships||[]),record]}));
-    onNotice("Saved "+relationLabel(relationshipType)+" connection: "+from.name+" → "+to.name+".");
+    connectManufacturingGraphNodes({
+      data,
+      connection,
+      relationshipType,
+      scope:{companyId,poId,poLineId,componentId},
+      update,
+      onNotice
+    });
   };
   const disableRelationship=(record:RouteRelationshipRecord)=>{
     const stamp=nowIso();
