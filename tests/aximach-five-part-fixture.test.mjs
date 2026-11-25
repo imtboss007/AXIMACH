@@ -560,7 +560,7 @@ test("Alternate and rework routes use different arrow colours while process type
   assert.ok(workspace.includes('className={"process-route-flow-arrow is-transport "+'));
   assert.ok(workspace.includes("const processColor=processAccent(operation)"));
   assert.ok(workspace.includes("displayColor: draft.processColor"));
-  assert.ok(universe.includes("processDefinition?.displayColor || operation.processColor"));
+  assert.ok(universe.includes("resolveProcessColor({category:processDefinition?.category||operation.category"));
   assert.ok(css.includes(".process-universe-lane.is-branch.is-alternate .process-universe-connector"));
   assert.ok(css.includes(".process-universe-lane.is-branch.is-rework .process-universe-connector"));
   assert.ok(css.includes(".process-universe-branch-link.is-rework"));
@@ -1647,7 +1647,8 @@ test("expanded process record provides edit and linked custom colour controls wi
   assert.ok(workspace.includes("onChangeProcessColor={(id,color)=>updateOperation(id,{processColor:color})}"));
   assert.ok(scene.includes('if(operation.relationType==="rework")return [.9,.43,.12]'));
   assert.ok(scene.includes('if(operation.status==="Complete")return [.12,.64,.4]'));
-  assert.ok(scene.includes("return hexRgb(operation.processColor)"));
+  assert.ok(scene.includes("return hexRgb(resolveProcessColor({category:operation.category,processType:operation.name,processColor:operation.processColor}))"));
+  assert.ok(scene.includes('"--process-accent":resolveProcessColor({category:op.category,processType:op.name,processColor:op.processColor})'));
 });
 
 
