@@ -358,6 +358,10 @@ export function validateManufacturingWrite(currentData, incoming, user) {
    if(!order||order.machineId!==operation.machineId||order.deletedAt||!["Planned","In progress","Waiting parts"].includes(order.status))continue;
    const scheduled=timeRange(order.scheduledStart,order.scheduledEnd);
    if(scheduled&&overlaps(range,scheduled))return false;
+   if(["In progress","Waiting parts"].includes(order.status)&&!scheduled&&order.actualStart){
+    const start=Date.parse(order.actualStart);
+    if(Number.isFinite(start)&&range.end>start)return false;
+   }
   }
   for(const event of [...rows(currentData,"machineDowntime"),...rows(incoming,"machineDowntime")]){
    if(!event||event.machineId!==operation.machineId||event.deletedAt||!event.startedAt)continue;
@@ -367,8 +371,10 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   return true;
  };
  const maintenanceWorkOrderScheduleAllowed=order=>{
-  if(!["Planned","In progress","Waiting parts"].includes(order.status)||!order.scheduledStart||!order.scheduledEnd)return true;
-  const range=timeRange(order.scheduledStart,order.scheduledEnd);
+  if(!["Planned","In progress","Waiting parts"].includes(order.status))return true;
+  const range=timeRange(order.scheduledStart,order.scheduledEnd)||
+   (["In progress","Waiting parts"].includes(order.status)&&order.actualStart&&Number.isFinite(Date.parse(order.actualStart))?{start:Date.parse(order.actualStart),end:Number.POSITIVE_INFINITY}:null);
+  if(!order.scheduledStart&&!order.scheduledEnd&&!range)return true;
   if(!range)return false;
   for(const operation of [...rows(currentData,"operations"),...rows(incoming,"operations")]){
    if(!operation||operation.machineId!==order.machineId||operation.executionType==="Outsourced"||operation.deletedAt||["Complete","Rejected"].includes(operation.status))continue;
@@ -381,7 +387,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
    if(scheduled&&overlaps(range,scheduled))return false;
   }
   for(const event of [...rows(currentData,"machineDowntime"),...rows(incoming,"machineDowntime")]){
-   if(!event||event.machineId!==order.machineId||event.deletedAt||!event.startedAt)continue;
+   if(!event||event.machineId!==order.machineId||event.workOrderId===order.id||event.deletedAt||!event.startedAt)continue;
    const start=Date.parse(event.startedAt),end=event.endedAt?Date.parse(event.endedAt):Number.POSITIVE_INFINITY;
    if(Number.isFinite(start)&&Number.isFinite(end)&&overlaps(range,{start,end}))return false;
   }
