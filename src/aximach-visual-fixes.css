@@ -939,3 +939,35 @@ body{background:#f1f5fa!important;color:#12263f!important}
   color:#b7c9d9!important;
   opacity:1!important;
 }
+
+
+.single-component-route-tools{
+  display:grid!important;
+  grid-template-columns:minmax(170px,250px) minmax(0,1fr)!important;
+  gap:12px!important;align-items:center!important;
+  padding:12px 14px!important;
+  border:1px solid var(--ax-ws-border,#c8d7e5)!important;
+  border-radius:12px!important;
+  background:var(--ax-ws-panel,#fff)!important;
+  color:var(--ax-ws-text,#17334d)!important;
+}
+.single-component-route-tools label{display:grid!important;gap:6px!important;font-size:11px!important;font-weight:800!important}
+.single-component-route-tools select{
+  width:100%!important;min-height:40px!important;
+  border:1px solid var(--ax-ws-border,#c8d7e5)!important;
+  border-radius:9px!important;padding:7px 10px!important;
+  background:var(--ax-ws-field,#f7faff)!important;color:var(--ax-ws-text,#17334d)!important;
+}
+.single-component-route-tools small{color:var(--ax-ws-muted,#50687f)!important;line-height:1.45!important}
+.single-component-route-demo-canvas .react-flow__handle{
+  width:10px!important;height:10px!important;
+  border:2px solid #fff!important;background:var(--route-accent,#2875bd)!important;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--route-accent,#2875bd) 35%,transparent)!important;
+}
+.single-component-route-demo-canvas .react-flow__edge-path{
+  stroke-width:3.4px!important;stroke-linecap:round!important;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.22));
+}
+@media(max-width:760px){
+  .single-component-route-tools{grid-template-columns:minmax(0,1fr)!important}
+}
