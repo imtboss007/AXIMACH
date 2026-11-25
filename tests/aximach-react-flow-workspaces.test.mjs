@@ -323,3 +323,16 @@ test("Route Flow supports n8n-style drag-to-connect and persists typed PO-line r
   assert.ok(route.includes("nodesDraggable\n          nodesConnectable\n          onConnect={connectRouteNodes}"),"The Route Flow canvas must enable node dragging and connector handles.");
   assert.ok(route.includes("Only process-operation nodes can be connected here"),"Material and transport records must keep their dedicated editors.");
 });
+
+
+test("Manufacturing Universe supports typed n8n-style operation connections without linking unrelated records",()=>{
+  const graph=source("src/ManufacturingEcosystemGraph.tsx");
+  const universe=source("src/ManufacturingUniverseWorkspace.tsx");
+  assert.ok(graph.includes('const connectable=data.kind==="operation"'),"Only operation nodes expose live connection handles.");
+  assert.ok(graph.includes("nodesConnectable")&&graph.includes("onConnect={connection=>onConnect?.(connection,relationshipType)}"),"The Universe graph forwards drag connections with the selected relationship type.");
+  assert.ok(graph.includes('aria-label="New operation connection type"'),"The relationship type is selectable.");
+  assert.ok(universe.includes("const connectUniverseOperations=(connection:Connection,relationshipType:string)=>{"),"The Universe workspace must persist graph connections.");
+  assert.ok(universe.includes("from.poId!==to.poId||from.poLineId!==to.poLineId||from.componentId!==to.componentId"),"Connections cannot cross PO component lines.");
+  assert.ok(universe.includes("routeRelationships:[...(current.routeRelationships||[]),record]"),"Connections are stored in the shared route relationship model.");
+  assert.ok(universe.includes("onConnect={connectUniverseOperations}"),"The Universe graph is wired to the shared data update.");
+});
