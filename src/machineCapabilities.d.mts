@@ -15,3 +15,9 @@ export function validateMachineAssignment(
   machine:MachineCapabilityAsset|undefined,
   scope:MachineAssignmentScope
 ):{ok:boolean;reason:string};
+
+export function validateMachineSchedule(
+  candidate:Record<string,unknown>,
+  operations:Record<string,unknown>[],
+  editingId?:string
+):{ok:boolean;reason:string;conflictingOperationId?:string};
