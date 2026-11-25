@@ -215,3 +215,19 @@ test("resource usage events must reference a same-company asset and an operation
  assert.equal(validateManufacturingWrite(base,{resourceUsageEvents:[{...event,id:"bad-tool-event",resourceId:"tooling-b"}]},user).ok,false);
  assert.equal(validateManufacturingWrite(base,{resourceUsageEvents:[{...event,id:"wrong-operation-event",operationId:"missing"}]},user).ok,false);
 });
+
+test("tooling and fixture reservations require a valid operation schedule window",()=>{
+ const base={companies:[companyA],factories:[factoryA],machines:[machineA],processDefinitions:[processDefinition],components:[componentResource],purchaseOrders:[poResource],toolingAssets:[toolingA],fixtureAssets:[fixtureA],operations:[]};
+ const unscheduled={...operationResource,id:"unscheduled-resource"};
+ delete unscheduled.plannedStart;
+ delete unscheduled.plannedEnd;
+ assert.equal(validateManufacturingWrite(base,{operations:[unscheduled]},user).ok,false);
+ const invalidRange={...operationResource,id:"invalid-resource-window",plannedStart:"2026-11-26T11:00:00.000Z",plannedEnd:"2026-11-26T10:00:00.000Z"};
+ assert.equal(validateManufacturingWrite(base,{operations:[invalidRange]},user).ok,false);
+});
+test("recorded tool usage may exceed nominal life only when the tool is quarantined as Needs regrind",()=>{
+ const base={companies:[companyA],factories:[factoryA],machines:[machineA],processDefinitions:[processDefinition],components:[componentResource],toolingAssets:[toolingA],fixtureAssets:[]};
+ const overLimit={...toolingA,toolLifeUsedMinutes:110,toolLifeUsedCycles:1100,status:"Needs regrind"};
+ assert.equal(validateManufacturingWrite(base,{toolingAssets:[overLimit]},user).ok,true);
+ assert.equal(validateManufacturingWrite(base,{toolingAssets:[{...overLimit,status:"Available"}]},user).ok,false);
+});
