@@ -77,6 +77,8 @@ function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {
     <Handle id="source-bottom" type="source" position={Position.Bottom} isConnectable={false}/>
     <Handle id="source-left" type="source" position={Position.Left} isConnectable={false}/>
     <Handle id="source-right" type="source" position={Position.Right} isConnectable={false}/>
+    <Handle id="target-left-transport" type="target" position={Position.Left} style={{top:"84%"}} isConnectable={false}/>
+    <Handle id="source-right-transport" type="source" position={Position.Right} style={{top:"84%"}} isConnectable={false}/>
   </div>;
 }
 
