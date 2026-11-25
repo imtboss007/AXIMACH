@@ -3,6 +3,7 @@ import type { Connection } from "@xyflow/react";
 import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Plug, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord } from "./manufacturingData";
 import ProcessUniverse3D from "./ProcessUniverse3D";
+import { SingleComponentRouteGraphDemo } from "./SingleComponentRouteGraphDemo";
 import ManufacturingEcosystemGraph from "./ManufacturingEcosystemGraph";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
@@ -32,7 +33,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [editingOperation,setEditingOperation]=useState<OperationRecord|null>(null);
   const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
-  const [universeView,setUniverseView]=useState<"ecosystem"|"route">("ecosystem");
+  const [universeView,setUniverseView]=useState<"ecosystem"|"route"|"preview">("ecosystem");
   const [zoom,setZoom]=useState(()=>typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches?.78:1),[simulationIndex,setSimulationIndex]=useState(-1);
   const [simulationActive,setSimulationActive]=useState(false);
   const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
@@ -47,17 +48,24 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     const targetComponent=context.componentId?components.find(row=>row.id===context.componentId):undefined;
     const componentLines=context.componentId?orders.flatMap(po=>po.lines.filter(line=>!line.deletedAt&&line.componentId===context.componentId).map(line=>({po,line}))):[];
     const componentOnlyLine=componentLines.length===1?componentLines[0]:undefined;
+    const defaultPO=!context.poId&&!context.poLineId&&!context.operationId
+      ? componentOnlyLine?.po||orders.find(row=>
+          (!context.companyId||row.companyId===context.companyId)
+          &&row.lines.some(line=>!line.deletedAt)
+        )
+      : undefined;
     const targetPO=(context.poId?orders.find(row=>row.id===context.poId):undefined)
       || (context.poLineId?orders.find(row=>row.lines.some(line=>line.id===context.poLineId)):undefined)
       || (context.operationId?orders.find(row=>row.id===operations.find(op=>op.id===context.operationId)?.poId):undefined)
-      || (!context.poId&&!context.poLineId&&!context.operationId?componentOnlyLine?.po:undefined);
+      || defaultPO;
     if((context.poId||context.poLineId||context.operationId)&&!targetPO)return;
     if(context.componentId&&!targetComponent)return;
     const matchingComponentLines=targetPO&&context.componentId?targetPO.lines.filter(line=>!line.deletedAt&&line.componentId===context.componentId):[];
     const uniqueComponentLine=matchingComponentLines.length===1?matchingComponentLines[0]:undefined;
     const targetLine=targetPO?.lines.find(row=>row.id===context.poLineId)
       || (context.operationId?targetPO?.lines.find(row=>row.id===operations.find(op=>op.id===context.operationId)?.poLineId):undefined)
-      || uniqueComponentLine;
+      || uniqueComponentLine
+      || targetPO?.lines.find(row=>!row.deletedAt);
     setCompanyPick(targetPO?.companyId||context.companyId||targetComponent?.companyId||"");
     setPoPick(targetPO?.id||"");
     setLinePick(targetLine?.id||"");
@@ -262,8 +270,8 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     <section className="manufacturing-universe-customizer"><div className="manufacturing-universe-customizer-head"><div><span className="eyebrow">UNIVERSE DISPLAY CONTROLS</span><strong>Choose what appears in this live view</strong><small>These are view preferences only. They do not delete or change source records.</small></div><button className="button-quiet compact-button" onClick={()=>setShowUniverseSettings(value=>!value)}><Settings2 size={14}/>{showUniverseSettings?"Hide display settings":"Customize view"}</button></div>{showUniverseSettings&&<div className="manufacturing-universe-customizer-body"><div><strong>Live scene information</strong><div className="manufacturing-universe-toggle-grid">{universeFieldOptions.map(([id,label])=><label key={id}><input type="checkbox" checked={visibleUniverseFields.includes(id)} onChange={event=>setVisibleUniverseFields(current=>event.target.checked?[...current,id]:current.filter(value=>value!==id))}/><span>{label}</span></label>)}</div></div><div><strong>Connected module shortcuts</strong><div className="manufacturing-universe-toggle-grid">{linkModules.map(item=><label key={item.id}><input type="checkbox" checked={visibleUniverseModules.includes(item.id)} onChange={event=>setVisibleUniverseModules(current=>event.target.checked?[...current,item.id]:current.filter(value=>value!==item.id))}/><span>{item.title}</span></label>)}</div></div><div className="manufacturing-universe-customizer-actions"><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields(universeFieldOptions.map(([id])=>id));setVisibleUniverseModules(linkModules.map(item=>item.id));}}>Show all</button><button className="button-quiet compact-button" onClick={()=>{setVisibleUniverseFields([]);setVisibleUniverseModules([]);}}>Clear optional display items</button></div></div>}</section>
     <div className="manufacturing-universe-stat-grid">{stats.filter(item=>visibleUniverseModules.includes(item.module)).map(item=>{const Icon=item.icon;return <button key={item.label} onClick={()=>onNavigate(item.module,activeOperation)}><Icon size={16}/><strong>{item.value.toLocaleString("en-IN")}</strong><small>{item.label}</small></button>;})}</div>
     <section className="manufacturing-universe-live-panel">
-      <div className="manufacturing-universe-live-heading"><div><span className="eyebrow">LIVE MANUFACTURING SCENE · WEBGL</span><h2>Manufacturing process universe</h2><p>Sphere, cube, vortex, helix, orbit, network, grid, pipeline, layered, stacked, matrix and tree views use the selected live PO-line data.</p></div><div className="manufacturing-universe-live-tools"><div className="ax-ecosystem-view-toggle" role="group" aria-label="Manufacturing universe view"><button type="button" className={universeView==="ecosystem"?"is-active":""} aria-pressed={universeView==="ecosystem"} onClick={()=>setUniverseView("ecosystem")}><Network size={13}/> Manufacturing Graph</button><button type="button" className={universeView==="route"?"is-active":""} aria-pressed={universeView==="route"} onClick={()=>setUniverseView("route")}><GitBranch size={13}/> Animated 3D Route</button></div>{universeView==="route"&&<button className="button-primary compact-button" disabled={!poId||!poLineId||!componentId} onClick={()=>setShowAddOperation(value=>!value)}><Activity size={14}/> Add process stage</button>}<span className="manufacturing-universe-live-state"><i/> LIVE RECORDS</span></div></div>
-      {universeView==="ecosystem"?<ManufacturingEcosystemGraph data={data} scope={{companyId,poId,poLineId,componentId}} onNavigate={(moduleId,context)=>onSelectModule(moduleId,context)} onConnect={connectUniverseOperations}/>:<>{poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)?<ProcessUniverse3D
+      <div className="manufacturing-universe-live-heading"><div><span className="eyebrow">LIVE MANUFACTURING SCENE · WEBGL</span><h2>Manufacturing process universe</h2><p>Sphere, cube, vortex, helix, orbit, network, grid, pipeline, layered, stacked, matrix and tree views use the selected live PO-line data.</p></div><div className="manufacturing-universe-live-tools"><div className="ax-ecosystem-view-toggle" role="group" aria-label="Manufacturing universe view"><button type="button" className={universeView==="ecosystem"?"is-active":""} aria-pressed={universeView==="ecosystem"} onClick={()=>setUniverseView("ecosystem")}><Network size={13}/> Manufacturing Graph</button><button type="button" className={universeView==="preview"?"is-active":""} aria-pressed={universeView==="preview"} onClick={()=>setUniverseView("preview")}><Workflow size={13}/> One Component Preview</button><button type="button" className={universeView==="route"?"is-active":""} aria-pressed={universeView==="route"} onClick={()=>setUniverseView("route")}><GitBranch size={13}/> Animated 3D Route</button></div>{universeView==="route"&&<button className="button-primary compact-button" disabled={!poId||!poLineId||!componentId} onClick={()=>setShowAddOperation(value=>!value)}><Activity size={14}/> Add process stage</button>}<span className="manufacturing-universe-live-state"><i/> LIVE RECORDS</span></div></div>
+      {universeView==="ecosystem"?<ManufacturingEcosystemGraph data={data} scope={{companyId,poId,poLineId,componentId}} onNavigate={(moduleId,context)=>onSelectModule(moduleId,context)} onConnect={connectUniverseOperations}/>:universeView==="preview"?<SingleComponentRouteGraphDemo/>:<>{poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)?<ProcessUniverse3D
         onNotice={onNotice} key={poLineId}
         operations={routeOperations.filter(row=>row.relationType!=="subprocess")}
         allOperations={allRouteOperations}
