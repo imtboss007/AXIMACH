@@ -70,7 +70,7 @@ export type ResourceUsageEventKind = "Production use" | "Regrind" | "Inspection"
 export type ResourceUsageEventRecord = {
   id:string; companyId:string; factoryId:string; resourceType:"tooling"|"fixture"; resourceId:string;
   operationId?:string; eventType:ResourceUsageEventKind; runtimeMinutes:number; cycles:number;
-  inspectionResult?:"Pass"|"Fail"|"Not assessed"; occurredAt:string; notes:string;
+  inspectionResult?:"Pass"|"Fail"|"Not assessed"; inspectionDueAt?:string; occurredAt:string; notes:string;
   createdAt:string; updatedAt:string; deletedAt?:string;
 };
 export type MaintenancePlanFrequencyUnit = "Days" | "Weeks" | "Months";
