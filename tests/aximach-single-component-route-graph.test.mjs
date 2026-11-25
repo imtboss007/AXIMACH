@@ -86,3 +86,20 @@ test("transport and material sources resolve to one company / one PO / one compo
     assert.equal(row.poLineId,fixture.component.poLineId);
   }
 });
+
+
+test("single-company component preview is editable and supports n8n-style typed connections",()=>{
+  const graph=readFileSync(new URL("../src/SingleComponentRouteGraphDemo.tsx",import.meta.url),"utf8");
+  assert.ok(graph.includes("const [edges,setEdges]=useState(graph.edges)"));
+  assert.ok(graph.includes("const [relationshipType,setRelationshipType]=useState"));
+  assert.ok(graph.includes("const connectDemoNodes="));
+  assert.ok(graph.includes("nodesDraggable nodesConnectable elementsSelectable"));
+  assert.ok(graph.includes("onConnect={connectDemoNodes}"));
+  assert.ok(graph.includes("Drag from any material, process, quality, decision or transport connector"));
+  assert.equal(fixture.synthetic,true);
+  assert.equal(fixture.liveSeed,false);
+  assert.equal(new Set(fixture.operations.map(row=>row.companyId)).size,1);
+  assert.equal(new Set(fixture.operations.map(row=>row.poId)).size,1);
+  assert.equal(new Set(fixture.operations.map(row=>row.poLineId)).size,1);
+  assert.equal(new Set(fixture.operations.map(row=>row.componentId)).size,1);
+});
