@@ -55,7 +55,7 @@ test("machine schedule rejects overlapping active internal operations on the sam
 });
 test("machine schedule allows back-to-back time windows and different machines",()=>{
  assert.deepEqual(validateMachineSchedule({id:"op-new",machineId:"m1",executionType:"Internal",status:"Planned",plannedStart:"2026-11-26T11:00",plannedEnd:"2026-11-26T13:00"},schedule),{ok:true,reason:""});
- assert.deepEqual(validateMachineSchedule({id:"op-new",machineId:"m2",executionType:"Internal",status:"Planned",plannedStart:"2026-11-26T09:30",plannedEnd:"2026-11-26T10:30"},schedule),{ok:true,reason:""});
+ assert.deepEqual(validateMachineSchedule({id:"op-new",machineId:"m6",executionType:"Internal",status:"Planned",plannedStart:"2026-11-26T09:30",plannedEnd:"2026-11-26T10:30"},schedule),{ok:true,reason:""});
 });
 test("machine schedule excludes the edited operation and completed or outsourced work",()=>{
  const edited=schedule.map(row=>({...row}));
