@@ -63,7 +63,7 @@ export function validateMachineMaintenanceWindow(machineId,startValue,endValue,o
     if(!event||event.machineId!==machineId||event.deletedAt||!event.startedAt)continue;
     const start=Date.parse(event.startedAt);
     const end=event.endedAt?Date.parse(event.endedAt):Number.POSITIVE_INFINITY;
-    if(Number.isFinite(start)&&Number.isFinite(end)&&overlaps(candidate,{start,end}))return {ok:false,reason:"downtime-conflict",conflictingRecordId:event.id};
+    if(Number.isFinite(start)&&(!event.endedAt||Number.isFinite(end))&&overlaps(candidate,{start,end}))return {ok:false,reason:"downtime-conflict",conflictingRecordId:event.id};
   }
   return {ok:true,reason:""};
 }
@@ -90,7 +90,7 @@ export function validateMachineSchedule(candidate,operations=[],editingId="",mai
   for(const event of Array.isArray(downtimeRecords)?downtimeRecords:[]){
     if(!event||event.machineId!==candidate.machineId||event.deletedAt||!event.startedAt)continue;
     const start=Date.parse(event.startedAt),end=event.endedAt?Date.parse(event.endedAt):Number.POSITIVE_INFINITY;
-    if(Number.isFinite(start)&&Number.isFinite(end)&&overlaps(range,{start,end}))return {ok:false,reason:"machine-downtime-conflict",conflictingDowntimeId:event.id};
+    if(Number.isFinite(start)&&(!event.endedAt||Number.isFinite(end))&&overlaps(range,{start,end}))return {ok:false,reason:"machine-downtime-conflict",conflictingDowntimeId:event.id};
   }
   return {ok:true,reason:""};
 }
