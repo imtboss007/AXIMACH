@@ -42,7 +42,7 @@ function makeBrowserManufacturingFixture(){
     lines:[line],createdAt:stamp,updatedAt:stamp
   };
   const vendor={
-    id:vendorId,company:browserFixture.vendors[0].company,contact:"Synthetic fixture",
+    id:vendorId,company:"ASTER Internal Logistics · Synthetic Fixture",contact:"Synthetic fixture",
     role:"Browser acceptance fixture",phone:"",whatsappNumber:"",email:"",
     address:"Not a real supplier",processes:"All fixture manufacturing categories",
     processDefinitionIds:[],machines:"Fixture only",materials:"Fixture only",
@@ -745,7 +745,7 @@ try {
   // Select a real synthetic PO line with five or more operation labels, material and transport.
   const companyPicker = page.getByRole("combobox", { name: "Company" });
   await companyPicker.fill("ASTER Precision Works");
-  await page.getByRole("option", { name: /ASTER Precision Works/ }).click();
+  await page.getByRole("option", { name: /ASTER Precision Works Selected/ }).click();
   const poPicker = page.getByRole("combobox", { name: "Purchase order" });
   await poPicker.fill("ASTER-DEMO-PO-001");
   await page.getByRole("option", { name: /ASTER-DEMO-PO-001/ }).click();
