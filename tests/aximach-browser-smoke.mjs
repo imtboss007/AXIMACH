@@ -940,7 +940,7 @@ try {
   }
   console.log("PASS Manufacturing Universe React Flow canvas, viewport controls and minimap");
   if (await page.locator(".ax-ecosystem-filters button").count() !== 14) {
-    throw new Error("Manufacturing ecosystem graph does not expose all 14 entity filters.");
+    throw new Error("Manufacturing ecosystem graph does not expose all 16 entity filters.");
   }
   const sampleNote = await page.locator(".ax-ecosystem-sample-note").innerText();
   if (!sampleNote.includes("All records in visible groups are shown by default") ||
