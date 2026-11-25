@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ExcelJS from "exceljs";
-import { ArrowRight, Building2, CalendarClock, Check, CircleDollarSign, Cog, Edit3, Factory, FileDown, FileText, Package, Plus, Search, Trash2, X } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type FactoryRecord, type MachineRecord, type MachineStatus, type PurchaseOrderLine, type PurchaseOrderRecord } from "./manufacturingData";
+import { ArrowRight, Building2, CalendarClock, Check, CircleDollarSign, Cog, Edit3, Factory, FileDown, FileText, Package, Plus, Search, Trash2, Wrench, Gauge, ClipboardCheck, X } from "lucide-react";
+import { activeRows, makeId, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type FactoryRecord, type MachineRecord, type MachineStatus, type ToolingAssetRecord, type ToolingAssetStatus, type FixtureAssetRecord, type FixtureAssetStatus, type ResourceUsageEventRecord, type ResourceUsageEventKind, type PurchaseOrderLine, type PurchaseOrderRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon } from "./IconStudio";
@@ -9,6 +9,7 @@ import { MechanicalIconGlyph, MECHANICAL_ICON_INVENTORY } from "./MechanicalOper
 import { mechanicalComponentSvgForName } from "./MechanicalOperationIcon";
 import { removeComponentDependents, removePurchaseOrderDependents } from "./manufacturingDeletion.mjs";
 import MachineMaintenanceWorkspace from "./MachineMaintenanceWorkspace";
+import { applyResourceUsageEvent } from "./manufacturingResourceCompatibility.mjs";
 
 function componentLogoSource(component: Pick<ComponentRecord, "id" | "name" | "partNumber">): string {
   try {
@@ -55,6 +56,23 @@ const blankMachine = (): Omit<MachineRecord,"id"|"createdAt"|"updatedAt"|"delete
   processDefinitionIds:[],materialCapabilities:[],status:"Available",commissionedAt:"",nextMaintenanceAt:"",notes:""
 });
 const MACHINE_STATUSES:MachineStatus[]=["Available","Running","Planned maintenance","Under maintenance","Breakdown","Retired"];
+const blankTooling=():Omit<ToolingAssetRecord,"id"|"createdAt"|"updatedAt"|"deletedAt">=>({
+ companyId:"",factoryId:"",assetCode:"",name:"",toolType:"Cutting tool",manufacturer:"",model:"",specification:"",holderInterface:"",coating:"",
+ diameterMm:0,fluteCount:0,maxRpm:0,compatibleMachineIds:[],machineTypeCapabilities:[],processDefinitionIds:[],materialCapabilities:[],
+ toolLifeLimitMinutes:0,toolLifeUsedMinutes:0,toolLifeLimitCycles:0,toolLifeUsedCycles:0,regrindCount:0,maxRegrinds:0,lastInspectedAt:"",inspectionDueAt:"",
+ status:"Available",storageLocation:"",notes:""
+});
+const blankFixture=():Omit<FixtureAssetRecord,"id"|"createdAt"|"updatedAt"|"deletedAt">=>({
+ companyId:"",factoryId:"",assetCode:"",name:"",fixtureType:"Dedicated fixture",manufacturer:"",model:"",workholdingType:"",
+ compatibleMachineIds:[],machineTypeCapabilities:[],processDefinitionIds:[],componentIds:[],
+ maxWorkpieceWeightKg:0,maxClampForceKn:0,repeatabilityMicron:0,usageCycles:0,maxUsageCycles:0,
+ lastInspectedAt:"",inspectionDueAt:"",status:"Available",storageLocation:"",setupNotes:"",notes:""
+});
+const TOOLING_STATUSES:ToolingAssetStatus[]=["Available","In use","Needs regrind","Under maintenance","Retired"];
+const FIXTURE_STATUSES:FixtureAssetStatus[]=["Available","In use","Under maintenance","Retired"];
+const RESOURCE_EVENTS:ResourceUsageEventKind[]=["Production use","Regrind","Inspection","Repair","Replacement"];
+type ResourceEventDraft={resourceType:"tooling"|"fixture";resourceId:string;operationId:string;eventType:ResourceUsageEventKind;runtimeMinutes:number;cycles:number;inspectionResult:"Pass"|"Fail"|"Not assessed";inspectionDueAt:string;occurredAt:string;notes:string};
+const blankResourceEvent=(resourceType:"tooling"|"fixture"="tooling",resourceId=""):ResourceEventDraft=>({resourceType,resourceId,operationId:"",eventType:"Production use",runtimeMinutes:0,cycles:0,inspectionResult:"Not assessed",inspectionDueAt:"",occurredAt:new Date().toISOString().slice(0,16),notes:""});
 const blankComponent = (): Omit<ComponentRecord, "id" | "createdAt" | "updatedAt" | "deletedAt"> => ({
   companyId: "", partNumber: "", name: "", revision: "", drawingReference: "", notes: "",
   salePrice: 0, salePriceUnit: "piece",
@@ -71,6 +89,9 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const companies = activeRows(data.companies);
   const factories = activeRows(data.factories);
   const machines = activeRows(data.machines || []);
+  const toolingAssets=activeRows(data.toolingAssets||[]);
+  const fixtureAssets=activeRows(data.fixtureAssets||[]);
+  const resourceUsageEvents=activeRows(data.resourceUsageEvents||[]);
   const maintenancePlans = activeRows(data.maintenancePlans || []);
   const maintenanceWorkOrders = activeRows(data.maintenanceWorkOrders || []);
   const machineDowntime = activeRows(data.machineDowntime || []);
@@ -78,12 +99,18 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const components = activeRows(data.components);
   const componentParts = activeRows(data.componentParts || []);
   const orders = activeRows(data.purchaseOrders);
-  const [tab, setTab] = useState<"companies" | "factories" | "machines">("companies");
+  const [tab, setTab] = useState<"companies" | "factories" | "machines" | "tooling" | "fixtures">("companies");
   const [search, setSearch] = useState("");
   const [companyDraft, setCompanyDraft] = useState(blankCompany);
   const [factoryDraft, setFactoryDraft] = useState(blankFactory);
   const [machineDraft, setMachineDraft] = useState(blankMachine);
   const [machineEditingId, setMachineEditingId] = useState("");
+  const [toolingDraft,setToolingDraft]=useState(blankTooling);
+  const [toolingEditingId,setToolingEditingId]=useState("");
+  const [fixtureDraft,setFixtureDraft]=useState(blankFixture);
+  const [fixtureEditingId,setFixtureEditingId]=useState("");
+  const [resourceEventDraft,setResourceEventDraft]=useState(blankResourceEvent());
+  const [showResourceEventForm,setShowResourceEventForm]=useState(false);
   const [componentDraft, setComponentDraft] = useState(blankComponent);
   const [poDraft, setPoDraft] = useState(blankPO);
   const [poLines, setPoLines] = useState<Array<PurchaseOrderLine>>([]);
@@ -111,7 +138,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   useEffect(() => {
     if (moduleId === "companies") {
       const target=navigationContext?.companyId?companies.find(row=>row.id===navigationContext.companyId):undefined;
-      setTab(navigationContext?.subtab==="machines"?"machines":navigationContext?.subtab==="factories"?"factories":"companies");
+      setTab(navigationContext?.subtab==="machines"?"machines":navigationContext?.subtab==="factories"?"factories":navigationContext?.subtab==="tooling"?"tooling":navigationContext?.subtab==="fixtures"?"fixtures":"companies");
       setSelectedCompanyId(target?.id||"");
       setSearch(navigationContext?.subtab==="machines"?"":target?.name||"");
     }
@@ -205,7 +232,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
 
   const resetForms = () => {
     setShowForm(false); setCompanyEditingId(""); setFactoryEditingId(""); setMachineEditingId(""); setComponentEditingId(""); setPoEditingId("");
-    setCompanyDraft(blankCompany()); setFactoryDraft(blankFactory()); setMachineDraft(blankMachine()); setComponentDraft(blankComponent()); setPoDraft(blankPO()); setPoLines([]);
+    setCompanyDraft(blankCompany()); setFactoryDraft(blankFactory()); setMachineDraft(blankMachine()); setToolingDraft(blankTooling()); setToolingEditingId(""); setFixtureDraft(blankFixture()); setFixtureEditingId(""); setResourceEventDraft(blankResourceEvent()); setShowResourceEventForm(false); setComponentDraft(blankComponent()); setPoDraft(blankPO()); setPoLines([]);
   };
   const beginAdd = () => {
     resetForms();
