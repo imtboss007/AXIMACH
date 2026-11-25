@@ -1191,6 +1191,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const assignment=validateMachineAssignment(assignedMachine,{machineId:draft.machineId,existingMachineId:operations.find(operation=>operation.id===editingId)?.machineId,companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,executionType:draft.executionType});
       if(!assignment.ok){onNotice("Registered machine assignment is invalid ("+assignment.reason+"). Choose an available machine in this PO factory with the selected process capability.");return;}
     }
+    const hasReservedResources=(draft.toolingAssetIds||[]).length>0||(draft.fixtureAssetIds||[]).length>0;
+    if(hasReservedResources){
+      const start=Date.parse(draft.plannedStart||""),end=Date.parse(draft.plannedEnd||"");
+      if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start){
+        onNotice("Enter a valid planned start and end time before reserving a physical tool or fixture. Resource reservations require a conflict-checkable time window.");
+        return;
+      }
+    }
     const resourceValidation=validateOperationResourceAssignments({
       toolingIds:draft.toolingAssetIds||[],fixtureIds:draft.fixtureAssetIds||[],toolingAssets,fixtureAssets,
       scope:{companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,machineId:draft.machineId||undefined,machineType:selectedMachine?.machineType,
