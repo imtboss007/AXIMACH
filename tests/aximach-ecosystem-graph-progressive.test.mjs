@@ -76,7 +76,7 @@ test("graph view preferences restore hidden groups and migrate legacy samples to
 
 test("graph view preference loader falls back safely for malformed or inaccessible storage data",()=>{
   const defaults=loadEcosystemGraphPreferences("{not valid json",["company","vendor"],{company:6,vendor:6});
-  assert.deepEqual(defaults,{version:4,visibleKinds:["company","vendor"],visibleLimits:{company:6,vendor:6}});
+  assert.deepEqual(defaults,{version:5,visibleKinds:["company","vendor"],visibleLimits:{company:6,vendor:6}});
 });
 
 test("graph view preferences allow an intentionally hidden-all state and clamp unsafe limits",()=>{
@@ -91,7 +91,7 @@ test("graph view preferences allow an intentionally hidden-all state and clamp u
 
 test("graph preference schema upgrade exposes newly added entity groups once",()=>{
  const migrated=loadEcosystemGraphPreferences(JSON.stringify({version:1,visibleKinds:["company","vendor"],visibleLimits:{company:6,vendor:10}}),["company","vendor","customer"],{company:6,vendor:6,customer:6});
- assert.equal(migrated.version,4);
+ assert.equal(migrated.version,5);
  assert.deepEqual(migrated.visibleKinds,["company","vendor","customer"]);
  assert.equal(migrated.visibleLimits.customer,6);
  const next=loadEcosystemGraphPreferences(JSON.stringify({version:2,visibleKinds:["company","vendor"],visibleLimits:{}}),["company","vendor","customer"],{company:6,vendor:6,customer:6});
@@ -111,13 +111,13 @@ test("ecosystem graph layouts restore saved node positions by stable record ID",
   });
 });
 
-test("graph v4 adds the machine group to saved v3 preferences without re-enabling other hidden groups",()=>{
+test("graph v5 adds tooling, fixture and resource history groups to saved v4 preferences without re-enabling hidden groups",()=>{
  const migrated=loadEcosystemGraphPreferences(JSON.stringify({
-  version:3,visibleKinds:["company","factory","operation"],visibleLimits:{company:50,factory:50,operation:50}
- }),["company","factory","machine","operation","vendor"],{company:5000,factory:5000,machine:5000,operation:5000,vendor:5000});
- assert.deepEqual(migrated.visibleKinds,["company","factory","operation","machine"]);
- assert.deepEqual(migrated.visibleLimits,{company:50,factory:50,machine:5000,operation:50,vendor:5000});
- assert.equal(migrated.version,4);
+  version:4,visibleKinds:["company","factory","operation","machine"],visibleLimits:{company:50,factory:50,operation:50,machine:50}
+ }),["company","factory","machine","operation","vendor","tooling","fixture","resourceEvent"],{company:5000,factory:5000,machine:5000,operation:5000,vendor:5000,tooling:5000,fixture:5000,resourceEvent:5000});
+ assert.deepEqual(migrated.visibleKinds,["company","factory","operation","machine","tooling","fixture","resourceEvent"]);
+ assert.deepEqual(migrated.visibleLimits,{company:50,factory:50,machine:50,operation:50,vendor:5000,tooling:5000,fixture:5000,resourceEvent:5000});
+ assert.equal(migrated.version,5);
 });
 
 test("ecosystem graph layout updates one node without disturbing other saved positions",()=>{
