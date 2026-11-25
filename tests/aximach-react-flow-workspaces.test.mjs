@@ -156,7 +156,7 @@ test("Route Flow applies the selected layout to the live graph, preserves explic
   assert.ok(flow.includes('import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js"'));
   assert.ok(flow.includes("buildRouteFlowOperationPositions(lineOperations,routeLayout,portrait)"));
   assert.ok(flow.includes('window.addEventListener("orientationchange",syncViewport)'),"Phone rotation must recompute compact graph geometry.");
-  assert.ok(flow.includes("workspaceTheme,compactGraphViewport])"),"Viewport changes must invalidate the live layout memo.");
+  assert.ok(flow.includes("workspaceTheme,compactGraphViewport,routeGraphSavedPositions])"),"Viewport changes and saved positions must invalidate the live layout memo.");
   assert.ok(flow.includes("},[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport,routeGraphSavedPositions])"));
   assert.ok(flow.includes('const ROUTE_FLOW_GRAPH_LAYOUT_PREFIX="aximach.route-flow.graph-layout.v1:"'),"Route Flow layout must use a dedicated storage namespace.");
   assert.ok(flow.includes("loadRouteFlowGraphLayout(window.localStorage.getItem(routeGraphLayoutStorageKey))"),"Saved node positions must be loaded for the selected company / PO / component.");
