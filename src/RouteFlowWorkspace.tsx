@@ -67,6 +67,8 @@ function RouteFlowGraphStage({data}:NodeProps<RouteFlowGraphNode>) {
     <Handle id="source-left" type="source" position={Position.Left} style={{top:"65%"}}/>
     <Handle id="source-top" type="source" position={Position.Top} style={{left:"65%"}}/>
     <Handle id="source-bottom" type="source" position={Position.Bottom} style={{left:"65%"}}/>
+    <Handle id="target-left-transport" type="target" position={Position.Left} style={{top:"84%"}}/>
+    <Handle id="source-right-transport" type="source" position={Position.Right} style={{top:"84%"}}/>
     <div className="route-flow-node-heading"><span>{transport?<VehicleTypeIcon vehicleType={data.vehicleType||"truck"} size={14}/>:material?<Package size={14}/>:<Workflow size={14}/>}</span><span>{data.kind}</span></div><strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
     {data.actionLabel&&data.onAction&&<button type="button" className="nodrag" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();data.onAction?.(event.currentTarget);}}>{data.actionLabel}</button>}
   </article>;
