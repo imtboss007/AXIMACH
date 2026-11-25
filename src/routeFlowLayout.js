@@ -18,8 +18,10 @@ export function buildRouteFlowOperationPositions(operations, layout = "orthogona
   for (const row of rows) grouped.get(row.branch || "Main route").push(row);
   for (const bucket of grouped.values()) bucket.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
 
-  const stepX = compact ? 194 : 250;
-  const stepY = compact ? 142 : 178;
+  // Space is based on rendered card width, not viewport width. The previous
+  // 194px mobile step placed 192px nodes almost edge-to-edge and hid connectors.
+  const stepX = compact ? 248 : 278;
+  const stepY = compact ? 204 : 190;
   const positions = {};
   const total = Math.max(1, rows.length);
   const dateValues = rows.map(row => numberDate(row.plannedStart || row.actualStart)).filter(Number.isFinite);
@@ -27,8 +29,8 @@ export function buildRouteFlowOperationPositions(operations, layout = "orthogona
   const maxDate = dateValues.length ? Math.max(...dateValues) : minDate;
 
   if (layout === "radial" || layout === "circular") {
-    const ringCapacity = compact ? 9 : 12;
-    const baseRadius = compact ? 245 : 335;
+    const ringCapacity = compact ? 8 : 10;
+    const baseRadius = compact ? 360 : 460;
     rows.forEach((row, index) => {
       const ring = Math.floor(index / ringCapacity);
       const slot = index % ringCapacity;
@@ -52,8 +54,8 @@ export function buildRouteFlowOperationPositions(operations, layout = "orthogona
     const bucket = grouped.get(branch) || [];
     const index = bucket.findIndex(candidate => candidate.id === row.id);
     const sequence = Math.max(0, index);
-    const xStart = compact ? 74 : 130;
-    const yStart = compact ? 120 : 145;
+    const xStart = compact ? 62 : 130;
+    const yStart = compact ? 116 : 145;
     let point;
 
     switch (layout) {
@@ -72,21 +74,21 @@ export function buildRouteFlowOperationPositions(operations, layout = "orthogona
         break;
       }
       case "orthogonal": {
-        const columns = compact ? 3 : 4;
+        const columns = compact ? 2 : 4;
         const rowIndex = Math.floor(sequence / columns);
         const slot = sequence % columns;
         const column = rowIndex % 2 ? columns - 1 - slot : slot;
-        point = { x: xStart + column * stepX, y: yStart + lane * stepY * 2 + rowIndex * (compact ? 112 : 138) };
+        point = { x: xStart + column * stepX, y: yStart + lane * stepY * 2 + rowIndex * (compact ? 166 : 154) };
         break;
       }
       case "s-curve": {
         const amplitude = compact ? 64 : 82;
-        point = { x: xStart + sequence * stepX * .82, y: yStart + lane * stepY + Math.sin(sequence * .82) * amplitude };
+        point = { x: xStart + sequence * stepX, y: yStart + lane * stepY + Math.sin(sequence * .82) * amplitude };
         break;
       }
       case "organic": {
         const angle = sequence * GOLDEN_ANGLE + lane * .72;
-        const radius = (compact ? 72 : 94) + Math.sqrt(sequence + 1) * (compact ? 48 : 62) + lane * (compact ? 75 : 108);
+        const radius = (compact ? 210 : 250) + Math.sqrt(sequence + 1) * (compact ? 62 : 78) + lane * (compact ? 110 : 140);
         point = { x: (compact ? 380 : 520) + Math.cos(angle) * radius, y: (compact ? 300 : 400) + Math.sin(angle) * radius * .72 };
         break;
       }
@@ -110,11 +112,11 @@ export function buildRouteFlowOperationPositions(operations, layout = "orthogona
     const index = Math.max(0, local.findIndex(candidate => candidate.id === row.id));
     const direction = index % 2 === 0 ? 1 : -1;
     if (layout === "vertical") {
-      positions[row.id] = { x: parent.x + direction * (compact ? 105 : 135), y: parent.y + stepY };
+      positions[row.id] = { x: parent.x + direction * (compact ? 145 : 170), y: parent.y + stepY };
     } else if (layout === "radial" || layout === "circular" || layout === "organic") {
       // Keep the branch's selected geometry rather than pulling it out of its layout.
     } else {
-      positions[row.id] = { x: parent.x + (compact ? 172 : 215), y: parent.y + direction * (compact ? 112 : 145) + (lane > 0 ? direction * lane * 18 : 0) };
+      positions[row.id] = { x: parent.x + (compact ? 248 : 278), y: parent.y + direction * (compact ? 148 : 162) + (lane > 0 ? direction * lane * 22 : 0) };
     }
   }
   return positions;
