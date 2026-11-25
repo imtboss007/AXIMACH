@@ -57,7 +57,7 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
     const value = Number(defaultLimits[kind]);
     return [kind, Number.isFinite(value) ? Math.max(0, Math.min(5000, Math.floor(value))) : 6];
   }));
-  const defaults = { version: 3, visibleKinds: [...kinds], visibleLimits };
+  const defaults = { version: 4, visibleKinds: [...kinds], visibleLimits };
   let parsed;
   try {
     parsed = typeof serialized === "string" ? JSON.parse(serialized) : serialized;
@@ -68,9 +68,14 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
   const savedKinds = Array.isArray(parsed.visibleKinds) ? [...new Set(parsed.visibleKinds.filter(kind => kinds.includes(kind)))] : [...kinds];
   // A new graph entity group should become visible once for existing users, without
   // re-enabling groups they intentionally hid after the preference schema was upgraded.
-  const visibleKinds = parsed.version < 2
-    ? [...new Set([...savedKinds, ...kinds.filter(kind => !savedKinds.includes(kind))])]
+  const baseVisibleKinds = parsed.version < 2
+    ? [...new Set([...savedKinds, ...kinds])]
     : savedKinds;
+  // Version 4 adds the Machine & Equipment entity group. Expose only this new
+  // group for existing v2/v3 users without undoing their previous visibility choices.
+  const visibleKinds = parsed.version < 4
+    ? [...new Set([...baseVisibleKinds, ...kinds.filter(kind => kind === "machine" && !baseVisibleKinds.includes(kind))])]
+    : baseVisibleKinds;
   const savedLimits = parsed.visibleLimits && typeof parsed.visibleLimits === "object" && !Array.isArray(parsed.visibleLimits)
     ? parsed.visibleLimits
     : {};
@@ -82,7 +87,7 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
     const limit = parsed.version < 3 ? fallback : Number.isFinite(saved) ? saved : fallback;
     return [kind, Math.max(0, Math.min(5000, Math.floor(limit)))];
   }));
-  return { version: 3, visibleKinds, visibleLimits: normalizedLimits };
+  return { version: 4, visibleKinds, visibleLimits: normalizedLimits };
 }
 
 
