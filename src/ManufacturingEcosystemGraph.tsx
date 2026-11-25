@@ -13,7 +13,7 @@ import { resolveProcessColor } from "./processPalette";
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; subtab?:string };
 type GraphScope = {companyId?:string;poId?:string;poLineId?:string;componentId?:string};
 type Props = { data:ManufacturingData; scope?:GraphScope; onNavigate:(moduleId:string,context?:Context)=>void; onConnect?:(connection:Connection,relationshipType:string)=>void };
-type NodeKind = "company"|"customer"|"factory"|"machine"|"maintenance"|"downtime"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
+type NodeKind = "company"|"customer"|"factory"|"machine"|"maintenance"|"downtime"|"tooling"|"fixture"|"resourceEvent"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
 type GraphNode = { id:string; label:string; detail:string; kind:NodeKind; moduleId:string; context:Context; x:number; y:number };
 type GraphEdge = { id:string; from:string; to:string; kind:string };
 type EcosystemEntityNodeData = { label:string; detail:string; group:string; accent:string; kind:NodeKind };
@@ -57,6 +57,9 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
   {kind:"machine",title:"Machines & equipment",moduleId:"companies",color:"var(--ax-theme-graph-2,#357a9b)"},
   {kind:"maintenance",title:"Maintenance plans & work orders",moduleId:"companies",color:"var(--ax-theme-graph-5,#b98542)"},
   {kind:"downtime",title:"Machine downtime",moduleId:"companies",color:"var(--ax-theme-graph-5,#c45c56)"},
+  {kind:"tooling",title:"Tooling & cutting assets",moduleId:"companies",color:"var(--ax-theme-graph-3,#c07a2b)"},
+  {kind:"fixture",title:"Jigs, fixtures & workholding",moduleId:"companies",color:"var(--ax-theme-graph-4,#8b68c5)"},
+  {kind:"resourceEvent",title:"Tool / fixture usage history",moduleId:"companies",color:"var(--ax-theme-graph-5,#b95665)"},
   {kind:"order",title:"Purchase orders",moduleId:"purchasing",color:"var(--ax-theme-graph-4,#8b68c5)"},
   {kind:"component",title:"Components",moduleId:"components",color:"var(--ax-theme-graph-2,#168d89)"},
   {kind:"vendor",title:"Vendors",moduleId:"vendors",color:"var(--ax-theme-graph-3,#c07a2b)"},
@@ -70,7 +73,7 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
 ];
 
 function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {
-  const connectable=data.kind==="operation"||data.kind==="material"||data.kind==="transport"||data.kind==="quality"||data.kind==="vendor"||data.kind==="process";
+  const connectable=data.kind==="operation"||data.kind==="material"||data.kind==="transport"||data.kind==="quality"||data.kind==="vendor"||data.kind==="process"||data.kind==="tooling"||data.kind==="fixture";
   return <div className="ax-ecosystem-flow-node" style={{"--node-accent":data.accent} as CSSProperties}>
     <Handle id="target-top" type="target" position={Position.Top} isConnectable={connectable}/>
     <Handle id="target-bottom" type="target" position={Position.Bottom} isConnectable={connectable}/>
