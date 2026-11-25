@@ -57,7 +57,7 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
     const value = Number(defaultLimits[kind]);
     return [kind, Number.isFinite(value) ? Math.max(0, Math.min(5000, Math.floor(value))) : 6];
   }));
-  const defaults = { version: 4, visibleKinds: [...kinds], visibleLimits };
+  const defaults = { version: 5, visibleKinds: [...kinds], visibleLimits };
   let parsed;
   try {
     parsed = typeof serialized === "string" ? JSON.parse(serialized) : serialized;
@@ -73,9 +73,15 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
     : savedKinds;
   // Version 4 adds the Machine & Equipment entity group. Expose only this new
   // group for existing v2/v3 users without undoing their previous visibility choices.
-  const visibleKinds = parsed.version < 4
+  const machineVisibleKinds = parsed.version < 4
     ? [...new Set([...baseVisibleKinds, ...kinds.filter(kind => kind === "machine" && !baseVisibleKinds.includes(kind))])]
     : baseVisibleKinds;
+  // Version 5 adds tooling assets, fixtures and resource usage history.
+  // Reveal these new groups once for existing v4 users without restoring groups
+  // that they had explicitly hidden in older versions.
+  const visibleKinds = parsed.version < 5
+    ? [...new Set([...machineVisibleKinds,...kinds.filter(kind=>["tooling","fixture","resourceEvent"].includes(kind)&&!machineVisibleKinds.includes(kind))])]
+    : machineVisibleKinds;
   const savedLimits = parsed.visibleLimits && typeof parsed.visibleLimits === "object" && !Array.isArray(parsed.visibleLimits)
     ? parsed.visibleLimits
     : {};
@@ -87,7 +93,7 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
     const limit = parsed.version < 3 ? fallback : Number.isFinite(saved) ? saved : fallback;
     return [kind, Math.max(0, Math.min(5000, Math.floor(limit)))];
   }));
-  return { version: 4, visibleKinds, visibleLimits: normalizedLimits };
+  return { version: 5, visibleKinds, visibleLimits: normalizedLimits };
 }
 
 
