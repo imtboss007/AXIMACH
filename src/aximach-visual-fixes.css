@@ -1046,3 +1046,37 @@ body{background:#f1f5fa!important;color:#12263f!important}
 @media(prefers-reduced-motion:reduce){
   .ax-manufacturing-edge-pulse{display:none!important}
 }
+
+
+/* Phase 2 Machine Reliability workspace */
+.machine-maintenance-workspace{display:grid;gap:16px;margin-top:18px}
+.machine-maintenance-selector{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
+.machine-maintenance-selector label{display:grid;gap:6px;font-size:12px;color:var(--ax-theme-muted,#64748b)}
+.machine-maintenance-selector select{width:100%;min-width:0;min-height:42px;border:1px solid var(--ax-theme-border,#cbd5e1);border-radius:10px;padding:9px 12px;background:var(--ax-theme-panel,#fff);color:var(--ax-theme-text,#14263a)}
+.machine-availability-chip{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid var(--ax-theme-border,#cbd5e1);border-radius:12px;background:var(--ax-theme-panel,#fff);color:var(--ax-theme-text,#14263a)}
+.machine-availability-chip span{display:grid;gap:2px}
+.machine-availability-chip small{font-size:9px;letter-spacing:.1em;opacity:.68}
+.machine-availability-chip strong{font-size:12px}
+.machine-availability-chip.status-breakdown{border-color:#d56b64;background:color-mix(in srgb,#d56b64 10%,var(--ax-theme-panel,#fff));color:#9b332d}
+.machine-availability-chip.status-under-maintenance,.machine-availability-chip.status-planned-maintenance{border-color:#d3a24d;background:color-mix(in srgb,#d3a24d 12%,var(--ax-theme-panel,#fff));color:#875810}
+.machine-maintenance-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.machine-maintenance-metrics article{display:grid;gap:5px;min-width:0;padding:12px;border:1px solid var(--ax-theme-border,#d5e0e8);border-radius:12px;background:var(--ax-theme-panel,#fff)}
+.machine-maintenance-metrics small{font-size:9px;letter-spacing:.08em;color:var(--ax-theme-muted,#64748b)}
+.machine-maintenance-metrics strong{font-size:22px;color:var(--ax-theme-text,#132b43);font-variant-numeric:tabular-nums}
+.machine-maintenance-metrics .is-warning{border-color:#d3a24d;background:color-mix(in srgb,#d3a24d 8%,var(--ax-theme-panel,#fff))}
+.machine-maintenance-alert{border-color:#d3a24d!important;background:color-mix(in srgb,#d3a24d 8%,var(--ax-theme-panel,#fff))!important;color:var(--ax-theme-text,#14263a)!important}
+.machine-maintenance-tabs{display:flex;flex-wrap:wrap;gap:8px;padding:6px;border:1px solid var(--ax-theme-border,#d5e0e8);border-radius:12px;background:var(--ax-theme-subtle,#f2f6fa)}
+.machine-maintenance-tabs button{display:flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--ax-theme-muted,#64748b);font-weight:650}
+.machine-maintenance-tabs button.is-active{border-color:var(--ax-theme-border,#b9cad8);background:var(--ax-theme-panel,#fff);color:var(--ax-theme-text,#14263a);box-shadow:0 2px 8px rgba(15,35,55,.07)}
+.machine-maintenance-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0}
+.machine-maintenance-section-heading h4{margin:0;color:var(--ax-theme-text,#14263a);font-size:15px}
+.machine-maintenance-section-heading p{margin:4px 0 0;color:var(--ax-theme-muted,#64748b);font-size:11px}
+.machine-maintenance-form{border:1px solid var(--ax-theme-border,#d5e0e8);border-radius:12px;padding:14px;background:var(--ax-theme-subtle,#f6f9fc)}
+.machine-maintenance-overdue{display:inline-block;margin-top:6px;color:#a54632;font-size:10px;font-weight:700}
+.machine-maintenance-footnote{display:flex;align-items:flex-start;gap:8px;padding-top:10px;border-top:1px solid var(--ax-theme-border,#d5e0e8);color:var(--ax-theme-muted,#64748b);font-size:11px}
+@media(max-width:680px){
+ .machine-maintenance-selector{grid-template-columns:1fr}
+ .machine-maintenance-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .machine-maintenance-section-heading{align-items:flex-start;flex-direction:column}
+ .machine-maintenance-tabs button{flex:1;justify-content:center;font-size:11px}
+}
