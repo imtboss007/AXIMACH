@@ -233,6 +233,12 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     try{return loadRouteFlowGraphLayout(window.localStorage.getItem(routeGraphLayoutStorageKey));}
     catch{return {};}
   },[routeGraphLayoutStorageKey,routeGraphLayoutRevision]);
+  const resetRouteGraphLayout=()=>{
+    if(!routeGraphLayoutStorageKey||typeof window==="undefined")return;
+    try{window.localStorage.removeItem(routeGraphLayoutStorageKey);}catch{/* Reset still applies to the current in-memory graph. */}
+    setRouteGraphLayoutRevision(value=>value+1);
+    onNotice("Route Flow node positions reset to the selected automatic layout.");
+  };
   const componentLineCount=lineOptions.filter(row=>row.componentId===componentId).length;
   const componentGlobalLineCount=orders.reduce((count,poRow)=>count+poRow.lines.filter(row=>!row.deletedAt&&row.componentId===componentId).length,0);
   const routeOperations=useMemo(()=>operations.filter(row=>row.poId===poId&&row.poLineId===poLineId&&row.componentId===componentId).sort((a,b)=>a.sequence-b.sequence),[operations,poId,poLineId,componentId]);
@@ -731,7 +737,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         </div>}
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:routeCanvasMode==="graph"?
       <div className="route-flow-graph-canvas" data-testid="route-flow-react-canvas">
-        <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Drag nodes to arrange · drag from a node handle to another to save a connection · pinch / wheel to zoom</small></div>
+        <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Drag nodes to arrange · drag from a node handle to another to save a connection · pinch / wheel to zoom</small><button type="button" className="button-quiet compact-button" onClick={resetRouteGraphLayout} disabled={!routeGraphLayoutStorageKey}>Reset node layout</button></div>
         <RouteConnectorLegend/>
         <ManufacturingGraphCanvas
           nodes={routeFlowGraph.nodes}
