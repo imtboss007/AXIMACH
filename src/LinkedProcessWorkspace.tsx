@@ -640,7 +640,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       ops.forEach((operation,index)=>{
         // A horizontal, lane-based flow works consistently on phones and desktops.
         const x=compactViewport?48+index*248:96+index*278;
-        const y=compactViewport?72+row*235:84+row*245;
+        const y=compactViewport?400+row*820:400+row*820;
         operationPositions.set(operation.id,{x,y,branch,index});
         nodes.push({id:"operation:"+operation.id,type:"processMapEntity",position:{x,y},data:{title:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name,detail:[operation.category,operation.subcategory,vendors.find(v=>v.id===operation.vendorId)?.company||"Vendor not assigned","Qty "+operation.quantity].filter(Boolean).join(" · "),kind:"PROCESS OPERATION",accent:branchAccent(operation),status:operation.status,actionLabel:"Select operation",onAction:()=>{setSelectedOperationId(operation.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:nodeWidth}});
       });
@@ -680,16 +680,16 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const firstMain=branchRows.find(row=>row.branch==="Main route")?.operations[0];
       const routeStart=!entry.anchorOperationId&&firstMain?operationPositions.get(firstMain.id):undefined;
       const base=anchor||routeStart;
-      const materialX=base?Math.max(18,base.x-215):24;
-      const materialY=base?base.y+18+index*118:110+index*118;
+      const hasInbound=Boolean(entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||Number(entry.transportCost)>0);
+      const materialX=base?Math.max(18,base.x-(hasInbound?nodeWidth*2+70:nodeWidth+42)):24;
+      const materialY=base?base.y-285+index*112:110+index*112;
       const supplier=vendors.find(v=>v.id===entry.vendorId)?.company||"Supplier not assigned";
       nodes.push({id,type:"processMapEntity",position:{x:materialX,y:materialY},data:{title:[entry.materialName,entry.materialGrade].filter(Boolean).join(" · "),detail:[entry.partNumber||entry.partName||"Component-level",entry.shapeType,entry.quantity+" pcs",Number(entry.totalWeightKg||0).toFixed(3)+" kg",supplier].join(" · "),kind:"MATERIAL PROCUREMENT",accent:"#b18a2d",status:entry.actualDeliveryDate?"Received":"Planned"},draggable:false,selectable:false,style:{width:nodeWidth}});
-      const hasInbound=Boolean(entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||Number(entry.transportCost)>0);
       const target=entry.anchorOperationId?"operation:"+entry.anchorOperationId:firstMain?"operation:"+firstMain.id:"";
       if(hasInbound){
         const transportId="material-transport:"+entry.id;
         const vehicle=entry.transportVehicleType||"truck";
-        nodes.push({id:transportId,type:"processMapEntity",position:{x:materialX+nodeWidth+42,y:materialY},data:{title:[entry.transportFrom||"Supplier pickup",entry.transportTo||"Factory destination"].join(" → "),detail:[vehicle,entry.transportVendorId?vendors.find(v=>v.id===entry.transportVendorId)?.company||"Transporter not assigned":"Transporter not assigned",money(entry.transportCost||0)].join(" · "),kind:"INBOUND MATERIAL TRANSPORT",accent:"#397ea4",vehicleType:vehicle,status:entry.transportStatus||"Planned",actionLabel:"Open transport details",onAction:()=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");}},draggable:false,selectable:false,style:{width:nodeWidth}});
+        nodes.push({id:transportId,type:"processMapEntity",position:{x:materialX+nodeWidth+30,y:materialY},data:{title:[entry.transportFrom||"Supplier pickup",entry.transportTo||"Factory destination"].join(" → "),detail:[vehicle,entry.transportVendorId?vendors.find(v=>v.id===entry.transportVendorId)?.company||"Transporter not assigned":"Transporter not assigned",money(entry.transportCost||0)].join(" · "),kind:"INBOUND MATERIAL TRANSPORT",accent:"#397ea4",vehicleType:vehicle,status:entry.transportStatus||"Planned",actionLabel:"Open transport details",onAction:()=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");}},draggable:false,selectable:false,style:{width:nodeWidth}});
         addEdge(id,transportId,"transport","material-inbound:"+entry.id,"INBOUND / VEHICLE");
         if(target)addEdge(transportId,target,"main","material-to-operation:"+entry.id,"MATERIAL READY");
       }else if(target)addEdge(id,target,"main","material-allocation:"+entry.id,entry.anchorOperationId?"ALLOCATED AFTER PROCESS":"REQUIRED ROUTE INPUT");
@@ -701,7 +701,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const id="bom-link:"+link.id;
       const label=materialProcessPartLabels[link.id]||"BOM part";
       const x=link.placement==="before"?Math.max(18,operation.x-205):operation.x+nodeWidth+25;
-      const y=operation.y+135;
+      const y=operation.y+145;
       nodes.push({id,type:"processMapEntity",position:{x,y},data:{title:material.name,detail:label,kind:"MATERIAL → PROCESS LINK",accent:"#3e9278",status:link.placement==="before"?"Before operation":"After operation"},draggable:false,selectable:false,style:{width:compactViewport?154:175}});
       const source=link.placement==="before"?id:"operation:"+link.operationId;
       const target=link.placement==="before"?"operation:"+link.operationId:id;
@@ -714,7 +714,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const materialId=leg.materialEntryId?materialNodeIds.get(leg.materialEntryId):undefined;
       const firstMain=branchRows.find(row=>row.branch==="Main route")?.operations[0];
       const x=from&&to?Math.max(18,(from.x+to.x)/2-nodeWidth/2):from?from.x+52:to?Math.max(18,to.x-nodeWidth-25):firstMain?Math.max(18,operationPositions.get(firstMain.id)!.x-nodeWidth-25):24;
-      const y=from&&to?Math.max(from.y,to.y)+145:from?from.y+145:to?to.y+145:firstMain?operationPositions.get(firstMain.id)!.y+145:310+index*135;
+      const y=from&&to?Math.max(from.y,to.y)+290:from?from.y+290:to?to.y+290:firstMain?operationPositions.get(firstMain.id)!.y+290:310+index*135;
       const vehicle=leg.vehicleType||"truck";
       nodes.push({id,type:"processMapEntity",position:{x,y},data:{title:(leg.fromLocation||"Origin")+" → "+(leg.toLocation||"Destination"),detail:[vehicle,leg.tripCount+" trip(s)",vendors.find(v=>v.id===leg.vendorId)?.company||"Transporter not assigned"].join(" · "),kind:"TRANSPORT LEG",accent:"#397ea4",vehicleType:vehicle,status:leg.status||"Planned",actionLabel:"Open transport details",onAction:()=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");}},draggable:false,selectable:false,style:{width:nodeWidth}});
       if(materialId)addEdge(materialId,id,"transport","transport-from-material:"+leg.id,"CARRY");
