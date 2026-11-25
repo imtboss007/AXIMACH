@@ -710,7 +710,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           zoomOnPinch
           minimapNodeColor={node=>node.data.accent}
           className="route-flow-shared-graph-layer"
-          testId="route-flow-react-canvas"
+          testId="route-flow-shared-canvas"
         >
           <RouteFlowFitController revision={routeLayout+":"+routeFlowGraph.nodes.map(node=>node.id+"@"+node.position.x+","+node.position.y).join(";")}/>
         </ManufacturingGraphCanvas>
