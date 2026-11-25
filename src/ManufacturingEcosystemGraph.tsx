@@ -262,6 +262,30 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     });
     factories.forEach(row=>{add("factory:"+row.id,row.name,"Factory · "+(row.address||"Address not recorded"),"factory","companies",{companyId:row.companyId});edge("factory:"+row.id,"company:"+row.companyId,"owns");});
     machines.forEach(row=>{add("machine:"+row.id,row.assetCode+" · "+row.name,"Machine · "+row.machineType+" · "+row.status+(row.model?" · "+row.model:""),"machine","companies",{companyId:row.companyId,subtab:"machines"});edge("machine:"+row.id,"factory:"+row.factoryId,"installed at");(row.processDefinitionIds||[]).forEach(id=>edge("machine:"+row.id,"process:"+id,"supports process"));});
+    toolingAssets.forEach(row=>{
+      const minutesLeft=row.toolLifeLimitMinutes>0?Math.max(0,row.toolLifeLimitMinutes-row.toolLifeUsedMinutes)+" min remaining":"runtime not limited";
+      const cyclesLeft=row.toolLifeLimitCycles>0?Math.max(0,row.toolLifeLimitCycles-row.toolLifeUsedCycles)+" cycles remaining":"cycles not limited";
+      const id="tooling:"+row.id;
+      add(id,row.assetCode+" · "+row.name,"Tooling · "+row.toolType+" · "+row.status+" · "+minutesLeft+" · "+cyclesLeft+" · regrinds "+row.regrindCount+"/"+row.maxRegrinds,"tooling","companies",{companyId:row.companyId,subtab:"tooling"});
+      edge(id,"factory:"+row.factoryId,"stored at");
+      (row.compatibleMachineIds||[]).forEach(machineId=>edge(id,"machine:"+machineId,"compatible machine"));
+      (row.processDefinitionIds||[]).forEach(processId=>edge(id,"process:"+processId,"supports process"));
+    });
+    fixtureAssets.forEach(row=>{
+      const id="fixture:"+row.id;
+      const cycleDetail=row.maxUsageCycles>0?Math.max(0,row.maxUsageCycles-row.usageCycles)+" cycles remaining":"cycles not limited";
+      add(id,row.assetCode+" · "+row.name,"Fixture · "+row.fixtureType+" · "+row.status+" · "+cycleDetail+" · inspect "+(row.inspectionDueAt||"not scheduled"),"fixture","companies",{companyId:row.companyId,subtab:"fixtures"});
+      edge(id,"factory:"+row.factoryId,"stored at");
+      (row.compatibleMachineIds||[]).forEach(machineId=>edge(id,"machine:"+machineId,"compatible machine"));
+      (row.processDefinitionIds||[]).forEach(processId=>edge(id,"process:"+processId,"supports process"));
+      (row.componentIds||[]).forEach(componentId=>edge(id,"component:"+componentId,"dedicated to"));
+    });
+    resourceUsageEvents.forEach(row=>{
+      const id="resource-event:"+row.id;
+      add(id,row.eventType+" · "+row.occurredAt,"Resource history · "+row.resourceType+" · "+row.runtimeMinutes+" runtime min · "+row.cycles+" cycles · "+(row.inspectionResult||"not an inspection"),"resourceEvent","companies",{companyId:row.companyId,subtab:row.resourceType==="tooling"?"tooling":"fixtures"});
+      edge(id,(row.resourceType==="tooling"?"tooling:":"fixture:")+row.resourceId,"updates resource life");
+      if(row.operationId)edge(id,"operation:"+row.operationId,"recorded against operation");
+    });
     maintenancePlans.forEach(row=>{
       const id="maintenance-plan:"+row.id;
       add(id,row.planName,"Preventive plan · "+row.maintenanceType+" · every "+row.frequencyValue+" "+row.frequencyUnit+" · due "+row.nextDueAt+" · "+(row.active?"active":"paused"),"maintenance","companies",{companyId:row.companyId,subtab:"machines"});
@@ -291,6 +315,8 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
       edge("operation:"+row.id,"vendor:"+row.vendorId,"performed by");
       edge("operation:"+row.id,"process:"+row.processDefinitionId,"defined by");
       if(row.machineId)edge("operation:"+row.id,"machine:"+row.machineId,"runs on");
+      (row.toolingAssetIds||[]).forEach(id=>edge("operation:"+row.id,"tooling:"+id,"uses tooling"));
+      (row.fixtureAssetIds||[]).forEach(id=>edge("operation:"+row.id,"fixture:"+id,"uses fixture"));
     });
     // Preserve the PO-line route model: branch sequence, branch origin and every
     // enabled saved relationship type are visible on this same graph.
