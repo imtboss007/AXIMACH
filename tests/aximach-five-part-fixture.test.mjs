@@ -2021,7 +2021,7 @@ test("3D route arrows stay enabled and narrow-screen process metadata is not hid
 test("Route Flow draws vehicle-specific transport icons on curved connectors and supports multiple vehicle types", () => {
   const route = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
-  assert.ok(route.includes('import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle"'));
+  assert.ok(route.includes('import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle"'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={vehicleType} size={17}/>'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.leg.vehicleType} size={20}/>'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.entry.transportVehicleType||""} size={20}/>'));

@@ -72,7 +72,7 @@ export function VehicleBadge({vehicleType}:{vehicleType:string}){
  const visual=getVehicleVisual(vehicleType);
  return <span className={"transport-vehicle-chip vehicle-"+visual.className} data-vehicle={vehicleType} style={{"--vehicle-color":visual.color} as CSSProperties}><VehicleGraphic visual={visual} size={16}/><span>{vehicleType}</span></span>;
 }
-type TransportLegMarkerProps={leg:ComponentTransportLegRecord;vendorName:string;selected:boolean;onSelect:()=>void;routeRecord?:TransportRouteRecord};
+type TransportLegMarkerProps={leg:ComponentTransportLegRecord;vendorName:string;selected:boolean;onSelect:()=>void;routeRecord?: TransportRouteRecord};
 const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 export function TransportLegMarker({leg,vendorName,selected,onSelect,routeRecord}:TransportLegMarkerProps){
  const visual=getVehicleVisual(leg.vehicleType),placement=leg.placement==="start"||!leg.anchorOperationId?"Before route":leg.placement==="before"?"Before process":"After process";
