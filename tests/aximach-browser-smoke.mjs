@@ -127,7 +127,7 @@ function makeBrowserManufacturingFixture(){
     }));
   return {
     updatedAt:stamp,companies:[company],customers:[],prospects:[],factories:[factory],
-    purchaseOrders:[purchaseOrder],components:[component],vendors,operations,quotations:[],
+    purchaseOrders:[purchaseOrder],components:[component],vendors:[vendor],operations,quotations:[],
     materials,componentParts:[],materialCostEntries:[],bomLines,materialProcessLinks,
     inventoryTransactions:[],contactProfiles:[],processDefinitions,plannedCosts:[],
     transportRoutes,transportLegs,paymentTransactions:[],inspectionMeasurements,
