@@ -13,7 +13,7 @@ import { resolveProcessColor } from "./processPalette";
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; subtab?:string };
 type GraphScope = {companyId?:string;poId?:string;poLineId?:string;componentId?:string};
 type Props = { data:ManufacturingData; scope?:GraphScope; onNavigate:(moduleId:string,context?:Context)=>void; onConnect?:(connection:Connection,relationshipType:string)=>void };
-type NodeKind = "company"|"customer"|"factory"|"machine"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
+type NodeKind = "company"|"customer"|"factory"|"machine"|"maintenance"|"downtime"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
 type GraphNode = { id:string; label:string; detail:string; kind:NodeKind; moduleId:string; context:Context; x:number; y:number };
 type GraphEdge = { id:string; from:string; to:string; kind:string };
 type EcosystemEntityNodeData = { label:string; detail:string; group:string; accent:string; kind:NodeKind };
@@ -55,6 +55,8 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
   {kind:"customer",title:"Customers",moduleId:"customers",color:"var(--ax-theme-graph-2,#2f9b82)"},
   {kind:"factory",title:"Factories",moduleId:"companies",color:"var(--ax-theme-graph-1,#4b8cbd)"},
   {kind:"machine",title:"Machines & equipment",moduleId:"companies",color:"var(--ax-theme-graph-2,#357a9b)"},
+  {kind:"maintenance",title:"Maintenance plans & work orders",moduleId:"companies",color:"var(--ax-theme-graph-5,#b98542)"},
+  {kind:"downtime",title:"Machine downtime",moduleId:"companies",color:"var(--ax-theme-graph-5,#c45c56)"},
   {kind:"order",title:"Purchase orders",moduleId:"purchasing",color:"var(--ax-theme-graph-4,#8b68c5)"},
   {kind:"component",title:"Components",moduleId:"components",color:"var(--ax-theme-graph-2,#168d89)"},
   {kind:"vendor",title:"Vendors",moduleId:"vendors",color:"var(--ax-theme-graph-3,#c07a2b)"},
@@ -205,6 +207,12 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     const customers=activeRows(data.customers||[]).filter(row=>!scoped||(row.ownerCompanyId&&scopedCompanyIds.has(row.ownerCompanyId)));
     const factories=activeRows(data.factories||[]).filter(row=>!scoped||scopedCompanyIds.has(row.companyId));
     const machines=activeRows(data.machines||[]).filter(row=>!scoped||scopedCompanyIds.has(row.companyId));
+    const machineIdSet=new Set(machines.map(row=>row.id));
+    const maintenancePlans=activeRows(data.maintenancePlans||[]).filter(row=>machineIdSet.has(row.machineId));
+    const maintenancePlanIdSet=new Set(maintenancePlans.map(row=>row.id));
+    const maintenanceWorkOrders=activeRows(data.maintenanceWorkOrders||[]).filter(row=>machineIdSet.has(row.machineId)&&(!row.planId||maintenancePlanIdSet.has(row.planId)));
+    const maintenanceWorkOrderIdSet=new Set(maintenanceWorkOrders.map(row=>row.id));
+    const machineDowntime=activeRows(data.machineDowntime||[]).filter(row=>machineIdSet.has(row.machineId)&&(!row.workOrderId||maintenanceWorkOrderIdSet.has(row.workOrderId)));
     const components=activeRows(data.components||[]).filter(row=>!scoped||scopedComponentIds.has(row.id));
     const operations=activeRows(data.operations||[]).filter(matchesLine);
     const allocations=activeRows(data.materialCostEntries||[]).filter(matchesLine);
