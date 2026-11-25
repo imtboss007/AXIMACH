@@ -6926,3 +6926,40 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   .public-api-holiday-list,.public-api-ev-list{max-height:205px}
   .public-api-source-note{font-size:9px}
 }
+
+
+/* Shared graph canvas: all three spatial workspaces use this same React Flow layer.
+   The wrapper must fill its framed viewport; otherwise nested canvases collapse on phones. */
+.ax-ecosystem-flow-layer,
+.route-flow-shared-graph-layer,
+.process-map-graph-shared-layer{
+  position:absolute!important;inset:0!important;display:block!important;
+  width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+}
+.ax-ecosystem-flow-layer .react-flow,
+.route-flow-shared-graph-layer .react-flow,
+.process-map-graph-shared-layer .react-flow{
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+}
+.route-flow-shared-graph-layer{z-index:1!important}
+.route-flow-graph-toolbar{position:relative;z-index:3;pointer-events:none}
+.route-flow-graph-canvas>.route-connector-legend{position:relative;z-index:3;pointer-events:none}
+.process-map-graph-canvas>.process-map-graph-header{z-index:4}
+.ax-ecosystem-node-heading,
+.process-map-graph-card-heading,
+.route-flow-node-heading{display:flex;align-items:center;gap:7px;min-width:0}
+.ax-ecosystem-node-heading b{font:700 8px 'DM Mono';letter-spacing:.045em;text-transform:uppercase}
+.process-map-graph-card-heading{color:var(--process-map-accent);font:700 8px 'DM Mono';letter-spacing:.05em}
+.process-map-graph-card-heading svg{flex:0 0 auto}
+.process-map-graph-card.is-transport{border-left-width:5px}
+.route-flow-graph-node .route-flow-node-heading svg{flex:0 0 auto}
+.ax-ecosystem-flow-canvas .react-flow__edge-path,
+.route-flow-graph-canvas .react-flow__edge-path,
+.process-map-graph-canvas .react-flow__edge-path{stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:700px){
+  .ax-ecosystem-flow-layer,.route-flow-shared-graph-layer,.process-map-graph-shared-layer{min-width:0!important}
+  .ax-ecosystem-flow-node{width:190px!important;min-height:92px!important}
+  .ax-ecosystem-flow-canvas .react-flow__node-ecosystem{width:190px!important}
+  .route-flow-graph-node{width:192px!important;min-height:88px!important}
+  .process-map-graph-card{width:176px!important;min-height:96px!important}
+}
