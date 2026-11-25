@@ -136,6 +136,12 @@ export function connectManufacturingGraphNodes({
       onNotice("Outsourced operations cannot reserve company-owned tooling or fixtures.");
       return;
     }
+    const operationStart=Date.parse(operation.plannedStart||"");
+    const operationEnd=Date.parse(operation.plannedEnd||"");
+    if(!Number.isFinite(operationStart)||!Number.isFinite(operationEnd)||operationEnd<=operationStart){
+      onNotice("Set a valid planned start and end time before connecting a physical tool or fixture. The time window is required for reservation-conflict checks.");
+      return;
+    }
     if(!po||resource.companyId!==po.companyId||resource.factoryId!==po.factoryId){
       onNotice("The tooling or fixture must belong to the selected operation's company and factory.");
       return;
