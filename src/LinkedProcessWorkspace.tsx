@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Background, BackgroundVariant, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow } from "@xyflow/react";
+import { Handle, MarkerType, Position } from "@xyflow/react";
 import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
 import "@xyflow/react/style.css";
 import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
@@ -16,6 +16,8 @@ import { transportPopupAnchor, transportPopupAnchorFromPoint } from "./transport
 import { RouteLayoutPicker, RouteConnectorLegend as RouteLayoutConnectorLegend, useRouteLayout } from "./RouteLayoutPicker";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend as MaterialRouteConnectorLegend } from "./RouteConnectorLegend";
+import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
+import { manufacturingGraphEdgeKey, routeRelationshipHandles } from "./manufacturingGraphLayout.mjs";
 import TransportRoutingDemo from "./TransportRoutingDemo";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
@@ -25,15 +27,24 @@ function RouteConnectorLegend({compact=false}:{compact?:boolean}) {
   return compact ? <RouteLayoutConnectorLegend compact/> : <MaterialRouteConnectorLegend/>;
 }
 
-type ProcessMapGraphNodeData = {title:string;detail:string;kind:string;accent:string;status?:string;actionLabel?:string;onAction?:()=>void};
+type ProcessMapGraphNodeData = {title:string;detail:string;kind:string;accent:string;status?:string;vehicleType?:string;actionLabel?:string;onAction?:()=>void};
 type ProcessMapGraphNode = Node<ProcessMapGraphNodeData,"processMapEntity">;
 function ProcessMapGraphCard({data}:NodeProps<ProcessMapGraphNode>) {
-  return <article className="process-map-graph-card" style={{"--process-map-accent":data.accent} as CSSProperties}>
-    <Handle type="target" position={Position.Left}/>
-    <span>{data.kind}</span><strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
+  const isTransport=data.kind.includes("TRANSPORT");
+  const VehicleIcon=isTransport?transportVehicleIcon(data.vehicleType||"truck"):undefined;
+  return <article className={"process-map-graph-card"+(isTransport?" is-transport":"")} style={{"--process-map-accent":data.accent} as CSSProperties}>
+    <Handle id="target-left" type="target" position={Position.Left}/>
+    <Handle id="target-right" type="target" position={Position.Right}/>
+    <Handle id="target-top" type="target" position={Position.Top}/>
+    <Handle id="target-bottom" type="target" position={Position.Bottom}/>
+    <div className="process-map-graph-card-heading"><span>{VehicleIcon?<VehicleIcon size={15}/>:data.kind.includes("MATERIAL")?<Package size={15}/>:<Workflow size={15}/>}</span><span>{data.kind}</span></div>
+    <strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
     {data.status&&<em>{data.status}</em>}
     {data.actionLabel&&data.onAction&&<button type="button" className="nodrag" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();data.onAction?.();}}>{data.actionLabel}</button>}
-    <Handle type="source" position={Position.Right}/>
+    <Handle id="source-left" type="source" position={Position.Left}/>
+    <Handle id="source-right" type="source" position={Position.Right}/>
+    <Handle id="source-top" type="source" position={Position.Top}/>
+    <Handle id="source-bottom" type="source" position={Position.Bottom}/>
   </article>;
 }
 const PROCESS_MAP_NODE_TYPES = {processMapEntity:ProcessMapGraphCard} satisfies NodeTypes;
@@ -606,28 +617,43 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const edges:Edge[]=[];
     const operationPositions=new Map<string,{x:number;y:number;branch:string;index:number}>();
     const relationshipRows=activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===selectedLine?.id&&link.componentId===selectedLine?.componentId&&link.status!=="Disabled");
-    const relationColors:Record<string,string>={main:"#2875bd",alternate:ALTERNATE_ROUTE_COLOR,rework:REWORK_ROUTE_COLOR,dependency:"#347de5",parallel:"#9848d6",merge:"#9e4bc9",split:"#3d79df","follow-on":"#173c6c",feedback:"#455bd6",conditional:"#9954ce",successor:"#203e62"};
+    const relationColors:Record<string,string>={main:"#168d9a",alternate:ALTERNATE_ROUTE_COLOR,rework:REWORK_ROUTE_COLOR,dependency:"#347de5",parallel:"#9848d6",merge:"#9e4bc9",split:"#3d79df","follow-on":"#315675",feedback:"#455bd6",conditional:"#9954ce",successor:"#23845d",transport:"#397ea4"};
+    const relationDashes:Record<string,string>={alternate:"8 5",rework:"7 5",dependency:"2 5",parallel:"8 3",split:"5 3",feedback:"2 4",conditional:"10 4 2 4",transport:"5 4"};
+    const edgeKeys=new Set<string>();
     const isRunningOperation=(id:string)=>exportOperations.some(operation=>operation.id===id&&operation.status==="Running");
     const compactViewport=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
+    const nodeWidth=compactViewport?176:210;
     const branchRows=exportBranches.map((key,row)=>{
       const operationsInBranch=exportOperations.filter(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")===key).slice().sort((a,b)=>a.sequence-b.sequence);
       return {key,row,branch:operationsInBranch[0]?.branch||"Main route",operations:operationsInBranch};
     }).filter(row=>row.operations.length);
+    const addEdge=(source:string,target:string,type:string,id:string,label:string,animated=false)=>{
+      if(!source||!target||source===target)return;
+      const key=manufacturingGraphEdgeKey(source,target,type);
+      if(edgeKeys.has(key))return;
+      edgeKeys.add(key);
+      const color=relationColors[type]||relationColors.main;
+      const [sourceHandle,targetHandle]=routeRelationshipHandles(type);
+      edges.push({id,source,target,sourceHandle,targetHandle,type:"smoothstep",label,labelStyle:{fontSize:9,fontWeight:750,fill:"#435d73"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.96},labelBgPadding:[5,3],style:{stroke:color,strokeWidth:type==="transport"?2.8:2.4,...(relationDashes[type]?{strokeDasharray:relationDashes[type]}:{})},markerEnd:{type:MarkerType.ArrowClosed,color},animated,selectable:false,focusable:false});
+    };
     branchRows.forEach(({row,branch,operations:ops})=>{
       ops.forEach((operation,index)=>{
-        const x=compactViewport?28+row*185:100+index*230;
-        const y=compactViewport?65+index*118:80+row*180;
+        // A horizontal, lane-based flow works consistently on phones and desktops.
+        const x=compactViewport?48+index*248:96+index*278;
+        const y=compactViewport?72+row*235:84+row*245;
         operationPositions.set(operation.id,{x,y,branch,index});
-        nodes.push({id:"operation:"+operation.id,type:"processMapEntity",position:{x,y},data:{title:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name,detail:[operation.category,operation.subcategory,vendors.find(v=>v.id===operation.vendorId)?.company||"Vendor not assigned","Qty "+operation.quantity].filter(Boolean).join(" · "),kind:"PROCESS OPERATION",accent:branchAccent(operation),status:operation.status,actionLabel:"Select operation",onAction:()=>{setSelectedOperationId(operation.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:compactViewport?160:210}});
+        nodes.push({id:"operation:"+operation.id,type:"processMapEntity",position:{x,y},data:{title:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name,detail:[operation.category,operation.subcategory,vendors.find(v=>v.id===operation.vendorId)?.company||"Vendor not assigned","Qty "+operation.quantity].filter(Boolean).join(" · "),kind:"PROCESS OPERATION",accent:branchAccent(operation),status:operation.status,actionLabel:"Select operation",onAction:()=>{setSelectedOperationId(operation.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:nodeWidth}});
       });
+      const branchType=branch.toLowerCase().includes("rework")?"rework":branch==="Main route"?"main":"alternate";
       for(let index=0;index<ops.length-1;index++){
         const from=ops[index],to=ops[index+1];
-        const saved=relationshipRows.find(link=>link.fromOperationId===from.id&&link.toOperationId===to.id);
-        const relation=saved?.relationshipType||(branch.toLowerCase().includes("rework")?"rework":branch==="Main route"?"main":"alternate");
-        const color=relationColors[relation]||relationColors.main;
-        edges.push({id:"process-sequence:"+from.id+":"+to.id,source:"operation:"+from.id,target:"operation:"+to.id,type:"smoothstep",label:saved?.label||relation.replaceAll("-"," ").toUpperCase(),labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},animated:isRunningOperation(from.id)||isRunningOperation(to.id),selectable:false,focusable:false});
+        const saved=relationshipRows.filter(link=>link.fromOperationId===from.id&&link.toOperationId===to.id);
+        const primaryType=saved[0]?.relationshipType||branchType;
+        addEdge("operation:"+from.id,"operation:"+to.id,primaryType,"process-sequence:"+from.id+":"+to.id,relationColors[primaryType]?primaryType.replaceAll("-"," ").toUpperCase():"NEXT PROCESS",isRunningOperation(from.id)||isRunningOperation(to.id));
+        saved.slice(1).forEach((link,extraIndex)=>addEdge("operation:"+from.id,"operation:"+to.id,link.relationshipType,"process-sequence-extra:"+link.id,link.label||link.relationshipType.toUpperCase(),isRunningOperation(from.id)||isRunningOperation(to.id)));
       }
     });
+    // Saved parent links are explicit branch relationships, not guessed from card order.
     branchRows.filter(row=>row.branch!=="Main route").forEach(({branch,operations:ops})=>{
       const origin=resolveBranchOrigin(branch,ops);
       if(!origin?.branchRoot||!origin.parent)return;
@@ -636,18 +662,16 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       let sourceId="operation:"+origin.parent.id;
       if(!operationPositions.has(origin.parent.id)){
         sourceId="branch-origin:"+origin.parent.id+":"+branch;
-        nodes.push({id:sourceId,type:"processMapEntity",position:{x:Math.max(16,branchRootPosition.x-175),y:Math.max(16,branchRootPosition.y-95)},data:{title:"OP-"+String(origin.parent.sequence).padStart(3,"0")+" · "+origin.parent.name,detail:"Parent process · outside the current route scope",kind:"BRANCH ORIGIN REFERENCE",accent:"#647d93",status:origin.parent.status,actionLabel:"Select parent",onAction:()=>{setSelectedOperationId(origin.parent.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:compactViewport?160:210}});
+        nodes.push({id:sourceId,type:"processMapEntity",position:{x:Math.max(16,branchRootPosition.x-225),y:branchRootPosition.y+145},data:{title:"OP-"+String(origin.parent.sequence).padStart(3,"0")+" · "+origin.parent.name,detail:"Parent process · outside the current route scope",kind:"BRANCH ORIGIN REFERENCE",accent:"#647d93",status:origin.parent.status,actionLabel:"Select parent",onAction:()=>{setSelectedOperationId(origin.parent.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:nodeWidth}});
       }
       const relation=origin.branchRoot.relationType==="rework"||/rework/i.test(branch)?"rework":"alternate";
-      const color=relationColors[relation];
-      edges.push({id:"branch-origin:"+origin.parent.id+":"+origin.branchRoot.id,source:sourceId,target:"operation:"+origin.branchRoot.id,type:"smoothstep",label:relation==="rework"?"REWORK BRANCH":"ALTERNATE BRANCH",labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2,strokeDasharray:"7 4"},markerEnd:{type:MarkerType.ArrowClosed,color},animated:origin.parent.status==="Running"||origin.branchRoot.status==="Running",selectable:false,focusable:false});
+      addEdge(sourceId,"operation:"+origin.branchRoot.id,relation,"branch-origin:"+origin.parent.id+":"+origin.branchRoot.id,relation==="rework"?"REWORK BRANCH":"ALTERNATE BRANCH",origin.parent.status==="Running"||origin.branchRoot.status==="Running");
     });
-    const sequentialPairs=new Set(edges.map(edge=>edge.source+"::"+edge.target));
+    // Every enabled saved relationship is drawn. Parallel relationship types between
+    // the same endpoints retain separate semantic ports instead of being discarded.
     relationshipRows.forEach(link=>{
-      const from="operation:"+link.fromOperationId,to="operation:"+link.toOperationId;
-      if(!operationPositions.has(link.fromOperationId)||!operationPositions.has(link.toOperationId)||sequentialPairs.has(from+"::"+to))return;
-      const color=relationColors[link.relationshipType]||relationColors.main;
-      edges.push({id:"saved-relationship:"+link.id,source:from,target:to,type:"smoothstep",label:link.label||link.relationshipType.toUpperCase(),labelStyle:{fontSize:9,fontWeight:700,fill:"#58738a"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.92},style:{stroke:color,strokeWidth:2,strokeDasharray:"7 4"},markerEnd:{type:MarkerType.ArrowClosed,color},animated:isRunningOperation(link.fromOperationId)||isRunningOperation(link.toOperationId),selectable:false,focusable:false});
+      if(!operationPositions.has(link.fromOperationId)||!operationPositions.has(link.toOperationId))return;
+      addEdge("operation:"+link.fromOperationId,"operation:"+link.toOperationId,link.relationshipType,"saved-relationship:"+link.id,link.label||link.relationshipType.toUpperCase(),isRunningOperation(link.fromOperationId)||isRunningOperation(link.toOperationId));
     });
     const materialNodeIds=new Map<string,string>();
     processMapMaterialEntries.forEach((entry,index)=>{
@@ -656,14 +680,19 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const firstMain=branchRows.find(row=>row.branch==="Main route")?.operations[0];
       const routeStart=!entry.anchorOperationId&&firstMain?operationPositions.get(firstMain.id):undefined;
       const base=anchor||routeStart;
-      const y=base?.y??110+index*100;
-      const x=base?(compactViewport?(entry.anchorOperationId?Math.max(20,base.x-160):base.x+165):(entry.anchorOperationId?base.x-215:Math.max(24,base.x-255))):35;
+      const materialX=base?Math.max(18,base.x-215):24;
+      const materialY=base?base.y+18+index*118:110+index*118;
       const supplier=vendors.find(v=>v.id===entry.vendorId)?.company||"Supplier not assigned";
-      nodes.push({id,type:"processMapEntity",position:{x,y:compactViewport?y+(entry.anchorOperationId?70:8)+index*82:y+100+index*105},data:{title:[entry.materialName,entry.materialGrade].filter(Boolean).join(" · "),detail:[entry.partNumber||entry.partName||"Component-level",entry.shapeType,entry.quantity+" pcs",Number(entry.totalWeightKg||0).toFixed(3)+" kg",supplier].join(" · "),kind:"MATERIAL PROCUREMENT",accent:"#b18a2d",status:entry.actualDeliveryDate?"Received":"Planned"},draggable:false,selectable:false,style:{width:compactViewport?154:195}});
-      if(base){
-        const target=entry.anchorOperationId?"operation:"+entry.anchorOperationId:"operation:"+firstMain!.id;
-        edges.push({id:"material-allocation:"+entry.id,source:id,target,label:entry.anchorOperationId?"ALLOCATED AFTER PROCESS":"REQUIRED ROUTE INPUT",labelStyle:{fontSize:8,fill:"#8b702e"},style:{stroke:"#b18a2d",strokeWidth:1.8,strokeDasharray:"5 4"},markerEnd:{type:MarkerType.ArrowClosed,color:"#b18a2d"},selectable:false,focusable:false});
-      }
+      nodes.push({id,type:"processMapEntity",position:{x:materialX,y:materialY},data:{title:[entry.materialName,entry.materialGrade].filter(Boolean).join(" · "),detail:[entry.partNumber||entry.partName||"Component-level",entry.shapeType,entry.quantity+" pcs",Number(entry.totalWeightKg||0).toFixed(3)+" kg",supplier].join(" · "),kind:"MATERIAL PROCUREMENT",accent:"#b18a2d",status:entry.actualDeliveryDate?"Received":"Planned"},draggable:false,selectable:false,style:{width:nodeWidth}});
+      const hasInbound=Boolean(entry.transportVendorId||entry.transportFrom||entry.transportTo||entry.transportVehicleType||Number(entry.transportCost)>0);
+      const target=entry.anchorOperationId?"operation:"+entry.anchorOperationId:firstMain?"operation:"+firstMain.id:"";
+      if(hasInbound){
+        const transportId="material-transport:"+entry.id;
+        const vehicle=entry.transportVehicleType||"truck";
+        nodes.push({id:transportId,type:"processMapEntity",position:{x:materialX+nodeWidth+42,y:materialY},data:{title:[entry.transportFrom||"Supplier pickup",entry.transportTo||"Factory destination"].join(" → "),detail:[vehicle,entry.transportVendorId?vendors.find(v=>v.id===entry.transportVendorId)?.company||"Transporter not assigned":"Transporter not assigned",money(entry.transportCost||0)].join(" · "),kind:"INBOUND MATERIAL TRANSPORT",accent:"#397ea4",vehicleType:vehicle,status:entry.transportStatus||"Planned",actionLabel:"Open transport details",onAction:()=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");}},draggable:false,selectable:false,style:{width:nodeWidth}});
+        addEdge(id,transportId,"transport","material-inbound:"+entry.id,"INBOUND / VEHICLE");
+        if(target)addEdge(transportId,target,"main","material-to-operation:"+entry.id,"MATERIAL READY");
+      }else if(target)addEdge(id,target,"main","material-allocation:"+entry.id,entry.anchorOperationId?"ALLOCATED AFTER PROCESS":"REQUIRED ROUTE INPUT");
     });
     componentMaterialProcessLinks.forEach(link=>{
       const material=materialMasterRecords.find(row=>row.id===link.materialId);
@@ -671,10 +700,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       if(!material||!operation)return;
       const id="bom-link:"+link.id;
       const label=materialProcessPartLabels[link.id]||"BOM part";
-      nodes.push({id,type:"processMapEntity",position:{x:operation.x+(link.placement==="before"?-135:135),y:operation.y+95},data:{title:material.name,detail:label,kind:"MATERIAL → PROCESS LINK",accent:"#3e9278",status:link.placement==="before"?"Before operation":"After operation"},draggable:false,selectable:false,style:{width:compactViewport?145:175}});
+      const x=link.placement==="before"?Math.max(18,operation.x-205):operation.x+nodeWidth+25;
+      const y=operation.y+135;
+      nodes.push({id,type:"processMapEntity",position:{x,y},data:{title:material.name,detail:label,kind:"MATERIAL → PROCESS LINK",accent:"#3e9278",status:link.placement==="before"?"Before operation":"After operation"},draggable:false,selectable:false,style:{width:compactViewport?154:175}});
       const source=link.placement==="before"?id:"operation:"+link.operationId;
       const target=link.placement==="before"?"operation:"+link.operationId:id;
-      edges.push({id:"bom-link-edge:"+link.id,source,target,label:link.placement==="before"?"INPUT TO PROCESS":"OUTPUT FROM PROCESS",labelStyle:{fontSize:8,fill:"#3c806d"},style:{stroke:"#3e9278",strokeWidth:1.7},markerEnd:{type:MarkerType.ArrowClosed,color:"#3e9278"},selectable:false,focusable:false});
+      addEdge(source,target,"main","bom-link-edge:"+link.id,link.placement==="before"?"INPUT TO PROCESS":"OUTPUT FROM PROCESS");
     });
     componentTransportLegs.forEach((leg,index)=>{
       const id="transport:"+leg.id;
@@ -682,15 +713,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const to=leg.targetOperationId?operationPositions.get(leg.targetOperationId):undefined;
       const materialId=leg.materialEntryId?materialNodeIds.get(leg.materialEntryId):undefined;
       const firstMain=branchRows.find(row=>row.branch==="Main route")?.operations[0];
-      const targetPosition=to||(!from&&!materialId&&leg.placement==="start"&&firstMain?operationPositions.get(firstMain.id):undefined);
-      const x=from&&to?(from.x+to.x)/2:from?from.x+105:to?to.x-170:targetPosition?targetPosition.x-170:24;
-      const y=from&&to?(from.y+to.y)/2+65:from?from.y+65:to?to.y-65:targetPosition?targetPosition.y-65:300+index*75;
-      nodes.push({id,type:"processMapEntity",position:{x,y},data:{title:leg.fromLocation+" → "+leg.toLocation,detail:[leg.vehicleType,leg.tripCount+" trip(s)",vendors.find(v=>v.id===leg.vendorId)?.company||"Transporter not assigned"].join(" · "),kind:"TRANSPORT LEG",accent:"#397ea4",status:leg.status||"Planned",actionLabel:"Open transport details",onAction:()=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");}},draggable:false,selectable:false,style:{width:compactViewport?154:190}});
-      const color="#397ea4";
-      if(materialId)edges.push({id:"transport-from-material:"+leg.id,source:materialId,target:id,label:"CARRY",style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
-      else if(from)edges.push({id:"transport-from-operation:"+leg.id,source:"operation:"+leg.anchorOperationId,target:id,label:"CARRY",style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
-      if(to)edges.push({id:"transport-to-operation:"+leg.id,source:id,target:"operation:"+leg.targetOperationId,label:"DELIVER TO",style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
-      else if(!materialId&&targetPosition&&firstMain&&leg.placement==="start")edges.push({id:"transport-to-route:"+leg.id,source:id,target:"operation:"+firstMain.id,label:"ROUTE START",style:{stroke:color,strokeWidth:2},markerEnd:{type:MarkerType.ArrowClosed,color},selectable:false,focusable:false});
+      const x=from&&to?Math.max(18,(from.x+to.x)/2-nodeWidth/2):from?from.x+52:to?Math.max(18,to.x-nodeWidth-25):firstMain?Math.max(18,operationPositions.get(firstMain.id)!.x-nodeWidth-25):24;
+      const y=from&&to?Math.max(from.y,to.y)+145:from?from.y+145:to?to.y+145:firstMain?operationPositions.get(firstMain.id)!.y+145:310+index*135;
+      const vehicle=leg.vehicleType||"truck";
+      nodes.push({id,type:"processMapEntity",position:{x,y},data:{title:(leg.fromLocation||"Origin")+" → "+(leg.toLocation||"Destination"),detail:[vehicle,leg.tripCount+" trip(s)",vendors.find(v=>v.id===leg.vendorId)?.company||"Transporter not assigned"].join(" · "),kind:"TRANSPORT LEG",accent:"#397ea4",vehicleType:vehicle,status:leg.status||"Planned",actionLabel:"Open transport details",onAction:()=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");}},draggable:false,selectable:false,style:{width:nodeWidth}});
+      if(materialId)addEdge(materialId,id,"transport","transport-from-material:"+leg.id,"CARRY");
+      else if(from)addEdge("operation:"+leg.anchorOperationId,id,"transport","transport-from-operation:"+leg.id,"TRANSPORT");
+      if(to)addEdge(id,"operation:"+leg.targetOperationId,"transport","transport-to-operation:"+leg.id,"DELIVER TO");
+      else if(!materialId&&firstMain&&leg.placement==="start")addEdge(id,"operation:"+firstMain.id,"transport","transport-to-route:"+leg.id,"ROUTE START");
     });
     return {nodes,edges};
   },[exportBranches,exportOperations,processMapMaterialEntries,componentMaterialProcessLinks,componentTransportLegs,poId,selectedLine?.id,materialMasterRecords,materialProcessPartLabels,data.routeRelationships,vendors,branchAccent]);
@@ -1856,9 +1886,19 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             </div>
           : visualStyle==="graph" && exportOperations.length ? <div className="process-map-graph-canvas" data-testid="process-map-react-canvas">
               <div className="process-map-graph-header"><strong>{selectedPO?.number||"Selected PO"} · {selectedComponent?.partNumber||"Component"} · {selectedPart?.partNumber||"All line parts"}</strong><span>{processMapGraph.nodes.length} nodes · {processMapGraph.edges.length} route links</span></div>
-              <ReactFlow<ProcessMapGraphNode,Edge> nodes={processMapGraph.nodes} edges={processMapGraph.edges} nodeTypes={PROCESS_MAP_NODE_TYPES} fitView fitViewOptions={{padding:.14,minZoom:.26,maxZoom:1.2}} minZoom={.2} maxZoom={2} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} nodesFocusable edgesFocusable={false} panOnDrag zoomOnScroll={false} zoomOnPinch zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
-                <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#b5c9da"/><Controls showInteractive={false}/><MiniMap<ProcessMapGraphNode> pannable zoomable nodeColor={(node:ProcessMapGraphNode):string=>node.data.accent}/>
-              </ReactFlow>
+              <ManufacturingGraphCanvas
+                nodes={processMapGraph.nodes}
+                edges={processMapGraph.edges}
+                nodeTypes={PROCESS_MAP_NODE_TYPES}
+                fitView
+                fitViewOptions={{padding:.12,minZoom:.12,maxZoom:1.2}}
+                minZoom={.1}
+                maxZoom={2}
+                nodesFocusable
+                minimapNodeColor={node=>node.data.accent}
+                className="process-map-graph-shared-layer"
+                testId="process-map-react-flow"
+              />
             </div>
           : exportOperations.length ? <div className={"linked-node-scroll process-visual-"+visualStyle+" " + (visualStyle==="vertical" ? "linked-node-vertical" : "")}><nav className="linked-process-index" aria-label="Jump to process operation"><strong>STEPS</strong>{exportOperations.map(operation=><button type="button" key={operation.id} onClick={()=>{setSelectedOperationId(operation.id);setShowEditor(false);}} aria-label={"Go to operation "+operation.sequence+": "+operation.name}><b>{String(operation.sequence).padStart(2,"0")}</b><span>{operation.name}</span></button>)}</nav><div className="linked-route-lanes" style={{transform:"scale(" + zoom + ")",transformOrigin:"top left"}}>{exportBranches.map(routeGroup => {
           const laneOperations = exportOperations.filter(op => (op.poLineId||op.componentId)+"::"+(op.branch||"Main route") === routeGroup).slice().sort((a,b)=>a.sequence-b.sequence);
