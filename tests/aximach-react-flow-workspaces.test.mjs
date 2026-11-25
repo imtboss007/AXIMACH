@@ -80,7 +80,7 @@ test("Process Map assigns an internal operation to an eligible registered machin
   assert.ok(processMap.includes("validateMachineAssignment(assignedMachine"));
   assert.ok(processMap.includes("machineId: targetOperation.machineId || \"\""));
   assert.ok(processMap.includes("setDraft({...draft,machineId,machine:machine?.name||draft.machine})"));
-  assert.ok(processMap.includes("machineId:"""));
+  assert.ok(processMap.includes('machineId:""'));
   assert.ok(helper.includes('machine.status === "Available"'));
   assert.ok(helper.includes('reason: "process-capability-mismatch"'));
 });
