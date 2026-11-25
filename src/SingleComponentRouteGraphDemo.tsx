@@ -71,9 +71,9 @@ function buildDemoGraph():{nodes:DemoFlowNode[];edges:DemoFlowEdge[]} {
   const nodes:DemoFlowNode[] = rawNodes.map(row=>({
     id:row.id,type:"singleComponentRoute",position:{x:row.x,y:row.y},
     data:{label:row.label,code:row.code,kind:row.kind,detail:row.detail,accent:row.accent,vehicleType:row.vehicleType,processName:row.processName,category:row.category,ratePerPartINR:row.ratePerPartINR,plannedCostINR:row.plannedCostINR,quantity:row.quantity,branch:row.branch,subComponent:row.subComponent},
-    draggable:false,selectable:false,focusable:false,style:{width:230}
+    draggable:false,selectable:false,focusable:false,style:{width:200}
   }));
-  const centers = new Map(rawNodes.map(row=>[row.id,{x:row.x+115,y:row.y+58}]));
+  const centers = new Map(rawNodes.map(row=>[row.id,{x:row.x+100,y:row.y+70}]));
   const pairCounts = new Map<string,number>();
   const edges:DemoFlowEdge[] = (demo.edges as Array<{id:string;source:string;target:string;type:string;label:string}>).map(row=>{
     const sourcePoint=centers.get(row.source)||{x:0,y:0};
@@ -109,7 +109,7 @@ export function SingleComponentRouteGraphDemo() {
     </header>
     <div className="route-flow-graph-canvas single-component-route-demo-canvas" data-testid="single-component-route-graph">
       <ManufacturingGraphCanvas nodes={graph.nodes} edges={graph.edges} nodeTypes={SINGLE_COMPONENT_NODE_TYPES}
-        fitView fitViewOptions={{padding:.12,minZoom:.06,maxZoom:.9,duration:180}} minZoom={.06} maxZoom={1.8}
+        fitView fitViewOptions={{padding:.1,minZoom:.12,maxZoom:.9,duration:220}} minZoom={.1} maxZoom={1.8}
         nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}
         nodesFocusable={false} edgesFocusable={false}
         ariaLabel="Complete single-component process, material and transport route graph"/>

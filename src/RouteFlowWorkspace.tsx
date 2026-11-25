@@ -6,6 +6,7 @@ import { useReducedMotion } from "motion/react";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 import { RouteFlowShowcase } from "./RouteFlowShowcase";
+import TransportRoutingDemo from "./TransportRoutingDemo";
 import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js";
 import { routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
@@ -200,6 +201,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
   const [routeCanvasMode,setRouteCanvasMode]=useState<"cards"|"graph">("graph");
+  const [showSingleComponentRouteDemo,setShowSingleComponentRouteDemo]=useState(false);
   const [showRelationshipEditor,setShowRelationshipEditor]=useState(false);
   const [showTransportEditor,setShowTransportEditor]=useState(false);
   const routeViewportRef=useRef<HTMLDivElement|null>(null);
@@ -755,6 +757,17 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
 {RELATIONSHIPS.map(item=><span key={item.id} className={"route-flow-legend-item route-flow-curve-"+item.id}><i/>{item.label}</span>)}<span className="route-flow-legend-item route-flow-curve-transport"><Truck size={13}/> Transport leg</span></div>
     </section>
 
+    <section className="route-flow-advanced-demo-launch">
+      <div>
+        <span>ADVANCED ROUTE ACCEPTANCE · SINGLE SOURCE OF TRUTH</span>
+        <h3>One company · one PO · one component · complete rate graph</h3>
+        <p>26 priced operations · 16 process categories · 11 route relationship patterns · 10 transport legs · BOM material flows · alternate and rework costing.</p>
+      </div>
+      <button type="button" className="button-primary compact-button" onClick={()=>setShowSingleComponentRouteDemo(value=>!value)} aria-expanded={showSingleComponentRouteDemo}>
+        {showSingleComponentRouteDemo?"Hide complete route demo":"Open complete route + rate demo"}
+      </button>
+    </section>
+    {showSingleComponentRouteDemo&&<TransportRoutingDemo onClose={()=>setShowSingleComponentRouteDemo(false)}/>}
     <RouteFlowShowcase/>
 
     {showTransportEditor&&<section className="route-flow-editor-panel">

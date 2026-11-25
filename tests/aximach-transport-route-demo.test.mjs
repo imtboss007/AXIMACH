@@ -73,8 +73,12 @@ test("multi-route example is visible and interactive in both Process Map and Tra
   const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
   const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(processMap.includes("<TransportRoutingDemo onClose="));
   assert.ok(directory.includes("<TransportRoutingDemo onClose="));
+  assert.ok(routeFlow.includes('import TransportRoutingDemo from "./TransportRoutingDemo"'));
+  assert.ok(routeFlow.includes("<TransportRoutingDemo onClose="));
+  assert.ok(routeFlow.includes("One company · one PO · one component · complete rate graph"));
   assert.ok(demo.includes("Next process step"));
   assert.ok(demo.includes("Activate alternate supplier route"));
   assert.ok(demo.includes("ProcessRateGraph"));
@@ -221,4 +225,14 @@ test("Route Flow never infers a transport receiver from the next displayed opera
   assert.ok(routeFlow.includes('const target=operationFor(leg.targetOperationId||"")'));
   assert.ok(!routeFlow.includes("inferredTarget"), "The next displayed operation is not a valid transport destination.");
   assert.ok(routeFlow.includes('if(target)addEdge(transportId,target.id,"transport","transport-to:"+leg.id'));
+});
+
+
+test("single-component route graph uses a compact multi-lane layout sized for readable zoom and mobile pan",()=>{
+  const graph=readFileSync(new URL("../src/SingleComponentRouteGraphDemo.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  assert.ok(graph.includes("style:{width:200}"));
+  assert.ok(graph.includes("row.x+100,y:row.y+70"));
+  assert.ok(css.includes(".single-component-route-demo-canvas{height:1020px!important;min-height:900px!important}"));
+  assert.ok(css.includes("width:1120px!important;max-width:none!important;height:900px!important"));
 });

@@ -7061,3 +7061,19 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .transport-demo-branch-lanes .transport-demo-operation{max-width:none;width:100%}
  .transport-demo-cost-table-head,.transport-demo-cost-table-row{grid-template-columns:minmax(180px,2fr) minmax(125px,1.3fr) 42px 85px 100px}
 }
+
+
+.route-flow-advanced-demo-launch{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:16px 0 10px;padding:14px 16px;border:1px solid #c9dce9;border-left:4px solid #218ba2;border-radius:11px;background:linear-gradient(120deg,#f5fbff,#edf6fb)}
+.route-flow-advanced-demo-launch>div{display:grid;gap:4px;min-width:0}
+.route-flow-advanced-demo-launch>div>span{font:800 7px 'DM Mono',monospace;letter-spacing:.09em;color:#52758f}
+.route-flow-advanced-demo-launch h3{margin:0;color:#20465f;font-size:13px}
+.route-flow-advanced-demo-launch p{margin:0;color:#617b91;font-size:9px;line-height:1.5}
+.single-component-route-demo-canvas{height:1020px!important;min-height:900px!important}
+.single-component-route-node{width:200px!important;min-height:142px!important}
+@media(max-width:760px){
+ .route-flow-advanced-demo-launch{align-items:flex-start;padding:11px}
+ .route-flow-advanced-demo-launch>div{width:100%}
+ .route-flow-advanced-demo-launch button{width:100%}
+ .single-component-route-demo{overflow-x:auto}
+ .single-component-route-demo-canvas{width:1120px!important;max-width:none!important;height:900px!important;min-height:900px!important}
+}
