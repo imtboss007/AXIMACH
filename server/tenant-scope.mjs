@@ -184,7 +184,9 @@ function resolveAccess(data, user) {
  const vendors = rows(data,"vendors").filter(row => vendorIds.has(row.id));
  const processDefinitionIds = new Set([
   ...ids(operations.map(row => ({id:row.processDefinitionId})).filter(row => row.id)),
-  ...machines.flatMap(machine=>Array.isArray(machine.processDefinitionIds)?machine.processDefinitionIds:[])
+  ...machines.flatMap(machine=>Array.isArray(machine.processDefinitionIds)?machine.processDefinitionIds:[]),
+  ...toolingAssets.flatMap(asset=>Array.isArray(asset.processDefinitionIds)?asset.processDefinitionIds:[]),
+  ...fixtureAssets.flatMap(asset=>Array.isArray(asset.processDefinitionIds)?asset.processDefinitionIds:[])
  ]);
  const processDefinitions = rows(data,"processDefinitions").filter(row => processDefinitionIds.has(row.id)).map(row => ({...row,vendorIds:(Array.isArray(row.vendorIds)?row.vendorIds:[]).filter(id=>vendorIds.has(id))}));
  const transportRouteIds = ids(transportLegs.map(row => ({id:row.routeId})).filter(row => row.id));
@@ -261,7 +263,7 @@ function resolveFullAccess(data,incoming={}) {
  return {
   ...Object.fromEntries(ARRAY_FIELDS.map(field=>[field,all(field)])),
   companyIds:ids(companies),factoryIds:ids(factories),purchaseOrderIds,lineIds,componentIds,operationIds,
-  vendorIds:idsInRows("vendors"),machineIds:idsInRows("machines"),toolingAssetIds:idsInRows("toolingAssets"),fixtureAssetIds:idsInRows("fixtureAssets"),materialIds:idsInRows("materials"),processDefinitionIds:idsInRows("processDefinitions"),
+  vendorIds:idsInRows("vendors"),machineIds:idsInRows("machines"),toolingAssetIds:idsInRows("toolingAssets"),fixtureAssetIds:idsInRows("fixtureAssets"),resourceUsageEventIds:idsInRows("resourceUsageEvents"),materialIds:idsInRows("materials"),processDefinitionIds:idsInRows("processDefinitions"),
   transportRouteIds:idsInRows("transportRoutes"),entityIds
  };
 }
@@ -417,6 +419,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   const toolIds=Array.isArray(operation.toolingAssetIds)?operation.toolingAssetIds:[];
   const fixtureIds=Array.isArray(operation.fixtureAssetIds)?operation.fixtureAssetIds:[];
   if(toolIds.length>50||fixtureIds.length>50||new Set(toolIds).size!==toolIds.length||new Set(fixtureIds).size!==fixtureIds.length)return false;
+  if(operation.executionType==="Outsourced"&&(toolIds.length||fixtureIds.length))return false;
   const po=allowedPOById.get(operation.poId);
   const component=[...rows(currentData,"components"),...rows(incoming,"components")].find(row=>row.id===operation.componentId);
   const machine=operation.machineId?machineById.get(operation.machineId):undefined;
