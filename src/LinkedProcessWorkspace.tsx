@@ -22,7 +22,7 @@ import { manufacturingGraphEdgeKey, routeRelationshipEdgeGeometry } from "./manu
 import TransportRoutingDemo from "./TransportRoutingDemo";
 import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
 import { resolveProcessColor } from "./processPalette";
-import { getEligibleMachineAssets, validateMachineAssignment } from "./machineCapabilities.mjs";
+import { getEligibleMachineAssets, validateMachineAssignment, validateMachineSchedule } from "./machineCapabilities.mjs";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -1174,6 +1174,16 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const assignedMachine=machines.find(machine=>machine.id===draft.machineId);
       const assignment=validateMachineAssignment(assignedMachine,{machineId:draft.machineId,existingMachineId:operations.find(operation=>operation.id===editingId)?.machineId,companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,executionType:draft.executionType});
       if(!assignment.ok){onNotice("Registered machine assignment is invalid ("+assignment.reason+"). Choose an available machine in this PO factory with the selected process capability.");return;}
+    }
+    if(draft.machineId){
+      const schedule=validateMachineSchedule({...draft,id:editingId||"__new-operation__"},operations,editingId);
+      if(!schedule.ok){
+        const conflict=operations.find(operation=>operation.id===schedule.conflictingOperationId);
+        onNotice(schedule.reason==="machine-time-conflict"
+          ?"Machine "+(selectedMachine?.assetCode||selectedMachine?.name||"asset")+" is already reserved by "+(conflict?.name||"another operation")+" ("+dateTimeInput(conflict?.plannedStart)+" → "+dateTimeInput(conflict?.plannedEnd)+"). Choose a non-overlapping time or another machine."
+          :"Enter a valid machine reservation end time after its start time.");
+        return;
+      }
     }
     if (draft.executionType === "Outsourced" && selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)) { onNotice("The selected vendor is not assigned to this Process Directory definition. Choose an assigned vendor or update the Process Directory vendor links."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
