@@ -44,7 +44,7 @@ test("demo uses AXIMACH's shared React Flow canvas, process icons and adaptive e
   const demo=readFileSync(new URL("../src/TransportRoutingDemo.tsx",import.meta.url),"utf8");
   assert.ok(graph.includes("<ManufacturingGraphCanvas"));
   assert.ok(graph.includes("routeRelationshipEdgeGeometry"));
-  assert.ok(graph.includes("type:"manufacturing""));
+  assert.ok(graph.includes('type:"manufacturing"'));
   assert.ok(graph.includes("<VehicleIcon vehicleType={data.vehicleType"));
   assert.ok(graph.includes("<ProcessIcon processName="));
   assert.ok(demo.includes("<SingleComponentRouteGraphDemo/>"));
