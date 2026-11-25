@@ -94,7 +94,7 @@ function resolveAccess(data, user) {
    const po=purchaseOrdersById.get(operation.poId);
    const capabilities=Array.isArray(machine?.processDefinitionIds)?machine.processDefinitionIds:[];
    return Boolean(machine && po && machine.companyId===po.companyId && machine.factoryId===po.factoryId &&
-    operation.executionType!=="Outsourced" && (!operation.processDefinitionId || !capabilities.length || capabilities.includes(operation.processDefinitionId)));
+    operation.executionType!=="Outsourced" && (!capabilities.length || Boolean(operation.processDefinitionId && capabilities.includes(operation.processDefinitionId))));
   })())
  );
  const operationIds = ids(operations);
@@ -316,7 +316,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   return Boolean(machine && !machine.deletedAt && po && companyIds.has(machine.companyId) && factoryAllowed(machine.factoryId) &&
    machine.companyId===po.companyId && machine.factoryId===po.factoryId &&
    operation.executionType!=="Outsourced" && statusAllowed &&
-   (!operation.processDefinitionId || !capabilities.length || capabilities.includes(operation.processDefinitionId)));
+   (!capabilities.length || Boolean(operation.processDefinitionId && capabilities.includes(operation.processDefinitionId)))));
  };
  const transportRouteIds = access.transportRouteIds;
  const scopeIds = access.entityIds;
