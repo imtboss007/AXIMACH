@@ -81,7 +81,7 @@ test("Process Map assigns an internal operation to an eligible registered machin
   assert.ok(processMap.includes("validateMachineSchedule({...draft"),"Process Map must prevent overlapping reservations on a selected machine.");
   assert.ok(source("server/tenant-scope.mjs").includes("machineScheduleAllowed(operation)"),"Server writes must enforce the same machine schedule guard.");
   assert.ok(processMap.includes("machineId: targetOperation.machineId || \"\""));
-  assert.ok(processMap.includes("setDraft({...draft,machineId,machine:machine?.name||draft.machine})"));
+  assert.ok(processMap.includes("setDraft({...draft,machineId,machine:machine?.name||draft.machine,toolingAssetIds:changed?[]:draft.toolingAssetIds,fixtureAssetIds:changed?[]:draft.fixtureAssetIds})"));
   assert.ok(processMap.includes('machineId:""'));
   assert.ok(helper.includes('machine.status === "Available"'));
   assert.ok(helper.includes('reason: "process-capability-mismatch"'));
@@ -97,7 +97,7 @@ test("Manufacturing Universe graph exposes registered machines and saved operati
   assert.ok(graph.includes('edge("machine:"+row.id,"factory:"+row.factoryId,"installed at")'));
   assert.ok(graph.includes('edge("operation:"+row.id,"machine:"+row.machineId,"runs on")'));
   assert.ok(graph.includes('subtab:"machines"'));
-  assert.ok(graph.includes("version:5"));
+  assert.ok(model.includes("version: 5"));
   assert.ok(model.includes("parsed.version < 4")&&model.includes("parsed.version < 5"));
   assert.ok(master.includes('navigationContext?.subtab==="machines"?"machines"'));
 });
