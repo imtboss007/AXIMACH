@@ -56,6 +56,7 @@ export function applyResourceUsageEvent(asset,event){
    if(Number(asset.maxUsageCycles)>0&&next.usageCycles>=Number(asset.maxUsageCycles))next.status="Under maintenance";
   }
  }else if(event.eventType==="Regrind"&&event.resourceType==="tooling"){
+  if(asset.status!=="Needs regrind")throw new Error("A regrind event can only be recorded for a tool flagged as Needs regrind.");
   if(Number(asset.regrindCount||0)>=Number(asset.maxRegrinds||0))throw new Error("Maximum regrind count has been reached.");
   next.regrindCount=Number(asset.regrindCount||0)+1;next.toolLifeUsedMinutes=0;next.toolLifeUsedCycles=0;next.status="Available";
  }else if(event.eventType==="Inspection"){
