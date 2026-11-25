@@ -306,6 +306,31 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   ...rows(currentData,"processDefinitions").map(row=>row.id).filter(Boolean)
  ]);
  const machineById = new Map([...rows(currentData,"machines"),...rows(incoming,"machines")].filter(row=>row?.id).map(row=>[row.id,row]));
+ const operationRange = operation => {
+  if(!operation?.plannedStart||!operation?.plannedEnd)return null;
+  const start=Date.parse(operation.plannedStart),end=Date.parse(operation.plannedEnd);
+  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)return {invalid:true};
+  return {start,end};
+ };
+ const machineScheduleAllowed = operation => {
+  if(!operation.machineId||operation.executionType==="Outsourced"||operation.deletedAt||
+     operation.status==="Complete"||operation.status==="Rejected")return true;
+  const prior=rows(currentData,"operations").find(existing=>existing.id===operation.id);
+  const scheduleChanged=!prior||["machineId","plannedStart","plannedEnd","status","executionType"].some(field=>prior[field]!==operation[field]);
+  if(!scheduleChanged)return true;
+  const candidateRange=operationRange(operation);
+  if(!candidateRange)return true;
+  if(candidateRange.invalid)return false;
+  const combined=new Map([...rows(currentData,"operations"),...rows(incoming,"operations")].filter(row=>row?.id).map(row=>[row.id,row]));
+  for(const other of combined.values()){
+   if(other.id===operation.id||other.machineId!==operation.machineId||other.executionType==="Outsourced"||
+      other.deletedAt||other.status==="Complete"||other.status==="Rejected")continue;
+   const otherRange=operationRange(other);
+   if(!otherRange||otherRange.invalid)continue;
+   if(candidateRange.start<otherRange.end&&otherRange.start<candidateRange.end)return false;
+  }
+  return true;
+ };
  const machineAssignmentAllowed = operation => {
   if(!operation.machineId)return true;
   const machine=machineById.get(operation.machineId);
@@ -316,7 +341,8 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   return Boolean(machine && !machine.deletedAt && po && companyIds.has(machine.companyId) && factoryAllowed(machine.factoryId) &&
    machine.companyId===po.companyId && machine.factoryId===po.factoryId &&
    operation.executionType!=="Outsourced" && statusAllowed &&
-   (!capabilities.length || Boolean(operation.processDefinitionId && capabilities.includes(operation.processDefinitionId))));
+   (!capabilities.length || Boolean(operation.processDefinitionId && capabilities.includes(operation.processDefinitionId))) &&
+   machineScheduleAllowed(operation));
  };
  const transportRouteIds = access.transportRouteIds;
  const scopeIds = access.entityIds;
