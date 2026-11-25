@@ -467,10 +467,10 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     const bytes=await workbook.xlsx.writeBuffer();const blob=new Blob([new Uint8Array(bytes).buffer as ArrayBuffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="AXIMACH-Purchase-Orders.xlsx";a.click();URL.revokeObjectURL(url);onNotice("Exported "+rows.length+" purchase order(s) to Excel.");
   };
   const archive = (collection: "companies" | "factories" | "machines" | "toolingAssets" | "fixtureAssets" | "components" | "purchaseOrders", id: string) => {
-    if(collection==="companies"&&(machines.some(machine=>machine.companyId===id)||toolingAssets.some(asset=>asset.companyId===id)||fixtureAssets.some(asset=>asset.companyId===id)){
+    if(collection==="companies"&&(machines.some(machine=>machine.companyId===id)||toolingAssets.some(asset=>asset.companyId===id)||fixtureAssets.some(asset=>asset.companyId===id))){
       onNotice("Archive or reassign this company's machine assets before archiving the company. Machine ownership and production history must remain traceable.");return;
     }
-    if(collection==="factories"&&(machines.some(machine=>machine.factoryId===id)||toolingAssets.some(asset=>asset.factoryId===id)||fixtureAssets.some(asset=>asset.factoryId===id)){
+    if(collection==="factories"&&(machines.some(machine=>machine.factoryId===id)||toolingAssets.some(asset=>asset.factoryId===id)||fixtureAssets.some(asset=>asset.factoryId===id))){
       onNotice("Archive or reassign the machine assets in this factory before archiving the factory.");return;
     }
     if(collection==="toolingAssets"&&data.operations.some(operation=>!operation.deletedAt&&(operation.toolingAssetIds||[]).includes(id))){
