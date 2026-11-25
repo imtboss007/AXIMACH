@@ -111,7 +111,7 @@ test("Manufacturing Universe defaults to a live cross-module ecosystem graph and
   const workspace = await readSource("src/ManufacturingUniverseWorkspace.tsx");
   const graph = await readSource("src/ManufacturingEcosystemGraph.tsx");
   const styles = await readSource("src/aximach-ui.css");
-  assert.ok(workspace.includes('useState<"ecosystem"|"route">("ecosystem")'));
+  assert.ok(workspace.includes('useState<"ecosystem"|"route"|"preview">("ecosystem")'));
   assert.ok(workspace.includes('<ManufacturingEcosystemGraph data={data}'));
   assert.ok(workspace.includes('universeView==="route"'));
   for (const source of ["data.companies","data.factories","data.purchaseOrders","data.components","data.vendors","data.processDefinitions","data.operations","data.materialCostEntries","data.inspectionMeasurements","data.transportLegs","data.paymentTransactions","data.contactProfiles"]) {
