@@ -702,6 +702,8 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           fitViewOptions={{padding:.14,minZoom:.16,maxZoom:1.35}}
           minZoom={.12}
           maxZoom={2.8}
+          nodesDraggable={false}
+          nodesConnectable={false}
           nodesFocusable
           panOnDrag
           zoomOnScroll
