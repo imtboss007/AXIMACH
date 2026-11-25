@@ -172,6 +172,11 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     return (c.name + " " + c.gstin + " " + c.contactPerson + " " + c.phone + " " + c.email + " " + c.address + " " + people).toLowerCase().includes(search.toLowerCase().trim());
   }), [companies, search, data.contactProfiles]);
   const filteredFactories = useMemo(() => factories.filter(f => (f.name + " " + f.address + " " + companyName(f.companyId)).toLowerCase().includes(search.toLowerCase().trim())), [factories, search, data.companies]);
+  const filteredMachines = useMemo(() => machines.filter(machine => [
+    machine.assetCode,machine.name,machine.machineType,machine.manufacturer,machine.model,machine.serialNumber,machine.controller,
+    companyName(machine.companyId),factoryName(machine.factoryId),...(machine.materialCapabilities||[]),
+    ...(machine.processDefinitionIds||[]).map(id=>processDefinitions.find(item=>item.id===id)?.processType||id)
+  ].join(" ").toLowerCase().includes(search.toLowerCase().trim())),[machines,search,data.companies,data.factories,data.processDefinitions]);
   const filteredComponents = useMemo(() => components.filter(c => (c.partNumber + " " + c.name + " " + c.drawingReference + " " + c.revision).toLowerCase().includes(search.toLowerCase().trim())
     &&(!componentCompanyFilters.length||componentCompanyFilters.includes(c.companyId||""))
     &&(!componentNumberFilters.length||componentNumberFilters.includes(c.partNumber))
@@ -195,8 +200,8 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const selectedPOContext:LinkedNavigationContext={companyId:selectedPOForNavigation?.companyId,poId:selectedPOForNavigation?.id,poLineId:selectedPOFirstLine?.id,componentId:selectedPOFirstLine?.componentId};
 
   const resetForms = () => {
-    setShowForm(false); setCompanyEditingId(""); setFactoryEditingId(""); setComponentEditingId(""); setPoEditingId("");
-    setCompanyDraft(blankCompany()); setFactoryDraft(blankFactory()); setMachineDraft(blankMachine()); setMachineEditingId(""); setComponentDraft(blankComponent()); setPoDraft(blankPO()); setPoLines([]);
+    setShowForm(false); setCompanyEditingId(""); setFactoryEditingId(""); setMachineEditingId(""); setComponentEditingId(""); setPoEditingId("");
+    setCompanyDraft(blankCompany()); setFactoryDraft(blankFactory()); setMachineDraft(blankMachine()); setComponentDraft(blankComponent()); setPoDraft(blankPO()); setPoLines([]);
   };
   const beginAdd = () => {
     resetForms();
@@ -219,6 +224,32 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     const stamp = nowIso(); const id = factoryEditingId || makeId("factory");
     update(current => ({ ...current, factories: [...current.factories.filter(x => x.id !== id), { ...factoryDraft, name: factoryDraft.name.trim(), id, createdAt: current.factories.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
     resetForms(); onNotice("Factory saved and linked to its company by record ID.");
+  };
+  const saveMachine = () => {
+    const parentFactory=factories.find(factory=>factory.id===machineDraft.factoryId);
+    if(!machineDraft.companyId||!parentFactory||parentFactory.companyId!==machineDraft.companyId||!machineDraft.assetCode.trim()||!machineDraft.name.trim()||!machineDraft.machineType.trim()){
+      onNotice("Select a company and its factory, then enter the machine asset code, name and machine type.");return;
+    }
+    const duplicate=machines.some(row=>row.id!==machineEditingId&&row.companyId===machineDraft.companyId&&row.assetCode.trim().toLowerCase()===machineDraft.assetCode.trim().toLowerCase());
+    if(duplicate){onNotice("That asset code is already used by another machine in this company.");return;}
+    const validProcessIds=machineDraft.processDefinitionIds.filter(id=>processDefinitions.some(definition=>definition.id===id));
+    if(validProcessIds.length!==machineDraft.processDefinitionIds.length){onNotice("Remove invalid process capability references before saving.");return;}
+    const stamp=nowIso(),id=machineEditingId||makeId("machine");
+    const prior=machines.find(row=>row.id===id);
+    const record:MachineRecord={
+      ...machineDraft,id,assetCode:machineDraft.assetCode.trim(),name:machineDraft.name.trim(),machineType:machineDraft.machineType.trim(),
+      processDefinitionIds:[...new Set(validProcessIds)],
+      materialCapabilities:[...new Set(machineDraft.materialCapabilities.map(value=>value.trim()).filter(Boolean))],
+      createdAt:prior?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined
+    };
+    update(current=>({...current,machines:[...(current.machines||[]).filter(row=>row.id!==id),record]}));
+    resetForms();onNotice("Machine asset saved and linked to its company, factory and Process Directory capabilities.");
+  };
+  const editMachine=(row:MachineRecord)=>{
+    resetForms();
+    const {id,createdAt,updatedAt,deletedAt,...draft}=row;
+    setMachineDraft({...blankMachine(),...draft,processDefinitionIds:[...(row.processDefinitionIds||[])],materialCapabilities:[...(row.materialCapabilities||[])]});
+    setMachineEditingId(id);setShowForm(true);
   };
   const saveComponent = () => {
     if (!componentDraft.companyId || !componentDraft.partNumber.trim() || !componentDraft.name.trim()) { onNotice("Select a company and enter component number and name."); return; }
@@ -300,7 +331,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     sheet.getRow(1).font={bold:true,color:{argb:"FFFFFFFF"}};sheet.getRow(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF17324D"}};sheet.views=[{state:"frozen",ySplit:1}];
     const bytes=await workbook.xlsx.writeBuffer();const blob=new Blob([new Uint8Array(bytes).buffer as ArrayBuffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="AXIMACH-Purchase-Orders.xlsx";a.click();URL.revokeObjectURL(url);onNotice("Exported "+rows.length+" purchase order(s) to Excel.");
   };
-  const archive = (collection: "companies" | "factories" | "components" | "purchaseOrders", id: string) => {
+  const archive = (collection: "companies" | "factories" | "machines" | "components" | "purchaseOrders", id: string) => {
     if (!window.confirm("Archive this record? It will be hidden from active selectors but retained in history to protect linked records.")) return;
     const stamp = nowIso();
     update(current => ({ ...current, [collection]: current[collection].map(row => row.id === id ? { ...row, deletedAt: stamp, updatedAt: stamp } : row) } as typeof current));
