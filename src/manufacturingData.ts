@@ -581,11 +581,59 @@ export function useManufacturingData() {
 /** Remove only known AXIMACH demo seeds; preserve user-edited and user-entered records. */
 export function removeLegacyDemoData() {
   if (typeof window === "undefined") return;
-  const marker = "aximach.legacy-demo-cleanup.v2";
+  const marker = "aximach.demo-data-cleanup.v3";
   if (window.localStorage.getItem(marker) === "done") return;
   const safeRead = (key: string) => {
     try { return JSON.parse(window.localStorage.getItem(key) || "null"); } catch { return null; }
   };
+  // Retire only the reserved synthetic DEMO- namespace. Real company, PO,
+  // component, vendor and production records are preserved unchanged.
+  const canonical = readManufacturingData();
+  const stamp = nowIso();
+  const archiveRows = <T extends {id:string;deletedAt?:string;updatedAt?:string}>(rows:T[]) =>
+    rows.map(row=>row.id.startsWith("DEMO-")?{...row,deletedAt:row.deletedAt||stamp,updatedAt:stamp}:row);
+  const hasReservedDemo = Object.values(canonical).some(value=>
+    Array.isArray(value)&&value.some((row:any)=>typeof row?.id==="string"&&row.id.startsWith("DEMO-")&&!row.deletedAt)
+  );
+  if (hasReservedDemo) {
+    const archived:ManufacturingData = {
+      ...canonical,
+      updatedAt:stamp,
+      companies:archiveRows(canonical.companies),
+      customers:archiveRows(canonical.customers),
+      prospects:archiveRows(canonical.prospects),
+      factories:archiveRows(canonical.factories),
+      purchaseOrders:canonical.purchaseOrders.map(po=>({
+        ...po,
+        ...(po.id.startsWith("DEMO-")?{deletedAt:po.deletedAt||stamp,updatedAt:stamp}:{}),
+        lines:po.lines.map(line=>line.id.startsWith("DEMO-")?{...line,deletedAt:line.deletedAt||stamp,updatedAt:stamp}:line)
+      })),
+      components:archiveRows(canonical.components),
+      vendors:archiveRows(canonical.vendors),
+      operations:archiveRows(canonical.operations),
+      quotations:archiveRows(canonical.quotations),
+      materials:archiveRows(canonical.materials),
+      componentParts:archiveRows(canonical.componentParts),
+      materialCostEntries:archiveRows(canonical.materialCostEntries),
+      bomLines:archiveRows(canonical.bomLines),
+      materialProcessLinks:archiveRows(canonical.materialProcessLinks),
+      inventoryTransactions:archiveRows(canonical.inventoryTransactions),
+      contactProfiles:archiveRows(canonical.contactProfiles),
+      processDefinitions:archiveRows(canonical.processDefinitions),
+      plannedCosts:archiveRows(canonical.plannedCosts),
+      transportRoutes:archiveRows(canonical.transportRoutes),
+      transportLegs:archiveRows(canonical.transportLegs),
+      paymentTransactions:archiveRows(canonical.paymentTransactions),
+      inspectionMeasurements:archiveRows(canonical.inspectionMeasurements),
+      supplierInvoices:archiveRows(canonical.supplierInvoices),
+      supplierPayments:archiveRows(canonical.supplierPayments),
+      supplierFinanceApprovals:archiveRows(canonical.supplierFinanceApprovals),
+      supplierPaymentAllocations:archiveRows(canonical.supplierPaymentAllocations),
+      routeRelationships:archiveRows(canonical.routeRelationships),
+      followUpAssignments:archiveRows(canonical.followUpAssignments)
+    };
+    writeLocal(archived);
+  }
   const route = safeRead("aximach.processRoute.v2");
   if (Array.isArray(route)) {
     const knownVendors = new Set(["Steel Mart", "Ramesh CNC", "Tech Mach", "HeatTreat Co", "Precision Grind", "TapTech", "SurfacePro", "CoatWell"]);
