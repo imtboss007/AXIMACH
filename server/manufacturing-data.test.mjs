@@ -7,7 +7,7 @@ const newTime = "2026-11-04T09:00:00.000Z";
 
 test("server merge covers every manufacturing collection, including follow-up assignments", () => {
   assert.deepEqual(manufacturingCollections, [
-    "companies", "customers", "prospects", "factories", "purchaseOrders", "components", "vendors", "operations",
+    "companies", "customers", "prospects", "factories", "machines", "purchaseOrders", "components", "vendors", "operations",
     "quotations", "materials", "componentParts", "materialCostEntries", "bomLines", "materialProcessLinks", "inventoryTransactions", "contactProfiles",
     "processDefinitions", "plannedCosts", "paymentTransactions", "inspectionMeasurements",
     "supplierInvoices", "supplierPayments", "supplierFinanceApprovals", "supplierPaymentAllocations",
@@ -155,4 +155,25 @@ test("customer records sync by stable ID and preserve soft-delete tombstones",()
  assert.equal(second.customers.length,1);
  assert.equal(second.customers[0].displayName,"Example IS");
  assert.equal(second.customers[0].deletedAt,deletedAt);
+});
+
+test("machine assets sync by stable ID and preserve soft-delete tombstones", () => {
+  const machine = {
+    id:"machine-1",companyId:"company-1",factoryId:"factory-1",assetCode:"CNC-VMC-01",
+    name:"Vertical machining centre 01",machineType:"VMC",model:"VMC-850",
+    processDefinitionIds:["process-vmc"],materialCapabilities:["Aluminium","EN24"],
+    status:"Available",notes:"3-axis production machine",createdAt:oldTime,updatedAt:oldTime
+  };
+  const first=mergeManufacturingData({}, {machines:[machine],updatedAt:oldTime});
+  assert.equal(first.machines.length,1);
+  assert.equal(first.machines[0].assetCode,"CNC-VMC-01");
+  assert.deepEqual(first.machines[0].processDefinitionIds,["process-vmc"]);
+  const deletedAt=newTime;
+  const second=mergeManufacturingData(first,{
+    machines:[{...machine,status:"Under maintenance",updatedAt:deletedAt,deletedAt}],
+    updatedAt:deletedAt
+  });
+  assert.equal(second.machines.length,1);
+  assert.equal(second.machines[0].status,"Under maintenance");
+  assert.equal(second.machines[0].deletedAt,deletedAt);
 });
