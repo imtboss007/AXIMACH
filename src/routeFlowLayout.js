@@ -94,7 +94,7 @@ export function buildRouteFlowOperationPositions(operations, layout = "orthogona
       }
       case "horizontal":
       default:
-        point = { x: xStart + sequence * (compact ? 214 : 280), y: yStart + lane * stepY };
+        point = { x: xStart + sequence * stepX, y: yStart + lane * stepY };
         break;
     }
     positions[row.id] = point;
