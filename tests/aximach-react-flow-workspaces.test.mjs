@@ -78,6 +78,8 @@ test("Process Map assigns an internal operation to an eligible registered machin
   assert.ok(processMap.includes('id="operation-machine-asset"'));
   assert.ok(processMap.includes("getEligibleMachineAssets(machines"));
   assert.ok(processMap.includes("validateMachineAssignment(assignedMachine"));
+  assert.ok(processMap.includes("validateMachineSchedule({...draft"),"Process Map must prevent overlapping reservations on a selected machine.");
+  assert.ok(source("server/tenant-scope.mjs").includes("machineScheduleAllowed(operation)"),"Server writes must enforce the same machine schedule guard.");
   assert.ok(processMap.includes("machineId: targetOperation.machineId || \"\""));
   assert.ok(processMap.includes("setDraft({...draft,machineId,machine:machine?.name||draft.machine})"));
   assert.ok(processMap.includes('machineId:""'));
