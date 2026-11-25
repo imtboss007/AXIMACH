@@ -47,7 +47,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
   const [fromLocation, setFromLocation] = useState("");
   const [toLocation, setToLocation] = useState("");
   const [tripDirection, setTripDirection] = useState<"One-way" | "Two-way">("One-way");
-  const [vehicleType, setVehicleType] = useState<string>(VEHICLE_TYPES[2]);
+  const [vehicleType, setVehicleType] = useState<string>("4-wheeler / Car");
   const [fixedAmount, setFixedAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [showTransportDemo, setShowTransportDemo] = useState(false);
@@ -76,7 +76,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
     setSelectedRouteIds([]);
     onNotice(ids.size + " transport route(s) archived. Existing dispatch and component transport history was retained.");
   };
-  const reset = () => { setEditingId(""); setVendorId(""); setFromLocation(""); setToLocation(""); setTripDirection("One-way"); setVehicleType(VEHICLE_TYPES[2]); setFixedAmount(""); setNotes(""); };
+  const reset = () => { setEditingId(""); setVendorId(""); setFromLocation(""); setToLocation(""); setTripDirection("One-way"); setVehicleType("4-wheeler / Car"); setFixedAmount(""); setNotes(""); };
   const save = () => {
     if (!vendorId || !fromLocation.trim() || !toLocation.trim() || !vehicleType.trim()) { onNotice("Select a vendor and enter both route locations and a vehicle type."); return; }
     if (!vendors.some(vendor => vendor.id === vendorId)) { onNotice("The selected transport vendor is missing or archived. Choose an active Vendor Directory record."); return; }

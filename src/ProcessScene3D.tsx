@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Truck } from "lucide-react";
-import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
+import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
 import type { OperationRecord } from "./manufacturingData";
 import { processSceneLabelBounds, relaxProcessSceneLabels } from "./processSceneLabelLayout.js";
 
@@ -9,16 +9,7 @@ type CatalogueDefinition = { id:string; processType:string; category:string; dis
 type RouteAnchor = { operation:OperationRecord; relation:string; color:string };
 type MaterialRouteNode = { id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
 type TransportLegNode = { id:string; poLineId:string; anchorOperationId:string; targetOperationId?:string; materialEntryId?:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; vendorContact?:string; vendorRole?:string; vendorPhone?:string; vendorWhatsapp?:string; vendorEmail?:string; vendorAddress?:string; vendorStatus?:string; vendorNotes?:string; directoryRouteNotes?:string; directoryRouteActive?:boolean; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
-const vehicleClassFor=(value:string)=>{
- const type=(value||"").toLowerCase();
- if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike";
- if(/bus/.test(type))return "bus";
- if(/car|taxi|auto|three.wheeler/.test(type))return "car";
- if(/air|plane|flight/.test(type))return "air";
- if(/ship|boat|vessel/.test(type))return "ship";
- if(/train|rail/.test(type))return "rail";
- return "truck";
-};
+const vehicleClassFor=(value:string)=>getVehicleVisual(value).className;
 const hasMaterialTransport=(route:MaterialRouteNode)=>Boolean(
  route.transporter&&route.transporter!=="Transporter not assigned" ||
  route.from || route.to || route.vehicle || route.transportCost>0 || route.pickupAt || route.deliveryAt

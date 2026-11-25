@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Handle, MarkerType, Position } from "@xyflow/react";
 import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
 import "@xyflow/react/style.css";
-import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
+import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type MaterialCostEntryRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine, type TransportRouteRecord } from "./manufacturingData";
 import { getProductionRouteMetrics, getRequiredRouteOperations, inheritsRouteInclusion } from "./productionRouteMetrics.mjs";
 import SearchablePicker from "./SearchablePicker";
@@ -20,6 +20,7 @@ import { RouteConnectorLegend as MaterialRouteConnectorLegend } from "./RouteCon
 import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import { manufacturingGraphEdgeKey, routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import TransportRoutingDemo from "./TransportRoutingDemo";
+import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -32,13 +33,13 @@ type ProcessMapGraphNodeData = {title:string;detail:string;kind:string;accent:st
 type ProcessMapGraphNode = Node<ProcessMapGraphNodeData,"processMapEntity">;
 function ProcessMapGraphCard({data}:NodeProps<ProcessMapGraphNode>) {
   const isTransport=data.kind.includes("TRANSPORT");
-  const VehicleIcon=isTransport?transportVehicleIcon(data.vehicleType||"truck"):undefined;
+  const vehicleType=data.vehicleType||"truck";
   return <article className={"process-map-graph-card"+(isTransport?" is-transport":"")} style={{"--process-map-accent":data.accent} as CSSProperties}>
     <Handle id="target-left" type="target" position={Position.Left}/>
     <Handle id="target-right" type="target" position={Position.Right}/>
     <Handle id="target-top" type="target" position={Position.Top}/>
     <Handle id="target-bottom" type="target" position={Position.Bottom}/>
-    <div className="process-map-graph-card-heading"><span>{VehicleIcon?<VehicleIcon size={15}/>:data.kind.includes("MATERIAL")?<Package size={15}/>:<Workflow size={15}/>}</span><span>{data.kind}</span></div>
+    <div className="process-map-graph-card-heading"><span>{isTransport?<VehicleTypeIcon vehicleType={vehicleType} size={15}/>:data.kind.includes("MATERIAL")?<Package size={15}/>:<Workflow size={15}/>}</span><span>{data.kind}</span></div>
     <strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
     {data.status&&<em>{data.status}</em>}
     {data.actionLabel&&data.onAction&&<button type="button" className="nodrag" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();data.onAction?.();}}>{data.actionLabel}</button>}
@@ -104,8 +105,7 @@ const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
   transportVendorId: "", transportFrom:"", transportTo:"", transportVehicleType:"", transportRouteId:"", transportTripDirection:"One-way", transportCost: 0, transportPickup: "", transportDelivery: "", qualityNotes: "", inspectionResult: "", notes: "", branch: "Main route", costIncluded: true, processColor: DEFAULT_PROCESS_COLOR
 });
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
-const transportVehicleTone=(value:string)=>{const type=(value||"").toLowerCase();if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike";if(/bus/.test(type))return "bus";if(/car|taxi|auto|three.wheeler/.test(type))return "car";if(/air|plane|flight/.test(type))return "air";if(/ship|boat|vessel/.test(type))return "ship";if(/train|rail/.test(type))return "rail";return "truck";};
-const transportVehicleIcon=(value:string)=>{const tone=transportVehicleTone(value);return tone==="bike"?Bike:tone==="bus"?Bus:tone==="car"?CarFront:tone==="air"?Plane:tone==="ship"?Ship:tone==="rail"?TrainFront:Truck;};
+const transportVehicleTone=(value:string)=>getVehicleVisual(value).className;
 const dateValue = (value: string) => new Date(value.includes("T") ? value : value + "T12:00:00");
 const dateTimeInput = (value?: string) => {
   if (!value) return "";
@@ -1816,9 +1816,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                   }
                   if(item.kind==="material-transport"){
                     const entry=item.entry;
-                    const MaterialTransportIcon=transportVehicleIcon(entry.transportVehicleType||"");
+                    const materialVehicleTone=transportVehicleTone(entry.transportVehicleType||"");
                     return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
-                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(entry.transportVehicleType||"")} aria-label="Open inbound material transport popup" title={(entry.transportVehicleType||"Vehicle")+" · "+(entry.transportFrom||"Pickup")+" → "+(entry.transportTo||"Destination")} onClick={event=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><MaterialTransportIcon size={20}/></button>
+                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+materialVehicleTone} aria-label="Open inbound material transport popup" title={(entry.transportVehicleType||"Vehicle")+" · "+(entry.transportFrom||"Pickup")+" → "+(entry.transportTo||"Destination")} onClick={event=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><VehicleTypeIcon vehicleType={entry.transportVehicleType||""} size={20}/></button>
                       {next&&<span className="process-route-flow-arrow is-transport" style={{color:arrowColor}}><ArrowRight size={20}/></span>}
                     </div>;
                   }
@@ -1826,9 +1826,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                     const leg=item.leg;
                     const anchor=lane.find(op=>op.id===leg.anchorOperationId);
                     const legRelation=anchor?.relationType==="rework"?"rework":anchor?.relationType==="alternate"?"alternate":"main";
-                    const TransportIcon=transportVehicleIcon(leg.vehicleType);
+                    const transportTone=transportVehicleTone(leg.vehicleType);
                     return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
-                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(leg.vehicleType)} aria-label="Open transport popup" title={(leg.vehicleType||"Vehicle")+" · "+(leg.fromLocation||"From")+" → "+(leg.toLocation||"To")+(leg.targetOperationId?" · Target "+(routeOperations.find(op=>op.id===leg.targetOperationId)?.name||leg.targetOperationId):"")} onClick={event=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><TransportIcon size={20}/></button>
+                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportTone} aria-label="Open transport popup" title={(leg.vehicleType||"Vehicle")+" · "+(leg.fromLocation||"From")+" → "+(leg.toLocation||"To")+(leg.targetOperationId?" · Target "+(routeOperations.find(op=>op.id===leg.targetOperationId)?.name||leg.targetOperationId):"")} onClick={event=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><VehicleTypeIcon vehicleType={leg.vehicleType} size={20}/></button>
                       {leg.targetOperationId&&<small className="process-route-flow-transport-target">{(()=>{const target=routeOperations.find(op=>op.id===leg.targetOperationId);return target?"TO OP-"+String(target.sequence).padStart(3,"0")+" · "+target.name:"Target operation not found in this PO line";})()}</small>}
                       {next&&<span className={"process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}><ArrowRight size={20}/></span>}
                     </div>;

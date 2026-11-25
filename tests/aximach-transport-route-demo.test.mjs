@@ -28,7 +28,9 @@ test("vehicle classes have individual visual identities and separate transport p
   const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
   const flow = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
-  for (const type of ["2-wheeler", "3-wheeler", "4-wheeler", "Mini truck", "Heavy truck", "Container truck"]) assert.ok(visuals.includes(type));
+  for (const type of ["2-wheeler / Bike","3-wheeler / Auto rickshaw","Tempo / 3-wheeler goods carrier","Heavy-duty tempo","4-wheeler / Car","Mini truck","Lorry / goods truck","Heavy lorry","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle"]) assert.ok(visuals.includes(type), "Missing vehicle option: "+type);
+  assert.ok(visuals.includes("function VehicleSilhouette"), "Tempo, auto-rickshaw and lorry require dedicated vector silhouettes.");
+  assert.ok(visuals.includes("heavy-tempo") && visuals.includes("three-wheeler") && visuals.includes("heavy-lorry"));
   assert.ok(visuals.includes("TransportLegMarker"));
   assert.ok(directory.includes("<VehicleBadge vehicleType={route.vehicleType}/>"));
   assert.ok(flow.includes("transportLegsAt(operation.id,\"before\")"));
@@ -116,10 +118,10 @@ test("every transport category keeps a unique stable colour in Process Map, Rout
   const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const transportInspector = readFileSync(new URL("../src/TransportRecordInspector.tsx", import.meta.url), "utf8");
   const materialInspector = readFileSync(new URL("../src/MaterialTransportRecordInspector.tsx", import.meta.url), "utf8");
-  const visualBlock = visuals.slice(visuals.indexOf("export function getVehicleVisual"), visuals.indexOf("export function VehicleIcon"));
-  const colors = [...visualBlock.matchAll(/color: "(#[A-Fa-f0-9]+)"/g)].map(match => match[1]);
-  assert.equal(colors.length, 12, "11 supported vehicle categories plus one fallback identity must have colours");
-  assert.equal(new Set(colors).size, 12, "every vehicle category and fallback must have a distinct identity colour");
+  const visualBlock = visuals.slice(visuals.indexOf("const VEHICLE_VISUALS"), visuals.indexOf("function resolveVehicleKind"));
+  const colors = [...visualBlock.matchAll(/color:"(#[A-Fa-f0-9]+)"/g)].map(match => match[1]);
+  assert.equal(colors.length, 18, "every canonical vehicle class must have an explicit colour");
+  assert.equal(new Set(colors).size, 18, "every canonical vehicle class must have a distinct identity colour");
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={leg.vehicleType}"));
   assert.ok(scene.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
