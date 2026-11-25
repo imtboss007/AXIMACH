@@ -375,8 +375,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:
       const rows=[["record_type","id","label","entity_type","module","detail","from_id","to_id","relationship"]];
       graph.nodes.forEach(node=>rows.push(["node",node.id,node.label,node.kind,node.moduleId,node.detail,"","",""]));
       graph.edges.forEach(edge=>rows.push(["relationship",edge.id,"","", "", "",edge.from,edge.to,edge.kind]));
-      body=rows.map(row=>row.map(quote).join(",")).join("\r
-");
+      body=rows.map(row=>row.map(quote).join(",")).join("\r\n");
       mime="text/csv;charset=utf-8";
     }else{
       // Standalone SVG: resolve Theme Studio colours before download, not CSS var()
