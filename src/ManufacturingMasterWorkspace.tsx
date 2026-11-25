@@ -266,8 +266,12 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const saveFactory = () => {
     if (!factoryDraft.companyId || !factoryDraft.name.trim()) { onNotice("Select the parent company and enter a factory name."); return; }
     const currentFactory=factories.find(row=>row.id===factoryEditingId);
-    if(currentFactory&&currentFactory.companyId!==factoryDraft.companyId&&machines.some(machine=>machine.factoryId===currentFactory.id)){
-      onNotice("This factory has registered machine assets. Reassign or archive those machines before moving the factory to another company.");return;
+    if(currentFactory&&currentFactory.companyId!==factoryDraft.companyId&&(
+      machines.some(machine=>machine.factoryId===currentFactory.id)||
+      toolingAssets.some(asset=>asset.factoryId===currentFactory.id)||
+      fixtureAssets.some(asset=>asset.factoryId===currentFactory.id)
+    )){
+      onNotice("This factory has machine, tooling or fixture assets. Reassign or archive those assets before moving the factory to another company.");return;
     }
     const stamp = nowIso(); const id = factoryEditingId || makeId("factory");
     update(current => ({ ...current, factories: [...current.factories.filter(x => x.id !== id), { ...factoryDraft, name: factoryDraft.name.trim(), id, createdAt: current.factories.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
@@ -284,6 +288,13 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     if(validProcessIds.length!==machineDraft.processDefinitionIds.length){onNotice("Remove invalid process capability references before saving.");return;}
     const stamp=nowIso(),id=machineEditingId||makeId("machine");
     const prior=machines.find(row=>row.id===id);
+    if(prior&&(prior.companyId!==machineDraft.companyId||prior.factoryId!==machineDraft.factoryId)&&(
+      data.operations.some(operation=>!operation.deletedAt&&operation.machineId===id)||
+      toolingAssets.some(asset=>!asset.deletedAt&&(asset.compatibleMachineIds||[]).includes(id))||
+      fixtureAssets.some(asset=>!asset.deletedAt&&(asset.compatibleMachineIds||[]).includes(id))
+    )){
+      onNotice("This machine is linked to production operations, tools or fixtures. Remove or reassign those links before moving it to another company or factory.");return;
+    }
     const record:MachineRecord={
       ...machineDraft,id,assetCode:machineDraft.assetCode.trim(),name:machineDraft.name.trim(),machineType:machineDraft.machineType.trim(),
       processDefinitionIds:[...new Set(validProcessIds)],
@@ -315,6 +326,10 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     }
     const stamp=nowIso(),id=toolingEditingId||makeId("tooling");
     const prior=toolingAssets.find(row=>row.id===id);
+    const assignedToolingOperations=data.operations.filter(operation=>!operation.deletedAt&&(operation.toolingAssetIds||[]).includes(id));
+    if(prior&&(prior.companyId!==toolingDraft.companyId||prior.factoryId!==toolingDraft.factoryId)&&assignedToolingOperations.length){
+      onNotice("This tool is assigned to production operations. Remove or reassign those operations before moving the tool to another company or factory.");return;
+    }
     const record:ToolingAssetRecord={...toolingDraft,id,assetCode:toolingDraft.assetCode.trim(),name:toolingDraft.name.trim(),toolType:toolingDraft.toolType.trim(),
       compatibleMachineIds:[...new Set(toolingDraft.compatibleMachineIds)],machineTypeCapabilities:[...new Set(toolingDraft.machineTypeCapabilities.map(value=>value.trim()).filter(Boolean))],
       processDefinitionIds:[...new Set(toolingDraft.processDefinitionIds)],materialCapabilities:[...new Set(toolingDraft.materialCapabilities.map(value=>value.trim()).filter(Boolean))],
@@ -341,6 +356,10 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     }
     const stamp=nowIso(),id=fixtureEditingId||makeId("fixture");
     const prior=fixtureAssets.find(row=>row.id===id);
+    const assignedFixtureOperations=data.operations.filter(operation=>!operation.deletedAt&&(operation.fixtureAssetIds||[]).includes(id));
+    if(prior&&(prior.companyId!==fixtureDraft.companyId||prior.factoryId!==fixtureDraft.factoryId)&&assignedFixtureOperations.length){
+      onNotice("This fixture is assigned to production operations. Remove or reassign those operations before moving the fixture to another company or factory.");return;
+    }
     const record:FixtureAssetRecord={...fixtureDraft,id,assetCode:fixtureDraft.assetCode.trim(),name:fixtureDraft.name.trim(),fixtureType:fixtureDraft.fixtureType.trim(),
       compatibleMachineIds:[...new Set(fixtureDraft.compatibleMachineIds)],machineTypeCapabilities:[...new Set(fixtureDraft.machineTypeCapabilities.map(value=>value.trim()).filter(Boolean))],
       processDefinitionIds:[...new Set(fixtureDraft.processDefinitionIds)],componentIds:[...new Set(fixtureDraft.componentIds)],
@@ -478,6 +497,9 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     }
     if(collection==="fixtureAssets"&&data.operations.some(operation=>!operation.deletedAt&&(operation.fixtureAssetIds||[]).includes(id))){
       onNotice("This fixture asset is assigned to active operations. Remove its assignments before archiving it.");return;
+    }
+    if(collection==="machines"&&(toolingAssets.some(asset=>!asset.deletedAt&&(asset.compatibleMachineIds||[]).includes(id))||fixtureAssets.some(asset=>!asset.deletedAt&&(asset.compatibleMachineIds||[]).includes(id)))){
+      onNotice("This machine is linked to tooling or fixtures. Remove those compatibility links before archiving the machine.");return;
     }
     if(collection==="machines"&&data.operations.some(operation=>!operation.deletedAt&&operation.machineId===id)){
       onNotice("This machine is referenced by active production operations. Reassign those operations before archiving the machine.");return;
