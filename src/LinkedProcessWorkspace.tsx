@@ -1893,6 +1893,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                 edges={processMapGraph.edges}
                 nodeTypes={PROCESS_MAP_NODE_TYPES}
                 fitView
+                nodesDraggable={false}
+                nodesConnectable={false}
                 fitViewOptions={{padding:.12,minZoom:.12,maxZoom:1.2}}
                 minZoom={.1}
                 maxZoom={2}
