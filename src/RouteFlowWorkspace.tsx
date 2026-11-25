@@ -21,6 +21,7 @@ import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
 import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
 import { connectManufacturingGraphNodes } from "./manufacturingGraphConnections";
+import { resolveProcessColor } from "./processPalette";
 import { Activity, ArrowLeft, ArrowRight, Box, Check, ChevronDown, CircleDashed, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, GitMerge, GitPullRequest, Link2, MessageCircle, Network, Package, Plus, Route, Save, ShieldCheck, Sparkles, Split, Truck, Users, Waypoints, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
@@ -368,10 +369,9 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       return portrait?{x:18,y:16}:{x:24,y:135};
     };
     const accentFor=(node:FlowNode)=>{
-      if(node.kind==="operation"){
-        const branch=(node.operation.branch||"Main route").toLowerCase();
-        return /rework/.test(branch)?"#c45445":/alternate/.test(branch)?"#356fc5":"#0e827f";
-      }
+      if(node.kind==="operation")return resolveProcessColor({
+        category:node.operation.category,processType:node.operation.name,processColor:node.operation.processColor
+      });
       if(node.kind==="material"||node.kind==="missing-material")return "#a56b12";
       if(node.kind==="material-transport"||node.kind==="transport")return "#176c9b";
       return "#667c95";
