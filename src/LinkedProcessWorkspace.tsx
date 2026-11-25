@@ -21,6 +21,7 @@ import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import { manufacturingGraphEdgeKey, routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import TransportRoutingDemo from "./TransportRoutingDemo";
 import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
+import { resolveProcessColor } from "./processPalette";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -613,7 +614,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const exportColumns = PROCESS_EXPORT_FIELDS.filter(field=>exportFields.includes(field.key));
   const simulationOperations = exportOperations.filter(operation => operation.relationType !== "subprocess");
   const exportBranches = [...new Set(exportOperations.map(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")))].sort((a,b)=>a.localeCompare(b));
-  const processAccent = (operation:OperationRecord) => processDefinitions.find(item=>item.id===operation.processDefinitionId)?.displayColor || operation.processColor || DEFAULT_PROCESS_COLOR;
+  const processAccent = (operation:OperationRecord) => {const definition=processDefinitions.find(item=>item.id===operation.processDefinitionId);return resolveProcessColor({category:definition?.category||operation.category,processType:definition?.processType||operation.name,displayColor:definition?.displayColor,processColor:operation.processColor});};
   const branchAccent = (operation:OperationRecord) => operation.relationType==="rework" ? REWORK_ROUTE_COLOR : operation.relationType==="alternate" ? ALTERNATE_ROUTE_COLOR : processAccent(operation);
   const processMapGraph = useMemo(()=>{
     const nodes:ProcessMapGraphNode[]=[];
