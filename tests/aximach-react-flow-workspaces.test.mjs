@@ -17,7 +17,7 @@ test("Route Flow React Flow graph draws all PO-line branches and persisted relat
   assert.ok(flow.includes("setInspectedMaterialTransportId(node.entry.id)"), "Material inbound transport node must open its saved record.");
   assert.ok(flow.includes('relationships.filter(link=>link.status!=="Disabled")'), "Enabled and planned saved relationships must become graph edges.");
   assert.ok(flow.includes("addEdge(link.fromOperationId,link.toOperationId,link.relationshipType"), "Relationship edges must preserve their saved type.");
-  assert.ok(flow.includes('testId="route-flow-react-canvas"'));
+  assert.ok(flow.includes('testId="route-flow-shared-canvas"'));
   assert.ok(flow.includes('routeCanvasMode==="graph"'));
   assert.ok(flow.includes('useState<"cards"|"graph">("graph")'), "The branch-aware interactive graph is the default Route Flow view.");
 });
