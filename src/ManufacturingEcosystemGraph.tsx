@@ -14,7 +14,7 @@ type Props = { data:ManufacturingData; onNavigate:(moduleId:string,context?:Cont
 type NodeKind = "company"|"customer"|"factory"|"order"|"component"|"vendor"|"process"|"operation"|"material"|"quality"|"transport"|"finance"|"contact";
 type GraphNode = { id:string; label:string; detail:string; kind:NodeKind; moduleId:string; context:Context; x:number; y:number };
 type GraphEdge = { id:string; from:string; to:string; kind:string };
-type EcosystemEntityNodeData = { label:string; detail:string; group:string; accent:string };
+type EcosystemEntityNodeData = { label:string; detail:string; group:string; accent:string; kind:NodeKind };
 type EcosystemHubNodeData = { label:string; detail:string };
 type EcosystemEntityNode = Node<EcosystemEntityNodeData,"ecosystem">;
 type EcosystemHubNode = Node<EcosystemHubNodeData,"hub">;
@@ -303,7 +303,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
         id:node.id,
         type:"ecosystem",
         position:graphLayout[node.id]||{x:node.x,y:node.y},
-        data:{label:node.label,detail:node.detail,group:group.title,accent:group.color},
+        data:{label:node.label,detail:node.detail,group:group.title,accent:group.color,kind:node.kind},
         draggable:true,
         selectable:false,
         focusable:true,
