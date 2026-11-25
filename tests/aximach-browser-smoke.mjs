@@ -1,9 +1,141 @@
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { resolve } from "node:path";
+import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
 
 const baseUrl = "http://127.0.0.1:4173";
+const browserFixture = JSON.parse(readFileSync(resolve("src/single-component-route-demo.json"),"utf8"));
+function makeBrowserManufacturingFixture(){
+  const stamp="2026-11-25T09:00:00.000Z";
+  const companyId=browserFixture.company.id;
+  const poId=browserFixture.purchaseOrder.id;
+  const componentId=browserFixture.component.id;
+  const poLineId=browserFixture.component.poLineId;
+  const factoryId="demo-factory-aster-01";
+  const vendorId=browserFixture.vendors[0].id;
+  const company={
+    id:companyId,name:browserFixture.company.name,gstin:"",contactPerson:"Synthetic fixture",
+    phone:"",email:"",address:"Isolated browser acceptance fixture",notes:"TEST DATA ONLY",
+    createdAt:stamp,updatedAt:stamp
+  };
+  const factory={
+    id:factoryId,companyId,name:"ASTER Prototype Cell",address:"Browser test fixture",
+    contactPhone:"",createdAt:stamp,updatedAt:stamp
+  };
+  const component={
+    id:componentId,companyId,partNumber:browserFixture.component.partNumber,
+    name:browserFixture.component.name,revision:"A",material:browserFixture.component.material,
+    drawingReference:"AST-1001-TEST",notes:"Isolated browser smoke fixture only",
+    salePrice:0,salePriceUnit:"piece",overhead:0,toolingCost:0,reworkCost:0,
+    scrapCost:0,rejectedQty:0,gstRate:0,createdAt:stamp,updatedAt:stamp
+  };
+  const line={
+    id:poLineId,componentId,quantity:browserFixture.component.quantity,
+    targetDelivery:"2026-12-30",unitPrice:0,notes:"Single component acceptance fixture",
+    allocationLevel:"component",jobStatus:"In progress",updatedAt:stamp
+  };
+  const purchaseOrder={
+    id:poId,number:browserFixture.purchaseOrder.number,companyId,factoryId,
+    issueDate:"2026-11-25",targetDelivery:"2026-12-30",status:"Open",
+    notes:"Synthetic browser fixture — not a live purchase order",
+    lines:[line],createdAt:stamp,updatedAt:stamp
+  };
+  const vendor={
+    id:vendorId,company:browserFixture.vendors[0].company,contact:"Synthetic fixture",
+    role:"Browser acceptance fixture",phone:"",whatsappNumber:"",email:"",
+    address:"Not a real supplier",processes:"All fixture manufacturing categories",
+    processDefinitionIds:[],machines:"Fixture only",materials:"Fixture only",
+    notes:"Synthetic browser test record. Do not contact.",status:"Test fixture only",
+    sourceContactId:"",whatsappSyncedAt:"",vendorType:"Synthetic fixture",
+    transportRoutes:[],additionalPhones:[],createdAt:stamp,updatedAt:stamp
+  };
+  const processKey=(row)=>String(row.category||"")+"::"+String(row.processType||row.name||"");
+  const uniqueProcesses=[...new Map(browserFixture.operations.map(row=>[processKey(row),row])).values()];
+  const processDefinitions=uniqueProcesses.map(row=>({
+    id:"demo-process-"+row.id,processType:row.processType||row.name,category:row.category,
+    subcategories:[row.subProcess||"General"],subcategoryIds:[],
+    vendorIds:[vendorId],notes:"Synthetic process definition for browser acceptance only",
+    createdAt:stamp,updatedAt:stamp
+  }));
+  const processIds=new Map(uniqueProcesses.map(row=>[processKey(row),"demo-process-"+row.id]));
+  vendor.processDefinitionIds=processDefinitions.map(row=>row.id);
+  const operations=browserFixture.operations.map(row=>({
+    id:row.id,poId,poLineId,componentId,
+    processDefinitionId:processIds.get(processKey(row)),
+    sequence:row.sequence,name:row.name,category:row.category,
+    machine:row.processType||row.category,vendorId,status:"Planned",
+    plannedStart:"2026-11-26T09:00:00.000Z",plannedEnd:"2026-11-26T17:00:00.000Z",
+    actualStart:"",actualEnd:"",quantity:row.quantity||browserFixture.component.quantity,
+    completed:0,accepted:0,rejected:0,
+    ratePerPart:Number(row.ratePerPartINR||row.rate||0),actualRatePerPart:0,
+    transportVendorId:"",transportPickup:"",transportDelivery:"",transportCost:0,
+    qualityNotes:"",inspectionResult:"",notes:row.subProcess||"",
+    subcategory:row.subProcess||"",executionType:"Internal",
+    toleranceCategory:"Standard",inspectionRequired:["Quality","Metrology"].includes(row.category),
+    branch:row.branch||"Main route",parentId:row.parentId||"",
+    relationType:row.relationType||undefined,costIncluded:row.costIncluded!==false,
+    createdAt:stamp,updatedAt:stamp
+  }));
+  const materials=browserFixture.materials.map(row=>({
+    ...row,grade:row.grade||"",unit:row.unit||"kg",specification:row.specification||"",
+    preferredVendorId:row.preferredVendorId||vendorId,ratePerUnit:Number(row.ratePerUnit||0),
+    notes:row.notes||"",priceUnit:"kg",createdAt:row.createdAt||stamp,updatedAt:stamp
+  }));
+  const bomLines=browserFixture.bomLines.map(row=>({
+    ...row,revision:row.revision||"A",unit:row.unit||"kg",
+    scrapPercent:Number(row.scrapPercent||0),notes:row.notes||"",
+    createdAt:row.createdAt||stamp,updatedAt:stamp
+  }));
+  const materialProcessLinks=browserFixture.materialProcessLinks.map(row=>({
+    ...row,createdAt:row.createdAt||stamp,updatedAt:stamp
+  }));
+  const transportRoutes=browserFixture.transportRoutes.map(row=>({
+    ...row,currency:"INR",active:row.active!==false,createdAt:row.createdAt||stamp,updatedAt:stamp
+  }));
+  const transportLegs=browserFixture.transportLegs.map(row=>({
+    ...row,status:row.status||"Planned",notes:row.notes||"",
+    createdAt:row.createdAt||stamp,updatedAt:stamp
+  }));
+  const operationIds=new Set(operations.map(row=>row.id));
+  const supported=["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"];
+  const routeRelationships=browserFixture.edges
+    .filter(edge=>operationIds.has(edge.source)&&operationIds.has(edge.target)&&supported.includes(edge.type))
+    .map(edge=>({
+      id:edge.id,poId,poLineId,componentId,fromOperationId:edge.source,toOperationId:edge.target,
+      relationshipType:edge.type,status:edge.type==="rework"||edge.type==="conditional"?"Conditional":"Active",
+      condition:"",label:edge.type.toUpperCase(),notes:edge.label||"Fixture route relationship",
+      createdAt:stamp,updatedAt:stamp
+    }));
+  const existingTypes=new Set(routeRelationships.map(row=>row.relationshipType));
+  for(const [type,from,to] of [
+    ["parallel","op-002","op-004"],["split","op-007","op-009"]
+  ]){
+    if(!existingTypes.has(type))routeRelationships.push({
+      id:"demo-route-"+type,poId,poLineId,componentId,fromOperationId:from,toOperationId:to,
+      relationshipType:type,status:"Active",condition:"",label:type.toUpperCase(),
+      notes:"Single-component browser graph relationship fixture",createdAt:stamp,updatedAt:stamp
+    });
+  }
+  const inspectionMeasurements=operations
+    .filter(row=>["Quality","Metrology"].includes(row.category))
+    .map(row=>({
+      id:"demo-inspection-"+row.id,operationId:row.id,poId,poLineId,componentId,
+      characteristic:row.name,nominalValue:null,lowerLimit:null,upperLimit:null,
+      measuredValue:0,unit:"",result:"Not assessed",notes:"Synthetic browser fixture",
+      inspectedAt:"",createdAt:stamp,updatedAt:stamp
+    }));
+  return {
+    updatedAt:stamp,companies:[company],customers:[],prospects:[],factories:[factory],
+    purchaseOrders:[purchaseOrder],components:[component],vendors,operations,quotations:[],
+    materials,componentParts:[],materialCostEntries:[],bomLines,materialProcessLinks,
+    inventoryTransactions:[],contactProfiles:[],processDefinitions,plannedCosts:[],
+    transportRoutes,transportLegs,paymentTransactions:[],inspectionMeasurements,
+    supplierInvoices:[],supplierPayments:[],supplierFinanceApprovals:[],
+    supplierPaymentAllocations:[],routeRelationships,followUpAssignments:[]
+  };
+}
+
 const preview = spawn(process.execPath, [
   resolve("node_modules/vite/bin/vite.js"), "preview",
   "--host", "127.0.0.1", "--port", "4173", "--strictPort"
@@ -25,6 +157,10 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const pageErrors = [];
   page.on("pageerror", error => pageErrors.push(error.message));
+  const browserManufacturingFixture=makeBrowserManufacturingFixture();
+  await page.addInitScript(({key,value})=>localStorage.setItem(key,JSON.stringify(value)),{
+    key:"aximach.manufacturingData.v1",value:browserManufacturingFixture
+  });
 
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.getByRole("navigation", { name: "AXIMACH navigation" }).waitFor();
@@ -557,12 +693,12 @@ try {
   const routeGraphToggle = page.getByRole("button", { name: "Stage cards" });
   await routeGraphToggle.waitFor({ timeout: 10000 });
   const routeScopeSelects = page.locator(".route-flow-scope-bar select");
-  await routeScopeSelects.nth(0).selectOption({ label: "ASTER MOTION COMPONENTS PVT LTD" });
+  await routeScopeSelects.nth(0).selectOption({ label: "ASTER Precision Works" });
   await page.waitForFunction(() => {
     const select = document.querySelectorAll(".route-flow-scope-bar select")[1];
     return Boolean(select && select.options.length > 1);
   }, null, { timeout: 10000 });
-  await routeScopeSelects.nth(1).selectOption({ label: "DEMO-PO-001" });
+  await routeScopeSelects.nth(1).selectOption({ label: "ASTER-DEMO-PO-001" });
   await page.waitForFunction(() => {
     const select = document.querySelectorAll(".route-flow-scope-bar select")[2];
     return Boolean(select && select.options.length > 1);
@@ -608,11 +744,11 @@ try {
 
   // Select a real synthetic PO line with five or more operation labels, material and transport.
   const companyPicker = page.getByRole("combobox", { name: "Company" });
-  await companyPicker.fill("ASTER MOTION COMPONENTS");
-  await page.getByRole("option", { name: /ASTER MOTION COMPONENTS PVT LTD/ }).click();
+  await companyPicker.fill("ASTER Precision Works");
+  await page.getByRole("option", { name: /ASTER Precision Works/ }).click();
   const poPicker = page.getByRole("combobox", { name: "Purchase order" });
-  await poPicker.fill("DEMO-PO-001");
-  await page.getByRole("option", { name: /DEMO-PO-001/ }).click();
+  await poPicker.fill("ASTER-DEMO-PO-001");
+  await page.getByRole("option", { name: /ASTER-DEMO-PO-001/ }).click();
   const linePicker = page.getByRole("combobox", { name: "PO component line" });
   await linePicker.fill("AST-1001");
   await page.getByRole("option", { name: /AST-1001/ }).click();
