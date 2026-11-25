@@ -17,7 +17,7 @@ test("Route Flow React Flow graph draws all PO-line branches and persisted relat
   assert.ok(flow.includes("setInspectedMaterialTransportId(node.entry.id)"), "Material inbound transport node must open its saved record.");
   assert.ok(flow.includes('relationships.filter(link=>link.status!=="Disabled")'), "Enabled and planned saved relationships must become graph edges.");
   assert.ok(flow.includes("addEdge(link.fromOperationId,link.toOperationId,link.relationshipType"), "Relationship edges must preserve their saved type.");
-  assert.ok(flow.includes('data-testid="route-flow-react-canvas"'));
+  assert.ok(flow.includes('testId="route-flow-react-canvas"'));
   assert.ok(flow.includes('routeCanvasMode==="graph"'));
   assert.ok(flow.includes('useState<"cards"|"graph">("graph")'), "The branch-aware interactive graph is the default Route Flow view.");
 });
@@ -35,9 +35,9 @@ test("Process Map graph is scoped to the selected PO line and preserves branch, 
   assert.ok(map.includes('id:"branch-origin:"+origin.parent.id+":"+origin.branchRoot.id'), "Alternate/rework branch origin edges must be retained.");
   assert.ok(map.includes('id:"material-allocation:"+entry.id'), "Material allocation edges must be retained.");
   assert.ok(map.includes('id:"bom-link-edge:"+link.id'), "BOM-to-process edges must be retained.");
-  assert.ok(map.includes('id:"transport-from-material:"+leg.id') && map.includes('id:"transport-to-operation:"+leg.id'),
+  assert.ok(map.includes('addEdge(materialId,id,"transport","transport-from-material:"+leg.id') && map.includes('addEdge(id,"operation:"+leg.targetOperationId,"transport","transport-to-operation:"+leg.id'),
     "Material-sourced transport must connect through the transport leg to its receiving operation.");
-  assert.ok(map.includes('data-testid="process-map-react-canvas"'));
+  assert.ok(map.includes('data-testid="process-map-react-canvas"'));\n  assert.ok(map.includes('testId="process-map-react-flow"'));
   assert.ok(map.includes('onAction:()=>{setSelectedOperationId(operation.id);setShowEditor(false);}'),
     "Process operation graph nodes must select the corresponding saved operation.");
   assert.ok(map.includes('setInspectedTransportId(leg.id)'), "Transport graph nodes must open their saved detail inspector.");
@@ -145,8 +145,8 @@ test("Phone Process Map opens the compact PO-line graph and preserves the collap
   const map=source("src/LinkedProcessWorkspace.tsx");
   assert.match(map,/matchMedia\("\(pointer:coarse\)"\)\.matches && window\.matchMedia\("\(orientation:portrait\)"\)\.matches \? "graph"/);
   assert.ok(map.includes('["graph","sphere","cube"'),"The 3D universe must remain available from graph-first mode.");
-  assert.ok(map.includes("compactViewport?28+row*185:100+index*230"),"Phone graph nodes must use compact placement.");
-  assert.ok(map.includes("fitView fitViewOptions={{padding:.14,minZoom:.26,maxZoom:1.2}}"));
+  assert.ok(map.includes("compactViewport?48+index*248:96+index*278"),"Phone and desktop graph nodes must use the collision-spaced horizontal flow.");
+  assert.ok(map.includes("fitViewOptions={{padding:.12,minZoom:.12,maxZoom:1.2}}"));
 });
 
 test("Route Flow applies the selected layout to the live graph, preserves explicit transport endpoints and enables pinch zoom",()=>{
