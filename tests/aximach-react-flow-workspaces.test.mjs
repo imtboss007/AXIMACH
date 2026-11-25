@@ -446,3 +446,14 @@ test("custom process colours override palette defaults while legacy shared blues
   assert.ok(palette.includes(".find(value=>Boolean(value)&&!LEGACY_DEFAULTS.has(value))"));
   assert.ok(palette.includes("if(saved)return saved"));
 });
+
+
+test("shared graph connector persists BOM process links and carrier links to the correct source records",()=>{
+  const connector=source("src/manufacturingGraphConnections.ts");
+  assert.ok(connector.includes('afterPrefix(source,["material-link:"])'));
+  assert.ok(connector.includes("row.id===materialProcessLink.id?{...row,operationId:operation.id"));
+  assert.ok(connector.includes("isInboundMaterialTransport"));
+  assert.ok(connector.includes("transportVendorId:vendor.id"));
+  assert.ok(connector.includes("vendorIds:[...row.vendorIds,vendor.id]"));
+  assert.ok(connector.includes("preferredVendorId:vendor.id"));
+});
