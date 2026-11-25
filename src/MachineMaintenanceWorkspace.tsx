@@ -129,7 +129,7 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
     const stamp=nowIso(),record:MachineMaintenanceWorkOrderRecord={...workDraft,id:makeId("maintenance-wo"),
       companyId:machine.companyId,factoryId:machine.factoryId,machineId:machine.id,
       reportedAt:workDraft.reportedAt||stamp,scheduledStart:toIso(workDraft.scheduledStart),scheduledEnd:toIso(workDraft.scheduledEnd),
-      actualStart:workDraft.actualStart?toIso(workDraft.actualStart):"",actualEnd:workDraft.actualEnd?toIso(workDraft.actualEnd):"",
+      actualStart:workDraft.actualStart?toIso(workDraft.actualStart):workDraft.status==="In progress"?stamp:"",actualEnd:workDraft.actualEnd?toIso(workDraft.actualEnd):workDraft.status==="Completed"?stamp:"",
       estimatedCost:Math.max(0,Number(workDraft.estimatedCost)||0),actualCost:Math.max(0,Number(workDraft.actualCost)||0),
       createdAt:stamp,updatedAt:stamp
     };
