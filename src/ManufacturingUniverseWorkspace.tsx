@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";\nimport type { Connection } from "@xyflow/react";
 import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Plug, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord, type RouteRelationshipRecord } from "./manufacturingData";
 import ProcessUniverse3D from "./ProcessUniverse3D";
@@ -211,6 +211,19 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     setEditingOperation(null);
     onNotice("Process operation updated in Manufacturing Universe. The shared record has been saved.");
   };
+  const connectUniverseOperations=(connection:Connection,relationshipType:string)=>{
+    const fromId=(connection.source||"").replace(/^operation:/,"");
+    const toId=(connection.target||"").replace(/^operation:/,"");
+    const from=operations.find(row=>row.id===fromId),to=operations.find(row=>row.id===toId);
+    if(!from||!to){onNotice("Manufacturing Universe connections are limited to saved process-operation nodes.");return;}
+    if(from.id===to.id){onNotice("Connect two different operations.");return;}
+    if(from.poId!==to.poId||from.poLineId!==to.poLineId||from.componentId!==to.componentId){onNotice("Operations must belong to the same company purchase-order component line.");return;}
+    if(relationships.some(row=>row.fromOperationId===from.id&&row.toOperationId===to.id&&row.relationshipType===relationshipType&&row.status!=="Disabled")){onNotice("That relationship already exists.");return;}
+    const stamp=new Date().toISOString();
+    const record:RouteRelationshipRecord={id:"route-relationship-"+(typeof crypto!=="undefined"&&"randomUUID" in crypto?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)),poId:from.poId,poLineId:from.poLineId,componentId:from.componentId,fromOperationId:from.id,toOperationId:to.id,relationshipType:relationshipType as RouteRelationshipRecord["relationshipType"],status:"Active",label:relationshipType,notes:"Created by dragging an operation connector in Manufacturing Universe.",createdAt:stamp,updatedAt:stamp};
+    update(current=>({...current,routeRelationships:[...(current.routeRelationships||[]),record]}));
+    onNotice("Saved "+relationshipType+" connection: "+from.name+" → "+to.name+".");
+  };
   const exportUniverse=()=>{
     const safeName=("AXIMACH-"+(component?.partNumber||"Manufacturing-Universe")).replace(/[^a-z0-9-_]+/gi,"-");
     const download=(blob:Blob,name:string)=>{const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1200);};
@@ -251,7 +264,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     <div className="manufacturing-universe-stat-grid">{stats.filter(item=>visibleUniverseModules.includes(item.module)).map(item=>{const Icon=item.icon;return <button key={item.label} onClick={()=>onNavigate(item.module,activeOperation)}><Icon size={16}/><strong>{item.value.toLocaleString("en-IN")}</strong><small>{item.label}</small></button>;})}</div>
     <section className="manufacturing-universe-live-panel">
       <div className="manufacturing-universe-live-heading"><div><span className="eyebrow">LIVE MANUFACTURING SCENE · WEBGL</span><h2>Manufacturing process universe</h2><p>Sphere, cube, vortex, helix, orbit, network, grid, pipeline, layered, stacked, matrix and tree views use the selected live PO-line data.</p></div><div className="manufacturing-universe-live-tools"><div className="ax-ecosystem-view-toggle" role="group" aria-label="Manufacturing universe view"><button type="button" className={universeView==="ecosystem"?"is-active":""} aria-pressed={universeView==="ecosystem"} onClick={()=>setUniverseView("ecosystem")}><Network size={13}/> Ecosystem</button><button type="button" className={universeView==="route"?"is-active":""} aria-pressed={universeView==="route"} onClick={()=>setUniverseView("route")}><GitBranch size={13}/> PO route</button></div>{universeView==="route"&&<button className="button-primary compact-button" disabled={!poId||!poLineId||!componentId} onClick={()=>setShowAddOperation(value=>!value)}><Activity size={14}/> Add process stage</button>}<span className="manufacturing-universe-live-state"><i/> LIVE RECORDS</span></div></div>
-      {universeView==="ecosystem"?<ManufacturingEcosystemGraph data={data} onNavigate={(moduleId,context)=>onSelectModule(moduleId,context)}/>:<>{poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)?<ProcessUniverse3D
+      {universeView==="ecosystem"?<ManufacturingEcosystemGraph data={data} onNavigate={(moduleId,context)=>onSelectModule(moduleId,context)} onConnect={connectUniverseOperations}/>:<>{poLineId&&(routeOperations.length>0||routeMaterials.length>0||routeLegs.length>0)?<ProcessUniverse3D
         onNotice={onNotice} key={poLineId}
         operations={routeOperations.filter(row=>row.relationType!=="subprocess")}
         allOperations={allRouteOperations}
