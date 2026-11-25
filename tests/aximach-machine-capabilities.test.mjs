@@ -11,14 +11,18 @@ const machines=[
  {id:"m6",companyId:"c1",factoryId:"f1",assetCode:"VMC-05",name:"VMC 05",machineType:"VMC",processDefinitionIds:["vmc"],status:"Running"}
 ];
 
-test("eligible machine assets are scoped to the selected company and factory",()=>{
- assert.deepEqual(getEligibleMachineAssets(machines,{companyId:"c1",factoryId:"f1"}).map(m=>m.id),["m2","m1","m4"]);
+test("without a selected Process Directory definition only unrestricted machine assets are offered",()=>{
+ assert.deepEqual(getEligibleMachineAssets(machines,{companyId:"c1",factoryId:"f1"}).map(m=>m.id),["m4"]);
 });
 test("eligible machine assets filter by stable Process Directory definition IDs",()=>{
  assert.deepEqual(getEligibleMachineAssets(machines,{companyId:"c1",factoryId:"f1",processDefinitionId:"vmc"}).map(m=>m.id),["m1","m4"]);
 });
 test("unmapped machine capabilities are treated as general-purpose rather than a false mismatch",()=>{
  assert.deepEqual(getEligibleMachineAssets(machines,{companyId:"c1",factoryId:"f1",processDefinitionId:"vmc"}).map(m=>m.id),["m1","m4"]);
+});
+test("a restricted machine cannot be assigned to an unregistered free-text process",()=>{
+ assert.equal(validateMachineAssignment(machines[0],{machineId:"m1",companyId:"c1",factoryId:"f1",executionType:"Internal"}).reason,"process-capability-mismatch");
+ assert.deepEqual(validateMachineAssignment(machines[3],{machineId:"m4",companyId:"c1",factoryId:"f1",executionType:"Internal"}),{ok:true,reason:""});
 });
 test("machines under maintenance are not offered for new assignments",()=>{
  assert.ok(!getEligibleMachineAssets(machines,{companyId:"c1",factoryId:"f1"}).some(m=>m.id==="m5"));
