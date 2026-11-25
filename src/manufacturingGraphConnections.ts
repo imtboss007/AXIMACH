@@ -54,10 +54,10 @@ export function connectManufacturingGraphNodes({
   const targetOperationId=afterPrefix(target,["operation:"])||target;
   const sourceOperation=activeRows(data.operations).find(row=>row.id===sourceOperationId&&inScope(row,scope));
   const targetOperation=activeRows(data.operations).find(row=>row.id===targetOperationId&&inScope(row,scope));
-  const sourceMaterialId=afterPrefix(source,["material:","material-"]);
-  const targetMaterialId=afterPrefix(target,["material:","material-"]);
   const sourceInboundMaterialId=afterPrefix(source,["material-transport:","material-transport-"]);
   const targetInboundMaterialId=afterPrefix(target,["material-transport:","material-transport-"]);
+  const sourceMaterialId=sourceInboundMaterialId?"":afterPrefix(source,["material:","material-"]);
+  const targetMaterialId=targetInboundMaterialId?"":afterPrefix(target,["material:","material-"]);
   const sourceTransportId=afterPrefix(source,["transport:","transport-"]);
   const targetTransportId=afterPrefix(target,["transport:","transport-"]);
   const sourceQualityId=afterPrefix(source,["quality:"]);
