@@ -35,10 +35,10 @@ export function getEligibleFixtureAssets(assets=[],scope={}){
 export function validateOperationResourceAssignments({toolingIds=[],fixtureIds=[],toolingAssets=[],fixtureAssets=[],scope={}}={}){
  const unique=(values)=>Array.isArray(values)&&values.every(value=>typeof value==="string"&&value.trim())&&new Set(values).size===values.length;
  if(!unique(toolingIds)||!unique(fixtureIds))return {ok:false,reason:"duplicate-or-invalid-resource-id"};
- const tools=getEligibleToolingAssets(toolingAssets,{...scope,selectedId:""});
- const fixtures=getEligibleFixtureAssets(fixtureAssets,{...scope,selectedId:""});
- if(toolingIds.some(id=>!tools.some(asset=>asset.id===id)&&!asArray(scope.existingToolingIds).includes(id)))return {ok:false,reason:"tooling-unavailable-or-incompatible"};
- if(fixtureIds.some(id=>!fixtures.some(asset=>asset.id===id)&&!asArray(scope.existingFixtureIds).includes(id)))return {ok:false,reason:"fixture-unavailable-or-incompatible"};
+ const tools=getEligibleToolingAssets(toolingAssets,{...scope,selectedIds:asArray(scope.existingToolingIds)});
+ const fixtures=getEligibleFixtureAssets(fixtureAssets,{...scope,selectedIds:asArray(scope.existingFixtureIds)});
+ if(toolingIds.some(id=>!tools.some(asset=>asset.id===id)))return {ok:false,reason:"tooling-unavailable-or-incompatible"};
+ if(fixtureIds.some(id=>!fixtures.some(asset=>asset.id===id)))return {ok:false,reason:"fixture-unavailable-or-incompatible"};
  return {ok:true,reason:""};
 }
 export function applyResourceUsageEvent(asset,event){
