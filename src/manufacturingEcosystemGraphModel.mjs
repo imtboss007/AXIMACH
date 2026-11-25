@@ -57,7 +57,7 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
     const value = Number(defaultLimits[kind]);
     return [kind, Number.isFinite(value) ? Math.max(0, Math.min(5000, Math.floor(value))) : 6];
   }));
-  const defaults = { version: 2, visibleKinds: [...kinds], visibleLimits };
+  const defaults = { version: 3, visibleKinds: [...kinds], visibleLimits };
   let parsed;
   try {
     parsed = typeof serialized === "string" ? JSON.parse(serialized) : serialized;
@@ -74,12 +74,15 @@ export function loadEcosystemGraphPreferences(serialized, validKinds = [], defau
   const savedLimits = parsed.visibleLimits && typeof parsed.visibleLimits === "object" && !Array.isArray(parsed.visibleLimits)
     ? parsed.visibleLimits
     : {};
+  // Version 3 removes the old sample cap. Previously mobile intentionally
+  // limited groups to four records, hiding parts of the real manufacturing graph.
   const normalizedLimits = Object.fromEntries(kinds.map(kind => {
     const saved = Number(savedLimits[kind]);
     const fallback = visibleLimits[kind];
-    return [kind, Number.isFinite(saved) ? Math.max(0, Math.min(5000, Math.floor(saved))) : fallback];
+    const limit = parsed.version < 3 ? fallback : Number.isFinite(saved) ? saved : fallback;
+    return [kind, Math.max(0, Math.min(5000, Math.floor(limit)))];
   }));
-  return { version: 2, visibleKinds, visibleLimits: normalizedLimits };
+  return { version: 3, visibleKinds, visibleLimits: normalizedLimits };
 }
 
 
