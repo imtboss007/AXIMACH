@@ -70,3 +70,25 @@ test("production operations can link only to a same-company same-factory machine
  assert.equal(validateManufacturingWrite(base,{operations:[{...operation,processDefinitionId:"process-turning"}]},user).ok,false);
  assert.equal(validateManufacturingWrite(base,{operations:[{...operation,machineId:"machine-b"}]},user).ok,false);
 });
+
+test("server rejects overlapping internal operation reservations on the same registered machine",()=>{
+ const component={id:"component-schedule",companyId:"company-a",partNumber:"SCHEDULE-01"};
+ const po={id:"po-schedule",number:"PO-SCHEDULE",companyId:"company-a",factoryId:"factory-a",lines:[{id:"line-schedule",componentId:"component-schedule"}]};
+ const existing={id:"operation-existing",poId:"po-schedule",poLineId:"line-schedule",componentId:"component-schedule",machineId:"machine-a",processDefinitionId:"process-vmc",executionType:"Internal",status:"Planned",vendorId:"",transportVendorId:"",plannedStart:"2026-11-26T09:00:00",plannedEnd:"2026-11-26T11:00:00"};
+ const candidate={...existing,id:"operation-new",plannedStart:"2026-11-26T10:30:00",plannedEnd:"2026-11-26T12:00:00"};
+ const base={companies:[companyA],factories:[factoryA],components:[component],purchaseOrders:[po],machines:[machineA],processDefinitions:[processDefinition],operations:[existing]};
+ const result=validateManufacturingWrite(base,{operations:[candidate]},user);
+ assert.equal(result.ok,false);
+ assert.match(result.error,/operations/);
+});
+test("server allows back-to-back machine reservations and ignores completed operations",()=>{
+ const component={id:"component-schedule",companyId:"company-a",partNumber:"SCHEDULE-01"};
+ const po={id:"po-schedule",number:"PO-SCHEDULE",companyId:"company-a",factoryId:"factory-a",lines:[{id:"line-schedule",componentId:"component-schedule"}]};
+ const existing={id:"operation-existing",poId:"po-schedule",poLineId:"line-schedule",componentId:"component-schedule",machineId:"machine-a",processDefinitionId:"process-vmc",executionType:"Internal",status:"Planned",vendorId:"",transportVendorId:"",plannedStart:"2026-11-26T09:00:00",plannedEnd:"2026-11-26T11:00:00"};
+ const base={companies:[companyA],factories:[factoryA],components:[component],purchaseOrders:[po],machines:[machineA],processDefinitions:[processDefinition],operations:[existing]};
+ const backToBack={...existing,id:"operation-next",plannedStart:"2026-11-26T11:00:00",plannedEnd:"2026-11-26T12:00:00"};
+ assert.equal(validateManufacturingWrite(base,{operations:[backToBack]},user).ok,true);
+ const completedOverlap={...existing,id:"operation-complete",status:"Complete",plannedStart:"2026-11-26T09:30:00",plannedEnd:"2026-11-26T10:30:00"};
+ const baseWithCompleted={...base,operations:[{...existing,status:"Complete"},]};
+ assert.equal(validateManufacturingWrite(baseWithCompleted,{operations:[completedOverlap]},user).ok,true);
+});
