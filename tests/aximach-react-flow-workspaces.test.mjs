@@ -318,21 +318,65 @@ test("Route Flow supports n8n-style drag-to-connect and persists typed PO-line r
   assert.ok(shared.includes("onConnect?:(connection:Connection)=>void"),"The shared canvas must expose React Flow connections.");
   assert.ok(shared.includes("onConnect={onConnect}"),"The shared canvas must forward connection events.");
   assert.ok(route.includes("const connectRouteNodes=(connection:Connection)=>{"),"Route Flow must handle drag-to-connect.");
-  assert.ok(route.includes("routeRelationships:[...(current.routeRelationships||[]),record]"),"A graph connection must persist in the shared manufacturing data store.");
-  assert.ok(route.includes("relationshipType,status:relationshipStatus"),"The selected relationship type and status must be retained.");
+  const connectors=source("src/manufacturingGraphConnections.ts");
+  assert.ok(route.includes("connectManufacturingGraphNodes"),"Route Flow must use the shared manufacturing connection contract.");
+  assert.ok(connectors.includes('routeRelationships:[...(current.routeRelationships||[]),record]'),"Operation connections must persist in the shared route relationship model.");
+  assert.ok(connectors.includes("anchorOperationId:operation.id"),"Material/process links must persist on material allocation records.");
+  assert.ok(connectors.includes("targetOperationId:operation.id"),"Transport receiving links must persist on transport-leg records.");
+  assert.ok(connectors.includes("operationId:operation.id"),"Quality links must persist on inspection records.");
+  assert.ok(connectors.includes("vendorId:vendor.id"),"Vendor assignments must persist on their owning records.");
   assert.ok(route.includes("nodesDraggable\n          nodesConnectable\n          onConnect={connectRouteNodes}"),"The Route Flow canvas must enable node dragging and connector handles.");
-  assert.ok(route.includes("Only process-operation nodes can be connected here"),"Material and transport records must keep their dedicated editors.");
+  assert.ok(route.includes("connectManufacturingGraphNodes"),"Material, transport and quality links are handled by the shared typed connector.");
 });
 
 
 test("Manufacturing Universe supports typed n8n-style operation connections without linking unrelated records",()=>{
   const graph=source("src/ManufacturingEcosystemGraph.tsx");
   const universe=source("src/ManufacturingUniverseWorkspace.tsx");
-  assert.ok(graph.includes('const connectable=data.kind==="operation"'),"Only operation nodes expose live connection handles.");
+  assert.ok(graph.includes('const connectable=data.kind==="operation"||data.kind==="material"||data.kind==="transport"||data.kind==="quality"||data.kind==="vendor"||data.kind==="process"'),"Operation, material, transport, quality, vendor and process nodes expose typed connector handles.");
   assert.ok(graph.includes("nodesConnectable")&&graph.includes("onConnect={connection=>onConnect?.(connection,relationshipType)}"),"The Universe graph forwards drag connections with the selected relationship type.");
-  assert.ok(graph.includes('aria-label="New operation connection type"'),"The relationship type is selectable.");
-  assert.ok(universe.includes("const connectUniverseOperations=(connection:Connection,relationshipType:string)=>{"),"The Universe workspace must persist graph connections.");
-  assert.ok(universe.includes("from.poId!==to.poId||from.poLineId!==to.poLineId||from.componentId!==to.componentId"),"Connections cannot cross PO component lines.");
-  assert.ok(universe.includes("routeRelationships:[...(current.routeRelationships||[]),record]"),"Connections are stored in the shared route relationship model.");
+  assert.ok(graph.includes('aria-label="New manufacturing connection type"'),"The relationship type is selectable.");
+  assert.ok(graph.includes("scope?.poLineId")&&graph.includes("matchesLine"),"The Universe graph is scoped to the selected PO component line.");
+  assert.ok(universe.includes("const connectUniverseOperations=(connection:Connection,relationshipType:string)=>{"),"The Universe workspace must use the shared graph connection handler.");
+  assert.ok(universe.includes("scope:{companyId,poId,poLineId,componentId}"),"The Universe must pass the selected company, PO and component scope.");
   assert.ok(universe.includes("onConnect={connectUniverseOperations}"),"The Universe graph is wired to the shared data update.");
+});
+
+
+test("Manufacturing Universe is scoped to the selected component and uses the named Manufacturing Graph view",()=>{
+  const graph=source("src/ManufacturingEcosystemGraph.tsx");
+  const workspace=source("src/ManufacturingUniverseWorkspace.tsx");
+  assert.ok(graph.includes("scope?:GraphScope"),"The graph accepts an explicit manufacturing scope.");
+  assert.ok(graph.includes("const scoped=Boolean(scope?.companyId||scope?.poId||scope?.poLineId||scope?.componentId)"));
+  assert.ok(graph.includes("const matchesLine="),"Every line-level collection is filtered by the active component route.");
+  assert.ok(graph.includes("columns:mobile?2:4"),"The mobile graph layout must use fewer horizontal groups.");
+  assert.ok(graph.includes("minZoom:.28"),"The mobile graph must not auto-shrink the whole unfiltered company database to unreadable size.");
+  assert.ok(workspace.includes("scope={{companyId,poId,poLineId,componentId}}"));
+  assert.ok(workspace.includes("Manufacturing Graph"),"The old Ecosystem tab is replaced by the Manufacturing Graph label.");
+});
+
+test("the retired two-company demo importer is removed and reserved DEMO records are archived without touching real IDs",()=>{
+  const data=source("src/manufacturingData.ts");
+  const importer=source("src/IntelligenceWorkspaces.tsx");
+  const exchange=source("src/App.tsx");
+  assert.ok(data.includes('marker = "aximach.demo-data-cleanup.v3"'));
+  assert.ok(data.includes('row.id.startsWith("DEMO-")'));
+  assert.ok(data.includes("supplierFinanceApprovals:archiveRows(canonical.supplierFinanceApprovals)"));
+  assert.ok(!importer.includes("loadTwoCompanyDemo"));
+  assert.ok(!importer.includes("createAxMachTwoCompanyDemo"));
+  assert.ok(importer.includes("One-company / one-PO / one-component manufacturing preview"));
+  assert.ok(!exchange.includes("Import Demo Factory"));
+});
+
+test("process definitions use stable distinct category colours instead of the legacy shared blue",()=>{
+  const palette=source("src/processPalette.ts");
+  const directory=source("src/SpecializedDirectoryWorkspace.tsx");
+  const route=source("src/RouteFlowWorkspace.tsx");
+  const universe=source("src/ManufacturingEcosystemGraph.tsx");
+  assert.ok(palette.includes("PROCESS_PALETTE"));
+  assert.ok(palette.includes("LEGACY_DEFAULTS"));
+  assert.ok(directory.includes("resolveProcessColor(row)"));
+  assert.ok(directory.includes("processPaletteColor(category,processType)"));
+  assert.ok(route.includes("resolveProcessColor({"));
+  assert.ok(universe.includes("resolveProcessColor({"));
 });
