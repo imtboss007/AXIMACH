@@ -45,6 +45,34 @@ export type MachineRecord = {
   status: MachineStatus; commissionedAt?: string; nextMaintenanceAt?: string;
   notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type MaintenancePlanFrequencyUnit = "Days" | "Weeks" | "Months" | "Operating hours" | "Cycles";
+export type MaintenancePlanType = "Preventive" | "Lubrication" | "Calibration" | "Inspection";
+export type MachineMaintenancePlanRecord = {
+  id:string; companyId:string; factoryId:string; machineId:string; planName:string;
+  maintenanceType:MaintenancePlanType; frequencyValue:number; frequencyUnit:MaintenancePlanFrequencyUnit;
+  lastCompletedAt?:string; nextDueAt:string; estimatedDurationHours:number;
+  checklist:string[]; assignedTo:string; active:boolean; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type MachineMaintenanceWorkType = "Preventive" | "Breakdown" | "Corrective" | "Calibration" | "Inspection";
+export type MachineMaintenanceWorkStatus = "Planned" | "Open" | "In progress" | "Waiting parts" | "Completed" | "Cancelled";
+export type MachineMaintenancePriority = "Low" | "Normal" | "High" | "Critical";
+export type MachineMaintenanceWorkOrderRecord = {
+  id:string; companyId:string; factoryId:string; machineId:string; planId?:string;
+  workOrderNumber:string; workType:MachineMaintenanceWorkType; priority:MachineMaintenancePriority;
+  status:MachineMaintenanceWorkStatus; title:string; reportedAt:string;
+  scheduledStart:string; scheduledEnd:string; actualStart?:string; actualEnd?:string;
+  symptom:string; rootCause:string; actionTaken:string; technician:string;
+  estimatedCost:number; actualCost:number; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type MachineDowntimeType = "Planned maintenance" | "Unplanned breakdown" | "Waiting for parts" | "Setup" | "Quality hold" | "Other";
+export type MachineDowntimeRecord = {
+  id:string; companyId:string; factoryId:string; machineId:string; workOrderId?:string;
+  downtimeType:MachineDowntimeType; startedAt:string; endedAt?:string;
+  reason:string; productionImpactQty:number; recordedBy:string; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
 export type ComponentRecord = {
   id: string; companyId?: string; partNumber: string; name: string; revision: string; material?: string;
   drawingReference: string; notes: string; salePrice: number; salePriceUnit: "piece" | "set";
@@ -226,7 +254,7 @@ export type InventoryTransactionRecord = {
 };
 export type ManufacturingData = {
   updatedAt: string;
-  companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; machines: MachineRecord[]; purchaseOrders: PurchaseOrderRecord[];
+  companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; machines: MachineRecord[]; maintenancePlans: MachineMaintenancePlanRecord[]; maintenanceWorkOrders: MachineMaintenanceWorkOrderRecord[]; machineDowntime: MachineDowntimeRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[]; materialProcessLinks: MaterialProcessLinkRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
@@ -246,7 +274,7 @@ export function makeId(prefix: string): string {
 export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.filter(row => !row.deletedAt);
 
 export const emptyManufacturingData = (): ManufacturingData => ({
-  updatedAt: "", companies: [], customers: [], prospects: [], factories: [], machines: [], purchaseOrders: [], components: [], vendors: [],
+  updatedAt: "", companies: [], customers: [], prospects: [], factories: [], machines: [], maintenancePlans: [], maintenanceWorkOrders: [], machineDowntime: [], purchaseOrders: [], components: [], vendors: [],
   operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
   supplierInvoices: [], supplierPayments: [], supplierFinanceApprovals: [], supplierPaymentAllocations: [],
@@ -266,6 +294,9 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
       processDefinitionIds: Array.isArray(machine.processDefinitionIds) ? [...new Set(machine.processDefinitionIds.filter(id => typeof id === "string" && id))] : [],
       materialCapabilities: Array.isArray(machine.materialCapabilities) ? [...new Set(machine.materialCapabilities.filter(value => typeof value === "string" && value.trim()))] : []
     })) : empty.machines,
+    maintenancePlans: Array.isArray(value?.maintenancePlans) ? value.maintenancePlans : empty.maintenancePlans,
+    maintenanceWorkOrders: Array.isArray(value?.maintenanceWorkOrders) ? value.maintenanceWorkOrders : empty.maintenanceWorkOrders,
+    machineDowntime: Array.isArray(value?.machineDowntime) ? value.machineDowntime : empty.machineDowntime,
     purchaseOrders: Array.isArray(value?.purchaseOrders) ? value.purchaseOrders : empty.purchaseOrders,
     components: Array.isArray(value?.components) ? value.components.map(component => ({
       ...component,
@@ -390,6 +421,9 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     prospects: mergeRows(local.prospects, remote.prospects),
     factories: mergeRows(local.factories, remote.factories),
     machines: mergeRows(local.machines, remote.machines),
+    maintenancePlans: mergeRows(local.maintenancePlans, remote.maintenancePlans),
+    maintenanceWorkOrders: mergeRows(local.maintenanceWorkOrders, remote.maintenanceWorkOrders),
+    machineDowntime: mergeRows(local.machineDowntime, remote.machineDowntime),
     purchaseOrders: mergePurchaseOrderRows(local.purchaseOrders, remote.purchaseOrders),
     components: mergeRows(local.components, remote.components),
     vendors: mergeRows(local.vendors, remote.vendors),
