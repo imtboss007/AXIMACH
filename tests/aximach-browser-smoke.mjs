@@ -364,7 +364,7 @@ try {
   // isolated from the real company / PO data store. Verify its complete graph.
   await mobilePage.getByRole("button",{name:"Open navigation menu"}).click();
   await mobileNavigation.locator('button[title="Manufacturing Universe"]').click();
-  await mobilePage.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Manufacturing Universe",{timeout:10000});
+  await mobilePage.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Manufacturing Universe",undefined,{timeout:10000});
   await mobilePage.getByRole("button",{name:"One Component Preview"}).click();
   const oneComponentGraph=mobilePage.locator('[data-testid="single-component-route-graph"]');
   await oneComponentGraph.waitFor({state:"visible",timeout:10000});
