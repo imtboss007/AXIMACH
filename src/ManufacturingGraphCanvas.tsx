@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
-import type { Edge, Node, NodeMouseHandler, NodeTypes, NodeDragHandler, OnNodesChange } from "@xyflow/react";
+import type { Edge, Node, NodeMouseHandler, NodeTypes, OnNodesChange } from "@xyflow/react";
 import "@xyflow/react/style.css";
 
 type Props<TNode extends Node = Node> = {
@@ -21,7 +21,7 @@ type Props<TNode extends Node = Node> = {
   zoomOnPinch?:boolean;
   zoomOnDoubleClick?:boolean;
   onNodesChange?:OnNodesChange<TNode>;
-  onNodeDragStop?:NodeDragHandler<TNode>;
+  onNodeDragStop?:(event:any,node:TNode)=>void;
   onNodeClick?:NodeMouseHandler<TNode>;
   onPaneClick?:()=>void;
   minimapNodeColor?:(node:TNode)=>string;
