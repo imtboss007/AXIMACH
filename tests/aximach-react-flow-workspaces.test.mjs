@@ -546,8 +546,8 @@ test("Tooling and fixture registers are factory-scoped, lifecycle-tracked and co
  assert.ok(graph.includes('title:"Tooling & cutting assets"')&&graph.includes('title:"Jigs, fixtures & workholding"'));
  assert.ok(graph.includes('edge("operation:"+row.id,"tooling:"+id,"uses tooling")'));
  assert.ok(graph.includes('edge("operation:"+row.id,"fixture:"+id,"uses fixture")'));
- assert.ok(connector.includes("toolingAssetIds:[...new Set"));
- assert.ok(connector.includes("fixtureAssetIds:[...new Set"));
+ assert.ok(connector.includes("toolingAssetIds:nextToolingIds"));
+ assert.ok(connector.includes("fixtureAssetIds:nextFixtureIds"));
  assert.ok(scope.includes('case "toolingAssets":')&&scope.includes('case "fixtureAssets":'));
  assert.ok(scope.includes("resourceAssignmentsAllowed(row)"));
 });
