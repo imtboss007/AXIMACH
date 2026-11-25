@@ -35,7 +35,7 @@ async function componentLogoPngBase64(component: Pick<ComponentRecord, "id" | "n
   return canvas.toDataURL("image/png").split(",")[1];
 }
 
-type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string };
+type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; subtab?:string };
 type Props = {
   navigationContext?: LinkedNavigationContext;
   moduleId: "companies" | "purchasing" | "components";
@@ -107,9 +107,9 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   useEffect(() => {
     if (moduleId === "companies") {
       const target=navigationContext?.companyId?companies.find(row=>row.id===navigationContext.companyId):undefined;
-      setTab("companies");
+      setTab(navigationContext?.subtab==="machines"?"machines":navigationContext?.subtab==="factories"?"factories":"companies");
       setSelectedCompanyId(target?.id||"");
-      setSearch(target?.name||"");
+      setSearch(navigationContext?.subtab==="machines"?"":target?.name||"");
     }
     if (moduleId === "purchasing") {
       setPoCompanyFilters(navigationContext?.companyId ? [navigationContext.companyId] : []);
@@ -129,7 +129,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
         setComponentNumberFilters([]);
       }
     }
-  }, [moduleId, navigationContext?.companyId, navigationContext?.poId, navigationContext?.componentId, companies.length, components.length]);
+  }, [moduleId, navigationContext?.companyId, navigationContext?.poId, navigationContext?.componentId, navigationContext?.subtab, companies.length, components.length]);
   const openedOrder = orders.find(order => order.id === openedPoId);
   useEffect(() => {
     if (openedPoId) document.getElementById("po-open-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -172,7 +172,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     return (c.name + " " + c.gstin + " " + c.contactPerson + " " + c.phone + " " + c.email + " " + c.address + " " + people).toLowerCase().includes(search.toLowerCase().trim());
   }), [companies, search, data.contactProfiles]);
   const filteredFactories = useMemo(() => factories.filter(f => (f.name + " " + f.address + " " + companyName(f.companyId)).toLowerCase().includes(search.toLowerCase().trim())), [factories, search, data.companies]);
-  const filteredMachines = useMemo(() => machines.filter(machine => [
+  const filteredMachines = useMemo(() => machines.filter(machine => (!selectedCompanyId||machine.companyId===selectedCompanyId) && [
     machine.assetCode,machine.name,machine.machineType,machine.manufacturer,machine.model,machine.serialNumber,machine.controller,
     companyName(machine.companyId),factoryName(machine.factoryId),...(machine.materialCapabilities||[]),
     ...(machine.processDefinitionIds||[]).map(id=>processDefinitions.find(item=>item.id===id)?.processType||id)
