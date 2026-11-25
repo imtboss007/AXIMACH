@@ -172,13 +172,11 @@ try {
     throw new Error("Data Exchange Centre typography lacks contrast/readability in light mode: "+JSON.stringify(dataExchangeTypography));
   }
   console.log("PASS Data Exchange Centre headings, sandbox copy and supporting text meet light-theme contrast checks");
-  await page.getByRole("button", { name: "Import Demo Factory" }).waitFor({ timeout: 10000 });
-  page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "Import Demo Factory" }).click();
-  await page.locator(".demo-pill").filter({ hasText: "DEMO LOADED" }).waitFor({ timeout: 10000 });
-  // The selected company, PO line and visible process labels below are the
-  // authoritative proof that this import supplied usable manufacturing records.
-  console.log("PASS isolated Demo Factory fixture loaded for populated Process Map visual checks");
+  const oneComponentEntry=page.getByRole("button",{name:"Open single-component route + rate graph"});
+  await oneComponentEntry.waitFor({timeout:10000});
+  await oneComponentEntry.click();
+  await page.locator(".route-flow-workspace").waitFor({state:"visible",timeout:10000});
+  console.log("PASS Data Exchange Centre opens the one-company / one-PO / one-component route preview without importing sample companies");
 
   // Verify shared searchable menus remain visible when their anchor sits near the
   // bottom edge of a phone workspace instead of being clipped by page-content.
@@ -362,6 +360,25 @@ try {
   if (routePortraitGeometry.documentWidth > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.pageLeft > 1 || routePortraitGeometry.canvasLeft < 0 || routePortraitGeometry.canvasRight > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.canvasWidth < 250) {
     throw new Error("Route Flow does not fit portrait width: " + JSON.stringify(routePortraitGeometry));
   }
+  // The unified preview lives inside Manufacturing Universe and remains
+  // isolated from the real company / PO data store. Verify its complete graph.
+  await mobilePage.getByRole("button",{name:"Open navigation menu"}).click();
+  await mobileNavigation.locator('button[title="Manufacturing Universe"]').click();
+  await mobilePage.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Manufacturing Universe",{timeout:10000});
+  await mobilePage.getByRole("button",{name:"One Component Preview"}).click();
+  const oneComponentGraph=mobilePage.locator('[data-testid="single-component-route-graph"]');
+  await oneComponentGraph.waitFor({state:"visible",timeout:10000});
+  const oneComponentMetrics=await oneComponentGraph.evaluate(element=>({
+    nodes:element.querySelectorAll(".react-flow__node").length,
+    edges:element.querySelectorAll(".react-flow__edge").length,
+    width:element.getBoundingClientRect().width,
+    height:element.getBoundingClientRect().height
+  }));
+  if(oneComponentMetrics.nodes<49||oneComponentMetrics.edges<58||oneComponentMetrics.width<250||oneComponentMetrics.height<300){
+    throw new Error("Single-component manufacturing graph is incomplete or clipped on mobile: "+JSON.stringify(oneComponentMetrics));
+  }
+  console.log("PASS mobile one-company / one-PO / one-component graph contains all 49 nodes and 58 directional relationships");
+
   // Inspect the shared mobile shell on every business workspace, not only
   // the two immersive canvases. Header actions and the floating follow-up dock
   // must remain separated and inside the phone viewport on all 22 modules.
