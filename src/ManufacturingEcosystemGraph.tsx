@@ -297,6 +297,17 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     return {nodes:visible,allNodes:nodes,edges:visibleEdges,totals,totalAvailable,searchResults};
   },[data,visibleKinds,visibleLimits,selectedId,searchQuery]);
   const flowNodes=useMemo<EcosystemFlowNode[]>(()=>{
+    const canvasWidth=Math.max(146,...graph.nodes.map(node=>node.x+190));
+    const hub:EcosystemHubNode={
+      id:"aximach-hub",
+      type:"hub",
+      position:{x:Math.max(0,canvasWidth/2-73),y:-160},
+      data:{label:"AXIMACH",detail:"MANUFACTURING OS"},
+      draggable:false,
+      selectable:false,
+      focusable:false,
+      style:{width:146,height:94}
+    };
     const entities:EcosystemEntityNode[]=graph.nodes.map(node=>{
       const group=GROUPS.find(item=>item.kind===node.kind)!;
       return {
@@ -310,7 +321,9 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
         style:{width:190}
       };
     });
-    return entities;
+    // Keep the AXIMACH anchor node but do not draw hub-to-every-record spokes;
+    // those synthetic links previously obscured real manufacturing relationships.
+    return [hub,...entities];
   },[graph.nodes,graphLayout]);
   const flowEdges=useMemo<Edge[]>(()=>{
     const relationships:Edge[]=graph.edges.map(link=>{
