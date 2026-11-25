@@ -761,7 +761,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       <div>
         <span>ADVANCED ROUTE ACCEPTANCE · SINGLE SOURCE OF TRUTH</span>
         <h3>One company · one PO · one component · complete rate graph</h3>
-        <p>26 priced operations · 16 process categories · 11 route relationship patterns · 10 transport legs · BOM material flows · alternate and rework costing.</p>
+        <p>28 priced operations · 18 process categories including Wire EDM and fabrication · 11 route relationship patterns · 10 transport legs · BOM material flows · alternate and rework costing.</p>
       </div>
       <button type="button" className="button-primary compact-button" onClick={()=>setShowSingleComponentRouteDemo(value=>!value)} aria-expanded={showSingleComponentRouteDemo}>
         {showSingleComponentRouteDemo?"Hide complete route demo":"Open complete route + rate demo"}

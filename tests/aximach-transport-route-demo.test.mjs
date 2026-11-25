@@ -13,7 +13,7 @@ test("one component can carry multiple transport legs to different process steps
   assert.equal(fixture.expected.purchaseOrderCount,1);
   assert.equal(fixture.expected.componentCount,1);
   assert.ok(fixture.transportLegs.length >= 8);
-  assert.equal(fixture.operations.length,26);
+  assert.equal(fixture.operations.length,28);
   assert.equal(fixture.operations.every(row=>row.companyId===fixture.company.id&&row.componentId===fixture.component.id&&row.poLineId===fixture.component.poLineId),true);
   assert.equal(new Set(fixture.operations.map(row=>row.category)).size,fixture.expected.processCategoryCount);
   assert.ok(fixture.operations.every(row=>row.ratePerPartINR>0&&row.plannedCostINR===row.ratePerPartINR*row.quantity));

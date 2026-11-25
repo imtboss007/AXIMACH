@@ -63,7 +63,7 @@ test("demo uses AXIMACH's shared React Flow canvas, process icons and adaptive e
 
 test("all catalogue manufacturing categories are represented on one PO component with operation rates",()=>{
   const categories=new Set(fixture.operations.map(row=>row.category));
-  for(const category of ["Turning","Heat Treatment","Grinding","Metrology","Laser Cutting","Forming","Welding","Finishing","Quality","Gear Cutting","VMC Machining","Deburring","Sawing","Assembly","Packaging"])
+  for(const category of ["Turning","Heat Treatment","Grinding","Metrology","Laser Cutting","Forming","Fabrication","Welding","Finishing","Quality","Gear Cutting","VMC Machining","Deburring","Sawing","Wire EDM","Assembly","Packaging","Punching"])
     assert.ok(categories.has(category),"single component route missing process category: "+category);
   assert.ok(fixture.operations.every(row=>row.companyId===fixture.company.id&&row.poId===fixture.purchaseOrder.id&&row.poLineId===fixture.component.poLineId&&row.componentId===fixture.component.id));
   assert.ok(fixture.operations.every(row=>row.ratePerPartINR>0&&row.plannedCostINR===row.ratePerPartINR*row.quantity));

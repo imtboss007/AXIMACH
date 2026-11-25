@@ -27,7 +27,7 @@
     "material": "BOM-integrated alloy steel, mild steel, EN8 and aluminium subassemblies",
     "quantity": 250,
     "quantityUnit": "pieces",
-    "processCostINR": 498750,
+    "processCostINR": 545500,
     "materialCostINR": 480191,
     "transportCostINR": 5890
   },
@@ -296,9 +296,31 @@
       "status": "Planned"
     },
     {
+      "id": "op-027",
+      "name": "Wire EDM keyway and precision profile cutting",
+      "sequence": 3,
+      "branch": "Shaft subassembly",
+      "relationType": null,
+      "parentId": "",
+      "quantity": 250,
+      "costIncluded": true,
+      "category": "Wire EDM",
+      "processType": "Wire EDM profile cutting",
+      "subProcess": "Keyway, internal profile and precision slot cutting",
+      "subComponent": "Precision spindle shaft",
+      "ratePerPartINR": 95,
+      "plannedCostINR": 23750,
+      "costRole": "base",
+      "companyId": "demo-company-aster-01",
+      "poId": "demo-po-aster-001",
+      "poLineId": "demo-line-aster-001",
+      "componentId": "demo-component-ast-1001",
+      "status": "Planned"
+    },
+    {
       "id": "op-003",
       "name": "Gear hobbing and tooth generation",
-      "sequence": 3,
+      "sequence": 4,
       "branch": "Shaft subassembly",
       "category": "Gear Cutting",
       "processType": "Gear hobbing",
@@ -321,7 +343,7 @@
     {
       "id": "op-004",
       "name": "Carburising, hardening and tempering",
-      "sequence": 4,
+      "sequence": 5,
       "branch": "Shaft subassembly",
       "category": "Heat Treatment",
       "processType": "Carburising",
@@ -344,7 +366,7 @@
     {
       "id": "op-005",
       "name": "Cylindrical grinding",
-      "sequence": 5,
+      "sequence": 6,
       "branch": "Shaft subassembly",
       "category": "Grinding",
       "processType": "Cylindrical grinding",
@@ -367,7 +389,7 @@
     {
       "id": "op-006",
       "name": "Gear profile, runout and roundness metrology",
-      "sequence": 6,
+      "sequence": 7,
       "branch": "Shaft subassembly",
       "category": "Metrology",
       "processType": "Precision inspection",
@@ -390,7 +412,7 @@
     {
       "id": "op-007",
       "name": "Fiber laser cutting",
-      "sequence": 7,
+      "sequence": 8,
       "branch": "Bracket subassembly",
       "category": "Laser Cutting",
       "processType": "Fiber laser cutting",
@@ -413,7 +435,7 @@
     {
       "id": "op-008",
       "name": "Press brake forming",
-      "sequence": 8,
+      "sequence": 9,
       "branch": "Bracket subassembly",
       "category": "Forming",
       "processType": "Press brake bending",
@@ -434,9 +456,31 @@
       "status": "Planned"
     },
     {
+      "id": "op-028",
+      "name": "Fixture-based fabrication and subassembly fit-up",
+      "sequence": 10,
+      "branch": "Bracket subassembly",
+      "relationType": null,
+      "parentId": "",
+      "quantity": 250,
+      "costIncluded": true,
+      "category": "Fabrication",
+      "processType": "Precision fabrication",
+      "subProcess": "Fixture-based bracket fit-up, alignment and tack preparation",
+      "subComponent": "Motor mounting bracket",
+      "ratePerPartINR": 92,
+      "plannedCostINR": 23000,
+      "costRole": "base",
+      "companyId": "demo-company-aster-01",
+      "poId": "demo-po-aster-001",
+      "poLineId": "demo-line-aster-001",
+      "componentId": "demo-component-ast-1001",
+      "status": "Planned"
+    },
+    {
       "id": "op-009",
       "name": "MIG welding and fixture joining",
-      "sequence": 9,
+      "sequence": 11,
       "branch": "Bracket subassembly",
       "category": "Welding",
       "processType": "MIG welding",
@@ -459,7 +503,7 @@
     {
       "id": "op-010",
       "name": "Powder coating and surface protection",
-      "sequence": 10,
+      "sequence": 12,
       "branch": "Bracket subassembly",
       "category": "Finishing",
       "processType": "Powder coating",
@@ -482,7 +526,7 @@
     {
       "id": "op-011",
       "name": "VMC face milling",
-      "sequence": 11,
+      "sequence": 13,
       "branch": "Base plate subassembly",
       "category": "VMC Machining",
       "processType": "CNC face milling",
@@ -505,7 +549,7 @@
     {
       "id": "op-012",
       "name": "Drilling and tapping",
-      "sequence": 12,
+      "sequence": 14,
       "branch": "Base plate subassembly",
       "category": "VMC Machining",
       "processType": "Drilling and tapping",
@@ -528,7 +572,7 @@
     {
       "id": "op-013",
       "name": "Surface grinding",
-      "sequence": 13,
+      "sequence": 15,
       "branch": "Base plate subassembly",
       "category": "Grinding",
       "processType": "Surface grinding",
@@ -551,7 +595,7 @@
     {
       "id": "op-014",
       "name": "VMC manifold datum milling and pocketing",
-      "sequence": 14,
+      "sequence": 16,
       "branch": "Manifold subassembly",
       "category": "VMC Machining",
       "processType": "CNC face milling",
@@ -574,7 +618,7 @@
     {
       "id": "op-015",
       "name": "Deep-hole drilling and cross ports",
-      "sequence": 15,
+      "sequence": 17,
       "branch": "Manifold subassembly",
       "category": "VMC Machining",
       "processType": "Deep-hole drilling",
@@ -597,7 +641,7 @@
     {
       "id": "op-016",
       "name": "CNC tapping and threaded port finishing",
-      "sequence": 16,
+      "sequence": 18,
       "branch": "Manifold subassembly",
       "category": "VMC Machining",
       "processType": "CNC tapping",
@@ -620,7 +664,7 @@
     {
       "id": "op-017",
       "name": "Precision deburring and edge conditioning",
-      "sequence": 17,
+      "sequence": 19,
       "branch": "Manifold subassembly",
       "category": "Deburring",
       "processType": "Precision deburring",
@@ -643,7 +687,7 @@
     {
       "id": "op-018",
       "name": "Anodising and corrosion finish",
-      "sequence": 18,
+      "sequence": 20,
       "branch": "Manifold subassembly",
       "category": "Finishing",
       "processType": "Anodising",
@@ -666,7 +710,7 @@
     {
       "id": "op-019",
       "name": "Pressure, leak and dimensional inspection",
-      "sequence": 19,
+      "sequence": 21,
       "branch": "Manifold subassembly",
       "category": "Quality",
       "processType": "Pressure and dimensional inspection",
@@ -689,7 +733,7 @@
     {
       "id": "op-020",
       "name": "Final assembly and installation",
-      "sequence": 20,
+      "sequence": 22,
       "branch": "Final assembly",
       "category": "Assembly",
       "processType": "Precision assembly",
@@ -712,7 +756,7 @@
     {
       "id": "op-021",
       "name": "Final CMM and dimensional metrology",
-      "sequence": 21,
+      "sequence": 23,
       "branch": "Final assembly",
       "category": "Metrology",
       "processType": "CMM inspection",
@@ -735,7 +779,7 @@
     {
       "id": "op-022",
       "name": "Final quality acceptance and release",
-      "sequence": 22,
+      "sequence": 24,
       "branch": "Final assembly",
       "category": "Quality",
       "processType": "Final inspection",
@@ -758,7 +802,7 @@
     {
       "id": "op-023",
       "name": "Final wash and preservation",
-      "sequence": 23,
+      "sequence": 25,
       "branch": "Final assembly",
       "category": "Finishing",
       "processType": "Industrial cleaning",
@@ -781,7 +825,7 @@
     {
       "id": "op-024",
       "name": "Final packing and traceable labelling",
-      "sequence": 24,
+      "sequence": 26,
       "branch": "Final assembly",
       "category": "Packaging",
       "processType": "Protective industrial packing",
@@ -804,7 +848,7 @@
     {
       "id": "op-025",
       "name": "CNC punching alternative to laser cutting",
-      "sequence": 25,
+      "sequence": 27,
       "branch": "Alternate route",
       "category": "Punching",
       "processType": "CNC punching",
@@ -827,7 +871,7 @@
     {
       "id": "op-026",
       "name": "Corrective cylindrical regrinding",
-      "sequence": 26,
+      "sequence": 28,
       "branch": "Rework route",
       "category": "Grinding",
       "processType": "Corrective grinding",
@@ -1341,7 +1385,7 @@
       "label": "Band saw cutting and raw blank preparation",
       "code": "OP-001 · SAWING",
       "kind": "process",
-      "detail": "Common blank preparation · ₹34/pc · ₹8,500 plan",
+      "detail": "Band saw cutting · Raw stock blank sizing · ₹34/pc · ₹8,500 plan",
       "accent": "#3d79b7",
       "x": 645,
       "y": 190,
@@ -1355,7 +1399,7 @@
       "plannedCostINR": 8500,
       "quantity": 250,
       "branch": "Main route",
-      "subComponent": "Common stock preparation"
+      "subComponent": "Common material preparation"
     },
     {
       "id": "split-gate",
@@ -1376,7 +1420,7 @@
       "label": "CNC shaft turning",
       "code": "OP-002 · TURNING",
       "kind": "process",
-      "detail": "Shaft · ₹180/pc · ₹45,000 plan",
+      "detail": "CNC shaft turning · Bearing seats, shoulders and datum faces · ₹180/pc · ₹45,000 plan",
       "accent": "#3d79b7",
       "x": 30,
       "y": 350,
@@ -1389,16 +1433,17 @@
       "ratePerPartINR": 180,
       "plannedCostINR": 45000,
       "quantity": 250,
-      "branch": "Shaft subassembly"
+      "branch": "Shaft subassembly",
+      "subComponent": "Precision spindle shaft"
     },
     {
       "id": "op-003",
       "label": "Gear hobbing and tooth generation",
-      "code": "OP-003 · GEAR CUTTING",
+      "code": "OP-004 · GEAR CUTTING",
       "kind": "process",
-      "detail": "Gear blank · ₹135/pc · ₹33,750 plan",
+      "detail": "Gear hobbing · Spur gear tooth generation · ₹135/pc · ₹33,750 plan",
       "accent": "#3d79b7",
-      "x": 235,
+      "x": 440,
       "y": 350,
       "companyId": "demo-company-aster-01",
       "poId": "demo-po-aster-001",
@@ -1409,16 +1454,17 @@
       "ratePerPartINR": 135,
       "plannedCostINR": 33750,
       "quantity": 250,
-      "branch": "Shaft subassembly"
+      "branch": "Shaft subassembly",
+      "subComponent": "Precision spindle shaft"
     },
     {
       "id": "op-004",
       "label": "Carburising, hardening and tempering",
-      "code": "OP-004 · HEAT TREATMENT",
+      "code": "OP-005 · HEAT TREATMENT",
       "kind": "process",
-      "detail": "Shaft · ₹165/pc · ₹41,250 plan",
+      "detail": "Carburising · Case hardening and tempering · ₹165/pc · ₹41,250 plan",
       "accent": "#3d79b7",
-      "x": 440,
+      "x": 645,
       "y": 350,
       "companyId": "demo-company-aster-01",
       "poId": "demo-po-aster-001",
@@ -1429,16 +1475,17 @@
       "ratePerPartINR": 165,
       "plannedCostINR": 41250,
       "quantity": 250,
-      "branch": "Shaft subassembly"
+      "branch": "Shaft subassembly",
+      "subComponent": "Precision spindle shaft"
     },
     {
       "id": "op-005",
       "label": "Cylindrical grinding",
-      "code": "OP-005 · GRINDING",
+      "code": "OP-006 · GRINDING",
       "kind": "process",
-      "detail": "Bearing journals · ₹145/pc · ₹36,250 plan",
+      "detail": "Cylindrical grinding · Bearing journal and OD finish grinding · ₹145/pc · ₹36,250 plan",
       "accent": "#3d79b7",
-      "x": 645,
+      "x": 850,
       "y": 350,
       "companyId": "demo-company-aster-01",
       "poId": "demo-po-aster-001",
@@ -1449,16 +1496,17 @@
       "ratePerPartINR": 145,
       "plannedCostINR": 36250,
       "quantity": 250,
-      "branch": "Shaft subassembly"
+      "branch": "Shaft subassembly",
+      "subComponent": "Precision spindle shaft"
     },
     {
       "id": "op-006",
-      "label": "Gear profile and runout metrology",
-      "code": "OP-006 · METROLOGY",
+      "label": "Gear profile, runout and roundness metrology",
+      "code": "OP-007 · METROLOGY",
       "kind": "quality",
-      "detail": "Shaft · ₹42/pc · ₹10,500 plan",
+      "detail": "Precision inspection · Gear profile, runout and roundness verification · ₹42/pc · ₹10,500 plan",
       "accent": "#8a60bd",
-      "x": 850,
+      "x": 1055,
       "y": 350,
       "companyId": "demo-company-aster-01",
       "poId": "demo-po-aster-001",
@@ -1469,14 +1517,15 @@
       "ratePerPartINR": 42,
       "plannedCostINR": 10500,
       "quantity": 250,
-      "branch": "Shaft subassembly"
+      "branch": "Shaft subassembly",
+      "subComponent": "Precision spindle shaft"
     },
     {
       "id": "op-007",
       "label": "Fiber laser cutting",
-      "code": "OP-007 · LASER CUTTING",
+      "code": "OP-008 · LASER CUTTING",
       "kind": "process",
-      "detail": "Bracket plate · ₹78/pc · ₹19,500 plan",
+      "detail": "Fiber laser cutting · Mounting bracket profile cutting · ₹78/pc · ₹19,500 plan",
       "accent": "#3d79b7",
       "x": 30,
       "y": 510,
@@ -1489,14 +1538,15 @@
       "ratePerPartINR": 78,
       "plannedCostINR": 19500,
       "quantity": 250,
-      "branch": "Bracket subassembly"
+      "branch": "Bracket subassembly",
+      "subComponent": "Motor mounting bracket"
     },
     {
       "id": "op-008",
       "label": "Press brake forming",
-      "code": "OP-008 · FORMING",
+      "code": "OP-009 · FORMING",
       "kind": "process",
-      "detail": "Bracket flange forming · ₹46/pc · ₹11,500 plan",
+      "detail": "Press brake bending · Flange and channel forming · ₹46/pc · ₹11,500 plan",
       "accent": "#3d79b7",
       "x": 235,
       "y": 510,
@@ -1509,16 +1559,17 @@
       "ratePerPartINR": 46,
       "plannedCostINR": 11500,
       "quantity": 250,
-      "branch": "Bracket subassembly"
+      "branch": "Bracket subassembly",
+      "subComponent": "Motor mounting bracket"
     },
     {
       "id": "op-009",
       "label": "MIG welding and fixture joining",
-      "code": "OP-009 · WELDING",
+      "code": "OP-011 · WELDING",
       "kind": "process",
-      "detail": "Bracket joint · ₹105/pc · ₹26,250 plan",
+      "detail": "MIG welding · Bracket seam welding and distortion control · ₹105/pc · ₹26,250 plan",
       "accent": "#3d79b7",
-      "x": 440,
+      "x": 645,
       "y": 510,
       "companyId": "demo-company-aster-01",
       "poId": "demo-po-aster-001",
@@ -1529,16 +1580,17 @@
       "ratePerPartINR": 105,
       "plannedCostINR": 26250,
       "quantity": 250,
-      "branch": "Bracket subassembly"
+      "branch": "Bracket subassembly",
+      "subComponent": "Motor mounting bracket"
     },
     {
       "id": "op-010",
       "label": "Powder coating and surface protection",
-      "code": "OP-010 · FINISHING",
+      "code": "OP-012 · FINISHING",
       "kind": "process",
-      "detail": "Bracket surface finish · ₹68/pc · ₹17,000 plan",
+      "detail": "Powder coating · Surface preparation and coating · ₹68/pc · ₹17,000 plan",
       "accent": "#3d79b7",
-      "x": 645,
+      "x": 850,
       "y": 510,
       "companyId": "demo-company-aster-01",
       "poId": "demo-po-aster-001",
@@ -1549,14 +1601,15 @@
       "ratePerPartINR": 68,
       "plannedCostINR": 17000,
       "quantity": 250,
-      "branch": "Bracket subassembly"
+      "branch": "Bracket subassembly",
+      "subComponent": "Motor mounting bracket"
     },
     {
       "id": "op-011",
       "label": "VMC face milling",
-      "code": "OP-011 · VMC MACHINING",
+      "code": "OP-013 · VMC MACHINING",
       "kind": "process",
-      "detail": "EN8 base plate · ₹125/pc · ₹31,250 plan",
+      "detail": "CNC face milling · Top and bottom datum face machining · ₹125/pc · ₹31,250 plan",
       "accent": "#3d79b7",
       "x": 30,
       "y": 670,
@@ -1569,14 +1622,15 @@
       "ratePerPartINR": 125,
       "plannedCostINR": 31250,
       "quantity": 250,
-      "branch": "Base plate subassembly"
+      "branch": "Base plate subassembly",
+      "subComponent": "EN8 fixture base plate"
     },
     {
       "id": "op-012",
       "label": "Drilling and tapping",
-      "code": "OP-012 · VMC MACHINING",
+      "code": "OP-014 · VMC MACHINING",
       "kind": "process",
-      "detail": "Mounting hole pattern · ₹72/pc · ₹18,000 plan",
+      "detail": "Drilling and tapping · Mounting hole pattern and threaded features · ₹72/pc · ₹18,000 plan",
       "accent": "#3d79b7",
       "x": 235,
       "y": 670,
@@ -1589,14 +1643,15 @@
       "ratePerPartINR": 72,
       "plannedCostINR": 18000,
       "quantity": 250,
-      "branch": "Base plate subassembly"
+      "branch": "Base plate subassembly",
+      "subComponent": "EN8 fixture base plate"
     },
     {
       "id": "op-013",
       "label": "Surface grinding",
-      "code": "OP-013 · GRINDING",
+      "code": "OP-015 · GRINDING",
       "kind": "process",
-      "detail": "Reference face finishing · ₹88/pc · ₹22,000 plan",
+      "detail": "Surface grinding · Reference face and parallelism finishing · ₹88/pc · ₹22,000 plan",
       "accent": "#3d79b7",
       "x": 440,
       "y": 670,
@@ -1609,14 +1664,15 @@
       "ratePerPartINR": 88,
       "plannedCostINR": 22000,
       "quantity": 250,
-      "branch": "Base plate subassembly"
+      "branch": "Base plate subassembly",
+      "subComponent": "EN8 fixture base plate"
     },
     {
       "id": "op-014",
       "label": "VMC manifold datum milling and pocketing",
-      "code": "OP-014 · VMC MACHINING",
+      "code": "OP-016 · VMC MACHINING",
       "kind": "process",
-      "detail": "Aluminium manifold · ₹155/pc · ₹38,750 plan",
+      "detail": "CNC face milling · Datum face, pocket and port-face machining · ₹155/pc · ₹38,750 plan",
       "accent": "#3d79b7",
       "x": 30,
       "y": 830,
@@ -1629,14 +1685,15 @@
       "ratePerPartINR": 155,
       "plannedCostINR": 38750,
       "quantity": 250,
-      "branch": "Manifold subassembly"
+      "branch": "Manifold subassembly",
+      "subComponent": "Hydraulic manifold block"
     },
     {
       "id": "op-015",
       "label": "Deep-hole drilling and cross ports",
-      "code": "OP-015 · VMC MACHINING",
+      "code": "OP-017 · VMC MACHINING",
       "kind": "process",
-      "detail": "Hydraulic cross ports · ₹118/pc · ₹29,500 plan",
+      "detail": "Deep-hole drilling · Cross-port drilling and bore intersection · ₹118/pc · ₹29,500 plan",
       "accent": "#3d79b7",
       "x": 235,
       "y": 830,
@@ -1649,14 +1706,15 @@
       "ratePerPartINR": 118,
       "plannedCostINR": 29500,
       "quantity": 250,
-      "branch": "Manifold subassembly"
+      "branch": "Manifold subassembly",
+      "subComponent": "Hydraulic manifold block"
     },
     {
       "id": "op-016",
       "label": "CNC tapping and threaded port finishing",
-      "code": "OP-016 · VMC MACHINING",
+      "code": "OP-018 · VMC MACHINING",
       "kind": "process",
-      "detail": "Hydraulic threads · ₹64/pc · ₹16,000 plan",
+      "detail": "CNC tapping · Precision hydraulic port threads · ₹64/pc · ₹16,000 plan",
       "accent": "#3d79b7",
       "x": 440,
       "y": 830,
@@ -1669,14 +1727,15 @@
       "ratePerPartINR": 64,
       "plannedCostINR": 16000,
       "quantity": 250,
-      "branch": "Manifold subassembly"
+      "branch": "Manifold subassembly",
+      "subComponent": "Hydraulic manifold block"
     },
     {
       "id": "op-017",
       "label": "Precision deburring and edge conditioning",
-      "code": "OP-017 · DEBURRING",
+      "code": "OP-019 · DEBURRING",
       "kind": "process",
-      "detail": "Port edges and intersections · ₹28/pc · ₹7,000 plan",
+      "detail": "Precision deburring · Port edges, intersections and burr removal · ₹28/pc · ₹7,000 plan",
       "accent": "#3d79b7",
       "x": 645,
       "y": 830,
@@ -1689,14 +1748,15 @@
       "ratePerPartINR": 28,
       "plannedCostINR": 7000,
       "quantity": 250,
-      "branch": "Manifold subassembly"
+      "branch": "Manifold subassembly",
+      "subComponent": "Hydraulic manifold block"
     },
     {
       "id": "op-018",
       "label": "Anodising and corrosion finish",
-      "code": "OP-018 · FINISHING",
+      "code": "OP-020 · FINISHING",
       "kind": "process",
-      "detail": "Hydraulic block protection · ₹74/pc · ₹18,500 plan",
+      "detail": "Anodising · Surface protection and corrosion finish · ₹74/pc · ₹18,500 plan",
       "accent": "#3d79b7",
       "x": 850,
       "y": 830,
@@ -1709,14 +1769,15 @@
       "ratePerPartINR": 74,
       "plannedCostINR": 18500,
       "quantity": 250,
-      "branch": "Manifold subassembly"
+      "branch": "Manifold subassembly",
+      "subComponent": "Hydraulic manifold block"
     },
     {
       "id": "op-019",
       "label": "Pressure, leak and dimensional inspection",
-      "code": "OP-019 · QUALITY",
+      "code": "OP-021 · QUALITY",
       "kind": "quality",
-      "detail": "Hydraulic block · ₹58/pc · ₹14,500 plan",
+      "detail": "Pressure and dimensional inspection · Pressure test, leak verification and bore inspection · ₹58/pc · ₹14,500 plan",
       "accent": "#8a60bd",
       "x": 1055,
       "y": 830,
@@ -1729,16 +1790,17 @@
       "ratePerPartINR": 58,
       "plannedCostINR": 14500,
       "quantity": 250,
-      "branch": "Manifold subassembly"
+      "branch": "Manifold subassembly",
+      "subComponent": "Hydraulic manifold block"
     },
     {
       "id": "op-025",
-      "label": "CNC punching alternative",
-      "code": "ALTERNATE · PUNCHING",
+      "label": "CNC punching alternative to laser cutting",
+      "code": "OP-027 · PUNCHING",
       "kind": "process",
-      "detail": "Qualified bracket alternative · ₹70/pc · excluded by default",
+      "detail": "CNC punching · Qualified alternate bracket profile route · ₹70/pc · ₹17,500 plan",
       "accent": "#4b95eb",
-      "x": 1055,
+      "x": 1260,
       "y": 510,
       "companyId": "demo-company-aster-01",
       "poId": "demo-po-aster-001",
@@ -1749,14 +1811,15 @@
       "ratePerPartINR": 70,
       "plannedCostINR": 17500,
       "quantity": 250,
-      "branch": "Alternate route"
+      "branch": "Alternate route",
+      "subComponent": "Motor mounting bracket"
     },
     {
       "id": "op-020",
       "label": "Final assembly and installation",
-      "code": "OP-020 · ASSEMBLY",
+      "code": "OP-022 · ASSEMBLY",
       "kind": "process",
-      "detail": "All four BOM workstreams converge · ₹105/pc · ₹26,250 plan",
+      "detail": "Precision assembly · Fit shaft, gear, bracket, base and manifold subassemblies · ₹105/pc · ₹26,250 plan",
       "accent": "#3d79b7",
       "x": 30,
       "y": 990,
@@ -1769,7 +1832,8 @@
       "ratePerPartINR": 105,
       "plannedCostINR": 26250,
       "quantity": 250,
-      "branch": "Final assembly"
+      "branch": "Final assembly",
+      "subComponent": "AST-1001 complete assembly"
     },
     {
       "id": "transport-sample",
@@ -1790,9 +1854,9 @@
     {
       "id": "op-021",
       "label": "Final CMM and dimensional metrology",
-      "code": "OP-021 · METROLOGY",
+      "code": "OP-023 · METROLOGY",
       "kind": "quality",
-      "detail": "Alignment and GD&T inspection · ₹38/pc · ₹9,500 plan",
+      "detail": "CMM inspection · Position, runout, alignment and geometric tolerances · ₹38/pc · ₹9,500 plan",
       "accent": "#8a60bd",
       "x": 440,
       "y": 990,
@@ -1805,14 +1869,15 @@
       "ratePerPartINR": 38,
       "plannedCostINR": 9500,
       "quantity": 250,
-      "branch": "Final assembly"
+      "branch": "Final assembly",
+      "subComponent": "AST-1001 complete assembly"
     },
     {
       "id": "op-022",
       "label": "Final quality acceptance and release",
-      "code": "OP-022 · QUALITY",
+      "code": "OP-024 · QUALITY",
       "kind": "quality",
-      "detail": "Functional and visual acceptance · ₹32/pc · ₹8,000 plan",
+      "detail": "Final inspection · Functional, visual and documentation acceptance · ₹32/pc · ₹8,000 plan",
       "accent": "#8a60bd",
       "x": 645,
       "y": 990,
@@ -1825,14 +1890,15 @@
       "ratePerPartINR": 32,
       "plannedCostINR": 8000,
       "quantity": 250,
-      "branch": "Final assembly"
+      "branch": "Final assembly",
+      "subComponent": "AST-1001 complete assembly"
     },
     {
       "id": "op-026",
       "label": "Corrective cylindrical regrinding",
-      "code": "REWORK · GRINDING",
+      "code": "OP-028 · GRINDING",
       "kind": "process",
-      "detail": "Conditional rework · ₹110/pc · excluded until triggered",
+      "detail": "Corrective grinding · Controlled regrind following out-of-tolerance inspection · ₹110/pc · ₹27,500 plan",
       "accent": "#e38b45",
       "x": 30,
       "y": 1150,
@@ -1845,7 +1911,8 @@
       "ratePerPartINR": 110,
       "plannedCostINR": 27500,
       "quantity": 250,
-      "branch": "Rework route"
+      "branch": "Rework route",
+      "subComponent": "Precision spindle shaft"
     },
     {
       "id": "pass-release",
@@ -1864,9 +1931,9 @@
     {
       "id": "op-023",
       "label": "Final wash and preservation",
-      "code": "OP-023 · FINISHING",
+      "code": "OP-025 · FINISHING",
       "kind": "process",
-      "detail": "Wash, dry and corrosion protection · ₹22/pc · ₹5,500 plan",
+      "detail": "Industrial cleaning · Wash, dry, corrosion protection and preserve · ₹22/pc · ₹5,500 plan",
       "accent": "#3d79b7",
       "x": 1055,
       "y": 990,
@@ -1879,14 +1946,15 @@
       "ratePerPartINR": 22,
       "plannedCostINR": 5500,
       "quantity": 250,
-      "branch": "Final assembly"
+      "branch": "Final assembly",
+      "subComponent": "AST-1001 complete assembly"
     },
     {
       "id": "op-024",
       "label": "Final packing and traceable labelling",
-      "code": "OP-024 · PACKAGING",
+      "code": "OP-026 · PACKAGING",
       "kind": "delivery",
-      "detail": "Serial label, packing list and protective pack · ₹18/pc · ₹4,500 plan",
+      "detail": "Protective industrial packing · Serial label, packing list and protective pack · ₹18/pc · ₹4,500 plan",
       "accent": "#33865e",
       "x": 1260,
       "y": 990,
@@ -1899,7 +1967,8 @@
       "ratePerPartINR": 18,
       "plannedCostINR": 4500,
       "quantity": 250,
-      "branch": "Final assembly"
+      "branch": "Final assembly",
+      "subComponent": "AST-1001 complete assembly"
     },
     {
       "id": "transport-outbound",
@@ -1939,7 +2008,7 @@
       "detail": "Shaft / gear cell → final assembly",
       "accent": "#2c87c6",
       "vehicleType": "Heavy-duty tempo",
-      "x": 1055,
+      "x": 1260,
       "y": 350,
       "companyId": "demo-company-aster-01",
       "poId": "demo-po-aster-001",
@@ -1955,7 +2024,7 @@
       "detail": "Fabrication cell → final assembly",
       "accent": "#2c87c6",
       "vehicleType": "Tempo / 3-wheeler goods carrier",
-      "x": 850,
+      "x": 1055,
       "y": 510,
       "companyId": "demo-company-aster-01",
       "poId": "demo-po-aster-001",
@@ -2003,7 +2072,7 @@
       "detail": "Alternate punching → forming",
       "accent": "#2c87c6",
       "vehicleType": "3-wheeler / Auto rickshaw",
-      "x": 1260,
+      "x": 1465,
       "y": 510,
       "companyId": "demo-company-aster-01",
       "poId": "demo-po-aster-001",
@@ -2042,6 +2111,48 @@
       "poLineId": "demo-line-aster-001",
       "componentId": "demo-component-ast-1001",
       "transportLegId": "demo-leg-courier"
+    },
+    {
+      "id": "op-027",
+      "label": "Wire EDM keyway and precision profile cutting",
+      "code": "OP-003 · WIRE EDM",
+      "kind": "process",
+      "detail": "Wire EDM profile cutting · Keyway, internal profile and precision slot cutting · ₹95/pc · ₹23,750 plan",
+      "accent": "#3d79b7",
+      "x": 235,
+      "y": 350,
+      "companyId": "demo-company-aster-01",
+      "poId": "demo-po-aster-001",
+      "poLineId": "demo-line-aster-001",
+      "componentId": "demo-component-ast-1001",
+      "processName": "Gear hobbing",
+      "category": "Wire EDM",
+      "ratePerPartINR": 95,
+      "plannedCostINR": 23750,
+      "quantity": 250,
+      "branch": "Shaft subassembly",
+      "subComponent": "Precision spindle shaft"
+    },
+    {
+      "id": "op-028",
+      "label": "Fixture-based fabrication and subassembly fit-up",
+      "code": "OP-010 · FABRICATION",
+      "kind": "process",
+      "detail": "Precision fabrication · Fixture-based bracket fit-up, alignment and tack preparation · ₹92/pc · ₹23,000 plan",
+      "accent": "#3d79b7",
+      "x": 440,
+      "y": 510,
+      "companyId": "demo-company-aster-01",
+      "poId": "demo-po-aster-001",
+      "poLineId": "demo-line-aster-001",
+      "componentId": "demo-component-ast-1001",
+      "processName": "MIG welding",
+      "category": "Fabrication",
+      "ratePerPartINR": 92,
+      "plannedCostINR": 23000,
+      "quantity": 250,
+      "branch": "Bracket subassembly",
+      "subComponent": "Motor mounting bracket"
     }
   ],
   "edges": [
@@ -2104,9 +2215,9 @@
     {
       "id": "edge-shaft-turn-gear",
       "source": "op-002",
-      "target": "op-003",
+      "target": "op-027",
       "type": "main",
-      "label": "TURN → HOB"
+      "label": "TURN → WIRE EDM"
     },
     {
       "id": "edge-shaft-gear-heat",
@@ -2153,9 +2264,9 @@
     {
       "id": "edge-bracket-form-weld",
       "source": "op-008",
-      "target": "op-009",
+      "target": "op-028",
       "type": "follow-on",
-      "label": "FORM → WELD"
+      "label": "FORM → FABRICATE"
     },
     {
       "id": "edge-bracket-weld-coat",
@@ -2436,6 +2547,20 @@
       "target": "op-022",
       "type": "transport",
       "label": "QUALITY OFFICE HAND-OFF"
+    },
+    {
+      "id": "edge-wire-edm-gear",
+      "source": "op-027",
+      "target": "op-003",
+      "type": "successor",
+      "label": "WIRE EDM → GEAR HOBBING"
+    },
+    {
+      "id": "edge-fabrication-weld",
+      "source": "op-028",
+      "target": "op-009",
+      "type": "follow-on",
+      "label": "FABRICATE → WELD"
     }
   ],
   "expected": {
@@ -2445,16 +2570,18 @@
     "poLineCount": 1,
     "componentId": "demo-component-ast-1001",
     "companyId": "demo-company-aster-01",
-    "processCategoryCount": 16,
+    "processCategoryCount": 18,
     "processCategories": [
       "Sawing",
       "Turning",
+      "Wire EDM",
       "Gear Cutting",
       "Heat Treatment",
       "Grinding",
       "Metrology",
       "Laser Cutting",
       "Forming",
+      "Fabrication",
       "Welding",
       "Finishing",
       "VMC Machining",
@@ -2479,7 +2606,7 @@
       "material",
       "transport"
     ],
-    "baseProcessCostINR": 498750,
+    "baseProcessCostINR": 545500,
     "alternateProcessCostINR": 17500,
     "reworkProcessCostINR": 27500,
     "baseTransportCostINR": 5890,
@@ -2490,6 +2617,9 @@
     "allTransportLegsShareOneComponent": true,
     "allOperationsShareOneComponent": true,
     "transportLegNodeCount": 10,
-    "transportLegGraphNodeCount": 10
+    "transportLegGraphNodeCount": 10,
+    "operationCount": 28,
+    "graphNodeCount": 49,
+    "graphEdgeCount": 58
   }
 }
