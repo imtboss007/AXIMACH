@@ -5,8 +5,9 @@ import type { Edge, Node, NodeProps, NodeTypes, OnNodesChange } from "@xyflow/re
 import "@xyflow/react/style.css";
 import { activeRows, type ManufacturingData } from "./manufacturingData";
 import { expandEcosystemGroupLimit, getVisibleEcosystemNodes, loadEcosystemGraphLayout, loadEcosystemGraphPreferences, searchEcosystemNodes, updateEcosystemGraphLayout, type EcosystemGraphPreferences } from "./manufacturingEcosystemGraphModel.mjs";
-import { layoutManufacturingUniverseNodes } from "./manufacturingGraphLayout.mjs";
+import { layoutManufacturingUniverseNodes, routeRelationshipHandles } from "./manufacturingGraphLayout.mjs";
 import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
+import { RouteConnectorLegend } from "./RouteConnectorLegend";
 
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
 type Props = { data:ManufacturingData; onNavigate:(moduleId:string,context?:Context)=>void };
@@ -65,11 +66,17 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
 
 function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {
   return <div className="ax-ecosystem-flow-node" style={{"--node-accent":data.accent} as CSSProperties}>
-    <Handle type="target" position={Position.Top} isConnectable={false}/>
+    <Handle id="target-top" type="target" position={Position.Top} isConnectable={false}/>
+    <Handle id="target-bottom" type="target" position={Position.Bottom} isConnectable={false}/>
+    <Handle id="target-left" type="target" position={Position.Left} isConnectable={false}/>
+    <Handle id="target-right" type="target" position={Position.Right} isConnectable={false}/>
     <span className="ax-ecosystem-node-heading">{data.kind==="transport"?<Truck size={13}/>:data.kind==="operation"||data.kind==="process"?<Workflow size={13}/>:data.kind==="material"||data.kind==="component"?<Boxes size={13}/>:data.kind==="quality"?<ClipboardCheck size={13}/>:data.kind==="finance"?<Wallet size={13}/>:data.kind==="company"?<Building2 size={13}/>:data.kind==="factory"?<Factory size={13}/>:data.kind==="customer"||data.kind==="contact"?<UserRound size={13}/>:<Network size={13}/>}<b>{data.group}</b></span>
     <strong title={data.label}>{data.label}</strong>
     <small title={data.detail}>{data.detail}</small>
-    <Handle type="source" position={Position.Bottom} isConnectable={false}/>
+    <Handle id="source-top" type="source" position={Position.Top} isConnectable={false}/>
+    <Handle id="source-bottom" type="source" position={Position.Bottom} isConnectable={false}/>
+    <Handle id="source-left" type="source" position={Position.Left} isConnectable={false}/>
+    <Handle id="source-right" type="source" position={Position.Right} isConnectable={false}/>
   </div>;
 }
 
@@ -302,14 +309,22 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
   const flowEdges=useMemo<Edge[]>(()=>{
     const relationships:Edge[]=graph.edges.map(link=>{
       const color=edgeColor(link.kind);
+      const [sourceHandle,targetHandle]=routeRelationshipHandles(link.kind);
+      const routeType=/^(main|alternate|rework|dependency|parallel|merge|split|follow-on|feedback|conditional|successor|transport)$/.test(link.kind);
       return {
         id:link.id,
         source:link.from,
         target:link.to,
+        sourceHandle,
+        targetHandle,
         type:"smoothstep",
+        label:routeType?link.kind.replaceAll("-"," ").toUpperCase():undefined,
+        labelStyle:{fontSize:8,fontWeight:750,fill:"#50677d"},
+        labelBgStyle:{fill:"#ffffff",fillOpacity:.92},
+        labelBgPadding:[4,2],
         selectable:false,
         focusable:false,
-        style:{stroke:color,strokeWidth:1.8,opacity:.86},
+        style:{stroke:color,strokeWidth:routeType?2.4:1.8,opacity:.9,...(/^(alternate|rework|dependency|parallel|split|feedback|conditional)$/.test(link.kind)?{strokeDasharray:"7 4"}:{})},
         markerEnd:{type:MarkerType.ArrowClosed,color}
       };
     });
@@ -409,6 +424,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       </button>)}
     </div>
     <div className="ax-ecosystem-edge-legend" aria-label="Relationship line colour legend">{EDGE_LEGEND.map(item=><span key={item.label}><i style={{background:item.color}}/>{item.label}</span>)}</div>
+    <RouteConnectorLegend compact/>
     <div className="ax-ecosystem-flow-canvas" data-testid="ecosystem-flow-canvas" aria-label="Interactive manufacturing relationship canvas">
       <ManufacturingGraphCanvas
         nodes={flowNodes}
