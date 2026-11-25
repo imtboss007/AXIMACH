@@ -144,6 +144,13 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
     if(status==="Planned"&&(!order.scheduledStart||!order.scheduledEnd)){
       onNotice("Add a scheduled start and end before planning this work order.");return;
     }
+    if(status==="Planned"&&machine){
+      const check=validateMachineMaintenanceWindow(machine.id,order.scheduledStart,order.scheduledEnd,operations,selectedWorkOrders,selectedDowntime,order.id);
+      if(!check.ok){
+        const reason=check.reason==="production-conflict"?"The planned maintenance window overlaps a production operation.":check.reason==="maintenance-conflict"?"Another maintenance work order already reserves this machine.":check.reason==="downtime-conflict"?"The machine already has downtime recorded in this interval.":"Enter a valid maintenance interval.";
+        onNotice(reason+" Choose a different schedule.");return;
+      }
+    }
     const stamp=nowIso();
     const updated={...order,status,
       actualStart:status==="Completed"?(order.actualStart||order.reportedAt||stamp):status==="In progress"?(order.actualStart||stamp):order.actualStart,
