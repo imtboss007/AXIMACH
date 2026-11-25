@@ -5,6 +5,7 @@ import type { MaterialProcessLinkRecord, MaterialRecord, OperationRecord, RouteR
 import { ProcessIcon } from "./IconStudio";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
+import { resolveProcessColor } from "./processPalette";
 import { RouteConnectorLegend as MaterialRouteConnectorLegend } from "./RouteConnectorLegend";
 import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
@@ -491,7 +492,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
               const expanded = expandedOperationId === operation.id;
               const state = operation.status.toLowerCase().replaceAll(" ","-");
               const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
-              const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
+              const accent = resolveProcessColor({category:processDefinition?.category||operation.category,processType:processDefinition?.processType||operation.name,displayColor:processDefinition?.displayColor,processColor:operation.processColor});
               return <div className="process-universe-node-wrap" key={operation.id}>
                 {materialLinksAt(operation.id,"before").map(renderMaterialLink)}
                 {transportFor(operation.id,"before").map(renderTransportLeg)}
