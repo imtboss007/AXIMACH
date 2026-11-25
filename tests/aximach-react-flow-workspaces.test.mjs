@@ -512,3 +512,15 @@ test("shared graph connector persists BOM process links and carrier links to the
   assert.ok(connector.includes("vendorIds:[...row.vendorIds,vendor.id]"));
   assert.ok(connector.includes("preferredVendorId:vendor.id"));
 });
+
+test("Manufacturing Universe maps machine maintenance plans, work orders and downtime as first-class linked entities",()=>{
+  const graph=source("src/ManufacturingEcosystemGraph.tsx");
+  assert.ok(graph.includes('"maintenance"|"downtime"'),"Maintenance and downtime need dedicated entity kinds.");
+  assert.ok(graph.includes('maintenancePlans=activeRows(data.maintenancePlans||[])'));
+  assert.ok(graph.includes('maintenanceWorkOrders=activeRows(data.maintenanceWorkOrders||[])'));
+  assert.ok(graph.includes('machineDowntime=activeRows(data.machineDowntime||[])'));
+  assert.ok(graph.includes('"has maintenance plan"'));
+  assert.ok(graph.includes('"maintenance work"'));
+  assert.ok(graph.includes('"affects machine availability"'));
+  assert.ok(graph.includes('"recorded under"'));
+});
