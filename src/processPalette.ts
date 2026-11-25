@@ -49,7 +49,11 @@ export function processPaletteColor(category:string,processType:string):string{
 
 /** Preserve user-picked colours; replace only the legacy shared blue defaults. */
 export function resolveProcessColor(record:{category?:string;processType?:string;name?:string;displayColor?:string;processColor?:string}):string{
-  const saved=(record.displayColor||record.processColor||"").trim().toLowerCase();
-  if(saved&&!LEGACY_DEFAULTS.has(saved))return saved;
+  // A user-selected operation colour takes precedence over the directory default.
+  // Legacy shared-blue values are ignored so the category identity can be applied.
+  const saved=[record.processColor,record.displayColor]
+    .map(value=>String(value||"").trim().toLowerCase())
+    .find(value=>Boolean(value)&&!LEGACY_DEFAULTS.has(value));
+  if(saved)return saved;
   return processPaletteColor(record.category||"",record.processType||record.name||"");
 }
