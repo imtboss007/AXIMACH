@@ -64,7 +64,7 @@ test("Machine Register uses company and factory ownership and blocks orphaning a
   assert.ok(master.includes("const saveMachine = () =>"));
   assert.ok(master.includes("machineEditingId"));
   assert.ok(master.includes("Supported Process Directory definitions"));
-  assert.ok(master.includes('collection==="factories"&&machines.some(machine=>machine.factoryId===id)'));
+  assert.ok(master.includes('collection==="factories"&&(machines.some(machine=>machine.factoryId===id)||toolingAssets.some(asset=>asset.factoryId===id)||fixtureAssets.some(asset=>asset.factoryId===id))'));
   assert.ok(master.includes('collection==="machines"&&data.operations.some(operation=>!operation.deletedAt&&operation.machineId===id)'));
   assert.ok(scope.includes('case "machines":'));
   assert.ok(scope.includes("factoryAllowed(row.factoryId)"));
@@ -74,7 +74,7 @@ test("Machine Register uses company and factory ownership and blocks orphaning a
 test("Process Map assigns an internal operation to an eligible registered machine ID",()=>{
   const processMap=source("src/LinkedProcessWorkspace.tsx");
   const helper=source("src/machineCapabilities.mjs");
-  assert.ok(processMap.includes('"machineId" | "vendorId"'));
+  assert.ok(processMap.includes('"machineId" | "toolingAssetIds" | "fixtureAssetIds" | "vendorId"'));
   assert.ok(processMap.includes('id="operation-machine-asset"'));
   assert.ok(processMap.includes("getEligibleMachineAssets(machines"));
   assert.ok(processMap.includes("validateMachineAssignment(assignedMachine"));
@@ -388,7 +388,7 @@ test("Route Flow supports n8n-style drag-to-connect and persists typed PO-line r
 test("Manufacturing Universe supports typed n8n-style operation connections without linking unrelated records",()=>{
   const graph=source("src/ManufacturingEcosystemGraph.tsx");
   const universe=source("src/ManufacturingUniverseWorkspace.tsx");
-  assert.ok(graph.includes('const connectable=data.kind==="operation"||data.kind==="material"||data.kind==="transport"||data.kind==="quality"||data.kind==="vendor"||data.kind==="process"'),"Operation, material, transport, quality, vendor and process nodes expose typed connector handles.");
+  assert.ok(graph.includes('const connectable=data.kind==="operation"||data.kind==="material"||data.kind==="transport"||data.kind==="quality"||data.kind==="vendor"||data.kind==="process"||data.kind==="tooling"||data.kind==="fixture"'),"Operation, material, transport, quality, vendor, process, tooling and fixture nodes expose typed connector handles.");
   assert.ok(graph.includes("nodesConnectable")&&graph.includes("onConnect={connection=>onConnect?.(connection,relationshipType)}"),"The Universe graph forwards drag connections with the selected relationship type.");
   assert.ok(graph.includes('aria-label="New manufacturing connection type"'),"The relationship type is selectable.");
   assert.ok(graph.includes("scope?.poLineId")&&graph.includes("matchesLine"),"The Universe graph is scoped to the selected PO component line.");
@@ -523,4 +523,39 @@ test("Manufacturing Universe maps machine maintenance plans, work orders and dow
   assert.ok(graph.includes('"maintenance work"'));
   assert.ok(graph.includes('"affects machine availability"'));
   assert.ok(graph.includes('"recorded under"'));
+});
+
+test("Tooling and fixture registers are factory-scoped, lifecycle-tracked and connected to operations",()=>{
+ const model=source("src/manufacturingData.ts");
+ const master=source("src/ManufacturingMasterWorkspace.tsx");
+ const processMap=source("src/LinkedProcessWorkspace.tsx");
+ const graph=source("src/ManufacturingEcosystemGraph.tsx");
+ const connector=source("src/manufacturingGraphConnections.ts");
+ const scope=source("server/tenant-scope.mjs");
+ assert.ok(model.includes("toolingAssets:ToolingAssetRecord[]"));
+ assert.ok(model.includes("fixtureAssets:FixtureAssetRecord[]"));
+ assert.ok(model.includes("resourceUsageEvents:ResourceUsageEventRecord[]"));
+ assert.ok(master.includes('tab === "tooling" ? "Tooling Register"'));
+ assert.ok(master.includes('tab === "fixtures" ? "Fixtures & Workholding Register"'));
+ assert.ok(master.includes("const saveToolingAsset=")&&master.includes("const saveFixtureAsset="));
+ assert.ok(master.includes("const saveResourceUsage=")&&master.includes("applyResourceUsageEvent"));
+ assert.ok(master.includes("Log event"));
+ assert.ok(processMap.includes('id="operation-tooling-assets"'));
+ assert.ok(processMap.includes('id="operation-fixture-assets"'));
+ assert.ok(processMap.includes("validateOperationResourceAssignments"));
+ assert.ok(graph.includes('title:"Tooling & cutting assets"')&&graph.includes('title:"Jigs, fixtures & workholding"'));
+ assert.ok(graph.includes('edge("operation:"+row.id,"tooling:"+id,"uses tooling")'));
+ assert.ok(graph.includes('edge("operation:"+row.id,"fixture:"+id,"uses fixture")'));
+ assert.ok(connector.includes("toolingAssetIds:[...new Set"));
+ assert.ok(connector.includes("fixtureAssetIds:[...new Set"));
+ assert.ok(scope.includes('case "toolingAssets":')&&scope.includes('case "fixtureAssets":'));
+ assert.ok(scope.includes("resourceAssignmentsAllowed(row)"));
+});
+
+test("Manufacturing Universe graph supports typed connections for tooling, fixtures and components",()=>{
+ const connector=source("src/manufacturingGraphConnections.ts");
+ assert.ok(connector.includes("compatibleMachineIds:[...new Set"));
+ assert.ok(connector.includes("processDefinitionIds:[...new Set"));
+ assert.ok(connector.includes("componentIds:[...new Set"));
+ assert.ok(connector.includes("Outsourced operations cannot reserve"));
 });
