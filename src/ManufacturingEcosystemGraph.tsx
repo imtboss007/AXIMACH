@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Activity, FileDown, Network, Search, X } from "lucide-react";
-import { Background, BackgroundVariant, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow } from "@xyflow/react";
+import { Handle, MarkerType, Position } from "@xyflow/react";
 import type { Edge, Node, NodeProps, NodeTypes, OnNodesChange } from "@xyflow/react";
 import "@xyflow/react/style.css";
 import { activeRows, type ManufacturingData } from "./manufacturingData";
 import { expandEcosystemGroupLimit, getVisibleEcosystemNodes, loadEcosystemGraphLayout, loadEcosystemGraphPreferences, searchEcosystemNodes, updateEcosystemGraphLayout, type EcosystemGraphPreferences } from "./manufacturingEcosystemGraphModel.mjs";
+import { layoutManufacturingUniverseNodes } from "./manufacturingGraphLayout.mjs";
+import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 
 type Context = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
 type Props = { data:ManufacturingData; onNavigate:(moduleId:string,context?:Context)=>void };
@@ -79,13 +81,15 @@ const ECOSYSTEM_FLOW_NODE_TYPES = {
   hub:EcosystemHubFlowNode
 } satisfies NodeTypes;
 
+// Show every saved entity by default. Users can hide groups, but the graph must
+// never silently replace real records with a small mobile sample.
 const INITIAL_VISIBLE_LIMITS = Object.fromEntries(
-  GROUPS.map(group => [group.kind, group.kind === "operation" ? 8 : 6])
+  GROUPS.map(group => [group.kind, 5000])
 ) as Record<NodeKind, number>;
 
 const GRAPH_PREFERENCES_KEY = "aximach.manufacturing-ecosystem-graph.preferences.v1";
 const VALID_GROUP_KINDS = GROUPS.map(group => group.kind);
-const GRAPH_LAYOUT_KEY = "aximach.manufacturing-ecosystem-graph.layout.v1";
+const GRAPH_LAYOUT_KEY = "aximach.manufacturing-ecosystem-graph.layout.v2";
 
 export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
   const [graphPreferences,setGraphPreferences]=useState<EcosystemGraphPreferences<NodeKind>>(() => {
@@ -95,12 +99,6 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
         VALID_GROUP_KINDS,
         INITIAL_VISIBLE_LIMITS
       );
-      // Limit the first mobile canvas to a readable sample. Search and Show more
-      // still expose all records; the underlying manufacturing data is untouched.
-      if(typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches){
-        const mobileLimits=Object.fromEntries(VALID_GROUP_KINDS.map(kind=>[kind,Math.min(loaded.visibleLimits[kind]??4,4)])) as Record<NodeKind,number>;
-        return {...loaded,visibleLimits:mobileLimits};
-      }
       return loaded;
     } catch {
       return loadEcosystemGraphPreferences(null,VALID_GROUP_KINDS,INITIAL_VISIBLE_LIMITS);
@@ -122,7 +120,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
   useEffect(()=>{
     try {
       window.localStorage.setItem(GRAPH_PREFERENCES_KEY,JSON.stringify({
-        version:2,
+        version:3,
         visibleKinds:graphPreferences.visibleKinds,
         visibleLimits:graphPreferences.visibleLimits
       }));
@@ -230,7 +228,6 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     const visibleNodes=getVisibleEcosystemNodes(nodes,visibleKinds,visibleLimits,selectedId);
     const visibleIds=new Set(visibleNodes.map(node=>node.id));
     const visibleEdges=filteredEdges.filter(item=>visibleIds.has(item.from)&&visibleIds.has(item.to));
-    const groupIndex=new Map(GROUPS.map((group,index)=>[group.kind,index]));
     const availableCounts:Record<NodeKind,number>={
       company:companies.length,customer:customers.length,factory:factories.length,order:orders.length,component:components.length,
       vendor:vendors.length,process:definitions.length,operation:operations.length,material:allocations.length,
@@ -238,22 +235,21 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     };
     const totals=GROUPS.map(group=>({...group,count:availableCounts[group.kind]||0,renderedCount:visibleNodes.filter(node=>node.kind===group.kind).length}));
     const totalAvailable=Object.values(availableCounts).reduce((sum,count)=>sum+count,0);
-    const visible=visibleNodes.map(node=>{
-      const index=groupIndex.get(node.kind)||0;
-      const same=visibleNodes.filter(item=>item.kind===node.kind);
-      const local=same.findIndex(item=>item.id===node.id);
-      const angle=(index/GROUPS.length)*Math.PI*2+(local-(same.length-1)/2)*.16-Math.PI/2;
-      const radius=34+(local%2)*5;
-      return {...node,x:50+Math.cos(angle)*radius,y:50+Math.sin(angle)*radius};
-    });
+    // Grouped two-column tiles keep all entity groups readable and prevent the
+    // old 34%-radius ring from stacking 190px cards on top of one another.
+    const positions=layoutManufacturingUniverseNodes(visibleNodes,GROUPS.map(group=>group.kind),{columns:4,innerColumns:2,nodeWidth:190,nodeHeight:92,gapX:26,gapY:34,groupGapX:72,groupGapY:78});
+    const visible=visibleNodes.map(node=>({...node,...(positions[node.id]||{x:0,y:0})}));
+    const graphWidth=Math.max(146,...visible.map(node=>node.x+190));
     const searchResults=searchEcosystemNodes(nodes,searchQuery);
-    return {nodes:visible,allNodes:nodes,edges:visibleEdges,totals,totalAvailable,searchResults};
+    return {nodes:visible,allNodes:nodes,edges:visibleEdges,totals,totalAvailable,searchResults,graphWidth};
+    const searchResults=searchEcosystemNodes(nodes,searchQuery);
+    return {nodes:visible,allNodes:nodes,edges:visibleEdges,totals,totalAvailable,searchResults,graphWidth};
   },[data,visibleKinds,visibleLimits,selectedId,searchQuery]);
   const flowNodes=useMemo<EcosystemFlowNode[]>(()=>{
     const hub:EcosystemHubNode={
       id:"aximach-hub",
       type:"hub",
-      position:{x:0,y:0},
+      position:{x:Math.max(0,graph.graphWidth/2-73),y:-170},
       data:{label:"AXIMACH",detail:"MANUFACTURING OS"},
       draggable:false,
       selectable:false,
@@ -265,7 +261,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
       return {
         id:node.id,
         type:"ecosystem",
-        position:graphLayout[node.id]||{x:(node.x-50)*16,y:(node.y-50)*12},
+        position:graphLayout[node.id]||{x:node.x,y:node.y},
         data:{label:node.label,detail:node.detail,group:group.title,accent:group.color},
         draggable:true,
         selectable:false,
@@ -276,15 +272,6 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     return [hub,...entities];
   },[graph.nodes,graphLayout]);
   const flowEdges=useMemo<Edge[]>(()=>{
-    const membership:Edge[]=graph.nodes.map(node=>({
-      id:"hub:"+node.id,
-      source:"aximach-hub",
-      target:node.id,
-      type:"straight",
-      selectable:false,
-      focusable:false,
-      style:{stroke:"#9dbbd0",strokeWidth:1.15,strokeDasharray:"4 7",opacity:.58}
-    }));
     const relationships:Edge[]=graph.edges.map(link=>{
       const color=edgeColor(link.kind);
       return {
@@ -298,7 +285,7 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
         markerEnd:{type:MarkerType.ArrowClosed,color}
       };
     });
-    return [...membership,...relationships];
+    return relationships;
   },[graph.nodes,graph.edges]);
   const byId=new Map(graph.nodes.map(node=>[node.id,node]));
   const selected=graph.allNodes.find(node=>node.id===selectedId);
@@ -395,35 +382,26 @@ export default function ManufacturingEcosystemGraph({data,onNavigate}:Props) {
     </div>
     <div className="ax-ecosystem-edge-legend" aria-label="Relationship line colour legend">{EDGE_LEGEND.map(item=><span key={item.label}><i style={{background:item.color}}/>{item.label}</span>)}</div>
     <div className="ax-ecosystem-flow-canvas" data-testid="ecosystem-flow-canvas" aria-label="Interactive manufacturing relationship canvas">
-      <ReactFlow<EcosystemFlowNode,Edge>
+      <ManufacturingGraphCanvas
         nodes={flowNodes}
         edges={flowEdges}
         nodeTypes={ECOSYSTEM_FLOW_NODE_TYPES}
         fitView
-        fitViewOptions={{padding:0.14,minZoom:typeof window!=="undefined"&&window.innerWidth<=760?0.3:0.18,maxZoom:1.25}}
-        minZoom={0.18}
+        fitViewOptions={{padding:.12,minZoom:.12,maxZoom:1.25}}
+        minZoom={.1}
         maxZoom={1.8}
         nodesDraggable
         onNodesChange={handleGraphNodesChange}
         onNodeDragStop={persistGraphNodePosition}
-        nodesConnectable={false}
-        elementsSelectable={false}
         nodesFocusable
-        edgesFocusable={false}
-        panOnDrag
-        zoomOnScroll={false}
-        zoomOnPinch
-        zoomOnDoubleClick={false}
         onNodeClick={(_,node)=>{if(node.type==="ecosystem")setSelectedId(current=>current===node.id?"":node.id);}}
         onPaneClick={()=>setSelectedId("")}
-        proOptions={{hideAttribution:false}}
-      >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#b5c9da"/>
-        <Controls showInteractive={false}/>
-        <MiniMap<EcosystemFlowNode> pannable zoomable nodeColor={(node:EcosystemFlowNode):string=>node.type==="ecosystem"?node.data.accent:"#8fc4e5"}/>
-      </ReactFlow>
+        minimapNodeColor={node=>node.type==="ecosystem"?node.data.accent:"#8fc4e5"}
+        className="ax-ecosystem-flow-layer"
+        ariaLabel="Interactive manufacturing relationship canvas"
+      />
     </div>
-    <div className="ax-ecosystem-graph-foot"><span><i/> Solid lines represent saved ID relationships · dashed hub lines indicate membership in the live graph</span>{selected&&<div className="ax-ecosystem-selected"><div><strong>{selected.label}</strong><small>{selected.detail}</small></div><button type="button" onClick={()=>onNavigate(selected.moduleId,selected.context)}>Open source record <Activity size={13}/></button></div>}</div>
-    <p className="ax-ecosystem-help">Select a graph node or a search result to inspect it, then open its source record. Search covers every saved record in the graph model, including records outside the visible canvas sample. Drag entity nodes to arrange the canvas; their positions are saved on this device.</p><p className="ax-ecosystem-sample-note">Use “Show more” to progressively add records to each visible group. Search results can select records beyond the current canvas limit. Use Reset graph view to restore the automatic layout. Display controls never change source manufacturing data.</p>
+    <div className="ax-ecosystem-graph-foot"><span><i/> Solid lines show saved manufacturing relationships. All saved records in visible groups are included.</span>{selected&&<div className="ax-ecosystem-selected"><div><strong>{selected.label}</strong><small>{selected.detail}</small></div><button type="button" onClick={()=>onNavigate(selected.moduleId,selected.context)}>Open source record <Activity size={13}/></button></div>}</div>
+    <p className="ax-ecosystem-help">Select a graph node or a search result to inspect it, then open its source record. Search covers every saved record in the graph model, including records outside the visible canvas sample. Drag entity nodes to arrange the canvas; their positions are saved on this device.</p><p className="ax-ecosystem-sample-note">All records in visible groups are shown by default. Hide entity groups to simplify the canvas; search still covers every saved record. Use Reset graph view to restore the automatic layout. Display controls never change source manufacturing data.</p>
   </section>;
 }
