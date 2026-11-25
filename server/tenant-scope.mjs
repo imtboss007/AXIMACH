@@ -1,5 +1,5 @@
 const ARRAY_FIELDS = Object.freeze([
- "companies","customers","prospects","factories","purchaseOrders","components","vendors","operations","quotations","materials",
+ "companies","customers","prospects","factories","machines","purchaseOrders","components","vendors","operations","quotations","materials",
  "componentParts","materialCostEntries","bomLines","materialProcessLinks","inventoryTransactions",
  "contactProfiles","processDefinitions","plannedCosts","transportRoutes","transportLegs",
  "paymentTransactions","inspectionMeasurements","supplierInvoices","supplierPayments","supplierFinanceApprovals","supplierPaymentAllocations","routeRelationships","followUpAssignments"
@@ -30,6 +30,13 @@ function resolveAccess(data, user) {
  for (const id of assignedFactories) factoryIds.add(id);
  const factoryAllowed = id => Boolean(id) && factoryIds.has(id);
  const companyAllowed = id => Boolean(id) && companyIds.has(id);
+ const factoryById = new Map(factoryRows.map(factory=>[factory.id,factory]));
+ const machines = rows(data,"machines").filter(machine =>
+  companyAllowed(machine.companyId) && factoryAllowed(machine.factoryId) &&
+  factoryById.get(machine.factoryId)?.companyId===machine.companyId
+ );
+ const machineIds = ids(machines);
+ const machineById = new Map(machines.map(machine=>[machine.id,machine]));
  const candidatePurchaseOrders = rows(data,"purchaseOrders").filter(po =>
   companyAllowed(po.companyId) && factoryAllowed(po.factoryId)
  );
@@ -51,6 +58,7 @@ function resolveAccess(data, user) {
   rows(po,"lines").every(line => componentIds.has(line.componentId))
  );
  const purchaseOrderIds = ids(purchaseOrders);
+ const purchaseOrdersById = new Map(purchaseOrders.map(po=>[po.id,po]));
  const lineIds = new Set(purchaseOrders.flatMap(po => rows(po,"lines").map(line => line.id).filter(Boolean)));
  const allPurchaseOrdersById = new Map(rows(data,"purchaseOrders").map(po=>[po.id,po]));
  const allComponentsById = new Map(rows(data,"components").map(component=>[component.id,component]));
@@ -80,7 +88,14 @@ function resolveAccess(data, user) {
   lineIds.has(operation.poLineId) &&
   componentIds.has(operation.componentId) &&
   (!operation.vendorId || vendorIds.has(operation.vendorId)) &&
-  (!operation.transportVendorId || vendorIds.has(operation.transportVendorId))
+  (!operation.transportVendorId || vendorIds.has(operation.transportVendorId)) &&
+  (!operation.machineId || (() => {
+   const machine=machineById.get(operation.machineId);
+   const po=purchaseOrdersById.get(operation.poId);
+   const capabilities=Array.isArray(machine?.processDefinitionIds)?machine.processDefinitionIds:[];
+   return Boolean(machine && po && machine.companyId===po.companyId && machine.factoryId===po.factoryId &&
+    operation.executionType!=="Outsourced" && (!operation.processDefinitionId || !capabilities.length || capabilities.includes(operation.processDefinitionId)));
+  })())
  );
  const operationIds = ids(operations);
  const quotations = rows(data,"quotations").filter(row =>
@@ -139,7 +154,10 @@ function resolveAccess(data, user) {
  ]);
  const materials = rows(data,"materials").filter(row => materialIds.has(row.id)).map(row => ({...row,preferredVendorId:vendorIds.has(row.preferredVendorId)?row.preferredVendorId:""}));
  const vendors = rows(data,"vendors").filter(row => vendorIds.has(row.id));
- const processDefinitionIds = ids(operations.map(row => ({id:row.processDefinitionId})).filter(row => row.id));
+ const processDefinitionIds = new Set([
+  ...ids(operations.map(row => ({id:row.processDefinitionId})).filter(row => row.id)),
+  ...machines.flatMap(machine=>Array.isArray(machine.processDefinitionIds)?machine.processDefinitionIds:[])
+ ]);
  const processDefinitions = rows(data,"processDefinitions").filter(row => processDefinitionIds.has(row.id)).map(row => ({...row,vendorIds:(Array.isArray(row.vendorIds)?row.vendorIds:[]).filter(id=>vendorIds.has(id))}));
  const transportRouteIds = ids(transportLegs.map(row => ({id:row.routeId})).filter(row => row.id));
  const transportRoutes = rows(data,"transportRoutes").filter(row => transportRouteIds.has(row.id) && vendorIds.has(row.vendorId));
@@ -174,7 +192,7 @@ function resolveAccess(data, user) {
   invoiceIds.has(row.invoiceId) && supplierPaymentIds.has(row.paymentId)
  );
  const entityIds = new Set([
-  ...ids(companies),...ids(customers),...ids(prospects),...ids(factories),...purchaseOrderIds,...lineIds,...componentIds,
+  ...ids(companies),...ids(customers),...ids(prospects),...ids(factories),...machineIds,...purchaseOrderIds,...lineIds,...componentIds,
   ...operationIds,...ids(quotations),...ids(transportLegs),...ids(routeRelationships),
   ...ids(paymentTransactions),...ids(inspectionMeasurements),...ids(materialProcessLinks),
   ...ids(inventoryTransactions),...ids(componentParts),...ids(bomLines),...ids(materialCostEntries),
@@ -188,7 +206,7 @@ function resolveAccess(data, user) {
  return {
   companyIds, factoryIds, purchaseOrderIds, lineIds, componentIds, operationIds, vendorIds, vendorOwners,
   materialIds, processDefinitionIds, transportRouteIds, entityIds,
-  companies,customers,prospects,factories,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
+  companies,customers,prospects,factories,machines,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
   paymentTransactions,inspectionMeasurements,materialProcessLinks,inventoryTransactions,
   componentParts,bomLines,materialCostEntries,materials,vendors,processDefinitions,transportRoutes,
   plannedCosts,contactProfiles,supplierInvoices,supplierPayments,supplierFinanceApprovals,supplierPaymentAllocations,followUpAssignments
@@ -215,7 +233,7 @@ function resolveFullAccess(data,incoming={}) {
  return {
   ...Object.fromEntries(ARRAY_FIELDS.map(field=>[field,all(field)])),
   companyIds:ids(companies),factoryIds:ids(factories),purchaseOrderIds,lineIds,componentIds,operationIds,
-  vendorIds:idsInRows("vendors"),materialIds:idsInRows("materials"),processDefinitionIds:idsInRows("processDefinitions"),
+  vendorIds:idsInRows("vendors"),machineIds:idsInRows("machines"),materialIds:idsInRows("materials"),processDefinitionIds:idsInRows("processDefinitions"),
   transportRouteIds:idsInRows("transportRoutes"),entityIds
  };
 }
@@ -283,7 +301,21 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   Number.isFinite(Date.parse(value+"T00:00:00.000Z"))&&new Date(value+"T00:00:00.000Z").toISOString().slice(0,10)===value;
 
  const materialIds = access.materialIds;
- const processIds = access.processDefinitionIds;
+ const processIds = new Set([
+  ...access.processDefinitionIds,
+  ...rows(currentData,"processDefinitions").map(row=>row.id).filter(Boolean)
+ ]);
+ const machineById = new Map([...rows(currentData,"machines"),...rows(incoming,"machines")].filter(row=>row?.id).map(row=>[row.id,row]));
+ const machineAssignmentAllowed = operation => {
+  if(!operation.machineId)return true;
+  const machine=machineById.get(operation.machineId);
+  const po=allowedPOById.get(operation.poId);
+  const capabilities=Array.isArray(machine?.processDefinitionIds)?machine.processDefinitionIds:[];
+  return Boolean(machine && po && companyIds.has(machine.companyId) && factoryAllowed(machine.factoryId) &&
+   machine.companyId===po.companyId && machine.factoryId===po.factoryId &&
+   operation.executionType!=="Outsourced" && machine.status!=="Retired" &&
+   (!operation.processDefinitionId || !capabilities.length || capabilities.includes(operation.processDefinitionId)));
+ };
  const transportRouteIds = access.transportRouteIds;
  const scopeIds = access.entityIds;
  const safeId = (collection,row) => {
@@ -316,9 +348,26 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      break;
     }
     case "factories": allowed=companyIds.has(row.companyId) && (!assignedFactories.size || assignedFactories.has(row.id)); break;
+    case "machines": {
+     const duplicateAssetCode=[...rows(currentData,"machines"),...rows(incoming,"machines")].some(other=>
+      other.id!==row.id && !other.deletedAt && other.companyId===row.companyId &&
+      String(other.assetCode||"").trim().toLowerCase()===String(row.assetCode||"").trim().toLowerCase()
+     );
+     const status=["Available","Running","Planned maintenance","Under maintenance","Breakdown","Retired"].includes(row.status);
+     const numericFields=["axisCount","workEnvelopeXmm","workEnvelopeYmm","workEnvelopeZmm","spindleMaxRpm","positioningAccuracyMicron","maxWorkpieceWeightKg"];
+     const numericValid=numericFields.every(field=>row[field]===undefined||row[field]===null||(Number.isFinite(Number(row[field]))&&Number(row[field])>=0));
+     allowed=companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&factoryById.get(row.factoryId)?.companyId===row.companyId&&
+      typeof row.assetCode==="string"&&Boolean(row.assetCode.trim())&&row.assetCode.length<=80&&
+      typeof row.name==="string"&&Boolean(row.name.trim())&&row.name.length<=180&&
+      typeof row.machineType==="string"&&Boolean(row.machineType.trim())&&status&&numericValid&&!duplicateAssetCode&&
+      Array.isArray(row.processDefinitionIds)&&row.processDefinitionIds.every(id=>processIds.has(id))&&
+      Array.isArray(row.materialCapabilities)&&row.materialCapabilities.length<=100&&row.materialCapabilities.every(value=>typeof value==="string"&&value.length<=120)&&
+      typeof row.notes==="string"&&row.notes.length<=4000;
+     break;
+    }
     case "purchaseOrders": allowed=Boolean(poAllowed(row)); break;
     case "components": allowed=(row.companyId && companyIds.has(row.companyId)) || currentVisibleComponents.has(row.id); break;
-    case "operations": allowed=allowedPOIds.has(row.poId) && lines.has(row.poLineId) && componentIds.has(row.componentId) && (!row.vendorId || vendorIds.has(row.vendorId)) && (!row.transportVendorId || vendorIds.has(row.transportVendorId)) && (!row.processDefinitionId || processIds.has(row.processDefinitionId)) && (!row.transportRouteId || transportRouteIds.has(row.transportRouteId)); break;
+    case "operations": allowed=allowedPOIds.has(row.poId) && lines.has(row.poLineId) && componentIds.has(row.componentId) && (!row.vendorId || vendorIds.has(row.vendorId)) && (!row.transportVendorId || vendorIds.has(row.transportVendorId)) && (!row.processDefinitionId || processIds.has(row.processDefinitionId)) && (!row.transportRouteId || transportRouteIds.has(row.transportRouteId)) && machineAssignmentAllowed(row); break;
     case "quotations": case "transportLegs": case "paymentTransactions": case "inspectionMeasurements":
      allowed=allowedChild(row,allowedPOById,{purchaseOrderIds:allowedPOIds,lineIds:lines,componentIds,operationIds},
        {requireOperation:collection==="quotations"||collection==="paymentTransactions"||collection==="inspectionMeasurements"}) &&
