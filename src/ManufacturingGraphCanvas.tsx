@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 import type { Edge, Node, NodeTypes } from "@xyflow/react";
 import "@xyflow/react/style.css";
@@ -28,7 +28,7 @@ type Props = {
   minimapNodeColor?:(node:GraphNode)=>string;
   children?:ReactNode;
   className?:string;
-  style?:React.CSSProperties;
+  style?:CSSProperties;
   testId?:string;
   ariaLabel?:string;
 };
