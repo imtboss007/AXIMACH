@@ -22,6 +22,7 @@ import { manufacturingGraphEdgeKey, routeRelationshipEdgeGeometry } from "./manu
 import TransportRoutingDemo from "./TransportRoutingDemo";
 import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
 import { resolveProcessColor } from "./processPalette";
+import { getEligibleMachineAssets, validateMachineAssignment } from "./machineCapabilities.mjs";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -388,12 +389,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     }))
   );
   const quantityUnit = selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces";
-  const eligibleMachines = machines.filter(machine =>
-    machine.companyId===selectedPO?.companyId &&
-    machine.factoryId===selectedPO?.factoryId &&
-    (machine.status==="Available" || machine.id===draft.machineId) &&
-    (!draft.processDefinitionId || !machine.processDefinitionIds.length || machine.processDefinitionIds.includes(draft.processDefinitionId))
-  );
+  const eligibleMachines = getEligibleMachineAssets(machines,{companyId:selectedPO?.companyId,factoryId:selectedPO?.factoryId,processDefinitionId:draft.processDefinitionId,selectedMachineId:draft.machineId});
   const selectedMachine = machines.find(machine=>machine.id===draft.machineId);
   const processVendorOptions = selectedProcessDefinition?.vendorIds?.length ? vendors.filter(vendor => selectedProcessDefinition.vendorIds.includes(vendor.id)) : vendors;
   const selectedTransportVendor = vendors.find(vendor => vendor.id === draft.transportVendorId);
@@ -1176,10 +1172,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (draft.vendorId && !vendors.some(vendor => vendor.id === draft.vendorId)) { onNotice("The selected vendor is missing or archived. Choose an active Vendor Directory record."); return; }
     if(draft.machineId){
       const assignedMachine=machines.find(machine=>machine.id===draft.machineId);
-      const allowedMachine=assignedMachine&&assignedMachine.companyId===selectedPO.companyId&&assignedMachine.factoryId===selectedPO.factoryId&&
-        (assignedMachine.status==="Available"||assignedMachine.id===operations.find(operation=>operation.id===editingId)?.machineId)&&
-        (!draft.processDefinitionId||!assignedMachine.processDefinitionIds.length||assignedMachine.processDefinitionIds.includes(draft.processDefinitionId));
-      if(draft.executionType!=="Internal"||!allowedMachine){onNotice("Choose an available machine from this PO's company and factory with the selected process capability, or clear the registered machine assignment.");return;}
+      const assignment=validateMachineAssignment(assignedMachine,{machineId:draft.machineId,existingMachineId:operations.find(operation=>operation.id===editingId)?.machineId,companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,processDefinitionId:draft.processDefinitionId,executionType:draft.executionType});
+      if(!assignment.ok){onNotice("Registered machine assignment is invalid ("+assignment.reason+"). Choose an available machine in this PO factory with the selected process capability.");return;}
     }
     if (draft.executionType === "Outsourced" && selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)) { onNotice("The selected vendor is not assigned to this Process Directory definition. Choose an assigned vendor or update the Process Directory vendor links."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
