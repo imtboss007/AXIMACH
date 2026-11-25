@@ -81,7 +81,7 @@ test("multi-route example is visible and interactive in both Process Map and Tra
   assert.ok(demo.toLowerCase().includes("one-company one-component"));
   assert.ok(demo.includes("conditional rework cost"));
   assert.ok(demo.includes("./single-component-route-demo.json"));
-  assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
+  assert.ok(demo.toLowerCase().includes("no company, po, component, vendor, material, bom, operation, route, transport leg or inventory record is written to aximach."));
   assert.ok(demo.includes("TransportLegMarker"));
 });
 
