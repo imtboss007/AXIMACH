@@ -311,9 +311,11 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   const machine=machineById.get(operation.machineId);
   const po=allowedPOById.get(operation.poId);
   const capabilities=Array.isArray(machine?.processDefinitionIds)?machine.processDefinitionIds:[];
-  return Boolean(machine && po && companyIds.has(machine.companyId) && factoryAllowed(machine.factoryId) &&
+  const existingAssignment=rows(currentData,"operations").some(existing=>existing.id===operation.id&&existing.machineId===machine?.id);
+  const statusAllowed=machine?.status==="Available"||(existingAssignment&&machine?.status==="Running");
+  return Boolean(machine && !machine.deletedAt && po && companyIds.has(machine.companyId) && factoryAllowed(machine.factoryId) &&
    machine.companyId===po.companyId && machine.factoryId===po.factoryId &&
-   operation.executionType!=="Outsourced" && machine.status!=="Retired" &&
+   operation.executionType!=="Outsourced" && statusAllowed &&
    (!operation.processDefinitionId || !capabilities.length || capabilities.includes(operation.processDefinitionId)));
  };
  const transportRouteIds = access.transportRouteIds;
