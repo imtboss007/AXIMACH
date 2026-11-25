@@ -54,6 +54,52 @@ test("Manufacturing Universe graph retains cross-register record navigation and 
   assert.ok(graph.includes('data-testid="ecosystem-flow-canvas"'));
 });
 
+test("Machine Register uses company and factory ownership and blocks orphaning active operations",()=>{
+  const master=source("src/ManufacturingMasterWorkspace.tsx");
+  const model=source("src/manufacturingData.ts");
+  const scope=source("server/tenant-scope.mjs");
+  assert.ok(model.includes("export type MachineRecord"));
+  assert.ok(model.includes("machines: MachineRecord[]"));
+  assert.ok(master.includes('tab === "machines" ? "Machine & Equipment Register"'));
+  assert.ok(master.includes("const saveMachine = () =>"));
+  assert.ok(master.includes("machineEditingId"));
+  assert.ok(master.includes("Supported Process Directory definitions"));
+  assert.ok(master.includes('collection==="factories"&&machines.some(machine=>machine.factoryId===id)'));
+  assert.ok(master.includes('collection==="machines"&&data.operations.some(operation=>!operation.deletedAt&&operation.machineId===id)'));
+  assert.ok(scope.includes('case "machines":'));
+  assert.ok(scope.includes("factoryAllowed(row.factoryId)"));
+  assert.ok(scope.includes("duplicateAssetCode"));
+});
+
+test("Process Map assigns an internal operation to an eligible registered machine ID",()=>{
+  const processMap=source("src/LinkedProcessWorkspace.tsx");
+  const helper=source("src/machineCapabilities.mjs");
+  assert.ok(processMap.includes('"machineId" | "vendorId"'));
+  assert.ok(processMap.includes('id="operation-machine-asset"'));
+  assert.ok(processMap.includes("getEligibleMachineAssets(machines"));
+  assert.ok(processMap.includes("validateMachineAssignment(assignedMachine"));
+  assert.ok(processMap.includes("machineId:targetOperation.machineId || \"\""));
+  assert.ok(processMap.includes("machineId:machineId"));
+  assert.ok(processMap.includes("machineId:"""));
+  assert.ok(helper.includes('machine.status==="Available"'));
+  assert.ok(helper.includes('reason: "process-capability-mismatch"'));
+});
+
+test("Manufacturing Universe graph exposes registered machines and saved operation-to-machine links",()=>{
+  const graph=source("src/ManufacturingEcosystemGraph.tsx");
+  const model=source("src/manufacturingEcosystemGraphModel.mjs");
+  const master=source("src/ManufacturingMasterWorkspace.tsx");
+  assert.ok(graph.includes('"machine"'));
+  assert.ok(graph.includes('title:"Machines & equipment"'));
+  assert.ok(graph.includes('machines.forEach(row=>{add("machine:"+row.id'));
+  assert.ok(graph.includes('edge("machine:"+row.id,"factory:"+row.factoryId,"installed at")'));
+  assert.ok(graph.includes('edge("operation:"+row.id,"machine:"+row.machineId,"runs on")'));
+  assert.ok(graph.includes('subtab:"machines"'));
+  assert.ok(graph.includes("version:4"));
+  assert.ok(model.includes("parsed.version < 4"));
+  assert.ok(master.includes('navigationContext?.subtab==="machines"?"machines"'));
+});
+
 test("synthetic multi-route fixture covers the graph relationship types without importing live demo data", () => {
   const fixture = JSON.parse(source("tests/fixtures/aximach-transport-routing-demo.json"));
   assert.equal(fixture.synthetic, true);
