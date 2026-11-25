@@ -26,7 +26,7 @@ export function validateMachineAssignment(machine, scope = {}) {
   if (!scope.companyId || machine.companyId !== scope.companyId) return { ok: false, reason: "company-mismatch" };
   if (!scope.factoryId || machine.factoryId !== scope.factoryId) return { ok: false, reason: "factory-mismatch" };
   const existingAssignment = machine.id === scope.existingMachineId;
-  if (machine.status !== "Available" && !(existingAssignment && machine.status === "Running")) {
+  if (machine.deletedAt || (machine.status !== "Available" && !(existingAssignment && machine.status === "Running"))) {
     return { ok: false, reason: "machine-unavailable" };
   }
   if (!hasProcessCapability(machine, scope.processDefinitionId)) return { ok: false, reason: "process-capability-mismatch" };
