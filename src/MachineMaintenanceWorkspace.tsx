@@ -144,6 +144,7 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
     const stamp=nowIso();
     const updated={...order,status,actualStart:status==="In progress"?(order.actualStart||stamp):order.actualStart,
       actualEnd:status==="Completed"?(order.actualEnd||stamp):status==="Cancelled"?order.actualEnd:"",
+      actualStart:status==="Completed"?(order.actualStart||order.reportedAt||stamp):status==="In progress"?(order.actualStart||stamp):order.actualStart,
       updatedAt:stamp
     };
     if(status==="Completed"&&updated.actualStart&&Date.parse(updated.actualEnd)<=Date.parse(updated.actualStart)){
