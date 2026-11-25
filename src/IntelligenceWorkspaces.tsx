@@ -1,7 +1,7 @@
 import { useMemo, useState, type ChangeEvent } from "react";
 import { getServerAuthHeaders, getServerAuthMode, readServerSession } from "./serverAuth";
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bot, Check, ClipboardList, Download, FileDown, FileUp, RefreshCw, RotateCcw, Search, ShieldAlert, ShieldCheck, Sparkles, Upload, Wallet } from "lucide-react";
-import { archiveAxMachTwoCompanyDemo, AXIMACH_DEMO_ID_PREFIX, createAxMachTwoCompanyDemo } from "./aximachDemoData";
+
 import { activeRows, makeId, mergeManufacturingData, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type VendorRecord, type ContactProfileRecord, type ProcessDefinitionRecord, type PlannedCostEntry, type VendorTransportRoute, type ManufacturingData, type PurchaseOrderRecord, type PurchaseOrderLine, type OperationRecord } from "./manufacturingData";
 import { reconcilePurchaseOrderCosts } from "./costReconciliation.mjs";
 
@@ -418,17 +418,7 @@ export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
  const {data,update}=useManufacturingData();const [type,setType]=useState<"companies"|"components"|"vendors"|"contact360"|"process-master"|"planned-cost"|"backup">("companies");
  const [fileName,setFileName]=useState("");const [source,setSource]=useState("");const [error,setError]=useState("");const [preview,setPreview]=useState<Record<string,string>[]>([]);
  const parsed=useMemo(()=>source&&type!=="backup"?parseCsv(source):{headers:[],rows:[]},[source,type]);
- const activeDemoCompanies=activeRows(data.companies).filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)).length;
- const activeDemoParts=activeRows(data.components).filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)).length;
- const loadTwoCompanyDemo=()=>{
-  update(current=>mergeManufacturingData(current,createAxMachTwoCompanyDemo()));
-  onNotice("Two-company demo loaded: 2 companies, 5 components, 2 POs, linked vendors, process routes, costing, inventory, quality, payments and transport. All records are marked DEMO and existing records were preserved.");
- };
- const removeTwoCompanyDemo=()=>{
-  if(!window.confirm("Archive all AXIMACH DEMO records from this workspace? Real company records will not be changed. The demo can be loaded again later."))return;
-  update(current=>archiveAxMachTwoCompanyDemo(current));
-  onNotice("AXIMACH DEMO records archived and hidden from active module lists. Real records were not changed. Demo tombstones are retained for shared-device sync.");
- };
+
  const loadAmadaDemo=()=>{let summary:{companies:number;components:number;purchaseOrders:number;operations:number;plannedCosts:number;processDefinitions:number}|null=null;update(current=>{const result=addAmadaDemoScenario(current);summary=result.counts;return result.data;});const added=summary||{companies:0,components:0,purchaseOrders:0,operations:0,plannedCosts:0,processDefinitions:0};onNotice("AMADA assumed-cost scenario merged. Added "+added.components+" components, "+added.purchaseOrders+" POs, "+added.operations+" linked process operations and "+added.plannedCosts+" planned-cost rows. Existing records were retained; all assumed values are clearly marked DEMO.");};
  const handleFile=async(event:ChangeEvent<HTMLInputElement>)=>{
   const file=event.target.files?.[0];if(!file)return;
@@ -527,12 +517,11 @@ export function ImportCentreWorkspace({onBack,onNotice,notice}:Props){
  return <section className="workspace-page intelligence-workspace"><div className="workspace-topline"><button className="back-link" onClick={onBack}><ArrowRight size={15}/> Command centre</button><span className="demo-pill"><i/> VALIDATED DATA IMPORT</span></div>{notice&&<div className="notice-banner"><ShieldCheck size={15}/><span>{notice}</span></div>}
   <div className="workspace-title-row"><div><div className="eyebrow"><span className="eyebrow-mark"/> DATA EXCHANGE / IMPORT</div><h1>Import Centre<span>.</span></h1><p>Import CSV or native Excel .xlsx files, or merge an AXIMACH JSON backup. Preview and validate before committing.</p></div><FileUp size={26}/></div>
   <section className="surface-panel">
-   <div className="panel-heading"><div><h3>Two-company / five-component manufacturing demo</h3><p>Load a complete, removable synthetic dataset for testing AXIMACH module linkages.</p></div><span className="module-number">OPTIONAL · DEMO ONLY</span></div>
-   <p className="module-safety-note">Creates two fictional companies, five component lines, two purchase orders, six fictional vendors, 24 main process operations, alternate and rework routes, BOM and stock movements, quotations, payments, inspection readings, transport legs, Contact 360 records and planned costs. No real supplier is contacted and no payment or dispatch is made.</p>
+   <div className="panel-heading"><div><h3>One-company / one-PO / one-component manufacturing preview</h3><p>Use the dedicated route and rate graph instead of seeding multiple sample companies into live manufacturing data.</p></div><span className="module-number">SYNTHETIC PREVIEW · NOT LIVE DATA</span></div>
+   <p className="module-safety-note">The preview contains one company, one purchase order, one component, 28 priced operations across 18 process categories, six BOM materials, alternate and rework paths, quality feedback and transport legs. It is isolated from live company, PO and costing records.</p>
    <div className="module-form-actions">
-    <button className="button-primary" onClick={loadTwoCompanyDemo}><Sparkles size={14}/> Load 2-company / 5-part demo</button>
-    <button className="button-quiet" onClick={removeTwoCompanyDemo} disabled={!activeDemoCompanies}><ShieldCheck size={14}/> Remove demo data</button>
-    <span className="module-number">{activeDemoCompanies} DEMO COMPANIES · {activeDemoParts} DEMO COMPONENTS ACTIVE</span>
+    <button className="button-primary" onClick={()=>onSelectModule("route-flow")}><GitBranch size={14}/> Open single-component route + rate graph</button>
+    <span className="module-number">1 COMPANY · 1 PO · 1 COMPONENT · 18 CATEGORIES</span>
    </div>
   </section>
   <section className="surface-panel"><div className="panel-heading"><div><h3>AMADA costing demonstration</h3><p>Creates four linked sample jobs to compare customer PO rate, planned process cost and process-cost estimate.</p></div><span className="module-number">ASSUMED VALUES</span></div>
