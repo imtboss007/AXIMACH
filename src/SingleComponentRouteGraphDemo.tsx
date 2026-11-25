@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { Handle, MarkerType, Position } from "@xyflow/react";
 import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
 import { CheckCircle2, ClipboardCheck, GitBranch, Package, Workflow } from "lucide-react";
@@ -71,7 +71,7 @@ function buildDemoGraph():{nodes:DemoFlowNode[];edges:DemoFlowEdge[]} {
   const nodes:DemoFlowNode[] = rawNodes.map(row=>({
     id:row.id,type:"singleComponentRoute",position:{x:row.x,y:row.y},
     data:{label:row.label,code:row.code,kind:row.kind,detail:row.detail,accent:row.accent,vehicleType:row.vehicleType,processName:row.processName,category:row.category,ratePerPartINR:row.ratePerPartINR,plannedCostINR:row.plannedCostINR,quantity:row.quantity,branch:row.branch,subComponent:row.subComponent},
-    draggable:false,selectable:false,focusable:false,style:{width:200}
+    draggable:true,selectable:true,focusable:true,style:{width:200}
   }));
   const centers = new Map(rawNodes.map(row=>[row.id,{x:row.x+100,y:row.y+70}]));
   const pairCounts = new Map<string,number>();
@@ -98,7 +98,35 @@ function buildDemoGraph():{nodes:DemoFlowNode[];edges:DemoFlowEdge[]} {
 
 export function SingleComponentRouteGraphDemo() {
   const graph=useMemo(buildDemoGraph,[]);
-  const routeTypes=["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"];
+  const [edges,setEdges]=useState(graph.edges);
+  const [relationshipType,setRelationshipType]=useState("main");
+  const routeTypes=["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor","material","transport"];
+  const connectDemoNodes=(connection:{source:string|null;target:string|null})=>{
+    const source=connection.source||"",target=connection.target||"";
+    if(!source||!target||source===target)return;
+    const sourceNode=graph.nodes.find(node=>node.id===source),targetNode=graph.nodes.find(node=>node.id===target);
+    if(!sourceNode||!targetNode)return;
+    const duplicate=edges.some(edge=>edge.source===source&&edge.target===target&&edge.data?.relationshipType===relationshipType);
+    if(duplicate)return;
+    const parallelIndex=edges.filter(edge=>edge.source===source&&edge.target===target).length;
+    const geometry=routeRelationshipEdgeGeometry(relationshipType,
+      {x:sourceNode.position.x+100,y:sourceNode.position.y+70},
+      {x:targetNode.position.x+100,y:targetNode.position.y+70},"organic",parallelIndex);
+    const color=RELATIONSHIP_COLORS[relationshipType]||RELATIONSHIP_COLORS.main;
+    const id="demo-link-"+Date.now().toString(36)+"-"+parallelIndex;
+    setEdges(current=>[...current,{
+      id,source,target,sourceHandle:geometry.sourceHandle,targetHandle:geometry.targetHandle,
+      type:"manufacturing",
+      data:{relationshipType,pathOptions:geometry.pathOptions,parallelIndex},
+      label:relationshipType.toUpperCase(),
+      labelStyle:{fontSize:8,fontWeight:800,fill:"#46617a"},
+      labelBgStyle:{fill:"#ffffff",fillOpacity:.96},labelBgPadding:[4,2],
+      style:{stroke:color,strokeWidth:relationshipType==="transport"?3:2.5,opacity:.98,
+        ...(RELATIONSHIP_DASHES[relationshipType]?{strokeDasharray:RELATIONSHIP_DASHES[relationshipType]}:{})},
+      markerEnd:{type:MarkerType.ArrowClosed,color},animated:relationshipType==="main"||relationshipType==="rework",
+      selectable:true,focusable:true
+    }]);
+  };
   return <section className="single-component-route-demo" aria-label="One component complete manufacturing route map">
     <header className="single-component-route-demo-head">
       <div><span className="transport-demo-kicker"><GitBranch size={13}/> ONE COMPANY · ONE PO · ONE COMPONENT</span>
@@ -107,16 +135,21 @@ export function SingleComponentRouteGraphDemo() {
       </div>
       <span className="module-number">DEMO ONLY · {routeTypes.length} ROUTE TYPES</span>
     </header>
+    <div className="single-component-route-tools">
+      <label>New connection type<select aria-label="Single component demo connection type" value={relationshipType} onChange={event=>setRelationshipType(event.target.value)}>{routeTypes.map(type=><option key={type} value={type}>{type}</option>)}</select></label>
+      <small>Drag from any material, process, quality, decision or transport connector to another node. This is an isolated preview; changes here do not alter live records.</small>
+    </div>
     <div className="route-flow-graph-canvas single-component-route-demo-canvas" data-testid="single-component-route-graph">
-      <ManufacturingGraphCanvas nodes={graph.nodes} edges={graph.edges} nodeTypes={SINGLE_COMPONENT_NODE_TYPES}
-        fitView fitViewOptions={{padding:.1,minZoom:.12,maxZoom:.9,duration:220}} minZoom={.1} maxZoom={1.8}
-        nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}
-        nodesFocusable={false} edgesFocusable={false}
-        ariaLabel="Complete single-component process, material and transport route graph"/>
+      <ManufacturingGraphCanvas nodes={graph.nodes} edges={edges} nodeTypes={SINGLE_COMPONENT_NODE_TYPES}
+        fitView fitViewOptions={{padding:.08,minZoom:.2,maxZoom:1.1,duration:260}} minZoom={.16} maxZoom={1.8}
+        nodesDraggable nodesConnectable elementsSelectable
+        onConnect={connectDemoNodes}
+        nodesFocusable edgesFocusable
+        ariaLabel="Interactive one-company single-PO single-component manufacturing graph"/>
     </div>
     <div className="single-component-route-demo-caption">
-      <span>All route relationships, 15+ manufacturing process categories, BOM materials and transport legs are scoped to the same company, PO line and component.</span>
-      <small>{demo.nodes.length} nodes · {demo.edges.length} links · {demo.operations.length} rated operations · ₹{demo.component.processCostINR.toLocaleString("en-IN")} base process plan · synthetic only</small>
+      <span>One synthetic company, one PO, one component, all 18 process categories, BOM material feeds and transport legs. Drag nodes and add typed relationships.</span>
+      <small>{demo.nodes.length} nodes · {edges.length} links · {demo.operations.length} rated operations · ₹{demo.component.processCostINR.toLocaleString("en-IN")} base process plan · synthetic preview only</small>
     </div>
   </section>;
 }
