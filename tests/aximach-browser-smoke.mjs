@@ -794,8 +794,15 @@ try {
     throw new Error("Manufacturing ecosystem graph does not expose all 12 entity filters.");
   }
   const sampleNote = await page.locator(".ax-ecosystem-sample-note").innerText();
-  if (!sampleNote.includes("Show more") || !sampleNote.includes("Search results can select records beyond the current canvas limit")) {
-    throw new Error("Manufacturing ecosystem graph must disclose progressive expansion and search beyond the visible canvas.");
+  if (!sampleNote.includes("All records in visible groups are shown by default") ||
+      !sampleNote.includes("search still covers every saved record")) {
+    throw new Error("Manufacturing Universe must disclose complete default record visibility and global search.");
+  }
+  const graphCountText = await page.locator(".ax-ecosystem-graph-count").innerText();
+  const shownCount = Number(graphCountText.match(/(\\d+)\\s+nodes shown/)?.[1]);
+  const savedCount = Number(graphCountText.match(/(\\d+)\\s+saved records in these groups/)?.[1]);
+  if (!Number.isFinite(shownCount) || shownCount !== savedCount) {
+    throw new Error("Manufacturing Universe does not render every saved record in the visible entity groups.");
   }
   if (!(await page.locator(".ax-ecosystem-graph-count").innerText()).includes("saved records in these groups")) {
     throw new Error("Manufacturing ecosystem graph header must distinguish rendered nodes from saved-record totals.");
