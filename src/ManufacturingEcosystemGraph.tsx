@@ -469,6 +469,8 @@ export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:
         minZoom={.1}
         maxZoom={1.8}
         nodesDraggable
+        nodesConnectable
+        onConnect={connection=>onConnect?.(connection,relationshipType)}
         onNodesChange={handleGraphNodesChange}
         onNodeDragStop={persistGraphNodePosition}
         nodesFocusable
