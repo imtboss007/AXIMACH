@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getEligibleMachineAssets, validateMachineAssignment } from "../src/machineCapabilities.mjs";
+import { getEligibleMachineAssets, validateMachineAssignment, validateMachineSchedule } from "../src/machineCapabilities.mjs";
 
 const machines=[
  {id:"m1",companyId:"c1",factoryId:"f1",assetCode:"VMC-01",name:"VMC 01",machineType:"VMC",processDefinitionIds:["vmc"],status:"Available"},
@@ -41,4 +41,28 @@ test("machine assignment rejects outsourced operations and incompatible process 
 test("machine assignment accepts an available matching internal machine and its existing running assignment",()=>{
  assert.deepEqual(validateMachineAssignment(machines[0],{machineId:"m1",companyId:"c1",factoryId:"f1",processDefinitionId:"vmc",executionType:"Internal"}),{ok:true,reason:""});
  assert.deepEqual(validateMachineAssignment(machines[5],{machineId:"m6",existingMachineId:"m6",companyId:"c1",factoryId:"f1",processDefinitionId:"vmc",executionType:"Internal"}),{ok:true,reason:""});
+});
+
+const schedule=[
+ {id:"op-1",machineId:"m1",executionType:"Internal",status:"Planned",plannedStart:"2026-11-26T09:00",plannedEnd:"2026-11-26T11:00"},
+ {id:"op-2",machineId:"m1",executionType:"Internal",status:"Running",plannedStart:"2026-11-26T13:00",plannedEnd:"2026-11-26T15:00"},
+ {id:"op-3",machineId:"m2",executionType:"Internal",status:"Planned",plannedStart:"2026-11-26T09:00",plannedEnd:"2026-11-26T11:00"},
+ {id:"op-4",machineId:"m1",executionType:"Internal",status:"Complete",plannedStart:"2026-11-26T09:30",plannedEnd:"2026-11-26T10:30"}
+];
+test("machine schedule rejects overlapping active internal operations on the same machine",()=>{
+ const result=validateMachineSchedule({id:"op-new",machineId:"m1",executionType:"Internal",status:"Planned",plannedStart:"2026-11-26T10:00",plannedEnd:"2026-11-26T12:00"},schedule);
+ assert.deepEqual(result,{ok:false,reason:"machine-time-conflict",conflictingOperationId:"op-1"});
+});
+test("machine schedule allows back-to-back time windows and different machines",()=>{
+ assert.deepEqual(validateMachineSchedule({id:"op-new",machineId:"m1",executionType:"Internal",status:"Planned",plannedStart:"2026-11-26T11:00",plannedEnd:"2026-11-26T13:00"},schedule),{ok:true,reason:""});
+ assert.deepEqual(validateMachineSchedule({id:"op-new",machineId:"m2",executionType:"Internal",status:"Planned",plannedStart:"2026-11-26T09:30",plannedEnd:"2026-11-26T10:30"},schedule),{ok:true,reason:""});
+});
+test("machine schedule excludes the edited operation and completed or outsourced work",()=>{
+ const edited=schedule.map(row=>({...row}));
+ assert.deepEqual(validateMachineSchedule({...edited[0],plannedStart:"2026-11-26T09:30",plannedEnd:"2026-11-26T10:30"},edited,"op-1"),{ok:true,reason:""});
+ assert.deepEqual(validateMachineSchedule({id:"out",machineId:"m1",executionType:"Outsourced",status:"Planned",plannedStart:"2026-11-26T09:30",plannedEnd:"2026-11-26T10:30"},schedule),{ok:true,reason:""});
+ assert.deepEqual(validateMachineSchedule({id:"done",machineId:"m1",executionType:"Internal",status:"Complete",plannedStart:"2026-11-26T09:30",plannedEnd:"2026-11-26T10:30"},schedule),{ok:true,reason:""});
+});
+test("machine schedule rejects invalid non-positive scheduled intervals",()=>{
+ assert.deepEqual(validateMachineSchedule({id:"bad",machineId:"m1",executionType:"Internal",status:"Planned",plannedStart:"2026-11-26T11:00",plannedEnd:"2026-11-26T10:00"},schedule),{ok:false,reason:"invalid-time-window"});
 });
