@@ -1554,7 +1554,7 @@ test("390px mobile layout keeps the spherical command centre and Process Map con
 });
 
 
-test("bundled two-company five-part demo is opt-in, fully linked and removable", () => {
+test("legacy two-company demo remains identifiable for cleanup but is no longer importable", () => {
   const demo = readFileSync(new URL("../src/aximachDemoData.ts", import.meta.url), "utf8");
   const importer = readFileSync(new URL("../src/IntelligenceWorkspaces.tsx", import.meta.url), "utf8");
   const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
@@ -1579,11 +1579,13 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   assert.ok(demo.includes('return {updatedAt:stamp,companies,customers:[],prospects:[],factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
   assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
   assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
-  assert.ok(importer.includes('onClick={loadTwoCompanyDemo}'));
-  assert.ok(importer.includes('onClick={removeTwoCompanyDemo}'));
-  assert.ok(importer.includes('mergeManufacturingData(current,createAxMachTwoCompanyDemo())'));
-  assert.ok(importer.includes('archiveAxMachTwoCompanyDemo(current)'));
-  assert.ok(importer.includes('window.confirm("Archive all AXIMACH DEMO records'));
+  assert.ok(!importer.includes("loadTwoCompanyDemo"));
+  assert.ok(!importer.includes("createAxMachTwoCompanyDemo"));
+  assert.ok(importer.includes("One-company / one-PO / one-component manufacturing preview"));
+  const cleanup=readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  assert.ok(cleanup.includes('marker = "aximach.demo-data-cleanup.v3"'));
+  assert.ok(cleanup.includes('row.id.startsWith("DEMO-")'));
+  assert.ok(cleanup.includes("supplierPaymentAllocations:archiveRows(canonical.supplierPaymentAllocations)"));
   assert.ok(inventory.includes('const inventoryTransactions = activeRows(data.inventoryTransactions);'));
   assert.ok(!inventory.includes('data.inventoryTransactions.filter('), "archived demo stock movements must not remain visible");
 });
