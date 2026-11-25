@@ -301,7 +301,7 @@ test("one shared graph canvas renders every route type, material movement and ve
   }
   assert.ok(route.includes("VehicleTypeIcon vehicleType={data.vehicleType||\"truck\"}"));
   assert.ok(map.includes("transportVehicleIcon(data.vehicleType||\"truck\")"));
-  assert.ok(map.includes("material-transport:"+ "entry.id"),"Material inbound transport must be a distinct graph node.");
+  assert.ok(map.includes('const transportId="material-transport:"+entry.id'),"Material inbound transport must be a distinct graph node.");
   assert.ok(map.includes("relationshipRows.forEach(link=>"),"Saved typed relationships must be rendered in the Process Map.");
   assert.ok(universe.includes("RouteConnectorLegend compact"),"Manufacturing Universe must show the full route-type legend.");
   assert.ok(universe.includes("relationshipRows")||universe.includes("routeLinks.forEach"),"Manufacturing Universe must include saved route relationships.");
