@@ -32,8 +32,11 @@ test("Route Flow graph contains all PO-line operations and renders saved relatio
   for (const handle of ["source-right","source-left","source-top","source-bottom","target-right","target-left","target-top","target-bottom"]) {
     assert.ok(route.includes('id="' + handle + '"'), "missing distinct graph handle " + handle);
   }
-  assert.ok(route.includes('parallel:{source:"source-bottom",target:"target-bottom"}'));
-  assert.ok(route.includes('split:{source:"source-top",target:"target-right"}'));
+  const sharedPorts=read("../src/manufacturingGraphLayout.mjs");
+  assert.ok(route.includes('import { routeRelationshipHandles } from "./manufacturingGraphLayout.mjs"'));
+  assert.ok(sharedPorts.includes('parallel: ["source-bottom","target-bottom"]'));
+  assert.ok(sharedPorts.includes('split: ["source-top","target-right"]'));
+  assert.ok(sharedPorts.includes('transport: ["source-right-transport","target-left-transport"]'));
 });
 
 test("global appearance fix is imported after the older AXIMACH stylesheet and enforces readable light text", () => {
