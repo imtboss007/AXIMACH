@@ -982,7 +982,7 @@ try {
     throw new Error("Manufacturing ecosystem entity filter did not toggle off.");
   }
   await companiesFilter.click();
-  await page.getByRole("button", { name: /PO route/i }).click();
+  await page.getByRole("button", { name: /Animated 3D Route/i }).click();
   if (await page.locator(".manufacturing-universe-empty").count() !== 1 && await page.locator(".process-universe-3d").count() !== 1) {
     throw new Error("Manufacturing Universe did not preserve its PO route scene.");
   }
