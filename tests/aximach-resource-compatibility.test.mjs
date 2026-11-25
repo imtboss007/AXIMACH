@@ -58,3 +58,8 @@ test("existing in-use tooling and fixtures remain valid only for the operation t
  });
  assert.equal(newOperation.ok,false);
 });
+ 
+test("restricted tooling is excluded when the selected operation has no known compatible material",()=>{
+ const asset={...tooling[0],materialCapabilities:["EN24"]};
+ assert.deepEqual(getEligibleToolingAssets([asset],{companyId:"c1",factoryId:"f1",machineId:"m1",machineType:"VMC",processDefinitionId:"vmc"}),[]);
+});
