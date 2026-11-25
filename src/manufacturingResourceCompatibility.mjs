@@ -15,7 +15,7 @@ const materialMatch=(asset,material)=>{
 export function getEligibleToolingAssets(assets=[],scope={}){
  return asArray(assets).filter(asset=>
   asset&&!asset.deletedAt&&asset.companyId===scope.companyId&&asset.factoryId===scope.factoryId&&
-  (asset.status==="Available"||((asset.id===scope.selectedId||asArray(scope.selectedIds).includes(asset.id))&&asset.status==="In use"))&&
+  (asset.status==="Available"||((asset.id===scope.selectedId||asArray(scope.selectedIds).includes(asset.id))&&["In use","Needs regrind","Under maintenance"].includes(asset.status)))&&
   machineMatch(asset,scope.machineId,scope.machineType)&&hasProcess(asset,scope.processDefinitionId)&&materialMatch(asset,scope.material)&&
   !(Number(asset.toolLifeLimitMinutes)>0&&Number(asset.toolLifeUsedMinutes)>=Number(asset.toolLifeLimitMinutes))&&
   !(Number(asset.toolLifeLimitCycles)>0&&Number(asset.toolLifeUsedCycles)>=Number(asset.toolLifeLimitCycles))&&
@@ -25,7 +25,7 @@ export function getEligibleToolingAssets(assets=[],scope={}){
 export function getEligibleFixtureAssets(assets=[],scope={}){
  return asArray(assets).filter(asset=>
   asset&&!asset.deletedAt&&asset.companyId===scope.companyId&&asset.factoryId===scope.factoryId&&
-  (asset.status==="Available"||((asset.id===scope.selectedId||asArray(scope.selectedIds).includes(asset.id))&&asset.status==="In use"))&&
+  (asset.status==="Available"||((asset.id===scope.selectedId||asArray(scope.selectedIds).includes(asset.id))&&asset.status==="Under maintenance"))&&
   machineMatch(asset,scope.machineId,scope.machineType)&&hasProcess(asset,scope.processDefinitionId)&&
   (!asArray(asset.componentIds).length||asset.componentIds.includes(scope.componentId))&&
   !(Number(asset.maxUsageCycles)>0&&Number(asset.usageCycles)>=Number(asset.maxUsageCycles))&&
