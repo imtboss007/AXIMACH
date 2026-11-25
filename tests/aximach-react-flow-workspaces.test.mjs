@@ -396,3 +396,34 @@ test("process definitions use stable distinct category colours instead of the le
   assert.ok(route.includes("resolveProcessColor({"));
   assert.ok(universe.includes("resolveProcessColor({"));
 });
+
+
+test("large interactive manufacturing graphs preserve readable phone zoom and manual pan",()=>{
+  const canvas=source("src/ManufacturingGraphCanvas.tsx");
+  const demo=source("src/SingleComponentRouteGraphDemo.tsx");
+  const universe=source("src/ManufacturingEcosystemGraph.tsx");
+  assert.ok(canvas.includes("defaultViewport?:{x:number;y:number;zoom:number}"));
+  assert.ok(canvas.includes("defaultViewport={defaultViewport}"));
+  assert.ok(demo.includes('matchMedia("(max-width:760px)")'));
+  assert.ok(demo.includes("fitView={!compactViewport}"));
+  assert.ok(demo.includes("zoom:.68"));
+  assert.ok(universe.includes('matchMedia("(max-width:760px)")'));
+  assert.ok(universe.includes("fitView={!compactViewport}"));
+  assert.ok(universe.includes("zoom:.62"));
+});
+
+test("manufacturing route connectors show animated directional pulses without overriding arrow colours",()=>{
+  const edge=source("src/ManufacturingRelationshipEdge.tsx");
+  const route=source("src/RouteFlowWorkspace.tsx");
+  const universe=source("src/ManufacturingEcosystemGraph.tsx");
+  const demo=source("src/SingleComponentRouteGraphDemo.tsx");
+  const css=source("src/aximach-visual-fixes.css");
+  assert.ok(edge.includes("flowMotion?:boolean"));
+  assert.ok(edge.includes("<animateMotion dur="));
+  assert.ok(route.includes('flowMotion:["main","alternate","rework","transport","material"].includes(type)'));
+  assert.ok(universe.includes('flowMotion:["main","alternate","rework","transport","feeds operation","allocated to"].includes(link.kind)'));
+  assert.ok(demo.includes('flowMotion:["main","alternate","rework","transport","material"].includes(row.type)'));
+  assert.ok(css.includes(".ax-manufacturing-edge-pulse"));
+  assert.ok(css.includes("@media(prefers-reduced-motion:reduce)"));
+  assert.ok(!css.includes(".ax-ecosystem-flow-canvas .react-flow__arrowhead path{fill:currentColor!important"));
+});
