@@ -208,6 +208,15 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     companyName(machine.companyId),factoryName(machine.factoryId),...(machine.materialCapabilities||[]),
     ...(machine.processDefinitionIds||[]).map(id=>processDefinitions.find(item=>item.id===id)?.processType||id)
   ].join(" ").toLowerCase().includes(search.toLowerCase().trim())),[machines,search,data.companies,data.factories,data.processDefinitions]);
+  const filteredToolingAssets=useMemo(()=>toolingAssets.filter(asset=>(!selectedCompanyId||asset.companyId===selectedCompanyId)&&[
+    asset.assetCode,asset.name,asset.toolType,asset.manufacturer,asset.model,asset.specification,asset.holderInterface,asset.coating,
+    companyName(asset.companyId),factoryName(asset.factoryId),...(asset.machineTypeCapabilities||[]),...(asset.materialCapabilities||[]),
+    ...(asset.processDefinitionIds||[]).map(id=>processDefinitions.find(item=>item.id===id)?.processType||id)
+  ].join(" ").toLowerCase().includes(search.toLowerCase().trim())),[toolingAssets,selectedCompanyId,search,data.companies,data.factories,data.processDefinitions]);
+  const filteredFixtureAssets=useMemo(()=>fixtureAssets.filter(asset=>(!selectedCompanyId||asset.companyId===selectedCompanyId)&&[
+    asset.assetCode,asset.name,asset.fixtureType,asset.manufacturer,asset.model,asset.workholdingType,asset.storageLocation,
+    companyName(asset.companyId),factoryName(asset.factoryId),...(asset.machineTypeCapabilities||[])
+  ].join(" ").toLowerCase().includes(search.toLowerCase().trim())),[fixtureAssets,selectedCompanyId,search,data.companies,data.factories]);
   const filteredComponents = useMemo(() => components.filter(c => (c.partNumber + " " + c.name + " " + c.drawingReference + " " + c.revision).toLowerCase().includes(search.toLowerCase().trim())
     &&(!componentCompanyFilters.length||componentCompanyFilters.includes(c.companyId||""))
     &&(!componentNumberFilters.length||componentNumberFilters.includes(c.partNumber))
@@ -286,6 +295,90 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
     setMachineDraft({...blankMachine(),...draft,processDefinitionIds:[...(row.processDefinitionIds||[])],materialCapabilities:[...(row.materialCapabilities||[])]});
     setMachineEditingId(id);setShowForm(true);
   };
+  const saveToolingAsset=()=>{
+    const factory=factories.find(row=>row.id===toolingDraft.factoryId);
+    if(!toolingDraft.companyId||!factory||factory.companyId!==toolingDraft.companyId||!toolingDraft.assetCode.trim()||!toolingDraft.name.trim()||!toolingDraft.toolType.trim()){
+      onNotice("Select the owning company and factory, then enter a tooling asset code, name and type.");return;
+    }
+    const duplicate=toolingAssets.some(row=>row.id!==toolingEditingId&&!row.deletedAt&&row.companyId===toolingDraft.companyId&&row.assetCode.trim().toLowerCase()===toolingDraft.assetCode.trim().toLowerCase());
+    if(duplicate){onNotice("This tooling asset code is already used by the selected company.");return;}
+    if(toolingDraft.compatibleMachineIds.some(id=>!machines.some(machine=>machine.id===id&&machine.companyId===toolingDraft.companyId&&machine.factoryId===toolingDraft.factoryId&&!machine.deletedAt))||
+       toolingDraft.processDefinitionIds.some(id=>!processDefinitions.some(definition=>definition.id===id&&!definition.deletedAt))){
+      onNotice("Remove machine or process capability links that do not belong to this factory or Process Directory.");return;
+    }
+    if((toolingDraft.toolLifeLimitMinutes>0&&toolingDraft.toolLifeUsedMinutes>toolingDraft.toolLifeLimitMinutes)||(toolingDraft.toolLifeLimitCycles>0&&toolingDraft.toolLifeUsedCycles>toolingDraft.toolLifeLimitCycles)){
+      onNotice("Recorded tool life used cannot exceed its defined life limit. Record a regrind or replacement event instead.");return;
+    }
+    const stamp=nowIso(),id=toolingEditingId||makeId("tooling");
+    const prior=toolingAssets.find(row=>row.id===id);
+    const record:ToolingAssetRecord={...toolingDraft,id,assetCode:toolingDraft.assetCode.trim(),name:toolingDraft.name.trim(),toolType:toolingDraft.toolType.trim(),
+      compatibleMachineIds:[...new Set(toolingDraft.compatibleMachineIds)],machineTypeCapabilities:[...new Set(toolingDraft.machineTypeCapabilities.map(value=>value.trim()).filter(Boolean))],
+      processDefinitionIds:[...new Set(toolingDraft.processDefinitionIds)],materialCapabilities:[...new Set(toolingDraft.materialCapabilities.map(value=>value.trim()).filter(Boolean))],
+      createdAt:prior?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};
+    update(current=>({...current,toolingAssets:[...(current.toolingAssets||[]).filter(row=>row.id!==id),record]}));
+    resetForms();onNotice("Tooling asset saved with company/factory, machine/process compatibility and tool-life limits.");
+  };
+  const editToolingAsset=(row:ToolingAssetRecord)=>{
+    resetForms();const {id,createdAt,updatedAt,deletedAt,...draft}=row;
+    setToolingDraft({...blankTooling(),...draft,compatibleMachineIds:[...(row.compatibleMachineIds||[])],machineTypeCapabilities:[...(row.machineTypeCapabilities||[])],processDefinitionIds:[...(row.processDefinitionIds||[])],materialCapabilities:[...(row.materialCapabilities||[])]});
+    setToolingEditingId(id);setShowForm(true);
+  };
+  const saveFixtureAsset=()=>{
+    const factory=factories.find(row=>row.id===fixtureDraft.factoryId);
+    if(!fixtureDraft.companyId||!factory||factory.companyId!==fixtureDraft.companyId||!fixtureDraft.assetCode.trim()||!fixtureDraft.name.trim()||!fixtureDraft.fixtureType.trim()){
+      onNotice("Select the owning company and factory, then enter a fixture code, name and type.");return;
+    }
+    const duplicate=fixtureAssets.some(row=>row.id!==fixtureEditingId&&!row.deletedAt&&row.companyId===fixtureDraft.companyId&&row.assetCode.trim().toLowerCase()===fixtureDraft.assetCode.trim().toLowerCase());
+    if(duplicate){onNotice("This fixture asset code is already used by the selected company.");return;}
+    if(fixtureDraft.compatibleMachineIds.some(id=>!machines.some(machine=>machine.id===id&&machine.companyId===fixtureDraft.companyId&&machine.factoryId===fixtureDraft.factoryId&&!machine.deletedAt))||
+       fixtureDraft.processDefinitionIds.some(id=>!processDefinitions.some(definition=>definition.id===id&&!definition.deletedAt))||
+       fixtureDraft.componentIds.some(id=>!components.some(component=>component.id===id&&(!component.companyId||component.companyId===fixtureDraft.companyId)&&!component.deletedAt))){
+      onNotice("Remove machine, process or component links that do not belong to this company/factory.");return;
+    }
+    const stamp=nowIso(),id=fixtureEditingId||makeId("fixture");
+    const prior=fixtureAssets.find(row=>row.id===id);
+    const record:FixtureAssetRecord={...fixtureDraft,id,assetCode:fixtureDraft.assetCode.trim(),name:fixtureDraft.name.trim(),fixtureType:fixtureDraft.fixtureType.trim(),
+      compatibleMachineIds:[...new Set(fixtureDraft.compatibleMachineIds)],machineTypeCapabilities:[...new Set(fixtureDraft.machineTypeCapabilities.map(value=>value.trim()).filter(Boolean))],
+      processDefinitionIds:[...new Set(fixtureDraft.processDefinitionIds)],componentIds:[...new Set(fixtureDraft.componentIds)],
+      createdAt:prior?.createdAt||stamp,updatedAt:stamp,deletedAt:undefined};
+    update(current=>({...current,fixtureAssets:[...(current.fixtureAssets||[]).filter(row=>row.id!==id),record]}));
+    resetForms();onNotice("Fixture saved with machine/process compatibility, component scope and inspection status.");
+  };
+  const editFixtureAsset=(row:FixtureAssetRecord)=>{
+    resetForms();const {id,createdAt,updatedAt,deletedAt,...draft}=row;
+    setFixtureDraft({...blankFixture(),...draft,compatibleMachineIds:[...(row.compatibleMachineIds||[])],machineTypeCapabilities:[...(row.machineTypeCapabilities||[])],processDefinitionIds:[...(row.processDefinitionIds||[])],componentIds:[...(row.componentIds||[])]});
+    setFixtureEditingId(id);setShowForm(true);
+  };
+  const openResourceUsage=(resourceType:"tooling"|"fixture",resourceId:string)=>{
+    resetForms();setResourceEventDraft(blankResourceEvent(resourceType,resourceId));setShowResourceEventForm(true);
+  };
+  const saveResourceUsage=()=>{
+    const resource=resourceEventDraft.resourceType==="tooling"?toolingAssets.find(row=>row.id===resourceEventDraft.resourceId):fixtureAssets.find(row=>row.id===resourceEventDraft.resourceId);
+    if(!resource){onNotice("Select a registered tooling or fixture asset first.");return;}
+    const operation=resourceEventDraft.operationId?data.operations.find(row=>row.id===resourceEventDraft.operationId&&!row.deletedAt):undefined;
+    if(resourceEventDraft.operationId&&(!operation||operation.companyId===undefined&&(!orders.some(po=>po.id===operation.poId&&po.companyId===resource.companyId&&po.factoryId===resource.factoryId))||
+       !(resourceEventDraft.resourceType==="tooling"?(operation.toolingAssetIds||[]).includes(resource.id):(operation.fixtureAssetIds||[]).includes(resource.id)))){
+      onNotice("Select an operation that is already linked to this exact asset and factory.");return;
+    }
+    if(resourceEventDraft.eventType==="Regrind"&&resourceEventDraft.resourceType!=="tooling"){onNotice("Regrind events apply only to cutting tools and tooling assets.");return;}
+    const stamp=toIso(resourceEventDraft.occurredAt);
+    const event:ResourceUsageEventRecord={id:makeId("resource-usage"),companyId:resource.companyId,factoryId:resource.factoryId,
+      resourceType:resourceEventDraft.resourceType,resourceId:resource.id,operationId:operation?.id,
+      eventType:resourceEventDraft.eventType,runtimeMinutes:Math.max(0,Number(resourceEventDraft.runtimeMinutes)||0),cycles:Math.max(0,Number(resourceEventDraft.cycles)||0),
+      inspectionResult:resourceEventDraft.eventType==="Inspection"?resourceEventDraft.inspectionResult:undefined,
+      inspectionDueAt:resourceEventDraft.eventType==="Inspection"?resourceEventDraft.inspectionDueAt||undefined:undefined,
+      occurredAt:stamp,notes:resourceEventDraft.notes.trim(),createdAt:nowIso(),updatedAt:nowIso()};
+    try{
+      const updated=applyResourceUsageEvent(resource,event);
+      update(current=>({...current,
+        [resourceEventDraft.resourceType==="tooling"?"toolingAssets":"fixtureAssets"]:(resourceEventDraft.resourceType==="tooling"?current.toolingAssets:current.fixtureAssets).map(row=>row.id===resource.id?updated:row),
+        resourceUsageEvents:[...(current.resourceUsageEvents||[]),event]
+      }));
+      setShowResourceEventForm(false);setResourceEventDraft(blankResourceEvent());
+      onNotice("Resource usage event recorded. Tool life, fixture cycle count and availability were updated.");
+    }catch(error){onNotice(error instanceof Error?error.message:"Could not record resource usage event.");}
+  };
+
   const saveComponent = () => {
     if (!componentDraft.companyId || !componentDraft.partNumber.trim() || !componentDraft.name.trim()) { onNotice("Select a company and enter component number and name."); return; }
     const stamp = nowIso(); const id = componentEditingId || makeId("component");
