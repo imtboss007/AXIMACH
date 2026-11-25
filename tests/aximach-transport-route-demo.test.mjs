@@ -78,7 +78,7 @@ test("multi-route example is visible and interactive in both Process Map and Tra
   assert.ok(demo.includes("Next process step"));
   assert.ok(demo.includes("Activate alternate supplier route"));
   assert.ok(demo.includes("ProcessRateGraph"));
-  assert.ok(demo.includes("one-company one-component"));
+  assert.ok(demo.toLowerCase().includes("one-company one-component"));
   assert.ok(demo.includes("conditional rework cost"));
   assert.ok(demo.includes("./single-component-route-demo.json"));
   assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));

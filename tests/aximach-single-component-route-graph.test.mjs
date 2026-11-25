@@ -72,8 +72,8 @@ test("all catalogue manufacturing categories are represented on one PO component
 
 test("graph nodes carry the same company / PO / component identity and rate metadata as the operation master",()=>{
   const ids=new Set(fixture.operations.map(row=>row.id));
-  const processNodes=fixture.nodes.filter(node=>node.kind==="process"&&ids.has(node.id));
-  assert.equal(processNodes.length,fixture.operations.length);
+  const processNodes=fixture.nodes.filter(node=>ids.has(node.id));
+  assert.equal(processNodes.length,fixture.operations.length,"every operation, including QC/metrology and delivery-type stages, must appear in the graph");
   assert.ok(fixture.nodes.every(node=>node.companyId===fixture.company.id&&node.poId===fixture.purchaseOrder.id&&node.componentId===fixture.component.id));
   assert.ok(processNodes.every(node=>node.ratePerPartINR>0&&node.plannedCostINR>0));
 });

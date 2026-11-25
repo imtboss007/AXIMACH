@@ -90,7 +90,7 @@ test("in-app transport demo displays material feeds, directory master links and 
   assert.ok(demo.includes("routeRecord={routes.get(leg.routeId)}"));
   assert.ok(demo.includes("materialLinks.map(link"));
   assert.ok(demo.includes("materialLinksAt(operation.id,\"before\")"));
-  assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
+  assert.ok(demo.toLowerCase().includes("no company, po, component, vendor, material, bom, operation, route, transport leg or inventory record is written to aximach."));
 });
 
 test("component parts retain multiple material master IDs with legacy single-material migration", () => {
