@@ -32,3 +32,34 @@ export function validateMachineAssignment(machine, scope = {}) {
   if (!hasProcessCapability(machine, scope.processDefinitionId)) return { ok: false, reason: "process-capability-mismatch" };
   return { ok: true, reason: "" };
 }
+
+function scheduledRange(operation) {
+  if (!operation?.plannedStart || !operation?.plannedEnd) return null;
+  const start = Date.parse(operation.plannedStart);
+  const end = Date.parse(operation.plannedEnd);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return { invalid: true };
+  return { start, end };
+}
+
+/** Check an internal machine reservation against all other active operations. */
+export function validateMachineSchedule(candidate, operations = [], editingId = "") {
+  if (!candidate?.machineId || candidate.executionType === "Outsourced" ||
+      candidate.status === "Complete" || candidate.status === "Rejected" || candidate.deletedAt) {
+    return { ok: true, reason: "" };
+  }
+  const range = scheduledRange(candidate);
+  if (!range) return { ok: true, reason: "" };
+  if (range.invalid) return { ok: false, reason: "invalid-time-window" };
+  for (const other of Array.isArray(operations) ? operations : []) {
+    if (!other || other.id === (editingId || candidate.id) || other.machineId !== candidate.machineId ||
+        other.executionType === "Outsourced" || other.status === "Complete" || other.status === "Rejected" ||
+        other.deletedAt) continue;
+    const otherRange = scheduledRange(other);
+    if (!otherRange || otherRange.invalid) continue;
+    // Half-open intervals allow one operation to start exactly when the previous one ends.
+    if (range.start < otherRange.end && otherRange.start < range.end) {
+      return { ok: false, reason: "machine-time-conflict", conflictingOperationId: other.id };
+    }
+  }
+  return { ok: true, reason: "" };
+}
