@@ -940,7 +940,7 @@ try {
   }
   console.log("PASS Manufacturing Universe React Flow canvas, viewport controls and minimap");
   const ecosystemFilterLabels=await page.locator(".ax-ecosystem-filters button").allTextContents();
-  const requiredEcosystemFilters=["Companies","Customers","Factories","Machines & equipment","Maintenance plans & work orders","Machine downtime","Tooling & cutting assets","Jigs, fixtures & workholding","Tool / fixture usage history","Purchase orders","Components","Vendors","Process definitions","Production operations","Materials","Quality inspections","Transport & logistics","Finance","Contacts"];
+  const requiredEcosystemFilters=["Companies","Customers","Factories","Machines & equipment","Maintenance plans & work orders","Machine downtime","Tooling & cutting assets","Jigs, fixtures & workholding","Tool / fixture usage history","Purchase orders","Components","Vendors","Process definitions","Operations","Materials & allocations","Quality inspections","Transport & dispatch","Payments","Contacts"];
   if(ecosystemFilterLabels.length!==requiredEcosystemFilters.length||requiredEcosystemFilters.some(label=>!ecosystemFilterLabels.some(actual=>actual.includes(label)))){
     throw new Error("Manufacturing Universe must expose all 19 entity filters, including tooling, fixtures and resource history. Found: "+ecosystemFilterLabels.join(" | "));
   }
