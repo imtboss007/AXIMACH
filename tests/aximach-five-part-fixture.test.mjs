@@ -1564,7 +1564,7 @@ test("legacy two-company demo remains identifiable for cleanup but is no longer 
   const partKeys = [...demo.matchAll(/key:"(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
   assert.equal(partKeys.length, 5, "bundled demo must include exactly five component examples");
   assert.equal(new Set(partKeys).size, 5, "demo component IDs must be unique");
-  for (const collection of ["companies", "customers", "prospects", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
+  for (const collection of ["companies", "customers", "prospects", "factories", "machines", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
     assert.ok(demo.includes(collection), "demo dataset must include " + collection);
   }
   assert.ok(demo.includes('processSubcategoryId:def.subcategoryIds?.[def.subcategories.indexOf(s.sub)]'));
@@ -1576,7 +1576,7 @@ test("legacy two-company demo remains identifiable for cleanup but is no longer 
   assert.ok(demo.includes('materialCostEntries.push({id:id("MATERIAL-ALLOCATION"'));
   assert.ok(demo.includes('scope:"process-map"'));
   assert.ok(demo.includes('transportVendorId:id("VENDOR","LOG")'));
-  assert.ok(demo.includes('return {updatedAt:stamp,companies,customers:[],prospects:[],factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
+  assert.ok(demo.includes('return {updatedAt:stamp,companies,customers:[],prospects:[],factories,machines,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
   assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
   assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
   assert.ok(!importer.includes("loadTwoCompanyDemo"));
