@@ -761,7 +761,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
             <strong>{row.assetCode} · {row.name}</strong>
             <span>{companyName(row.companyId)} · {factoryName(row.factoryId)} · {row.fixtureType}</span>
             <p>{[row.manufacturer,row.model,row.workholdingType,row.maxWorkpieceWeightKg?row.maxWorkpieceWeightKg+" kg":"",row.maxClampForceKn?row.maxClampForceKn+" kN":"",row.repeatabilityMicron?row.repeatabilityMicron+" µm repeatability":""].filter(Boolean).join(" · ")||"Fixture specifications not entered"}</p>
-            <small>Machines: {(row.compatibleMachineIds||[]).map(id=>machines.find(machine=>machine.id===id)?.assetCode||id).join(", ")||row.machineTypeCapabilities.join(", ")||"Not restricted"} · Components: (row.componentIds||[]).map(id=>components.find(component=>component.id===id)?.partNumber||id).join(", ")||"Not restricted"</small>
+            <small>Machines: {(row.compatibleMachineIds||[]).map(id=>machines.find(machine=>machine.id===id)?.assetCode||id).join(", ")||row.machineTypeCapabilities.join(", ")||"Not restricted"} · Components: {(row.componentIds||[]).map(id=>components.find(component=>component.id===id)?.partNumber||id).join(", ")||"Not restricted"}</small>
             <small>Usage cycles: {row.usageCycles.toLocaleString("en-IN")} · Remaining: {cyclesRemaining===undefined?"No limit":cyclesRemaining.toLocaleString("en-IN")} · Inspection due {row.inspectionDueAt||"Not scheduled"} · {linkedEvents.length} usage event(s)</small>
             {row.setupNotes&&<small>Setup: {row.setupNotes}</small>}
           </div>
