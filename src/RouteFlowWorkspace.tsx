@@ -323,29 +323,42 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         const materialIndex=Math.max(0,routeMaterials.findIndex(entry=>entry.id===node.entry.id));
         const target=operationFor(node.entry.anchorOperationId||"")||mainOperations[0];
         const anchor=target?operationPoint(target):{x:portrait?260:360,y:160};
-        return {x:Math.max(12,anchor.x-(portrait?194:218)),y:anchor.y+(materialIndex-(routeMaterials.length-1)/2)*(portrait?82:96)};
+        const inbound=Boolean(node.entry.transportVendorId||node.entry.transportFrom||node.entry.transportTo||node.entry.transportVehicleType||Number(node.entry.transportCost)>0);
+        // Inbound material and its vehicle sit upstream of the first process card,
+        // not on top of that card as the previous mobile geometry did.
+        return {
+          x:Math.max(18,anchor.x-(inbound?(portrait?430:450):(portrait?212:226))),
+          y:anchor.y-(portrait?172:190)+materialIndex*(portrait?146:160)
+        };
       }
       if(node.kind==="material-transport"){
         const materialIndex=Math.max(0,routeMaterials.findIndex(entry=>entry.id===node.entry.id));
         const target=operationFor(node.entry.anchorOperationId||"")||mainOperations[0];
         const anchor=target?operationPoint(target):{x:portrait?260:360,y:160};
-        return {x:Math.max(18,anchor.x-(portrait?96:108)),y:anchor.y+(materialIndex-(routeMaterials.length-1)/2)*(portrait?82:96)};
+        return {
+          x:Math.max(18,anchor.x-(portrait?208:224)),
+          y:anchor.y-(portrait?172:190)+materialIndex*(portrait?146:160)
+        };
       }
       if(node.kind==="transport"){
         const anchor=operationFor(node.leg.anchorOperationId||"");
         const target=operationFor(node.leg.targetOperationId||"");
         const from=anchor?operationPoint(anchor):undefined;
         const to=target?operationPoint(target):undefined;
-        if(from&&to)return portrait
-          ? {x:from.x+205,y:(from.y+to.y)/2}
-          : {x:(from.x+to.x)/2-82,y:(from.y+to.y)/2+62};
-        if(from)return {x:from.x+(portrait?205:106),y:from.y};
-        if(to)return {x:to.x-(portrait?180:192),y:to.y};
+        if(from&&to)return {
+          x:Math.max(18,(from.x+to.x)/2-(portrait?92:102)),
+          y:(from.y+to.y)/2+(portrait?142:150)
+        };
+        if(from)return {x:Math.max(18,from.x+(portrait?26:38)),y:from.y+(portrait?142:150)};
+        if(to)return {x:Math.max(18,to.x-(portrait?205:220)),y:to.y+(portrait?142:150)};
         if(node.leg.materialEntryId){
           const materialIndex=Math.max(0,routeMaterials.findIndex(entry=>entry.id===node.leg.materialEntryId));
-          return portrait?{x:226,y:16+materialIndex*104}:{x:240,y:135+materialIndex*112};
+          const entry=routeMaterials[materialIndex];
+          const targetOp=operationFor(entry?.anchorOperationId||"")||mainOperations[0];
+          const anchorPoint=targetOp?operationPoint(targetOp):{x:portrait?260:360,y:160};
+          return {x:Math.max(18,anchorPoint.x-(portrait?205:220)),y:anchorPoint.y-(portrait?172:190)+materialIndex*(portrait?146:160)};
         }
-        return {x:portrait?185:240,y:portrait?165+index*72:135+index*72};
+        return {x:portrait?18:24,y:(portrait?165:175)+index*(portrait?120:135)};
       }
       return portrait?{x:18,y:16}:{x:24,y:135};
     };
