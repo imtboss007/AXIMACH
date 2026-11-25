@@ -32,12 +32,13 @@ test("Process Map graph is scoped to the selected PO line and preserves branch, 
   assert.ok(map.includes('kind:"MATERIAL PROCUREMENT"'), "Material allocations must appear as independent graph nodes.");
   assert.ok(map.includes('kind:"MATERIAL → PROCESS LINK"'), "BOM-to-process links must appear as independent graph nodes.");
   assert.ok(map.includes('kind:"TRANSPORT LEG"'), "Transport legs must appear as independent graph nodes.");
-  assert.ok(map.includes('id:"branch-origin:"+origin.parent.id+":"+origin.branchRoot.id'), "Alternate/rework branch origin edges must be retained.");
-  assert.ok(map.includes('id:"material-allocation:"+entry.id'), "Material allocation edges must be retained.");
-  assert.ok(map.includes('id:"bom-link-edge:"+link.id'), "BOM-to-process edges must be retained.");
+  assert.ok(map.includes('addEdge(sourceId,"operation:"+origin.branchRoot.id,relation,"branch-origin:"+origin.parent.id+":"+origin.branchRoot.id'), "Alternate/rework branch origin edges must be retained.");
+  assert.ok(map.includes('addEdge(id,target,"main","material-allocation:"+entry.id'), "Material allocation edges must be retained.");
+  assert.ok(map.includes('addEdge(source,target,"main","bom-link-edge:"+link.id'), "BOM-to-process edges must be retained.");
   assert.ok(map.includes('addEdge(materialId,id,"transport","transport-from-material:"+leg.id') && map.includes('addEdge(id,"operation:"+leg.targetOperationId,"transport","transport-to-operation:"+leg.id'),
     "Material-sourced transport must connect through the transport leg to its receiving operation.");
-  assert.ok(map.includes('data-testid="process-map-react-canvas"'));\n  assert.ok(map.includes('testId="process-map-react-flow"'));
+  assert.ok(map.includes('data-testid="process-map-react-canvas"'));
+  assert.ok(map.includes('testId="process-map-react-flow"'));
   assert.ok(map.includes('onAction:()=>{setSelectedOperationId(operation.id);setShowEditor(false);}'),
     "Process operation graph nodes must select the corresponding saved operation.");
   assert.ok(map.includes('setInspectedTransportId(leg.id)'), "Transport graph nodes must open their saved detail inspector.");
@@ -146,6 +147,7 @@ test("Phone Process Map opens the compact PO-line graph and preserves the collap
   assert.match(map,/matchMedia\("\(pointer:coarse\)"\)\.matches && window\.matchMedia\("\(orientation:portrait\)"\)\.matches \? "graph"/);
   assert.ok(map.includes('["graph","sphere","cube"'),"The 3D universe must remain available from graph-first mode.");
   assert.ok(map.includes("compactViewport?48+index*248:96+index*278"),"Phone and desktop graph nodes must use the collision-spaced horizontal flow.");
+  assert.ok(map.includes("400+row*820"),"Each component route branch gets a dedicated material/process/transport band.");
   assert.ok(map.includes("fitViewOptions={{padding:.12,minZoom:.12,maxZoom:1.2}}"));
 });
 
@@ -285,4 +287,23 @@ test("Route Flow Showcase includes responsive cards and contrast-aware styling",
   }
   assert.ok(visual.includes("@media(max-width:600px)"));
   assert.ok(visual.includes("var(--ax-theme-text"));
+});
+
+test("one shared graph canvas renders every route type, material movement and vehicle-specific transport node",()=>{
+  const shared=source("src/ManufacturingGraphCanvas.tsx");
+  const route=source("src/RouteFlowWorkspace.tsx");
+  const map=source("src/LinkedProcessWorkspace.tsx");
+  const universe=source("src/ManufacturingEcosystemGraph.tsx");
+  const layout=source("src/manufacturingGraphLayout.mjs");
+  for(const surface of [route,map,universe]) assert.ok(surface.includes("ManufacturingGraphCanvas"),"All three spatial views use the shared graph canvas.");
+  for(const type of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor","transport"]) {
+    assert.ok(layout.includes(type), "Shared connector layout is missing "+type);
+  }
+  assert.ok(route.includes("VehicleTypeIcon vehicleType={data.vehicleType||\"truck\"}"));
+  assert.ok(map.includes("transportVehicleIcon(data.vehicleType||\"truck\")"));
+  assert.ok(map.includes("material-transport:"+ "entry.id"),"Material inbound transport must be a distinct graph node.");
+  assert.ok(map.includes("relationshipRows.forEach(link=>"),"Saved typed relationships must be rendered in the Process Map.");
+  assert.ok(universe.includes("RouteConnectorLegend compact"),"Manufacturing Universe must show the full route-type legend.");
+  assert.ok(universe.includes("relationshipRows")||universe.includes("routeLinks.forEach"),"Manufacturing Universe must include saved route relationships.");
+  assert.ok(shared.includes("ReactFlowProvider")&&shared.includes("<ReactFlow"),"The reusable canvas owns the React Flow provider and renderer.");
 });
