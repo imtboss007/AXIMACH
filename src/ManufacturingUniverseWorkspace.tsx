@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Connection } from "@xyflow/react";
 import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, MessageCircle, Network, Package, Plug, Route, Settings2, Sparkles, Truck, Users, Workflow } from "lucide-react";
-import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord, type RouteRelationshipRecord } from "./manufacturingData";
+import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord } from "./manufacturingData";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 import ManufacturingEcosystemGraph from "./ManufacturingEcosystemGraph";
 import OperationInlineEditor from "./OperationInlineEditor";
@@ -11,6 +11,7 @@ import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector
 import { transportPopupAnchorFromPoint } from "./transportPopup";
 import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
+import { connectManufacturingGraphNodes } from "./manufacturingGraphConnections";
 
 type NavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string };
 type Props = { onBack:()=>void; onNotice:(message:string)=>void; notice:string; onSelectModule:(id:string,context?:NavigationContext)=>void; initialContext?:NavigationContext };
@@ -213,17 +214,14 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     onNotice("Process operation updated in Manufacturing Universe. The shared record has been saved.");
   };
   const connectUniverseOperations=(connection:Connection,relationshipType:string)=>{
-    const fromId=(connection.source||"").replace(/^operation:/,"");
-    const toId=(connection.target||"").replace(/^operation:/,"");
-    const from=operations.find(row=>row.id===fromId),to=operations.find(row=>row.id===toId);
-    if(!from||!to){onNotice("Manufacturing Universe connections are limited to saved process-operation nodes.");return;}
-    if(from.id===to.id){onNotice("Connect two different operations.");return;}
-    if(from.poId!==to.poId||from.poLineId!==to.poLineId||from.componentId!==to.componentId){onNotice("Operations must belong to the same company purchase-order component line.");return;}
-    if(relationships.some(row=>row.fromOperationId===from.id&&row.toOperationId===to.id&&row.relationshipType===relationshipType&&row.status!=="Disabled")){onNotice("That relationship already exists.");return;}
-    const stamp=new Date().toISOString();
-    const record:RouteRelationshipRecord={id:"route-relationship-"+(typeof crypto!=="undefined"&&"randomUUID" in crypto?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2)),poId:from.poId,poLineId:from.poLineId,componentId:from.componentId,fromOperationId:from.id,toOperationId:to.id,relationshipType:relationshipType as RouteRelationshipRecord["relationshipType"],status:"Active",label:relationshipType,notes:"Created by dragging an operation connector in Manufacturing Universe.",createdAt:stamp,updatedAt:stamp};
-    update(current=>({...current,routeRelationships:[...(current.routeRelationships||[]),record]}));
-    onNotice("Saved "+relationshipType+" connection: "+from.name+" → "+to.name+".");
+    connectManufacturingGraphNodes({
+      data,
+      connection,
+      relationshipType,
+      scope:{companyId,poId,poLineId,componentId},
+      update,
+      onNotice
+    });
   };
   const exportUniverse=()=>{
     const safeName=("AXIMACH-"+(component?.partNumber||"Manufacturing-Universe")).replace(/[^a-z0-9-_]+/gi,"-");
