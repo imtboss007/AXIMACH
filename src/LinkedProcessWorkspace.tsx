@@ -24,6 +24,7 @@ import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVeh
 import { resolveProcessColor } from "./processPalette";
 import { getEligibleMachineAssets, validateMachineAssignment } from "./machineCapabilities.mjs";
 import { getMachineAvailability, validateMachineSchedule } from "./machineMaintenance.mjs";
+import { getEligibleToolingAssets, getEligibleFixtureAssets, validateOperationResourceAssignments } from "./manufacturingResourceCompatibility.mjs";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -84,7 +85,7 @@ const PROCESS_CARD_FIELDS: Array<{key:ProcessCardField;label:string}> = [
 ];
 const REQUIRED_PROCESS_CARD_FIELDS: ProcessCardField[] = ["category","subcategory","quantity","plannedStart","plannedEnd","vendor","amount"];
 type TransportRouteOption = TransportRouteRecord & { legacy?: boolean; sourceRouteId?: string };
-type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "machineId" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "transportTripDirection" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean; processCostTotal:number; parentId?:string; relationType?:"subprocess"|"alternate"|"rework"; costIncluded:boolean; processDefinitionId?: string; processSubcategoryId:string; processColor?: string };
+type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "machineId" | "toolingAssetIds" | "fixtureAssetIds" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "transportTripDirection" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean; processCostTotal:number; parentId?:string; relationType?:"subprocess"|"alternate"|"rework"; costIncluded:boolean; processDefinitionId?: string; processSubcategoryId:string; processColor?: string };
 const processSubcategoryIdFor = (definition: ProcessDefinitionRecord | undefined, subcategory: string) => {
   const index = definition?.subcategories.indexOf(subcategory) ?? -1;
   if (!definition || index < 0) return "";
@@ -103,7 +104,7 @@ const resolveProcessDefinition = (
   return matches.length === 1 ? matches[0] : undefined;
 };
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
-  processDefinitionId: "", name: "", category: "", machine: "", machineId: "", vendorId: "", status: "Planned", executionType:"Outsourced", toleranceCategory:"Standard", inspectionRequired:false, plannedStart: "", plannedEnd: line?.targetDelivery ? (line.targetDelivery.includes("T")?line.targetDelivery:line.targetDelivery+"T08:00") : "", actualStart: "", actualEnd: "",
+  processDefinitionId: "", name: "", category: "", machine: "", machineId: "", toolingAssetIds: [], fixtureAssetIds: [], vendorId: "", status: "Planned", executionType:"Outsourced", toleranceCategory:"Standard", inspectionRequired:false, plannedStart: "", plannedEnd: line?.targetDelivery ? (line.targetDelivery.includes("T")?line.targetDelivery:line.targetDelivery+"T08:00") : "", actualStart: "", actualEnd: "",
   quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0, processCostTotal: 0, paymentStatus:"Unpaid", paidAmount:0, paymentReference:"", subcategory:"", processSubcategoryId:"",
   transportVendorId: "", transportFrom:"", transportTo:"", transportVehicleType:"", transportRouteId:"", transportTripDirection:"One-way", transportCost: 0, transportPickup: "", transportDelivery: "", qualityNotes: "", inspectionResult: "", notes: "", branch: "Main route", costIncluded: true, processColor: DEFAULT_PROCESS_COLOR
 });
@@ -394,6 +395,18 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const quantityUnit = selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces";
   const eligibleMachines = getEligibleMachineAssets(machines,{companyId:selectedPO?.companyId,factoryId:selectedPO?.factoryId,processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,selectedMachineId:draft.machineId}).filter(machine=>!getMachineAvailability(machine,maintenanceWorkOrders,machineDowntime).blocksProduction||machine.id===draft.machineId);
   const selectedMachine = machines.find(machine=>machine.id===draft.machineId);
+  const toolingAssets=activeRows(data.toolingAssets||[]);
+  const fixtureAssets=activeRows(data.fixtureAssets||[]);
+  const eligibleToolingAssets=getEligibleToolingAssets(toolingAssets,{
+    companyId:selectedPO?.companyId||"",factoryId:selectedPO?.factoryId||"",machineId:selectedMachine?.id,machineType:selectedMachine?.machineType,
+    processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,material:selectedComponent?.material,
+    selectedIds:draft.toolingAssetIds||[]
+  });
+  const eligibleFixtureAssets=getEligibleFixtureAssets(fixtureAssets,{
+    companyId:selectedPO?.companyId||"",factoryId:selectedPO?.factoryId||"",machineId:selectedMachine?.id,machineType:selectedMachine?.machineType,
+    processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,componentId:selectedComponent?.id,
+    selectedIds:draft.fixtureAssetIds||[]
+  });
   const processVendorOptions = selectedProcessDefinition?.vendorIds?.length ? vendors.filter(vendor => selectedProcessDefinition.vendorIds.includes(vendor.id)) : vendors;
   const selectedTransportVendor = vendors.find(vendor => vendor.id === draft.transportVendorId);
   // Current Transport Directory routes and vendor-embedded legacy routes share
@@ -1159,7 +1172,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     setSelectedOperationId(targetOperation.id);
     const targetLegacyRoute=transportRouteOptions.find(route=>route.id===targetOperation.transportRouteId||(route.legacy&&route.sourceRouteId===targetOperation.transportRouteId));
     setDraft({
-      name: targetOperation.name, category: targetOperation.category, processDefinitionId: targetOperation.processDefinitionId || processDefinitions.find(item=>item.processType===targetOperation.name&&item.category===targetOperation.category)?.id || "", machine: targetOperation.machine, machineId: targetOperation.machineId || "", vendorId: targetOperation.vendorId, executionType:targetOperation.executionType||"Outsourced", toleranceCategory:targetOperation.toleranceCategory||"Standard", inspectionRequired:Boolean(targetOperation.inspectionRequired),
+      name: targetOperation.name, category: targetOperation.category, processDefinitionId: targetOperation.processDefinitionId || processDefinitions.find(item=>item.processType===targetOperation.name&&item.category===targetOperation.category)?.id || "", machine: targetOperation.machine, machineId: targetOperation.machineId || "", toolingAssetIds:[...(targetOperation.toolingAssetIds||[])], fixtureAssetIds:[...(targetOperation.fixtureAssetIds||[])], vendorId: targetOperation.vendorId, executionType:targetOperation.executionType||"Outsourced", toleranceCategory:targetOperation.toleranceCategory||"Standard", inspectionRequired:Boolean(targetOperation.inspectionRequired),
       status: targetOperation.status, plannedStart: targetOperation.plannedStart, plannedEnd: targetOperation.plannedEnd, actualStart: targetOperation.actualStart || "", actualEnd: targetOperation.actualEnd || "",
       quantity: targetOperation.quantity, completed: targetOperation.completed, accepted: targetOperation.accepted, rejected: targetOperation.rejected,
       ratePerPart: targetOperation.ratePerPart, processCostTotal: targetOperation.quantity * targetOperation.ratePerPart, actualRatePerPart: targetOperation.actualRatePerPart || 0, transportVendorId: targetOperation.transportVendorId || "", transportFrom:targetOperation.transportFrom||"",transportTo:targetOperation.transportTo||"",transportVehicleType:targetOperation.transportVehicleType||"",transportRouteId:targetOperation.transportRouteId||"",transportTripDirection:targetOperation.transportTripDirection||targetLegacyRoute?.tripDirection||"One-way", transportCost: targetOperation.transportCost, transportPickup: targetOperation.transportPickup,
@@ -1177,6 +1190,18 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       const assignedMachine=machines.find(machine=>machine.id===draft.machineId);
       const assignment=validateMachineAssignment(assignedMachine,{machineId:draft.machineId,existingMachineId:operations.find(operation=>operation.id===editingId)?.machineId,companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,executionType:draft.executionType});
       if(!assignment.ok){onNotice("Registered machine assignment is invalid ("+assignment.reason+"). Choose an available machine in this PO factory with the selected process capability.");return;}
+    }
+    const resourceValidation=validateOperationResourceAssignments({
+      toolingIds:draft.toolingAssetIds||[],fixtureIds:draft.fixtureAssetIds||[],toolingAssets,fixtureAssets,
+      scope:{companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,machineId:draft.machineId||undefined,machineType:selectedMachine?.machineType,
+        processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,material:selectedComponent.material,componentId:selectedComponent.id,
+        selectedIds:[...(draft.toolingAssetIds||[]),...(draft.fixtureAssetIds||[])],
+        existingToolingIds:operations.find(operation=>operation.id===editingId)?.toolingAssetIds||[],
+        existingFixtureIds:operations.find(operation=>operation.id===editingId)?.fixtureAssetIds||[]}
+    });
+    if((draft.executionType==="Outsourced"&&((draft.toolingAssetIds||[]).length||(draft.fixtureAssetIds||[]).length))||!resourceValidation.ok){
+      onNotice(draft.executionType==="Outsourced"?"Outsourced operations cannot reserve company-owned tooling or fixtures.":"Tooling / fixture assignment is unavailable, overdue, out of life, incompatible or already reserved during an overlapping operation.");
+      return;
     }
     if(draft.machineId){
       const schedule=validateMachineSchedule({...draft,id:editingId||"__new-operation__"},operations,editingId,maintenanceWorkOrders,machineDowntime);
@@ -1700,6 +1725,8 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             {selectedMachine&&<small className="field-hint">Selected asset: {selectedMachine.assetCode} · {selectedMachine.machineType}{selectedMachine.model?" · "+selectedMachine.model:""} · {selectedMachine.axisCount||"—"} axes · Travel {selectedMachine.workEnvelopeXmm||"—"} × {selectedMachine.workEnvelopeYmm||"—"} × {selectedMachine.workEnvelopeZmm||"—"} mm · {selectedMachine.status}</small>}
             {draft.executionType==="Internal"&&!eligibleMachines.length&&<small className="field-hint">No available registered machine matches this company, factory and process capability. Add or update it in Company Directory → Machines, or keep an unregistered work-centre note below.</small>}
             <label>Machine / station note (optional legacy or external reference)<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value,machineId:""})} placeholder="Unregistered work centre, machine name or external supplier reference"/></label>
+            <div className="module-form-wide"><SearchableMultiSelect id="operation-tooling-assets" label="Tooling / cutting tools reserved for this operation" options={eligibleToolingAssets.map(asset=>({id:asset.id,label:asset.assetCode+" · "+asset.name+" · "+asset.toolType+" · "+asset.status+" · "+(asset.toolLifeLimitMinutes>0?Math.max(0,asset.toolLifeLimitMinutes-asset.toolLifeUsedMinutes)+" min left":"life not limited")}))} selected={draft.toolingAssetIds||[]} onChange={toolingAssetIds=>setDraft({...draft,toolingAssetIds})} disabled={draft.executionType==="Outsourced"}/><small className="field-hint">Only tools owned by the selected company/factory and compatible with this machine, process and material are offered. Tool life and inspection due dates are checked.</small></div>
+            <div className="module-form-wide"><SearchableMultiSelect id="operation-fixture-assets" label="Jigs / fixtures / workholding reserved for this operation" options={eligibleFixtureAssets.map(asset=>({id:asset.id,label:asset.assetCode+" · "+asset.name+" · "+asset.fixtureType+" · "+asset.status+" · "+(asset.maxUsageCycles>0?Math.max(0,asset.maxUsageCycles-asset.usageCycles)+" cycles left":"cycles not limited")}))} selected={draft.fixtureAssetIds||[]} onChange={fixtureAssetIds=>setDraft({...draft,fixtureAssetIds})} disabled={draft.executionType==="Outsourced"}/><small className="field-hint">Fixture selection is checked against the registered machine, process, component, inspection date and usage limit. Reservations cannot overlap another active operation.</small></div>
             <SearchablePicker id="operation-vendor-picker" label="Vendor" value={draft.vendorId} placeholder="Type vendor name or phone…" options={processVendorOptions.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{!vendors.length && <small className="field-hint">Scan/import contacts or add a vendor in Vendors first.</small>}
             <label>Start date &amp; time<input type="datetime-local" value={dateTimeInput(draft.plannedStart)} onChange={e => setDraft({...draft,plannedStart:e.target.value})}/></label>
             <label>Delivery date &amp; time<input type="datetime-local" min={dateTimeInput(draft.plannedStart)} value={dateTimeInput(draft.plannedEnd)} onChange={e => setDraft({...draft,plannedEnd:e.target.value})}/></label>
