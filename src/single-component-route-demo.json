@@ -184,7 +184,7 @@
       "componentId": "demo-component-ast-1001",
       "bomLineId": "demo-bom-bracket",
       "materialId": "demo-material-is2062",
-      "operationId": "demo-op-007",
+      "operationId": "op-007",
       "quantityPerPart": 1.8,
       "unit": "kg",
       "flowType": "Material input",
@@ -199,7 +199,7 @@
       "componentId": "demo-component-ast-1001",
       "bomLineId": "demo-bom-shaft",
       "materialId": "demo-material-en24",
-      "operationId": "demo-op-002",
+      "operationId": "op-002",
       "quantityPerPart": 2.4,
       "unit": "kg",
       "flowType": "Material input",
@@ -214,7 +214,7 @@
       "componentId": "demo-component-ast-1001",
       "bomLineId": "demo-bom-gear",
       "materialId": "demo-material-20mncr5",
-      "operationId": "demo-op-003",
+      "operationId": "op-003",
       "quantityPerPart": 1.1,
       "unit": "kg",
       "flowType": "Material input",
@@ -229,7 +229,7 @@
       "componentId": "demo-component-ast-1001",
       "bomLineId": "demo-bom-base",
       "materialId": "demo-material-en8",
-      "operationId": "demo-op-011",
+      "operationId": "op-011",
       "quantityPerPart": 3.2,
       "unit": "kg",
       "flowType": "Material input",
@@ -244,7 +244,7 @@
       "componentId": "demo-component-ast-1001",
       "bomLineId": "demo-bom-manifold",
       "materialId": "demo-material-al6082",
-      "operationId": "demo-op-014",
+      "operationId": "op-014",
       "quantityPerPart": 2.8,
       "unit": "kg",
       "flowType": "Material input",
@@ -259,7 +259,7 @@
       "componentId": "demo-component-ast-1001",
       "bomLineId": "demo-bom-coating",
       "materialId": "demo-material-coating",
-      "operationId": "demo-op-010",
+      "operationId": "op-010",
       "quantityPerPart": 0.12,
       "unit": "kg",
       "flowType": "Consumable",
@@ -269,7 +269,7 @@
   ],
   "operations": [
     {
-      "id": "demo-op-001",
+      "id": "op-001",
       "name": "Band saw cutting and raw blank preparation",
       "sequence": 1,
       "branch": "Main route",
@@ -292,7 +292,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-002",
+      "id": "op-002",
       "name": "CNC shaft turning",
       "sequence": 2,
       "branch": "Shaft subassembly",
@@ -315,7 +315,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-003",
+      "id": "op-003",
       "name": "Gear hobbing and tooth generation",
       "sequence": 3,
       "branch": "Shaft subassembly",
@@ -338,7 +338,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-004",
+      "id": "op-004",
       "name": "Carburising, hardening and tempering",
       "sequence": 4,
       "branch": "Shaft subassembly",
@@ -361,7 +361,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-005",
+      "id": "op-005",
       "name": "Cylindrical grinding",
       "sequence": 5,
       "branch": "Shaft subassembly",
@@ -384,7 +384,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-006",
+      "id": "op-006",
       "name": "Gear profile, runout and roundness metrology",
       "sequence": 6,
       "branch": "Shaft subassembly",
@@ -407,7 +407,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-007",
+      "id": "op-007",
       "name": "Fiber laser cutting",
       "sequence": 7,
       "branch": "Bracket subassembly",
@@ -430,7 +430,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-008",
+      "id": "op-008",
       "name": "Press brake forming",
       "sequence": 8,
       "branch": "Bracket subassembly",
@@ -453,7 +453,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-009",
+      "id": "op-009",
       "name": "MIG welding and fixture joining",
       "sequence": 9,
       "branch": "Bracket subassembly",
@@ -476,7 +476,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-010",
+      "id": "op-010",
       "name": "Powder coating and surface protection",
       "sequence": 10,
       "branch": "Bracket subassembly",
@@ -499,7 +499,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-011",
+      "id": "op-011",
       "name": "VMC face milling",
       "sequence": 11,
       "branch": "Base plate subassembly",
@@ -522,7 +522,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-012",
+      "id": "op-012",
       "name": "Drilling and tapping",
       "sequence": 12,
       "branch": "Base plate subassembly",
@@ -545,7 +545,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-013",
+      "id": "op-013",
       "name": "Surface grinding",
       "sequence": 13,
       "branch": "Base plate subassembly",
@@ -568,7 +568,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-014",
+      "id": "op-014",
       "name": "VMC manifold datum milling and pocketing",
       "sequence": 14,
       "branch": "Manifold subassembly",
@@ -591,7 +591,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-015",
+      "id": "op-015",
       "name": "Deep-hole drilling and cross ports",
       "sequence": 15,
       "branch": "Manifold subassembly",
@@ -614,7 +614,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-016",
+      "id": "op-016",
       "name": "CNC tapping and threaded port finishing",
       "sequence": 16,
       "branch": "Manifold subassembly",
@@ -637,7 +637,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-017",
+      "id": "op-017",
       "name": "Precision deburring and edge conditioning",
       "sequence": 17,
       "branch": "Manifold subassembly",
@@ -660,7 +660,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-018",
+      "id": "op-018",
       "name": "Anodising and corrosion finish",
       "sequence": 18,
       "branch": "Manifold subassembly",
@@ -683,7 +683,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-019",
+      "id": "op-019",
       "name": "Pressure, leak and dimensional inspection",
       "sequence": 19,
       "branch": "Manifold subassembly",
@@ -706,7 +706,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-020",
+      "id": "op-020",
       "name": "Final assembly and installation",
       "sequence": 20,
       "branch": "Final assembly",
@@ -729,7 +729,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-021",
+      "id": "op-021",
       "name": "Final CMM and dimensional metrology",
       "sequence": 21,
       "branch": "Final assembly",
@@ -752,7 +752,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-022",
+      "id": "op-022",
       "name": "Final quality acceptance and release",
       "sequence": 22,
       "branch": "Final assembly",
@@ -775,7 +775,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-023",
+      "id": "op-023",
       "name": "Final wash and preservation",
       "sequence": 23,
       "branch": "Final assembly",
@@ -798,7 +798,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-024",
+      "id": "op-024",
       "name": "Final packing and traceable labelling",
       "sequence": 24,
       "branch": "Final assembly",
@@ -821,7 +821,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-025",
+      "id": "op-025",
       "name": "CNC punching alternative to laser cutting",
       "sequence": 25,
       "branch": "Alternate route",
@@ -844,7 +844,7 @@
       "status": "Planned"
     },
     {
-      "id": "demo-op-026",
+      "id": "op-026",
       "name": "Corrective cylindrical regrinding",
       "sequence": 26,
       "branch": "Rework route",
@@ -1007,7 +1007,7 @@
       "tripCount": 1,
       "anchorOperationId": "",
       "placement": "start",
-      "targetOperationId": "demo-op-001",
+      "targetOperationId": "op-001",
       "costRole": "base",
       "costIncluded": true,
       "createdAt": "2026-11-25T09:00:00.000Z",
@@ -1028,9 +1028,9 @@
       "tripDirection": "One-way",
       "fixedAmount": 850,
       "tripCount": 1,
-      "anchorOperationId": "demo-op-006",
+      "anchorOperationId": "op-006",
       "placement": "after",
-      "targetOperationId": "demo-op-020",
+      "targetOperationId": "op-020",
       "costRole": "base",
       "costIncluded": true,
       "createdAt": "2026-11-25T09:00:00.000Z",
@@ -1051,9 +1051,9 @@
       "tripDirection": "One-way",
       "fixedAmount": 420,
       "tripCount": 1,
-      "anchorOperationId": "demo-op-010",
+      "anchorOperationId": "op-010",
       "placement": "after",
-      "targetOperationId": "demo-op-020",
+      "targetOperationId": "op-020",
       "costRole": "base",
       "costIncluded": true,
       "createdAt": "2026-11-25T09:00:00.000Z",
@@ -1074,9 +1074,9 @@
       "tripDirection": "One-way",
       "fixedAmount": 620,
       "tripCount": 1,
-      "anchorOperationId": "demo-op-013",
+      "anchorOperationId": "op-013",
       "placement": "after",
-      "targetOperationId": "demo-op-020",
+      "targetOperationId": "op-020",
       "costRole": "base",
       "costIncluded": true,
       "createdAt": "2026-11-25T09:00:00.000Z",
@@ -1097,9 +1097,9 @@
       "tripDirection": "One-way",
       "fixedAmount": 780,
       "tripCount": 1,
-      "anchorOperationId": "demo-op-019",
+      "anchorOperationId": "op-019",
       "placement": "after",
-      "targetOperationId": "demo-op-020",
+      "targetOperationId": "op-020",
       "costRole": "base",
       "costIncluded": true,
       "createdAt": "2026-11-25T09:00:00.000Z",
@@ -1120,9 +1120,9 @@
       "tripDirection": "Two-way",
       "fixedAmount": 180,
       "tripCount": 2,
-      "anchorOperationId": "demo-op-020",
+      "anchorOperationId": "op-020",
       "placement": "after",
-      "targetOperationId": "demo-op-021",
+      "targetOperationId": "op-021",
       "costRole": "base",
       "costIncluded": true,
       "createdAt": "2026-11-25T09:00:00.000Z",
@@ -1143,9 +1143,9 @@
       "tripDirection": "One-way",
       "fixedAmount": 380,
       "tripCount": 1,
-      "anchorOperationId": "demo-op-025",
+      "anchorOperationId": "op-025",
       "placement": "after",
-      "targetOperationId": "demo-op-008",
+      "targetOperationId": "op-008",
       "costRole": "alternate",
       "costIncluded": false,
       "createdAt": "2026-11-25T09:00:00.000Z",
@@ -1166,9 +1166,9 @@
       "tripDirection": "Two-way",
       "fixedAmount": 520,
       "tripCount": 1,
-      "anchorOperationId": "demo-op-026",
+      "anchorOperationId": "op-026",
       "placement": "after",
-      "targetOperationId": "demo-op-021",
+      "targetOperationId": "op-021",
       "costRole": "rework",
       "costIncluded": false,
       "createdAt": "2026-11-25T09:00:00.000Z",
@@ -1189,9 +1189,9 @@
       "tripDirection": "One-way",
       "fixedAmount": 160,
       "tripCount": 1,
-      "anchorOperationId": "demo-op-021",
+      "anchorOperationId": "op-021",
       "placement": "after",
-      "targetOperationId": "demo-op-022",
+      "targetOperationId": "op-022",
       "costRole": "base",
       "costIncluded": true,
       "createdAt": "2026-11-25T09:00:00.000Z",
@@ -1212,7 +1212,7 @@
       "tripDirection": "One-way",
       "fixedAmount": 1450,
       "tripCount": 1,
-      "anchorOperationId": "demo-op-024",
+      "anchorOperationId": "op-024",
       "placement": "after",
       "costRole": "base",
       "costIncluded": true,
