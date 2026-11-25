@@ -33,7 +33,7 @@ const EDGE_LEGEND = [
 ];
 
 const edgeColor = (kind:string) => {
-  if (/^main$|^successor$|owns|belongs to|contact for/.test(kind)) return "var(--ax-theme-graph-1,#2875bd)";
+  if (/^main$|^successor$|owns|installed at|belongs to|contact for/.test(kind)) return "var(--ax-theme-graph-1,#2875bd)";
   if (/^alternate$/.test(kind)) return "#b17a27";
   if (/^rework$/.test(kind)) return "#c45b50";
   if (/^dependency$/.test(kind)) return "#347de5";
@@ -42,7 +42,7 @@ const edgeColor = (kind:string) => {
   if (/^feedback$|^conditional$/.test(kind)) return "#9954ce";
   if (/^transport$/.test(kind)) return "#397ea4";
   if (/orders|placed by|makes|performed by|defined by|runs on/.test(kind)) return "var(--ax-theme-graph-2,#168d89)";
-  if (/capable vendor|supplied by|procured for|allocated to/.test(kind)) return "var(--ax-theme-graph-3,#b17a27)";
+  if (/capable vendor|supports process|supplied by|procured for|allocated to/.test(kind)) return "var(--ax-theme-graph-3,#b17a27)";
   if (/feeds operation/.test(kind)) return "var(--ax-theme-graph-4,#8b68c5)";
   if (/inspects/.test(kind)) return "var(--ax-theme-graph-5,#b95665)";
   if (/moves between|carried by/.test(kind)) return "var(--ax-theme-graph-6,#397ea4)";
@@ -486,7 +486,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
         <input
           type="search"
           aria-label="Search all manufacturing ecosystem records"
-          placeholder="Search this company, PO line, operations, materials, vendors and transport..."
+          placeholder="Search companies, factories, machines, PO lines, processes, materials, vendors and transport..."
           value={searchQuery}
           onChange={event=>{setSearchQuery(event.target.value);setSearchResultLimit(10);}}
         />
