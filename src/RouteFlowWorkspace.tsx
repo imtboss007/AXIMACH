@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Background, BackgroundVariant, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, useReactFlow } from "@xyflow/react";
+import { Handle, MarkerType, Position, useReactFlow } from "@xyflow/react";
 import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
 import "@xyflow/react/style.css";
 import { useReducedMotion } from "motion/react";
@@ -7,6 +7,8 @@ import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 import { RouteFlowShowcase } from "./RouteFlowShowcase";
 import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js";
+import { routeRelationshipHandles } from "./manufacturingGraphLayout.mjs";
+import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
 import TransportRecordInspector from "./TransportRecordInspector";
@@ -51,7 +53,7 @@ type FlowNode =
  | {kind:"transport";id:string;leg:ComponentTransportLegRecord}
  | {kind:"operation";id:string;operation:OperationRecord}
  | {kind:"missing-material";id:string};
-type RouteFlowNodeData = {title:string;detail:string;kind:string;accent:string;actionLabel?:string;onAction?:(element:HTMLElement)=>void};
+type RouteFlowNodeData = {title:string;detail:string;kind:string;accent:string;vehicleType?:string;actionLabel?:string;onAction?:(element:HTMLElement)=>void};
 type RouteFlowGraphNode = Node<RouteFlowNodeData,"routeStage">;
 function RouteFlowGraphStage({data}:NodeProps<RouteFlowGraphNode>) {
   const transport = data.kind.includes("TRANSPORT");
@@ -65,7 +67,7 @@ function RouteFlowGraphStage({data}:NodeProps<RouteFlowGraphNode>) {
     <Handle id="source-left" type="source" position={Position.Left} style={{top:"65%"}}/>
     <Handle id="source-top" type="source" position={Position.Top} style={{left:"65%"}}/>
     <Handle id="source-bottom" type="source" position={Position.Bottom} style={{left:"65%"}}/>
-    <div className="route-flow-node-heading"><span>{transport?<Truck size={14}/>:material?<Package size={14}/>:<Workflow size={14}/>}</span><span>{data.kind}</span></div><strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
+    <div className="route-flow-node-heading"><span>{transport?<VehicleTypeIcon vehicleType={data.vehicleType||"truck"} size={14}/>:material?<Package size={14}/>:<Workflow size={14}/>}</span><span>{data.kind}</span></div><strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
     {data.actionLabel&&data.onAction&&<button type="button" className="nodrag" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();data.onAction?.(event.currentTarget);}}>{data.actionLabel}</button>}
   </article>;
 }
@@ -381,7 +383,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         title="Material allocation missing";detail="Add the required material / grade allocation before production.";
         kind="ROUTE REQUIREMENT";actionLabel="Open Process Map";onAction=()=>openProcessMap();
       }
-      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),actionLabel,onAction},draggable:false,selectable:true,focusable:true,style:{width:node.kind==="transport"?164:node.kind==="material-transport"?164:node.kind==="material"?180:192}};
+      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),vehicleType:node.kind==="transport"?node.leg.vehicleType:node.kind==="material-transport"?node.entry.transportVehicleType||"truck":undefined,actionLabel,onAction},draggable:false,selectable:true,focusable:true,style:{width:node.kind==="transport"?184:node.kind==="material-transport"?184:node.kind==="material"?190:192}};
     });
     const nodeIds=new Set(nodes.map(node=>node.id));
     const edges:Edge[]=[];
@@ -403,20 +405,13 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     };
     // Each semantic relationship uses a distinct pair of node handles. This keeps
     // parallel/split/feedback links visible when they share operation endpoints.
-    const relationHandles:Record<string,{source:string;target:string}> = {
-      main:{source:"source-right",target:"target-left"},
-      alternate:{source:"source-top",target:"target-left"},
-      rework:{source:"source-bottom",target:"target-left"},
-      dependency:{source:"source-top",target:"target-top"},
-      parallel:{source:"source-bottom",target:"target-bottom"},
-      merge:{source:"source-right",target:"target-bottom"},
-      split:{source:"source-top",target:"target-right"},
-      "follow-on":{source:"source-right",target:"target-top"},
-      feedback:{source:"source-left",target:"target-left"},
-      conditional:{source:"source-bottom",target:"target-top"},
-      successor:{source:"source-left",target:"target-bottom"},
-      transport:{source:"source-right",target:"target-left"}
-    };
+    // Every route type owns a distinct handle pair so parallel semantics remain visible.
+    const relationHandles=Object.fromEntries(
+      [...RELATIONSHIPS.map(item=>item.id),"transport"].map(type=>{
+        const [source,target]=routeRelationshipHandles(type);
+        return [type,{source,target}];
+      })
+    ) as Record<string,{source:string;target:string}>;
     const graphEdgeType=routeLayout==="orthogonal"||routeLayout==="vertical"||routeLayout==="swimlane"?"step":routeLayout==="horizontal"?"straight":routeLayout==="s-curve"||routeLayout==="timeline"?"smoothstep":"default";
     const addEdge=(source:string,target:string,type:string,id:string,label:string)=>{
       if(!source||!target||source===target||!nodeIds.has(source)||!nodeIds.has(target))return;
@@ -684,10 +679,24 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       <div className="route-flow-graph-canvas" data-testid="route-flow-react-canvas">
         <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Pinch / wheel to zoom · drag canvas to pan · use Fit in controls</small></div>
         <RouteConnectorLegend/>
-        <ReactFlow<RouteFlowGraphNode,Edge> nodes={routeFlowGraph.nodes} edges={routeFlowGraph.edges} nodeTypes={ROUTE_FLOW_NODE_TYPES} fitView fitViewOptions={{padding:.16,minZoom:.24,maxZoom:1.35}} minZoom={.18} maxZoom={2.8} nodesDraggable={false} nodesConnectable={false} elementsSelectable nodesFocusable edgesFocusable panOnDrag zoomOnScroll zoomOnPinch preventScrolling zoomOnDoubleClick={false} proOptions={{hideAttribution:false}}>
+        <ManufacturingGraphCanvas
+          nodes={routeFlowGraph.nodes}
+          edges={routeFlowGraph.edges}
+          nodeTypes={ROUTE_FLOW_NODE_TYPES}
+          fitView
+          fitViewOptions={{padding:.14,minZoom:.16,maxZoom:1.35}}
+          minZoom={.12}
+          maxZoom={2.8}
+          nodesFocusable
+          panOnDrag
+          zoomOnScroll
+          zoomOnPinch
+          minimapNodeColor={node=>node.data.accent}
+          className="route-flow-shared-graph-layer"
+          testId="route-flow-react-canvas"
+        >
           <RouteFlowFitController revision={routeLayout+":"+routeFlowGraph.nodes.map(node=>node.id+"@"+node.position.x+","+node.position.y).join(";")}/>
-          <Background variant={BackgroundVariant.Dots} gap={24} size={1} color={darkGraph?"#28445e":"#cbd8e6"}/><Controls showInteractive={false}/><MiniMap<RouteFlowGraphNode> pannable zoomable nodeColor={(node:RouteFlowGraphNode):string=>node.data.accent}/>
-        </ReactFlow>
+        </ManufacturingGraphCanvas>
       </div>:
       <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<RouteConnectorLegend/><div className="route-flow-stage-track" data-route-layout={routeLayout}>
         {routeNodes.map((node,index)=>{
