@@ -158,11 +158,12 @@ test("Route Flow applies the selected layout to the live graph, preserves explic
   assert.ok(flow.includes('window.addEventListener("orientationchange",syncViewport)'),"Phone rotation must recompute compact graph geometry.");
   assert.ok(flow.includes("workspaceTheme,compactGraphViewport])"),"Viewport changes must invalidate the live layout memo.");
   assert.ok(flow.includes("},[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport,routeGraphSavedPositions])"));
-  assert.ok(flow.includes('ROUTE_FLOW_GRAPH_LAYOUT_PREFIX+"aximach.route-flow.graph-layout.v1:"')===false,"Route Flow layout must use a dedicated scoped storage key.");
+  assert.ok(flow.includes('const ROUTE_FLOW_GRAPH_LAYOUT_PREFIX="aximach.route-flow.graph-layout.v1:"'),"Route Flow layout must use a dedicated storage namespace.");
   assert.ok(flow.includes("loadRouteFlowGraphLayout(window.localStorage.getItem(routeGraphLayoutStorageKey))"),"Saved node positions must be loaded for the selected company / PO / component.");
   assert.ok(flow.includes("saveRouteFlowGraphPosition(current,node.id,node.position)"),"Dragged node positions must be written to scoped local storage.");
   assert.ok(flow.includes("onNodeDragStop={persistRouteGraphNodePosition}"),"Route Flow must persist node positions when a drag completes.");
-  assert.ok(flow.includes('routeGraphLayoutStorageKey+":"+routeFlowGraph.nodes.map(node=>node.id).join(";")')===false,"Auto-fit revision must not depend on dragged coordinates.");
+  assert.ok(flow.includes('revision={routeLayout+":"+routeGraphLayoutStorageKey+":"+routeFlowGraph.nodes.map(node=>node.id).join(";")}'),"Auto-fit must react to scope or node-set changes, not manual position changes.");
+  assert.ok(!flow.includes('node.id+"@"+node.position.x'),"Dragging must not retrigger camera auto-fit.");
   assert.ok(flow.includes("routeRelationshipEdgeGeometry(type,nodeCenter(source),nodeCenter(target),routeLayout,parallelIndex)"),"Each edge must adapt to its real node geometry and selected route layout.");
   assert.ok(flow.includes("type:geometry.edgeType,label,animated"),"The edge path type must be selected per relationship.");
   assert.ok(flow.includes("pathOptions:geometry.pathOptions"),"Per-edge routing geometry must be carried in edge data.");
