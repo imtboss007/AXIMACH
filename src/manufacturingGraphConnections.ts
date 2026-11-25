@@ -3,6 +3,7 @@ import {
   activeRows, makeId, nowIso,
   type ManufacturingData, type RouteRelationshipRecord, type RouteRelationshipType
 } from "./manufacturingData";
+import { validateOperationResourceAssignments } from "./manufacturingResourceCompatibility.mjs";
 
 export type ManufacturingGraphScope = {
   companyId?:string;
@@ -128,17 +129,38 @@ export function connectManufacturingGraphNodes({
     const operation=sourceOperation||targetOperation!;
     const po=activeRows(data.purchaseOrders).find(row=>row.id===operation.poId);
     const resource=tooling||fixture;
+    const componentRecord=activeRows(data.components||[]).find(row=>row.id===operation.componentId);
+    const operationMachine=operation.machineId?activeRows(data.machines||[]).find(row=>row.id===operation.machineId):undefined;
+    if(operation.executionType==="Outsourced"){
+      onNotice("Outsourced operations cannot reserve company-owned tooling or fixtures.");
+      return;
+    }
     if(!po||resource.companyId!==po.companyId||resource.factoryId!==po.factoryId){
       onNotice("The tooling or fixture must belong to the selected operation's company and factory.");
       return;
     }
+    const nextToolingIds=[...new Set([...(operation.toolingAssetIds||[]),...(tooling?[tooling.id]:[])])];
+    const nextFixtureIds=[...new Set([...(operation.fixtureAssetIds||[]),...(fixture?[fixture.id]:[])])];
+    const resourceCheck=validateOperationResourceAssignments({
+      toolingIds:nextToolingIds,fixtureIds:nextFixtureIds,
+      toolingAssets:activeRows(data.toolingAssets||[]),fixtureAssets:activeRows(data.fixtureAssets||[]),
+      scope:{
+        companyId:po.companyId,factoryId:po.factoryId,machineId:operation.machineId||undefined,machineType:operationMachine?.machineType,
+        processDefinitionId:operation.processDefinitionId,material:componentRecord?.material,componentId:operation.componentId,
+        existingToolingIds:operation.toolingAssetIds||[],existingFixtureIds:operation.fixtureAssetIds||[]
+      }
+    });
+    if(!resourceCheck.ok){
+      onNotice("This tooling or fixture is unavailable, overdue, out of life or incompatible with the operation's machine, process, material or component.");
+      return;
+    }
     if(tooling){
       if((operation.toolingAssetIds||[]).includes(tooling.id)){onNotice(tooling.assetCode+" is already assigned to "+operation.name+".");return;}
-      update(current=>({...current,operations:current.operations.map(row=>row.id===operation.id?{...row,toolingAssetIds:[...new Set([...(row.toolingAssetIds||[]),tooling.id])],updatedAt:nowIso()}:row)}));
+      update(current=>({...current,operations:current.operations.map(row=>row.id===operation.id?{...row,toolingAssetIds:nextToolingIds,updatedAt:nowIso()}:row)}));
       onNotice("Reserved tooling "+tooling.assetCode+" for "+operation.name+". The operation record is updated.");
     }else{
       if((operation.fixtureAssetIds||[]).includes(fixture!.id)){onNotice(fixture!.assetCode+" is already assigned to "+operation.name+".");return;}
-      update(current=>({...current,operations:current.operations.map(row=>row.id===operation.id?{...row,fixtureAssetIds:[...new Set([...(row.fixtureAssetIds||[]),fixture!.id])],updatedAt:nowIso()}:row)}));
+      update(current=>({...current,operations:current.operations.map(row=>row.id===operation.id?{...row,fixtureAssetIds:nextFixtureIds,updatedAt:nowIso()}:row)}));
       onNotice("Reserved fixture "+fixture!.assetCode+" for "+operation.name+". The operation record is updated.");
     }
     return;
@@ -151,9 +173,11 @@ export function connectManufacturingGraphNodes({
       return;
     }
     if(tooling){
+      if((tooling.compatibleMachineIds||[]).includes(machine.id)){onNotice(machine.assetCode+" is already compatible with "+tooling.assetCode+".");return;}
       update(current=>({...current,toolingAssets:(current.toolingAssets||[]).map(row=>row.id===tooling.id?{...row,compatibleMachineIds:[...new Set([...(row.compatibleMachineIds||[]),machine.id])],updatedAt:nowIso()}:row)}));
       onNotice("Linked "+machine.assetCode+" as a compatible machine for tooling "+tooling.assetCode+".");
     }else{
+      if((fixture!.compatibleMachineIds||[]).includes(machine.id)){onNotice(machine.assetCode+" is already compatible with "+fixture!.assetCode+".");return;}
       update(current=>({...current,fixtureAssets:(current.fixtureAssets||[]).map(row=>row.id===fixture!.id?{...row,compatibleMachineIds:[...new Set([...(row.compatibleMachineIds||[]),machine.id])],updatedAt:nowIso()}:row)}));
       onNotice("Linked "+machine.assetCode+" as a compatible machine for fixture "+fixture!.assetCode+".");
     }
@@ -162,9 +186,11 @@ export function connectManufacturingGraphNodes({
 
   if((tooling||fixture)&&process){
     if(tooling){
+      if((tooling.processDefinitionIds||[]).includes(process.id)){onNotice(process.processType+" is already linked to "+tooling.assetCode+".");return;}
       update(current=>({...current,toolingAssets:(current.toolingAssets||[]).map(row=>row.id===tooling.id?{...row,processDefinitionIds:[...new Set([...(row.processDefinitionIds||[]),process.id])],updatedAt:nowIso()}:row)}));
       onNotice("Linked Process Directory definition "+process.processType+" to tooling "+tooling.assetCode+".");
     }else{
+      if((fixture!.processDefinitionIds||[]).includes(process.id)){onNotice(process.processType+" is already linked to "+fixture!.assetCode+".");return;}
       update(current=>({...current,fixtureAssets:(current.fixtureAssets||[]).map(row=>row.id===fixture!.id?{...row,processDefinitionIds:[...new Set([...(row.processDefinitionIds||[]),process.id])],updatedAt:nowIso()}:row)}));
       onNotice("Linked Process Directory definition "+process.processType+" to fixture "+fixture!.assetCode+".");
     }
@@ -173,6 +199,7 @@ export function connectManufacturingGraphNodes({
 
   if(fixture&&component){
     if(component.companyId&&component.companyId!==fixture.companyId){onNotice("This fixture and component belong to different companies.");return;}
+    if((fixture.componentIds||[]).includes(component.id)){onNotice(component.partNumber+" is already linked to "+fixture.assetCode+".");return;}
     update(current=>({...current,fixtureAssets:(current.fixtureAssets||[]).map(row=>row.id===fixture.id?{...row,componentIds:[...new Set([...(row.componentIds||[]),component.id])],updatedAt:nowIso()}:row)}));
     onNotice("Linked component "+(component.partNumber||component.name)+" to fixture "+fixture.assetCode+".");
     return;
