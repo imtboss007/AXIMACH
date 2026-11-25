@@ -273,7 +273,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     });
     fixtureAssets.forEach(row=>{
       const id="fixture:"+row.id;
-      const cycleDetail=row.maxUsageCycles>0?Math.max(0,row.maxUsageCycles-row.usageCycles)+" cycles remaining":"cycles not limited";
+      const cycleDetail=Number(row.maxUsageCycles)>0?Math.max(0,Number(row.maxUsageCycles)-row.usageCycles)+" cycles remaining":"cycles not limited";
       add(id,row.assetCode+" · "+row.name,"Fixture · "+row.fixtureType+" · "+row.status+" · "+cycleDetail+" · inspect "+(row.inspectionDueAt||"not scheduled"),"fixture","companies",{companyId:row.companyId,subtab:"fixtures"});
       edge(id,"factory:"+row.factoryId,"stored at");
       (row.compatibleMachineIds||[]).forEach(machineId=>edge(id,"machine:"+machineId,"compatible machine"));
@@ -405,7 +405,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
     const visibleEdges=filteredEdges.filter(item=>visibleIds.has(item.from)&&visibleIds.has(item.to));
     const availableCounts:Record<NodeKind,number>={
       company:companies.length,customer:customers.length,factory:factories.length,machine:machines.length,order:orders.length,component:components.length,
-      maintenance:maintenancePlans.length+maintenanceWorkOrders.length,downtime:machineDowntime.length,
+      maintenance:maintenancePlans.length+maintenanceWorkOrders.length,downtime:machineDowntime.length,tooling:toolingAssets.length,fixture:fixtureAssets.length,resourceEvent:resourceUsageEvents.length,
       vendor:vendors.length,process:definitions.length,operation:operations.length,material:allocations.length+materialProcessLinks.length,
       quality:inspections.length,transport:legs.length+inboundMaterialTransportCount,finance:payments.length,contact:contacts.length
     };
