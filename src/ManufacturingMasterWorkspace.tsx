@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ExcelJS from "exceljs";
-import { ArrowRight, Building2, CalendarClock, Check, CircleDollarSign, Edit3, Factory, FileDown, FileText, Package, Plus, Search, Trash2, X } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type FactoryRecord, type PurchaseOrderLine, type PurchaseOrderRecord } from "./manufacturingData";
+import { ArrowRight, Building2, CalendarClock, Check, CircleDollarSign, Cog, Edit3, Factory, FileDown, FileText, Package, Plus, Search, Trash2, X } from "lucide-react";
+import { activeRows, makeId, nowIso, useManufacturingData, type CompanyRecord, type ComponentRecord, type FactoryRecord, type MachineRecord, type MachineStatus, type PurchaseOrderLine, type PurchaseOrderRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon } from "./IconStudio";
@@ -48,6 +48,12 @@ type Props = {
 
 const blankCompany = (): Omit<CompanyRecord, "id" | "createdAt" | "updatedAt" | "deletedAt"> => ({ name: "", gstin: "", contactPerson: "", phone: "", email: "", address: "", notes: "" });
 const blankFactory = (): Omit<FactoryRecord, "id" | "createdAt" | "updatedAt" | "deletedAt"> => ({ companyId: "", name: "", address: "", contactPhone: "" });
+const blankMachine = (): Omit<MachineRecord,"id"|"createdAt"|"updatedAt"|"deletedAt"> => ({
+  companyId:"",factoryId:"",assetCode:"",name:"",machineType:"",manufacturer:"",model:"",serialNumber:"",controller:"",
+  axisCount:3,workEnvelopeXmm:0,workEnvelopeYmm:0,workEnvelopeZmm:0,spindleMaxRpm:0,positioningAccuracyMicron:0,maxWorkpieceWeightKg:0,
+  processDefinitionIds:[],materialCapabilities:[],status:"Available",commissionedAt:"",nextMaintenanceAt:"",notes:""
+});
+const MACHINE_STATUSES:MachineStatus[]=["Available","Running","Planned maintenance","Under maintenance","Breakdown","Retired"];
 const blankComponent = (): Omit<ComponentRecord, "id" | "createdAt" | "updatedAt" | "deletedAt"> => ({
   companyId: "", partNumber: "", name: "", revision: "", drawingReference: "", notes: "",
   salePrice: 0, salePriceUnit: "piece",
@@ -63,13 +69,17 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const { data, update, syncStatus } = useManufacturingData();
   const companies = activeRows(data.companies);
   const factories = activeRows(data.factories);
+  const machines = activeRows(data.machines || []);
+  const processDefinitions = activeRows(data.processDefinitions || []);
   const components = activeRows(data.components);
   const componentParts = activeRows(data.componentParts || []);
   const orders = activeRows(data.purchaseOrders);
-  const [tab, setTab] = useState<"companies" | "factories">(moduleId === "companies" ? "companies" : "companies");
+  const [tab, setTab] = useState<"companies" | "factories" | "machines">("companies");
   const [search, setSearch] = useState("");
   const [companyDraft, setCompanyDraft] = useState(blankCompany);
   const [factoryDraft, setFactoryDraft] = useState(blankFactory);
+  const [machineDraft, setMachineDraft] = useState(blankMachine);
+  const [machineEditingId, setMachineEditingId] = useState("");
   const [componentDraft, setComponentDraft] = useState(blankComponent);
   const [poDraft, setPoDraft] = useState(blankPO);
   const [poLines, setPoLines] = useState<Array<PurchaseOrderLine>>([]);
@@ -186,12 +196,13 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
 
   const resetForms = () => {
     setShowForm(false); setCompanyEditingId(""); setFactoryEditingId(""); setComponentEditingId(""); setPoEditingId("");
-    setCompanyDraft(blankCompany()); setFactoryDraft(blankFactory()); setComponentDraft(blankComponent()); setPoDraft(blankPO()); setPoLines([]);
+    setCompanyDraft(blankCompany()); setFactoryDraft(blankFactory()); setMachineDraft(blankMachine()); setMachineEditingId(""); setComponentDraft(blankComponent()); setPoDraft(blankPO()); setPoLines([]);
   };
   const beginAdd = () => {
     resetForms();
     if (moduleId === "companies") {
       if (tab === "factories") { setFactoryDraft({ ...blankFactory(), companyId: selectedCompanyId || companies[0]?.id || "" }); }
+      if (tab === "machines") { const companyId=selectedCompanyId || companies[0]?.id || ""; setMachineDraft({...blankMachine(),companyId,factoryId:factories.find(factory=>factory.companyId===companyId)?.id||""}); }
     }
     if (moduleId === "purchasing") setPoLines([{ ...blankLine(), id: makeId("line") }]);
     setShowForm(true);
