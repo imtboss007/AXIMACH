@@ -64,7 +64,8 @@ const GROUPS: Array<{kind:NodeKind;title:string;moduleId:string;color:string}> =
   {kind:"contact",title:"Contacts",moduleId:"contact360",color:"var(--ax-theme-graph-6,#648b91)"}
 ];
 
-function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {\n  const connectable=data.kind==="operation";
+function EcosystemEntityFlowNode({data}:NodeProps<EcosystemEntityNode>) {
+  const connectable=data.kind==="operation";
   return <div className="ax-ecosystem-flow-node" style={{"--node-accent":data.accent} as CSSProperties}>
     <Handle id="target-top" type="target" position={Position.Top} isConnectable={connectable}/>
     <Handle id="target-bottom" type="target" position={Position.Bottom} isConnectable={connectable}/>
@@ -107,7 +108,8 @@ const GRAPH_PREFERENCES_KEY = "aximach.manufacturing-ecosystem-graph.preferences
 const VALID_GROUP_KINDS = GROUPS.map(group => group.kind);
 const GRAPH_LAYOUT_KEY = "aximach.manufacturing-ecosystem-graph.layout.v2";
 
-export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:Props) {\n  const [relationshipType,setRelationshipType]=useState("main");
+export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:Props) {
+  const [relationshipType,setRelationshipType]=useState("main");
   const [graphPreferences,setGraphPreferences]=useState<EcosystemGraphPreferences<NodeKind>>(() => {
     try {
       const loaded=loadEcosystemGraphPreferences(
@@ -373,7 +375,8 @@ export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:
       const rows=[["record_type","id","label","entity_type","module","detail","from_id","to_id","relationship"]];
       graph.nodes.forEach(node=>rows.push(["node",node.id,node.label,node.kind,node.moduleId,node.detail,"","",""]));
       graph.edges.forEach(edge=>rows.push(["relationship",edge.id,"","", "", "",edge.from,edge.to,edge.kind]));
-      body=rows.map(row=>row.map(quote).join(",")).join("\r\n");
+      body=rows.map(row=>row.map(quote).join(",")).join("\r
+");
       mime="text/csv;charset=utf-8";
     }else{
       // Standalone SVG: resolve Theme Studio colours before download, not CSS var()
@@ -454,7 +457,8 @@ export default function ManufacturingEcosystemGraph({data,onNavigate,onConnect}:
         <span>Show more {group.title}</span><b>{group.renderedCount} / {group.count}</b>
       </button>)}
     </div>
-    <div className="ax-ecosystem-connect-tools"><label>New operation connection<select aria-label="New operation connection type" value={relationshipType} onChange={event=>setRelationshipType(event.target.value)}>{["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"].map(kind=><option key={kind} value={kind}>{kind}</option>)}</select></label><small>Drag from one operation node handle to another. Other entity types remain read-only.</small></div>\n    <div className="ax-ecosystem-edge-legend" aria-label="Relationship line colour legend">{EDGE_LEGEND.map(item=><span key={item.label}><i style={{background:item.color}}/>{item.label}</span>)}</div>
+    <div className="ax-ecosystem-connect-tools"><label>New operation connection<select aria-label="New operation connection type" value={relationshipType} onChange={event=>setRelationshipType(event.target.value)}>{["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"].map(kind=><option key={kind} value={kind}>{kind}</option>)}</select></label><small>Drag from one operation node handle to another. Other entity types remain read-only.</small></div>
+    <div className="ax-ecosystem-edge-legend" aria-label="Relationship line colour legend">{EDGE_LEGEND.map(item=><span key={item.label}><i style={{background:item.color}}/>{item.label}</span>)}</div>
     <RouteConnectorLegend compact/>
     <div className="ax-ecosystem-flow-canvas" data-testid="ecosystem-flow-canvas" aria-label="Interactive manufacturing relationship canvas">
       <ManufacturingGraphCanvas
