@@ -450,15 +450,15 @@ export function validateManufacturingWrite(currentData, incoming, user) {
    if(machineTypes.length&&(!machine||!machineTypes.includes(machine.machineType)))return false;
    if(processIds.length&&(!operation.processDefinitionId||!processIds.includes(operation.processDefinitionId)))return false;
    if(materials.length&&(!component?.material||!materials.some(value=>String(value).toLowerCase()===String(component.material).toLowerCase())))return false;
-   if((Number(asset.toolLifeLimitMinutes)>0&&Number(asset.toolLifeUsedMinutes)>=Number(asset.toolLifeLimitMinutes))||(Number(asset.toolLifeLimitCycles)>0&&Number(asset.toolLifeUsedCycles)>=Number(asset.toolLifeLimitCycles)))return false;
-   if(asset.inspectionDueAt&&validIsoDate(asset.inspectionDueAt)&&asset.inspectionDueAt<new Date().toISOString().slice(0,10))return false;
+   if(!previouslyAssigned&&((Number(asset.toolLifeLimitMinutes)>0&&Number(asset.toolLifeUsedMinutes)>=Number(asset.toolLifeLimitMinutes))||(Number(asset.toolLifeLimitCycles)>0&&Number(asset.toolLifeUsedCycles)>=Number(asset.toolLifeLimitCycles))))return false;
+   if(!previouslyAssigned&&asset.inspectionDueAt&&validIsoDate(asset.inspectionDueAt)&&asset.inspectionDueAt<new Date().toISOString().slice(0,10))return false;
    if(hasOverlap("tooling",id))return false;
   }
   for(const id of fixtureIds){
    const asset=fixtureById.get(id);
    if(!asset||asset.deletedAt||!po||asset.companyId!==po.companyId||asset.factoryId!==po.factoryId)return false;
    const previouslyAssigned=Array.isArray(prior?.fixtureAssetIds)&&prior.fixtureAssetIds.includes(id);
-   if(asset.status!=="Available"&&!(previouslyAssigned&&asset.status==="Under maintenance"))return false;
+   if(asset.status!=="Available"&&!(previouslyAssigned&&["In use","Under maintenance"].includes(asset.status)))return false;
    const machineIds=Array.isArray(asset.compatibleMachineIds)?asset.compatibleMachineIds:[];
    const machineTypes=Array.isArray(asset.machineTypeCapabilities)?asset.machineTypeCapabilities:[];
    const processIds=Array.isArray(asset.processDefinitionIds)?asset.processDefinitionIds:[];
@@ -467,8 +467,8 @@ export function validateManufacturingWrite(currentData, incoming, user) {
    if(machineTypes.length&&(!machine||!machineTypes.includes(machine.machineType)))return false;
    if(processIds.length&&(!operation.processDefinitionId||!processIds.includes(operation.processDefinitionId)))return false;
    if(componentIds.length&&!componentIds.includes(operation.componentId))return false;
-   if(asset.inspectionDueAt&&validIsoDate(asset.inspectionDueAt)&&asset.inspectionDueAt<new Date().toISOString().slice(0,10))return false;
-   if(Number(asset.maxUsageCycles)>0&&Number(asset.usageCycles)>=Number(asset.maxUsageCycles))return false;
+   if(!previouslyAssigned&&asset.inspectionDueAt&&validIsoDate(asset.inspectionDueAt)&&asset.inspectionDueAt<new Date().toISOString().slice(0,10))return false;
+   if(!previouslyAssigned&&Number(asset.maxUsageCycles)>0&&Number(asset.usageCycles)>=Number(asset.maxUsageCycles))return false;
    if(hasOverlap("fixture",id))return false;
   }
   return true;
