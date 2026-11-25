@@ -14,6 +14,7 @@ type Props<TNode extends Node = Node> = {
   nodeTypes?:NodeTypes;
   edgeTypes?:EdgeTypes;
   fitView?:boolean;
+  defaultViewport?:{x:number;y:number;zoom:number};
   fitViewOptions?:{padding?:number;minZoom?:number;maxZoom?:number;duration?:number};
   minZoom?:number;
   maxZoom?:number;
@@ -41,7 +42,7 @@ type Props<TNode extends Node = Node> = {
 
 /** Shared React Flow canvas used by Route Flow, Process Map and Manufacturing Universe. */
 export function ManufacturingGraphCanvas<TNode extends Node = Node>({
-  nodes,edges,nodeTypes,edgeTypes=DEFAULT_MANUFACTURING_EDGE_TYPES,fitView=true,fitViewOptions,minZoom=.14,maxZoom=2,
+  nodes,edges,nodeTypes,edgeTypes=DEFAULT_MANUFACTURING_EDGE_TYPES,fitView=true,defaultViewport,fitViewOptions,minZoom=.14,maxZoom=2,
   nodesDraggable=false,nodesConnectable=false,elementsSelectable=false,nodesFocusable=true,edgesFocusable=false,
   panOnDrag=true,zoomOnScroll=false,zoomOnPinch=true,zoomOnDoubleClick=false,
   onNodesChange,onConnect,onNodeDragStop,onNodeClick,onPaneClick,minimapNodeColor,children,className,style,testId,ariaLabel
@@ -67,6 +68,7 @@ export function ManufacturingGraphCanvas<TNode extends Node = Node>({
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView={fitView}
+        defaultViewport={defaultViewport}
         fitViewOptions={fitViewOptions}
         minZoom={minZoom}
         maxZoom={maxZoom}
