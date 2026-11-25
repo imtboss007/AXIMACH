@@ -3,7 +3,7 @@ import { Activity, AlertTriangle, CalendarClock, Check, ClipboardCheck, Clock3, 
 import {
   activeRows, makeId, nowIso,
   type MachineRecord, type MachineMaintenancePlanRecord, type MachineMaintenanceWorkOrderRecord,
-  type MachineDowntimeRecord, type MachineMaintenancePlanType, type MachineMaintenanceWorkType,
+  type MachineDowntimeRecord, type MaintenancePlanType as MachineMaintenancePlanType, type MachineMaintenanceWorkType,
   type MachineMaintenancePriority, type MachineMaintenanceWorkStatus, type MachineDowntimeType,
   type ManufacturingData, type OperationRecord
 } from "./manufacturingData";
@@ -145,12 +145,12 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
       onNotice("Add a scheduled start and end before planning this work order.");return;
     }
     const stamp=nowIso();
-    const updated={...order,status,actualStart:status==="In progress"?(order.actualStart||stamp):order.actualStart,
-      actualEnd:status==="Completed"?(order.actualEnd||stamp):status==="Cancelled"?order.actualEnd:"",
+    const updated={...order,status,
       actualStart:status==="Completed"?(order.actualStart||order.reportedAt||stamp):status==="In progress"?(order.actualStart||stamp):order.actualStart,
+      actualEnd:status==="Completed"?(order.actualEnd||stamp):status==="Cancelled"?order.actualEnd:"",
       updatedAt:stamp
     };
-    if(status==="Completed"&&updated.actualStart&&Date.parse(updated.actualEnd)<=Date.parse(updated.actualStart)){
+    if(status==="Completed"&&updated.actualStart&&updated.actualEnd&&Date.parse(updated.actualEnd)<=Date.parse(updated.actualStart)){
       onNotice("Work order completion time must be after its recorded start.");return;
     }
     update(current=>{
