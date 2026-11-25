@@ -386,7 +386,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
         sourceHandle:geometry.sourceHandle,
         targetHandle:geometry.targetHandle,
         type:geometry.edgeType,
-        data:{relationshipType:link.kind,layout:"organic",parallelIndex,pathOptions:geometry.pathOptions},
+        data:{relationshipType:link.kind,layout:"organic",parallelIndex,pathOptions:geometry.pathOptions,flowMotion:["main","alternate","rework","transport","feeds operation","allocated to"].includes(link.kind)},
         label:routeType?link.kind.replaceAll("-"," ").toUpperCase():undefined,
         labelStyle:{fontSize:8,fontWeight:750,fill:"#50677d"},
         labelBgStyle:{fill:"#ffffff",fillOpacity:.92},
@@ -394,7 +394,7 @@ export default function ManufacturingEcosystemGraph({data,scope,onNavigate,onCon
         selectable:false,
         focusable:false,
         style:{stroke:color,strokeWidth:routeType?2.4:1.8,opacity:.9,...(/^(alternate|rework|dependency|parallel|split|feedback|conditional)$/.test(link.kind)?{strokeDasharray:"7 4"}:{})},
-        markerEnd:{type:MarkerType.ArrowClosed,color}
+        markerEnd:{type:MarkerType.ArrowClosed,color,width:18,height:18}
       };
     });
     return relationships;
