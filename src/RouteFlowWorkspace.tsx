@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Handle, MarkerType, Position, useReactFlow } from "@xyflow/react";
-import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
+import type { Connection, Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
 import "@xyflow/react/style.css";
 import { useReducedMotion } from "motion/react";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
@@ -515,6 +515,21 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     setRelationshipCondition("");setRelationshipNotes("");setShowRelationshipEditor(false);
     onNotice(relationLabel(relationshipType)+" connection saved between "+from.name+" and "+to.name+".");
   };
+  // n8n-style drag-to-connect: only saved process-operation nodes may create
+  // typed PO-line relationships. Materials and transport keep their own editors.
+  const connectRouteNodes=(connection:Connection)=>{
+    const fromId=connection.source||"",toId=connection.target||"";
+    if(!poId||!poLineId){onNotice("Select a company, PO and component line before connecting route nodes.");return;}
+    if(!fromId||!toId||fromId===toId){onNotice("Connect two different process nodes.");return;}
+    const from=routeOperations.find(row=>row.id===fromId),to=routeOperations.find(row=>row.id===toId);
+    if(!from||!to){onNotice("Only process-operation nodes can be connected here. Use the material or transport editor for those stages.");return;}
+    const existing=relationships.find(row=>row.fromOperationId===fromId&&row.toOperationId===toId&&row.relationshipType===relationshipType&&row.status!=="Disabled");
+    if(existing){onNotice("That "+relationLabel(relationshipType).toLowerCase()+" connection already exists.");return;}
+    const stamp=nowIso();
+    const record:RouteRelationshipRecord={id:makeId("route-relationship"),poId,poLineId,componentId,fromOperationId:fromId,toOperationId:toId,relationshipType,status:relationshipStatus,condition:relationshipCondition.trim(),label:relationLabel(relationshipType),notes:"Created by dragging a connector in the Route Flow graph.",createdAt:stamp,updatedAt:stamp};
+    update(current=>({...current,routeRelationships:[...(current.routeRelationships||[]),record]}));
+    onNotice("Saved "+relationLabel(relationshipType)+" connection: "+from.name+" → "+to.name+".");
+  };
   const disableRelationship=(record:RouteRelationshipRecord)=>{
     const stamp=nowIso();
     update(current=>({...current,routeRelationships:(current.routeRelationships||[]).map(row=>row.id===record.id?{...row,status:"Disabled" as const,updatedAt:stamp}:row)}));
@@ -697,7 +712,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         </div>}
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:routeCanvasMode==="graph"?
       <div className="route-flow-graph-canvas" data-testid="route-flow-react-canvas">
-        <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Pinch / wheel to zoom · drag canvas to pan · use Fit in controls</small></div>
+        <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Drag nodes to arrange · drag from a node handle to another to save a connection · pinch / wheel to zoom</small></div>
         <RouteConnectorLegend/>
         <ManufacturingGraphCanvas
           nodes={routeFlowGraph.nodes}
@@ -707,8 +722,9 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           fitViewOptions={{padding:.14,minZoom:.16,maxZoom:1.35}}
           minZoom={.12}
           maxZoom={2.8}
-          nodesDraggable={false}
-          nodesConnectable={false}
+          nodesDraggable
+          nodesConnectable
+          onConnect={connectRouteNodes}
           nodesFocusable
           panOnDrag
           zoomOnScroll
