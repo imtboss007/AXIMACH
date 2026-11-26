@@ -63,3 +63,51 @@ test("BOM issue plan refuses incomplete ownership and cannot borrow another fact
  assert.equal(plan[0].shortage,5);
  assert.deepEqual(buildBomMaterialIssuePlan({bomLines:[],materials:[],transactions:[],po:{id:"po"},line:{id:"line"},component:{id:"component-1"}}),[]);
 });
+
+test("actual consumption uses operation-specific issues before the shared unassigned issue pool",()=>{
+ const po={id:"po-consume",companyId:"c1",factoryId:"f1"};
+ const line={id:"line-consume",componentId:"component-consume",partId:"part-consume",quantity:100};
+ const component={id:"component-consume",revision:"C"};
+ const operationA={id:"op-a",poId:po.id,poLineId:line.id,componentId:component.id};
+ const operationB={id:"op-b",poId:po.id,poLineId:line.id,componentId:component.id};
+ const material={id:"mat-a",unit:"kg"};
+ const bomLine={id:"bom-a",componentId:component.id,partId:line.partId,materialId:material.id,quantityPerPart:1,scrapPercent:10};
+ const transactions=[
+  {id:"issue-a",itemType:"material",itemId:"mat-a",transactionType:"Issue to production",direction:"out",quantity:40,companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,operationId:"op-a"},
+  {id:"issue-b",itemType:"material",itemId:"mat-a",transactionType:"Issue to production",direction:"out",quantity:20,companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,operationId:"op-b"},
+  {id:"issue-shared",itemType:"material",itemId:"mat-a",transactionType:"Issue to production",direction:"out",quantity:50,companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,operationId:""},
+  {id:"issue-other-company",itemType:"material",itemId:"mat-a",transactionType:"Issue to production",direction:"out",quantity:900,companyId:"c2",factoryId:"f1",poId:po.id,poLineId:line.id,operationId:"op-a"}
+ ];
+ const consumption=[
+  {id:"use-a",companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,componentId:component.id,bomLineId:"bom-a",materialId:"mat-a",operationId:"op-a",consumedQuantity:20,scrapQuantity:2,returnedQuantity:5},
+  {id:"use-b",companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,componentId:component.id,bomLineId:"bom-b",materialId:"mat-a",operationId:"op-b",consumedQuantity:20,scrapQuantity:1,returnedQuantity:5}
+ ];
+ const link={id:"mpl-a",companyId:"c1",poId:po.id,poLineId:line.id,componentId:component.id,bomLineId:bomLine.id,materialId:material.id,operationId:operationA.id,quantityPerPart:.8,flowType:"Material input"};
+ const plan=buildMaterialConsumptionPlan({po,line,component,operation:operationA,bomLine,material,materialProcessLinks:[link],inventoryTransactions:transactions,materialConsumptions:consumption});
+ assert.equal(plan.plannedQuantity,80);
+ assert.equal(plan.issuedQuantityAtRecord,60);
+ assert.equal(plan.availableToReconcile,60);
+ assert.equal(plan.priorConsumed,20);
+ assert.equal(plan.priorScrap,2);
+ assert.equal(plan.priorReturned,5);
+ assert.equal(plan.variance,-60);
+ assert.deepEqual(plan.materialProcessLinkIds,["mpl-a"]);
+});
+test("actual consumption validation counts scrap within consumed quantity and prevents over-reconciliation",()=>{
+ const plan={availableToReconcile:10};
+ assert.deepEqual(validateMaterialConsumptionQuantities(plan,7,2,3),{ok:true,reason:""});
+ assert.equal(validateMaterialConsumptionQuantities(plan,7,8,0).reason,"scrap-exceeds-consumption");
+ assert.equal(validateMaterialConsumptionQuantities(plan,9,1,2).reason,"exceeds-issued-available");
+ assert.equal(validateMaterialConsumptionQuantities(plan,0,0,0).reason,"empty-reconciliation");
+});
+test("actual consumption cannot borrow another factory's or another PO line's issue",()=>{
+ const po={id:"po-c2",companyId:"c1",factoryId:"f1"},line={id:"line-c2",componentId:"cmp-c2",quantity:10},component={id:"cmp-c2",revision:"A"};
+ const operation={id:"op-c2",poId:po.id,poLineId:line.id,componentId:component.id};
+ const bomLine={id:"bom-c2",componentId:component.id,materialId:"mat-c2",quantityPerPart:1,scrapPercent:0};
+ const material={id:"mat-c2",unit:"kg"};
+ const plan=buildMaterialConsumptionPlan({po,line,component,operation,bomLine,material,inventoryTransactions:[
+  {id:"other-factory",itemType:"material",itemId:"mat-c2",transactionType:"Issue to production",direction:"out",quantity:50,companyId:"c1",factoryId:"f2",poId:po.id,poLineId:line.id,operationId:operation.id},
+  {id:"other-po-line",itemType:"material",itemId:"mat-c2",transactionType:"Issue to production",direction:"out",quantity:50,companyId:"c1",factoryId:"f1",poId:po.id,poLineId:"another-line",operationId:operation.id}
+ ]});
+ assert.equal(plan.availableToReconcile,0);
+});
