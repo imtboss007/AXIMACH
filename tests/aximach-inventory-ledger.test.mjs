@@ -111,3 +111,38 @@ test("actual consumption cannot borrow another factory's or another PO line's is
  ]});
  assert.equal(plan.availableToReconcile,0);
 });
+
+test("manual stock returns reduce the operation and shared issue pool exactly once",()=>{
+ const po={id:"po-manual-return",companyId:"c1",factoryId:"f1"};
+ const line={id:"line-manual-return",componentId:"component-manual-return",quantity:10};
+ const component={id:"component-manual-return",revision:"A"};
+ const operation={id:"op-manual-return",poId:po.id,poLineId:line.id,componentId:component.id};
+ const bomLine={id:"bom-manual-return",componentId:component.id,materialId:"mat-manual-return",quantityPerPart:1,scrapPercent:0};
+ const material={id:"mat-manual-return",unit:"kg"};
+ const transactions=[
+  {id:"issue-direct",itemType:"material",itemId:material.id,transactionType:"Issue to production",direction:"out",quantity:40,companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,operationId:operation.id},
+  {id:"return-direct",itemType:"material",itemId:material.id,transactionType:"Return",direction:"in",quantity:5,companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,operationId:operation.id},
+  {id:"issue-shared",itemType:"material",itemId:material.id,transactionType:"Issue to production",direction:"out",quantity:30,companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,operationId:""},
+  {id:"return-shared",itemType:"material",itemId:material.id,transactionType:"Return",direction:"in",quantity:4,companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,operationId:""}
+ ];
+ const plan=buildMaterialConsumptionPlan({po,line,component,operation,bomLine,material,inventoryTransactions:transactions});
+ assert.equal(plan.directIssued,35);
+ assert.equal(plan.unassignedIssued,26);
+ assert.equal(plan.availableToReconcile,61);
+});
+test("a consumption-linked return is counted from its consumption record and not subtracted twice",()=>{
+ const po={id:"po-return-linked",companyId:"c1",factoryId:"f1"};
+ const line={id:"line-return-linked",componentId:"component-return-linked",quantity:10};
+ const component={id:"component-return-linked",revision:"A"};
+ const operation={id:"op-return-linked",poId:po.id,poLineId:line.id,componentId:component.id};
+ const bomLine={id:"bom-return-linked",componentId:component.id,materialId:"mat-return-linked",quantityPerPart:1,scrapPercent:0};
+ const material={id:"mat-return-linked",unit:"kg"};
+ const issue={id:"issue-return-linked",itemType:"material",itemId:material.id,transactionType:"Issue to production",direction:"out",quantity:40,companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,operationId:operation.id};
+ const consumption={id:"use-return-linked",companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,componentId:component.id,bomLineId:bomLine.id,materialId:material.id,operationId:operation.id,consumedQuantity:20,scrapQuantity:2,returnedQuantity:5};
+ const returnTx={id:"return-linked",itemType:"material",itemId:material.id,transactionType:"Return",direction:"in",quantity:5,companyId:"c1",factoryId:"f1",poId:po.id,poLineId:line.id,operationId:operation.id,sourceConsumptionId:consumption.id};
+ const plan=buildMaterialConsumptionPlan({po,line,component,operation,bomLine,material,inventoryTransactions:[issue,returnTx],materialConsumptions:[consumption]});
+ assert.equal(plan.directIssued,40);
+ assert.equal(plan.priorConsumed,20);
+ assert.equal(plan.priorReturned,5);
+ assert.equal(plan.availableToReconcile,15);
+});
