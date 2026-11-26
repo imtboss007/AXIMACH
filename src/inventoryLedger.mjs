@@ -50,3 +50,86 @@ export function buildBomMaterialIssuePlan({
   };
  });
 }
+
+
+/**
+ * Reconcile actual material use without deducting stock a second time.
+ * Issue-to-production transactions have already reduced warehouse stock.
+ * This helper allocates operation-specific issues first and then a shared
+ * unassigned issue pool, so two operations cannot consume the same issue.
+ */
+export function buildMaterialConsumptionPlan({
+ po,line,component,operation,bomLine,material,materialProcessLinks=[],
+ inventoryTransactions=[],materialConsumptions=[]
+}={}){
+ if(!po?.id||!po.companyId||!po.factoryId||!line?.id||!component?.id||
+    !operation?.id||!bomLine?.id||!material?.id||
+    line.componentId!==component.id||bomLine.componentId!==component.id||
+    bomLine.materialId!==material.id||operation.poId!==po.id||
+    operation.poLineId!==line.id||operation.componentId!==component.id)return null;
+ if(bomLine.revision&&bomLine.revision!==component.revision)return null;
+ if(line.partId&&bomLine.partId&&line.partId!==bomLine.partId)return null;
+ const links=asRows(materialProcessLinks).filter(row=>
+  row&&!row.deletedAt&&row.companyId===po.companyId&&row.poId===po.id&&row.poLineId===line.id&&
+  row.componentId===component.id&&row.bomLineId===bomLine.id&&row.materialId===material.id&&
+  row.operationId===operation.id&&["Material input","Consumable"].includes(row.flowType)
+ );
+ const plannedQuantity=links.length
+  ?links.reduce((sum,row)=>sum+finiteQuantity(row.quantityPerPart)*finiteQuantity(line.quantity),0)
+  :finiteQuantity(bomLine.quantityPerPart)*(1+finiteQuantity(bomLine.scrapPercent)/100)*finiteQuantity(line.quantity);
+ const scopeMatch=row=>row&&!row.deletedAt&&row.companyId===po.companyId&&row.factoryId===po.factoryId&&
+  row.poId===po.id&&row.poLineId===line.id&&row.itemType==="material"&&row.itemId===material.id;
+ const issues=asRows(inventoryTransactions).filter(row=>
+  scopeMatch(row)&&row.transactionType==="Issue to production"&&row.direction==="out"
+ );
+ const directIssued=issues.filter(row=>row.operationId===operation.id).reduce((sum,row)=>sum+finiteQuantity(row.quantity),0);
+ const unassignedIssued=issues.filter(row=>!row.operationId).reduce((sum,row)=>sum+finiteQuantity(row.quantity),0);
+ const usageRows=asRows(materialConsumptions).filter(row=>
+  row&&!row.deletedAt&&row.companyId===po.companyId&&row.factoryId===po.factoryId&&
+  row.poId===po.id&&row.poLineId===line.id&&row.componentId===component.id&&row.materialId===material.id
+ );
+ const usedByOperation=new Map();
+ for(const row of usageRows){
+  const key=row.operationId||"";
+  usedByOperation.set(key,(usedByOperation.get(key)||0)+finiteQuantity(row.consumedQuantity)+finiteQuantity(row.returnedQuantity));
+ }
+ const issuedByOperation=new Map();
+ for(const row of issues){
+  const key=row.operationId||"";
+  if(key)issuedByOperation.set(key,(issuedByOperation.get(key)||0)+finiteQuantity(row.quantity));
+ }
+ let allocatedFromSharedPool=0;
+ for(const [operationId,used] of usedByOperation){
+  allocatedFromSharedPool+=Math.max(0,used-(issuedByOperation.get(operationId)||0));
+ }
+ const availableSharedPool=Math.max(0,unassignedIssued-allocatedFromSharedPool);
+ const priorAllocatedForOperation=usedByOperation.get(operation.id)||0;
+ const availableDirectForOperation=Math.max(0,directIssued-priorAllocatedForOperation);
+ const availableToReconcile=availableDirectForOperation+availableSharedPool;
+ const selectedUsage=usageRows.filter(row=>row.operationId===operation.id&&row.bomLineId===bomLine.id);
+ const priorConsumed=selectedUsage.reduce((sum,row)=>sum+finiteQuantity(row.consumedQuantity),0);
+ const priorScrap=selectedUsage.reduce((sum,row)=>sum+finiteQuantity(row.scrapQuantity),0);
+ const priorReturned=selectedUsage.reduce((sum,row)=>sum+finiteQuantity(row.returnedQuantity),0);
+ return {
+  plannedQuantity,issuedQuantityAtRecord:availableToReconcile,availableToReconcile,
+  directIssued,unassignedIssued,availableDirectForOperation,availableSharedPool,
+  priorConsumed,priorScrap,priorReturned,
+  variance:priorConsumed-plannedQuantity,
+  materialProcessLinkIds:links.map(row=>row.id),
+  unit:material.unit||bomLine.unit||"kg"
+ };
+}
+
+export function validateMaterialConsumptionQuantities(plan,consumedValue,scrapValue,returnedValue){
+ if(!plan||!Number.isFinite(Number(plan.availableToReconcile))||Number(plan.availableToReconcile)<0)
+  return {ok:false,reason:"invalid-consumption-context"};
+ const consumed=Number(consumedValue),scrap=Number(scrapValue),returned=Number(returnedValue);
+ if(!Number.isFinite(consumed)||consumed<0||!Number.isFinite(scrap)||scrap<0||
+    !Number.isFinite(returned)||returned<0)
+  return {ok:false,reason:"invalid-quantities"};
+ if(scrap>consumed+1e-9)return {ok:false,reason:"scrap-exceeds-consumption"};
+ if(consumed+returned<=0)return {ok:false,reason:"empty-reconciliation"};
+ if(consumed+returned>Number(plan.availableToReconcile)+1e-9)
+  return {ok:false,reason:"exceeds-issued-available"};
+ return {ok:true,reason:""};
+}
