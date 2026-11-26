@@ -51,8 +51,9 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule,i
   setPoFilters(contextPoId?[contextPoId]:[]);
   setComponentFilters(contextComponentId?[contextComponentId]:[]);
   setJobStatusFilters([]);
-  const contextLine=initialContext?.poId&&initialContext?.poLineId?rows.find(row=>row.po.id===initialContext.poId&&row.line.id===initialContext.poLineId):undefined;
-  if(contextLine)setAssignmentPoLineKey(contextLine.po.id+"::"+contextLine.line.id);
+  const contextLinePo=pos.find(po=>po.id===contextPoId);
+  const contextLine=contextLinePo?.lines.find(line=>line.id===contextLineId&&!line.deletedAt);
+  if(contextLine&&contextLinePo)setAssignmentPoLineKey(contextLinePo.id+"::"+contextLine.id);
   if(initialContext?.operationId)setAssignmentOperationId(initialContext.operationId);
  },[initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.componentId,initialContext?.operationId]);
 
