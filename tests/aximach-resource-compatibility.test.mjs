@@ -79,3 +79,40 @@ test("existing operation retains its tool and fixture links after life or inspec
  });
  assert.equal(newOperation.ok,false);
 });
+
+test("resource usage events are idempotent by event ID and must match the selected asset",()=>{
+ const event={id:"evt-duplicate",resourceId:"t1",resourceType:"tooling",eventType:"Production use",runtimeMinutes:10,cycles:0,occurredAt:"2026-11-25T12:00:00.000Z"};
+ assert.throws(()=>applyResourceUsageEvent(tooling[0],event,[{id:"evt-duplicate"}]),/already been applied/);
+ assert.throws(()=>applyResourceUsageEvent(tooling[0],{...event,id:"evt-other",resourceId:"another-tool"}),/does not match/);
+ assert.throws(()=>applyResourceUsageEvent(tooling[0],{...event,id:"evt-invalid",eventType:"Unknown"}),/not valid/);
+});
+test("production usage requires measurable runtime or cycles and cannot continue after a life limit",()=>{
+ assert.throws(()=>applyResourceUsageEvent(tooling[0],{resourceType:"tooling",eventType:"Production use",runtimeMinutes:0,cycles:0}),/positive runtime or production cycles/);
+ assert.throws(()=>applyResourceUsageEvent({...tooling[0],toolLifeUsedMinutes:100},{resourceType:"tooling",eventType:"Production use",runtimeMinutes:1,cycles:0}),/life limit has already been reached/);
+ assert.throws(()=>applyResourceUsageEvent({...fixtures[0],usageCycles:100},{resourceType:"fixture",eventType:"Production use",runtimeMinutes:30,cycles:1}),/usage limit has already been reached/);
+ assert.throws(()=>applyResourceUsageEvent(fixtures[0],{resourceType:"fixture",eventType:"Production use",runtimeMinutes:30,cycles:0}),/positive production cycles/);
+});
+test("repair and inspection cannot bypass an exhausted tooling or fixture life limit",()=>{
+ const exhaustedTool={...tooling[0],status:"Under maintenance",toolLifeUsedMinutes:100};
+ const inspectedTool=applyResourceUsageEvent(exhaustedTool,{resourceType:"tooling",eventType:"Inspection",runtimeMinutes:0,cycles:0,inspectionResult:"Pass"});
+ assert.equal(inspectedTool.status,"Needs regrind");
+ assert.equal(applyResourceUsageEvent(exhaustedTool,{resourceType:"tooling",eventType:"Repair",runtimeMinutes:0,cycles:0}).status,"Needs regrind");
+ const exhaustedFixture={...fixtures[0],status:"Under maintenance",usageCycles:100};
+ assert.equal(applyResourceUsageEvent(exhaustedFixture,{resourceType:"fixture",eventType:"Inspection",runtimeMinutes:0,cycles:0,inspectionResult:"Pass"}).status,"Under maintenance");
+ assert.equal(applyResourceUsageEvent(exhaustedFixture,{resourceType:"fixture",eventType:"Repair",runtimeMinutes:0,cycles:0}).status,"Under maintenance");
+});
+test("retired assets cannot be silently reactivated through inspection, repair or replacement",()=>{
+ const retired={...tooling[0],status:"Retired"};
+ for(const eventType of ["Inspection","Repair","Replacement"]){
+  assert.throws(()=>applyResourceUsageEvent(retired,{resourceType:"tooling",eventType,runtimeMinutes:0,cycles:0,inspectionResult:"Pass"}),/Retired resources cannot be returned to service/);
+ }
+});
+test("replacement resets expired resource life only after quarantine",()=>{
+ const tool={...tooling[0],status:"Needs regrind",toolLifeUsedMinutes:100,toolLifeUsedCycles:1000,regrindCount:2};
+ const replacedTool=applyResourceUsageEvent(tool,{resourceType:"tooling",eventType:"Replacement",runtimeMinutes:0,cycles:0});
+ assert.equal(replacedTool.status,"Available");assert.equal(replacedTool.toolLifeUsedMinutes,0);assert.equal(replacedTool.regrindCount,0);
+ const fixture={...fixtures[0],status:"Under maintenance",usageCycles:100};
+ const replacedFixture=applyResourceUsageEvent(fixture,{resourceType:"fixture",eventType:"Replacement",runtimeMinutes:0,cycles:0});
+ assert.equal(replacedFixture.status,"Available");assert.equal(replacedFixture.usageCycles,0);
+ assert.throws(()=>applyResourceUsageEvent(fixtures[0],{resourceType:"fixture",eventType:"Replacement",runtimeMinutes:0,cycles:0}),/quarantined or life-expired/);
+});
