@@ -240,3 +240,64 @@ test("an existing operation keeps its historical tool and fixture links after qu
  const nextOperation={...operationResource,id:"operation-resource-next",toolingAssetIds:["tooling-a"],fixtureAssetIds:["fixture-a"],plannedStart:"2026-11-26T11:00:00.000Z",plannedEnd:"2026-11-26T12:00:00.000Z"};
  assert.equal(validateManufacturingWrite({...base,toolingAssets:[quarantinedTool],fixtureAssets:[quarantinedFixture]},{operations:[nextOperation]},user).ok,false);
 });
+
+const consumptionComponent={id:"component-consumption",companyId:"company-a",partNumber:"CONS-01",revision:"B"};
+const consumptionPO={id:"po-consumption",number:"PO-CONS",companyId:"company-a",factoryId:"factory-a",lines:[{id:"line-consumption",componentId:"component-consumption",quantity:10}]};
+const consumptionOperation={id:"operation-consumption",poId:"po-consumption",poLineId:"line-consumption",componentId:"component-consumption",executionType:"Internal",status:"Planned"};
+const consumptionMaterial={id:"material-consumption",code:"EN8",name:"EN8 steel",grade:"EN8",unit:"kg"};
+const consumptionBom={id:"bom-consumption",componentId:"component-consumption",materialId:"material-consumption",revision:"B",quantityPerPart:1,scrapPercent:5};
+const consumptionIssue={id:"issue-consumption",itemType:"material",itemId:"material-consumption",transactionType:"Issue to production",direction:"out",quantity:50,companyId:"company-a",factoryId:"factory-a",poId:"po-consumption",poLineId:"line-consumption",operationId:"operation-consumption"};
+const materialConsumptionRecord={
+ id:"material-use-1",companyId:"company-a",factoryId:"factory-a",poId:"po-consumption",poLineId:"line-consumption",
+ componentId:"component-consumption",partId:"",bomLineId:"bom-consumption",materialId:"material-consumption",operationId:"operation-consumption",
+ unit:"kg",plannedQuantity:10.5,issuedQuantityAtRecord:50,consumedQuantity:9,scrapQuantity:1,returnedQuantity:0,
+ sourceMaterialProcessLinkIds:[],occurredAt:"2026-11-26T06:00:00.000Z",reference:"ISSUE-SLIP-01",recordedBy:"Operator A",notes:"Turning scrap",
+ createdAt:"2026-11-26T06:00:00.000Z",updatedAt:"2026-11-26T06:00:00.000Z"
+};
+test("tenant reads expose only material consumption with matching company, factory, PO line, BOM and operation",()=>{
+ const componentB={id:"component-consumption-b",companyId:"company-b",partNumber:"CONS-B"};
+ const poB={id:"po-consumption-b",number:"PO-CONS-B",companyId:"company-b",factoryId:"factory-b",lines:[{id:"line-consumption-b",componentId:componentB.id}]};
+ const opB={...consumptionOperation,id:"operation-consumption-b",poId:poB.id,poLineId:"line-consumption-b",componentId:componentB.id};
+ const bomB={...consumptionBom,id:"bom-consumption-b",componentId:componentB.id};
+ const materialB={...consumptionMaterial,id:"material-consumption-b"};
+ const rowB={...materialConsumptionRecord,id:"material-use-b",companyId:"company-b",factoryId:"factory-b",poId:poB.id,poLineId:"line-consumption-b",componentId:componentB.id,bomLineId:bomB.id,materialId:materialB.id,operationId:opB.id};
+ const visible=filterManufacturingData({
+  companies:[companyA,companyB],factories:[factoryA,factoryB],components:[consumptionComponent,componentB],
+  purchaseOrders:[consumptionPO,poB],operations:[consumptionOperation,opB],materials:[consumptionMaterial,materialB],
+  bomLines:[consumptionBom,bomB],inventoryTransactions:[consumptionIssue],
+  materialConsumptions:[materialConsumptionRecord,rowB]
+ },user);
+ assert.deepEqual(visible.materialConsumptions.map(row=>row.id),["material-use-1"]);
+});
+test("tenant writes accept exact actual material consumption linked to issued stock and reject foreign or mismatched links",()=>{
+ const base={
+  companies:[companyA],factories:[factoryA],components:[consumptionComponent],purchaseOrders:[consumptionPO],
+  operations:[consumptionOperation],materials:[consumptionMaterial],bomLines:[consumptionBom],
+  inventoryTransactions:[consumptionIssue],materialProcessLinks:[],materialConsumptions:[]
+ };
+ assert.equal(validateManufacturingWrite(base,{materialConsumptions:[materialConsumptionRecord]},user).ok,true);
+ assert.equal(validateManufacturingWrite(base,{materialConsumptions:[{...materialConsumptionRecord,id:"wrong-company",companyId:"company-b",factoryId:"factory-b"}]},user).ok,false);
+ assert.equal(validateManufacturingWrite(base,{materialConsumptions:[{...materialConsumptionRecord,id:"wrong-factory",factoryId:"factory-b"}]},user).ok,false);
+ assert.equal(validateManufacturingWrite(base,{materialConsumptions:[{...materialConsumptionRecord,id:"wrong-operation",operationId:"operation-other"}]},user).ok,false);
+ assert.equal(validateManufacturingWrite(base,{materialConsumptions:[{...materialConsumptionRecord,id:"wrong-bom",bomLineId:"bom-other"}]},user).ok,false);
+ assert.equal(validateManufacturingWrite(base,{materialConsumptions:[{...materialConsumptionRecord,id:"over-issue",consumedQuantity:49,scrapQuantity:0,returnedQuantity:2}]},user).ok,false);
+ assert.equal(validateManufacturingWrite(base,{materialConsumptions:[{...materialConsumptionRecord,id:"scrap-over-use",consumedQuantity:1,scrapQuantity:2}]},user).ok,false);
+});
+test("returned material requires exactly one matching append-only stock return transaction",()=>{
+ const base={
+  companies:[companyA],factories:[factoryA],components:[consumptionComponent],purchaseOrders:[consumptionPO],
+  operations:[consumptionOperation],materials:[consumptionMaterial],bomLines:[consumptionBom],
+  inventoryTransactions:[consumptionIssue],materialProcessLinks:[],materialConsumptions:[]
+ };
+ const record={...materialConsumptionRecord,id:"material-use-return",consumedQuantity:8,scrapQuantity:1,returnedQuantity:2};
+ const returnTransaction={
+  id:"return-consumption",itemType:"material",itemId:"material-consumption",transactionType:"Return",direction:"in",quantity:2,
+  occurredAt:record.occurredAt,reference:"MATERIAL RETURN · "+record.reference,notes:"Returned from process",
+  companyId:record.companyId,factoryId:record.factoryId,poId:record.poId,poLineId:record.poLineId,operationId:record.operationId,
+  vendorId:"",reversalOfId:"",sourceConsumptionId:record.id,createdAt:record.createdAt,createdBy:"AXIMACH"
+ };
+ assert.equal(validateManufacturingWrite(base,{materialConsumptions:[record],inventoryTransactions:[returnTransaction]},user).ok,true);
+ assert.equal(validateManufacturingWrite(base,{materialConsumptions:[record],inventoryTransactions:[]},user).ok,false);
+ assert.equal(validateManufacturingWrite(base,{materialConsumptions:[record],inventoryTransactions:[returnTransaction,{...returnTransaction,id:"return-duplicate"}]},user).ok,false);
+ assert.equal(validateManufacturingWrite(base,{materialConsumptions:[record],inventoryTransactions:[{...returnTransaction,poLineId:"other-line"}]},user).ok,false);
+});
