@@ -100,3 +100,9 @@ test("an operation that starts late can retain its actual start against the orig
  const delayed={...candidate,status:"Running",actualStart:"2026-12-01T12:30:00.000Z"};
  assert.deepEqual(validateProductionAssignment(delayed,context()),{ok:true,reason:""});
 });
+
+test("a cancelled assignment releases its allocation even when historic totals were superseded",()=>{
+ const cancelled={...candidate,status:"Cancelled",targetQuantity:70};
+ const other={...candidate,id:"other-assignment",status:"Completed",targetQuantity:80};
+ assert.deepEqual(validateProductionAssignment(cancelled,context({assignments:[cancelled,other]})),{ok:true,reason:""});
+});
